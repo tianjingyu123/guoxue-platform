@@ -39,20 +39,14 @@ const dynasties = ["全部", "唐", "宋", "先秦", "汉", "魏晋", "南北朝
 
 onMounted(() => fetchPoems());
 
+const dynastyTagMap: Record<string, string> = { "唐": "唐诗", "宋": "宋词", "元": "元曲", "先秦": "诗经" };
+
 async function fetchPoems() {
   loading.value = true;
   try {
-    // 可以用两个标签叠加筛选，但 API 只支持单标签
-    // 用 "诗词" 标签作为基础筛选 + 客户端朝代过滤
-    const params: any = { pageSize: 50 };
-    if (dynasty.value !== "全部") {
-      const tagMap: Record<string, string> = { "唐": "唐诗", "宋": "宋词", "元": "元曲", "先秦": "诗经" };
-      params.tag = tagMap[dynasty.value] || dynasty.value;
-    } else {
-      params.tag = "诗词";
-    }
-
-    const data = await contentApi.list(params);
+    // 全部 → 用"诗词"标签筛选；具体朝代 → 用对应标签
+    const tag = dynasty.value === "全部" ? "诗词" : (dynastyTagMap[dynasty.value] || dynasty.value);
+    const data = await contentApi.list({ tag, pageSize: 50 });
     poems.value = data.articles || data || [];
   } finally { loading.value = false; }
 }
