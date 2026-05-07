@@ -10,8 +10,8 @@
           <text class="nav-title">{{ book?.title || '阅读' }}</text>
         </view>
         <view class="nav-right">
-          <text class="nav-btn" :class="{ active: isReading }" @click="isReading ? stopTTS() : startTTS()">
-            {{ ttsLoading ? '⏳' : isReading ? '⏹' : '🔊' }}
+          <text class="nav-btn" :class="{ active: isReading || isPaused }" @click="toggleTTS">
+            {{ ttsLoading ? '⏳' : '🔊' }}
           </text>
           <text class="nav-btn" @click="showSettings = !showSettings">Aa</text>
           <text class="nav-btn" @click="showToc = true">&#9776;</text>
@@ -51,34 +51,28 @@
       </view>
     </view>
 
-    <!-- ========== TTS 朗读控制条 ========== -->
-    <view v-if="isReading || isPaused" class="tts-control-bar" :style="{ top: (statusBarHeight + 44) + 'px' }">
-      <view class="tts-row">
-        <text class="tts-status">{{ isPaused ? '已暂停' : '朗读中...' }}</text>
-        <view class="tts-right">
-          <text class="tts-btn" @click="isPaused ? startTTS() : pauseTTS()">
-            {{ isPaused ? '▶ 继续' : '⏸ 暂停' }}
-          </text>
-          <text class="tts-btn" @click="stopTTS()">⏹ 停止</text>
+    <!-- ========== TTS 朗读控制栏（底部悬浮） ========== -->
+    <view v-if="(isReading || isPaused) && sentences.length" class="tts-float-bar">
+      <view class="tts-float-row tts-float-main">
+        <text class="tts-icon-btn" @click="isPaused ? resumeTTS() : pauseTTS()">
+          {{ isPaused ? '▶' : '⏸' }}
+        </text>
+        <view class="tts-progress-area">
+          <view class="tts-progress-track">
+            <view class="tts-progress-fill" :style="{ width: ((currentSentenceIdx + 1) / sentences.length * 100) + '%' }" />
+          </view>
+          <text class="tts-progress-text">{{ currentSentenceIdx + 1 }}/{{ sentences.length }}句</text>
         </view>
+        <text class="tts-icon-btn" @click="stopTTS()">⏹</text>
       </view>
-      <view class="tts-row tts-options">
-        <text class="tts-opt-label">语音:</text>
-        <view class="tts-voice-tags">
-          <text
-            v-for="v in (ttsVoices.length ? ttsVoices : [{id:'xiaoxiao',name:'晓晓'},{id:'yunxi',name:'云希'}])"
-            :key="v.id"
-            :class="['tts-voice-tag', { active: ttsVoice === v.id }]"
-            @click="ttsVoice = v.id; stopTTS()"
-          >{{ v.name }}</text>
-        </view>
-      </view>
-      <view class="tts-row tts-options">
-        <text class="tts-opt-label">语速:</text>
+      <view class="tts-float-row tts-float-options">
+        <text class="tts-voice-btn" @click="openVoicePicker">{{ currentVoiceName }} ▾</text>
         <view class="tts-rate-tags">
-          <text :class="['tts-rate-tag', { active: ttsRate === '-30%' }]" @click="ttsRate = '-30%'; stopTTS()">0.7x</text>
-          <text :class="['tts-rate-tag', { active: ttsRate === '0%' }]" @click="ttsRate = '0%'; stopTTS()">1x</text>
-          <text :class="['tts-rate-tag', { active: ttsRate === '+20%' }]" @click="ttsRate = '+20%'; stopTTS()">1.2x</text>
+          <text
+            v-for="r in rateOptions" :key="r.value"
+            :class="['tts-rate-tag', { active: ttsRate === r.value }]"
+            @click="changeRate(r.value)"
+          >{{ r.label }}</text>
         </view>
       </view>
     </view>
@@ -102,7 +96,12 @@
             lineHeight: (fontSize * 2) + 'px',
           }"
         >
-          <text>{{ chapter.content }}</text>
+          <text
+            v-for="(seg, idx) in sentences" :key="idx"
+            :id="'seg-' + idx"
+            :class="['tts-seg', { 'tts-seg-active': idx === currentSentenceIdx && (isReading || isPaused) }]"
+            @click="jumpToSentence(idx)"
+          >{{ seg }}</text>
         </view>
 
         <!-- 译文 -->
@@ -315,8 +314,37 @@ const isPaused = ref(false)
 const ttsVoice = ref('xiaoxiao')
 const ttsRate = ref('0%')
 const audioCtx = ref<any>(null)
-const ttsVoices = ref<Array<{ id: string; name: string }>>([])
 const ttsLoading = ref(false)
+const currentSentenceIdx = ref(0)
+const ttsCache = ref<Record<number, string>>({})
+
+// 可用语音
+const voices = [
+  { id: 'xiaoxiao', name: '晓晓 (女声)' },
+  { id: 'yunxi', name: '云希 (男声)' },
+  { id: 'xiaoyi', name: '晓依 (女声)' },
+  { id: 'yunjian', name: '云健 (男声)' },
+]
+
+// 语速选项
+const rateOptions = [
+  { label: '-20%', value: '-20%' },
+  { label: '-10%', value: '-10%' },
+  { label: '正常', value: '0%' },
+  { label: '+10%', value: '+10%' },
+  { label: '+20%', value: '+20%' },
+]
+
+// 分句结果
+const sentences = computed(() => {
+  if (!chapter.value?.content) return []
+  return splitIntoSegments(chapter.value.content)
+})
+
+// 当前语音名称
+const currentVoiceName = computed(() => {
+  return voices.find(v => v.id === ttsVoice.value)?.name || '晓晓 (女声)'
+})
 
 // 字体预设
 const fontPresets = [
@@ -346,12 +374,12 @@ onMounted(async () => {
   } catch {
     statusBarHeight.value = 20
   }
-  loadVoices()
   initReader()
 })
 
 onUnmounted(() => {
   if (progressTimer) clearTimeout(progressTimer)
+  stopTTS()
 })
 
 function initReader() {
@@ -434,6 +462,7 @@ async function fetchChapter(chapterId: string) {
 
 // ========== 章节切换 ==========
 async function switchToChapter(idx: number) {
+  stopTTS()
   if (idx < 0 || idx >= chapters.value.length) return
   curIdx.value = idx
   showToc.value = false
@@ -641,45 +670,89 @@ function toggleDark() {
   isDark.value = !isDark.value
 }
 
-// ========== TTS 语音朗读 ==========
+// ========== TTS 分句朗读 ==========
+/** 将文本按标点拆分为朗读片段（每段不超过500字） */
+function splitIntoSegments(text: string): string[] {
+  const segs: string[] = []
+  const parts = text.split(/(?<=[。！？；\n])/)
+  for (const part of parts) {
+    const trimmed = part.trim()
+    if (!trimmed) continue
+    if (trimmed.length > 500) {
+      const subs = trimmed.split(/(?<=[，、：；])/)
+      for (const sub of subs) {
+        const st = sub.trim()
+        if (st) segs.push(st)
+      }
+    } else {
+      segs.push(trimmed)
+    }
+  }
+  return segs.filter(s => s.length > 0)
+}
+
 function initAudio() {
   if (audioCtx.value) return
   audioCtx.value = uni.createInnerAudioContext()
   audioCtx.value.onEnded(() => {
-    // 读完当前章节自动播放下一章（可选）
-    stopTTS()
+    const nextIdx = currentSentenceIdx.value + 1
+    if (nextIdx < sentences.value.length) {
+      playSentence(nextIdx)
+    } else {
+      stopTTS()
+      uni.showToast({ title: '朗读完毕', icon: 'none' })
+    }
   })
   audioCtx.value.onError((err: any) => {
     console.error('TTS error:', err)
-    stopTTS()
+    const nextIdx = currentSentenceIdx.value + 1
+    if (nextIdx < sentences.value.length) {
+      playSentence(nextIdx)
+    } else {
+      stopTTS()
+    }
   })
 }
 
-async function startTTS() {
-  if (!chapter.value?.content) return
+function playSentence(index: number) {
+  if (index < 0 || index >= sentences.value.length) return
+  currentSentenceIdx.value = index
+  const text = sentences.value[index]
+  if (!text) return
+
+  const url = ttsCache.value[index] || ttsApi.audioUrl(text, ttsVoice.value, ttsRate.value)
+  ttsCache.value[index] = url
+  audioCtx.value.src = url
+  audioCtx.value.play()
+  isReading.value = true
+  isPaused.value = false
+
+  nextTick(() => {
+    const query = uni.createSelectorQuery()
+    query.select('#seg-' + index).boundingClientRect((rect: any) => {
+      if (rect) {
+        uni.pageScrollTo({ scrollTop: rect.top - 80, duration: 200 })
+      }
+    }).exec()
+  })
+}
+
+function startTTS() {
+  if (!sentences.value.length) return
   initAudio()
-
-  if (isPaused.value) {
-    audioCtx.value?.play()
-    isPaused.value = false
-    isReading.value = true
-    return
-  }
-
   ttsLoading.value = true
   try {
-    // 按段落分段朗读，取第一段（避免URL过长）
-    const text = chapter.value.content.slice(0, 500)
-    const url = ttsApi.audioUrl(text, ttsVoice.value, ttsRate.value)
-    audioCtx.value.src = url
-    isReading.value = true
-    isPaused.value = false
-    audioCtx.value.play()
-  } catch {
-    uni.showToast({ title: '语音加载失败', icon: 'none' })
+    currentSentenceIdx.value = 0
+    playSentence(0)
   } finally {
     ttsLoading.value = false
   }
+}
+
+function resumeTTS() {
+  audioCtx.value?.play()
+  isReading.value = true
+  isPaused.value = false
 }
 
 function pauseTTS() {
@@ -694,14 +767,57 @@ function stopTTS() {
   audioCtx.value = null
   isReading.value = false
   isPaused.value = false
+  currentSentenceIdx.value = 0
 }
 
-async function loadVoices() {
-  if (ttsVoices.value.length) return
-  try {
-    const res: any = await ttsApi.voices()
-    ttsVoices.value = res || []
-  } catch { /* 忽略 */ }
+function jumpToSentence(index: number) {
+  if (!isReading.value && !isPaused.value) return
+  if (index < 0 || index >= sentences.value.length) return
+  audioCtx.value?.stop()
+  currentSentenceIdx.value = index
+  playSentence(index)
+}
+
+function changeRate(rate: string) {
+  ttsRate.value = rate
+  ttsCache.value = {}
+  if (isReading.value || isPaused.value) {
+    const idx = currentSentenceIdx.value
+    audioCtx.value?.stop()
+    audioCtx.value?.destroy()
+    audioCtx.value = null
+    initAudio()
+    playSentence(idx)
+  }
+}
+
+function openVoicePicker() {
+  uni.showActionSheet({
+    itemList: voices.map(v => v.name),
+    success: (res: any) => {
+      const selected = voices[res.tapIndex]
+      if (selected && selected.id !== ttsVoice.value) {
+        ttsVoice.value = selected.id
+        ttsCache.value = {}
+        if (isReading.value || isPaused.value) {
+          const idx = currentSentenceIdx.value
+          audioCtx.value?.stop()
+          audioCtx.value?.destroy()
+          audioCtx.value = null
+          initAudio()
+          playSentence(idx)
+        }
+      }
+    },
+  })
+}
+
+function toggleTTS() {
+  if (isReading.value || isPaused.value) {
+    stopTTS()
+  } else {
+    startTTS()
+  }
 }
 
 // ========== 工具 ==========
@@ -923,74 +1039,136 @@ function goBack() {
   color: #8b4513;
 }
 
-/* ========== TTS 控制条 ========== */
-.tts-control-bar {
-  position: sticky;
-  z-index: 50;
-  background: #fff;
-  border-bottom: 1px solid #e0d5c1;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.06);
-  padding: 8px 12px;
+/* ========== TTS 底部悬浮控制栏 ========== */
+.tts-float-bar {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+  background: rgba(255,255,255,0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+  padding: 10px 14px;
+  z-index: 60;
 }
-.page.dark-mode .tts-control-bar {
-  background: #16213e;
-  border-bottom-color: #2a2a4a;
+.page.dark-mode .tts-float-bar {
+  background: rgba(22,33,62,0.94);
 }
-.tts-row {
+.tts-float-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 4px 0;
 }
-.tts-status {
-  font-size: 13px;
-  color: #8b4513;
-  font-weight: 500;
-}
-.page.dark-mode .tts-status {
-  color: #e0c87d;
-}
-.tts-right {
-  display: flex;
+.tts-float-main {
   gap: 12px;
 }
-.tts-btn {
+.tts-icon-btn {
+  font-size: 22px;
+  color: #8b4513;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(139,69,19,0.08);
+  flex-shrink: 0;
+}
+.page.dark-mode .tts-icon-btn {
+  color: #e0c87d;
+  background: rgba(224,200,125,0.12);
+}
+.tts-progress-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tts-progress-track {
+  flex: 1;
+  height: 4px;
+  background: #e8e0d6;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.page.dark-mode .tts-progress-track {
+  background: #2a2a4a;
+}
+.tts-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b4513, #c4943a);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.tts-progress-text {
+  font-size: 11px;
+  color: #8b4513;
+  font-weight: 500;
+  flex-shrink: 0;
+  min-width: 48px;
+  text-align: right;
+}
+.page.dark-mode .tts-progress-text {
+  color: #e0c87d;
+}
+.tts-float-options {
+  margin-top: 8px;
+  justify-content: space-between;
+  gap: 8px;
+}
+.tts-voice-btn {
   font-size: 12px;
   color: #8b4513;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border: 1px solid #8b4513;
-  border-radius: 12px;
-}
-.tts-options {
-  border-top: 1px solid #f0ece4;
-  margin-top: 4px;
-  padding-top: 6px;
-}
-.page.dark-mode .tts-options {
-  border-top-color: #2a2a4a;
-}
-.tts-opt-label {
-  font-size: 11px;
-  color: #999;
+  border-radius: 14px;
+  background: transparent;
   flex-shrink: 0;
-  margin-right: 4px;
 }
-.tts-voice-tags, .tts-rate-tags {
+.page.dark-mode .tts-voice-btn {
+  color: #e0c87d;
+  border-color: #e0c87d;
+}
+.tts-rate-tags {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
-.tts-voice-tag, .tts-rate-tag {
+.tts-rate-tag {
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 10px;
   background: #f5f0e6;
   color: #888;
+  border: 1px solid transparent;
 }
-.tts-voice-tag.active, .tts-rate-tag.active {
+.tts-rate-tag.active {
   background: #8b4513;
   color: #fff;
+  border-color: #8b4513;
+}
+.page.dark-mode .tts-rate-tag {
+  background: #1a2744;
+  color: #999;
+}
+.page.dark-mode .tts-rate-tag.active {
+  background: #e0c87d;
+  color: #1a1a2e;
+}
+
+/* 朗读句子高亮 */
+.tts-seg {
+  display: inline;
+  transition: background 0.2s;
+}
+.tts-seg-active {
+  background: #fff3cd;
+  border-radius: 2px;
+}
+.page.dark-mode .tts-seg-active {
+  background: rgba(224,200,125,0.2);
 }
 
 /* ========== 正文区 ========== */
