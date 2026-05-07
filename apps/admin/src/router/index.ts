@@ -137,6 +137,16 @@ const routes = [
         name: "SearchAnalytics",
         component: () => import("../views/SearchAnalytics.vue"),
       },
+      {
+        path: "commission-config",
+        name: "CommissionConfig",
+        component: () => import("../views/commission/CommissionConfig.vue"),
+      },
+      {
+        path: "withdrawals",
+        name: "WithdrawalList",
+        component: () => import("../views/commission/WithdrawalList.vue"),
+      },
     ],
   },
 ];

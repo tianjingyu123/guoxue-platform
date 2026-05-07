@@ -7,7 +7,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { diskStorage } from "multer";
 import { extname, join } from "path";
-import { v4 as uuid } from "uuid";
+import { randomUUID } from "crypto";
 
 @ApiTags("文件上传")
 @Controller("upload")
@@ -22,7 +22,7 @@ export class UploadController {
         destination: join(__dirname, "..", "..", "..", "uploads"),
         filename: (_req, file, cb) => {
           const ext = extname(file.originalname) || ".png";
-          cb(null, `${uuid()}${ext}`);
+          cb(null, `${randomUUID()}${ext}`);
         },
       }),
       limits: { fileSize: 5 * 1024 * 1024 }, // 5MB

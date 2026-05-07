@@ -189,6 +189,16 @@ export const uploadApi = {
   },
 };
 
+// 分佣管理
+export const commissionApi = {
+  configs: () => api.get("/commission/configs"),
+  updateConfig: (key: string, data: any) => api.put(`/commission/configs/${key}`, data),
+  stationEarnings: (stationId: string, params?: any) => api.get(`/commission/station-earnings/${stationId}`, { params }),
+  stationBalance: (stationId: string) => api.get(`/commission/station-balance/${stationId}`),
+  withdrawals: (params?: any) => api.get("/commission/admin/withdrawals", { params }),
+  auditWithdrawal: (id: string, data: { status: string; remark?: string }) => api.put(`/commission/admin/withdrawals/${id}`, data),
+};
+
 // 评论管理
 export const commentApi = {
   list: (params?: any) => api.get("/comment", { params }),

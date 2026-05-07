@@ -72,6 +72,15 @@
             <span>订单管理</span>
           </el-menu-item>
         </el-sub-menu>
+        <el-sub-menu index="commission">
+          <template #title><span>营销分佣</span></template>
+          <el-menu-item index="/commission-config">
+            <span>佣金配置</span>
+          </el-menu-item>
+          <el-menu-item index="/withdrawals">
+            <span>提现审核</span>
+          </el-menu-item>
+        </el-sub-menu>
         <el-menu-item index="/notifications">
           <span>通知管理</span>
         </el-menu-item>
