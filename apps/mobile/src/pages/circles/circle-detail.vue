@@ -128,6 +128,12 @@
       <button class="retry-btn" @click="initData">重新加载</button>
     </view>
 
+    <!-- 圈主助理悬浮按钮 -->
+    <view v-if="hasBot" class="bot-fab" @click="openBotChat">
+      <text class="bot-fab-icon">🤖</text>
+      <text class="bot-fab-label">AI助理</text>
+    </view>
+
     <!-- 发帖弹窗 -->
     <view v-if="showPostPanel" class="post-mask" @click="hideCreatePanel">
       <view class="post-panel" @click.stop="">
@@ -175,7 +181,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
-import { circleApi } from '../../api'
+import { circleApi, botApi } from '../../api'
 import EmptyState from '../../components/EmptyState.vue'
 
 /** 帖子数据类型 */
@@ -225,6 +231,10 @@ const loadingMorePosts = ref(false)
 const hasMorePosts = ref(true)
 const postPage = ref(1)
 const pageSize = 10
+
+// 智能体助理
+const hasBot = ref(false)
+const botId = ref('')
 
 // 发帖
 const showPostPanel = ref(false)
@@ -290,6 +300,14 @@ async function initData() {
       }
       joined.value = circle.value.isJoined
     }
+
+    // 检查圈子智能体
+    botApi.circleBots(id.value).then((res: any) => {
+      if (res?.id) {
+        hasBot.value = true
+        botId.value = res.id
+      }
+    }).catch(() => {})
 
     // 处理帖子
     const rawPosts: any[] = postData.list || postData.items || postData.data || postData || []
@@ -455,6 +473,12 @@ async function submitPost() {
   } finally {
     submitting.value = false
   }
+}
+
+// 打开智能体对话
+function openBotChat() {
+  if (!botId.value) return
+  uni.navigateTo({ url: `/pages/bots/bot-chat?id=${botId.value}` })
 }
 
 // 点赞
@@ -780,6 +804,33 @@ function formatTime(timeStr?: string): string {
   color: #ccc;
   padding: 16px 0;
   font-size: 12px;
+}
+
+/* ===== 圈主助理悬浮按钮 ===== */
+.bot-fab {
+  position: fixed;
+  right: 16px;
+  bottom: 100px;
+  background: linear-gradient(135deg, #8b4513, #c4943a);
+  color: #fff;
+  border-radius: 28px;
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 200;
+  box-shadow: 0 4px 12px rgba(139, 69, 19, 0.35);
+}
+.bot-fab:active {
+  transform: scale(0.95);
+  opacity: 0.9;
+}
+.bot-fab-icon {
+  font-size: 26px;
+}
+.bot-fab-label {
+  font-size: 10px;
 }
 
 /* ===== 发帖弹窗 ===== */

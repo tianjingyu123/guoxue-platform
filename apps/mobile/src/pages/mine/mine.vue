@@ -16,11 +16,11 @@
       <text class="nickname">{{ userStore.userNickname || '国学爱好者' }}</text>
       <text v-if="profile.signature" class="bio">{{ profile.signature }}</text>
       <view class="stats-row">
-        <view class="stat-item" @click="goPage('/pages/user/user-list?type=following')">
+        <view class="stat-item" @click="goPage('/pages/user/user')">
           <text class="stat-num">{{ profile.followingCount ?? 0 }}</text>
           <text class="stat-label">关注</text>
         </view>
-        <view class="stat-item" @click="goPage('/pages/user/user-list?type=followers')">
+        <view class="stat-item" @click="goPage('/pages/user/user')">
           <text class="stat-num">{{ profile.followerCount ?? 0 }}</text>
           <text class="stat-label">粉丝</text>
         </view>
@@ -597,7 +597,7 @@ function goPage(url: string) {
 }
 
 function goVip() {
-  uni.navigateTo({ url: "/pages/vip/vip" });
+  uni.showToast({ title: 'VIP功能即将上线', icon: 'none' })
 }
 
 function goArticle(id: string) {

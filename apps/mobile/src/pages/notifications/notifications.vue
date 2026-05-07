@@ -161,7 +161,7 @@ async function handleClick(item: NotificationItem) {
     case "follow":
       if (item.fromUserId) {
         uni.navigateTo({
-          url: `/pages/mine/user-profile?id=${item.fromUserId}`,
+          url: `/pages/user/user?id=${item.fromUserId}`,
         });
       }
       break;

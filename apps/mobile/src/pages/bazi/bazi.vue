@@ -676,7 +676,7 @@ function goHistory() {
     })
     return
   }
-  uni.navigateTo({ url: '/pages/bazi/history' as any })
+  uni.showToast({ title: '暂无历史记录', icon: 'none' })
 }
 </script>
 

@@ -113,7 +113,7 @@ onMounted(() => fetchRecords())
 async function fetchRecords() {
   loading.value = true
   try {
-    const res: any = await paipanApi.adminRecords({
+    const { data: res } = await paipanApi.adminRecords({
       page: page.value,
       pageSize: pageSize.value,
       ...filters.value,
@@ -140,9 +140,11 @@ function handleReset() {
 async function viewDetail(row: any) {
   try {
     if (row.paipanType === "ZIWEI") {
-      detail.value = await paipanApi.ziweiDetail(row.id)
+      const { data } = await paipanApi.ziweiDetail(row.id)
+      detail.value = data
     } else {
-      detail.value = await paipanApi.detail(row.id)
+      const { data } = await paipanApi.detail(row.id)
+      detail.value = data
     }
     showDetail.value = true
   } catch {
