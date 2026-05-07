@@ -844,22 +844,75 @@ async function main() {
   ];
 
   for (const p of productsData) {
-    await prisma.product.create({
-      data: {
-        title: p.title,
-        intro: p.intro,
-        detail: p.detail,
-        images: p.images,
-        price: p.price,
-        stock: 100,
-        status: "ON_SALE",
-        salesCount: Math.floor(Math.random() * 500),
-        isPlatform: true,
-        supplierType: "PLATFORM",
-      },
-    });
+    const existing = await prisma.product.findFirst({ where: { title: p.title } });
+    if (!existing) {
+      await prisma.product.create({
+        data: {
+          title: p.title,
+          intro: p.intro,
+          detail: p.detail,
+          images: p.images,
+          price: p.price,
+          stock: 100,
+          status: "ON_SALE",
+          salesCount: Math.floor(Math.random() * 500),
+          isPlatform: true,
+          supplierType: "PLATFORM",
+        },
+      });
+    }
   }
   console.log("✅ 商品: " + productsData.length + " 件");
+
+  // 7b. 给文化衫添加SKU
+  const tshirt = await prisma.product.findFirst({ where: { title: "国学文化衫 · 经典系列" } });
+  if (tshirt) {
+    const skuCount = await prisma.productSku.count({ where: { productId: tshirt.id } });
+    if (skuCount === 0) {
+      const sizes = ["S", "M", "L", "XL", "2XL", "3XL"];
+      const colors = ["经典黑", "雅致白"];
+      const fonts = ["论语", "道德经", "心经", "易经"];
+      for (const color of colors) {
+        for (const size of sizes) {
+          await (prisma as any).productSku.create({
+            data: {
+              productId: tshirt.id,
+              specs: { 颜色: color, 尺码: size, 书法字体: fonts[Math.floor(Math.random() * fonts.length)] },
+              price: 79,
+              stock: Math.floor(Math.random() * 30) + 10,
+              skuCode: `TSHIRT_${color}_${size}`,
+            },
+          });
+        }
+      }
+      console.log("✅ 文化衫SKU: " + (sizes.length * colors.length) + " 个");
+    }
+  }
+
+  // 7c. 给檀香礼盒添加香型SKU
+  const incense = await prisma.product.findFirst({ where: { title: "手工檀香 · 静心礼盒" } });
+  if (incense) {
+    const skuCount = await prisma.productSku.count({ where: { productId: incense.id } });
+    if (skuCount === 0) {
+      const scents = [
+        { name: "老山檀香", price: 168 },
+        { name: "海南沉香", price: 198 },
+        { name: "陈年艾草", price: 128 },
+      ];
+      for (const s of scents) {
+        await (prisma as any).productSku.create({
+          data: {
+            productId: incense.id,
+            specs: { 香型: s.name },
+            price: s.price,
+            stock: Math.floor(Math.random() * 20) + 20,
+            skuCode: `INCENSE_${s.name}`,
+          },
+        });
+      }
+      console.log("✅ 檀香礼盒SKU: " + scents.length + " 种香型");
+    }
+  }
 
   // 8. 创建短视频
   const videosData = [

@@ -72,6 +72,9 @@
         <el-menu-item index="/notifications">
           <span>通知管理</span>
         </el-menu-item>
+        <el-menu-item index="/institutes">
+          <span>研究院管理</span>
+        </el-menu-item>
         <el-sub-menu index="system">
           <template #title><span>系统管理</span></template>
           <el-menu-item index="/users">

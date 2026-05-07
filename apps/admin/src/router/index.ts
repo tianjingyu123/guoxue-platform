@@ -127,6 +127,11 @@ const routes = [
         name: "OfflineVenueList",
         component: () => import("../views/offline/OfflineVenueList.vue"),
       },
+      {
+        path: "institutes",
+        name: "InstituteList",
+        component: () => import("../views/institutes/InstituteList.vue"),
+      },
     ],
   },
 ];
