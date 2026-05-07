@@ -4,8 +4,9 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { UserModule } from "./modules/user/user.module";
 import { CircleModule } from "./modules/circle/circle.module";
 import { ArticleModule } from "./modules/article/article.module";
+import { PaipanModule } from "./modules/paipan/paipan.module";
 
 @Module({
-  imports: [PrismaModule, AuthModule, UserModule, CircleModule, ArticleModule],
+  imports: [PrismaModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule],
 })
 export class AppModule {}

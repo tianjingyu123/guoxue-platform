@@ -1,0 +1,134 @@
+/** 性别 */
+export type Gender = '男' | '女'
+
+/** 天干 */
+export type Gan = '甲' | '乙' | '丙' | '丁' | '戊' | '己' | '庚' | '辛' | '壬' | '癸'
+
+/** 地支 */
+export type Zhi = '子' | '丑' | '寅' | '卯' | '辰' | '巳' | '午' | '未' | '申' | '酉' | '戌' | '亥'
+
+/** 十神 */
+export type ShiShen = '比' | '劫' | '食' | '伤' | '才' | '财' | '杀' | '官' | '枭' | '印'
+
+/** 一柱：天干+地支 */
+export interface Pillar {
+  gan: Gan
+  zhi: Zhi
+  ganShiShen: ShiShen
+  zhiShiShen: ShiShen
+  cangGan: { gan: Gan; shiShen: ShiShen }[]
+  nayin: string
+}
+
+/** 四柱 */
+export interface SiZhu {
+  nian: Pillar
+  yue: Pillar
+  ri: Pillar
+  shi: Pillar
+}
+
+/** 一步大运 */
+export interface DaYunStep {
+  ganZhi: string
+  tianGan: Gan
+  diZhi: Zhi
+  ganShiShen: ShiShen
+  zhiShiShen: ShiShen
+  startYear: number
+  endYear: number
+  startAge: number
+  endAge: number
+  liuNian: LiuNian[]
+}
+
+/** 流年 */
+export interface LiuNian {
+  year: number
+  age: number
+  ganZhi: string
+  ganShiShen: ShiShen
+  zhiShiShen: ShiShen
+}
+
+/** 起运信息 */
+export interface QiYun {
+  startYear: number
+  startAge: number
+  jiaoYunGan: Gan
+  jiaoYunMonth: number
+  jiaoYunDay: number
+  dayCount: number
+  desc: string
+  daYun: DaYunStep[]
+}
+
+/** 神煞项 */
+export interface ShenShaItem {
+  name: string
+  type: 'ji' | 'xiong'
+  desc: string
+  pillar: string
+}
+
+/** 分析提示 */
+export interface FenXiTiShi {
+  ganHe: string[]
+  sanHe: string[]
+  sanHui: string[]
+  liuChong: string[]
+  liuHe: string[]
+  liuHai: string[]
+  sanXing: string[]
+  ziXing: string[]
+}
+
+/** 格局分析 */
+export interface GeJu {
+  name: string        // 格局名
+  type: 'zheng' | 'bian'  // 正格/变格
+  yongShen: string    // 用神
+  xiShen: string      // 喜神
+  jiShen: string      // 忌神
+  desc: string        // 格局描述
+}
+
+/** 五行能量 */
+export interface WuXingEnergy {
+  mu: number   // 木
+  huo: number  // 火
+  tu: number   // 土
+  jin: number  // 金
+  shui: number // 水
+  desc: string
+}
+
+/** 排盘输入 */
+export interface BaziInput {
+  name: string
+  gender: Gender
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
+  city?: string
+}
+
+/** 完整排盘结果 */
+export interface BaziResult {
+  input: BaziInput
+  siZhu: SiZhu
+  qiYun: QiYun
+  kongWang: string
+  shengXiao: string
+  lunarDate: string
+  taiYuan: Pillar
+  mingGong: Pillar
+  shenGong: Pillar
+  wangXiang: string
+  fenXiTiShi: FenXiTiShi
+  shenSha: ShenShaItem[]
+  geJu?: GeJu
+  wuXingEnergy?: WuXingEnergy
+}

@@ -9,6 +9,12 @@
         <el-menu-item index="/contents">
           <span>内容管理</span>
         </el-menu-item>
+        <el-sub-menu index="tools">
+          <template #title><span>排盘工具</span></template>
+          <el-menu-item index="/bazi">
+            <span>八字排盘</span>
+          </el-menu-item>
+        </el-sub-menu>
       </el-menu>
     </el-aside>
     <el-container>

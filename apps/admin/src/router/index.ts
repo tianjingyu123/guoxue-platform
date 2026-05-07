@@ -32,6 +32,11 @@ const routes = [
         name: "ContentEdit",
         component: () => import("../views/ContentEdit.vue"),
       },
+      {
+        path: "bazi",
+        name: "BaziPan",
+        component: () => import("../views/bazi/BaziPan.vue"),
+      },
     ],
   },
 ];
