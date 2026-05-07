@@ -60,4 +60,12 @@ export const courseApi = {
   getWorks: (id: string, params?: any) => api.get(`/courses/${id}/works`, { params }),
 };
 
+// 排盘
+export const paipanApi = {
+  preview: (data: any) => api.post("/paipan/bazi/preview", data),
+  save: (data: any) => api.post("/paipan/bazi", data),
+  history: (params?: any) => api.get("/paipan/bazi", { params }),
+  detail: (id: string) => api.get(`/paipan/bazi/${id}`),
+};
+
 export default api;

@@ -5,12 +5,12 @@
  */
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { calcBazi, type BaziInput, type BaziResult } from '@guoxue/bazi-engine'
+import { paipanApi } from '@/api'
 import BaziTraditional from './components/BaziTraditional.vue'
 import BaziReport from './components/BaziReport.vue'
 import BaziAnalysis from './components/BaziAnalysis.vue'
 
-const form = reactive<BaziInput>({
+const form = reactive({
   name: '',
   gender: '男',
   year: 1984,
@@ -21,14 +21,14 @@ const form = reactive<BaziInput>({
   city: '',
 })
 
-const result = ref<BaziResult | null>(null)
+const result = ref<any>(null)
 const mode = ref<'traditional' | 'report' | 'analysis'>('traditional')
 const loading = ref(false)
 
-function doCalc() {
+async function doCalc() {
   loading.value = true
   try {
-    result.value = calcBazi({ ...form })
+    result.value = await paipanApi.preview({ ...form })
   } catch (e: any) {
     ElMessage.error('排盘失败：' + (e.message || '未知错误'))
   } finally {
