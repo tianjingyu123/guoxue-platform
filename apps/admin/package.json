@@ -10,9 +10,11 @@
     "lint": "eslint src --ext .vue,.ts"
   },
   "dependencies": {
-    "@guoxue/shared": "workspace:*",
+    "@element-plus/icons-vue": "^2.3.2",
     "@guoxue/bazi-engine": "workspace:*",
+    "@guoxue/shared": "workspace:*",
     "axios": "^1.7.0",
+    "echarts": "^6.0.0",
     "element-plus": "^2.8.0",
     "pinia": "^2.2.0",
     "vue": "^3.5.0",
