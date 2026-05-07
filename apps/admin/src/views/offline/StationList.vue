@@ -23,9 +23,10 @@
       <el-table-column label="创建时间" width="170">
         <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button size="small" @click="openBrandEdit(row)">编辑品牌</el-button>
           <el-button size="small" @click="toggleOperators(row)">运营商</el-button>
           <el-button
             v-if="row.status === 'ACTIVE'"
@@ -139,6 +140,25 @@
         <el-button type="primary" @click="saveOperator" :loading="operatorSaving">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 品牌编辑对话框 -->
+    <el-dialog v-model="brandDialogVisible" title="编辑品牌" width="500px">
+      <el-form :model="brandForm" label-width="100px">
+        <el-form-item label="分站名称">
+          <el-input v-model="brandForm.name" placeholder="输入分站名称" />
+        </el-form-item>
+        <el-form-item label="Logo">
+          <ImageUpload v-model="brandForm.logo" />
+        </el-form-item>
+        <el-form-item label="主题色">
+          <el-color-picker v-model="brandForm.themeColor" show-alpha />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="brandDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveBrand" :loading="brandSaving">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -146,6 +166,7 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { stationApi } from "@/api";
+import ImageUpload from "@/components/ImageUpload.vue";
 
 const stations = ref<any[]>([]);
 const loading = ref(false);
@@ -179,6 +200,12 @@ const operatorForm = reactive({
   parentOperatorId: "",
   expireAt: null as string | null,
 });
+
+// 品牌编辑
+const brandDialogVisible = ref(false);
+const brandSaving = ref(false);
+const brandEditingId = ref("");
+const brandForm = reactive({ name: "", logo: "", themeColor: "" });
 
 onMounted(() => fetchList());
 
@@ -234,6 +261,32 @@ async function toggleStatus(row: any, status: string) {
   await stationApi.update(row.id, { status });
   ElMessage.success(status === "DISABLED" ? "已禁用" : "已启用");
   fetchList();
+}
+
+// ── 品牌编辑 ──
+
+function openBrandEdit(row: any) {
+  brandEditingId.value = row.id;
+  brandForm.name = row.name || "";
+  brandForm.logo = row.logo || "";
+  brandForm.themeColor = row.themeColor || "#409eff";
+  brandDialogVisible.value = true;
+}
+
+async function saveBrand() {
+  brandSaving.value = true;
+  try {
+    const payload: Record<string, any> = {};
+    if (brandForm.name) payload.name = brandForm.name;
+    if (brandForm.logo) payload.logo = brandForm.logo;
+    if (brandForm.themeColor) payload.themeColor = brandForm.themeColor;
+    await stationApi.update(brandEditingId.value, payload);
+    ElMessage.success("品牌已更新");
+    brandDialogVisible.value = false;
+    fetchList();
+  } finally {
+    brandSaving.value = false;
+  }
 }
 
 // ── 运营商管理 ──
