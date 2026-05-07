@@ -5,6 +5,7 @@
       <text class="back-btn" @click="goBack">← 返回</text>
       <text class="toolbar-title">{{ book?.title }}</text>
       <view class="toolbar-actions">
+        <text @click="toggleSpeech">{{ isSpeaking ? '⏸' : '🔊' }}</text>
         <text @click="toggleDark">{{ isDark ? '☀' : '🌙' }}</text>
         <text @click="showSettings = !showSettings">Aa</text>
       </view>
@@ -101,6 +102,31 @@ const isBookmarked = ref(false);
 const hasPrev = computed(() => curIdx.value > 0);
 const hasNext = computed(() => curIdx.value < chapters.value.length - 1);
 
+// TTS 朗读
+const isSpeaking = ref(false);
+function toggleSpeech() {
+  const synth = (window as any).speechSynthesis;
+  if (!synth) {
+    uni.showToast({ title: "当前环境不支持语音朗读", icon: "none" });
+    return;
+  }
+  if (isSpeaking.value) {
+    synth.cancel();
+    isSpeaking.value = false;
+    return;
+  }
+  if (!chapter.value?.content) return;
+  // 朗读原文（去掉标点的纯文本更适合TTS）
+  const text = chapter.value.content.replace(/[，。；：！？、《》「」\n\r]/g, " ");
+  const utter = new (window as any).SpeechSynthesisUtterance(text);
+  utter.lang = "zh-CN";
+  utter.rate = 0.8; // 稍慢更适合古文
+  utter.onend = () => { isSpeaking.value = false; };
+  utter.onerror = () => { isSpeaking.value = false; };
+  synth.speak(utter);
+  isSpeaking.value = true;
+}
+
 onMounted(() => {
   const pages = getCurrentPages();
   const page = pages[pages.length - 1] as any;
@@ -139,6 +165,9 @@ async function fetchChapter(chapterId: string) {
 async function switchChapter(idx: number) {
   curIdx.value = idx;
   const ch = chapters.value[idx];
+  // 停止朗读
+  const synth = (window as any).speechSynthesis;
+  if (synth) { synth.cancel(); isSpeaking.value = false; }
   await fetchChapter(ch.id);
   // 保存进度
   try {

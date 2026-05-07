@@ -3,7 +3,7 @@ import { ClassicService } from "./classic.service";
 import { AuthGuard } from "@nestjs/passport";
 import { CreateBookDto, UpdateBookDto, CreateChapterDto, UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, BookListQueryDto } from "./classic.dto";
 
-@Controller("api/v1/classic")
+@Controller("classic")
 export class ClassicController {
   constructor(private svc: ClassicService) {}
 
