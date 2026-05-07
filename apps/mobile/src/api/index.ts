@@ -36,12 +36,18 @@ export const authApi = {
   getProfile: () => api.get("/auth/me"),
 };
 
-// 内容
+// 内容（圈子文章）
 export const contentApi = {
   list: (params?: any) => api.get("/articles", params),
   feed: (params?: any) => api.get("/articles/feed", params),
   detail: (id: string) => api.get(`/articles/${id}`),
   related: (id: string) => api.get(`/articles/${id}/related`),
+};
+
+// 编辑内容（管理后台创建的诗词/文章/经典）
+export const contentsApi = {
+  list: (params?: any) => api.get("/contents", params),
+  detail: (id: string) => api.get(`/contents/${id}`),
 };
 
 // 课程
@@ -163,6 +169,26 @@ export const ttsApi = {
     if (rate) params.set("rate", rate)
     return `${BASE}/tts/synthesize?${params.toString()}`
   },
+};
+
+// 分佣/分站
+export const commissionApi = {
+  /** 分站收益列表 */
+  earnings: (stationId: string, params?: { page?: number; pageSize?: number }) =>
+    api.get(`/commission/station-earnings/${stationId}`, params),
+  /** 分站余额 */
+  balance: (stationId: string) => api.get(`/commission/station-balance/${stationId}`),
+  /** 申请提现 */
+  applyWithdrawal: (data: { amount: number; alipayAccount?: string; bankName?: string; bankAccount?: string; bankHolder?: string; stationId?: string }) =>
+    api.post("/commission/withdrawal", data),
+  /** 提现记录 */
+  withdrawals: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/commission/withdrawals", params),
+  /** 创建推荐链接 */
+  createReferralLink: (data: { targetType: string; targetId: string; channel?: string }) =>
+    api.post("/commission/referral-link", data),
+  /** 我的推荐链接 */
+  referralLinks: () => api.get("/commission/referral-links"),
 };
 
 export default api;

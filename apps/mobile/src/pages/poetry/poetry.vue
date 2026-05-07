@@ -97,7 +97,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
-import { contentApi } from '../../api'
+import { contentsApi } from '../../api'
 import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
 import EmptyState from '../../components/EmptyState.vue'
 
@@ -185,8 +185,8 @@ async function fetchPoems() {
     if (searchKeyword.value.trim()) {
       params.keyword = searchKeyword.value.trim()
     }
-    const data = await contentApi.list(params)
-    const items = data.articles || data.list || data || []
+    const res = await contentsApi.list(params)
+    const items = res.data || res.list || res || []
     if (Array.isArray(items)) {
       if (page.value === 1) {
         poems.value = items
@@ -214,8 +214,8 @@ async function loadMore() {
     const params: Record<string, any> = { type: 'POEM', pageSize: pageSize.value, page: page.value }
     if (activeDynasty.value) params.tag = activeDynasty.value
     if (searchKeyword.value.trim()) params.keyword = searchKeyword.value.trim()
-    const data = await contentApi.list(params)
-    const items = data.articles || data.list || data || []
+    const res = await contentsApi.list(params)
+    const items = res.data || res.list || res || []
     if (Array.isArray(items)) {
       poems.value = poems.value.concat(items)
       hasMore.value = items.length >= pageSize.value
@@ -240,7 +240,7 @@ function refreshData() {
 
 function goDetail(item: any) {
   uni.navigateTo({
-    url: `/pages/detail/detail?id=${item.id}&type=POEM`,
+    url: `/pages/detail/detail?id=${item.id}&type=CONTENT`,
   })
 }
 

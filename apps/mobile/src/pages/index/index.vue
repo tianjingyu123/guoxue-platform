@@ -88,8 +88,8 @@
         :class="'type-' + item._type"
         @click="goItem(item)"
       >
-        <!-- ===== 文章卡片 ===== -->
-        <template v-if="item._type === 'article'">
+        <!-- ===== 文章/编辑内容卡片 ===== -->
+        <template v-if="item._type === 'article' || item._type === 'editorial'">
           <view v-if="item.cover" class="card-cover-wrap">
             <image :src="item.cover" class="card-cover" mode="aspectFill" />
             <view class="card-badge-top badge-article">文章</view>
@@ -186,7 +186,7 @@ import { ref, computed, onMounted, onPullDownRefresh, onReachBottom } from '@dcl
 import SearchBar from '../../components/SearchBar.vue'
 import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
 import EmptyState from '../../components/EmptyState.vue'
-import { contentApi, circleApi, videoApi, shopApi, liveApi } from '../../api'
+import { contentApi, contentsApi, circleApi, videoApi, shopApi, liveApi } from '../../api'
 
 // ===== 类型定义 =====
 type ChannelKey = 'recommend' | 'hot' | 'live'
@@ -363,18 +363,37 @@ async function fetchFeed(reset: boolean) {
 
   try {
     if (key === 'recommend') {
-      // 推荐：文章 + 圈子混排
-      const [articleData, circleData] = await Promise.all([
+      // 推荐：文章 + 编辑内容 + 圈子混排
+      const [articleData, contentsData, circleData] = await Promise.all([
         contentApi.feed({ page: state.page, pageSize: 8 }).catch(() => ({ list: [] })),
+        contentsApi.list({ page: state.page, pageSize: 6, status: 'PUBLISHED' }).catch(() => ({ data: [] })),
         circleApi.list({ page: Math.ceil(state.page / 2), pageSize: 4 }).catch(() => ({ circles: [] })),
       ])
 
       const articles: FeedItem[] = extractList(articleData, 'list')
-        .slice(0, 6)
+        .slice(0, 4)
         .map((a: any) => ({
           ...a,
           _type: 'article' as const,
           heatScore: calcHeat(a.viewCount || 0, a.likeCount || 0, a.createdAt),
+        }))
+
+      const editorials: FeedItem[] = (contentsData.data || extractList(contentsData, 'data'))
+        .slice(0, 4)
+        .map((c: any) => ({
+          ...c,
+          _type: 'editorial' as any,
+          id: c.id,
+          title: c.title,
+          cover: c.cover,
+          author: c.author,
+          dynasty: c.dynasty,
+          excerpt: c.excerpt,
+          viewCount: c.viewCount || 0,
+          likeCount: c.likeCount || 0,
+          tags: c.tags || [],
+          createdAt: c.createdAt,
+          heatScore: calcHeat(c.viewCount || 0, c.likeCount || 0, c.createdAt),
         }))
 
       const circles: FeedItem[] = extractList(circleData, 'circles')
@@ -386,7 +405,7 @@ async function fetchFeed(reset: boolean) {
           heatScore: calcHeat(c.memberCount || 0, c.postCount || 0, c.createdAt),
         }))
 
-      const merged = interleave(articles, circles)
+      const merged = interleave(interleave(articles, editorials), circles)
       merged.sort((a, b) => (b.heatScore || 0) - (a.heatScore || 0))
 
       if (reset) {
@@ -394,7 +413,7 @@ async function fetchFeed(reset: boolean) {
       } else {
         appendUnique(state.list, merged)
       }
-      state.hasMore = articles.length >= 6
+      state.hasMore = articles.length >= 4
     } else if (key === 'hot') {
       // 热门：短视频 + 商品混排
       const [videoData, productData] = await Promise.all([
@@ -486,6 +505,9 @@ function goItem(item: FeedItem) {
       break
     case 'circle':
       uni.navigateTo({ url: `/pages/circles/circle-detail?id=${item.id}` })
+      break
+    case 'editorial':
+      uni.navigateTo({ url: `/pages/detail/detail?id=${item.id}&type=CONTENT` })
       break
     default:
       uni.navigateTo({ url: `/pages/detail/detail?id=${item.id}&type=ARTICLE` })

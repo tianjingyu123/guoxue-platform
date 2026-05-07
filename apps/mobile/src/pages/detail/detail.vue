@@ -12,8 +12,8 @@
 
     <!-- 内容详情 -->
     <template v-if="!initialLoading && content">
-      <!-- 文章详情 -->
-      <view v-if="type === 'ARTICLE'" class="article">
+      <!-- 文章详情 / 编辑内容 -->
+      <view v-if="type === 'ARTICLE' || type === 'CONTENT'" class="article">
         <image v-if="content.cover" :src="content.cover" class="cover" mode="aspectFill" />
         <text class="title">{{ content.title }}</text>
         <view class="meta">
@@ -86,7 +86,7 @@
     </view>
 
     <!-- 评论区域 -->
-    <view v-if="content && type === 'ARTICLE'" class="comment-section" id="comment-section">
+    <view v-if="content && (type === 'ARTICLE' || type === 'CONTENT')" class="comment-section" id="comment-section">
       <text class="section-title">评论</text>
       <CommentList :target-type="type" :target-id="id" />
     </view>
@@ -105,7 +105,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { contentApi, courseApi, circleApi, interactApi } from "../../api";
+import { contentApi, contentsApi, courseApi, circleApi, interactApi } from "../../api";
 import ContentCard from "../../components/ContentCard.vue";
 import CommentList from "../../components/CommentList.vue";
 import LoadingSkeleton from "../../components/LoadingSkeleton.vue";
@@ -150,12 +150,16 @@ async function fetchDetail() {
       content.value = res;
       likeCount.value = res.likeCount || 0;
       commentCount.value = res.commentCount || 0;
-      // 检查互动状态
       if (res.interacted) {
         liked.value = !!res.interacted.liked;
         collected.value = !!res.interacted.collected;
       }
       fetchRelated();
+    } else if (type.value === "CONTENT") {
+      const res = await contentsApi.detail(id.value);
+      content.value = res;
+      likeCount.value = res.likeCount || 0;
+      commentCount.value = res.commentCount || 0;
     } else if (type.value === "COURSE") {
       content.value = await courseApi.detail(id.value);
       try {
