@@ -134,6 +134,7 @@ export const shopApi = {
   productDetail: (id: string) => api.get(`/shop/products/${id}`),
   createOrder: (data: any) => api.post("/shop/orders", data),
   payOrder: (id: string) => api.put(`/shop/orders/${id}/pay`),
+  cancelOrder: (id: string) => api.put(`/shop/orders/${id}/cancel`),
   myOrders: (params?: any) => api.get("/shop/orders/my", params),
   orderDetail: (id: string) => api.get(`/shop/orders/${id}`),
   // 优惠券

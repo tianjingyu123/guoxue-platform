@@ -113,6 +113,12 @@ export class ShopController {
     return this.shop.refundOrder(id);
   }
 
+  @Put("orders/:id/cancel")
+  @UseGuards(JwtAuthGuard)
+  cancelOrder(@Req() req: any, @Param("id") id: string) {
+    return this.shop.cancelOrder(id, req.user.id);
+  }
+
   // ───────── 优惠券 ─────────
 
   @Post("coupons")

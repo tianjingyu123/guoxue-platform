@@ -269,6 +269,18 @@ export class ShopService {
     });
   }
 
+  async cancelOrder(orderId: string, userId?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException("订单不存在");
+    if (order.status !== "PENDING") throw new BadRequestException("仅待付款订单可取消");
+    if (userId && order.userId !== userId) throw new BadRequestException("无权取消");
+
+    return this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: "CANCELLED" },
+    });
+  }
+
   // ═══════════════════ 优惠券管理 ═══════════════════
 
   async createCoupon(dto: CreateCouponV2Dto) {

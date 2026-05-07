@@ -79,12 +79,26 @@ function formatTime(t: string): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 
-function handlePay() {
-  uni.showToast({ title: "支付功能开发中", icon: "none" });
+async function handlePay() {
+  try {
+    await shopApi.payOrder(order.value.id);
+    uni.showToast({ title: "支付成功", icon: "success" });
+    await fetchOrder(order.value.id);
+  } catch {
+    uni.showToast({ title: "支付失败", icon: "none" });
+  }
 }
 
-function handleCancel() {
-  uni.showToast({ title: "取消功能开发中", icon: "none" });
+async function handleCancel() {
+  try {
+    const { confirm } = await uni.showModal({ title: "确认取消", content: "确定要取消此订单吗？" });
+    if (!confirm) return;
+    await shopApi.cancelOrder(order.value.id);
+    uni.showToast({ title: "订单已取消", icon: "success" });
+    await fetchOrder(order.value.id);
+  } catch {
+    // 用户取消操作不作处理
+  }
 }
 </script>
 

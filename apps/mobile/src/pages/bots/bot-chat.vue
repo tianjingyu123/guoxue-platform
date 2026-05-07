@@ -84,6 +84,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from "vue";
+import { botApi } from "../../api";
 
 interface Bot {
   id: string;
@@ -190,29 +191,10 @@ function getLocalReply(msg: string): string {
 }
 
 async function fetchBotReply(msg: string): Promise<string> {
-  // 尝试调用后端 SSE 接口
-  return new Promise((resolve, reject) => {
-    uni.request({
-      url: `http://localhost:3000/api/v1/bots/${bot.value.id}/chat`,
-      method: "POST",
-      data: { message: msg },
-      header: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${uni.getStorageSync("token") || ""}`,
-      },
-      success: (res) => {
-        const data = res.data as any;
-        if (data?.data?.reply) {
-          resolve(data.data.reply);
-        } else if (data?.reply) {
-          resolve(data.reply);
-        } else {
-          reject(new Error("no reply"));
-        }
-      },
-      fail: () => reject(new Error("network error")),
-    });
-  });
+  const res = await botApi.chat(bot.value.id, { message: msg });
+  if (res?.reply) return res.reply;
+  if (res?.data?.reply) return res.data.reply;
+  throw new Error("no reply");
 }
 
 async function typeWriter(text: string) {

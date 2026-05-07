@@ -34,7 +34,7 @@
         <text class="r-icon" :class="{ liked: isLiked }">{{ isLiked ? '❤️' : '🤍' }}</text>
         <text class="r-count">{{ formatCount(displayLikeCount) }}</text>
       </view>
-      <view class="r-action" @click="showComments = true">
+      <view class="r-action" @click="openComments">
         <text class="r-icon">💬</text>
         <text class="r-count">{{ formatCount(video?.commentCount || 0) }}</text>
       </view>
@@ -95,14 +95,16 @@
     <view v-if="showComments" class="comment-mask" @click="showComments = false">
       <view class="comment-panel" @click.stop="">
         <view class="cp-header">
-          <text class="cp-title">评论 ({{ mockComments.length }})</text>
+          <text class="cp-title">评论 ({{ comments.length }})</text>
           <text class="cp-close" @click="showComments = false">✕</text>
         </view>
         <scroll-view scroll-y class="cp-list">
-          <view v-for="(c, i) in mockComments" :key="i" class="cp-item">
-            <text class="cp-user">{{ c.user }}：</text>
-            <text class="cp-text">{{ c.text }}</text>
-            <text class="cp-time">{{ c.time }}</text>
+          <view v-if="commentLoading" class="cp-empty"><text class="cp-empty-text">加载中...</text></view>
+          <view v-else-if="!comments.length" class="cp-empty"><text class="cp-empty-text">暂无评论，来说两句吧</text></view>
+          <view v-for="(c, i) in comments" :key="c.id || i" class="cp-item">
+            <text class="cp-user">{{ c.user?.nickname || '用户' }}：</text>
+            <text class="cp-text">{{ c.content }}</text>
+            <text class="cp-time">{{ c.createdAt ? formatTime(c.createdAt) : '' }}</text>
           </view>
         </scroll-view>
         <view class="cp-input-row">
@@ -126,7 +128,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { videoApi } from '../../api'
+import { videoApi, interactApi } from '../../api'
 
 const video = ref<any>(null)
 const showComments = ref(false)
@@ -138,7 +140,8 @@ const isFollowing = ref(false)
 const displayLikeCount = ref(0)
 const progress = ref(0)
 const commentText = ref('')
-const mockComments = ref<{ user: string; text: string; time: string }[]>([])
+const comments = ref<{ id?: string; user?: { nickname?: string }; userId?: string; content?: string; createdAt?: string }[]>([])
+const commentLoading = ref(false)
 
 let progressTimer: ReturnType<typeof setInterval> | null = null
 
@@ -149,17 +152,6 @@ onMounted(async () => {
     try {
       video.value = await videoApi.detail(id)
       displayLikeCount.value = video.value?.likeCount || 0
-      // mock 评论
-      if (video.value?.comments?.length) {
-        mockComments.value = video.value.comments
-      } else {
-        mockComments.value = [
-          { user: '国学爱好者', text: '讲得真好，受教了！', time: '2分钟前' },
-          { user: '清风明月', text: '传统文化永不过时', time: '15分钟前' },
-          { user: '书生意气', text: '能再多讲讲这个主题吗？', time: '1小时前' },
-        ]
-      }
-      // 启动假进度条
       if (video.value?.videoUrl) {
         startProgress()
       }
@@ -198,6 +190,11 @@ function collectVideo() {
   uni.showToast({ title: isCollected.value ? '已收藏' : '已取消收藏', icon: 'none' })
 }
 
+function openComments() {
+  showComments.value = true
+  if (!comments.value.length) fetchComments()
+}
+
 function shareVideo() {
   uni.showToast({ title: '已复制分享链接', icon: 'success' })
 }
@@ -209,9 +206,37 @@ function followAuthor() {
 
 function submitComment() {
   const text = commentText.value.trim()
-  if (!text) return
-  mockComments.value.unshift({ user: '我', text, time: '刚刚' })
+  if (!text || !video.value) return
+  interactApi.addComment({ targetType: 'VIDEO', targetId: video.value.id, content: text }).then(() => {
+    fetchComments()
+  }).catch(() => {
+    uni.showToast({ title: '评论失败', icon: 'none' })
+  })
   commentText.value = ''
+}
+
+async function fetchComments() {
+  if (!video.value) return
+  commentLoading.value = true
+  try {
+    const res = await interactApi.comments('VIDEO', video.value.id)
+    comments.value = Array.isArray(res) ? res : (res?.data || res?.list || [])
+  } catch {
+    // 静默处理
+  } finally {
+    commentLoading.value = false
+  }
+}
+
+function formatTime(t: string): string {
+  if (!t) return ''
+  const d = new Date(t)
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
+  if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
+  return `${d.getMonth() + 1}-${d.getDate()}`
 }
 
 function onError(e: any) {
@@ -491,6 +516,15 @@ function formatCount(n: number | undefined): string {
   color: rgba(255,255,255,0.3);
   display: block;
   margin-top: 2px;
+}
+.cp-empty {
+  display: flex;
+  justify-content: center;
+  padding: 30px 0;
+}
+.cp-empty-text {
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
 }
 .cp-input-row {
   display: flex;
