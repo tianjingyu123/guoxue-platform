@@ -5,6 +5,7 @@ import { BaziInputDto, ZiweiInputDto } from "./paipan.dto";
 import { calcBazi, type BaziInput, type BaziResult } from "@guoxue/bazi-engine";
 import { calcZiwei, type ZiweiInput, type ZiweiResult } from "@guoxue/ziwei-engine";
 import { createHash } from "node:crypto";
+import { encrypt, decrypt } from "../../common/crypto.util";
 
 /** 排盘结果缓存 TTL（秒，24 小时） */
 const CACHE_TTL = 86400;
@@ -51,7 +52,7 @@ export class PaipanService {
       data: {
         userId,
         clientName: dto.name || "",
-        clientBirth: `${dto.year}-${dto.month}-${dto.day} ${dto.hour}:${dto.minute || 0}`,
+        clientBirth: encrypt(`${dto.year}-${dto.month}-${dto.day} ${dto.hour}:${dto.minute || 0}`),
         paipanType: "BAZI",
         inputParams: input as any,
         resultData: result as any,
@@ -84,7 +85,7 @@ export class PaipanService {
 
     if (!record) throw new NotFoundException("排盘记录不存在");
 
-    return record;
+    return this.decryptRecord(record);
   }
 
   /** 获取用户排盘历史 */
@@ -111,7 +112,7 @@ export class PaipanService {
       this.prisma.paipanRecord.count({ where }),
     ]);
 
-    return { records, total, page, pageSize };
+    return { records: this.decryptRecords(records), total, page, pageSize };
   }
 
   // ────────── 紫微斗数 ──────────
@@ -144,7 +145,7 @@ export class PaipanService {
       data: {
         userId,
         clientName: dto.name || "",
-        clientBirth: `${dto.year}-${dto.month}-${dto.day} ${dto.hour}`,
+        clientBirth: encrypt(`${dto.year}-${dto.month}-${dto.day} ${dto.hour}`),
         paipanType: "ZIWEI",
         inputParams: input as any,
         resultData: result as any,
@@ -176,7 +177,7 @@ export class PaipanService {
 
     if (!record) throw new NotFoundException("排盘记录不存在");
 
-    return record;
+    return this.decryptRecord(record);
   }
 
   /** 获取用户紫微排盘历史 */
@@ -203,7 +204,7 @@ export class PaipanService {
       this.prisma.paipanRecord.count({ where }),
     ]);
 
-    return { records, total, page, pageSize };
+    return { records: this.decryptRecords(records), total, page, pageSize };
   }
 
   // ────────── 管理员方法 ──────────
@@ -247,10 +248,20 @@ export class PaipanService {
       this.prisma.paipanRecord.count({ where }),
     ])
 
-    return { records, total, page, pageSize }
+    return { records: this.decryptRecords(records), total, page, pageSize }
   }
 
   // ────────── 私有辅助方法 ──────────
+
+  /** 解密记录中的 clientBirth 字段 */
+  private decryptRecord<T extends { clientBirth: string }>(record: T): T {
+    try { record.clientBirth = decrypt(record.clientBirth) as any; } catch { /* 兼容未加密旧数据 */ }
+    return record;
+  }
+
+  private decryptRecords<T extends { clientBirth: string }>(records: T[]): T[] {
+    return records.map(r => this.decryptRecord(r));
+  }
 
   /** 构建 BaziInput */
   private buildInput(dto: BaziInputDto): BaziInput {
