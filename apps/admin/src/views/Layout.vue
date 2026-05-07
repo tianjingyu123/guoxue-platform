@@ -15,6 +15,12 @@
             <span>八字排盘</span>
           </el-menu-item>
         </el-sub-menu>
+        <el-sub-menu index="edu">
+          <template #title><span>教学管理</span></template>
+          <el-menu-item index="/courses">
+            <span>课程管理</span>
+          </el-menu-item>
+        </el-sub-menu>
       </el-menu>
     </el-aside>
     <el-container>

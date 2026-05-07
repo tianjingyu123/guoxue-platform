@@ -37,6 +37,21 @@ const routes = [
         name: "BaziPan",
         component: () => import("../views/bazi/BaziPan.vue"),
       },
+      {
+        path: "courses",
+        name: "CourseList",
+        component: () => import("../views/courses/CourseList.vue"),
+      },
+      {
+        path: "courses/create",
+        name: "CourseCreate",
+        component: () => import("../views/courses/CourseEdit.vue"),
+      },
+      {
+        path: "courses/:id/edit",
+        name: "CourseEdit",
+        component: () => import("../views/courses/CourseEdit.vue"),
+      },
     ],
   },
 ];

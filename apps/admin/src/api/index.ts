@@ -43,4 +43,21 @@ export const contentApi = {
   remove: (id: string) => api.delete(`/contents/${id}`),
 };
 
+// 课程
+export const courseApi = {
+  list: (params?: any) => api.get("/courses", { params }),
+  detail: (id: string) => api.get(`/courses/${id}`),
+  create: (data: any) => api.post("/courses", data),
+  update: (id: string, data: any) => api.put(`/courses/${id}`, data),
+  remove: (id: string) => api.delete(`/courses/${id}`),
+  audit: (id: string, status: string) => api.put(`/courses/${id}/audit`, { status }),
+  // 章节
+  getChapters: (id: string) => api.get(`/courses/${id}/chapters`),
+  addChapter: (id: string, data: any) => api.post(`/courses/${id}/chapters`, data),
+  updateChapter: (id: string, chapterId: string, data: any) => api.put(`/courses/${id}/chapters/${chapterId}`, data),
+  deleteChapter: (id: string, chapterId: string) => api.delete(`/courses/${id}/chapters/${chapterId}`),
+  // 作业
+  getWorks: (id: string, params?: any) => api.get(`/courses/${id}/works`, { params }),
+};
+
 export default api;
