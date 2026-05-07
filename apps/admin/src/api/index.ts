@@ -169,4 +169,12 @@ export const offlineApi = {
   updateMember: (id: string, data: any) => api.put(`/offline/institute/members/${id}`, data),
 };
 
+// 评论管理
+export const commentApi = {
+  list: (params?: any) => api.get("/comment", { params }),
+  count: (params?: any) => api.get("/comment/count", { params }),
+  hide: (id: string) => api.put(`/comment/${id}/hide`),
+  remove: (id: string) => api.delete(`/comment/${id}`),
+};
+
 export default api;

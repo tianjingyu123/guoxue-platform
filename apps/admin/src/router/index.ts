@@ -63,11 +63,6 @@ const routes = [
         component: () => import("../views/reports/ReportList.vue"),
       },
       {
-        path: "comments",
-        name: "CommentList",
-        component: () => import("../views/comments/CommentList.vue"),
-      },
-      {
         path: "products",
         name: "ProductList",
         component: () => import("../views/shop/ProductList.vue"),
