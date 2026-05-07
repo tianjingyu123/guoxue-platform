@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsInt, Min } from "class-validator";
+import { Type } from "class-transformer";
 
 export class CreateBookDto {
   @IsString() title: string;
@@ -48,6 +49,6 @@ export class CreateBookmarkDto {
 
 export class BookListQueryDto {
   @IsOptional() @IsString() category?: string;
-  @IsOptional() @IsInt() @Min(1) page?: number;
-  @IsOptional() @IsInt() @Min(1) pageSize?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) pageSize?: number;
 }

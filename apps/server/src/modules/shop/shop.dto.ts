@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, IsObject } from "class-validator";
+import { Type } from "class-transformer";
 
 export enum ProductStatus {
   PENDING = "PENDING",
@@ -119,10 +120,10 @@ export class CreateCouponDto {
 }
 
 export class ProductListQueryDto {
-  @IsOptional() @IsInt()
+  @IsOptional() @Type(() => Number) @IsInt()
   page?: number;
 
-  @IsOptional() @IsInt()
+  @IsOptional() @Type(() => Number) @IsInt()
   pageSize?: number;
 
   @IsOptional() @IsString()
@@ -133,10 +134,10 @@ export class ProductListQueryDto {
 }
 
 export class OrderListQueryDto {
-  @IsOptional() @IsInt()
+  @IsOptional() @Type(() => Number) @IsInt()
   page?: number;
 
-  @IsOptional() @IsInt()
+  @IsOptional() @Type(() => Number) @IsInt()
   pageSize?: number;
 
   @IsOptional() @IsString()

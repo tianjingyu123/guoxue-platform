@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsInt, Min } from "class-validator";
+import { Type } from "class-transformer";
 
 export class LikeDto {
   @IsString()
@@ -53,10 +54,10 @@ export class CommentListQueryDto {
   @IsOptional() @IsString()
   targetId?: string;
 
-  @IsOptional() @IsInt()
+  @IsOptional() @Type(() => Number) @IsInt()
   page?: number;
 
-  @IsOptional() @IsInt()
+  @IsOptional() @Type(() => Number) @IsInt()
   pageSize?: number;
 
   @IsOptional() @IsString()
@@ -73,9 +74,9 @@ export class ReportListQueryDto {
   @IsOptional() @IsString()
   status?: string;
 
-  @IsOptional() @IsInt()
+  @IsOptional() @Type(() => Number) @IsInt()
   page?: number;
 
-  @IsOptional() @IsInt()
+  @IsOptional() @Type(() => Number) @IsInt()
   pageSize?: number;
 }
