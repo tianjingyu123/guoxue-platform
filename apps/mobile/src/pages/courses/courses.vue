@@ -29,7 +29,7 @@ onMounted(async () => {
 });
 
 function goDetail(id: string) {
-  uni.navigateTo({ url: `/pages/detail/detail?id=${id}&type=COURSE` });
+  uni.navigateTo({ url: `/pages/courses/course-detail?id=${id}` });
 }
 </script>
 

@@ -9,6 +9,10 @@
       "style": { "navigationBarTitleText": "课程" }
     },
     {
+      "path": "pages/courses/course-detail",
+      "style": { "navigationBarTitleText": "课程详情" }
+    },
+    {
       "path": "pages/circles/circles",
       "style": { "navigationBarTitleText": "圈子" }
     },
