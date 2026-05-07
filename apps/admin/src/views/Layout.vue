@@ -51,6 +51,9 @@
         <el-menu-item index="/comments">
           <span>评论管理</span>
         </el-menu-item>
+        <el-menu-item index="/search-analytics">
+          <span>搜索分析</span>
+        </el-menu-item>
         <el-sub-menu index="offline">
           <template #title><span>线下管理</span></template>
           <el-menu-item index="/stations">

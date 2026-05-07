@@ -199,4 +199,33 @@ export class SearchService {
     await this.prisma.searchHistory.deleteMany({ where: { userId } });
     return { success: true };
   }
+
+  /** 搜索统计 */
+  async getStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [totalSearches, todaySearches, hotKeywords, recentSearches] = await Promise.all([
+      this.prisma.searchHistory.count(),
+      this.prisma.searchHistory.count({ where: { createdAt: { gte: today } } }),
+      this.prisma.searchHistory.groupBy({
+        by: ["keyword"],
+        _count: { keyword: true },
+        orderBy: { _count: { keyword: "desc" } },
+        take: 20,
+      }),
+      this.prisma.searchHistory.findMany({
+        select: { keyword: true, createdAt: true, user: { select: { nickname: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+    ]);
+
+    return {
+      totalSearches,
+      todaySearches,
+      hotKeywords: hotKeywords.map(r => ({ keyword: r.keyword, count: r._count.keyword })),
+      recentSearches,
+    };
+  }
 }

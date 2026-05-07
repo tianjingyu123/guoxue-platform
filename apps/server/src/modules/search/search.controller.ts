@@ -49,4 +49,10 @@ export class SearchController {
   clearHistory(@Req() req: any) {
     return this.svc.clearHistory(req.user.id);
   }
+
+  /** 搜索统计（管理后台用） */
+  @Get("stats")
+  getStats() {
+    return this.svc.getStats();
+  }
 }

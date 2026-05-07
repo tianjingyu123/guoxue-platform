@@ -132,6 +132,11 @@ const routes = [
         name: "InstituteList",
         component: () => import("../views/institutes/InstituteList.vue"),
       },
+      {
+        path: "search-analytics",
+        name: "SearchAnalytics",
+        component: () => import("../views/SearchAnalytics.vue"),
+      },
     ],
   },
 ];
