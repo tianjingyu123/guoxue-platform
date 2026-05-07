@@ -597,7 +597,7 @@ function goPage(url: string) {
 }
 
 function goVip() {
-  uni.showToast({ title: 'VIP功能即将上线', icon: 'none' })
+  uni.navigateTo({ url: "/pages/vip/vip" })
 }
 
 function goArticle(id: string) {
