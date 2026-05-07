@@ -176,6 +176,17 @@ export const offlineApi = {
   updateMember: (id: string, data: any) => api.put(`/offline/institute/members/${id}`, data),
 };
 
+// 文件上传
+export const uploadApi = {
+  image: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api.post("/upload/image", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+};
+
 // 评论管理
 export const commentApi = {
   list: (params?: any) => api.get("/comment", { params }),
