@@ -202,6 +202,25 @@ export const commissionApi = {
   referralLinks: () => api.get("/commission/referral-links"),
 };
 
+// 系统配置（公开）
+export const systemApi = {
+  getBanners: () => api.get("/system/public/banners"),
+};
+
+// ==================== 虚拟币钱包 ====================
+export const coinApi = {
+  /** 获取余额 */
+  getBalance: () => api.get("/coin/balance"),
+  /** 交易记录（分页） */
+  getTransactions: (page: number, pageSize: number, type?: string, scene?: string) =>
+    api.get("/coin/transactions", { page, pageSize, type, scene }),
+  /** 充值档位 */
+  getTiers: () => api.get("/coin/tiers"),
+  /** 消费虚拟币 */
+  spend: (data: { amountCoin: number; scene: string; refId?: string; description?: string }) =>
+    api.post("/coin/spend", data),
+};
+
 // 分站品牌
 export const stationApi = {
   /** 通过推广码获取品牌配置 */

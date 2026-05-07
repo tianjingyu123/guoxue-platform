@@ -99,6 +99,10 @@
       "style": { "navigationBarTitleText": "商品详情" }
     },
     {
+      "path": "pages/shop/coupons",
+      "style": { "navigationBarTitleText": "优惠券" }
+    },
+    {
       "path": "pages/videos/videos",
       "style": { "navigationBarTitleText": "短视频" }
     },
@@ -121,6 +125,14 @@
     {
       "path": "pages/orders/order-detail",
       "style": { "navigationBarTitleText": "订单详情" }
+    },
+    {
+      "path": "pages/wallet/wallet",
+      "style": { "navigationBarTitleText": "我的钱包" }
+    },
+    {
+      "path": "pages/wallet/recharge",
+      "style": { "navigationBarTitleText": "充值" }
     },
     {
       "path": "pages/station/earnings",

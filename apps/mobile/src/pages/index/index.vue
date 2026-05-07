@@ -186,7 +186,7 @@ import { ref, computed, onMounted, onPullDownRefresh, onReachBottom } from '@dcl
 import SearchBar from '../../components/SearchBar.vue'
 import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
 import EmptyState from '../../components/EmptyState.vue'
-import { contentApi, contentsApi, circleApi, videoApi, shopApi, liveApi } from '../../api'
+import { contentApi, contentsApi, circleApi, videoApi, shopApi, liveApi, systemApi } from '../../api'
 
 // ===== 类型定义 =====
 type ChannelKey = 'recommend' | 'hot' | 'live'
@@ -228,27 +228,13 @@ interface FeedItem {
   [key: string]: any
 }
 
-// ===== Banner 数据 =====
-const banners = [
-  {
-    icon: '📜',
-    title: '国学经典',
-    sub: '品读四书五经，传承中华文化',
-    bg: 'linear-gradient(135deg, #8b4513, #a0522d)',
-  },
-  {
-    icon: '🌸',
-    title: '诗词欣赏',
-    sub: '唐诗宋词，感受千年风雅',
-    bg: 'linear-gradient(135deg, #6b3a1f, #c4943a)',
-  },
-  {
-    icon: '🧘',
-    title: '修身养性',
-    sub: '以文化人，以德润身',
-    bg: 'linear-gradient(135deg, #5a3a1a, #8b6914)',
-  },
+// ===== Banner 数据（默认兜底） =====
+const defaultBanners = [
+  { icon: '📜', title: '国学经典', sub: '品读四书五经，传承中华文化', bg: 'linear-gradient(135deg, #8b4513, #a0522d)' },
+  { icon: '🌸', title: '诗词欣赏', sub: '唐诗宋词，感受千年风雅', bg: 'linear-gradient(135deg, #6b3a1f, #c4943a)' },
+  { icon: '🧘', title: '修身养性', sub: '以文化人，以德润身', bg: 'linear-gradient(135deg, #5a3a1a, #8b6914)' },
 ]
+const banners = ref<{ icon: string; title: string; sub: string; bg: string }[]>(defaultBanners)
 
 // ===== 频道配置 =====
 const channels: Channel[] = [
@@ -523,9 +509,20 @@ function goPage(url: string) {
   uni.navigateTo({ url })
 }
 
+// ===== 获取动态 Banner =====
+async function fetchBanners() {
+  try {
+    const data: any = await systemApi.getBanners()
+    if (data?.banners?.length) {
+      banners.value = data.banners
+    }
+  } catch { /* 使用默认Banner */ }
+}
+
 // ===== 生命周期 =====
 onMounted(() => {
   fetchFeed(true)
+  fetchBanners()
 })
 
 onPullDownRefresh(() => {

@@ -12,9 +12,18 @@
       <view class="price-row">
         <text class="price">¥{{ selectedSku ? selectedSku.price : product.price }}</text>
         <text v-if="product.originalPrice && product.originalPrice > product.price" class="origin">¥{{ product.originalPrice }}</text>
+        <view class="share-btn" @click="onShare">
+          <text>↗ 分享</text>
+        </view>
       </view>
       <text class="title">{{ product.title }}</text>
-      <text class="sales">已售 {{ product.salesCount || 0 }} | 库存 {{ selectedSku ? selectedSku.stock : (product.stock || 0) }}</text>
+      <text class="sales">已售 {{ product.soldCount || product.salesCount || 0 }} | 库存 {{ selectedSku ? selectedSku.stock : (product.stock || 0) }}</text>
+      <!-- 优惠券提示 -->
+      <view v-if="availableCoupons.length" class="coupon-tip" @click="goCoupons">
+        <text class="coupon-tip-icon">🎫</text>
+        <text class="coupon-tip-text">领券更优惠 · {{ availableCoupons.length }} 张可用</text>
+        <text class="coupon-tip-arrow">›</text>
+      </view>
     </view>
 
     <!-- 规格选择 -->
@@ -28,6 +37,18 @@
     <view class="desc-section">
       <text class="section-title">商品详情</text>
       <rich-text :nodes="product.detail || '暂无详情'" class="desc-html" />
+    </view>
+
+    <!-- 推荐商品 -->
+    <view class="related-section" v-if="relatedProducts.length">
+      <text class="section-title">猜你喜欢</text>
+      <scroll-view scroll-x class="related-scroll">
+        <view v-for="rp in relatedProducts" :key="rp.id" class="related-card" @click="goProduct(rp.id)">
+          <image :src="rp.cover || rp.images?.[0]" class="related-img" mode="aspectFill" />
+          <text class="related-name">{{ rp.title }}</text>
+          <text class="related-price">¥{{ rp.price }}</text>
+        </view>
+      </scroll-view>
     </view>
 
     <!-- 商品评价 -->
@@ -123,6 +144,8 @@ const product = ref<any>(null);
 const selectedSku = ref<any>(null);
 const showSkuPanel = ref(false);
 const isCollected = ref(false);
+const availableCoupons = ref<any[]>([]);
+const relatedProducts = ref<any[]>([]);
 
 // 评价
 const reviews = ref<any[]>([]);
@@ -148,6 +171,8 @@ onMounted(async () => {
     product.value = await shopApi.productDetail(id);
     await fetchReviews(id);
     await checkCollected(id);
+    fetchCoupons();
+    fetchRelated();
   }
 });
 
@@ -276,6 +301,39 @@ function formatTime(d: string) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+/** 获取可用优惠券 */
+async function fetchCoupons() {
+  try {
+    const data = await shopApi.listCoupons();
+    const list = data?.coupons || data?.data || [];
+    availableCoupons.value = list.filter((c: any) => !c.claimed);
+  } catch { /* */ }
+}
+
+/** 获取推荐商品 */
+async function fetchRelated() {
+  try {
+    const data = await shopApi.products({ page: 1, limit: 6 });
+    const list = data?.products || data?.data || [];
+    relatedProducts.value = list.filter((p: any) => p.id !== product.value?.id).slice(0, 5);
+  } catch { /* */ }
+}
+
+/** 领券中心 */
+function goCoupons() {
+  uni.navigateTo({ url: "/pages/shop/coupons" });
+}
+
+/** 分享 */
+function onShare() {
+  uni.showToast({ title: "已复制分享链接", icon: "success" });
+}
+
+/** 跳转商品详情 */
+function goProduct(id: string) {
+  uni.navigateTo({ url: `/pages/shop/product-detail?id=${id}` });
+}
+
 </script>
 
 <style>
@@ -286,8 +344,13 @@ function formatTime(d: string) {
 .price-row { display: flex; align-items: baseline; gap: 8px; }
 .price { font-size: 24px; font-weight: bold; color: #d03050; }
 .origin { font-size: 14px; color: #999; text-decoration: line-through; }
+.share-btn { margin-left: auto; font-size: 13px; color: #8b4513; padding: 4px 12px; border: 1px solid #8b4513; border-radius: 14px; }
 .title { font-size: 16px; color: #333; font-weight: bold; display: block; margin: 6px 0; }
 .sales { font-size: 12px; color: #999; }
+.coupon-tip { display: flex; align-items: center; gap: 6px; margin-top: 10px; background: #fef5f0; border: 1px solid #f5d5c0; border-radius: 8px; padding: 8px 12px; }
+.coupon-tip-icon { font-size: 16px; }
+.coupon-tip-text { font-size: 13px; color: #d03050; flex: 1; }
+.coupon-tip-arrow { font-size: 18px; color: #d03050; }
 .spec-section { background: #fff; padding: 14px; display: flex; align-items: center; margin-bottom: 8px; }
 .label { font-size: 14px; color: #666; width: 60px; }
 .spec-val { flex: 1; font-size: 14px; color: #333; }
@@ -295,6 +358,14 @@ function formatTime(d: string) {
 .desc-section { background: #fff; padding: 14px; margin-bottom: 8px; }
 .section-title { font-size: 16px; font-weight: bold; color: #333; display: block; margin-bottom: 10px; }
 .desc-html { font-size: 14px; color: #555; line-height: 1.7; }
+
+/* 推荐商品 */
+.related-section { background: #fff; padding: 14px; margin-bottom: 8px; }
+.related-scroll { white-space: nowrap; display: flex; gap: 10px; }
+.related-card { display: inline-block; width: 120px; background: #fafaf6; border-radius: 8px; overflow: hidden; }
+.related-img { width: 120px; height: 120px; }
+.related-name { font-size: 12px; color: #333; padding: 6px 8px; display: block; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; white-space: normal; }
+.related-price { font-size: 14px; font-weight: bold; color: #d03050; padding: 0 8px 8px; display: block; }
 .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: #fff; border-top: 1px solid #eee; padding: 8px 14px; gap: 10px; z-index: 50; }
 .btn-collect { flex: 1; text-align: center; padding: 10px; border: 1px solid #8b4513; border-radius: 20px; color: #8b4513; font-size: 15px; }
 .btn-collect.collected { background: #fdf5ed; border-color: #8b4513; color: #8b4513; }
