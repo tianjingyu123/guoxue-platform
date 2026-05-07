@@ -52,6 +52,12 @@
         </view>
         <text class="entrance-label">八字排盘</text>
       </view>
+      <view class="entrance-item" @click="goPage('/pages/ziwei/ziwei')">
+        <view class="entrance-icon-wrap">
+          <text class="entrance-icon">🌟</text>
+        </view>
+        <text class="entrance-label">紫微斗数</text>
+      </view>
     </view>
 
     <!-- 顶部频道Tab -->

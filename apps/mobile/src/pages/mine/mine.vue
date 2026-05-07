@@ -60,6 +60,11 @@
         <text class="menu-label">八字排盘</text>
         <text class="arrow">›</text>
       </view>
+      <view class="menu-item" @click="goPage('/pages/ziwei/ziwei')">
+        <text class="menu-icon">🌟</text>
+        <text class="menu-label">紫微斗数</text>
+        <text class="arrow">›</text>
+      </view>
       <view class="menu-item" @click="goPage('/pages/notifications/notifications')">
         <text class="menu-icon">🔔</text>
         <text class="menu-label">消息通知</text>
