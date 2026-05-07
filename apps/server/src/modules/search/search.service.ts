@@ -120,6 +120,22 @@ export class SearchService {
       });
     }
 
+    if (!type || type === "content") {
+      results.contents = await this.prisma.content.findMany({
+        where: {
+          status: "PUBLISHED",
+          OR: [
+            { title: { contains: q, mode: "insensitive" as const } },
+            { author: { contains: q, mode: "insensitive" as const } },
+            { excerpt: { contains: q, mode: "insensitive" as const } },
+          ],
+        },
+        select: { id: true, title: true, type: true, author: true, dynasty: true, cover: true, excerpt: true, viewCount: true, likeCount: true },
+        take: type ? pageSize : 5,
+        orderBy: { viewCount: "desc" },
+      });
+    }
+
     return results;
   }
 
@@ -170,11 +186,11 @@ export class SearchService {
   async suggest(keyword: string) {
     if (!keyword?.trim()) return [];
     const q = keyword.trim();
-    const [articles, courses, circles] = await Promise.all([
+    const [articles, courses, circles, contents] = await Promise.all([
       this.prisma.article.findMany({
         where: { auditStatus: "APPROVED", title: { contains: q, mode: "insensitive" as const } },
         select: { id: true, title: true },
-        take: 5, orderBy: { viewCount: "desc" },
+        take: 3, orderBy: { viewCount: "desc" },
       }),
       this.prisma.course.findMany({
         where: { auditStatus: "APPROVED", title: { contains: q, mode: "insensitive" as const } },
@@ -186,12 +202,18 @@ export class SearchService {
         select: { id: true, name: true },
         take: 2, orderBy: { memberCount: "desc" },
       }),
+      this.prisma.content.findMany({
+        where: { status: "PUBLISHED", title: { contains: q, mode: "insensitive" as const } },
+        select: { id: true, title: true },
+        take: 3, orderBy: { viewCount: "desc" },
+      }),
     ]);
     return [
       ...articles.map(a => ({ label: a.title, type: "article", id: a.id })),
+      ...contents.map(c => ({ label: c.title, type: "content", id: c.id })),
       ...courses.map(c => ({ label: c.title, type: "course", id: c.id })),
       ...circles.map(c => ({ label: c.name, type: "circle", id: c.id })),
-    ].slice(0, 8);
+    ].slice(0, 10);
   }
 
   /** 清除搜索历史 */

@@ -117,6 +117,16 @@
           />
         </template>
 
+        <!-- 编辑内容（诗词/经典）结果 -->
+        <template v-if="displayContents.length > 0">
+          <view v-if="tab === 'all'" class="result-group-title">诗词经典</view>
+          <ContentCard
+            v-for="c in displayContents"
+            :key="'content-' + c.id"
+            :article="{ ...c, _type: 'editorial' }"
+          />
+        </template>
+
         <!-- 课程结果 -->
         <template v-if="displayCourses.length > 0">
           <view v-if="tab === 'all'" class="result-group-title">课程</view>
@@ -178,6 +188,7 @@ const showSuggest = ref(false);
 const tabs = [
   { key: "all", label: "全部" },
   { key: "article", label: "文章" },
+  { key: "content", label: "诗词" },
   { key: "course", label: "课程" },
   { key: "circle", label: "圈子" },
 ];
@@ -187,6 +198,7 @@ let blurTimer: ReturnType<typeof setTimeout> | null = null;
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const displayArticles = computed(() => results.value?.articles || []);
+const displayContents = computed(() => results.value?.contents || []);
 const displayCourses = computed(() => results.value?.courses || []);
 const displayCircles = computed(() => results.value?.circles || []);
 
@@ -194,6 +206,7 @@ const totalCount = computed(() => {
   if (!results.value) return 0;
   return (
     (results.value.articles?.length || 0) +
+    (results.value.contents?.length || 0) +
     (results.value.courses?.length || 0) +
     (results.value.circles?.length || 0)
   );
@@ -383,6 +396,9 @@ async function loadMore() {
       if (res.articles) {
         results.value.articles = [...(results.value.articles || []), ...res.articles];
       }
+      if (res.contents) {
+        results.value.contents = [...(results.value.contents || []), ...res.contents];
+      }
       if (res.courses) {
         results.value.courses = [...(results.value.courses || []), ...res.courses];
       }
@@ -403,6 +419,7 @@ function checkHasMore(data: any): boolean {
   if (!data) return false;
   return (
     (data.articles?.length || 0) >= pageSize.value ||
+    (data.contents?.length || 0) >= pageSize.value ||
     (data.courses?.length || 0) >= pageSize.value ||
     (data.circles?.length || 0) >= pageSize.value
   );
