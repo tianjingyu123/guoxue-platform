@@ -270,6 +270,36 @@ model Post {
 }
 
 // ─────────────────────────────────────────────────
+// 内容管理（后台管理用）
+// ─────────────────────────────────────────────────
+
+enum ContentType {
+  ARTICLE
+  POEM
+  CLASSIC
+}
+
+model Content {
+  id          String      @id @default(uuid())
+  title       String
+  type        ContentType @default(ARTICLE)
+  author      String?
+  dynasty     String?
+  excerpt     String?
+  body        String      // 正文/富文本HTML
+  cover       String?     // 封面图URL
+  tags        String[]
+  viewCount   Int         @default(0)
+  likeCount   Int         @default(0)
+  status      String      @default("PUBLISHED") // PUBLISHED, DRAFT
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([type, createdAt])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────
 // 文章系统
 // ─────────────────────────────────────────────────
 
