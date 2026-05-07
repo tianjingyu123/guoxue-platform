@@ -61,7 +61,15 @@
     },
     {
       "path": "pages/mine/mine",
-      "style": { "navigationBarTitleText": "我的" }
+      "style": {
+        "navigationBarTitleText": "我的",
+        "enablePullDownRefresh": true,
+        "onReachBottomDistance": 100
+      }
+    },
+    {
+      "path": "pages/user/user",
+      "style": { "navigationBarTitleText": "用户主页" }
     },
     {
       "path": "pages/login/login",
@@ -105,6 +113,14 @@
     {
       "path": "pages/live/live-room",
       "style": { "navigationBarTitleText": "直播间", "navigationStyle": "custom" }
+    },
+    {
+      "path": "pages/orders/orders",
+      "style": { "navigationBarTitleText": "我的订单" }
+    },
+    {
+      "path": "pages/orders/order-detail",
+      "style": { "navigationBarTitleText": "订单详情" }
     }
   ],
   "tabBar": {

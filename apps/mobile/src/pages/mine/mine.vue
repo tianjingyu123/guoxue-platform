@@ -45,6 +45,11 @@
         <text class="menu-label">学习记录</text>
         <text class="arrow">›</text>
       </view>
+      <view class="menu-item" @click="goPage('/pages/orders/orders')">
+        <text class="menu-icon">📦</text>
+        <text class="menu-label">我的订单</text>
+        <text class="arrow">›</text>
+      </view>
       <view class="menu-item" @click="goPage('/pages/circles/circles')">
         <text class="menu-icon">👥</text>
         <text class="menu-label">我的圈子</text>
