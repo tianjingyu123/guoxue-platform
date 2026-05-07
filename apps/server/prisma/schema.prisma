@@ -769,6 +769,8 @@ model Station {
   userId      String   @unique
   name        String
   code        String   @unique // 推广码
+  logo        String?  // 分站Logo
+  themeColor  String?  @default("#8B4513") // 主题色
   intro       String?
   status      String   @default("ACTIVE")
   totalEarning Decimal @default(0) @db.Decimal(12, 2)
