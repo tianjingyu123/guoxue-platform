@@ -5,6 +5,7 @@ import {
 import { ShopService } from "./shop.service";
 import {
   CreateProductDto, UpdateProductDto, CreateOrderDto, CreateCouponDto,
+  CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
   ProductListQueryDto, OrderListQueryDto,
 } from "./shop.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -117,13 +118,26 @@ export class ShopController {
   @Post("coupons")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  createCoupon(@Body() dto: CreateCouponDto) {
+  createCoupon(@Body() dto: CreateCouponV2Dto) {
     return this.shop.createCoupon(dto);
   }
 
   @Get("coupons")
-  listCoupons(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.shop.listCoupons(+page, +pageSize);
+  listCoupons(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("admin") admin?: string) {
+    return this.shop.listCoupons(+page, +pageSize, admin === "true");
+  }
+
+  @Put("coupons/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  updateCoupon(@Param("id") id: string, @Body() dto: CreateCouponV2Dto) {
+    return this.shop.updateCoupon(id, dto);
+  }
+
+  @Post("coupons/:id/claim")
+  @UseGuards(JwtAuthGuard)
+  claimCoupon(@Req() req: any, @Param("id") id: string) {
+    return this.shop.claimCoupon(req.user.id, id);
   }
 
   @Post("coupons/:id/grant")
@@ -137,5 +151,32 @@ export class ShopController {
   @UseGuards(JwtAuthGuard)
   myCoupons(@Req() req: any) {
     return this.shop.getUserCoupons(req.user.id);
+  }
+
+  // ───────── 商品评价 ─────────
+
+  @Post("products/:id/reviews")
+  @UseGuards(JwtAuthGuard)
+  createReview(@Req() req: any, @Param("id") id: string, @Body() dto: CreateReviewDto) {
+    return this.shop.createReview(req.user.id, id, dto);
+  }
+
+  @Get("products/:id/reviews")
+  listReviews(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.shop.listReviews(id, +page, +pageSize);
+  }
+
+  // ───────── 物流追踪 ─────────
+
+  @Get("orders/:id/logistics")
+  getLogistics(@Param("id") id: string) {
+    return this.shop.getLogistics(id);
+  }
+
+  @Put("orders/:id/logistics")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  updateLogistics(@Param("id") id: string, @Body() dto: UpdateLogisticsDto) {
+    return this.shop.updateLogistics(id, dto);
   }
 }

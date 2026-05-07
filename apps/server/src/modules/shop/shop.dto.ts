@@ -152,3 +152,94 @@ export class OrderListQueryDto {
   @IsOptional() @IsString()
   status?: string;
 }
+
+// ── 优惠券 DTO ──
+
+export class CreateCouponV2Dto {
+  @IsString()
+  type: string;
+
+  @IsOptional() @IsString()
+  name?: string;
+
+  @IsOptional() @IsNumber()
+  value?: number;
+
+  @IsOptional() @IsNumber()
+  discountAmount?: number;
+
+  @IsOptional() @IsNumber()
+  discountRate?: number;
+
+  @IsOptional() @IsNumber()
+  minAmount?: number;
+
+  @IsOptional() @IsString()
+  scope?: string;
+
+  @IsOptional() @IsString()
+  scopeId?: string;
+
+  @IsOptional() @IsInt()
+  totalCount?: number;
+
+  @IsOptional() @IsString()
+  status?: string;
+
+  @IsString()
+  validStart: string;
+
+  @IsString()
+  validEnd: string;
+}
+
+// ── 商品评价 DTO ──
+
+export class CreateReviewDto {
+  @IsInt()
+  @Min(1)
+  rating: number;
+
+  @IsString()
+  content: string;
+
+  @IsOptional() @IsArray()
+  images?: string[];
+}
+
+// ── 物流 DTO ──
+
+export class UpdateLogisticsDto {
+  @IsOptional() @IsString()
+  company?: string;
+
+  @IsOptional() @IsString()
+  logisticsNo?: string;
+
+  @IsOptional() @IsString()
+  contactName?: string;
+
+  @IsOptional() @IsString()
+  contactPhone?: string;
+
+  @IsOptional() @IsString()
+  province?: string;
+
+  @IsOptional() @IsString()
+  city?: string;
+
+  @IsOptional() @IsString()
+  district?: string;
+
+  @IsOptional() @IsString()
+  address?: string;
+
+  @IsOptional() @IsString()
+  zipCode?: string;
+
+  @IsOptional() @IsString()
+  status?: string;
+
+  @IsOptional() @IsString()
+  remark?: string;
+}

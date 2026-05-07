@@ -460,6 +460,7 @@ model Product {
 
   circle Circle?      @relation(fields: [circleId], references: [id])
   skus   ProductSku[]
+  reviews ProductReview[]
 
   @@index([categoryId])
   @@index([status])
@@ -539,17 +540,21 @@ enum CouponType {
 }
 
 model Coupon {
-  id          String     @id @default(uuid())
-  type        CouponType
-  value       Decimal    @db.Decimal(10, 2) // 满减金额/折扣率
-  minAmount   Decimal?   @db.Decimal(10, 2) // 最低使用金额
-  scope       String     @default("ALL") // ALL, PRODUCT, COURSE, CIRCLE, MEMBER
-  scopeId     String?    // 指定商品/课程ID
-  totalCount  Int        @default(-1) // -1=不限量
-  usedCount   Int        @default(0)
-  validStart  DateTime
-  validEnd    DateTime
-  createdAt   DateTime   @default(now())
+  id             String     @id @default(uuid())
+  type           CouponType
+  name           String?    // 优惠券名称
+  value          Decimal    @db.Decimal(10, 2) // 兼容旧字段: 满减金额/折扣率
+  discountAmount Decimal?   @db.Decimal(10, 2) // 满减金额（新字段）
+  discountRate   Decimal?   @db.Decimal(5, 4)  // 折扣率（新字段，如0.85=85折）
+  minAmount      Decimal?   @db.Decimal(10, 2) // 最低使用金额
+  scope          String     @default("ALL") // ALL, PRODUCT, COURSE, CIRCLE, MEMBER
+  scopeId        String?    // 指定商品/课程ID
+  totalCount     Int        @default(-1) // -1=不限量
+  usedCount      Int        @default(0)
+  status         String     @default("ACTIVE") // ACTIVE, EXPIRED, DISABLED
+  validStart     DateTime
+  validEnd       DateTime
+  createdAt      DateTime   @default(now())
 
   userCoupons UserCoupon[]
 }
@@ -566,6 +571,52 @@ model UserCoupon {
 
   @@index([userId, used])
   @@index([couponId])
+}
+
+// ─────────────────────────────────────────────────
+// 商品评价
+// ─────────────────────────────────────────────────
+
+model ProductReview {
+  id        String   @id @default(uuid())
+  productId String
+  userId    String
+  orderId   String?
+  rating    Int      // 1-5 星
+  content   String
+  images    String[] @default([])
+  status    String   @default("PUBLISHED") // PUBLISHED, HIDDEN
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, createdAt])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────
+// 物流追踪
+// ─────────────────────────────────────────────────
+
+model OrderLogistics {
+  id               String   @id @default(uuid())
+  orderId          String   @unique
+  company          String?  // 物流公司
+  logisticsNo      String?  // 物流单号
+  contactName      String?  // 联系人
+  contactPhone     String?  // 联系电话
+  province         String?  // 省
+  city             String?  // 市
+  district         String?  // 区
+  address          String?  // 详细地址
+  zipCode          String?  // 邮编
+  status           String   @default("PENDING") // PENDING, SHIPPED, IN_TRANSIT, DELIVERED, SIGNED
+  trackingData     Json?    // 物流追踪轨迹 [{time, status, desc}]
+  remark           String?  // 备注
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([orderId])
 }
 
 // ─────────────────────────────────────────────────
