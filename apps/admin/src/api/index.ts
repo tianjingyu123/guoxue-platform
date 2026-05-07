@@ -96,6 +96,14 @@ export const liveApi = {
   remove: (id: string) => api.delete(`/live/rooms/${id}`),
 };
 
+// 用户管理
+export const userApi = {
+  list: (params?: any) => api.get("/users", { params }),
+  detail: (id: string) => api.get(`/users/${id}`),
+  assignRole: (id: string, data: any) => api.post(`/users/${id}/roles`, data),
+  removeRole: (id: string, roleType: string, bindId?: string) => api.delete(`/users/${id}/roles/${roleType}`, { data: { bindId } }),
+};
+
 // 古籍
 export const classicApi = {
   list: (params?: any) => api.get("/classic/books", { params }),

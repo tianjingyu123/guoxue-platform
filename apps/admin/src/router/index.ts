@@ -92,6 +92,11 @@ const routes = [
         name: "LiveList",
         component: () => import("../views/lives/LiveList.vue"),
       },
+      {
+        path: "users",
+        name: "UserList",
+        component: () => import("../views/users/UserList.vue"),
+      },
     ],
   },
 ];
