@@ -1811,6 +1811,67 @@ async function main() {
     console.log("⏭️ 内容管理已存在，跳过");
   }
 
+  // 18. 佣金配置
+  const commissionCount = await prisma.commissionConfig.count();
+  if (commissionCount === 0) {
+    const commissionConfigs = [
+      { configKey: "course_basic", configName: "引流课(0-79元)", rateA: 0.50, rateB: 0.50, description: "讲师50% / 平台50%" },
+      { configKey: "course_premium", configName: "常规课(80-399元)", rateA: 0.60, rateB: 0.40, description: "讲师60% / 平台40%" },
+      { configKey: "course_high", configName: "高阶课(400+)", rateA: 0.70, rateB: 0.30, description: "讲师70% / 平台30%" },
+      { configKey: "product_platform", configName: "平台自营商品", rateA: 0.20, rateB: 0.80, description: "站长20% / 平台80%" },
+      { configKey: "product_circle", configName: "圈主自有商品", rateA: 0.80, rateB: 0.20, description: "圈主80% / 站长20%" },
+      { configKey: "station_course", configName: "分站课程推广", rateA: 0.15, rateB: 0.85, description: "站长15% / 平台85%" },
+      { configKey: "station_member", configName: "会员推广", rateA: 0.20, rateB: 0.80, description: "站长20% / 平台80%" },
+      { configKey: "circle_join", configName: "入圈推广", rateA: 0.15, rateB: 0.85, description: "站长15% / 平台85%" },
+      { configKey: "bot_call", configName: "智能体调用", rateA: 0.15, rateB: 0.85, description: "站长15% / 平台85%" },
+      { configKey: "temp_referral", configName: "临时推荐", rateA: 0.15, rateB: 0.85, description: "临时推荐人15% / 平台85%" },
+      { configKey: "withdrawal_min", configName: "最低提现金额", rateA: 100, rateB: 0, description: "最低提现¥100" },
+    ];
+    for (const c of commissionConfigs) {
+      await (prisma as any).commissionConfig.create({ data: c });
+    }
+    console.log("✅ 佣金配置: " + commissionConfigs.length + " 项");
+  } else {
+    console.log("⏭️ 佣金配置已存在，跳过");
+  }
+
+  // 19. 示例订单
+  const orderCount = await prisma.order.count();
+  if (orderCount === 0) {
+    const products = await prisma.product.findMany({ take: 5 });
+    const courses = await prisma.course.findMany({ take: 3 });
+    const users = await prisma.user.findMany({ take: 3 });
+    if (users.length > 0) {
+      const orders = [
+        { userId: users[0].id, type: "PRODUCT", targetId: products[0]?.id, amount: products[0]?.price || 299, status: "PAID" },
+        { userId: users[0].id, type: "PRODUCT", targetId: products[1]?.id, amount: products[1]?.price || 128, status: "SHIPPED" },
+        { userId: users[1].id, type: "PRODUCT", targetId: products[2]?.id, amount: products[2]?.price || 399, status: "PAID" },
+        { userId: users[1].id, type: "COURSE", targetId: courses[0]?.id, amount: courses[0]?.price || 299, status: "PAID" },
+        { userId: users[2].id, type: "COURSE", targetId: courses[1]?.id, amount: courses[1]?.price || 399, status: "PAID" },
+        { userId: users[0].id, type: "PRODUCT", targetId: products[3]?.id, amount: products[3]?.price || 79, status: "COMPLETED" },
+        { userId: users[2].id, type: "COURSE", targetId: courses[2]?.id, amount: courses[2]?.price || 99, status: "COMPLETED" },
+      ];
+      let created = 0;
+      for (const o of orders) {
+        if (!o.targetId) continue;
+        await (prisma as any).order.create({
+          data: {
+            userId: o.userId,
+            type: o.type,
+            targetId: o.targetId,
+            amount: o.amount,
+            status: o.status,
+            paidAt: o.status !== "PENDING" ? new Date(Date.now() - Math.random() * 86400000 * 30) : null,
+          },
+        });
+        created++;
+      }
+      console.log("✅ 示例订单: " + created + " 笔");
+    }
+  } else {
+    console.log("⏭️ 订单已存在，跳过");
+  }
+
   console.log("\n🎉 种子数据填充完成！");
   console.log("   管理员: 13800000000 / guoxue123");
   console.log("   讲师1:  13800000001 / teacher123");

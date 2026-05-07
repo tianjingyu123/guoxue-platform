@@ -121,6 +121,10 @@
     {
       "path": "pages/orders/order-detail",
       "style": { "navigationBarTitleText": "订单详情" }
+    },
+    {
+      "path": "pages/station/earnings",
+      "style": { "navigationBarTitleText": "推广收益" }
     }
   ],
   "tabBar": {
