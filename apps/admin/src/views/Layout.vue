@@ -45,7 +45,6 @@
         <el-menu-item index="/comments">
           <span>评论管理</span>
         </el-menu-item>
-        <!-- Bot管理已移至排盘工具子菜单 -->
         <el-sub-menu index="offline">
           <template #title><span>线下管理</span></template>
           <el-menu-item index="/stations">
@@ -77,7 +76,7 @@
     </el-aside>
     <el-container>
       <el-header>
-        <span>{{ user?.nickname }}</span>
+        <span>{{ auth.user?.nickname }}</span>
         <el-button text @click="logout">退出</el-button>
       </el-header>
       <el-main>
@@ -88,25 +87,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { authApi } from "../api";
+import { useAuthStore } from "../store/auth";
 
 const router = useRouter();
 const route = useRoute();
-const user = ref<any>(null);
+const auth = useAuthStore();
 
 onMounted(async () => {
   try {
-    const { data } = await authApi.getProfile();
-    user.value = data;
+    await auth.fetchProfile();
   } catch {
     router.push("/login");
   }
 });
 
 function logout() {
-  localStorage.removeItem("token");
+  auth.logout();
   router.push("/login");
 }
 </script>
