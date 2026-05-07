@@ -58,7 +58,9 @@ export const circleApi = {
   list: (params?: any) => api.get("/circles", params),
   detail: (id: string) => api.get(`/circles/${id}`),
   join: (id: string) => api.post(`/circles/${id}/join`),
+  leave: (id: string) => api.post(`/circles/${id}/leave`),
   posts: (circleId: string, params?: any) => api.get(`/circles/${circleId}/posts`, params),
+  createPost: (circleId: string, data: any) => api.post(`/circles/${circleId}/posts`, data),
 };
 
 // 互动

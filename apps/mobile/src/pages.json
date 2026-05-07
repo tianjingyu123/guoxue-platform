@@ -13,6 +13,10 @@
       "style": { "navigationBarTitleText": "圈子" }
     },
     {
+      "path": "pages/circles/circle-detail",
+      "style": { "navigationBarTitleText": "圈子详情" }
+    },
+    {
       "path": "pages/search/search",
       "style": { "navigationBarTitleText": "搜索" }
     },

@@ -27,7 +27,7 @@ onMounted(async () => {
 });
 
 function goCircle(id: string) {
-  uni.navigateTo({ url: `/pages/detail/detail?id=${id}&type=CIRCLE` });
+  uni.navigateTo({ url: `/pages/circles/circle-detail?id=${id}` });
 }
 </script>
 
