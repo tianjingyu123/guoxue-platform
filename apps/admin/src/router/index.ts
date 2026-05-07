@@ -77,6 +77,21 @@ const routes = [
         name: "ClassicList",
         component: () => import("../views/classics/ClassicList.vue"),
       },
+      {
+        path: "circles",
+        name: "CircleList",
+        component: () => import("../views/circles/CircleList.vue"),
+      },
+      {
+        path: "videos",
+        name: "VideoList",
+        component: () => import("../views/videos/VideoList.vue"),
+      },
+      {
+        path: "lives",
+        name: "LiveList",
+        component: () => import("../views/lives/LiveList.vue"),
+      },
     ],
   },
 ];

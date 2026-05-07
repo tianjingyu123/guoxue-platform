@@ -73,6 +73,29 @@ export const dashboardApi = {
   stats: () => api.get("/dashboard/stats"),
 };
 
+// 圈子
+export const circleApi = {
+  list: (params?: any) => api.get("/circles", { params }),
+  detail: (id: string) => api.get(`/circles/${id}`),
+  update: (id: string, data: any) => api.put(`/circles/${id}`, data),
+  remove: (id: string) => api.delete(`/circles/${id}`),
+};
+
+// 视频
+export const videoApi = {
+  list: (params?: any) => api.get("/videos", { params }),
+  detail: (id: string) => api.get(`/videos/${id}`),
+  remove: (id: string) => api.delete(`/videos/${id}`),
+};
+
+// 直播
+export const liveApi = {
+  rooms: (params?: any) => api.get("/live/rooms", { params }),
+  detail: (id: string) => api.get(`/live/rooms/${id}`),
+  endRoom: (id: string) => api.put(`/live/rooms/${id}/end`),
+  remove: (id: string) => api.delete(`/live/rooms/${id}`),
+};
+
 // 古籍
 export const classicApi = {
   list: (params?: any) => api.get("/classic/books", { params }),

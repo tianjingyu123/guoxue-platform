@@ -12,6 +12,18 @@
         <el-menu-item index="/classics">
           <span>古籍管理</span>
         </el-menu-item>
+        <el-sub-menu index="community">
+          <template #title><span>社区管理</span></template>
+          <el-menu-item index="/circles">
+            <span>圈子管理</span>
+          </el-menu-item>
+          <el-menu-item index="/videos">
+            <span>视频管理</span>
+          </el-menu-item>
+          <el-menu-item index="/lives">
+            <span>直播管理</span>
+          </el-menu-item>
+        </el-sub-menu>
         <el-sub-menu index="tools">
           <template #title><span>排盘工具</span></template>
           <el-menu-item index="/bazi">
