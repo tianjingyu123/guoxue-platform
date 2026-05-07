@@ -84,6 +84,15 @@
             <span>提现审核</span>
           </el-menu-item>
         </el-sub-menu>
+        <el-sub-menu index="finance">
+          <template #title><span>财务管理</span></template>
+          <el-menu-item index="/recharges">
+            <span>充值记录</span>
+          </el-menu-item>
+          <el-menu-item index="/gifts">
+            <span>礼物管理</span>
+          </el-menu-item>
+        </el-sub-menu>
         <el-menu-item index="/notifications">
           <span>通知管理</span>
         </el-menu-item>
@@ -94,6 +103,9 @@
           <template #title><span>系统管理</span></template>
           <el-menu-item index="/users">
             <span>用户管理</span>
+          </el-menu-item>
+          <el-menu-item index="/banners">
+            <span>Banner管理</span>
           </el-menu-item>
           <el-menu-item index="/system-settings">
             <span>系统设置</span>

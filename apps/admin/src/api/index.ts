@@ -220,4 +220,25 @@ export const shopApi = {
   listReviews: (productId: string, params?: any) => api.get(`/shop/products/${productId}/reviews`, { params }),
 };
 
+// 虚拟币管理
+export const coinApi = {
+  /** 充值记录列表 */
+  getRecharges: (page: number, pageSize: number, userId?: string) =>
+    api.get("/coin/admin/recharges", { params: { page, pageSize, userId } }),
+  /** 管理员充值 */
+  adminRecharge: (data: { userId: string; coins: number; remark?: string }) =>
+    api.post("/coin/admin/recharge", data),
+  /** 礼物列表 */
+  getGifts: () => api.get("/coin/gifts"),
+  /** 创建/编辑礼物 */
+  createGift: (data: {
+    id?: string;
+    name: string;
+    icon: string;
+    price: number;
+    level: string;
+    sort: number;
+  }) => api.post("/coin/gifts", data),
+};
+
 export default api;

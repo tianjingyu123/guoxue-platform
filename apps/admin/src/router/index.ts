@@ -153,6 +153,21 @@ const routes = [
         component: () => import("../views/commission/WithdrawalList.vue"),
       },
       {
+        path: "recharges",
+        name: "RechargeList",
+        component: () => import("../views/coin/RechargeList.vue"),
+      },
+      {
+        path: "gifts",
+        name: "GiftList",
+        component: () => import("../views/coin/GiftList.vue"),
+      },
+      {
+        path: "banners",
+        name: "BannerAdmin",
+        component: () => import("../views/system/BannerAdmin.vue"),
+      },
+      {
         path: "system-settings",
         name: "SystemSettings",
         component: () => import("../views/system/SystemSettings.vue"),
