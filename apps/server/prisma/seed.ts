@@ -915,81 +915,173 @@ async function main() {
   }
 
   // 8. 创建短视频
-  const videosData = [
-    {
-      title: "《道德经》第一章诵读与讲解",
-      videoUrl: "/static/videos/daodejing_ch1.mp4",
-      coverUrl: "/static/covers/video_daodejing.jpg",
-      duration: 480,
-      viewCount: 12500,
-      likeCount: 892,
-      circleIdx: 0,
-    },
-    {
-      title: "易经占卜入门：三枚铜钱起卦法",
-      videoUrl: "/static/videos/yijing_divination.mp4",
-      coverUrl: "/static/covers/video_yijing.jpg",
-      duration: 720,
-      viewCount: 9800,
-      likeCount: 756,
-      circleIdx: 1,
-    },
-    {
-      title: "李白《将进酒》朗诵与赏析",
-      videoUrl: "/static/videos/libai_jiangjinjiu.mp4",
-      coverUrl: "/static/covers/video_libai.jpg",
-      duration: 360,
-      viewCount: 15200,
-      likeCount: 1203,
-      circleIdx: 2,
-    },
-    {
-      title: "八段锦完整教学：每天10分钟",
-      videoUrl: "/static/videos/baduanjin.mp4",
-      coverUrl: "/static/covers/video_baduanjin.jpg",
-      duration: 600,
-      viewCount: 22000,
-      likeCount: 2105,
-      circleIdx: 5,
-    },
-    {
-      title: "《论语》中的人生智慧：学而篇精讲",
-      videoUrl: "/static/videos/lunyu_xueer.mp4",
-      coverUrl: "/static/covers/video_lunyu.jpg",
-      duration: 900,
-      viewCount: 7800,
-      likeCount: 623,
-      circleIdx: 4,
-    },
-    {
-      title: "认识你的生辰八字：排盘入门",
-      videoUrl: "/static/videos/bazi_intro.mp4",
-      coverUrl: "/static/covers/video_bazi.jpg",
-      duration: 840,
-      viewCount: 18500,
-      likeCount: 1567,
-      circleIdx: 3,
-    },
-  ];
-
-  for (const v of videosData) {
-    const circle = circles[v.circleIdx];
-    const author = v.circleIdx % 2 === 0 ? admin : teacher;
-    await prisma.video.create({
-      data: {
-        title: v.title,
-        videoUrl: v.videoUrl,
-        coverUrl: v.coverUrl,
-        duration: v.duration,
-        viewCount: v.viewCount,
-        likeCount: v.likeCount,
-        status: "PUBLISHED",
-        circleId: circle.id,
-        userId: author.id,
+  const existingVideo = await prisma.video.findFirst();
+  if (!existingVideo) {
+    const videosData = [
+      {
+        title: "《道德经》第一章诵读与讲解",
+        videoUrl: "/static/videos/daodejing_ch1.mp4",
+        coverUrl: "/static/covers/video_daodejing.jpg",
+        duration: 480,
+        viewCount: 12500,
+        likeCount: 892,
+        circleIdx: 0,
       },
-    });
+      {
+        title: "易经占卜入门：三枚铜钱起卦法",
+        videoUrl: "/static/videos/yijing_divination.mp4",
+        coverUrl: "/static/covers/video_yijing.jpg",
+        duration: 720,
+        viewCount: 9800,
+        likeCount: 756,
+        commentCount: 98,
+        circleIdx: 1,
+      },
+      {
+        title: "李白《将进酒》朗诵与赏析",
+        videoUrl: "/static/videos/libai_jiangjinjiu.mp4",
+        coverUrl: "/static/covers/video_libai.jpg",
+        duration: 360,
+        viewCount: 15200,
+        likeCount: 1203,
+        commentCount: 234,
+        circleIdx: 2,
+      },
+      {
+        title: "八段锦完整教学：每天10分钟",
+        videoUrl: "/static/videos/baduanjin.mp4",
+        coverUrl: "/static/covers/video_baduanjin.jpg",
+        duration: 600,
+        viewCount: 22000,
+        likeCount: 2105,
+        commentCount: 312,
+        circleIdx: 5,
+      },
+      {
+        title: "《论语》中的人生智慧：学而篇精讲",
+        videoUrl: "/static/videos/lunyu_xueer.mp4",
+        coverUrl: "/static/covers/video_lunyu.jpg",
+        duration: 900,
+        viewCount: 7800,
+        likeCount: 623,
+        commentCount: 87,
+        circleIdx: 4,
+      },
+      {
+        title: "认识你的生辰八字：排盘入门",
+        videoUrl: "/static/videos/bazi_intro.mp4",
+        coverUrl: "/static/covers/video_bazi.jpg",
+        duration: 840,
+        viewCount: 18500,
+        likeCount: 1567,
+        commentCount: 203,
+        circleIdx: 3,
+      },
+      // 新增更多国学视频
+      {
+        title: "《庄子》逍遥游：大鹏展翅的哲学境界",
+        videoUrl: "/static/videos/zhuangzi_xiaoyao.mp4",
+        coverUrl: "/static/covers/video_zhuangzi.jpg",
+        duration: 660,
+        viewCount: 6200,
+        likeCount: 445,
+        commentCount: 67,
+        circleIdx: 2,
+      },
+      {
+        title: "王羲之《兰亭序》书法赏析",
+        videoUrl: "/static/videos/lantingxu.mp4",
+        coverUrl: "/static/covers/video_lantingxu.jpg",
+        duration: 540,
+        viewCount: 9300,
+        likeCount: 876,
+        commentCount: 124,
+        circleIdx: 3,
+      },
+      {
+        title: "茶道入门：一壶清茶品人生",
+        videoUrl: "/static/videos/chadao_intro.mp4",
+        coverUrl: "/static/covers/video_chadao.jpg",
+        duration: 780,
+        viewCount: 11200,
+        likeCount: 1345,
+        commentCount: 198,
+        circleIdx: 5,
+      },
+      {
+        title: "《三字经》全文诵读：人之初性本善",
+        videoUrl: "/static/videos/sanzijing.mp4",
+        coverUrl: "/static/covers/video_sanzijing.jpg",
+        duration: 1200,
+        viewCount: 25600,
+        likeCount: 3200,
+        commentCount: 456,
+        circleIdx: 0,
+      },
+      {
+        title: "太极拳二十四式完整教学",
+        videoUrl: "/static/videos/taiji_24.mp4",
+        coverUrl: "/static/covers/video_taiji.jpg",
+        duration: 1500,
+        viewCount: 38000,
+        likeCount: 5678,
+        commentCount: 789,
+        circleIdx: 1,
+      },
+      {
+        title: "《孙子兵法》现代解读：知己知彼",
+        videoUrl: "/static/videos/sunzi_bingfa.mp4",
+        coverUrl: "/static/covers/video_sunzi.jpg",
+        duration: 540,
+        viewCount: 14200,
+        likeCount: 1890,
+        commentCount: 267,
+        circleIdx: 0,
+      },
+      {
+        title: "古琴名曲《高山流水》欣赏",
+        videoUrl: "/static/videos/gaoshan_liushui.mp4",
+        coverUrl: "/static/covers/video_guqin.jpg",
+        duration: 420,
+        viewCount: 8700,
+        likeCount: 1023,
+        commentCount: 145,
+        circleIdx: 4,
+      },
+      {
+        title: "你的八字命盘解析：日柱看性格",
+        videoUrl: "/static/videos/bazi_rizhu.mp4",
+        coverUrl: "/static/covers/video_bazi2.jpg",
+        duration: 960,
+        viewCount: 21000,
+        likeCount: 2345,
+        commentCount: 389,
+        circleIdx: 3,
+      },
+    ];
+
+    for (const v of videosData) {
+      const circle = circles[v.circleIdx];
+      const author = v.circleIdx % 2 === 0 ? admin : teacher;
+      await prisma.video.create({
+        data: {
+          title: v.title,
+          videoUrl: v.videoUrl,
+          coverUrl: v.coverUrl,
+          duration: v.duration,
+          viewCount: v.viewCount,
+          likeCount: v.likeCount,
+
+          status: "PUBLISHED",
+          circleId: circle.id,
+          userId: author.id,
+        },
+      });
+    }
+    console.log("✅ 短视频: " + videosData.length + " 条");
+  } else {
+    console.log("⏭️ 短视频已存在，跳过");
   }
-  console.log("✅ 短视频: " + videosData.length + " 条");
 
   // 9. 创建热门搜索词
   const hotWords = [
