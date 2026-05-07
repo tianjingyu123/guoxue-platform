@@ -7,84 +7,1026 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  phone     String?  @unique
-  email     String?  @unique
-  nickname  String
-  avatar    String?
-  role      Role     @default(USER)
-  status    Status   @default(ACTIVE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// ─────────────────────────────────────────────────
+// 用户系统
+// ─────────────────────────────────────────────────
 
-  auths     Auth[]
-  favorites Favorite[]
-}
-
-model Auth {
-  id           String     @id @default(uuid())
-  userId       String
-  provider     Provider
-  openId       String?    @unique
-  passwordHash String?
-  createdAt    DateTime   @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model Content {
-  id        String      @id @default(uuid())
-  title     String
-  type      ContentType
-  body      String
-  excerpt   String?
-  author    String?
-  dynasty   String?
-  tags      String[]
-  coverUrl  String?
-  status    ContentStatus @default(DRAFT)
-  viewCount Int          @default(0)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-
-  favorites Favorite[]
-}
-
-model Favorite {
-  id        String   @id @default(uuid())
-  userId    String
-  contentId String
-  createdAt DateTime @default(now())
-
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, contentId])
-}
-
-enum Role {
-  USER
-  ADMIN
-}
-
-enum Status {
+enum UserStatus {
   ACTIVE
   DISABLED
 }
 
-enum Provider {
-  WECHAT
-  PASSWORD
+enum MemberLevel {
+  NONE
+  MONTHLY
+  YEARLY
+  LIFETIME
 }
 
-enum ContentType {
-  ARTICLE
-  POEM
-  CLASSIC
+model User {
+  id            String     @id @default(uuid())
+  phone         String?    @unique
+  email         String?    @unique
+  nickname      String
+  avatar        String?
+  gender        Int?
+  birthday      DateTime?
+  memberLevel   MemberLevel @default(NONE)
+  memberExpire  DateTime?
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  auths          Auth[]
+  roles          UserRole[]
+  memberPurchases MemberPurchase[]
+  circles        Circle[]
+  circleMembers  CircleMember[]
+  posts          Post[]
+  articles       Article[]
+  courses        Course[]
+  orders         Order[]
+  liveRooms      LiveRoom[]
+  videos         Video[]
+  paipanRecords  PaipanRecord[]
+  aiAnalysisRecords AiAnalysisRecord[]
+  likes          Like[]
+  comments       Comment[]
+  collects       Collect[]
+  notifications  Notification[]
+  searchHistories SearchHistory[]
+  station        Station?
+  operator       Operator?
+  stationOffline StationOffline?
+  instituteMember InstituteMember?
+  sentReports    Report[]          @relation("Reporter")
+  followings     Follow[]          @relation("Follower")
+  followers      Follow[]          @relation("FollowedUser")
+  referralUsers  ReferralRelation[] @relation("ReferredUser")
+  referralRefs   ReferralRelation[] @relation("Referrer")
+
+  @@index([phone])
+  @@index([memberLevel])
 }
 
-enum ContentStatus {
-  DRAFT
-  PUBLISHED
+model Auth {
+  id           String   @id @default(uuid())
+  userId       String
+  provider     String   // PASSWORD, WECHAT, PHONE
+  openId       String?  @unique
+  unionId      String?
+  credential   String?  // password hash or access_token
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, provider])
+}
+
+enum RoleType {
+  SUPER_ADMIN
+  OPERATION_ADMIN
+  CONTENT_AUDITOR
+  CIRCLE_OWNER
+  LECTURER
+  STATION_MASTER
+  OPERATOR
+  STATION_OFFLINE_OWNER
+  INSTITUTE_MEMBER
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  roleType  RoleType
+  bindId    String?  // 关联的业务ID（圈子ID/分站ID等）
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleType, bindId])
+  @@index([roleType])
+}
+
+model MemberPurchase {
+  id         String     @id @default(uuid())
+  userId     String
+  memberType MemberLevel
+  amount     Decimal    @db.Decimal(10, 2)
+  sourcePage String?    // 来源页面追踪
+  referrerId String?
+  paidAt     DateTime   @default(now())
+  expireAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────
+// 推荐关系
+// ─────────────────────────────────────────────────
+
+enum ReferrerType {
+  STATION_MASTER
+  OPERATOR
+  USER
+}
+
+model ReferralRelation {
+  id             String       @id @default(uuid())
+  userId         String       // 被推荐人
+  referrerId     String       // 推荐人
+  referrerType   ReferrerType
+  sourceChannel  String?      // 渠道来源
+  relationStatus String       @default("ACTIVE") // ACTIVE, DISABLED
+  createdAt      DateTime     @default(now())
+
+  user     User @relation("ReferredUser", fields: [userId], references: [id], onDelete: Cascade)
+  referrer User @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, referrerId])
+  @@index([referrerId])
+}
+
+model Follow {
+  id             String   @id @default(uuid())
+  userId         String
+  followedUserId String
+  createdAt      DateTime @default(now())
+
+  user         User @relation("Follower", fields: [userId], references: [id], onDelete: Cascade)
+  followedUser User @relation("FollowedUser", fields: [followedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, followedUserId])
+}
+
+// ─────────────────────────────────────────────────
+// 圈子系统
+// ─────────────────────────────────────────────────
+
+enum CircleType {
+  FREE
+  PAID
+  YEARLY
+}
+
+enum CircleStatus {
+  ACTIVE
+  DISABLED
+  PENDING
+}
+
+enum CircleMemberRole {
+  OWNER
+  PARTNER
+  ADMIN
+  GUEST
+  VOLUNTEER
+  MEMBER
+}
+
+model Circle {
+  id             String       @id @default(uuid())
+  name           String
+  intro          String
+  cover          String?
+  tags           String[]
+  type           CircleType   @default(FREE)
+  price          Decimal      @default(0) @db.Decimal(10, 2)
+  depositAmount  Decimal      @default(0) @db.Decimal(10, 2)
+  ownerId        String
+  memberCount    Int          @default(0)
+  postCount      Int          @default(0)
+  status         CircleStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  owner    User           @relation(fields: [ownerId], references: [id])
+  members  CircleMember[]
+  posts    Post[]
+  articles Article[]
+  courses  Course[]
+  videos   Video[]
+  products Product[]
+  liveRooms LiveRoom[]
+  bot      CircleBot?
+
+  @@index([ownerId])
+  @@index([status])
+}
+
+model CircleMember {
+  id        String           @id @default(uuid())
+  circleId  String
+  userId    String
+  role      CircleMemberRole @default(MEMBER)
+  joinedAt  DateTime         @default(now())
+  expireAt  DateTime?
+
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([circleId, userId])
+}
+
+// ─────────────────────────────────────────────────
+// 帖子
+// ─────────────────────────────────────────────────
+
+enum PostType {
+  TEXT
+  IMAGE
+  VIDEO
+  FILE
+  LINK
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  circleId  String
+  userId    String
+  type      PostType @default(TEXT)
+  title     String?
+  content   String
+  images    String[] @default([])
+  videoUrl  String?
+  fileUrl   String?
+  linkUrl   String?
+  isEssence Boolean  @default(false)
+  isTop     Boolean  @default(false)
+  status    String   @default("PUBLISHED") // PUBLISHED, DRAFT, AUDITING, HIDDEN
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  circle   Circle   @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([circleId, createdAt])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────
+// 文章系统
+// ─────────────────────────────────────────────────
+
+model Article {
+  id          String   @id @default(uuid())
+  circleId    String
+  userId      String
+  title       String
+  content     String   // 富文本HTML
+  cover       String?
+  excerpt     String?
+  tags        String[]
+  isPushHome  Boolean  @default(false)
+  auditStatus String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  viewCount   Int      @default(0)
+  likeCount   Int      @default(0)
+  collectCount Int     @default(0)
+  commentCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  circle     Circle             @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recommends ArticleRecommend[]
+
+  @@index([circleId, createdAt])
+  @@index([isPushHome, auditStatus])
+}
+
+model ArticleRecommend {
+  id            String @id @default(uuid())
+  articleId     String
+  recommendType String // CIRCLE, COURSE, PRODUCT, PAIPAN, BOT
+  targetId      String
+  title         String?
+  cover         String?
+  sortOrder     Int    @default(0)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+}
+
+// ─────────────────────────────────────────────────
+// 课程系统
+// ─────────────────────────────────────────────────
+
+enum CourseType {
+  VIDEO
+  AUDIO
+  TEXT
+  EBOOK
+  COMBO
+}
+
+model Course {
+  id            String     @id @default(uuid())
+  circleId      String?
+  userId        String     // 创建者
+  title         String
+  cover         String?
+  intro         String?
+  type          CourseType @default(VIDEO)
+  price         Decimal    @default(0) @db.Decimal(10, 2)
+  originalPrice Decimal?   @db.Decimal(10, 2)
+  studentCount  Int        @default(0)
+  auditStatus   String     @default("PENDING")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  circle     Circle?           @relation(fields: [circleId], references: [id])
+  user       User              @relation(fields: [userId], references: [id])
+  chapters   CourseChapter[]
+  progresses CourseProgress[]
+  works      CourseWork[]
+
+  @@index([circleId])
+  @@index([auditStatus])
+}
+
+model CourseChapter {
+  id        String   @id @default(uuid())
+  courseId  String
+  title     String
+  content   String?  // 视频URL/音频URL/文本内容
+  mediaUrl  String?
+  duration  Int?     // 秒
+  sortOrder Int      @default(0)
+  freeTrial Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  course    Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progresses CourseProgress[]
+  works     CourseWork[]
+
+  @@index([courseId, sortOrder])
+}
+
+model CourseProgress {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  chapterId String
+  progress  Float    @default(0) // 0-100
+  completed Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  chapter CourseChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  course  Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chapterId])
+  @@index([userId, courseId])
+}
+
+model CourseWork {
+  id        String   @id @default(uuid())
+  courseId  String
+  chapterId String
+  userId    String
+  content   String
+  score     Float?
+  feedback  String?
+  createdAt DateTime @default(now())
+
+  chapter CourseChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  course  Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([chapterId, userId])
+}
+
+// ─────────────────────────────────────────────────
+// 商城系统
+// ─────────────────────────────────────────────────
+
+enum SupplierType {
+  PLATFORM
+  CIRCLE_OWNER
+  STATION_OFFLINE
+  CERTIFIED_MERCHANT
+}
+
+model Product {
+  id           String       @id @default(uuid())
+  circleId     String?
+  userId       String?      // 供应商
+  title        String
+  categoryId   String?
+  intro        String?
+  detail       String       // 详情HTML
+  images       String[]     @default([])
+  videoUrl     String?
+  price        Decimal      @db.Decimal(10, 2)
+  stock        Int          @default(0)
+  salesCount   Int          @default(0)
+  isPlatform   Boolean      @default(true)
+  supplierType SupplierType @default(PLATFORM)
+  status       String       @default("PENDING") // PENDING, ON_SALE, OFF_SHELF
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  circle Circle?      @relation(fields: [circleId], references: [id])
+  skus   ProductSku[]
+
+  @@index([categoryId])
+  @@index([status])
+}
+
+model ProductSku {
+  id        String  @id @default(uuid())
+  productId String
+  specs     Json    // { 规格名: 规格值 }
+  price     Decimal @db.Decimal(10, 2)
+  stock     Int     @default(0)
+  skuCode   String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+// ─────────────────────────────────────────────────
+// 订单与优惠券
+// ─────────────────────────────────────────────────
+
+enum OrderType {
+  MEMBER
+  COURSE
+  PRODUCT
+  CIRCLE_JOIN
+  STATION_MASTER
+  OPERATOR
+  BOT_SERVICE
+  PAIPAN
+  LIVESTREAM
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  COMPLETED
+  REFUNDED
+  CANCELLED
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  userId          String
+  type            OrderType
+  targetId        String      // 购买目标ID（课程ID/商品ID等）
+  skuId           String?
+  amount          Decimal     @db.Decimal(10, 2)
+  payAmount       Decimal?    @db.Decimal(10, 2) // 实付金额
+  couponId        String?
+  status          OrderStatus @default(PENDING)
+  referrerId      String?     // 永久推荐人
+  tempReferrerId  String?     // 临时推荐人
+  payMethod       String?     // WECHAT, ALIPAY
+  payTransactionId String?
+  paidAt          DateTime?
+  shippedAt       DateTime?
+  completedAt     DateTime?
+  refundedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([referrerId])
+  @@index([tempReferrerId])
+}
+
+enum CouponType {
+  FULL_REDUCE
+  DISCOUNT
+  NO_THRESHOLD
+}
+
+model Coupon {
+  id          String     @id @default(uuid())
+  type        CouponType
+  value       Decimal    @db.Decimal(10, 2) // 满减金额/折扣率
+  minAmount   Decimal?   @db.Decimal(10, 2) // 最低使用金额
+  scope       String     @default("ALL") // ALL, PRODUCT, COURSE, CIRCLE, MEMBER
+  scopeId     String?    // 指定商品/课程ID
+  totalCount  Int        @default(-1) // -1=不限量
+  usedCount   Int        @default(0)
+  validStart  DateTime
+  validEnd    DateTime
+  createdAt   DateTime   @default(now())
+
+  userCoupons UserCoupon[]
+}
+
+model UserCoupon {
+  id        String   @id @default(uuid())
+  userId    String
+  couponId  String
+  used      Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([userId, used])
+  @@index([couponId])
+}
+
+// ─────────────────────────────────────────────────
+// 直播系统
+// ─────────────────────────────────────────────────
+
+enum LiveHostType {
+  CIRCLE_OWNER
+  STATION_MASTER
+}
+
+enum LiveStatus {
+  WAITING
+  LIVING
+  ENDED
+  REPLAY
+}
+
+model LiveRoom {
+  id          String       @id @default(uuid())
+  circleId    String?
+  userId      String       // 发起人
+  title       String
+  cover       String?
+  hostType    LiveHostType @default(CIRCLE_OWNER)
+  hostUserId  String       // 主播
+  coHostIds   String[]     @default([])
+  pushUrl     String?      // 腾讯云推流地址
+  pullUrl     String?      // CDN播放地址
+  trtcRoomId  String?      // TRTC房间ID
+  imGroupId   String?
+  status      LiveStatus   @default(WAITING)
+  viewCount   Int          @default(0)
+  chargeType  String       @default("FREE") // FREE, PAID, CIRCLE_ONLY, MEMBER_FREE
+  chargePrice Decimal?     @db.Decimal(10, 2)
+  startTime   DateTime?
+  endTime     DateTime?
+  replayUrl   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  circle    Circle?        @relation(fields: [circleId], references: [id])
+  user      User           @relation(fields: [userId], references: [id])
+  products  LiveProduct[]
+
+  @@index([status])
+  @@index([circleId])
+}
+
+model LiveProduct {
+  id        String @id @default(uuid())
+  liveId    String
+  productId String
+  sortOrder Int    @default(0)
+
+  liveRoom LiveRoom @relation(fields: [liveId], references: [id], onDelete: Cascade)
+
+  @@unique([liveId, productId])
+}
+
+// ─────────────────────────────────────────────────
+// 短视频系统
+// ─────────────────────────────────────────────────
+
+model Video {
+  id         String   @id @default(uuid())
+  circleId   String?
+  userId     String
+  title      String?
+  videoUrl   String
+  coverUrl   String?
+  duration   Int?     // 秒
+  viewCount  Int      @default(0)
+  likeCount  Int      @default(0)
+  status     String   @default("PUBLISHED") // PUBLISHED, AUDITING, HIDDEN
+  createdAt  DateTime @default(now())
+
+  circle   Circle?        @relation(fields: [circleId], references: [id])
+  user     User           @relation(fields: [userId], references: [id])
+  products VideoProduct[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model VideoProduct {
+  id        String @id @default(uuid())
+  videoId   String
+  productId String
+  sortOrder Int    @default(0)
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([videoId, productId])
+}
+
+// ─────────────────────────────────────────────────
+// 智能体系统
+// ─────────────────────────────────────────────────
+
+model BotConfig {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   // CUSTOMER_SERVICE, CIRCLE_ASSISTANT, CONTENT_WRITER, etc.
+  avatar      String?
+  intro       String
+  botId       String   // Coze Bot ID
+  apiKey      String   // Coze API Key (加密存储)
+  isFree      Boolean  @default(true)
+  dailyLimit  Int      @default(5) // 每日免费次数
+  price       Decimal? @db.Decimal(10, 2) // 付费调用单价
+  monthlyPrice Decimal? @db.Decimal(10, 2)
+  sortOrder   Int      @default(0)
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  circleBots        CircleBot[]
+  knowledgeBases    BotKnowledgeBase[]
+}
+
+model CircleBot {
+  id              String   @id @default(uuid())
+  circleId        String
+  botConfigId     String
+  knowledgeBaseId String?
+  status          String   @default("ACTIVE")
+  createdAt       DateTime @default(now())
+
+  circle   Circle    @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  botConfig BotConfig @relation(fields: [botConfigId], references: [id])
+
+  @@unique([circleId])
+}
+
+model BotKnowledgeBase {
+  id          String   @id @default(uuid())
+  botConfigId String
+  title       String
+  content     String
+  sourceType  String?  // POST, ARTICLE, COURSE, MANUAL
+  sourceId    String?
+  createdAt   DateTime @default(now())
+
+  botConfig BotConfig @relation(fields: [botConfigId], references: [id], onDelete: Cascade)
+
+  @@index([botConfigId])
+}
+
+// ─────────────────────────────────────────────────
+// 排盘系统
+// ─────────────────────────────────────────────────
+
+model PaipanRecord {
+  id           String   @id @default(uuid())
+  userId       String
+  clientName   String?  // 被排盘人姓名
+  clientBirth  String   // 生辰信息（AES加密）
+  paipanType   String   // BAZI, ZIWEI, FENGSHUI, NAME
+  inputParams  Json     // 输入参数
+  resultData   Json     // 排盘结果JSON
+  createdAt    DateTime @default(now())
+
+  user       User               @relation(fields: [userId], references: [id])
+  aiAnalysis AiAnalysisRecord[]
+
+  @@index([userId, createdAt])
+  @@index([userId, paipanType, createdAt])
+}
+
+model AiAnalysisRecord {
+  id             String   @id @default(uuid())
+  userId         String
+  paipanRecordId String
+  analyzeType    String   // CAREER, LOVE, WEALTH, HEALTH, GENERAL
+  analysisContent String  // 分析全文
+  modelName      String   @default("deepseek-v4-pro")
+  tokenUsage     Json?    // { promptTokens, completionTokens }
+  isCached       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id])
+  paipanRecord PaipanRecord @relation(fields: [paipanRecordId], references: [id])
+
+  @@index([userId, paipanRecordId, analyzeType])
+}
+
+// ─────────────────────────────────────────────────
+// 分站与运营商
+// ─────────────────────────────────────────────────
+
+enum OperatorLevel {
+  SILVER
+  GOLD
+  DIAMOND
+  BLACK_GOLD
+}
+
+model Station {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  name        String
+  code        String   @unique // 推广码
+  intro       String?
+  status      String   @default("ACTIVE")
+  totalEarning Decimal @default(0) @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id])
+  earnings StationEarning[]
+
+  @@index([code])
+}
+
+model Operator {
+  id             String       @id @default(uuid())
+  userId         String       @unique
+  level          OperatorLevel
+  containQuota   Int          @default(0) // 包含的站长名额
+  usedQuota      Int          @default(0) // 已使用名额
+  parentOperatorId String?
+  status         String       @default("ACTIVE")
+  purchasedAt    DateTime     @default(now())
+  expireAt       DateTime?
+  createdAt      DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([parentOperatorId])
+}
+
+model StationEarning {
+  id        String   @id @default(uuid())
+  stationId String
+  orderId   String
+  amount    Decimal  @db.Decimal(10, 2)
+  rate      Decimal  @db.Decimal(5, 4) // 佣金比例
+  earned    Decimal  @db.Decimal(10, 2)
+  type      String   // COURSE, PRODUCT, MEMBER, CIRCLE, BOT
+  createdAt DateTime @default(now())
+
+  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@index([stationId, createdAt])
+  @@index([orderId])
+}
+
+// ─────────────────────────────────────────────────
+// 线下驿站系统
+// ─────────────────────────────────────────────────
+
+model StationOffline {
+  id           String   @id @default(uuid())
+  name         String
+  city         String
+  address      String
+  phone        String
+  cover        String?
+  ownerUserId  String   @unique
+  depositAmount Decimal @default(0) @db.Decimal(10, 2)
+  status       String   @default("PENDING") // PENDING, ACTIVE, DISABLED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner          User                         @relation(fields: [ownerUserId], references: [id])
+  courses        OfflineCourse[]
+  products       StationProduct[]
+  orders         StationOrder[]
+  teacherBookings StationTeacherBooking[]
+  settlements    StationSettlement[]
+}
+
+model OfflineCourse {
+  id          String   @id @default(uuid())
+  stationId   String
+  title       String
+  cover       String?
+  intro       String?
+  teacherId   String?
+  courseId    String?  // 关联线上课程
+  type        String   @default("OFFLINE") // OFFLINE, HYBRID
+  price       Decimal  @default(0) @db.Decimal(10, 2)
+  maxStudents Int
+  startTime   DateTime
+  endTime     DateTime
+  location    String
+  status      String   @default("DRAFT")
+  createdAt   DateTime @default(now())
+
+  station        StationOffline               @relation(fields: [stationId], references: [id])
+  registrations  OfflineCourseRegistration[]
+
+  @@index([stationId, startTime])
+}
+
+model OfflineCourseRegistration {
+  id        String   @id @default(uuid())
+  courseId  String
+  userId    String
+  status    String   @default("REGISTERED") // REGISTERED, SIGNED_IN, CANCELLED
+  qrCode    String?
+  signedAt  DateTime?
+  createdAt DateTime @default(now())
+
+  course OfflineCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+}
+
+model StationProduct {
+  id          String  @id @default(uuid())
+  stationId   String
+  productId   String?
+  name        String
+  price       Decimal @db.Decimal(10, 2)
+  stock       Int     @default(0)
+  isPlatform  Boolean @default(false) // 驿站自有 vs 平台代销
+  status      String  @default("ACTIVE")
+  createdAt   DateTime @default(now())
+
+  station StationOffline @relation(fields: [stationId], references: [id])
+}
+
+model StationOrder {
+  id            String   @id @default(uuid())
+  stationId     String
+  orderType     String   // OFFLINE_COURSE, PRODUCT, SERVICE
+  targetId      String
+  amount        Decimal  @db.Decimal(10, 2)
+  stationIncome Decimal  @db.Decimal(10, 2)
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now())
+
+  station StationOffline @relation(fields: [stationId], references: [id])
+}
+
+model StationTeacherBooking {
+  id          String   @id @default(uuid())
+  stationId   String
+  teacherId   String
+  courseId    String?
+  bookingDate DateTime
+  status      String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  remark      String?
+  createdAt   DateTime @default(now())
+
+  station StationOffline @relation(fields: [stationId], references: [id])
+}
+
+model StationSettlement {
+  id            String   @id @default(uuid())
+  stationId     String
+  period        String   // 结算周期 如 "2026-05"
+  totalIncome   Decimal  @db.Decimal(12, 2)
+  stationShare  Decimal  @db.Decimal(12, 2)
+  platformShare Decimal  @db.Decimal(12, 2)
+  settled       Boolean  @default(false)
+  settledAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  station StationOffline @relation(fields: [stationId], references: [id])
+
+  @@index([stationId, period])
+}
+
+// ─────────────────────────────────────────────────
+// 研究院
+// ─────────────────────────────────────────────────
+
+enum InstituteRole {
+  INITIATOR
+  TYPE_A // 潜力讲师
+  TYPE_B // 深造者
+}
+
+model InstituteMember {
+  id             String        @id @default(uuid())
+  userId         String        @unique
+  role           InstituteRole
+  deposit        Decimal       @default(0) @db.Decimal(10, 2)
+  tasksCompleted Int           @default(0)
+  tasksRequired  Int           @default(3)
+  joinedAt       DateTime      @default(now())
+  status         String        @default("ACTIVE")
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ─────────────────────────────────────────────────
+// 互动系统
+// ─────────────────────────────────────────────────
+
+model Like {
+  id         String   @id @default(uuid())
+  userId     String
+  targetType String   // POST, ARTICLE, COURSE, VIDEO, COMMENT
+  targetId   String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  userId     String
+  targetType String   // POST, ARTICLE, COURSE, VIDEO, LIVESTREAM
+  targetId   String
+  parentId   String?
+  content    String
+  likeCount  Int      @default(0)
+  status     String   @default("PUBLISHED") // PUBLISHED, HIDDEN
+  createdAt  DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies  Comment[] @relation("CommentReplies")
+
+  @@index([targetType, targetId, createdAt])
+}
+
+model Collect {
+  id         String   @id @default(uuid())
+  userId     String
+  targetType String   // POST, ARTICLE, COURSE, PRODUCT, VIDEO
+  targetId   String
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId])
+  @@index([userId, createdAt])
+}
+
+model Report {
+  id         String   @id @default(uuid())
+  reporterId String   // 举报人
+  targetType String   // POST, ARTICLE, COMMENT, CIRCLE, USER, LIVE, VIDEO
+  targetId   String
+  reason     String
+  status     String   @default("PENDING") // PENDING, PROCESSED, DISMISSED
+  result     String?
+  createdAt  DateTime @default(now())
+  processedAt DateTime?
+
+  reporter User @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([targetType, targetId])
+}
+
+// ─────────────────────────────────────────────────
+// 系统配置与通知
+// ─────────────────────────────────────────────────
+
+model ConfigSystem {
+  id          String   @id @default(uuid())
+  configKey   String   @unique
+  configValue String
+  description String?
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // SYSTEM, COMMENT, LIKE, FOLLOW, PURCHASE, EARNING, AUDIT
+  title     String
+  content   String
+  targetType String? // 跳转目标类型
+  targetId  String?  // 跳转目标ID
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+}
+
+model SearchHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  keyword   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
