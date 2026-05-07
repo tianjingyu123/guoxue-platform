@@ -45,6 +45,7 @@ model User {
   posts          Post[]
   articles       Article[]
   courses        Course[]
+  courseWorks    CourseWork[]
   orders         Order[]
   liveRooms      LiveRoom[]
   videos         Video[]
@@ -394,6 +395,7 @@ model CourseWork {
 
   chapter CourseChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   course  Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([chapterId, userId])
 }

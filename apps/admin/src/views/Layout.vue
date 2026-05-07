@@ -21,6 +21,9 @@
             <span>课程管理</span>
           </el-menu-item>
         </el-sub-menu>
+        <el-menu-item index="/reports">
+          <span>举报管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
