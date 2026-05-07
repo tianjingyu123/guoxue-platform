@@ -12,6 +12,8 @@ import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
 import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, AnalyzeDto, AnalysisQueryDto } from "./paipan.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 
 @Controller("paipan")
 export class PaipanController {
@@ -123,6 +125,8 @@ export class PaipanController {
 
   /** 管理员查看所有排盘记录 */
   @Get("admin/records")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   ziweiAdminRecords(@Query() q: BaziRecordQueryDto & { type?: string; keyword?: string }) {
     return this.paipan.getAllRecords({
       page: q.page || 1,

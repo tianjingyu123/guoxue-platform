@@ -28,6 +28,7 @@ export class CommissionController {
   // ───────── 分站收益 ─────────
 
   @Get("station-earnings/:stationId")
+  @UseGuards(JwtAuthGuard)
   getStationEarnings(
     @Param("stationId") stationId: string,
     @Query("page") page = 1,
@@ -37,6 +38,7 @@ export class CommissionController {
   }
 
   @Get("station-balance/:stationId")
+  @UseGuards(JwtAuthGuard)
   getStationBalance(@Param("stationId") stationId: string) {
     return this.svc.getStationBalance(stationId);
   }

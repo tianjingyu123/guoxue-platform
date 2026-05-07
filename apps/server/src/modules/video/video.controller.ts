@@ -35,6 +35,7 @@ export class VideoController {
   }
 
   @Post(":id/like")
+  @UseGuards(JwtAuthGuard)
   like(@Param("id") id: string) {
     return this.svc.toggleLike(id);
   }

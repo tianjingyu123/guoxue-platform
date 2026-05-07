@@ -110,13 +110,15 @@ export class ShopService {
   // ═══════════════════ 订单管理 ═══════════════════
 
   async createOrder(userId: string, dto: CreateOrderDto) {
-    // 验证商品存在
-    const product = await this.prisma.product.findUnique({
-      where: { id: dto.targetId },
-      select: { id: true, price: true, status: true },
-    });
-    if (!product || product.status !== "ON_SALE") {
-      throw new BadRequestException("商品不可购买");
+    // 非会员订单需验证商品
+    if (dto.type !== "MEMBER") {
+      const product = await this.prisma.product.findUnique({
+        where: { id: dto.targetId },
+        select: { id: true, price: true, status: true },
+      });
+      if (!product || product.status !== "ON_SALE") {
+        throw new BadRequestException("商品不可购买");
+      }
     }
 
     const order = await this.prisma.order.create({
