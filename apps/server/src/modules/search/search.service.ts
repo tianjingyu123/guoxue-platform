@@ -77,10 +77,53 @@ export class SearchService {
       });
     }
 
+    if (!type || type === "video") {
+      results.videos = await this.prisma.video.findMany({
+        where: {
+          status: "PUBLISHED",
+          title: { contains: q, mode: "insensitive" as const },
+        },
+        select: { id: true, title: true, videoUrl: true, coverUrl: true, duration: true, viewCount: true },
+        take: type ? pageSize : 5,
+        orderBy: { viewCount: "desc" },
+      });
+    }
+
+    if (!type || type === "user") {
+      results.users = await this.prisma.user.findMany({
+        where: {
+          status: "ACTIVE",
+          OR: [
+            { nickname: { contains: q, mode: "insensitive" as const } },
+            { phone: { contains: q } },
+          ],
+        },
+        select: { id: true, nickname: true, avatar: true },
+        take: type ? pageSize : 5,
+        orderBy: { createdAt: "desc" },
+      });
+    }
+
+    if (!type || type === "classic") {
+      results.classics = await this.prisma.classicBook.findMany({
+        where: {
+          status: "PUBLISHED",
+          OR: [
+            { title: { contains: q, mode: "insensitive" as const } },
+            { author: { contains: q, mode: "insensitive" as const } },
+            { intro: { contains: q, mode: "insensitive" as const } },
+          ],
+        },
+        select: { id: true, title: true, author: true, cover: true, category: true, dynasty: true },
+        take: type ? pageSize : 5,
+        orderBy: { viewCount: "desc" },
+      });
+    }
+
     return results;
   }
 
-  /** 热门搜索（基于搜索历史频次） */
+  /** 热门搜索（基于搜索历史频次 + 种子数据兜底） */
   async getHotSearches(limit = 10) {
     const rows = await this.prisma.searchHistory.groupBy({
       by: ["keyword"],
@@ -88,6 +131,22 @@ export class SearchService {
       orderBy: { _count: { keyword: "desc" } },
       take: limit,
     });
+
+    // 如果搜索历史为空，从 ConfigSystem 读取热门搜索词作为兜底
+    if (rows.length === 0) {
+      const config = await this.prisma.configSystem.findUnique({
+        where: { configKey: "search_hot_words" },
+      });
+      if (config) {
+        try {
+          const hotWords = JSON.parse(config.configValue) as Array<{ keyword: string; count: number }>;
+          return hotWords.slice(0, limit).map(r => ({ keyword: r.keyword, count: r.count }));
+        } catch {
+          // JSON 解析失败则忽略
+        }
+      }
+    }
+
     return rows.map(r => ({ keyword: r.keyword, count: r._count.keyword }));
   }
 
@@ -105,6 +164,34 @@ export class SearchService {
       orderBy: { createdAt: "desc" },
       take: limit,
     });
+  }
+
+  /** 搜索建议 */
+  async suggest(keyword: string) {
+    if (!keyword?.trim()) return [];
+    const q = keyword.trim();
+    const [articles, courses, circles] = await Promise.all([
+      this.prisma.article.findMany({
+        where: { auditStatus: "APPROVED", title: { contains: q, mode: "insensitive" as const } },
+        select: { id: true, title: true },
+        take: 5, orderBy: { viewCount: "desc" },
+      }),
+      this.prisma.course.findMany({
+        where: { auditStatus: "APPROVED", title: { contains: q, mode: "insensitive" as const } },
+        select: { id: true, title: true },
+        take: 3, orderBy: { studentCount: "desc" },
+      }),
+      this.prisma.circle.findMany({
+        where: { status: "ACTIVE", name: { contains: q, mode: "insensitive" as const } },
+        select: { id: true, name: true },
+        take: 2, orderBy: { memberCount: "desc" },
+      }),
+    ]);
+    return [
+      ...articles.map(a => ({ label: a.title, type: "article", id: a.id })),
+      ...courses.map(c => ({ label: c.title, type: "course", id: c.id })),
+      ...circles.map(c => ({ label: c.name, type: "circle", id: c.id })),
+    ].slice(0, 8);
   }
 
   /** 清除搜索历史 */

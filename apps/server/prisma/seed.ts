@@ -316,7 +316,191 @@ async function main() {
     console.log("✅ 课程: " + c.title + " (" + c.chapters.length + " 章)");
   }
 
-  // 6. 创建商品
+  // 6. 创建智能体
+  const botsData = [
+    {
+      name: "智能客服",
+      type: "CUSTOMER_SERVICE",
+      avatar: "/static/bots/customer_service.png",
+      intro: "7×24小时在线解答平台使用问题，快速响应用户咨询，提升服务效率。",
+      botId: "coze_cs_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: true,
+      dailyLimit: 9999,
+      sortOrder: 1,
+    },
+    {
+      name: "圈主助理",
+      type: "CIRCLE_ASSISTANT",
+      avatar: "/static/bots/circle_assistant.png",
+      intro: "协助圈主管理圈子内容、审核帖子、维护社群秩序，让圈子运营更轻松。",
+      botId: "coze_ca_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: true,
+      dailyLimit: 50,
+      sortOrder: 2,
+    },
+    {
+      name: "站长助理",
+      type: "STATION_ASSISTANT",
+      avatar: "/static/bots/station_assistant.png",
+      intro: "为分站站长提供运营数据分析、内容推荐和客户管理辅助，助力业绩增长。",
+      botId: "coze_sa_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: true,
+      dailyLimit: 50,
+      sortOrder: 3,
+    },
+    {
+      name: "获客文案生成器",
+      type: "CONTENT_WRITER",
+      avatar: "/static/bots/content_writer.png",
+      intro: "一键生成国学主题营销文案、朋友圈推广文案和公众号文章，轻松获客。",
+      botId: "coze_cw_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: false,
+      dailyLimit: 5,
+      price: 1.99,
+      monthlyPrice: 29.99,
+      sortOrder: 4,
+    },
+    {
+      name: "报告工厂",
+      type: "REPORT_FACTORY",
+      avatar: "/static/bots/report_factory.png",
+      intro: "根据八字排盘结果生成详细的人生解读报告，含事业、财运、感情分析。",
+      botId: "coze_rf_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: false,
+      dailyLimit: 3,
+      price: 9.99,
+      monthlyPrice: 99.99,
+      sortOrder: 5,
+    },
+    {
+      name: "开运好物推荐官",
+      type: "GOODS_RECOMMENDER",
+      avatar: "/static/bots/goods_recommender.png",
+      intro: "根据用户生辰八字和运势分析，精准推荐开运饰品和吉祥物。",
+      botId: "coze_gr_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: false,
+      dailyLimit: 5,
+      price: 2.99,
+      monthlyPrice: 39.99,
+      sortOrder: 6,
+    },
+    {
+      name: "白标AI助手",
+      type: "WHITE_LABEL_AI",
+      avatar: "/static/bots/white_label_ai.png",
+      intro: "为分站提供白标AI问答能力，支持自定义知识库和品牌形象，打造专属AI。",
+      botId: "coze_wl_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: false,
+      dailyLimit: 20,
+      price: 0.99,
+      monthlyPrice: 19.99,
+      sortOrder: 7,
+    },
+    {
+      name: "大师对练馆",
+      type: "MASTER_PRACTICE",
+      avatar: "/static/bots/master_practice.png",
+      intro: "模拟国学大师对话场景，与AI孔子、AI老子、AI佛陀交流论道，启迪智慧。",
+      botId: "coze_mp_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: false,
+      dailyLimit: 10,
+      price: 1.99,
+      monthlyPrice: 24.99,
+      sortOrder: 8,
+    },
+    {
+      name: "古籍活字典",
+      type: "CLASSIC_DICTIONARY",
+      avatar: "/static/bots/classic_dict.png",
+      intro: "输入古籍中的疑难字句，AI即刻给出释义、出处和白话翻译，古文学习利器。",
+      botId: "coze_cd_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: true,
+      dailyLimit: 100,
+      sortOrder: 9,
+    },
+    {
+      name: "客户关系管家",
+      type: "CRM_ASSISTANT",
+      avatar: "/static/bots/crm_assistant.png",
+      intro: "帮助站长高效管理客户关系，自动跟进意向客户，提升转化率。",
+      botId: "coze_crm_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: false,
+      dailyLimit: 30,
+      price: 0.99,
+      monthlyPrice: 14.99,
+      sortOrder: 10,
+    },
+    {
+      name: "全能办公助理",
+      type: "OFFICE_ASSISTANT",
+      avatar: "/static/bots/office_assistant.png",
+      intro: "文案撰写、数据分析、PPT大纲、活动方案——国学人的AI办公助手。",
+      botId: "coze_oa_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: true,
+      dailyLimit: 30,
+      sortOrder: 11,
+    },
+    {
+      name: "个人运势自查台",
+      type: "FORTUNE_CHECK",
+      avatar: "/static/bots/fortune_check.png",
+      intro: "每日宜忌、每周运势、每月总结，结合八字与紫微的个性化运势服务。",
+      botId: "coze_fc_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: false,
+      dailyLimit: 3,
+      price: 3.99,
+      monthlyPrice: 49.99,
+      sortOrder: 12,
+    },
+    {
+      name: "大师时间守护者",
+      type: "SCHEDULE_GUARDIAN",
+      avatar: "/static/bots/schedule_guardian.png",
+      intro: "自动管理大师日程，协调课程安排、直播提醒和客户预约，时间管理专家。",
+      botId: "coze_sg_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: true,
+      dailyLimit: 50,
+      sortOrder: 13,
+    },
+    {
+      name: "个人IP孵化器",
+      type: "IP_INCUBATOR",
+      avatar: "/static/bots/ip_incubator.png",
+      intro: "为国学从业者提供个人品牌定位、内容规划和多平台运营策略，打造个人IP。",
+      botId: "coze_ii_001",
+      apiKey: "sk_dev_placeholder",
+      isFree: false,
+      dailyLimit: 5,
+      price: 4.99,
+      monthlyPrice: 59.99,
+      sortOrder: 14,
+    },
+  ];
+
+  let botCount = 0;
+  for (const b of botsData) {
+    const existing = await prisma.botConfig.findFirst({ where: { name: b.name } });
+    if (!existing) {
+      await prisma.botConfig.create({ data: b });
+      botCount++;
+    }
+  }
+  console.log("✅ 智能体: " + botCount + " 个");
+
+  // 7. 创建商品
   const productsData = [
     {
       title: "《道德经》线装珍藏版",
@@ -339,6 +523,20 @@ async function main() {
       images: ["/static/products/reader.jpg"],
       detail: `<h3>🎧 产品亮点</h3><ul><li>预装12部经典诵读音频：《道德经》《论语》《易经》《诗经》《心经》《金刚经》《大学》《中庸》《孟子》《庄子》《黄帝内经》《孙子兵法》</li><li>6英寸护眼墨水屏，类纸阅读体验，无蓝光伤害</li><li>专业播音员录制，字正腔圆，节奏舒缓，适合跟读和静听</li><li>蓝牙5.0连接耳机/音箱，内置扬声器</li><li>32GB存储，支持自行导入MP3/TXT文件</li><li>1500mAh电池，纯待机30天，持续播放40小时</li></ul><h3>📱 操作方式</h3><p>实体按键操作，老人小孩都能轻松上手。支持顺序播放、单篇循环、定时关机。</p><h3>🎁 适合人群</h3><p>国学爱好者、学生、老年人、视力不佳者、通勤/睡前听书族</p>`,
     },
+    {
+      title: "国学文化衫 · 经典系列",
+      intro: "纯棉圆领T恤，正面印有名家书法《论语》名句。透气舒适，国风设计。",
+      price: 79,
+      images: ["/static/products/tshirt_lunyu.jpg", "/static/products/tshirt_daodejing.jpg"],
+      detail: `<h3>👕 产品亮点</h3><ul><li>100%精梳棉，亲肤透气，四季皆宜</li><li>国学书法印花，洗后不褪色不龟裂</li><li>经典黑白两色可选，尺码S-3XL</li><li>书法字体可选：《论语》《道德经》《心经》《易经》四款</li></ul><h3>📏 尺码参考</h3><p>S(165/88A) M(170/92A) L(175/96A) XL(180/100A) 2XL(185/104A) 3XL(190/108A)</p>`,
+    },
+    {
+      title: "手工檀香 · 静心礼盒",
+      intro: "天然老山檀香线香，配紫铜香炉。读书打坐必备，安神静心。",
+      price: 168,
+      images: ["/static/products/incense_box.jpg"],
+      detail: `<h3>🎋 产品亮点</h3><ul><li>印度老山檀香，纯天然无化学添加</li><li>每盒含约120支线香，每支燃烧约40分钟</li><li>附赠紫铜卧香炉一个，造型古朴雅致</li><li>沉香、檀香、艾草三种香型可选</li></ul><h3>💡 使用场景</h3><p>静坐冥想、读书习字、品茶论道、瑜伽修行——一缕清香，万般自在。</p>`,
+    },
   ];
 
   for (const p of productsData) {
@@ -359,7 +557,84 @@ async function main() {
   }
   console.log("✅ 商品: " + productsData.length + " 件");
 
-  // 7. 创建热门搜索词
+  // 8. 创建短视频
+  const videosData = [
+    {
+      title: "《道德经》第一章诵读与讲解",
+      videoUrl: "/static/videos/daodejing_ch1.mp4",
+      coverUrl: "/static/covers/video_daodejing.jpg",
+      duration: 480,
+      viewCount: 12500,
+      likeCount: 892,
+      circleIdx: 0,
+    },
+    {
+      title: "易经占卜入门：三枚铜钱起卦法",
+      videoUrl: "/static/videos/yijing_divination.mp4",
+      coverUrl: "/static/covers/video_yijing.jpg",
+      duration: 720,
+      viewCount: 9800,
+      likeCount: 756,
+      circleIdx: 1,
+    },
+    {
+      title: "李白《将进酒》朗诵与赏析",
+      videoUrl: "/static/videos/libai_jiangjinjiu.mp4",
+      coverUrl: "/static/covers/video_libai.jpg",
+      duration: 360,
+      viewCount: 15200,
+      likeCount: 1203,
+      circleIdx: 2,
+    },
+    {
+      title: "八段锦完整教学：每天10分钟",
+      videoUrl: "/static/videos/baduanjin.mp4",
+      coverUrl: "/static/covers/video_baduanjin.jpg",
+      duration: 600,
+      viewCount: 22000,
+      likeCount: 2105,
+      circleIdx: 5,
+    },
+    {
+      title: "《论语》中的人生智慧：学而篇精讲",
+      videoUrl: "/static/videos/lunyu_xueer.mp4",
+      coverUrl: "/static/covers/video_lunyu.jpg",
+      duration: 900,
+      viewCount: 7800,
+      likeCount: 623,
+      circleIdx: 4,
+    },
+    {
+      title: "认识你的生辰八字：排盘入门",
+      videoUrl: "/static/videos/bazi_intro.mp4",
+      coverUrl: "/static/covers/video_bazi.jpg",
+      duration: 840,
+      viewCount: 18500,
+      likeCount: 1567,
+      circleIdx: 3,
+    },
+  ];
+
+  for (const v of videosData) {
+    const circle = circles[v.circleIdx];
+    const author = v.circleIdx % 2 === 0 ? admin : teacher;
+    await prisma.video.create({
+      data: {
+        title: v.title,
+        videoUrl: v.videoUrl,
+        coverUrl: v.coverUrl,
+        duration: v.duration,
+        viewCount: v.viewCount,
+        likeCount: v.likeCount,
+        status: "PUBLISHED",
+        circleId: circle.id,
+        userId: author.id,
+      },
+    });
+  }
+  console.log("✅ 短视频: " + videosData.length + " 条");
+
+  // 9. 创建热门搜索词
   const hotWords = [
     { keyword: "道德经", count: 15600 },
     { keyword: "易经", count: 14200 },
@@ -497,6 +772,35 @@ async function main() {
     }
     console.log("✅ 古籍: " + b.title + " (" + b.chapters.length + " 章)");
   }
+
+  // 11. 创建通知
+  const notificationsData = [
+    { type: "SYSTEM", title: "欢迎加入国学平台", content: "欢迎您加入国学传统文化综合平台！在这里您可以学习经典、参与圈子讨论、观看直播课程。祝您学有所得！" },
+    { type: "SYSTEM", title: "平台升级通知", content: "平台已完成系统升级，新增智能体助手功能，您可以在「AI智能体」页面体验14款国学AI助手。" },
+    { type: "SYSTEM", title: "新课程上线：《道德经》81章精讲", content: "李玄明老师的《道德经》81章精讲课程已上线，限时特惠299元（原价599元），点击查看详情。" },
+    { type: "SYSTEM", title: "会员权益升级", content: "感谢您的支持！平台会员权益已升级，年卡会员可免费学习所有音频课程，并享受商城9折优惠。" },
+    { type: "LIKE", title: "您的文章收到新的点赞", content: "用户「清心居士」赞了您的文章《道德经第一章：道可道，非常道》。" },
+    { type: "COMMENT", title: "有人回复了您的评论", content: "用户「易学小白」回复了您在圈子「易经天地」中的评论：「说得很有道理，学习了。」" },
+    { type: "LIKE", title: "您的评论被点赞", content: "用户「诗酒趁年华」赞了您在「诗词雅集」的评论。" },
+    { type: "COMMENT", title: "您的帖子有新评论", content: "用户「修行者」在您的帖子「每日一卦·乾卦解读」中发表了新评论。" },
+    { type: "SYSTEM", title: "直播提醒：今晚8点《易经占断实战》", content: "您关注的直播「易经占断实战」将在今晚8点开始，主播：王清音老师，不要错过哦。" },
+    { type: "SYSTEM", title: "学习进度提醒", content: "您学习的课程《唐诗宋词赏析30讲》已完成30%，继续加油！" },
+    { type: "SYSTEM", title: "商品到货通知", content: "您关注的「国学文化衫·经典系列」已到货上架，限量发售中。" },
+    { type: "SYSTEM", title: "每日运势已更新", content: "您今日的运势报告已生成，点击查看今日宜忌及幸运方向。" },
+  ];
+
+  for (const n of notificationsData) {
+    await prisma.notification.create({
+      data: {
+        userId: admin.id,
+        type: n.type,
+        title: n.title,
+        content: n.content,
+        isRead: false,
+      },
+    });
+  }
+  console.log("✅ 通知: " + notificationsData.length + " 条");
 
   console.log("\n🎉 种子数据填充完成！");
   console.log("   管理员: 13800000000 / guoxue123");

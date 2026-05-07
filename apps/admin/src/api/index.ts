@@ -117,4 +117,56 @@ export const classicApi = {
   deleteChapter: (id: string) => api.delete(`/classic/chapters/${id}`),
 };
 
+// 智能体
+export const botApi = {
+  list: (params?: any) => api.get("/bots", { params }),
+  detail: (id: string) => api.get(`/bots/${id}`),
+  create: (data: any) => api.post("/bots", data),
+  update: (id: string, data: any) => api.put(`/bots/${id}`, data),
+  remove: (id: string) => api.delete(`/bots/${id}`),
+  bindCircle: (id: string, data: { circleId: string; knowledgeBaseId?: string }) =>
+    api.post(`/bots/${id}/bind-circle`, data),
+  getCircleBot: (circleId: string) => api.get(`/bots/circle/${circleId}`),
+  addKnowledge: (id: string, data: { title: string; content: string; sourceType?: string; sourceId?: string }) =>
+    api.post(`/bots/${id}/knowledge`, data),
+  deleteKnowledge: (knowledgeId: string) => api.delete(`/bots/knowledge/${knowledgeId}`),
+};
+
+// 线下驿站
+export const stationOfflineApi = {
+  list: (params?: any) => api.get("/offline/stations", { params }),
+  detail: (id: string) => api.get(`/offline/stations/${id}`),
+  create: (data: any) => api.post("/offline/stations", data),
+  audit: (id: string, status: string) => api.put(`/offline/stations/${id}/audit`, { status }),
+};
+
+// 研究院
+export const instituteApi = {
+  list: (params?: any) => api.get("/offline/institute/members", { params }),
+  update: (id: string, data: any) => api.put(`/offline/institute/members/${id}`, data),
+};
+
+// 分站管理（推广分站）
+export const stationApi = {
+  list: (params?: any) => api.get("/station", { params }),
+  detail: (id: string) => api.get(`/station/${id}`),
+  create: (data: any) => api.post("/station", data),
+  update: (id: string, data: any) => api.put(`/station/${id}`, data),
+  earnings: (id: string, params?: any) => api.get(`/station/${id}/earnings`, { params }),
+  operatorList: (params?: any) => api.get("/station/operator/list", { params }),
+  createOperator: (data: any) => api.post("/station/operator", data),
+};
+
+// 线下驿站管理（完整 API）
+export const offlineApi = {
+  list: (params?: any) => api.get("/offline/stations", { params }),
+  detail: (id: string) => api.get(`/offline/stations/${id}`),
+  create: (data: any) => api.post("/offline/stations", data),
+  audit: (id: string, status: string) => api.put(`/offline/stations/${id}/audit`, { status }),
+  courses: (params?: any) => api.get("/offline/courses", { params }),
+  createCourse: (data: any) => api.post("/offline/courses", data),
+  members: (params?: any) => api.get("/offline/institute/members", { params }),
+  updateMember: (id: string, data: any) => api.put(`/offline/institute/members/${id}`, data),
+};
+
 export default api;

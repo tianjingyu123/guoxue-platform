@@ -29,17 +29,29 @@
         <text>我的收藏</text>
         <text class="arrow">></text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/search/search')">
-        <text>搜索历史</text>
+      <view class="menu-item" @click="goPage('/pages/bots/bots')">
+        <text>智能体广场</text>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item" @click="goPage('/pages/shop/shop')">
+        <text>商城</text>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item" @click="goPage('/pages/videos/videos')">
+        <text>短视频</text>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item" @click="goPage('/pages/live/live')">
+        <text>直播</text>
         <text class="arrow">></text>
       </view>
       <view class="menu-item" @click="goBaziHistory">
         <text>八字排盘记录</text>
         <text class="arrow">></text>
       </view>
-      <view class="menu-item" v-if="unreadCount > 0">
+      <view class="menu-item" @click="goPage('/pages/notifications/notifications')">
         <text>消息通知</text>
-        <text class="badge">{{ unreadCount }}</text>
+        <text v-if="unreadCount > 0" class="badge">{{ unreadCount }}</text>
         <text class="arrow">></text>
       </view>
       <view class="menu-item">

@@ -51,6 +51,49 @@
     {
       "path": "pages/mine/mine",
       "style": { "navigationBarTitleText": "我的" }
+    },
+    {
+      "path": "pages/login/login",
+      "style": { "navigationBarTitleText": "登录" }
+    },
+    {
+      "path": "pages/notifications/notifications",
+      "style": {
+        "navigationBarTitleText": "通知",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/bots/bots",
+      "style": { "navigationBarTitleText": "智能体广场", "navigationStyle": "custom" }
+    },
+    {
+      "path": "pages/bots/bot-chat",
+      "style": { "navigationBarTitleText": "智能体对话", "navigationStyle": "custom" }
+    },
+    {
+      "path": "pages/shop/shop",
+      "style": { "navigationBarTitleText": "商城" }
+    },
+    {
+      "path": "pages/shop/product-detail",
+      "style": { "navigationBarTitleText": "商品详情" }
+    },
+    {
+      "path": "pages/videos/videos",
+      "style": { "navigationBarTitleText": "短视频" }
+    },
+    {
+      "path": "pages/videos/video-play",
+      "style": { "navigationBarTitleText": "短视频", "navigationStyle": "custom" }
+    },
+    {
+      "path": "pages/live/live",
+      "style": { "navigationBarTitleText": "直播" }
+    },
+    {
+      "path": "pages/live/live-room",
+      "style": { "navigationBarTitleText": "直播间", "navigationStyle": "custom" }
     }
   ],
   "tabBar": {

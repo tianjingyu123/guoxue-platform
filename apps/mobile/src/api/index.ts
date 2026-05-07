@@ -75,10 +75,12 @@ export const interactApi = {
 
 // 搜索
 export const searchApi = {
-  search: (q: string, type?: string) => api.get("/search", { q, type }),
+  search: (q: string, type?: string, extra?: Record<string, any>) =>
+    api.get("/search", { q, type, ...extra }),
   hot: () => api.get("/search/hot"),
   history: () => api.get("/search/history"),
   saveHistory: (keyword: string) => api.get("/search/history/save", { keyword }),
+  suggest: (keyword: string) => api.get("/search/suggest", { keyword }),
 };
 
 // 排盘
@@ -90,9 +92,11 @@ export const paipanApi = {
 
 // 通知
 export const notifyApi = {
-  list: () => api.get("/notifications"),
+  list: (params?: { type?: string; page?: number; pageSize?: number }) =>
+    api.get("/notifications", params),
   unreadCount: () => api.get("/notifications/unread-count"),
   readAll: () => api.put("/notifications/read-all"),
+  markRead: (id: string) => api.put(`/notifications/${id}/read`),
 };
 
 // 古籍阅读
@@ -105,6 +109,37 @@ export const classicApi = {
   bookmarks: (bookId?: string) => api.get("/classic/bookmarks", { bookId }),
   addBookmark: (bookId: string, data: any) => api.post(`/classic/bookmarks/${bookId}`, data),
   deleteBookmark: (id: string) => api.delete(`/classic/bookmarks/${id}`),
+};
+
+// 商城
+export const shopApi = {
+  products: (params?: any) => api.get("/shop/products", params),
+  productDetail: (id: string) => api.get(`/shop/products/${id}`),
+  createOrder: (data: any) => api.post("/shop/orders", data),
+  myOrders: (params?: any) => api.get("/shop/orders/my", params),
+  orderDetail: (id: string) => api.get(`/shop/orders/${id}`),
+};
+
+// 直播
+export const liveApi = {
+  rooms: (params?: any) => api.get("/live/rooms", params),
+  roomDetail: (id: string) => api.get(`/live/rooms/${id}`),
+};
+
+// 短视频
+export const videoApi = {
+  list: (params?: any) => api.get("/videos", params),
+  detail: (id: string) => api.get(`/videos/${id}`),
+  like: (id: string) => api.post(`/videos/${id}/like`),
+  comments: (id: string) => api.get(`/videos/${id}/comments`),
+};
+
+// Bot/智能体
+export const botApi = {
+  list: (params?: { type?: string }) => api.get("/bots", params),
+  detail: (id: string) => api.get(`/bots/${id}`),
+  chat: (id: string, data: { message: string }) => api.post(`/bots/${id}/chat`, data),
+  circleBots: (circleId: string) => api.get(`/bots/circle/${circleId}`),
 };
 
 export default api;

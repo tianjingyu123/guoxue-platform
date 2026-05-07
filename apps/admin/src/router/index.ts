@@ -58,6 +58,11 @@ const routes = [
         component: () => import("../views/reports/ReportList.vue"),
       },
       {
+        path: "comments",
+        name: "CommentList",
+        component: () => import("../views/comments/CommentList.vue"),
+      },
+      {
         path: "products",
         name: "ProductList",
         component: () => import("../views/shop/ProductList.vue"),
@@ -96,6 +101,21 @@ const routes = [
         path: "users",
         name: "UserList",
         component: () => import("../views/users/UserList.vue"),
+      },
+      {
+        path: "bots",
+        name: "BotList",
+        component: () => import("../views/bots/BotList.vue"),
+      },
+      {
+        path: "stations",
+        name: "StationList",
+        component: () => import("../views/offline/StationList.vue"),
+      },
+      {
+        path: "offline-venues",
+        name: "OfflineVenueList",
+        component: () => import("../views/offline/OfflineVenueList.vue"),
       },
     ],
   },

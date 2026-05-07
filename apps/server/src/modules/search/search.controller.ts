@@ -37,6 +37,12 @@ export class SearchController {
     return this.svc.getHistory(req.user.id);
   }
 
+  /** 搜索建议 */
+  @Get("suggest")
+  suggest(@Query("keyword") keyword: string) {
+    return this.svc.suggest(keyword);
+  }
+
   /** 清除搜索历史 */
   @Delete("history")
   @UseGuards(JwtAuthGuard)

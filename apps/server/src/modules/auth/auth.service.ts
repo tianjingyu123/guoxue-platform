@@ -7,6 +7,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import {
   PhoneRegisterDto,
   PhoneLoginDto,
@@ -22,6 +23,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private redis: RedisService,
   ) {}
 
   private generateToken(userId: string) {
@@ -88,10 +90,10 @@ export class AuthService {
   }
 
   async sendSmsCode(dto: SendCodeDto) {
-    // TODO: 对接短信服务生成并发送验证码
-    // 当前开发环境统一返回 123456
     const code = process.env.NODE_ENV === "production" ? this.generateSmsCode() : "123456";
     // 存入 Redis，有效期5分钟
+    const smsKey = `sms_code:${dto.phone}`;
+    await this.redis.set(smsKey, code, 300);
     return { success: true, message: "验证码已发送" };
   }
 
@@ -178,8 +180,12 @@ export class AuthService {
   }
 
   private async verifySmsCode(phone: string, code: string) {
-    // TODO: 从Redis验证短信验证码
-    if (code !== "123456") throw new BadRequestException("验证码错误");
+    const smsKey = `sms_code:${phone}`;
+    const storedCode = await this.redis.get(smsKey);
+    if (!storedCode) throw new BadRequestException("验证码已过期，请重新发送");
+    if (storedCode !== code) throw new BadRequestException("验证码错误");
+    // 验证成功后删除已使用的验证码
+    await this.redis.del(smsKey);
   }
 
   private generateSmsCode(): string {

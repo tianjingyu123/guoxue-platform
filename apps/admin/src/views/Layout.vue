@@ -29,6 +29,9 @@
           <el-menu-item index="/bazi">
             <span>八字排盘</span>
           </el-menu-item>
+          <el-menu-item index="/bots">
+            <span>Bot管理</span>
+          </el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="edu">
           <template #title><span>教学管理</span></template>
@@ -39,6 +42,19 @@
         <el-menu-item index="/reports">
           <span>举报管理</span>
         </el-menu-item>
+        <el-menu-item index="/comments">
+          <span>评论管理</span>
+        </el-menu-item>
+        <!-- Bot管理已移至排盘工具子菜单 -->
+        <el-sub-menu index="offline">
+          <template #title><span>线下管理</span></template>
+          <el-menu-item index="/stations">
+            <span>分站管理</span>
+          </el-menu-item>
+          <el-menu-item index="/offline-venues">
+            <span>线下驿站</span>
+          </el-menu-item>
+        </el-sub-menu>
         <el-sub-menu index="shop">
           <template #title><span>商城管理</span></template>
           <el-menu-item index="/products">
