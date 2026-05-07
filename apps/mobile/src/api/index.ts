@@ -133,6 +133,7 @@ export const shopApi = {
   products: (params?: any) => api.get("/shop/products", params),
   productDetail: (id: string) => api.get(`/shop/products/${id}`),
   createOrder: (data: any) => api.post("/shop/orders", data),
+  payOrder: (id: string) => api.put(`/shop/orders/${id}/pay`),
   myOrders: (params?: any) => api.get("/shop/orders/my", params),
   orderDetail: (id: string) => api.get(`/shop/orders/${id}`),
 };

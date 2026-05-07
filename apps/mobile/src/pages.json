@@ -125,6 +125,10 @@
     {
       "path": "pages/station/earnings",
       "style": { "navigationBarTitleText": "推广收益" }
+    },
+    {
+      "path": "pages/vip/vip",
+      "style": { "navigationBarTitleText": "会员中心" }
     }
   ],
   "tabBar": {
