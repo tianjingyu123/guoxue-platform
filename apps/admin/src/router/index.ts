@@ -53,6 +53,11 @@ const routes = [
         component: () => import("../views/courses/CourseEdit.vue"),
       },
       {
+        path: "comments",
+        name: "CommentList",
+        component: () => import("../views/comments/CommentList.vue"),
+      },
+      {
         path: "reports",
         name: "ReportList",
         component: () => import("../views/reports/ReportList.vue"),
