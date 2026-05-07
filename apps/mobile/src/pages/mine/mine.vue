@@ -211,6 +211,11 @@
         <text class="menu-label">紫微斗数</text>
         <text class="arrow">›</text>
       </view>
+      <view class="menu-item" @click="goPage('/pages/station/earnings')">
+        <text class="menu-icon">💰</text>
+        <text class="menu-label">推广收益</text>
+        <text class="arrow">›</text>
+      </view>
       <view class="menu-item" @click="goPage('/pages/notifications/notifications')">
         <text class="menu-icon">🔔</text>
         <text class="menu-label">消息通知</text>
