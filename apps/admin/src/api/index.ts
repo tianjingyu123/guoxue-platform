@@ -141,14 +141,6 @@ export const botApi = {
   deleteKnowledge: (knowledgeId: string) => api.delete(`/bots/knowledge/${knowledgeId}`),
 };
 
-// 线下驿站
-export const stationOfflineApi = {
-  list: (params?: any) => api.get("/offline/stations", { params }),
-  detail: (id: string) => api.get(`/offline/stations/${id}`),
-  create: (data: any) => api.post("/offline/stations", data),
-  audit: (id: string, status: string) => api.put(`/offline/stations/${id}/audit`, { status }),
-};
-
 // 研究院
 export const instituteApi = {
   list: (params?: any) => api.get("/offline/institute/members", { params }),
@@ -191,12 +183,20 @@ export const uploadApi = {
 
 // 分佣管理
 export const commissionApi = {
-  configs: () => api.get("/commission/configs"),
+  getConfigs: () => api.get("/commission/configs"),
   updateConfig: (key: string, data: any) => api.put(`/commission/configs/${key}`, data),
   stationEarnings: (stationId: string, params?: any) => api.get(`/commission/station-earnings/${stationId}`, { params }),
   stationBalance: (stationId: string) => api.get(`/commission/station-balance/${stationId}`),
-  withdrawals: (params?: any) => api.get("/commission/admin/withdrawals", { params }),
+  listWithdrawals: (params?: any) => api.get("/commission/admin/withdrawals", { params }),
   auditWithdrawal: (id: string, data: { status: string; remark?: string }) => api.put(`/commission/admin/withdrawals/${id}`, data),
+};
+
+// 系统配置
+export const systemApi = {
+  listConfigs: () => api.get("/system/configs"),
+  setConfig: (key: string, data: { value: string; description?: string }) =>
+    api.put(`/system/configs/${key}`, data),
+  deleteConfig: (key: string) => api.delete(`/system/configs/${key}`),
 };
 
 // 评论管理
@@ -205,6 +205,19 @@ export const commentApi = {
   count: (params?: any) => api.get("/comment/count", { params }),
   hide: (id: string) => api.put(`/comment/${id}/hide`),
   remove: (id: string) => api.delete(`/comment/${id}`),
+};
+
+// 商城管理
+export const shopApi = {
+  // 优惠券
+  listCoupons: (params?: any) => api.get("/shop/coupons", { params }),
+  createCoupon: (data: any) => api.post("/shop/coupons", data),
+  updateCoupon: (id: string, data: any) => api.put(`/shop/coupons/${id}`, data),
+  // 物流
+  getLogistics: (orderId: string) => api.get(`/shop/orders/${orderId}/logistics`),
+  updateLogistics: (orderId: string, data: any) => api.put(`/shop/orders/${orderId}/logistics`, data),
+  // 评价
+  listReviews: (productId: string, params?: any) => api.get(`/shop/products/${productId}/reviews`, { params }),
 };
 
 export default api;

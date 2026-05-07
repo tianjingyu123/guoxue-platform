@@ -71,6 +71,9 @@
           <el-menu-item index="/orders">
             <span>订单管理</span>
           </el-menu-item>
+          <el-menu-item index="/coupons">
+            <span>优惠券管理</span>
+          </el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="commission">
           <template #title><span>营销分佣</span></template>

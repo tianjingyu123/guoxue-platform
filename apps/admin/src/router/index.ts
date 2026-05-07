@@ -83,6 +83,11 @@ const routes = [
         component: () => import("../views/shop/OrderList.vue"),
       },
       {
+        path: "coupons",
+        name: "CouponList",
+        component: () => import("../views/shop/CouponList.vue"),
+      },
+      {
         path: "notifications",
         name: "NotificationCenter",
         component: () => import("../views/notifications/NotificationCenter.vue"),
