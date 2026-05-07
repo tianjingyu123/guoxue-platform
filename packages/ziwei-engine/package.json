@@ -1,0 +1,14 @@
+{
+  "name": "@guoxue/ziwei-engine",
+  "version": "1.0.0",
+  "description": "紫微斗数排盘核心引擎",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

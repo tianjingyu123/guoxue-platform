@@ -10,7 +10,7 @@ import {
 } from "@nestjs/common";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
-import { BaziInputDto, BaziRecordQueryDto, AnalyzeDto, AnalysisQueryDto } from "./paipan.dto";
+import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, AnalyzeDto, AnalysisQueryDto } from "./paipan.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 @Controller("paipan")
@@ -80,6 +80,39 @@ export class PaipanController {
   @UseGuards(JwtAuthGuard)
   baziAnalysisHistory(@Req() req: any, @Query() q: AnalysisQueryDto) {
     return this.paipanAi.getUserAnalysisHistory(
+      req.user.id,
+      q.page || 1,
+      q.pageSize || 20,
+    );
+  }
+
+  // ────────── 紫微斗数 ──────────
+
+  /** 紫微斗数预览（不登录也可用） */
+  @Post("ziwei/preview")
+  ziweiPreview(@Body() dto: ZiweiInputDto) {
+    return this.paipan.calcZiweiPreview(dto);
+  }
+
+  /** 紫微斗数排盘并保存 */
+  @Post("ziwei")
+  @UseGuards(JwtAuthGuard)
+  ziweiCalc(@Req() req: any, @Body() dto: ZiweiInputDto) {
+    return this.paipan.calcZiweiAndSave(req.user.id, dto);
+  }
+
+  /** 获取紫微排盘记录详情 */
+  @Get("ziwei/:id")
+  @UseGuards(JwtAuthGuard)
+  ziweiRecord(@Param("id") id: string, @Req() req: any) {
+    return this.paipan.getZiweiRecord(id, req.user.id);
+  }
+
+  /** 我的紫微排盘历史 */
+  @Get("ziwei")
+  @UseGuards(JwtAuthGuard)
+  ziweiHistory(@Req() req: any, @Query() q: BaziRecordQueryDto) {
+    return this.paipan.getUserZiweiHistory(
       req.user.id,
       q.page || 1,
       q.pageSize || 20,
