@@ -874,7 +874,7 @@ async function main() {
       const fonts = ["论语", "道德经", "心经", "易经"];
       for (const color of colors) {
         for (const size of sizes) {
-          await (prisma as any).productSku.create({
+          await prisma.productSku.create({
             data: {
               productId: tshirt.id,
               specs: { 颜色: color, 尺码: size, 书法字体: fonts[Math.floor(Math.random() * fonts.length)] },
@@ -900,7 +900,7 @@ async function main() {
         { name: "陈年艾草", price: 128 },
       ];
       for (const s of scents) {
-        await (prisma as any).productSku.create({
+        await prisma.productSku.create({
           data: {
             productId: incense.id,
             specs: { 香型: s.name },
@@ -1828,7 +1828,7 @@ async function main() {
       { configKey: "withdrawal_min", configName: "最低提现金额", rateA: 100, rateB: 0, description: "最低提现¥100" },
     ];
     for (const c of commissionConfigs) {
-      await (prisma as any).commissionConfig.create({ data: c });
+      await prisma.commissionConfig.create({ data: c });
     }
     console.log("✅ 佣金配置: " + commissionConfigs.length + " 项");
   } else {
@@ -1854,7 +1854,7 @@ async function main() {
       let created = 0;
       for (const o of orders) {
         if (!o.targetId) continue;
-        await (prisma as any).order.create({
+        await prisma.order.create({
           data: {
             userId: o.userId,
             type: o.type,
@@ -1870,6 +1870,86 @@ async function main() {
     }
   } else {
     console.log("⏭️ 订单已存在，跳过");
+  }
+
+  // 20. 优惠券
+  const couponCount = await prisma.coupon.count();
+  if (couponCount === 0) {
+    const now = new Date();
+    const makeEnd = (days: number) => new Date(now.getTime() + days * 86400000);
+    const coupons = [
+      { type: "FULL_REDUCE" as const, value: 30, minAmount: 200, totalCount: 1000, validStart: now, validEnd: makeEnd(30) },
+      { type: "DISCOUNT" as const, value: 0.9, minAmount: 0, totalCount: 500, validStart: now, validEnd: makeEnd(15) },
+      { type: "NO_THRESHOLD" as const, value: 10, minAmount: 0, totalCount: 2000, validStart: now, validEnd: makeEnd(7) },
+      { type: "FULL_REDUCE" as const, value: 80, minAmount: 500, totalCount: 300, validStart: now, validEnd: makeEnd(30) },
+      { type: "DISCOUNT" as const, value: 0.85, minAmount: 0, totalCount: 300, validStart: now, validEnd: makeEnd(30) },
+    ];
+    for (const c of coupons) {
+      await prisma.coupon.create({ data: c });
+    }
+    console.log("✅ 优惠券: " + coupons.length + " 种");
+  } else {
+    console.log("⏭️ 优惠券已存在，跳过");
+  }
+
+  // 21. 会员购买记录
+  const memberPurchases = await prisma.memberPurchase.count();
+  if (memberPurchases === 0) {
+    const users = await prisma.user.findMany({ take: 3 });
+    if (users.length > 0) {
+      const purchases = [
+        { userId: users[0].id, memberType: "YEARLY" as const, amount: 365, sourcePage: "排盘结果页" },
+        { userId: users[1].id, memberType: "MONTHLY" as const, amount: 39, sourcePage: "首页" },
+        { userId: users[2].id, memberType: "LIFETIME" as const, amount: 999, sourcePage: "圈子主页" },
+      ];
+      for (const mp of purchases) {
+        await prisma.memberPurchase.create({
+          data: {
+            ...mp,
+            paidAt: new Date(Date.now() - Math.random() * 86400000 * 60),
+          },
+        });
+      }
+      console.log("✅ 会员购买记录: " + purchases.length + " 条");
+    }
+  } else {
+    console.log("⏭️ 会员购买记录已存在，跳过");
+  }
+
+  // 22. 圈子智能体绑定
+  const circleBotCount = await prisma.circleBot.count();
+  if (circleBotCount === 0) {
+    const botRefs: Record<string, string> = {};
+    for (const name of ["圈主助理", "古籍活字典", "个人运势自查台"]) {
+      const bot = await prisma.botConfig.findFirst({ where: { name } });
+      if (bot) botRefs[name] = bot.id;
+    }
+
+    const bindings = [
+      { circleName: "道德经研习社", botName: "古籍活字典" },
+      { circleName: "易经天地", botName: "圈主助理" },
+      { circleName: "命理研习堂", botName: "个人运势自查台" },
+      { circleName: "论语共读", botName: "古籍活字典" },
+      { circleName: "国学茶话会", botName: "圈主助理" },
+    ];
+
+    let bound = 0;
+    for (const b of bindings) {
+      const botId = botRefs[b.botName];
+      if (!botId) continue;
+      const circle = [...circles, ...newCircleRecords].find((c: any) => c.name === b.circleName);
+      if (!circle) continue;
+      const exists = await prisma.circleBot.findFirst({ where: { circleId: circle.id } });
+      if (!exists) {
+        await prisma.circleBot.create({
+          data: { circleId: circle.id, botConfigId: botId, status: "ACTIVE" },
+        });
+        bound++;
+      }
+    }
+    console.log("✅ 圈子智能体绑定: " + bound + " 个");
+  } else {
+    console.log("⏭️ 圈子智能体绑定已存在，跳过");
   }
 
   console.log("\n🎉 种子数据填充完成！");
