@@ -110,6 +110,9 @@
           <el-menu-item index="/system-settings">
             <span>系统设置</span>
           </el-menu-item>
+          <el-menu-item index="/audit-logs">
+            <span>审计日志</span>
+          </el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>

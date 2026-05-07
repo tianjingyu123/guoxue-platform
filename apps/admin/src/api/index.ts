@@ -191,6 +191,12 @@ export const commissionApi = {
   auditWithdrawal: (id: string, data: { status: string; remark?: string }) => api.put(`/commission/admin/withdrawals/${id}`, data),
 };
 
+// 审计日志
+export const auditApi = {
+  list: (params?: any) => api.get("/system/audit-logs", { params }),
+  getActions: () => api.get("/system/audit-actions"),
+};
+
 // 系统配置
 export const systemApi = {
   listConfigs: () => api.get("/system/configs"),

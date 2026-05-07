@@ -73,4 +73,40 @@ export class SystemController {
       return { banners: [] };
     }
   }
+
+  // ── 审计日志 ──
+
+  @Get("audit-logs")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "查询审计日志" })
+  @ApiBearerAuth()
+  async getAuditLogs(
+    @Query("page") page = "1",
+    @Query("pageSize") pageSize = "20",
+    @Query("action") action?: string,
+    @Query("userId") userId?: string,
+    @Query("targetType") targetType?: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+  ) {
+    return this.systemService.getAuditLogs({
+      page: Number(page),
+      pageSize: Number(pageSize),
+      action,
+      userId,
+      targetType,
+      startDate,
+      endDate,
+    });
+  }
+
+  @Get("audit-actions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取审计日志动作类型列表" })
+  @ApiBearerAuth()
+  async getAuditActions() {
+    return { actions: await this.systemService.getAuditActions() };
+  }
 }

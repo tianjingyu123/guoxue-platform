@@ -172,6 +172,11 @@ const routes = [
         name: "SystemSettings",
         component: () => import("../views/system/SystemSettings.vue"),
       },
+      {
+        path: "audit-logs",
+        name: "AuditLog",
+        component: () => import("../views/audit/AuditLog.vue"),
+      },
     ],
   },
 ];

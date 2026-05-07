@@ -36,4 +36,57 @@ export class SystemService {
     configs.forEach((c) => (map[c.configKey] = c.configValue));
     return map;
   }
+
+  // ── 审计日志 ──
+
+  async logAudit(data: {
+    userId?: string;
+    action: string;
+    targetType?: string;
+    targetId?: string;
+    detail?: string;
+    ip?: string;
+  }) {
+    return this.prisma.auditLog.create({ data });
+  }
+
+  async getAuditLogs(params: {
+    page: number;
+    pageSize: number;
+    action?: string;
+    userId?: string;
+    targetType?: string;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const { page, pageSize, action, userId, targetType, startDate, endDate } = params;
+    const where: any = {};
+    if (action) where.action = action;
+    if (userId) where.userId = userId;
+    if (targetType) where.targetType = targetType;
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) where.createdAt.lte = new Date(endDate + "T23:59:59.999Z");
+    }
+
+    const [logs, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+    return { logs, total };
+  }
+
+  async getAuditActions() {
+    const actions = await this.prisma.auditLog.findMany({
+      select: { action: true },
+      distinct: ["action"],
+    });
+    return actions.map((a) => a.action);
+  }
 }
