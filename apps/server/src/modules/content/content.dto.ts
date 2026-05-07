@@ -1,5 +1,10 @@
 import { IsString, IsOptional, IsArray, IsEnum, MinLength, MaxLength } from "class-validator";
-import { ContentType } from "@prisma/client";
+
+export enum ContentType {
+  ARTICLE = "ARTICLE",
+  POEM = "POEM",
+  CLASSIC = "CLASSIC",
+}
 
 export class CreateContentDto {
   @IsString()
