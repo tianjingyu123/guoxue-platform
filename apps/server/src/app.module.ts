@@ -7,8 +7,9 @@ import { ArticleModule } from "./modules/article/article.module";
 import { PaipanModule } from "./modules/paipan/paipan.module";
 import { CourseModule } from "./modules/course/course.module";
 import { InteractionModule } from "./modules/interaction/interaction.module";
+import { ShopModule } from "./modules/shop/shop.module";
 
 @Module({
-  imports: [PrismaModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule],
+  imports: [PrismaModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule],
 })
 export class AppModule {}

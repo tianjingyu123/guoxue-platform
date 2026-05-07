@@ -24,6 +24,15 @@
         <el-menu-item index="/reports">
           <span>举报管理</span>
         </el-menu-item>
+        <el-sub-menu index="shop">
+          <template #title><span>商城管理</span></template>
+          <el-menu-item index="/products">
+            <span>商品管理</span>
+          </el-menu-item>
+          <el-menu-item index="/orders">
+            <span>订单管理</span>
+          </el-menu-item>
+        </el-sub-menu>
       </el-menu>
     </el-aside>
     <el-container>
