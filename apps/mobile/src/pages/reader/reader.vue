@@ -10,6 +10,9 @@
           <text class="nav-title">{{ book?.title || '阅读' }}</text>
         </view>
         <view class="nav-right">
+          <text class="nav-btn" :class="{ active: isReading }" @click="isReading ? stopTTS() : startTTS()">
+            {{ ttsLoading ? '⏳' : isReading ? '⏹' : '🔊' }}
+          </text>
           <text class="nav-btn" @click="showSettings = !showSettings">Aa</text>
           <text class="nav-btn" @click="showToc = true">&#9776;</text>
         </view>
@@ -44,6 +47,38 @@
         <text class="setting-label">夜间模式</text>
         <view :class="['toggle-switch', { on: isDark }]" @click="toggleDark">
           <view class="toggle-knob" />
+        </view>
+      </view>
+    </view>
+
+    <!-- ========== TTS 朗读控制条 ========== -->
+    <view v-if="isReading || isPaused" class="tts-control-bar" :style="{ top: (statusBarHeight + 44) + 'px' }">
+      <view class="tts-row">
+        <text class="tts-status">{{ isPaused ? '已暂停' : '朗读中...' }}</text>
+        <view class="tts-right">
+          <text class="tts-btn" @click="isPaused ? startTTS() : pauseTTS()">
+            {{ isPaused ? '▶ 继续' : '⏸ 暂停' }}
+          </text>
+          <text class="tts-btn" @click="stopTTS()">⏹ 停止</text>
+        </view>
+      </view>
+      <view class="tts-row tts-options">
+        <text class="tts-opt-label">语音:</text>
+        <view class="tts-voice-tags">
+          <text
+            v-for="v in (ttsVoices.length ? ttsVoices : [{id:'xiaoxiao',name:'晓晓'},{id:'yunxi',name:'云希'}])"
+            :key="v.id"
+            :class="['tts-voice-tag', { active: ttsVoice === v.id }]"
+            @click="ttsVoice = v.id; stopTTS()"
+          >{{ v.name }}</text>
+        </view>
+      </view>
+      <view class="tts-row tts-options">
+        <text class="tts-opt-label">语速:</text>
+        <view class="tts-rate-tags">
+          <text :class="['tts-rate-tag', { active: ttsRate === '-30%' }]" @click="ttsRate = '-30%'; stopTTS()">0.7x</text>
+          <text :class="['tts-rate-tag', { active: ttsRate === '0%' }]" @click="ttsRate = '0%'; stopTTS()">1x</text>
+          <text :class="['tts-rate-tag', { active: ttsRate === '+20%' }]" @click="ttsRate = '+20%'; stopTTS()">1.2x</text>
         </view>
       </view>
     </view>
@@ -235,7 +270,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { classicApi } from '../../api'
+import { classicApi, ttsApi } from '../../api'
 import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
 import EmptyState from '../../components/EmptyState.vue'
 
@@ -274,6 +309,15 @@ const contentRef = ref<any>(null)
 // 阅读进度保存定时器
 let progressTimer: ReturnType<typeof setTimeout> | null = null
 
+// TTS 语音朗读
+const isReading = ref(false)
+const isPaused = ref(false)
+const ttsVoice = ref('xiaoxiao')
+const ttsRate = ref('0%')
+const audioCtx = ref<any>(null)
+const ttsVoices = ref<Array<{ id: string; name: string }>>([])
+const ttsLoading = ref(false)
+
 // 字体预设
 const fontPresets = [
   { label: '小', size: 16 },
@@ -302,6 +346,7 @@ onMounted(async () => {
   } catch {
     statusBarHeight.value = 20
   }
+  loadVoices()
   initReader()
 })
 
@@ -596,12 +641,76 @@ function toggleDark() {
   isDark.value = !isDark.value
 }
 
+// ========== TTS 语音朗读 ==========
+function initAudio() {
+  if (audioCtx.value) return
+  audioCtx.value = uni.createInnerAudioContext()
+  audioCtx.value.onEnded(() => {
+    // 读完当前章节自动播放下一章（可选）
+    stopTTS()
+  })
+  audioCtx.value.onError((err: any) => {
+    console.error('TTS error:', err)
+    stopTTS()
+  })
+}
+
+async function startTTS() {
+  if (!chapter.value?.content) return
+  initAudio()
+
+  if (isPaused.value) {
+    audioCtx.value?.play()
+    isPaused.value = false
+    isReading.value = true
+    return
+  }
+
+  ttsLoading.value = true
+  try {
+    // 按段落分段朗读，取第一段（避免URL过长）
+    const text = chapter.value.content.slice(0, 500)
+    const url = ttsApi.audioUrl(text, ttsVoice.value, ttsRate.value)
+    audioCtx.value.src = url
+    isReading.value = true
+    isPaused.value = false
+    audioCtx.value.play()
+  } catch {
+    uni.showToast({ title: '语音加载失败', icon: 'none' })
+  } finally {
+    ttsLoading.value = false
+  }
+}
+
+function pauseTTS() {
+  audioCtx.value?.pause()
+  isPaused.value = true
+  isReading.value = false
+}
+
+function stopTTS() {
+  audioCtx.value?.stop()
+  audioCtx.value?.destroy()
+  audioCtx.value = null
+  isReading.value = false
+  isPaused.value = false
+}
+
+async function loadVoices() {
+  if (ttsVoices.value.length) return
+  try {
+    const res: any = await ttsApi.voices()
+    ttsVoices.value = res || []
+  } catch { /* 忽略 */ }
+}
+
 // ========== 工具 ==========
 function scrollToTop() {
   uni.pageScrollTo({ scrollTop: 0, duration: 300 })
 }
 
 function goBack() {
+  stopTTS()
   uni.navigateBack()
 }
 </script>
@@ -808,6 +917,80 @@ function goBack() {
 }
 .toggle-switch.on .toggle-knob {
   transform: translateX(20px);
+}
+
+.nav-btn.active {
+  color: #8b4513;
+}
+
+/* ========== TTS 控制条 ========== */
+.tts-control-bar {
+  position: sticky;
+  z-index: 50;
+  background: #fff;
+  border-bottom: 1px solid #e0d5c1;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+  padding: 8px 12px;
+}
+.page.dark-mode .tts-control-bar {
+  background: #16213e;
+  border-bottom-color: #2a2a4a;
+}
+.tts-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+}
+.tts-status {
+  font-size: 13px;
+  color: #8b4513;
+  font-weight: 500;
+}
+.page.dark-mode .tts-status {
+  color: #e0c87d;
+}
+.tts-right {
+  display: flex;
+  gap: 12px;
+}
+.tts-btn {
+  font-size: 12px;
+  color: #8b4513;
+  padding: 3px 10px;
+  border: 1px solid #8b4513;
+  border-radius: 12px;
+}
+.tts-options {
+  border-top: 1px solid #f0ece4;
+  margin-top: 4px;
+  padding-top: 6px;
+}
+.page.dark-mode .tts-options {
+  border-top-color: #2a2a4a;
+}
+.tts-opt-label {
+  font-size: 11px;
+  color: #999;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+.tts-voice-tags, .tts-rate-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tts-voice-tag, .tts-rate-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #f5f0e6;
+  color: #888;
+}
+.tts-voice-tag.active, .tts-rate-tag.active {
+  background: #8b4513;
+  color: #fff;
 }
 
 /* ========== 正文区 ========== */
