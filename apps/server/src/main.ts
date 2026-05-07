@@ -5,6 +5,7 @@ import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { ThrottleGuard } from "./common/throttle.guard";
 import { AllExceptionsFilter } from "./common/http-exception.filter";
+import { LoggingInterceptor } from "./common/logging.interceptor";
 import { join } from "path";
 
 async function bootstrap() {
@@ -31,6 +32,7 @@ async function bootstrap() {
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   });
+  app.useGlobalInterceptors(new LoggingInterceptor());
   app.useGlobalGuards(new ThrottleGuard());
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalPipes(
