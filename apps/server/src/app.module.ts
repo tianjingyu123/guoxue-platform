@@ -13,8 +13,10 @@ import { SearchModule } from "./modules/search/search.module";
 import { BotModule } from "./modules/bot/bot.module";
 import { LiveModule } from "./modules/live/live.module";
 import { VideoModule } from "./modules/video/video.module";
+import { StationModule } from "./modules/station/station.module";
+import { OfflineModule } from "./modules/offline/offline.module";
 
 @Module({
-  imports: [PrismaModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule],
+  imports: [PrismaModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule],
 })
 export class AppModule {}
