@@ -38,6 +38,11 @@ const routes = [
         component: () => import("../views/bazi/BaziPan.vue"),
       },
       {
+        path: "ziwei",
+        name: "ZiweiPan",
+        component: () => import("../views/bazi/ZiweiPan.vue"),
+      },
+      {
         path: "paipan-records",
         name: "PaipanRecords",
         component: () => import("../views/PaipanRecords.vue"),

@@ -29,6 +29,9 @@
           <el-menu-item index="/bazi">
             <span>八字排盘</span>
           </el-menu-item>
+          <el-menu-item index="/ziwei">
+            <span>紫微排盘</span>
+          </el-menu-item>
           <el-menu-item index="/paipan-records">
             <span>排盘记录</span>
           </el-menu-item>
