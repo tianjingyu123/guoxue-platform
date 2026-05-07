@@ -178,7 +178,7 @@ async function fetchPoems() {
   loading.value = true
   errorMsg.value = ''
   try {
-    const params: Record<string, any> = { type: 'POEM', pageSize: pageSize.value, page: page.value }
+    const params: Record<string, any> = { type: 'POEM', status: 'PUBLISHED', pageSize: pageSize.value, page: page.value }
     if (activeDynasty.value) {
       params.tag = activeDynasty.value
     }
@@ -211,7 +211,7 @@ async function loadMore() {
   loadMoreLoading.value = true
   page.value++
   try {
-    const params: Record<string, any> = { type: 'POEM', pageSize: pageSize.value, page: page.value }
+    const params: Record<string, any> = { type: 'POEM', status: 'PUBLISHED', pageSize: pageSize.value, page: page.value }
     if (activeDynasty.value) params.tag = activeDynasty.value
     if (searchKeyword.value.trim()) params.keyword = searchKeyword.value.trim()
     const res = await contentsApi.list(params)
