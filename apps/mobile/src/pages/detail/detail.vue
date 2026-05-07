@@ -67,6 +67,19 @@
         <text class="cmt-body">{{ cmt.content }}</text>
       </view>
     </view>
+
+    <!-- 相关推荐 -->
+    <view v-if="related.length" class="related">
+      <text class="section-title">相关推荐</text>
+      <view v-for="item in related" :key="item.id" class="rel-card" @click="goTo(item.id)">
+        <image v-if="item.cover" :src="item.cover" class="rel-cover" mode="aspectFill" />
+        <view class="rel-info">
+          <text class="rel-title">{{ item.title }}</text>
+          <text class="rel-circle" v-if="item.circle">{{ item.circle.name }}</text>
+          <text class="rel-stats">{{ item.viewCount }} 浏览 · {{ item.likeCount }} 赞</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -80,6 +93,7 @@ const content = ref<any>(null);
 const loading = ref(false);
 const chapters = ref<any[]>([]);
 const joined = ref(false);
+const related = ref<any[]>([]);
 
 // 互动状态
 const comments = ref<any[]>([]);
@@ -105,6 +119,7 @@ async function fetchDetail() {
     if (type.value === "ARTICLE") {
       content.value = await contentApi.detail(id.value);
       likeCount.value = content.value.likeCount || 0;
+      fetchRelated();
     } else if (type.value === "COURSE") {
       content.value = await courseApi.detail(id.value);
       chapters.value = await courseApi.chapters(id.value);
@@ -114,6 +129,16 @@ async function fetchDetail() {
   } finally {
     loading.value = false;
   }
+}
+
+async function fetchRelated() {
+  try {
+    related.value = await contentApi.related(id.value);
+  } catch { /* */ }
+}
+
+function goTo(aid: string) {
+  uni.navigateTo({ url: `/pages/detail/detail?id=${aid}&type=ARTICLE` });
 }
 
 async function fetchComments() {
@@ -180,4 +205,12 @@ async function joinCircle() {
 .comment-item { padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
 .cmt-user { font-size: 13px; color: #8b4513; }
 .cmt-body { font-size: 14px; color: #333; }
+
+.related { margin-top: 16px; }
+.rel-card { display: flex; gap: 12px; background: #fff; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+.rel-cover { width: 80px; height: 60px; border-radius: 4px; flex-shrink: 0; }
+.rel-info { flex: 1; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+.rel-title { font-size: 14px; font-weight: bold; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rel-circle { font-size: 12px; color: #8b4513; }
+.rel-stats { font-size: 12px; color: #999; }
 </style>

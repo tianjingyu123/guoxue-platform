@@ -41,6 +41,7 @@ export const contentApi = {
   list: (params?: any) => api.get("/articles", params),
   feed: (params?: any) => api.get("/articles/feed", params),
   detail: (id: string) => api.get(`/articles/${id}`),
+  related: (id: string) => api.get(`/articles/${id}/related`),
 };
 
 // 课程
