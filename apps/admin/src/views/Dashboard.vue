@@ -86,6 +86,42 @@
       </el-col>
     </el-row>
 
+    <!-- 第三行业务卡片 -->
+    <el-row :gutter="16" class="stat-row">
+      <el-col :xs="12" :sm="6">
+        <el-card shadow="hover" class="stat-card card-red">
+          <div class="stat-inner" style="flex-direction:column;gap:6px">
+            <span class="stat-label">待处理举报</span>
+            <span class="stat-val red">{{ fmt(stats.pendingReports) }}</span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="stat-inner" style="flex-direction:column;gap:6px">
+            <span class="stat-label">订单数 (已支付)</span>
+            <span class="stat-val">{{ fmt(stats.orderCount) }} <span style="font-size: 13px; color: #67c23a;">/ {{ fmt(stats.paidOrderCount) }}</span></span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="stat-inner" style="flex-direction:column;gap:6px">
+            <span class="stat-label">直播 / 视频</span>
+            <span class="stat-val">{{ fmt(stats.liveRoomCount) }} <span style="font-size: 13px; color: #999;">/ {{ fmt(stats.videoCount) }}</span></span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="stat-inner" style="flex-direction:column;gap:6px">
+            <span class="stat-label">赞 / 评 / 藏</span>
+            <span class="stat-val">{{ fmt(stats.totalLikes) }} <span style="font-size: 13px; color: #999;">/ {{ fmt(stats.totalComments) }} / {{ fmt(stats.totalCollects) }}</span></span>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <!-- 趋势图表 (30天) - 保留原有 -->
     <el-row :gutter="16" class="stat-row" v-if="trends">
       <el-col :span="12">
@@ -292,6 +328,7 @@ onUnmounted(() => {
 .stat-card.card-green  { border-left: 4px solid #67c23a; }
 .stat-card.card-orange { border-left: 4px solid #e6a23c; }
 .stat-card.card-purple { border-left: 4px solid #9b59b6; }
+.stat-card.card-red    { border-left: 4px solid #e74c3c; }
 
 .stat-inner {
   display: flex;
@@ -313,6 +350,7 @@ onUnmounted(() => {
 .card-green  .stat-icon { background: rgba(103,194,58,0.1); color: #67c23a; }
 .card-orange .stat-icon { background: rgba(230,162,60,0.1); color: #e6a23c; }
 .card-purple .stat-icon { background: rgba(155,89,182,0.1); color: #9b59b6; }
+.card-red    .stat-icon { background: rgba(231,76,60,0.1); color: #e74c3c; }
 
 .stat-info {
   display: flex;
@@ -324,6 +362,7 @@ onUnmounted(() => {
 .stat-val { font-size: 24px; font-weight: bold; color: #333; }
 .stat-val.blue  { color: #409eff; }
 .stat-val.green { color: #67c23a; }
+.stat-val.red   { color: #e74c3c; }
 .stat-val.brown { color: #8b4513; }
 
 .chart-box { width: 100%; height: 300px; }

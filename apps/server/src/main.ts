@@ -2,6 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import compression from "compression";
 import { AppModule } from "./app.module";
 import { ThrottleGuard } from "./common/throttle.guard";
 import { AllExceptionsFilter } from "./common/http-exception.filter";
@@ -10,6 +11,9 @@ import { join } from "path";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // 响应压缩
+  app.use(compression());
 
   // 静态文件服务
   app.useStaticAssets(join(__dirname, "..", "uploads"), { prefix: "/uploads/" });
