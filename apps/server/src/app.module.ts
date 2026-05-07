@@ -26,8 +26,9 @@ import { UploadModule } from "./modules/upload/upload.module";
 import { CommissionModule } from "./modules/commission/commission.module";
 import { SystemModule } from "./modules/system/system.module";
 import { HealthModule } from "./modules/health/health.module";
+import { CoinModule } from "./modules/coin/coin.module";
 
 @Module({
-  imports: [PrismaModule, RedisModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, CommissionModule, SystemModule, HealthModule],
+  imports: [PrismaModule, RedisModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, CommissionModule, SystemModule, HealthModule, CoinModule],
 })
 export class AppModule {}

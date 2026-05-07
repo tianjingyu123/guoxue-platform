@@ -69,6 +69,14 @@ model User {
   referralRefs   ReferralRelation[] @relation("Referrer")
   withdrawals    Withdrawal[]
   referralLinks  ReferralLink[]
+  coinAccount        VirtualCoinAccount?
+  coinTransactions   VirtualCoinTransaction[]
+  coinRecharges      VirtualCoinRecharge[]
+  askedQuestions     PaidQuestion[]     @relation("QuestionAsker")
+  answeredQuestions  PaidQuestion[]     @relation("QuestionAnswerer")
+  audioCallsMade     AudioCallRecord[]  @relation("Caller")
+  audioCallsReceived AudioCallRecord[]  @relation("Callee")
+  giftRecords        GiftRecord[]
 
   @@index([phone])
   @@index([memberLevel])
@@ -214,8 +222,9 @@ model Circle {
   courses  Course[]
   videos   Video[]
   products Product[]
-  liveRooms LiveRoom[]
-  bot      CircleBot?
+  liveRooms     LiveRoom[]
+  paidQuestions PaidQuestion[]
+  bot           CircleBot?
 
   @@index([ownerId])
   @@index([status])
@@ -233,6 +242,7 @@ model CircleMember {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([circleId, userId])
+  @@index([userId])
 }
 
 // ─────────────────────────────────────────────────
@@ -323,6 +333,7 @@ model Article {
 
   @@index([circleId, createdAt])
   @@index([isPushHome, auditStatus])
+  @@index([userId, createdAt])
 }
 
 model ArticleRecommend {
@@ -374,6 +385,7 @@ model Course {
 
   @@index([circleId])
   @@index([auditStatus])
+  @@index([userId, createdAt])
 }
 
 model CourseChapter {
@@ -658,9 +670,10 @@ model LiveRoom {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  circle    Circle?        @relation(fields: [circleId], references: [id])
-  user      User           @relation(fields: [userId], references: [id])
-  products  LiveProduct[]
+  circle      Circle?        @relation(fields: [circleId], references: [id])
+  user        User           @relation(fields: [userId], references: [id])
+  products    LiveProduct[]
+  giftRecords GiftRecord[]
 
   @@index([status])
   @@index([circleId])
@@ -1024,6 +1037,7 @@ model Like {
 
   @@unique([userId, targetType, targetId])
   @@index([targetType, targetId])
+  @@index([userId, createdAt])
 }
 
 model Comment {
@@ -1055,6 +1069,7 @@ model Collect {
 
   @@unique([userId, targetType, targetId])
   @@index([userId, createdAt])
+  @@index([targetType, targetId])
 }
 
 model Report {
@@ -1246,4 +1261,164 @@ model ReferralLink {
 
   @@index([userId, createdAt])
   @@index([code])
+}
+
+// ─────────────────────────────────────────────────
+// 虚拟币体系
+// ─────────────────────────────────────────────────
+
+model VirtualCoinAccount {
+  id             String @id @default(uuid())
+  userId         String @unique
+  balance        Int    @default(0) // 当前余额（币数）
+  totalRecharged Int    @default(0) // 累计充值币数
+  totalSpent     Int    @default(0) // 累计消费币数
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum CoinTransType {
+  RECHARGE  // 充值
+  SPEND     // 消费
+  REFUND    // 退款
+  GRANT     // 平台赠送
+}
+
+enum CoinScene {
+  RECHARGE        // 充值
+  CIRCLE_JOIN     // 付费入圈
+  PAID_QUESTION   // 付费提问
+  PEEK_ANSWER     // 围观答案
+  AUDIO_CALL      // 音频连麦
+  LIVE_GIFT       // 直播打赏
+  BOT_CALL        // 智能体调用
+  REFUND          // 退款
+  PLATFORM_GRANT  // 平台赠送
+}
+
+model VirtualCoinTransaction {
+  id           String        @id @default(uuid())
+  userId       String
+  type         CoinTransType
+  amountCoin   Int           // 变动币数（正数为增加，负数为减少）
+  balanceAfter Int           // 变动后余额
+  scene        CoinScene     // 消费场景
+  refId        String?       // 关联业务ID（订单号/问答ID/通话ID等）
+  description  String?       // 描述
+  createdAt    DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([refId])
+}
+
+model VirtualCoinRecharge {
+  id         String   @id @default(uuid())
+  userId     String
+  amountRmb  Decimal  @db.Decimal(10, 2) // 人民币金额
+  amountCoin Int      // 币数
+  payMethod  String   @default("WECHAT") // WECHAT, ALIPAY
+  orderNo    String   @unique // 外部支付订单号
+  status     String   @default("PENDING") // PENDING, PAID, FAILED, REFUNDED
+  paidAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([orderNo])
+}
+
+// ─────────────────────────────────────────────────
+// 付费问答
+// ─────────────────────────────────────────────────
+
+model PaidQuestion {
+  id            String   @id @default(uuid())
+  circleId      String
+  askerId       String   // 提问者
+  answererId    String   // 回答者
+  question      String   // 问题内容
+  images        String[] @default([])
+  answer        String?  // 回答内容
+  priceCoin     Int      // 提问价格（币）
+  peekPriceCoin Int      @default(0) // 围观价格（币）
+  peekCount     Int      @default(0) // 围观次数
+  status        String   @default("PENDING") // PENDING, ANSWERED, REFUNDED, CLOSED
+  answeredAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  circle   Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  asker    User   @relation("QuestionAsker", fields: [askerId], references: [id], onDelete: Cascade)
+  answerer User   @relation("QuestionAnswerer", fields: [answererId], references: [id], onDelete: Cascade)
+
+  @@index([circleId, status])
+  @@index([askerId])
+  @@index([answererId])
+}
+
+// ─────────────────────────────────────────────────
+// 音频连麦记录
+// ─────────────────────────────────────────────────
+
+model AudioCallRecord {
+  id                String   @id @default(uuid())
+  callerId          String   // 发起方
+  calleeId          String   // 接收方
+  circleId          String?
+  pricePerMinuteCoin Int     // 每分钟价格（币）
+  durationSeconds   Int      @default(0) // 通话时长（秒）
+  totalCoin         Int      @default(0) // 总消费币数
+  status            String   @default("PENDING") // PENDING, ACTIVE, ENDED, CANCELLED
+  roomId            String?  // TRTC房间ID
+  startedAt         DateTime?
+  endedAt           DateTime?
+  createdAt         DateTime @default(now())
+
+  caller User @relation("Caller", fields: [callerId], references: [id], onDelete: Cascade)
+  callee User @relation("Callee", fields: [calleeId], references: [id], onDelete: Cascade)
+
+  @@index([callerId, createdAt])
+  @@index([calleeId])
+}
+
+// ─────────────────────────────────────────────────
+// 直播礼物打赏
+// ─────────────────────────────────────────────────
+
+model Gift {
+  id        String  @id @default(uuid())
+  name      String  // 礼物名称
+  icon      String? // 图标URL
+  priceCoin Int     // 价格（币）
+  level     String  @default("BASIC") // BASIC, MID, HIGH, TOP
+  effectUrl String? // 特效资源URL
+  sortOrder Int     @default(0)
+  status    String  @default("ACTIVE")
+  createdAt DateTime @default(now())
+
+  records GiftRecord[]
+}
+
+model GiftRecord {
+  id         String   @id @default(uuid())
+  userId     String   // 赠送者
+  liveRoomId String   // 直播间
+  toUserId   String   // 接收者（主播）
+  giftId     String   // 礼物ID
+  quantity   Int      @default(1) // 数量
+  totalCoin  Int      // 总消费币数
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  liveRoom LiveRoom @relation(fields: [liveRoomId], references: [id], onDelete: Cascade)
+  gift     Gift     @relation(fields: [giftId], references: [id])
+
+  @@index([liveRoomId, createdAt])
+  @@index([userId])
 }
