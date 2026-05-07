@@ -5,11 +5,15 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "tsx src/__tests__/run.ts",
+    "test": "jest",
+    "test:run": "tsx src/__tests__/run.ts",
     "build": "tsc"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
-    "tsx": "^4.7.0"
+    "tsx": "^4.7.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "@types/jest": "^29.5.0"
   }
 }
