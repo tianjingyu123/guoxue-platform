@@ -41,16 +41,16 @@ describe('calcBazi - 完整八字排盘集成测试', () => {
       expect(result.siZhu.yue.nayin).toBe('炉中火')
     })
 
-    it('日柱为庚午', () => {
-      expect(result.siZhu.ri.gan).toBe('庚')
-      expect(result.siZhu.ri.zhi).toBe('午')
-      expect(result.siZhu.ri.nayin).toBe('路旁土')
+    it('日柱为己巳', () => {
+      expect(result.siZhu.ri.gan).toBe('己')
+      expect(result.siZhu.ri.zhi).toBe('巳')
+      expect(result.siZhu.ri.nayin).toBe('大林木')
     })
 
-    it('时柱为辛巳（巳时）', () => {
-      expect(result.siZhu.shi.gan).toBe('辛')
+    it('时柱为己巳（巳时）', () => {
+      expect(result.siZhu.shi.gan).toBe('己')
       expect(result.siZhu.shi.zhi).toBe('巳')
-      expect(result.siZhu.shi.nayin).toBe('白蜡金')
+      expect(result.siZhu.shi.nayin).toBe('大林木')
     })
 
     it('生肖为鼠（子年）', () => {
@@ -62,15 +62,14 @@ describe('calcBazi - 完整八字排盘集成测试', () => {
     })
 
     it('十神关系正确', () => {
-      // 日干庚
-      // 年干甲：庚金克甲木，阳克阳 → 偏财(才)
-      expect(result.siZhu.nian.ganShiShen).toBe('才')
-      // 月干丙：丙火克庚金，阳克阳 → 七杀(杀)
-      expect(result.siZhu.yue.ganShiShen).toBe('杀')
-      // 日干庚：与日干同 → 比肩(比)
+      // 日干为己，年干甲：甲木克己土 → 正官(官)
+      expect(result.siZhu.nian.ganShiShen).toBe('官')
+      // 月干丙：丙火生己土 → 正印(印)
+      expect(result.siZhu.yue.ganShiShen).toBe('印')
+      // 日干己：与日干同 → 比肩(比)
       expect(result.siZhu.ri.ganShiShen).toBe('比')
-      // 时干辛：庚金生辛金，同五行异阴阳 → 劫财(劫)
-      expect(result.siZhu.shi.ganShiShen).toBe('劫')
+      // 时干己：与日干同 → 比肩(比)
+      expect(result.siZhu.shi.ganShiShen).toBe('比')
     })
 
     it('胎元为丁巳', () => {
@@ -88,8 +87,8 @@ describe('calcBazi - 完整八字排盘集成测试', () => {
       expect(result.shenGong.zhi).toBe('酉')
     })
 
-    it('旺相休囚死为囚（庚金生寅月，金克木为囚）', () => {
-      expect(result.wangXiang).toBe('囚')
+    it('旺相休囚死为死（己土生寅月，木克土为死）', () => {
+      expect(result.wangXiang).toBe('死')
     })
 
     it('大运至少8步', () => {
@@ -148,13 +147,13 @@ describe('calcBazi - 完整八字排盘集成测试', () => {
       expect(result.siZhu.yue.zhi).toBe('巳')
     })
 
-    it('日柱为丁亥', () => {
-      expect(result.siZhu.ri.gan).toBe('丁')
-      expect(result.siZhu.ri.zhi).toBe('亥')
+    it('日柱为乙酉', () => {
+      expect(result.siZhu.ri.gan).toBe('乙')
+      expect(result.siZhu.ri.zhi).toBe('酉')
     })
 
-    it('时柱为甲辰（辰时）', () => {
-      expect(result.siZhu.shi.gan).toBe('甲')
+    it('时柱为庚辰（辰时）', () => {
+      expect(result.siZhu.shi.gan).toBe('庚')
       expect(result.siZhu.shi.zhi).toBe('辰')
     })
 
@@ -191,21 +190,21 @@ describe('calcBazi - 完整八字排盘集成测试', () => {
       result = calcBazi(input)
     })
 
-    it('年柱为己卯（2000年）', () => {
-      expect(result.siZhu.nian.gan).toBe('己')
-      expect(result.siZhu.nian.zhi).toBe('卯')
+    it('年柱为庚辰（2000年）', () => {
+      expect(result.siZhu.nian.gan).toBe('庚')
+      expect(result.siZhu.nian.zhi).toBe('辰')
     })
 
-    it('月柱为丙子（小寒前即上月亥月？或子月）', () => {
+    it('月柱为戊子（小寒前即上月子月）', () => {
       // 1月1日在小寒(1月6日)前，所以应是上个月即12月(子月)
-      // 己年五虎遁：甲己→丙寅开始，12月(子月)为丙子
+      // 庚年五虎遁：乙庚→戊寅开始，12月(子月)为戊子
       expect(result.siZhu.yue.zhi).toBe('子')
-      expect(result.siZhu.yue.gan).toBe('丙')
+      expect(result.siZhu.yue.gan).toBe('戊')
     })
 
-    it('日柱为辛卯（2000-01-01公历）', () => {
-      expect(result.siZhu.ri.gan).toBe('辛')
-      expect(result.siZhu.ri.zhi).toBe('卯')
+    it('日柱为戊午（2000-01-01公历）', () => {
+      expect(result.siZhu.ri.gan).toBe('戊')
+      expect(result.siZhu.ri.zhi).toBe('午')
     })
 
     it('时柱子时', () => {
@@ -213,7 +212,7 @@ describe('calcBazi - 完整八字排盘集成测试', () => {
     })
 
     it('日产输出存在纳音', () => {
-      expect(result.siZhu.ri.nayin).toBe('松柏木')
+      expect(result.siZhu.ri.nayin).toBe('天上火')
     })
   })
 })

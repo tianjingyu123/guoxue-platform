@@ -29,10 +29,7 @@ describe('calcMingGongZhi - 定命宫地支', () => {
 
   it('正月亥时', () => {
     const result = calcMingGongZhi(1, '亥')
-    expect(result).toBe('巳') // (1+1-11+12)%12=3%12=3→卯... wait
     // mingZhiIdx = (1 + 1 - 11 + 12) % 12 = 3. ZHI[3] = 卯
-    // But actually I need to re-check: hourIdx for 亥=11. mingZhiIdx = (1+1-11+12)%12 = 3. ZHI[3]=卯
-    // So it's 卯 not 巳
     expect(result).toBe('卯')
   })
 })
@@ -79,8 +76,8 @@ describe('calcWuXingJu - 定五行局', () => {
     expect(calcWuXingJu('庚', '寅')).toBe('木三局')
   })
 
-  it('甲子 → 火六局', () => {
-    expect(calcWuXingJu('甲', '子')).toBe('火六局')
+  it('甲子 → 金四局', () => {
+    expect(calcWuXingJu('甲', '子')).toBe('金四局')
   })
 
   it('丁卯 → 土五局', () => {

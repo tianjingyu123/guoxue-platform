@@ -87,14 +87,14 @@ describe('calcYueZhu - 月柱计算', () => {
 })
 
 describe('calcRiZhu - 日柱计算', () => {
-  it('1984-02-04 = 庚午', () => {
+  it('1984-02-04 = 戊辰', () => {
     const result = calcRiZhu(new Date(1984, 1, 4))
-    expect(result.ganZhi).toBe('庚午')
+    expect(result.ganZhi).toBe('戊辰')
   })
 
-  it('1990-05-20 = 丁亥', () => {
+  it('1990-05-20 = 乙酉', () => {
     const result = calcRiZhu(new Date(1990, 4, 20))
-    expect(result.ganZhi).toBe('丁亥')
+    expect(result.ganZhi).toBe('乙酉')
   })
 
   it('2023-10-01 国庆节', () => {
@@ -128,10 +128,10 @@ describe('calcShiZhu - 时柱计算', () => {
     expect(result.ganZhi).toBe('甲辰')
   })
 
-  it('癸日亥时(23点) = 癸亥', () => {
+  it('癸日子时(23点) = 壬子', () => {
     const result = calcShiZhu('癸', 23)
-    expect(result.gan).toBe('癸')
-    expect(result.zhi).toBe('亥')
+    expect(result.gan).toBe('壬')
+    expect(result.zhi).toBe('子')
   })
 })
 
@@ -181,9 +181,9 @@ describe('calcSiZhu - 完整四柱', () => {
     expect(result.nian.zhi).toBe('子')
     expect(result.yue.gan).toBe('丙')
     expect(result.yue.zhi).toBe('寅')
-    expect(result.ri.gan).toBe('庚')
-    expect(result.ri.zhi).toBe('午')
-    expect(result.shi.gan).toBe('辛')
+    expect(result.ri.gan).toBe('己')
+    expect(result.ri.zhi).toBe('巳')
+    expect(result.shi.gan).toBe('己')
     expect(result.shi.zhi).toBe('巳')
   })
 

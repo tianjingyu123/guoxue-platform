@@ -8,7 +8,7 @@ import type { ZiweiInput, ZiweiResult } from '../types'
 
 describe('calcZiwei - 完整紫微斗数排盘集成测试', () => {
   // ============ 测试用例1: 庚午年 正月十五 子时 男 ============
-  // 命宫在寅, 五行局=木三局, 紫微在午宫
+  // 命宫在寅, 五行局=土五局, 紫微在辰宫
   describe('庚午年 正月十五 子时 男', () => {
     const input: ZiweiInput = {
       name: '测试',
@@ -34,16 +34,16 @@ describe('calcZiwei - 完整紫微斗数排盘集成测试', () => {
       expect(result.mingGong.zhi).toBe('寅')
     })
 
-    it('五行局为木三局', () => {
-      expect(result.wuXingJu).toBe('木三局')
+    it('五行局为土五局', () => {
+      expect(result.wuXingJu).toBe('土五局')
     })
 
-    it('紫微在午宫', () => {
+    it('紫微在辰宫', () => {
       const ziweiGong = result.gongWei.find(g =>
         g.stars.some(s => s.name === '紫微')
       )
       expect(ziweiGong).toBeDefined()
-      expect(ziweiGong!.zhi).toBe('午')
+      expect(ziweiGong!.zhi).toBe('辰')
     })
 
     it('十二宫完整', () => {

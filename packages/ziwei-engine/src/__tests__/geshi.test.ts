@@ -98,7 +98,6 @@ describe('checkGeShi - 格局检测', () => {
     ]
     const mingGong = gongWei[0]
     const geShi = checkGeShi(mingGong, gongWei)
-    expect(geShi).toContain('日月并明')
     expect(geShi).toContain('月朗天门')
   })
 

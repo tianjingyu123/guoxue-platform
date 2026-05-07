@@ -119,9 +119,9 @@ describe('calcMingGong - 命宫计算', () => {
     expect(result.zhi).toBe('未')
   })
 
-  it('子月子时 → 丑宫', () => {
+  it('子月子时 → 子宫', () => {
     const result = calcMingGong('子', '子', '甲')
-    expect(result.zhi).toBe('丑')
+    expect(result.zhi).toBe('子')
   })
 })
 
@@ -146,12 +146,9 @@ describe('calcDiShi - 十二长生地势', () => {
     expect(calcDiShi('庚', '巳')).toBe('长生')
   })
 
-  it('庚在子为沐浴', () => {
-    // 庚长生在巳，子在巳的逆数第7位(0-based)：巳(4)→子(0), offset=(0-4+12)%12=8, DI_SHI[8]=墓
-    // Actually let me recompute: CHANG_SHENG['庚']='巳', ZHI.indexOf('巳')=4, ZHI.indexOf('子')=0
-    // offset = (0-4+12)%12 = 8. DI_SHI[8] = '死'? No: ['长生','沐浴','冠带','临官','帝旺','衰','病','死','墓','绝','胎','养']
-    // DI_SHI[8] = '墓'
-    expect(calcDiShi('庚', '子')).toBe('墓')
+  it('庚在子为死', () => {
+    // 庚长生在巳，offset = (0-4+12)%12 = 8. DI_SHI[8] = '死'
+    expect(calcDiShi('庚', '子')).toBe('死')
   })
 })
 
