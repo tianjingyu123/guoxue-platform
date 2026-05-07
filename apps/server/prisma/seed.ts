@@ -934,7 +934,7 @@ async function main() {
         duration: 720,
         viewCount: 9800,
         likeCount: 756,
-        commentCount: 98,
+
         circleIdx: 1,
       },
       {
@@ -944,7 +944,7 @@ async function main() {
         duration: 360,
         viewCount: 15200,
         likeCount: 1203,
-        commentCount: 234,
+
         circleIdx: 2,
       },
       {
@@ -954,7 +954,7 @@ async function main() {
         duration: 600,
         viewCount: 22000,
         likeCount: 2105,
-        commentCount: 312,
+
         circleIdx: 5,
       },
       {
@@ -964,7 +964,7 @@ async function main() {
         duration: 900,
         viewCount: 7800,
         likeCount: 623,
-        commentCount: 87,
+
         circleIdx: 4,
       },
       {
@@ -974,7 +974,7 @@ async function main() {
         duration: 840,
         viewCount: 18500,
         likeCount: 1567,
-        commentCount: 203,
+
         circleIdx: 3,
       },
       // 新增更多国学视频
@@ -985,7 +985,7 @@ async function main() {
         duration: 660,
         viewCount: 6200,
         likeCount: 445,
-        commentCount: 67,
+
         circleIdx: 2,
       },
       {
@@ -995,7 +995,7 @@ async function main() {
         duration: 540,
         viewCount: 9300,
         likeCount: 876,
-        commentCount: 124,
+
         circleIdx: 3,
       },
       {
@@ -1005,7 +1005,7 @@ async function main() {
         duration: 780,
         viewCount: 11200,
         likeCount: 1345,
-        commentCount: 198,
+
         circleIdx: 5,
       },
       {
@@ -1015,7 +1015,7 @@ async function main() {
         duration: 1200,
         viewCount: 25600,
         likeCount: 3200,
-        commentCount: 456,
+
         circleIdx: 0,
       },
       {
@@ -1025,7 +1025,7 @@ async function main() {
         duration: 1500,
         viewCount: 38000,
         likeCount: 5678,
-        commentCount: 789,
+
         circleIdx: 1,
       },
       {
@@ -1035,7 +1035,7 @@ async function main() {
         duration: 540,
         viewCount: 14200,
         likeCount: 1890,
-        commentCount: 267,
+
         circleIdx: 0,
       },
       {
@@ -1045,7 +1045,7 @@ async function main() {
         duration: 420,
         viewCount: 8700,
         likeCount: 1023,
-        commentCount: 145,
+
         circleIdx: 4,
       },
       {
@@ -1055,7 +1055,7 @@ async function main() {
         duration: 960,
         viewCount: 21000,
         likeCount: 2345,
-        commentCount: 389,
+
         circleIdx: 3,
       },
     ];
