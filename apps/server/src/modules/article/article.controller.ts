@@ -43,6 +43,11 @@ export class ArticleController {
     return this.article.getHomeFeed({ page: +page, pageSize: +pageSize, userId: req?.user?.id });
   }
 
+  @Get(":id/related")
+  getRelated(@Param("id") id: string) {
+    return this.article.getRelated(id);
+  }
+
   @Get(":id")
   detail(@Param("id") id: string) {
     return this.article.getDetail(id);

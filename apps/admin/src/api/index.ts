@@ -68,6 +68,11 @@ export const paipanApi = {
   detail: (id: string) => api.get(`/paipan/bazi/${id}`),
 };
 
+// 仪表盘
+export const dashboardApi = {
+  stats: () => api.get("/dashboard/stats"),
+};
+
 // 古籍
 export const classicApi = {
   list: (params?: any) => api.get("/classic/books", { params }),

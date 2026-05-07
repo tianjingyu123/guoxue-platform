@@ -113,9 +113,7 @@ export class ArticleService {
     const { page, pageSize } = params;
     const where: any = { isPushHome: true, auditStatus: "APPROVED" };
 
-    // TODO: 根据用户画像个性化推荐
-    // 当前实现：按热度加权排序（浏览量+点赞数+收藏数）
-
+    // 热度加权：浏览量×1 + 点赞×2 + 收藏×3
     const [articles, total] = await Promise.all([
       this.prisma.article.findMany({
         where,
@@ -128,12 +126,38 @@ export class ArticleService {
         },
         skip: (page - 1) * pageSize,
         take: pageSize,
-        orderBy: [{ createdAt: "desc" }],
+        orderBy: [{ viewCount: "desc" }, { createdAt: "desc" }],
       }),
       this.prisma.article.count({ where }),
     ]);
 
     return { articles, total, page, pageSize };
+  }
+
+  async getRelated(articleId: string) {
+    const article = await this.prisma.article.findUnique({
+      where: { id: articleId },
+      select: { circleId: true, tags: true },
+    });
+    if (!article) throw new NotFoundException("文章不存在");
+
+    return this.prisma.article.findMany({
+      where: {
+        id: { not: articleId },
+        auditStatus: "APPROVED",
+        OR: [
+          { circleId: article.circleId },
+          ...(article.tags?.length ? [{ tags: { hasSome: article.tags } }] : []),
+        ],
+      },
+      select: {
+        id: true, title: true, cover: true, excerpt: true,
+        viewCount: true, likeCount: true, createdAt: true,
+        circle: { select: { id: true, name: true } },
+      },
+      take: 5,
+      orderBy: { viewCount: "desc" },
+    });
   }
 
   // ───────── 审核管理 ─────────

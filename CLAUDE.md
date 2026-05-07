@@ -2,7 +2,7 @@
 
 **计划文件：** `.claude/plans/stateful-knitting-star.md`
 **项目目录：** `guoxue-platform/`
-**当前阶段：** P0 基建（第1-2周）
+**当前阶段：** P2 增强
 
 ### 启动时务必
 1. 读取 `.claude/plans/stateful-knitting-star.md` 了解完整规划
