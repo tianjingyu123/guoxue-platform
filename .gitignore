@@ -1,0 +1,24 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.turbo
+.cache
+coverage/
+
+# IDE
+.idea/
+*.swp
+*.swo
+.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# uploads
+uploads/
+
+# Prisma
+apps/server/prisma/migrations/

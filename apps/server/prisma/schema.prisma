@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  phone     String?  @unique
+  email     String?  @unique
+  nickname  String
+  avatar    String?
+  role      Role     @default(USER)
+  status    Status   @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auths     Auth[]
+  favorites Favorite[]
+}
+
+model Auth {
+  id           String     @id @default(uuid())
+  userId       String
+  provider     Provider
+  openId       String?    @unique
+  passwordHash String?
+  createdAt    DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Content {
+  id        String      @id @default(uuid())
+  title     String
+  type      ContentType
+  body      String
+  excerpt   String?
+  author    String?
+  dynasty   String?
+  tags      String[]
+  coverUrl  String?
+  status    ContentStatus @default(DRAFT)
+  viewCount Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  favorites Favorite[]
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  contentId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contentId])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Status {
+  ACTIVE
+  DISABLED
+}
+
+enum Provider {
+  WECHAT
+  PASSWORD
+}
+
+enum ContentType {
+  ARTICLE
+  POEM
+  CLASSIC
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+}

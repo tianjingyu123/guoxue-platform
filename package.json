@@ -1,0 +1,19 @@
+{
+  "name": "guoxue-platform",
+  "private": true,
+  "description": "国学传统文化综合平台",
+  "scripts": {
+    "dev:server": "pnpm --filter @guoxue/server dev",
+    "dev:admin": "pnpm --filter @guoxue/admin dev",
+    "dev:mobile": "pnpm --filter @guoxue/mobile dev",
+    "build:server": "pnpm --filter @guoxue/server build",
+    "build:admin": "pnpm --filter @guoxue/admin build",
+    "lint": "pnpm -r lint",
+    "db:migrate": "pnpm --filter @guoxue/server db:migrate",
+    "db:generate": "pnpm --filter @guoxue/server db:generate"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=10"
+  }
+}
