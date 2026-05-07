@@ -37,7 +37,7 @@ describe("SystemService", () => {
     it("返回指定配置", async () => {
       mockPrisma.configSystem.findUnique.mockResolvedValue({ configKey: "home_banners", configValue: "[]" });
       const result = await svc.getConfig("home_banners");
-      expect(result.configValue).toBe("[]");
+      expect(result!.configValue).toBe("[]");
     });
     it("配置不存在返回 null", async () => {
       mockPrisma.configSystem.findUnique.mockResolvedValue(null);
