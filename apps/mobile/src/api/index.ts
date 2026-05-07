@@ -88,6 +88,10 @@ export const paipanApi = {
   preview: (data: any) => api.post("/paipan/bazi/preview", data),
   save: (data: any) => api.post("/paipan/bazi", data),
   history: () => api.get("/paipan/bazi"),
+  ziweiPreview: (data: any) => api.post("/paipan/ziwei/preview", data),
+  ziweiSave: (data: any) => api.post("/paipan/ziwei", data),
+  ziweiHistory: () => api.get("/paipan/ziwei"),
+  ziweiRecord: (id: string) => api.get(`/paipan/ziwei/${id}`),
 };
 
 // 通知

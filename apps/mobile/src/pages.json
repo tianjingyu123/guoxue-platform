@@ -33,6 +33,10 @@
       "style": { "navigationBarTitleText": "八字排盘" }
     },
     {
+      "path": "pages/ziwei/ziwei",
+      "style": { "navigationBarTitleText": "紫微斗数" }
+    },
+    {
       "path": "pages/favorites/favorites",
       "style": { "navigationBarTitleText": "我的收藏" }
     },
