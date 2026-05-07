@@ -67,6 +67,8 @@ model User {
   followers      Follow[]          @relation("FollowedUser")
   referralUsers  ReferralRelation[] @relation("ReferredUser")
   referralRefs   ReferralRelation[] @relation("Referrer")
+  withdrawals    Withdrawal[]
+  referralLinks  ReferralLink[]
 
   @@index([phone])
   @@index([memberLevel])
@@ -273,27 +275,21 @@ model Post {
 // 内容管理（后台管理用）
 // ─────────────────────────────────────────────────
 
-enum ContentType {
-  ARTICLE
-  POEM
-  CLASSIC
-}
-
 model Content {
-  id          String      @id @default(uuid())
+  id          String   @id @default(uuid())
   title       String
-  type        ContentType @default(ARTICLE)
+  type        String   @default("ARTICLE") // ARTICLE, POEM, CLASSIC
   author      String?
   dynasty     String?
   excerpt     String?
-  body        String      // 正文/富文本HTML
-  cover       String?     // 封面图URL
+  body        String   // 正文/富文本HTML
+  cover       String?  // 封面图URL
   tags        String[]
-  viewCount   Int         @default(0)
-  likeCount   Int         @default(0)
-  status      String      @default("PUBLISHED") // PUBLISHED, DRAFT
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  viewCount   Int      @default(0)
+  likeCount   Int      @default(0)
+  status      String   @default("PUBLISHED") // PUBLISHED, DRAFT
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([type, createdAt])
   @@index([status])
@@ -779,8 +775,9 @@ model Station {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user     User             @relation(fields: [userId], references: [id])
-  earnings StationEarning[]
+  user        User             @relation(fields: [userId], references: [id])
+  earnings    StationEarning[]
+  withdrawals Withdrawal[]
 
   @@index([code])
 }
@@ -1140,4 +1137,60 @@ model Bookmark {
 
   @@index([userId, bookId])
   @@index([chapterId])
+}
+
+// ─────────────────────────────────────────────────
+// 分佣系统
+// ─────────────────────────────────────────────────
+
+model CommissionConfig {
+  id          String   @id @default(uuid())
+  configKey   String   @unique // course_basic / course_premium / course_high / product_platform / product_circle / station_course / station_member / circle_join / bot_call / temp_referral
+  configName  String   // 配置名称
+  rateA       Decimal  @db.Decimal(5, 4) // 讲师/圈主/站长佣金比例
+  rateB       Decimal  @db.Decimal(5, 4) // 平台佣金比例
+  rateC       Decimal? @db.Decimal(5, 4) // 第三角色比例（驿站等）
+  description String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}
+
+model Withdrawal {
+  id            String   @id @default(uuid())
+  userId        String
+  stationId     String?  // 关联分站
+  amount        Decimal  @db.Decimal(10, 2)
+  bankName      String?  // 银行名称
+  bankAccount   String?  // 银行卡号
+  bankHolder    String?  // 开户人
+  alipayAccount String?  // 支付宝账号
+  status        String   @default("PENDING") // PENDING, APPROVED, PAID, REJECTED
+  remark        String?  // 审核备注
+  processedAt   DateTime?
+  createdAt     DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  station Station? @relation(fields: [stationId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([stationId])
+}
+
+// 推荐链接追踪
+model ReferralLink {
+  id         String   @id @default(uuid())
+  userId     String   // 分享人
+  targetType String   // COURSE, PRODUCT, CIRCLE, LIVE, ARTICLE
+  targetId   String
+  code       String   @unique // 短链接码
+  channel    String   @default("DIRECT") // DIRECT, WECHAT, POSTER, QR
+  clickCount Int      @default(0)
+  orderCount Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([code])
 }
