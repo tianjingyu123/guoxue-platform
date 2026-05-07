@@ -20,4 +20,8 @@ Thumbs.db
 # uploads
 uploads/
 
+# backup
+.backup/
+.reference/
+
 # Prisma (migrations must be tracked for DB versioning)

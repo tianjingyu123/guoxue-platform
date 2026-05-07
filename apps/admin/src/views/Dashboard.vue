@@ -8,7 +8,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">文章总数</span>
-            <span class="stat-val">{{ fmt(stats.articleCount) }}</span>
+            <span class="stat-val">{{ fmt(dashboard.stats.articleCount) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -16,7 +16,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">用户总数</span>
-            <span class="stat-val blue">{{ fmt(stats.userCount) }}</span>
+            <span class="stat-val blue">{{ fmt(dashboard.stats.userCount) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -24,7 +24,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">课程总数</span>
-            <span class="stat-val green">{{ fmt(stats.courseCount) }}</span>
+            <span class="stat-val green">{{ fmt(dashboard.stats.courseCount) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -32,7 +32,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">古籍总数</span>
-            <span class="stat-val brown">{{ fmt(stats.classicBookCount) }}</span>
+            <span class="stat-val brown">{{ fmt(dashboard.stats.classicBookCount) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -44,7 +44,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">总浏览量</span>
-            <span class="stat-val">{{ fmt(stats.totalViews) }}</span>
+            <span class="stat-val">{{ fmt(dashboard.stats.totalViews) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -52,7 +52,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">总点赞数</span>
-            <span class="stat-val orange">{{ fmt(stats.totalLikes) }}</span>
+            <span class="stat-val orange">{{ fmt(dashboard.stats.totalLikes) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -60,7 +60,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">总评论数</span>
-            <span class="stat-val purple">{{ fmt(stats.totalComments) }}</span>
+            <span class="stat-val purple">{{ fmt(dashboard.stats.totalComments) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -68,7 +68,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">总收藏数</span>
-            <span class="stat-val">{{ fmt(stats.totalCollects) }}</span>
+            <span class="stat-val">{{ fmt(dashboard.stats.totalCollects) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -80,7 +80,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">圈子总数</span>
-            <span class="stat-val">{{ fmt(stats.circleCount) }}</span>
+            <span class="stat-val">{{ fmt(dashboard.stats.circleCount) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -88,7 +88,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">商品总数</span>
-            <span class="stat-val orange">{{ fmt(stats.productCount) }}</span>
+            <span class="stat-val orange">{{ fmt(dashboard.stats.productCount) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -96,7 +96,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">订单总数</span>
-            <span class="stat-val blue">{{ fmt(stats.orderCount) }}</span>
+            <span class="stat-val blue">{{ fmt(dashboard.stats.orderCount) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -104,7 +104,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">已支付订单</span>
-            <span class="stat-val green">{{ fmt(stats.paidOrderCount) }}</span>
+            <span class="stat-val green">{{ fmt(dashboard.stats.paidOrderCount) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -116,7 +116,7 @@
         <el-card shadow="hover" class="stat-card today">
           <div class="stat-inner">
             <span class="stat-label">今日新用户</span>
-            <span class="stat-val blue">{{ fmt(stats.todayNewUsers) }}</span>
+            <span class="stat-val blue">{{ fmt(dashboard.stats.todayNewUsers) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -124,7 +124,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">本月新用户</span>
-            <span class="stat-val">{{ fmt(stats.monthNewUsers) }}</span>
+            <span class="stat-val">{{ fmt(dashboard.stats.monthNewUsers) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -132,7 +132,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">本月新文章</span>
-            <span class="stat-val green">{{ fmt(stats.monthNewArticles) }}</span>
+            <span class="stat-val green">{{ fmt(dashboard.stats.monthNewArticles) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -140,7 +140,7 @@
         <el-card shadow="hover" class="stat-card alert">
           <div class="stat-inner">
             <span class="stat-label">待处理举报</span>
-            <span class="stat-val warn">{{ fmt(stats.pendingReports) }}</span>
+            <span class="stat-val warn">{{ fmt(dashboard.stats.pendingReports) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -152,7 +152,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">直播间</span>
-            <span class="stat-val red">{{ fmt(stats.liveRoomCount) }}</span>
+            <span class="stat-val red">{{ fmt(dashboard.stats.liveRoomCount) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -160,7 +160,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-inner">
             <span class="stat-label">短视频</span>
-            <span class="stat-val purple">{{ fmt(stats.videoCount) }}</span>
+            <span class="stat-val purple">{{ fmt(dashboard.stats.videoCount) }}</span>
           </div>
         </el-card>
       </el-col>
@@ -169,10 +169,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { dashboardApi } from "@/api";
+import { onMounted } from "vue";
+import { useDashboardStore } from "@/store/dashboard";
 
-const stats = ref<any>({});
+const dashboard = useDashboardStore();
 
 function fmt(v: number | undefined): string {
   if (v === undefined || v === null) return "--";
@@ -181,11 +181,8 @@ function fmt(v: number | undefined): string {
   return String(v);
 }
 
-onMounted(async () => {
-  try {
-    const res = await dashboardApi.stats();
-    stats.value = res.data ?? res;
-  } catch { /* 忽略 */ }
+onMounted(() => {
+  dashboard.fetchStats();
 });
 </script>
 
