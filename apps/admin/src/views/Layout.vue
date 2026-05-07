@@ -95,6 +95,9 @@
           <el-menu-item index="/users">
             <span>用户管理</span>
           </el-menu-item>
+          <el-menu-item index="/system-settings">
+            <span>系统设置</span>
+          </el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>

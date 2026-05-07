@@ -152,6 +152,11 @@ const routes = [
         name: "WithdrawalList",
         component: () => import("../views/commission/WithdrawalList.vue"),
       },
+      {
+        path: "system-settings",
+        name: "SystemSettings",
+        component: () => import("../views/system/SystemSettings.vue"),
+      },
     ],
   },
 ];
