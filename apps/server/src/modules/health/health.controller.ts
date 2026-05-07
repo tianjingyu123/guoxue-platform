@@ -1,7 +1,9 @@
 import { Controller, Get } from "@nestjs/common";
+import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 
+@ApiTags("健康检查")
 @Controller("health")
 export class HealthController {
   constructor(
@@ -10,6 +12,7 @@ export class HealthController {
   ) {}
 
   @Get()
+  @ApiOperation({ summary: "健康检查" })
   async check() {
     const checks: Record<string, string> = {};
 

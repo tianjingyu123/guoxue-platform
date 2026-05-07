@@ -2,6 +2,7 @@ import {
   Controller, Get, Post, Put, Delete,
   Body, Param, Query, Req, UseGuards,
 } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { InteractionService } from "./interaction.service";
 import {
   LikeDto, CreateCommentDto, CollectDto,
@@ -11,6 +12,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 
+@ApiTags("互动")
 @Controller("interaction")
 export class InteractionController {
   constructor(private svc: InteractionService) {}
@@ -19,17 +21,26 @@ export class InteractionController {
 
   @Post("like")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "点赞/取消点赞" })
+  @ApiBearerAuth()
   toggleLike(@Req() req: any, @Body() dto: LikeDto) {
     return this.svc.toggleLike(req.user.id, dto);
   }
 
   @Get("like/check")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "检查是否已点赞" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "targetType", required: true, type: String, description: "目标类型" })
+  @ApiQuery({ name: "targetIds", required: true, type: String, description: "目标ID列表（逗号分隔）" })
   checkLiked(@Req() req: any, @Query("targetType") targetType: string, @Query("targetIds") targetIds: string) {
     return this.svc.isLiked(req.user.id, targetType, targetIds.split(","));
   }
 
   @Get("like/count")
+  @ApiOperation({ summary: "获取点赞数量" })
+  @ApiQuery({ name: "targetType", required: true, type: String, description: "目标类型" })
+  @ApiQuery({ name: "targetId", required: true, type: String, description: "目标ID" })
   likeCount(@Query("targetType") targetType: string, @Query("targetId") targetId: string) {
     return this.svc.getLikeCount(targetType, targetId);
   }
@@ -38,17 +49,22 @@ export class InteractionController {
 
   @Post("comment")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "创建评论" })
+  @ApiBearerAuth()
   createComment(@Req() req: any, @Body() dto: CreateCommentDto) {
     return this.svc.createComment(req.user.id, dto);
   }
 
   @Get("comment")
+  @ApiOperation({ summary: "获取评论列表" })
   listComments(@Query() q: CommentListQueryDto) {
     return this.svc.listComments(q);
   }
 
   @Delete("comment/:id")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "删除评论" })
+  @ApiBearerAuth()
   deleteComment(@Param("id") id: string, @Req() req: any) {
     return this.svc.deleteComment(id, req.user.id);
   }
@@ -56,6 +72,8 @@ export class InteractionController {
   @Put("comment/:id/hide")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "隐藏评论（管理员）" })
+  @ApiBearerAuth()
   hideComment(@Param("id") id: string) {
     return this.svc.hideComment(id);
   }
@@ -64,12 +82,18 @@ export class InteractionController {
 
   @Post("collect")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "收藏/取消收藏" })
+  @ApiBearerAuth()
   toggleCollect(@Req() req: any, @Body() dto: CollectDto) {
     return this.svc.toggleCollect(req.user.id, dto);
   }
 
   @Get("collect")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取我的收藏" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   myCollects(@Req() req: any, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.svc.getUserCollects(req.user.id, +page, +pageSize);
   }
@@ -78,16 +102,24 @@ export class InteractionController {
 
   @Post("follow")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "关注/取消关注" })
+  @ApiBearerAuth()
   toggleFollow(@Req() req: any, @Body() dto: FollowDto) {
     return this.svc.toggleFollow(req.user.id, dto);
   }
 
   @Get("followers/:userId")
+  @ApiOperation({ summary: "获取粉丝列表" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   getFollowers(@Param("userId") userId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.svc.getFollowers(userId, +page, +pageSize);
   }
 
   @Get("following/:userId")
+  @ApiOperation({ summary: "获取关注列表" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   getFollowing(@Param("userId") userId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.svc.getFollowing(userId, +page, +pageSize);
   }
@@ -96,6 +128,8 @@ export class InteractionController {
 
   @Post("report")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "提交举报" })
+  @ApiBearerAuth()
   report(@Req() req: any, @Body() dto: ReportDto) {
     return this.svc.report(req.user.id, dto);
   }
@@ -103,6 +137,8 @@ export class InteractionController {
   @Get("report")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取举报列表（管理员）" })
+  @ApiBearerAuth()
   listReports(@Query() q: ReportListQueryDto) {
     return this.svc.listReports(q);
   }
@@ -110,6 +146,8 @@ export class InteractionController {
   @Put("report/:id/process")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "处理举报（管理员）" })
+  @ApiBearerAuth()
   processReport(@Param("id") id: string, @Body("result") result?: string) {
     return this.svc.processReport(id, result);
   }
@@ -117,6 +155,8 @@ export class InteractionController {
   @Put("report/:id/dismiss")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "驳回举报（管理员）" })
+  @ApiBearerAuth()
   dismissReport(@Param("id") id: string) {
     return this.svc.dismissReport(id);
   }

@@ -8,6 +8,7 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
 import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, AnalyzeDto, AnalysisQueryDto } from "./paipan.dto";
@@ -15,6 +16,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 
+@ApiTags("排盘")
 @Controller("paipan")
 export class PaipanController {
   constructor(
@@ -24,6 +26,7 @@ export class PaipanController {
 
   /** 八字排盘预览（不登录也可用） */
   @Post("bazi/preview")
+  @ApiOperation({ summary: "八字排盘预览（无需登录）" })
   baziPreview(@Body() dto: BaziInputDto) {
     return this.paipan.calcBaziPreview(dto);
   }
@@ -31,6 +34,8 @@ export class PaipanController {
   /** 八字排盘并保存 */
   @Post("bazi")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "八字排盘并保存" })
+  @ApiBearerAuth()
   baziCalc(@Req() req: any, @Body() dto: BaziInputDto) {
     return this.paipan.calcBaziAndSave(req.user.id, dto);
   }
@@ -38,6 +43,8 @@ export class PaipanController {
   /** 获取排盘记录详情 */
   @Get("bazi/:id")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取八字排盘记录详情" })
+  @ApiBearerAuth()
   baziRecord(@Param("id") id: string, @Req() req: any) {
     return this.paipan.getBaziRecord(id, req.user.id);
   }
@@ -45,6 +52,8 @@ export class PaipanController {
   /** 我的排盘历史 */
   @Get("bazi")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取八字排盘历史" })
+  @ApiBearerAuth()
   baziHistory(@Req() req: any, @Query() q: BaziRecordQueryDto) {
     return this.paipan.getUserBaziHistory(
       req.user.id,
@@ -58,6 +67,8 @@ export class PaipanController {
   /** 对已保存的排盘记录进行 AI 分析 */
   @Post("bazi/analyze")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "AI分析八字排盘" })
+  @ApiBearerAuth()
   async baziAnalyze(@Req() req: any, @Body() dto: AnalyzeDto) {
     // 先获取排盘记录
     const record = await this.paipan.getBaziRecord(dto.recordId, req.user.id);
@@ -72,6 +83,8 @@ export class PaipanController {
   /** 获取排盘记录的 AI 分析结果 */
   @Get("bazi/:id/analysis")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取八字AI分析结果" })
+  @ApiBearerAuth()
   baziGetAnalysis(@Param("id") id: string, @Req() req: any) {
     // 查找关联此排盘记录的 AI 分析（paipanRecordId = :id）
     return this.paipanAi.getAnalysisByPaipanRecord(id, req.user.id);
@@ -80,6 +93,8 @@ export class PaipanController {
   /** 我的 AI 分析历史 */
   @Get("bazi/analysis/history")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取AI分析历史" })
+  @ApiBearerAuth()
   baziAnalysisHistory(@Req() req: any, @Query() q: AnalysisQueryDto) {
     return this.paipanAi.getUserAnalysisHistory(
       req.user.id,
@@ -92,6 +107,7 @@ export class PaipanController {
 
   /** 紫微斗数预览（不登录也可用） */
   @Post("ziwei/preview")
+  @ApiOperation({ summary: "紫微斗数预览（无需登录）" })
   ziweiPreview(@Body() dto: ZiweiInputDto) {
     return this.paipan.calcZiweiPreview(dto);
   }
@@ -99,6 +115,8 @@ export class PaipanController {
   /** 紫微斗数排盘并保存 */
   @Post("ziwei")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "紫微斗数排盘并保存" })
+  @ApiBearerAuth()
   ziweiCalc(@Req() req: any, @Body() dto: ZiweiInputDto) {
     return this.paipan.calcZiweiAndSave(req.user.id, dto);
   }
@@ -106,6 +124,8 @@ export class PaipanController {
   /** 获取紫微排盘记录详情 */
   @Get("ziwei/:id")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取紫微排盘记录详情" })
+  @ApiBearerAuth()
   ziweiRecord(@Param("id") id: string, @Req() req: any) {
     return this.paipan.getZiweiRecord(id, req.user.id);
   }
@@ -113,6 +133,8 @@ export class PaipanController {
   /** 我的紫微排盘历史 */
   @Get("ziwei")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取紫微排盘历史" })
+  @ApiBearerAuth()
   ziweiHistory(@Req() req: any, @Query() q: BaziRecordQueryDto) {
     return this.paipan.getUserZiweiHistory(
       req.user.id,
@@ -127,6 +149,8 @@ export class PaipanController {
   @Get("admin/records")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员查看所有排盘记录" })
+  @ApiBearerAuth()
   ziweiAdminRecords(@Query() q: BaziRecordQueryDto & { type?: string; keyword?: string }) {
     return this.paipan.getAllRecords({
       page: q.page || 1,
