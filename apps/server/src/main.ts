@@ -1,10 +1,28 @@
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
+import { NestExpressApplication } from "@nestjs/platform-express";
+import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { ThrottleGuard } from "./common/throttle.guard";
+import { join } from "path";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // 静态文件服务
+  app.useStaticAssets(join(__dirname, "..", "uploads"), { prefix: "/uploads/" });
+  app.useStaticAssets(join(__dirname, "..", "static"), { prefix: "/static/" });
+
+  // Swagger 文档配置
+  const config = new DocumentBuilder()
+    .setTitle("国学平台 API")
+    .setDescription("国学传统文化综合平台 RESTful API 文档")
+    .setVersion("1.0")
+    .addBearerAuth()
+    .addServer("/api/v1")
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup("api-docs", app, document);
 
   app.setGlobalPrefix("api/v1");
   app.enableCors();
