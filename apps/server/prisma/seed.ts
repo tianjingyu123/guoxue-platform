@@ -1980,6 +1980,36 @@ async function main() {
     console.log("⏭️ 圈子智能体绑定已存在，跳过");
   }
 
+  // 21. 默认礼物
+  const giftCount = await prisma.gift.count();
+  if (giftCount === 0) {
+    const gifts = [
+      { name: "小爱心", icon: "/static/gifts/heart.png", priceCoin: 10, level: "BASIC", sortOrder: 1 },
+      { name: "太极图", icon: "/static/gifts/taiji.png", priceCoin: 50, level: "BASIC", sortOrder: 2 },
+      { name: "八卦阵", icon: "/static/gifts/bagua.png", priceCoin: 100, level: "MID", sortOrder: 3 },
+      { name: "金龙献瑞", icon: "/static/gifts/dragon.png", priceCoin: 500, level: "HIGH", effectUrl: "/static/gifts/dragon.effect.json", sortOrder: 4 },
+      { name: "紫微星耀", icon: "/static/gifts/ziwei.png", priceCoin: 1000, level: "TOP", effectUrl: "/static/gifts/ziwei.effect.json", sortOrder: 5 },
+    ];
+    for (const g of gifts) {
+      await (prisma as any).gift.create({ data: g });
+    }
+    console.log("✅ 默认礼物: " + gifts.length + " 种");
+  } else {
+    console.log("⏭️ 礼物已存在，跳过");
+  }
+
+  // 22. 给已有用户创建虚拟币账户
+  const allUsers = await prisma.user.findMany({ select: { id: true } });
+  let coinCreated = 0;
+  for (const u of allUsers) {
+    const hasAccount = await prisma.virtualCoinAccount.findUnique({ where: { userId: u.id } });
+    if (!hasAccount) {
+      await (prisma as any).virtualCoinAccount.create({ data: { userId: u.id } });
+      coinCreated++;
+    }
+  }
+  if (coinCreated > 0) console.log("✅ 虚拟币账户: " + coinCreated + " 个");
+
   console.log("\n🎉 种子数据填充完成！");
   console.log("   管理员: 13800000000 / guoxue123");
   console.log("   讲师1:  13800000001 / teacher123");
