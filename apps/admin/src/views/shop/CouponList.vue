@@ -210,9 +210,8 @@ function openEdit(row: any) {
 async function fetchList() {
   loading.value = true
   try {
-    const { data } = await api.get('/shop/coupons', { params: { page: page.value, pageSize: 20 } })
-    // 管理后台需要查看所有优惠券（包括已过期/禁用的），用独立管理员接口
-    // 复用 /shop/coupons 但传 admin=true
+    // 管理后台传 admin=true 查看全部优惠券（含已过期/禁用）
+    const { data } = await api.get('/shop/coupons', { params: { page: page.value, pageSize: 20, admin: 'true' } })
     coupons.value = data.coupons
     total.value = data.total
   } finally { loading.value = false }

@@ -1024,6 +1024,34 @@ async function main() {
   }
   console.log("✅ 热门搜索词: " + hotWords.length + " 条");
 
+  // 追加系统配置
+  const sysConfigs = [
+    { configKey: "platform_name", configValue: "国学传承平台", description: "平台名称" },
+    { configKey: "platform_slogan", configValue: "传承国学智慧，涵养文化自信", description: "平台Slogan" },
+    { configKey: "kefu_phone", configValue: "400-888-6688", description: "客服电话" },
+    { configKey: "kefu_wechat", configValue: "guoxuekefu", description: "客服微信号" },
+    { configKey: "member_month_price", configValue: "39", description: "月会员价格（元）" },
+    { configKey: "member_year_price", configValue: "365", description: "年会员价格（元）" },
+    { configKey: "member_lifetime_price", configValue: "999", description: "终身会员价格（元）" },
+    { configKey: "commission_level1_rate", configValue: "0.15", description: "一级分销佣金比例" },
+    { configKey: "commission_level2_rate", configValue: "0.05", description: "二级分销佣金比例" },
+    { configKey: "withdrawal_min_amount", configValue: "10", description: "最低提现金额" },
+    { configKey: "withdrawal_max_amount", configValue: "50000", description: "单笔提现上限" },
+    { configKey: "tts_default_voice", configValue: "xiaoxiao", description: "TTS默认语音" },
+    { configKey: "tts_default_rate", configValue: "0%", description: "TTS默认语速" },
+    { configKey: "content_audit_auto", configValue: "true", description: "内容自动审核开关" },
+    { configKey: "register_free_trial_days", configValue: "7", description: "新用户免费试用天数" },
+  ];
+  let configCount = 0;
+  for (const sc of sysConfigs) {
+    const e = await prisma.configSystem.findUnique({ where: { configKey: sc.configKey } });
+    if (!e) {
+      await prisma.configSystem.create({ data: sc });
+      configCount++;
+    }
+  }
+  if (configCount > 0) console.log("✅ 系统配置: " + configCount + " 项");
+
   // 8. 创建古籍
   const classicBooks = [
     {
@@ -1854,13 +1882,13 @@ async function main() {
       let created = 0;
       for (const o of orders) {
         if (!o.targetId) continue;
-        await prisma.order.create({
+        await (prisma.order as any).create({
           data: {
             userId: o.userId,
-            type: o.type,
+            type: o.type as any,
             targetId: o.targetId,
             amount: o.amount,
-            status: o.status,
+            status: o.status as any,
             paidAt: o.status !== "PENDING" ? new Date(Date.now() - Math.random() * 86400000 * 30) : null,
           },
         });
