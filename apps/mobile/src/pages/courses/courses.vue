@@ -6,59 +6,34 @@
       <text class="title-sub">{{ total }} 门课程</text>
     </view>
 
-    <!-- 下拉刷新指示 -->
+    <!-- 分类筛选 -->
+    <scroll-view class="filter-scroll" scroll-x show-scrollbar="false">
+      <view class="filter-list">
+        <view
+          v-for="tab in categoryTabs"
+          :key="tab.key"
+          class="filter-item"
+          :class="{ active: currentTab === tab.key }"
+          @click="switchTab(tab.key)"
+        >
+          <text>{{ tab.label }}</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 下拉刷新提示 -->
     <view v-if="refreshing" class="refresh-tip">刷新中...</view>
 
     <!-- 骨架屏 -->
-    <view v-if="loading && courses.length === 0" class="skeleton-list">
-      <view v-for="i in 4" :key="i" class="skeleton-card">
-        <view class="skeleton-cover" />
-        <view class="skeleton-body">
-          <view class="skeleton-line w-70" />
-          <view class="skeleton-line w-100" />
-          <view class="skeleton-line w-50" />
-        </view>
-      </view>
-    </view>
+    <LoadingSkeleton v-if="loading && courses.length === 0" type="card" />
 
     <!-- 课程列表 -->
-    <view v-else>
-      <view v-for="c in courses" :key="c.id" class="course-card" @click="goDetail(c.id)">
-        <image v-if="c.cover" :src="c.cover" class="cover" mode="aspectFill" />
-        <view v-else class="cover-placeholder">
-          <text class="placeholder-icon">📚</text>
-        </view>
-        <view class="info">
-          <text class="name">{{ c.title }}</text>
-          <text class="intro" v-if="c.intro">{{ c.intro }}</text>
-          <view class="meta-row">
-            <text class="price" :class="{ free: c.price === 0 }">
-              {{ c.price > 0 ? '¥' + c.price : '免费' }}
-            </text>
-            <view class="rating" v-if="c.rating">
-              <text class="star">★</text>
-              <text class="rating-num">{{ c.rating }}</text>
-            </view>
-          </view>
-          <view class="bottom-row">
-            <text class="students">
-              <text class="icon">👤</text>
-              {{ c.studentCount || 0 }} 学员
-            </text>
-            <text class="chapters" v-if="c.chapterCount">
-              <text class="icon">📖</text>
-              {{ c.chapterCount }} 章节
-            </text>
-          </view>
-        </view>
-      </view>
+    <view v-else-if="courses.length > 0" class="course-list">
+      <CourseCard v-for="c in courses" :key="c.id" :course="c" />
     </view>
 
     <!-- 空状态 -->
-    <view v-if="!loading && courses.length === 0" class="empty">
-      <text class="empty-icon">📚</text>
-      <text class="empty-text">暂无课程，敬请期待</text>
-    </view>
+    <EmptyState v-else-if="!loading && courses.length === 0" icon="📚" text="暂无课程，敬请期待" />
 
     <!-- 加载更多 -->
     <view v-if="loadingMore" class="load-more">加载更多...</view>
@@ -67,78 +42,101 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onPullDownRefresh, onReachBottom } from "@dcloudio/uni-app";
-import { courseApi } from "../../api";
+import { ref, onMounted, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
+import CourseCard from '../../components/CourseCard.vue'
+import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
+import EmptyState from '../../components/EmptyState.vue'
+import { courseApi } from '../../api'
 
-interface CourseItem {
-  id: string;
-  title: string;
-  cover?: string;
-  intro?: string;
-  price: number;
-  studentCount?: number;
-  rating?: number;
-  chapterCount?: number;
-}
+/** 分类选项卡 */
+const categoryTabs = [
+  { key: '', label: '全部' },
+  { key: 'video', label: '视频' },
+  { key: 'audio', label: '音频' },
+  { key: 'text', label: '文本' },
+  { key: 'ebook', label: '电子书' },
+]
 
-const courses = ref<CourseItem[]>([]);
-const total = ref(0);
-const loading = ref(false);
-const loadingMore = ref(false);
-const refreshing = ref(false);
-const hasMore = ref(true);
-const page = ref(1);
-const pageSize = 10;
+const currentTab = ref('')
+const courses = ref<any[]>([])
+const total = ref(0)
+const loading = ref(false)
+const loadingMore = ref(false)
+const refreshing = ref(false)
+const hasMore = ref(true)
+const page = ref(1)
+const pageSize = 10
 
 onMounted(() => {
-  fetchCourses(true);
-});
+  fetchCourses(true)
+})
+
+// 切换分类
+function switchTab(key: string) {
+  if (currentTab.value === key) return
+  currentTab.value = key
+  page.value = 1
+  hasMore.value = true
+  fetchCourses(true)
+}
 
 // 下拉刷新
 onPullDownRefresh(() => {
-  refreshing.value = true;
-  page.value = 1;
-  hasMore.value = true;
+  refreshing.value = true
+  page.value = 1
+  hasMore.value = true
   fetchCourses(true).finally(() => {
-    refreshing.value = false;
-    uni.stopPullDownRefresh();
-  });
-});
+    refreshing.value = false
+    uni.stopPullDownRefresh()
+  })
+})
 
 // 上拉加载更多
 onReachBottom(() => {
-  if (!hasMore.value || loadingMore.value) return;
-  loadingMore.value = true;
-  page.value++;
+  if (!hasMore.value || loadingMore.value) return
+  loadingMore.value = true
+  page.value++
   fetchCourses(false).finally(() => {
-    loadingMore.value = false;
-  });
-});
+    loadingMore.value = false
+  })
+})
 
 async function fetchCourses(reset: boolean) {
-  if (reset) {
-    loading.value = true;
-  }
+  if (reset) loading.value = true
   try {
-    const data = await courseApi.list({ page: page.value, pageSize });
-    const items: CourseItem[] = data.courses || data.list || data.data || data || [];
-    if (reset) {
-      courses.value = items;
-    } else {
-      courses.value.push(...items);
+    const params: Record<string, any> = { page: page.value, pageSize }
+    if (currentTab.value) {
+      params.type = currentTab.value
     }
-    total.value = data.total ?? courses.value.length;
-    hasMore.value = items.length >= pageSize;
-  } catch (e: any) {
-    if (reset) courses.value = [];
-    hasMore.value = false;
+    const data = await courseApi.list(params)
+    const items: any[] = data.list || data.items || data.data || data || []
+    const mapped = items
+      .filter((c: any) => c && c.id)
+      .map((c: any) => ({
+        id: c.id,
+        title: c.title,
+        cover: c.cover,
+        intro: c.intro || c.description,
+        type: c.type,
+        price: c.price ?? 0,
+        originalPrice: c.originalPrice,
+        studentCount: c.studentCount ?? 0,
+      }))
+    if (reset) {
+      courses.value = mapped
+    } else {
+      const existIds = new Set(courses.value.map((x) => x.id))
+      const news = mapped.filter((x) => !existIds.has(x.id))
+      courses.value.push(...news)
+    }
+    total.value = data.total ?? courses.value.length
+    hasMore.value = mapped.length >= pageSize
+  } catch {
+    if (reset) courses.value = []
+    hasMore.value = false
   } finally {
-    if (reset) loading.value = false;
+    if (reset) loading.value = false
   }
-}
-
-function goDetail(id: string) {
-  uni.navigateTo({ url: `/pages/courses/course-detail?id=${id}` });
 }
 </script>
 
@@ -154,7 +152,7 @@ function goDetail(id: string) {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
   padding-bottom: 10px;
   border-bottom: 2px solid #e0d5c1;
 }
@@ -168,6 +166,32 @@ function goDetail(id: string) {
   color: #c4943a;
 }
 
+/* ===== 分类筛选 ===== */
+.filter-scroll {
+  margin: 0 -12px 12px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+.filter-list {
+  display: inline-flex;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+.filter-item {
+  padding: 6px 16px;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #666;
+  background: #fff;
+  border: 1px solid #e0d5c1;
+  flex-shrink: 0;
+}
+.filter-item.active {
+  color: #fff;
+  background: #8b4513;
+  border-color: #8b4513;
+}
+
 /* 下拉刷新 */
 .refresh-tip {
   text-align: center;
@@ -176,161 +200,9 @@ function goDetail(id: string) {
   padding: 6px 0;
 }
 
-/* 骨架屏 */
-.skeleton-list {
-  padding: 0 0 12px;
-}
-.skeleton-card {
-  display: flex;
-  gap: 12px;
-  background: #fff;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 10px;
-}
-.skeleton-cover {
-  width: 100px;
-  height: 76px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, #f0e8d8 25%, #e8dcc8 50%, #f0e8d8 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  flex-shrink: 0;
-}
-.skeleton-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  gap: 8px;
-}
-.skeleton-line {
-  height: 14px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #f0e8d8 25%, #e8dcc8 50%, #f0e8d8 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-.w-70 { width: 70%; }
-.w-100 { width: 100%; }
-.w-50 { width: 50%; }
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-/* 课程卡片 */
-.course-card {
-  display: flex;
-  gap: 12px;
-  background: #fff;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 10px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  transition: transform 0.15s;
-}
-.course-card:active {
-  transform: scale(0.98);
-}
-.cover {
-  width: 100px;
-  height: 76px;
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-.cover-placeholder {
-  width: 100px;
-  height: 76px;
-  border-radius: 6px;
-  flex-shrink: 0;
-  background: #f0e8d8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.placeholder-icon {
-  font-size: 28px;
-}
-.info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-width: 0;
-}
-.name {
-  font-size: 15px;
-  font-weight: bold;
-  color: #333;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.intro {
-  font-size: 12px;
-  color: #999;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin: 2px 0;
-}
-.meta-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 2px;
-}
-.price {
-  font-size: 16px;
-  color: #e74c3c;
-  font-weight: bold;
-}
-.price.free {
-  color: #2e7d32;
-}
-.rating {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-.star {
-  color: #f5a623;
-  font-size: 14px;
-}
-.rating-num {
-  color: #f5a623;
-  font-size: 12px;
-  font-weight: bold;
-}
-.bottom-row {
-  display: flex;
-  gap: 14px;
-  margin-top: 4px;
-}
-.students,
-.chapters {
-  font-size: 11px;
-  color: #bbb;
-}
-.icon {
-  font-size: 11px;
-}
-
-/* 空状态 */
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 60px 0;
-}
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-}
-.empty-text {
-  font-size: 14px;
-  color: #bbb;
+/* 课程列表 */
+.course-list {
+  padding-bottom: 4px;
 }
 
 /* 加载更多 */

@@ -38,11 +38,18 @@
     },
     {
       "path": "pages/classics/classics",
-      "style": { "navigationBarTitleText": "古籍阅读" }
+      "style": {
+        "navigationBarTitleText": "古籍阅读",
+        "enablePullDownRefresh": true
+      }
     },
     {
       "path": "pages/poetry/poetry",
-      "style": { "navigationBarTitleText": "诗词赏析" }
+      "style": {
+        "navigationBarTitleText": "诗词赏析",
+        "enablePullDownRefresh": true,
+        "onReachBottomDistance": 100
+      }
     },
     {
       "path": "pages/reader/reader",

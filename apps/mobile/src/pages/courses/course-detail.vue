@@ -1,57 +1,50 @@
 <template>
   <view class="page">
     <!-- 加载状态 -->
-    <view v-if="loading" class="skeleton-page">
-      <view class="skeleton-banner" />
-      <view class="skeleton-body">
-        <view class="skeleton-line w-80" />
-        <view class="skeleton-line w-40" />
-        <view class="skeleton-line w-100" />
-        <view class="skeleton-line w-60" />
-      </view>
-      <view class="skeleton-section">
-        <view class="skeleton-line w-50" />
-        <view v-for="i in 4" :key="i" class="skeleton-chapter" />
-      </view>
-    </view>
+    <LoadingSkeleton v-if="loading && !course" type="detail" />
 
     <!-- 内容区 -->
     <template v-else-if="course">
-      <!-- 课程头部 -->
+      <!-- 顶部课程信息 -->
       <view class="header">
         <image v-if="course.cover" :src="course.cover" class="cover" mode="aspectFill" />
+        <view v-else class="cover-placeholder">
+          <text class="placeholder-icon">📚</text>
+        </view>
         <view class="header-overlay">
           <view class="header-info">
-            <text class="title">{{ course.title }}</text>
-            <text class="intro">{{ course.intro || '暂无简介' }}</text>
+            <view class="header-top">
+              <text class="title">{{ course.title }}</text>
+              <text v-if="course.type" class="type-tag">{{ typeLabel }}</text>
+            </view>
+            <text class="intro">{{ course.intro || course.description || '暂无简介' }}</text>
             <view class="header-stats">
-              <text class="stat-item">
-                <text class="stat-icon">👤</text>
-                {{ course.studentCount || 0 }} 学员
-              </text>
-              <text class="stat-item" v-if="course.rating">
-                <text class="stat-icon">★</text>
-                {{ course.rating }}
-              </text>
-              <text class="stat-item">
-                <text class="stat-icon">📖</text>
-                {{ chapters.length }} 章节
-              </text>
+              <text class="stat-item">👤 {{ course.studentCount || 0 }} 学员</text>
+              <text v-if="chapterCount" class="stat-item">📖 {{ chapterCount }} 章节</text>
             </view>
           </view>
         </view>
       </view>
 
-      <!-- 价格和进度 -->
-      <view class="action-bar">
-        <text class="price" :class="{ free: course.price === 0 }">
-          {{ course.price > 0 ? '¥' + course.price : '免费' }}
-        </text>
-        <view class="progress-area" v-if="chapters.length > 0">
+      <!-- 价格行 -->
+      <view class="price-row">
+        <view class="price-group">
+          <text class="price" :class="{ free: course.price === 0 }">
+            {{ course.price > 0 ? '¥' + course.price : '免费' }}
+          </text>
+          <text
+            v-if="course.originalPrice && course.originalPrice > (course.price || 0)"
+            class="original-price"
+          >
+            ¥{{ course.originalPrice }}
+          </text>
+        </view>
+        <!-- 学习进度（已登录时显示） -->
+        <view v-if="isLogin && chapters.length > 0" class="progress-area">
           <view class="progress-bar-bg">
-            <view class="progress-bar-fill" :style="{ width: progress + '%' }" />
+            <view class="progress-bar-fill" :style="{ width: progressPercent + '%' }" />
           </view>
-          <text class="progress-text">学习进度 {{ progress }}%</text>
+          <text class="progress-text">{{ progressPercent }}%</text>
         </view>
       </view>
 
@@ -61,7 +54,7 @@
         <text class="desc-text">{{ course.description || course.intro || '暂无详细介绍' }}</text>
       </view>
 
-      <!-- 课程目录 -->
+      <!-- 章节列表 -->
       <view class="section">
         <view class="section-title">
           课程目录
@@ -74,218 +67,178 @@
           v-for="(ch, idx) in chapters"
           :key="ch.id"
           class="chapter-item"
-          :class="{
-            completed: ch.completed,
-            active: ch.id === activeId,
-            locked: ch.locked
-          }"
-          @click="openChapter(ch, idx)"
         >
           <view class="ch-left">
-            <text class="ch-status-icon">
-              {{ ch.completed ? '✓' : ch.id === activeId ? '▶' : ch.locked ? '🔒' : (idx + 1) }}
-            </text>
+            <text class="ch-index">{{ idx + 1 }}</text>
             <view class="ch-info">
               <text class="ch-title">{{ ch.title }}</text>
-              <text class="ch-duration" v-if="ch.duration">{{ ch.duration }}</text>
+              <text v-if="ch.duration" class="ch-duration">⏱ {{ formatDuration(ch.duration) }}</text>
             </view>
           </view>
           <view class="ch-right">
-            <text class="ch-status-tag" :class="{ done: ch.completed, active: ch.id === activeId }">
-              {{ ch.completed ? '已学' : ch.id === activeId ? '进行中' : '未学' }}
-            </text>
+            <text v-if="ch.isFree" class="free-tag">免费试看</text>
+            <text v-if="completedChs.has(ch.id)" class="done-tag">✓ 已学</text>
           </view>
         </view>
       </view>
     </template>
 
     <!-- 异常状态 -->
-    <view v-if="!loading && !course" class="error-page">
-      <text class="error-icon">⚠️</text>
-      <text class="error-text">课程加载失败</text>
+    <view v-if="!loading && !course" class="error-state">
+      <EmptyState icon="⚠️" text="课程加载失败" />
       <button class="retry-btn" @click="fetchCourse">重新加载</button>
     </view>
 
-    <!-- 章节内容弹窗 -->
-    <view v-if="activeChapter" class="chapter-mask" @click="closeChapter">
-      <view class="chapter-panel" @click.stop="">
-        <!-- 工具栏 -->
-        <view class="ch-toolbar">
-          <view class="toolbar-btn" @click="closeChapter">
-            <text class="back-arrow">←</text>
-            <text>返回</text>
-          </view>
-          <text class="ch-title-bar">{{ activeChapter.title }}</text>
-          <view class="toolbar-btn" @click="markDone">
-            <text class="done-text" :class="{ done: activeChapter.completed }">
-              {{ activeChapter.completed ? '已完成' : '标记完成' }}
-            </text>
-          </view>
-        </view>
-
-        <!-- 内容体 -->
-        <scroll-view class="ch-body" scroll-y>
-          <view class="ch-progress-hint" v-if="activeChapter.completed">
-            <text>✓ 本章已学完</text>
-          </view>
-          <rich-text :nodes="activeChapter.content || activeChapter.body || '<p>暂无内容</p>'" />
-        </scroll-view>
-
-        <!-- 底部导航 -->
-        <view class="ch-nav">
-          <button
-            v-if="hasPrev"
-            class="nav-btn"
-            plain
-            @click="openChapter(chapters[curChIdx - 1], curChIdx - 1)"
-          >
-            ← 上一章
-          </button>
-          <view v-else class="nav-btn disabled">已是第一章</view>
-
-          <text class="ch-pos">{{ curChIdx + 1 }} / {{ chapters.length }}</text>
-
-          <button
-            v-if="hasNext"
-            class="nav-btn primary"
-            plain
-            @click="openChapter(chapters[curChIdx + 1], curChIdx + 1)"
-          >
-            下一章 →
-          </button>
-          <view v-else-if="chapters.length > 0" class="nav-btn disabled">已完成全部</view>
-        </view>
-      </view>
+    <!-- 底部操作栏 -->
+    <view v-if="course" class="bottom-bar">
+      <button class="action-btn" @click="handleAction">
+        {{ isJoined ? '继续学习' : '加入学习' }}
+      </button>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { courseApi } from "../../api";
+import { ref, computed, onMounted } from 'vue'
+import { courseApi } from '../../api'
+import { useUserStore } from '../../store/user'
+import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
+import EmptyState from '../../components/EmptyState.vue'
 
-interface Chapter {
-  id: string;
-  title: string;
-  content?: string;
-  body?: string;
-  duration?: string;
-  completed: boolean;
-  locked?: boolean;
+const userStore = useUserStore()
+const isLogin = computed(() => userStore.isLogin)
+
+interface CourseDetail {
+  id: string
+  title: string
+  cover?: string
+  intro?: string
+  description?: string
+  type?: string
+  price: number
+  originalPrice?: number
+  studentCount?: number
 }
 
-interface Course {
-  id: string;
-  title: string;
-  cover?: string;
-  intro?: string;
-  description?: string;
-  price: number;
-  studentCount?: number;
-  rating?: number;
+interface Chapter {
+  id: string
+  title: string
+  duration?: number
+  isFree?: boolean
+  sort?: number
 }
 
 // 页面参数
-const id = ref("");
+const id = ref('')
 
-// 数据
-const course = ref<Course | null>(null);
-const chapters = ref<Chapter[]>([]);
-const loading = ref(false);
+const course = ref<CourseDetail | null>(null)
+const chapters = ref<Chapter[]>([])
+const loading = ref(false)
+const chapterCount = ref(0)
+const completedChs = ref<Set<string>>(new Set())
+const progressPercent = ref(0)
+const isJoined = ref(false)
 
-// 章节阅读
-const activeChapter = ref<Chapter | null>(null);
-const activeId = ref("");
-const curChIdx = ref(0);
-const progress = ref(0);
-const completedIds = ref<Set<string>>(new Set());
-
-// 计算属性
-const hasPrev = computed(() => curChIdx.value > 0);
-const hasNext = computed(() => curChIdx.value < chapters.value.length - 1);
+const typeLabel = computed(() => {
+  const map: Record<string, string> = {
+    video: '视频课程',
+    audio: '音频课程',
+    text: '文本课程',
+    ebook: '电子书',
+  }
+  return map[course.value?.type ?? ''] || course.value?.type || ''
+})
 
 onMounted(() => {
-  const pages = getCurrentPages();
-  const page = pages[pages.length - 1] as any;
-  const opts = page?.$page?.options || page?.options || {};
-  id.value = opts.id || "";
-  fetchCourse();
-});
+  const pages = getCurrentPages()
+  const page = pages[pages.length - 1] as any
+  const opts = page?.$page?.options || page?.options || {}
+  id.value = opts.id || ''
+  if (id.value) fetchCourse()
+})
+
+function formatDuration(seconds?: number): string {
+  if (!seconds) return ''
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  if (m >= 60) {
+    const h = Math.floor(m / 60)
+    return `${h}时${m % 60}分`
+  }
+  return s > 0 ? `${m}分${s}秒` : `${m}分钟`
+}
 
 async function fetchCourse() {
-  loading.value = true;
+  loading.value = true
   try {
-    // 并行获取课程详情、章节列表、进度
     const [courseData, chData, progressData] = await Promise.all([
       courseApi.detail(id.value).catch(() => null),
-      courseApi.chapters(id.value).catch(() => ({ chapters: [] })),
-      courseApi.myProgress(id.value).catch(() => null),
-    ]);
+      courseApi.chapters(id.value).catch(() => []),
+      isLogin.value ? courseApi.myProgress(id.value).catch(() => null) : null,
+    ])
 
-    course.value = courseData;
-
-    const rawChapters: any[] = chData.chapters || chData || [];
-    // 恢复已学进度
-    if (progressData) {
-      progress.value = progressData.progress || 0;
-      if (progressData.completedChapterIds) {
-        completedIds.value = new Set(progressData.completedChapterIds);
+    if (courseData) {
+      course.value = {
+        id: courseData.id,
+        title: courseData.title,
+        cover: courseData.cover,
+        intro: courseData.intro || courseData.description,
+        description: courseData.description,
+        type: courseData.type,
+        price: courseData.price ?? 0,
+        originalPrice: courseData.originalPrice,
+        studentCount: courseData.studentCount,
       }
     }
 
-    chapters.value = rawChapters.map((c: any, i: number) => ({
-      ...c,
-      completed: completedIds.value.has(c.id),
-      locked: false,
-    }));
-  } catch (e: any) {
-    uni.showToast({ title: "加载失败", icon: "none" });
-  } finally {
-    loading.value = false;
-  }
-}
+    // 处理章节
+    const rawChs: any[] = Array.isArray(chData) ? chData : chData?.list || chData?.items || []
+    chapters.value = rawChs.map((c: any) => ({
+      id: c.id,
+      title: c.title,
+      duration: c.duration,
+      isFree: c.isFree ?? false,
+      sort: c.sort ?? 0,
+    }))
+    chapterCount.value = chapters.value.length
 
-function openChapter(ch: Chapter, idx: number) {
-  if (ch.locked) {
-    uni.showToast({ title: "请先完成前置章节", icon: "none" });
-    return;
-  }
-  activeChapter.value = {
-    ...ch,
-    completed: completedIds.value.has(ch.id),
-  };
-  activeId.value = ch.id;
-  curChIdx.value = idx;
-}
-
-function closeChapter() {
-  activeChapter.value = null;
-  activeId.value = "";
-}
-
-function markDone() {
-  if (!activeChapter.value) return;
-  const chId = activeChapter.value.id;
-
-  // 本地标记
-  completedIds.value.add(chId);
-  activeChapter.value.completed = true;
-
-  const ch = chapters.value.find((c) => c.id === chId);
-  if (ch) ch.completed = true;
-
-  // 计算进度
-  const pct = Math.round((completedIds.value.size / Math.max(chapters.value.length, 1)) * 100);
-  progress.value = pct;
-
-  // 同步服务端
-  try {
-    courseApi.updateProgress(chId, pct);
+    // 处理进度
+    if (progressData) {
+      progressPercent.value = progressData.courseProgress || 0
+      if (progressData.completedChapters) {
+        completedChs.value = new Set(progressData.completedChapters)
+      }
+      const progressCourseId = courseData?.id || id.value
+      if (progressData.courseId === progressCourseId) {
+        isJoined.value = true
+      }
+    }
   } catch {
-    // 静默处理
+    uni.showToast({ title: '加载失败', icon: 'none' })
+  } finally {
+    loading.value = false
   }
+}
 
-  uni.showToast({ title: "已标记完成", icon: "success" });
+/** 底部按钮动作 */
+function handleAction() {
+  if (!course.value) return
+  if (isJoined.value) {
+    // 继续学习：跳转到第一个未完成的章节，或章节列表
+    const firstUncompleted = chapters.value.find((ch) => !completedChs.value.has(ch.id))
+    const targetIdx = firstUncompleted
+      ? chapters.value.indexOf(firstUncompleted)
+      : 0
+    // 打开章节阅读
+    uni.navigateTo({
+      url: `/pages/courses/course-detail?id=${id.value}&chapter=${chapters.value[targetIdx]?.id || ''}`,
+    })
+  } else {
+    // 加入学习：调用课程加入接口，然后跳转
+    uni.showToast({ title: '开始学习', icon: 'success' })
+    isJoined.value = true
+    // 如果有加入课程接口可调用，否则仅本地标记
+  }
 }
 </script>
 
@@ -293,56 +246,7 @@ function markDone() {
 .page {
   background: #f5f0e6;
   min-height: 100vh;
-  padding-bottom: 20px;
-}
-
-/* ===== 骨架屏 ===== */
-.skeleton-page {
-  padding: 12px;
-}
-.skeleton-banner {
-  width: 100%;
-  height: 200px;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #f0e8d8 25%, #e8dcc8 50%, #f0e8d8 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  margin-bottom: 12px;
-}
-.skeleton-body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-.skeleton-line {
-  height: 14px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #f0e8d8 25%, #e8dcc8 50%, #f0e8d8 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-.w-80 { width: 80%; }
-.w-40 { width: 40%; }
-.w-100 { width: 100%; }
-.w-60 { width: 60%; }
-.w-50 { width: 50%; }
-.skeleton-section {
-  margin-top: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.skeleton-chapter {
-  height: 44px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, #f0e8d8 25%, #e8dcc8 50%, #f0e8d8 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  padding-bottom: 70px;
 }
 
 /* ===== 课程头部 ===== */
@@ -356,6 +260,17 @@ function markDone() {
   width: 100%;
   height: 100%;
 }
+.cover-placeholder {
+  width: 100%;
+  height: 100%;
+  background: #f0e8d8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.placeholder-icon {
+  font-size: 64px;
+}
 .header-overlay {
   position: absolute;
   inset: 0;
@@ -367,17 +282,29 @@ function markDone() {
 .header-info {
   width: 100%;
 }
+.header-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .title {
   font-size: 22px;
   font-weight: bold;
   color: #fff;
-  display: block;
   text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  flex: 1;
+}
+.type-tag {
+  font-size: 11px;
+  color: #fff;
+  background: rgba(139,69,19,0.85);
+  padding: 2px 10px;
+  border-radius: 10px;
+  flex-shrink: 0;
 }
 .intro {
   font-size: 13px;
   color: rgba(255,255,255,0.85);
-  display: block;
   margin: 4px 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -392,34 +319,40 @@ function markDone() {
   font-size: 12px;
   color: rgba(255,255,255,0.9);
 }
-.stat-icon {
-  font-size: 12px;
-  margin-right: 2px;
-}
 
-/* ===== 价格和进度 ===== */
-.action-bar {
+/* ===== 价格行 ===== */
+.price-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   padding: 12px 16px;
   background: #fff;
-  margin: 0 0 10px;
+}
+.price-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .price {
   font-size: 22px;
   font-weight: bold;
   color: #e74c3c;
-  white-space: nowrap;
 }
 .price.free {
   color: #2e7d32;
+  font-size: 18px;
+}
+.original-price {
+  font-size: 13px;
+  color: #bbb;
+  text-decoration: line-through;
 }
 .progress-area {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 .progress-bar-bg {
   flex: 1;
@@ -443,7 +376,7 @@ function markDone() {
 /* ===== 通用区块 ===== */
 .section {
   padding: 0 16px;
-  margin-bottom: 12px;
+  margin-top: 10px;
 }
 .section-title {
   font-size: 16px;
@@ -482,20 +415,9 @@ function markDone() {
   padding: 14px 12px;
   margin-bottom: 6px;
   transition: all 0.2s;
-  border-left: 3px solid transparent;
 }
 .chapter-item:active {
   transform: scale(0.99);
-}
-.chapter-item.active {
-  border-left-color: #8b4513;
-  background: #fffbf5;
-}
-.chapter-item.completed {
-  opacity: 0.75;
-}
-.chapter-item.locked {
-  opacity: 0.5;
 }
 .ch-left {
   display: flex;
@@ -504,33 +426,17 @@ function markDone() {
   flex: 1;
   min-width: 0;
 }
-.ch-status-icon {
-  width: 28px;
-  height: 28px;
+.ch-index {
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: bold;
   background: #f0e8d8;
   color: #8b4513;
-  flex-shrink: 0;
   text-align: center;
-  line-height: 28px;
-}
-.chapter-item.completed .ch-status-icon {
-  background: #2e7d32;
-  color: #fff;
-}
-.chapter-item.active .ch-status-icon {
-  background: #8b4513;
-  color: #fff;
-}
-.chapter-item.locked .ch-status-icon {
-  background: #e0d5c1;
-  color: #ccc;
-  font-size: 14px;
+  line-height: 26px;
+  font-size: 12px;
+  font-weight: bold;
+  flex-shrink: 0;
 }
 .ch-info {
   flex: 1;
@@ -552,23 +458,25 @@ function markDone() {
   display: block;
 }
 .ch-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
   margin-left: 8px;
 }
-.ch-status-tag {
-  font-size: 11px;
-  color: #bbb;
-  background: #f5f0e6;
-  padding: 2px 10px;
-  border-radius: 10px;
-}
-.ch-status-tag.done {
+.free-tag {
+  font-size: 10px;
   color: #2e7d32;
   background: #e8f5e9;
+  padding: 2px 8px;
+  border-radius: 8px;
 }
-.ch-status-tag.active {
+.done-tag {
+  font-size: 10px;
   color: #8b4513;
   background: #f5ead6;
+  padding: 2px 8px;
+  border-radius: 8px;
 }
 
 /* ===== 空状态 ===== */
@@ -580,20 +488,11 @@ function markDone() {
 }
 
 /* ===== 异常状态 ===== */
-.error-page {
+.error-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 80px 0;
-}
-.error-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-}
-.error-text {
-  font-size: 15px;
-  color: #999;
-  margin-bottom: 16px;
+  padding: 60px 0;
 }
 .retry-btn {
   background: #8b4513;
@@ -602,103 +501,35 @@ function markDone() {
   padding: 8px 32px;
   font-size: 14px;
   border: none;
+  margin-top: 8px;
 }
 
-/* ===== 章节内容弹窗 ===== */
-.chapter-mask {
+/* ===== 底部操作栏 ===== */
+.bottom-bar {
   position: fixed;
-  inset: 0;
-  background: #f5f0e6;
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-}
-.chapter-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-.ch-toolbar {
-  display: flex;
-  align-items: center;
-  padding: 10px 12px;
-  background: #fff;
-  border-bottom: 1px solid #e0d5c1;
-  gap: 8px;
-}
-.toolbar-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: #8b4513;
-  flex-shrink: 0;
-}
-.back-arrow {
-  font-size: 16px;
-}
-.ch-title-bar {
-  flex: 1;
-  font-size: 14px;
-  font-weight: bold;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #333;
-}
-.done-text {
-  font-size: 13px;
-  color: #8b4513;
-}
-.done-text.done {
-  color: #2e7d32;
-}
-.ch-body {
-  flex: 1;
-  padding: 20px 16px;
-  overflow-y: auto;
-  font-size: 15px;
-  line-height: 1.9;
-  color: #333;
-}
-.ch-progress-hint {
-  background: #e8f5e9;
-  color: #2e7d32;
-  font-size: 13px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  margin-bottom: 16px;
-  text-align: center;
-}
-.ch-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 16px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
   background: #fff;
   border-top: 1px solid #e0d5c1;
-  gap: 8px;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
 }
-.nav-btn {
-  font-size: 13px;
-  color: #8b4513;
-  padding: 6px 14px;
-  border-radius: 16px;
-  border: 1px solid #8b4513;
-  background: transparent;
-}
-.nav-btn.primary {
+.action-btn {
+  width: 100%;
+  height: 44px;
   background: #8b4513;
   color: #fff;
-  border-color: #8b4513;
+  border-radius: 22px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.nav-btn.disabled {
-  color: #ccc;
-  border-color: #e0d5c1;
-}
-.ch-pos {
-  font-size: 12px;
-  color: #bbb;
+.action-btn:active {
+  background: #7a3a0f;
 }
 </style>
