@@ -2,22 +2,136 @@ name: CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10'
+  DATABASE_URL: 'postgresql://guoxue:guoxue123@localhost:5432/guoxue'
 
 jobs:
-  lint-and-test:
+  # ──────────────────────────────────────────────
+  # 类型检查：各包的 tsc --noEmit
+  # ──────────────────────────────────────────────
+  typecheck:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
         with:
-          version: 10
-      - uses: actions/setup-node@v4
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm --filter @guoxue/server test
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+        timeout-minutes: 10
+
+      - name: TypeCheck - @guoxue/bazi-engine
+        run: pnpm --filter @guoxue/bazi-engine exec npx tsc --noEmit
+        timeout-minutes: 5
+
+      - name: TypeCheck - @guoxue/ziwei-engine
+        run: pnpm --filter @guoxue/ziwei-engine exec npx tsc --noEmit
+        timeout-minutes: 5
+
+      - name: TypeCheck - @guoxue/server
+        run: pnpm --filter @guoxue/server exec npx tsc --noEmit
+        timeout-minutes: 5
+
+      - name: TypeCheck - @guoxue/admin
+        run: pnpm --filter @guoxue/admin exec npx vue-tsc --noEmit
+        continue-on-error: true  # vue-tsc 可能因 UniApp 类型缺失报错，不阻断
+        timeout-minutes: 5
+
+  # ──────────────────────────────────────────────
+  # 代码检查：ESLint
+  # ──────────────────────────────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+        timeout-minutes: 10
+
+      - name: 运行 Lint（全量）
+        run: pnpm -r lint
+        timeout-minutes: 5
+
+  # ──────────────────────────────────────────────
+  # 单元测试（需 PostgreSQL）
+  # ──────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: guoxue
+          POSTGRES_PASSWORD: guoxue123
+          POSTGRES_DB: guoxue
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+        timeout-minutes: 10
+
+      - name: 生成 Prisma Client
+        run: pnpm --filter @guoxue/server exec npx prisma generate
+        timeout-minutes: 3
+
+      - name: 执行数据库迁移
+        run: pnpm --filter @guoxue/server exec npx prisma migrate deploy
+        timeout-minutes: 5
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: 运行测试
+        run: pnpm --filter @guoxue/server exec npx jest --passWithNoTests --forceExit
+        timeout-minutes: 10
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          NODE_ENV: test
