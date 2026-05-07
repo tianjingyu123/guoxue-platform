@@ -20,8 +20,11 @@ import { ClassicModule } from "./modules/classic/classic.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { CommentModule } from "./modules/comment/comment.module";
 import { TtsModule } from "./modules/tts/tts.module";
+import { RecommendModule } from "./modules/recommend/recommend.module";
+import { ContentModule } from "./modules/content/content.module";
+import { UploadModule } from "./modules/upload/upload.module";
 
 @Module({
-  imports: [PrismaModule, RedisModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule],
+  imports: [PrismaModule, RedisModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule],
 })
 export class AppModule {}

@@ -4,11 +4,15 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RecommendService } from "../recommend/recommend.service";
 import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.dto";
 
 @Injectable()
 export class ArticleService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private recommend: RecommendService,
+  ) {}
 
   async create(circleId: string, userId: string, dto: CreateArticleDto) {
     // 验证是圈主或管理员
@@ -61,13 +65,16 @@ export class ArticleService {
     });
     if (!article) throw new NotFoundException("文章不存在");
 
-    // 增加浏览次数
-    await this.prisma.article.update({
-      where: { id: articleId },
-      data: { viewCount: { increment: 1 } },
-    });
+    // 并发放大浏览数与获取相关推荐
+    const [, related] = await Promise.all([
+      this.prisma.article.update({
+        where: { id: articleId },
+        data: { viewCount: { increment: 1 } },
+      }),
+      this.recommend.related(articleId),
+    ]);
 
-    return article;
+    return { ...article, related };
   }
 
   async listArticles(params: {
