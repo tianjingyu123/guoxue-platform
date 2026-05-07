@@ -94,6 +94,13 @@ export const paipanApi = {
   ziweiRecord: (id: string) => api.get(`/paipan/ziwei/${id}`),
 };
 
+// 用户（他人主页等）
+export const userApi = {
+  getProfile: (userId: string) => api.get(`/users/${userId}`),
+  getPosts: (userId: string, params?: any) => api.get(`/users/${userId}/posts`, params),
+  getArticles: (userId: string, params?: any) => api.get(`/users/${userId}/articles`, params),
+};
+
 // 通知
 export const notifyApi = {
   list: (params?: { type?: string; page?: number; pageSize?: number }) =>
