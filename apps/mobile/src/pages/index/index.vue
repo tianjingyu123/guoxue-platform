@@ -15,6 +15,10 @@
         <text class="entrance-icon">📖</text>
         <text class="entrance-label">古籍阅读</text>
       </view>
+      <view class="entrance-item" @click="goPage('/pages/poetry/poetry')">
+        <text class="entrance-icon">🌸</text>
+        <text class="entrance-label">诗词赏析</text>
+      </view>
       <view class="entrance-item" @click="goPage('/pages/courses/courses')">
         <text class="entrance-icon">📚</text>
         <text class="entrance-label">课程</text>

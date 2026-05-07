@@ -33,6 +33,10 @@
       "style": { "navigationBarTitleText": "古籍阅读" }
     },
     {
+      "path": "pages/poetry/poetry",
+      "style": { "navigationBarTitleText": "诗词赏析" }
+    },
+    {
       "path": "pages/reader/reader",
       "style": { "navigationBarTitleText": "阅读", "navigationStyle": "custom" }
     },
