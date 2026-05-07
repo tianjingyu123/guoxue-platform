@@ -210,9 +210,28 @@ export class ShopService {
           order.tempReferrerId || undefined,
         );
       } catch (e) {
-        // 分佣失败不阻塞支付流程
         console.error("分佣计算失败:", e);
       }
+    }
+
+    // 会员订单：激活会员等级
+    if (order.type === "MEMBER") {
+      const memberLevel = this.resolveMemberLevel(Number(order.amount));
+      const expiresAt = this.calcMemberExpiry(memberLevel);
+      await this.prisma.user.update({
+        where: { id: order.userId },
+        data: { memberLevel: memberLevel as any, memberExpire: expiresAt },
+      });
+      await this.prisma.memberPurchase.create({
+        data: {
+          userId: order.userId,
+          memberType: memberLevel as any,
+          amount: order.amount,
+          referrerId: order.referrerId,
+          paidAt: new Date(),
+          expireAt: expiresAt,
+        },
+      });
     }
 
     return updated;
@@ -287,5 +306,24 @@ export class ShopService {
       where: { userId, used: false },
       include: { coupon: true },
     });
+  }
+
+  // ═══════════════════ 会员辅助 ═══════════════════
+
+  private resolveMemberLevel(amount: number): string {
+    if (amount >= 9999) return "LIFETIME";
+    if (amount >= 365) return "YEARLY";
+    return "MONTHLY";
+  }
+
+  private calcMemberExpiry(level: string): Date | null {
+    if (level === "LIFETIME") return null;
+    const now = new Date();
+    if (level === "YEARLY") {
+      now.setFullYear(now.getFullYear() + 1);
+    } else {
+      now.setMonth(now.getMonth() + 1);
+    }
+    return now;
   }
 }
