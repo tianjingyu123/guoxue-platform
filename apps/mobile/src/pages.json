@@ -29,6 +29,14 @@
       "style": { "navigationBarTitleText": "我的收藏" }
     },
     {
+      "path": "pages/classics/classics",
+      "style": { "navigationBarTitleText": "古籍阅读" }
+    },
+    {
+      "path": "pages/reader/reader",
+      "style": { "navigationBarTitleText": "阅读", "navigationStyle": "custom" }
+    },
+    {
       "path": "pages/mine/mine",
       "style": { "navigationBarTitleText": "我的" }
     }

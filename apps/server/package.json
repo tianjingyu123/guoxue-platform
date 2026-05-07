@@ -9,7 +9,11 @@
     "lint": "eslint src --ext .ts",
     "test": "jest",
     "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "db:seed": "ts-node prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@guoxue/shared": "workspace:*",

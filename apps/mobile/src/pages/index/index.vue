@@ -11,6 +11,10 @@
         <text class="entrance-icon">☰</text>
         <text class="entrance-label">八字排盘</text>
       </view>
+      <view class="entrance-item" @click="goPage('/pages/classics/classics')">
+        <text class="entrance-icon">📖</text>
+        <text class="entrance-label">古籍阅读</text>
+      </view>
       <view class="entrance-item" @click="goPage('/pages/courses/courses')">
         <text class="entrance-icon">📚</text>
         <text class="entrance-label">课程</text>

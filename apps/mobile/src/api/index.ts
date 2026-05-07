@@ -92,4 +92,16 @@ export const notifyApi = {
   readAll: () => api.put("/notifications/read-all"),
 };
 
+// 古籍阅读
+export const classicApi = {
+  books: (params?: any) => api.get("/classic/books", params),
+  bookDetail: (id: string) => api.get(`/classic/books/${id}`),
+  chapterDetail: (id: string) => api.get(`/classic/chapters/${id}`),
+  getProgress: (bookId: string) => api.get(`/classic/progress/${bookId}`),
+  updateProgress: (bookId: string, chapterId: string, progress: number) => api.put(`/classic/progress/${bookId}`, { chapterId, progress }),
+  bookmarks: (bookId?: string) => api.get("/classic/bookmarks", { bookId }),
+  addBookmark: (bookId: string, data: any) => api.post(`/classic/bookmarks/${bookId}`, data),
+  deleteBookmark: (id: string) => api.delete(`/classic/bookmarks/${id}`),
+};
+
 export default api;

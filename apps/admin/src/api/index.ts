@@ -68,4 +68,17 @@ export const paipanApi = {
   detail: (id: string) => api.get(`/paipan/bazi/${id}`),
 };
 
+// 古籍
+export const classicApi = {
+  list: (params?: any) => api.get("/classic/books", { params }),
+  detail: (id: string) => api.get(`/classic/books/${id}`),
+  create: (data: any) => api.post("/classic/books", data),
+  update: (id: string, data: any) => api.put(`/classic/books/${id}`, data),
+  remove: (id: string) => api.delete(`/classic/books/${id}`),
+  getChapters: (bookId: string) => api.get(`/classic/books/${bookId}`),
+  addChapter: (bookId: string, data: any) => api.post(`/classic/books/${bookId}/chapters`, data),
+  updateChapter: (id: string, data: any) => api.put(`/classic/chapters/${id}`, data),
+  deleteChapter: (id: string) => api.delete(`/classic/chapters/${id}`),
+};
+
 export default api;

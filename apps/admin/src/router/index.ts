@@ -72,6 +72,11 @@ const routes = [
         name: "NotificationCenter",
         component: () => import("../views/notifications/NotificationCenter.vue"),
       },
+      {
+        path: "classics",
+        name: "ClassicList",
+        component: () => import("../views/classics/ClassicList.vue"),
+      },
     ],
   },
 ];

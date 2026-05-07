@@ -56,6 +56,8 @@ model User {
   collects       Collect[]
   notifications  Notification[]
   searchHistories SearchHistory[]
+  readingProgresses ReadingProgress[]
+  bookmarks         Bookmark[]
   station        Station?
   operator       Operator?
   stationOffline StationOffline?
@@ -1031,4 +1033,81 @@ model SearchHistory {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+// ─────────────────────────────────────────────────
+// 古籍阅读系统
+// ─────────────────────────────────────────────────
+
+model ClassicBook {
+  id           String   @id @default(uuid())
+  title        String
+  author       String?  // 作者/编者
+  dynasty      String?  // 朝代
+  category     String   @default("子") // 经/史/子/集/释/道
+  cover        String?
+  intro        String?
+  source       String?  // 版本来源
+  chapterCount Int      @default(0)
+  viewCount    Int      @default(0)
+  status       String   @default("PUBLISHED") // DRAFT, PUBLISHED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  chapters   ClassicChapter[]
+  progresses ReadingProgress[]
+  bookmarks  Bookmark[]
+
+  @@index([category])
+  @@index([status])
+}
+
+model ClassicChapter {
+  id          String   @id @default(uuid())
+  bookId      String
+  title       String   // 章/卷标题
+  content     String   // 原文
+  translation String?  // 白话译文
+  annotation  String?  // 注释
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  book      ClassicBook       @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  progresses ReadingProgress[]
+  bookmarks Bookmark[]
+
+  @@index([bookId, sortOrder])
+}
+
+model ReadingProgress {
+  id        String   @id @default(uuid())
+  userId    String
+  bookId    String
+  chapterId String
+  progress  Float    @default(0) // 阅读进度 0-100
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    ClassicBook    @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapter ClassicChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, bookId])
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  bookId    String
+  chapterId String
+  position  Int      @default(0) // 文中位置（字符偏移）
+  note      String?  // 笔记
+  createdAt DateTime @default(now())
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book    ClassicBook    @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  chapter ClassicChapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@index([userId, bookId])
+  @@index([chapterId])
 }

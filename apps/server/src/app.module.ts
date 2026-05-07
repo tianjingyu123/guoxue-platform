@@ -15,8 +15,9 @@ import { LiveModule } from "./modules/live/live.module";
 import { VideoModule } from "./modules/video/video.module";
 import { StationModule } from "./modules/station/station.module";
 import { OfflineModule } from "./modules/offline/offline.module";
+import { ClassicModule } from "./modules/classic/classic.module";
 
 @Module({
-  imports: [PrismaModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule],
+  imports: [PrismaModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule],
 })
 export class AppModule {}
