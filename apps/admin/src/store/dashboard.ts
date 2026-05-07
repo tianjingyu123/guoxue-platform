@@ -23,6 +23,12 @@ export const useDashboardStore = defineStore("dashboard", () => {
     liveRoomCount: 0,
     videoCount: 0,
   })
+  const trends = ref<{ dates: string[]; userTrend: number[]; articleTrend: number[] } | null>(null)
+  const charts = ref<{
+    userGrowth: { date: string; count: number }[]
+    contentDistribution: { name: string; count: number }[]
+    topArticles: { id: string; title: string; viewCount: number; likeCount: number; commentCount: number; createdAt: string; author: string }[]
+  } | null>(null)
   const loading = ref(false)
 
   async function fetchStats() {
@@ -35,5 +41,19 @@ export const useDashboardStore = defineStore("dashboard", () => {
     }
   }
 
-  return { stats, loading, fetchStats }
+  async function fetchTrends() {
+    try {
+      const { data } = await dashboardApi.trends()
+      if (data) trends.value = data
+    } catch { /* 非关键，静默失败 */ }
+  }
+
+  async function fetchCharts() {
+    try {
+      const { data } = await dashboardApi.charts()
+      if (data) charts.value = data
+    } catch { /* 非关键，静默失败 */ }
+  }
+
+  return { stats, trends, charts, loading, fetchStats, fetchTrends, fetchCharts }
 })

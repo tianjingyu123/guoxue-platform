@@ -78,6 +78,8 @@ export const paipanApi = {
 // 仪表盘
 export const dashboardApi = {
   stats: () => api.get("/dashboard/stats"),
+  trends: () => api.get("/dashboard/trends"),
+  charts: () => api.get("/dashboard/charts"),
 };
 
 // 圈子

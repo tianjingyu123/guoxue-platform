@@ -11,4 +11,14 @@ export class DashboardController {
   getStats() {
     return this.svc.getStats();
   }
+
+  @Get("trends")
+  getTrends() {
+    return this.svc.getTrends();
+  }
+
+  @Get("charts")
+  getCharts() {
+    return this.svc.getCharts();
+  }
 }
