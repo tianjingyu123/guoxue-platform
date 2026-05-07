@@ -1090,6 +1090,25 @@ model Report {
 }
 
 // ─────────────────────────────────────────────────
+// 审计日志
+// ─────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  targetType String?
+  targetId   String?
+  detail     String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([targetType, targetId])
+}
+
+// ─────────────────────────────────────────────────
 // 系统配置与通知
 // ─────────────────────────────────────────────────
 
@@ -1422,3 +1441,4 @@ model GiftRecord {
   @@index([liveRoomId, createdAt])
   @@index([userId])
 }
+
