@@ -1,6 +1,6 @@
 <template>
   <view class="app">
-    <view class="header">国学平台</view>
+    <view class="header" :style="{ background: themeColor }">国学平台</view>
     <view class="content">
       <view v-for="item in list" :key="item.id" class="card" @click="goDetail(item.id)">
         <view class="card-title">{{ item.title }}</view>
@@ -16,8 +16,33 @@
   </view>
 </template>
 
+<script>
+export default {
+  onLaunch() {
+    // 检查启动参数中的分站推广码
+    const options = uni.getLaunchOptionsSync();
+    const stationCode = options?.query?.station_code;
+    if (stationCode) {
+      // 动态导入 store 并调用品牌 API（避免循环依赖）
+      import('@/store/stationStore').then(({ useStationStore }) => {
+        const store = useStationStore();
+        store.fetchBrand(stationCode).catch(() => {
+          // 品牌加载失败不影响主流程
+        });
+      });
+    }
+  },
+};
+</script>
+
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
+import { useStationStore } from "@/store/stationStore";
+
+const stationStore = useStationStore();
+
+// 当有分站品牌时，使用品牌主题色
+const themeColor = computed(() => stationStore.stationThemeColor || '#409eff');
 
 interface ContentItem {
   id: string;
@@ -37,6 +62,8 @@ onMounted(async () => {
 function goDetail(id: string) {
   // 后续实现
 }
+
+// 监听品牌变更（可选：当品牌信息变化时可执行全局更新）
 </script>
 
 <style>

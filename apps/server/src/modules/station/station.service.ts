@@ -1,10 +1,16 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { CreateStationDto, UpdateStationDto, CreateOperatorDto } from "./station.dto";
 
 @Injectable()
 export class StationService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
+
+  private readonly BRAND_TTL = 600; // 品牌配置缓存10分钟
 
   // ───────── 分站管理 ─────────
 
@@ -22,7 +28,11 @@ export class StationService {
   }
 
   async updateStation(id: string, dto: UpdateStationDto) {
-    return this.prisma.station.update({ where: { id }, data: dto });
+    const updated = await this.prisma.station.update({ where: { id }, data: dto });
+    // 清除品牌缓存
+    await this.redis.del(`station:brand:id:${id}`);
+    await this.redis.del(`station:brand:code:${updated.code}`);
+    return updated;
   }
 
   async getStation(id: string) {
@@ -34,8 +44,12 @@ export class StationService {
     return station;
   }
 
-  /** 通过推广码获取分站品牌配置（公开接口，千人千面渲染） */
+  /** 通过推广码获取分站品牌配置（公开接口，千人千面渲染，10分钟缓存） */
   async getBrandByCode(code: string) {
+    const cacheKey = `station:brand:code:${code}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
     const station = await this.prisma.station.findUnique({
       where: { code },
       select: {
@@ -48,11 +62,17 @@ export class StationService {
       },
     });
     if (!station) throw new NotFoundException("分站不存在");
+
+    await this.redis.setJson(cacheKey, station, this.BRAND_TTL);
     return station;
   }
 
-  /** 通过ID获取分站品牌配置 */
+  /** 通过ID获取分站品牌配置（10分钟缓存） */
   async getBrand(id: string) {
+    const cacheKey = `station:brand:id:${id}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
     const station = await this.prisma.station.findUnique({
       where: { id },
       select: {
@@ -65,6 +85,8 @@ export class StationService {
       },
     });
     if (!station) throw new NotFoundException("分站不存在");
+
+    await this.redis.setJson(cacheKey, station, this.BRAND_TTL);
     return station;
   }
 

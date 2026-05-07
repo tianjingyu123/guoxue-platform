@@ -234,7 +234,7 @@ const pageSize = 10
 
 // 智能体助理
 const hasBot = ref(false)
-const botId = ref('')
+const botData = ref<any>(null)
 
 // 发帖
 const showPostPanel = ref(false)
@@ -303,9 +303,10 @@ async function initData() {
 
     // 检查圈子智能体
     botApi.circleBots(id.value).then((res: any) => {
-      if (res?.id) {
+      const cfg = res?.botConfig
+      if (cfg) {
         hasBot.value = true
-        botId.value = res.id
+        botData.value = cfg
       }
     }).catch(() => {})
 
@@ -477,8 +478,9 @@ async function submitPost() {
 
 // 打开智能体对话
 function openBotChat() {
-  if (!botId.value) return
-  uni.navigateTo({ url: `/pages/bots/bot-chat?id=${botId.value}` })
+  if (!botData.value) return
+  const encoded = encodeURIComponent(JSON.stringify(botData.value))
+  uni.navigateTo({ url: `/pages/bots/bot-chat?bot=${encoded}` })
 }
 
 // 点赞

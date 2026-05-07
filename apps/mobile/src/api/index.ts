@@ -192,4 +192,13 @@ export const commissionApi = {
   referralLinks: () => api.get("/commission/referral-links"),
 };
 
+// 分站品牌
+export const stationApi = {
+  /** 通过推广码获取品牌配置 */
+  getBrand: (code: string) => api.get(`/station/brand/${code}`),
+  /** 分站收益明细（分页） */
+  getEarnings: (stationId: string, page?: number, pageSize?: number) =>
+    api.get(`/station/${stationId}/earnings`, { page, pageSize }),
+};
+
 export default api;
