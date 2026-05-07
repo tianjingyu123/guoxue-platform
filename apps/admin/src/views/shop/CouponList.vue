@@ -2,7 +2,10 @@
   <div class="coupon-page">
     <div class="toolbar">
       <h3>优惠券管理</h3>
-      <el-button type="primary" @click="openCreate">创建优惠券</el-button>
+      <div>
+        <el-button @click="exportData">导出CSV</el-button>
+        <el-button type="primary" @click="openCreate">创建优惠券</el-button>
+      </div>
     </div>
 
     <!-- 优惠券列表 -->
@@ -141,6 +144,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '../../api'
+import { exportCSV } from '../../utils/export'
 
 const coupons = ref<any[]>([])
 const total = ref(0)
@@ -168,6 +172,33 @@ onMounted(() => fetchList())
 
 function typeLabel(type: string) {
   return { FULL_REDUCE: '满减', DISCOUNT: '折扣', NO_THRESHOLD: '无门槛' }[type] || type
+}
+
+function exportData() {
+  exportCSV(
+    "优惠券列表",
+    [
+      { label: "名称", key: "name" },
+      { label: "类型", key: "typeLabel" },
+      { label: "优惠值", key: "valueStr" },
+      { label: "门槛", key: "minAmount" },
+      { label: "总量", key: "totalCount" },
+      { label: "已用", key: "usedCount" },
+      { label: "状态", key: "statusLabel" },
+      { label: "有效期开始", key: "validStart" },
+      { label: "有效期结束", key: "validEnd" },
+    ],
+    coupons.value.map((c) => ({
+      ...c,
+      typeLabel: typeLabel(c.type),
+      valueStr: c.type === 'DISCOUNT' ? `${(Number(c.discountRate) * 100).toFixed(0)}%折扣` : `减¥${Number(c.discountAmount || c.value).toFixed(2)}`,
+      minAmount: c.minAmount ? `¥${Number(c.minAmount).toFixed(0)}` : "无门槛",
+      totalCount: c.totalCount === -1 ? "不限" : c.totalCount,
+      statusLabel: c.status === 'ACTIVE' ? '启用' : '禁用',
+      validStart: c.validStart ? new Date(c.validStart).toLocaleString() : '-',
+      validEnd: c.validEnd ? new Date(c.validEnd).toLocaleString() : '-',
+    })),
+  );
 }
 
 function formatDate(d: string | Date) {

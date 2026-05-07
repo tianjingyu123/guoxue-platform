@@ -2,7 +2,10 @@
   <div class="page">
     <div class="header">
       <h2>分站管理</h2>
-      <el-button type="primary" @click="openCreate">新建分站</el-button>
+      <div class="header-actions">
+        <el-button @click="exportData">导出CSV</el-button>
+        <el-button type="primary" @click="openCreate">新建分站</el-button>
+      </div>
     </div>
 
     <el-table :data="stations" border stripe v-loading="loading">
@@ -167,6 +170,7 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { stationApi } from "@/api";
 import ImageUpload from "@/components/ImageUpload.vue";
+import { exportCSV } from "@/utils/export";
 
 const stations = ref<any[]>([]);
 const loading = ref(false);
@@ -261,6 +265,27 @@ async function toggleStatus(row: any, status: string) {
   await stationApi.update(row.id, { status });
   ElMessage.success(status === "DISABLED" ? "已禁用" : "已启用");
   fetchList();
+}
+
+function exportData() {
+  exportCSV(
+    "分站列表",
+    [
+      { label: "名称", key: "name" },
+      { label: "推广码", key: "code" },
+      { label: "简介", key: "intro" },
+      { label: "负责人", key: "ownerName" },
+      { label: "状态", key: "statusLabel" },
+      { label: "累计收益", key: "totalEarning" },
+      { label: "创建时间", key: "createdAt" },
+    ],
+    stations.value.map((s) => ({
+      ...s,
+      ownerName: s.user?.nickname || "-",
+      statusLabel: s.status === "ACTIVE" ? "正常" : "已禁用",
+      createdAt: new Date(s.createdAt).toLocaleString(),
+    })),
+  );
 }
 
 // ── 品牌编辑 ──

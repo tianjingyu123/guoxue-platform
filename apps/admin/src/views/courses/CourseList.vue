@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { courseApi } from "../../api";
+import { exportCSV } from "../../utils/export";
 
 const router = useRouter();
 const courses = ref<any[]>([]);
@@ -48,12 +49,33 @@ async function handleAudit(id: string, status: string) {
 const typeLabels: Record<string, string> = {
   VIDEO: "视频", AUDIO: "音频", TEXT: "文本", EBOOK: "电子书", COMBO: "组合",
 };
+
+function exportData() {
+  exportCSV(
+    "课程列表",
+    [
+      { label: "标题", key: "title" },
+      { label: "类型", key: "typeLabel" },
+      { label: "价格", key: "price" },
+      { label: "学员数", key: "studentCount" },
+      { label: "作者", key: "authorName" },
+      { label: "审核状态", key: "auditLabel" },
+    ],
+    courses.value.map((c: any) => ({
+      ...c,
+      typeLabel: typeLabels[c.type] || c.type,
+      authorName: c.user?.nickname || "-",
+      auditLabel: c.auditStatus === "APPROVED" ? "已通过" : c.auditStatus === "PENDING" ? "待审核" : "已驳回",
+    })),
+  );
+}
 </script>
 
 <template>
   <div class="course-list">
     <div class="toolbar">
       <el-button type="primary" @click="router.push('/courses/create')">新建课程</el-button>
+      <el-button @click="exportData">导出CSV</el-button>
       <el-select v-model="filters.auditStatus" placeholder="审核状态" clearable @change="fetchList" style="width:140px">
         <el-option label="待审核" value="PENDING" />
         <el-option label="已通过" value="APPROVED" />

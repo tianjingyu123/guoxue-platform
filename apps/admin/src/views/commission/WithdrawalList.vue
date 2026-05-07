@@ -10,6 +10,7 @@
           <el-radio-button value="PAID">已打款</el-radio-button>
           <el-radio-button value="REJECTED">已拒绝</el-radio-button>
         </el-radio-group>
+        <el-button @click="exportData">导出CSV</el-button>
       </div>
     </div>
 
@@ -69,6 +70,7 @@
 import { ref, onMounted } from "vue";
 import { commissionApi } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { exportCSV } from "@/utils/export";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
@@ -142,6 +144,32 @@ function statusLabel(s: string) {
     REJECTED: "已拒绝",
   };
   return map[s] || s;
+}
+
+function exportData() {
+  exportCSV(
+    "提现审核",
+    [
+      { label: "申请人", key: "userName" },
+      { label: "手机号", key: "userPhone" },
+      { label: "分站", key: "stationName" },
+      { label: "提现金额", key: "amount" },
+      { label: "提现方式", key: "method" },
+      { label: "账号", key: "account" },
+      { label: "状态", key: "statusLabel" },
+      { label: "申请时间", key: "createdAt" },
+    ],
+    list.value.map((r) => ({
+      ...r,
+      userName: r.user?.nickname || "--",
+      userPhone: r.user?.phone || "--",
+      stationName: r.station?.name || "--",
+      method: r.alipayAccount ? "支付宝" : r.bankName ? "银行卡" : "未指定",
+      account: r.alipayAccount || r.bankAccount || "--",
+      statusLabel: statusLabel(r.status),
+      createdAt: r.createdAt?.slice(0, 16).replace("T", " "),
+    })),
+  );
 }
 </script>
 
