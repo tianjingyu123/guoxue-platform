@@ -24,4 +24,11 @@ uploads/
 .backup/
 .reference/
 
+# TypeScript build info
+*.tsbuildinfo
+
+# Claude local config (plans are tracked)
+.claude/mcp.json
+.claude/settings.json
+
 # Prisma (migrations must be tracked for DB versioning)
