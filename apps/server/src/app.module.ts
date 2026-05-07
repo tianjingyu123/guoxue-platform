@@ -8,8 +8,9 @@ import { PaipanModule } from "./modules/paipan/paipan.module";
 import { CourseModule } from "./modules/course/course.module";
 import { InteractionModule } from "./modules/interaction/interaction.module";
 import { ShopModule } from "./modules/shop/shop.module";
+import { NotificationModule } from "./modules/notification/notification.module";
 
 @Module({
-  imports: [PrismaModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule],
+  imports: [PrismaModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule],
 })
 export class AppModule {}

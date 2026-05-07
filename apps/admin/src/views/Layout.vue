@@ -33,6 +33,9 @@
             <span>订单管理</span>
           </el-menu-item>
         </el-sub-menu>
+        <el-menu-item index="/notifications">
+          <span>通知管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>

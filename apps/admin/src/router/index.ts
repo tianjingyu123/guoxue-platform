@@ -67,6 +67,11 @@ const routes = [
         name: "OrderList",
         component: () => import("../views/shop/OrderList.vue"),
       },
+      {
+        path: "notifications",
+        name: "NotificationCenter",
+        component: () => import("../views/notifications/NotificationCenter.vue"),
+      },
     ],
   },
 ];
