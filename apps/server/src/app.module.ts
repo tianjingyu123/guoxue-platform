@@ -23,8 +23,9 @@ import { TtsModule } from "./modules/tts/tts.module";
 import { RecommendModule } from "./modules/recommend/recommend.module";
 import { ContentModule } from "./modules/content/content.module";
 import { UploadModule } from "./modules/upload/upload.module";
+import { CommissionModule } from "./modules/commission/commission.module";
 
 @Module({
-  imports: [PrismaModule, RedisModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule],
+  imports: [PrismaModule, RedisModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, CommissionModule],
 })
 export class AppModule {}

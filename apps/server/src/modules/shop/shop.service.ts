@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, forwardRef, Inject } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { CommissionService } from "../commission/commission.service";
 import {
   CreateProductDto, UpdateProductDto, CreateOrderDto, CreateCouponDto,
   ProductListQueryDto, OrderListQueryDto,
@@ -7,7 +8,10 @@ import {
 
 @Injectable()
 export class ShopService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => CommissionService)) private commissionSvc?: CommissionService,
+  ) {}
 
   // ═══════════════════ 商品管理 ═══════════════════
 
@@ -123,6 +127,8 @@ export class ShopService {
         skuId: dto.skuId,
         amount: dto.amount,
         couponId: dto.couponId,
+        referrerId: dto.referrerId,
+        tempReferrerId: dto.tempReferrerId,
         status: "PENDING",
       },
     });
@@ -183,7 +189,7 @@ export class ShopService {
     if (!order) throw new NotFoundException("订单不存在");
     if (order.status !== "PENDING") throw new BadRequestException("订单状态不可支付");
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: {
         status: "PAID",
@@ -192,6 +198,24 @@ export class ShopService {
         payTransactionId: `MOCK_${Date.now()}`,
       },
     });
+
+    // 支付成功后计算分佣
+    if (this.commissionSvc) {
+      try {
+        await this.commissionSvc.calculateAndRecord(
+          orderId,
+          order.type,
+          Number(order.amount),
+          order.referrerId || undefined,
+          order.tempReferrerId || undefined,
+        );
+      } catch (e) {
+        // 分佣失败不阻塞支付流程
+        console.error("分佣计算失败:", e);
+      }
+    }
+
+    return updated;
   }
 
   async shipOrder(orderId: string) {

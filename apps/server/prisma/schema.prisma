@@ -1147,9 +1147,9 @@ model CommissionConfig {
   id          String   @id @default(uuid())
   configKey   String   @unique // course_basic / course_premium / course_high / product_platform / product_circle / station_course / station_member / circle_join / bot_call / temp_referral
   configName  String   // 配置名称
-  rateA       Decimal  @db.Decimal(5, 4) // 讲师/圈主/站长佣金比例
-  rateB       Decimal  @db.Decimal(5, 4) // 平台佣金比例
-  rateC       Decimal? @db.Decimal(5, 4) // 第三角色比例（驿站等）
+  rateA       Decimal  @db.Decimal(10, 4) // 讲师/圈主/站长佣金比例
+  rateB       Decimal  @db.Decimal(10, 4) // 平台佣金比例
+  rateC       Decimal? @db.Decimal(10, 4) // 第三角色比例（驿站等）
   description String?
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())

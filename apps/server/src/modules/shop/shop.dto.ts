@@ -91,6 +91,12 @@ export class CreateOrderDto {
 
   @IsOptional() @IsString()
   couponId?: string;
+
+  @IsOptional() @IsString()
+  referrerId?: string;
+
+  @IsOptional() @IsString()
+  tempReferrerId?: string;
 }
 
 export class CreateCouponDto {
