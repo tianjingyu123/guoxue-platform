@@ -1,9 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
 @Injectable()
 export class DashboardService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
 
   async getStats() {
     const today = new Date();
@@ -130,6 +134,10 @@ export class DashboardService {
   }
 
   async getCharts() {
+    const cacheKey = "dashboard:charts";
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
     // ── 近7天用户增长 ──
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
@@ -180,7 +188,7 @@ export class DashboardService {
       },
     });
 
-    return {
+    const data = {
       userGrowth,
       contentDistribution,
       topArticles: topArticles.map((a) => ({
@@ -193,5 +201,8 @@ export class DashboardService {
         author: a.user.nickname,
       })),
     };
+
+    await this.redis.setJson(cacheKey, data, 600);
+    return data;
   }
 }

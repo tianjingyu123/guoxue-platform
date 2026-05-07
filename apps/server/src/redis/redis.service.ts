@@ -48,6 +48,16 @@ export class RedisService {
     await this.set(key, JSON.stringify(value), ttlSeconds);
   }
 
+  /** 按前缀模式删除缓存（支持 * 通配符） */
+  async delByPattern(pattern: string): Promise<void> {
+    const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
+    for (const key of this.cache.keys()) {
+      if (regex.test(key)) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
   /** 获取 Buffer 缓存值 */
   async getBuffer(key: string): Promise<Buffer | null> {
     const raw = await this.get(key);

@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { DashboardService } from "./dashboard.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 
 const mockPrisma = {
   article: { count: jest.fn(), aggregate: jest.fn(), findMany: jest.fn() },
@@ -19,12 +20,21 @@ const mockPrisma = {
   content: { count: jest.fn() },
 };
 
+const mockRedis = {
+  getJson: jest.fn().mockResolvedValue(null),
+  setJson: jest.fn().mockResolvedValue(undefined),
+};
+
 describe("DashboardService", () => {
   let svc: DashboardService;
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [DashboardService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        DashboardService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
+      ],
     }).compile();
     svc = mod.get(DashboardService);
   });

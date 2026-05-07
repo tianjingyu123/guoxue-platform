@@ -4,6 +4,7 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { RecommendService } from "../recommend/recommend.service";
 import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.dto";
 
@@ -11,6 +12,7 @@ import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.d
 export class ArticleService {
   constructor(
     private prisma: PrismaService,
+    private redis: RedisService,
     private recommend: RecommendService,
   ) {}
 
@@ -18,7 +20,7 @@ export class ArticleService {
     // 验证是圈主或管理员
     await this.ensureCircleAdmin(circleId, userId);
 
-    return this.prisma.article.create({
+    const article = await this.prisma.article.create({
       data: {
         circleId,
         userId,
@@ -30,6 +32,10 @@ export class ArticleService {
         isPushHome: dto.isPushHome ?? false,
       },
     });
+
+    // 文章列表缓存失效
+    await this.redis.delByPattern("articles:list:*");
+    return article;
   }
 
   async update(articleId: string, userId: string, dto: UpdateArticleDto) {
@@ -37,10 +43,17 @@ export class ArticleService {
     if (!article) throw new NotFoundException("文章不存在");
     if (article.userId !== userId) throw new ForbiddenException("只能编辑自己的文章");
 
-    return this.prisma.article.update({
+    const updated = await this.prisma.article.update({
       where: { id: articleId },
       data: dto as any,
     });
+
+    // 列表缓存 + 详情缓存失效
+    await Promise.all([
+      this.redis.delByPattern("articles:list:*"),
+      this.redis.del(`articles:detail:${articleId}`),
+    ]);
+    return updated;
   }
 
   async delete(articleId: string, userId: string) {
@@ -51,10 +64,27 @@ export class ArticleService {
     }
 
     await this.prisma.article.delete({ where: { id: articleId } });
+
+    // 列表缓存 + 详情缓存失效
+    await Promise.all([
+      this.redis.delByPattern("articles:list:*"),
+      this.redis.del(`articles:detail:${articleId}`),
+    ]);
     return { success: true };
   }
 
   async getDetail(articleId: string) {
+    const cacheKey = `articles:detail:${articleId}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) {
+      // 不阻塞：异步增加浏览数，不等待完成
+      this.prisma.article.update({
+        where: { id: articleId },
+        data: { viewCount: { increment: 1 } },
+      }).catch(() => {});
+      return cached;
+    }
+
     const article = await this.prisma.article.findUnique({
       where: { id: articleId },
       include: {
@@ -74,7 +104,9 @@ export class ArticleService {
       this.recommend.related(articleId),
     ]);
 
-    return { ...article, related };
+    const data = { ...article, related };
+    await this.redis.setJson(cacheKey, data, 600);
+    return data;
   }
 
   async listArticles(params: {
@@ -86,6 +118,12 @@ export class ArticleService {
     auditStatus?: string;
   }) {
     const { page, pageSize, circleId, tag, isPushHome, auditStatus } = params;
+    const filterHash = `${circleId ?? ""}:${tag ?? ""}:${isPushHome ?? ""}:${auditStatus ?? ""}`;
+    const cacheKey = `articles:list:${page}:${pageSize}:${filterHash}`;
+
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
     const where: any = {};
 
     if (circleId) where.circleId = circleId;
@@ -111,7 +149,9 @@ export class ArticleService {
       this.prisma.article.count({ where }),
     ]);
 
-    return { articles, total, page, pageSize };
+    const data = { articles, total, page, pageSize };
+    await this.redis.setJson(cacheKey, data, 300);
+    return data;
   }
 
   // ───────── 首页信息流 ─────────

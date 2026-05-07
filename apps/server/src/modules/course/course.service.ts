@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import {
   CreateCourseDto, UpdateCourseDto,
   CreateChapterDto, UpdateChapterDto,
@@ -8,12 +9,15 @@ import {
 
 @Injectable()
 export class CourseService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
 
   // ═══════════════════ 课程 CRUD ═══════════════════
 
   async create(userId: string, dto: CreateCourseDto) {
-    return this.prisma.course.create({
+    const course = await this.prisma.course.create({
       data: {
         userId,
         circleId: dto.circleId,
@@ -26,6 +30,9 @@ export class CourseService {
       },
       include: { chapters: { orderBy: { sortOrder: "asc" } } },
     });
+
+    await this.redis.delByPattern("courses:list:*");
+    return course;
   }
 
   async update(courseId: string, userId: string, dto: UpdateCourseDto) {
@@ -33,11 +40,17 @@ export class CourseService {
     if (!course) throw new NotFoundException("课程不存在");
     if (course.userId !== userId) throw new ForbiddenException("只能编辑自己的课程");
 
-    return this.prisma.course.update({
+    const updated = await this.prisma.course.update({
       where: { id: courseId },
       data: dto as any,
       include: { chapters: { orderBy: { sortOrder: "asc" } } },
     });
+
+    await Promise.all([
+      this.redis.delByPattern("courses:list:*"),
+      this.redis.del(`courses:detail:${courseId}`),
+    ]);
+    return updated;
   }
 
   async delete(courseId: string, userId: string) {
@@ -46,10 +59,26 @@ export class CourseService {
     if (course.userId !== userId) throw new ForbiddenException("只能删除自己的课程");
 
     await this.prisma.course.delete({ where: { id: courseId } });
+
+    await Promise.all([
+      this.redis.delByPattern("courses:list:*"),
+      this.redis.del(`courses:detail:${courseId}`),
+    ]);
     return { success: true };
   }
 
   async getDetail(courseId: string) {
+    const cacheKey = `courses:detail:${courseId}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) {
+      // 不阻塞：异步增加学习人数
+      this.prisma.course.update({
+        where: { id: courseId },
+        data: { studentCount: { increment: 1 } },
+      }).catch(() => {});
+      return cached;
+    }
+
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
       include: {
@@ -65,6 +94,7 @@ export class CourseService {
       data: { studentCount: { increment: 1 } },
     });
 
+    await this.redis.setJson(cacheKey, course, 600);
     return course;
   }
 
@@ -73,6 +103,12 @@ export class CourseService {
     auditStatus?: string;
   }) {
     const { page, pageSize, circleId, auditStatus } = params;
+    const filterHash = `${circleId ?? ""}:${auditStatus ?? ""}`;
+    const cacheKey = `courses:list:${page}:${pageSize}:${filterHash}`;
+
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
     const where: any = {};
     if (circleId) where.circleId = circleId;
     if (auditStatus) where.auditStatus = auditStatus;
@@ -96,7 +132,9 @@ export class CourseService {
       this.prisma.course.count({ where }),
     ]);
 
-    return { courses, total, page, pageSize };
+    const data = { courses, total, page, pageSize };
+    await this.redis.setJson(cacheKey, data, 300);
+    return data;
   }
 
   // ═══════════════════ 审核 ═══════════════════

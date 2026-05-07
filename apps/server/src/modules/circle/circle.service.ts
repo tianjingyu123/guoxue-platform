@@ -5,11 +5,15 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto } from "./circle.dto";
 
 @Injectable()
 export class CircleService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+  ) {}
 
   // ───────── 圈子 CRUD ─────────
 
@@ -39,18 +43,37 @@ export class CircleService {
       update: {},
     });
 
+    await this.redis.delByPattern("circles:list:*");
     return circle;
   }
 
   async update(circleId: string, userId: string, dto: UpdateCircleDto) {
     await this.checkOwnership(circleId, userId);
-    return this.prisma.circle.update({
+    const updated = await this.prisma.circle.update({
       where: { id: circleId },
       data: dto,
     });
+    await Promise.all([
+      this.redis.delByPattern("circles:list:*"),
+      this.redis.del(`circles:detail:${circleId}`),
+    ]);
+    return updated;
   }
 
   async getDetail(circleId: string, userId?: string) {
+    const cacheKey = `circles:detail:${circleId}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) {
+      // 如果缓存中有数据但缺少当前用户的 membership 信息
+      if (userId && !cached.membership) {
+        const membership = await this.prisma.circleMember.findUnique({
+          where: { circleId_userId: { circleId, userId } },
+        });
+        return { ...cached, membership };
+      }
+      return cached;
+    }
+
     const circle = await this.prisma.circle.findUnique({
       where: { id: circleId },
       include: {
@@ -68,7 +91,9 @@ export class CircleService {
       });
     }
 
-    return { ...circle, membership };
+    const data = { ...circle, membership };
+    await this.redis.setJson(cacheKey, data, 300);
+    return data;
   }
 
   async listCircles(params: {
@@ -79,6 +104,12 @@ export class CircleService {
     type?: string;
   }) {
     const { page, pageSize, keyword, tag, type } = params;
+    const filterHash = `${keyword ?? ""}:${tag ?? ""}:${type ?? ""}`;
+    const cacheKey = `circles:list:${page}:${pageSize}:${filterHash}`;
+
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
     const where: any = { status: "ACTIVE" };
 
     if (keyword) {
@@ -105,7 +136,9 @@ export class CircleService {
       this.prisma.circle.count({ where }),
     ]);
 
-    return { circles, total, page, pageSize };
+    const data = { circles, total, page, pageSize };
+    await this.redis.setJson(cacheKey, data, 300);
+    return data;
   }
 
   async getMyCircles(userId: string) {
