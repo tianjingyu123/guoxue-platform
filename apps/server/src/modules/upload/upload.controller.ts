@@ -2,16 +2,20 @@ import {
   Controller, Post, UseGuards, UseInterceptors,
   UploadedFile, BadRequestException,
 } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { diskStorage } from "multer";
 import { extname, join } from "path";
 import { v4 as uuid } from "uuid";
 
+@ApiTags("文件上传")
 @Controller("upload")
 export class UploadController {
   @Post("image")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "上传图片" })
+  @ApiBearerAuth()
   @UseInterceptors(
     FileInterceptor("file", {
       storage: diskStorage({
