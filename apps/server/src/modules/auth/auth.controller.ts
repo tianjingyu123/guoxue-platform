@@ -1,25 +1,60 @@
-import { Controller, Post, Get, Body, UseGuards, Req } from "@nestjs/common";
+import { Controller, Post, Get, Put, Body, UseGuards, Req } from "@nestjs/common";
 import { AuthService } from "./auth.service";
-import { RegisterDto, LoginDto } from "./auth.dto";
+import {
+  PhoneRegisterDto,
+  PhoneLoginDto,
+  SmsLoginDto,
+  SendCodeDto,
+  WechatLoginDto,
+  UpdateProfileDto,
+  ChangePasswordDto,
+} from "./auth.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 @Controller("auth")
 export class AuthController {
   constructor(private auth: AuthService) {}
 
-  @Post("register")
-  register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto);
+  @Post("register/phone")
+  phoneRegister(@Body() dto: PhoneRegisterDto) {
+    return this.auth.phoneRegister(dto);
   }
 
-  @Post("login")
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto);
+  @Post("login/phone")
+  phoneLogin(@Body() dto: PhoneLoginDto) {
+    return this.auth.phoneLogin(dto);
+  }
+
+  @Post("login/sms")
+  smsLogin(@Body() dto: SmsLoginDto) {
+    return this.auth.smsLogin(dto);
+  }
+
+  @Post("sms/send")
+  sendCode(@Body() dto: SendCodeDto) {
+    return this.auth.sendSmsCode(dto);
+  }
+
+  @Post("login/wechat")
+  wechatLogin(@Body() dto: WechatLoginDto) {
+    return this.auth.wechatLogin(dto);
   }
 
   @Get("me")
   @UseGuards(JwtAuthGuard)
   getProfile(@Req() req: any) {
     return this.auth.getProfile(req.user.id);
+  }
+
+  @Put("profile")
+  @UseGuards(JwtAuthGuard)
+  updateProfile(@Req() req: any, @Body() dto: UpdateProfileDto) {
+    return this.auth.updateProfile(req.user.id, dto);
+  }
+
+  @Put("password")
+  @UseGuards(JwtAuthGuard)
+  changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
+    return this.auth.changePassword(req.user.id, dto);
   }
 }
