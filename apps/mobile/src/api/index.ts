@@ -136,6 +136,15 @@ export const shopApi = {
   payOrder: (id: string) => api.put(`/shop/orders/${id}/pay`),
   myOrders: (params?: any) => api.get("/shop/orders/my", params),
   orderDetail: (id: string) => api.get(`/shop/orders/${id}`),
+  // 优惠券
+  listCoupons: (params?: any) => api.get("/shop/coupons", params),
+  claimCoupon: (id: string) => api.post(`/shop/coupons/${id}/claim`),
+  myCoupons: () => api.get("/shop/coupons/my"),
+  // 商品评价
+  listReviews: (productId: string, params?: any) => api.get(`/shop/products/${productId}/reviews`, params),
+  createReview: (productId: string, data: any) => api.post(`/shop/products/${productId}/reviews`, data),
+  // 物流
+  getLogistics: (orderId: string) => api.get(`/shop/orders/${orderId}/logistics`),
 };
 
 // 直播
