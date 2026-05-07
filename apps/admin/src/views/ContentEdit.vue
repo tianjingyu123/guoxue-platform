@@ -1,87 +1,333 @@
 <template>
-  <div>
-    <h3>{{ isEdit ? "编辑内容" : "新建内容" }}</h3>
-    <el-form :model="form" label-width="80px" style="max-width: 800px">
-      <el-form-item label="标题">
-        <el-input v-model="form.title" />
-      </el-form-item>
-      <el-form-item label="类型">
-        <el-select v-model="form.type">
-          <el-option label="文章" value="ARTICLE" />
-          <el-option label="诗词" value="POEM" />
-          <el-option label="经典" value="CLASSIC" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="作者">
-        <el-input v-model="form.author" />
-      </el-form-item>
-      <el-form-item label="朝代">
-        <el-input v-model="form.dynasty" />
-      </el-form-item>
-      <el-form-item label="摘要">
-        <el-input v-model="form.excerpt" type="textarea" :rows="2" />
-      </el-form-item>
-      <el-form-item label="正文">
-        <el-input v-model="form.body" type="textarea" :rows="12" />
-      </el-form-item>
-      <el-form-item label="标签">
-        <el-input v-model="tagsStr" placeholder="逗号分隔" />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
+  <div class="content-edit">
+    <div class="edit-header">
+      <h3>{{ isEdit ? '编辑内容' : '新建内容' }}</h3>
+      <div class="header-actions">
+        <el-button @click="handleSave" type="primary" :loading="saving">保存</el-button>
+        <el-button @click="handleSave('DRAFT')" :loading="saving">存草稿</el-button>
         <el-button @click="$router.back()">取消</el-button>
-      </el-form-item>
-    </el-form>
+      </div>
+    </div>
+
+    <div class="edit-body">
+      <!-- 左侧：编辑区 -->
+      <div class="edit-main">
+        <el-form :model="form" label-width="60px">
+          <el-form-item label="标题">
+            <el-input v-model="form.title" placeholder="请输入标题" size="large" />
+          </el-form-item>
+
+          <el-row :gutter="16">
+            <el-col :span="8">
+              <el-form-item label="类型">
+                <el-select v-model="form.type" size="large" style="width:100%">
+                  <el-option label="文章" value="ARTICLE" />
+                  <el-option label="诗词" value="POEM" />
+                  <el-option label="经典" value="CLASSIC" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="作者">
+                <el-input v-model="form.author" placeholder="作者" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="朝代">
+                <el-input v-model="form.dynasty" placeholder="如 唐、宋" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+
+          <el-form-item label="摘要">
+            <el-input v-model="form.excerpt" type="textarea" :rows="2" placeholder="简要描述" />
+          </el-form-item>
+
+          <el-form-item label="正文">
+            <div class="editor-wrapper">
+              <div ref="editorEl" class="ql-editor-container"></div>
+            </div>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- 右侧：属性面板 -->
+      <div class="edit-sidebar">
+        <div class="sidebar-section">
+          <h4>封面图片</h4>
+          <div class="cover-upload">
+            <div class="cover-preview" v-if="form.cover">
+              <img :src="form.cover" alt="封面" />
+              <el-button size="small" type="danger" @click="form.cover = ''" class="cover-remove">移除</el-button>
+            </div>
+            <div class="cover-placeholder" v-else>
+              <span>暂无封面</span>
+            </div>
+            <div class="cover-input-row">
+              <el-input v-model="coverUrl" placeholder="输入图片URL" size="small" />
+              <el-button size="small" @click="form.cover = coverUrl">设置</el-button>
+            </div>
+            <el-upload
+              :show-file-list="false"
+              :http-request="handleCoverUpload"
+              accept="image/*"
+              style="margin-top:8px"
+            >
+              <el-button size="small" type="primary" :loading="uploading">本地上传</el-button>
+            </el-upload>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <h4>标签</h4>
+          <div class="tag-input-row">
+            <el-input
+              v-model="tagInput"
+              placeholder="输入标签"
+              size="small"
+              @keyup.enter="addTag"
+            />
+            <el-button size="small" @click="addTag">添加</el-button>
+          </div>
+          <div class="tag-list">
+            <el-tag
+              v-for="t in form.tags"
+              :key="t"
+              closable
+              @close="form.tags = form.tags.filter(x => x !== t)"
+              size="small"
+            >{{ t }}</el-tag>
+            <span v-if="!form.tags?.length" class="no-tags">暂无标签</span>
+          </div>
+        </div>
+
+        <div class="sidebar-section">
+          <h4>状态</h4>
+          <el-radio-group v-model="form.status" size="small">
+            <el-radio-button value="PUBLISHED">发布</el-radio-button>
+            <el-radio-button value="DRAFT">草稿</el-radio-button>
+          </el-radio-group>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { contentApi } from "../api";
-import { ElMessage } from "element-plus";
+import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { contentApi, uploadApi } from '../api'
+import { ElMessage } from 'element-plus'
 
-const route = useRoute();
-const router = useRouter();
-const id = route.params.id as string | undefined;
-const isEdit = !!id;
-const saving = ref(false);
+const route = useRoute()
+const router = useRouter()
+const id = route.params.id as string | undefined
+const isEdit = !!id
+const saving = ref(false)
+const uploading = ref(false)
 
-const form = ref({
-  title: "",
-  type: "ARTICLE" as string,
-  author: "",
-  dynasty: "",
-  excerpt: "",
-  body: "",
-});
+const form = reactive({
+  title: '',
+  type: 'ARTICLE' as string,
+  author: '',
+  dynasty: '',
+  excerpt: '',
+  body: '',
+  cover: '',
+  tags: [] as string[],
+  status: 'PUBLISHED' as string,
+})
 
-const tagsStr = ref("");
+const coverUrl = ref('')
+const tagInput = ref('')
+const editorEl = ref<HTMLElement | null>(null)
+let quill: any = null
 
 onMounted(async () => {
   if (isEdit && id) {
-    const { data } = await contentApi.detail(id);
-    form.value = data;
-    tagsStr.value = (data.tags ?? []).join(",");
+    const { data } = await contentApi.detail(id)
+    Object.assign(form, {
+      title: data.title,
+      type: data.type,
+      author: data.author || '',
+      dynasty: data.dynasty || '',
+      excerpt: data.excerpt || '',
+      body: data.body || '',
+      cover: data.cover || '',
+      tags: data.tags || [],
+      status: data.status || 'PUBLISHED',
+    })
   }
-});
 
-async function handleSave() {
-  saving.value = true;
+  // 初始化 Quill 编辑器
+  await nextTick()
+  initQuill()
+})
+
+function initQuill() {
+  if (!editorEl.value) return
+  // 动态加载 Quill
+  const script = document.createElement('script')
+  script.src = 'https://cdn.quilljs.com/1.3.7/quill.min.js'
+  script.onload = () => {
+    const Q = (window as any).Quill
+    if (!Q) return
+    quill = new Q(editorEl.value, {
+      theme: 'snow',
+      modules: {
+        toolbar: [
+          ['bold', 'italic', 'underline', 'strike'],
+          [{ header: 1 }, { header: 2 }],
+          [{ align: [] }],
+          ['blockquote', 'code-block'],
+          [{ list: 'ordered' }, { list: 'bullet' }],
+          [{ indent: '-1' }, { indent: '+1' }],
+          [{ color: [] }, { background: [] }],
+          ['link', 'image'],
+          ['clean'],
+        ],
+      },
+      placeholder: '请输入正文...',
+    })
+    if (form.body) {
+      quill.root.innerHTML = form.body
+    }
+    quill.on('text-change', () => {
+      form.body = quill.root.innerHTML
+    })
+  }
+  document.head.appendChild(script)
+}
+
+function addTag() {
+  const t = tagInput.value.trim()
+  if (!t) return
+  if (!form.tags.includes(t)) {
+    form.tags.push(t)
+  }
+  tagInput.value = ''
+}
+
+async function handleCoverUpload(options: any) {
+  uploading.value = true
+  try {
+    const { data } = await uploadApi.image(options.file)
+    form.cover = data.url
+    coverUrl.value = data.url
+    ElMessage.success('封面上传成功')
+  } catch (e: any) {
+    ElMessage.error('上传失败：' + (e.message || '未知错误'))
+  } finally {
+    uploading.value = false
+  }
+}
+
+async function handleSave(status?: string) {
+  if (!form.title.trim()) {
+    ElMessage.warning('请输入标题')
+    return
+  }
+  if (!form.body.trim()) {
+    ElMessage.warning('请输入正文')
+    return
+  }
+
+  saving.value = true
   try {
     const payload = {
-      ...form.value,
-      tags: tagsStr.value ? tagsStr.value.split(",").map((t) => t.trim()) : [],
-    };
-    if (isEdit && id) {
-      await contentApi.update(id, payload);
-    } else {
-      await contentApi.create(payload);
+      ...form,
+      type: form.type as any,
+      tags: form.tags || [],
     }
-    ElMessage.success("保存成功");
-    router.push("/contents");
+    if (status) payload.status = status
+
+    if (isEdit && id) {
+      await contentApi.update(id, payload)
+    } else {
+      await contentApi.create(payload)
+    }
+    ElMessage.success('保存成功')
+    router.push('/contents')
+  } catch (e: any) {
+    ElMessage.error('保存失败：' + (e.message || '未知错误'))
   } finally {
-    saving.value = false;
+    saving.value = false
   }
 }
 </script>
+
+<style scoped>
+.content-edit { min-height: 100vh; background: #f5f0e6; }
+
+.edit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e0d5c1;
+}
+.edit-header h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.header-actions { display: flex; gap: 8px; }
+
+.edit-body {
+  display: flex;
+  gap: 0;
+  padding: 16px 24px;
+  max-width: 1400px;
+}
+
+.edit-main {
+  flex: 1;
+  min-width: 0;
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px 0 0 8px;
+  border: 1px solid #e0d5c1;
+  border-right: none;
+}
+
+.edit-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid #e0d5c1;
+  border-radius: 0 8px 8px 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sidebar-section h4 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #8b4513;
+  border-bottom: 1px solid #f0e6d3;
+  padding-bottom: 6px;
+}
+
+/* 编辑器 */
+.editor-wrapper { border: 1px solid #ddd; border-radius: 4px; min-height: 400px; }
+.ql-editor-container { min-height: 380px; }
+:deep(.ql-toolbar) { border-radius: 4px 4px 0 0; }
+
+/* 封面 */
+.cover-upload { display: flex; flex-direction: column; gap: 8px; }
+.cover-preview { position: relative; width: 100%; aspect-ratio: 16/10; border-radius: 4px; overflow: hidden; background: #f5f5f5; }
+.cover-preview img { width: 100%; height: 100%; object-fit: cover; }
+.cover-remove { position: absolute; top: 4px; right: 4px; }
+.cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed #e0d5c1; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 13px; }
+.cover-input-row { display: flex; gap: 4px; }
+
+/* 标签 */
+.tag-input-row { display: flex; gap: 4px; margin-bottom: 8px; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 4px; min-height: 24px; }
+.no-tags { color: #ccc; font-size: 12px; }
+
+@media (max-width: 900px) {
+  .edit-body { flex-direction: column; }
+  .edit-sidebar { width: 100%; border-radius: 0 0 8px 8px; border-top: none; border-left: 1px solid #e0d5c1; }
+  .edit-main { border-radius: 8px 8px 0 0; border-right: 1px solid #e0d5c1; }
+}
+</style>
