@@ -5,8 +5,24 @@
       "style": { "navigationBarTitleText": "国学平台" }
     },
     {
+      "path": "pages/courses/courses",
+      "style": { "navigationBarTitleText": "课程" }
+    },
+    {
+      "path": "pages/circles/circles",
+      "style": { "navigationBarTitleText": "圈子" }
+    },
+    {
+      "path": "pages/search/search",
+      "style": { "navigationBarTitleText": "搜索" }
+    },
+    {
       "path": "pages/detail/detail",
       "style": { "navigationBarTitleText": "内容详情" }
+    },
+    {
+      "path": "pages/bazi/bazi",
+      "style": { "navigationBarTitleText": "八字排盘" }
     },
     {
       "path": "pages/favorites/favorites",
@@ -17,8 +33,40 @@
       "style": { "navigationBarTitleText": "我的" }
     }
   ],
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#8b4513",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/courses/courses",
+        "text": "课程",
+        "iconPath": "static/tabbar/course.png",
+        "selectedIconPath": "static/tabbar/course-active.png"
+      },
+      {
+        "pagePath": "pages/search/search",
+        "text": "搜索",
+        "iconPath": "static/tabbar/search.png",
+        "selectedIconPath": "static/tabbar/search-active.png"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的",
+        "iconPath": "static/tabbar/mine.png",
+        "selectedIconPath": "static/tabbar/mine-active.png"
+      }
+    ]
+  },
   "globalStyle": {
-    "navigationBarBackgroundColor": "#409eff",
+    "navigationBarBackgroundColor": "#8b4513",
     "navigationBarTextStyle": "white",
     "navigationBarTitleText": "国学平台"
   }
