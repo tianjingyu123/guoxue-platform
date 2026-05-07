@@ -9,8 +9,8 @@ import { JwtStrategy } from "../../common/jwt.strategy";
   imports: [
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET ?? "guoxue-dev-secret",
-      signOptions: { expiresIn: "7d" },
+      secret: process.env.JWT_SECRET || "guoxue-dev-secret",
+      signOptions: { expiresIn: "24h" },
     }),
   ],
   controllers: [AuthController],

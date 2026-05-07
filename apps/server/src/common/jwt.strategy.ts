@@ -6,9 +6,11 @@ import { PrismaService } from "../prisma/prisma.service";
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private prisma: PrismaService) {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error("JWT_SECRET 环境变量未设置");
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: process.env.JWT_SECRET ?? "guoxue-dev-secret",
+      secretOrKey: secret,
     });
   }
 
