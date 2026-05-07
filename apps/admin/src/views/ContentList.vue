@@ -9,6 +9,7 @@
           <el-option label="经典" value="CLASSIC" />
         </el-select>
         <el-input v-model="keyword" placeholder="搜索标题/作者" size="small" style="width:200px" clearable @clear="fetchList" @keyup.enter="fetchList" />
+        <el-button size="small" @click="exportData">导出CSV</el-button>
         <el-button type="primary" size="small" @click="$router.push('/contents/create')">新建内容</el-button>
       </div>
     </div>
@@ -65,6 +66,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { contentApi } from '../api'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { exportCSV } from '../utils/export'
 
 const typeLabels: Record<string, string> = {
   ARTICLE: '文章',
@@ -103,6 +105,27 @@ async function handleDelete(id: string) {
     ElMessage.success('已删除')
     fetchList()
   } catch { /* api interceptor already shows error */ }
+}
+
+function exportData() {
+  exportCSV(
+    "内容列表",
+    [
+      { label: "标题", key: "title" },
+      { label: "类型", key: "typeLabel" },
+      { label: "作者", key: "author" },
+      { label: "朝代", key: "dynasty" },
+      { label: "标签", key: "tagsStr" },
+      { label: "浏览量", key: "viewCount" },
+      { label: "状态", key: "statusLabel" },
+    ],
+    list.value.map((c) => ({
+      ...c,
+      typeLabel: typeLabels[c.type] || c.type,
+      tagsStr: (c.tags || []).join(" "),
+      statusLabel: c.status === "PUBLISHED" ? "已发布" : "草稿",
+    })),
+  );
 }
 </script>
 

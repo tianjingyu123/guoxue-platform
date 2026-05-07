@@ -14,6 +14,7 @@
           <el-option label="普通用户" value="USER" />
         </el-select>
         <el-button type="primary" @click="fetchList">查询</el-button>
+        <el-button @click="exportData">导出CSV</el-button>
       </div>
     </div>
 
@@ -96,6 +97,7 @@
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { userApi } from "@/api";
+import { exportCSV } from "@/utils/export";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
@@ -168,6 +170,27 @@ async function removeRole(userId: string, roleType: string) {
     roleUserRoles.value = roleUserRoles.value.filter(r => r.roleType !== roleType);
     fetchList();
   } catch { /* */ }
+}
+
+function exportData() {
+  exportCSV(
+    "用户列表",
+    [
+      { label: "昵称", key: "nickname" },
+      { label: "手机号", key: "phone" },
+      { label: "角色", key: "rolesStr" },
+      { label: "会员", key: "memberLevel" },
+      { label: "状态", key: "status" },
+      { label: "注册时间", key: "createdAt" },
+    ],
+    list.value.map((u) => ({
+      ...u,
+      rolesStr: (u.roles || []).map((r: any) => r.roleType).join(" "),
+      createdAt: u.createdAt?.slice(0, 16).replace("T", " "),
+      status: u.status === "ACTIVE" ? "正常" : "禁用",
+      memberLevel: u.memberLevel === "NONE" ? "普通" : u.memberLevel,
+    })),
+  );
 }
 </script>
 

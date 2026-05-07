@@ -2,6 +2,7 @@
 import { ref, onMounted, reactive } from "vue";
 import { ElMessage } from "element-plus";
 import api from "../../api";
+import { exportCSV } from "../../utils/export";
 
 const orders = ref<any[]>([]);
 const total = ref(0);
@@ -92,6 +93,26 @@ const statusLabels: Record<string, string> = {
 const typeLabels: Record<string, string> = {
   MEMBER: "会员", COURSE: "课程", PRODUCT: "商品", CIRCLE_JOIN: "入圈", PAIPAN: "排盘",
 };
+
+function exportData() {
+  exportCSV(
+    "订单列表",
+    [
+      { label: "用户", key: "userName" },
+      { label: "类型", key: "typeLabel" },
+      { label: "金额", key: "amount" },
+      { label: "状态", key: "statusLabel" },
+      { label: "时间", key: "createdAt" },
+    ],
+    orders.value.map((o) => ({
+      ...o,
+      userName: o.user?.nickname || "-",
+      typeLabel: typeLabels[o.type] || o.type,
+      statusLabel: statusLabels[o.status] || o.status,
+      createdAt: new Date(o.createdAt).toLocaleString(),
+    })),
+  );
+}
 </script>
 
 <template>
@@ -101,6 +122,7 @@ const typeLabels: Record<string, string> = {
       <el-select v-model="filterStatus" placeholder="状态" clearable @change="fetchList" style="width:120px">
         <el-option v-for="(label, key) in statusLabels" :key="key" :label="label" :value="key" />
       </el-select>
+      <el-button @click="exportData">导出CSV</el-button>
     </div>
     <el-table :data="orders" v-loading="loading" stripe>
       <el-table-column label="用户" width="100">
