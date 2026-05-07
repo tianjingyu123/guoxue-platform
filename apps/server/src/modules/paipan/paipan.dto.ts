@@ -49,3 +49,20 @@ export class BaziRecordQueryDto {
   @IsInt()
   pageSize?: number;
 }
+
+/** AI 分析请求参数 */
+export class AnalyzeDto {
+  @IsString()
+  recordId: string;
+}
+
+/** AI 分析历史查询参数 */
+export class AnalysisQueryDto {
+  @IsOptional()
+  @IsInt()
+  page?: number;
+
+  @IsOptional()
+  @IsInt()
+  pageSize?: number;
+}

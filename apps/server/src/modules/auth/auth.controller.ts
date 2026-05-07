@@ -10,32 +10,38 @@ import {
   ChangePasswordDto,
 } from "./auth.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { StrictThrottleGuard } from "../../common/throttle.guard";
 
 @Controller("auth")
 export class AuthController {
   constructor(private auth: AuthService) {}
 
   @Post("register/phone")
+  @UseGuards(StrictThrottleGuard)
   phoneRegister(@Body() dto: PhoneRegisterDto) {
     return this.auth.phoneRegister(dto);
   }
 
   @Post("login/phone")
+  @UseGuards(StrictThrottleGuard)
   phoneLogin(@Body() dto: PhoneLoginDto) {
     return this.auth.phoneLogin(dto);
   }
 
   @Post("login/sms")
+  @UseGuards(StrictThrottleGuard)
   smsLogin(@Body() dto: SmsLoginDto) {
     return this.auth.smsLogin(dto);
   }
 
   @Post("sms/send")
+  @UseGuards(StrictThrottleGuard)
   sendCode(@Body() dto: SendCodeDto) {
     return this.auth.sendSmsCode(dto);
   }
 
   @Post("login/wechat")
+  @UseGuards(StrictThrottleGuard)
   wechatLogin(@Body() dto: WechatLoginDto) {
     return this.auth.wechatLogin(dto);
   }
