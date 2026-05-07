@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, Min, IsArray } from "class-validator";
+import { Type } from "class-transformer";
 
 export enum CourseType {
   VIDEO = "VIDEO",
@@ -103,10 +104,10 @@ export class SubmitWorkDto {
 }
 
 export class CourseListQueryDto {
-  @IsOptional() @IsInt()
+  @IsOptional() @Type(() => Number) @IsInt()
   page?: number;
 
-  @IsOptional() @IsInt()
+  @IsOptional() @Type(() => Number) @IsInt()
   pageSize?: number;
 
   @IsOptional() @IsString()
