@@ -1785,6 +1785,32 @@ async function main() {
     console.log("⏭️ 排盘记录已存在，跳过");
   }
 
+  // ── 14. 内容管理种子数据 ──
+  const contentCount = await prisma.content.count();
+  if (contentCount === 0) {
+    const contents = [
+      // 文章
+      { title: "国学入门：什么是传统文化", type: "ARTICLE", author: "管理员", dynasty: "", excerpt: "国学，一国所固有之学术也。本文带你了解国学的内涵与价值。", body: "<h2>国学的定义</h2><p>国学，顾名思义，是指以儒学为主体的中华传统文化与学术。它包括中国古代的哲学、史学、文学、语言学、艺术、天文、地理、医学等诸多方面。</p><h2>国学的价值</h2><p>学习国学，可以让我们了解中华民族的文化根源，培养文化自信，提升个人修养。</p>", cover: "/static/covers/daodejing.jpg", tags: ["国学", "入门", "文化"], status: "PUBLISHED" },
+      { title: "儒家思想的核心价值", type: "ARTICLE", author: "管理员", dynasty: "", excerpt: "仁义礼智信——儒家思想的核心价值观，影响中国社会两千余年。", body: "<h2>仁义礼智信</h2><p>儒家思想的核心是'仁'，即爱人。'义'是行为的准则，'礼'是社会规范，'智'是智慧判断，'信'是诚信守诺。</p><p>这五常构成了儒家伦理道德的基本框架，对中国社会产生了深远影响。</p>", cover: "/static/covers/lunyu.jpg", tags: ["儒家", "思想", "传统文化"], status: "PUBLISHED" },
+      // 诗词
+      { title: "静夜思", type: "POEM", author: "李白", dynasty: "唐", excerpt: "床前明月光，疑是地上霜。举头望明月，低头思故乡。", body: "<p><strong>床前明月光，</strong></p><p><strong>疑是地上霜。</strong></p><p><strong>举头望明月，</strong></p><p><strong>低头思故乡。</strong></p><hr><p>此诗写出了一个游子在寂静的月夜思念家乡的感受。语言清新朴素，意味却深远悠长。</p>", cover: "/static/covers/libai.jpg", tags: ["唐诗", "李白", "思乡", "五言绝句"], status: "PUBLISHED" },
+      { title: "登鹳雀楼", type: "POEM", author: "王之涣", dynasty: "唐", excerpt: "白日依山尽，黄河入海流。欲穷千里目，更上一层楼。", body: "<p><strong>白日依山尽，</strong></p><p><strong>黄河入海流。</strong></p><p><strong>欲穷千里目，</strong></p><p><strong>更上一层楼。</strong></p><hr><p>此诗写诗人在登高望远中表现出来的不凡胸襟抱负，反映了盛唐时人积极向上的进取精神。</p>", cover: "/static/covers/wangzhihuan.jpg", tags: ["唐诗", "王之涣", "登高", "五言绝句"], status: "PUBLISHED" },
+      { title: "春望", type: "POEM", author: "杜甫", dynasty: "唐", excerpt: "国破山河在，城春草木深。感时花溅泪，恨别鸟惊心。", body: "<p><strong>国破山河在，城春草木深。</strong></p><p><strong>感时花溅泪，恨别鸟惊心。</strong></p><p><strong>烽火连三月，家书抵万金。</strong></p><p><strong>白头搔更短，浑欲不胜簪。</strong></p><hr><p>此诗写安史之乱中长安的荒凉景象，表达了诗人忧国忧民、思念家人的深沉感情。</p>", cover: "/static/covers/dufu.jpg", tags: ["唐诗", "杜甫", "忧国", "五言律诗"], status: "PUBLISHED" },
+      { title: "水调歌头·明月几时有", type: "POEM", author: "苏轼", dynasty: "宋", excerpt: "明月几时有？把酒问青天。不知天上宫阙，今夕是何年。", body: "<p><strong>明月几时有？把酒问青天。</strong></p><p><strong>不知天上宫阙，今夕是何年。</strong></p><p><strong>我欲乘风归去，又恐琼楼玉宇，高处不胜寒。</strong></p><p><strong>起舞弄清影，何似在人间。</strong></p><hr><p>此词是苏轼中秋望月怀人之作，表达了词人对胞弟苏辙的无限怀念。</p>", cover: "/static/covers/sushi.jpg", tags: ["宋词", "苏轼", "中秋", "豪放"], status: "PUBLISHED" },
+      { title: "声声慢·寻寻觅觅", type: "POEM", author: "李清照", dynasty: "宋", excerpt: "寻寻觅觅，冷冷清清，凄凄惨惨戚戚。", body: "<p><strong>寻寻觅觅，冷冷清清，凄凄惨惨戚戚。</strong></p><p><strong>乍暖还寒时候，最难将息。</strong></p><p><strong>三杯两盏淡酒，怎敌他、晚来风急？</strong></p><p><strong>雁过也，正伤心，却是旧时相识。</strong></p><hr><p>此词是李清照晚年的代表作，以叠字起句，营造出极度凄凉的氛围。</p>", cover: "/static/covers/liqingzhao.jpg", tags: ["宋词", "李清照", "婉约", "悲秋"], status: "PUBLISHED" },
+      // 经典
+      { title: "道德经·第一章", type: "CLASSIC", author: "老子", dynasty: "春秋", excerpt: "道可道，非常道；名可名，非常名。", body: "<p><strong>道可道，非常道；名可名，非常名。</strong></p><p><strong>无名天地之始，有名万物之母。</strong></p><p><strong>故常无欲，以观其妙；常有欲，以观其徼。</strong></p><p><strong>此两者同出而异名，同谓之玄。玄之又玄，众妙之门。</strong></p><hr><p>本章是《道德经》的开篇，提出了'道'这一核心概念，奠定了道家哲学的基础。</p>", cover: "/static/covers/daodejing.jpg", tags: ["道家", "老子", "道德经", "哲学"], status: "PUBLISHED" },
+      { title: "论语·学而篇", type: "CLASSIC", author: "孔子", dynasty: "春秋", excerpt: "学而时习之，不亦说乎？有朋自远方来，不亦乐乎？", body: "<p><strong>子曰：'学而时习之，不亦说乎？有朋自远方来，不亦乐乎？人不知而不愠，不亦君子乎？'</strong></p><hr><p>这是《论语》开篇第一章，提出了学习的三个层次：学习与实践、交友与交流、修养与境界。</p>", cover: "/static/covers/lunyu.jpg", tags: ["儒家", "孔子", "论语", "经典"], status: "PUBLISHED" },
+    ];
+
+    for (const c of contents) {
+      await prisma.content.create({ data: c as any });
+    }
+    console.log("✅ 内容管理: " + contents.length + " 条（文章/诗词/经典）");
+  } else {
+    console.log("⏭️ 内容管理已存在，跳过");
+  }
+
   console.log("\n🎉 种子数据填充完成！");
   console.log("   管理员: 13800000000 / guoxue123");
   console.log("   讲师1:  13800000001 / teacher123");
