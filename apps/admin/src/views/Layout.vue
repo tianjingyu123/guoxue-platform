@@ -29,6 +29,9 @@
           <el-menu-item index="/bazi">
             <span>八字排盘</span>
           </el-menu-item>
+          <el-menu-item index="/paipan-records">
+            <span>排盘记录</span>
+          </el-menu-item>
           <el-menu-item index="/bots">
             <span>Bot管理</span>
           </el-menu-item>

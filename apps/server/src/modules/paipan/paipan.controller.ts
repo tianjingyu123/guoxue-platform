@@ -118,4 +118,17 @@ export class PaipanController {
       q.pageSize || 20,
     );
   }
+
+  // ────────── 管理员端点 ──────────
+
+  /** 管理员查看所有排盘记录 */
+  @Get("admin/records")
+  ziweiAdminRecords(@Query() q: BaziRecordQueryDto & { type?: string; keyword?: string }) {
+    return this.paipan.getAllRecords({
+      page: q.page || 1,
+      pageSize: q.pageSize || 20,
+      type: q.type,
+      keyword: q.keyword,
+    });
+  }
 }

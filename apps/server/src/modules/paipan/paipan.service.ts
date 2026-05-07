@@ -206,6 +206,50 @@ export class PaipanService {
     return { records, total, page, pageSize };
   }
 
+  // ────────── 管理员方法 ──────────
+
+  /** 管理员查看所有排盘记录 */
+  async getAllRecords(params: {
+    page: number
+    pageSize: number
+    type?: string
+    keyword?: string
+  }) {
+    const { page, pageSize, type, keyword } = params
+    const where: any = {}
+
+    if (type && type !== "ALL") {
+      where.paipanType = type
+    }
+
+    if (keyword) {
+      where.OR = [
+        { clientName: { contains: keyword } },
+        { clientBirth: { contains: keyword } },
+      ]
+    }
+
+    const [records, total] = await Promise.all([
+      this.prisma.paipanRecord.findMany({
+        where,
+        select: {
+          id: true,
+          clientName: true,
+          clientBirth: true,
+          paipanType: true,
+          createdAt: true,
+          user: { select: { nickname: true, phone: true } },
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.paipanRecord.count({ where }),
+    ])
+
+    return { records, total, page, pageSize }
+  }
+
   // ────────── 私有辅助方法 ──────────
 
   /** 构建 BaziInput */

@@ -66,6 +66,13 @@ export const paipanApi = {
   save: (data: any) => api.post("/paipan/bazi", data),
   history: (params?: any) => api.get("/paipan/bazi", { params }),
   detail: (id: string) => api.get(`/paipan/bazi/${id}`),
+  // 紫微斗数
+  ziweiPreview: (data: any) => api.post("/paipan/ziwei/preview", data),
+  ziweiSave: (data: any) => api.post("/paipan/ziwei", data),
+  ziweiHistory: (params?: any) => api.get("/paipan/ziwei", { params }),
+  ziweiDetail: (id: string) => api.get(`/paipan/ziwei/${id}`),
+  // 管理员
+  adminRecords: (params?: any) => api.get("/paipan/admin/records", { params }),
 };
 
 // 仪表盘
