@@ -47,4 +47,20 @@ export class RedisService {
   async setJson(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
     await this.set(key, JSON.stringify(value), ttlSeconds);
   }
+
+  /** 获取 Buffer 缓存值 */
+  async getBuffer(key: string): Promise<Buffer | null> {
+    const raw = await this.get(key);
+    if (!raw) return null;
+    try {
+      return Buffer.from(raw, "base64");
+    } catch {
+      return null;
+    }
+  }
+
+  /** 设置 Buffer 缓存值（Base64 编码存储） */
+  async setBuffer(key: string, value: Buffer, ttlSeconds?: number): Promise<void> {
+    await this.set(key, value.toString("base64"), ttlSeconds);
+  }
 }

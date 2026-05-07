@@ -19,8 +19,9 @@ import { OfflineModule } from "./modules/offline/offline.module";
 import { ClassicModule } from "./modules/classic/classic.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { CommentModule } from "./modules/comment/comment.module";
+import { TtsModule } from "./modules/tts/tts.module";
 
 @Module({
-  imports: [PrismaModule, RedisModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule],
+  imports: [PrismaModule, RedisModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule],
 })
 export class AppModule {}

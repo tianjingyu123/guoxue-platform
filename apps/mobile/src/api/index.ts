@@ -146,4 +146,16 @@ export const botApi = {
   circleBots: (circleId: string) => api.get(`/bots/circle/${circleId}`),
 };
 
+// TTS 语音合成
+export const ttsApi = {
+  voices: () => api.get("/tts/voices"),
+  /** 返回音频 URL（GET 方式，可直接作为 audio src） */
+  audioUrl: (text: string, voice?: string, rate?: string) => {
+    const params = new URLSearchParams({ text: text.slice(0, 500) })
+    if (voice) params.set("voice", voice)
+    if (rate) params.set("rate", rate)
+    return `${BASE}/tts/synthesize?${params.toString()}`
+  },
+};
+
 export default api;
