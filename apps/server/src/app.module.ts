@@ -29,8 +29,9 @@ import { HealthModule } from "./modules/health/health.module";
 import { CoinModule } from "./modules/coin/coin.module";
 import { QuestionModule } from "./modules/question/question.module";
 import { AuditModule } from "./modules/audit/audit.module";
+import { RevenueModule } from "./modules/revenue/revenue.module";
 
 @Module({
-  imports: [PrismaModule, RedisModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule],
+  imports: [PrismaModule, RedisModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule],
 })
 export class AppModule {}

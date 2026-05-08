@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CoinService } from "../coin/coin.service";
+import { RevenueService } from "../revenue/revenue.service";
 
 @Injectable()
 export class QuestionService {
   constructor(
     private prisma: PrismaService,
     private coin: CoinService,
+    private revenue: RevenueService,
   ) {}
 
   /** 发起付费提问 */
@@ -57,7 +59,7 @@ export class QuestionService {
     if (question.answererId !== answererId) throw new BadRequestException("只有被提问者可以回答");
     if (question.status !== "PENDING") throw new BadRequestException("问题状态不允许回答");
 
-    return this.prisma.paidQuestion.update({
+    const updated = await this.prisma.paidQuestion.update({
       where: { id: questionId },
       data: { answer: dto.answer, status: "ANSWERED", answeredAt: new Date() },
       include: {
@@ -65,6 +67,16 @@ export class QuestionService {
         answerer: { select: { id: true, nickname: true, avatar: true } },
       },
     });
+
+    // 回答者获得提问收益（默认80%）
+    this.revenue.record({
+      userId: answererId,
+      scene: "QUESTION",
+      refId: questionId,
+      amountCoin: question.priceCoin,
+    }).catch(() => {});
+
+    return updated;
   }
 
   /** 围观答案 */
@@ -92,6 +104,14 @@ export class QuestionService {
       where: { id: questionId },
       data: { peekCount: { increment: 1 } },
     });
+
+    // 回答者获得围观收益（默认70%）
+    this.revenue.record({
+      userId: question.answererId,
+      scene: "PEEK",
+      refId: questionId,
+      amountCoin: question.peekPriceCoin,
+    }).catch(() => {});
 
     return question;
   }

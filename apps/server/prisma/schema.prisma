@@ -1442,3 +1442,28 @@ model GiftRecord {
   @@index([userId])
 }
 
+// ─────────────────────────────────────────────────
+// 收益分账
+// ─────────────────────────────────────────────────
+
+enum EarningScene {
+  QUESTION       // 付费提问
+  PEEK           // 围观答案
+  AUDIO_CALL     // 音频连麦
+  LIVE_GIFT      // 直播打赏
+}
+
+model UserEarning {
+  id         String       @id @default(uuid())
+  userId     String       // 收益人
+  scene      EarningScene // 场景
+  refId      String       // 关联业务ID（问答ID/通话ID/礼物记录ID）
+  amountCoin Int          // 关联币数
+  amountRmb  Decimal      @db.Decimal(10, 2) // 折算人民币收益
+  rate       Decimal      @db.Decimal(5, 4)  // 分佣比例（如0.8=80%）
+  createdAt  DateTime     @default(now())
+
+  @@index([userId, createdAt])
+  @@index([refId])
+}
+
