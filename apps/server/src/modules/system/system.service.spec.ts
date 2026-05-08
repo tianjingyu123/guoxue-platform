@@ -1,17 +1,24 @@
 import { Test } from "@nestjs/testing";
 import { SystemService } from "./system.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 
 const mockPrisma = {
   configSystem: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn() },
+  auditLog: { findMany: jest.fn(), count: jest.fn() },
 };
+const mockAudit = { log: jest.fn() };
 
 describe("SystemService", () => {
   let svc: SystemService;
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [SystemService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        SystemService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: AuditService, useValue: mockAudit },
+      ],
     }).compile();
     svc = mod.get(SystemService);
   });
