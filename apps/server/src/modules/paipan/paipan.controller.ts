@@ -15,6 +15,7 @@ import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, AnalyzeDto, AnalysisQu
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { StrictThrottleGuard } from "../../common/throttle.guard";
 
 @ApiTags("排盘")
 @Controller("paipan")
@@ -33,7 +34,7 @@ export class PaipanController {
 
   /** 八字排盘并保存 */
   @Post("bazi")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictThrottleGuard)
   @ApiOperation({ summary: "八字排盘并保存" })
   @ApiBearerAuth()
   baziCalc(@Req() req: any, @Body() dto: BaziInputDto) {
@@ -66,7 +67,7 @@ export class PaipanController {
 
   /** 对已保存的排盘记录进行 AI 分析 */
   @Post("bazi/analyze")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictThrottleGuard)
   @ApiOperation({ summary: "AI分析八字排盘" })
   @ApiBearerAuth()
   async baziAnalyze(@Req() req: any, @Body() dto: AnalyzeDto) {
@@ -114,7 +115,7 @@ export class PaipanController {
 
   /** 紫微斗数排盘并保存 */
   @Post("ziwei")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictThrottleGuard)
   @ApiOperation({ summary: "紫微斗数排盘并保存" })
   @ApiBearerAuth()
   ziweiCalc(@Req() req: any, @Body() dto: ZiweiInputDto) {
