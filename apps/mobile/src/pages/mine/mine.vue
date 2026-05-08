@@ -216,6 +216,11 @@
         <text class="menu-label">我的钱包</text>
         <text class="arrow">›</text>
       </view>
+      <view class="menu-item" @click="goPage('/pages/shop/coupons')">
+        <text class="menu-icon">🎫</text>
+        <text class="menu-label">优惠券</text>
+        <text class="arrow">›</text>
+      </view>
       <view class="menu-item" @click="goPage('/pages/station/earnings')">
         <text class="menu-icon">💰</text>
         <text class="menu-label">推广收益</text>
