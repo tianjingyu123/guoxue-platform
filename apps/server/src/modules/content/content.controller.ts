@@ -1,9 +1,10 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Query, UseGuards,
+  Body, Param, Query, Req, UseGuards,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { ContentService } from "./content.service";
+import { SystemService } from "../system/system.service";
 import { CreateContentDto, UpdateContentDto, ContentListQueryDto } from "./content.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -12,14 +13,26 @@ import { Roles } from "../../common/roles.decorator";
 @ApiTags("内容管理")
 @Controller("contents")
 export class ContentController {
-  constructor(private content: ContentService) {}
+  constructor(
+    private content: ContentService,
+    private systemService: SystemService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建内容" })
   @ApiBearerAuth()
-  create(@Body() dto: CreateContentDto) {
-    return this.content.create(dto);
+  async create(@Body() dto: CreateContentDto, @Req() req: any) {
+    const result = await this.content.create(dto);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "CREATE",
+      targetType: "CONTENT",
+      targetId: result.id,
+      detail: `创建内容: ${dto.title}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   @Get()
@@ -38,8 +51,17 @@ export class ContentController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新内容" })
   @ApiBearerAuth()
-  update(@Param("id") id: string, @Body() dto: UpdateContentDto) {
-    return this.content.update(id, dto);
+  async update(@Param("id") id: string, @Body() dto: UpdateContentDto, @Req() req: any) {
+    const result = await this.content.update(id, dto);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "UPDATE",
+      targetType: "CONTENT",
+      targetId: id,
+      detail: `更新内容: ${dto.title || id}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   @Delete(":id")
@@ -47,7 +69,16 @@ export class ContentController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除内容（管理员）" })
   @ApiBearerAuth()
-  remove(@Param("id") id: string) {
-    return this.content.remove(id);
+  async remove(@Param("id") id: string, @Req() req: any) {
+    const result = await this.content.remove(id);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "DELETE",
+      targetType: "CONTENT",
+      targetId: id,
+      detail: `删除内容: ${id}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 }

@@ -4,6 +4,7 @@ import { PassportModule } from "@nestjs/passport";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 import { JwtStrategy } from "../../common/jwt.strategy";
+import { SystemModule } from "../system/system.module";
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { JwtStrategy } from "../../common/jwt.strategy";
       secret: process.env.JWT_SECRET || "guoxue-dev-secret",
       signOptions: { expiresIn: "24h" },
     }),
+    SystemModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

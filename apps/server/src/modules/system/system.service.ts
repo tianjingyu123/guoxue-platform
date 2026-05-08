@@ -1,9 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 
 @Injectable()
 export class SystemService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private audit: AuditService,
+  ) {}
 
   async getAllConfigs() {
     return this.prisma.configSystem.findMany({
@@ -37,7 +41,7 @@ export class SystemService {
     return map;
   }
 
-  // ── 审计日志 ──
+  // ── 审计日志（委托给 AuditService）──
 
   async logAudit(data: {
     userId?: string;
@@ -47,7 +51,7 @@ export class SystemService {
     detail?: string;
     ip?: string;
   }) {
-    return this.prisma.auditLog.create({ data });
+    return this.audit.log(data);
   }
 
   async getAuditLogs(params: {
@@ -59,34 +63,11 @@ export class SystemService {
     startDate?: string;
     endDate?: string;
   }) {
-    const { page, pageSize, action, userId, targetType, startDate, endDate } = params;
-    const where: any = {};
-    if (action) where.action = action;
-    if (userId) where.userId = userId;
-    if (targetType) where.targetType = targetType;
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate);
-      if (endDate) where.createdAt.lte = new Date(endDate + "T23:59:59.999Z");
-    }
-
-    const [logs, total] = await Promise.all([
-      this.prisma.auditLog.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      this.prisma.auditLog.count({ where }),
-    ]);
-    return { logs, total };
+    return this.audit.list(params);
   }
 
   async getAuditActions() {
-    const actions = await this.prisma.auditLog.findMany({
-      select: { action: true },
-      distinct: ["action"],
-    });
-    return actions.map((a) => a.action);
+    const rows = await this.audit.getActions();
+    return rows.map((a) => a.action);
   }
 }

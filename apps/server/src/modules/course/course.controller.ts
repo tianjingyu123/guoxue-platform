@@ -4,6 +4,7 @@ import {
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { CourseService } from "./course.service";
+import { SystemService } from "../system/system.service";
 import {
   CreateCourseDto, UpdateCourseDto,
   CreateChapterDto, UpdateChapterDto,
@@ -17,7 +18,10 @@ import { Roles } from "../../common/roles.decorator";
 @ApiTags("课程")
 @Controller("courses")
 export class CourseController {
-  constructor(private course: CourseService) {}
+  constructor(
+    private course: CourseService,
+    private systemService: SystemService,
+  ) {}
 
   // ───────── 课程 CRUD ─────────
 
@@ -25,8 +29,17 @@ export class CourseController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建课程" })
   @ApiBearerAuth()
-  create(@Req() req: any, @Body() dto: CreateCourseDto) {
-    return this.course.create(req.user.id, dto);
+  async create(@Req() req: any, @Body() dto: CreateCourseDto) {
+    const result = await this.course.create(req.user.id, dto);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "CREATE",
+      targetType: "COURSE",
+      targetId: result.id,
+      detail: `创建课程: ${dto.title}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   @Get()
@@ -50,16 +63,34 @@ export class CourseController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新课程" })
   @ApiBearerAuth()
-  update(@Param("id") id: string, @Req() req: any, @Body() dto: UpdateCourseDto) {
-    return this.course.update(id, req.user.id, dto);
+  async update(@Param("id") id: string, @Req() req: any, @Body() dto: UpdateCourseDto) {
+    const result = await this.course.update(id, req.user.id, dto);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "UPDATE",
+      targetType: "COURSE",
+      targetId: id,
+      detail: `更新课程: ${dto.title || id}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   @Delete(":id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除课程" })
   @ApiBearerAuth()
-  delete(@Param("id") id: string, @Req() req: any) {
-    return this.course.delete(id, req.user.id);
+  async delete(@Param("id") id: string, @Req() req: any) {
+    const result = await this.course.delete(id, req.user.id);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "DELETE",
+      targetType: "COURSE",
+      targetId: id,
+      detail: `删除课程: ${id}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   // ───────── 审核 ─────────
@@ -69,8 +100,17 @@ export class CourseController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审核课程" })
   @ApiBearerAuth()
-  audit(@Param("id") id: string, @Body("status") status: string) {
-    return this.course.audit(id, status);
+  async audit(@Param("id") id: string, @Body("status") status: string, @Req() req: any) {
+    const result = await this.course.audit(id, status);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "AUDIT",
+      targetType: "COURSE",
+      targetId: id,
+      detail: `审核课程: ${status}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   // ───────── 章节管理 ─────────

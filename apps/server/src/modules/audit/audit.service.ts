@@ -16,7 +16,7 @@ export class AuditService {
     return this.prisma.auditLog.create({ data: params });
   }
 
-  list(params: {
+  async list(params: {
     userId?: string;
     action?: string;
     targetType?: string;
@@ -36,10 +36,10 @@ export class AuditService {
     if (params.startDate || params.endDate) {
       where.createdAt = {};
       if (params.startDate) where.createdAt.gte = new Date(params.startDate);
-      if (params.endDate) where.createdAt.lte = new Date(params.endDate);
+      if (params.endDate) where.createdAt.lte = new Date(params.endDate + "T23:59:59.999Z");
     }
 
-    return Promise.all([
+    const [logs, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
         skip: (page - 1) * pageSize,
@@ -47,6 +47,14 @@ export class AuditService {
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.auditLog.count({ where }),
-    ]).then(([logs, total]) => ({ logs, total, page, pageSize }));
+    ]);
+    return { logs, total, page, pageSize };
+  }
+
+  async getActions() {
+    return this.prisma.auditLog.findMany({
+      select: { action: true },
+      distinct: ["action"],
+    });
   }
 }

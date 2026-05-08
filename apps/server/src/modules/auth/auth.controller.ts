@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Put, Body, UseGuards, Req } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
+import { SystemService } from "../system/system.service";
 import {
   PhoneRegisterDto,
   PhoneLoginDto,
@@ -16,27 +17,75 @@ import { StrictThrottleGuard } from "../../common/throttle.guard";
 @ApiTags("Auth")
 @Controller("auth")
 export class AuthController {
-  constructor(private auth: AuthService) {}
+  constructor(
+    private auth: AuthService,
+    private systemService: SystemService,
+  ) {}
 
   @Post("register/phone")
   @ApiOperation({ summary: "手机号注册", description: "使用手机号和密码注册新用户" })
   @UseGuards(StrictThrottleGuard)
-  phoneRegister(@Body() dto: PhoneRegisterDto) {
-    return this.auth.phoneRegister(dto);
+  async phoneRegister(@Body() dto: PhoneRegisterDto, @Req() req: any) {
+    const result = await this.auth.phoneRegister(dto);
+    this.systemService.logAudit({
+      userId: result.user.id,
+      action: "CREATE",
+      targetType: "USER",
+      targetId: result.user.id,
+      detail: `手机号注册: ${dto.phone}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   @Post("login/phone")
   @ApiOperation({ summary: "手机号登录", description: "使用手机号和密码登录" })
   @UseGuards(StrictThrottleGuard)
-  phoneLogin(@Body() dto: PhoneLoginDto) {
-    return this.auth.phoneLogin(dto);
+  async phoneLogin(@Body() dto: PhoneLoginDto, @Req() req: any) {
+    try {
+      const result = await this.auth.phoneLogin(dto);
+      this.systemService.logAudit({
+        userId: result.user.id,
+        action: "LOGIN",
+        detail: `手机号登录`,
+        ip: req.ip,
+      }).catch(() => {});
+      return result;
+    } catch (err) {
+      this.systemService.logAudit({
+        action: "LOGIN_FAILED",
+        targetType: "PHONE",
+        targetId: dto.phone,
+        detail: `登录失败: ${dto.phone}`,
+        ip: req.ip,
+      }).catch(() => {});
+      throw err;
+    }
   }
 
   @Post("login/sms")
   @ApiOperation({ summary: "短信验证码登录", description: "使用手机号和短信验证码登录" })
   @UseGuards(StrictThrottleGuard)
-  smsLogin(@Body() dto: SmsLoginDto) {
-    return this.auth.smsLogin(dto);
+  async smsLogin(@Body() dto: SmsLoginDto, @Req() req: any) {
+    try {
+      const result = await this.auth.smsLogin(dto);
+      this.systemService.logAudit({
+        userId: result.user.id,
+        action: "LOGIN",
+        detail: `短信验证码登录`,
+        ip: req.ip,
+      }).catch(() => {});
+      return result;
+    } catch (err) {
+      this.systemService.logAudit({
+        action: "LOGIN_FAILED",
+        targetType: "PHONE",
+        targetId: dto.phone,
+        detail: `短信登录失败: ${dto.phone}`,
+        ip: req.ip,
+      }).catch(() => {});
+      throw err;
+    }
   }
 
   @Post("sms/send")
