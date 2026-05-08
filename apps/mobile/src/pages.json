@@ -157,7 +157,7 @@
   ],
   "tabBar": {
     "color": "#999999",
-    "selectedColor": "#8b4513",
+    "selectedColor": "#C41E3A",
     "backgroundColor": "#ffffff",
     "borderStyle": "black",
     "list": [
@@ -188,7 +188,7 @@
     ]
   },
   "globalStyle": {
-    "navigationBarBackgroundColor": "#8b4513",
+    "navigationBarBackgroundColor": "#C41E3A",
     "navigationBarTextStyle": "white",
     "navigationBarTitleText": "国学平台"
   }

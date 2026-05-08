@@ -518,7 +518,7 @@ function formatTime(timeStr?: string): string {
 
 <style>
 .page {
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
   padding-bottom: 20px;
 }
@@ -595,7 +595,7 @@ function formatTime(timeStr?: string): string {
   justify-content: center;
   gap: 24px;
   font-size: 13px;
-  color: #8b4513;
+  color: #C41E3A;
   margin: 8px 0;
 }
 .tags {
@@ -607,8 +607,8 @@ function formatTime(timeStr?: string): string {
 }
 .tag {
   font-size: 12px;
-  color: #8b4513;
-  background: #f5ead6;
+  color: #C41E3A;
+  background: #F5F0E8;
   padding: 2px 12px;
   border-radius: 12px;
 }
@@ -624,7 +624,7 @@ function formatTime(timeStr?: string): string {
   color: #fff;
 }
 .action-btn.join {
-  background: #8b4513;
+  background: #C41E3A;
 }
 .action-btn.join:active {
   background: #7a3a0f;
@@ -649,11 +649,11 @@ function formatTime(timeStr?: string): string {
   border-radius: 16px;
   font-size: 13px;
   color: #666;
-  background: #f5f0e6;
+  background: #F5F0E8;
 }
 .tab-item.active {
   color: #fff;
-  background: #8b4513;
+  background: #C41E3A;
 }
 
 /* ===== 发帖快捷入口 ===== */
@@ -711,7 +711,7 @@ function formatTime(timeStr?: string): string {
 .post-user {
   font-size: 14px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
 }
 .post-time {
   font-size: 11px;
@@ -731,7 +731,7 @@ function formatTime(timeStr?: string): string {
   background: #fde8e8;
 }
 .badge.essence {
-  color: #c4943a;
+  color: #C9A96E;
   background: #fdf5e6;
 }
 .post-title {
@@ -765,7 +765,7 @@ function formatTime(timeStr?: string): string {
   gap: 24px;
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px solid #f5f0e6;
+  border-top: 1px solid #F5F0E8;
 }
 .footer-item {
   display: flex;
@@ -786,7 +786,7 @@ function formatTime(timeStr?: string): string {
   padding: 60px 0;
 }
 .retry-btn {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 20px;
   padding: 8px 32px;
@@ -798,7 +798,7 @@ function formatTime(timeStr?: string): string {
 /* ===== 加载更多 ===== */
 .load-more {
   text-align: center;
-  color: #c4943a;
+  color: #C9A96E;
   padding: 16px 0;
   font-size: 13px;
 }
@@ -814,7 +814,7 @@ function formatTime(timeStr?: string): string {
   position: fixed;
   right: 16px;
   bottom: 100px;
-  background: linear-gradient(135deg, #8b4513, #c4943a);
+  background: linear-gradient(135deg, #C41E3A, #C9A96E);
   color: #fff;
   border-radius: 28px;
   padding: 10px 16px;
@@ -932,7 +932,7 @@ function formatTime(timeStr?: string): string {
 }
 .add-img-btn {
   font-size: 13px;
-  color: #8b4513;
+  color: #C41E3A;
   padding: 6px 12px;
   border-radius: 16px;
   border: 1px solid #e0d5c1;
@@ -948,7 +948,7 @@ function formatTime(timeStr?: string): string {
   color: #ccc;
 }
 .submit-btn {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 16px;
   padding: 6px 20px;

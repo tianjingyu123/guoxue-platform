@@ -158,7 +158,7 @@ function visitorLogin() {
 <style scoped>
 .page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #f5f0e6 0%, #e8dfd0 100%);
+  background: linear-gradient(180deg, #F5F0E8 0%, #e8dfd0 100%);
   padding: 40px 28px;
 }
 
@@ -176,7 +176,7 @@ function visitorLogin() {
 .brand-name {
   font-size: 24px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
   letter-spacing: 2px;
 }
 .brand-slogan {
@@ -199,9 +199,9 @@ function visitorLogin() {
   transition: all 0.2s;
 }
 .tabs text.active {
-  color: #8b4513;
+  color: #C41E3A;
   font-weight: bold;
-  border-bottom: 3px solid #8b4513;
+  border-bottom: 3px solid #C41E3A;
 }
 
 /* 表单 */
@@ -221,7 +221,7 @@ function visitorLogin() {
   transition: border-color 0.2s;
 }
 .input-wrap:focus-within {
-  border-color: #c4943a;
+  border-color: #C9A96E;
 }
 .input-icon {
   font-size: 18px;
@@ -252,12 +252,12 @@ function visitorLogin() {
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  color: #8b4513;
+  color: #C41E3A;
   flex-shrink: 0;
 }
 .agree-box.checked {
-  border-color: #8b4513;
-  background: #8b4513;
+  border-color: #C41E3A;
+  background: #C41E3A;
   color: #fff;
 }
 .agree-text {
@@ -266,11 +266,11 @@ function visitorLogin() {
   line-height: 1.4;
 }
 .agree-link {
-  color: #8b4513;
+  color: #C41E3A;
 }
 
 .submit-btn {
-  background: linear-gradient(135deg, #8b4513, #a0522d);
+  background: linear-gradient(135deg, #C41E3A, #a0522d);
   color: #fff;
   border-radius: 24px;
   padding: 13px;
@@ -290,7 +290,7 @@ function visitorLogin() {
 }
 .extra-link {
   font-size: 13px;
-  color: #8b4513;
+  color: #C41E3A;
 }
 
 /* 第三方登录 */

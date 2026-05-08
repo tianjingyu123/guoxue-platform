@@ -103,7 +103,7 @@ async function handleCancel() {
 </script>
 
 <style>
-.page { padding: 12px; background: #f5f0e6; min-height: 100vh; }
+.page { padding: 12px; background: #F5F0E8; min-height: 100vh; }
 
 .center { display: flex; justify-content: center; padding: 60px 0; }
 .loading-text { color: #999; font-size: 14px; }
@@ -124,7 +124,7 @@ async function handleCancel() {
 }
 .info-row {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 0; border-bottom: 1px solid #f5f0e6;
+  padding: 12px 0; border-bottom: 1px solid #F5F0E8;
 }
 .info-row:last-child { border-bottom: none; }
 .label { font-size: 14px; color: #999; }
@@ -133,7 +133,7 @@ async function handleCancel() {
 
 .actions { display: flex; gap: 12px; margin-top: 8px; }
 .btn-primary {
-  flex: 1; background: #8b4513; color: #fff; border-radius: 8px;
+  flex: 1; background: #C41E3A; color: #fff; border-radius: 8px;
   font-size: 15px; padding: 12px; border: none; text-align: center;
 }
 .btn-cancel {

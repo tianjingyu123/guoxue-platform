@@ -6,7 +6,7 @@
         <text class="back-icon">‹</text>
       </view>
       <view class="header-info">
-        <view class="header-avatar" :style="{ background: bot.color || '#8b4513' }">
+        <view class="header-avatar" :style="{ background: bot.color || '#C41E3A' }">
           <text class="avatar-text">{{ bot.name?.charAt(0) || '智' }}</text>
         </view>
         <view class="header-text">
@@ -20,7 +20,7 @@
     <scroll-view class="messages" scroll-y :scroll-into-view="scrollTo" scroll-with-animation>
       <!-- 首次进入：智能体介绍 -->
       <view v-if="messages.length === 0" class="welcome">
-        <view class="welcome-avatar" :style="{ background: bot.color || '#8b4513' }">
+        <view class="welcome-avatar" :style="{ background: bot.color || '#C41E3A' }">
           <text class="welcome-avatar-text">{{ bot.name?.charAt(0) || '智' }}</text>
         </view>
         <text class="welcome-name">{{ bot.name }}</text>
@@ -47,7 +47,7 @@
         </view>
         <!-- 智能体消息 -->
         <view v-else class="msg-row bot-row">
-          <view class="bot-bubble-avatar" :style="{ background: bot.color || '#8b4513' }">
+          <view class="bot-bubble-avatar" :style="{ background: bot.color || '#C41E3A' }">
             <text class="mini-avatar-text">{{ bot.name?.charAt(0) || '智' }}</text>
           </view>
           <view class="msg-bubble bot-bubble">
@@ -111,7 +111,7 @@ const bot = ref<Bot>({
   category: "",
   tag: "",
   usageCount: 0,
-  color: "#8b4513",
+  color: "#C41E3A",
   intro: "您好！有什么可以帮助您的？",
   suggestions: [],
 });
@@ -237,7 +237,7 @@ function goBack() {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f5f0e6;
+  background: #F5F0E8;
 }
 
 /* 顶部导航 */
@@ -245,7 +245,7 @@ function goBack() {
   display: flex;
   align-items: center;
   padding: 8px 12px;
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   flex-shrink: 0;
 }
@@ -366,7 +366,7 @@ function goBack() {
 
 .suggestion-text {
   font-size: 13px;
-  color: #8b4513;
+  color: #C41E3A;
 }
 
 /* 消息气泡 */
@@ -410,7 +410,7 @@ function goBack() {
 }
 
 .user-bubble {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-bottom-right-radius: 4px;
 }
@@ -430,7 +430,7 @@ function goBack() {
 
 .typing-cursor {
   font-size: 14px;
-  color: #8b4513;
+  color: #C41E3A;
   animation: blink 0.8s infinite;
 }
 
@@ -465,7 +465,7 @@ function goBack() {
 .input-box {
   flex: 1;
   height: 40px;
-  background: #f5f0e6;
+  background: #F5F0E8;
   border-radius: 20px;
   padding: 0 16px;
   font-size: 14px;
@@ -476,7 +476,7 @@ function goBack() {
   flex-shrink: 0;
   height: 40px;
   padding: 0 20px;
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 20px;
   font-size: 14px;

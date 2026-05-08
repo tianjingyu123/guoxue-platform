@@ -160,13 +160,13 @@ function formatTime(timeStr?: string): string {
 </script>
 
 <style>
-.page { padding: 12px; background: #f5f0e6; min-height: 100vh; padding-bottom: 40px; }
+.page { padding: 12px; background: #F5F0E8; min-height: 100vh; padding-bottom: 40px; }
 
 /* ============================
    余额卡片
    ============================ */
 .balance-card {
-  background: linear-gradient(135deg, #8b4513, #c4943a);
+  background: linear-gradient(135deg, #C41E3A, #C9A96E);
   border-radius: 12px;
   padding: 32px 24px 24px;
   text-align: center;
@@ -209,7 +209,7 @@ function formatTime(timeStr?: string): string {
   padding: 8px 28px;
   border-radius: 20px;
   font-size: 14px;
-  color: #8b4513;
+  color: #C41E3A;
   background: #fff;
 }
 .action-icon {
@@ -246,7 +246,7 @@ function formatTime(timeStr?: string): string {
   align-items: center;
   justify-content: space-between;
   padding: 14px 0;
-  border-bottom: 1px solid #f5f0e6;
+  border-bottom: 1px solid #F5F0E8;
 }
 .transaction-item:last-child {
   border-bottom: none;

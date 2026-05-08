@@ -123,7 +123,7 @@ function formatCount(n: number | undefined): string {
 
 <style scoped>
 .page {
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
   padding: 0;
 }
@@ -134,7 +134,7 @@ function formatCount(n: number | undefined): string {
 .header-title {
   font-size: 20px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
 }
 .header-sub {
   font-size: 12px;
@@ -158,7 +158,7 @@ function formatCount(n: number | undefined): string {
   background: #fff;
 }
 .tab.active {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   font-weight: bold;
 }

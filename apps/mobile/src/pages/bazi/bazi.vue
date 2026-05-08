@@ -688,7 +688,7 @@ function goHistory() {
 /* ========== 页面整体 ========== */
 .page {
   padding: 12px;
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
   padding-bottom: 60px;
 }
@@ -701,7 +701,7 @@ function goHistory() {
 .page-title {
   font-size: 22px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
   display: block;
 }
 .page-subtitle {
@@ -722,11 +722,11 @@ function goHistory() {
 .form-section-title {
   font-size: 14px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
   display: block;
   margin-bottom: 12px;
   padding-left: 8px;
-  border-left: 3px solid #c4943a;
+  border-left: 3px solid #C9A96E;
 }
 .form-divider {
   height: 1px;
@@ -758,7 +758,7 @@ function goHistory() {
   color: #333;
 }
 .form-input:focus {
-  border-color: #c4943a;
+  border-color: #C9A96E;
 }
 
 /* 性别切换 */
@@ -770,16 +770,16 @@ function goHistory() {
   padding: 8px 28px;
   border-radius: 20px;
   font-size: 14px;
-  background: #f5f0e6;
+  background: #F5F0E8;
   color: #999;
   text-align: center;
   transition: all 0.2s;
   border: 1px solid transparent;
 }
 .gender-btn.active {
-  background: linear-gradient(135deg, #8b4513, #a0522d);
+  background: linear-gradient(135deg, #C41E3A, #a0522d);
   color: #fff;
-  border-color: #8b4513;
+  border-color: #C41E3A;
   font-weight: bold;
 }
 
@@ -835,8 +835,8 @@ function goHistory() {
   transition: all 0.2s;
 }
 .shichen-btn.active {
-  background: #8b4513;
-  border-color: #8b4513;
+  background: #C41E3A;
+  border-color: #C41E3A;
 }
 .shichen-btn.active .sc-dizhi {
   color: #fff;
@@ -858,7 +858,7 @@ function goHistory() {
 
 /* 排盘按钮 */
 .calc-btn {
-  background: linear-gradient(135deg, #8b4513, #c4943a);
+  background: linear-gradient(135deg, #C41E3A, #C9A96E);
   color: #fff;
   border-radius: 24px;
   padding: 12px;
@@ -892,7 +892,7 @@ function goHistory() {
 }
 .loading-text {
   font-size: 14px;
-  color: #8b4513;
+  color: #C41E3A;
 }
 
 /* ========== 结果区 ========== */
@@ -920,9 +920,9 @@ function goHistory() {
 .card-title {
   font-size: 15px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
   padding-left: 8px;
-  border-left: 3px solid #c4943a;
+  border-left: 3px solid #C9A96E;
 }
 .card-subtitle {
   font-size: 12px;
@@ -961,7 +961,7 @@ function goHistory() {
 .bt-label {
   font-size: 13px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
 }
 .bt-gan {
   padding: 12px 4px 6px;
@@ -1010,7 +1010,7 @@ function goHistory() {
 }
 .nayin-text {
   font-size: 12px;
-  color: #8b4513;
+  color: #C41E3A;
   font-weight: 500;
 }
 .bt-shishen {
@@ -1019,7 +1019,7 @@ function goHistory() {
 }
 .ss-text {
   font-size: 12px;
-  color: #8b4513;
+  color: #C41E3A;
   font-weight: bold;
 }
 
@@ -1047,7 +1047,7 @@ function goHistory() {
 }
 .tms-nayin {
   font-size: 11px;
-  color: #c4943a;
+  color: #C9A96E;
 }
 .tms-divider {
   width: 1px;
@@ -1165,13 +1165,13 @@ function goHistory() {
   color: #999;
 }
 .qiyun-value {
-  color: #8b4513;
+  color: #C41E3A;
   font-weight: bold;
 }
 .dayun-section-title {
   font-size: 13px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
   display: block;
   margin-bottom: 10px;
 }
@@ -1195,8 +1195,8 @@ function goHistory() {
   transition: all 0.2s;
 }
 .dayun-item.active {
-  background: linear-gradient(135deg, #8b4513, #a0522d);
-  border-color: #8b4513;
+  background: linear-gradient(135deg, #C41E3A, #a0522d);
+  border-color: #C41E3A;
 }
 .dayun-item.active .dy-ganzhi {
   color: #fff;
@@ -1214,7 +1214,7 @@ function goHistory() {
 }
 .dy-shishen {
   font-size: 11px;
-  color: #8b4513;
+  color: #C41E3A;
   margin-top: 3px;
 }
 .dy-age {
@@ -1229,7 +1229,7 @@ function goHistory() {
   transform: translateX(-50%);
   width: 20px;
   height: 3px;
-  background: #c4943a;
+  background: #C9A96E;
   border-radius: 2px;
 }
 
@@ -1263,7 +1263,7 @@ function goHistory() {
 }
 .ln-shishen {
   font-size: 10px;
-  color: #8b4513;
+  color: #C41E3A;
   margin-top: 2px;
 }
 
@@ -1430,7 +1430,7 @@ function goHistory() {
 }
 .login-banner-link {
   font-size: 13px;
-  color: #8b4513;
+  color: #C41E3A;
   font-weight: bold;
   flex-shrink: 0;
   margin-left: 8px;
@@ -1477,13 +1477,13 @@ function goHistory() {
   border: none;
 }
 .save-btn {
-  background: linear-gradient(135deg, #8b4513, #a0522d);
+  background: linear-gradient(135deg, #C41E3A, #a0522d);
   color: #fff;
 }
 .history-btn {
   background: #fff;
-  color: #8b4513;
-  border: 1px solid #8b4513;
+  color: #C41E3A;
+  border: 1px solid #C41E3A;
 }
 
 /* ========== 错误状态 ========== */
@@ -1515,7 +1515,7 @@ function goHistory() {
   line-height: 1.6;
 }
 .retry-btn {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 20px;
   padding: 8px 24px;

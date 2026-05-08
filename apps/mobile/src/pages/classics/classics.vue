@@ -201,7 +201,7 @@ onPullDownRefresh(() => {
 /* ========== 页面整体 ========== */
 .page {
   padding: 12px;
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
   padding-bottom: 40px;
 }
@@ -214,7 +214,7 @@ onPullDownRefresh(() => {
 .page-title {
   font-size: 20px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
   display: block;
 }
 .page-subtitle {
@@ -248,8 +248,8 @@ onPullDownRefresh(() => {
   flex-shrink: 0;
 }
 .category-tab.active {
-  background: linear-gradient(135deg, #8b4513, #a0522d);
-  border-color: #8b4513;
+  background: linear-gradient(135deg, #C41E3A, #a0522d);
+  border-color: #C41E3A;
 }
 .category-tab.active .cat-label {
   color: #fff;
@@ -312,7 +312,7 @@ onPullDownRefresh(() => {
 }
 .placeholder-cat {
   font-size: 11px;
-  color: #8b4513;
+  color: #C41E3A;
   font-weight: bold;
 }
 
@@ -343,8 +343,8 @@ onPullDownRefresh(() => {
 }
 .book-dynasty {
   font-size: 11px;
-  color: #8b4513;
-  background: #f5ead6;
+  color: #C41E3A;
+  background: #F5F0E8;
   padding: 0 6px;
   border-radius: 4px;
 }
@@ -354,8 +354,8 @@ onPullDownRefresh(() => {
 }
 .book-cat-tag {
   font-size: 10px;
-  color: #8b4513;
-  background: #f5f0e6;
+  color: #C41E3A;
+  background: #F5F0E8;
   padding: 1px 8px;
   border-radius: 8px;
   border: 1px solid #e8d5b8;
@@ -388,7 +388,7 @@ onPullDownRefresh(() => {
   justify-content: center;
 }
 .empty-btn {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 20px;
   padding: 8px 24px;

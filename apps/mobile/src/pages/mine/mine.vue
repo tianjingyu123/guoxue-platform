@@ -722,267 +722,238 @@ function formatTime(timeStr?: string): string {
 </script>
 
 <style>
-.page { padding: 12px; background: #f5f0e6; min-height: 100vh; padding-bottom: 40px; }
+.page {
+  background: #F5F0E8;
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
 
-/* ============================
-   用户卡片
-   ============================ */
+/* ── 用户卡片 ── */
 .user-card {
-  background: linear-gradient(135deg, #8b4513, #c4943a);
-  border-radius: 12px; padding: 28px; text-align: center; margin-bottom: 12px;
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
+  padding: 30px 15px 40px;
+  color: #fff;
 }
-.user-card.unlogin { padding: 40px 28px 32px; }
+.user-card.unlogin {
+  padding: 50px 20px 40px;
+}
 .avatar {
-  width: 72px; height: 72px; border-radius: 50%;
-  background: rgba(255,255,255,0.3); border: 2px solid rgba(255,255,255,0.5);
+  width: 70px; height: 70px; border-radius: 50%;
+  background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4);
+  display: block; margin: 0 auto;
 }
-.nickname { color: #fff; font-size: 20px; margin-top: 10px; display: block; font-weight: 500; }
+.nickname {
+  color: #fff; font-size: 20px; font-weight: bold;
+  display: block; text-align: center; margin-top: 12px;
+}
 .bio {
-  color: rgba(255,255,255,0.8); font-size: 13px; display: block;
-  margin-top: 6px; line-height: 1.5; max-width: 260px; margin-left: auto; margin-right: auto;
+  color: rgba(255,255,255,0.75); font-size: 13px; display: block;
+  text-align: center; margin-top: 6px;
 }
-.login-btn {
-  background: rgba(255,255,255,0.2); color: #fff; font-size: 17px;
-  border: 1px solid rgba(255,255,255,0.5); border-radius: 24px;
-  padding: 10px 32px; display: inline-block;
+.stats-row {
+  display: flex; justify-content: center; gap: 32px; margin-top: 16px;
 }
-.login-tip { color: rgba(255,255,255,0.6); font-size: 13px; display: block; margin-top: 12px; }
+.stat-item { display: flex; flex-direction: column; align-items: center; }
+.stat-num { color: #fff; font-size: 18px; font-weight: bold; }
+.stat-label { color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 2px; }
 
-/* 未登录页面 */
-.unlogin-page {
-  padding-bottom: 20px;
-}
+/* ── 未登录 ── */
+.unlogin-page { padding-bottom: 20px; }
 .unlogin-avatar {
   width: 64px; height: 64px; border-radius: 50%;
   background: rgba(255,255,255,0.2); display: flex; align-items: center;
   justify-content: center; font-size: 32px; margin: 0 auto 12px;
 }
 .unlogin-title {
-  color: #fff; font-size: 20px; font-weight: bold; display: block;
+  color: #fff; font-size: 20px; font-weight: bold; display: block; text-align: center;
 }
 .unlogin-subtitle {
   color: rgba(255,255,255,0.7); font-size: 13px; display: block;
-  margin-top: 6px; margin-bottom: 16px;
+  text-align: center; margin-top: 6px; margin-bottom: 16px;
 }
-/* 功能预览 */
+.login-btn {
+  background: rgba(255,255,255,0.2); color: #fff; font-size: 16px;
+  border: 1px solid rgba(255,255,255,0.5); border-radius: 24px;
+  padding: 10px 32px; display: inline-block; text-align: center; margin: 0 auto;
+}
 .feature-preview {
   background: #fff; border-radius: 12px; padding: 20px 16px;
-  margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  margin: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 .fp-title {
-  font-size: 14px; font-weight: bold; color: #8b4513;
+  font-size: 14px; font-weight: bold; color: #C41E3A;
   display: block; margin-bottom: 16px; padding-left: 8px;
-  border-left: 3px solid #c4943a;
+  border-left: 3px solid #C9A96E;
 }
-.fp-grid {
-  display: flex; flex-wrap: wrap; gap: 12px;
-}
+.fp-grid { display: flex; flex-wrap: wrap; gap: 12px; }
 .fp-item {
   width: calc(33.33% - 8px); display: flex; flex-direction: column;
   align-items: center; text-align: center; padding: 8px 4px;
 }
 .fp-icon { font-size: 28px; display: block; margin-bottom: 6px; }
 .fp-label { font-size: 13px; color: #333; font-weight: 500; display: block; }
-.fp-desc { font-size: 10px; color: #bbb; display: block; margin-top: 2px; }
-/* 底部登录入口 */
+.fp-desc { font-size: 10px; color: #999; display: block; margin-top: 2px; }
 .bottom-login {
-  background: #fff; border-radius: 12px; padding: 16px;
+  background: #fff; border-radius: 12px; padding: 16px; margin: 0 15px;
   display: flex; align-items: center; justify-content: center;
-  gap: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  gap: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
-.bottom-login-text { font-size: 15px; color: #8b4513; font-weight: 500; }
+.bottom-login-text { font-size: 15px; color: #C41E3A; font-weight: 500; }
 
-/* 统计数据行 */
-.stats-row {
-  display: flex; justify-content: center; gap: 32px; margin-top: 14px;
-}
-.stat-item { display: flex; flex-direction: column; align-items: center; }
-.stat-num { color: #fff; font-size: 18px; font-weight: bold; }
-.stat-label { color: rgba(255,255,255,0.7); font-size: 12px; margin-top: 2px; }
-
-/* ============================
-   会员卡片
-   ============================ */
+/* ── VIP 卡片 ── */
 .vip-card {
-  background: #fff; border-radius: 8px; padding: 16px;
-  margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;
+  margin: -25px 15px 15px;
+  background: linear-gradient(135deg, #2a2a2a, #3a3a3a);
+  border-radius: 12px; padding: 15px; color: #fff;
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: space-between;
 }
-.vip-left { flex: 1; }
+.vip-card::before {
+  content: ''; position: absolute; top: -20px; right: -20px;
+  width: 100px; height: 100px;
+  background: linear-gradient(135deg, #C9A96E, #D4AF37);
+  border-radius: 50%; opacity: 0.25;
+}
+.vip-left { flex: 1; position: relative; z-index: 1; }
 .vip-label {
-  font-size: 16px; font-weight: bold; color: #999;
-  padding: 2px 12px; border-radius: 12px; background: #f5f0e6;
+  font-size: 16px; font-weight: bold;
+  color: #C9A96E; display: block;
 }
-.vip-label.active { color: #8b4513; background: #f5e6d0; }
-.vip-expire { font-size: 12px; color: #bbb; display: block; margin-top: 6px; }
+.vip-label.active { color: #D4AF37; }
+.vip-expire { font-size: 12px; color: rgba(255,255,255,0.6); display: block; margin-top: 4px; }
 .vip-upgrade {
-  font-size: 14px; color: #8b4513; font-weight: 500;
-  padding: 6px 16px; border: 1px solid #8b4513; border-radius: 16px;
+  font-size: 13px; color: #2a2a2a; font-weight: bold;
+  padding: 6px 14px; background: linear-gradient(135deg, #C9A96E, #D4AF37);
+  border-radius: 15px; position: relative; z-index: 1;
 }
 
-/* ============================
-   Tab 栏
-   ============================ */
+/* ── Tab 栏 ── */
 .tab-bar {
-  display: flex; background: #fff; border-radius: 8px; overflow: hidden;
-  margin-bottom: 10px;
+  display: flex; background: #fff; border-radius: 12px; overflow: hidden;
+  margin: 0 15px 10px;
 }
 .tab-item {
-  flex: 1; text-align: center; padding: 12px 0; font-size: 15px;
-  color: #999; position: relative; transition: color 0.2s;
+  flex: 1; text-align: center; padding: 14px 0; font-size: 14px;
+  color: #666; position: relative; transition: color 0.2s;
 }
-.tab-item.active { color: #8b4513; font-weight: bold; }
+.tab-item.active { color: #C41E3A; font-weight: 500; }
 .tab-item.active::after {
-  content: ""; position: absolute; bottom: 0; left: 20%; right: 20%;
-  height: 2px; background: #8b4513; border-radius: 1px;
+  content: ""; position: absolute; bottom: 0; left: 25%; right: 25%;
+  height: 2px; background: #C41E3A; border-radius: 1px;
 }
 
-/* ============================
-   内容区域
-   ============================ */
-.content-area { min-height: 120px; }
+/* ── 内容区域 ── */
+.content-area { margin: 0 15px; min-height: 120px; }
 
-/* ===== 帖子卡片 ===== */
+/* 帖子 */
 .post-list { display: flex; flex-direction: column; gap: 10px; }
 .post-card {
-  background: #fff; border-radius: 8px; padding: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  background: #fff; border-radius: 12px; padding: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
-.post-header {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
-}
+.post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .post-user-info { display: flex; align-items: center; gap: 8px; }
 .post-avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; }
 .post-user-meta { display: flex; flex-direction: column; }
-.post-user { font-size: 14px; font-weight: bold; color: #8b4513; }
-.post-time { font-size: 11px; color: #ccc; }
+.post-user { font-size: 14px; font-weight: bold; color: #C41E3A; }
+.post-time { font-size: 11px; color: #999; }
 .post-badges { display: flex; gap: 4px; }
 .badge { font-size: 10px; padding: 1px 8px; border-radius: 8px; }
-.badge.essence { color: #c4943a; background: #fdf5e6; }
-.post-title {
-  font-size: 15px; font-weight: bold; color: #333; display: block; margin-bottom: 4px;
-}
+.badge.essence { color: #C9A96E; background: #fdf5e6; }
+.post-title { font-size: 15px; font-weight: bold; color: #333; display: block; margin-bottom: 4px; }
 .post-body {
   font-size: 14px; color: #444; line-height: 1.7; display: block;
-  overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
 }
-.post-images {
-  display: flex; gap: 6px; margin-top: 10px; overflow-x: auto; flex-wrap: wrap;
-}
-.post-img {
-  width: 100px; height: 100px; border-radius: 6px; flex-shrink: 0;
-}
+.post-images { display: flex; gap: 6px; margin-top: 10px; overflow-x: auto; flex-wrap: wrap; }
+.post-img { width: 100px; height: 100px; border-radius: 8px; flex-shrink: 0; }
 .post-footer {
   display: flex; gap: 24px; margin-top: 10px; padding-top: 8px;
-  border-top: 1px solid #f5f0e6;
+  border-top: 1px solid #F5F0E8;
 }
 .footer-item { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #999; }
 .footer-count { font-size: 12px; }
 
-/* ===== 文章卡片 ===== */
+/* 文章 */
 .article-list { display: flex; flex-direction: column; gap: 10px; }
 .article-card {
-  background: #fff; border-radius: 8px; overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  background: #fff; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
-.article-cover {
-  width: 100%; height: 160px; display: block;
-}
+.article-cover { width: 100%; height: 160px; display: block; }
 .article-info { padding: 12px 14px; }
 .article-title {
-  font-size: 16px; font-weight: bold; color: #333; display: block;
+  font-size: 15px; font-weight: 500; color: #2C2C2C; display: block;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .article-summary {
   font-size: 13px; color: #888; display: block; margin-top: 6px; line-height: 1.6;
-  overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.article-meta {
-  display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: #bbb;
-}
+.article-meta { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: #999; }
 .meta-item.time { margin-left: auto; }
 
-/* ===== 收藏卡片 ===== */
+/* 收藏 */
 .collect-list { display: flex; flex-direction: column; gap: 10px; }
 .collect-card {
-  background: #fff; border-radius: 8px; overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex;
+  background: #fff; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex;
 }
 .collect-cover { width: 100px; height: 80px; flex-shrink: 0; }
 .collect-info { flex: 1; padding: 12px 14px; display: flex; flex-direction: column; }
 .collect-title {
-  font-size: 15px; font-weight: bold; color: #333;
+  font-size: 15px; font-weight: 500; color: #2C2C2C;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.collect-meta {
-  display: flex; gap: 8px; margin-top: auto; font-size: 12px; color: #bbb;
-}
-.meta-type {
-  color: #8b4513; background: #f5ead6; padding: 1px 8px; border-radius: 8px; font-size: 11px;
-}
+.collect-meta { display: flex; gap: 8px; margin-top: auto; font-size: 12px; color: #999; }
+.meta-type { color: #C41E3A; background: #F5F0E8; padding: 1px 8px; border-radius: 8px; font-size: 11px; }
 .meta-time { margin-left: auto; align-self: center; }
 
-/* ============================
-   加载更多 / 没有更多
-   ============================ */
-.load-more {
-  text-align: center; color: #c4943a; padding: 16px 0; font-size: 13px;
-}
-.no-more {
-  text-align: center; color: #ccc; padding: 16px 0; font-size: 12px;
-}
+/* ── 加载更多 ── */
+.load-more { text-align: center; color: #C9A96E; padding: 16px 0; font-size: 13px; }
+.no-more { text-align: center; color: #999; padding: 16px 0; font-size: 12px; }
 
-/* ============================
-   菜单
-   ============================ */
-.menu { background: #fff; border-radius: 8px; overflow: hidden; margin-top: 12px; }
+/* ── 菜单 ── */
+.menu {
+  margin: 15px;
+}
 .menu-item {
   display: flex; align-items: center; padding: 14px 16px;
-  border-bottom: 1px solid #f5f0e6; font-size: 15px;
+  background: #fff; border-bottom: 1px solid #E8E0D5;
 }
-.menu-item:last-child { border-bottom: none; }
+.menu-item:first-child { border-radius: 12px 12px 0 0; }
+.menu-item:last-child { border-radius: 0 0 12px 12px; border-bottom: none; }
+.menu-item:only-child { border-radius: 12px; }
 .menu-icon { font-size: 18px; margin-right: 12px; width: 24px; text-align: center; }
-.menu-label { flex: 1; color: #333; }
+.menu-label { flex: 1; color: #333; font-size: 15px; }
 .arrow { color: #ccc; font-size: 20px; font-weight: bold; }
-.badge {
-  background: #e74c3c; color: #fff; font-size: 11px;
-  padding: 2px 7px; border-radius: 10px; margin-right: 4px; min-width: 20px; text-align: center;
-}
 
-/* ============================
-   退出登录
-   ============================ */
+/* ── 退出登录 ── */
 .logout-btn {
-  text-align: center; background: #fff; border-radius: 8px;
-  padding: 14px; margin-top: 24px; color: #e74c3c; font-size: 15px; cursor: pointer;
+  text-align: center; background: #fff; border-radius: 12px;
+  padding: 14px; margin: 20px 15px; color: #e74c3c; font-size: 15px;
 }
 
-/* ============================
-   登录弹窗
-   ============================ */
+/* ── 登录弹窗 ── */
 .modal-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.5); z-index: 999; display: flex;
   align-items: center; justify-content: center;
 }
 .modal-content {
-  background: #fff; border-radius: 12px; padding: 28px 24px;
+  background: #fff; border-radius: 16px; padding: 28px 24px;
   width: 80%; max-width: 340px;
 }
 .modal-title { font-size: 20px; font-weight: bold; color: #333; text-align: center; margin-bottom: 20px; display: block; }
 .modal-input {
-  background: #f5f0e6; border-radius: 8px; padding: 12px 14px;
-  font-size: 15px; margin-bottom: 12px; border: 1px solid #e0d5c1;
+  background: #F5F0E8; border-radius: 10px; padding: 12px 14px;
+  font-size: 15px; margin-bottom: 12px; border: 1px solid #E8E0D5; width: 100%; box-sizing: border-box;
 }
 .login-error { color: #e74c3c; font-size: 13px; margin-bottom: 12px; }
 .modal-btn {
-  background: #8b4513; color: #fff; border-radius: 8px;
+  background: linear-gradient(135deg, #C41E3A, #8B0000); color: #fff; border-radius: 24px;
   font-size: 16px; padding: 12px; width: 100%; border: none; margin-top: 4px;
 }
 .modal-btn[disabled] { opacity: 0.5; }
-.modal-cancel {
-  display: block; text-align: center; color: #999; font-size: 14px;
-  margin-top: 16px; cursor: pointer;
-}
+.modal-cancel { display: block; text-align: center; color: #999; font-size: 14px; margin-top: 16px; }
 </style>

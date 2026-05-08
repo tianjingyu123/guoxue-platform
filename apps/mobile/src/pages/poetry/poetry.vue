@@ -267,7 +267,7 @@ onReachBottom(() => {
 /* ========== 页面整体 ========== */
 .page {
   padding: 10px 12px;
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
   padding-bottom: 40px;
 }
@@ -327,9 +327,9 @@ onReachBottom(() => {
   flex-shrink: 0;
 }
 .filter-tab.active {
-  background: linear-gradient(135deg, #8b4513, #c4943a);
+  background: linear-gradient(135deg, #C41E3A, #C9A96E);
   color: #fff;
-  border-color: #8b4513;
+  border-color: #C41E3A;
   font-weight: bold;
 }
 
@@ -373,8 +373,8 @@ onReachBottom(() => {
 .poem-dynasty-tag {
   font-size: 11px;
   padding: 1px 8px;
-  background: #f5ead6;
-  color: #8b4513;
+  background: #F5F0E8;
+  color: #C41E3A;
   border-radius: 8px;
   border: 1px solid #e8d5b8;
 }
@@ -404,8 +404,8 @@ onReachBottom(() => {
 }
 .poem-tag {
   font-size: 10px;
-  color: #8b4513;
-  background: #f5f0e6;
+  color: #C41E3A;
+  background: #F5F0E8;
   padding: 1px 8px;
   border-radius: 8px;
 }
@@ -426,7 +426,7 @@ onReachBottom(() => {
 }
 .load-more-text {
   font-size: 13px;
-  color: #8b4513;
+  color: #C41E3A;
 }
 .load-end {
   color: #ccc;
@@ -439,7 +439,7 @@ onReachBottom(() => {
   justify-content: center;
 }
 .empty-btn {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 20px;
   padding: 8px 24px;

@@ -139,7 +139,7 @@ async function fetchCircles(reset: boolean) {
 <style>
 .page {
   padding: 12px;
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
 }
 
@@ -155,11 +155,11 @@ async function fetchCircles(reset: boolean) {
 .title-text {
   font-size: 20px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
 }
 .title-sub {
   font-size: 12px;
-  color: #c4943a;
+  color: #C9A96E;
   font-style: italic;
 }
 
@@ -179,15 +179,15 @@ async function fetchCircles(reset: boolean) {
 }
 .filter-item.active {
   color: #fff;
-  background: #8b4513;
-  border-color: #8b4513;
+  background: #C41E3A;
+  border-color: #C41E3A;
 }
 
 /* 下拉刷新 */
 .refresh-tip {
   text-align: center;
   font-size: 12px;
-  color: #c4943a;
+  color: #C9A96E;
   padding: 6px 0;
 }
 
@@ -199,7 +199,7 @@ async function fetchCircles(reset: boolean) {
 /* 加载更多 */
 .load-more {
   text-align: center;
-  color: #c4943a;
+  color: #C9A96E;
   padding: 16px 0;
   font-size: 13px;
 }

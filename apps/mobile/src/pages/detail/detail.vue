@@ -271,13 +271,13 @@ function formatTime(dateStr?: string): string {
 </script>
 
 <style>
-.page { padding: 12px 12px 80px; background: #f5f0e6; min-height: 100vh; }
+.page { padding: 12px 12px 80px; background: #F5F0E8; min-height: 100vh; }
 .cover { width: 100%; height: 200px; border-radius: 8px; margin-bottom: 12px; }
 .title { font-size: 22px; font-weight: bold; color: #333; display: block; margin-bottom: 8px; line-height: 1.4; }
 .meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 13px; color: #999; margin-bottom: 16px; align-items: center; }
-.meta-author { color: #8b4513; font-weight: 500; }
+.meta-author { color: #C41E3A; font-weight: 500; }
 .meta-dynasty {
-  color: #8b4513; font-size: 11px; background: #f0ece4;
+  color: #C41E3A; font-size: 11px; background: #f0ece4;
   padding: 2px 8px; border-radius: 4px;
 }
 .meta-time { font-size: 12px; }
@@ -291,11 +291,11 @@ function formatTime(dateStr?: string): string {
 
 /* 圈子 */
 .circle-intro { font-size: 14px; color: #666; margin-bottom: 8px; display: block; line-height: 1.6; }
-.circle-stats { display: flex; gap: 16px; font-size: 13px; color: #8b4513; margin-bottom: 16px; }
-.join-btn { background: #8b4513; color: #fff; border-radius: 18px; font-size: 14px; border: none; }
+.circle-stats { display: flex; gap: 16px; font-size: 13px; color: #C41E3A; margin-bottom: 16px; }
+.join-btn { background: #C41E3A; color: #fff; border-radius: 18px; font-size: 14px; border: none; }
 .joined-btn { background: #e0d5c1; color: #999; border-radius: 18px; font-size: 14px; border: none; }
 
-.section-title { font-size: 16px; font-weight: bold; color: #8b4513; display: block; margin: 20px 0 12px; }
+.section-title { font-size: 16px; font-weight: bold; color: #C41E3A; display: block; margin: 20px 0 12px; }
 
 .chapters { margin-top: 12px; background: #fff; border-radius: 8px; padding: 4px 12px; }
 .chapter-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0ece4; }

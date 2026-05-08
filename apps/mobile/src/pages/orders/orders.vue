@@ -104,7 +104,7 @@ function formatTime(t: string): string {
 </script>
 
 <style>
-.page { padding: 12px; background: #f5f0e6; min-height: 100vh; }
+.page { padding: 12px; background: #F5F0E8; min-height: 100vh; }
 
 .center { display: flex; justify-content: center; align-items: center; padding: 60px 0; }
 .loading-text { color: #999; font-size: 14px; }
@@ -137,5 +137,5 @@ function formatTime(t: string): string {
 .order-amount { font-size: 18px; font-weight: bold; color: #e74c3c; }
 .order-time { font-size: 12px; color: #bbb; }
 
-.load-more { text-align: center; padding: 20px; color: #8b4513; font-size: 14px; cursor: pointer; }
+.load-more { text-align: center; padding: 20px; color: #C41E3A; font-size: 14px; cursor: pointer; }
 </style>

@@ -834,7 +834,7 @@ function goBack() {
 <style scoped>
 /* ========== 页面 ========== */
 .page {
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -946,7 +946,7 @@ function goBack() {
 }
 .nav-back {
   font-size: 22px;
-  color: #8b4513;
+  color: #C41E3A;
   padding: 4px;
 }
 .nav-center {
@@ -970,7 +970,7 @@ function goBack() {
 }
 .nav-btn {
   font-size: 16px;
-  color: #8b4513;
+  color: #C41E3A;
   font-weight: bold;
 }
 
@@ -1002,12 +1002,12 @@ function goBack() {
   padding: 4px 16px;
   border-radius: 14px;
   font-size: 13px;
-  background: #f5f0e6;
+  background: #F5F0E8;
   color: #888;
   border: 1px solid transparent;
 }
 .font-preset-btn.active {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   font-weight: bold;
 }
@@ -1021,7 +1021,7 @@ function goBack() {
   transition: background 0.2s;
 }
 .toggle-switch.on {
-  background: #8b4513;
+  background: #C41E3A;
 }
 .toggle-knob {
   width: 20px;
@@ -1036,7 +1036,7 @@ function goBack() {
 }
 
 .nav-btn.active {
-  color: #8b4513;
+  color: #C41E3A;
 }
 
 /* ========== TTS 底部悬浮控制栏 ========== */
@@ -1065,7 +1065,7 @@ function goBack() {
 }
 .tts-icon-btn {
   font-size: 22px;
-  color: #8b4513;
+  color: #C41E3A;
   width: 36px;
   height: 36px;
   display: flex;
@@ -1097,13 +1097,13 @@ function goBack() {
 }
 .tts-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #8b4513, #c4943a);
+  background: linear-gradient(90deg, #C41E3A, #C9A96E);
   border-radius: 2px;
   transition: width 0.3s ease;
 }
 .tts-progress-text {
   font-size: 11px;
-  color: #8b4513;
+  color: #C41E3A;
   font-weight: 500;
   flex-shrink: 0;
   min-width: 48px;
@@ -1119,9 +1119,9 @@ function goBack() {
 }
 .tts-voice-btn {
   font-size: 12px;
-  color: #8b4513;
+  color: #C41E3A;
   padding: 4px 10px;
-  border: 1px solid #8b4513;
+  border: 1px solid #C41E3A;
   border-radius: 14px;
   background: transparent;
   flex-shrink: 0;
@@ -1140,14 +1140,14 @@ function goBack() {
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 10px;
-  background: #f5f0e6;
+  background: #F5F0E8;
   color: #888;
   border: 1px solid transparent;
 }
 .tts-rate-tag.active {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
-  border-color: #8b4513;
+  border-color: #C41E3A;
 }
 .page.dark-mode .tts-rate-tag {
   background: #1a2744;
@@ -1183,13 +1183,13 @@ function goBack() {
   font-size: 18px;
   font-weight: bold;
   text-align: center;
-  color: #8b4513;
+  color: #C41E3A;
   display: block;
   margin-bottom: 12px;
 }
 .chapter-divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, #c4943a, transparent);
+  background: linear-gradient(90deg, transparent, #C9A96E, transparent);
   margin-bottom: 20px;
 }
 .text-body {
@@ -1206,7 +1206,7 @@ function goBack() {
   padding: 14px;
   background: #faf6ef;
   border-radius: 8px;
-  border-left: 3px solid #c4943a;
+  border-left: 3px solid #C9A96E;
 }
 .trans-header {
   margin-bottom: 8px;
@@ -1214,7 +1214,7 @@ function goBack() {
 .trans-label {
   font-size: 13px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
 }
 .trans-body {
   color: #666;
@@ -1248,7 +1248,7 @@ function goBack() {
 .notes-title {
   font-size: 14px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
 }
 .notes-toggle {
   font-size: 12px;
@@ -1270,7 +1270,7 @@ function goBack() {
   box-sizing: border-box;
 }
 .notes-save-btn {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 8px;
   padding: 8px 20px;
@@ -1330,7 +1330,7 @@ function goBack() {
 }
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #8b4513, #c4943a);
+  background: linear-gradient(90deg, #C41E3A, #C9A96E);
   transition: width 0.3s;
 }
 .bottom-main {
@@ -1347,7 +1347,7 @@ function goBack() {
 }
 .bottom-btn {
   font-size: 13px;
-  color: #8b4513;
+  color: #C41E3A;
 }
 .bottom-btn.disabled {
   color: #ddd;
@@ -1385,7 +1385,7 @@ function goBack() {
   color: #888;
 }
 .action-item.active {
-  color: #c4943a;
+  color: #C9A96E;
 }
 .action-label {
   font-size: 11px;
@@ -1421,7 +1421,7 @@ function goBack() {
 .toc-title {
   font-size: 16px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
 }
 .toc-close {
   font-size: 18px;
@@ -1435,7 +1435,7 @@ function goBack() {
 .toc-bm-title {
   font-size: 12px;
   font-weight: bold;
-  color: #c4943a;
+  color: #C9A96E;
   display: block;
   margin-bottom: 6px;
 }
@@ -1446,8 +1446,8 @@ function goBack() {
 }
 .toc-bm-tag {
   font-size: 11px;
-  color: #8b4513;
-  background: #f5ead6;
+  color: #C41E3A;
+  background: #F5F0E8;
   padding: 2px 10px;
   border-radius: 10px;
 }
@@ -1468,7 +1468,7 @@ function goBack() {
   background: #f5ede2;
 }
 .toc-item.bookmark {
-  border-left: 3px solid #c4943a;
+  border-left: 3px solid #C9A96E;
 }
 .toc-item-left {
   display: flex;
@@ -1486,7 +1486,7 @@ function goBack() {
   font-weight: 500;
 }
 .toc-item.active .toc-chapter-num {
-  color: #8b4513;
+  color: #C41E3A;
   font-weight: bold;
 }
 .toc-chapter-title {
@@ -1497,7 +1497,7 @@ function goBack() {
   white-space: nowrap;
 }
 .toc-item.active .toc-chapter-title {
-  color: #8b4513;
+  color: #C41E3A;
   font-weight: bold;
 }
 
@@ -1533,7 +1533,7 @@ function goBack() {
 }
 .bm-chapter {
   font-size: 12px;
-  color: #8b4513;
+  color: #C41E3A;
   display: block;
   margin-bottom: 4px;
 }
@@ -1553,7 +1553,7 @@ function goBack() {
   align-items: center;
 }
 .retry-btn {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 20px;
   padding: 8px 24px;

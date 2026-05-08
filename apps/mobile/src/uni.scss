@@ -1,0 +1,74 @@
+/* 热卜国学平台 — 全局设计令牌 */
+/* 基于 Workbuddy UI 设计系统提取 */
+
+/* ── 主色系（中国红）── */
+$primary: #C41E3A;
+$primary-dark: #8B0000;
+$primary-light: #E8576B;
+
+/* ── 金色系 ── */
+$gold: #C9A96E;
+$gold-light: #D4AF37;
+$gold-gradient: linear-gradient(135deg, #C9A96E, #D4AF37);
+
+/* ── 背景与卡片 ── */
+$bg: #F5F0E8;
+$bg-warm: #f5f0e6;
+$card: #FFFFFF;
+$card-hover: #faf8f4;
+
+/* ── 文字色 ── */
+$text: #2C2C2C;
+$text-secondary: #666666;
+$text-tertiary: #999999;
+$text-white: #FFFFFF;
+
+/* ── 边框 ── */
+$border: #E8E0D5;
+$border-light: #f0ebe0;
+
+/* ── 阴影 ── */
+$shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+$shadow-md: 0 2px 12px rgba(0, 0, 0, 0.08);
+$shadow-card: 0 2px 12px rgba(139, 69, 19, 0.08);
+
+/* ── 圆角 ── */
+$radius-sm: 8px;
+$radius: 12px;
+$radius-lg: 16px;
+$radius-round: 50%;
+
+/* ── 字体 ── */
+$font-serif: 'Noto Serif SC', 'STSong', 'SimSun', 'Songti SC', serif;
+$font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+$font-size-title: 20px;
+$font-size-subtitle: 16px;
+$font-size-body: 14px;
+$font-size-caption: 12px;
+$font-size-tiny: 10px;
+
+/* ── 间距 ── */
+$spacing-xs: 5px;
+$spacing-sm: 8px;
+$spacing: 15px;
+$spacing-lg: 20px;
+$spacing-xl: 30px;
+
+/* ── 动画 ── */
+$transition-fast: 0.15s ease;
+$active-scale: scale(0.98);
+
+/* ── 安全区 ── */
+$safe-top: env(safe-area-inset-top);
+$safe-bottom: env(safe-area-inset-bottom);
+
+/* ── 页面最大宽度 ── */
+$max-width: 414px;
+
+/* ── 底部导航栏高度 ── */
+$tabbar-height: 50px;
+
+/* ── 模块头部渐变色 ── */
+$header-bazi: linear-gradient(135deg, #8b4513, #a0522d);
+$header-bot: linear-gradient(135deg, #6b5b95, #8b7bb5);
+$header-primary: linear-gradient(135deg, $primary, $primary-dark);

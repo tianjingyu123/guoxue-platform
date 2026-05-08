@@ -151,10 +151,10 @@ function formatDate(d?: string) {
 </script>
 
 <style scoped>
-.page { padding: 16px; background: #f5f0e6; min-height: 100vh; padding-bottom: 40px; }
+.page { padding: 16px; background: #F5F0E8; min-height: 100vh; padding-bottom: 40px; }
 
 .header {
-  background: linear-gradient(135deg, #c4943a, #8b4513);
+  background: linear-gradient(135deg, #C9A96E, #C41E3A);
   border-radius: 12px; padding: 28px 20px; text-align: center; margin-bottom: 20px;
 }
 .header-title { color: #fff; font-size: 22px; font-weight: bold; display: block; }
@@ -171,23 +171,23 @@ function formatDate(d?: string) {
   background: #fff; border-radius: 12px; padding: 20px;
   border: 2px solid transparent; position: relative; overflow: hidden;
 }
-.plan-card.active { border-color: #c4943a; }
-.plan-card.featured { border-color: #c4943a; }
+.plan-card.active { border-color: #C9A96E; }
+.plan-card.featured { border-color: #C9A96E; }
 .ribbon {
   position: absolute; top: 10px; right: -28px;
-  background: #c4943a; color: #fff; font-size: 11px;
+  background: #C9A96E; color: #fff; font-size: 11px;
   padding: 2px 30px; transform: rotate(45deg);
 }
 .plan-name { font-size: 17px; font-weight: bold; color: #333; }
 .plan-price { margin: 8px 0 12px; }
-.price-symbol { font-size: 18px; color: #c4943a; }
-.price-num { font-size: 36px; font-weight: bold; color: #c4943a; }
+.price-symbol { font-size: 18px; color: #C9A96E; }
+.price-num { font-size: 36px; font-weight: bold; color: #C9A96E; }
 .price-unit { font-size: 13px; color: #999; }
 .plan-benefits { display: flex; flex-direction: column; gap: 4px; }
 .benefit { font-size: 13px; color: #666; }
 
 .buy-btn {
-  background: linear-gradient(135deg, #c4943a, #8b4513);
+  background: linear-gradient(135deg, #C9A96E, #C41E3A);
   color: #fff; border: none; border-radius: 12px;
   padding: 14px; font-size: 17px; font-weight: bold; width: 100%;
 }
@@ -199,8 +199,8 @@ function formatDate(d?: string) {
 .compare-table {
   background: #fff; border-radius: 12px; overflow: hidden;
 }
-.compare-row { display: flex; padding: 10px 12px; border-bottom: 1px solid #f5f0e6; font-size: 12px; }
-.compare-row.head { background: #f5f0e6; font-weight: bold; }
+.compare-row { display: flex; padding: 10px 12px; border-bottom: 1px solid #F5F0E8; font-size: 12px; }
+.compare-row.head { background: #F5F0E8; font-weight: bold; }
 .compare-row:last-child { border-bottom: none; }
 .col-name { flex: 2; color: #333; }
 .col-val { flex: 1; text-align: center; color: #666; }

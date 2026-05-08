@@ -166,7 +166,7 @@ function formatDate(d: string): string {
 
 <style scoped>
 .page {
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
   padding: 12px;
 }
@@ -189,7 +189,7 @@ function formatDate(d: string): string {
   transition: all 0.2s;
 }
 .tab.active {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   font-weight: bold;
 }
@@ -208,7 +208,7 @@ function formatDate(d: string): string {
   background: #fff;
 }
 .my-tab.active {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
 }
 
@@ -225,7 +225,7 @@ function formatDate(d: string): string {
   align-items: center;
   position: relative;
   overflow: hidden;
-  border-left: 4px solid #c4943a;
+  border-left: 4px solid #C9A96E;
 }
 .coupon-card.used {
   opacity: 0.6;
@@ -286,7 +286,7 @@ function formatDate(d: string): string {
   position: absolute;
   right: 12px;
   bottom: 12px;
-  background: linear-gradient(135deg, #c4943a, #8b4513);
+  background: linear-gradient(135deg, #C9A96E, #C41E3A);
   color: #fff;
   padding: 4px 14px;
   border-radius: 14px;

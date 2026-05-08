@@ -53,7 +53,7 @@
             :id="`msg-${i}`"
             class="chat-msg"
           >
-            <text class="msg-user" :style="{ color: msg.color || '#c4943a' }">{{ msg.user }}：</text>
+            <text class="msg-user" :style="{ color: msg.color || '#C9A96E' }">{{ msg.user }}：</text>
             <text class="msg-text">{{ msg.text }}</text>
           </view>
         </scroll-view>
@@ -123,7 +123,7 @@ const statusText = computed(() => {
 
 // mock 用户和消息
 const mockUsers = [
-  { name: '国学爱好者', color: '#c4943a' },
+  { name: '国学爱好者', color: '#C9A96E' },
   { name: '书生意气', color: '#67c23a' },
   { name: '清风明月', color: '#409eff' },
   { name: '南山采菊', color: '#e6a23c' },
@@ -189,7 +189,7 @@ function sendMessage() {
 function sendGift() {
   const gifts = ['🌹', '🎁', '⭐', '🍵', '📿', '🏆']
   const g = gifts[Math.floor(Math.random() * gifts.length)]
-  messages.value.push({ user: '我', text: `送出 ${g}`, color: '#c4943a' })
+  messages.value.push({ user: '我', text: `送出 ${g}`, color: '#C9A96E' })
   uni.showToast({ title: `送出 ${g}`, icon: 'none' })
 }
 
@@ -281,7 +281,7 @@ function goBack() {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 2px solid #c4943a;
+  border: 2px solid #C9A96E;
 }
 .host-text {
   display: flex;
@@ -363,7 +363,7 @@ function goBack() {
 }
 .leave-stay {
   font-size: 14px;
-  color: #c4943a;
+  color: #C9A96E;
   padding: 8px;
   font-weight: bold;
 }
@@ -439,5 +439,5 @@ function goBack() {
 }
 .empty-icon { font-size: 48px; }
 .empty-text { color: rgba(255,255,255,0.5); font-size: 15px; }
-.empty-back { color: #c4943a; font-size: 14px; padding: 8px 24px; border: 1px solid #c4943a; border-radius: 20px; }
+.empty-back { color: #C9A96E; font-size: 14px; padding: 8px 24px; border: 1px solid #C9A96E; border-radius: 20px; }
 </style>

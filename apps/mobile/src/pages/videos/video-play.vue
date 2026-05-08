@@ -332,7 +332,7 @@ function formatCount(n: number | undefined): string {
   border: 2px solid #fff;
 }
 .r-avatar.following {
-  border-color: #c4943a;
+  border-color: #C9A96E;
 }
 .r-avatar-placeholder {
   width: 44px;
@@ -410,8 +410,8 @@ function formatCount(n: number | undefined): string {
 }
 .follow-text {
   font-size: 12px;
-  color: #c4943a;
-  border: 1px solid #c4943a;
+  color: #C9A96E;
+  border: 1px solid #C9A96E;
   border-radius: 10px;
   padding: 2px 10px;
 }
@@ -431,7 +431,7 @@ function formatCount(n: number | undefined): string {
 }
 .product-entry {
   margin-top: 8px;
-  background: linear-gradient(90deg, #8b4513, #c4943a);
+  background: linear-gradient(90deg, #C41E3A, #C9A96E);
   padding: 6px 14px;
   border-radius: 14px;
   align-self: flex-start;
@@ -504,7 +504,7 @@ function formatCount(n: number | undefined): string {
 }
 .cp-user {
   font-size: 13px;
-  color: #c4943a;
+  color: #C9A96E;
   font-weight: bold;
 }
 .cp-text {
@@ -544,7 +544,7 @@ function formatCount(n: number | undefined): string {
 }
 .cp-send {
   font-size: 14px;
-  color: #c4943a;
+  color: #C9A96E;
   font-weight: bold;
 }
 

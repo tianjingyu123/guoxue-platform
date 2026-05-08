@@ -450,7 +450,7 @@ function formatTime(timeStr?: string): string {
 
 <style>
 .page {
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
   padding: 12px;
   padding-bottom: 40px;
@@ -460,7 +460,7 @@ function formatTime(timeStr?: string): string {
    用户卡片
    ============================ */
 .user-card {
-  background: linear-gradient(135deg, #8b4513, #c4943a);
+  background: linear-gradient(135deg, #C41E3A, #C9A96E);
   border-radius: 12px;
   padding: 28px;
   text-align: center;
@@ -551,7 +551,7 @@ function formatTime(timeStr?: string): string {
   transition: color 0.2s;
 }
 .tab-item.active {
-  color: #8b4513;
+  color: #C41E3A;
   font-weight: bold;
 }
 .tab-item.active::after {
@@ -561,7 +561,7 @@ function formatTime(timeStr?: string): string {
   left: 20%;
   right: 20%;
   height: 2px;
-  background: #8b4513;
+  background: #C41E3A;
   border-radius: 1px;
 }
 
@@ -608,7 +608,7 @@ function formatTime(timeStr?: string): string {
 .post-user {
   font-size: 14px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
 }
 .post-time {
   font-size: 11px;
@@ -624,7 +624,7 @@ function formatTime(timeStr?: string): string {
   border-radius: 8px;
 }
 .badge.essence {
-  color: #c4943a;
+  color: #C9A96E;
   background: #fdf5e6;
 }
 .post-title {
@@ -663,7 +663,7 @@ function formatTime(timeStr?: string): string {
   gap: 24px;
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px solid #f5f0e6;
+  border-top: 1px solid #F5F0E8;
 }
 .footer-item {
   display: flex;
@@ -733,7 +733,7 @@ function formatTime(timeStr?: string): string {
    ============================ */
 .load-more {
   text-align: center;
-  color: #c4943a;
+  color: #C9A96E;
   padding: 16px 0;
   font-size: 13px;
 }
@@ -754,7 +754,7 @@ function formatTime(timeStr?: string): string {
   padding: 60px 0;
 }
 .retry-btn {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 20px;
   padding: 8px 32px;

@@ -76,13 +76,13 @@ function handleRecharge() {
 </script>
 
 <style>
-.page { padding: 12px; background: #f5f0e6; min-height: 100vh; padding-bottom: 40px; }
+.page { padding: 12px; background: #F5F0E8; min-height: 100vh; padding-bottom: 40px; }
 
 /* ============================
    当前余额
    ============================ */
 .current-balance {
-  background: linear-gradient(135deg, #8b4513, #c4943a);
+  background: linear-gradient(135deg, #C41E3A, #C9A96E);
   border-radius: 12px;
   padding: 24px;
   text-align: center;
@@ -130,7 +130,7 @@ function handleRecharge() {
   transition: all 0.2s;
 }
 .tier-card.selected {
-  border-color: #8b4513;
+  border-color: #C41E3A;
   background: #fdf5e6;
 }
 .tier-content {
@@ -167,7 +167,7 @@ function handleRecharge() {
    确认按钮
    ============================ */
 .confirm-btn {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 8px;
   font-size: 16px;

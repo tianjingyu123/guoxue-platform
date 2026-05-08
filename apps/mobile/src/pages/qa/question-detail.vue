@@ -147,7 +147,7 @@ async function doPeek() {
 </script>
 
 <style scoped>
-.page { padding: 12px; background: #f5f0e6; min-height: 100vh; padding-bottom: 60px; }
+.page { padding: 12px; background: #F5F0E8; min-height: 100vh; padding-bottom: 60px; }
 .question-card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
 .q-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .q-avatar { width: 32px; height: 32px; border-radius: 50%; }
@@ -161,22 +161,22 @@ async function doPeek() {
 .q-price { font-size: 14px; color: #e74c3c; font-weight: bold; }
 .q-circle { font-size: 12px; color: #999; }
 
-.answer-card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 12px; border-left: 3px solid #8b4513; }
+.answer-card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 12px; border-left: 3px solid #C41E3A; }
 .a-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .a-avatar { width: 28px; height: 28px; border-radius: 50%; }
 .a-nick { font-size: 14px; color: #333; font-weight: 500; flex: 1; }
-.a-label { font-size: 11px; color: #8b4513; background: #f5ead6; padding: 2px 10px; border-radius: 10px; }
+.a-label { font-size: 11px; color: #C41E3A; background: #F5F0E8; padding: 2px 10px; border-radius: 10px; }
 .a-body { font-size: 15px; color: #444; display: block; line-height: 1.7; }
 .a-footer { display: flex; gap: 12px; margin-top: 10px; }
 .a-peek { font-size: 12px; color: #999; }
-.a-peek-price { font-size: 12px; color: #8b4513; }
+.a-peek-price { font-size: 12px; color: #C41E3A; }
 
 .peek-section { text-align: center; margin: 20px 0; }
-.peek-btn { background: linear-gradient(135deg, #8b4513, #c4943a); color: #fff; border-radius: 24px; padding: 12px 32px; font-size: 15px; border: none; display: inline-block; }
+.peek-btn { background: linear-gradient(135deg, #C41E3A, #C9A96E); color: #fff; border-radius: 24px; padding: 12px 32px; font-size: 15px; border: none; display: inline-block; }
 
 .answer-section { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
 .section-title { font-size: 14px; font-weight: bold; color: #333; display: block; margin-bottom: 10px; }
 .answer-textarea { width: 100%; min-height: 100px; padding: 10px; border: 1px solid #e8e0d6; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
 .char-count { font-size: 11px; color: #bbb; text-align: right; display: block; margin: 4px 0 10px; }
-.answer-btn { width: 100%; background: #8b4513; color: #fff; border-radius: 24px; padding: 12px; font-size: 16px; border: none; }
+.answer-btn { width: 100%; background: #C41E3A; color: #fff; border-radius: 24px; padding: 12px; font-size: 16px; border: none; }
 </style>

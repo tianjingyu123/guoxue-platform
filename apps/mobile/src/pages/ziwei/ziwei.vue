@@ -313,7 +313,7 @@ async function doCalc() {
 .form-section-title {
   font-size: 14px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #f0e6d3;
@@ -364,9 +364,9 @@ async function doCalc() {
 }
 
 .gender-btn.active {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
-  border-color: #8b4513;
+  border-color: #C41E3A;
 }
 
 /* 天干地支选择 */
@@ -395,9 +395,9 @@ async function doCalc() {
 }
 
 .zhi-btn.active {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
-  border-color: #8b4513;
+  border-color: #C41E3A;
 }
 
 /* 时辰选择 */
@@ -427,8 +427,8 @@ async function doCalc() {
 }
 
 .shichen-btn.active {
-  background: #8b4513;
-  border-color: #8b4513;
+  background: #C41E3A;
+  border-color: #C41E3A;
 }
 
 .shichen-btn.active .sc-dizhi,
@@ -455,7 +455,7 @@ async function doCalc() {
   padding: 14px 0;
   border-radius: 8px;
   border: none;
-  background: linear-gradient(135deg, #8b4513, #a0522d);
+  background: linear-gradient(135deg, #C41E3A, #a0522d);
   color: #fff;
   font-size: 17px;
   font-weight: bold;
@@ -511,7 +511,7 @@ async function doCalc() {
   color: #5d3a1a;
   margin: 20px 0 12px;
   padding-left: 10px;
-  border-left: 3px solid #8b4513;
+  border-left: 3px solid #C41E3A;
 }
 
 /* 概览卡片 */
@@ -546,7 +546,7 @@ async function doCalc() {
 }
 
 .ov-val.highlight {
-  color: #8b4513;
+  color: #C41E3A;
   font-size: 16px;
 }
 
@@ -607,7 +607,7 @@ async function doCalc() {
 }
 
 .gong-card.ming {
-  border-left-color: #8b4513;
+  border-left-color: #C41E3A;
   background: #fefbf6;
 }
 
@@ -638,7 +638,7 @@ async function doCalc() {
   color: #fff;
 }
 
-.ming-badge { background: #8b4513; }
+.ming-badge { background: #C41E3A; }
 .shen-badge { background: #e6a23c; }
 
 .gong-ganzhi {

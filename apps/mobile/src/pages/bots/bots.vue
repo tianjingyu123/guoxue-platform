@@ -29,7 +29,7 @@
         class="bot-card"
         @click="goChat(bot)"
       >
-        <view class="bot-avatar" :style="{ background: bot.color || '#8b4513' }">
+        <view class="bot-avatar" :style="{ background: bot.color || '#C41E3A' }">
           <text class="bot-avatar-text">{{ bot.name.charAt(0) }}</text>
         </view>
         <view class="bot-info">
@@ -93,7 +93,7 @@ const defaultBots: Bot[] = [
   { id: "bot-05", name: "报告工厂", desc: "一键生成各类分析报告与总结文档", category: "copywriting", tag: "付费", usageCount: 1523, color: "#9b59b6", intro: "您好！我是报告工厂，把您的数据变成专业报告。", suggestions: ["生成月度运营报告", "写一份竞品分析报告", "总结本周数据趋势"] },
   { id: "bot-06", name: "开运好物推荐官", desc: "推荐开运好物与风水吉祥用品", category: "copywriting", tag: "免费", usageCount: 3210, color: "#f39c12", intro: "您好！我是开运好物推荐官，为您推荐开运吉祥物和风水好物。", suggestions: ["本命年适合戴什么？", "办公桌风水摆件推荐", "求学业戴什么吉祥物？"] },
   { id: "bot-07", name: "白标AI助手", desc: "定制化AI助手服务，打造专属品牌形象", category: "office", tag: "会员专享", usageCount: 432, color: "#1abc9c", intro: "您好！我是白标AI助手，为您提供个性化定制AI服务。", suggestions: ["如何配置白标助手？", "支持哪些自定义功能？", "如何集成到我的网站？"] },
-  { id: "bot-08", name: "大师对练馆", desc: "与AI大师对练命理，提升实战能力", category: "paipan", tag: "付费", usageCount: 1876, color: "#8b4513", intro: "您好！欢迎来到大师对练馆，我是您的命理对练导师，一起切磋命理技法。", suggestions: ["帮我看这个八字格局", "练习排盘技巧", "分析流年运势"] },
+  { id: "bot-08", name: "大师对练馆", desc: "与AI大师对练命理，提升实战能力", category: "paipan", tag: "付费", usageCount: 1876, color: "#C41E3A", intro: "您好！欢迎来到大师对练馆，我是您的命理对练导师，一起切磋命理技法。", suggestions: ["帮我看这个八字格局", "练习排盘技巧", "分析流年运势"] },
   { id: "bot-09", name: "古籍活字典", desc: "查询古籍字词释义与典故出处", category: "study", tag: "免费", usageCount: 4567, color: "#2c3e50", intro: "您好！我是古籍活字典，通晓四书五经、诸子百家，随时为您答疑解惑。", suggestions: ["'道可道非常道'什么意思？", "《论语》中'仁'的涵义", "解释'上善若水'的典故"] },
   { id: "bot-10", name: "客户关系管家", desc: "智能管理客户关系与跟进记录", category: "customer", tag: "付费", usageCount: 765, color: "#16a085", intro: "您好！我是客户关系管家，帮您高效管理客户资源。", suggestions: ["如何分类管理客户？", "设置跟进提醒", "客户数据分析方法"] },
   { id: "bot-11", name: "全能办公助理", desc: "一站式办公辅助，涵盖文档、表格、PPT", category: "office", tag: "免费", usageCount: 2890, color: "#3498db", intro: "您好！我是全能办公助理，写作、制表、做PPT，样样精通。", suggestions: ["帮我写一份活动策划", "生成课程表模板", "写一份会议纪要"] },
@@ -140,7 +140,7 @@ function goChat(bot: Bot) {
 <style>
 .page {
   padding: 12px;
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
 }
 
@@ -152,7 +152,7 @@ function goChat(bot: Bot) {
 .page-title {
   font-size: 22px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
   display: block;
 }
 
@@ -185,8 +185,8 @@ function goChat(bot: Bot) {
 
 .tab.active {
   color: #fff;
-  background: #8b4513;
-  border-color: #8b4513;
+  background: #C41E3A;
+  border-color: #C41E3A;
 }
 
 /* 卡片列表 */
@@ -257,8 +257,8 @@ function goChat(bot: Bot) {
 }
 
 .tagvip {
-  color: #8b4513;
-  background: #f5ead6;
+  color: #C41E3A;
+  background: #F5F0E8;
 }
 
 .bot-desc {

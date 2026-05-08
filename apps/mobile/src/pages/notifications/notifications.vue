@@ -197,7 +197,7 @@ onReachBottom(() => {
 <style>
 .page {
   padding: 0;
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -215,13 +215,13 @@ onReachBottom(() => {
 .header-title {
   font-size: 18px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
 }
 .read-all-btn {
   font-size: 13px;
-  color: #8b4513;
+  color: #C41E3A;
   padding: 4px 12px;
-  border: 1px solid #8b4513;
+  border: 1px solid #C41E3A;
   border-radius: 12px;
 }
 .read-all-btn:active {
@@ -231,7 +231,7 @@ onReachBottom(() => {
 /* 未读计数 */
 .unread-bar {
   background: #fff8e7;
-  color: #8b4513;
+  color: #C41E3A;
   font-size: 12px;
   padding: 6px 16px;
   border-bottom: 1px solid #f0e6d6;

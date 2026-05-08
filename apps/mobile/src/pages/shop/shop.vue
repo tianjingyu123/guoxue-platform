@@ -170,7 +170,7 @@ function goEarnings() {
 <style scoped>
 .page {
   padding: 0;
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
 }
 
@@ -226,14 +226,14 @@ function goEarnings() {
 }
 .search-input {
   flex: 1;
-  background: #f5f0e6;
+  background: #F5F0E8;
   border-radius: 20px;
   padding: 8px 16px;
   font-size: 14px;
   border: 1px solid #e0d5c1;
 }
 .search-btn {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   padding: 8px 18px;
   border-radius: 20px;
@@ -254,12 +254,12 @@ function goEarnings() {
   display: inline-block;
   padding: 5px 14px;
   border-radius: 14px;
-  background: #f5f0e6;
+  background: #F5F0E8;
   font-size: 13px;
   color: #666;
 }
 .tag.active {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
 }
 
@@ -313,8 +313,8 @@ function goEarnings() {
 }
 .p-label {
   font-size: 10px;
-  color: #c4943a;
-  border: 1px solid #c4943a;
+  color: #C9A96E;
+  border: 1px solid #C9A96E;
   border-radius: 3px;
   padding: 0 4px;
 }

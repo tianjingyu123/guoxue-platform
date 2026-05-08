@@ -203,7 +203,7 @@ function goDetail(item: CollectItem) {
 </script>
 
 <style>
-.page { padding: 12px; background: #f5f0e6; min-height: 100vh; }
+.page { padding: 12px; background: #F5F0E8; min-height: 100vh; }
 
 /* ========== 筛选标签 ========== */
 .filter-tabs {
@@ -214,7 +214,7 @@ function goDetail(item: CollectItem) {
   padding: 4px 12px; color: #666; cursor: pointer; border-radius: 14px;
 }
 .filter-tabs text.active {
-  color: #fff; background: #8b4513; font-weight: 500;
+  color: #fff; background: #C41E3A; font-weight: 500;
 }
 
 /* ========== 下拉刷新 ========== */
@@ -230,5 +230,5 @@ function goDetail(item: CollectItem) {
 .simple-cover { width: 64px; height: 64px; border-radius: 6px; flex-shrink: 0; }
 .simple-body { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
 .simple-title { font-size: 15px; font-weight: bold; color: #333; }
-.simple-type { font-size: 12px; color: #8b4513; }
+.simple-type { font-size: 12px; color: #C41E3A; }
 </style>

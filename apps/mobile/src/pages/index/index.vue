@@ -1,8 +1,18 @@
 <template>
   <view class="page">
-    <!-- 搜索栏 -->
-    <view class="search-bar-wrapper" @click="goSearch">
-      <SearchBar disabled placeholder="搜索经典、诗词、课程..." />
+    <!-- Header -->
+    <view class="header">
+      <view class="header-top">
+        <text class="logo">🏮 热卜国学</text>
+        <view class="header-actions">
+          <text class="header-icon" @click="goPage('/pages/notifications/notifications')">🔔</text>
+          <text class="header-icon" @click="goPage('/pages/bots/bots')">💬</text>
+        </view>
+      </view>
+      <view class="search-bar" @click="goSearch">
+        <text class="search-icon">🔍</text>
+        <text class="search-placeholder">搜索课程、命理工具...</text>
+      </view>
     </view>
 
     <!-- Banner轮播 -->
@@ -13,7 +23,7 @@
       interval="4000"
       indicator-dots
       indicator-color="rgba(255,255,255,0.4)"
-      indicator-active-color="#8b4513"
+      indicator-active-color="#C9A96E"
     >
       <swiper-item v-for="(banner, idx) in banners" :key="idx">
         <view class="banner-slide" :style="{ background: banner.bg }">
@@ -26,46 +36,32 @@
       </swiper-item>
     </swiper>
 
-    <!-- 4个分类快捷入口 -->
-    <view class="entrance-grid">
-      <view class="entrance-item" @click="goPage('/pages/classics/classics')">
-        <view class="entrance-icon-wrap">
-          <text class="entrance-icon">📖</text>
-        </view>
-        <text class="entrance-label">古籍经典</text>
+    <!-- 快捷工具 -->
+    <view class="quick-tools">
+      <view class="tool-item" @click="goPage('/pages/bazi/bazi')">
+        <text class="tool-icon">🔮</text>
+        <text class="tool-name">八字排盘</text>
       </view>
-      <view class="entrance-item" @click="goPage('/pages/poetry/poetry')">
-        <view class="entrance-icon-wrap">
-          <text class="entrance-icon">🌸</text>
-        </view>
-        <text class="entrance-label">诗词赏析</text>
+      <view class="tool-item" @click="goPage('/pages/ziwei/ziwei')">
+        <text class="tool-icon">⭐</text>
+        <text class="tool-name">紫微斗数</text>
       </view>
-      <view class="entrance-item" @click="goPage('/pages/courses/courses')">
-        <view class="entrance-icon-wrap">
-          <text class="entrance-icon">📚</text>
-        </view>
-        <text class="entrance-label">国学课程</text>
+      <view class="tool-item" @click="goPage('/pages/courses/courses')">
+        <text class="tool-icon">📚</text>
+        <text class="tool-name">课程学习</text>
       </view>
-      <view class="entrance-item" @click="goPage('/pages/bazi/bazi')">
-        <view class="entrance-icon-wrap">
-          <text class="entrance-icon">☰</text>
-        </view>
-        <text class="entrance-label">八字排盘</text>
-      </view>
-      <view class="entrance-item" @click="goPage('/pages/ziwei/ziwei')">
-        <view class="entrance-icon-wrap">
-          <text class="entrance-icon">🌟</text>
-        </view>
-        <text class="entrance-label">紫微斗数</text>
+      <view class="tool-item" @click="goPage('/pages/videos/videos')">
+        <text class="tool-icon">🎬</text>
+        <text class="tool-name">视频讲解</text>
       </view>
     </view>
 
-    <!-- 顶部频道Tab -->
-    <view class="channel-tabs">
+    <!-- 频道Tab -->
+    <view class="tab-nav">
       <view
         v-for="ch in channels"
         :key="ch.key"
-        class="channel-tab"
+        class="tab-item"
         :class="{ active: currentTab === ch.key }"
         @click="switchTab(ch.key)"
       >
@@ -79,7 +75,32 @@
     <!-- 骨架屏 -->
     <LoadingSkeleton v-if="loading && list.length === 0" type="card" />
 
-    <!-- 双列瀑布流 -->
+    <!-- 文章列表（推荐Tab用列表布局） -->
+    <view v-if="currentTab === 'recommend' && list.length > 0" class="article-list">
+      <view
+        v-for="(item, idx) in list"
+        :key="item._type + '-' + item.id + '-' + idx"
+        class="article-item"
+        @click="goItem(item)"
+      >
+        <view class="article-thumb">
+          <text v-if="item.cover">{{ '' }}</text>
+          <image v-if="item.cover" :src="item.cover" class="article-thumb-img" mode="aspectFill" />
+          <text v-else class="article-thumb-icon">{{ item._type === 'circle' ? '👥' : '📜' }}</text>
+        </view>
+        <view class="article-content">
+          <text class="article-title">{{ item.title || item.name }}</text>
+          <view class="article-meta">
+            <text v-if="item.author">{{ item.author }}</text>
+            <text v-if="item.dynasty" class="meta-tag">{{ item.dynasty }}</text>
+            <text v-if="item._type === 'circle'" class="meta-tag">圈子</text>
+            <text class="meta-time">{{ formatTime(item.createdAt) }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 双列瀑布流（热门/直播Tab） -->
     <view v-else-if="list.length > 0" class="feed-grid">
       <view
         v-for="(item, idx) in list"
@@ -88,30 +109,8 @@
         :class="'type-' + item._type"
         @click="goItem(item)"
       >
-        <!-- ===== 文章/编辑内容卡片 ===== -->
-        <template v-if="item._type === 'article' || item._type === 'editorial'">
-          <view v-if="item.cover" class="card-cover-wrap">
-            <image :src="item.cover" class="card-cover" mode="aspectFill" />
-            <view class="card-badge-top badge-article">文章</view>
-          </view>
-          <view class="card-body" :class="{ 'no-cover': !item.cover }">
-            <text class="card-title">{{ item.title }}</text>
-            <view class="card-meta-line">
-              <text v-if="item.author" class="meta-author">{{ item.author }}</text>
-              <text v-if="item.dynasty" class="meta-dynasty">{{ item.dynasty }}</text>
-              <text class="meta-time">{{ formatTime(item.createdAt) }}</text>
-            </view>
-            <text class="card-excerpt" v-if="item.excerpt">{{ item.excerpt }}</text>
-          </view>
-          <view class="card-footer">
-            <text class="meta-stat">👁 {{ item.viewCount ?? 0 }}</text>
-            <text class="meta-stat">👍 {{ item.likeCount ?? 0 }}</text>
-            <text class="meta-stat" v-if="item.collectCount !== undefined">⭐ {{ item.collectCount }}</text>
-          </view>
-        </template>
-
         <!-- ===== 短视频卡片 ===== -->
-        <template v-else-if="item._type === 'video'">
+        <template v-if="item._type === 'video'">
           <view class="card-cover-wrap">
             <image :src="item.cover" class="card-cover" mode="aspectFill" />
             <view class="card-badge-dur">{{ formatDuration(item.duration) }}</view>
@@ -150,23 +149,6 @@
             <text class="card-price">¥{{ item.price ?? 0 }}</text>
           </view>
         </template>
-
-        <!-- ===== 圈子推荐卡片 ===== -->
-        <template v-else-if="item._type === 'circle'">
-          <view v-if="item.cover" class="card-cover-wrap">
-            <image :src="item.cover" class="card-cover" mode="aspectFill" />
-            <view class="card-badge-top badge-circle">圈子</view>
-          </view>
-          <view class="card-body" :class="{ 'no-cover': !item.cover }">
-            <text class="card-title">{{ item.name || item.title }}</text>
-            <text class="card-extra" v-if="item.memberCount !== undefined">👥 {{ item.memberCount }}人</text>
-            <text class="card-excerpt" v-if="item.intro">{{ item.intro }}</text>
-          </view>
-          <view class="card-footer" v-if="item.memberCount || item.postCount">
-            <text class="meta-stat" v-if="item.memberCount">成员 {{ item.memberCount }}</text>
-            <text class="meta-stat" v-if="item.postCount">帖子 {{ item.postCount }}</text>
-          </view>
-        </template>
       </view>
     </view>
 
@@ -184,7 +166,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
-import SearchBar from '../../components/SearchBar.vue'
 import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import { contentApi, contentsApi, circleApi, videoApi, shopApi, liveApi, systemApi } from '../../api'
@@ -231,8 +212,8 @@ interface FeedItem {
 
 // ===== Banner 数据（默认兜底） =====
 const defaultBanners = [
-  { icon: '📜', title: '国学经典', sub: '品读四书五经，传承中华文化', bg: 'linear-gradient(135deg, #8b4513, #a0522d)' },
-  { icon: '🌸', title: '诗词欣赏', sub: '唐诗宋词，感受千年风雅', bg: 'linear-gradient(135deg, #6b3a1f, #c4943a)' },
+  { icon: '📜', title: '国学经典', sub: '品读四书五经，传承中华文化', bg: 'linear-gradient(135deg, #C41E3A, #a0522d)' },
+  { icon: '🌸', title: '诗词欣赏', sub: '唐诗宋词，感受千年风雅', bg: 'linear-gradient(135deg, #6b3a1f, #C9A96E)' },
   { icon: '🧘', title: '修身养性', sub: '以文化人，以德润身', bg: 'linear-gradient(135deg, #5a3a1a, #8b6914)' },
 ]
 const banners = ref<{ icon: string; title: string; sub: string; bg: string }[]>(defaultBanners)
@@ -547,23 +528,63 @@ onReachBottom(() => {
 
 <style>
 .page {
-  padding: 12px;
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
+  padding-bottom: 60px;
 }
 
-/* ===== 搜索栏 ===== */
-.search-bar-wrapper {
-  margin-bottom: 12px;
+/* ===== Header ===== */
+.header {
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
+  padding: 15px 15px 20px;
+  padding-top: calc(15px + env(safe-area-inset-top));
+  color: #fff;
+}
+.header-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+.logo {
+  font-size: 20px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  font-family: 'Noto Serif SC', serif;
+}
+.header-actions {
+  display: flex;
+  gap: 15px;
+  margin-left: auto;
+}
+.header-icon {
+  font-size: 20px;
+}
+.search-bar {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 10px 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.search-icon {
+  font-size: 14px;
+  opacity: 0.8;
+}
+.search-placeholder {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
 }
 
-/* ===== Banner轮播 ===== */
+/* ===== Banner ===== */
 .banner-swiper {
   width: 100%;
-  height: 160px;
+  height: 140px;
+  margin: 15px;
+  width: calc(100% - 30px);
   border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 14px;
 }
 .banner-slide {
   width: 100%;
@@ -571,12 +592,12 @@ onReachBottom(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: 12px;
   padding: 0 20px;
   box-sizing: border-box;
 }
 .banner-icon {
-  font-size: 48px;
+  font-size: 40px;
   flex-shrink: 0;
 }
 .banner-text {
@@ -595,93 +616,144 @@ onReachBottom(() => {
   margin-top: 4px;
 }
 
-/* ===== 功能入口 ===== */
-.entrance-grid {
-  display: flex;
-  justify-content: space-around;
-  background: #fff;
+/* ===== Quick Tools ===== */
+.quick-tools {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 15px;
+}
+.tool-item {
+  background: #FFFFFF;
   border-radius: 12px;
-  padding: 16px 4px;
-  margin-bottom: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  padding: 15px 10px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
-.entrance-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
+.tool-item:active {
+  transform: scale(0.98);
 }
-.entrance-icon-wrap {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: #f5f0e6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.tool-icon {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 8px;
 }
-.entrance-icon {
-  font-size: 24px;
-}
-.entrance-label {
+.tool-name {
   font-size: 12px;
-  color: #666;
   font-weight: 500;
+  color: #2C2C2C;
 }
 
-/* ===== 频道Tab ===== */
-.channel-tabs {
+/* ===== Tab Nav ===== */
+.tab-nav {
   display: flex;
-  align-items: center;
-  gap: 0;
-  background: #fff;
-  border-radius: 10px;
-  padding: 4px;
-  margin-bottom: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  gap: 20px;
+  margin: 0 15px;
+  border-bottom: 1px solid #E8E0D5;
+  padding-bottom: 0;
 }
-.channel-tab {
-  flex: 1;
-  text-align: center;
-  padding: 8px 0;
-  border-radius: 8px;
+.tab-item {
+  padding: 12px 0;
   font-size: 14px;
-  color: #666;
+  color: #666666;
+  border-bottom: 2px solid transparent;
   transition: all 0.2s;
 }
-.channel-tab.active {
-  background: #8b4513;
-  color: #fff;
-  font-weight: bold;
-}
-.channel-tab:active {
-  opacity: 0.7;
+.tab-item.active {
+  color: #C41E3A;
+  border-bottom-color: #C41E3A;
+  font-weight: 500;
 }
 
 /* ===== 下拉刷新 ===== */
 .refresh-tip {
   text-align: center;
   font-size: 12px;
-  color: #c4943a;
+  color: #C9A96E;
   padding: 6px 0;
 }
 
-/* ===== 双列瀑布流容器 ===== */
+/* ===== 文章列表（推荐Tab） ===== */
+.article-list {
+  margin: 15px;
+}
+.article-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #E8E0D5;
+}
+.article-item:last-child {
+  border-bottom: none;
+}
+.article-thumb {
+  width: 80px;
+  height: 60px;
+  background: linear-gradient(135deg, #e8d5c5, #d4c4b0);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.article-thumb-img {
+  width: 100%;
+  height: 100%;
+}
+.article-thumb-icon {
+  font-size: 24px;
+}
+.article-content {
+  flex: 1;
+  min-width: 0;
+}
+.article-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2C2C2C;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  margin-bottom: 5px;
+}
+.article-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #999999;
+}
+.meta-tag {
+  background: #F5F0E8;
+  color: #C41E3A;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+.meta-time {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: #999999;
+}
+
+/* ===== 双列瀑布流 ===== */
 .feed-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding-bottom: 4px;
+  padding: 0 15px 4px;
 }
 
-/* ===== Feed卡片基础 ===== */
 .feed-card {
   width: calc(50% - 4px);
   background: #fff;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   transition: transform 0.15s;
   box-sizing: border-box;
 }
@@ -689,27 +761,17 @@ onReachBottom(() => {
   transform: scale(0.98);
 }
 
-/* ===== 封面容器（相对定位，用于角标） ===== */
+/* ===== 封面容器 ===== */
 .card-cover-wrap {
   position: relative;
   width: 100%;
   overflow: hidden;
-  background: #f0e8d8;
+  background: #F5F0E8;
 }
-.feed-card.type-article .card-cover-wrap {
-  max-height: 150px;
-}
-.feed-card.type-video .card-cover-wrap {
-  max-height: 180px;
-}
-.feed-card.type-live .card-cover-wrap {
-  max-height: 180px;
-}
+.feed-card.type-video .card-cover-wrap,
+.feed-card.type-live .card-cover-wrap,
 .feed-card.type-product .card-cover-wrap {
-  max-height: 180px;
-}
-.feed-card.type-circle .card-cover-wrap {
-  max-height: 140px;
+  max-height: 160px;
 }
 
 .card-cover {
@@ -719,27 +781,7 @@ onReachBottom(() => {
   min-height: 100px;
 }
 
-/* ===== 通用左上角类型标签 ===== */
-.card-badge-top {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 2;
-  font-size: 10px;
-  padding: 2px 10px;
-  border-radius: 10px;
-  font-weight: bold;
-}
-.badge-article {
-  background: #8b4513;
-  color: #fff;
-}
-.badge-circle {
-  background: #2e7d32;
-  color: #fff;
-}
-
-/* ===== 直播中角标 ===== */
+/* ===== 角标 ===== */
 .card-badge-live {
   position: absolute;
   top: 8px;
@@ -753,7 +795,6 @@ onReachBottom(() => {
   color: #fff;
 }
 
-/* ===== 视频时长角标 ===== */
 .card-badge-dur {
   position: absolute;
   bottom: 6px;
@@ -767,68 +808,20 @@ onReachBottom(() => {
   font-weight: bold;
 }
 
-/* ===== 卡片内容区 ===== */
+/* ===== 卡片内容 ===== */
 .card-body {
   padding: 10px 10px 0;
 }
-.card-body.no-cover {
-  padding-top: 12px;
-}
-
 .card-title {
   font-size: 14px;
-  font-weight: bold;
-  color: #333;
+  font-weight: 500;
+  color: #2C2C2C;
   display: block;
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.card-meta-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #999;
-  margin: 4px 0;
-  overflow: hidden;
-}
-.meta-author {
-  color: #8b4513;
-  max-width: 70px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.meta-dynasty {
-  color: #8b4513;
-  font-size: 10px;
-  background: #f5f0e6;
-  padding: 1px 6px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-.meta-time {
-  margin-left: auto;
-  flex-shrink: 0;
-  color: #bbb;
-}
-
-.card-excerpt {
-  font-size: 12px;
-  color: #888;
-  margin-top: 4px;
-  display: block;
-  line-height: 1.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
 .card-extra {
   font-size: 12px;
   color: #999;
@@ -838,23 +831,20 @@ onReachBottom(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-/* 商品价格 */
 .card-price {
   display: block;
   font-size: 16px;
   font-weight: bold;
-  color: #e53935;
+  color: #C41E3A;
   margin-top: 6px;
 }
 
-/* ===== 卡片底部 ===== */
 .card-footer {
   display: flex;
   gap: 10px;
   padding: 8px 10px 10px;
   font-size: 11px;
-  color: #bbb;
+  color: #999999;
 }
 .meta-stat {
   white-space: nowrap;
@@ -867,11 +857,11 @@ onReachBottom(() => {
 }
 .load-more-text {
   font-size: 13px;
-  color: #c4943a;
+  color: #C9A96E;
 }
 .no-more {
   text-align: center;
-  color: #ccc;
+  color: #999999;
   padding: 16px 0;
   font-size: 12px;
 }

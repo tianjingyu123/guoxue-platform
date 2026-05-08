@@ -434,7 +434,7 @@ function onReachBottom() {
 </script>
 
 <style>
-.page { padding: 12px; background: #f5f0e6; min-height: 100vh; }
+.page { padding: 12px; background: #F5F0E8; min-height: 100vh; }
 
 /* ========== 搜索栏 ========== */
 .search-bar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
@@ -478,7 +478,7 @@ function onReachBottom() {
   display: flex; align-items: center; justify-content: center; line-height: 1; cursor: pointer;
 }
 .hot-tag {
-  background: #f5f0e6; color: #8b4513; padding: 4px 12px; border-radius: 14px;
+  background: #F5F0E8; color: #C41E3A; padding: 4px 12px; border-radius: 14px;
   font-size: 13px; display: inline-block; cursor: pointer;
 }
 .hot-tag-skeleton {
@@ -488,12 +488,12 @@ function onReachBottom() {
 
 /* ========== 结果统计 ========== */
 .result-stats { font-size: 13px; color: #999; margin-bottom: 8px; }
-.stat-num { color: #8b4513; font-weight: bold; }
+.stat-num { color: #C41E3A; font-weight: bold; }
 
 /* ========== 结果 Tab ========== */
 .result-tabs { display: flex; gap: 16px; margin-bottom: 12px; font-size: 14px; }
 .result-tabs text { padding: 4px 0; color: #666; cursor: pointer; }
-.result-tabs text.active { color: #8b4513; font-weight: bold; border-bottom: 2px solid #8b4513; }
+.result-tabs text.active { color: #C41E3A; font-weight: bold; border-bottom: 2px solid #C41E3A; }
 
 /* ========== 空结果 ========== */
 .empty-hot { margin-top: 16px; }
@@ -507,8 +507,8 @@ function onReachBottom() {
 /* ========== 加载更多 ========== */
 .load-more-wrap { text-align: center; padding: 16px 0; }
 .load-more-btn {
-  font-size: 14px; color: #8b4513; padding: 6px 24px;
-  border: 1px solid #8b4513; border-radius: 16px; display: inline-block; cursor: pointer;
+  font-size: 14px; color: #C41E3A; padding: 6px 24px;
+  border: 1px solid #C41E3A; border-radius: 16px; display: inline-block; cursor: pointer;
 }
 .no-more-text { font-size: 12px; color: #ccc; }
 

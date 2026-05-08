@@ -244,7 +244,7 @@ function handleAction() {
 
 <style>
 .page {
-  background: #f5f0e6;
+  background: #F5F0E8;
   min-height: 100vh;
   padding-bottom: 70px;
 }
@@ -363,13 +363,13 @@ function handleAction() {
 }
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #c4943a, #8b4513);
+  background: linear-gradient(90deg, #C9A96E, #C41E3A);
   border-radius: 3px;
   transition: width 0.4s ease;
 }
 .progress-text {
   font-size: 12px;
-  color: #8b4513;
+  color: #C41E3A;
   white-space: nowrap;
 }
 
@@ -381,7 +381,7 @@ function handleAction() {
 .section-title {
   font-size: 16px;
   font-weight: bold;
-  color: #8b4513;
+  color: #C41E3A;
   padding: 12px 0 8px;
   display: flex;
   align-items: center;
@@ -389,9 +389,9 @@ function handleAction() {
 }
 .section-badge {
   font-size: 11px;
-  color: #c4943a;
+  color: #C9A96E;
   font-weight: normal;
-  background: #f5ead6;
+  background: #F5F0E8;
   padding: 1px 8px;
   border-radius: 8px;
 }
@@ -431,7 +431,7 @@ function handleAction() {
   height: 26px;
   border-radius: 50%;
   background: #f0e8d8;
-  color: #8b4513;
+  color: #C41E3A;
   text-align: center;
   line-height: 26px;
   font-size: 12px;
@@ -473,8 +473,8 @@ function handleAction() {
 }
 .done-tag {
   font-size: 10px;
-  color: #8b4513;
-  background: #f5ead6;
+  color: #C41E3A;
+  background: #F5F0E8;
   padding: 2px 8px;
   border-radius: 8px;
 }
@@ -495,7 +495,7 @@ function handleAction() {
   padding: 60px 0;
 }
 .retry-btn {
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 20px;
   padding: 8px 32px;
@@ -519,7 +519,7 @@ function handleAction() {
 .action-btn {
   width: 100%;
   height: 44px;
-  background: #8b4513;
+  background: #C41E3A;
   color: #fff;
   border-radius: 22px;
   font-size: 16px;

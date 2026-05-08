@@ -337,14 +337,14 @@ function goProduct(id: string) {
 </script>
 
 <style>
-.page { background: #f5f0e6; min-height: 100vh; padding-bottom: 60px; }
+.page { background: #F5F0E8; min-height: 100vh; padding-bottom: 60px; }
 .swiper { width: 100%; height: 360px; }
 .swiper-img { width: 100%; height: 100%; }
 .info-section { background: #fff; padding: 14px; margin-bottom: 8px; }
 .price-row { display: flex; align-items: baseline; gap: 8px; }
 .price { font-size: 24px; font-weight: bold; color: #d03050; }
 .origin { font-size: 14px; color: #999; text-decoration: line-through; }
-.share-btn { margin-left: auto; font-size: 13px; color: #8b4513; padding: 4px 12px; border: 1px solid #8b4513; border-radius: 14px; }
+.share-btn { margin-left: auto; font-size: 13px; color: #C41E3A; padding: 4px 12px; border: 1px solid #C41E3A; border-radius: 14px; }
 .title { font-size: 16px; color: #333; font-weight: bold; display: block; margin: 6px 0; }
 .sales { font-size: 12px; color: #999; }
 .coupon-tip { display: flex; align-items: center; gap: 6px; margin-top: 10px; background: #fef5f0; border: 1px solid #f5d5c0; border-radius: 8px; padding: 8px 12px; }
@@ -367,9 +367,9 @@ function goProduct(id: string) {
 .related-name { font-size: 12px; color: #333; padding: 6px 8px; display: block; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; white-space: normal; }
 .related-price { font-size: 14px; font-weight: bold; color: #d03050; padding: 0 8px 8px; display: block; }
 .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: #fff; border-top: 1px solid #eee; padding: 8px 14px; gap: 10px; z-index: 50; }
-.btn-collect { flex: 1; text-align: center; padding: 10px; border: 1px solid #8b4513; border-radius: 20px; color: #8b4513; font-size: 15px; }
-.btn-collect.collected { background: #fdf5ed; border-color: #8b4513; color: #8b4513; }
-.btn-buy { flex: 2; text-align: center; padding: 10px; background: #8b4513; border-radius: 20px; color: #fff; font-size: 15px; }
+.btn-collect { flex: 1; text-align: center; padding: 10px; border: 1px solid #C41E3A; border-radius: 20px; color: #C41E3A; font-size: 15px; }
+.btn-collect.collected { background: #F5F0E8; border-color: #C41E3A; color: #C41E3A; }
+.btn-buy { flex: 2; text-align: center; padding: 10px; background: #C41E3A; border-radius: 20px; color: #fff; font-size: 15px; }
 
 /* 评价区域 */
 .review-section { background: #fff; padding: 14px; margin-bottom: 8px; }
@@ -383,7 +383,7 @@ function goProduct(id: string) {
 .review-content { font-size: 14px; color: #555; line-height: 1.5; }
 .review-images { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .review-img { width: 70px; height: 70px; border-radius: 4px; }
-.review-more { text-align: center; padding: 10px 0; color: #8b4513; font-size: 14px; }
+.review-more { text-align: center; padding: 10px 0; color: #C41E3A; font-size: 14px; }
 
 /* 评价面板 */
 .review-full-panel { max-height: 80vh; display: flex; flex-direction: column; }
@@ -395,7 +395,7 @@ function goProduct(id: string) {
 .review-textarea { width: 100%; min-height: 80px; border: 1px solid #ddd; border-radius: 8px; padding: 8px; font-size: 14px; box-sizing: border-box; }
 .submit-row { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
 .char-count { font-size: 12px; color: #999; }
-.btn-submit { padding: 8px 24px; background: #8b4513; color: #fff; border-radius: 18px; font-size: 14px; }
+.btn-submit { padding: 8px 24px; background: #C41E3A; color: #fff; border-radius: 18px; font-size: 14px; }
 
 /* 面板通用 */
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: flex; align-items: flex-end; }
@@ -404,11 +404,11 @@ function goProduct(id: string) {
 .panel-thumb { width: 80px; height: 80px; border-radius: 8px; }
 .panel-price { font-size: 20px; font-weight: bold; color: #d03050; }
 .panel-title { font-size: 16px; font-weight: bold; color: #333; }
-.panel-close { font-size: 14px; color: #8b4513; margin-left: auto; }
+.panel-close { font-size: 14px; color: #C41E3A; margin-left: auto; }
 .panel-label { font-size: 14px; color: #666; margin-bottom: 8px; display: block; }
 .panel-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
 .panel-item { padding: 6px 14px; border: 1px solid #ddd; border-radius: 16px; font-size: 13px; color: #333; }
-.panel-item.selected { border-color: #8b4513; color: #8b4513; background: #fdf5ed; }
-.panel-confirm { text-align: center; padding: 12px; background: #8b4513; color: #fff; border-radius: 22px; font-size: 16px; }
+.panel-item.selected { border-color: #C41E3A; color: #C41E3A; background: #F5F0E8; }
+.panel-confirm { text-align: center; padding: 12px; background: #C41E3A; color: #fff; border-radius: 22px; font-size: 16px; }
 .loading-page { text-align: center; padding: 100px 0; color: #999; }
 </style>

@@ -114,13 +114,13 @@ function goAsk() {
 </script>
 
 <style scoped>
-.page { padding: 12px; background: #f5f0e6; min-height: 100vh; padding-bottom: 80px; }
+.page { padding: 12px; background: #F5F0E8; min-height: 100vh; padding-bottom: 80px; }
 .header { margin-bottom: 12px; }
-.title { font-size: 20px; font-weight: bold; color: #8b4513; }
+.title { font-size: 20px; font-weight: bold; color: #C41E3A; }
 .subtitle { font-size: 13px; color: #999; margin-left: 8px; }
 .filter-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
 .tab { padding: 6px 16px; border-radius: 16px; font-size: 13px; background: #fff; color: #666; }
-.tab.active { background: #8b4513; color: #fff; }
+.tab.active { background: #C41E3A; color: #fff; }
 .question-list { display: flex; flex-direction: column; gap: 10px; }
 .question-card { background: #fff; border-radius: 10px; padding: 14px; }
 .q-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
@@ -136,7 +136,7 @@ function goAsk() {
 .q-has-answer { font-size: 11px; color: #27ae60; background: #eafaf1; padding: 2px 8px; border-radius: 8px; }
 .q-peek { font-size: 11px; color: #999; }
 .pagination { text-align: center; margin-top: 20px; }
-.load-more { font-size: 13px; color: #8b4513; }
-.ask-fab { position: fixed; bottom: 40px; right: 20px; width: 48px; height: 48px; border-radius: 50%; background: #8b4513; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(139,69,19,0.3); z-index: 99; }
+.load-more { font-size: 13px; color: #C41E3A; }
+.ask-fab { position: fixed; bottom: 40px; right: 20px; width: 48px; height: 48px; border-radius: 50%; background: #C41E3A; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(139,69,19,0.3); z-index: 99; }
 .fab-icon { color: #fff; font-size: 28px; line-height: 1; }
 </style>
