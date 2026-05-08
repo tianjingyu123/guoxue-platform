@@ -5,26 +5,21 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-import { diskStorage } from "multer";
-import { extname, join } from "path";
-import { randomUUID } from "crypto";
+import { UploadService } from "./upload.service";
 
 @ApiTags("文件上传")
+@ApiBearerAuth()
 @Controller("upload")
 export class UploadController {
+  constructor(private readonly uploadService: UploadService) {}
+
   @Post("image")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "上传图片" })
   @ApiBearerAuth()
   @UseInterceptors(
     FileInterceptor("file", {
-      storage: diskStorage({
-        destination: join(__dirname, "..", "..", "..", "uploads"),
-        filename: (_req, file, cb) => {
-          const ext = extname(file.originalname) || ".png";
-          cb(null, `${randomUUID()}${ext}`);
-        },
-      }),
+      storage: undefined as any, // 使用 memory storage
       limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith("image/")) {
@@ -35,8 +30,8 @@ export class UploadController {
       },
     }),
   )
-  uploadImage(@UploadedFile() file: Express.Multer.File) {
+  async uploadImage(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException("未选择文件");
-    return { url: `/uploads/${file.filename}` };
+    return this.uploadService.upload(file);
   }
 }

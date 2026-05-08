@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsArray, IsEnum, MinLength, MaxLength } from "class-validator";
+import { IsString, IsOptional, IsArray, IsEnum, IsInt, Min, MinLength, MaxLength } from "class-validator";
+import { Type } from "class-transformer";
 
 export enum ContentType {
   ARTICLE = "ARTICLE",
@@ -76,9 +77,18 @@ export class UpdateContentDto {
 }
 
 export class ContentListQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1)
   page?: number;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1)
   pageSize?: number;
+
+  @IsOptional() @IsEnum(ContentType)
   type?: ContentType;
+
+  @IsOptional() @IsString()
   keyword?: string;
+
+  @IsOptional() @IsString()
   status?: string;
 }

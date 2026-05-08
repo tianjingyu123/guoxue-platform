@@ -52,9 +52,26 @@ export class SendCodeDto {
 }
 
 export class WechatLoginDto {
+  @ApiProperty({ description: "微信授权 code", example: "081xxx" })
   @IsString()
   code: string;
 
+  @ApiPropertyOptional({ description: "登录类型：h5 或 miniprogram", example: "h5", default: "h5" })
+  @IsString()
+  @IsOptional()
+  loginType?: string;
+
+  @ApiPropertyOptional({ description: "用户昵称（新用户注册时使用）", example: "张三" })
+  @IsString()
+  @IsOptional()
+  nickname?: string;
+
+  @ApiPropertyOptional({ description: "头像URL（新用户注册时使用）" })
+  @IsString()
+  @IsOptional()
+  avatar?: string;
+
+  @ApiPropertyOptional({ description: "推荐码（可选）", example: "ABC123" })
   @IsString()
   @IsOptional()
   referrerCode?: string;

@@ -1,5 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { AuthService } from "./auth.service";
+import { WechatService } from "./wechat.service";
+import { ImService } from "../im/im.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { JwtService } from "@nestjs/jwt";
 import { RedisService } from "../../redis/redis.service";
@@ -24,16 +26,33 @@ const mockRedis = {
   del: jest.fn(),
 };
 
+const mockWechat = {
+  buildOAuthUrl: jest.fn(),
+  exchangeOAuthCode: jest.fn(),
+  exchangeMiniCode: jest.fn(),
+  getUserInfo: jest.fn(),
+};
+
+const mockIm = {
+  genUserSig: jest.fn(),
+  importAccount: jest.fn().mockResolvedValue(undefined),
+};
+
 describe("AuthService", () => {
   let svc: AuthService;
 
   beforeAll(async () => {
+    // 屏蔽 constructor 中的 importToIm 调用（会抛错因为 LOGGER 未初始化）
+    jest.spyOn(AuthService.prototype as any, "importToIm").mockImplementation(() => {});
+
     const mod = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwt },
         { provide: RedisService, useValue: mockRedis },
+        { provide: WechatService, useValue: mockWechat },
+        { provide: ImService, useValue: mockIm },
       ],
     }).compile();
     svc = mod.get(AuthService);

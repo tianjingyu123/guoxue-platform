@@ -37,9 +37,10 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button size="small" type="primary" @click="openSendDialog(row)">发送</el-button>
           <el-button
             size="small"
             :type="row.status === 'ACTIVE' ? 'warning' : 'success'"
@@ -47,6 +48,7 @@
           >
             {{ row.status === 'ACTIVE' ? '禁用' : '启用' }}
           </el-button>
+          <el-button size="small" type="danger" @click="handleDeleteGift(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -100,13 +102,29 @@
         <el-button type="primary" @click="saveGift" :loading="saving">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 发放礼物弹窗 -->
+    <el-dialog v-model="showSendDialog" title="发放礼物" width="400px">
+      <el-form :model="sendForm" label-width="80px">
+        <el-form-item label="用户ID" required>
+          <el-input v-model="sendForm.userId" placeholder="接收用户ID" />
+        </el-form-item>
+        <el-form-item label="数量" required>
+          <el-input-number v-model="sendForm.quantity" :min="1" :step="1" style="width: 100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showSendDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleSendGift">发放</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { coinApi } from "@/api";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { exportCSV } from "@/utils/export";
 
 const list = ref<any[]>([]);
@@ -126,6 +144,11 @@ const form = reactive({
   level: "BASIC",
   sort: 0,
 });
+
+// 发放礼物弹窗
+const showSendDialog = ref(false);
+const sendGiftId = ref("");
+const sendForm = reactive({ userId: "", quantity: 1 });
 
 onMounted(() => fetchList());
 
@@ -195,10 +218,7 @@ async function saveGift() {
   }
   saving.value = true;
   try {
-    const payload = { ...form };
-    if (editingId.value) {
-      payload.id = editingId.value;
-    }
+    const payload = { id: editingId.value || undefined, ...form };
     await coinApi.createGift(payload);
     ElMessage.success(editingId.value ? "已更新" : "已创建");
     dialogVisible.value = false;
@@ -218,6 +238,42 @@ async function toggleStatus(row: any) {
     fetchList();
   } catch (e: any) {
     ElMessage.error(e.response?.data?.message || "操作失败");
+  }
+}
+
+function openSendDialog(gift: any) {
+  sendGiftId.value = gift.id;
+  sendForm.userId = "";
+  sendForm.quantity = 1;
+  showSendDialog.value = true;
+}
+
+async function handleSendGift() {
+  if (!sendForm.userId) {
+    ElMessage.warning("请输入用户ID");
+    return;
+  }
+  await coinApi.sendGift({
+    giftId: sendGiftId.value,
+    userId: sendForm.userId,
+    quantity: sendForm.quantity,
+  });
+  ElMessage.success("已发放");
+  showSendDialog.value = false;
+}
+
+async function handleDeleteGift(row: any) {
+  try {
+    await ElMessageBox.confirm(`确定删除礼物「${row.name}」？`, "提示", {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning",
+    });
+    await coinApi.deleteGift(row.id);
+    ElMessage.success("已删除");
+    fetchList();
+  } catch {
+    // 取消不处理
   }
 }
 

@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { ClassicService } from "./classic.service";
-import { AuthGuard } from "@nestjs/passport";
+import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { CreateBookDto, UpdateBookDto, CreateChapterDto, UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, BookListQueryDto } from "./classic.dto";
 
 @ApiTags("经典")
@@ -30,7 +30,7 @@ export class ClassicController {
   }
 
   // ── 书籍管理（需登录） ──
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Post("books")
   @ApiOperation({ summary: "创建书籍" })
@@ -38,7 +38,7 @@ export class ClassicController {
     return this.svc.createBook(dto);
   }
 
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Put("books/:id")
   @ApiOperation({ summary: "更新书籍" })
@@ -46,7 +46,7 @@ export class ClassicController {
     return this.svc.updateBook(id, dto);
   }
 
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Delete("books/:id")
   @ApiOperation({ summary: "删除书籍" })
@@ -55,7 +55,7 @@ export class ClassicController {
   }
 
   // ── 章节管理 ──
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Post("books/:bookId/chapters")
   @ApiOperation({ summary: "创建章节" })
@@ -63,7 +63,7 @@ export class ClassicController {
     return this.svc.createChapter(bookId, dto);
   }
 
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Put("chapters/:id")
   @ApiOperation({ summary: "更新章节" })
@@ -71,7 +71,7 @@ export class ClassicController {
     return this.svc.updateChapter(id, dto);
   }
 
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Delete("chapters/:id")
   @ApiOperation({ summary: "删除章节" })
@@ -80,7 +80,7 @@ export class ClassicController {
   }
 
   // ── 阅读进度 ──
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get("progress/:bookId")
   @ApiOperation({ summary: "获取阅读进度" })
@@ -88,7 +88,7 @@ export class ClassicController {
     return this.svc.getProgress(req.user.id, bookId);
   }
 
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Put("progress/:bookId")
   @ApiOperation({ summary: "更新阅读进度" })
@@ -97,7 +97,7 @@ export class ClassicController {
   }
 
   // ── 书签 ──
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get("bookmarks")
   @ApiOperation({ summary: "获取书签列表" })
@@ -106,7 +106,7 @@ export class ClassicController {
     return this.svc.listBookmarks(req.user.id, bookId);
   }
 
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Post("bookmarks/:bookId")
   @ApiOperation({ summary: "创建书签" })
@@ -114,7 +114,7 @@ export class ClassicController {
     return this.svc.createBookmark(req.user.id, bookId, dto);
   }
 
-  @UseGuards(AuthGuard("jwt"))
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Delete("bookmarks/:id")
   @ApiOperation({ summary: "删除书签" })

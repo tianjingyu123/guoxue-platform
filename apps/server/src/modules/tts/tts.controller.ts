@@ -1,10 +1,11 @@
 import { Controller, Post, Get, Body, Query, Res, UseGuards, Req } from "@nestjs/common"
-import { ApiTags, ApiOperation, ApiQuery, ApiBody } from "@nestjs/swagger"
+import { ApiTags, ApiOperation, ApiQuery, ApiBody, ApiBearerAuth } from "@nestjs/swagger"
 import { Response } from "express"
 import { TtsService, TtsRequest } from "./tts.service"
 import { JwtAuthGuard } from "../../common/jwt-auth.guard"
 
 @ApiTags("语音合成")
+@ApiBearerAuth()
 @Controller("tts")
 export class TtsController {
   constructor(private tts: TtsService) {}

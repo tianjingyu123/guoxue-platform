@@ -1,16 +1,21 @@
-import { Controller, Get, Post, Delete, Param, Query, Body, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Delete, Param, Query, Body, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { UserService } from "./user.service";
+import { SystemService } from "../system/system.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RoleType } from "@prisma/client";
 
 @ApiTags("用户")
+@ApiBearerAuth()
 @Controller("users")
 @UseGuards(JwtAuthGuard)
 export class UserController {
-  constructor(private user: UserService) {}
+  constructor(
+    private user: UserService,
+    private systemService: SystemService,
+  ) {}
 
   @Get(":id")
   @ApiOperation({ summary: "获取用户详情" })
@@ -19,7 +24,7 @@ export class UserController {
   }
 
   @Get()
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取用户列表（管理员）" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
@@ -36,26 +41,46 @@ export class UserController {
   }
 
   @Post(":id/roles")
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "分配用户角色" })
-  assignRole(
+  async assignRole(
     @Param("id") userId: string,
     @Body() body: { roleType: RoleType; bindId?: string },
+    @Req() req: any,
   ) {
-    return this.user.assignRole(userId, body.roleType, body.bindId);
+    const result = await this.user.assignRole(userId, body.roleType, body.bindId);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "UPDATE",
+      targetType: "USER",
+      targetId: userId,
+      detail: `分配角色: ${body.roleType}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   @Delete(":id/roles/:roleType")
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "移除用户角色" })
-  removeRole(
+  async removeRole(
     @Param("id") userId: string,
     @Param("roleType") roleType: RoleType,
-    @Body("bindId") bindId?: string,
+    @Body("bindId") bindId: string | undefined,
+    @Req() req: any,
   ) {
-    return this.user.removeRole(userId, roleType, bindId);
+    const result = await this.user.removeRole(userId, roleType, bindId);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "DELETE",
+      targetType: "USER",
+      targetId: userId,
+      detail: `移除角色: ${roleType}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   @Get(":id/purchases")

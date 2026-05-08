@@ -144,6 +144,16 @@ function getCategoryShort(cat: string): string {
   return cat || '典'
 }
 
+/** 从 API 响应中提取数组（兼容多种返回格式） */
+function extractList(data: any, key: string): any[] {
+  if (Array.isArray(data)) return data
+  if (data?.[key] && Array.isArray(data[key])) return data[key]
+  if (data?.data && Array.isArray(data.data)) return data.data
+  if (data?.list && Array.isArray(data.list)) return data.list
+  if (data?.items && Array.isArray(data.items)) return data.items
+  return []
+}
+
 async function fetchBooks() {
   loading.value = true
   errorMsg.value = ''
@@ -153,12 +163,9 @@ async function fetchBooks() {
       params.category = curCategory.value
     }
     const data = await classicApi.books(params)
-    books.value = data.books || data.list || data || []
-    if (!Array.isArray(books.value)) {
-      books.value = []
-    }
+    books.value = extractList(data, 'books')
   } catch (e: any) {
-    errorMsg.value = '加载失败，请检查网络连接'
+    errorMsg.value = e.errMsg || '加载失败，请检查网络连接'
     books.value = []
   } finally {
     loading.value = false

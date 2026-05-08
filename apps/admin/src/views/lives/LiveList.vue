@@ -2,13 +2,16 @@
   <div class="page">
     <div class="header">
       <h2>直播管理</h2>
-      <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width:120px" @change="fetchList">
-        <el-option label="全部" value="" />
-        <el-option label="待开播" value="PENDING" />
-        <el-option label="直播中" value="LIVING" />
-        <el-option label="已结束" value="ENDED" />
-        <el-option label="回放" value="REPLAY" />
-      </el-select>
+      <div>
+        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width:120px;margin-right:12px" @change="fetchList">
+          <el-option label="全部" value="" />
+          <el-option label="待开播" value="PENDING" />
+          <el-option label="直播中" value="LIVING" />
+          <el-option label="已结束" value="ENDED" />
+          <el-option label="回放" value="REPLAY" />
+        </el-select>
+        <el-button type="primary" @click="openEdit()">添加直播</el-button>
+      </div>
     </div>
 
     <el-table :data="list" border stripe v-loading="loading">
@@ -25,15 +28,45 @@
       <el-table-column prop="createdAt" label="创建时间" width="170">
         <template #default="{ row }">{{ row.createdAt?.slice(0,16).replace('T',' ') }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
+          <el-button size="small" type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button v-if="row.status === 'LIVING'" size="small" type="danger" @click="endRoom(row)">结束</el-button>
-          <el-button size="small" type="primary" @click="viewDetail(row)">详情</el-button>
+          <el-button size="small" @click="viewDetail(row)">详情</el-button>
           <el-button size="small" type="danger" @click="del(row.id)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
 
+    <!-- 创建/编辑对话框 -->
+    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑直播' : '添加直播'" width="500px">
+      <el-form :model="form" label-width="100px">
+        <el-form-item label="标题">
+          <el-input v-model="form.title" />
+        </el-form-item>
+        <el-form-item label="封面URL">
+          <el-input v-model="form.cover" placeholder="封面图片地址" />
+        </el-form-item>
+        <el-form-item label="主播用户ID">
+          <el-input v-model="form.hostUserId" placeholder="用户ID" />
+        </el-form-item>
+        <el-form-item label="收费类型">
+          <el-select v-model="form.chargeType">
+            <el-option label="免费" value="FREE" />
+            <el-option label="付费" value="PAID" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="收费价格" v-if="form.chargeType === 'PAID'">
+          <el-input-number v-model="form.chargePrice" :min="0" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveRoom" :loading="saving">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 直播详情对话框 -->
     <el-dialog v-model="detailVisible" title="直播详情" width="600px">
       <div v-if="detail" class="detail">
         <p><b>标题：</b>{{ detail.title }}</p>
@@ -51,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { liveApi } from "@/api";
 
@@ -60,6 +93,12 @@ const loading = ref(false);
 const statusFilter = ref("");
 const detailVisible = ref(false);
 const detail = ref<any>(null);
+
+// 创建/编辑
+const dialogVisible = ref(false);
+const saving = ref(false);
+const editingId = ref("");
+const form = reactive({ title: "", cover: "", hostUserId: "", chargeType: "FREE", chargePrice: 0 });
 
 onMounted(() => fetchList());
 
@@ -76,6 +115,49 @@ async function fetchList() {
     const { data } = await liveApi.rooms(params);
     list.value = data.rooms || data || [];
   } finally { loading.value = false; }
+}
+
+function openEdit(row?: any) {
+  if (row) {
+    editingId.value = row.id;
+    form.title = row.title || "";
+    form.cover = row.cover || "";
+    form.hostUserId = row.hostUserId || (row.host?.id || "");
+    form.chargeType = row.chargeType || "FREE";
+    form.chargePrice = row.chargePrice ?? 0;
+  } else {
+    editingId.value = "";
+    form.title = "";
+    form.cover = "";
+    form.hostUserId = "";
+    form.chargeType = "FREE";
+    form.chargePrice = 0;
+  }
+  dialogVisible.value = true;
+}
+
+async function saveRoom() {
+  saving.value = true;
+  try {
+    const payload: Record<string, any> = { title: form.title };
+    if (form.cover) payload.cover = form.cover;
+    if (form.hostUserId) payload.hostUserId = form.hostUserId;
+    if (form.chargeType) payload.chargeType = form.chargeType;
+    if (form.chargeType === "PAID" && form.chargePrice > 0) payload.chargePrice = form.chargePrice;
+
+    if (editingId.value) {
+      // 编辑时只传允许的更新字段
+      await liveApi.update(editingId.value, { title: form.title, cover: form.cover });
+      ElMessage.success("已更新");
+    } else {
+      await liveApi.create(payload);
+      ElMessage.success("已添加");
+    }
+    dialogVisible.value = false;
+    fetchList();
+  } finally {
+    saving.value = false;
+  }
 }
 
 async function viewDetail(row: any) {
@@ -95,7 +177,7 @@ function endRoom(row: any) {
 }
 
 function del(id: string) {
-  ElMessageBox.confirm("确定删除？", "警告", { type: "warning" }).then(async () => {
+  ElMessageBox.confirm("确定删除该直播？", "警告", { type: "warning" }).then(async () => {
     await liveApi.remove(id);
     ElMessage.success("已删除");
     fetchList();

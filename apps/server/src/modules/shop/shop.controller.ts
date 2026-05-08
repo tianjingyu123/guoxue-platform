@@ -4,6 +4,7 @@ import {
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { ShopService } from "./shop.service";
+import { SystemService } from "../system/system.service";
 import {
   CreateProductDto, UpdateProductDto, CreateOrderDto, CreateCouponDto,
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
@@ -16,7 +17,10 @@ import { Roles } from "../../common/roles.decorator";
 @ApiTags("商城")
 @Controller("shop")
 export class ShopController {
-  constructor(private shop: ShopService) {}
+  constructor(
+    private shop: ShopService,
+    private systemService: SystemService,
+  ) {}
 
   // ───────── 商品 ─────────
 
@@ -80,8 +84,17 @@ export class ShopController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建订单" })
   @ApiBearerAuth()
-  createOrder(@Req() req: any, @Body() dto: CreateOrderDto) {
-    return this.shop.createOrder(req.user.id, dto);
+  async createOrder(@Req() req: any, @Body() dto: CreateOrderDto) {
+    const result = await this.shop.createOrder(req.user.id, dto);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "CREATE",
+      targetType: "ORDER",
+      targetId: result.id,
+      detail: `创建订单: ¥${result.amount}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   @Get("orders")
@@ -115,8 +128,17 @@ export class ShopController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "支付订单" })
   @ApiBearerAuth()
-  payOrder(@Param("id") id: string) {
-    return this.shop.payOrder(id);
+  async payOrder(@Param("id") id: string, @Req() req: any) {
+    const result = await this.shop.payOrder(id);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "PAY",
+      targetType: "ORDER",
+      targetId: id,
+      detail: `支付订单: ${id}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   @Put("orders/:id/ship")
@@ -141,8 +163,17 @@ export class ShopController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "退款（管理员）" })
   @ApiBearerAuth()
-  refundOrder(@Param("id") id: string) {
-    return this.shop.refundOrder(id);
+  async refundOrder(@Param("id") id: string, @Req() req: any) {
+    const result = await this.shop.refundOrder(id);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "REFUND",
+      targetType: "ORDER",
+      targetId: id,
+      detail: `退款: ${id}`,
+      ip: req.ip,
+    }).catch(() => {});
+    return result;
   }
 
   @Put("orders/:id/cancel")

@@ -127,6 +127,18 @@
       "style": { "navigationBarTitleText": "订单详情" }
     },
     {
+      "path": "pages/qa/questions",
+      "style": { "navigationBarTitleText": "付费问答" }
+    },
+    {
+      "path": "pages/qa/ask",
+      "style": { "navigationBarTitleText": "发起提问" }
+    },
+    {
+      "path": "pages/qa/question-detail",
+      "style": { "navigationBarTitleText": "问答详情" }
+    },
+    {
       "path": "pages/wallet/wallet",
       "style": { "navigationBarTitleText": "我的钱包" }
     },

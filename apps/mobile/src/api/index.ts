@@ -29,11 +29,24 @@ export const api = {
   delete: (path: string, data?: any) => request("DELETE", path, data),
 };
 
+// IM 即时通讯
+export const imApi = {
+  /** 获取当前用户的 UserSig */
+  getUserSig: () => api.post("/im/user-sig"),
+  /** 获取指定用户的 UserSig（管理员用） */
+  getUserSigFor: (userId: string) => api.post("/im/user-sig", { userId }),
+};
+
 // 认证
 export const authApi = {
   login: (data: { account: string; password: string }) => api.post("/auth/login/phone", data),
   register: (data: any) => api.post("/auth/register/phone", data),
   getProfile: () => api.get("/auth/me"),
+  /** 获取微信 OAuth 授权 URL */
+  getWechatOAuthUrl: (redirectUri: string) => api.get("/auth/wechat/oauth-url", { redirectUri }),
+  /** 微信登录（H5 OAuth 或小程序） */
+  wechatLogin: (data: { code: string; loginType?: string; nickname?: string; avatar?: string; referrerCode?: string }) =>
+    api.post("/auth/login/wechat", data),
 };
 
 // 内容（圈子文章）
@@ -228,6 +241,22 @@ export const stationApi = {
   /** 分站收益明细（分页） */
   getEarnings: (stationId: string, page?: number, pageSize?: number) =>
     api.get(`/station/${stationId}/earnings`, { page, pageSize }),
+};
+
+// 付费问答
+export const questionApi = {
+  /** 圈子问答列表 */
+  list: (params?: { circleId?: string; status?: string; page?: number; pageSize?: number }) =>
+    api.get("/question", params),
+  /** 问答详情 */
+  detail: (id: string) => api.get(`/question/${id}`),
+  /** 发起提问 */
+  ask: (data: { circleId: string; answererId: string; question: string; priceCoin: number; peekPriceCoin?: number }) =>
+    api.post("/question/ask", data),
+  /** 回答提问 */
+  answer: (id: string, data: { answer: string }) => api.post(`/question/${id}/answer`, data),
+  /** 围观答案 */
+  peek: (id: string) => api.post(`/question/${id}/peek`),
 };
 
 export default api;

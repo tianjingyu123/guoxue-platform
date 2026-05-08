@@ -30,8 +30,24 @@ api.interceptors.response.use(
 // 认证
 export const authApi = {
   login: (data: { account: string; password: string }) =>
-    api.post("/auth/login", data),
+    api.post("/auth/login/phone", { phone: data.account, password: data.password }),
   getProfile: () => api.get("/auth/me"),
+};
+
+// IM 即时通讯
+export const imApi = {
+  getUserSig: (userId?: string) => api.post("/im/user-sig", userId ? { userId } : {}),
+  importAccount: (data: { userId: string; nickname?: string; avatar?: string }) =>
+    api.post("/im/account/import", data),
+  queryAccountState: (userIds: string) =>
+    api.get("/im/account/state", { params: { userIds } }),
+  createGroup: (data: { groupId: string; name: string; type?: string; ownerId?: string }) =>
+    api.post("/im/groups", data),
+  destroyGroup: (groupId: string) => api.delete(`/im/groups/${groupId}`),
+  addGroupMembers: (groupId: string, memberIds: string[]) =>
+    api.post(`/im/groups/${groupId}/members`, { memberIds }),
+  sendGroupMsg: (groupId: string, text: string) =>
+    api.post(`/im/groups/${groupId}/msg`, { text }),
 };
 
 // 内容
@@ -86,6 +102,7 @@ export const dashboardApi = {
 export const circleApi = {
   list: (params?: any) => api.get("/circles", { params }),
   detail: (id: string) => api.get(`/circles/${id}`),
+  create: (data: any) => api.post("/circles", data),
   update: (id: string, data: any) => api.put(`/circles/${id}`, data),
   remove: (id: string) => api.delete(`/circles/${id}`),
 };
@@ -101,6 +118,8 @@ export const videoApi = {
 export const liveApi = {
   rooms: (params?: any) => api.get("/live/rooms", { params }),
   detail: (id: string) => api.get(`/live/rooms/${id}`),
+  create: (data: any) => api.post("/live/rooms", data),
+  update: (id: string, data: any) => api.put(`/live/rooms/${id}`, data),
   endRoom: (id: string) => api.put(`/live/rooms/${id}/end`),
   remove: (id: string) => api.delete(`/live/rooms/${id}`),
 };
@@ -153,6 +172,7 @@ export const stationApi = {
   detail: (id: string) => api.get(`/station/${id}`),
   create: (data: any) => api.post("/station", data),
   update: (id: string, data: any) => api.put(`/station/${id}`, data),
+  remove: (id: string) => api.delete(`/station/${id}`),
   earnings: (id: string, params?: any) => api.get(`/station/${id}/earnings`, { params }),
   operatorList: (params?: any) => api.get("/station/operator/list", { params }),
   createOperator: (data: any) => api.post("/station/operator", data),
@@ -245,6 +265,18 @@ export const coinApi = {
     level: string;
     sort: number;
   }) => api.post("/coin/gifts", data),
+  /** 删除礼物 */
+  deleteGift: (id: string) => api.delete(`/coin/gifts/${id}`),
+  /** 发放礼物给用户 */
+  sendGift: (data: { giftId: string; userId: string; quantity: number }) =>
+    api.post("/coin/gifts/send", data),
+};
+
+// 付费问答
+export const questionApi = {
+  list: (params?: any) => api.get("/question", { params }),
+  detail: (id: string) => api.get(`/question/${id}`),
+  refundExpired: () => api.post("/question/admin/refund-expired"),
 };
 
 export default api;

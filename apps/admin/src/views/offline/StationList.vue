@@ -26,7 +26,7 @@
       <el-table-column label="创建时间" width="170">
         <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column label="操作" width="330" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button size="small" @click="openBrandEdit(row)">编辑品牌</el-button>
@@ -37,6 +37,7 @@
             @click="toggleStatus(row, 'DISABLED')"
           >禁用</el-button>
           <el-button v-else size="small" type="success" @click="toggleStatus(row, 'ACTIVE')">启用</el-button>
+          <el-button size="small" type="danger" @click="delStation(row.id)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -167,7 +168,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { stationApi } from "@/api";
 import ImageUpload from "@/components/ImageUpload.vue";
 import { exportCSV } from "@/utils/export";
@@ -265,6 +266,14 @@ async function toggleStatus(row: any, status: string) {
   await stationApi.update(row.id, { status });
   ElMessage.success(status === "DISABLED" ? "已禁用" : "已启用");
   fetchList();
+}
+
+function delStation(id: string) {
+  ElMessageBox.confirm("确定删除该分站？", "警告", { type: "warning" }).then(async () => {
+    await stationApi.remove(id);
+    ElMessage.success("已删除");
+    fetchList();
+  }).catch(() => {});
 }
 
 function exportData() {

@@ -46,6 +46,9 @@
             <el-option label="道教" value="道" />
           </el-select>
         </el-form-item>
+        <el-form-item label="封面">
+          <ImageUpload v-model="form.cover" />
+        </el-form-item>
         <el-form-item label="版本来源">
           <el-input v-model="form.source" />
         </el-form-item>
@@ -107,6 +110,7 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { classicApi } from "@/api";
+import ImageUpload from "@/components/ImageUpload.vue";
 
 const books = ref<any[]>([]);
 const loading = ref(false);
@@ -114,7 +118,7 @@ const dialogVisible = ref(false);
 const saving = ref(false);
 const editingBook = ref<any>({});
 
-const form = reactive({ title: "", author: "", dynasty: "", category: "子", source: "", intro: "" });
+const form = reactive({ title: "", author: "", dynasty: "", category: "子", cover: "", source: "", intro: "" });
 
 onMounted(() => fetchBooks());
 
@@ -131,14 +135,18 @@ async function fetchBooks() {
 function openEdit(row?: any) {
   editingBook.value = row || {};
   if (row) {
-    Object.assign(form, { title: row.title, author: row.author || "", dynasty: row.dynasty || "", category: row.category || "子", source: row.source || "", intro: row.intro || "" });
+    Object.assign(form, { title: row.title, author: row.author || "", dynasty: row.dynasty || "", category: row.category || "子", cover: row.cover || "", source: row.source || "", intro: row.intro || "" });
   } else {
-    Object.assign(form, { title: "", author: "", dynasty: "", category: "子", source: "", intro: "" });
+    Object.assign(form, { title: "", author: "", dynasty: "", category: "子", cover: "", source: "", intro: "" });
   }
   dialogVisible.value = true;
 }
 
 async function saveBook() {
+  if (!form.title.trim()) {
+    ElMessage.warning("请输入书名");
+    return;
+  }
   saving.value = true;
   try {
     if (editingBook.value.id) {
@@ -150,6 +158,9 @@ async function saveBook() {
     }
     dialogVisible.value = false;
     fetchBooks();
+  } catch (e: any) {
+    const msg = e.response?.data?.message;
+    ElMessage.error(typeof msg === "string" ? msg : (Array.isArray(msg) ? msg.join("；") : "保存失败"));
   } finally {
     saving.value = false;
   }
@@ -187,6 +198,10 @@ function editChapter(row?: any) {
 }
 
 async function saveChapter() {
+  if (!chForm.title.trim() || !chForm.content.trim()) {
+    ElMessage.warning("章节标题和原文不能为空");
+    return;
+  }
   saving.value = true;
   try {
     if (chForm.id) {
@@ -197,6 +212,9 @@ async function saveChapter() {
     chEditVisible.value = false;
     ElMessage.success("已保存");
     openChapters({ id: currentBookId.value });
+  } catch (e: any) {
+    const msg = e.response?.data?.message;
+    ElMessage.error(typeof msg === "string" ? msg : (Array.isArray(msg) ? msg.join("；") : "保存失败"));
   } finally {
     saving.value = false;
   }

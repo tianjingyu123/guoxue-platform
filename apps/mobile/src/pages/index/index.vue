@@ -182,7 +182,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
+import { ref, computed, onMounted } from 'vue'
+import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 import SearchBar from '../../components/SearchBar.vue'
 import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
 import EmptyState from '../../components/EmptyState.vue'

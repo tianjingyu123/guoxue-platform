@@ -1,9 +1,57 @@
 <template>
   <view class="page">
     <!-- ==================== 未登录 ==================== -->
-    <view v-if="!userStore.isLogin" class="user-card unlogin">
-      <button class="login-btn" @click="showLogin = true">登录 / 注册</button>
-      <text class="login-tip">登录后享受更多国学内容</text>
+    <view v-if="!userStore.isLogin" class="unlogin-page">
+      <!-- 用户卡片区域（引导登录） -->
+      <view class="user-card unlogin">
+        <view class="unlogin-avatar">👤</view>
+        <text class="unlogin-title">国学传统文化平台</text>
+        <text class="unlogin-subtitle">登录后体验完整国学之旅</text>
+        <button class="login-btn" @click="showLogin = true">登录 / 注册</button>
+      </view>
+
+      <!-- 功能预览 -->
+      <view class="feature-preview">
+        <text class="fp-title">登录后可使用</text>
+        <view class="fp-grid">
+          <view class="fp-item">
+            <text class="fp-icon">📖</text>
+            <text class="fp-label">古籍阅读</text>
+            <text class="fp-desc">记录阅读进度与书签</text>
+          </view>
+          <view class="fp-item">
+            <text class="fp-icon">☯</text>
+            <text class="fp-label">八字排盘</text>
+            <text class="fp-desc">保存排盘与AI解读</text>
+          </view>
+          <view class="fp-item">
+            <text class="fp-icon">⭐</text>
+            <text class="fp-label">收藏内容</text>
+            <text class="fp-desc">收藏喜欢的文章课程</text>
+          </view>
+          <view class="fp-item">
+            <text class="fp-icon">💬</text>
+            <text class="fp-label">社区互动</text>
+            <text class="fp-desc">发帖评论与圈子交流</text>
+          </view>
+          <view class="fp-item">
+            <text class="fp-icon">📚</text>
+            <text class="fp-label">学习记录</text>
+            <text class="fp-desc">跟踪课程学习进度</text>
+          </view>
+          <view class="fp-item">
+            <text class="fp-icon">🛒</text>
+            <text class="fp-label">文创商城</text>
+            <text class="fp-desc">购买国学相关商品</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部登录入口 -->
+      <view class="bottom-login" @click="showLogin = true">
+        <text class="bottom-login-text">已有账号？立即登录</text>
+        <text class="arrow">›</text>
+      </view>
     </view>
 
     <!-- ==================== 已登录：用户信息卡片 ==================== -->
@@ -683,7 +731,7 @@ function formatTime(timeStr?: string): string {
   background: linear-gradient(135deg, #8b4513, #c4943a);
   border-radius: 12px; padding: 28px; text-align: center; margin-bottom: 12px;
 }
-.user-card.unlogin { padding: 36px 28px; }
+.user-card.unlogin { padding: 40px 28px 32px; }
 .avatar {
   width: 72px; height: 72px; border-radius: 50%;
   background: rgba(255,255,255,0.3); border: 2px solid rgba(255,255,255,0.5);
@@ -699,6 +747,50 @@ function formatTime(timeStr?: string): string {
   padding: 10px 32px; display: inline-block;
 }
 .login-tip { color: rgba(255,255,255,0.6); font-size: 13px; display: block; margin-top: 12px; }
+
+/* 未登录页面 */
+.unlogin-page {
+  padding-bottom: 20px;
+}
+.unlogin-avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(255,255,255,0.2); display: flex; align-items: center;
+  justify-content: center; font-size: 32px; margin: 0 auto 12px;
+}
+.unlogin-title {
+  color: #fff; font-size: 20px; font-weight: bold; display: block;
+}
+.unlogin-subtitle {
+  color: rgba(255,255,255,0.7); font-size: 13px; display: block;
+  margin-top: 6px; margin-bottom: 16px;
+}
+/* 功能预览 */
+.feature-preview {
+  background: #fff; border-radius: 12px; padding: 20px 16px;
+  margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.fp-title {
+  font-size: 14px; font-weight: bold; color: #8b4513;
+  display: block; margin-bottom: 16px; padding-left: 8px;
+  border-left: 3px solid #c4943a;
+}
+.fp-grid {
+  display: flex; flex-wrap: wrap; gap: 12px;
+}
+.fp-item {
+  width: calc(33.33% - 8px); display: flex; flex-direction: column;
+  align-items: center; text-align: center; padding: 8px 4px;
+}
+.fp-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+.fp-label { font-size: 13px; color: #333; font-weight: 500; display: block; }
+.fp-desc { font-size: 10px; color: #bbb; display: block; margin-top: 2px; }
+/* 底部登录入口 */
+.bottom-login {
+  background: #fff; border-radius: 12px; padding: 16px;
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.bottom-login-text { font-size: 15px; color: #8b4513; font-weight: 500; }
 
 /* 统计数据行 */
 .stats-row {

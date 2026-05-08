@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { validate } from "class-validator";
 import { CreateContentDto, UpdateContentDto, ContentType } from "./content.dto";
 

@@ -2,12 +2,15 @@
   <div class="page">
     <div class="header">
       <h2>视频管理</h2>
-      <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width:120px" @change="fetchList">
-        <el-option label="全部" value="" />
-        <el-option label="待审核" value="PENDING" />
-        <el-option label="已发布" value="PUBLISHED" />
-        <el-option label="已下架" value="REMOVED" />
-      </el-select>
+      <div style="display:flex;gap:8px">
+        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width:120px" @change="fetchList">
+          <el-option label="全部" value="" />
+          <el-option label="待审核" value="PENDING" />
+          <el-option label="已发布" value="PUBLISHED" />
+          <el-option label="已下架" value="REMOVED" />
+        </el-select>
+        <el-button type="primary" @click="openCreate()">添加视频</el-button>
+      </div>
     </div>
 
     <el-table :data="list" border stripe v-loading="loading">
@@ -25,9 +28,10 @@
       <el-table-column prop="createdAt" label="发布时间" width="170">
         <template #default="{ row }">{{ row.createdAt?.slice(0,16).replace('T',' ') }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="viewDetail(row)">详情</el-button>
+          <el-button size="small" type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button size="small" type="danger" @click="del(row.id)">删除</el-button>
         </template>
       </el-table-column>
@@ -43,19 +47,67 @@
         <p><b>状态：</b>{{ detail.status }}</p>
       </div>
     </el-dialog>
+
+    <!-- 创建/编辑弹窗 -->
+    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑视频' : '添加视频'" width="600px">
+      <el-form :model="form" label-width="80px">
+        <el-form-item label="标题">
+          <el-input v-model="form.title" placeholder="视频标题" />
+        </el-form-item>
+        <el-form-item label="封面">
+          <el-input v-model="form.cover" placeholder="封面图片URL" />
+        </el-form-item>
+        <el-form-item label="视频地址">
+          <el-input v-model="form.videoUrl" placeholder="视频播放URL" />
+        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="时长">
+              <el-input v-model="form.duration" placeholder="如 15:30" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="标签">
+              <el-input v-model="form.tags" placeholder="逗号分隔" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="描述">
+          <el-input v-model="form.description" type="textarea" :rows="3" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveVideo" :loading="saving">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { videoApi } from "@/api";
+import api from "@/api";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
 const statusFilter = ref("");
 const detailVisible = ref(false);
 const detail = ref<any>(null);
+
+// 创建/编辑弹窗
+const dialogVisible = ref(false);
+const editingId = ref('');
+const saving = ref(false);
+const form = reactive({
+  title: '',
+  cover: '',
+  videoUrl: '',
+  duration: '',
+  description: '',
+  tags: '',
+});
 
 onMounted(() => fetchList());
 
@@ -67,6 +119,51 @@ async function fetchList() {
     const { data } = await videoApi.list(params);
     list.value = data.videos || data || [];
   } finally { loading.value = false; }
+}
+
+function resetForm() {
+  Object.assign(form, { title: '', cover: '', videoUrl: '', duration: '', description: '', tags: '' });
+  editingId.value = '';
+}
+
+function openCreate() {
+  resetForm();
+  dialogVisible.value = true;
+}
+
+function openEdit(row: any) {
+  resetForm();
+  editingId.value = row.id;
+  Object.assign(form, {
+    title: row.title || '',
+    cover: row.cover || '',
+    videoUrl: row.videoUrl || row.url || '',
+    duration: row.duration || '',
+    description: row.description || '',
+    tags: Array.isArray(row.tags) ? row.tags.join(',') : (row.tags || ''),
+  });
+  dialogVisible.value = true;
+}
+
+async function saveVideo() {
+  saving.value = true;
+  try {
+    const payload: any = { ...form };
+    if (typeof payload.tags === 'string') {
+      payload.tags = payload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+    }
+    if (editingId.value) {
+      await api.put(`/videos/${editingId.value}`, payload);
+      ElMessage.success('已更新');
+    } else {
+      await api.post('/videos', payload);
+      ElMessage.success('已创建');
+    }
+    dialogVisible.value = false;
+    fetchList();
+  } catch (e: any) {
+    ElMessage.error(e.response?.data?.message || '保存失败');
+  } finally { saving.value = false; }
 }
 
 async function viewDetail(row: any) {

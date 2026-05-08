@@ -2,6 +2,7 @@
   <div class="page">
     <div class="header">
       <h2>圈子管理</h2>
+      <el-button type="primary" @click="openEdit()">添加圈子</el-button>
     </div>
 
     <el-table :data="list" border stripe v-loading="loading">
@@ -19,20 +20,24 @@
           <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" size="small">{{ row.status === 'ACTIVE' ? '正常' : row.status === 'BANNED' ? '已封禁' : row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="250" fixed="right">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button v-if="row.status === 'ACTIVE'" size="small" type="danger" @click="toggleStatus(row, 'BANNED')">封禁</el-button>
           <el-button v-else size="small" type="success" @click="toggleStatus(row, 'ACTIVE')">解封</el-button>
+          <el-button size="small" type="danger" @click="delCircle(row.id)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <!-- 编辑对话框 -->
-    <el-dialog v-model="dialogVisible" title="编辑圈子" width="500px">
+    <!-- 创建/编辑对话框 -->
+    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑圈子' : '添加圈子'" width="500px">
       <el-form :model="form" label-width="80px">
         <el-form-item label="名称">
           <el-input v-model="form.name" />
+        </el-form-item>
+        <el-form-item label="封面URL">
+          <el-input v-model="form.cover" placeholder="封面图片地址" />
         </el-form-item>
         <el-form-item label="简介">
           <el-input v-model="form.intro" type="textarea" :rows="3" />
@@ -60,15 +65,15 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { circleApi } from "@/api";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
 const dialogVisible = ref(false);
 const saving = ref(false);
-const editingRow = ref<any>({});
-const form = reactive({ name: "", intro: "", type: "FREE", price: 0 });
+const editingId = ref("");
+const form = reactive({ name: "", cover: "", intro: "", type: "FREE", price: 0 });
 const tagsStr = ref("");
 
 onMounted(() => fetchList());
@@ -81,18 +86,43 @@ async function fetchList() {
   } finally { loading.value = false; }
 }
 
-function openEdit(row: any) {
-  editingRow.value = row;
-  Object.assign(form, { name: row.name, intro: row.intro || "", type: row.type, price: row.price || 0 });
-  tagsStr.value = (row.tags || []).join(",");
+function openEdit(row?: any) {
+  if (row) {
+    editingId.value = row.id;
+    form.name = row.name;
+    form.cover = row.cover || "";
+    form.intro = row.intro || "";
+    form.type = row.type;
+    form.price = row.price || 0;
+    tagsStr.value = (row.tags || []).join(",");
+  } else {
+    editingId.value = "";
+    form.name = "";
+    form.cover = "";
+    form.intro = "";
+    form.type = "FREE";
+    form.price = 0;
+    tagsStr.value = "";
+  }
   dialogVisible.value = true;
 }
 
 async function save() {
   saving.value = true;
   try {
-    await circleApi.update(editingRow.value.id, { ...form, tags: tagsStr.value.split(",").filter(Boolean) });
-    ElMessage.success("已更新");
+    const payload: Record<string, any> = {
+      ...form,
+      tags: tagsStr.value.split(",").filter(Boolean),
+    };
+    if (form.type !== "PAID") delete payload.price;
+
+    if (editingId.value) {
+      await circleApi.update(editingId.value, payload);
+      ElMessage.success("已更新");
+    } else {
+      await circleApi.create(payload);
+      ElMessage.success("已添加");
+    }
     dialogVisible.value = false;
     fetchList();
   } finally { saving.value = false; }
@@ -103,10 +133,18 @@ async function toggleStatus(row: any, status: string) {
   ElMessage.success(status === "BANNED" ? "已封禁" : "已解封");
   fetchList();
 }
+
+function delCircle(id: string) {
+  ElMessageBox.confirm("确定删除该圈子？", "警告", { type: "warning" }).then(async () => {
+    await circleApi.remove(id);
+    ElMessage.success("已删除");
+    fetchList();
+  }).catch(() => {});
+}
 </script>
 
 <style scoped>
 .page { padding: 20px; }
-.header { margin-bottom: 16px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .header h2 { margin: 0; font-size: 18px; color: #8b4513; }
 </style>

@@ -373,6 +373,12 @@
         </view>
       </view>
 
+      <!-- 未登录提示条 -->
+      <view v-if="!userStore.isLogin" class="login-banner">
+        <text class="login-banner-text">🔐 登录后可保存排盘、AI深度解读、查看历史记录</text>
+        <text class="login-banner-link" @click="goLogin">去登录 →</text>
+      </view>
+
       <!-- AI智能解读 -->
       <view class="card">
         <view class="card-header">
@@ -408,6 +414,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { paipanApi } from '../../api'
+import { useUserStore } from '../../store/user'
+
+const userStore = useUserStore()
 
 // ========== 干支五行颜色映射 ==========
 const tianGanWuXingMap: Record<string, string> = {
@@ -610,19 +619,21 @@ async function doCalc() {
   }
 }
 
+function requireLogin(action: string): boolean {
+  if (userStore.isLogin) return true
+  uni.showModal({
+    title: '需要登录',
+    content: `${action}需要先登录账号`,
+    success: (res) => {
+      if (res.confirm) uni.navigateTo({ url: '/pages/login/login' })
+    },
+  })
+  return false
+}
+
 async function saveRecord() {
   if (!result.value) return
-  const token = uni.getStorageSync('token')
-  if (!token) {
-    uni.showModal({
-      title: '提示',
-      content: '保存排盘需要先登录',
-      success: (res) => {
-        if (res.confirm) uni.navigateTo({ url: '/pages/login/login' })
-      },
-    })
-    return
-  }
+  if (!requireLogin('保存排盘')) return
   try {
     await paipanApi.save({
       name: form.name,
@@ -642,41 +653,34 @@ async function saveRecord() {
 
 async function doAiAnalyze() {
   if (!result.value) return
+  if (!requireLogin('AI深度解读')) return
   aiLoading.value = true
   try {
-    const data = await (uni as any).request({
+    const res = await uni.request({
       url: 'http://localhost:3000/api/v1/paipan/bazi/analyze',
       method: 'POST',
       data: { baziResult: result.value },
       header: {
         'Content-Type': 'application/json',
-        Authorization: uni.getStorageSync('token')
-          ? `Bearer ${uni.getStorageSync('token')}`
-          : '',
+        Authorization: `Bearer ${uni.getStorageSync('token')}`,
       },
     })
-    aiResult.value =
-      data.data?.analysis || data.data?.data?.analysis || 'AI 分析暂不可用'
+    const d = res.data as any
+    aiResult.value = d?.analysis || d?.data?.analysis || 'AI 分析暂不可用'
   } catch {
-    aiResult.value = 'AI 分析服务暂未配置，请联系管理员。保存排盘后可在历史记录中查看分析。'
+    aiResult.value = 'AI 分析服务暂未配置，请联系管理员。'
   } finally {
     aiLoading.value = false
   }
 }
 
+function goLogin() {
+  uni.navigateTo({ url: '/pages/login/login' })
+}
+
 function goHistory() {
-  const token = uni.getStorageSync('token')
-  if (!token) {
-    uni.showModal({
-      title: '提示',
-      content: '查看历史记录需要先登录',
-      success: (res) => {
-        if (res.confirm) uni.navigateTo({ url: '/pages/login/login' })
-      },
-    })
-    return
-  }
-  uni.showToast({ title: '暂无历史记录', icon: 'none' })
+  if (!requireLogin('查看历史记录')) return
+  uni.navigateTo({ url: '/pages/bazi/bazi-history' })
 }
 </script>
 
@@ -1408,6 +1412,29 @@ function goHistory() {
 }
 
 /* ========== AI 解读 ========== */
+/* 登录提示条 */
+.login-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #fff8e1, #fff3e0);
+  border-radius: 12px;
+  padding: 12px 16px;
+  border: 1px solid #ffe0b2;
+  margin-bottom: 12px;
+}
+.login-banner-text {
+  font-size: 13px;
+  color: #e65100;
+  flex: 1;
+}
+.login-banner-link {
+  font-size: 13px;
+  color: #8b4513;
+  font-weight: bold;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
 .ai-content {
   background: #fbf8f3;
   border-radius: 10px;

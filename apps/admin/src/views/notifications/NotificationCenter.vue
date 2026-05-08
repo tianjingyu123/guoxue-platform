@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import api from "../../api";
 
 const notifications = ref<any[]>([]);
@@ -9,8 +9,12 @@ const page = ref(1);
 const loading = ref(false);
 
 // 发送表单
-const sendForm = ref({ userId: "", type: "SYSTEM", title: "", content: "", targetType: "", targetId: "" });
+const sendForm = ref({ title: "", content: "", type: "SYSTEM", targetUserId: "", link: "" });
 const showSend = ref(false);
+
+// 批量发送表单
+const batchForm = ref({ title: "", content: "", type: "SYSTEM", link: "" });
+const showBatch = ref(false);
 
 onMounted(() => fetchList());
 
@@ -24,10 +28,37 @@ async function fetchList() {
 }
 
 async function handleSend() {
-  await api.post("/notifications", sendForm.value);
+  const payload = { ...sendForm.value };
+  if (!payload.targetUserId) delete payload.targetUserId;
+  if (!payload.link) delete payload.link;
+  await api.post("/notifications", payload);
   ElMessage.success("已发送");
   showSend.value = false;
-  sendForm.value = { userId: "", type: "SYSTEM", title: "", content: "", targetType: "", targetId: "" };
+  sendForm.value = { title: "", content: "", type: "SYSTEM", targetUserId: "", link: "" };
+}
+
+async function handleBatchSend() {
+  const payload = { ...batchForm.value };
+  if (!payload.link) delete payload.link;
+  await api.post("/notifications/batch", payload);
+  ElMessage.success("批量发送成功");
+  showBatch.value = false;
+  batchForm.value = { title: "", content: "", type: "SYSTEM", link: "" };
+}
+
+async function handleDelete(row: any) {
+  try {
+    await ElMessageBox.confirm("确定删除该通知？", "提示", {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning",
+    });
+    await api.delete(`/notifications/${row.id}`);
+    ElMessage.success("已删除");
+    fetchList();
+  } catch {
+    // 取消或失败不处理
+  }
 }
 </script>
 
@@ -35,7 +66,10 @@ async function handleSend() {
   <div class="notification-page">
     <div class="toolbar">
       <h3>通知管理</h3>
-      <el-button type="primary" @click="showSend = true">发送通知</el-button>
+      <div>
+        <el-button @click="showBatch = true">批量发送</el-button>
+        <el-button type="primary" @click="showSend = true">发送通知</el-button>
+      </div>
     </div>
 
     <el-table :data="notifications" v-loading="loading" stripe>
@@ -50,49 +84,67 @@ async function handleSend() {
       <el-table-column label="时间" width="170">
         <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
       </el-table-column>
+      <el-table-column label="操作" width="100" fixed="right">
+        <template #default="{ row }">
+          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+        </template>
+      </el-table-column>
     </el-table>
 
     <el-pagination v-model:current-page="page" :total="total" @change="fetchList" layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end" />
 
     <!-- 发送弹窗 -->
     <el-dialog v-model="showSend" title="发送通知" width="500px">
-      <el-form :model="sendForm" label-width="80px">
-        <el-form-item label="用户ID" required>
-          <el-input v-model="sendForm.userId" placeholder="接收用户ID" />
-        </el-form-item>
-        <el-form-item label="类型">
-          <el-select v-model="sendForm.type">
-            <el-option label="系统通知" value="SYSTEM" />
-            <el-option label="评论通知" value="COMMENT" />
-            <el-option label="点赞通知" value="LIKE" />
-            <el-option label="关注通知" value="FOLLOW" />
-            <el-option label="购买通知" value="PURCHASE" />
-            <el-option label="收益通知" value="EARNING" />
-            <el-option label="审核通知" value="AUDIT" />
-          </el-select>
-        </el-form-item>
+      <el-form :model="sendForm" label-width="100px">
         <el-form-item label="标题" required>
-          <el-input v-model="sendForm.title" />
+          <el-input v-model="sendForm.title" placeholder="通知标题" />
         </el-form-item>
         <el-form-item label="内容" required>
-          <el-input v-model="sendForm.content" type="textarea" :rows="3" />
+          <el-input v-model="sendForm.content" type="textarea" :rows="3" placeholder="通知内容" />
         </el-form-item>
-        <el-row :gutter="12">
-          <el-col :span="12">
-            <el-form-item label="跳转类型">
-              <el-input v-model="sendForm.targetType" placeholder="可选" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="跳转ID">
-              <el-input v-model="sendForm.targetId" placeholder="可选" />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <el-form-item label="类型" required>
+          <el-select v-model="sendForm.type">
+            <el-option label="系统通知" value="SYSTEM" />
+            <el-option label="圈子通知" value="CIRCLE" />
+            <el-option label="个人通知" value="PERSONAL" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="目标用户">
+          <el-input v-model="sendForm.targetUserId" placeholder="留空为发送给全部用户" />
+        </el-form-item>
+        <el-form-item label="跳转链接">
+          <el-input v-model="sendForm.link" placeholder="可选" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showSend = false">取消</el-button>
         <el-button type="primary" @click="handleSend">发送</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量发送弹窗 -->
+    <el-dialog v-model="showBatch" title="批量发送通知" width="500px">
+      <el-form :model="batchForm" label-width="100px">
+        <el-form-item label="标题" required>
+          <el-input v-model="batchForm.title" placeholder="通知标题" />
+        </el-form-item>
+        <el-form-item label="内容" required>
+          <el-input v-model="batchForm.content" type="textarea" :rows="3" placeholder="通知内容" />
+        </el-form-item>
+        <el-form-item label="类型" required>
+          <el-select v-model="batchForm.type">
+            <el-option label="系统通知" value="SYSTEM" />
+            <el-option label="圈子通知" value="CIRCLE" />
+            <el-option label="个人通知" value="PERSONAL" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="跳转链接">
+          <el-input v-model="batchForm.link" placeholder="可选" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showBatch = false">取消</el-button>
+        <el-button type="primary" @click="handleBatchSend">批量发送</el-button>
       </template>
     </el-dialog>
   </div>

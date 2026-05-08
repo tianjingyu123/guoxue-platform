@@ -3,11 +3,14 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  Logger,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { WechatService } from "./wechat.service";
+import { ImService } from "../im/im.service";
 import {
   PhoneRegisterDto,
   PhoneLoginDto,
@@ -20,10 +23,14 @@ import {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
     private redis: RedisService,
+    private wechat: WechatService,
+    private im: ImService,
   ) {}
 
   private generateToken(userId: string) {
@@ -48,6 +55,7 @@ export class AuthService {
       await this.bindReferral(user.id, dto.referrerCode);
     }
 
+    this.importToIm(user.id, user.nickname);
     return this.buildLoginResult(user.id);
   }
 
@@ -64,6 +72,7 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.password, auth.credential);
     if (!valid) throw new UnauthorizedException("手机号或密码错误");
 
+    this.importToIm(user.id, user.nickname);
     return this.buildLoginResult(user.id);
   }
 
@@ -86,6 +95,7 @@ export class AuthService {
       }
     }
 
+    this.importToIm(user.id, user.nickname);
     return this.buildLoginResult(user.id);
   }
 
@@ -98,9 +108,86 @@ export class AuthService {
   }
 
   async wechatLogin(dto: WechatLoginDto) {
-    // TODO: 对接微信OAuth，用code换取openId
-    // const { openid, unionid } = await this.exchangeWechatCode(dto.code);
-    throw new BadRequestException("微信登录暂未开放");
+    if (!process.env.WECHAT_APP_ID || !process.env.WECHAT_APP_SECRET) {
+      throw new BadRequestException("微信登录未配置，请联系管理员");
+    }
+
+    // 用 code 换取 openId（自动判断 H5 OAuth 还是小程序）
+    let openId: string;
+    let unionId: string | undefined;
+
+    try {
+      if (dto.loginType === "miniprogram") {
+        const session = await this.wechat.exchangeMiniCode(dto.code);
+        openId = session.openId;
+        unionId = session.unionId;
+      } else {
+        const token = await this.wechat.exchangeOAuthCode(dto.code);
+        openId = token.openId;
+        unionId = token.unionId;
+      }
+    } catch (e: any) {
+      this.logger.error("微信 code 换取失败", e.message);
+      throw new BadRequestException(e.message || "微信授权失败，请重试");
+    }
+
+    if (!openId) {
+      throw new BadRequestException("微信授权失败，未获取到 openId");
+    }
+
+    // 查找已有的微信认证记录
+    const existingAuth = await this.prisma.auth.findUnique({
+      where: { openId },
+      include: { user: true },
+    });
+
+    if (existingAuth) {
+      // 老用户：更新 unionId（如有）
+      if (unionId && !existingAuth.unionId) {
+        await this.prisma.auth.update({
+          where: { id: existingAuth.id },
+          data: { unionId },
+        });
+      }
+      return this.buildLoginResult(existingAuth.userId);
+    }
+
+    // 通过 unionId 跨应用查找（小程序和 H5 之间的用户打通）
+    if (unionId) {
+      const unionAuth = await this.prisma.auth.findFirst({
+        where: { unionId },
+        include: { user: true },
+      });
+      if (unionAuth) {
+        // 为已有用户添加新的微信认证方式
+        await this.prisma.auth.create({
+          data: { userId: unionAuth.userId, provider: "WECHAT", openId, unionId },
+        });
+        return this.buildLoginResult(unionAuth.userId);
+      }
+    }
+
+    // 新用户：自动注册
+    const nickname = dto.nickname || `微信用户${openId.slice(-6)}`;
+    const avatar = dto.avatar || undefined;
+
+    const user = await this.prisma.user.create({
+      data: {
+        nickname,
+        avatar,
+        auths: {
+          create: { provider: "WECHAT", openId, unionId },
+        },
+      },
+    });
+
+    // 处理推荐关系
+    if (dto.referrerCode) {
+      await (this as any).bindReferral(user.id, dto.referrerCode);
+    }
+
+    this.importToIm(user.id, user.nickname, user.avatar || undefined);
+    return this.buildLoginResult(user.id);
   }
 
   async getProfile(userId: string) {
@@ -144,6 +231,13 @@ export class AuthService {
   }
 
   // ───────── 私有方法 ─────────
+
+  /** 异步导入用户到 IM（失败不影响登录） */
+  private importToIm(userId: string, nickname: string, avatar?: string) {
+    this.im.importAccount(userId, nickname, avatar).catch((err) => {
+      this.logger.warn(`IM 账号导入失败（不影响功能）: ${err.message}`);
+    });
+  }
 
   private async buildLoginResult(userId: string) {
     // 用户角色和会员等级

@@ -45,12 +45,13 @@
           {{ formatDate(row.validStart) }} ~ {{ formatDate(row.validEnd) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
+      <el-table-column label="操作" width="220" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="openEdit(row)">编辑</el-button>
           <el-button size="small" :type="row.status === 'ACTIVE' ? 'warning' : 'success'" @click="toggleStatus(row)">
             {{ row.status === 'ACTIVE' ? '禁用' : '启用' }}
           </el-button>
+          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -142,7 +143,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '../../api'
 import { exportCSV } from '../../utils/export'
 
@@ -275,6 +276,15 @@ async function toggleStatus(row: any) {
   } catch (e: any) {
     ElMessage.error(e.response?.data?.message || '操作失败')
   }
+}
+
+async function handleDelete(row: any) {
+  try {
+    await ElMessageBox.confirm('确定删除此优惠券？', '提示', { type: 'warning' })
+    await api.delete(`/shop/coupons/${row.id}`)
+    ElMessage.success('已删除')
+    fetchList()
+  } catch { /* 取消 */ }
 }
 </script>
 

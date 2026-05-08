@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { StationService } from "./station.service";
 import { CreateStationDto, UpdateStationDto, CreateOperatorDto } from "./station.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -7,6 +7,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 
 @ApiTags("分站系统")
+@ApiBearerAuth()
 @Controller("station")
 export class StationController {
   constructor(private svc: StationService) {}

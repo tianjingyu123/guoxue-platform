@@ -16,6 +16,9 @@
       <el-table-column label="价格" width="110">
         <template #default="{ row }">¥{{ Number(row.price).toFixed(2) }}</template>
       </el-table-column>
+      <el-table-column label="原价" width="80">
+        <template #default="{ row }">¥{{ Number(row.originalPrice).toFixed(2) }}</template>
+      </el-table-column>
       <el-table-column prop="stock" label="库存" width="70" />
       <el-table-column prop="salesCount" label="销量" width="70" />
       <el-table-column label="状态" width="90">
@@ -70,6 +73,23 @@
                 <el-option label="待审" value="PENDING" />
                 <el-option label="下架" value="OFF_SHELF" />
               </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="8">
+            <el-form-item label="原价">
+              <el-input-number v-model="form.originalPrice" :min="0" :precision="2" style="width:100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="分类">
+              <el-input v-model="form.category" placeholder="商品分类" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="封面">
+              <ImageUpload v-model="form.cover" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -142,6 +162,7 @@ import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { uploadApi } from '../../api'
 import api from '../../api'
+import ImageUpload from '@/components/ImageUpload.vue'
 
 const products = ref<any[]>([])
 const total = ref(0)
@@ -154,7 +175,8 @@ const uploading = ref(false)
 const dialogVisible = ref(false)
 const editingId = ref('')
 const form = reactive({
-  title: '', intro: '', detail: '', price: 0, stock: 0,
+  title: '', intro: '', detail: '', price: 0, originalPrice: 0, stock: 0,
+  cover: '', category: '',
   images: [] as string[], status: 'ON_SALE' as string,
 })
 const imgUrl = ref('')
@@ -216,7 +238,7 @@ async function uploadImage(options: any) {
 }
 
 function resetForm() {
-  Object.assign(form, { title: '', intro: '', detail: '', price: 0, stock: 0, images: [], status: 'ON_SALE' })
+  Object.assign(form, { title: '', intro: '', detail: '', price: 0, originalPrice: 0, stock: 0, cover: '', category: '', images: [], status: 'ON_SALE' })
   editingId.value = ''
   imgUrl.value = ''
 }
@@ -233,7 +255,8 @@ async function openEdit(row: any) {
   const p = await fetchProduct(row.id)
   Object.assign(form, {
     title: p.title, intro: p.intro || '', detail: p.detail || '',
-    price: Number(p.price) || 0, stock: p.stock || 0,
+    price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0,
+    stock: p.stock || 0, cover: p.cover || '', category: p.category || '',
     images: p.images || [], status: p.status || 'ON_SALE',
   })
   dialogVisible.value = true

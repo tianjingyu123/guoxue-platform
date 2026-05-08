@@ -42,7 +42,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
+import { ref, onMounted } from 'vue'
+import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 import CourseCard from '../../components/CourseCard.vue'
 import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
 import EmptyState from '../../components/EmptyState.vue'

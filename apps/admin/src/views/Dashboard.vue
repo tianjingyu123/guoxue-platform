@@ -1,288 +1,155 @@
-<template>
-  <div class="dashboard">
-    <h3>数据仪表盘</h3>
-
-    <!-- 统计卡片行：总用户数 / 总文章数 / 总圈子数 / 今日新增用户 -->
-    <el-row :gutter="16" class="stat-row">
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card card-blue">
-          <div class="stat-inner">
-            <div class="stat-icon"><el-icon><UserFilled /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">总用户数</span>
-              <span class="stat-val">{{ fmt(stats.userCount) }}</span>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card card-green">
-          <div class="stat-inner">
-            <div class="stat-icon"><el-icon><Document /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">总文章数</span>
-              <span class="stat-val">{{ fmt(stats.articleCount) }}</span>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card card-orange">
-          <div class="stat-inner">
-            <div class="stat-icon"><el-icon><ChatDotSquare /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">总圈子数</span>
-              <span class="stat-val">{{ fmt(stats.circleCount) }}</span>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card card-purple">
-          <div class="stat-inner">
-            <div class="stat-icon"><el-icon><TrendCharts /></el-icon></div>
-            <div class="stat-info">
-              <span class="stat-label">今日新增用户</span>
-              <span class="stat-val">{{ fmt(stats.todayNewUsers) }}</span>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 第二行补充卡片 -->
-    <el-row :gutter="16" class="stat-row">
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-inner" style="flex-direction:column;gap:6px">
-            <span class="stat-label">总浏览量</span>
-            <span class="stat-val">{{ fmt(stats.totalViews) }}</span>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-inner" style="flex-direction:column;gap:6px">
-            <span class="stat-label">古籍总数</span>
-            <span class="stat-val brown">{{ fmt(stats.classicBookCount) }}</span>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-inner" style="flex-direction:column;gap:6px">
-            <span class="stat-label">课程总数</span>
-            <span class="stat-val green">{{ fmt(stats.courseCount) }}</span>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-inner" style="flex-direction:column;gap:6px">
-            <span class="stat-label">本月新用户</span>
-            <span class="stat-val blue">{{ fmt(stats.monthNewUsers) }}</span>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 第三行业务卡片 -->
-    <el-row :gutter="16" class="stat-row">
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card card-red">
-          <div class="stat-inner" style="flex-direction:column;gap:6px">
-            <span class="stat-label">待处理举报</span>
-            <span class="stat-val red">{{ fmt(stats.pendingReports) }}</span>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-inner" style="flex-direction:column;gap:6px">
-            <span class="stat-label">订单数 (已支付)</span>
-            <span class="stat-val">{{ fmt(stats.orderCount) }} <span style="font-size: 13px; color: #67c23a;">/ {{ fmt(stats.paidOrderCount) }}</span></span>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-inner" style="flex-direction:column;gap:6px">
-            <span class="stat-label">直播 / 视频</span>
-            <span class="stat-val">{{ fmt(stats.liveRoomCount) }} <span style="font-size: 13px; color: #999;">/ {{ fmt(stats.videoCount) }}</span></span>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-inner" style="flex-direction:column;gap:6px">
-            <span class="stat-label">赞 / 评 / 藏</span>
-            <span class="stat-val">{{ fmt(stats.totalLikes) }} <span style="font-size: 13px; color: #999;">/ {{ fmt(stats.totalComments) }} / {{ fmt(stats.totalCollects) }}</span></span>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 趋势图表 (30天) - 保留原有 -->
-    <el-row :gutter="16" class="stat-row" v-if="trends">
-      <el-col :span="12">
-        <el-card shadow="hover">
-          <template #header><span>用户增长趋势 (30天)</span></template>
-          <div ref="userChartEl" class="chart-box"></div>
-        </el-card>
-      </el-col>
-      <el-col :span="12">
-        <el-card shadow="hover">
-          <template #header><span>内容创建趋势 (30天)</span></template>
-          <div ref="articleChartEl" class="chart-box"></div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 图表区域：近7天用户增长 + 内容类型分布 -->
-    <el-row :gutter="16" class="stat-row">
-      <el-col :xs="24" :sm="14">
-        <el-card shadow="hover">
-          <template #header><span>近7天用户增长趋势</span></template>
-          <div ref="growthChartRef" class="chart-box"></div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="10">
-        <el-card shadow="hover">
-          <template #header><span>内容类型分布</span></template>
-          <div ref="pieChartRef" class="chart-box"></div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- TOP10 热门文章 -->
-    <el-row :gutter="16" class="stat-row">
-      <el-col :span="24">
-        <el-card shadow="hover">
-          <template #header><span>TOP10 热门文章（浏览量排行）</span></template>
-          <el-table :data="topArticles" stripe size="small" v-loading="loading">
-            <el-table-column type="index" label="排名" width="60" />
-            <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="author" label="作者" width="120" />
-            <el-table-column prop="viewCount" label="浏览量" width="100" sortable />
-            <el-table-column prop="likeCount" label="点赞" width="80" />
-            <el-table-column prop="commentCount" label="评论" width="80" />
-          </el-table>
-        </el-card>
-      </el-col>
-    </el-row>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick, onUnmounted } from "vue"
+/**
+ * Dashboard.vue — 国学文化平台 · 管理后台首页
+ *
+ * 技术栈：Vue3 Composition API + Element Plus + ECharts 5
+ * 设计风格：小红书/Notion 现代简约风（浅灰底 + 白色圆角卡片 + 柔和阴影）
+ */
+
+import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from "vue"
 import { storeToRefs } from "pinia"
-import { UserFilled, Document, ChatDotSquare, TrendCharts } from "@element-plus/icons-vue"
-import { useDashboardStore } from "@/store/dashboard"
 import * as echarts from "echarts"
+import type { EChartsType } from "echarts"
+import {
+  User, Document, ChatDotRound, Reading, Notebook, VideoPlay,
+  DataLine, Goods, View, Star, ChatLineSquare, Collection,
+  Plus, Calendar, List, WarningFilled
+} from "@element-plus/icons-vue"
+import { useDashboardStore } from "@/store/dashboard"
 
 const dashboard = useDashboardStore()
-const { stats, trends, charts, loading } = storeToRefs(dashboard)
+const { stats, charts, loading } = storeToRefs(dashboard)
 
-// ── 30天趋势图表 ──
-const userChartEl = ref<HTMLElement | null>(null)
-const articleChartEl = ref<HTMLElement | null>(null)
+// ==================== 16 张统计卡片配置 ====================
 
-// ── 新增图表 ──
-const growthChartRef = ref<HTMLDivElement>()
-const pieChartRef = ref<HTMLDivElement>()
-let growthChart: echarts.ECharts | null = null
-let pieChart: echarts.ECharts | null = null
+interface StatCardDef {
+  field: keyof typeof stats.value
+  label: string
+  icon: any
+}
+
+const statsCards: StatCardDef[] = [
+  { field: "userCount",        label: "总用户数",     icon: User },
+  { field: "articleCount",     label: "总文章数",     icon: Document },
+  { field: "circleCount",      label: "总圈子数",     icon: ChatDotRound },
+  { field: "courseCount",      label: "课程总数",     icon: Reading },
+  { field: "classicBookCount", label: "古籍总数",     icon: Notebook },
+  { field: "videoCount",       label: "视频总数",     icon: VideoPlay },
+  { field: "liveRoomCount",    label: "直播房间",     icon: DataLine },
+  { field: "productCount",     label: "商品总数",     icon: Goods },
+  { field: "totalViews",       label: "总浏览量",     icon: View },
+  { field: "totalLikes",       label: "总点赞数",     icon: Star },
+  { field: "totalComments",    label: "总评论数",     icon: ChatLineSquare },
+  { field: "totalCollects",    label: "总收藏数",     icon: Collection },
+  { field: "todayNewUsers",   label: "今日新增用户", icon: Plus },
+  { field: "monthNewUsers",    label: "本月新增用户", icon: Calendar },
+  { field: "orderCount",       label: "总订单数",     icon: List },
+  { field: "pendingReports",   label: "待处理举报",   icon: WarningFilled },
+]
+
+// ==================== 工具函数 ====================
+
+function formatNumber(num: number): string {
+  if (num >= 10000) return (num / 10000).toFixed(1).replace(/\.0$/, "") + "w"
+  if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, "") + "k"
+  return String(num)
+}
+
+// ==================== ECharts ====================
+
+const lineChartRef = ref<HTMLElement>()
+const pieChartRef = ref<HTMLElement>()
+let lineChart: EChartsType | null = null
+let pieChart: EChartsType | null = null
 
 const topArticles = computed(() => charts.value?.topArticles ?? [])
 
-function fmt(v: number | undefined | null): string {
-  if (v === undefined || v === null) return "--"
-  if (v >= 10000) return (v / 10000).toFixed(1) + "w"
-  if (v >= 1000) return (v / 1000).toFixed(1) + "k"
-  return String(v)
-}
-
-// ── 渲染30天趋势（原有逻辑） ──
-function renderTrendCharts() {
-  const t = trends.value
-  if (!t) return
-  const baseOption = (title: string, data: number[], color: string) => ({
-    tooltip: { trigger: "axis" as const },
-    grid: { left: 50, right: 20, top: 20, bottom: 30 },
-    xAxis: { type: "category" as const, data: t.dates, axisLabel: { rotate: 45, fontSize: 10 } },
-    yAxis: { type: "value" as const },
-    series: [{
-      name: title,
-      type: "line" as const,
-      data,
-      smooth: true,
-      lineStyle: { color, width: 2 },
-      itemStyle: { color },
-      areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-        { offset: 0, color },
-        { offset: 1, color: "rgba(255,255,255,0.1)" },
-      ]) },
-    }],
-  })
-  if (userChartEl.value) {
-    const chart = echarts.init(userChartEl.value)
-    chart.setOption(baseOption("用户数", t.userTrend, "#409eff"))
-  }
-  if (articleChartEl.value) {
-    const chart = echarts.init(articleChartEl.value)
-    chart.setOption(baseOption("文章数", t.articleTrend, "#67c23a"))
-  }
-}
-
-// ── 渲染近7天用户增长 ──
 function renderGrowthChart() {
-  if (!growthChartRef.value || !charts.value) return
-  if (!growthChart) growthChart = echarts.init(growthChartRef.value)
-  const dates = charts.value.userGrowth.map((d) => d.date.slice(5))
+  if (!lineChartRef.value || !charts.value?.userGrowth?.length) return
+  if (!lineChart) lineChart = echarts.init(lineChartRef.value)
+  const dates = charts.value.userGrowth.map((d) => {
+    const parts = d.date.split("-")
+    return parts[1] + "-" + parts[2]
+  })
   const counts = charts.value.userGrowth.map((d) => d.count)
-  growthChart.setOption({
-    tooltip: { trigger: "axis" },
-    grid: { left: "3%", right: "4%", bottom: "3%", containLabel: true },
-    xAxis: { type: "category", data: dates, axisLabel: { color: "#999" } },
-    yAxis: { type: "value", axisLabel: { color: "#999" }, splitLine: { lineStyle: { color: "#f0f0f0" } } },
+  lineChart.setOption({
+    grid: { top: 30, right: 20, bottom: 30, left: 50 },
+    xAxis: {
+      type: "category", data: dates,
+      axisLine: { lineStyle: { color: "#F0F0F0" } },
+      axisTick: { show: false },
+      axisLabel: { color: "#999", fontSize: 12 },
+    },
+    yAxis: {
+      type: "value", minInterval: 1,
+      splitLine: { lineStyle: { color: "#F0F0F0" } },
+      axisLabel: { color: "#999", fontSize: 12 },
+      axisLine: { show: false }, axisTick: { show: false },
+    },
     series: [{
-      name: "新增用户",
-      type: "line",
-      data: counts,
-      smooth: true,
-      lineStyle: { color: "#409eff", width: 2 },
-      areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-        { offset: 0, color: "rgba(64,158,255,0.3)" },
-        { offset: 1, color: "rgba(64,158,255,0.05)" },
-      ]) },
-      itemStyle: { color: "#409eff" },
+      type: "line", data: counts, smooth: true,
+      symbol: "circle", symbolSize: 6,
+      lineStyle: { color: "#FF6B6B", width: 3 },
+      itemStyle: { color: "#FF6B6B", borderWidth: 2, borderColor: "#fff" },
+      areaStyle: {
+        color: {
+          type: "linear", x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [
+            { offset: 0, color: "rgba(255,107,107,0.15)" },
+            { offset: 1, color: "rgba(255,107,107,0)" },
+          ],
+        },
+      },
     }],
+    tooltip: {
+      trigger: "axis", backgroundColor: "#fff",
+      borderColor: "#F0F0F0", borderWidth: 1,
+      textStyle: { color: "#1A1A1A", fontSize: 13 },
+      formatter: (params: any) => {
+        const p = params[0]
+        return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
+                <div>新增用户：<span style="color:#FF6B6B;font-weight:600">${p.value}</span></div>`
+      },
+    },
   })
 }
 
-// ── 渲染饼图 ──
 function renderPieChart() {
-  if (!pieChartRef.value || !charts.value) return
+  if (!pieChartRef.value || !charts.value?.contentDistribution?.length) return
   if (!pieChart) pieChart = echarts.init(pieChartRef.value)
-  const data = charts.value.contentDistribution
-    .filter((d) => d.count > 0)
-    .map((d) => ({ name: d.name, value: d.count }))
+  const dist = charts.value.contentDistribution.filter((d) => d.count > 0)
+  const total = dist.reduce((s, d) => s + d.count, 0)
+  const palette = ["#FF6B6B", "#4ECDC4", "#FFE66D", "#95E1D3"]
   pieChart.setOption({
-    tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
+    tooltip: {
+      trigger: "item", backgroundColor: "#fff",
+      borderColor: "#F0F0F0", borderWidth: 1,
+      textStyle: { color: "#1A1A1A", fontSize: 13 },
+      formatter: (p: any) => `${p.name}：${p.value}（${p.percent}%）`,
+    },
+    legend: {
+      orient: "vertical", right: 10, top: "middle",
+      itemWidth: 12, itemHeight: 12, itemGap: 16,
+      textStyle: { color: "#666", fontSize: 13 },
+      formatter: (name: string) => {
+        const item = dist.find((d) => d.name === name)
+        const pct = item ? ((item.count / total) * 100).toFixed(1) : "0"
+        return `${name}  ${pct}%`
+      },
+    },
     series: [{
-      type: "pie",
-      radius: ["40%", "65%"],
-      center: ["50%", "50%"],
-      avoidLabelOverlap: false,
-      label: { show: true, formatter: "{b}\n{d}%", color: "#666" },
-      labelLine: { show: true },
-      data,
-      color: ["#409eff", "#67c23a", "#e6a23c"],
+      type: "pie", radius: ["40%", "70%"], center: ["38%", "50%"],
+      avoidLabelOverlap: false, label: { show: false }, labelLine: { show: false },
+      itemStyle: { borderRadius: 6, borderColor: "#fff", borderWidth: 3 },
+      data: dist.map((d, i) => ({
+        name: d.name, value: d.count,
+        itemStyle: { color: palette[i] },
+      })),
     }],
   })
 }
 
-function initNewCharts() {
+function initCharts() {
   if (!charts.value) return
   nextTick(() => {
     renderGrowthChart()
@@ -290,80 +157,285 @@ function initNewCharts() {
   })
 }
 
-watch(charts, () => { initNewCharts() }, { deep: true })
+function handleResize() {
+  lineChart?.resize()
+  pieChart?.resize()
+}
 
-watch(trends, async (val) => {
-  if (val) {
-    await nextTick()
-    renderTrendCharts()
-  }
-})
+watch(charts, () => { initCharts() }, { deep: true })
 
 onMounted(async () => {
   await dashboard.fetchStats()
   dashboard.fetchTrends()
   dashboard.fetchCharts()
-  await nextTick()
-  renderTrendCharts()
-  initNewCharts()
+  nextTick(() => initCharts())
+  window.addEventListener("resize", handleResize)
 })
 
-onUnmounted(() => {
-  growthChart?.dispose()
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", handleResize)
+  lineChart?.dispose()
   pieChart?.dispose()
 })
+
+// ==================== 表格样式常量 ====================
+
+const headerCellStyle = {
+  background: "#FAFAFA",
+  color: "#999",
+  fontSize: "12px",
+  fontWeight: 500,
+  borderBottom: "1px solid #F0F0F0",
+}
+const cellStyle = {
+  color: "#666",
+  fontSize: "14px",
+  borderBottom: "1px solid #F0F0F0",
+}
 </script>
 
+<template>
+  <div class="dashboard">
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1 class="page-title">数据概览</h1>
+    </div>
+
+    <!-- 统计卡片 4×4 -->
+    <el-row :gutter="20" class="stats-row">
+      <el-col
+        v-for="card in statsCards"
+        :key="card.field"
+        :xs="24" :sm="12" :md="6"
+      >
+        <div class="stat-card">
+          <div class="stat-card__top">
+            <span class="stat-card__label">{{ card.label }}</span>
+            <div class="stat-card__icon">
+              <el-icon :size="18"><component :is="card.icon" /></el-icon>
+            </div>
+          </div>
+          <div
+            class="stat-card__value"
+            :class="{ 'stat-card__value--alert': card.field === 'pendingReports' && stats[card.field] > 0 }"
+          >
+            {{ formatNumber(stats[card.field]) }}
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- 图表：折线图（60%）+ 环形图（40%） -->
+    <el-row :gutter="20" class="charts-row">
+      <el-col :xs="24" :md="14">
+        <div class="chart-card">
+          <div class="chart-card__title">用户增长趋势 · 近30天</div>
+          <div ref="lineChartRef" class="chart-card__body"></div>
+        </div>
+      </el-col>
+      <el-col :xs="24" :md="10">
+        <div class="chart-card">
+          <div class="chart-card__title">内容类型分布</div>
+          <div ref="pieChartRef" class="chart-card__body"></div>
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- TOP10 热门文章 -->
+    <div class="table-card">
+      <div class="table-card__header">
+        <span class="table-card__title">TOP10 热门文章</span>
+      </div>
+      <el-table
+        :data="topArticles"
+        style="width: 100%"
+        :header-cell-style="headerCellStyle"
+        :cell-style="cellStyle"
+      >
+        <el-table-column label="排名" width="60" align="center">
+          <template #default="{ $index }">
+            <span
+              class="rank-badge"
+              :class="$index < 3 ? 'rank-badge--' + ($index + 1) : 'rank-badge--normal'"
+            >
+              {{ $index + 1 }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="标题" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="article-title">{{ row.title }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="作者" prop="author" width="100" />
+
+        <el-table-column label="浏览量" width="100" align="right" sortable>
+          <template #default="{ row }">
+            {{ formatNumber(row.viewCount) }}
+          </template>
+        </el-table-column>
+
+        <el-table-column label="点赞" width="80" align="right">
+          <template #default="{ row }">
+            {{ formatNumber(row.likeCount) }}
+          </template>
+        </el-table-column>
+
+        <el-table-column label="评论" width="80" align="right">
+          <template #default="{ row }">
+            {{ row.commentCount }}
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-.dashboard h3 {
-  margin: 0 0 16px;
-  font-size: 18px;
-  color: #333;
+/* ============================================
+ * Dashboard.vue 样式
+ * 设计风格：小红书 / Notion 现代简约风
+ * ============================================ */
+
+/* --- 页面头部 --- */
+.page-header {
+  margin-bottom: 20px;
+}
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1A1A1A;
+  margin: 0;
 }
 
-.stat-row { margin-bottom: 16px; }
+/* --- 统计卡片行 --- */
+.stats-row {
+  margin-bottom: 20px;
+}
 
-.stat-card { border-radius: 8px; }
-.stat-card.card-blue   { border-left: 4px solid #409eff; }
-.stat-card.card-green  { border-left: 4px solid #67c23a; }
-.stat-card.card-orange { border-left: 4px solid #e6a23c; }
-.stat-card.card-purple { border-left: 4px solid #9b59b6; }
-.stat-card.card-red    { border-left: 4px solid #e74c3c; }
+.stat-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: default;
+  margin-bottom: 20px;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
 
-.stat-inner {
+.stat-card__top {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 14px;
 }
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+.stat-card__label {
+  font-size: 13px;
+  color: #999;
+}
+.stat-card__icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 107, 107, 0.1);
+  color: #FF6B6B;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  flex-shrink: 0;
 }
-.card-blue   .stat-icon { background: rgba(64,158,255,0.1); color: #409eff; }
-.card-green  .stat-icon { background: rgba(103,194,58,0.1); color: #67c23a; }
-.card-orange .stat-icon { background: rgba(230,162,60,0.1); color: #e6a23c; }
-.card-purple .stat-icon { background: rgba(155,89,182,0.1); color: #9b59b6; }
-.card-red    .stat-icon { background: rgba(231,76,60,0.1); color: #e74c3c; }
+.stat-card__value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1A1A1A;
+  font-feature-settings: "tnum";
+  line-height: 1.2;
+}
+.stat-card__value--alert {
+  color: #FF6B6B;
+}
 
-.stat-info {
+/* --- 图表区域 --- */
+.charts-row {
+  margin-bottom: 20px;
+}
+
+.chart-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  margin-bottom: 20px;
+}
+.chart-card__title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #999;
+  margin-bottom: 16px;
+}
+.chart-card__body {
+  width: 100%;
+  height: 320px;
+}
+
+/* --- 表格 --- */
+.table-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+.table-card__header {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.table-card__title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #999;
 }
 
-.stat-label { font-size: 13px; color: #999; }
-.stat-val { font-size: 24px; font-weight: bold; color: #333; }
-.stat-val.blue  { color: #409eff; }
-.stat-val.green { color: #67c23a; }
-.stat-val.red   { color: #e74c3c; }
-.stat-val.brown { color: #8b4513; }
+/* 排名徽章 */
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.rank-badge--1 { background: linear-gradient(135deg, #FFD700, #FFA500); color: #fff; }
+.rank-badge--2 { background: linear-gradient(135deg, #C0C0C0, #A8A8A8); color: #fff; }
+.rank-badge--3 { background: linear-gradient(135deg, #CD7F32, #B8690E); color: #fff; }
+.rank-badge--normal { background: #F0F0F0; color: #999; }
 
-.chart-box { width: 100%; height: 300px; }
+.article-title {
+  color: #1A1A1A;
+  font-weight: 500;
+  cursor: pointer;
+}
+.article-title:hover {
+  color: #FF6B6B;
+}
+
+/* --- 响应式补充 --- */
+@media (max-width: 768px) {
+  .stat-card {
+    margin-bottom: 12px;
+  }
+  .chart-card,
+  .table-card {
+    border-radius: 12px;
+    padding: 16px;
+  }
+}
 </style>

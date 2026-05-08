@@ -177,6 +177,11 @@ const routes = [
         name: "AuditLog",
         component: () => import("../views/audit/AuditLog.vue"),
       },
+      {
+        path: "questions",
+        name: "QuestionList",
+        component: () => import("../views/qa/QuestionList.vue"),
+      },
     ],
   },
 ];

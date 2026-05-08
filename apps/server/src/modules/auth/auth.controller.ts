@@ -1,6 +1,7 @@
-import { Controller, Post, Get, Put, Body, UseGuards, Req } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { Controller, Post, Get, Put, Body, Query, UseGuards, Req, BadRequestException } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
+import { WechatService } from "./wechat.service";
 import { SystemService } from "../system/system.service";
 import {
   PhoneRegisterDto,
@@ -14,11 +15,12 @@ import {
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictThrottleGuard } from "../../common/throttle.guard";
 
-@ApiTags("Auth")
+@ApiTags("认证")
 @Controller("auth")
 export class AuthController {
   constructor(
     private auth: AuthService,
+    private wechat: WechatService,
     private systemService: SystemService,
   ) {}
 
@@ -95,8 +97,21 @@ export class AuthController {
     return this.auth.sendSmsCode(dto);
   }
 
+  @Get("wechat/oauth-url")
+  @ApiOperation({ summary: "获取微信 OAuth 授权 URL", description: "H5 微信登录：前端跳转到该 URL 完成授权后回调" })
+  @ApiQuery({ name: "redirectUri", description: "授权后回调地址", example: "https://example.com/callback" })
+  @ApiQuery({ name: "scope", description: "授权范围", example: "snsapi_userinfo", required: false })
+  getWechatOAuthUrl(
+    @Query("redirectUri") redirectUri: string,
+    @Query("scope") scope?: string,
+  ) {
+    if (!redirectUri) throw new BadRequestException("redirectUri 参数必填");
+    const url = this.wechat.buildOAuthUrl(redirectUri, (scope as any) || "snsapi_userinfo");
+    return { url };
+  }
+
   @Post("login/wechat")
-  @ApiOperation({ summary: "微信登录", description: "使用微信授权码登录" })
+  @ApiOperation({ summary: "微信登录（H5/小程序）", description: "使用微信授权 code 登录，自动判断 H5 OAuth 或小程序" })
   @UseGuards(StrictThrottleGuard)
   wechatLogin(@Body() dto: WechatLoginDto) {
     return this.auth.wechatLogin(dto);

@@ -4,6 +4,7 @@ import { DashboardService } from "./dashboard.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 @ApiTags("仪表盘")
+@ApiBearerAuth()
 @Controller("dashboard")
 @UseGuards(JwtAuthGuard)
 export class DashboardController {

@@ -23,6 +23,9 @@
           <el-menu-item index="/lives">
             <span>直播管理</span>
           </el-menu-item>
+          <el-menu-item index="/questions">
+            <span>付费问答</span>
+          </el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="tools">
           <template #title><span>排盘工具</span></template>
