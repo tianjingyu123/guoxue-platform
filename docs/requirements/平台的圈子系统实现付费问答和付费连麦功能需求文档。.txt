@@ -1,0 +1,170 @@
+请为「热卜国学」平台的圈子系统实现付费问答和付费连麦功能。
+
+一、功能定位
+- 圈子内的知识变现工具，圈友向圈主/嘉宾/达人发起付费提问或预约一对一音视频连麦。
+- 参考平台：知识星球（提问机制）+ 测测（连麦计费）。
+
+二、数据库设计（新增/补充表）
+
+1. paid_question（付费问答表）
+- id: 主键
+- circle_id: 所属圈子ID
+- asker_id: 提问者用户ID
+- answerer_id: 回答者用户ID（圈主/嘉宾）
+- question_title: 问题标题
+- question_content: 问题详细描述（可包含图片URL数组）
+- answer_content: 回答内容（富文本，回答后填写）
+- answer_audio_url: 回答语音URL（如支持语音回答）
+- price_coin: 提问价格（国学币）
+- is_public: 是否公开（公开后可被围观）
+- peek_price_coin: 围观价格（国学币）
+- peek_count: 围观人数
+- status: 状态（pending_answered待回答 / answered已回答 / rejected已拒绝 / refunded已退款 / expired超时未回答）
+- timeout_hours: 超时时间（如72小时，圈主可配置）
+- created_at: 提问时间
+- answered_at: 回答时间
+
+2. audio_call_record（音频连麦记录表）
+- id: 主键
+- caller_id: 发起连麦的用户ID
+- callee_id: 被连麦的用户ID（圈主/嘉宾）
+- circle_id: 所属圈子ID
+- room_id: TRTC房间ID
+- price_per_minute_coin: 每分钟价格（国学币）
+- duration_seconds: 通话时长（秒）
+- total_coin: 总消费国学币
+- status: 状态（waiting待接通 / in_progress通话中 / completed已结束 / cancelled已取消）
+- started_at: 开始时间
+- ended_at: 结束时间
+- created_at: 创建时间
+
+3. audio_call_billing（连麦扣费明细表）
+- id: 主键
+- call_record_id: 关联通话记录ID
+- billing_start_minute: 扣费起始分钟
+- billing_end_minute: 扣费结束分钟
+- coin_deducted: 扣费金额（国学币）
+- balance_before: 扣费前余额
+- balance_after: 扣费后余额
+- created_at: 扣费时间
+
+三、核心业务接口
+
+1. 提问相关接口
+- POST /api/circle/{circle_id}/question/create - 发起提问
+  入参：answerer_id, question_title, question_content, is_public, peek_price_coin
+  逻辑：
+  a. 验证提问者是否为圈子成员
+  b. 验证回答者是否为圈主/嘉宾
+  c. 验证提问价格是否匹配回答者设置
+  d. 扣除国学币（先冻结，回答后退还或确认扣除）
+  e. 生成提问订单，状态为pending_answered
+  f. 推送通知给回答者
+
+- POST /api/question/{question_id}/answer - 回答提问
+  入参：answer_content（富文本）, answer_audio_url（可选）
+  逻辑：
+  a. 验证回答者身份
+  b. 更新回答内容和状态为answered
+  c. 确认扣除国学币（从冻结转为实际扣除）
+  d. 按分佣比例分配收益（回答者80%、平台20%，可配置）
+  e. 推送通知给提问者
+
+- POST /api/question/{question_id}/peek - 围观答案
+  入参：无
+  逻辑：
+  a. 验证该问题为公开状态
+  b. 扣除围观价格（国学币）
+  c. 围观人数+1
+  d. 围观收益按分佣比例分配（回答者70%、平台30%，可配置）
+  e. 返回完整问答内容
+
+- POST /api/question/{question_id}/refund - 超时退款
+  逻辑：
+  a. 定时任务检查超过timeout_hours未回答的问题
+  b. 自动退回冻结的国学币
+  c. 状态更新为expired
+
+2. 连麦相关接口
+- POST /api/circle/{circle_id}/call/create - 发起连麦请求
+  入参：callee_id
+  逻辑：
+  a. 验证双方均为圈子成员
+  b. 验证回答者为圈主/嘉宾且设置了连麦价格
+  c. 检查发起者国学币余额（至少够1分钟费用）
+  d. 创建TRTC房间，生成RoomID
+  e. 创建通话记录，状态为waiting
+  f. 推送通知给被连麦者
+
+- POST /api/call/{call_id}/accept - 接听连麦
+  入参：无
+  逻辑：
+  a. 验证接听者身份
+  b. 状态更新为in_progress
+  c. 开始计时
+
+- POST /api/call/{call_id}/billing - 每分钟扣费（定时任务调用）
+  入参：call_id, current_minute
+  逻辑：
+  a. 计算当前分钟费用
+  b. 扣除发起者国学币余额
+  c. 生成扣费明细记录
+  d. 若余额不足：推送1分钟预警通知；余额耗尽时调用挂断接口
+  e. 记录扣费前后余额
+
+- POST /api/call/{call_id}/hangup - 挂断连麦
+  入参：无
+  逻辑：
+  a. 任一方式主动挂断
+  b. 统计总通话时长（不足1分钟按1分钟计）
+  c. 进行最后一分钟扣费结算
+  d. 状态更新为completed
+  e. 按分佣比例分配收益（回答者70%、平台30%，可配置）
+  f. 生成消费记录推送双方
+
+- GET /api/call/{call_id}/status - 查询通话状态
+  返回：当前状态、已通话时长、已消费金额、剩余余额
+
+3. 达人配置接口
+- POST /api/circle/{circle_id}/expert/config - 圈主/嘉宾配置咨询价格
+  入参：
+  - question_price_coin: 提问价格（国学币，0表示不接提问）
+  - question_timeout_hours: 超时退款时间（如72小时）
+  - call_price_per_minute_coin: 连麦价格（国学币/分钟，0表示不接连麦）
+  - call_available_hours: 可接连麦时段（JSON，如[{"day":"monday","start":"09:00","end":"18:00"}]）
+
+四、分佣规则（需在系统配置中支持动态调整）
+- 提问收入：回答者80%、平台20%（默认值，可配置）
+- 围观收入：回答者70%、平台30%（默认值，可配置）
+- 连麦收入：回答者70%、平台30%（默认值，可配置）
+
+五、技术实现要求
+1. 连麦使用腾讯云TRTC实现：
+   - 创建房间时生成临时Room Token，仅本次通话有效
+   - 房间销毁后Token自动失效
+   - 通话双方通过该Token进入同一房间
+2. 扣费定时任务：
+   - 每分钟执行一次，扫描所有in_progress状态的通话
+   - 按分钟扣费，生成扣费明细
+   - 余额不足时自动挂断
+3. 充值引导：
+   - 余额即将不足时（剩余不足2分钟费用），推送提示
+   - 余额耗尽前1分钟，语音提示+弹窗引导充值
+   - 提供快捷充值入口（预设小额国学币包）
+4. 虚拟头像：
+   - 支持通话时开启/关闭视频
+   - 提供虚拟头像选项（用户可上传或使用系统默认）
+5. 状态同步：
+   - 使用WebSocket实时同步连麦状态和扣费信息
+6. 安全要求：
+   - TRTC Room Token必须后端生成，前端不可直接获取密钥
+   - 扣费操作必须使用数据库事务，确保余额和订单状态一致性
+   - 连麦扣费记录不可篡改
+
+六、圈子主页集成
+- 在圈子主页的成员列表或功能入口中，标注圈主/嘉宾的“可提问”和“可连麦”状态
+- 圈主/嘉宾的个人卡片显示提问价格和连麦价格
+- 提供“向TA提问”和“连麦咨询”快捷按钮
+推荐位	位置	推荐内容
+课程学习页底部	目录/笔记/问答Tab下方	「猜你喜欢」推荐相关课程
+课程学习完成弹窗	学完全部章节后弹窗	推荐进阶课程/相关圈子

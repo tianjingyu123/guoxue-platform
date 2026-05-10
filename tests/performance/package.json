@@ -1,0 +1,13 @@
+{
+  "name": "@guoxue/performance-tests",
+  "private": true,
+  "scripts": {
+    "k6:smoke": "k6 run --env SCENARIO=smoke k6/main.js",
+    "k6:load": "k6 run --env SCENARIO=load k6/main.js",
+    "k6:stress": "k6 run --env SCENARIO=stress k6/main.js",
+    "k6:soak": "k6 run --env SCENARIO=soak k6/main.js",
+    "k6:spike": "k6 run --env SCENARIO=spike k6/main.js",
+    "k6:cloud": "k6 cloud --env SCENARIO=load k6/main.js",
+    "k6:report": "k6 run --out json=results/raw.json k6/main.js"
+  }
+}
