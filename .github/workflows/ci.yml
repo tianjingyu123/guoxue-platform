@@ -288,7 +288,7 @@ jobs:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: 运行单元测试
-        run: pnpm --filter @guoxue/server exec npx jest --testPathPattern "src/" --passWithNoTests --forceExit
+        run: pnpm --filter @guoxue/server exec npx jest --testPathPattern "src/" --coverage --forceExit
         timeout-minutes: 10
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
@@ -296,6 +296,22 @@ jobs:
           ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
           JWT_SECRET: ${{ env.JWT_SECRET }}
           NODE_ENV: test
+
+      - name: 上传覆盖率报告
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: apps/server/coverage/
+          retention-days: 7
+
+      - name: 上传 JUnit 报告
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: junit-unit
+          path: apps/server/junit.xml
+          retention-days: 7
 
   # ──────────────────────────────────────────────
   # E2E 测试（需 PostgreSQL + Redis 服务容器）
