@@ -23,16 +23,19 @@ on:
         description: 'Docker 镜像标签（默认为 git commit SHA）'
         required: false
         type: string
+      run_migration:
+        description: '是否执行数据库迁移'
+        required: false
+        default: true
+        type: boolean
 
 env:
   NODE_VERSION: '20'
   PNPM_VERSION: '10'
-  # ─── 镜像仓库配置（通过 GitHub Secrets 注入）───
-  # 腾讯云 TCR:    REGISTRY=ccr.ccs.tencentyun.com/your-namespace
-  # Docker Hub:    REGISTRY=docker.io/your-username
   REGISTRY: ${{ secrets.REGISTRY || 'docker.io/guoxue' }}
   IMAGE_NAME: guoxue-${{ github.event.inputs.service }}
   IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+  CONTAINER_NAME: guoxue-${{ github.event.inputs.service }}
 
 jobs:
   build-and-push:
@@ -89,6 +92,7 @@ jobs:
     environment: ${{ github.event.inputs.environment }}
     steps:
       - name: 通过 SSH 部署
+        id: deploy
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -104,18 +108,101 @@ jobs:
             # 拉取新镜像
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-            # 停止旧容器
-            docker rm -f guoxue-${{ github.event.inputs.service }} || true
+            # 备份旧容器（保留回滚能力）
+            if docker ps -q --filter "name=${{ env.CONTAINER_NAME }}" | grep -q .; then
+              OLD_IMAGE=$(docker inspect --format='{{.Config.Image}}' ${{ env.CONTAINER_NAME }})
+              echo "OLD_IMAGE=$OLD_IMAGE" >> /tmp/deploy-backup.env
+              docker rename ${{ env.CONTAINER_NAME }} ${{ env.CONTAINER_NAME }}-old || true
+            fi
 
-            # 启动新容器
+            # 确保 .env 文件存在（由运维预先部署到服务器）
+            ENV_FILE="/opt/guoxue/.env.${{ github.event.inputs.environment }}"
+            if [ ! -f "$ENV_FILE" ]; then
+              echo "错误: 环境变量文件 $ENV_FILE 不存在，请先部署 .env 文件到服务器"
+              exit 1
+            fi
+
+            # 启动新容器（通过 --env-file 注入全部 54 项环境变量）
             docker run -d \
-              --name guoxue-${{ github.event.inputs.service }} \
+              --name ${{ env.CONTAINER_NAME }} \
               --restart unless-stopped \
               -p ${{ secrets.APP_PORT || '3000' }}:3000 \
+              --env-file "$ENV_FILE" \
               -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
               -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
               -e NODE_ENV=${{ github.event.inputs.environment }} \
               ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-            # 清理旧镜像
+            # 数据库迁移
+            if [ "${{ github.event.inputs.run_migration }}" = "true" ]; then
+              echo "执行数据库迁移..."
+              sleep 5  # 等待服务完全启动
+              if docker exec ${{ env.CONTAINER_NAME }} sh -c "cd /app/apps/server && npx prisma migrate deploy"; then
+                echo "数据库迁移成功"
+              else
+                echo "数据库迁移失败，回滚..."
+                docker rm -f ${{ env.CONTAINER_NAME }}
+                if [ -f /tmp/deploy-backup.env ]; then
+                  source /tmp/deploy-backup.env
+                  if docker ps -q --filter "name=${{ env.CONTAINER_NAME }}-old" | grep -q .; then
+                    docker rename ${{ env.CONTAINER_NAME }}-old ${{ env.CONTAINER_NAME }}
+                  fi
+                fi
+                exit 1
+              fi
+            else
+              echo "跳过数据库迁移"
+            fi
+
+            # 健康检查（等待最多30秒）
+            echo "等待服务就绪..."
+            for i in $(seq 1 15); do
+              if curl -sf http://localhost:${{ secrets.APP_PORT || '3000' }}/api/v1/health > /dev/null 2>&1; then
+                echo "健康检查通过"
+                break
+              fi
+              if [ $i -eq 15 ]; then
+                echo "健康检查失败，回滚..."
+                docker rm -f ${{ env.CONTAINER_NAME }}
+                if [ -f /tmp/deploy-backup.env ]; then
+                  source /tmp/deploy-backup.env
+                  if docker ps -q --filter "name=${{ env.CONTAINER_NAME }}-old" | grep -q .; then
+                    docker rename ${{ env.CONTAINER_NAME }}-old ${{ env.CONTAINER_NAME }}
+                  fi
+                fi
+                exit 1
+              fi
+              sleep 2
+            done
+
+            # 清理旧容器和旧镜像
+            docker rm -f ${{ env.CONTAINER_NAME }}-old 2>/dev/null || true
             docker image prune -f --filter "until=24h"
+
+      - name: 部署结果通知
+        if: always()
+        run: |
+          DEPLOY_STATUS="${{ steps.deploy.outcome }}"
+          SERVICE_NAME="${{ env.IMAGE_NAME }}"
+          IMAGE_TAG="${{ env.IMAGE_TAG }}"
+          ENV_NAME="${{ github.event.inputs.environment }}"
+
+          if [ "$DEPLOY_STATUS" = "success" ]; then
+            TITLE="部署成功"
+            CONTENT="${SERVICE_NAME}:${IMAGE_TAG} → ${ENV_NAME} 部署完成"
+            COLOR="info"
+          else
+            TITLE="部署失败"
+            CONTENT="${SERVICE_NAME}:${IMAGE_TAG} → ${ENV_NAME} 部署失败，已自动回滚"
+            COLOR="warning"
+          fi
+
+          echo "$TITLE — $CONTENT"
+
+          # 企业微信机器人通知
+          if [ -n "${{ secrets.WEWORK_WEBHOOK_ALERT_URL }}" ]; then
+            curl -s -X POST "${{ secrets.WEWORK_WEBHOOK_ALERT_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"msgtype\":\"markdown\",\"markdown\":{\"content\":\"## ${TITLE}\n> 服务: ${SERVICE_NAME}\n> 标签: ${IMAGE_TAG}\n> 环境: ${ENV_NAME}\n> ${CONTENT}\"}}" \
+              || true
+          fi

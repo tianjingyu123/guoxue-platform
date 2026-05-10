@@ -1,0 +1,164 @@
+name: Performance Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: '压测场景'
+        required: true
+        default: 'load'
+        type: choice
+        options:
+          - smoke
+          - load
+          - stress
+          - soak
+          - spike
+      base_url:
+        description: '目标服务地址（留空默认 localhost）'
+        required: false
+        type: string
+  schedule:
+    # 每天凌晨 3:00 UTC（北京时间 11:00）执行负载测试
+    - cron: '0 3 * * *'
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10'
+  DATABASE_URL: 'postgresql://guoxue:guoxue123@localhost:5432/guoxue'
+  REDIS_URL: 'redis://localhost:6379'
+  ENCRYPTION_KEY: 'perf-test-key-32bytes-long!!'
+  JWT_SECRET: 'perf-test-jwt-secret-key!!'
+  SCENARIO: ${{ github.event.inputs.scenario || 'load' }}
+
+jobs:
+  perf-test:
+    name: 性能压测 (${{ env.SCENARIO }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: guoxue
+          POSTGRES_PASSWORD: guoxue123
+          POSTGRES_DB: guoxue
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+        timeout-minutes: 10
+
+      - name: 构建 workspace 包
+        run: |
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
+        timeout-minutes: 5
+
+      - name: 生成 Prisma Client + 迁移
+        run: |
+          pnpm --filter @guoxue/server exec npx prisma generate
+          pnpm --filter @guoxue/server exec npx prisma migrate deploy
+        timeout-minutes: 5
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: 构建服务
+        run: pnpm build:server
+        timeout-minutes: 5
+
+      - name: 启动服务
+        run: |
+          cd apps/server
+          NODE_ENV=production \
+          DATABASE_URL="${{ env.DATABASE_URL }}" \
+          REDIS_URL="${{ env.REDIS_URL }}" \
+          ENCRYPTION_KEY="${{ env.ENCRYPTION_KEY }}" \
+          JWT_SECRET="${{ env.JWT_SECRET }}" \
+          PORT=3000 \
+          node dist/main.js &
+          # 等待服务就绪
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/v1/health > /dev/null 2>&1; then
+              echo "服务已就绪"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "服务启动超时"
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: 安装 k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: 运行性能测试
+        run: |
+          mkdir -p results
+          k6 run \
+            --env SCENARIO=${{ env.SCENARIO }} \
+            --env BASE_URL=${{ github.event.inputs.base_url || 'http://localhost:3000' }} \
+            --out json=results/raw.json \
+            --summary-export=results/summary.json \
+            tests/performance/k6/main.js
+        continue-on-error: true
+
+      - name: 分析结果
+        if: always()
+        run: |
+          echo "## 性能测试报告 (${{ env.SCENARIO }})" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f results/summary.json ]; then
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat results/summary.json | head -100 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+
+            # 检查阈值是否通过
+            THRESHOLDS_PASSED=$(jq -r '.metrics | select(.thresholds_passed != null) | .thresholds_passed' results/summary.json 2>/dev/null || echo "unknown")
+            echo "- 阈值检查: $THRESHOLDS_PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ 未生成性能报告文件" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 上传结果
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results-${{ env.SCENARIO }}-${{ github.run_id }}
+          path: results/
+          retention-days: 30
+
+      - name: 停止服务
+        if: always()
+        run: |
+          pkill -f "node dist/main.js" || true

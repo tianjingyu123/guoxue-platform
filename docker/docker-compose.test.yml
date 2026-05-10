@@ -1,0 +1,73 @@
+# ═══════════════════════════════════════════
+# E2E 测试环境 — 本地一键启动
+#   docker compose -f docker/docker-compose.test.yml up --abort-on-container-exit --exit-code-from test
+# ═══════════════════════════════════════════
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: guoxue-test-pg
+    environment:
+      POSTGRES_USER: guoxue
+      POSTGRES_PASSWORD: guoxue123
+      POSTGRES_DB: guoxue
+    ports:
+      - "5433:5432" # 避免与本地 PG 冲突
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guoxue"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: guoxue-test-redis
+    ports:
+      - "6380:6379" # 避免与本地 Redis 冲突
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  test:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.test
+    container_name: guoxue-test-runner
+    environment:
+      DATABASE_URL: postgresql://guoxue:guoxue123@postgres:5432/guoxue
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: e2e-test-jwt-secret
+      ENCRYPTION_KEY: e2e-test-key-32bytes-long!!!
+      NODE_ENV: test
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # 迁移 + E2E 测试（可覆盖跑全部测试）
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "[test] 等待数据库就绪..."
+        i=0
+        while [ $$i -lt 30 ]; do
+          node -e "
+            const net = require('net');
+            const sock = net.createConnection({ host: 'postgres', port: 5432, timeout: 3000 });
+            sock.on('connect', () => { sock.end(); process.exit(0); });
+            sock.on('error', () => process.exit(1));
+            sock.on('timeout', () => { sock.destroy(); process.exit(1); });
+          " && break
+          i=$$((i + 1))
+          echo \"[test] 数据库未就绪, 等待中... ($$i/30)\"
+          sleep 2
+        done
+        echo "[test] 执行数据库迁移..."
+        npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
+        echo "[test] 生成 Prisma Client..."
+        npx prisma generate --schema=apps/server/prisma/schema.prisma
+        echo "[test] 运行测试..."
+        npx jest --testPathPattern test/ --runInBand --forceExit

@@ -138,27 +138,42 @@ guoxue-platform/
 
 ## 实施阶段
 
-### P0 基建（第 1-2 周）
-- [ ] WSL2 + Docker 环境安装
-- [ ] Git SSH Key + GitHub 私有仓库
-- [ ] 项目 monorepo 结构初始化
-- [ ] Docker Compose（PostgreSQL + Redis）
-- [ ] Prisma schema 定义 + 迁移
-- [ ] NestJS 基础搭建 +auth 模块
-- [ ] UniApp 项目初始化
-- [ ] Vue3 管理后台初始化
+### P0 基建（第 1-2 周）✅
+- [x] WSL2 + Docker 环境安装
+- [x] Git SSH Key + GitHub 私有仓库
+- [x] 项目 monorepo 结构初始化
+- [x] Docker Compose（PostgreSQL + Redis）
+- [x] Prisma schema 定义 + 迁移
+- [x] NestJS 基础搭建 +auth 模块
+- [x] UniApp 项目初始化
+- [x] Vue3 管理后台初始化
 
-### P1 核心功能（第 3-6 周）
-- [ ] 用户注册/登录（密码 + 微信 OAuth）
-- [ ] 内容 CRUD API + 管理后台
-- [ ] UniApp 首页 + 内容浏览
-- [ ] 内容搜索 + 分类浏览
-- [ ] 收藏功能
-- [ ] 腾讯云 IM 接入
+### P1 核心功能（第 3-6 周）✅
+- [x] 用户注册/登录（密码 + 微信 OAuth）
+- [x] 内容 CRUD API + 管理后台
+- [x] UniApp 首页 + 内容浏览
+- [x] 内容搜索 + 分类浏览
+- [x] 收藏功能
+- [x] 腾讯云 IM 接入
 
-### P2 增强（后续）
-- [ ] 内容推荐算法
-- [ ] 评论系统
-- [ ] 社区功能
-- [ ] 音频朗读（TTS）
-- [ ] 小程序发布
+### P2 增强 ✅
+- [x] 内容推荐算法
+- [x] 评论系统
+- [x] 社区功能
+- [x] 音频朗读（TTS）
+- [x] 小程序发布
+- [x] E2E 测试覆盖（16 suites / 163 tests）
+- [x] 数据库播种 + 重置脚本
+- [x] CI/CD 流水线（ci.yml + deploy.yml + perf.yml）
+- [x] 性能压测基础设施（k6 + 5种场景）
+
+### P3 生产就绪
+- [x] 可观测性 — Pino 结构化日志 + traceId + Prometheus /metrics
+- [x] 限流与防护 — Redis 分布式限流 + 内存降级
+- [x] API 文档完善 — 100% Swagger 覆盖（42 控制器 / 439 端点）
+- [x] 安全加固 — CSP / HSTS / CORS / 安全头 / ValidationPipe
+- [x] 灰度发布与功能开关 — FeatureFlag 模型 + Redis 缓存 + @RequireFeature 装饰器 + 百分比灰度
+- [x] E2E 测试 Docker 环境 — docker-compose.test.yml + Dockerfile.test
+- [x] OpenTelemetry 链路追踪（OTLP → Jaeger/Tempo，tracing.ts + TracingInterceptor）
+- [ ] 管理后台核心页面（Trae 负责 — Claude 不涉及）
+- [x] 生产部署文档 + Runbook（apps/server/docs/DEPLOYMENT.md）

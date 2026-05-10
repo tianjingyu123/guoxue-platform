@@ -1,0 +1,27 @@
+# ═══════════════════════════════════════════
+# E2E 测试镜像 — 包含所有 devDependencies
+# ═══════════════════════════════════════════
+FROM node:20-alpine
+
+RUN corepack enable && corepack prepare pnpm@10 --activate
+
+WORKDIR /app
+
+# 依赖缓存层（与 Dockerfile 一致）
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY apps/server/package.json apps/server/
+COPY packages/shared/package.json packages/shared/
+COPY packages/bazi-engine/package.json packages/bazi-engine/
+COPY packages/ziwei-engine/package.json packages/ziwei-engine/
+
+RUN pnpm install --frozen-lockfile
+
+# 源代码
+COPY . .
+
+# 构建 workspace 包
+RUN pnpm --filter @guoxue/bazi-engine build
+RUN pnpm --filter @guoxue/ziwei-engine build
+
+# 生成 Prisma client
+RUN npx prisma generate --schema=apps/server/prisma/schema.prisma

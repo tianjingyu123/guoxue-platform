@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────
+# 开发环境覆盖配置
+# 用法: docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml up -d
+# ─────────────────────────────────────────────
+services:
+  server:
+    build:
+      dockerfile: docker/Dockerfile.dev
+    container_name: guoxue-server-dev
+    environment:
+      NODE_ENV: development
+      PRISMA_SLOW_QUERY_MS: 200
+    volumes:
+      # 源码挂载 → 热重载
+      - ../apps/server/src:/app/apps/server/src:ro
+      - ../apps/server/prisma:/app/apps/server/prisma:ro
+      - ../packages/shared/src:/app/packages/shared/src:ro
+      - ../packages/bazi-engine/src:/app/packages/bazi-engine/src:ro
+      - ../packages/ziwei-engine/src:/app/packages/ziwei-engine/src:ro
+      # 开发专用上传目录
+      - dev-uploads:/app/apps/server/uploads
+    command: ["node", "--watch", "apps/server/dist/main.js"]
+    # 允许更多资源用于开发
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+volumes:
+  dev-uploads:
