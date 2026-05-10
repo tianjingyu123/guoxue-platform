@@ -288,4 +288,48 @@ export class CircleController {
   listExperts(@Param("id") circleId: string) {
     return this.circle.listCircleExperts(circleId);
   }
+
+  // ───────── 排行榜 ─────────
+
+  @Get("ranking")
+  @ApiOperation({ summary: "圈子活跃度排行" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  @ApiQuery({ name: "sortBy", required: false, type: String, description: "排序字段：memberCount/postCount/activityScore" })
+  @ApiResponse({ status: 200, description: "成功返回圈子活跃度排行" })
+  getCircleRanking(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("sortBy") sortBy?: string,
+  ) {
+    return this.circle.getCircleRanking(+page, +pageSize, sortBy);
+  }
+
+  @Get(":id/leaderboard")
+  @ApiOperation({ summary: "成员贡献榜", description: "按发帖量等指标统计成员贡献排名" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  @ApiQuery({ name: "period", required: false, type: String, description: "统计周期：week/month/all" })
+  @ApiResponse({ status: 200, description: "成功返回成员贡献榜" })
+  @ApiResponse({ status: 404, description: "圈子不存在" })
+  getMemberLeaderboard(
+    @Param("id") id: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("period") period?: string,
+  ) {
+    return this.circle.getMemberLeaderboard(id, +page, +pageSize, period);
+  }
+
+  @Get(":id/hot-content")
+  @ApiOperation({ summary: "内容热度榜", description: "按点赞数+评论数排序的热门帖子" })
+  @ApiQuery({ name: "limit", required: false, type: Number, description: "返回条数，默认10" })
+  @ApiResponse({ status: 200, description: "成功返回热门内容列表" })
+  @ApiResponse({ status: 404, description: "圈子不存在" })
+  getHotContentRanking(
+    @Param("id") id: string,
+    @Query("limit") limit = 10,
+  ) {
+    return this.circle.getHotContentRanking(id, +limit);
+  }
 }

@@ -26,7 +26,7 @@ export class PrismaService
 
     // 慢查询检测
     if (process.env.NODE_ENV !== "test") {
-      (this.$on as any)("query", (e: any) => {
+      (this as any).$on("query", (e: { duration: number; query: string }) => {
         if (e.duration >= this.SLOW_QUERY_MS) {
           this.logger.warn(
             `慢查询 (${e.duration}ms): ${e.query.replace(/\s+/g, " ").trim().substring(0, 200)}`,

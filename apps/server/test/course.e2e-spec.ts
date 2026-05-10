@@ -159,8 +159,8 @@ describe("Course E2E", () => {
     it("已购买返回 400", async () => {
       const token = jwt.sign({ sub: "u1" })
       prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
-      prisma.course.findUnique.mockResolvedValue({ id: "c1", price: 99, title: "论语入门" })
-      prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID" })
+      prisma.course.findUnique.mockResolvedValue({ id: "c1", price: 99, title: "论语入门", validityDays: 0 })
+      prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", paidAt: new Date() })
 
       await request(app.getHttpServer())
         .post("/api/v1/courses/c1/purchase")

@@ -1,23 +1,24 @@
 import { Injectable, Logger } from "@nestjs/common";
 import * as crypto from "crypto";
 
-interface WechatTokenResponse {
+interface WechatBaseResponse {
+  errcode?: number;
+  errmsg?: string;
+}
+
+interface WechatTokenResponse extends WechatBaseResponse {
   access_token?: string;
   expires_in?: number;
   refresh_token?: string;
   openid?: string;
   unionid?: string;
   scope?: string;
-  errcode?: number;
-  errmsg?: string;
 }
 
-interface WechatSessionResponse {
+interface WechatSessionResponse extends WechatBaseResponse {
   openid?: string;
   session_key?: string;
   unionid?: string;
-  errcode?: number;
-  errmsg?: string;
 }
 
 interface WechatUserInfo {
@@ -26,6 +27,42 @@ interface WechatUserInfo {
   nickname?: string;
   headimgurl?: string;
   sex?: number;
+}
+
+interface WechatUserInfoResponse extends WechatBaseResponse {
+  openid: string;
+  unionid?: string;
+  nickname?: string;
+  headimgurl?: string;
+  sex?: number;
+}
+
+interface WechatPhoneResponse extends WechatBaseResponse {
+  phone_info: {
+    phoneNumber: string;
+    countryCode: string;
+    purePhoneNumber: string;
+  };
+}
+
+interface WechatSecCheckResponse extends WechatBaseResponse {
+  result?: {
+    suggest: string;
+    label?: string;
+  };
+}
+
+interface WechatMediaCheckResponse extends WechatBaseResponse {
+  trace_id: string;
+}
+
+interface WechatShortLinkResponse extends WechatBaseResponse {
+  link: string;
+}
+
+interface WechatDatacubeResponse extends WechatBaseResponse {
+  list?: Record<string, unknown>[];
+  data?: Record<string, unknown>[];
 }
 
 @Injectable()
@@ -79,7 +116,7 @@ export class WechatService {
   private async fetchAccessToken(appId: string, appSecret: string): Promise<string> {
     const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appId}&secret=${appSecret}`;
     const resp = await fetch(url);
-    const data = (await resp.json()) as any;
+    const data = (await resp.json()) as WechatTokenResponse;
 
     if (data.errcode || !data.access_token) {
       this.logger.error("获取微信 Access Token 失败", data);
@@ -139,7 +176,7 @@ export class WechatService {
         body: JSON.stringify({ code }),
       },
     );
-    const data = await resp.json() as any;
+    const data = await resp.json() as WechatPhoneResponse;
 
     if (data.errcode !== 0) {
       this.logger.error("获取手机号失败", data);
@@ -166,8 +203,8 @@ export class WechatService {
       decrypted += decipher.final("utf8");
       const data = JSON.parse(decrypted);
       return data.purePhoneNumber || data.phoneNumber;
-    } catch (err: any) {
-      this.logger.error("解密手机号失败", err.message);
+    } catch (err: unknown) {
+      this.logger.error("解密手机号失败", err instanceof Error ? err.message : String(err));
       throw new Error("解密手机号失败");
     }
   }
@@ -177,7 +214,7 @@ export class WechatService {
     const url = `https://api.weixin.qq.com/sns/userinfo?access_token=${accessToken}&openid=${openId}&lang=zh_CN`;
 
     const resp = await fetch(url);
-    const data = (await resp.json()) as any;
+    const data = (await resp.json()) as WechatUserInfoResponse;
 
     if (data.errcode) {
       this.logger.error("获取微信用户信息失败", data);
@@ -211,7 +248,7 @@ export class WechatService {
         }),
       },
     );
-    const result = await resp.json() as any;
+    const result = await resp.json() as WechatSecCheckResponse;
 
     if (result.errcode === 0) {
       // result_type: 0=正常, 1=有风险, 2=确定有害
@@ -234,7 +271,7 @@ export class WechatService {
         body: JSON.stringify({ media_url: imageUrl, media_type: 2, version: 2, scene, openid }),
       },
     );
-    const result = await resp.json() as any;
+    const result = await resp.json() as WechatMediaCheckResponse;
 
     if (result.errcode !== 0) {
       this.logger.error("图片异步检测提交失败", result);
@@ -276,7 +313,7 @@ export class WechatService {
 
     // 如果返回的是JSON说明出错了
     if (contentType.includes("application/json")) {
-      const err = await resp.json() as any;
+      const err = await resp.json() as WechatBaseResponse;
       this.logger.error("小程序码生成失败", err);
       throw new Error(`小程序码生成失败: ${err.errmsg || "未知错误"}`);
     }
@@ -305,7 +342,7 @@ export class WechatService {
 
     const contentType = resp.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
-      const err = await resp.json() as any;
+      const err = await resp.json() as WechatBaseResponse;
       throw new Error(`小程序码生成失败: ${err.errmsg || "未知错误"}`);
     }
 
@@ -334,7 +371,7 @@ export class WechatService {
         }),
       },
     );
-    const result = await resp.json() as any;
+    const result = await resp.json() as WechatShortLinkResponse;
     if (result.errcode !== 0) {
       this.logger.error("短链接生成失败", result);
       throw new Error(`短链接生成失败: ${result.errmsg}`);
@@ -354,7 +391,7 @@ export class WechatService {
     miniprogrampage?: { title: string; pagepath: string; thumb_media_id: string };
   }) {
     const token = await this.getMiniAccessToken();
-    const body: any = { touser: params.touser, msgtype: params.msgtype };
+    const body: Record<string, unknown> = { touser: params.touser, msgtype: params.msgtype };
     if (params.text) body.text = params.text;
     if (params.image) body.image = params.image;
     if (params.link) body.link = params.link;
@@ -368,7 +405,7 @@ export class WechatService {
         body: JSON.stringify(body),
       },
     );
-    const result = await resp.json() as any;
+    const result = await resp.json() as WechatBaseResponse;
     if (result.errcode !== 0) {
       this.logger.error("客服消息发送失败", result);
       return { success: false, error: result.errmsg };
@@ -412,7 +449,7 @@ export class WechatService {
         body: JSON.stringify({ begin_date: beginDate, end_date: endDate }),
       },
     );
-    const result = await resp.json() as any;
+    const result = await resp.json() as WechatDatacubeResponse;
     if (result.errcode && result.errcode !== 0) {
       this.logger.error(`数据分析API失败 [${path}]`, result);
       return [];
@@ -632,7 +669,7 @@ export class WechatService {
     for (const date of dates) {
       try {
         const data = await this.getAdGeneral(date);
-        results.push({ date, ...(data as any) });
+        results.push({ date, ...(data as Record<string, unknown>) });
       } catch {
         results.push({ date, error: "获取失败" });
       }

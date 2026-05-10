@@ -52,18 +52,21 @@ export class WsAuthService {
         role: payload.role || "USER",
         nickname: payload.nickname,
       };
-    } catch (err: any) {
-      this.logger.warn(`JWT解析失败: ${err.message}`);
+    } catch (err: unknown) {
+      this.logger.warn(`JWT解析失败: ${err instanceof Error ? err.message : String(err)}`);
       return null;
     }
   }
 
   /** 从 handshake 提取并验证 token */
-  extractUser(handshake: any): WsUser | null {
-    const token =
-      handshake?.auth?.token ||
-      handshake?.query?.token ||
-      handshake?.headers?.authorization?.replace("Bearer ", "") ||
+  extractUser(handshake: Record<string, unknown>): WsUser | null {
+    const auth = handshake.auth as Record<string, unknown> | undefined;
+    const query = handshake.query as Record<string, unknown> | undefined;
+    const headers = handshake.headers as Record<string, unknown> | undefined;
+    const token: string =
+      (auth?.token as string) ||
+      (query?.token as string) ||
+      (headers?.authorization as string)?.replace("Bearer ", "") ||
       "";
     if (!token) return null;
     return this.verifyToken(token);

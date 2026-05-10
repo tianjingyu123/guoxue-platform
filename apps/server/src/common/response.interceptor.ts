@@ -69,7 +69,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T>
     return this.skipPaths.some((p) => path.startsWith(p));
   }
 
-  private isAlreadyWrapped(data: any): boolean {
+  private isAlreadyWrapped(data: unknown): boolean {
     if (data === null || data === undefined) return false;
     if (typeof data !== "object") return false;
     // Buffer / Stream / 文件响应跳过

@@ -15,6 +15,9 @@ import {
   ApproveWithdrawalDto,
   RejectWithdrawalDto,
   MonthlyReportDto,
+  FreezeAmountDto,
+  UnfreezeAmountDto,
+  FreezeRecordQueryDto,
 } from "./finance.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -186,6 +189,39 @@ export class FinanceController {
   @ApiOperation({ summary: "确认打款" })
   confirmWithdrawalPay(@Param("id") id: string) {
     return this.svc.confirmWithdrawalPay(id);
+  }
+
+  // ───────── 6. 资金冻结/解冻 ─────────
+
+  @Post("freeze")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "冻结订单资金" })
+  freezeAmount(@Body() dto: FreezeAmountDto) {
+    return this.svc.freezeAmount(dto);
+  }
+
+  @Post("unfreeze")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "解冻订单资金" })
+  unfreezeAmount(@Body() dto: UnfreezeAmountDto) {
+    return this.svc.unfreezeAmount(dto);
+  }
+
+  @Get("freeze-records")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "冻结记录列表" })
+  @ApiQuery({ name: "orderId", required: false, type: String, description: "订单ID" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  getFreezeRecords(
+    @Query("orderId") orderId?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.getFreezeRecords({ orderId, page: +page, pageSize: +pageSize });
   }
 
   // ───────── 5. 财务报表 ─────────

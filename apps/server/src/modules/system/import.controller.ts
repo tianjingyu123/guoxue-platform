@@ -4,6 +4,7 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiParam } from "@nestjs/swagger";
+import { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -35,14 +36,14 @@ export class ImportController {
   async importCsv(
     @Param("type") type: string,
     @UploadedFile() file: Express.Multer.File,
-    @Req() req: any,
+    @Req() req: Request,
     @StationId() stationId?: string,
   ) {
     if (!file) throw new BadRequestException("请上传 CSV 文件");
 
     return this.importService.importCsv(type, file.buffer, {
       userId: req.user?.id || "system",
-      stationId: stationId || req.headers?.["x-station-id"],
+      stationId: stationId || (req.headers?.["x-station-id"] as string | undefined),
     });
   }
 }

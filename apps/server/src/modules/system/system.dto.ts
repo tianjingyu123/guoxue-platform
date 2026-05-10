@@ -133,6 +133,14 @@ export class RollbackConfigDto {
 
 // ───────── 会员配置 DTO ─────────
 
+export class ExportExcelDto {
+  @IsString()
+  type: "users" | "orders";
+
+  @IsOptional()
+  filters?: Record<string, any>;
+}
+
 export class UpsertMemberConfigDto {
   @IsString()
   level: string;

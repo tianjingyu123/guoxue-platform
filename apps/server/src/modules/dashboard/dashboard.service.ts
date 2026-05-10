@@ -282,7 +282,7 @@ export class DashboardService {
         where: { createdAt: { gte: today }, status: { in: ["PAID", "COMPLETED"] } },
         _sum: { amount: true },
       }),
-      this.redis.get("ws:online_count").then(v => parseInt(v || "0") || 0).catch(() => 0),
+      this.redis.get("ws:online_count").then(v => parseInt(v || "0") || 0).catch((err) => { this.logger.warn("获取在线人数失败", err); return 0; }),
     ]);
 
     return {
@@ -317,7 +317,7 @@ export class DashboardService {
       this.prisma.article.count({ where: { createdAt: { gte: today }, auditStatus: "APPROVED" } }),
       this.prisma.course.count({ where: { createdAt: { gte: today }, auditStatus: "APPROVED" } }),
       this.prisma.paipanRecord.count({ where: { createdAt: { gte: today } } }),
-      this.redis.get("ws:online_count").then(v => parseInt(v || "0") || 0).catch(() => 0),
+      this.redis.get("ws:online_count").then(v => parseInt(v || "0") || 0).catch((err) => { this.logger.warn("获取在线人数失败", err); return 0; }),
       this.prisma.order.aggregate({
         where: { createdAt: { gte: new Date(today.getFullYear(), today.getMonth(), 1) }, status: { in: ["PAID", "COMPLETED"] } },
         _sum: { amount: true },
@@ -412,7 +412,7 @@ export class DashboardService {
     ] = await Promise.all([
       this.prisma.user.count({ where: { createdAt: { gte: startDate } } }),
       this.prisma.paipanRecord.groupBy({ by: ["userId"], where: { createdAt: { gte: startDate } } }).then((r) => r.length),
-      this.prisma.aiAnalysisRecord.count({ where: { createdAt: { gte: startDate } } }).catch(() => 0),
+      this.prisma.aiAnalysisRecord.count({ where: { createdAt: { gte: startDate } } }).catch((err) => { this.logger.warn("获取AI分析记录数失败", err); return 0; }),
       this.prisma.user.count({ where: { createdAt: { gte: startDate }, memberLevel: { not: "NONE" } } }),
       this.prisma.order.count({ where: { createdAt: { gte: startDate }, status: { in: ["PAID", "COMPLETED"] } } }),
     ]);

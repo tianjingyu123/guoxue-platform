@@ -1,8 +1,10 @@
-import { Controller, Post, Get, Body, Param, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { Controller, Post, Get, Body, Param, Query, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { IdentityService } from "./identity.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-import { IdCardOcrDto, IdCardVerifyDto, FaceTokenDto } from "./identity.dto";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
+import { IdCardOcrDto, IdCardVerifyDto, FaceTokenDto, AuditIdentityDto } from "./identity.dto";
 
 @ApiTags("实名认证")
 @ApiBearerAuth()
@@ -33,5 +35,38 @@ export class IdentityController {
   @ApiOperation({ summary: "查询人脸核身结果" })
   faceResult(@Param("token") token: string) {
     return this.svc.getFaceIdResult(token);
+  }
+
+  // ───────── 审核管理 ─────────
+
+  @Get("admin/audit-list")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "实名认证审核列表" })
+  @ApiQuery({ name: "status", required: false, type: String, description: "审核状态" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  getAuditList(
+    @Query("status") status?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.getIdentityAuditList(+page, +pageSize, status);
+  }
+
+  @Post("admin/approve/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "通过实名认证" })
+  approveIdentity(@Param("id") id: string, @Body() dto: AuditIdentityDto) {
+    return this.svc.approveIdentity(id, dto.remark);
+  }
+
+  @Post("admin/reject/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "拒绝实名认证" })
+  rejectIdentity(@Param("id") id: string, @Body() dto: AuditIdentityDto) {
+    return this.svc.rejectIdentity(id, dto.remark || "未通过审核");
   }
 }

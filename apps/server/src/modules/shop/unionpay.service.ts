@@ -230,7 +230,7 @@ export class UnionpayService {
   // ───────── 回调处理 ─────────
 
   /** 验证回调签名（含重放攻击防护：验签 + 5分钟时间窗口 + orderId去重） */
-  async verifyNotify(params: Record<string, string>): Promise<{ valid: boolean; data?: any; error?: string }> {
+  async verifyNotify(params: Record<string, string>): Promise<{ valid: boolean; data?: Record<string, unknown>; error?: string }> {
     const signature = params.signature || params.sign || "";
     if (!signature) return { valid: false, error: "缺少签名字段" };
 

@@ -1,5 +1,22 @@
-import { Injectable, Logger, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger, BadRequestException, NotFoundException } from "@nestjs/common";
 import { createHash, createHmac } from "crypto";
+import { PrismaService } from "../../prisma/prisma.service";
+
+interface TencentCloudResponse {
+  Response?: {
+    Error?: { Code: string; Message: string };
+    [key: string]: unknown;
+  };
+}
+
+export interface AuditItem {
+  id: string;
+  userId: string | null;
+  action: string;
+  status: string;
+  detail: string | null;
+  createdAt: Date;
+}
 
 /**
  * 腾讯云实名认证服务（纯原生API）
@@ -12,7 +29,7 @@ export class IdentityService {
   private readonly secretId: string;
   private readonly secretKey: string;
 
-  constructor() {
+  constructor(private prisma: PrismaService) {
     this.secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "";
     this.secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "";
 
@@ -22,7 +39,7 @@ export class IdentityService {
   }
 
   /** TC3-HMAC-SHA256 通用签名调用 */
-  private async callApi(service: string, action: string, params: Record<string, any>, version = "2018-11-19") {
+  private async callApi(service: string, action: string, params: Record<string, unknown>, version = "2018-11-19"): Promise<Record<string, unknown>> {
     const host = `${service}.tencentcloudapi.com`;
     const timestamp = Math.floor(Date.now() / 1000);
     const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
@@ -51,12 +68,12 @@ export class IdentityService {
       body: payload,
     });
 
-    const data = await resp.json() as any;
+    const data = await resp.json() as TencentCloudResponse;
     if (data.Response?.Error) {
       this.logger.error(`${service} API错误 [${action}]`, data.Response.Error);
       throw new Error(`${action} 失败: ${data.Response.Error.Message}`);
     }
-    return data.Response;
+    return data.Response!;
   }
 
   // ───────── 身份证OCR识别 ─────────
@@ -67,7 +84,7 @@ export class IdentityService {
     imageUrl?: string;
     side: "FRONT" | "BACK"; // FRONT=正面(人像), BACK=反面(国徽)
   }) {
-    const body: any = {
+    const body: Record<string, unknown> = {
       Config: JSON.stringify({ CropIdCard: true, CropPortrait: true, CopyWarn: true, BorderCheckWarn: true }),
     };
     if (params.side === "FRONT") {
@@ -149,12 +166,108 @@ export class IdentityService {
       "2018-03-01",
     );
 
-    const passed = result.BestFrame?.Result === "0";
+    const bestFrame = result?.BestFrame as Record<string, unknown> | undefined;
+    const passed = (bestFrame?.Result as string) === "0";
     return {
       passed,
-      result: result.BestFrame?.Result,
+      result: bestFrame?.Result as string | undefined,
       description: passed ? "活体检测通过" : "活体检测未通过",
-      similarity: result.BestFrame?.Sim,
+      similarity: bestFrame?.Sim as number | undefined,
     };
+  }
+
+  // ───────── 审核管理 ─────────
+
+  /** 获取实名认证审核列表 */
+  async getIdentityAuditList(page: number, pageSize: number, status?: string) {
+    const where: Record<string, unknown> = {
+      OR: [
+        { action: "IDENTITY_VERIFY" },
+        { action: "IDENTITY_APPROVE" },
+        { action: "IDENTITY_REJECT" },
+      ],
+    };
+
+    let items: AuditItem[] = [];
+    let total = 0;
+
+    try {
+      const [logs, count] = await Promise.all([
+        this.prisma.auditLog.findMany({
+          where,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          orderBy: { createdAt: "desc" },
+        }),
+        this.prisma.auditLog.count({ where }),
+      ]);
+
+      items = logs.map((log) => ({
+        id: log.id,
+        userId: log.userId,
+        action: log.action,
+        status:
+          log.action === "IDENTITY_APPROVE"
+            ? "APPROVED"
+            : log.action === "IDENTITY_REJECT"
+              ? "REJECTED"
+              : "PENDING",
+        detail: log.detail,
+        createdAt: log.createdAt,
+      }));
+      total = count;
+    } catch (e: unknown) {
+      this.logger.warn("查询身份认证审核记录失败", e as Error);
+    }
+
+    // AuditLog 中没有记录时返回空列表
+    // 后续可迁移至专用的 IdentityRecord 模型
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /** 通过实名认证 */
+  async approveIdentity(id: string, remark?: string) {
+    const log = await this.prisma.auditLog.findUnique({ where: { id } });
+    if (!log) throw new NotFoundException("认证记录不存在");
+
+    // 记录审批通过操作
+    await this.prisma.auditLog.create({
+      data: {
+        userId: log.userId,
+        action: "IDENTITY_APPROVE",
+        targetType: "USER",
+        targetId: log.userId,
+        detail: remark ? `实名认证已通过，备注: ${remark}` : "实名认证已通过",
+      },
+    });
+
+    this.logger.log(`用户 ${log.userId} 实名认证已通过`);
+    return { success: true, message: "实名认证已通过" };
+  }
+
+  /** 拒绝实名认证 */
+  async rejectIdentity(id: string, remark: string) {
+    const log = await this.prisma.auditLog.findUnique({ where: { id } });
+    if (!log) throw new NotFoundException("认证记录不存在");
+
+    // 记录审批拒绝操作
+    await this.prisma.auditLog.create({
+      data: {
+        userId: log.userId,
+        action: "IDENTITY_REJECT",
+        targetType: "USER",
+        targetId: log.userId,
+        detail: `实名认证被拒绝，原因: ${remark}`,
+      },
+    });
+
+    this.logger.log(`用户 ${log.userId} 实名认证被拒绝: ${remark}`);
+    return { success: true, message: "实名认证已拒绝" };
   }
 }

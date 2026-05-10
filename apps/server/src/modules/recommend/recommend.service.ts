@@ -51,7 +51,7 @@ export class RecommendService {
     if (cached) return cached;
 
     // P3: 冷启动检测
-    const isColdStart = ctx.userId ? await this.coldStart.isColdStart(ctx.userId).catch(() => false) : false;
+    const isColdStart = ctx.userId ? await this.coldStart.isColdStart(ctx.userId).catch((err: Error) => { this.logger.warn("冷启动检测失败", err.message); return false; }) : false;
 
     // 按场景分发
     let items: RecommendItem[] = [];
@@ -106,7 +106,7 @@ export class RecommendService {
 
     // P3: 冷启动用户混入精选内容（根据兴趣标签选个性化入门内容）
     if (isColdStart && ctx.page === 1) {
-      const starterPack = await this.coldStart.getPersonalizedStarterPack(ctx.userId!).catch(() => [] as RecommendItem[]);
+      const starterPack = await this.coldStart.getPersonalizedStarterPack(ctx.userId!).catch((err: Error) => { this.logger.warn("获取冷启动个性化内容失败", err.message); return [] as RecommendItem[]; });
       if (starterPack.length > 0) {
         // 将精选内容插入最前面（去重后）
         const existingSet = new Set(filtered.map((f) => `${f.type}:${f.id}`));
@@ -117,6 +117,13 @@ export class RecommendService {
 
     // P3: 评分流水线（会员加权 + 归一化）
     filtered = await this.scoring.score(filtered, ctx.userId);
+
+    // P2: 分区强插 — 运营插入指定内容到指定位置
+    try {
+      filtered = await this.applyInsertRules(ctx.scene, filtered);
+    } catch (e) {
+      this.logger.warn(`分区强插失败: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
     // 分页切片
     const start = (ctx.page - 1) * ctx.pageSize;
@@ -253,11 +260,11 @@ export class RecommendService {
       this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: this.productSelect(), take: 8, orderBy: { salesCount: "desc" } }),
       this.prisma.circle.findMany({ where: { status: "ACTIVE" }, select: this.circleSelect(), take: 8, orderBy: { memberCount: "desc" } }),
       // P2: 用户画像策略
-      ctx.userId ? this.userProfile.recommend({ ...ctx, scene: RecommendScene.GUESS_LIKE }).catch(() => [] as RecommendItem[]) : Promise.resolve([] as RecommendItem[]),
+      ctx.userId ? this.userProfile.recommend({ ...ctx, scene: RecommendScene.GUESS_LIKE }).catch((err: Error) => { this.logger.warn("用户画像推荐失败", err.message); return [] as RecommendItem[]; }) : Promise.resolve([] as RecommendItem[]),
       // P2: 协同过滤（基于最近浏览/购买内容）
-      ctx.userId ? this.getCollaborativeForUser(ctx).catch(() => [] as RecommendItem[]) : Promise.resolve([] as RecommendItem[]),
+      ctx.userId ? this.getCollaborativeForUser(ctx).catch((err: Error) => { this.logger.warn("协同过滤推荐失败", err.message); return [] as RecommendItem[]; }) : Promise.resolve([] as RecommendItem[]),
       // P3: 向量召回（TF-IDF 相似度）
-      ctx.userId ? this.vectorRecall.recommend(ctx).catch(() => [] as RecommendItem[]) : Promise.resolve([] as RecommendItem[]),
+      ctx.userId ? this.vectorRecall.recommend(ctx).catch((err: Error) => { this.logger.warn("向量召回推荐失败", err.message); return [] as RecommendItem[]; }) : Promise.resolve([] as RecommendItem[]),
     ]);
 
     const items: RecommendItem[] = [];
@@ -1000,6 +1007,148 @@ export class RecommendService {
 
     await this.prisma.recommendLog.createMany({ data: logs }).catch((err) => this.logger.warn("推荐日志写入失败", err));
     return { success: true };
+  }
+
+  // ═══════════════════════════════════════════
+  // 分区强插管理
+  // ═══════════════════════════════════════════
+
+  async insertContent(position: number, contentId: string, contentType: string) {
+    // 验证要插入的内容是否存在
+    const item = await this.fetchContentItemForInsert(contentType, contentId);
+    if (!item) throw new NotFoundException("要强插的内容不存在");
+
+    // 若该位置已有强插规则则更新，否则新建
+    const existing = await this.prisma.recommendRule.findFirst({
+      where: { ruleType: "INSERT", position },
+    });
+
+    if (existing) {
+      return this.prisma.recommendRule.update({
+        where: { id: existing.id },
+        data: { targetId: contentId, targetType: contentType, scene: "ALL" },
+      });
+    }
+
+    return this.prisma.recommendRule.create({
+      data: {
+        scene: "ALL",
+        targetType: contentType,
+        targetId: contentId,
+        ruleType: "INSERT",
+        position,
+        priority: 100,
+        createdBy: "admin",
+      },
+    });
+  }
+
+  async removeInsertedContent(position: number) {
+    const existing = await this.prisma.recommendRule.findFirst({
+      where: { ruleType: "INSERT", position },
+    });
+    if (!existing) throw new NotFoundException("该位置没有强插规则");
+
+    await this.prisma.recommendRule.delete({ where: { id: existing.id } });
+    return { success: true };
+  }
+
+  /** 在推荐结果中应用分区强插规则 */
+  private async applyInsertRules(scene: RecommendScene, items: RecommendItem[]): Promise<RecommendItem[]> {
+    const rules = await this.prisma.recommendRule.findMany({
+      where: {
+        ruleType: "INSERT",
+        position: { not: null },
+        OR: [{ scene }, { scene: "ALL" }],
+      },
+      orderBy: { position: "asc" },
+    });
+
+    if (rules.length === 0) return items;
+
+    const result = [...items];
+    for (const rule of rules) {
+      const insertItem = await this.fetchContentItemForInsert(rule.targetType, rule.targetId);
+      if (!insertItem) continue;
+
+      const pos = Math.min(rule.position!, result.length);
+      result.splice(pos, 0, insertItem);
+    }
+
+    return result;
+  }
+
+  /** 根据类型和ID查询内容，构造强插用的 RecommendItem */
+  private async fetchContentItemForInsert(contentType: string, contentId: string): Promise<RecommendItem | null> {
+    switch (contentType) {
+      case "ARTICLE": {
+        const a = await this.prisma.article.findUnique({
+          where: { id: contentId },
+          select: this.articleSelect(),
+        });
+        if (!a) return null;
+        return {
+          id: a.id, type: "ARTICLE", title: a.title, cover: a.cover ?? undefined,
+          excerpt: a.excerpt ?? undefined, tags: a.tags, score: 99999,
+          reason: "运营强插", strategies: ["insert"],
+          metadata: { viewCount: a.viewCount, likeCount: a.likeCount },
+        };
+      }
+      case "COURSE": {
+        const c = await this.prisma.course.findUnique({
+          where: { id: contentId },
+          select: this.courseSelect(),
+        });
+        if (!c) return null;
+        return {
+          id: c.id, type: "COURSE", title: c.title, cover: c.cover ?? undefined,
+          excerpt: c.intro ?? undefined, tags: c.tags, score: 99999,
+          reason: "运营强插", strategies: ["insert"],
+          metadata: { price: Number(c.price), studentCount: c.studentCount },
+        };
+      }
+      case "PRODUCT": {
+        const p = await this.prisma.product.findUnique({
+          where: { id: contentId },
+          select: this.productSelect(),
+        });
+        if (!p) return null;
+        return {
+          id: p.id, type: "PRODUCT", title: p.title, cover: p.images?.[0],
+          excerpt: p.intro ?? undefined, tags: p.tags, score: 99999,
+          reason: "运营强插", strategies: ["insert"],
+          metadata: { price: Number(p.price), salesCount: p.salesCount },
+        };
+      }
+      case "CIRCLE": {
+        const ci = await this.prisma.circle.findUnique({
+          where: { id: contentId },
+          select: this.circleSelect(),
+        });
+        if (!ci) return null;
+        return {
+          id: ci.id, type: "CIRCLE", title: ci.name, cover: ci.cover ?? undefined,
+          excerpt: ci.intro ?? undefined, tags: ci.tags, score: 99999,
+          reason: "运营强插", strategies: ["insert"],
+          metadata: { memberCount: ci.memberCount },
+        };
+      }
+      case "VIDEO": {
+        const v = await this.prisma.video.findUnique({
+          where: { id: contentId },
+          select: this.videoSelect(),
+        });
+        if (!v) return null;
+        return {
+          id: v.id, type: "VIDEO", title: v.title ?? "", cover: v.coverUrl ?? undefined,
+          tags: v.tags, score: 99999,
+          reason: "运营强插", strategies: ["insert"],
+          metadata: { viewCount: v.viewCount, likeCount: v.likeCount },
+        };
+      }
+      default:
+        return null;
+    }
   }
 
   // ═══════════════════════════════════════════

@@ -90,6 +90,27 @@ export class CourseController {
     return this.course.getMyLearningDashboard(req.user.id);
   }
 
+  @Get("user/valid")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取用户有效期内课程列表" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "成功返回有效课程列表" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  getUserValidCourses(@Req() req: AuthRequest) {
+    return this.course.getUserValidCourses(req.user.id);
+  }
+
+  @Get(":id/expiry-check")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "检查课程是否过期" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "返回过期检查结果" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 404, description: "课程不存在" })
+  checkCourseExpiry(@Req() req: AuthRequest, @Param("id") courseId: string) {
+    return this.course.checkCourseExpiry(req.user.id, courseId);
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "获取课程详情" })
   @ApiResponse({ status: 200, description: "成功返回课程详情" })
@@ -302,8 +323,9 @@ export class CourseController {
   }
 
   @Put("works/:workId/score")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "批改作业评分" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "批改作业评分（管理员）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "评分成功" })
   @ApiResponse({ status: 401, description: "未认证" })

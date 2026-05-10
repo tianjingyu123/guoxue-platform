@@ -280,7 +280,7 @@ describe("CourseService", () => {
         course: { id: "co1", price: 99, userId: "u2" },
       });
       mockPrisma.course.findUnique.mockResolvedValue({ price: 99, userId: "u2" });
-      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID" });
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", paidAt: new Date() });
       const result = await svc.getChapterContent("u1", "ch1");
       expect(result.content).toBe("secret");
     });
@@ -376,7 +376,7 @@ describe("CourseService", () => {
 
     it("已购买抛出 BadRequestException", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", price: 99, title: "论语" });
-      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID" });
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", paidAt: new Date() });
       await expect(svc.purchase("u1", "co1")).rejects.toThrow(BadRequestException);
     });
 
@@ -411,7 +411,7 @@ describe("CourseService", () => {
 
     it("已购买用户返回 true", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ price: 99, userId: "u2" });
-      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID" });
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", paidAt: new Date() });
       const result = await svc.checkAccess("u1", "co1");
       expect(result).toBe(true);
     });
@@ -448,7 +448,7 @@ describe("CourseService", () => {
   describe("createReview", () => {
     it("创建评价成功", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", price: 99, userId: "u2" });
-      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID" });
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", paidAt: new Date() });
       mockPrisma.courseReview.findFirst.mockResolvedValue(null);
       mockPrisma.courseReview.create.mockResolvedValue({
         id: "r1", rating: 5, content: "很棒", user: { id: "u1", nickname: "学生", avatar: null },
@@ -479,7 +479,7 @@ describe("CourseService", () => {
 
     it("不能重复评价", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", price: 99, userId: "u2" });
-      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID" });
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", paidAt: new Date() });
       mockPrisma.courseReview.findFirst.mockResolvedValue({ id: "r1" });
       await expect(svc.createReview("u1", "co1", { rating: 3, content: "再次" })).rejects.toThrow(BadRequestException);
     });

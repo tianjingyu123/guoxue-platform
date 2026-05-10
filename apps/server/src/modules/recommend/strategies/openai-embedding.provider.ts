@@ -177,8 +177,8 @@ export class OpenAIEmbeddingProvider implements VectorRecallProvider {
         return results;
       }
 
-      const json: any = await response.json();
-      const embeddings: number[][] = json.data?.map((d: any) => d.embedding) ?? [];
+      const json = await response.json() as { data?: { embedding: number[] }[] };
+      const embeddings: number[][] = json.data?.map((d) => d.embedding) ?? [];
 
       for (let k = 0; k < stillToFetch.length && k < embeddings.length; k++) {
         const vec = embeddings[k];
@@ -187,8 +187,8 @@ export class OpenAIEmbeddingProvider implements VectorRecallProvider {
         // 异步写 Redis（24h TTL）
         this.redis.setJson(`recommend:emb:${hashText(stillToFetch[k].text)}:v1`, vec, 86400).catch((err) => this.logger.warn("Embedding 请求失败", err));
       }
-    } catch (err: any) {
-      this.logger.error(`Embedding API 异常: ${err.message}`);
+    } catch (err: unknown) {
+      this.logger.error(`Embedding API 异常: ${err instanceof Error ? err.message : String(err)}`);
       for (const t of stillToFetch) {
         results[t.idx] = this.textToLocalVec(t.text);
       }

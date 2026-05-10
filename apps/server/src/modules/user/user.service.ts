@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { Prisma, RoleType, UserStatus } from "@prisma/client";
+import { MemberLevel, Prisma, RoleType, UserStatus } from "@prisma/client";
 
 @Injectable()
 export class UserService {
@@ -211,7 +211,7 @@ export class UserService {
 
     // 按会员等级筛选
     if (memberLevel && memberLevel !== "ALL") {
-      where.memberLevel = memberLevel;
+      where.memberLevel = memberLevel as MemberLevel;
     }
 
     // 按活跃天数筛选（通过 UserBehaviorLog）
@@ -223,10 +223,13 @@ export class UserService {
         by: ["userId"],
         where: { createdAt: { gte: activeSince } },
       });
-      const activeSet = new Set(activeUserIds.map((u) => u.userId));
+      const activeIds = activeUserIds.map((u) => u.userId).filter((id): id is string => id !== null);
+      const activeSet = new Set(activeIds);
 
-      if (where.id?.in) {
-        where.id.in = where.id.in.filter((id: string) => activeSet.has(id));
+      // Prisma 动态筛选器构建，需绕过严格类型检查
+      const idFilter = (where as Record<string, unknown>).id as { in?: string[] } | undefined;
+      if (idFilter?.in) {
+        idFilter.in = idFilter.in.filter((id) => activeSet.has(id));
       } else {
         where.id = { in: [...activeSet] };
       }

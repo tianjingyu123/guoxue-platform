@@ -1,6 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { createHash, createHmac } from "crypto";
 
+interface TencentCloudResponse {
+  Response?: {
+    Error?: { Code: string; Message: string };
+    [key: string]: unknown;
+  };
+}
+
 /**
  * 腾讯云内容审核服务（纯原生API）
  * 对接 IMS（图片审核）、TMS（文本审核）
@@ -55,12 +62,12 @@ export class ModerationService {
       body: payload,
     });
 
-    const data = await resp.json() as any;
+    const data = await resp.json() as TencentCloudResponse;
     if (data.Response?.Error) {
       this.logger.error(`${service} API错误 [${action}]`, data.Response.Error);
       throw new Error(`${service} ${action} 失败: ${data.Response.Error.Message}`);
     }
-    return data.Response;
+    return data.Response!;
   }
 
   // ───────── 图片审核 (IMS) ─────────

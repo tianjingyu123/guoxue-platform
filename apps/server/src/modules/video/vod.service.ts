@@ -1,6 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { createHash, createHmac } from "crypto";
 
+interface TencentCloudResponse {
+  Response?: {
+    Error?: { Code: string; Message: string };
+    [key: string]: unknown;
+  };
+}
+
 /** 腾讯云点播回调事件数据结构 */
 interface VodCallbackEventData {
   FileId?: string;
@@ -72,12 +79,12 @@ export class VodService {
       body: payload,
     });
 
-    const data = await resp.json() as any;
+    const data = await resp.json() as TencentCloudResponse;
     if (data.Response?.Error) {
       this.logger.error(`VOD API错误 [${action}]`, data.Response.Error);
       throw new Error(`VOD ${action} 失败: ${data.Response.Error.Message}`);
     }
-    return data.Response;
+    return data.Response!;
   }
 
   // ───────── 上传签名 ─────────
@@ -130,11 +137,11 @@ export class VodService {
     // 先获取媒资信息，拿到播放密钥 contentKey
     let contentKey: string | undefined;
     try {
-      const info = await this.getMediaInfo(fileId);
-      const mediaSet = info.MediaInfoSet;
-      if (mediaSet?.length > 0) {
-        const basicInfo = mediaSet[0].BasicInfo;
-        contentKey = basicInfo?.ContentKey || undefined;
+      const info = await this.getMediaInfo(fileId) as Record<string, unknown>;
+      const mediaSet = info?.MediaInfoSet as Array<Record<string, unknown>> | undefined;
+      if (mediaSet && mediaSet.length > 0) {
+        const basicInfo = mediaSet[0].BasicInfo as Record<string, unknown> | undefined;
+        contentKey = (basicInfo?.ContentKey as string) || undefined;
       }
     } catch {
       this.logger.warn(`获取媒资信息失败 ${fileId}，降级为无密钥签名`);

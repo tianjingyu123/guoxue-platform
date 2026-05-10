@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Injectable, BadRequestException } from "@nestjs/common";
+import { Prisma, RoleType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import * as fs from "fs";
 import * as path from "path";
@@ -25,8 +25,8 @@ export class ExportService {
     const header = columns.map((c) => this.escapeCsvField(c.label)).join(",");
     const body = rows.map((row) =>
       columns.map((c) => {
-        const val = c.format ? c.format(row[c.key]) : row[c.key];
-        return this.escapeCsvField(val ?? "");
+        const rawVal = c.format ? c.format(row[c.key]) : row[c.key];
+        return this.escapeCsvField(rawVal == null ? "" : String(rawVal));
       }).join(","),
     ).join("\r\n");
     return `${bom}${header}\r\n${body}`;
@@ -71,6 +71,136 @@ export class ExportService {
     });
   }
 
+  // ───────── Excel 导出 ─────────
+
+  /** 导出为 Excel（HTML table 格式，不依赖第三方库，支持中文） */
+  exportExcel(columns: Column[], rows: Record<string, unknown>[], sheetName?: string): Buffer {
+    const bom = "﻿";
+    const sheetNameSafe = sheetName || "Sheet1";
+
+    let html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<!--[if gte mso 9]>
+<xml>
+  <x:ExcelWorkbook>
+    <x:ExcelWorksheets>
+      <x:ExcelWorksheet>
+        <x:Name>${this.escapeHtml(sheetNameSafe)}</x:Name>
+      </x:ExcelWorksheet>
+    </x:ExcelWorksheets>
+  </x:ExcelWorkbook>
+</xml>
+<![endif]-->
+<style>td{mso-number-format:"\\@";}</style>
+</head>
+<body>
+<table>`;
+
+    // 表头
+    html += "<tr>" + columns.map((c) => `<th>${this.escapeHtml(c.label)}</th>`).join("") + "</tr>";
+
+    // 数据行
+    for (const row of rows) {
+      html += "<tr>" + columns.map((c) => {
+        const rawVal = c.format ? c.format(row[c.key]) : row[c.key];
+        const val = rawVal == null ? "" : String(rawVal);
+        return `<td>${this.escapeHtml(val)}</td>`;
+      }).join("") + "</tr>";
+    }
+
+    html += `</table>
+</body>
+</html>`;
+
+    return Buffer.from(bom + html, "utf-8");
+  }
+
+  /** 通用 Excel 导出（根据 type 选择对应的数据和列定义） */
+  async exportToExcel(
+    type: "users" | "orders",
+    filters?: Record<string, any>,
+  ): Promise<Buffer> {
+    if (type === "users") return this.exportUsersExcel(filters);
+    if (type === "orders") return this.exportOrdersExcel(filters);
+    throw new BadRequestException(`不支持的导出类型: ${type}`);
+  }
+
+  private async exportUsersExcel(filters?: Record<string, any>): Promise<Buffer> {
+    const where: Prisma.UserWhereInput = {};
+    if (filters?.startDate || filters?.endDate) {
+      where.createdAt = {};
+      if (filters?.startDate) where.createdAt.gte = new Date(filters.startDate);
+      if (filters?.endDate) where.createdAt.lte = new Date(filters.endDate);
+    }
+    if (filters?.role) where.roles = { some: { roleType: filters.role as RoleType } };
+
+    const users = await this.prisma.user.findMany({ where, orderBy: { createdAt: "desc" } });
+
+    const columns: Column[] = [
+      { key: "id", label: "用户ID" },
+      { key: "nickname", label: "昵称" },
+      { key: "phone", label: "手机号" },
+      { key: "email", label: "邮箱" },
+      { key: "role", label: "角色" },
+      { key: "status", label: "状态" },
+      { key: "createdAt", label: "注册时间", format: (v) => v ? new Date(v as string).toISOString() : "" },
+    ];
+
+    const rows = users.map((u) => ({
+      id: u.id,
+      nickname: u.nickname,
+      phone: u.phone || "",
+      email: u.email || "",
+      role: ((u as any).roles as Array<{ roleType: string }>)?.map((r) => r.roleType).join(",") || "",
+      status: u.status,
+      createdAt: u.createdAt,
+    }));
+
+    return this.exportExcel(columns, rows, "用户数据");
+  }
+
+  private async exportOrdersExcel(filters?: Record<string, any>): Promise<Buffer> {
+    const where: Prisma.OrderWhereInput = {};
+    if (filters?.startDate || filters?.endDate) {
+      where.createdAt = {};
+      if (filters?.startDate) where.createdAt.gte = new Date(filters.startDate);
+      if (filters?.endDate) where.createdAt.lte = new Date(filters.endDate);
+    }
+    if (filters?.status) where.status = filters.status as any;
+    if (filters?.type) where.type = filters.type as any;
+
+    const orders = await this.prisma.order.findMany({
+      where, orderBy: { createdAt: "desc" },
+      include: { user: { select: { nickname: true } } },
+    });
+
+    const columns: Column[] = [
+      { key: "id", label: "订单号" },
+      { key: "userId", label: "用户ID" },
+      { key: "type", label: "类型" },
+      { key: "amount", label: "金额" },
+      { key: "payMethod", label: "支付方式" },
+      { key: "status", label: "状态" },
+      { key: "createdAt", label: "创建时间", format: (v) => v ? new Date(v as string).toISOString() : "" },
+    ];
+
+    const rows = orders.map((o) => ({
+      id: o.id,
+      userId: o.userId,
+      type: o.type,
+      amount: o.amount,
+      payMethod: o.payMethod || "",
+      status: o.status,
+      createdAt: o.createdAt,
+    }));
+
+    return this.exportExcel(columns, rows, "订单数据");
+  }
+
   // ───────── 内置导出模板 ─────────
 
   /** 导出用户 */
@@ -81,7 +211,7 @@ export class ExportService {
       if (filters?.startDate) where.createdAt.gte = new Date(filters.startDate);
       if (filters?.endDate) where.createdAt.lte = new Date(filters.endDate);
     }
-    if (filters?.role) where.roles = { has: filters.role };
+    if (filters?.role) where.roles = { some: { roleType: filters.role as RoleType } };
 
     const total = await this.prisma.user.count({ where });
     const columns: Column[] = [
@@ -91,7 +221,7 @@ export class ExportService {
       { key: "email", label: "邮箱" },
       { key: "role", label: "角色" },
       { key: "status", label: "状态" },
-      { key: "createdAt", label: "注册时间", format: (v) => v ? new Date(v).toISOString() : "" },
+      { key: "createdAt", label: "注册时间", format: (v) => v ? new Date(v as string).toISOString() : "" },
     ];
 
     return this.csvStream(columns, (skip, take) =>
@@ -106,18 +236,20 @@ export class ExportService {
       if (filters?.startDate) where.createdAt.gte = new Date(filters.startDate);
       if (filters?.endDate) where.createdAt.lte = new Date(filters.endDate);
     }
-    if (filters?.status) where.status = filters.status;
-    if (filters?.type) where.type = filters.type;
+    if (filters?.status) where.status = filters.status as Prisma.OrderWhereInput["status"];
+    if (filters?.type) where.type = filters.type as Prisma.OrderWhereInput["type"];
 
     const total = await this.prisma.order.count({ where });
     const columns: Column[] = [
-      { key: "id", label: "订单ID" },
+      { key: "id", label: "订单号" },
+      { key: "userId", label: "用户ID" },
       { key: "type", label: "类型" },
       { key: "amount", label: "金额" },
+      { key: "payMethod", label: "支付方式" },
       { key: "status", label: "状态" },
       { key: "payTransactionId", label: "支付交易号" },
-      { key: "createdAt", label: "创建时间", format: (v) => v ? new Date(v).toISOString() : "" },
-      { key: "paidAt", label: "支付时间", format: (v) => v ? new Date(v).toISOString() : "" },
+      { key: "createdAt", label: "创建时间", format: (v) => v ? new Date(v as string).toISOString() : "" },
+      { key: "paidAt", label: "支付时间", format: (v) => v ? new Date(v as string).toISOString() : "" },
     ];
 
     return this.csvStream(columns, (skip, take) =>
@@ -143,7 +275,7 @@ export class ExportService {
       { key: "excerpt", label: "摘要" },
       { key: "author", label: "作者" },
       { key: "viewCount", label: "浏览量" },
-      { key: "createdAt", label: "创建时间", format: (v) => v ? new Date(v).toISOString() : "" },
+      { key: "createdAt", label: "创建时间", format: (v) => v ? new Date(v as string).toISOString() : "" },
     ];
 
     return this.csvStream(columns, (skip, take) =>
@@ -169,7 +301,7 @@ export class ExportService {
       { key: "targetId", label: "目标ID" },
       { key: "detail", label: "详情" },
       { key: "ip", label: "IP" },
-      { key: "createdAt", label: "时间", format: (v) => v ? new Date(v).toISOString() : "" },
+      { key: "createdAt", label: "时间", format: (v) => v ? new Date(v as string).toISOString() : "" },
     ];
 
     return this.csvStream(columns, (skip, take) =>
@@ -195,7 +327,7 @@ export class ExportService {
       { key: "amount", label: "订单金额" },
       { key: "rate", label: "佣金比例" },
       { key: "earned", label: "佣金" },
-      { key: "createdAt", label: "时间", format: (v) => v ? new Date(v).toISOString() : "" },
+      { key: "createdAt", label: "时间", format: (v) => v ? new Date(v as string).toISOString() : "" },
     ];
 
     return this.csvStream(columns, (skip, take) =>
@@ -209,6 +341,76 @@ export class ExportService {
     const filePath = path.join(tmpDir, filename);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
     return filePath;
+  }
+
+  // ───────── 商品批量导入 ─────────
+
+  /** 批量导入商品（解析 CSV/TSV 格式 Buffer） */
+  async importProducts(fileBuffer: Buffer): Promise<{ success: boolean; imported: number; failed: number; errors: string[] }> {
+    let text = fileBuffer.toString("utf-8");
+    // 去除 UTF-8 BOM
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+    const lines = text.split(/\r?\n/).filter((line) => line.trim());
+    if (lines.length < 2) {
+      return { success: false, imported: 0, failed: 0, errors: ["文件无数据行"] };
+    }
+
+    const headers = this.parseCsvLine(lines[0]);
+    const errors: string[] = [];
+    let imported = 0;
+    let failed = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = this.parseCsvLine(lines[i]);
+      if (values.length === 0) continue;
+
+      const row: Record<string, string> = {};
+      for (let j = 0; j < headers.length; j++) {
+        row[headers[j].trim().toLowerCase()] = (values[j] || "").trim();
+      }
+
+      try {
+        const title = row["title"] || row["标题"];
+        const priceStr = row["price"] || row["价格"];
+        const intro = row["intro"] || row["简介"] || "";
+        const stockStr = row["stock"] || row["库存"] || "0";
+        const cover = row["cover"] || row["封面"] || "";
+
+        if (!title) {
+          errors.push(`第 ${i + 1} 行: 商品标题为必填项`);
+          failed++;
+          continue;
+        }
+
+        const price = Number(priceStr);
+        if (isNaN(price) || price < 0) {
+          errors.push(`第 ${i + 1} 行: 价格格式无效 (${priceStr})`);
+          failed++;
+          continue;
+        }
+
+        const stock = isNaN(Number(stockStr)) ? 0 : Math.floor(Number(stockStr));
+
+        await this.prisma.product.create({
+          data: {
+            title,
+            price,
+            intro: intro || "",
+            stock,
+            images: cover ? [cover] : [],
+            detail: "",
+            status: "PENDING",
+          },
+        });
+        imported++;
+      } catch (e) {
+        errors.push(`第 ${i + 1} 行: ${(e as Error).message}`);
+        failed++;
+      }
+    }
+
+    return { success: failed === 0, imported, failed, errors };
   }
 
   /** Gzip 压缩文件 */
@@ -244,5 +446,48 @@ export class ExportService {
       return `"${str.replace(/"/g, '""')}"`;
     }
     return str;
+  }
+
+  /** 转义 HTML 特殊字符 */
+  private escapeHtml(str: string): string {
+    return str
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  /** 简单 CSV 行解析（支持引号转义，逗号/制表符分隔） */
+  private parseCsvLine(line: string): string[] {
+    const result: string[] = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = false;
+          }
+        } else {
+          current += ch;
+        }
+      } else {
+        if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === "," || ch === "\t") {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += ch;
+        }
+      }
+    }
+    result.push(current.trim());
+    return result;
   }
 }

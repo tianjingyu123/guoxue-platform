@@ -3,6 +3,7 @@ import {
   Min, Max, IsDateString, MinLength, MaxLength, IsUUID, ArrayNotEmpty,
 } from "class-validator";
 import { Type } from "class-transformer";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 // ════════════════════════════════════════
 // 分页查询通用 DTO
@@ -496,6 +497,109 @@ export class UpdateActivityDto {
 }
 
 export class ActivityFilterDto extends PaginationDto {
+  @IsOptional()
+  @IsString()
+  status?: string;
+}
+
+// ════════════════════════════════════════
+// 满减送 DTO
+// ════════════════════════════════════════
+
+export class CreateFullReductionDto {
+  @ApiProperty({ description: "活动名称" })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name: string;
+
+  @ApiProperty({ description: "满金额（元）" })
+  @IsNumber()
+  @Min(0)
+  threshold: number;
+
+  @ApiProperty({ description: "减金额（元）" })
+  @IsNumber()
+  @Min(0)
+  reduction: number;
+
+  @ApiPropertyOptional({ description: "赠品商品ID" })
+  @IsOptional()
+  @IsString()
+  giftProductId?: string;
+
+  @ApiPropertyOptional({ description: "赠品数量" })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  giftCount?: number;
+
+  @ApiProperty({ description: "开始时间" })
+  @IsDateString()
+  startTime: string;
+
+  @ApiProperty({ description: "结束时间" })
+  @IsDateString()
+  endTime: string;
+
+  @ApiPropertyOptional({ description: "适用商品ID列表（空=全场）" })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  productIds?: string[];
+
+  @ApiPropertyOptional({ description: "状态", enum: ["DRAFT", "ACTIVE", "ENDED"] })
+  @IsOptional()
+  @IsString()
+  status?: string;
+}
+
+export class UpdateFullReductionDto {
+  @ApiPropertyOptional({ description: "活动名称" })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ description: "满金额" })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  threshold?: number;
+
+  @ApiPropertyOptional({ description: "减金额" })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  reduction?: number;
+
+  @ApiPropertyOptional({ description: "赠品商品ID" })
+  @IsOptional()
+  @IsString()
+  giftProductId?: string;
+
+  @ApiPropertyOptional({ description: "赠品数量" })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  giftCount?: number;
+
+  @ApiPropertyOptional({ description: "开始时间" })
+  @IsOptional()
+  @IsDateString()
+  startTime?: string;
+
+  @ApiPropertyOptional({ description: "结束时间" })
+  @IsOptional()
+  @IsDateString()
+  endTime?: string;
+
+  @ApiPropertyOptional({ description: "适用商品ID列表" })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  productIds?: string[];
+
+  @ApiPropertyOptional({ description: "状态" })
   @IsOptional()
   @IsString()
   status?: string;

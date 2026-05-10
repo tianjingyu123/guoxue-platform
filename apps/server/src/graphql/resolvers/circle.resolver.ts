@@ -10,7 +10,7 @@ export class CircleResolver {
   @Query(() => [Circle], { description: "圈子列表" })
   async circles(@Args("filter", { nullable: true }) filter?: CircleFilter) {
     const { page = 1, pageSize = 10, stationId } = filter ?? {};
-    const where: any = { status: "ACTIVE" };
+    const where: Record<string, unknown> = { status: "ACTIVE" };
     if (stationId) where.stationId = stationId;
 
     return this.prisma.circle.findMany({

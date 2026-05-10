@@ -1,8 +1,10 @@
 import {
   Controller, Get, Put, Delete, Post,
   Param, Body, Query, UseGuards, Req, Res,
+  UploadedFile, UseInterceptors, BadRequestException,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiConsumes } from "@nestjs/swagger";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -10,7 +12,7 @@ import { SystemService } from "./system.service";
 import { ExportService } from "./export.service";
 import { Response, Request } from "express";
 import * as fs from "fs";
-import { SetConfigDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto } from "./system.dto";
+import { SetConfigDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, ExportExcelDto } from "./system.dto";
 
 @ApiTags("系统配置")
 @Controller("system")
@@ -47,7 +49,8 @@ export class SystemController {
     @Body() body: SetConfigDto,
     @Req() req: Request,
   ) {
-    const updatedBy = req.user?.nickname || req.user?.id;
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    const updatedBy = u?.nickname || u?.id;
     return this.systemService.setConfig(key, body.value, body.description, updatedBy);
   }
 
@@ -205,6 +208,40 @@ export class SystemController {
   async exportEarnings(@Body() filters?: ExportEarningsDto, @Res() res?: Response) {
     const filePath = await this.exportService.exportEarnings(filters);
     return this.sendFile(res!, filePath, "earnings-export.csv");
+  }
+
+  @Post("export/excel")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "导出Excel文件（支持 users/orders 类型）" })
+  @ApiBearerAuth()
+  async exportExcel(@Body() dto: ExportExcelDto, @Res() res: Response) {
+    const buffer = await this.exportService.exportToExcel(dto.type, dto.filters);
+    const filename = `${dto.type}-${Date.now()}.xls`;
+    res.setHeader("Content-Type", "application/vnd.ms-excel; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(buffer);
+  }
+
+  @Post("import/products")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "批量导入商品（CSV/TSV 格式）" })
+  @ApiBearerAuth()
+  @ApiConsumes("multipart/form-data")
+  @UseInterceptors(FileInterceptor("file", {
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      if (file.mimetype === "text/csv" || file.originalname?.endsWith(".csv") || file.originalname?.endsWith(".tsv") || file.originalname?.endsWith(".xls") || file.originalname?.endsWith(".xlsx")) {
+        cb(null, true);
+      } else {
+        cb(new BadRequestException("仅支持 CSV/TSV/Excel 文件"), false);
+      }
+    },
+  }))
+  async importProducts(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException("请上传文件");
+    return this.exportService.importProducts(file.buffer);
   }
 
   // ───────── 页面文案配置 ─────────

@@ -56,7 +56,7 @@ export class AuthService {
         },
       });
     } catch (e: unknown) {
-      if ((e as any)?.code === "P2002") throw new ConflictException("手机号已注册");
+      if ((e as { code?: string })?.code === "P2002") throw new ConflictException("手机号已注册");
       throw e;
     }
 
@@ -103,7 +103,7 @@ export class AuthService {
           },
         });
       } catch (e: unknown) {
-        if ((e as any)?.code === "P2002") {
+        if ((e as { code?: string })?.code === "P2002") {
           user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
         } else {
           throw e;
@@ -205,7 +205,7 @@ export class AuthService {
         },
       });
     } catch (e: unknown) {
-      if ((e as any)?.code === "P2002") {
+      if ((e as { code?: string })?.code === "P2002") {
         // 并发注册：重新查询已创建的记录
         const reAuth = await this.prisma.auth.findUnique({
           where: { openId },
@@ -219,7 +219,7 @@ export class AuthService {
 
     // 处理推荐关系
     if (dto.referrerCode) {
-      await (this as any).bindReferral(user.id, dto.referrerCode);
+      await this.bindReferral(user.id, dto.referrerCode);
     }
 
     this.fireUserRegistered(user.id, user.nickname);
@@ -274,7 +274,7 @@ export class AuthService {
             },
           });
         } catch (e: unknown) {
-          if ((e as any)?.code !== "P2002") throw e;
+          if ((e as { code?: string })?.code !== "P2002") throw e;
         }
       }
     } else {
@@ -290,7 +290,7 @@ export class AuthService {
           },
         });
       } catch (e: unknown) {
-        if ((e as any)?.code === "P2002") {
+        if ((e as { code?: string })?.code === "P2002") {
           user = await this.prisma.user.findUnique({ where: { phone } });
           if (!user) throw e;
         } else {

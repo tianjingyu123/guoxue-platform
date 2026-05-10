@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
-import { Prisma } from "@prisma/client";
+import { Prisma, InstituteRole } from "@prisma/client";
 
 @Injectable()
 export class InstituteService {
@@ -15,7 +15,7 @@ export class InstituteService {
     return this.prisma.instituteMember.create({
       data: {
         userId,
-        role: dto.role as any,
+        role: dto.role as InstituteRole,
         joinYear: dto.joinYear,
         deposit: dto.deposit || 10000,
         tasksRequired: 3, // 默认3项年度任务
@@ -46,8 +46,8 @@ export class InstituteService {
   async listMembers(params: { role?: string; status?: string; joinYear?: number; page?: number; pageSize?: number }) {
     const { role, status, joinYear, page = 1, pageSize = 20 } = params;
     const where: Prisma.InstituteMemberWhereInput = {};
-    if (role) where.role = role as any;
-    if (status) where.status = status as any;
+    if (role) where.role = role as InstituteRole;
+    if (status) where.status = status;
     if (joinYear) where.joinYear = joinYear;
 
     const [members, total] = await Promise.all([
@@ -183,7 +183,7 @@ export class InstituteService {
   async getSigningCandidates() {
     return this.prisma.instituteMember.findMany({
       where: {
-        role: { in: ["TYPE_A", "INITIATOR" as any] },
+        role: { in: ["TYPE_A", "INITIATOR"] as InstituteRole[] },
         tasksCompleted: { gte: 3 },
         lecturerLevel: { notIn: ["SIGNED", "NONE"] },
       },

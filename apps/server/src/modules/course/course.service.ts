@@ -305,15 +305,27 @@ export class CourseService {
   async purchase(userId: string, courseId: string, dto?: PurchaseCourseDto) {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
-      select: { id: true, price: true, title: true },
+      select: { id: true, price: true, title: true, validityDays: true },
     });
     if (!course) throw new NotFoundException("课程不存在");
 
-    // 检查是否已购买
-    const alreadyPaid = await this.prisma.order.findFirst({
+    // 检查是否已购买（含有效期判断）
+    const existingOrder = await this.prisma.order.findFirst({
       where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
+      orderBy: { paidAt: "desc" },
     });
-    if (alreadyPaid) throw new BadRequestException("已购买该课程");
+    if (existingOrder && existingOrder.paidAt) {
+      // 如果课程有有效期且未过期，禁止重复购买
+      if (course.validityDays > 0) {
+        const expiresAt = new Date(existingOrder.paidAt.getTime() + course.validityDays * 86400000);
+        if (expiresAt > new Date()) {
+          throw new BadRequestException("该课程仍在有效期内，无需重复购买");
+        }
+      } else {
+        // 永久有效课程禁止重复购买
+        throw new BadRequestException("已购买该课程");
+      }
+    }
 
     // 检查是否有待支付订单
     const pendingOrder = await this.prisma.order.findFirst({
@@ -346,11 +358,11 @@ export class CourseService {
     }
   }
 
-  /** 检查用户是否有课程访问权限 */
+  /** 检查用户是否有课程访问权限（含有效期检查） */
   async checkAccess(userId: string, courseId: string): Promise<boolean> {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
-      select: { price: true, userId: true },
+      select: { price: true, userId: true, validityDays: true },
     });
     if (!course) return false;
     if (Number(course.price) === 0 || course.userId === userId) return true;
@@ -358,7 +370,105 @@ export class CourseService {
     const order = await this.prisma.order.findFirst({
       where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
     });
-    return !!order;
+    if (!order || !order.paidAt) return false;
+
+    // 如果课程有有效期，检查是否过期
+    if (course.validityDays > 0) {
+      const expiresAt = new Date(order.paidAt.getTime() + course.validityDays * 86400000);
+      if (expiresAt <= new Date()) return false;
+    }
+
+    return true;
+  }
+
+  /** 检查用户课程是否过期 */
+  async checkCourseExpiry(userId: string, courseId: string): Promise<{
+    expired: boolean;
+    expiresAt: string | null;
+    remainingDays: number | null;
+  }> {
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { validityDays: true },
+    });
+    if (!course) throw new NotFoundException("课程不存在");
+
+    // validityDays === 0 表示永久有效
+    if (course.validityDays === 0) {
+      return { expired: false, expiresAt: null, remainingDays: null };
+    }
+
+    const order = await this.prisma.order.findFirst({
+      where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
+      orderBy: { paidAt: "desc" },
+    });
+    if (!order || !order.paidAt) {
+      return { expired: true, expiresAt: null, remainingDays: null };
+    }
+
+    const expiresAt = new Date(order.paidAt.getTime() + course.validityDays * 86400000);
+    const now = new Date();
+    const expired = now > expiresAt;
+    const remainingDays = expired ? 0 : Math.ceil((expiresAt.getTime() - now.getTime()) / 86400000);
+
+    return {
+      expired,
+      expiresAt: expiresAt.toISOString(),
+      remainingDays,
+    };
+  }
+
+  /** 获取用户有效期内课程列表 */
+  async getUserValidCourses(userId: string) {
+    const orders = await this.prisma.order.findMany({
+      where: { userId, type: "COURSE", status: { in: ["PAID", "COMPLETED"] }, paidAt: { not: null } },
+      orderBy: { paidAt: "desc" },
+    });
+
+    if (orders.length === 0) return { courses: [], total: 0 };
+
+    const courseIds = orders.map((o) => o.targetId);
+    const courses = await this.prisma.course.findMany({
+      where: { id: { in: courseIds } },
+      select: { id: true, title: true, cover: true, type: true, validityDays: true, price: true },
+    });
+
+    const courseMap = new Map(courses.map((c) => [c.id, c]));
+
+    const validCourses = orders
+      .filter((o) => {
+        const course = courseMap.get(o.targetId);
+        if (!course || !o.paidAt) return false;
+        if (course.validityDays === 0) return true; // 永久有效
+        const expiresAt = new Date(o.paidAt.getTime() + course.validityDays * 86400000);
+        return expiresAt > new Date();
+      })
+      .map((o) => {
+        const course = courseMap.get(o.targetId)!;
+        const expiresAt =
+          course.validityDays > 0 && o.paidAt
+            ? new Date(o.paidAt.getTime() + course.validityDays * 86400000)
+            : null;
+        return {
+          orderId: o.id,
+          paidAt: o.paidAt,
+          amount: o.amount,
+          course: {
+            id: course.id,
+            title: course.title,
+            cover: course.cover,
+            type: course.type,
+            price: course.price,
+            validityDays: course.validityDays,
+          },
+          expiresAt: expiresAt?.toISOString() || null,
+          remainingDays: expiresAt
+            ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 86400000))
+            : null,
+        };
+      });
+
+    return { courses: validCourses, total: validCourses.length };
   }
 
   /** 获取我购买的课程 */

@@ -306,6 +306,57 @@ export class CreateReviewDto {
 
 // ── 物流 DTO ──
 
+// ── 运费模板 DTO ──
+
+export class CreateFreightTemplateDto {
+  @ApiProperty({ description: "模板名称" })
+  name: string;
+
+  @ApiProperty({ description: "计费方式", enum: ["FREE", "FIXED", "CONDITIONAL"] })
+  type?: string;
+
+  @ApiProperty({ description: "默认运费" })
+  defaultFee?: number;
+
+  @ApiProperty({ description: "包邮条件JSON" })
+  conditionFree?: Record<string, unknown>;
+
+  @ApiProperty({ description: "区域运费JSON" })
+  regions?: Record<string, unknown>;
+
+  @ApiProperty({ description: "是否启用" })
+  isActive?: boolean;
+}
+
+export class UpdateFreightTemplateDto {
+  @ApiPropertyOptional({ description: "模板名称" })
+  name?: string;
+
+  @ApiPropertyOptional({ description: "计费方式" })
+  type?: string;
+
+  @ApiPropertyOptional({ description: "默认运费" })
+  defaultFee?: number;
+
+  @ApiPropertyOptional({ description: "包邮条件JSON" })
+  conditionFree?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ description: "区域运费JSON" })
+  regions?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ description: "是否启用" })
+  isActive?: boolean;
+}
+
+// ── 评价回复 DTO ──
+
+export class ReplyReviewDto {
+  @ApiProperty({ description: "回复内容" })
+  reply: string;
+}
+
+// ── 物流 DTO ──
+
 export class UpdateLogisticsDto {
   @ApiPropertyOptional({ description: "物流公司" })
   @IsOptional() @IsString()

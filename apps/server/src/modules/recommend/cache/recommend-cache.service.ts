@@ -28,7 +28,7 @@ export class RecommendCacheService {
   }
 
   // 设置推荐缓存
-  async set(key: string, data: any, ttlSeconds: number): Promise<void> {
+  async set(key: string, data: unknown, ttlSeconds: number): Promise<void> {
     await this.redis.setJson(key, data, ttlSeconds);
   }
 

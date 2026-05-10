@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService } from "../audit/audit.service";
@@ -327,7 +328,7 @@ export class SystemService {
         name: dto.name,
         price: dto.price,
         coinBonus: dto.coinBonus ?? 0,
-        benefits: dto.benefits || {},
+        benefits: (dto.benefits || {}) as Prisma.InputJsonValue,
         maxBorrowDays: dto.maxBorrowDays ?? 30,
         isActive: dto.isActive ?? true,
       },
@@ -335,7 +336,7 @@ export class SystemService {
         name: dto.name,
         price: dto.price,
         coinBonus: dto.coinBonus,
-        benefits: dto.benefits,
+        benefits: dto.benefits as Prisma.InputJsonValue,
         maxBorrowDays: dto.maxBorrowDays,
         isActive: dto.isActive,
       },

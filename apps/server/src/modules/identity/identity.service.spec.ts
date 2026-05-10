@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { IdentityService } from "./identity.service";
+import { PrismaModule } from "../../prisma/prisma.module";
 
 const mockFetch = jest.fn();
 (global as any).fetch = mockFetch;
@@ -17,9 +18,10 @@ describe("IdentityService", () => {
     });
 
     const mod: TestingModule = await Test.createTestingModule({
+      imports: [PrismaModule],
       providers: [IdentityService],
     }).compile();
-    svc = mod.get(IdentityService);
+    svc = await mod.resolve(IdentityService);
   });
 
   afterEach(() => mockFetch.mockClear());
@@ -29,6 +31,7 @@ describe("IdentityService", () => {
   it("无凭证时不应抛出", () => {
     delete process.env.TENCENT_SECRET_ID;
     expect(() => Test.createTestingModule({
+      imports: [PrismaModule],
       providers: [IdentityService],
     }).compile()).not.toThrow();
   });

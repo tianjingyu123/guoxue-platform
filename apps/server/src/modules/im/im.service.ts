@@ -1,6 +1,12 @@
 import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { TlsSigService } from "./tlssig.service";
 
+export interface TimApiResponse {
+  ErrorCode: number;
+  ErrorInfo?: string;
+  [key: string]: unknown;
+}
+
 @Injectable()
 export class ImService {
   private readonly logger = new Logger(ImService.name);
@@ -28,7 +34,7 @@ export class ImService {
   }
 
   /** 调用腾讯云 IM REST API */
-  private async callImApi(path: string, body: Record<string, any>) {
+  private async callImApi(path: string, body: Record<string, unknown>) {
     this.ensureConfigured();
     const adminSig = this.tlsSig.genAdminSig();
     const url = `${this.baseUrl}/v4/${path}?sdkappid=${this.appId}&identifier=${encodeURIComponent(this.adminId)}&usersig=${encodeURIComponent(adminSig)}&random=${Date.now()}&contenttype=json`;
@@ -39,7 +45,7 @@ export class ImService {
       body: JSON.stringify(body),
     });
 
-    const data = (await resp.json()) as any;
+    const data = (await resp.json()) as TimApiResponse;
     if (data.ErrorCode !== 0) {
       this.logger.error(`IM API 调用失败: ${path}`, data);
       throw new Error(`IM 操作失败: ${data.ErrorInfo || "未知错误"}`);
@@ -67,7 +73,7 @@ export class ImService {
 
   /** 更新账号资料 */
   async updateProfile(userId: string, profile: { nickname?: string; avatar?: string }) {
-    const items: any[] = [];
+    const items: Array<{ Tag: string; Value: string }> = [];
     if (profile.nickname) {
       items.push({ Tag: "Tag_Profile_IM_Nick", Value: profile.nickname });
     }

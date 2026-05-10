@@ -13,6 +13,7 @@ import {
   CreateMarketingPageDto, UpdateMarketingPageDto,
   CreatePageComponentDto, UpdatePageComponentDto, SortComponentsDto,
   CreateActivityDto, UpdateActivityDto, ActivityFilterDto,
+  CreateFullReductionDto, UpdateFullReductionDto,
 } from "./marketing.dto";
 
 @Injectable()
@@ -637,5 +638,100 @@ export class MarketingService {
     if (!activity) throw new NotFoundException("活动不存在");
 
     return activity.metrics || { pv: 0, uv: 0, conversions: 0, revenue: 0 };
+  }
+
+  // ═══════════════════════════════════════
+  // 满减送管理
+  // ═══════════════════════════════════════
+
+  async createFullReduction(dto: CreateFullReductionDto) {
+    const start = new Date(dto.startTime);
+    const end = new Date(dto.endTime);
+    if (start >= end) throw new BadRequestException("满减送开始时间必须早于结束时间");
+    if (dto.reduction >= dto.threshold) throw new BadRequestException("减金额必须小于满金额");
+
+    return this.prisma.fullReductionRule.create({
+      data: {
+        name: dto.name,
+        threshold: dto.threshold,
+        reduction: dto.reduction,
+        giftProductId: dto.giftProductId,
+        giftCount: dto.giftCount ?? 0,
+        startTime: start,
+        endTime: end,
+        productIds: dto.productIds ?? [],
+        status: dto.status ?? "DRAFT",
+      },
+    });
+  }
+
+  async updateFullReduction(id: string, dto: UpdateFullReductionDto) {
+    const existing = await this.prisma.fullReductionRule.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("满减送活动不存在");
+
+    const data: Prisma.FullReductionRuleUpdateInput = {};
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.threshold !== undefined) data.threshold = dto.threshold;
+    if (dto.reduction !== undefined) data.reduction = dto.reduction;
+    if (dto.giftProductId !== undefined) data.giftProductId = dto.giftProductId;
+    if (dto.giftCount !== undefined) data.giftCount = dto.giftCount;
+    if (dto.startTime !== undefined) data.startTime = new Date(dto.startTime);
+    if (dto.endTime !== undefined) data.endTime = new Date(dto.endTime);
+    if (dto.productIds !== undefined) data.productIds = dto.productIds;
+    if (dto.status !== undefined) data.status = dto.status;
+
+    // 校验
+    const threshold = dto.threshold ?? Number(existing.threshold);
+    const reduction = dto.reduction ?? Number(existing.reduction);
+    if (reduction >= threshold) throw new BadRequestException("减金额必须小于满金额");
+
+    return this.prisma.fullReductionRule.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async deleteFullReduction(id: string) {
+    const existing = await this.prisma.fullReductionRule.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("满减送活动不存在");
+
+    await this.prisma.fullReductionRule.delete({ where: { id } });
+    this.logger.log(`满减送活动已删除: ${id}`);
+    return { success: true };
+  }
+
+  async getFullReductions(page = 1, pageSize = 20, status?: string) {
+    const where: Prisma.FullReductionRuleWhereInput = {};
+    if (status) where.status = status;
+
+    const [items, total] = await Promise.all([
+      this.prisma.fullReductionRule.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.fullReductionRule.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  async getFullReduction(id: string) {
+    const rule = await this.prisma.fullReductionRule.findUnique({ where: { id } });
+    if (!rule) throw new NotFoundException("满减送活动不存在");
+    return rule;
+  }
+
+  async getActiveFullReductions() {
+    const now = new Date();
+    return this.prisma.fullReductionRule.findMany({
+      where: {
+        status: "ACTIVE",
+        startTime: { lte: now },
+        endTime: { gte: now },
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
 }

@@ -10,7 +10,7 @@ export class ContentResolver {
   @Query(() => [Content], { description: "内容列表" })
   async contents(@Args("filter", { nullable: true }) filter?: ContentFilter) {
     const { page = 1, pageSize = 10, type, keyword, stationId } = filter ?? {};
-    const where: any = { status: "PUBLISHED" };
+    const where: Record<string, unknown> = { status: "PUBLISHED" };
     if (type) where.type = type;
     if (stationId) where.stationId = stationId;
     if (keyword) where.title = { contains: keyword };
@@ -31,7 +31,7 @@ export class ContentResolver {
   @Query(() => [ClassicBook], { description: "古籍列表" })
   async classicBooks(@Args("filter", { nullable: true }) filter?: ClassicFilter) {
     const { page = 1, pageSize = 10, category } = filter ?? {};
-    const where: any = { status: "PUBLISHED" };
+    const where: Record<string, unknown> = { status: "PUBLISHED" };
     if (category) where.category = category;
 
     return this.prisma.classicBook.findMany({
@@ -49,7 +49,7 @@ export class ContentResolver {
 
   @Query(() => Int, { description: "内容总数" })
   async contentCount(@Args("type", { nullable: true }) type?: string) {
-    const where: any = { status: "PUBLISHED" };
+    const where: Record<string, unknown> = { status: "PUBLISHED" };
     if (type) where.type = type;
     return this.prisma.content.count({ where });
   }

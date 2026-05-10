@@ -4,7 +4,7 @@ import { ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments 
 
 @ValidatorConstraint({ name: "stringOrStringArray", async: false })
 export class IsStringOrStringArray implements ValidatorConstraintInterface {
-  validate(value: any, _args: ValidationArguments) {
+  validate(value: unknown, _args: ValidationArguments) {
     if (typeof value === "string") return value.length > 0;
     if (Array.isArray(value)) return value.length > 0 && value.every((v) => typeof v === "string");
     return false;

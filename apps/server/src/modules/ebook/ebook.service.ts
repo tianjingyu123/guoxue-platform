@@ -188,7 +188,7 @@ export class EbookService {
         data: { userId, ebookId, amount },
       }) as unknown as Record<string, unknown>;
     } catch (e: unknown) {
-      if ((e as any)?.code === "P2002") throw new BadRequestException("已购买该电子书");
+      if ((e as { code?: string })?.code === "P2002") throw new BadRequestException("已购买该电子书");
       throw e;
     }
 

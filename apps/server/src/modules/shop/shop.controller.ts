@@ -11,6 +11,7 @@ import { SystemService } from "../system/system.service";
 import {
   CreateProductDto, UpdateProductDto, CreateOrderDto, CreateCouponDto,
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
+  CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
   ProductListQueryDto, OrderListQueryDto,
   CreateSkuDto, JsapiPayDto, NativePayDto, RefundOrderDto,
 } from "./shop.dto";
@@ -372,6 +373,49 @@ export class ShopController {
     return this.shop.getUserCoupons(req.user.id);
   }
 
+  // ───────── 运费模板 ─────────
+
+  @Post("freight-templates")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "创建运费模板" })
+  @ApiBearerAuth()
+  createFreightTemplate(@Body() dto: CreateFreightTemplateDto) {
+    return this.shop.createFreightTemplate(dto);
+  }
+
+  @Get("freight-templates")
+  @ApiOperation({ summary: "获取运费模板列表（分页）" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  listFreightTemplates(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.shop.getFreightTemplates(+page, +pageSize);
+  }
+
+  @Get("freight-templates/:id")
+  @ApiOperation({ summary: "获取运费模板详情" })
+  getFreightTemplate(@Param("id") id: string) {
+    return this.shop.getFreightTemplate(id);
+  }
+
+  @Put("freight-templates/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "更新运费模板" })
+  @ApiBearerAuth()
+  updateFreightTemplate(@Param("id") id: string, @Body() dto: UpdateFreightTemplateDto) {
+    return this.shop.updateFreightTemplate(id, dto);
+  }
+
+  @Delete("freight-templates/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "删除运费模板" })
+  @ApiBearerAuth()
+  deleteFreightTemplate(@Param("id") id: string) {
+    return this.shop.deleteFreightTemplate(id);
+  }
+
   // ───────── 商品评价 ─────────
 
   @Post("products/:id/reviews")
@@ -388,6 +432,24 @@ export class ShopController {
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   listReviews(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.shop.listReviews(id, +page, +pageSize);
+  }
+
+  @Post("reviews/:id/reply")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员回复评价" })
+  @ApiBearerAuth()
+  replyReview(@Param("id") id: string, @Body() dto: ReplyReviewDto) {
+    return this.shop.replyProductReview(id, dto.reply);
+  }
+
+  @Delete("reviews/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "管理员删除评价" })
+  @ApiBearerAuth()
+  deleteReview(@Param("id") id: string) {
+    return this.shop.deleteProductReview(id);
   }
 
   // ───────── 物流追踪 ─────────

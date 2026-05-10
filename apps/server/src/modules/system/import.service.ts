@@ -45,7 +45,7 @@ export class ImportService {
 
     const required = REQUIRED_FIELDS[type] || [];
     const errors: ImportResult["errors"] = [];
-    const validRows: any[] = [];
+    const validRows: Record<string, unknown>[] = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -101,7 +101,7 @@ export class ImportService {
   /** 批量写入 */
   private async batchInsert(
     type: string,
-    rows: any[],
+    rows: Record<string, unknown>[],
     options?: { userId?: string },
   ): Promise<number> {
     const userId = options?.userId;
@@ -109,13 +109,13 @@ export class ImportService {
     switch (type) {
       case "article": {
         const data = rows.map((r) => ({
-          title: r.title,
-          content: r.content || "",
-          excerpt: r.excerpt || "",
-          tags: r.tags ? r.tags.split(/[,，]/).map((t: string) => t.trim()) : [],
-          circleId: r.circleId,
+          title: r.title as string,
+          content: (r.content as string) || "",
+          excerpt: (r.excerpt as string) || "",
+          tags: r.tags ? (r.tags as string).split(/[,，]/).map((t: string) => t.trim()) : [],
+          circleId: r.circleId as string,
           userId: userId || "system",
-          stationId: r.stationId || null,
+          stationId: (r.stationId as string) || null,
           auditStatus: "APPROVED",
         }));
         await this.prisma.article.createMany({ data });
@@ -123,13 +123,13 @@ export class ImportService {
       }
       case "course": {
         const data = rows.map((r) => ({
-          title: r.title,
-          intro: r.intro || "",
-          price: r.price || 0,
-          tags: r.tags ? r.tags.split(/[,，]/).map((t: string) => t.trim()) : [],
-          cover: r.cover || "",
+          title: r.title as string,
+          intro: (r.intro as string) || "",
+          price: (r.price as number) || 0,
+          tags: r.tags ? (r.tags as string).split(/[,，]/).map((t: string) => t.trim()) : [],
+          cover: (r.cover as string) || "",
           userId: userId || "system",
-          stationId: r.stationId || null,
+          stationId: (r.stationId as string) || null,
           auditStatus: "APPROVED",
         }));
         await this.prisma.course.createMany({ data });
@@ -137,27 +137,27 @@ export class ImportService {
       }
       case "product": {
         const data = rows.map((r) => ({
-          title: r.title,
-          intro: r.intro || "",
-          detail: r.detail || "",
-          price: r.price || 0,
-          stock: r.stock || 0,
-          categoryId: r.categoryId || null,
-          images: r.images ? r.images.split(/[,，]/).map((t: string) => t.trim()) : [],
+          title: r.title as string,
+          intro: (r.intro as string) || "",
+          detail: (r.detail as string) || "",
+          price: (r.price as number) || 0,
+          stock: (r.stock as number) || 0,
+          categoryId: (r.categoryId as string) || null,
+          images: r.images ? (r.images as string).split(/[,，]/).map((t: string) => t.trim()) : [],
           status: "ON_SALE" as const,
-          stationId: r.stationId || null,
+          stationId: (r.stationId as string) || null,
         }));
         await this.prisma.product.createMany({ data });
         return data.length;
       }
       case "classic": {
         const data = rows.map((r) => ({
-          title: r.title,
-          author: r.author || "",
-          dynasty: r.dynasty || "",
-          category: r.category || "子",
-          intro: r.intro || "",
-          cover: r.cover || "",
+          title: r.title as string,
+          author: (r.author as string) || "",
+          dynasty: (r.dynasty as string) || "",
+          category: (r.category as string) || "子",
+          intro: (r.intro as string) || "",
+          cover: (r.cover as string) || "",
           status: "PUBLISHED" as const,
         }));
         await this.prisma.classicBook.createMany({ data });
@@ -166,9 +166,9 @@ export class ImportService {
       case "user": {
         const result = await this.prisma.user.createMany({
           data: rows.map((r) => ({
-            nickname: r.nickname,
-            phone: r.phone || null,
-            email: r.email || null,
+            nickname: r.nickname as string,
+            phone: (r.phone as string) || null,
+            email: (r.email as string) || null,
           })),
           skipDuplicates: true,
         });

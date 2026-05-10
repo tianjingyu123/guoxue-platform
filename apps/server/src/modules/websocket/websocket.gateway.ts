@@ -27,7 +27,7 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   /** 连接认证 */
   handleConnection(client: Socket) {
-    const user = this.wsAuth.extractUser(client.handshake);
+    const user = this.wsAuth.extractUser(client.handshake as unknown as Record<string, unknown>);
     if (!user) {
       this.logger.warn(`WebSocket连接被拒绝: ${client.id}`);
       client.emit("auth_error", { message: "认证失败" });

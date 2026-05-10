@@ -56,7 +56,7 @@ export class MiniService {
   }
 
   private async fetchBanners(stationId: string | undefined, cacheKey: string) {
-    const data = await this.systemService.getPublicConfigs(["home_banners", "home_notice"]).catch(() => ({ home_banners: "[]", home_notice: "" }));
+    const data = await this.systemService.getPublicConfigs(["home_banners", "home_notice"]).catch((err) => { this.logger.warn("获取Banner配置失败", err); return { home_banners: "[]", home_notice: "" }; });
     this.redis.setJson(cacheKey, data, 120).catch((err) => this.logger.warn("缓存写入失败", err));
     return data;
   }
@@ -67,7 +67,7 @@ export class MiniService {
       select: { id: true, title: true, type: true, cover: true, excerpt: true, viewCount: true, author: true, dynasty: true, tags: true },
       orderBy: { viewCount: "desc" },
       take: 6,
-    }).catch(() => []);
+    }).catch((err) => { this.logger.warn("获取热门内容失败", err); return []; });
     this.redis.setJson(cacheKey, data, 120).catch((err) => this.logger.warn("缓存写入失败", err));
     return data;
   }
@@ -78,7 +78,7 @@ export class MiniService {
       select: { id: true, title: true, cover: true, excerpt: true, viewCount: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       take: 4,
-    }).catch(() => []);
+    }).catch((err) => { this.logger.warn("获取最新文章失败", err); return []; });
     this.redis.setJson(cacheKey, data, 120).catch((err) => this.logger.warn("缓存写入失败", err));
     return data;
   }
@@ -89,7 +89,7 @@ export class MiniService {
       select: { id: true, name: true, cover: true, memberCount: true, postCount: true, intro: true },
       orderBy: { memberCount: "desc" },
       take: 3,
-    }).catch(() => []);
+    }).catch((err) => { this.logger.warn("获取活跃圈子失败", err); return []; });
     this.redis.setJson(cacheKey, data, 120).catch((err) => this.logger.warn("缓存写入失败", err));
     return data;
   }
@@ -99,7 +99,7 @@ export class MiniService {
     const data = await this.prisma.station.findUnique({
       where: { id: stationId },
       select: { id: true, name: true, logo: true, themeColor: true, intro: true },
-    }).catch(() => null);
+    }).catch((err) => { this.logger.warn("获取分站信息失败", err); return null; });
     if (data) this.redis.setJson(cacheKey, data, 300).catch((err) => this.logger.warn("缓存写入失败", err));
     return data;
   }
@@ -158,28 +158,28 @@ export class MiniService {
 
     // 提前发起分站查询，与目标内容查询并行
     const stationPromise = dto.stationId
-      ? this.prisma.station.findUnique({ where: { id: dto.stationId }, select: { miniPages: true } }).catch(() => null)
+      ? this.prisma.station.findUnique({ where: { id: dto.stationId }, select: { miniPages: true } }).catch((err) => { this.logger.warn("获取分站分享页配置失败", err); return null; })
       : null;
 
     if (targetType === "CONTENT") {
       const c = await this.prisma.content.findUnique({
         where: { id: targetId }, select: { title: true, cover: true },
-      }).catch(() => null);
+      }).catch((err) => { this.logger.warn("获取分享内容信息失败", err); return null; });
       if (c) { title = c.title; imageUrl = c.cover || undefined; }
     } else if (targetType === "ARTICLE") {
       const a = await this.prisma.article.findUnique({
         where: { id: targetId }, select: { title: true, cover: true },
-      }).catch(() => null);
+      }).catch((err) => { this.logger.warn("获取分享文章信息失败", err); return null; });
       if (a) { title = a.title; imageUrl = a.cover || undefined; }
     } else if (targetType === "COURSE") {
       const cr = await this.prisma.course.findUnique({
         where: { id: targetId }, select: { title: true, cover: true },
-      }).catch(() => null);
+      }).catch((err) => { this.logger.warn("获取分享课程信息失败", err); return null; });
       if (cr) { title = cr.title; imageUrl = cr.cover || undefined; }
     } else if (targetType === "PRODUCT") {
       const p = await this.prisma.product.findUnique({
         where: { id: targetId }, select: { title: true },
-      }).catch(() => null);
+      }).catch((err) => { this.logger.warn("获取分享商品信息失败", err); return null; });
       if (p) title = p.title;
     }
 
@@ -197,7 +197,7 @@ export class MiniService {
   }
 }
 
-function safeJsonParse(str: string | undefined, fallback: any) {
+function safeJsonParse(str: string | undefined, fallback: unknown) {
   if (!str) return fallback;
   try { return JSON.parse(str); } catch { return fallback; }
 }

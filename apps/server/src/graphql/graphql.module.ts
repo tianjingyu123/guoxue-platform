@@ -17,7 +17,7 @@ import { LiveResolver } from "./resolvers/live.resolver";
       playground: false,
       introspection: process.env.NODE_ENV !== "production",
       path: "/graphql",
-      context: ({ req }: { req: any }) => ({ req }),
+      context: ({ req }: { req: Record<string, unknown> }) => ({ req }),
     }),
   ],
   providers: [ContentResolver, CircleResolver, ShopResolver, LiveResolver],

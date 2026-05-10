@@ -26,7 +26,7 @@ export class InteractionService {
     try {
       await this.prisma.like.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId } });
     } catch (e: unknown) {
-      if ((e as any)?.code === "P2002") return { liked: true };
+      if ((e as { code?: string })?.code === "P2002") return { liked: true };
       throw e;
     }
     // 异步记录行为
@@ -135,7 +135,7 @@ export class InteractionService {
     try {
       await this.prisma.collect.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId } });
     } catch (e: unknown) {
-      if ((e as any)?.code === "P2002") return { collected: true };
+      if ((e as { code?: string })?.code === "P2002") return { collected: true };
       throw e;
     }
     // 异步记录行为
@@ -176,7 +176,7 @@ export class InteractionService {
     try {
       await this.prisma.follow.create({ data: { userId, followedUserId: dto.followedUserId } });
     } catch (e: unknown) {
-      if ((e as any)?.code === "P2002") return { followed: true };
+      if ((e as { code?: string })?.code === "P2002") return { followed: true };
       throw e;
     }
     // 异步记录行为
@@ -267,7 +267,7 @@ export class InteractionService {
     try {
       // 只对已定义 commentCount 字段的模型更新
       if (targetType === "ARTICLE") {
-        await (this.prisma as any).article.update({
+        await this.prisma.article.update({
           where: { id: targetId },
           data: { commentCount: { increment: 1 } },
         });

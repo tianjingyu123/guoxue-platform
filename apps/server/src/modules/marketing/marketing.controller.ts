@@ -14,6 +14,7 @@ import {
   CreateMarketingPageDto, UpdateMarketingPageDto,
   CreatePageComponentDto, UpdatePageComponentDto, SortComponentsDto,
   CreateActivityDto, UpdateActivityDto, ActivityFilterDto,
+  CreateFullReductionDto, UpdateFullReductionDto,
 } from "./marketing.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -399,5 +400,71 @@ export class MarketingController {
   @ApiBearerAuth()
   getActivityMetrics(@Param("id") id: string) {
     return this.marketing.getActivityMetrics(id);
+  }
+
+  // ═══════════════════════════════════════
+  // 满减送管理
+  // ═══════════════════════════════════════
+
+  @Post("full-reductions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "创建满减送活动" })
+  @ApiBearerAuth()
+  createFullReduction(@Body() dto: CreateFullReductionDto) {
+    return this.marketing.createFullReduction(dto);
+  }
+
+  @Put("full-reductions/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "更新满减送活动" })
+  @ApiBearerAuth()
+  updateFullReduction(@Param("id") id: string, @Body() dto: UpdateFullReductionDto) {
+    return this.marketing.updateFullReduction(id, dto);
+  }
+
+  @Delete("full-reductions/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "删除满减送活动" })
+  @ApiBearerAuth()
+  deleteFullReduction(@Param("id") id: string) {
+    return this.marketing.deleteFullReduction(id);
+  }
+
+  @Get("full-reductions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "满减送活动分页列表" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
+  @ApiQuery({ name: "status", required: false, type: String, description: "状态筛选" })
+  getFullReductions(
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("status") status?: string,
+  ) {
+    return this.marketing.getFullReductions(
+      page ? parseInt(page, 10) : 1,
+      pageSize ? parseInt(pageSize, 10) : 20,
+      status,
+    );
+  }
+
+  @Get("full-reductions/active")
+  @ApiOperation({ summary: "获取进行中的满减送活动（公开接口）" })
+  getActiveFullReductions() {
+    return this.marketing.getActiveFullReductions();
+  }
+
+  @Get("full-reductions/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取满减送活动详情" })
+  @ApiBearerAuth()
+  getFullReduction(@Param("id") id: string) {
+    return this.marketing.getFullReduction(id);
   }
 }

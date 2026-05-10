@@ -11,6 +11,7 @@ import { WebhookService } from "../webhook/webhook.service";
 import {
   CreateProductDto, UpdateProductDto, CreateOrderDto, CreateCouponDto,
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
+  CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
   ProductListQueryDto, OrderListQueryDto,
 } from "./shop.dto";
 
@@ -413,7 +414,7 @@ export class ShopService {
 
   /** 银联回调验签 */
   async verifyUnionpayNotify(params: Record<string, string>): Promise<{ valid: boolean; data?: Record<string, unknown>; error?: string }> {
-    return this.unionpay.verifyNotify(params);
+    return this.unionpay.verifyNotify(params) as Promise<{ valid: boolean; data?: Record<string, unknown>; error?: string }>;
   }
 
   /** 处理银联回调 */
@@ -758,6 +759,24 @@ export class ShopService {
     return { reviews, total, page, pageSize };
   }
 
+  /** 管理员回复评价 */
+  async replyProductReview(reviewId: string, reply: string) {
+    const review = await this.prisma.productReview.findUnique({ where: { id: reviewId } });
+    if (!review) throw new NotFoundException("评价不存在");
+
+    return this.prisma.productReview.update({
+      where: { id: reviewId },
+      data: { reply, repliedAt: new Date() },
+    });
+  }
+
+  /** 管理员删除评价 */
+  async deleteProductReview(reviewId: string) {
+    await this.prisma.productReview.findUniqueOrThrow({ where: { id: reviewId } });
+    await this.prisma.productReview.delete({ where: { id: reviewId } });
+    return { success: true };
+  }
+
   // ═══════════════════ 物流追踪 ═══════════════════
 
   /** 获取物流信息 */
@@ -795,6 +814,65 @@ export class ShopService {
     }
 
     return logistics;
+  }
+
+  // ═══════════════════ 运费模板 ═══════════════════
+
+  async createFreightTemplate(dto: CreateFreightTemplateDto) {
+    const data: Prisma.FreightTemplateCreateInput = {
+      name: dto.name,
+      type: dto.type ?? "FIXED",
+      defaultFee: dto.defaultFee ?? 0,
+      isActive: dto.isActive ?? true,
+    };
+    if (dto.conditionFree !== undefined) data.conditionFree = dto.conditionFree as Prisma.InputJsonValue;
+    if (dto.regions !== undefined) data.regions = dto.regions as Prisma.InputJsonValue;
+
+    return this.prisma.freightTemplate.create({ data });
+  }
+
+  async updateFreightTemplate(id: string, dto: UpdateFreightTemplateDto) {
+    const existing = await this.prisma.freightTemplate.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("运费模板不存在");
+
+    const data: Prisma.FreightTemplateUpdateInput = {};
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.type !== undefined) data.type = dto.type;
+    if (dto.defaultFee !== undefined) data.defaultFee = dto.defaultFee;
+    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.conditionFree !== undefined) data.conditionFree = dto.conditionFree as Prisma.InputJsonValue;
+    if (dto.regions !== undefined) data.regions = dto.regions as Prisma.InputJsonValue;
+
+    return this.prisma.freightTemplate.update({
+      where: { id },
+      data,
+    });
+  }
+
+  async deleteFreightTemplate(id: string) {
+    await this.prisma.freightTemplate.findUniqueOrThrow({ where: { id } });
+    await this.prisma.freightTemplate.delete({ where: { id } });
+    return { success: true };
+  }
+
+  async getFreightTemplates(page = 1, pageSize = 20) {
+    const where = { isActive: true };
+    const [items, total] = await Promise.all([
+      this.prisma.freightTemplate.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.freightTemplate.count({ where }),
+    ]);
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  async getFreightTemplate(id: string) {
+    const template = await this.prisma.freightTemplate.findUnique({ where: { id } });
+    if (!template) throw new NotFoundException("运费模板不存在");
+    return template;
   }
 
   // ═══════════════════ 会员辅助 ═══════════════════

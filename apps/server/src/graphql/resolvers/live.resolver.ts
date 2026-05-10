@@ -10,7 +10,7 @@ export class LiveResolver {
   @Query(() => [LiveRoom], { description: "直播间列表" })
   async liveRooms(@Args("filter", { nullable: true }) filter?: LiveFilter) {
     const { page = 1, pageSize = 10, status } = filter ?? {};
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     if (status) where.status = status;
 
     return this.prisma.liveRoom.findMany({

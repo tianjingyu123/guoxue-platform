@@ -80,14 +80,14 @@ export class RecommendItemVO {
   reason: string;
   strategies: string[];
   score: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export class RecommendResponse {
   items: RecommendItemVO[];
   pagination: { page: number; pageSize: number; total: number };
   recommendId: string;
-  extra?: Record<string, any>;
+  extra?: Record<string, unknown>;
 }
 
 export class RecommendLogDto {

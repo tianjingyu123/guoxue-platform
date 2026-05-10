@@ -1,5 +1,6 @@
 import { IsOptional, IsString, IsNumber, IsIn, IsDateString, Min } from "class-validator";
 import { Type } from "class-transformer";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 // ───────── 对账中心 ─────────
 
@@ -152,4 +153,48 @@ export class RejectWithdrawalDto {
 export class MonthlyReportDto {
   @IsString()
   period: string;
+}
+
+// ───────── 资金冻结/解冻 ─────────
+
+export class FreezeAmountDto {
+  @ApiProperty({ description: "订单ID" })
+  @IsString()
+  orderId: string;
+
+  @ApiProperty({ description: "冻结金额" })
+  @IsNumber()
+  amount: number;
+
+  @ApiPropertyOptional({ description: "冻结原因" })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class UnfreezeAmountDto {
+  @ApiProperty({ description: "订单ID" })
+  @IsString()
+  orderId: string;
+
+  @ApiPropertyOptional({ description: "解冻原因" })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class FreezeRecordQueryDto {
+  @IsOptional()
+  @IsString()
+  orderId?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @Min(1)
+  pageSize?: number;
 }

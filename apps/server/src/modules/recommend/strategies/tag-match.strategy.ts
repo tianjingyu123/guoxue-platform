@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
 import {
   BaseRecommendStrategy,
@@ -10,6 +10,7 @@ import { RecommendScene } from "../recommend.dto";
 @Injectable()
 export class TagMatchStrategy extends BaseRecommendStrategy {
   name = "tag-match";
+  private readonly logger = new Logger(TagMatchStrategy.name);
 
   constructor(private prisma: PrismaService) {
     super();
@@ -99,9 +100,9 @@ export class TagMatchStrategy extends BaseRecommendStrategy {
   private async resolveTags(ctx: RecommendContext): Promise<string[]> {
     // 尝试从 article/course/product 中解析标签
     const [article, course, product] = await Promise.all([
-      this.prisma.article.findUnique({ where: { id: ctx.contentId }, select: { tags: true } }).catch(() => null),
-      this.prisma.course.findUnique({ where: { id: ctx.contentId }, select: { tags: true } }).catch(() => null),
-      this.prisma.product.findUnique({ where: { id: ctx.contentId }, select: { tags: true } }).catch(() => null),
+      this.prisma.article.findUnique({ where: { id: ctx.contentId }, select: { tags: true } }).catch((err: Error) => { this.logger.warn("获取文章标签失败", err.message); return null; }),
+      this.prisma.course.findUnique({ where: { id: ctx.contentId }, select: { tags: true } }).catch((err: Error) => { this.logger.warn("获取课程标签失败", err.message); return null; }),
+      this.prisma.product.findUnique({ where: { id: ctx.contentId }, select: { tags: true } }).catch((err: Error) => { this.logger.warn("获取商品标签失败", err.message); return null; }),
     ]);
     return article?.tags ?? course?.tags ?? product?.tags ?? [];
   }

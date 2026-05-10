@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RuleService } from "./services/rule.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -43,7 +44,7 @@ export class RecommendRuleController {
         ruleType: dto.ruleType,
         ruleValue: dto.ruleValue,
         priority: dto.priority ?? 0,
-        conditionJson: dto.conditionJson,
+        conditionJson: dto.conditionJson as Prisma.InputJsonValue,
         startAt: dto.startAt ? new Date(dto.startAt) : null,
         endAt: dto.endAt ? new Date(dto.endAt) : null,
         remark: dto.remark,
@@ -68,7 +69,7 @@ export class RecommendRuleController {
         ruleType: dto.ruleType,
         ruleValue: dto.ruleValue,
         priority: dto.priority,
-        conditionJson: dto.conditionJson,
+        conditionJson: dto.conditionJson as Prisma.InputJsonValue,
         startAt: dto.startAt ? new Date(dto.startAt) : undefined,
         endAt: dto.endAt ? new Date(dto.endAt) : undefined,
         remark: dto.remark,

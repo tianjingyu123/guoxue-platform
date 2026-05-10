@@ -5,6 +5,9 @@ import { SkipFormat } from "../../common/skip-format.decorator";
 import { LiveService } from "./live.service";
 import { CreateRoomDto, UpdateRoomDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto } from "./live.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
+import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
@@ -57,7 +60,8 @@ export class LiveController {
   }
 
   @Put("rooms/:id/start")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "开始直播（生成推拉流地址）" })
   @ApiBearerAuth()
   startRoom(@Param("id") id: string) {
@@ -79,7 +83,8 @@ export class LiveController {
   }
 
   @Put("rooms/:id/end")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "结束直播" })
   @ApiBearerAuth()
   endRoom(@Param("id") id: string) {
@@ -87,7 +92,8 @@ export class LiveController {
   }
 
   @Put("rooms/:id/replay")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "设置直播回放" })
   @ApiBearerAuth()
   setReplay(@Param("id") id: string, @Body("replayUrl") replayUrl: string) {
@@ -95,7 +101,8 @@ export class LiveController {
   }
 
   @Delete("rooms/:id")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除直播间" })
   @ApiBearerAuth()
   deleteRoom(@Req() req: AuthRequest, @Param("id") id: string) {
@@ -121,7 +128,8 @@ export class LiveController {
   }
 
   @Put("rooms/:id/mics/manage")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "麦位操作（静音/解除/踢人）" })
   @ApiBearerAuth()
   manageMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicManageDto) {
@@ -169,7 +177,8 @@ export class LiveController {
   // ───────── 课件管理 ─────────
 
   @Post("rooms/:id/slides")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "上传课件" })
   @ApiBearerAuth()
   addSlide(@Param("id") id: string, @Body() dto: SlideCreateDto) {
@@ -177,7 +186,8 @@ export class LiveController {
   }
 
   @Delete("slides/:slideId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除课件" })
   @ApiBearerAuth()
   removeSlide(@Param("slideId") slideId: string) {
@@ -193,7 +203,8 @@ export class LiveController {
   // ───────── 禁言管理 ─────────
 
   @Post("rooms/:id/mute")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "禁言用户" })
   @ApiBearerAuth()
   muteUser(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MuteUserDto) {
@@ -217,7 +228,8 @@ export class LiveController {
   // ───────── 限时秒杀 ─────────
 
   @Post("rooms/:id/flash-sales")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建秒杀活动" })
   @ApiBearerAuth()
   createFlashSale(@Param("id") id: string, @Body() dto: FlashSaleDto) {
@@ -225,7 +237,8 @@ export class LiveController {
   }
 
   @Post("flash-sales/:saleId/start")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "开始秒杀" })
   @ApiBearerAuth()
   startFlashSale(@Param("saleId") saleId: string) {
@@ -241,7 +254,8 @@ export class LiveController {
   }
 
   @Post("flash-sales/:saleId/end")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "结束秒杀" })
   @ApiBearerAuth()
   endFlashSale(@Param("saleId") saleId: string) {
@@ -257,6 +271,7 @@ export class LiveController {
   // ───────── 腾讯云直播回调 ─────────
 
   @Post("callback")
+  @UseGuards(TencentCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "腾讯云直播回调（推流/断流/录制/截图）" })
   handleCallback(@Body() body: Record<string, unknown>) {
@@ -269,6 +284,7 @@ export class LiveController {
   // ───────── 内容审核 ─────────
 
   @Post("audit/callback")
+  @UseGuards(TencentCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "腾讯云CMS审核回调" })
   handleAuditCallback(@Body() body: Record<string, unknown>) {
@@ -280,7 +296,10 @@ export class LiveController {
   }
 
   @Get("rooms/:id/audit-logs")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取审核日志" })
+  @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   listAuditLogs(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {

@@ -11,7 +11,7 @@ export class SanitizePipe implements PipeTransform {
     "/": "&#x2F;",
   };
 
-  transform(value: any, _metadata: ArgumentMetadata): any {
+  transform(value: unknown, _metadata: ArgumentMetadata): unknown {
     if (typeof value === "string") {
       return this.escape(value);
     }
@@ -19,7 +19,7 @@ export class SanitizePipe implements PipeTransform {
       return value.map((v) => this.transform(v, _metadata));
     }
     if (value && typeof value === "object") {
-      const sanitized: any = {};
+      const sanitized: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(value)) {
         sanitized[k] = this.transform(v, _metadata);
       }

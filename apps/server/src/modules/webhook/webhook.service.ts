@@ -27,7 +27,7 @@ export class WebhookService {
   }) {
     return this.prisma.webhookSubscription.create({
       data: {
-        event: params.event as any,
+        event: params.event,
         url: params.url,
         secret: params.secret,
         description: params.description,
@@ -44,7 +44,7 @@ export class WebhookService {
   /** 查询订阅列表 */
   async list(event?: WebhookEvent) {
     return this.prisma.webhookSubscription.findMany({
-      where: event ? { event: event as any } : undefined,
+      where: event ? { event: event } : undefined,
       orderBy: { createdAt: "desc" },
     });
   }
@@ -58,9 +58,9 @@ export class WebhookService {
   }
 
   /** 触发事件：向所有匹配的活跃订阅发送 Webhook */
-  async fire(event: WebhookEvent, payload: Record<string, any>) {
+  async fire(event: WebhookEvent, payload: Record<string, unknown>) {
     const subs = await this.prisma.webhookSubscription.findMany({
-      where: { event: event as any, isActive: true },
+      where: { event: event, isActive: true },
     });
 
     if (subs.length === 0) return;
@@ -123,8 +123,8 @@ export class WebhookService {
         }
 
         lastError = new Error(`HTTP ${resp.status}`);
-      } catch (err: any) {
-        lastError = err;
+      } catch (err: unknown) {
+        lastError = err as Error;
         statusCode = 0;
       }
 

@@ -8,7 +8,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto } from "./circle.dto";
-import { Prisma, CircleMemberRole } from "@prisma/client";
+import { Prisma, CircleMemberRole, CircleType, PostType } from "@prisma/client";
 
 @Injectable()
 export class CircleService {
@@ -26,7 +26,7 @@ export class CircleService {
         intro: dto.intro,
         cover: dto.cover,
         tags: dto.tags,
-        type: dto.type as any,
+        type: dto.type as CircleType,
         price: dto.price ?? 0,
         depositAmount: dto.depositAmount ?? 0,
         stationId: dto.stationId || undefined,
@@ -130,7 +130,7 @@ export class CircleService {
       ];
     }
     if (tag) where.tags = { has: tag };
-    if (type) where.type = type as any;
+    if (type) where.type = type as CircleType;
     if (stationId) where.stationId = stationId;
 
     const [circles, total] = await Promise.all([
@@ -200,7 +200,7 @@ export class CircleService {
         data: { circleId, userId, role: "MEMBER" },
       });
     } catch (e: unknown) {
-      if ((e as any)?.code === "P2002") throw new ConflictException("已加入该圈子");
+      if ((e as { code?: string })?.code === "P2002") throw new ConflictException("已加入该圈子");
       throw e;
     }
 
@@ -318,7 +318,7 @@ export class CircleService {
       data: {
         circleId,
         userId,
-        type: dto.type as any,
+        type: dto.type as PostType,
         title: dto.title,
         content: dto.content,
         images: dto.images ?? [],
@@ -404,7 +404,7 @@ export class CircleService {
     const { type, isEssence, page = 1, pageSize = 20 } = query;
     const where: Prisma.PostWhereInput = { circleId, status: "PUBLISHED" };
 
-    if (type) where.type = type as any;
+    if (type) where.type = type as PostType;
     if (isEssence === "true") where.isEssence = true;
     if (isEssence === "top") where.isTop = true;
 
@@ -526,6 +526,160 @@ export class CircleService {
         user: { select: { id: true, nickname: true, avatar: true } },
       },
     });
+  }
+
+  // ───────── 排行榜 ─────────
+
+  async getCircleRanking(page = 1, pageSize = 20, sortBy?: string) {
+    const validSortBy = ["memberCount", "postCount", "activityScore"] as const;
+    const sortField = validSortBy.includes(sortBy as any) ? sortBy! : "memberCount";
+    const where: Prisma.CircleWhereInput = { status: "ACTIVE" };
+
+    let items: Array<Record<string, unknown>>;
+    let total: number;
+
+    if (sortField === "activityScore") {
+      // activityScore 需要计算（memberCount + postCount），取全部后排序
+      const [circles, count] = await Promise.all([
+        this.prisma.circle.findMany({
+          where,
+          select: {
+            id: true, name: true, cover: true, memberCount: true,
+            postCount: true, intro: true,
+          },
+          orderBy: [{ memberCount: "desc" }, { postCount: "desc" }],
+        }),
+        this.prisma.circle.count({ where }),
+      ]);
+      total = count;
+      items = circles.slice((page - 1) * pageSize, page * pageSize).map((c, i) => ({
+        ...c,
+        rank: (page - 1) * pageSize + i + 1,
+      }));
+    } else {
+      const [circles, count] = await Promise.all([
+        this.prisma.circle.findMany({
+          where,
+          select: {
+            id: true, name: true, cover: true, memberCount: true,
+            postCount: true, intro: true,
+          },
+          orderBy: { [sortField]: "desc" } as Prisma.CircleOrderByWithRelationInput,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        this.prisma.circle.count({ where }),
+      ]);
+      total = count;
+      items = circles.map((c, i) => ({
+        ...c,
+        rank: (page - 1) * pageSize + i + 1,
+      }));
+    }
+
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  async getMemberLeaderboard(circleId: string, page = 1, pageSize = 20, period?: string) {
+    const circle = await this.prisma.circle.findUnique({
+      where: { id: circleId },
+      select: { id: true },
+    });
+    if (!circle) throw new NotFoundException("圈子不存在");
+
+    const now = new Date();
+    let periodStart: Date | undefined;
+    if (period === "week") {
+      periodStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else if (period === "month") {
+      periodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    const postWhere: Prisma.PostWhereInput = { circleId, status: "PUBLISHED" };
+    if (periodStart) {
+      postWhere.createdAt = { gte: periodStart };
+    }
+
+    // 按 userId 聚合帖子数量作为贡献度依据
+    const postStats = await this.prisma.post.groupBy({
+      by: ["userId"],
+      where: postWhere,
+      _count: { id: true },
+      orderBy: { _count: { id: "desc" } },
+    });
+
+    const total = postStats.length;
+    const paged = postStats.slice((page - 1) * pageSize, page * pageSize);
+    const userIds = paged.map((s) => s.userId);
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, nickname: true, avatar: true },
+    });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    const items = paged.map((stat, index) => ({
+      userId: stat.userId,
+      nickname: userMap.get(stat.userId)?.nickname ?? "",
+      avatar: userMap.get(stat.userId)?.avatar ?? null,
+      contributionScore: stat._count.id * 10,
+      postCount: stat._count.id,
+      rank: (page - 1) * pageSize + index + 1,
+    }));
+
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  async getHotContentRanking(circleId: string, limit = 10) {
+    // 获取最近帖子作为候选集
+    const posts = await this.prisma.post.findMany({
+      where: { circleId, status: "PUBLISHED" },
+      select: {
+        id: true, title: true,
+        user: { select: { id: true, nickname: true, avatar: true } },
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+
+    if (posts.length === 0) return [];
+
+    const postIds = posts.map((p) => p.id);
+
+    // 并行统计点赞数和评论数
+    const [likeCounts, commentCounts] = await Promise.all([
+      this.prisma.like.groupBy({
+        by: ["targetId"],
+        where: { targetType: "POST", targetId: { in: postIds } },
+        _count: { id: true },
+      }),
+      this.prisma.comment.groupBy({
+        by: ["targetId"],
+        where: { targetType: "POST", targetId: { in: postIds } },
+        _count: { id: true },
+      }),
+    ]);
+
+    const likeMap = new Map(likeCounts.map((l) => [l.targetId, l._count.id]));
+    const commentMap = new Map(commentCounts.map((c) => [c.targetId, c._count.id]));
+
+    return posts
+      .map((p) => {
+        const likeCount = likeMap.get(p.id) ?? 0;
+        const commentCount = commentMap.get(p.id) ?? 0;
+        return {
+          id: p.id,
+          title: p.title,
+          user: p.user,
+          likeCount,
+          commentCount,
+          hotScore: likeCount + commentCount,
+          createdAt: p.createdAt,
+        };
+      })
+      .sort((a, b) => b.hotScore - a.hotScore)
+      .slice(0, limit);
   }
 
   // ───────── 私有辅助 ─────────

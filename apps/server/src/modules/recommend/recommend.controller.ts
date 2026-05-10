@@ -1,12 +1,36 @@
 import { Request } from "express";
-import { Controller, Get, Post, Param, Query, Body, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, Req, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiProperty } from "@nestjs/swagger";
+import { IsInt, IsString, Min } from "class-validator";
+import { Type } from "class-transformer";
 import { RecommendService } from "./recommend.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { StationId } from "../../common/station-id.decorator";
 import { RecommendQueryDto, RecommendLogDto, RecommendScene, SaveUserInterestsDto } from "./recommend.dto";
 import { ColdStartService } from "./services/cold-start.service";
+
+// ═══════════════════════════════════════════
+// 分区强插 DTO
+// ═══════════════════════════════════════════
+
+export class InsertContentDto {
+  @ApiProperty({ description: "强插位置（第N位，0起始）" })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  position: number;
+
+  @ApiProperty({ description: "内容ID" })
+  @IsString()
+  contentId: string;
+
+  @ApiProperty({ description: "内容类型（ARTICLE/COURSE/PRODUCT/CIRCLE/VIDEO）" })
+  @IsString()
+  contentType: string;
+}
 
 @ApiTags("智能推荐")
 @Controller("recommend")
@@ -58,6 +82,26 @@ export class RecommendController {
   @ApiBearerAuth()
   saveUserInterests(@Req() req: Request, @Body() dto: SaveUserInterestsDto) {
     return this.coldStart.saveUserInterests(req.user.id, dto.tags);
+  }
+
+  // ───── 分区强插管理 ─────
+
+  @Put("insert")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "设置分区强插" })
+  @ApiBearerAuth()
+  insertContent(@Body() dto: InsertContentDto) {
+    return this.svc.insertContent(dto.position, dto.contentId, dto.contentType);
+  }
+
+  @Delete("insert/:position")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "移除分区强插" })
+  @ApiBearerAuth()
+  removeInsertedContent(@Param("position") position: string) {
+    return this.svc.removeInsertedContent(parseInt(position, 10));
   }
 
   // ───── 统一场景入口（参数路由放最后） ─────

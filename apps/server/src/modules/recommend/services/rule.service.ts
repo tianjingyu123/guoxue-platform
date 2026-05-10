@@ -10,7 +10,7 @@ export interface ActiveRule {
   ruleType: string; // PIN, BOOST, MUTE, BAN
   ruleValue?: number | null;
   priority: number;
-  conditionJson?: any;
+  conditionJson?: unknown;
 }
 
 @Injectable()

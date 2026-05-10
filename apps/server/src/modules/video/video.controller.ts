@@ -9,6 +9,7 @@ import {
   UploadSignatureDto, PlaybackStatsQueryDto,
 } from "./video.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 import { StationId } from "../../common/station-id.decorator";
 
 @ApiTags("视频")

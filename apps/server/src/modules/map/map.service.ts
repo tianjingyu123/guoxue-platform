@@ -43,6 +43,48 @@ interface RouteStep {
   duration: number;
 }
 
+/** 腾讯地图通用 API 响应 */
+interface TencentMapResponse<TResult = unknown, TData = unknown> {
+  status: number;
+  message?: string;
+  result?: TResult;
+  count?: number;
+  data?: TData;
+}
+
+interface GeocodeResult {
+  location: { lat: number; lng: number };
+  ad_info?: { adcode: string };
+  address_components?: { province: string; city: string; district: string };
+  title: string;
+  reliability: number;
+}
+
+interface ReverseGeocodeResult {
+  address: string;
+  formatted_addresses?: { recommend?: string };
+  ad_info?: { adcode: string; province?: string; city?: string; district?: string };
+  pois?: MapPoiItem[];
+}
+
+interface IpLocationResult {
+  location: { lat: number; lng: number };
+  ad_info?: { adcode: string; nation?: string; province?: string; city?: string; district?: string };
+}
+
+interface DistanceMatrixResult {
+  elements: DistanceElement[];
+}
+
+interface DrivingRouteResult {
+  routes: Array<{
+    distance: number;
+    duration: number;
+    polyline: unknown;
+    steps: RouteStep[];
+  }>;
+}
+
 /**
  * 腾讯地图 WebService API 服务
  * 文档: https://lbs.qq.com/service/webService/webServiceGuide
@@ -73,12 +115,12 @@ export class MapService {
     if (city) params.set("region", city);
 
     const resp = await fetch(`${this.baseUrl}/ws/geocoder/v1/?${params}`);
-    const data = await resp.json() as any;
+    const data = await resp.json() as TencentMapResponse<GeocodeResult>;
     if (data.status !== 0) {
       this.logger.error("地址解析失败", data);
       return null;
     }
-    const r = data.result;
+    const r = data.result!;
     const result = {
       lat: r.location.lat,
       lng: r.location.lng,
@@ -102,12 +144,12 @@ export class MapService {
     });
 
     const resp = await fetch(`${this.baseUrl}/ws/geocoder/v1/?${params}`);
-    const data = await resp.json() as any;
+    const data = await resp.json() as TencentMapResponse<ReverseGeocodeResult>;
     if (data.status !== 0) {
       this.logger.error("逆地址解析失败", data);
       return null;
     }
-    const r = data.result;
+    const r = data.result!;
     return {
       address: r.address,
       formatted: r.formatted_addresses?.recommend || r.address,
@@ -127,9 +169,9 @@ export class MapService {
   async ipLocation(ip: string) {
     const params = new URLSearchParams({ ip, key: this.apiKey });
     const resp = await fetch(`${this.baseUrl}/ws/location/v1/ip?${params}`);
-    const data = await resp.json() as any;
+    const data = await resp.json() as TencentMapResponse<IpLocationResult>;
     if (data.status !== 0) return null;
-    const r = data.result;
+    const r = data.result!;
     return {
       lat: r.location.lat,
       lng: r.location.lng,
@@ -163,7 +205,7 @@ export class MapService {
     if (params.filter) qs.set("filter", params.filter);
 
     const resp = await fetch(`${this.baseUrl}/ws/place/v1/search?${qs}`);
-    const data = await resp.json() as any;
+    const data = await resp.json() as TencentMapResponse<unknown, MapPoiItem[]>;
     if (data.status !== 0) {
       this.logger.error("地点搜索失败", data);
       return { total: 0, list: [] };
@@ -192,7 +234,7 @@ export class MapService {
     });
 
     const resp = await fetch(`${this.baseUrl}/ws/distance/v1/?${params}`);
-    const data = await resp.json() as any;
+    const data = await resp.json() as TencentMapResponse<DistanceMatrixResult>;
     if (data.status !== 0) {
       this.logger.error("距离计算失败", data);
       return [];
@@ -212,7 +254,7 @@ export class MapService {
     });
 
     const resp = await fetch(`${this.baseUrl}/ws/direction/v1/driving/?${params}`);
-    const data = await resp.json() as any;
+    const data = await resp.json() as TencentMapResponse<DrivingRouteResult>;
     if (data.status !== 0) {
       this.logger.error("路线规划失败", data);
       return null;
@@ -238,7 +280,7 @@ export class MapService {
     if (id) params.set("id", id);
 
     const resp = await fetch(`${this.baseUrl}/ws/district/v1/list?${params}`);
-    const data = await resp.json() as any;
+    const data = await resp.json() as TencentMapResponse<DistrictNode[]>;
     if (data.status !== 0) return [];
     return (data.result as DistrictNode[] || []).flatMap((r) => this.flattenDistrict(r));
   }

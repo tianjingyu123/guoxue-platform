@@ -3,6 +3,13 @@ import { createHash, createHmac } from "crypto";
 import { RedisService } from "../../redis/redis.service";
 import { maskPhone } from "../../common/crypto.util";
 
+interface TencentCloudResponse {
+  Response?: {
+    Error?: { Code: string; Message: string };
+    [key: string]: unknown;
+  };
+}
+
 /**
  * 腾讯云短信 SMS 服务（纯原生API，不依赖SDK）
  * 用于发送手机验证码，支持登录/注册/找回密码等场景
@@ -31,7 +38,7 @@ export class SmsService {
   }
 
   /** TC3-HMAC-SHA256 签名调用 */
-  private async callApi(action: string, params: Record<string, any>) {
+  private async callApi(action: string, params: Record<string, unknown>) {
     const timestamp = Math.floor(Date.now() / 1000);
     const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
     const payload = JSON.stringify(params);
@@ -60,12 +67,12 @@ export class SmsService {
       body: payload,
     });
 
-    const data = await resp.json() as any;
+    const data = await resp.json() as TencentCloudResponse;
     if (data.Response?.Error) {
       this.logger.error(`SMS API错误 [${action}]`, data.Response.Error);
       throw new Error(`短信发送失败: ${data.Response.Error.Message}`);
     }
-    return data.Response;
+    return data.Response!;
   }
 
   /** 发送短信验证码 */
@@ -110,9 +117,9 @@ export class SmsService {
 
       this.logger.log(`验证码已发送到 ${maskPhone(phone)}，场景: ${scene}`);
       return { ok: true, message: "验证码已发送" };
-    } catch (err: any) {
-      this.logger.error(`短信发送失败: ${maskPhone(phone)}`, err.message);
-      return { ok: false, message: err.message };
+    } catch (err: unknown) {
+      this.logger.error(`短信发送失败: ${maskPhone(phone)}`, (err as Error).message);
+      return { ok: false, message: (err as Error).message };
     }
   }
 
