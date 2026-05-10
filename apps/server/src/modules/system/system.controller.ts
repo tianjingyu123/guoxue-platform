@@ -382,7 +382,7 @@ export class SystemController {
     stream.pipe(res);
     // 发送完成后清理
     stream.on("end", () => {
-      try { fs.unlinkSync(filePath); } catch {}
+      try { fs.unlinkSync(filePath); } catch { /* cleanup best-effort */ }
     });
     return res;
   }

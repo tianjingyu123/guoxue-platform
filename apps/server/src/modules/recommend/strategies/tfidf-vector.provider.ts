@@ -213,7 +213,7 @@ export class TfidfVectorProvider implements VectorRecallProvider {
 function tokenize(title: string, tags: string[]): string[] {
   const terms: string[] = [];
   // 标题逐字 + 二字组
-  const cleaned = title.replace(/[《》（）\s\[\]【】"",.!！?？:：;；\-—/\\]+/g, "");
+  const cleaned = title.replace(/[《》（）\s[\]【】"",.!！?？:：;；\-—/\\]+/g, "");
   for (const ch of cleaned) {
     terms.push(ch);
   }

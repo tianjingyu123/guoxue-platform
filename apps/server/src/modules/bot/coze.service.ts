@@ -1,5 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Observable } from "rxjs";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 /**
  * COZE智能体 API 服务（纯原生HTTP，不依赖SDK）
@@ -53,7 +55,7 @@ export class CozeService {
     const createData = await createResp.json() as Record<string, unknown>;
     if (createData.code !== 0) {
       this.logger.error("COZE创建对话失败", createData);
-      throw new Error(`COZE对话失败: ${createData.msg}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `COZE对话失败: ${createData.msg}`);
     }
 
     const createDataBody = createData.data as Record<string, unknown>;
@@ -117,7 +119,7 @@ export class CozeService {
           const decoder = new TextDecoder();
           let buffer = "";
 
-          while (true) {
+          for (;;) {
             const { done, value } = await reader.read();
             if (done) break;
 
@@ -178,7 +180,7 @@ export class CozeService {
 
       const messagesData = await messagesResp.json() as Record<string, unknown>;
       if (messagesData.code !== 0) {
-        throw new Error(`获取消息列表失败: ${messagesData.msg}`);
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `获取消息列表失败: ${messagesData.msg}`);
       }
 
       const messages = (messagesData.data as Array<Record<string, unknown>>) || [];
@@ -198,7 +200,7 @@ export class CozeService {
       // 等待1秒后重试
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    throw new Error("COZE对话超时，未获取到响应");
+    throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "COZE对话超时，未获取到响应");
   }
 
   /** 获取对话消息列表 */
@@ -216,7 +218,7 @@ export class CozeService {
 
     const data = await resp.json() as Record<string, unknown>;
     if (data.code !== 0) {
-      throw new Error(`获取消息失败: ${data.msg}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `获取消息失败: ${data.msg}`);
     }
     return data.data;
   }
@@ -232,7 +234,7 @@ export class CozeService {
 
     const data = await resp.json() as Record<string, unknown>;
     if (data.code !== 0) {
-      throw new Error(`获取对话详情失败: ${data.msg}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `获取对话详情失败: ${data.msg}`);
     }
     return data.data;
   }
