@@ -39,6 +39,10 @@ export class CreateContentDto {
   @IsString({ each: true })
   @IsOptional()
   tags?: string[];
+
+  @IsString()
+  @IsOptional()
+  stationId?: string;
 }
 
 export class UpdateContentDto {
@@ -91,4 +95,7 @@ export class ContentListQueryDto {
 
   @IsOptional() @IsString()
   status?: string;
+
+  @IsOptional() @IsString()
+  stationId?: string;
 }

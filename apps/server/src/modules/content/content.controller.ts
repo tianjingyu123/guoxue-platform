@@ -1,8 +1,9 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Query, Req, UseGuards,
+  Body, Param, Query, Req, UseGuards, Logger,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { Request } from "express";
 import { ContentService } from "./content.service";
 import { SystemService } from "../system/system.service";
 import { CreateContentDto, UpdateContentDto, ContentListQueryDto } from "./content.dto";
@@ -13,6 +14,7 @@ import { Roles } from "../../common/roles.decorator";
 @ApiTags("内容管理")
 @Controller("contents")
 export class ContentController {
+  private readonly logger = new Logger(ContentController.name);
   constructor(
     private content: ContentService,
     private systemService: SystemService,
@@ -22,7 +24,7 @@ export class ContentController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建内容" })
   @ApiBearerAuth()
-  async create(@Body() dto: CreateContentDto, @Req() req: any) {
+  async create(@Body() dto: CreateContentDto, @Req() req: Request) {
     const result = await this.content.create(dto);
     this.systemService.logAudit({
       userId: req.user?.id,
@@ -31,7 +33,7 @@ export class ContentController {
       targetId: result.id,
       detail: `创建内容: ${dto.title}`,
       ip: req.ip,
-    }).catch(() => {});
+    }).catch((err) => this.logger.warn("Webhook 发送失败", err));
     return result;
   }
 
@@ -51,7 +53,7 @@ export class ContentController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新内容" })
   @ApiBearerAuth()
-  async update(@Param("id") id: string, @Body() dto: UpdateContentDto, @Req() req: any) {
+  async update(@Param("id") id: string, @Body() dto: UpdateContentDto, @Req() req: Request) {
     const result = await this.content.update(id, dto);
     this.systemService.logAudit({
       userId: req.user?.id,
@@ -60,7 +62,7 @@ export class ContentController {
       targetId: id,
       detail: `更新内容: ${dto.title || id}`,
       ip: req.ip,
-    }).catch(() => {});
+    }).catch((err) => this.logger.warn("Webhook 发送失败", err));
     return result;
   }
 
@@ -69,7 +71,7 @@ export class ContentController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除内容（管理员）" })
   @ApiBearerAuth()
-  async remove(@Param("id") id: string, @Req() req: any) {
+  async remove(@Param("id") id: string, @Req() req: Request) {
     const result = await this.content.remove(id);
     this.systemService.logAudit({
       userId: req.user?.id,
@@ -78,7 +80,40 @@ export class ContentController {
       targetId: id,
       detail: `删除内容: ${id}`,
       ip: req.ip,
-    }).catch(() => {});
+    }).catch((err) => this.logger.warn("Webhook 发送失败", err));
     return result;
+  }
+
+  // ───────── 批量操作 & 统计 ─────────
+
+  @Put("batch/status")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "批量更新内容状态" })
+  @ApiBearerAuth()
+  async batchUpdateStatus(@Body() dto: { ids: string[]; status: string }, @Req() req: Request) {
+    const result = await this.content.batchUpdateStatus(dto.ids, dto.status);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "UPDATE",
+      targetType: "CONTENT",
+      detail: `批量更新 ${dto.ids.length} 条内容状态为 ${dto.status}`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("Webhook 发送失败", err));
+    return result;
+  }
+
+  @Get("stats/overview")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "内容统计概览" })
+  getStats() {
+    return this.content.getStats();
+  }
+
+  @Get("featured")
+  @ApiOperation({ summary: "精选内容（按浏览量排序）" })
+  getFeatured(@Query("type") type?: string) {
+    return this.content.getFeatured(type);
   }
 }

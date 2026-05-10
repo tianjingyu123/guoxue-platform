@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CreateStationDto, UpdateStationDto, CreateOperatorDto } from "./station.dto";
@@ -23,6 +24,9 @@ export class StationService {
         intro: dto.intro,
         logo: dto.logo,
         themeColor: dto.themeColor,
+        miniAppId: dto.miniAppId,
+        mpAppId: dto.mpAppId,
+        miniPages: dto.miniPages as any,
       },
     });
   }
@@ -137,5 +141,117 @@ export class StationService {
       this.prisma.operator.count(),
     ]);
     return { operators, total, page, pageSize };
+  }
+
+  // ───────── 多小程序配置 ─────────
+
+  /** 获取分站小程序配置（含跨跳转规则） */
+  async getMiniConfig(stationId: string) {
+    const station = await this.prisma.station.findUnique({
+      where: { id: stationId },
+      select: {
+        id: true, name: true, code: true,
+        miniAppId: true, mpAppId: true, miniPages: true,
+        logo: true, themeColor: true,
+      },
+    });
+    if (!station) throw new NotFoundException("分站不存在");
+
+    const platformMiniAppId = process.env.WECHAT_MINI_APP_ID || process.env.WECHAT_APP_ID || "";
+    // 如果分站有独立小程序则用分站的，否则用平台主小程序
+    const appId = station.miniAppId || platformMiniAppId;
+    // 如果有公众号 AppId 则用分站的，否则用平台默认
+    const mpAppId = station.mpAppId || process.env.WECHAT_MP_APP_ID || process.env.WECHAT_APP_ID || "";
+
+    return {
+      stationId: station.id,
+      stationName: station.name,
+      stationCode: station.code,
+      brand: { logo: station.logo, themeColor: station.themeColor },
+      miniAppId: appId,
+      mpAppId,
+      pages: (station.miniPages || {}) as Record<string, string>,
+      // 平台主小程序 AppId（用于跨小程序跳转）
+      platformMiniAppId,
+    };
+  }
+
+  async resolveJumpTarget(stationId: string, targetPath: string) {
+    const config = await this.getMiniConfig(stationId);
+    const pagePath = config.pages[targetPath] || targetPath;
+    return {
+      appId: config.miniAppId,
+      path: pagePath,
+      crossApp: config.miniAppId !== config.platformMiniAppId,
+      platformAppId: config.platformMiniAppId,
+    };
+  }
+
+  // ───────── 分站发现（用户端公开） ─────────
+
+  async discoverStations(params: { keyword?: string; page?: number; pageSize?: number }) {
+    const { keyword, page = 1, pageSize = 20 } = params;
+    const where: Prisma.StationWhereInput = { status: "ACTIVE" };
+    if (keyword) where.name = { contains: keyword };
+
+    const [stations, total] = await Promise.all([
+      this.prisma.station.findMany({
+        where,
+        select: {
+          id: true, name: true, code: true, logo: true,
+          themeColor: true, intro: true,
+        },
+        skip: (page - 1) * pageSize, take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.station.count({ where }),
+    ]);
+    return { stations, total, page, pageSize };
+  }
+
+  async getRevenueDashboard(stationId: string) {
+    const station = await this.prisma.station.findUnique({
+      where: { id: stationId },
+      select: { id: true, name: true, totalEarning: true },
+    });
+    if (!station) throw new NotFoundException("分站不存在");
+
+    const [earningsAgg, earningBreakdown] = await Promise.all([
+      this.prisma.stationEarning.aggregate({
+        where: { stationId },
+        _sum: { amount: true, earned: true },
+        _count: true,
+      }),
+      this.prisma.stationEarning.groupBy({
+        by: ["type"],
+        where: { stationId },
+        _sum: { earned: true },
+        _count: true,
+      }),
+    ]);
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEarnings = await this.prisma.stationEarning.aggregate({
+      where: { stationId, createdAt: { gte: monthStart } },
+      _sum: { earned: true, amount: true },
+      _count: true,
+    });
+
+    return {
+      stationName: station.name,
+      totalEarning: station.totalEarning,
+      totalOrders: earningsAgg._count,
+      totalAmount: earningsAgg._sum.amount || 0,
+      totalEarned: earningsAgg._sum.earned || 0,
+      monthOrders: monthEarnings._count,
+      monthEarned: monthEarnings._sum.earned || 0,
+      monthAmount: monthEarnings._sum.amount || 0,
+      breakdown: earningBreakdown.map(b => ({
+        type: b.type,
+        count: b._count,
+        earned: b._sum.earned,
+      })),
+    };
   }
 }

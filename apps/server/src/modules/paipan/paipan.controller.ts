@@ -6,9 +6,13 @@ import {
   Param,
   Query,
   Req,
+  Res,
   UseGuards,
+  Header,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { Request } from "express";
+import type { BaziResult } from "@guoxue/bazi-engine";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
 import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, AnalyzeDto, AnalysisQueryDto } from "./paipan.dto";
@@ -27,9 +31,31 @@ export class PaipanController {
 
   /** 八字排盘预览（不登录也可用） */
   @Post("bazi/preview")
-  @ApiOperation({ summary: "八字排盘预览（无需登录）" })
+  @Header("Cache-Control", "public, max-age=600")
+  @ApiOperation({ summary: "八字排盘预览（无需登录，结果缓存10分钟）" })
+  @ApiResponse({ status: 201, description: "排盘成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败（缺少必填字段或格式错误）" })
   baziPreview(@Body() dto: BaziInputDto) {
     return this.paipan.calcBaziPreview(dto);
+  }
+
+  /** 八字排盘 CDN 静态化 GET 接口（不敏感部分，公开可缓存） */
+  @Get("bazi/public")
+  @Header("Cache-Control", "public, max-age=3600, s-maxage=86400")
+  @ApiOperation({ summary: "八字排盘公开结果（CDN缓存1天，无需登录）" })
+  baziPublic(
+    @Query("year") year: number,
+    @Query("month") month: number,
+    @Query("day") day: number,
+    @Query("hour") hour: number,
+    @Query("minute") minute?: number,
+    @Query("gender") gender?: string,
+  ) {
+    return this.paipan.calcBaziPreview({
+      year: +year, month: +month, day: +day, hour: +hour,
+      minute: minute ? +minute : 0,
+      gender: (gender === "female" ? "女" : "男"),
+    } as BaziInputDto);
   }
 
   /** 八字排盘并保存 */
@@ -37,7 +63,11 @@ export class PaipanController {
   @UseGuards(JwtAuthGuard, StrictThrottleGuard)
   @ApiOperation({ summary: "八字排盘并保存" })
   @ApiBearerAuth()
-  baziCalc(@Req() req: any, @Body() dto: BaziInputDto) {
+  @ApiResponse({ status: 201, description: "保存成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 429, description: "请求过于频繁" })
+  baziCalc(@Req() req: Request, @Body() dto: BaziInputDto) {
     return this.paipan.calcBaziAndSave(req.user.id, dto);
   }
 
@@ -46,7 +76,10 @@ export class PaipanController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取八字排盘记录详情" })
   @ApiBearerAuth()
-  baziRecord(@Param("id") id: string, @Req() req: any) {
+  @ApiResponse({ status: 200, description: "成功返回排盘详情" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 404, description: "记录不存在或不属于当前用户" })
+  baziRecord(@Param("id") id: string, @Req() req: Request) {
     return this.paipan.getBaziRecord(id, req.user.id);
   }
 
@@ -55,7 +88,9 @@ export class PaipanController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取八字排盘历史" })
   @ApiBearerAuth()
-  baziHistory(@Req() req: any, @Query() q: BaziRecordQueryDto) {
+  @ApiResponse({ status: 200, description: "成功返回排盘历史" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  baziHistory(@Req() req: Request, @Query() q: BaziRecordQueryDto) {
     return this.paipan.getUserBaziHistory(
       req.user.id,
       q.page || 1,
@@ -70,14 +105,16 @@ export class PaipanController {
   @UseGuards(JwtAuthGuard, StrictThrottleGuard)
   @ApiOperation({ summary: "AI分析八字排盘" })
   @ApiBearerAuth()
-  async baziAnalyze(@Req() req: any, @Body() dto: AnalyzeDto) {
-    // 先获取排盘记录
+  @ApiResponse({ status: 201, description: "分析请求已提交" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 404, description: "排盘记录不存在" })
+  @ApiResponse({ status: 429, description: "请求过于频繁" })
+  async baziAnalyze(@Req() req: Request, @Body() dto: AnalyzeDto) {
     const record = await this.paipan.getBaziRecord(dto.recordId, req.user.id);
-    // 执行 AI 分析
     return this.paipanAi.analyzeBazi(
       req.user.id,
       dto.recordId,
-      record.resultData as any,
+      record.resultData as unknown as BaziResult,
     );
   }
 
@@ -86,8 +123,10 @@ export class PaipanController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取八字AI分析结果" })
   @ApiBearerAuth()
-  baziGetAnalysis(@Param("id") id: string, @Req() req: any) {
-    // 查找关联此排盘记录的 AI 分析（paipanRecordId = :id）
+  @ApiResponse({ status: 200, description: "成功返回分析结果" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 404, description: "分析不存在" })
+  baziGetAnalysis(@Param("id") id: string, @Req() req: Request) {
     return this.paipanAi.getAnalysisByPaipanRecord(id, req.user.id);
   }
 
@@ -96,7 +135,9 @@ export class PaipanController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取AI分析历史" })
   @ApiBearerAuth()
-  baziAnalysisHistory(@Req() req: any, @Query() q: AnalysisQueryDto) {
+  @ApiResponse({ status: 200, description: "成功返回分析历史" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  baziAnalysisHistory(@Req() req: Request, @Query() q: AnalysisQueryDto) {
     return this.paipanAi.getUserAnalysisHistory(
       req.user.id,
       q.page || 1,
@@ -109,6 +150,8 @@ export class PaipanController {
   /** 紫微斗数预览（不登录也可用） */
   @Post("ziwei/preview")
   @ApiOperation({ summary: "紫微斗数预览（无需登录）" })
+  @ApiResponse({ status: 201, description: "排盘成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   ziweiPreview(@Body() dto: ZiweiInputDto) {
     return this.paipan.calcZiweiPreview(dto);
   }
@@ -118,7 +161,11 @@ export class PaipanController {
   @UseGuards(JwtAuthGuard, StrictThrottleGuard)
   @ApiOperation({ summary: "紫微斗数排盘并保存" })
   @ApiBearerAuth()
-  ziweiCalc(@Req() req: any, @Body() dto: ZiweiInputDto) {
+  @ApiResponse({ status: 201, description: "保存成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 429, description: "请求过于频繁" })
+  ziweiCalc(@Req() req: Request, @Body() dto: ZiweiInputDto) {
     return this.paipan.calcZiweiAndSave(req.user.id, dto);
   }
 
@@ -127,7 +174,10 @@ export class PaipanController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取紫微排盘记录详情" })
   @ApiBearerAuth()
-  ziweiRecord(@Param("id") id: string, @Req() req: any) {
+  @ApiResponse({ status: 200, description: "成功返回排盘详情" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 404, description: "记录不存在" })
+  ziweiRecord(@Param("id") id: string, @Req() req: Request) {
     return this.paipan.getZiweiRecord(id, req.user.id);
   }
 
@@ -136,7 +186,9 @@ export class PaipanController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取紫微排盘历史" })
   @ApiBearerAuth()
-  ziweiHistory(@Req() req: any, @Query() q: BaziRecordQueryDto) {
+  @ApiResponse({ status: 200, description: "成功返回排盘历史" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  ziweiHistory(@Req() req: Request, @Query() q: BaziRecordQueryDto) {
     return this.paipan.getUserZiweiHistory(
       req.user.id,
       q.page || 1,
@@ -152,6 +204,9 @@ export class PaipanController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员查看所有排盘记录" })
   @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "成功返回排盘记录列表" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限（需管理员）" })
   ziweiAdminRecords(@Query() q: BaziRecordQueryDto & { type?: string; keyword?: string }) {
     return this.paipan.getAllRecords({
       page: q.page || 1,

@@ -77,6 +77,26 @@ export class WechatLoginDto {
   referrerCode?: string;
 }
 
+export class MiniPhoneLoginDto {
+  @ApiProperty({ description: "wx.login 返回的 code", example: "081xxx" })
+  @IsString()
+  wxCode: string;
+
+  @ApiProperty({ description: "getPhoneNumber 返回的 code（新API）或加密数据", example: "xxx" })
+  @IsString()
+  phoneCode: string;
+
+  @ApiPropertyOptional({ description: "加密数据iv（旧版getPhoneNumber需要）" })
+  @IsString()
+  @IsOptional()
+  iv?: string;
+
+  @ApiPropertyOptional({ description: "推荐码（可选）", example: "ABC123" })
+  @IsString()
+  @IsOptional()
+  referrerCode?: string;
+}
+
 export class UpdateProfileDto {
   @IsString()
   @IsOptional()

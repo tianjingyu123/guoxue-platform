@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ScheduleModule } from "@nestjs/schedule";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -31,8 +32,23 @@ import { QuestionModule } from "./modules/question/question.module";
 import { ImModule } from "./modules/im/im.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { RevenueModule } from "./modules/revenue/revenue.module";
-
+import { SmsModule } from "./modules/sms/sms.module";
+import { IdentityModule } from "./modules/identity/identity.module";
+import { MapModule } from "./modules/map/map.module";
+import { EmailModule } from "./modules/email/email.module";
+import { WebsocketModule } from "./modules/websocket/websocket.module";
+import { AiModule } from "./modules/ai/ai.module";
+import { MiniModule } from "./modules/mini/mini.module";
+import { WebhookModule } from "./modules/webhook/webhook.module";
+import { CallModule } from "./modules/call/call.module";
+import { InstituteModule } from "./modules/institute/institute.module";
+import { MetricsModule } from "./modules/metrics/metrics.module";
+import { FeatureFlagModule } from "./modules/feature-flag/feature-flag.module";
+import { EbookModule } from "./modules/ebook/ebook.module";
+import { RiskControlModule } from "./modules/risk-control/risk-control.module";
+import { MarketingModule } from "./modules/marketing/marketing.module";
+import { FinanceModule } from "./modules/finance/finance.module";
 @Module({
-  imports: [PrismaModule, RedisModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule],
 })
 export class AppModule {}

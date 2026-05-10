@@ -5,6 +5,8 @@ import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.d
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { StationId } from "../../common/station-id.decorator";
+import { Request } from "express";
 
 @ApiTags("文章")
 @Controller("articles")
@@ -17,7 +19,7 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建文章" })
   @ApiBearerAuth()
-  create(@Param("circleId") circleId: string, @Req() req: any, @Body() dto: CreateArticleDto) {
+  create(@Param("circleId") circleId: string, @Req() req: Request, @Body() dto: CreateArticleDto) {
     return this.article.create(circleId, req.user.id, dto);
   }
 
@@ -34,6 +36,7 @@ export class ArticleController {
     @Query("circleId") circleId?: string,
     @Query("tag") tag?: string,
     @Query("isPushHome") isPushHome?: string,
+    @StationId() stationId?: string,
   ) {
     return this.article.listArticles({
       page: +page,
@@ -41,6 +44,7 @@ export class ArticleController {
       circleId,
       tag,
       isPushHome: isPushHome === "true" ? true : isPushHome === "false" ? false : undefined,
+      stationId,
     });
   }
 
@@ -51,7 +55,7 @@ export class ArticleController {
   getHomeFeed(
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
-    @Req() req?: any,
+    @Req() req?: Request,
   ) {
     return this.article.getHomeFeed({ page: +page, pageSize: +pageSize, userId: req?.user?.id });
   }
@@ -72,7 +76,7 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新文章" })
   @ApiBearerAuth()
-  update(@Param("id") id: string, @Req() req: any, @Body() dto: UpdateArticleDto) {
+  update(@Param("id") id: string, @Req() req: Request, @Body() dto: UpdateArticleDto) {
     return this.article.update(id, req.user.id, dto);
   }
 
@@ -80,7 +84,7 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除文章" })
   @ApiBearerAuth()
-  delete(@Param("id") id: string, @Req() req: any) {
+  delete(@Param("id") id: string, @Req() req: Request) {
     return this.article.delete(id, req.user.id);
   }
 
@@ -101,7 +105,7 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "添加推荐" })
   @ApiBearerAuth()
-  addRecommend(@Param("id") articleId: string, @Req() req: any, @Body() dto: AddRecommendDto) {
+  addRecommend(@Param("id") articleId: string, @Req() req: Request, @Body() dto: AddRecommendDto) {
     return this.article.addRecommend(articleId, req.user.id, dto);
   }
 
@@ -109,7 +113,7 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "移除推荐" })
   @ApiBearerAuth()
-  removeRecommend(@Param("recId") recId: string, @Req() req: any) {
+  removeRecommend(@Param("recId") recId: string, @Req() req: Request) {
     return this.article.removeRecommend(recId, req.user.id);
   }
 }

@@ -1,9 +1,16 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { ModerationService } from "./moderation.service";
 
 @Injectable()
 export class AuditService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(AuditService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private moderation: ModerationService,
+  ) {}
 
   log(params: {
     userId?: string;
@@ -14,6 +21,44 @@ export class AuditService {
     ip?: string;
   }) {
     return this.prisma.auditLog.create({ data: params });
+  }
+
+  // ───────── 内容审核 ─────────
+
+  /** 审核图片 */
+  async moderateImage(imageUrl: string, bizType?: string) {
+    const result = await this.moderation.imageModeration({ imageUrl, bizType });
+    const passed = this.moderation.isImagePass(result);
+    const labels = passed ? [] : this.moderation.getBlockedLabels(result);
+
+    await this.prisma.auditLog.create({
+      data: {
+        action: passed ? "IMAGE_PASS" : "IMAGE_BLOCK",
+        targetType: "IMAGE",
+        targetId: imageUrl,
+        detail: JSON.stringify({ passed, labels, result }),
+      },
+    });
+
+    return { passed, labels, raw: result };
+  }
+
+  /** 审核文本 */
+  async moderateText(content: string, bizType?: string, dataId?: string) {
+    const result = await this.moderation.textModeration({ content, bizType, dataId });
+    const passed = this.moderation.isTextPass(result);
+    const labels = passed ? [] : this.moderation.getBlockedLabels(result);
+
+    await this.prisma.auditLog.create({
+      data: {
+        action: passed ? "TEXT_PASS" : "TEXT_BLOCK",
+        targetType: "TEXT",
+        targetId: dataId || content.slice(0, 50),
+        detail: JSON.stringify({ passed, labels }),
+      },
+    });
+
+    return { passed, labels, raw: result };
   }
 
   async list(params: {
@@ -28,7 +73,7 @@ export class AuditService {
   }) {
     const page = params.page || 1;
     const pageSize = params.pageSize || 20;
-    const where: any = {};
+    const where: Prisma.AuditLogWhereInput = {};
     if (params.userId) where.userId = params.userId;
     if (params.action) where.action = params.action;
     if (params.targetType) where.targetType = params.targetType;
@@ -56,5 +101,46 @@ export class AuditService {
       select: { action: true },
       distinct: ["action"],
     });
+  }
+
+  // ───────── 平台操作日志 ─────────
+
+  async listOperationLogs(params: {
+    userId?: string;
+    action?: string;
+    targetType?: string;
+    targetId?: string;
+    page?: number;
+    pageSize?: number;
+    startDate?: string;
+    endDate?: string;
+  }) {
+    const page = params.page || 1;
+    const pageSize = params.pageSize || 20;
+    const where: Prisma.OperationLogWhereInput = {};
+    if (params.userId) where.userId = params.userId;
+    if (params.action) where.action = params.action;
+    if (params.targetType) where.targetType = params.targetType;
+    if (params.targetId) where.targetId = params.targetId;
+    if (params.startDate || params.endDate) {
+      where.createdAt = {};
+      if (params.startDate) where.createdAt.gte = new Date(params.startDate);
+      if (params.endDate) where.createdAt.lte = new Date(params.endDate + "T23:59:59.999Z");
+    }
+
+    const [logs, total] = await Promise.all([
+      this.prisma.operationLog.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.operationLog.count({ where }),
+    ]);
+    return { logs, total, page, pageSize };
+  }
+
+  async getOperationLog(id: string) {
+    return this.prisma.operationLog.findUnique({ where: { id } });
   }
 }

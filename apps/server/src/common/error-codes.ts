@@ -1,0 +1,94 @@
+/**
+ * 统一业务错误码
+ * 格式: 模块_错误类型 → 6位数字码
+ * 前端可根据 errorCode 做精确的 UI 处理（如余额不足弹窗 vs 重新登录）
+ */
+export enum ErrorCode {
+  // ───── 通用 (100xxx) ─────
+  BAD_REQUEST       = 100001,
+  VALIDATION_ERROR  = 100002,
+  NOT_FOUND         = 100003,
+  INTERNAL_ERROR    = 100004,
+  FORBIDDEN         = 100005,
+  RATE_LIMITED      = 100006,
+
+  // ───── 认证 AUTH (200xxx) ─────
+  AUTH_PHONE_EXISTS       = 200001,
+  AUTH_EMAIL_EXISTS       = 200002,
+  AUTH_PASSWORD_WRONG     = 200003,
+  AUTH_SMS_CODE_INVALID   = 200004,
+  AUTH_SMS_CODE_EXPIRED   = 200005,
+  AUTH_TOKEN_EXPIRED      = 200006,
+  AUTH_TOKEN_INVALID      = 200007,
+  AUTH_WECHAT_FAILED      = 200008,
+  AUTH_USER_BANNED        = 200009,
+  AUTH_NOT_LOGGED_IN      = 200010,
+
+  // ───── 用户 USER (201xxx) ─────
+  USER_NOT_FOUND          = 201001,
+  USER_PROFILE_INVALID    = 201002,
+
+  // ───── 内容 CONTENT (202xxx) ─────
+  CONTENT_NOT_FOUND       = 202001,
+  CONTENT_STATUS_INVALID  = 202002,
+
+  // ───── 文章 ARTICLE (203xxx) ─────
+  ARTICLE_NOT_FOUND       = 203001,
+
+  // ───── 课程 COURSE (204xxx) ─────
+  COURSE_NOT_FOUND        = 204001,
+  COURSE_ALREADY_ENROLLED = 204002,
+  COURSE_CHAPTER_LOCKED   = 204003,
+
+  // ───── 商城 ORDER (300xxx) ─────
+  ORDER_NOT_FOUND         = 300001,
+  ORDER_STATUS_INVALID    = 300002,
+  ORDER_REFUND_DENIED     = 300003,
+  PRODUCT_NOT_FOUND       = 300004,
+  PRODUCT_OUT_OF_STOCK    = 300005,
+  COUPON_INVALID          = 300006,
+  COUPON_EXPIRED          = 300007,
+
+  // ───── 支付 PAY (301xxx) ─────
+  PAY_FAILED              = 301001,
+  PAY_SIGNATURE_INVALID   = 301002,
+  PAY_AMOUNT_MISMATCH     = 301003,
+
+  // ───── 虚拟币 COIN (302xxx) ─────
+  COIN_BALANCE_INSUFFICIENT = 302001,
+  COIN_RECHARGE_FAILED      = 302002,
+  COIN_AMOUNT_INVALID       = 302003,
+
+  // ───── 圈子 CIRCLE (400xxx) ─────
+  CIRCLE_NOT_FOUND        = 400001,
+  CIRCLE_JOIN_DENIED      = 400002,
+  CIRCLE_MEMBER_EXISTS    = 400003,
+  CIRCLE_POST_NOT_FOUND   = 400004,
+
+  // ───── 互动 INTERACTION (401xxx) ─────
+  INTERACTION_DUPLICATE   = 401001,
+  COMMENT_NOT_FOUND       = 401002,
+  COMMENT_FORBIDDEN       = 401003,
+
+  // ───── 排盘 PAIPAN (500xxx) ─────
+  PAIPAN_INPUT_INVALID    = 500001,
+  PAIPAN_RECORD_NOT_FOUND = 500002,
+
+  // ───── 实名 IDENTITY (501xxx) ─────
+  IDENTITY_VERIFY_FAILED  = 501001,
+  IDENTITY_ALREADY_VERIFIED = 501002,
+
+  // ───── 文件 UPLOAD (600xxx) ─────
+  UPLOAD_FILE_TOO_LARGE   = 600001,
+  UPLOAD_FILE_TYPE_DENIED = 600002,
+
+  // ───── 第三方服务 (700xxx) ─────
+  THIRD_SMS_FAILED        = 700001,
+  THIRD_WECHAT_FAILED     = 700002,
+  THIRD_AI_FAILED         = 700003,
+  THIRD_IM_FAILED         = 700004,
+
+  // ───── 分站 STATION (800xxx) ─────
+  STATION_NOT_FOUND       = 800001,
+  STATION_CODE_EXISTS     = 800002,
+}

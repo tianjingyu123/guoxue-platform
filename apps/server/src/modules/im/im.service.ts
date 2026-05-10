@@ -137,4 +137,92 @@ export class ImService {
       ],
     });
   }
+
+  /** 获取群组历史消息 */
+  async getGroupHistory(groupId: string, page = 1, pageSize = 20) {
+    return this.callImApi("group_open_http_svc/group_msg_get_simple", {
+      GroupId: groupId,
+      ReqMsgNumber: pageSize,
+      ReqMsgSeq: 0,
+    });
+  }
+
+  // ───────── 单聊消息 ─────────
+
+  /** 发送单聊消息 */
+  async sendC2CMsg(fromUserId: string, toUserId: string, text: string) {
+    return this.callImApi("openim/sendmsg", {
+      SyncOtherMachine: 1,
+      From_Account: fromUserId,
+      To_Account: toUserId,
+      MsgLifeTime: 604800, // 7天
+      MsgRandom: Math.floor(Math.random() * 0xffffffff),
+      MsgTimeStamp: Math.floor(Date.now() / 1000),
+      MsgBody: [
+        {
+          MsgType: "TIMTextElem",
+          MsgContent: { Text: text },
+        },
+      ],
+    });
+  }
+
+  /** 获取单聊历史消息 */
+  async getC2CHistory(fromUserId: string, toUserId: string, maxCount = 20) {
+    return this.callImApi("openim/admin_getroammsg", {
+      From_Account: fromUserId,
+      To_Account: toUserId,
+      MaxCnt: maxCount,
+      MinTime: 0,
+      MaxTime: Math.floor(Date.now() / 1000),
+    });
+  }
+
+  /** 撤回消息 */
+  async withdrawMsg(fromUserId: string, toUserId: string, msgKey: string) {
+    return this.callImApi("openim/admin_msgwithdraw", {
+      From_Account: fromUserId,
+      To_Account: toUserId,
+      MsgKey: msgKey,
+    });
+  }
+
+  // ───────── 好友管理 ─────────
+
+  /** 添加好友 */
+  async addFriend(fromUserId: string, toUserId: string, remark?: string) {
+    return this.callImApi("sns/friend_add", {
+      From_Account: fromUserId,
+      AddFriendItem: [
+        {
+          To_Account: toUserId,
+          AddSource: "AddSource_Type_RestAPI",
+          Remark: remark || "",
+        },
+      ],
+    });
+  }
+
+  /** 删除好友 */
+  async deleteFriend(fromUserId: string, toUserId: string) {
+    return this.callImApi("sns/friend_delete", {
+      From_Account: fromUserId,
+      To_Account: [toUserId],
+    });
+  }
+
+  /** 获取好友列表 */
+  async getFriendList(userId: string) {
+    return this.callImApi("sns/friend_get_list", {
+      From_Account: userId,
+    });
+  }
+
+  /** 拉黑用户 */
+  async addBlacklist(fromUserId: string, toUserId: string) {
+    return this.callImApi("sns/black_list_add", {
+      From_Account: fromUserId,
+      To_Account: [toUserId],
+    });
+  }
 }

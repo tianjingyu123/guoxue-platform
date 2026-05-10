@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { Request } from "express";
 import { ClassicService } from "./classic.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { CreateBookDto, UpdateBookDto, CreateChapterDto, UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, BookListQueryDto } from "./classic.dto";
@@ -84,7 +85,7 @@ export class ClassicController {
   @ApiBearerAuth()
   @Get("progress/:bookId")
   @ApiOperation({ summary: "获取阅读进度" })
-  getProgress(@Req() req: any, @Param("bookId") bookId: string) {
+  getProgress(@Req() req: Request, @Param("bookId") bookId: string) {
     return this.svc.getProgress(req.user.id, bookId);
   }
 
@@ -92,7 +93,7 @@ export class ClassicController {
   @ApiBearerAuth()
   @Put("progress/:bookId")
   @ApiOperation({ summary: "更新阅读进度" })
-  updateProgress(@Req() req: any, @Param("bookId") bookId: string, @Body() dto: UpdateProgressDto) {
+  updateProgress(@Req() req: Request, @Param("bookId") bookId: string, @Body() dto: UpdateProgressDto) {
     return this.svc.updateProgress(req.user.id, bookId, dto);
   }
 
@@ -102,7 +103,7 @@ export class ClassicController {
   @Get("bookmarks")
   @ApiOperation({ summary: "获取书签列表" })
   @ApiQuery({ name: "bookId", required: false, type: String, description: "书籍ID" })
-  listBookmarks(@Req() req: any, @Query("bookId") bookId?: string) {
+  listBookmarks(@Req() req: Request, @Query("bookId") bookId?: string) {
     return this.svc.listBookmarks(req.user.id, bookId);
   }
 
@@ -110,7 +111,7 @@ export class ClassicController {
   @ApiBearerAuth()
   @Post("bookmarks/:bookId")
   @ApiOperation({ summary: "创建书签" })
-  createBookmark(@Req() req: any, @Param("bookId") bookId: string, @Body() dto: CreateBookmarkDto) {
+  createBookmark(@Req() req: Request, @Param("bookId") bookId: string, @Body() dto: CreateBookmarkDto) {
     return this.svc.createBookmark(req.user.id, bookId, dto);
   }
 

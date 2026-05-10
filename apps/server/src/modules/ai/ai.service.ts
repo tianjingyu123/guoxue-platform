@@ -1,0 +1,501 @@
+import { Injectable, Logger } from "@nestjs/common";
+import { createHmac, createHash, randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
+import { MemoryCache } from "../../common/cache.util";
+import { PrismaService } from "../../prisma/prisma.service";
+
+/**
+ * 腾讯云 AI 能力服务（语音识别/OCR/NLP/翻译）
+ * 使用 TC3-HMAC-SHA256 签名，纯原生HTTP对接
+ */
+@Injectable()
+export class AiService {
+  private readonly logger = new Logger(AiService.name);
+  private readonly secretId: string;
+  private readonly secretKey: string;
+  private readonly translateCache = new MemoryCache<string>(300); // 翻译缓存30min
+
+  constructor(
+    private prisma: PrismaService,
+  ) {
+    this.secretId = process.env.TENCENT_SECRET_ID || "";
+    this.secretKey = process.env.TENCENT_SECRET_KEY || "";
+    if (!this.secretId) {
+      this.logger.warn("腾讯云AI凭证未配置");
+    }
+  }
+
+  // ───────── TC3 签名 ─────────
+
+  private sign(service: string, action: string, body: Record<string, unknown>, region = "ap-guangzhou") {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
+    const payload = JSON.stringify(body);
+    const host = `${service}.tencentcloudapi.com`;
+
+    // 1. Canonical Request
+    const canonicalHeaders = `content-type:application/json\nhost:${host}\n`;
+    const signedHeaders = "content-type;host";
+    const hashedPayload = createHash("sha256").update(payload).digest("hex");
+    const canonicalRequest = `POST\n/\n\n${canonicalHeaders}\n${signedHeaders}\n${hashedPayload}`;
+
+    // 2. String to Sign
+    const algorithm = "TC3-HMAC-SHA256";
+    const hashedCanonicalRequest = createHash("sha256").update(canonicalRequest).digest("hex");
+    const stringToSign = `${algorithm}\n${timestamp}\n${date}/${service}/tc3_request\n${hashedCanonicalRequest}`;
+
+    // 3. Signature
+    const kDate = createHmac("sha256", `TC3${this.secretKey}`).update(date).digest();
+    const kService = createHmac("sha256", kDate).update(service).digest();
+    const kSigning = createHmac("sha256", kService).update("tc3_request").digest();
+    const signature = createHmac("sha256", kSigning).update(stringToSign).digest("hex");
+
+    // 4. Authorization Header
+    const authorization = `${algorithm} Credential=${this.secretId}/${date}/${service}/tc3_request, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+    return { authorization, timestamp, host, payload };
+  }
+
+  private async callApi(service: string, action: string, body: Record<string, unknown>, region?: string, retries = 2): Promise<Record<string, unknown> | null> {
+    const { authorization, timestamp, host, payload } = this.sign(service, action, body, region);
+    const startedAt = Date.now();
+
+    // 超时控制：默认 8 秒
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const resp = await fetch(`https://${host}`, {
+          method: "POST",
+          headers: {
+            "Authorization": authorization,
+            "Content-Type": "application/json",
+            "Host": host,
+            "X-TC-Action": action,
+            "X-TC-Timestamp": String(timestamp),
+            "X-TC-Version": this.getVersion(service),
+            "X-TC-Region": region || "ap-guangzhou",
+          },
+          body: payload,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        const data = await resp.json();
+        const response = (data as Record<string, unknown>).Response;
+        if (response && typeof response === "object" && "Error" in response) {
+          const errData = (response as Record<string, unknown>).Error as Record<string, unknown>;
+          const errCode = errData.Code as string;
+          // 可重试的服务端错误
+          if (attempt < retries && (errCode === "InternalError" || errCode === "RequestLimitExceeded" || errCode === "ResourceInsufficient")) {
+            this.logger.warn(`AI API重试 [${action}] 第${attempt + 1}次: ${errCode}`);
+            await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+            continue;
+          }
+          this.logger.error(`AI API错误 [${action}]`, errData);
+          return null;
+        }
+        const elapsed = Date.now() - startedAt;
+        if (elapsed > 3000) {
+          this.logger.warn(`AI API慢请求 [${action}] ${elapsed}ms`);
+        }
+        return (response || data) as Record<string, unknown>;
+      } catch (err: unknown) {
+        clearTimeout(timeoutId);
+        const errObj = err as Error;
+        if (attempt < retries && (errObj.name === "AbortError" || errObj.name === "TimeoutError" || errObj.message?.includes("fetch"))) {
+          this.logger.warn(`AI API网络重试 [${action}] 第${attempt + 1}次`);
+          await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+          continue;
+        }
+        this.logger.error(`AI API请求失败 [${action}]`, errObj.message);
+        return null;
+      }
+    }
+    return null;
+  }
+
+  private getVersion(service: string): string {
+    const versions: Record<string, string> = {
+      asr: "2019-06-14",
+      ocr: "2018-11-19",
+      nlp: "2019-04-08",
+      tmt: "2018-03-21",
+    };
+    return versions[service] || "2018-03-21";
+  }
+
+  // ───────── 语音识别（ASR） ─────────
+
+  /** 一句话识别（60秒以内） */
+  async sentenceRecognition(voiceBase64: string, params?: {
+    format?: "wav" | "pcm" | "mp3" | "silk";
+    rate?: 8000 | 16000;
+    lang?: "16k_zh" | "8k_zh" | "16k_en";
+  }) {
+    return this.callApi("asr", "SentenceRecognition", {
+      ProjectId: 0,
+      SubServiceType: 2,
+      EngSerViceType: params?.lang || "16k_zh",
+      SourceType: 1,
+      VoiceFormat: params?.format || "wav",
+      UsrAudioKey: randomUUID(),
+      Data: voiceBase64,
+      DataLen: voiceBase64.length,
+    });
+  }
+
+  /** 录音文件识别（支持长语音，需要异步轮询） */
+  async createRecTask(audioUrl: string, params?: {
+    format?: "wav" | "mp3";
+    rate?: 8000 | 16000;
+    callbackUrl?: string;
+  }) {
+    const result = await this.callApi("asr", "CreateRecTask", {
+      EngineModelType: "16k_zh",
+      ChannelNum: 1,
+      ResTextFormat: 0,
+      SourceType: 0,
+      Url: audioUrl,
+      CallbackUrl: params?.callbackUrl || "",
+    });
+    return result?.Data as Record<string, unknown> | undefined;
+  }
+
+  /** 查询录音识别结果 */
+  async queryRecTask(taskId: number): Promise<Record<string, unknown> | undefined> {
+    const result = await this.callApi("asr", "DescribeTaskStatus", { TaskId: taskId });
+    return result?.Data as Record<string, unknown> | undefined;
+  }
+
+  /** 轮询获取语音识别结果（最长等待60秒） */
+  async waitForRecTask(taskId: number, maxRetries = 12, interval = 5000): Promise<Record<string, unknown> | null> {
+    for (let i = 0; i < maxRetries; i++) {
+      await new Promise((r) => setTimeout(r, interval));
+      const status = await this.queryRecTask(taskId) as Record<string, unknown> | null;
+      if (status?.StatusStr === "success") return status;
+      if (status?.StatusStr === "failed") return null;
+    }
+    return null; // 超时
+  }
+
+  // ───────── 通用 OCR ─────────
+
+  /** 通用印刷体识别 */
+  async generalBasicOCR(imageBase64: string) {
+    const result = await this.callApi("ocr", "GeneralBasicOCR", {
+      ImageBase64: imageBase64,
+    });
+    return (result?.TextDetections as Array<Record<string, unknown>>) || [];
+  }
+
+  /** 通用手写体识别 */
+  async generalHandwritingOCR(imageBase64: string) {
+    const result = await this.callApi("ocr", "GeneralHandwritingOCR", {
+      ImageBase64: imageBase64,
+    });
+    return (result?.TextDetections as Array<Record<string, unknown>>) || [];
+  }
+
+  /** 表格识别 */
+  async tableOCR(imageBase64: string) {
+    return this.callApi("ocr", "TableOCR", { ImageBase64: imageBase64 });
+  }
+
+  /** 古籍识别（通用印刷体适用于仿宋/楷体等古籍常用字体） */
+  async ancientBookOCR(imageBase64: string) {
+    // 用高精度模式 + 语言提示提升古籍识别准确率
+    const result = await this.callApi("ocr", "GeneralAccurateOCR", {
+      ImageBase64: imageBase64,
+      IsWords: true,
+      EnableDetectText: true,
+    });
+    return (result?.TextDetections as Array<Record<string, unknown>>) || [];
+  }
+
+  // ───────── 自然语言处理（NLP） ─────────
+
+  /** 情感分析 */
+  async sentimentAnalyze(text: string) {
+    const result = await this.callApi("nlp", "SentimentAnalyze", {
+      Text: text,
+    });
+    // Positive/Neutral/Negative
+    const r = result as Record<string, unknown> | null;
+    return {
+      sentiment: (r?.Sentiment as string) || "Neutral",
+      positive: (r?.Positive as number) || 0,
+      negative: (r?.Negative as number) || 0,
+      neutral: (r?.Neutral as number) || 0,
+    };
+  }
+
+  /** 关键词提取 */
+  async extractKeywords(text: string, count = 10) {
+    const result = await this.callApi("nlp", "KeywordsExtraction", {
+      Text: text,
+      Num: count,
+    });
+    return ((result?.Keywords || []) as Array<Record<string, unknown>>).map((k) => ({
+      word: k.Word,
+      score: k.Score,
+    }));
+  }
+
+  /** 文本分类 */
+  async classifyText(text: string) {
+    const result = await this.callApi("nlp", "ClassifyContent", {
+      Title: text.slice(0, 80),
+      Content: text,
+    });
+    const r = result as Record<string, unknown> | null;
+    const classes: Array<{ label: string; confidence: number }> = [];
+    if (r?.FirstLabel) classes.push({ label: r.FirstLabel as string, confidence: 1 });
+    if (r?.SecondLabel) classes.push({ label: r.SecondLabel as string, confidence: 0.8 });
+    return classes;
+  }
+
+  // ───────── 机器翻译（TMT） ─────────
+
+  /** 文本翻译 */
+  async translateText(text: string, sourceLang = "zh", targetLang = "en") {
+    const cacheKey = `t:${sourceLang}:${targetLang}:${text}`;
+    const cached = this.translateCache.get(cacheKey);
+    if (cached !== undefined) return cached;
+
+    const result = await this.callApi("tmt", "TextTranslate", {
+      SourceText: text,
+      Source: sourceLang,
+      Target: targetLang,
+      ProjectId: 0,
+    });
+    const translated = (result?.TargetText as string) || "";
+    if (translated) {
+      this.translateCache.set(cacheKey, translated, 30 * 60 * 1000);
+    }
+    return translated;
+  }
+
+  /** 批量文本翻译 */
+  async translateBatch(texts: string[], sourceLang = "zh", targetLang = "en") {
+    const results: string[] = [];
+    // 每次最多翻译5000字符
+    for (const text of texts) {
+      const translated = await this.translateText(text, sourceLang, targetLang);
+      results.push(translated);
+    }
+    return results;
+  }
+
+  /** 语种识别 */
+  async detectLanguage(text: string) {
+    const result = await this.callApi("tmt", "LanguageDetect", {
+      Text: text,
+      ProjectId: 0,
+    });
+    const r = result as Record<string, unknown> | null;
+    return {
+      lang: (r?.Lang as string) || "zh",
+      confidence: (r?.Confidence as number) || 0,
+    };
+  }
+
+  // ───────── AI 调用监控 ─────────
+
+  /** 获取AI使用统计数据 */
+  async getAiUsageStats(period: "day" | "week" | "month") {
+    const now = new Date();
+    let startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    this.logger.log(`获取AI使用统计: period=${period}`);
+
+    switch (period) {
+      case "week":
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case "month":
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+    }
+
+    const records = await this.prisma.aiAnalysisRecord.findMany({
+      where: { createdAt: { gte: startDate } },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // 模型单价估算（元/千token）
+    const modelPrices: Record<string, { inputPer1K: number; outputPer1K: number }> = {
+      "deepseek-v4-pro": { inputPer1K: 0.001, outputPer1K: 0.002 },
+    };
+
+    let totalCalls = 0;
+    let totalTokens = 0;
+    let totalCost = 0;
+    const byServiceMap: Record<string, { count: number; totalTokens: number; estimatedCost: number }> = {};
+    const trendMap: Record<string, { count: number; totalTokens: number }> = {};
+
+    for (const r of records) {
+      totalCalls++;
+      const service = r.modelName || "unknown";
+      const usage = r.tokenUsage as Record<string, unknown>;
+      const promptTokens = (usage?.promptTokens as number) || 0;
+      const completionTokens = (usage?.completionTokens as number) || 0;
+      const tokens = promptTokens + completionTokens;
+      totalTokens += tokens;
+
+      const price = modelPrices[r.modelName] || { inputPer1K: 0.001, outputPer1K: 0.002 };
+      const cost = (promptTokens * price.inputPer1K + completionTokens * price.outputPer1K) / 1000;
+      totalCost += cost;
+
+      if (!byServiceMap[service]) {
+        byServiceMap[service] = { count: 0, totalTokens: 0, estimatedCost: 0 };
+      }
+      byServiceMap[service].count++;
+      byServiceMap[service].totalTokens += tokens;
+      byServiceMap[service].estimatedCost += cost;
+
+      let dateKey: string;
+      if (period === "day") {
+        dateKey = `${r.createdAt.getHours().toString().padStart(2, "0")}:00`;
+      } else {
+        dateKey = `${(r.createdAt.getMonth() + 1).toString().padStart(2, "0")}-${r.createdAt.getDate().toString().padStart(2, "0")}`;
+      }
+      if (!trendMap[dateKey]) {
+        trendMap[dateKey] = { count: 0, totalTokens: 0 };
+      }
+      trendMap[dateKey].count++;
+      trendMap[dateKey].totalTokens += tokens;
+    }
+
+    const trend = Object.entries(trendMap)
+      .map(([date, data]) => ({ date, ...data }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return {
+      period,
+      totalCalls,
+      totalTokens,
+      estimatedCost: Math.round(totalCost * 10000) / 10000,
+      byService: Object.entries(byServiceMap).map(([service, data]) => ({ service, ...data })),
+      trend,
+    };
+  }
+
+  /** 获取AI调用日志（分页） */
+  async getAiCallLogs(page: number, pageSize: number, service?: string) {
+    this.logger.log(`查询AI调用日志: page=${page}, pageSize=${pageSize}, service=${service || "all"}`);
+    const where: Prisma.AiAnalysisRecordWhereInput = {};
+    if (service) {
+      where.modelName = service;
+    }
+
+    const [records, total] = await Promise.all([
+      this.prisma.aiAnalysisRecord.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          user: { select: { id: true, nickname: true, avatar: true } },
+        },
+      }),
+      this.prisma.aiAnalysisRecord.count({ where }),
+    ]);
+
+    return {
+      items: records.map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        userNickname: r.user?.nickname || "",
+        userAvatar: r.user?.avatar || "",
+        analyzeType: r.analyzeType,
+        modelName: r.modelName,
+        tokenUsage: r.tokenUsage,
+        isCached: r.isCached,
+        createdAt: r.createdAt,
+      })),
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  /** 获取AI异常告警 */
+  async getAiAbnormalAlerts() {
+    this.logger.log("检查AI异常告警");
+    const now = new Date();
+    const lastHour = new Date(now.getTime() - 60 * 60 * 1000);
+    const lastDay = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const alerts: Array<{ type: string; level: string; message: string; detail: Record<string, unknown>; time: Date }> = [];
+
+    // 1. 单次Token消耗过大（>10000）
+    const highTokenRecords = await this.prisma.aiAnalysisRecord.findMany({
+      where: { createdAt: { gte: lastDay } },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+
+    for (const r of highTokenRecords) {
+      const usage = r.tokenUsage as Record<string, unknown>;
+      const total = ((usage?.promptTokens as number) || 0) + ((usage?.completionTokens as number) || 0);
+      if (total > 10000) {
+        alerts.push({
+          type: "HIGH_TOKEN_USAGE",
+          level: "WARNING",
+          message: `单次Token消耗过大: ${total} tokens`,
+          detail: { recordId: r.id, userId: r.userId, modelName: r.modelName, tokenUsage: usage },
+          time: r.createdAt,
+        });
+      }
+    }
+
+    // 2. 缓存命中率异常（最近1小时缓存未命中率 > 50%）
+    const totalCount = await this.prisma.aiAnalysisRecord.count({
+      where: { createdAt: { gte: lastHour } },
+    });
+    if (totalCount > 10) {
+      const cacheMissCount = await this.prisma.aiAnalysisRecord.count({
+        where: { createdAt: { gte: lastHour }, isCached: false },
+      });
+      const cacheMissRate = cacheMissCount / totalCount;
+      if (cacheMissRate > 0.5) {
+        alerts.push({
+          type: "CACHE_MISS_HIGH",
+          level: "WARNING",
+          message: `缓存未命中率偏高: ${(cacheMissRate * 100).toFixed(1)}%`,
+          detail: { totalCount, cacheMissCount, cacheMissRate },
+          time: now,
+        });
+      }
+    }
+
+    // 3. 调用量异常增长（最近1小时 vs 前一小时）
+    const prevHour = new Date(lastHour.getTime() - 60 * 60 * 1000);
+    const [currentHourCount, prevHourCount] = await Promise.all([
+      this.prisma.aiAnalysisRecord.count({ where: { createdAt: { gte: lastHour } } }),
+      this.prisma.aiAnalysisRecord.count({
+        where: { createdAt: { gte: prevHour, lt: lastHour } },
+      }),
+    ]);
+    if (prevHourCount > 0 && currentHourCount > prevHourCount * 2 && currentHourCount > 20) {
+      alerts.push({
+        type: "USAGE_SURGE",
+        level: "WARNING",
+        message: `调用量异常增长: 最近1小时 ${currentHourCount} 次, 前一小时 ${prevHourCount} 次`,
+        detail: {
+          currentHourCount,
+          prevHourCount,
+          growthRate: Number((currentHourCount / prevHourCount).toFixed(2)),
+        },
+        time: now,
+      });
+    }
+
+    return {
+      total: alerts.length,
+      items: alerts.sort((a, b) => b.time.getTime() - a.time.getTime()),
+    };
+  }
+}

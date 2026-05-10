@@ -29,6 +29,6 @@ export class SanitizePipe implements PipeTransform {
   }
 
   private escape(str: string): string {
-    return str.replace(/[&<>"'\/]/g, (ch) => this.escapables[ch] || ch);
+    return str.replace(/[&<>"'/]/g, (ch) => this.escapables[ch] || ch);
   }
 }

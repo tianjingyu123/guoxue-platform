@@ -1,12 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { WechatPayService } from "../shop/wechat-pay.service";
 
 @Injectable()
 export class CoinService {
+  private readonly logger = new Logger(CoinService.name);
+
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    @Inject(forwardRef(() => WechatPayService)) private wechatPay?: WechatPayService,
   ) {}
 
   /** 获取或创建虚拟币账户 */
@@ -28,16 +33,18 @@ export class CoinService {
   async recharge(userId: string, dto: { amountCoin: number; payMethod?: string; orderNo?: string; description?: string }) {
     if (dto.amountCoin <= 0) throw new BadRequestException("充值币数必须大于0");
 
-    const account = await this.getOrCreateAccount(userId);
-    const newBalance = account.balance + dto.amountCoin;
+    await this.getOrCreateAccount(userId);
 
-    // 事务: 更新账户 + 创建充值记录 + 创建流水
-    const [updatedAccount, recharge, transaction] = await this.prisma.$transaction([
-      this.prisma.virtualCoinAccount.update({
+    // 交互式事务：余额用 atomic increment，避免读-写竞态
+    const [updatedAccount, recharge, transaction] = await this.prisma.$transaction(async (tx) => {
+      const acc = await tx.virtualCoinAccount.update({
         where: { userId },
-        data: { balance: newBalance, totalRecharged: { increment: dto.amountCoin } },
-      }),
-      this.prisma.virtualCoinRecharge.create({
+        data: {
+          balance: { increment: dto.amountCoin },
+          totalRecharged: { increment: dto.amountCoin },
+        },
+      });
+      const rec = await tx.virtualCoinRecharge.create({
         data: {
           userId,
           amountRmb: dto.amountCoin / 10, // 10币=1元
@@ -47,86 +54,85 @@ export class CoinService {
           status: "PAID",
           paidAt: new Date(),
         },
-      }),
-      this.prisma.virtualCoinTransaction.create({
+      });
+      const txn = await tx.virtualCoinTransaction.create({
         data: {
           userId,
           type: "RECHARGE",
           amountCoin: dto.amountCoin,
-          balanceAfter: newBalance,
+          balanceAfter: acc.balance,
           scene: "RECHARGE",
           description: dto.description || "充值",
         },
-      }),
-    ]);
+      });
+      return [acc, rec, txn];
+    });
 
     return { account: updatedAccount, recharge, transaction };
   }
 
-  /** 消费虚拟币 */
+  /** 消费虚拟币（交互式事务 + 原子扣减防超额） */
   async spend(userId: string, dto: { amountCoin: number; scene: string; refId?: string; description?: string }) {
     if (dto.amountCoin <= 0) throw new BadRequestException("消费币数必须大于0");
 
-    const account = await this.getOrCreateAccount(userId);
-    if (account.balance < dto.amountCoin) {
-      throw new BadRequestException("虚拟币余额不足");
-    }
+    await this.getOrCreateAccount(userId);
 
-    const newBalance = account.balance - dto.amountCoin;
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.virtualCoinAccount.updateMany({
+        where: { userId, balance: { gte: dto.amountCoin } },
+        data: {
+          balance: { decrement: dto.amountCoin },
+          totalSpent: { increment: dto.amountCoin },
+        },
+      });
+      if (result.count === 0) throw new BadRequestException("虚拟币余额不足");
 
-    const [updatedAccount, transaction] = await this.prisma.$transaction([
-      this.prisma.virtualCoinAccount.update({
-        where: { userId },
-        data: { balance: newBalance, totalSpent: { increment: dto.amountCoin } },
-      }),
-      this.prisma.virtualCoinTransaction.create({
+      const acc = await tx.virtualCoinAccount.findUnique({ where: { userId } });
+      const txn = await tx.virtualCoinTransaction.create({
         data: {
           userId,
           type: "SPEND",
           amountCoin: -dto.amountCoin,
-          balanceAfter: newBalance,
-          scene: dto.scene as any,
+          balanceAfter: acc!.balance,
+          scene: dto.scene as Prisma.VirtualCoinTransactionCreateInput["scene"],
           refId: dto.refId,
           description: dto.description,
         },
-      }),
-    ]);
-
-    return { account: updatedAccount, transaction };
+      });
+      return { account: acc!, transaction: txn };
+    });
   }
 
-  /** 退款（平台赠送等） */
+  /** 退款（平台赠送等，交互式事务 + 原子增量） */
   async refund(userId: string, amountCoin: number, description: string) {
     if (amountCoin <= 0) throw new BadRequestException("退款币数必须大于0");
 
-    const account = await this.getOrCreateAccount(userId);
-    const newBalance = account.balance + amountCoin;
+    await this.getOrCreateAccount(userId);
 
-    const [updatedAccount, transaction] = await this.prisma.$transaction([
-      this.prisma.virtualCoinAccount.update({
+    return this.prisma.$transaction(async (tx) => {
+      const acc = await tx.virtualCoinAccount.update({
         where: { userId },
-        data: { balance: newBalance },
-      }),
-      this.prisma.virtualCoinTransaction.create({
+        data: { balance: { increment: amountCoin } },
+      });
+      const txn = await tx.virtualCoinTransaction.create({
         data: {
           userId,
           type: "REFUND",
           amountCoin,
-          balanceAfter: newBalance,
+          balanceAfter: acc.balance,
           scene: "REFUND",
           description,
         },
-      }),
-    ]);
-
-    return { account: updatedAccount, transaction };
+      });
+      return { account: acc, transaction: txn };
+    });
   }
 
   /** 交易流水 */
   async getTransactions(userId: string, page = 1, pageSize = 20, type?: string, scene?: string) {
-    const where: any = { userId };
-    if (type) where.type = type;
-    if (scene) where.scene = scene;
+    const where: Prisma.VirtualCoinTransactionWhereInput = { userId };
+    if (type) where.type = type as Prisma.VirtualCoinTransactionWhereInput["type"];
+    if (scene) where.scene = scene as Prisma.VirtualCoinTransactionWhereInput["scene"];
 
     const [transactions, total] = await Promise.all([
       this.prisma.virtualCoinTransaction.findMany({
@@ -142,7 +148,7 @@ export class CoinService {
 
   /** 充值记录 */
   async getRecharges(page = 1, pageSize = 20, userId?: string) {
-    const where: any = {};
+    const where: Prisma.VirtualCoinRechargeWhereInput = {};
     if (userId) where.userId = userId;
 
     const [recharges, total] = await Promise.all([
@@ -179,7 +185,13 @@ export class CoinService {
 
   /** 创建礼物（管理员） */
   async createGift(dto: { name: string; icon?: string; priceCoin: number; level?: string; effectUrl?: string; sortOrder?: number }) {
-    return this.prisma.gift.create({ data: dto as any });
+    return this.prisma.gift.create({ data: dto as Prisma.GiftCreateInput });
+  }
+
+  /** 删除礼物（管理员） */
+  async deleteGift(giftId: string) {
+    await this.prisma.gift.delete({ where: { id: giftId } });
+    return { success: true };
   }
 
   /** 打赏 */
@@ -214,5 +226,90 @@ export class CoinService {
       orderBy: { totalCoin: "desc" },
       take: limit,
     });
+  }
+
+  // ───────── 微信支付充值 ─────────
+
+  /** 创建微信支付JSAPI充值订单 */
+  async createRechargePayment(
+    userId: string,
+    openid: string,
+    amountCoin: number,
+    notifyUrl?: string,
+  ) {
+    if (!this.wechatPay) throw new BadRequestException("支付服务未配置");
+
+    const tier = this.getRechargeTiers().find(t => t.amountCoin === amountCoin);
+    const amountRmb = tier ? tier.amountRmb : amountCoin / 10;
+    const totalFen = Math.round(amountRmb * 100);
+
+    const orderNo = `RC${Date.now()}${userId.slice(0, 6)}`;
+    const result = await this.wechatPay.createJsapiOrder({
+      outTradeNo: orderNo,
+      description: `${amountCoin}国学币充值`,
+      amount: { total: totalFen },
+      payer: { openid },
+      attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin }),
+      notifyUrl,
+    });
+
+    return result.paySign;
+  }
+
+  /** 处理充值支付回调（由支付通知中心调用） */
+  async handleRechargeCallback(body: Record<string, unknown>) {
+    if (body.trade_state !== "SUCCESS") return;
+
+    let attach: Record<string, unknown> = {};
+    try {
+      attach = typeof body.attach === "string" ? JSON.parse(body.attach) : (body.attach as Record<string, unknown>) || {};
+    } catch (err) { this.logger.warn("解析充值回调attach失败", err); }
+
+    if (attach.type !== "COIN_RECHARGE") return;
+
+    const userId = attach.userId;
+    const amountCoin = attach.amountCoin;
+
+    if (!userId || !amountCoin) {
+      this.logger.error("充值回调参数缺失", attach);
+      return;
+    }
+
+    const orderNo = body.out_trade_no;
+    const lockKey = `recharge:lock:${orderNo}`;
+
+    // 分布式锁防并发重复处理
+    const locked = await this.redis.setNX(lockKey, "1", 30);
+    if (!locked) {
+      this.logger.warn(`充值回调重复处理被拦截: ${orderNo}`);
+      return;
+    }
+
+    try {
+      // 检查是否已处理（幂等）
+      const existing = await this.prisma.virtualCoinRecharge.findUnique({
+        where: { orderNo },
+      });
+      if (existing?.status === "PAID") return;
+
+      const amountRmb = amountCoin / 10;
+
+      await this.recharge(userId, {
+        amountCoin,
+        payMethod: "WECHAT",
+        orderNo,
+        description: `微信支付充值${amountCoin}币`,
+      });
+
+      // 更新充值金额
+      await this.prisma.virtualCoinRecharge.update({
+        where: { orderNo },
+        data: { amountRmb, status: "PAID", paidAt: new Date() },
+      });
+
+      this.logger.log(`用户 ${userId} 充值 ${amountCoin} 币成功, 微信订单: ${orderNo}`);
+    } finally {
+      await this.redis.del(lockKey);
+    }
   }
 }

@@ -1,20 +1,32 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { WebhookService } from "../webhook/webhook.service";
+import { MemoryCache } from "../../common/cache.util";
 
 @Injectable()
 export class CommissionService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(CommissionService.name);
+  private readonly configCache = new MemoryCache<any>(50);
+
+  constructor(
+    private prisma: PrismaService,
+    private webhook: WebhookService,
+  ) {}
 
   // ───────── 佣金配置管理 ─────────
 
   async getAllConfigs() {
-    return this.prisma.commissionConfig.findMany();
+    const cached = this.configCache.get("all");
+    if (cached) return cached;
+    const configs = await this.prisma.commissionConfig.findMany();
+    this.configCache.set("all", configs, 300_000);
+    return configs;
   }
 
   async updateConfig(key: string, dto: { rateA?: number; rateB?: number; rateC?: number; description?: string }) {
     const config = await this.prisma.commissionConfig.findUnique({ where: { configKey: key } });
     if (!config) throw new NotFoundException("配置不存在");
-    return this.prisma.commissionConfig.update({
+    const updated = await this.prisma.commissionConfig.update({
       where: { configKey: key },
       data: {
         ...(dto.rateA !== undefined && { rateA: dto.rateA }),
@@ -23,6 +35,8 @@ export class CommissionService {
         ...(dto.description !== undefined && { description: dto.description }),
       },
     });
+    this.configCache.delete("all");
+    return updated;
   }
 
   // ───────── 佣金计算核心 ─────────
@@ -75,8 +89,8 @@ export class CommissionService {
       data: { totalEarning: { increment: earned } },
     });
 
-    // 发送收益通知
-    await this.prisma.notification.create({
+    // 发送收益通知（fire-and-forget，不阻塞主流程）
+    this.prisma.notification.create({
       data: {
         userId: station.userId,
         type: "EARNING",
@@ -85,7 +99,7 @@ export class CommissionService {
         targetType: type,
         targetId: orderId,
       },
-    });
+    }).catch((err) => this.logger.warn("收益通知发送失败", err));
 
     return earning;
   }
@@ -157,20 +171,21 @@ export class CommissionService {
       stationId = station.id;
     }
 
-    // 检查余额
-    const { balance } = await this.getStationBalance(stationId);
+    // 并行查询余额和最低提现门槛
+    const [{ balance }, cfg] = await Promise.all([
+      this.getStationBalance(stationId),
+      this.prisma.commissionConfig.findUnique({ where: { configKey: "withdrawal_min" } }),
+    ]);
     if (balance < dto.amount) {
       throw new BadRequestException(`余额不足，当前可提现余额 ¥${balance.toFixed(2)}`);
     }
 
-    // 检查最低提现门槛 (¥100)
-    const cfg = await this.prisma.commissionConfig.findUnique({ where: { configKey: "withdrawal_min" } });
     const minAmount = cfg ? Number(cfg.rateA) : 100;
     if (dto.amount < minAmount) {
       throw new BadRequestException(`最低提现金额为 ¥${minAmount}`);
     }
 
-    return this.prisma.withdrawal.create({
+    const withdrawal = await this.prisma.withdrawal.create({
       data: {
         userId,
         stationId,
@@ -182,6 +197,15 @@ export class CommissionService {
         status: "PENDING",
       },
     });
+
+    this.webhook.fire("WITHDRAWAL_REQUESTED", {
+      withdrawalId: withdrawal.id,
+      userId,
+      stationId,
+      amount: dto.amount,
+    }).catch((err) => this.logger.warn("Webhook 发送失败", err));
+
+    return withdrawal;
   }
 
   async listWithdrawals(page = 1, pageSize = 20, status?: string) {
@@ -247,11 +271,18 @@ export class CommissionService {
     });
   }
 
-  async getReferralLinks(userId: string) {
-    return this.prisma.referralLink.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-    });
+  async getReferralLinks(userId: string, page = 1, pageSize = 20) {
+    const where = { userId };
+    const [links, total] = await Promise.all([
+      this.prisma.referralLink.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.referralLink.count({ where }),
+    ]);
+    return { links, total, page, pageSize };
   }
 
   async trackClick(code: string) {
@@ -284,5 +315,54 @@ export class CommissionService {
       code += chars[Math.floor(Math.random() * chars.length)];
     }
     return code;
+  }
+
+  // ───────── 新增：分佣配置快捷管理 ─────────
+
+  async getCommissionConfig() {
+    const configs = await this.prisma.commissionConfig.findMany();
+    const result: Record<string, any> = {};
+    for (const cfg of configs) {
+      result[cfg.configKey] = {
+        rateA: Number(cfg.rateA),
+        rateB: Number(cfg.rateB),
+        rateC: cfg.rateC ? Number(cfg.rateC) : null,
+        configName: cfg.configName,
+        description: cfg.description,
+      };
+    }
+    return result;
+  }
+
+  async updateCommissionConfig(type: string, rate: number) {
+    let config = await this.prisma.commissionConfig.findUnique({ where: { configKey: type } });
+    if (!config) {
+      config = await this.prisma.commissionConfig.create({
+        data: {
+          configKey: type,
+          configName: type,
+          rateA: rate,
+          rateB: 0,
+        },
+      });
+    } else {
+      config = await this.prisma.commissionConfig.update({
+        where: { configKey: type },
+        data: { rateA: rate },
+      });
+    }
+
+    // 保存变更记录到 ConfigVersion
+    await this.prisma.configVersion.create({
+      data: {
+        configKey: `commission_config_${type}`,
+        value: { rate },
+        version: 1,
+        comment: `更新 ${type} 分佣比例为 ${rate}`,
+      },
+    });
+
+    this.logger.log(`分佣配置已更新: ${type} = ${rate}`);
+    return config;
   }
 }

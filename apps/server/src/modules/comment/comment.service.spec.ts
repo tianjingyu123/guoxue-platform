@@ -12,6 +12,9 @@ const mockPrisma = {
     update: jest.fn(),
     delete: jest.fn(),
   },
+  userBehavior: {
+    create: jest.fn().mockResolvedValue({}),
+  },
 };
 
 describe("CommentService", () => {

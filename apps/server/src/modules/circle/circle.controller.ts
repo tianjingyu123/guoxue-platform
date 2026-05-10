@@ -1,8 +1,10 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { CircleService } from "./circle.service";
-import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto } from "./circle.dto";
+import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto, ExpertConfigDto } from "./circle.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { StationId } from "../../common/station-id.decorator";
+import { Request } from "express";
 
 @ApiTags("圈子")
 @Controller("circles")
@@ -13,7 +15,10 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建圈子" })
   @ApiBearerAuth()
-  create(@Req() req: any, @Body() dto: CreateCircleDto) {
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  create(@Req() req: Request, @Body() dto: CreateCircleDto) {
     return this.circle.create(req.user.id, dto);
   }
 
@@ -24,27 +29,33 @@ export class CircleController {
   @ApiQuery({ name: "keyword", required: false, type: String, description: "搜索关键词" })
   @ApiQuery({ name: "tag", required: false, type: String, description: "标签筛选" })
   @ApiQuery({ name: "type", required: false, type: String, description: "类型筛选" })
+  @ApiResponse({ status: 200, description: "成功返回圈子列表" })
   list(
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
     @Query("keyword") keyword?: string,
     @Query("tag") tag?: string,
     @Query("type") type?: string,
+    @StationId() stationId?: string,
   ) {
-    return this.circle.listCircles({ page: +page, pageSize: +pageSize, keyword, tag, type });
+    return this.circle.listCircles({ page: +page, pageSize: +pageSize, keyword, tag, type, stationId });
   }
 
   @Get("my")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取我的圈子" })
   @ApiBearerAuth()
-  getMyCircles(@Req() req: any) {
+  @ApiResponse({ status: 200, description: "成功返回我的圈子列表" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  getMyCircles(@Req() req: Request) {
     return this.circle.getMyCircles(req.user.id);
   }
 
   @Get(":id")
   @ApiOperation({ summary: "获取圈子详情" })
-  detail(@Param("id") id: string, @Req() req?: any) {
+  @ApiResponse({ status: 200, description: "成功返回圈子详情" })
+  @ApiResponse({ status: 404, description: "圈子不存在" })
+  detail(@Param("id") id: string, @Req() req?: Request) {
     return this.circle.getDetail(id, req?.user?.id);
   }
 
@@ -52,15 +63,39 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新圈子" })
   @ApiBearerAuth()
-  update(@Param("id") id: string, @Req() req: any, @Body() dto: UpdateCircleDto) {
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 404, description: "圈子不存在" })
+  update(@Param("id") id: string, @Req() req: Request, @Body() dto: UpdateCircleDto) {
     return this.circle.update(id, req.user.id, dto);
+  }
+
+  // ───────── 圈子公告 ─────────
+
+  @Get(":id/announcement")
+  @ApiOperation({ summary: "获取圈子公告" })
+  getAnnouncement(@Param("id") id: string) {
+    return this.circle.getAnnouncement(id);
+  }
+
+  @Put(":id/announcement")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "设置圈子公告（圈主/管理员）" })
+  @ApiBearerAuth()
+  setAnnouncement(@Param("id") circleId: string, @Req() req: Request, @Body("content") content: string) {
+    return this.circle.setAnnouncement(circleId, req.user.id, content);
   }
 
   @Post(":id/join")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "加入圈子" })
   @ApiBearerAuth()
-  join(@Param("id") id: string, @Req() req: any, @Body() dto?: JoinCircleDto) {
+  @ApiResponse({ status: 201, description: "加入成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 404, description: "圈子不存在" })
+  @ApiResponse({ status: 409, description: "已是圈子成员" })
+  join(@Param("id") id: string, @Req() req: Request, @Body() dto?: JoinCircleDto) {
     return this.circle.join(id, req.user.id, dto);
   }
 
@@ -68,7 +103,10 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "退出圈子" })
   @ApiBearerAuth()
-  leave(@Param("id") id: string, @Req() req: any) {
+  @ApiResponse({ status: 201, description: "退出成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 404, description: "未加入该圈子" })
+  leave(@Param("id") id: string, @Req() req: Request) {
     return this.circle.leave(id, req.user.id);
   }
 
@@ -76,6 +114,7 @@ export class CircleController {
   @ApiOperation({ summary: "获取圈子成员列表" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  @ApiResponse({ status: 200, description: "成功返回成员列表" })
   members(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.circle.listMembers(id, +page, +pageSize);
   }
@@ -84,10 +123,14 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新成员角色" })
   @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "角色更新成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限（需圈主/管理员）" })
+  @ApiResponse({ status: 404, description: "成员或圈子不存在" })
   updateMemberRole(
     @Param("id") circleId: string,
     @Param("userId") targetUserId: string,
-    @Req() req: any,
+    @Req() req: Request,
     @Body() dto: UpdateMemberRoleDto,
   ) {
     return this.circle.updateMemberRole(circleId, req.user.id, targetUserId, dto);
@@ -97,10 +140,14 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "移除圈子成员" })
   @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "移除成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 404, description: "成员不存在" })
   removeMember(
     @Param("id") circleId: string,
     @Param("userId") targetUserId: string,
-    @Req() req: any,
+    @Req() req: Request,
   ) {
     return this.circle.removeMember(circleId, req.user.id, targetUserId);
   }
@@ -111,7 +158,11 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建帖子" })
   @ApiBearerAuth()
-  createPost(@Param("id") circleId: string, @Req() req: any, @Body() dto: CreatePostDto) {
+  @ApiResponse({ status: 201, description: "发帖成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 404, description: "圈子不存在" })
+  createPost(@Param("id") circleId: string, @Req() req: Request, @Body() dto: CreatePostDto) {
     return this.circle.createPost(circleId, req.user.id, dto);
   }
 
@@ -121,6 +172,7 @@ export class CircleController {
   @ApiQuery({ name: "isEssence", required: false, type: String, description: "精华帖筛选" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  @ApiResponse({ status: 200, description: "成功返回帖子列表" })
   getPosts(
     @Param("id") circleId: string,
     @Query("type") type?: string,
@@ -133,6 +185,8 @@ export class CircleController {
 
   @Get(":id/posts/:postId")
   @ApiOperation({ summary: "获取帖子详情" })
+  @ApiResponse({ status: 200, description: "成功返回帖子详情" })
+  @ApiResponse({ status: 404, description: "帖子不存在" })
   getPostDetail(@Param("postId") postId: string) {
     return this.circle.getPostDetail(postId);
   }
@@ -141,7 +195,11 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新帖子" })
   @ApiBearerAuth()
-  updatePost(@Param("postId") postId: string, @Req() req: any, @Body() dto: CreatePostDto) {
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 404, description: "帖子不存在" })
+  updatePost(@Param("postId") postId: string, @Req() req: Request, @Body() dto: CreatePostDto) {
     return this.circle.updatePost(postId, req.user.id, dto);
   }
 
@@ -149,19 +207,46 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除帖子" })
   @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 404, description: "帖子不存在" })
   deletePost(
     @Param("id") circleId: string,
     @Param("postId") postId: string,
-    @Req() req: any,
+    @Req() req: Request,
   ) {
     return this.circle.deletePost(postId, req.user.id, circleId);
+  }
+
+  // ───────── 草稿管理 ─────────
+
+  @Get("drafts")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取我的草稿列表" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  getMyDrafts(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.circle.getMyDrafts(req.user.id, +page, +pageSize);
+  }
+
+  @Post(":id/posts/:postId/publish")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "发布草稿帖子" })
+  @ApiBearerAuth()
+  publishPost(@Param("id") circleId: string, @Param("postId") postId: string, @Req() req: Request) {
+    return this.circle.publishPost(postId, req.user.id);
   }
 
   @Post(":id/posts/:postId/essence")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "切换帖子精华状态" })
   @ApiBearerAuth()
-  toggleEssence(@Param("id") circleId: string, @Param("postId") postId: string, @Req() req: any) {
+  @ApiResponse({ status: 201, description: "切换成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限（需管理员）" })
+  toggleEssence(@Param("id") circleId: string, @Param("postId") postId: string, @Req() req: Request) {
     return this.circle.toggleEssence(postId, circleId, req.user.id);
   }
 
@@ -169,7 +254,38 @@ export class CircleController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "切换帖子置顶状态" })
   @ApiBearerAuth()
-  toggleTop(@Param("id") circleId: string, @Param("postId") postId: string, @Req() req: any) {
+  @ApiResponse({ status: 201, description: "切换成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限（需管理员）" })
+  toggleTop(@Param("id") circleId: string, @Param("postId") postId: string, @Req() req: Request) {
     return this.circle.toggleTop(postId, circleId, req.user.id);
+  }
+
+  // ───────── 达人咨询配置 ─────────
+
+  @Post(":id/expert/config")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "配置达人咨询价格", description: "圈主/嘉宾设置提问价格和连麦价格" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "配置成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无权限（需圈主/管理员/嘉宾）" })
+  setExpertConfig(@Param("id") circleId: string, @Req() req: Request, @Body() dto: ExpertConfigDto) {
+    return this.circle.setExpertConfig(circleId, req.user.id, dto);
+  }
+
+  @Get(":id/expert/:userId")
+  @ApiOperation({ summary: "获取达人咨询配置", description: "查看某成员的提问/连麦价格设置" })
+  @ApiResponse({ status: 200, description: "成功返回达人配置" })
+  @ApiResponse({ status: 404, description: "成员或配置不存在" })
+  getExpertConfig(@Param("id") circleId: string, @Param("userId") userId: string) {
+    return this.circle.getExpertConfig(circleId, userId);
+  }
+
+  @Get(":id/experts")
+  @ApiOperation({ summary: "圈子达人列表", description: "获取圈子内所有可提问/连麦的达人" })
+  @ApiResponse({ status: 200, description: "成功返回达人列表" })
+  listExperts(@Param("id") circleId: string) {
+    return this.circle.listCircleExperts(circleId);
   }
 }

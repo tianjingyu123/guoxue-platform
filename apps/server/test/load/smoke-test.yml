@@ -1,0 +1,79 @@
+# 冒烟测试 — 快速验证所有端点可访问
+# 运行: npx artillery run test/load/smoke-test.yml
+config:
+  target: "http://localhost:3000/api/v1"
+  phases:
+    - duration: 10
+      arrivalRate: 1
+      name: "冒烟测试"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  - name: "冒烟检查"
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/mini/home"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/contents?page=1&pageSize=5"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/classic/books"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/courses"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/shop/products"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/circles"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/live/rooms"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/search?q=国学"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/recommend/trending"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/map/geocode?address=北京市"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/station"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/comment?targetType=ARTICLE&targetId=test&page=1"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/bots"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/mini/contents"
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/tts/voices"
+          expect:
+            - statusCode: 200

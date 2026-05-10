@@ -1,7 +1,15 @@
+import { Request } from "express";
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
+import { SkipFormat } from "../../common/skip-format.decorator";
 import { VideoService } from "./video.service";
+import {
+  CreateVideoDto, UpdateVideoDto, VideoListQueryDto,
+  PullUploadDto, ProcessMediaDto, ClipVideoDto,
+  UploadSignatureDto, PlaybackStatsQueryDto,
+} from "./video.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { StationId } from "../../common/station-id.decorator";
 
 @ApiTags("视频")
 @Controller("videos")
@@ -12,22 +20,23 @@ export class VideoController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建视频" })
   @ApiBearerAuth()
-  create(@Req() req: any, @Body() dto: any) {
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  create(@Req() req: Request, @Body() dto: CreateVideoDto) {
     return this.svc.create(req.user.id, dto);
   }
 
   @Get()
   @ApiOperation({ summary: "获取视频列表" })
-  @ApiQuery({ name: "circleId", required: false, type: String, description: "圈子ID" })
-  @ApiQuery({ name: "status", required: false, type: String, description: "视频状态" })
-  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
-  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
-  list(@Query("circleId") circleId?: string, @Query("status") status?: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.svc.list({ circleId, status, page: +page, pageSize: +pageSize });
+  @ApiResponse({ status: 200, description: "成功返回视频列表" })
+  list(@Query() q: VideoListQueryDto, @StationId() stationId?: string) {
+    return this.svc.list({ circleId: q.circleId, status: q.status, page: +(q.page || 1), pageSize: +(q.pageSize || 20), stationId });
   }
 
   @Get(":id")
   @ApiOperation({ summary: "获取视频详情" })
+  @ApiResponse({ status: 200, description: "成功返回视频详情" })
+  @ApiResponse({ status: 404, description: "视频不存在" })
   detail(@Param("id") id: string) {
     return this.svc.getDetail(id);
   }
@@ -36,23 +45,223 @@ export class VideoController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新视频" })
   @ApiBearerAuth()
-  update(@Param("id") id: string, @Body() dto: any) {
-    return this.svc.update(id, dto);
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 404, description: "视频不存在" })
+  update(@Req() req: Request, @Param("id") id: string, @Body() dto: UpdateVideoDto) {
+    return this.svc.update(req.user.id, id, dto);
   }
 
   @Delete(":id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除视频" })
   @ApiBearerAuth()
-  delete(@Param("id") id: string) {
-    return this.svc.delete(id);
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 404, description: "视频不存在" })
+  delete(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.delete(req.user.id, id);
   }
 
   @Post(":id/like")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "点赞/取消点赞视频" })
+  @ApiOperation({ summary: "点赞视频" })
   @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "点赞成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
   like(@Param("id") id: string) {
     return this.svc.toggleLike(id);
+  }
+
+  // ───────── VOD 上传签名 ─────────
+
+  @Post("vod/upload-signature")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取VOD上传签名" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "返回上传签名" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  getUploadSignature(@Body() dto?: UploadSignatureDto) {
+    return this.svc.getUploadSignature(dto);
+  }
+
+  // ───────── VOD 播放鉴权 ─────────
+
+  @Get("vod/play-signature/:fileId")
+  @ApiOperation({ summary: "获取VOD播放器鉴权签名（psign）" })
+  @ApiResponse({ status: 200, description: "返回播放签名" })
+  getPlaySignature(
+    @Param("fileId") fileId: string,
+    @Query("expire") expire?: string,
+  ) {
+    return this.svc.getPlaySignature(fileId, Number(expire) || 3600);
+  }
+
+  // ───────── VOD URL拉取上传 ─────────
+
+  @Post("vod/pull-upload")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "从URL拉取视频上传到VOD" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "拉取任务创建成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  pullUpload(@Body() dto: PullUploadDto) {
+    return this.svc.pullUpload(dto.urls, {
+      mediaName: dto.mediaName,
+      coverUrl: dto.coverUrl,
+      procedure: dto.procedure,
+      classId: dto.classId,
+    });
+  }
+
+  // ───────── VOD 媒资处理 ─────────
+
+  @Post("vod/process/:fileId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "处理媒资（转码+截图+水印+自适应码流）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "任务提交成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  processMedia(
+    @Param("fileId") fileId: string,
+    @Body() dto?: ProcessMediaDto,
+  ) {
+    return this.svc.processMedia(fileId, dto);
+  }
+
+  // ───────── VOD 视频剪辑 ─────────
+
+  @Post("vod/clip")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "视频剪辑（截取片段生成新视频）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "剪辑任务创建成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  clipVideo(@Body() dto: ClipVideoDto) {
+    return this.svc.clipVideo(dto);
+  }
+
+  // ───────── VOD 媒资信息 ─────────
+
+  @Get("vod/media/:fileId")
+  @ApiOperation({ summary: "获取VOD媒资信息" })
+  @ApiResponse({ status: 200, description: "返回媒资信息" })
+  getMediaInfo(@Param("fileId") fileId: string) {
+    return this.svc.getMediaInfo(fileId);
+  }
+
+  @Delete("vod/media/:fileId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "删除VOD媒资" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  deleteMedia(@Param("fileId") fileId: string) {
+    return this.svc.deleteMedia(fileId);
+  }
+
+  // ───────── VOD 搜索 ─────────
+
+  @Get("vod/search")
+  @ApiOperation({ summary: "搜索VOD媒资库" })
+  @ApiResponse({ status: 200, description: "返回搜索结果" })
+  searchVodMedia(
+    @Query("keyword") keyword?: string,
+    @Query("offset") offset?: number,
+    @Query("limit") limit?: number,
+  ) {
+    return this.svc.searchVodMedia({ keyword, offset, limit });
+  }
+
+  // ───────── VOD 播放统计 ─────────
+
+  @Get("vod/playback-stats/:fileId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取视频播放统计（按天）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "返回播放统计数据" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  getPlaybackStats(
+    @Param("fileId") fileId: string,
+    @Query() q: PlaybackStatsQueryDto,
+  ) {
+    return this.svc.getPlaybackStats(fileId, q.startDate, q.endDate);
+  }
+
+  @Get("vod/playback-summary")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取播放统计概览（全站）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "返回播放统计概览" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  getPlaybackSummary(@Query() q: PlaybackStatsQueryDto) {
+    return this.svc.getPlaybackSummary(q.startDate, q.endDate);
+  }
+
+  // ───────── VOD 回调 ─────────
+
+  @Post("vod/callback")
+  @SkipFormat()
+  @ApiOperation({ summary: "VOD事件回调（转码/截图/上传完成通知）" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
+  vodCallback(@Body() body: Record<string, unknown>) {
+    this.svc.handleVodCallback(body);
+    return { code: 0 };
+  }
+
+  // ───────── 收藏 ─────────
+
+  @Post(":id/collect")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "收藏/取消收藏视频" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "操作成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  toggleCollect(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.toggleCollect(req.user.id, id);
+  }
+
+  @Get("collected/mine")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我收藏的视频列表" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "返回收藏列表" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  listCollected(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.listCollected(req.user.id, +page, +pageSize);
+  }
+
+  // ───────── 分享 ─────────
+
+  @Post(":id/share")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "记录视频分享" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "分享记录成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  recordShare(@Param("id") id: string) {
+    return this.svc.recordShare(id);
+  }
+
+  // ───────── 商品关联 ─────────
+
+  @Post(":id/products/:productId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "添加视频商品关联" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "关联成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  addProduct(@Param("id") id: string, @Param("productId") productId: string) {
+    return this.svc.addProduct(id, productId);
+  }
+
+  @Delete(":id/products/:productId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "移除视频商品关联" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: "移除成功" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  removeProduct(@Param("id") id: string, @Param("productId") productId: string) {
+    return this.svc.removeProduct(id, productId);
   }
 }

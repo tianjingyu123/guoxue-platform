@@ -3,10 +3,12 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto } from "./circle.dto";
+import { Prisma, CircleMemberRole } from "@prisma/client";
 
 @Injectable()
 export class CircleService {
@@ -27,6 +29,7 @@ export class CircleService {
         type: dto.type as any,
         price: dto.price ?? 0,
         depositAmount: dto.depositAmount ?? 0,
+        stationId: dto.stationId || undefined,
         ownerId,
         members: {
           create: { userId: ownerId, role: "OWNER" },
@@ -64,12 +67,17 @@ export class CircleService {
     const cacheKey = `circles:detail:${circleId}`;
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) {
-      // 如果缓存中有数据但缺少当前用户的 membership 信息
-      if (userId && !cached.membership) {
-        const membership = await this.prisma.circleMember.findUnique({
-          where: { circleId_userId: { circleId, userId } },
-        });
-        return { ...cached, membership };
+      if (userId) {
+        // 成员关系独立缓存，避免缓存命中后重复查 DB
+        const memKey = `circles:member:${circleId}:${userId}`;
+        let membership = await this.redis.getJson<any>(memKey);
+        if (membership === undefined) {
+          membership = await this.prisma.circleMember.findUnique({
+            where: { circleId_userId: { circleId, userId } },
+          });
+          await this.redis.setJson(memKey, membership, 60);
+        }
+        return { ...cached, membership: membership || null };
       }
       return cached;
     }
@@ -89,6 +97,8 @@ export class CircleService {
       membership = await this.prisma.circleMember.findUnique({
         where: { circleId_userId: { circleId, userId } },
       });
+      const memKey = `circles:member:${circleId}:${userId}`;
+      await this.redis.setJson(memKey, membership, 60);
     }
 
     const data = { ...circle, membership };
@@ -102,15 +112,16 @@ export class CircleService {
     keyword?: string;
     tag?: string;
     type?: string;
+    stationId?: string;
   }) {
-    const { page, pageSize, keyword, tag, type } = params;
+    const { page, pageSize, keyword, tag, type, stationId } = params;
     const filterHash = `${keyword ?? ""}:${tag ?? ""}:${type ?? ""}`;
     const cacheKey = `circles:list:${page}:${pageSize}:${filterHash}`;
 
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) return cached;
 
-    const where: any = { status: "ACTIVE" };
+    const where: Prisma.CircleWhereInput = { status: "ACTIVE" };
 
     if (keyword) {
       where.OR = [
@@ -119,7 +130,8 @@ export class CircleService {
       ];
     }
     if (tag) where.tags = { has: tag };
-    if (type) where.type = type;
+    if (type) where.type = type as any;
+    if (stationId) where.stationId = stationId;
 
     const [circles, total] = await Promise.all([
       this.prisma.circle.findMany({
@@ -156,6 +168,21 @@ export class CircleService {
     });
   }
 
+  // ───────── 圈子公告 ─────────
+
+  async getAnnouncement(circleId: string) {
+    const key = `circle:announcement:${circleId}`;
+    const content = await this.redis.get(key);
+    return { content: content || "", updatedAt: null };
+  }
+
+  async setAnnouncement(circleId: string, userId: string, content: string) {
+    await this.checkAdmin(circleId, userId);
+    const key = `circle:announcement:${circleId}`;
+    await this.redis.set(key, content, 86400 * 90); // 90天过期
+    return { content, updatedAt: new Date().toISOString() };
+  }
+
   // ───────── 成员管理 ─────────
 
   async join(circleId: string, userId: string, dto?: JoinCircleDto) {
@@ -167,14 +194,24 @@ export class CircleService {
     });
     if (existing) throw new ConflictException("已加入该圈子");
 
-    const member = await this.prisma.circleMember.create({
-      data: { circleId, userId, role: "MEMBER" },
-    });
+    let member: Awaited<ReturnType<typeof this.prisma.circleMember.create>> | undefined;
+    try {
+      member = await this.prisma.circleMember.create({
+        data: { circleId, userId, role: "MEMBER" },
+      });
+    } catch (e: unknown) {
+      if ((e as any)?.code === "P2002") throw new ConflictException("已加入该圈子");
+      throw e;
+    }
 
-    await this.prisma.circle.update({
-      where: { id: circleId },
-      data: { memberCount: { increment: 1 } },
-    });
+    await Promise.all([
+      this.prisma.circle.update({
+        where: { id: circleId },
+        data: { memberCount: { increment: 1 } },
+      }),
+      this.redis.del(`circles:member:${circleId}:${userId}`),
+      this.redis.del(`circles:detail:${circleId}`),
+    ]);
 
     return member;
   }
@@ -189,10 +226,14 @@ export class CircleService {
     await this.prisma.circleMember.delete({
       where: { circleId_userId: { circleId, userId } },
     });
-    await this.prisma.circle.update({
-      where: { id: circleId },
-      data: { memberCount: { decrement: 1 } },
-    });
+    await Promise.all([
+      this.prisma.circle.update({
+        where: { id: circleId },
+        data: { memberCount: { decrement: 1 } },
+      }),
+      this.redis.del(`circles:member:${circleId}:${userId}`),
+      this.redis.del(`circles:detail:${circleId}`),
+    ]);
 
     return { success: true };
   }
@@ -219,10 +260,11 @@ export class CircleService {
     } else {
       await this.prisma.circleMember.update({
         where: { circleId_userId: { circleId, userId: targetUserId } },
-        data: { role: dto.role as any },
+        data: { role: dto.role as CircleMemberRole },
       });
     }
 
+    await this.redis.del(`circles:member:${circleId}:${targetUserId}`);
     return { success: true };
   }
 
@@ -238,10 +280,14 @@ export class CircleService {
     await this.prisma.circleMember.delete({
       where: { circleId_userId: { circleId, userId: targetUserId } },
     });
-    await this.prisma.circle.update({
-      where: { id: circleId },
-      data: { memberCount: { decrement: 1 } },
-    });
+    await Promise.all([
+      this.prisma.circle.update({
+        where: { id: circleId },
+        data: { memberCount: { decrement: 1 } },
+      }),
+      this.redis.del(`circles:member:${circleId}:${targetUserId}`),
+      this.redis.del(`circles:detail:${circleId}`),
+    ]);
 
     return { success: true };
   }
@@ -279,15 +325,53 @@ export class CircleService {
         videoUrl: dto.videoUrl,
         fileUrl: dto.fileUrl,
         linkUrl: dto.linkUrl,
+        status: dto.status ?? "PUBLISHED",
       },
     });
 
+    // 只有发布状态的帖子才计入统计
+    if (!dto.status || dto.status === "PUBLISHED") {
+      await this.prisma.circle.update({
+        where: { id: circleId },
+        data: { postCount: { increment: 1 } },
+      });
+    }
+
+    return post;
+  }
+
+  /** 获取我的草稿列表 */
+  async getMyDrafts(userId: string, page = 1, pageSize = 20) {
+    const where = { userId, status: "DRAFT" };
+    const [posts, total] = await Promise.all([
+      this.prisma.post.findMany({
+        where,
+        include: { circle: { select: { id: true, name: true } } },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { updatedAt: "desc" },
+      }),
+      this.prisma.post.count({ where }),
+    ]);
+    return { posts, total, page, pageSize };
+  }
+
+  /** 发布草稿 */
+  async publishPost(postId: string, userId: string) {
+    const post = await this.prisma.post.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException("帖子不存在");
+    if (post.userId !== userId) throw new ForbiddenException("只能发布自己的帖子");
+    if (post.status !== "DRAFT") throw new BadRequestException("该帖子不是草稿");
+
     await this.prisma.circle.update({
-      where: { id: circleId },
+      where: { id: post.circleId },
       data: { postCount: { increment: 1 } },
     });
 
-    return post;
+    return this.prisma.post.update({
+      where: { id: postId },
+      data: { status: "PUBLISHED", createdAt: new Date() },
+    });
   }
 
   async updatePost(postId: string, userId: string, dto: Partial<CreatePostDto>) {
@@ -295,7 +379,7 @@ export class CircleService {
     if (!post) throw new NotFoundException("帖子不存在");
     if (post.userId !== userId) throw new ForbiddenException("只能编辑自己的帖子");
 
-    return this.prisma.post.update({ where: { id: postId }, data: dto as any });
+    return this.prisma.post.update({ where: { id: postId }, data: dto as Prisma.PostUpdateInput });
   }
 
   async deletePost(postId: string, userId: string, circleId: string) {
@@ -318,9 +402,9 @@ export class CircleService {
 
   async getPosts(circleId: string, query: { type?: string; isEssence?: string; page?: number; pageSize?: number }) {
     const { type, isEssence, page = 1, pageSize = 20 } = query;
-    const where: any = { circleId, status: "PUBLISHED" };
+    const where: Prisma.PostWhereInput = { circleId, status: "PUBLISHED" };
 
-    if (type) where.type = type;
+    if (type) where.type = type as any;
     if (isEssence === "true") where.isEssence = true;
     if (isEssence === "top") where.isTop = true;
 
@@ -371,6 +455,76 @@ export class CircleService {
     return this.prisma.post.update({
       where: { id: postId },
       data: { isTop: !post.isTop },
+    });
+  }
+
+  // ───────── 达人咨询配置 ─────────
+
+  async setExpertConfig(circleId: string, userId: string, dto: {
+    questionPriceCoin: number;
+    questionTimeoutHours: number;
+    callPricePerMinuteCoin: number;
+    callAvailableHours?: Array<{ day: string; start: string; end: string }>;
+  }) {
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (!member) throw new NotFoundException("成员不存在");
+    if (!["OWNER", "PARTNER", "GUEST"].includes(member.role)) {
+      throw new ForbiddenException("只有圈主、合伙人和嘉宾可以配置咨询价格");
+    }
+
+    const updated = await this.prisma.circleMember.update({
+      where: { circleId_userId: { circleId, userId } },
+      data: {
+        questionPriceCoin: dto.questionPriceCoin,
+        questionTimeoutHours: dto.questionTimeoutHours,
+        callPricePerMinuteCoin: dto.callPricePerMinuteCoin,
+        callAvailableHours: dto.callAvailableHours || undefined,
+      },
+    });
+
+    await this.redis.del(`circles:detail:${circleId}`);
+    return updated;
+  }
+
+  async getExpertConfig(circleId: string, userId: string) {
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+      select: {
+        userId: true,
+        role: true,
+        questionPriceCoin: true,
+        questionTimeoutHours: true,
+        callPricePerMinuteCoin: true,
+        callAvailableHours: true,
+        user: { select: { id: true, nickname: true, avatar: true } },
+      },
+    });
+    if (!member) throw new NotFoundException("成员不存在");
+    return member;
+  }
+
+  /** 获取圈子内所有可咨询的达人列表 */
+  async listCircleExperts(circleId: string) {
+    return this.prisma.circleMember.findMany({
+      where: {
+        circleId,
+        role: { in: ["OWNER", "PARTNER", "GUEST"] },
+        OR: [
+          { questionPriceCoin: { gt: 0 } },
+          { callPricePerMinuteCoin: { gt: 0 } },
+        ],
+      },
+      select: {
+        userId: true,
+        role: true,
+        questionPriceCoin: true,
+        questionTimeoutHours: true,
+        callPricePerMinuteCoin: true,
+        callAvailableHours: true,
+        user: { select: { id: true, nickname: true, avatar: true } },
+      },
     });
   }
 

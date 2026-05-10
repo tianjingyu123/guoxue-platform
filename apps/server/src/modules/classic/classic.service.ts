@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class ClassicService {
@@ -9,7 +10,7 @@ export class ClassicService {
   async listBooks(query: { category?: string; page?: number; pageSize?: number }) {
     const page = query.page || 1;
     const pageSize = query.pageSize || 20;
-    const where: any = { status: "PUBLISHED" };
+    const where: Prisma.ClassicBookWhereInput = { status: "PUBLISHED" };
     if (query.category) where.category = query.category;
 
     const [books, total] = await Promise.all([
@@ -40,11 +41,11 @@ export class ClassicService {
     return book;
   }
 
-  async createBook(dto: any) {
+  async createBook(dto: Prisma.ClassicBookCreateInput) {
     return this.prisma.classicBook.create({ data: dto });
   }
 
-  async updateBook(id: string, dto: any) {
+  async updateBook(id: string, dto: Prisma.ClassicBookUpdateInput) {
     return this.prisma.classicBook.update({ where: { id }, data: dto });
   }
 
@@ -60,9 +61,9 @@ export class ClassicService {
     });
   }
 
-  async createChapter(bookId: string, dto: any) {
+  async createChapter(bookId: string, dto: Omit<Prisma.ClassicChapterCreateInput, "book">) {
     const ch = await this.prisma.classicChapter.create({
-      data: { ...dto, bookId },
+      data: { ...dto, bookId } as unknown as Prisma.ClassicChapterCreateInput,
     });
     await this.prisma.classicBook.update({
       where: { id: bookId },
@@ -71,7 +72,7 @@ export class ClassicService {
     return ch;
   }
 
-  async updateChapter(id: string, dto: any) {
+  async updateChapter(id: string, dto: Prisma.ClassicChapterUpdateInput) {
     return this.prisma.classicChapter.update({ where: { id }, data: dto });
   }
 
@@ -103,7 +104,7 @@ export class ClassicService {
 
   // ── 书签 ──
   async listBookmarks(userId: string, bookId?: string) {
-    const where: any = { userId };
+    const where: Prisma.BookmarkWhereInput = { userId };
     if (bookId) where.bookId = bookId;
     return this.prisma.bookmark.findMany({
       where,

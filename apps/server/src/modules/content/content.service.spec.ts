@@ -1,24 +1,41 @@
 import { Test } from "@nestjs/testing";
 import { ContentService } from "./content.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
+import { WebhookService } from "../webhook/webhook.service";
 import { NotFoundException } from "@nestjs/common";
 import { ContentType } from "./content.dto";
 
 const mockPrisma = {
   content: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
 };
+const mockRedis = {
+  getJson: jest.fn(),
+  setJson: jest.fn().mockResolvedValue(undefined),
+  del: jest.fn().mockResolvedValue(undefined),
+  delByPattern: jest.fn().mockResolvedValue(undefined),
+};
+const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
 
 describe("ContentService", () => {
   let svc: ContentService;
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [ContentService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        ContentService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
+        { provide: WebhookService, useValue: mockWebhook },
+      ],
     }).compile();
     svc = mod.get(ContentService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRedis.getJson.mockResolvedValue(null); // 默认缓存未命中
+  });
 
   describe("create", () => {
     it("创建内容成功", async () => {

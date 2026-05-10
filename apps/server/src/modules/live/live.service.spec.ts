@@ -1,6 +1,9 @@
 import { Test } from "@nestjs/testing";
 import { LiveService } from "./live.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
+import { LiveStreamService } from "./live-stream.service";
+import { WebhookService } from "../webhook/webhook.service";
 import { NotFoundException } from "@nestjs/common";
 
 const mockPrisma = {
@@ -12,7 +15,22 @@ const mockPrisma = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  course: {
+    findUnique: jest.fn(),
+  },
+  courseChapter: {
+    create: jest.fn(),
+    findFirst: jest.fn(),
+  },
 };
+
+const mockRedis = {
+  sadd: jest.fn().mockResolvedValue(1),
+  srem: jest.fn().mockResolvedValue(1),
+  scard: jest.fn().mockResolvedValue(5),
+};
+const mockStream = {};
+const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
 
 describe("LiveService", () => {
   let svc: LiveService;
@@ -22,6 +40,9 @@ describe("LiveService", () => {
       providers: [
         LiveService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
+        { provide: LiveStreamService, useValue: mockStream },
+        { provide: WebhookService, useValue: mockWebhook },
       ],
     }).compile();
     svc = mod.get(LiveService);
@@ -53,24 +74,35 @@ describe("LiveService", () => {
       const result = await svc.createRoom("u1", { title: "直播", hostUserId: "u1" });
       expect(result.hostUserId).toBe("u1");
     });
+
+    it("关联课程创建直播间", async () => {
+      mockPrisma.liveRoom.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: "r1", ...data, products: [], courseId: "co1" }),
+      );
+      const result = await svc.createRoom("u1", { title: "课程直播", hostUserId: "u1", courseId: "co1" });
+      expect(result.courseId).toBe("co1");
+    });
   });
 
   describe("updateRoom", () => {
     it("更新直播间成功", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "u1" });
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", title: "新标题" });
-      const result = await svc.updateRoom("r1", { title: "新标题" });
+      const result = await svc.updateRoom("u1", "r1", { title: "新标题" });
       expect(result.title).toBe("新标题");
     });
   });
 
   describe("updateStatus", () => {
-    it("更新为 LIVING 状态", async () => {
+    it("WAITING → LIVING 成功", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "WAITING" });
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "LIVING", pushUrl: "rtmp://example.com" });
       const result = await svc.updateStatus("r1", "LIVING", { pushUrl: "rtmp://example.com" });
       expect(result.status).toBe("LIVING");
     });
 
-    it("更新为 ENDED 状态", async () => {
+    it("LIVING → ENDED 成功", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "LIVING" });
       mockPrisma.liveRoom.update.mockImplementation(({ data }) =>
         Promise.resolve({ id: "r1", ...data }),
       );
@@ -79,7 +111,8 @@ describe("LiveService", () => {
       expect(result.endTime).toBeInstanceOf(Date);
     });
 
-    it("更新为 REPLAY 状态带回放地址", async () => {
+    it("LIVING → REPLAY 成功", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "LIVING" });
       mockPrisma.liveRoom.update.mockImplementation(({ data }) =>
         Promise.resolve({ id: "r1", ...data }),
       );
@@ -133,9 +166,72 @@ describe("LiveService", () => {
 
   describe("deleteRoom", () => {
     it("删除直播间成功", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "u1" });
       mockPrisma.liveRoom.delete.mockResolvedValue({});
-      const result = await svc.deleteRoom("r1");
+      const result = await svc.deleteRoom("u1", "r1");
       expect(result.success).toBe(true);
+    });
+  });
+
+  // ═══════════════════ 课程联动 ═══════════════════
+
+  describe("listCourseRooms", () => {
+    it("获取课程关联的直播间列表", async () => {
+      mockPrisma.liveRoom.findMany.mockResolvedValue([{ id: "r1", title: "课程直播", courseId: "co1" }]);
+      mockPrisma.liveRoom.count.mockResolvedValue(1);
+      const result = await svc.listCourseRooms("co1");
+      expect(result.total).toBe(1);
+      expect(result.rooms).toHaveLength(1);
+      expect(mockPrisma.liveRoom.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { courseId: "co1" } }),
+      );
+    });
+
+    it("课程无直播间返回空列表", async () => {
+      mockPrisma.liveRoom.findMany.mockResolvedValue([]);
+      mockPrisma.liveRoom.count.mockResolvedValue(0);
+      const result = await svc.listCourseRooms("co_empty");
+      expect(result.total).toBe(0);
+    });
+  });
+
+  describe("handleLiveEvent - 课程联动", () => {
+    it("录制回调自动同步回放为课程章节", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r1", courseId: "co1", title: "国学直播课",
+      });
+      mockPrisma.liveRoom.update.mockResolvedValue({});
+      mockPrisma.course.findUnique.mockResolvedValue({ id: "co1" });
+      mockPrisma.courseChapter.findFirst.mockResolvedValue({ sortOrder: 3 });
+      mockPrisma.courseChapter.create.mockResolvedValue({ id: "ch_new", title: "直播回放: 国学直播课" });
+
+      await svc.handleLiveEvent("room_r1", 100, {
+        video_url: "https://replay.example.com/live.mp4",
+      });
+
+      expect(mockPrisma.liveRoom.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "r1" },
+        data: expect.objectContaining({ status: "REPLAY" }),
+      }));
+      expect(mockPrisma.courseChapter.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          courseId: "co1",
+          mediaUrl: "https://replay.example.com/live.mp4",
+        }),
+      }));
+    });
+
+    it("录制回调但房间未关联课程不创建章节", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r2", courseId: null, title: "普通直播",
+      });
+      mockPrisma.liveRoom.update.mockResolvedValue({});
+
+      await svc.handleLiveEvent("room_r2", 100, {
+        video_url: "https://replay.example.com/other.mp4",
+      });
+
+      expect(mockPrisma.courseChapter.create).not.toHaveBeenCalled();
     });
   });
 });

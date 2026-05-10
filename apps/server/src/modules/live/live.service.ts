@@ -1,13 +1,24 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
+import { LiveStreamService } from "./live-stream.service";
+import { WebhookService } from "../webhook/webhook.service";
 import { CreateRoomDto, UpdateRoomDto } from "./live.dto";
+import { Prisma, LiveStatus } from "@prisma/client";
 
 @Injectable()
 export class LiveService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(LiveService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+    private stream: LiveStreamService,
+    private webhook: WebhookService,
+  ) {}
 
   async createRoom(userId: string, dto: CreateRoomDto) {
-    const data: any = {
+    const data: Record<string, unknown> = {
       userId,
       title: dto.title,
       cover: dto.cover,
@@ -18,23 +29,35 @@ export class LiveService {
       chargeType: dto.chargeType || "FREE",
       chargePrice: dto.chargePrice,
       status: "WAITING",
+      ...(dto.courseId ? { courseId: dto.courseId } : {}),
+      ...(dto.productIds?.length ? { products: { create: dto.productIds.map(productId => ({ productId })) } } : {}),
     };
 
-    if (dto.productIds?.length) {
-      data.products = {
-        create: dto.productIds.map(productId => ({ productId })),
-      };
-    }
-
-    return this.prisma.liveRoom.create({ data, include: { products: true } });
+    return this.prisma.liveRoom.create({ data: data as Prisma.LiveRoomCreateInput, include: { products: true } });
   }
 
-  async updateRoom(id: string, dto: UpdateRoomDto) {
-    return this.prisma.liveRoom.update({ where: { id }, data: dto as any });
+  async updateRoom(userId: string, id: string, dto: UpdateRoomDto) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { hostUserId: true } });
+    if (!room) throw new NotFoundException("直播间不存在");
+    if (room.hostUserId !== userId) throw new ForbiddenException("只能修改自己的直播间");
+    return this.prisma.liveRoom.update({ where: { id }, data: dto as unknown as Prisma.LiveRoomUpdateInput });
   }
+
+  private static readonly STATE_MACHINE: Record<string, string[]> = {
+    WAITING: ["LIVING", "CANCELLED"],
+    LIVING: ["REPLAY", "ENDED"],
+    REPLAY: ["ENDED"],
+  };
 
   async updateStatus(id: string, status: string, extra?: { pushUrl?: string; pullUrl?: string; trtcRoomId?: string; replayUrl?: string }) {
-    const data: any = { status };
+    const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { status: true } });
+    if (!room) throw new NotFoundException("直播间不存在");
+
+    const allowed = LiveService.STATE_MACHINE[room.status];
+    if (!allowed || !allowed.includes(status)) {
+      throw new BadRequestException(`不允许从 ${room.status} 变更为 ${status}`);
+    }
+    const data: Record<string, unknown> = { status: status as LiveStatus };
     if (status === "LIVING") {
       data.startTime = new Date();
       if (extra?.pushUrl) data.pushUrl = extra.pushUrl;
@@ -44,16 +67,72 @@ export class LiveService {
     if (status === "REPLAY" && extra?.replayUrl) data.replayUrl = extra.replayUrl;
     if (status === "ENDED") data.endTime = new Date();
 
-    return this.prisma.liveRoom.update({ where: { id }, data });
+    return this.prisma.liveRoom.update({ where: { id }, data: data as Prisma.LiveRoomUpdateInput });
+  }
+
+  /** 开始直播，自动生成推拉流地址 */
+  async startLive(id: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id } });
+    if (!room) throw new NotFoundException("直播间不存在");
+    if (room.status !== "WAITING") throw new BadRequestException("只能在等待状态开始直播");
+
+    const streamKey = `room_${id}`;
+    const pushUrl = this.stream.genPushUrl(streamKey);
+    const playUrls = this.stream.genPlayUrls(streamKey);
+
+    const result = await this.updateStatus(id, "LIVING", {
+      pushUrl,
+      pullUrl: JSON.stringify(playUrls),
+      trtcRoomId: streamKey,
+    });
+
+    this.webhook.fire("LIVE_STARTED", {
+      roomId: id,
+      title: room.title,
+      hostUserId: room.hostUserId,
+      circleId: room.circleId,
+    }).catch((e: unknown) => this.logger.warn("LIVE_STARTED webhook 发送失败", e instanceof Error ? e.message : String(e)));
+
+    return result;
+  }
+
+  /** 获取指定房间的推/拉流地址（主播用） */
+  async getStreamUrls(id: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id } });
+    if (!room) throw new NotFoundException("直播间不存在");
+
+    const streamKey = `room_${id}`;
+    return {
+      pushUrl: room.status === "LIVING" ? room.pushUrl : this.stream.genPushUrl(streamKey),
+      playUrls: this.stream.genPlayUrls(streamKey),
+    };
+  }
+
+  /** 获取观众拉流地址（可带鉴权） */
+  async getPlayUrl(id: string, userId: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id } });
+    if (!room) throw new NotFoundException("直播间不存在");
+    if (room.status !== "LIVING") throw new Error("直播未开始或已结束");
+
+    const streamKey = `room_${id}`;
+    return this.stream.genPlayUrlWithAuth(streamKey, userId);
   }
 
   async endRoom(id: string) {
-    return this.updateStatus(id, "ENDED");
+    const room = await this.prisma.liveRoom.findUnique({ where: { id } });
+    const result = await this.updateStatus(id, "ENDED");
+
+    this.webhook.fire("LIVE_ENDED", {
+      roomId: id,
+      title: room?.title,
+    }).catch((e: unknown) => this.logger.warn("LIVE_ENDED webhook 发送失败", e instanceof Error ? e.message : String(e)));
+
+    return result;
   }
 
   async listRooms(status?: string, page = 1, pageSize = 20) {
-    const where: any = {};
-    if (status) where.status = status;
+    const where: Prisma.LiveRoomWhereInput = {};
+    if (status) where.status = status as LiveStatus;
 
     const [rooms, total] = await Promise.all([
       this.prisma.liveRoom.findMany({
@@ -88,8 +167,388 @@ export class LiveService {
     return room;
   }
 
-  async deleteRoom(id: string) {
+  async deleteRoom(userId: string, id: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { hostUserId: true } });
+    if (!room) throw new NotFoundException("直播间不存在");
+    if (room.hostUserId !== userId) throw new ForbiddenException("只能删除自己的直播间");
     await this.prisma.liveRoom.delete({ where: { id } });
     return { success: true };
+  }
+
+  // ───────── 预告与预约 ─────────
+
+  /** 获取即将开始的直播预告列表（按 startTime 升序） */
+  async listScheduled(page = 1, pageSize = 10) {
+    const where = { status: "WAITING" as LiveStatus, startTime: { gte: new Date() } };
+    const [rooms, total] = await Promise.all([
+      this.prisma.liveRoom.findMany({
+        where,
+        select: {
+          id: true, title: true, cover: true, startTime: true, endTime: true,
+          userId: true,
+          user: { select: { id: true, nickname: true, avatar: true } },
+          circle: { select: { id: true, name: true } },
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { startTime: "asc" },
+      }),
+      this.prisma.liveRoom.count({ where }),
+    ]);
+    return { rooms, total, page, pageSize };
+  }
+
+  /** 预约直播 */
+  async bookRoom(roomId: string, userId: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
+    if (!room) throw new NotFoundException("直播间不存在");
+    if (room.status !== "WAITING") throw new BadRequestException("直播已开始或已结束，无法预约");
+
+    const key = `live:bookings:${roomId}`;
+    await this.redis.sadd(key, userId);
+    const count = await this.redis.scard(key);
+    return { booked: true, bookingCount: count };
+  }
+
+  /** 取消预约 */
+  async unbookRoom(roomId: string, userId: string) {
+    const key = `live:bookings:${roomId}`;
+    await this.redis.srem(key, userId);
+    const count = await this.redis.scard(key);
+    return { booked: false, bookingCount: count };
+  }
+
+  /** 获取预约人数 */
+  async getBookingCount(roomId: string) {
+    const key = `live:bookings:${roomId}`;
+    const count = await this.redis.scard(key);
+    return { roomId, bookingCount: count };
+  }
+
+  /** 处理腾讯云直播回调事件 */
+  async handleLiveEvent(streamKey: string, eventType: number, body: Record<string, unknown>) {
+    const roomId = streamKey.replace("room_", "");
+
+    switch (eventType) {
+      case 0: // 断流
+        this.logger.log(`直播间 ${roomId} 断流`);
+        break;
+      case 1: // 推流
+        this.logger.log(`直播间 ${roomId} 开始推流`);
+        break;
+      case 100: { // 录制回调
+        const videoUrl = (body.video_url || body.file_url) as string;
+        if (videoUrl && roomId) {
+          const room = await this.prisma.liveRoom.findUnique({
+            where: { id: roomId },
+            select: { id: true, courseId: true, title: true },
+          });
+          await this.prisma.liveRoom.update({
+            where: { id: roomId },
+            data: { replayUrl: videoUrl as string, status: "REPLAY" as const },
+          });
+          // 关联了课程 → 回放自动同步为课程章节
+          if (room?.courseId) {
+            await this.syncReplayToCourse(roomId, room.courseId, videoUrl as string, room.title).catch((e: unknown) => {
+              this.logger.warn(`回放同步课程章节失败: ${roomId}: ${e instanceof Error ? e.message : String(e)}`);
+            });
+          }
+        }
+        break;
+      }
+      case 200: // 截图回调
+        this.logger.log(`直播间 ${roomId} 截图: ${body.pic_url || body.file_url}`);
+        break;
+    }
+  }
+
+  // ───────── 麦位管理 ─────────
+
+  /** 用户上麦 */
+  async joinMic(roomId: string, userId: string, position: number) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
+    if (!room) throw new NotFoundException("直播间不存在");
+
+    // 检查麦位是否已被占用
+    const existing = await this.prisma.liveMic.findUnique({
+      where: { liveRoomId_position: { liveRoomId: roomId, position } },
+    });
+    if (existing) throw new Error("该麦位已被占用");
+
+    try {
+      return this.prisma.liveMic.create({
+        data: { liveRoomId: roomId, userId, position, status: "OCCUPIED" },
+      });
+    } catch (e: unknown) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") throw new ConflictException("该麦位已被占用");
+      throw e;
+    }
+  }
+
+  /** 下麦（本人或主播/管理员操作） */
+  async leaveMic(roomId: string, userId: string, operatorId?: string) {
+    if (operatorId && operatorId !== userId) {
+      const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
+      if (!room || room.hostUserId !== operatorId) throw new ForbiddenException("只有主播可以操作他人下麦");
+    }
+    const mic = await this.prisma.liveMic.findFirst({
+      where: { liveRoomId: roomId, userId },
+    });
+    if (!mic) throw new NotFoundException("未在麦位上");
+    await this.prisma.liveMic.delete({ where: { id: mic.id } });
+    return { success: true };
+  }
+
+  /** 麦位操作（静音/解除静音/踢人） */
+  async manageMic(roomId: string, operatorId: string, dto: { userId: string; position?: number; action?: string }) {
+    const where: Prisma.LiveMicWhereInput = { liveRoomId: roomId, userId: dto.userId };
+    if (dto.position) where.position = dto.position;
+
+    const mic = await this.prisma.liveMic.findFirst({ where });
+    if (!mic) throw new NotFoundException("未在麦位上");
+
+    switch (dto.action) {
+      case "MUTE":
+        return this.prisma.liveMic.update({ where: { id: mic.id }, data: { status: "MUTED" } });
+      case "UNMUTE":
+        return this.prisma.liveMic.update({ where: { id: mic.id }, data: { status: "OCCUPIED" } });
+      case "KICK":
+        await this.prisma.liveMic.delete({ where: { id: mic.id } });
+        return { success: true };
+      default:
+        throw new Error("无效操作");
+    }
+  }
+
+  /** 获取麦位列表 */
+  async listMics(roomId: string) {
+    return this.prisma.liveMic.findMany({
+      where: { liveRoomId: roomId },
+      orderBy: { position: "asc" },
+    });
+  }
+
+  // ───────── 课件管理 ─────────
+
+  /** 上传课件 */
+  async addSlide(roomId: string, dto: { title: string; url: string; type?: string; sortOrder?: number }) {
+    return this.prisma.liveSlide.create({
+      data: {
+        liveRoomId: roomId,
+        title: dto.title,
+        url: dto.url,
+        type: dto.type || "IMAGE",
+        sortOrder: dto.sortOrder || 0,
+      },
+    });
+  }
+
+  /** 删除课件 */
+  async removeSlide(slideId: string) {
+    await this.prisma.liveSlide.delete({ where: { id: slideId } });
+    return { success: true };
+  }
+
+  /** 课件列表 */
+  async listSlides(roomId: string) {
+    return this.prisma.liveSlide.findMany({
+      where: { liveRoomId: roomId },
+      orderBy: { sortOrder: "asc" },
+    });
+  }
+
+  // ───────── 禁言管理 ─────────
+
+  /** 禁言用户 */
+  async muteUser(roomId: string, operatorId: string, dto: { userId: string; durationMinutes?: number }) {
+    const expiresAt = dto.durationMinutes
+      ? new Date(Date.now() + dto.durationMinutes * 60000)
+      : null;
+
+    return this.prisma.liveMutedUser.upsert({
+      where: { liveRoomId_userId: { liveRoomId: roomId, userId: dto.userId } },
+      create: { liveRoomId: roomId, userId: dto.userId, mutedBy: operatorId, expiresAt },
+      update: { mutedBy: operatorId, mutedAt: new Date(), expiresAt },
+    });
+  }
+
+  /** 解除禁言（主播或管理员操作） */
+  async unmuteUser(roomId: string, userId: string, operatorId: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
+    if (!room || room.hostUserId !== operatorId) throw new ForbiddenException("只有主播可以解除禁言");
+    await this.prisma.liveMutedUser.deleteMany({
+      where: { liveRoomId: roomId, userId },
+    });
+    return { success: true };
+  }
+
+  /** 禁言列表 */
+  async listMutedUsers(roomId: string) {
+    return this.prisma.liveMutedUser.findMany({
+      where: { liveRoomId: roomId },
+      orderBy: { mutedAt: "desc" },
+    });
+  }
+
+  /** 检查用户是否被禁言 */
+  async isUserMuted(roomId: string, userId: string): Promise<boolean> {
+    const record = await this.prisma.liveMutedUser.findUnique({
+      where: { liveRoomId_userId: { liveRoomId: roomId, userId } },
+    });
+    if (!record) return false;
+    if (record.expiresAt && record.expiresAt < new Date()) {
+      await this.prisma.liveMutedUser.delete({ where: { id: record.id } });
+      return false;
+    }
+    return true;
+  }
+
+  // ───────── 限时秒杀 ─────────
+
+  /** 创建秒杀活动 */
+  async createFlashSale(roomId: string, dto: { productId: string; flashPrice: number; stock: number; startTime: string; endTime: string }) {
+    return this.prisma.liveFlashSale.create({
+      data: {
+        liveRoomId: roomId,
+        productId: dto.productId,
+        flashPrice: dto.flashPrice,
+        stock: dto.stock,
+        startTime: new Date(dto.startTime),
+        endTime: new Date(dto.endTime),
+        status: "WAITING",
+      },
+    });
+  }
+
+  /** 开始秒杀 */
+  async startFlashSale(saleId: string) {
+    const sale = await this.prisma.liveFlashSale.findUnique({ where: { id: saleId } });
+    if (!sale) throw new NotFoundException("秒杀活动不存在");
+    if (sale.status !== "WAITING") throw new Error("秒杀状态不允许开始");
+
+    return this.prisma.liveFlashSale.update({
+      where: { id: saleId },
+      data: { status: "ACTIVE" },
+    });
+  }
+
+  /** 秒杀下单（原子扣减库存） */
+  async flashSaleOrder(saleId: string, userId: string) {
+    const sale = await this.prisma.liveFlashSale.findUnique({ where: { id: saleId } });
+    if (!sale) throw new NotFoundException("秒杀活动不存在");
+    if (sale.status !== "ACTIVE") throw new Error("秒杀未开始或已结束");
+    if (new Date() > sale.endTime) throw new Error("秒杀已结束");
+
+    // 原子扣减：where 加 soldCount < stock 防止超卖
+    const updated = await this.prisma.liveFlashSale.updateMany({
+      where: { id: saleId, soldCount: { lt: sale.stock } },
+      data: { soldCount: { increment: 1 } },
+    });
+    if (updated.count === 0) throw new Error("秒杀库存不足");
+
+    return { saleId, userId, flashPrice: sale.flashPrice, productId: sale.productId };
+  }
+
+  /** 结束秒杀 */
+  async endFlashSale(saleId: string) {
+    return this.prisma.liveFlashSale.update({
+      where: { id: saleId },
+      data: { status: "ENDED" },
+    });
+  }
+
+  /** 秒杀列表 */
+  async listFlashSales(roomId: string) {
+    return this.prisma.liveFlashSale.findMany({
+      where: { liveRoomId: roomId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  // ───────── 内容审核 ─────────
+
+  /** CMS审核回调处理 */
+  async handleAuditCallback(roomId: string, screenshotUrl: string, result: string, label?: string, rawData?: unknown) {
+    const log = await this.prisma.liveAuditLog.create({
+      data: {
+        liveRoomId: roomId,
+        screenshotUrl,
+        auditResult: result,
+        label,
+        rawData: rawData as Prisma.InputJsonValue | undefined,
+      },
+    });
+
+    // 违规自动切断流
+    if (result === "BLOCK") {
+      await this.prisma.liveRoom.update({
+        where: { id: roomId },
+        data: { status: "BANNED" as LiveStatus },
+      });
+      this.logger.warn(`直播间 ${roomId} 因违规被自动切断: ${label}`);
+    }
+
+    return log;
+  }
+
+  /** 审核日志列表 */
+  async listAuditLogs(roomId: string, page = 1, pageSize = 20) {
+    const [logs, total] = await Promise.all([
+      this.prisma.liveAuditLog.findMany({
+        where: { liveRoomId: roomId },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.liveAuditLog.count({ where: { liveRoomId: roomId } }),
+    ]);
+    return { logs, total, page, pageSize };
+  }
+
+  // ───────── 课程联动 ─────────
+
+  /** 获取课程关联的直播间列表 */
+  async listCourseRooms(courseId: string, page = 1, pageSize = 20) {
+    const where = { courseId };
+    const [rooms, total] = await Promise.all([
+      this.prisma.liveRoom.findMany({
+        where,
+        include: {
+          user: { select: { id: true, nickname: true, avatar: true } },
+          _count: { select: { products: true } },
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.liveRoom.count({ where }),
+    ]);
+    return { rooms, total, page, pageSize };
+  }
+
+  /** 直播回放同步为课程章节 */
+  private async syncReplayToCourse(roomId: string, courseId: string, replayUrl: string, roomTitle: string) {
+    const course = await this.prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) return;
+
+    // 获取当前课程的最大 sortOrder
+    const lastChapter = await this.prisma.courseChapter.findFirst({
+      where: { courseId },
+      orderBy: { sortOrder: "desc" },
+    });
+    const sortOrder = (lastChapter?.sortOrder ?? 0) + 1;
+
+    await this.prisma.courseChapter.create({
+      data: {
+        courseId,
+        title: `直播回放: ${roomTitle}`,
+        mediaUrl: replayUrl,
+        duration: 0,
+        sortOrder,
+        freeTrial: false,
+      },
+    });
+
+    this.logger.log(`直播间 ${roomId} 回放已同步为课程 ${courseId} 的章节`);
   }
 }

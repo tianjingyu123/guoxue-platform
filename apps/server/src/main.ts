@@ -1,16 +1,25 @@
+import { startTracing, stopTracing } from "./tracing";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import compression from "compression";
-import { AppModule } from "./app.module";
-import { ThrottleGuard } from "./common/throttle.guard";
+import helmet from "helmet";
+import { AppGraphqlModule } from "./app-graphql.module";
+import { RedisThrottleGuard } from "./common/redis-throttle.guard";
+import { RedisService } from "./redis/redis.service";
 import { AllExceptionsFilter } from "./common/http-exception.filter";
 import { LoggingInterceptor } from "./common/logging.interceptor";
+import { TracingInterceptor } from "./common/tracing.interceptor";
+import { ResponseInterceptor } from "./common/response.interceptor";
+import { PinoLoggerService } from "./common/pino-logger.service";
 import { join } from "path";
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  await startTracing();
+
+  const logger = PinoLoggerService.getInstance();
+  const app = await NestFactory.create<NestExpressApplication>(AppGraphqlModule, { logger });
 
   // 响应压缩
   app.use(compression());
@@ -36,8 +45,8 @@ async function bootstrap() {
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   });
-  app.useGlobalInterceptors(new LoggingInterceptor());
-  app.useGlobalGuards(new ThrottleGuard());
+  app.useGlobalInterceptors(new TracingInterceptor(), new LoggingInterceptor(), new ResponseInterceptor());
+  app.useGlobalGuards(new RedisThrottleGuard(app.get(RedisService)));
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalPipes(
     new ValidationPipe({
@@ -47,37 +56,40 @@ async function bootstrap() {
     }),
   );
 
-  // 安全头中间件
-  app.use((req: any, res: any, next: any) => {
-    res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("X-Frame-Options", "DENY");
-    res.setHeader("X-XSS-Protection", "1; mode=block");
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-    res.setHeader(
-      "Strict-Transport-Security",
-      "max-age=31536000; includeSubDomains",
-    );
-    // CSP: 仅允许本站和腾讯云资源
-    const csp = [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https:",
-      "media-src 'self' https:",
-      "connect-src 'self' https:",
-      "frame-src 'self' https://*.qq.com",
-      "font-src 'self' data:",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join("; ");
-    res.setHeader("Content-Security-Policy", csp);
-    next();
-  });
+  // 安全头 — Helmet 默认覆盖 OWASP 推荐的所有安全头
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:", "https:"],
+        mediaSrc: ["'self'", "https:"],
+        connectSrc: ["'self'", "https:"],
+        frameSrc: ["'self'", "https://*.qq.com"],
+        fontSrc: ["'self'", "data:"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+      },
+    },
+  }));
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  console.log(`Server running on http://localhost:${port}`);
+  logger.raw().info({ port }, `Server running on http://localhost:${port}`);
+
+  // 优雅关闭：捕获 SIGTERM/SIGINT，先关 HTTP 再断数据库
+  const signals = ["SIGTERM", "SIGINT"];
+  for (const signal of signals) {
+    process.on(signal, async () => {
+      logger.raw().info({ signal }, `收到 ${signal}，开始优雅关闭...`);
+      await app.close();
+      await stopTracing();
+      logger.raw().info("服务已关闭");
+      process.exit(0);
+    });
+  }
 }
 
 bootstrap();

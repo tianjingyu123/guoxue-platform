@@ -1,5 +1,6 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, IsObject } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, Max, IsObject } from "class-validator";
 import { Type } from "class-transformer";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export enum ProductStatus {
   PENDING = "PENDING",
@@ -8,187 +9,279 @@ export enum ProductStatus {
 }
 
 export class CreateProductDto {
+  @ApiPropertyOptional({ description: "所属圈子ID" })
   @IsOptional() @IsString()
   circleId?: string;
 
+  @ApiProperty({ description: "商品标题" })
   @IsString()
   title: string;
 
+  @ApiPropertyOptional({ description: "分类ID" })
   @IsOptional() @IsString()
   categoryId?: string;
 
+  @ApiPropertyOptional({ description: "商品简介" })
   @IsOptional() @IsString()
   intro?: string;
 
+  @ApiPropertyOptional({ description: "商品详情" })
   @IsOptional() @IsString()
   detail?: string;
 
+  @ApiPropertyOptional({ description: "商品图片列表" })
   @IsOptional() @IsArray()
   images?: string[];
 
+  @ApiPropertyOptional({ description: "视频地址" })
   @IsOptional() @IsString()
   videoUrl?: string;
 
+  @ApiProperty({ description: "价格（元）" })
   @IsNumber()
+  @Min(0)
   price: number;
 
+  @ApiPropertyOptional({ description: "库存数量" })
   @IsOptional() @IsInt()
   stock?: number;
 
+  @ApiPropertyOptional({ description: "SKU列表", type: () => [CreateSkuDto] })
   @IsOptional() @IsArray()
   skus?: CreateSkuDto[];
+
+  @ApiPropertyOptional({ description: "所属驿站ID" })
+  @IsOptional() @IsString()
+  stationId?: string;
 }
 
 export class UpdateProductDto {
+  @ApiPropertyOptional({ description: "商品标题" })
   @IsOptional() @IsString()
   title?: string;
 
+  @ApiPropertyOptional({ description: "商品简介" })
   @IsOptional() @IsString()
   intro?: string;
 
+  @ApiPropertyOptional({ description: "商品详情" })
   @IsOptional() @IsString()
   detail?: string;
 
+  @ApiPropertyOptional({ description: "商品图片列表" })
   @IsOptional() @IsArray()
   images?: string[];
 
+  @ApiPropertyOptional({ description: "价格（元）" })
   @IsOptional() @IsNumber()
   price?: number;
 
+  @ApiPropertyOptional({ description: "库存数量" })
   @IsOptional() @IsInt()
   stock?: number;
 
+  @ApiPropertyOptional({ description: "商品状态", enum: ProductStatus })
   @IsOptional() @IsEnum(ProductStatus)
   status?: ProductStatus;
 }
 
 export class CreateSkuDto {
+  @ApiProperty({ description: "规格属性（如 {颜色: '红色', 尺寸: 'M'}）" })
   @IsObject()
   specs: Record<string, string>;
 
+  @ApiProperty({ description: "SKU价格（元）" })
   @IsNumber()
   price: number;
 
+  @ApiPropertyOptional({ description: "SKU库存" })
   @IsOptional() @IsInt()
   stock?: number;
 
+  @ApiPropertyOptional({ description: "SKU编码" })
   @IsOptional() @IsString()
   skuCode?: string;
 }
 
 export class CreateOrderDto {
+  @ApiProperty({ description: "订单类型（COURSE/PRODUCT/MEMBER/CIRCLE/BOT）" })
   @IsString()
   type: string;
 
+  @ApiProperty({ description: "购买目标ID" })
   @IsString()
   targetId: string;
 
+  @ApiPropertyOptional({ description: "SKU ID" })
   @IsOptional() @IsString()
   skuId?: string;
 
+  @ApiProperty({ description: "购买数量", minimum: 1 })
   @IsNumber()
+  @Min(1)
   amount: number;
 
+  @ApiPropertyOptional({ description: "优惠券ID" })
   @IsOptional() @IsString()
   couponId?: string;
 
+  @ApiPropertyOptional({ description: "推荐人ID" })
   @IsOptional() @IsString()
   referrerId?: string;
 
+  @ApiPropertyOptional({ description: "临时推荐人ID" })
   @IsOptional() @IsString()
   tempReferrerId?: string;
 }
 
 export class CreateCouponDto {
+  @ApiProperty({ description: "优惠券类型（FIXED/DISCOUNT）" })
   @IsString()
   type: string;
 
+  @ApiProperty({ description: "优惠面值（固定减或折扣率如0.8）" })
   @IsNumber()
   value: number;
 
+  @ApiPropertyOptional({ description: "最低消费金额" })
   @IsOptional() @IsNumber()
   minAmount?: number;
 
+  @ApiPropertyOptional({ description: "适用范围" })
   @IsOptional() @IsString()
   scope?: string;
 
+  @ApiPropertyOptional({ description: "适用范围ID" })
   @IsOptional() @IsString()
   scopeId?: string;
 
+  @ApiProperty({ description: "发放总数" })
   @IsInt()
   totalCount: number;
 
+  @ApiProperty({ description: "有效期起始（ISO datetime）" })
   @IsString()
   validStart: string;
 
+  @ApiProperty({ description: "有效期截止（ISO datetime）" })
   @IsString()
   validEnd: string;
 }
 
 export class ProductListQueryDto {
-  @IsOptional() @Type(() => Number) @IsInt()
+  @ApiPropertyOptional({ description: "页码", default: 1, minimum: 1 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1)
   page?: number;
 
-  @IsOptional() @Type(() => Number) @IsInt()
+  @ApiPropertyOptional({ description: "每页数量", default: 20, minimum: 1, maximum: 100 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
   pageSize?: number;
 
+  @ApiPropertyOptional({ description: "分类ID" })
   @IsOptional() @IsString()
   categoryId?: string;
 
+  @ApiPropertyOptional({ description: "商品状态" })
   @IsOptional() @IsString()
   status?: string;
+
+  @ApiPropertyOptional({ description: "驿站ID" })
+  @IsOptional() @IsString()
+  stationId?: string;
+}
+
+export class JsapiPayDto {
+  @ApiProperty({ description: "微信openid" })
+  @IsString()
+  openid: string;
+
+  @ApiPropertyOptional({ description: "回调通知地址" })
+  @IsOptional() @IsString()
+  notifyUrl?: string;
+}
+
+export class NativePayDto {
+  @ApiPropertyOptional({ description: "回调通知地址" })
+  @IsOptional() @IsString()
+  notifyUrl?: string;
+}
+
+export class RefundOrderDto {
+  @ApiPropertyOptional({ description: "退款原因" })
+  @IsOptional() @IsString()
+  reason?: string;
 }
 
 export class OrderListQueryDto {
-  @IsOptional() @Type(() => Number) @IsInt()
+  @ApiPropertyOptional({ description: "页码", default: 1, minimum: 1 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1)
   page?: number;
 
-  @IsOptional() @Type(() => Number) @IsInt()
+  @ApiPropertyOptional({ description: "每页数量", default: 20, minimum: 1, maximum: 100 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
   pageSize?: number;
 
+  @ApiPropertyOptional({ description: "订单类型" })
   @IsOptional() @IsString()
   type?: string;
 
+  @ApiPropertyOptional({ description: "订单状态" })
   @IsOptional() @IsString()
   status?: string;
+
+  @ApiPropertyOptional({ description: "用户ID（管理员可筛选）" })
+  @IsOptional() @IsString()
+  userId?: string;
 }
 
 // ── 优惠券 DTO ──
 
 export class CreateCouponV2Dto {
+  @ApiProperty({ description: "优惠券类型" })
   @IsString()
   type: string;
 
+  @ApiPropertyOptional({ description: "优惠券名称" })
   @IsOptional() @IsString()
   name?: string;
 
+  @ApiPropertyOptional({ description: "优惠面值" })
   @IsOptional() @IsNumber()
   value?: number;
 
+  @ApiPropertyOptional({ description: "固定减免金额" })
   @IsOptional() @IsNumber()
   discountAmount?: number;
 
+  @ApiPropertyOptional({ description: "折扣率（0-1）" })
   @IsOptional() @IsNumber()
   discountRate?: number;
 
+  @ApiPropertyOptional({ description: "最低消费金额" })
   @IsOptional() @IsNumber()
   minAmount?: number;
 
+  @ApiPropertyOptional({ description: "适用范围" })
   @IsOptional() @IsString()
   scope?: string;
 
+  @ApiPropertyOptional({ description: "适用范围ID" })
   @IsOptional() @IsString()
   scopeId?: string;
 
+  @ApiPropertyOptional({ description: "发放总数" })
   @IsOptional() @IsInt()
   totalCount?: number;
 
+  @ApiPropertyOptional({ description: "优惠券状态" })
   @IsOptional() @IsString()
   status?: string;
 
+  @ApiProperty({ description: "有效期起始" })
   @IsString()
   validStart: string;
 
+  @ApiProperty({ description: "有效期截止" })
   @IsString()
   validEnd: string;
 }
@@ -196,13 +289,17 @@ export class CreateCouponV2Dto {
 // ── 商品评价 DTO ──
 
 export class CreateReviewDto {
+  @ApiProperty({ description: "评分（1-5）", minimum: 1, maximum: 5 })
   @IsInt()
   @Min(1)
+  @Max(5)
   rating: number;
 
+  @ApiProperty({ description: "评价内容" })
   @IsString()
   content: string;
 
+  @ApiPropertyOptional({ description: "评价图片" })
   @IsOptional() @IsArray()
   images?: string[];
 }
@@ -210,36 +307,47 @@ export class CreateReviewDto {
 // ── 物流 DTO ──
 
 export class UpdateLogisticsDto {
+  @ApiPropertyOptional({ description: "物流公司" })
   @IsOptional() @IsString()
   company?: string;
 
+  @ApiPropertyOptional({ description: "物流单号" })
   @IsOptional() @IsString()
   logisticsNo?: string;
 
+  @ApiPropertyOptional({ description: "联系人姓名" })
   @IsOptional() @IsString()
   contactName?: string;
 
+  @ApiPropertyOptional({ description: "联系电话" })
   @IsOptional() @IsString()
   contactPhone?: string;
 
+  @ApiPropertyOptional({ description: "省份" })
   @IsOptional() @IsString()
   province?: string;
 
+  @ApiPropertyOptional({ description: "城市" })
   @IsOptional() @IsString()
   city?: string;
 
+  @ApiPropertyOptional({ description: "区县" })
   @IsOptional() @IsString()
   district?: string;
 
+  @ApiPropertyOptional({ description: "详细地址" })
   @IsOptional() @IsString()
   address?: string;
 
+  @ApiPropertyOptional({ description: "邮编" })
   @IsOptional() @IsString()
   zipCode?: string;
 
+  @ApiPropertyOptional({ description: "物流状态" })
   @IsOptional() @IsString()
   status?: string;
 
+  @ApiPropertyOptional({ description: "备注" })
   @IsOptional() @IsString()
   remark?: string;
 }

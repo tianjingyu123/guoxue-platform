@@ -9,6 +9,7 @@ import {
   FollowDto, ReportDto, CommentListQueryDto, ReportListQueryDto,
 } from "./interaction.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { Request } from "express";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 
@@ -23,7 +24,7 @@ export class InteractionController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "点赞/取消点赞" })
   @ApiBearerAuth()
-  toggleLike(@Req() req: any, @Body() dto: LikeDto) {
+  toggleLike(@Req() req: Request, @Body() dto: LikeDto) {
     return this.svc.toggleLike(req.user.id, dto);
   }
 
@@ -33,7 +34,7 @@ export class InteractionController {
   @ApiBearerAuth()
   @ApiQuery({ name: "targetType", required: true, type: String, description: "目标类型" })
   @ApiQuery({ name: "targetIds", required: true, type: String, description: "目标ID列表（逗号分隔）" })
-  checkLiked(@Req() req: any, @Query("targetType") targetType: string, @Query("targetIds") targetIds: string) {
+  checkLiked(@Req() req: Request, @Query("targetType") targetType: string, @Query("targetIds") targetIds: string) {
     return this.svc.isLiked(req.user.id, targetType, targetIds.split(","));
   }
 
@@ -51,7 +52,7 @@ export class InteractionController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建评论" })
   @ApiBearerAuth()
-  createComment(@Req() req: any, @Body() dto: CreateCommentDto) {
+  createComment(@Req() req: Request, @Body() dto: CreateCommentDto) {
     return this.svc.createComment(req.user.id, dto);
   }
 
@@ -65,7 +66,7 @@ export class InteractionController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除评论" })
   @ApiBearerAuth()
-  deleteComment(@Param("id") id: string, @Req() req: any) {
+  deleteComment(@Param("id") id: string, @Req() req: Request) {
     return this.svc.deleteComment(id, req.user.id);
   }
 
@@ -84,7 +85,7 @@ export class InteractionController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "收藏/取消收藏" })
   @ApiBearerAuth()
-  toggleCollect(@Req() req: any, @Body() dto: CollectDto) {
+  toggleCollect(@Req() req: Request, @Body() dto: CollectDto) {
     return this.svc.toggleCollect(req.user.id, dto);
   }
 
@@ -94,7 +95,7 @@ export class InteractionController {
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
-  myCollects(@Req() req: any, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+  myCollects(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.svc.getUserCollects(req.user.id, +page, +pageSize);
   }
 
@@ -104,7 +105,7 @@ export class InteractionController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "关注/取消关注" })
   @ApiBearerAuth()
-  toggleFollow(@Req() req: any, @Body() dto: FollowDto) {
+  toggleFollow(@Req() req: Request, @Body() dto: FollowDto) {
     return this.svc.toggleFollow(req.user.id, dto);
   }
 
@@ -130,7 +131,7 @@ export class InteractionController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "提交举报" })
   @ApiBearerAuth()
-  report(@Req() req: any, @Body() dto: ReportDto) {
+  report(@Req() req: Request, @Body() dto: ReportDto) {
     return this.svc.report(req.user.id, dto);
   }
 

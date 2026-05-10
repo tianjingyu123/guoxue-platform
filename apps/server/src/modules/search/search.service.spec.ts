@@ -3,14 +3,7 @@ import { SearchService } from "./search.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
 const mockPrisma = {
-  article: { findMany: jest.fn() },
-  course: { findMany: jest.fn() },
-  product: { findMany: jest.fn() },
-  circle: { findMany: jest.fn() },
-  video: { findMany: jest.fn() },
-  user: { findMany: jest.fn() },
-  classicBook: { findMany: jest.fn() },
-  content: { findMany: jest.fn() },
+  $queryRaw: jest.fn().mockResolvedValue([]),
   searchHistory: {
     groupBy: jest.fn(),
     create: jest.fn(),
@@ -31,18 +24,10 @@ describe("SearchService", () => {
     svc = mod.get(SearchService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => { jest.clearAllMocks(); mockPrisma.$queryRaw.mockResolvedValue([]); });
 
   describe("search", () => {
     it("无 type 时搜索所有类型", async () => {
-      mockPrisma.article.findMany.mockResolvedValue([]);
-      mockPrisma.course.findMany.mockResolvedValue([]);
-      mockPrisma.product.findMany.mockResolvedValue([]);
-      mockPrisma.circle.findMany.mockResolvedValue([]);
-      mockPrisma.video.findMany.mockResolvedValue([]);
-      mockPrisma.user.findMany.mockResolvedValue([]);
-      mockPrisma.classicBook.findMany.mockResolvedValue([]);
-      mockPrisma.content.findMany.mockResolvedValue([]);
       const result = await svc.search({ q: "论语" });
       expect(result).toHaveProperty("articles");
       expect(result).toHaveProperty("courses");
@@ -53,11 +38,24 @@ describe("SearchService", () => {
       expect(result).toHaveProperty("classics");
       expect(result).toHaveProperty("contents");
     });
-    it("指定 type 只搜索对应类型", async () => {
-      mockPrisma.article.findMany.mockResolvedValue([{ id: "a1", title: "论语" }]);
+
+    it("指定 type 只搜索对应类型（全文搜索排名）", async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([{ id: "a1", title: "论语", rank: 0.8 }]);
       const result = await svc.search({ q: "论语", type: "article" });
       expect(result.articles).toHaveLength(1);
       expect(result.courses).toBeUndefined();
+    });
+
+    it("空查询返回空结果", async () => {
+      const result = await svc.search({ q: "" });
+      expect(result).toEqual({ q: "", type: undefined });
+    });
+
+    it("支持分页参数", async () => {
+      mockPrisma.$queryRaw.mockResolvedValue([]);
+      await svc.search({ q: "国学", type: "article", page: 2, pageSize: 10 });
+      // $queryRaw 至少被调用一次（article 类型）
+      expect(mockPrisma.$queryRaw).toHaveBeenCalled();
     });
   });
 
@@ -71,6 +69,7 @@ describe("SearchService", () => {
       expect(result).toHaveLength(2);
       expect(result[0].keyword).toBe("论语");
     });
+
     it("搜索历史为空时从配置读取兜底", async () => {
       mockPrisma.searchHistory.groupBy.mockResolvedValue([]);
       mockPrisma.configSystem.findUnique.mockResolvedValue({
@@ -79,6 +78,7 @@ describe("SearchService", () => {
       const result = await svc.getHotSearches();
       expect(result).toHaveLength(1);
     });
+
     it("搜索历史和兜底都为空时返回空数组", async () => {
       mockPrisma.searchHistory.groupBy.mockResolvedValue([]);
       mockPrisma.configSystem.findUnique.mockResolvedValue(null);
@@ -93,6 +93,7 @@ describe("SearchService", () => {
       await svc.saveHistory("user-1", "论语");
       expect(mockPrisma.searchHistory.create).toHaveBeenCalled();
     });
+
     it("空关键字不保存", async () => {
       await svc.saveHistory("user-1", "  ");
       expect(mockPrisma.searchHistory.create).not.toHaveBeenCalled();
@@ -100,15 +101,17 @@ describe("SearchService", () => {
   });
 
   describe("suggest", () => {
-    it("返回搜索建议", async () => {
-      mockPrisma.article.findMany.mockResolvedValue([{ id: "a1", title: "论语注解" }]);
-      mockPrisma.course.findMany.mockResolvedValue([]);
-      mockPrisma.circle.findMany.mockResolvedValue([]);
-      mockPrisma.content.findMany.mockResolvedValue([]);
+    it("返回搜索建议（全文搜索）", async () => {
+      mockPrisma.$queryRaw
+        .mockResolvedValueOnce([{ id: "a1", title: "论语注解" }])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
       const result = await svc.suggest("论语");
       expect(result.length).toBeGreaterThan(0);
       expect(result[0].type).toBe("article");
     });
+
     it("空关键字返回空数组", async () => {
       const result = await svc.suggest("");
       expect(result).toEqual([]);
@@ -125,7 +128,9 @@ describe("SearchService", () => {
 
   describe("getHistory", () => {
     it("返回用户搜索历史", async () => {
-      mockPrisma.searchHistory.findMany.mockResolvedValue([{ id: "h1", keyword: "论语", createdAt: new Date() }]);
+      mockPrisma.searchHistory.findMany.mockResolvedValue([
+        { id: "h1", keyword: "论语", createdAt: new Date() },
+      ]);
       const result = await svc.getHistory("user-1");
       expect(result).toHaveLength(1);
     });

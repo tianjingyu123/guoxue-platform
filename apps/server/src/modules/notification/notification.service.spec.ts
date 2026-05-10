@@ -1,6 +1,22 @@
 import { Test } from "@nestjs/testing";
 import { NotificationService } from "./notification.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
+import { PushService } from "./push.service";
+
+const mockPush = {
+  send: jest.fn().mockResolvedValue(null),
+  sendMiniSubscribeMsg: jest.fn().mockResolvedValue({}),
+  sendMpTemplateMsg: jest.fn().mockResolvedValue({}),
+};
+
+const mockRedis = {
+  getJson: jest.fn().mockResolvedValue(null),
+  setJson: jest.fn().mockResolvedValue(null),
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(null),
+  del: jest.fn().mockResolvedValue(null),
+};
 
 const mockPrisma = {
   notification: {
@@ -12,6 +28,9 @@ const mockPrisma = {
     update: jest.fn(),
     updateMany: jest.fn(),
   },
+  auth: {
+    findMany: jest.fn().mockResolvedValue([]),
+  },
 };
 
 describe("NotificationService", () => {
@@ -22,6 +41,8 @@ describe("NotificationService", () => {
       providers: [
         NotificationService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
+        { provide: PushService, useValue: mockPush },
       ],
     }).compile();
     svc = mod.get(NotificationService);
@@ -102,8 +123,9 @@ describe("NotificationService", () => {
 
   describe("markRead", () => {
     it("标记单条已读成功", async () => {
+      mockPrisma.notification.findUnique.mockResolvedValue({ userId: "u1" });
       mockPrisma.notification.update.mockResolvedValue({ id: "n1", isRead: true });
-      const result = await svc.markRead("n1");
+      const result = await svc.markRead("n1", "u1");
       expect(result.isRead).toBe(true);
     });
   });

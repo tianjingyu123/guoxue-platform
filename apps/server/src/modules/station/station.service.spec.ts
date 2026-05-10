@@ -146,4 +146,60 @@ describe("StationService", () => {
       expect(result.total).toBe(1);
     });
   });
+
+  // ═══════════════════ 多小程序配置 ═══════════════════
+
+  describe("getMiniConfig", () => {
+    it("分站有独立小程序时返回分站 AppId", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({
+        id: "s-1", name: "独立分站", code: "standalone",
+        miniAppId: "wx_station_app", mpAppId: "wx_station_mp",
+        miniPages: { home: "pages/home/index", share: "pages/share/index" },
+        logo: "https://cdn/logo.png", themeColor: "#ff6600",
+      });
+      const result = await svc.getMiniConfig("s-1");
+      expect(result.miniAppId).toBe("wx_station_app");
+      expect(result.mpAppId).toBe("wx_station_mp");
+      expect(result.pages.home).toBe("pages/home/index");
+    });
+
+    it("分站无独立小程序时返回平台主 AppId", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({
+        id: "s-2", name: "普通分站", code: "normal",
+        miniAppId: null, mpAppId: null, miniPages: null,
+        logo: null, themeColor: "#8B4513",
+      });
+      const result = await svc.getMiniConfig("s-2");
+      expect(result.miniAppId).toBe(process.env.WECHAT_MINI_APP_ID || process.env.WECHAT_APP_ID || "");
+    });
+
+    it("分站不存在抛出 NotFoundException", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue(null);
+      await expect(svc.getMiniConfig("invalid")).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("resolveJumpTarget", () => {
+    it("自定义页面路径映射生效", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({
+        id: "s-1", name: "分站", code: "gz001",
+        miniAppId: "wx_custom", mpAppId: null, miniPages: { course: "pages/course/list" },
+        logo: null, themeColor: "#8B4513",
+      });
+      const result = await svc.resolveJumpTarget("s-1", "course");
+      expect(result.path).toBe("pages/course/list");
+      expect(result.crossApp).toBe(true);
+    });
+
+    it("未配置映射则原样返回路径", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({
+        id: "s-2", name: "分站", code: "gz002",
+        miniAppId: null, mpAppId: null, miniPages: null,
+        logo: null, themeColor: null,
+      });
+      const result = await svc.resolveJumpTarget("s-2", "pages/other/index");
+      expect(result.path).toBe("pages/other/index");
+      expect(result.crossApp).toBe(false);
+    });
+  });
 });

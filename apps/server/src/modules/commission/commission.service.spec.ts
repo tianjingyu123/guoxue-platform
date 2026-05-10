@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { CommissionService } from "./commission.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { WebhookService } from "../webhook/webhook.service";
 import { NotFoundException, BadRequestException } from "@nestjs/common";
 
 const mockPrisma = {
@@ -11,13 +12,18 @@ const mockPrisma = {
   withdrawal: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), aggregate: jest.fn() },
   referralLink: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
 };
+const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
 
 describe("CommissionService", () => {
   let svc: CommissionService;
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [CommissionService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        CommissionService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: WebhookService, useValue: mockWebhook },
+      ],
     }).compile();
     svc = mod.get(CommissionService);
   });

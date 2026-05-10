@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody } from "@nestjs/swagger";
+import { Request } from "express";
 import { CommissionService } from "./commission.service";
 import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, CreateReferralDto } from "./commission.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -61,7 +62,7 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "申请提现" })
   @ApiBearerAuth()
-  applyWithdrawal(@Req() req: any, @Body() dto: WithdrawalApplyDto) {
+  applyWithdrawal(@Req() req: Request, @Body() dto: WithdrawalApplyDto) {
     return this.svc.applyWithdrawal(req.user.id, dto);
   }
 
@@ -71,7 +72,7 @@ export class CommissionController {
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
-  listMyWithdrawals(@Req() req: any, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+  listMyWithdrawals(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.svc.getUserWithdrawals(req.user.id, +page, +pageSize);
   }
 
@@ -106,7 +107,7 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建推荐链接" })
   @ApiBearerAuth()
-  createReferralLink(@Req() req: any, @Body() dto: CreateReferralDto) {
+  createReferralLink(@Req() req: Request, @Body() dto: CreateReferralDto) {
     return this.svc.createReferralLink(req.user.id, dto);
   }
 
@@ -114,7 +115,7 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取推荐链接列表" })
   @ApiBearerAuth()
-  getReferralLinks(@Req() req: any) {
+  getReferralLinks(@Req() req: Request) {
     return this.svc.getReferralLinks(req.user.id);
   }
 
@@ -122,5 +123,26 @@ export class CommissionController {
   @ApiOperation({ summary: "跟踪推荐链接点击" })
   trackClick(@Param("code") code: string) {
     return this.svc.trackClick(code);
+  }
+
+  // ───────── 新增：分佣配置快捷管理 ─────────
+
+  @Get("config")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "获取分佣配置总览" })
+  @ApiBearerAuth()
+  getCommissionConfig() {
+    return this.svc.getCommissionConfig();
+  }
+
+  @Put("config")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "更新分佣配置比例" })
+  @ApiBearerAuth()
+  @ApiBody({ schema: { properties: { type: { type: "string" }, rate: { type: "number" } } } })
+  updateCommissionConfig(@Body() dto: { type: string; rate: number }) {
+    return this.svc.updateCommissionConfig(dto.type, dto.rate);
   }
 }

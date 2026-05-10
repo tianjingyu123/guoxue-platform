@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsHexColor, MaxLength } from "class-validator";
+import { IsString, IsOptional, IsHexColor, IsObject, MaxLength, IsInt } from "class-validator";
 
 export class CreateStationDto {
   @IsString()
@@ -21,6 +21,20 @@ export class CreateStationDto {
   @IsOptional()
   @IsHexColor()
   themeColor?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  miniAppId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  mpAppId?: string;
+
+  @IsOptional()
+  @IsObject()
+  miniPages?: Record<string, string>;
 }
 
 export class UpdateStationDto {
@@ -45,6 +59,20 @@ export class UpdateStationDto {
   @IsOptional()
   @IsHexColor()
   themeColor?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  miniAppId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  mpAppId?: string;
+
+  @IsOptional()
+  @IsObject()
+  miniPages?: Record<string, string>;
 }
 
 export class CreateOperatorDto {
@@ -52,6 +80,7 @@ export class CreateOperatorDto {
   level: string;
 
   @IsOptional()
+  @IsInt()
   containQuota?: number;
 
   @IsOptional()

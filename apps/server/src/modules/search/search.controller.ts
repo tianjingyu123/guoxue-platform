@@ -1,7 +1,9 @@
 import { Controller, Get, Delete, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { Request } from "express";
 import { SearchService } from "./search.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { ThrottleGuard } from "../../common/throttle.guard";
 
 @ApiTags("搜索")
 @Controller("search")
@@ -10,6 +12,7 @@ export class SearchController {
 
   /** 全局搜索 */
   @Get()
+  @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "全局搜索" })
   @ApiQuery({ name: "q", required: true, type: String, description: "搜索关键词" })
   @ApiQuery({ name: "type", required: false, type: String, description: "搜索类型" })
@@ -38,7 +41,7 @@ export class SearchController {
   @ApiOperation({ summary: "保存搜索历史" })
   @ApiBearerAuth()
   @ApiQuery({ name: "keyword", required: true, type: String, description: "搜索关键词" })
-  saveHistory(@Req() req: any, @Query("keyword") keyword: string) {
+  saveHistory(@Req() req: Request, @Query("keyword") keyword: string) {
     return this.svc.saveHistory(req.user.id, keyword);
   }
 
@@ -47,7 +50,7 @@ export class SearchController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取我的搜索历史" })
   @ApiBearerAuth()
-  getHistory(@Req() req: any) {
+  getHistory(@Req() req: Request) {
     return this.svc.getHistory(req.user.id);
   }
 
@@ -64,7 +67,7 @@ export class SearchController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "清除搜索历史" })
   @ApiBearerAuth()
-  clearHistory(@Req() req: any) {
+  clearHistory(@Req() req: Request) {
     return this.svc.clearHistory(req.user.id);
   }
 

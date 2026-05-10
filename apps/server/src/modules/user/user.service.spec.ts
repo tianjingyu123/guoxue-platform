@@ -1,7 +1,16 @@
 import { Test } from "@nestjs/testing";
 import { UserService } from "./user.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { NotFoundException } from "@nestjs/common";
+
+const mockRedis = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(undefined),
+  del: jest.fn().mockResolvedValue(undefined),
+  getJson: jest.fn().mockResolvedValue(null),
+  setJson: jest.fn().mockResolvedValue(undefined),
+};
 
 const mockPrisma = {
   user: {
@@ -26,6 +35,7 @@ describe("UserService", () => {
       providers: [
         UserService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
       ],
     }).compile();
     svc = mod.get(UserService);

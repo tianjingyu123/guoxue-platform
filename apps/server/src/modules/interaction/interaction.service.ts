@@ -1,12 +1,15 @@
-import { Injectable, NotFoundException, ConflictException } from "@nestjs/common";
+import { Injectable, NotFoundException, ConflictException, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
   LikeDto, CreateCommentDto, CollectDto,
   FollowDto, ReportDto, CommentListQueryDto, ReportListQueryDto,
 } from "./interaction.dto";
+import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class InteractionService {
+  private readonly logger = new Logger(InteractionService.name);
+
   constructor(private prisma: PrismaService) {}
 
   // ═══════════════════ 点赞 ═══════════════════
@@ -20,7 +23,14 @@ export class InteractionService {
       return { liked: false };
     }
 
-    await this.prisma.like.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId } });
+    try {
+      await this.prisma.like.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId } });
+    } catch (e: unknown) {
+      if ((e as any)?.code === "P2002") return { liked: true };
+      throw e;
+    }
+    // 异步记录行为
+    this.prisma.userBehavior.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId, behavior: "LIKE", weight: 1 } }).catch((err) => this.logger.warn("用户行为记录失败", err));
     return { liked: true };
   }
 
@@ -55,12 +65,15 @@ export class InteractionService {
     // 更新对应目标的评论数
     await this.incrementCommentCount(dto.targetType, dto.targetId);
 
+    // 异步记录行为
+    this.prisma.userBehavior.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId, behavior: "COMMENT", weight: 1.5 } }).catch((err) => this.logger.warn("用户行为记录失败", err));
+
     return comment;
   }
 
   async listComments(dto: CommentListQueryDto) {
     const { targetType, targetId, page = 1, pageSize = 20, userId, status } = dto;
-    const where: any = { parentId: null };
+    const where: Prisma.CommentWhereInput = { parentId: null };
 
     if (targetType) where.targetType = targetType;
     if (targetId) where.targetId = targetId;
@@ -119,7 +132,14 @@ export class InteractionService {
       return { collected: false };
     }
 
-    await this.prisma.collect.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId } });
+    try {
+      await this.prisma.collect.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId } });
+    } catch (e: unknown) {
+      if ((e as any)?.code === "P2002") return { collected: true };
+      throw e;
+    }
+    // 异步记录行为
+    this.prisma.userBehavior.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId, behavior: "COLLECT", weight: 2 } }).catch((err) => this.logger.warn("用户行为记录失败", err));
     return { collected: true };
   }
 
@@ -153,7 +173,14 @@ export class InteractionService {
       return { followed: false };
     }
 
-    await this.prisma.follow.create({ data: { userId, followedUserId: dto.followedUserId } });
+    try {
+      await this.prisma.follow.create({ data: { userId, followedUserId: dto.followedUserId } });
+    } catch (e: unknown) {
+      if ((e as any)?.code === "P2002") return { followed: true };
+      throw e;
+    }
+    // 异步记录行为
+    this.prisma.userBehavior.create({ data: { userId, targetType: "USER", targetId: dto.followedUserId, behavior: "FOLLOW", weight: 1 } }).catch((err) => this.logger.warn("用户行为记录失败", err));
     return { followed: true };
   }
 
@@ -202,7 +229,7 @@ export class InteractionService {
 
   async listReports(dto: ReportListQueryDto) {
     const { targetType, status, page = 1, pageSize = 20 } = dto;
-    const where: any = {};
+    const where: Prisma.ReportWhereInput = {};
     if (targetType) where.targetType = targetType;
     if (status) where.status = status;
 

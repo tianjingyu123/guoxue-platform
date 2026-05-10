@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 
-// tls-sig-api-v2 是 JS 模块，使用 require 加载
+// tls-sig-api-v2 是 JS 模块，不支持 ESM import
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const TLSSigAPIv2 = require("tls-sig-api-v2");
 
 @Injectable()

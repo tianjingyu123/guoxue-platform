@@ -14,6 +14,7 @@ const mockPrisma = {
   offlineCourse: {
     create: jest.fn(),
     findMany: jest.fn(),
+    count: jest.fn(),
   },
   instituteMember: {
     findMany: jest.fn(),
@@ -162,14 +163,18 @@ describe("OfflineService", () => {
   describe("listOfflineCourses", () => {
     it("列出驿站线下课程", async () => {
       mockPrisma.offlineCourse.findMany.mockResolvedValue([{ id: "oc1", title: "面授课" }]);
+      mockPrisma.offlineCourse.count.mockResolvedValue(1);
       const result = await svc.listOfflineCourses("s1");
-      expect(result).toHaveLength(1);
+      expect(result.courses).toHaveLength(1);
+      expect(result.total).toBe(1);
     });
 
     it("无课程时返回空数组", async () => {
       mockPrisma.offlineCourse.findMany.mockResolvedValue([]);
+      mockPrisma.offlineCourse.count.mockResolvedValue(0);
       const result = await svc.listOfflineCourses("s1");
-      expect(result).toEqual([]);
+      expect(result.courses).toEqual([]);
+      expect(result.total).toBe(0);
     });
   });
 

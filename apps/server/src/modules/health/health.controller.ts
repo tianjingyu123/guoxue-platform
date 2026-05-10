@@ -12,7 +12,7 @@ export class HealthController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: "健康检查" })
+  @ApiOperation({ summary: "健康检查（DB + Redis + 第三方服务 + 内存）" })
   async check() {
     const checks: Record<string, string> = {};
 
@@ -33,12 +33,35 @@ export class HealthController {
       checks.redis = "fail";
     }
 
-    const allOk = Object.values(checks).every((v) => v === "ok");
+    // 第三方服务配置检查（不消耗 API 配额，仅验证凭证是否已配置）
+    checks.deepseek = process.env.DEEPSEEK_API_KEY ? "ok" : "unconfigured";
+    checks.tencentCloud = process.env.TENCENT_SECRET_ID ? "ok" : "unconfigured";
+    checks.wechatPay = process.env.WECHAT_PAY_MCH_ID ? "ok" : "unconfigured";
+    checks.cos = process.env.COS_BUCKET ? "ok" : "unconfigured";
+    checks.liveStream = process.env.LIVE_PUSH_DOMAIN ? "ok" : "unconfigured";
+
+    // "unconfigured" 视为降级（非致命）
+    const hasFail = Object.values(checks).some((v) => v === "fail");
+    const hasDegraded = Object.values(checks).some((v) => v === "unconfigured");
+    const status = hasFail ? "degraded" : hasDegraded ? "degraded" : "ok";
+
+    const mem = process.memoryUsage();
     return {
-      status: allOk ? "ok" : "degraded",
+      status,
       uptime: process.uptime(),
       timestamp: Date.now(),
+      memory: {
+        rss: this.fmt(mem.rss),
+        heapUsed: this.fmt(mem.heapUsed),
+        heapTotal: this.fmt(mem.heapTotal),
+      },
+      version: process.version,
       checks,
     };
+  }
+
+  private fmt(bytes: number): string {
+    const mb = bytes / 1024 / 1024;
+    return mb.toFixed(1) + " MB";
   }
 }

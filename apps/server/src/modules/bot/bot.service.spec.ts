@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { BotService } from "./bot.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { CozeService } from "./coze.service";
 import { NotFoundException } from "@nestjs/common";
 
 const mockPrisma = {
@@ -22,6 +23,8 @@ const mockPrisma = {
   },
 };
 
+const mockCoze = {};
+
 describe("BotService", () => {
   let svc: BotService;
 
@@ -30,6 +33,7 @@ describe("BotService", () => {
       providers: [
         BotService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: CozeService, useValue: mockCoze },
       ],
     }).compile();
     svc = mod.get(BotService);

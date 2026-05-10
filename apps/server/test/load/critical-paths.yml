@@ -1,0 +1,126 @@
+# 国学平台核心接口压测
+# 运行: npx artillery run test/load/critical-paths.yml
+config:
+  target: "http://localhost:3000/api/v1"
+  phases:
+    # 阶段1: 预热 — 30秒逐步加到20并发
+    - duration: 30
+      arrivalRate: 1
+      rampTo: 20
+      name: "预热阶段"
+    # 阶段2: 常态负载 — 50并发持续60秒
+    - duration: 60
+      arrivalRate: 50
+      name: "常态负载"
+    # 阶段3: 压力测试 — 100并发持续30秒
+    - duration: 30
+      arrivalRate: 100
+      name: "压力测试"
+  processor: "./helpers.mjs"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  # ──── 首页聚合 ────
+  - name: "小程序首页"
+    weight: 15
+    flow:
+      - get:
+          url: "/mini/home"
+      - get:
+          url: "/mini/home?stationId=test-station-1"
+
+  # ──── 内容浏览 ────
+  - name: "内容列表与详情"
+    weight: 20
+    flow:
+      - get:
+          url: "/contents?page={{ $randomNumber(1,3) }}&pageSize=10"
+      - get:
+          url: "/mini/contents?page=1&pageSize=10"
+      - get:
+          url: "/classic/books?page=1&pageSize=10"
+
+  # ──── 搜索 ────
+  - name: "搜索"
+    weight: 10
+    flow:
+      - get:
+          url: "/search?q={{ $randomString }}&page=1"
+      - get:
+          url: "/search/hot?limit=10"
+      - get:
+          url: "/search/suggest?keyword=论语"
+
+  # ──── 圈子 ────
+  - name: "圈子浏览"
+    weight: 10
+    flow:
+      - get:
+          url: "/circles?page={{ $randomNumber(1,3) }}&pageSize=10"
+      - get:
+          url: "/circles/test-circle-id"
+
+  # ──── 直播 ────
+  - name: "直播列表"
+    weight: 8
+    flow:
+      - get:
+          url: "/live/rooms?status=LIVING"
+      - get:
+          url: "/live/rooms?page=1&pageSize=10"
+
+  # ──── 课程/商品 ────
+  - name: "课程与商品"
+    weight: 10
+    flow:
+      - get:
+          url: "/courses?page=1&pageSize=10"
+      - get:
+          url: "/shop/products?page=1&pageSize=10"
+
+  # ──── 推荐 ────
+  - name: "推荐接口"
+    weight: 7
+    flow:
+      - get:
+          url: "/recommend/trending"
+      - get:
+          url: "/recommend/guess_like?page=1&pageSize=6"
+
+  # ──── 认证（低频率） ────
+  - name: "认证操作"
+    weight: 5
+    flow:
+      - post:
+          url: "/auth/wechat/oauth-url?redirectUri=https://example.com/callback"
+      - get:
+          url: "/auth/me"
+          headers:
+            Authorization: "Bearer test-token"
+
+  # ──── 地图 ────
+  - name: "地图查询"
+    weight: 5
+    flow:
+      - get:
+          url: "/map/geocode?address=北京市天安门"
+      - get:
+          url: "/map/search?keyword=故宫"
+
+  # ──── 互动数据 ────
+  - name: "互动查询"
+    weight: 5
+    flow:
+      - get:
+          url: "/comment/count?targetType=ARTICLE&targetId=test-article"
+      - get:
+          url: "/interaction/like/count?targetType=ARTICLE&targetId=test-article"
+
+  # ──── 评论列表 ────
+  - name: "评论浏览"
+    weight: 5
+    flow:
+      - get:
+          url: "/comment?targetType=ARTICLE&targetId=test-article&page=1&pageSize=10"

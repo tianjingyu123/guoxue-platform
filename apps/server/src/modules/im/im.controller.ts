@@ -1,4 +1,5 @@
-import { Controller, Post, Get, Delete, Body, Query, Param, UseGuards, Req } from "@nestjs/common";
+import { Controller, Post, Get, Delete, Body, Query, Param, UseGuards, Req, ForbiddenException } from "@nestjs/common";
+import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { ImService } from "./im.service";
@@ -7,6 +8,11 @@ import {
   ImportAccountDto,
   CreateGroupDto,
   AddGroupMembersDto,
+  SendC2CMsgDto,
+  WithdrawMsgDto,
+  FriendDto,
+  UpdateImProfileDto,
+  SendImGroupMsgDto,
 } from "./im.dto";
 
 @ApiTags("IM 即时通讯")
@@ -18,7 +24,7 @@ export class ImController {
   @ApiOperation({ summary: "生成 UserSig", description: "为当前登录用户生成腾讯云 IM 的 UserSig" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  genUserSig(@Req() req: any, @Body() _dto: GenUserSigDto) {
+  genUserSig(@Req() req: Request, @Body() _dto: GenUserSigDto) {
     return this.im.genUserSig(req.user.id);
   }
 
@@ -44,9 +50,11 @@ export class ImController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   updateProfile(
+    @Req() req: Request,
     @Param("userId") userId: string,
-    @Body() dto: { nickname?: string; avatar?: string },
+    @Body() dto: UpdateImProfileDto,
   ) {
+    if (req.user.id !== userId) throw new ForbiddenException("只能修改自己的IM资料");
     return this.im.updateProfile(userId, dto);
   }
 
@@ -95,10 +103,86 @@ export class ImController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   sendGroupMsg(
-    @Req() req: any,
+    @Req() req: Request,
     @Param("groupId") groupId: string,
-    @Body() dto: { text: string },
+    @Body() dto: SendImGroupMsgDto,
   ) {
     return this.im.sendGroupMsg(groupId, dto.text, req.user.id);
+  }
+
+  @Get("groups/:groupId/history")
+  @ApiOperation({ summary: "获取群组历史消息" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  getGroupHistory(
+    @Param("groupId") groupId: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+  ) {
+    return this.im.getGroupHistory(groupId, Number(page) || 1, Number(pageSize) || 20);
+  }
+
+  // ───────── 单聊消息 ─────────
+
+  @Post("c2c/send")
+  @ApiOperation({ summary: "发送单聊消息" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  sendC2CMsg(@Req() req: Request, @Body() dto: SendC2CMsgDto) {
+    return this.im.sendC2CMsg(req.user.id, dto.toUserId, dto.text);
+  }
+
+  @Get("c2c/history")
+  @ApiOperation({ summary: "获取单聊历史消息" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  getC2CHistory(
+    @Req() req: Request,
+    @Query("toUserId") toUserId: string,
+    @Query("count") count?: string,
+  ) {
+    return this.im.getC2CHistory(req.user.id, toUserId, Number(count) || 20);
+  }
+
+  @Post("msg/withdraw")
+  @ApiOperation({ summary: "撤回消息" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  withdrawMsg(@Req() req: Request, @Body() dto: WithdrawMsgDto) {
+    return this.im.withdrawMsg(req.user.id, dto.toUserId, dto.msgKey);
+  }
+
+  // ───────── 好友管理 ─────────
+
+  @Post("friends")
+  @ApiOperation({ summary: "添加好友" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  addFriend(@Req() req: Request, @Body() dto: FriendDto) {
+    return this.im.addFriend(req.user.id, dto.toUserId, dto.remark);
+  }
+
+  @Delete("friends/:toUserId")
+  @ApiOperation({ summary: "删除好友" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  deleteFriend(@Req() req: Request, @Param("toUserId") toUserId: string) {
+    return this.im.deleteFriend(req.user.id, toUserId);
+  }
+
+  @Get("friends")
+  @ApiOperation({ summary: "获取好友列表" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  getFriendList(@Req() req: Request) {
+    return this.im.getFriendList(req.user.id);
+  }
+
+  @Post("blacklist")
+  @ApiOperation({ summary: "拉黑用户" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  addBlacklist(@Req() req: Request, @Body() dto: FriendDto) {
+    return this.im.addBlacklist(req.user.id, dto.toUserId);
   }
 }

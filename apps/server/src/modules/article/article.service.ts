@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
 } from "@nestjs/common";
@@ -7,9 +8,11 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { RecommendService } from "../recommend/recommend.service";
 import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.dto";
+import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class ArticleService {
+  private readonly logger = new Logger(ArticleService.name);
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
@@ -30,6 +33,7 @@ export class ArticleService {
         excerpt: dto.excerpt,
         tags: dto.tags,
         isPushHome: dto.isPushHome ?? false,
+        stationId: dto.stationId || undefined,
       },
     });
 
@@ -45,7 +49,7 @@ export class ArticleService {
 
     const updated = await this.prisma.article.update({
       where: { id: articleId },
-      data: dto as any,
+      data: dto as Prisma.ArticleUpdateInput,
     });
 
     // 列表缓存 + 详情缓存失效
@@ -81,7 +85,7 @@ export class ArticleService {
       this.prisma.article.update({
         where: { id: articleId },
         data: { viewCount: { increment: 1 } },
-      }).catch(() => {});
+      }).catch((err) => this.logger.warn("缓存清理失败", err));
       return cached;
     }
 
@@ -116,21 +120,23 @@ export class ArticleService {
     tag?: string;
     isPushHome?: boolean;
     auditStatus?: string;
+    stationId?: string;
   }) {
-    const { page, pageSize, circleId, tag, isPushHome, auditStatus } = params;
+    const { page, pageSize, circleId, tag, isPushHome, auditStatus, stationId } = params;
     const filterHash = `${circleId ?? ""}:${tag ?? ""}:${isPushHome ?? ""}:${auditStatus ?? ""}`;
     const cacheKey = `articles:list:${page}:${pageSize}:${filterHash}`;
 
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) return cached;
 
-    const where: any = {};
+    const where: Prisma.ArticleWhereInput = {};
 
     if (circleId) where.circleId = circleId;
     if (tag) where.tags = { has: tag };
     if (isPushHome !== undefined) where.isPushHome = isPushHome;
     if (auditStatus) where.auditStatus = auditStatus;
     else where.auditStatus = "APPROVED"; // 默认只返回审核通过的
+    if (stationId) where.stationId = stationId;
 
     const [articles, total] = await Promise.all([
       this.prisma.article.findMany({
@@ -158,7 +164,7 @@ export class ArticleService {
 
   async getHomeFeed(params: { page: number; pageSize: number; userId?: string }) {
     const { page, pageSize } = params;
-    const where: any = { isPushHome: true, auditStatus: "APPROVED" };
+    const where: Prisma.ArticleWhereInput = { isPushHome: true, auditStatus: "APPROVED" };
 
     // 热度加权：浏览量×1 + 点赞×2 + 收藏×3
     const [articles, total] = await Promise.all([

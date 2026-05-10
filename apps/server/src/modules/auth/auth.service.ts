@@ -7,16 +7,19 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
+import { User } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { WechatService } from "./wechat.service";
 import { ImService } from "../im/im.service";
+import { WebhookService } from "../webhook/webhook.service";
 import {
   PhoneRegisterDto,
   PhoneLoginDto,
   SmsLoginDto,
   SendCodeDto,
   WechatLoginDto,
+  MiniPhoneLoginDto,
   UpdateProfileDto,
   ChangePasswordDto,
 } from "./auth.dto";
@@ -31,6 +34,7 @@ export class AuthService {
     private redis: RedisService,
     private wechat: WechatService,
     private im: ImService,
+    private webhook: WebhookService,
   ) {}
 
   private generateToken(userId: string) {
@@ -42,19 +46,26 @@ export class AuthService {
     if (existing) throw new ConflictException("手机号已注册");
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
-    const user = await this.prisma.user.create({
-      data: {
-        nickname: dto.nickname,
-        phone: dto.phone,
-        auths: { create: { provider: "PASSWORD", credential: passwordHash } },
-      },
-    });
+    let user: User;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          nickname: dto.nickname,
+          phone: dto.phone,
+          auths: { create: { provider: "PASSWORD", credential: passwordHash } },
+        },
+      });
+    } catch (e: unknown) {
+      if ((e as any)?.code === "P2002") throw new ConflictException("手机号已注册");
+      throw e;
+    }
 
     // 处理推荐关系
     if (dto.referrerCode) {
       await this.bindReferral(user.id, dto.referrerCode);
     }
 
+    this.fireUserRegistered(user.id, user.nickname, user.phone!);
     this.importToIm(user.id, user.nickname);
     return this.buildLoginResult(user.id);
   }
@@ -82,21 +93,32 @@ export class AuthService {
 
     let user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
     if (!user) {
-      // 新用户自动注册
-      user = await this.prisma.user.create({
-        data: {
-          nickname: `用户${dto.phone.slice(-4)}`,
-          phone: dto.phone,
-          auths: { create: { provider: "PHONE", credential: dto.phone } },
-        },
-      });
-      if (dto.referrerCode) {
-        await this.bindReferral(user.id, dto.referrerCode);
+      // 新用户自动注册（并发时捕获 P2002）
+      try {
+        user = await this.prisma.user.create({
+          data: {
+            nickname: `用户${dto.phone.slice(-4)}`,
+            phone: dto.phone,
+            auths: { create: { provider: "PHONE", credential: dto.phone } },
+          },
+        });
+      } catch (e: unknown) {
+        if ((e as any)?.code === "P2002") {
+          user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+        } else {
+          throw e;
+        }
       }
+      // 此时 user 必定非空：create 成功或 P2002 后重查成功
+      const registered = user!;
+      if (dto.referrerCode) {
+        await this.bindReferral(registered.id, dto.referrerCode);
+      }
+      this.fireUserRegistered(registered.id, registered.nickname, registered.phone!);
     }
 
-    this.importToIm(user.id, user.nickname);
-    return this.buildLoginResult(user.id);
+    this.importToIm(user!.id, user!.nickname);
+    return this.buildLoginResult(user!.id);
   }
 
   async sendSmsCode(dto: SendCodeDto) {
@@ -126,9 +148,9 @@ export class AuthService {
         openId = token.openId;
         unionId = token.unionId;
       }
-    } catch (e: any) {
-      this.logger.error("微信 code 换取失败", e.message);
-      throw new BadRequestException(e.message || "微信授权失败，请重试");
+    } catch (e: unknown) {
+      this.logger.error("微信 code 换取失败", (e as Error).message);
+      throw new BadRequestException((e as Error).message || "微信授权失败，请重试");
     }
 
     if (!openId) {
@@ -167,26 +189,121 @@ export class AuthService {
       }
     }
 
-    // 新用户：自动注册
+    // 新用户：自动注册（并发时捕获 P2002）
     const nickname = dto.nickname || `微信用户${openId.slice(-6)}`;
     const avatar = dto.avatar || undefined;
 
-    const user = await this.prisma.user.create({
-      data: {
-        nickname,
-        avatar,
-        auths: {
-          create: { provider: "WECHAT", openId, unionId },
+    let user: User;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          nickname,
+          avatar,
+          auths: {
+            create: { provider: "WECHAT", openId, unionId },
+          },
         },
-      },
-    });
+      });
+    } catch (e: unknown) {
+      if ((e as any)?.code === "P2002") {
+        // 并发注册：重新查询已创建的记录
+        const reAuth = await this.prisma.auth.findUnique({
+          where: { openId },
+          include: { user: true },
+        });
+        if (!reAuth) throw e;
+        return this.buildLoginResult(reAuth.userId);
+      }
+      throw e;
+    }
 
     // 处理推荐关系
     if (dto.referrerCode) {
       await (this as any).bindReferral(user.id, dto.referrerCode);
     }
 
+    this.fireUserRegistered(user.id, user.nickname);
     this.importToIm(user.id, user.nickname, user.avatar || undefined);
+    return this.buildLoginResult(user.id);
+  }
+
+  /** 小程序手机号快速登录 */
+  async miniPhoneLogin(dto: MiniPhoneLoginDto) {
+    // 1. wx.login code → openId + sessionKey
+    const session = await this.wechat.exchangeMiniCode(dto.wxCode);
+    const { openId, sessionKey } = session;
+
+    if (!openId) {
+      throw new BadRequestException("微信授权失败，未获取到 openId");
+    }
+
+    // 2. 获取手机号
+    let phone: string;
+    try {
+      if (dto.iv) {
+        // 旧版：解密 encryptedData
+        phone = this.wechat.decryptPhoneNumber(dto.phoneCode, dto.iv, sessionKey);
+      } else {
+        // 新版：code 换取手机号
+        const result = await this.wechat.exchangePhoneNumber(dto.phoneCode);
+        phone = result.purePhoneNumber;
+      }
+    } catch (err: unknown) {
+      this.logger.error("获取手机号失败", (err as Error).message);
+      throw new BadRequestException("获取手机号失败，请重试");
+    }
+
+    if (!phone) {
+      throw new BadRequestException("未能获取手机号");
+    }
+
+    // 3. 通过手机号查找或创建用户
+    let user = await this.prisma.user.findUnique({ where: { phone } });
+
+    if (user) {
+      // 已有用户：绑定微信 openId（如未绑定，并发时捕获 P2002）
+      const existingAuth = await this.prisma.auth.findUnique({ where: { openId } });
+      if (!existingAuth) {
+        try {
+          await this.prisma.auth.create({
+            data: {
+              userId: user.id,
+              provider: "WECHAT",
+              openId,
+              unionId: session.unionId,
+            },
+          });
+        } catch (e: unknown) {
+          if ((e as any)?.code !== "P2002") throw e;
+        }
+      }
+    } else {
+      // 新用户：注册（并发时捕获 P2002）
+      try {
+        user = await this.prisma.user.create({
+          data: {
+            nickname: `用户${phone.slice(-4)}`,
+            phone,
+            auths: {
+              create: { provider: "WECHAT", openId, unionId: session.unionId },
+            },
+          },
+        });
+      } catch (e: unknown) {
+        if ((e as any)?.code === "P2002") {
+          user = await this.prisma.user.findUnique({ where: { phone } });
+          if (!user) throw e;
+        } else {
+          throw e;
+        }
+      }
+      if (dto.referrerCode) {
+        await this.bindReferral(user.id, dto.referrerCode);
+      }
+      this.fireUserRegistered(user.id, user.nickname, user.phone!);
+    }
+
+    this.importToIm(user.id, user.nickname);
     return this.buildLoginResult(user.id);
   }
 
@@ -204,7 +321,7 @@ export class AuthService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
-    const data: any = { ...dto };
+    const data: Record<string, unknown> = { ...dto };
     if (dto.birthday) data.birthday = new Date(dto.birthday);
     return this.prisma.user.update({
       where: { id: userId },
@@ -232,6 +349,11 @@ export class AuthService {
 
   // ───────── 私有方法 ─────────
 
+  /** 触发用户注册 Webhook（异步，失败不影响注册流程） */
+  private fireUserRegistered(userId: string, nickname: string, phone?: string) {
+    this.webhook.fire("USER_REGISTERED", { userId, nickname, phone }).catch((err) => this.logger.warn("Webhook 发送失败", err));
+  }
+
   /** 异步导入用户到 IM（失败不影响登录） */
   private importToIm(userId: string, nickname: string, avatar?: string) {
     this.im.importAccount(userId, nickname, avatar).catch((err) => {
@@ -240,18 +362,20 @@ export class AuthService {
   }
 
   private async buildLoginResult(userId: string) {
-    // 用户角色和会员等级
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true, nickname: true, avatar: true, phone: true,
-        memberLevel: true, memberExpire: true,
-      },
-    });
-    const roles = await this.prisma.userRole.findMany({
-      where: { userId },
-      select: { roleType: true, bindId: true },
-    });
+    // 用户信息与角色并行查询（无数据依赖）
+    const [user, roles] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true, nickname: true, avatar: true, phone: true,
+          memberLevel: true, memberExpire: true,
+        },
+      }),
+      this.prisma.userRole.findMany({
+        where: { userId },
+        select: { roleType: true, bindId: true },
+      }),
+    ]);
 
     return {
       accessToken: this.generateToken(userId),

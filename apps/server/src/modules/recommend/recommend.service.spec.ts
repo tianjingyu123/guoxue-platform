@@ -1,20 +1,51 @@
 import { Test } from "@nestjs/testing";
 import { RecommendService } from "./recommend.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
+import { CollaborativeStrategy } from "./strategies/collaborative.strategy";
+import { UserProfileStrategy } from "./strategies/user-profile.strategy";
+import { ColdStartService } from "./services/cold-start.service";
+import { ScoringService } from "./services/scoring.service";
+import { VectorRecallStrategy } from "./strategies/vector-recall.strategy";
+import { TfidfVectorProvider } from "./strategies/tfidf-vector.provider";
+import { OpenAIEmbeddingProvider } from "./strategies/openai-embedding.provider";
+import { AbTestService } from "./services/ab-test.service";
 import { NotFoundException } from "@nestjs/common";
 
 const mockPrisma = {
   article: { findUnique: jest.fn(), findMany: jest.fn() },
   like: { findMany: jest.fn() },
   collect: { findMany: jest.fn() },
+  userBehavior: { findMany: jest.fn() },
 };
+const mockRedis = { getJson: jest.fn(), setJson: jest.fn() };
+const mockCollaborative = { recommend: jest.fn().mockResolvedValue([]) };
+const mockUserProfile = { recommend: jest.fn().mockResolvedValue([]) };
+const mockColdStart = { isColdStart: jest.fn().mockResolvedValue(false), getStarterPack: jest.fn().mockResolvedValue([]) };
+const mockScoring = { score: jest.fn().mockImplementation((items: any[]) => Promise.resolve(items)) };
+const mockVectorRecall = { recommend: jest.fn().mockResolvedValue([]), setProvider: jest.fn() };
+const mockTfidf = { ensureBuilt: jest.fn(), embed: jest.fn(), search: jest.fn(), buildUserVector: jest.fn() };
+const mockEmbedding = { isEnabled: false, embed: jest.fn(), search: jest.fn(), buildUserVector: jest.fn() };
+const mockAbTest = { getOverrides: jest.fn().mockResolvedValue([]), getAssignments: jest.fn().mockResolvedValue([]) };
 
 describe("RecommendService", () => {
   let svc: RecommendService;
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [RecommendService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        RecommendService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
+        { provide: CollaborativeStrategy, useValue: mockCollaborative },
+        { provide: UserProfileStrategy, useValue: mockUserProfile },
+        { provide: ColdStartService, useValue: mockColdStart },
+        { provide: ScoringService, useValue: mockScoring },
+        { provide: VectorRecallStrategy, useValue: mockVectorRecall },
+        { provide: TfidfVectorProvider, useValue: mockTfidf },
+        { provide: OpenAIEmbeddingProvider, useValue: mockEmbedding },
+        { provide: AbTestService, useValue: mockAbTest },
+      ],
     }).compile();
     svc = mod.get(RecommendService);
   });

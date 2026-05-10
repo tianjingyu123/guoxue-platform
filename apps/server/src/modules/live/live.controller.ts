@@ -1,28 +1,44 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { SkipFormat } from "../../common/skip-format.decorator";
 import { LiveService } from "./live.service";
-import { CreateRoomDto, UpdateRoomDto } from "./live.dto";
+import { CreateRoomDto, UpdateRoomDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto } from "./live.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+
+/** 已认证请求，附带 JWT 解析后的 user 信息 */
+type AuthRequest = Omit<Request, "user"> & {
+  user: { id: string; [key: string]: unknown };
+};
 
 @ApiTags("直播")
 @Controller("live")
 export class LiveController {
   constructor(private svc: LiveService) {}
 
+  // ───────── 直播间 CRUD ─────────
+
   @Post("rooms")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建直播间" })
   @ApiBearerAuth()
-  createRoom(@Req() req: any, @Body() dto: CreateRoomDto) {
+  createRoom(@Req() req: AuthRequest, @Body() dto: CreateRoomDto) {
     return this.svc.createRoom(req.user.id, dto);
   }
 
   @Get("rooms")
   @ApiOperation({ summary: "获取直播间列表" })
-  @ApiQuery({ name: "status", required: false, type: String, description: "直播状态" })
-  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
-  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
-  listRooms(@Query("status") status?: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+  @ApiQuery({ name: "status", required: false, type: String })
+  @ApiQuery({ name: "courseId", required: false, type: String, description: "按课程ID过滤" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  listRooms(
+    @Query("status") status?: string,
+    @Query("courseId") courseId?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    if (courseId) return this.svc.listCourseRooms(courseId, +page, +pageSize);
     return this.svc.listRooms(status, +page, +pageSize);
   }
 
@@ -36,16 +52,30 @@ export class LiveController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新直播间" })
   @ApiBearerAuth()
-  updateRoom(@Param("id") id: string, @Body() dto: UpdateRoomDto) {
-    return this.svc.updateRoom(id, dto);
+  updateRoom(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: UpdateRoomDto) {
+    return this.svc.updateRoom(req.user.id, id, dto);
   }
 
   @Put("rooms/:id/start")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "开始直播" })
+  @ApiOperation({ summary: "开始直播（生成推拉流地址）" })
   @ApiBearerAuth()
-  startRoom(@Param("id") id: string, @Body() extra?: any) {
-    return this.svc.updateStatus(id, "LIVING", extra);
+  startRoom(@Param("id") id: string) {
+    return this.svc.startLive(id);
+  }
+
+  @Get("rooms/:id/stream-urls")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取推拉流地址" })
+  @ApiBearerAuth()
+  getStreamUrls(@Param("id") id: string) {
+    return this.svc.getStreamUrls(id);
+  }
+
+  @Get("rooms/:id/play-url")
+  @ApiOperation({ summary: "获取观众拉流地址" })
+  playUrl(@Param("id") id: string, @Query("userId") userId: string) {
+    return this.svc.getPlayUrl(id, userId);
   }
 
   @Put("rooms/:id/end")
@@ -68,7 +98,192 @@ export class LiveController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除直播间" })
   @ApiBearerAuth()
-  deleteRoom(@Param("id") id: string) {
-    return this.svc.deleteRoom(id);
+  deleteRoom(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.svc.deleteRoom(req.user.id, id);
+  }
+
+  // ───────── 麦位管理 ─────────
+
+  @Post("rooms/:id/mics")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "用户上麦" })
+  @ApiBearerAuth()
+  joinMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicManageDto) {
+    return this.svc.joinMic(id, req.user.id, dto.position);
+  }
+
+  @Delete("rooms/:id/mics/:userId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "用户下麦（主播或管理员）" })
+  @ApiBearerAuth()
+  leaveMic(@Param("id") id: string, @Param("userId") userId: string, @Req() req: AuthRequest) {
+    return this.svc.leaveMic(id, userId, req.user.id);
+  }
+
+  @Put("rooms/:id/mics/manage")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "麦位操作（静音/解除/踢人）" })
+  @ApiBearerAuth()
+  manageMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicManageDto) {
+    return this.svc.manageMic(id, req.user.id, dto);
+  }
+
+  @Get("rooms/:id/mics")
+  @ApiOperation({ summary: "获取麦位列表" })
+  listMics(@Param("id") id: string) {
+    return this.svc.listMics(id);
+  }
+
+  // ───────── 预告与预约 ─────────
+
+  @Get("scheduled")
+  @ApiOperation({ summary: "获取即将开始的直播预告列表" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  listScheduled(@Query("page") page = 1, @Query("pageSize") pageSize = 10) {
+    return this.svc.listScheduled(+page, +pageSize);
+  }
+
+  @Post("rooms/:id/book")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "预约直播" })
+  @ApiBearerAuth()
+  bookRoom(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.bookRoom(id, req.user.id);
+  }
+
+  @Delete("rooms/:id/book")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "取消直播预约" })
+  @ApiBearerAuth()
+  unbookRoom(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.unbookRoom(id, req.user.id);
+  }
+
+  @Get("rooms/:id/bookings")
+  @ApiOperation({ summary: "获取直播预约人数" })
+  getBookingCount(@Param("id") id: string) {
+    return this.svc.getBookingCount(id);
+  }
+
+  // ───────── 课件管理 ─────────
+
+  @Post("rooms/:id/slides")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "上传课件" })
+  @ApiBearerAuth()
+  addSlide(@Param("id") id: string, @Body() dto: SlideCreateDto) {
+    return this.svc.addSlide(id, dto);
+  }
+
+  @Delete("slides/:slideId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "删除课件" })
+  @ApiBearerAuth()
+  removeSlide(@Param("slideId") slideId: string) {
+    return this.svc.removeSlide(slideId);
+  }
+
+  @Get("rooms/:id/slides")
+  @ApiOperation({ summary: "获取课件列表" })
+  listSlides(@Param("id") id: string) {
+    return this.svc.listSlides(id);
+  }
+
+  // ───────── 禁言管理 ─────────
+
+  @Post("rooms/:id/mute")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "禁言用户" })
+  @ApiBearerAuth()
+  muteUser(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MuteUserDto) {
+    return this.svc.muteUser(id, req.user.id, dto);
+  }
+
+  @Delete("rooms/:id/mute/:userId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "解除禁言（主播或管理员）" })
+  @ApiBearerAuth()
+  unmuteUser(@Param("id") id: string, @Param("userId") userId: string, @Req() req: AuthRequest) {
+    return this.svc.unmuteUser(id, userId, req.user.id);
+  }
+
+  @Get("rooms/:id/muted-users")
+  @ApiOperation({ summary: "获取禁言用户列表" })
+  listMutedUsers(@Param("id") id: string) {
+    return this.svc.listMutedUsers(id);
+  }
+
+  // ───────── 限时秒杀 ─────────
+
+  @Post("rooms/:id/flash-sales")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "创建秒杀活动" })
+  @ApiBearerAuth()
+  createFlashSale(@Param("id") id: string, @Body() dto: FlashSaleDto) {
+    return this.svc.createFlashSale(id, dto);
+  }
+
+  @Post("flash-sales/:saleId/start")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "开始秒杀" })
+  @ApiBearerAuth()
+  startFlashSale(@Param("saleId") saleId: string) {
+    return this.svc.startFlashSale(saleId);
+  }
+
+  @Post("flash-sales/:saleId/order")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "秒杀下单" })
+  @ApiBearerAuth()
+  flashSaleOrder(@Param("saleId") saleId: string, @Req() req: AuthRequest) {
+    return this.svc.flashSaleOrder(saleId, req.user.id);
+  }
+
+  @Post("flash-sales/:saleId/end")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "结束秒杀" })
+  @ApiBearerAuth()
+  endFlashSale(@Param("saleId") saleId: string) {
+    return this.svc.endFlashSale(saleId);
+  }
+
+  @Get("rooms/:id/flash-sales")
+  @ApiOperation({ summary: "获取秒杀活动列表" })
+  listFlashSales(@Param("id") id: string) {
+    return this.svc.listFlashSales(id);
+  }
+
+  // ───────── 腾讯云直播回调 ─────────
+
+  @Post("callback")
+  @SkipFormat()
+  @ApiOperation({ summary: "腾讯云直播回调（推流/断流/录制/截图）" })
+  handleCallback(@Body() body: Record<string, unknown>) {
+    const streamKey = (body.stream_param as string) || (body.StreamName as string) || "";
+    const eventType = Number(body.event_type);
+    this.svc.handleLiveEvent(streamKey, eventType, body);
+    return { code: 0 };
+  }
+
+  // ───────── 内容审核 ─────────
+
+  @Post("audit/callback")
+  @SkipFormat()
+  @ApiOperation({ summary: "腾讯云CMS审核回调" })
+  handleAuditCallback(@Body() body: Record<string, unknown>) {
+    const roomId = (body.room_id as string) || (body.data_id as string) || "";
+    const screenshotUrl = (body.screenshot_url as string) || (body.url as string) || "";
+    const result = (body.suggestion as string) === "pass" ? "PASS" : "BLOCK";
+    const label = (body.label as string) || (body.scene as string);
+    return this.svc.handleAuditCallback(roomId, screenshotUrl, result, label, body);
+  }
+
+  @Get("rooms/:id/audit-logs")
+  @ApiOperation({ summary: "获取审核日志" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  listAuditLogs(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.listAuditLogs(id, +page, +pageSize);
   }
 }

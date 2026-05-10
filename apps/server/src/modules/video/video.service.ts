@@ -1,11 +1,18 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, ForbiddenException, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { VodService } from "./vod.service";
+import { Prisma } from "@prisma/client";
 
 @Injectable()
 export class VideoService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(VideoService.name);
 
-  async create(userId: string, dto: { circleId?: string; title?: string; videoUrl: string; coverUrl?: string; duration?: number }) {
+  constructor(
+    private prisma: PrismaService,
+    private vod: VodService,
+  ) {}
+
+  async create(userId: string, dto: { circleId?: string; title?: string; videoUrl: string; coverUrl?: string; duration?: number; stationId?: string }) {
     return this.prisma.video.create({
       data: {
         userId,
@@ -14,25 +21,33 @@ export class VideoService {
         videoUrl: dto.videoUrl,
         coverUrl: dto.coverUrl,
         duration: dto.duration,
+        stationId: dto.stationId || undefined,
       },
     });
   }
 
-  async update(id: string, dto: { title?: string; coverUrl?: string; status?: string }) {
-    return this.prisma.video.update({ where: { id }, data: dto as any });
+  async update(userId: string, id: string, dto: { title?: string; coverUrl?: string; status?: string }) {
+    const video = await this.prisma.video.findUnique({ where: { id }, select: { userId: true } });
+    if (!video) throw new NotFoundException("视频不存在");
+    if (video.userId !== userId) throw new ForbiddenException("只能修改自己的视频");
+    return this.prisma.video.update({ where: { id }, data: dto as Prisma.VideoUpdateInput });
   }
 
-  async delete(id: string) {
+  async delete(userId: string, id: string) {
+    const video = await this.prisma.video.findUnique({ where: { id }, select: { userId: true } });
+    if (!video) throw new NotFoundException("视频不存在");
+    if (video.userId !== userId) throw new ForbiddenException("只能删除自己的视频");
     await this.prisma.video.delete({ where: { id } });
     return { success: true };
   }
 
-  async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number }) {
-    const { circleId, status, page = 1, pageSize = 20 } = params;
-    const where: any = {};
+  async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string }) {
+    const { circleId, status, page = 1, pageSize = 20, stationId } = params;
+    const where: Prisma.VideoWhereInput = {};
     if (circleId) where.circleId = circleId;
     if (status) where.status = status;
     else where.status = "PUBLISHED";
+    if (stationId) where.stationId = stationId;
 
     const [videos, total] = await Promise.all([
       this.prisma.video.findMany({
@@ -62,7 +77,7 @@ export class VideoService {
     });
     if (!video) throw new NotFoundException("视频不存在");
 
-    await this.prisma.video.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+    await this.prisma.video.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((e) => this.logger.warn(`视频 ${id} 浏览计数失败`, e));
     return video;
   }
 
@@ -73,5 +88,169 @@ export class VideoService {
       where: { id },
       data: { likeCount: { increment: 1 } },
     });
+  }
+
+  /** 收藏/取消收藏视频 */
+  async toggleCollect(userId: string, videoId: string) {
+    const existing = await this.prisma.collect.findFirst({
+      where: { userId, targetType: "VIDEO", targetId: videoId },
+    });
+    if (existing) {
+      await this.prisma.collect.delete({ where: { id: existing.id } });
+      await this.prisma.video.update({ where: { id: videoId }, data: { collectCount: { decrement: 1 } } });
+      return { collected: false };
+    }
+    try {
+      await this.prisma.collect.create({ data: { userId, targetType: "VIDEO", targetId: videoId } });
+    } catch (e: unknown) {
+      if ((e as any)?.code === "P2002") return { collected: true };
+      throw e;
+    }
+    await this.prisma.video.update({ where: { id: videoId }, data: { collectCount: { increment: 1 } } });
+    return { collected: true };
+  }
+
+  /** 记录分享 */
+  async recordShare(id: string) {
+    return this.prisma.video.update({
+      where: { id },
+      data: { shareCount: { increment: 1 } },
+    });
+  }
+
+  /** 添加商品关联 */
+  async addProduct(videoId: string, productId: string) {
+    return this.prisma.videoProduct.upsert({
+      where: { videoId_productId: { videoId, productId } },
+      create: { videoId, productId },
+      update: {},
+    });
+  }
+
+  /** 移除商品关联 */
+  async removeProduct(videoId: string, productId: string) {
+    await this.prisma.videoProduct.deleteMany({ where: { videoId, productId } });
+    return { success: true };
+  }
+
+  /** 我收藏的视频 */
+  async listCollected(userId: string, page = 1, pageSize = 20) {
+    const where = { userId, targetType: "VIDEO" };
+    const [collects, total] = await Promise.all([
+      this.prisma.collect.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.collect.count({ where }),
+    ]);
+    const videoIds = collects.map(c => c.targetId);
+    const videos = videoIds.length > 0
+      ? await this.prisma.video.findMany({
+          where: { id: { in: videoIds } },
+          include: { user: { select: { id: true, nickname: true, avatar: true } } },
+        })
+      : [];
+    return { videos, total, page, pageSize };
+  }
+
+  // ───────── VOD 上传/点播 ─────────
+
+  /** 获取VOD上传签名 */
+  getUploadSignature(params?: { videoName?: string; expireSeconds?: number; procedure?: string; classId?: number }) {
+    return this.vod.genUploadSignature(params);
+  }
+
+  /** 获取播放器鉴权签名（psign） */
+  getPlaySignature(fileId: string, expireSeconds?: number) {
+    return this.vod.genPlayerSignature(fileId, expireSeconds);
+  }
+
+  /** VOD URL拉取上传 */
+  async pullUpload(urls: { url: string; fileName?: string }[], options?: { mediaName?: string; coverUrl?: string; procedure?: string; classId?: number }) {
+    return this.vod.pullUpload(urls, options);
+  }
+
+  /** 处理媒资（转码+截图+水印） */
+  async processMedia(fileId: string, options?: { transcodeDefinitions?: number[]; watermarkDefinition?: number; adaptiveDefinition?: number; snapshotDefinition?: number }) {
+    return this.vod.processMedia(fileId, {
+      transcodeDefinitions: options?.transcodeDefinitions,
+      watermarkDefinition: options?.watermarkDefinition,
+      adaptiveDynamicStreamingDefinition: options?.adaptiveDefinition,
+      snapshotDefinition: options?.snapshotDefinition,
+    });
+  }
+
+  /** 视频剪辑 */
+  async clipVideo(params: { fileId: string; startTimeOffset: number; endTimeOffset: number; clipName?: string; classId?: number }) {
+    return this.vod.clipVideo(params);
+  }
+
+  /** 获取VOD媒资信息 */
+  async getMediaInfo(fileId: string) {
+    return this.vod.getMediaInfo(fileId);
+  }
+
+  /** 删除VOD媒资 */
+  async deleteMedia(fileId: string) {
+    return this.vod.deleteMedia(fileId);
+  }
+
+  /** 获取播放统计 */
+  async getPlaybackStats(fileId: string, startDate: string, endDate: string) {
+    return this.vod.getDailyPlayStat(fileId, startDate, endDate);
+  }
+
+  /** 获取播放统计概览 */
+  async getPlaybackSummary(startDate: string, endDate: string) {
+    return this.vod.getPlayStatSummary(startDate, endDate);
+  }
+
+  /** 搜索VOD媒资 */
+  async searchVodMedia(params: { keyword?: string; classIds?: number[]; offset?: number; limit?: number }) {
+    return this.vod.searchMedia(params);
+  }
+
+  /** 处理VOD回调（转码完成、截图完成、上传完成） */
+  async handleVodCallback(body: unknown) {
+    if (!body || typeof body !== "object") return;
+    const event = this.vod.parseEventNotification(body as Record<string, unknown>);
+    if (!event) return;
+
+    // 根据fileId反查本地视频记录并更新
+    const localVideos = await this.prisma.video.findMany({
+      where: { videoUrl: { contains: event.fileId } },
+      take: 1,
+    });
+
+    if (localVideos.length > 0) {
+      const video = localVideos[0];
+      const updateData: Record<string, unknown> = {};
+
+      if (event.eventType === "TranscodeComplete") {
+        if (event.playUrl) updateData.videoUrl = event.playUrl;
+        if (event.coverUrl) updateData.coverUrl = event.coverUrl;
+        if (event.duration) updateData.duration = event.duration;
+        updateData.status = "PUBLISHED";
+      } else if (event.eventType === "NewFileUpload") {
+        updateData.status = "PROCESSING";
+      } else if (event.eventType === "FileDeleteComplete") {
+        updateData.status = "HIDDEN";
+      }
+
+      if (event.adaptiveStreamingUrl) {
+        // 存储自适应码流URL（可扩展Video模型字段或使用现有videoUrl）
+        updateData.videoUrl = event.adaptiveStreamingUrl;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await this.prisma.video.update({
+          where: { id: video.id },
+          data: updateData,
+        });
+        this.logger.log(`视频 ${video.id} VOD状态更新: ${event.eventType}`);
+      }
+    }
   }
 }

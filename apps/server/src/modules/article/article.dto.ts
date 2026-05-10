@@ -24,6 +24,10 @@ export class CreateArticleDto {
   @IsBoolean()
   @IsOptional()
   isPushHome?: boolean;
+
+  @IsString()
+  @IsOptional()
+  stationId?: string;
 }
 
 export class UpdateArticleDto {

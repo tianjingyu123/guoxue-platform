@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsArray } from "class-validator";
+import { IsString, IsOptional, IsArray, IsInt } from "class-validator";
 
 export class GenUserSigDto {
   @ApiPropertyOptional({ description: "用户ID（不传则使用当前登录用户）" })
@@ -53,4 +53,52 @@ export class AddGroupMembersDto {
   @ApiProperty({ description: "要添加的成员ID列表", example: ["user-1", "user-2"] })
   @IsArray()
   memberIds: string[];
+}
+
+// ───────── 单聊消息 ─────────
+
+export class SendC2CMsgDto {
+  @ApiProperty({ description: "接收者用户ID" })
+  @IsString()
+  toUserId: string;
+
+  @ApiProperty({ description: "消息文本内容" })
+  @IsString()
+  text: string;
+}
+
+export class WithdrawMsgDto {
+  @ApiProperty({ description: "接收者用户ID（单聊为对方ID，群聊为群ID）" })
+  @IsString()
+  toUserId: string;
+
+  @ApiProperty({ description: "消息唯一Key" })
+  @IsString()
+  msgKey: string;
+}
+
+// ───────── 好友管理 ─────────
+
+export class UpdateImProfileDto {
+  @IsOptional() @IsString()
+  nickname?: string;
+
+  @IsOptional() @IsString()
+  avatar?: string;
+}
+
+export class SendImGroupMsgDto {
+  @IsString()
+  text: string;
+}
+
+export class FriendDto {
+  @ApiProperty({ description: "目标用户ID" })
+  @IsString()
+  toUserId: string;
+
+  @ApiPropertyOptional({ description: "备注名" })
+  @IsString()
+  @IsOptional()
+  remark?: string;
 }

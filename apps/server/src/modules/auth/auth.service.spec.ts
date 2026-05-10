@@ -5,6 +5,7 @@ import { ImService } from "../im/im.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { JwtService } from "@nestjs/jwt";
 import { RedisService } from "../../redis/redis.service";
+import { WebhookService } from "../webhook/webhook.service";
 import { ConflictException, UnauthorizedException, BadRequestException } from "@nestjs/common";
 
 jest.mock("bcryptjs");
@@ -37,6 +38,7 @@ const mockIm = {
   genUserSig: jest.fn(),
   importAccount: jest.fn().mockResolvedValue(undefined),
 };
+const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
 
 describe("AuthService", () => {
   let svc: AuthService;
@@ -53,6 +55,7 @@ describe("AuthService", () => {
         { provide: RedisService, useValue: mockRedis },
         { provide: WechatService, useValue: mockWechat },
         { provide: ImService, useValue: mockIm },
+        { provide: WebhookService, useValue: mockWebhook },
       ],
     }).compile();
     svc = mod.get(AuthService);

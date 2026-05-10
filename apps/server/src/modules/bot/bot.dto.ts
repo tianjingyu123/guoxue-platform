@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsInt, IsNumber } from "class-validator";
+import { IsString, IsOptional, IsBoolean, IsInt, IsNumber, IsArray } from "class-validator";
 
 export class CreateBotDto {
   @IsString()
@@ -81,4 +81,33 @@ export class AddKnowledgeDto {
 
   @IsOptional() @IsString()
   sourceId?: string;
+}
+
+export class ChatDto {
+  @IsString()
+  query: string;
+
+  @IsOptional() @IsString()
+  conversationId?: string;
+
+  @IsOptional() @IsBoolean()
+  stream?: boolean;
+}
+
+// ───────── 圈主助理管理 DTO ─────────
+
+export class AddBotKnowledgeItemDto {
+  @IsString()
+  question: string;
+
+  @IsString()
+  answer: string;
+}
+
+export class UpdateBotKnowledgeItemDto {
+  @IsOptional() @IsString()
+  question?: string;
+
+  @IsOptional() @IsString()
+  answer?: string;
 }

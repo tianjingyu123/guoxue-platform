@@ -1,9 +1,17 @@
-import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateCommentDto, CommentQueryDto } from "./comment.dto";
+import { Prisma } from "@prisma/client";
+
+export interface ReplyNode {
+  id: string;
+  parentId: string | null;
+  [key: string]: unknown;
+}
 
 @Injectable()
 export class CommentService {
+  private readonly logger = new Logger(CommentService.name);
   constructor(private prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateCommentDto) {
@@ -18,7 +26,7 @@ export class CommentService {
       }
     }
 
-    return this.prisma.comment.create({
+    const comment = await this.prisma.comment.create({
       data: {
         userId,
         targetType: dto.targetType,
@@ -30,6 +38,11 @@ export class CommentService {
         user: { select: { id: true, nickname: true, avatar: true } },
       },
     });
+
+    // 异步记录行为
+    this.prisma.userBehavior.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId, behavior: "COMMENT", weight: 1.5 } }).catch((err) => this.logger.warn("缓存清理失败", err));
+
+    return comment;
   }
 
   async findByTarget(dto: CommentQueryDto) {
@@ -54,15 +67,15 @@ export class CommentService {
     const topIds = items.map((c) => c.id);
     const nestedComments = topIds.length > 0 ? await this.fetchNestedReplies(topIds) : [];
 
-    const replyMap = new Map<string, any[]>();
+    const replyMap = new Map<string, ReplyNode[]>();
     for (const reply of nestedComments) {
       const list = replyMap.get(reply.parentId!) || [];
       list.push(reply);
       replyMap.set(reply.parentId!, list);
     }
 
-    const attachReplies = (commentIds: string[]): any[] => {
-      const result: any[] = [];
+    const attachReplies = (commentIds: string[]): ReplyNode[] => {
+      const result: ReplyNode[] = [];
       for (const id of commentIds) {
         const replies = replyMap.get(id) || [];
         result.push(...replies.map((r) => ({ ...r, replies: attachReplies([r.id]) })));
@@ -152,5 +165,47 @@ export class CommentService {
     return this.prisma.comment.count({
       where: { targetType, targetId, status: "PUBLISHED" },
     });
+  }
+
+  // ───────── 管理员审核 ─────────
+
+  async getModerationList(params: { status?: string; targetType?: string; page?: number; pageSize?: number }) {
+    const { status = "PUBLISHED", targetType, page = 1, pageSize = 20 } = params;
+    const where: Prisma.CommentWhereInput = { status };
+    if (targetType) where.targetType = targetType;
+
+    const [items, total] = await Promise.all([
+      this.prisma.comment.findMany({
+        where,
+        include: { user: { select: { id: true, nickname: true, avatar: true } } },
+        skip: (page - 1) * pageSize, take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.comment.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
+  }
+
+  async batchHide(ids: string[]) {
+    await this.prisma.comment.updateMany({
+      where: { id: { in: ids } },
+      data: { status: "HIDDEN" },
+    });
+    return { success: true, count: ids.length };
+  }
+
+  // ───────── 用户评论历史 ─────────
+
+  async getUserComments(userId: string, page = 1, pageSize = 20) {
+    const where = { userId, status: "PUBLISHED" };
+    const [items, total] = await Promise.all([
+      this.prisma.comment.findMany({
+        where,
+        skip: (page - 1) * pageSize, take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.comment.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
   }
 }

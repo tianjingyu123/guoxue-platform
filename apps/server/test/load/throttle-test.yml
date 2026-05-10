@@ -1,0 +1,45 @@
+# 限流验证压测 — 验证 StrictThrottleGuard (10次/60秒) 是否生效
+# 运行: npx artillery run test/load/throttle-test.yml
+config:
+  target: "http://localhost:3000/api/v1"
+  phases:
+    - duration: 5
+      arrivalRate: 20
+      name: "快速轰炸"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  - name: "短信发送限流"
+    flow:
+      - post:
+          url: "/sms/send"
+          json:
+            phone: "13800138000"
+            scene: "LOGIN"
+          capture:
+            - json: "$.message"
+              as: "smsResponse"
+      - log: "SMS Response: {{ smsResponse }}"
+
+  - name: "登录限流"
+    flow:
+      - post:
+          url: "/auth/login/phone"
+          json:
+            phone: "13800138001"
+            password: "test123456"
+          capture:
+            - json: "$.message"
+              as: "loginResponse"
+      - log: "Login Response: {{ loginResponse }}"
+
+  - name: "验证码校验限流"
+    flow:
+      - post:
+          url: "/sms/verify"
+          json:
+            phone: "13800138000"
+            code: "000000"
+            scene: "LOGIN"

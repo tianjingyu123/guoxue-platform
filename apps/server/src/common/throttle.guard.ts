@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Optional,
   CanActivate,
   ExecutionContext,
   HttpException,
@@ -23,8 +24,8 @@ export class ThrottleGuard implements CanActivate {
   private cleanupTimer: NodeJS.Timeout;
 
   constructor(
-    private readonly limit: number = 60,
-    private readonly ttl: number = 60,
+    @Optional() private readonly limit: number = 60,
+    @Optional() private readonly ttl: number = 60,
   ) {
     this.cleanupTimer = setInterval(() => this.cleanup(), 60000);
     // Node.js 退出时清理定时器

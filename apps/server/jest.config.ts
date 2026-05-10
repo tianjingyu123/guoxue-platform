@@ -3,7 +3,7 @@ import type { Config } from "jest";
 const config: Config = {
   moduleFileExtensions: ["js", "json", "ts"],
   rootDir: ".",
-  testRegex: ".*\\.spec\\.ts$",
+  testRegex: ".*(\\.spec|e2e-spec)\\.ts$",
   transform: {
     "^.+\\.(t|j)s$": ["ts-jest", { tsconfig: "tsconfig.json" }],
   },
@@ -11,6 +11,10 @@ const config: Config = {
   coverageDirectory: "./coverage",
   maxWorkers: 1,
   testEnvironment: "node",
+  setupFiles: ["./test/jest-setup.ts"],
+  transformIgnorePatterns: [
+    "node_modules/(?!(@nestjs/graphql|@nestjs/apollo|@apollo/server|graphql|@apollo|uuid)/)",
+  ],
   moduleNameMapper: {
     "^@prisma/client$": "<rootDir>/../../node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client",
     "^bcryptjs$": "<rootDir>/../../node_modules/.pnpm/bcryptjs@2.4.3/node_modules/bcryptjs",

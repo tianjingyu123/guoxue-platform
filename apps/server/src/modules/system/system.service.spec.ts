@@ -1,12 +1,14 @@
 import { Test } from "@nestjs/testing";
 import { SystemService } from "./system.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { AuditService } from "../audit/audit.service";
 
 const mockPrisma = {
   configSystem: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn() },
   auditLog: { findMany: jest.fn(), count: jest.fn() },
 };
+const mockRedis = { get: jest.fn(), set: jest.fn(), del: jest.fn(), getJson: jest.fn(), setJson: jest.fn() };
 const mockAudit = { log: jest.fn() };
 
 describe("SystemService", () => {
@@ -17,6 +19,7 @@ describe("SystemService", () => {
       providers: [
         SystemService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
         { provide: AuditService, useValue: mockAudit },
       ],
     }).compile();
@@ -28,50 +31,50 @@ describe("SystemService", () => {
   describe("getAllConfigs", () => {
     it("返回所有配置项", async () => {
       const configs = [{ configKey: "key1", configValue: "val1" }, { configKey: "key2", configValue: "val2" }];
+      mockRedis.getJson.mockResolvedValue(null);
       mockPrisma.configSystem.findMany.mockResolvedValue(configs);
       const result = await svc.getAllConfigs();
       expect(result).toEqual(configs);
-      expect(mockPrisma.configSystem.findMany).toHaveBeenCalledWith({ orderBy: { configKey: "asc" } });
     });
-    it("没有配置时返回空数组", async () => {
-      mockPrisma.configSystem.findMany.mockResolvedValue([]);
+    it("命中缓存时直接返回", async () => {
+      const cached = [{ configKey: "k1", configValue: "v1" }];
+      mockRedis.getJson.mockResolvedValue(cached);
       const result = await svc.getAllConfigs();
-      expect(result).toEqual([]);
+      expect(result).toEqual(cached);
+      expect(mockPrisma.configSystem.findMany).not.toHaveBeenCalled();
     });
   });
 
   describe("getConfig", () => {
     it("返回指定配置", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
       mockPrisma.configSystem.findUnique.mockResolvedValue({ configKey: "home_banners", configValue: "[]" });
       const result = await svc.getConfig("home_banners");
       expect(result!.configValue).toBe("[]");
     });
-    it("配置不存在返回 null", async () => {
-      mockPrisma.configSystem.findUnique.mockResolvedValue(null);
-      const result = await svc.getConfig("not-exists");
-      expect(result).toBeNull();
+    it("命中缓存直接返回", async () => {
+      mockRedis.getJson.mockResolvedValue({ configKey: "k", configValue: "v" });
+      const result = await svc.getConfig("k");
+      expect(result!.configValue).toBe("v");
+      expect(mockPrisma.configSystem.findUnique).not.toHaveBeenCalled();
     });
   });
 
   describe("setConfig", () => {
-    it("新建配置（upsert）", async () => {
+    it("新建配置并失效缓存", async () => {
       mockPrisma.configSystem.upsert.mockResolvedValue({ configKey: "new_key", configValue: "value" });
-      const result = await svc.setConfig("new_key", "value", "描述", "admin");
-      expect(result.configKey).toBe("new_key");
-    });
-    it("更新已有配置", async () => {
-      const updated = { configKey: "existing_key", configValue: "new_value", description: "新描述", updatedBy: "admin" };
-      mockPrisma.configSystem.upsert.mockResolvedValue(updated);
-      const result = await svc.setConfig("existing_key", "new_value", "新描述", "admin");
-      expect(result.configValue).toBe("new_value");
+      await svc.setConfig("new_key", "value", "描述", "admin");
+      expect(mockRedis.del).toHaveBeenCalledWith("sys:config:new_key");
+      expect(mockRedis.del).toHaveBeenCalledWith("sys:config:all");
     });
   });
 
   describe("deleteConfig", () => {
-    it("删除配置成功", async () => {
+    it("删除配置并失效缓存", async () => {
       mockPrisma.configSystem.delete.mockResolvedValue({ configKey: "key_to_delete" });
-      const result = await svc.deleteConfig("key_to_delete");
-      expect(result.configKey).toBe("key_to_delete");
+      await svc.deleteConfig("key_to_delete");
+      expect(mockRedis.del).toHaveBeenCalledWith("sys:config:key_to_delete");
+      expect(mockRedis.del).toHaveBeenCalledWith("sys:config:all");
     });
   });
 

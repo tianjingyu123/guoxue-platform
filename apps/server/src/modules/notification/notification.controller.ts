@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Request } from "express";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { NotificationService } from "./notification.service";
 import { SendNotificationDto, BatchSendDto } from "./notification.dto";
@@ -39,7 +40,7 @@ export class NotificationController {
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
-  myNotifications(@Req() req: any, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+  myNotifications(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.svc.getUserNotifications(req.user.id, +page, +pageSize);
   }
 
@@ -48,7 +49,7 @@ export class NotificationController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取未读通知数量" })
   @ApiBearerAuth()
-  unreadCount(@Req() req: any) {
+  unreadCount(@Req() req: Request) {
     return this.svc.getUnreadCount(req.user.id);
   }
 
@@ -57,8 +58,8 @@ export class NotificationController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "标记通知为已读" })
   @ApiBearerAuth()
-  markRead(@Param("id") id: string) {
-    return this.svc.markRead(id);
+  markRead(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.markRead(id, req.user.id);
   }
 
   /** 全部已读 */
@@ -66,7 +67,35 @@ export class NotificationController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "全部标记为已读" })
   @ApiBearerAuth()
-  markAllRead(@Req() req: any) {
+  markAllRead(@Req() req: Request) {
     return this.svc.markAllRead(req.user.id);
+  }
+
+  /** 删除通知 */
+  @Delete(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "删除通知" })
+  @ApiBearerAuth()
+  delete(@Param("id") id: string) {
+    return this.svc.delete(id);
+  }
+
+  // ───────── 通知偏好 ─────────
+
+  @Get("preferences")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取通知偏好设置" })
+  @ApiBearerAuth()
+  getPreferences(@Req() req: Request) {
+    return this.svc.getPreferences(req.user.id);
+  }
+
+  @Put("preferences")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "更新通知偏好设置" })
+  @ApiBearerAuth()
+  updatePreferences(@Req() req: Request, @Body() prefs: Record<string, boolean>) {
+    return this.svc.updatePreferences(req.user.id, prefs);
   }
 }

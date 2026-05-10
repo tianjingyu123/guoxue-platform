@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { Request } from "express";
 import { CoinService } from "./coin.service";
-import { AdminRechargeDto, CoinTransactionQueryDto } from "./coin.dto";
+import { AdminRechargeDto, CoinTransactionQueryDto, SpendDto, CreateGiftDto, SendGiftDto } from "./coin.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -12,18 +13,18 @@ import { Roles } from "../../common/roles.decorator";
 export class CoinController {
   constructor(private coin: CoinService) {}
 
-  /** 获取我的余额 */
   @Get("balance")
   @UseGuards(JwtAuthGuard)
-  getBalance(@Req() req: any) {
+  @ApiOperation({ summary: "获取我的余额" })
+  getBalance(@Req() req: Request) {
     return this.coin.getBalance(req.user.id);
   }
 
-  /** 我的交易流水 */
   @Get("transactions")
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的交易流水" })
   getTransactions(
-    @Req() req: any,
+    @Req() req: Request,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
     @Query("type") type?: string,
@@ -32,38 +33,39 @@ export class CoinController {
     return this.coin.getTransactions(req.user.id, +page, +pageSize, type, scene);
   }
 
-  /** 充值档位 */
   @Get("tiers")
+  @ApiOperation({ summary: "获取充值档位列表" })
   getTiers() {
     return this.coin.getRechargeTiers();
   }
 
-  /** 管理员充值 */
   @Post("admin/recharge")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员充值", description: "管理员为用户账户充值虚拟币" })
   adminRecharge(@Body() dto: AdminRechargeDto) {
     return this.coin.recharge(dto.userId, { amountCoin: dto.amountCoin, description: dto.description });
   }
 
-  /** 管理员查看充值记录 */
   @Get("admin/recharges")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员查看充值记录" })
   getRecharges(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("userId") userId?: string) {
     return this.coin.getRecharges(+page, +pageSize, userId);
   }
 
-  /** 消费虚拟币（内部调用，也暴露为API供前端异步扣款） */
   @Post("spend")
   @UseGuards(JwtAuthGuard)
-  spend(@Req() req: any, @Body() dto: { amountCoin: number; scene: string; refId?: string; description?: string }) {
+  @ApiOperation({ summary: "消费虚拟币", description: "按场景扣除余额（提问/打赏/入圈等）" })
+  spend(@Req() req: Request, @Body() dto: SpendDto) {
     return this.coin.spend(req.user.id, dto);
   }
 
   // ───────── 礼物系统 ─────────
 
   @Get("gifts")
+  @ApiOperation({ summary: "获取礼物列表", description: "获取所有可用礼物及其价格" })
   getGifts() {
     return this.coin.getGifts();
   }
@@ -71,17 +73,28 @@ export class CoinController {
   @Post("gifts")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  createGift(@Body() dto: any) {
+  @ApiOperation({ summary: "创建礼物", description: "管理员创建新礼物类型" })
+  createGift(@Body() dto: CreateGiftDto) {
     return this.coin.createGift(dto);
+  }
+
+  @Delete("gifts/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "删除礼物", description: "管理员删除礼物类型" })
+  deleteGift(@Param("id") id: string) {
+    return this.coin.deleteGift(id);
   }
 
   @Post("gifts/send")
   @UseGuards(JwtAuthGuard)
-  sendGift(@Req() req: any, @Body() dto: { liveRoomId: string; toUserId: string; giftId: string; quantity?: number }) {
+  @ApiOperation({ summary: "赠送礼物", description: "在直播间向主播赠送礼物" })
+  sendGift(@Req() req: Request, @Body() dto: SendGiftDto) {
     return this.coin.sendGift(req.user.id, dto.liveRoomId, dto.toUserId, dto.giftId, dto.quantity || 1);
   }
 
   @Get("gifts/rank/:liveRoomId")
+  @ApiOperation({ summary: "直播礼物排行榜", description: "获取指定直播间的送礼排行" })
   getGiftRank(@Param("liveRoomId") liveRoomId: string) {
     return this.coin.getGiftRank(liveRoomId);
   }

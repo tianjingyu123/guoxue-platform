@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BaziInputDto, ZiweiInputDto } from "./paipan.dto";
@@ -54,8 +55,8 @@ export class PaipanService {
         clientName: dto.name || "",
         clientBirth: encrypt(`${dto.year}-${dto.month}-${dto.day} ${dto.hour}:${dto.minute || 0}`),
         paipanType: "BAZI",
-        inputParams: input as any,
-        resultData: result as any,
+        inputParams: this.sanitizeInput(input) as any,
+        resultData: this.sanitizeResult(result) as any,
       },
     });
 
@@ -147,8 +148,8 @@ export class PaipanService {
         clientName: dto.name || "",
         clientBirth: encrypt(`${dto.year}-${dto.month}-${dto.day} ${dto.hour}`),
         paipanType: "ZIWEI",
-        inputParams: input as any,
-        resultData: result as any,
+        inputParams: this.sanitizeInput(input) as any,
+        resultData: this.sanitizeResult(result) as any,
       },
     });
 
@@ -217,7 +218,7 @@ export class PaipanService {
     keyword?: string
   }) {
     const { page, pageSize, type, keyword } = params
-    const where: any = {}
+    const where: Prisma.PaipanRecordWhereInput = {}
 
     if (type && type !== "ALL") {
       where.paipanType = type
@@ -263,7 +264,7 @@ export class PaipanService {
     return records.map(r => this.decryptRecord(r));
   }
 
-  /** 构建 BaziInput */
+  /** 构建 BaziInput（计算用完整参数） */
   private buildInput(dto: BaziInputDto): BaziInput {
     return {
       name: dto.name || "",
@@ -275,6 +276,17 @@ export class PaipanService {
       minute: dto.minute || 0,
       city: dto.city || "",
     };
+  }
+
+  /** 脱敏 inputParams：移除生辰数据（已加密存于 clientBirth），仅保留非敏感字段 */
+  private sanitizeInput(input: { name?: string; gender?: string; city?: string }): Record<string, unknown> {
+    return { name: input.name, gender: input.gender, city: (input as any).city || "" };
+  }
+
+  /** 脱敏 resultData：移除内嵌的 input（生辰已在 clientBirth 加密存储），避免明文泄露 */
+  private sanitizeResult(result: object): object {
+    const { input, ...rest } = result as any;
+    return rest;
   }
 
   /** 根据输入构建缓存 key（bazi:{md5(inputJson)}） */

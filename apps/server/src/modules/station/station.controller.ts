@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { Request } from "express";
 import { StationService } from "./station.service";
 import { CreateStationDto, UpdateStationDto, CreateOperatorDto } from "./station.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -34,7 +35,7 @@ export class StationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建分站" })
-  createStation(@Req() req: any, @Body() dto: CreateStationDto) {
+  createStation(@Req() req: Request, @Body() dto: CreateStationDto) {
     return this.svc.createStation(req.user.id, dto);
   }
 
@@ -71,7 +72,7 @@ export class StationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建运营商" })
-  createOperator(@Req() req: any, @Body() dto: CreateOperatorDto) {
+  createOperator(@Req() req: Request, @Body() dto: CreateOperatorDto) {
     return this.svc.createOperator(req.user.id, dto);
   }
 
@@ -79,5 +80,42 @@ export class StationController {
   @ApiOperation({ summary: "运营商列表" })
   listOperators(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.svc.listOperators(+page, +pageSize);
+  }
+
+  // ───────── 分站发现 ─────────
+
+  @Get("discover")
+  @ApiOperation({ summary: "分站发现（用户端公开搜索）" })
+  discoverStations(
+    @Query("keyword") keyword?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.discoverStations({ keyword, page: +page, pageSize: +pageSize });
+  }
+
+  // ───────── 收益看板 ─────────
+
+  @Get(":id/revenue-dashboard")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "分站收益看板" })
+  getRevenueDashboard(@Param("id") id: string) {
+    return this.svc.getRevenueDashboard(id);
+  }
+
+  // ───────── 多小程序 ─────────
+
+  /** 获取分站小程序配置 */
+  @Get(":id/mini-config")
+  @ApiOperation({ summary: "获取分站小程序配置（含跨跳转信息）" })
+  getMiniConfig(@Param("id") id: string) {
+    return this.svc.getMiniConfig(id);
+  }
+
+  /** 解析跨小程序跳转目标 */
+  @Get(":id/jump-to/:targetPath")
+  @ApiOperation({ summary: "解析跨小程序跳转目标" })
+  resolveJumpTarget(@Param("id") id: string, @Param("targetPath") targetPath: string) {
+    return this.svc.resolveJumpTarget(id, targetPath);
   }
 }

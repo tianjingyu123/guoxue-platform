@@ -36,6 +36,22 @@ describe("Station DTO 校验", () => {
       const dto = Object.assign(new CreateStationDto(), { name: "站", code: "gx001", intro: "x".repeat(501) });
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
+    it("带小程序配置通过", async () => {
+      const dto = Object.assign(new CreateStationDto(), {
+        name: "分站", code: "wx001",
+        miniAppId: "wxabc123", mpAppId: "wxmp456",
+        miniPages: { home: "pages/index/index", course: "pages/course/list" },
+      });
+      const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+    it("miniAppId 超长报错", async () => {
+      const dto = Object.assign(new CreateStationDto(), { name: "站", code: "gx001", miniAppId: "x".repeat(33) });
+      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+    });
+    it("miniPages 非对象报错", async () => {
+      const dto = Object.assign(new CreateStationDto(), { name: "站", code: "gx001", miniPages: "not-json" });
+      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+    });
   });
   describe("UpdateStationDto", () => {
     it("空对象通过", async () => {
