@@ -1,0 +1,85 @@
+# ═══════════════════════════════════════════════════════════════
+# 国学平台 — Prometheus 采集配置
+# ═══════════════════════════════════════════════════════════════
+
+global:
+  scrape_interval: 15s        # 默认采集间隔
+  scrape_timeout: 10s         # 采集超时
+  evaluation_interval: 15s    # 告警规则评估间隔
+
+# 告警规则文件
+rule_files:
+  - "/etc/prometheus/alert-rules.yml"
+
+# Alertmanager 地址
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "alertmanager:9093"
+
+# 采集目标
+scrape_configs:
+
+  # ───── 1. 国学平台应用（NestJS metrics 端点） ─────
+  - job_name: "guoxue-server"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets:
+          - "host.docker.internal:3000"
+        labels:
+          service: "guoxue-server"
+          env: "production"
+    # 健康检查端点（供 blackbox 使用，非采集）
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "guoxue-server"
+
+  # ───── 2. Node Exporter（主机指标） ─────
+  - job_name: "node"
+    static_configs:
+      - targets:
+          - "node-exporter:9100"
+        labels:
+          env: "production"
+
+  # ───── 3. PostgreSQL Exporter ─────
+  - job_name: "postgresql"
+    static_configs:
+      - targets:
+          - "postgres-exporter:9187"
+        labels:
+          service: "postgresql"
+          env: "production"
+
+  # ───── 4. Redis Exporter ─────
+  - job_name: "redis"
+    static_configs:
+      - targets:
+          - "redis-exporter:9121"
+        labels:
+          service: "redis"
+          env: "production"
+
+  # ───── 5. Blackbox Exporter（第三方服务拨测） ─────
+  # 需要单独部署 blackbox_exporter
+  - job_name: "blackbox-external"
+    metrics_path: "/probe"
+    params:
+      module: ["http_2xx"]
+    static_configs:
+      - targets:
+          - "https://api.weixin.qq.com"
+          - "https://api.mch.weixin.qq.com"
+          - "https://api.deepseek.com"
+          - "https://cos.ap-guangzhou.myqcloud.com"
+        labels:
+          category: "third-party"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "blackbox-exporter:9115"

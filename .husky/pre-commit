@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Husky pre-commit hook — 国学平台
+# 自动类型检查 → 代码规范 → 关联测试
+
+bash scripts/pre-commit.sh

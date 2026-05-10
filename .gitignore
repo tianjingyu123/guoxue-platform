@@ -6,6 +6,8 @@ dist/
 .turbo
 .cache
 coverage/
+junit.xml
+junit-e2e.xml
 
 # IDE
 .idea/

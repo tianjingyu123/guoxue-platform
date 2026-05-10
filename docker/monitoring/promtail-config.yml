@@ -1,0 +1,53 @@
+# ═══════════════════════════════════════════════════════════════
+# 国学平台 — Promtail 日志采集配置
+# ═══════════════════════════════════════════════════════════════
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # ── 国学平台应用日志（JSON 格式） ──
+  - job_name: guoxue-server
+    pipeline_stages:
+      # 解析 JSON 日志行
+      - json:
+          expressions:
+            level: level
+            msg: msg
+            context: context
+            traceId: traceId
+            time: time
+            userId: userId
+            durationMs: durationMs
+      # 根据 level 设置 Loki 日志级别标签
+      - labels:
+          level:
+          context:
+          traceId:
+      # 将 time 字段作为日志时间戳
+      - timestamp:
+          source: time
+          format: RFC3339
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: guoxue-server
+          service: guoxue-server
+          __path__: /var/log/guoxue/*.log
+
+  # ── 系统日志 ──
+  - job_name: syslog
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: syslog
+          __path__: /var/log/syslog

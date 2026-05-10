@@ -1,0 +1,48 @@
+# ═══════════════════════════════════════════════════════════════
+# 国学平台 — Grafana 数据源配置
+# ═══════════════════════════════════════════════════════════════
+
+apiVersion: 1
+
+datasources:
+  # 主数据源 — Prometheus
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: "15s"
+      queryTimeout: "30s"
+      httpMethod: "POST"
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: tempo
+
+  # 日志数据源 — Loki
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 5000
+      derivedFields:
+        - name: traceId
+          matcherRegex: '"traceId":"(\w+)"'
+          url: "$${__value.raw}"
+
+  # PostgreSQL 监控
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: host.docker.internal:5432
+    database: guoxue
+    user: guoxue
+    secureJsonData:
+      password: guoxue123
+    jsonData:
+      sslmode: "disable"
+      postgresVersion: 1600
+      timescaledb: false
