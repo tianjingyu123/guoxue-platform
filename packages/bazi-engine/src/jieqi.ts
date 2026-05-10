@@ -62,7 +62,7 @@ export function getJieQiDate(year: number, jieQiIndex: number): { month: number;
   const dayOffset = Math.floor(yearOffset / 4) * 1
 
   let day = baseDays[jieQiIndex] + dayOffset
-  let month = baseMonth[jieQiIndex]
+  const month = baseMonth[jieQiIndex]
 
   // 修正小寒（在次年1月）
   if (jieQiIndex === 11 && day > 7) {

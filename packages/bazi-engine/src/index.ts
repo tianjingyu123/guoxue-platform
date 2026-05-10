@@ -5,10 +5,10 @@
  */
 import type { BaziInput, BaziResult } from './types'
 import { NA_YIN, getKongWang } from './constants'
-import { calcSiZhu, calcNianZhu, calcShengXiao, calcShiShen } from './sizhu'
+import { calcSiZhu, calcShengXiao } from './sizhu'
 import { calcQiYun, fillDaYunShiShen } from './dayun'
 import { calcFenXiTiShi, calcTaiYuan, calcMingGong, calcShenGong, calcWangXiang } from './shensha'
-import { calcAllShenSha, getShenShaByPillar } from './shensha-db'
+import { calcAllShenSha } from './shensha-db'
 import { calcGeJu, calcWuXingEnergy } from './geju'
 
 /**
@@ -86,22 +86,5 @@ export function calcBazi(input: BaziInput): BaziResult {
   }
 }
 
-// 导出所有类型和底层函数，便于外部单独使用
-export type { BaziInput, BaziResult, SiZhu, Pillar, DaYunStep, LiuNian, QiYun, FenXiTiShi } from './types'
-export type { Gan, Zhi, ShiShen, Gender } from './types'
-export { calcSiZhu, calcNianZhu, calcRiZhu, calcShiZhu, calcYueZhu, calcShengXiao, calcShiShen } from './sizhu'
-export { calcQiYun, fillDaYunShiShen, calcLiuNian, calcLiuYue } from './dayun'
-export { calcFenXiTiShi, calcTaiYuan, calcMingGong, calcShenGong, calcDiShi, calcWangXiang } from './shensha'
-export { calcAllShenSha, getShenShaByPillar } from './shensha-db'
-export { calcGeJu, calcWuXingEnergy } from './geju'
-export type { ShenShaItem, GeJu, WuXingEnergy } from './types'
-export { getLiuNianGanZhi, getLiuYueGanZhi, getLiuRiGanZhi, getLiuShiGanZhi, getLiuNianShiShen, getLiuYueShiShen } from './liunian'
-export { getYueZhiIndex, getJieQiDate, daysBetween, daysToNearestJie } from './jieqi'
-export {
-  GAN, ZHI, ZHI_CANG, WU_HU_DUN, WU_SHU_DUN, YUE_JIAN,
-  SHENG_XIAO, SHI_SHENG_YANG, SHI_SHENG_YIN, NA_YIN,
-  GAN_COLOR, ZHI_COLOR, CHANG_SHENG, DI_SHI,
-  GAN_HE_PAIRS, ZHI_HE_PAIRS, ZHI_CHONG_PAIRS, ZHI_HAI_PAIRS,
-  ZHI_SAN_HE, ZHI_SAN_HUI, ZHI_SAN_XING, ZHI_ZI_XING,
-  getKongWang,
-} from './constants'
+// 仅导出外部实际使用的类型
+export type { BaziInput, BaziResult, SiZhu, Pillar, DaYunStep } from './types'

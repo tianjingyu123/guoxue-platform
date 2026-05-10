@@ -3,7 +3,7 @@
  *
  * 覆盖完整紫微斗数排盘流程，验证命宫、五行局、紫微位置、十四主星等
  */
-import { calcZiwei, calcMingPan } from '../index'
+import { calcZiwei } from '../index'
 import type { ZiweiInput, ZiweiResult } from '../types'
 
 describe('calcZiwei - 完整紫微斗数排盘集成测试', () => {
