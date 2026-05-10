@@ -230,8 +230,8 @@ export class EmailService {
       content: [] as Array<{ type: string; value: string }>,
     };
 
-    if (params.text) body.content.push({ type: "text/plain", value: params.text });
-    if (params.html) body.content.push({ type: "text/html", value: params.html });
+    if (params.text) (body.content as Array<{ type: string; value: string }>).push({ type: "text/plain", value: params.text });
+    if (params.html) (body.content as Array<{ type: string; value: string }>).push({ type: "text/html", value: params.html });
 
     try {
       const resp = await fetch(api.url, {

@@ -81,7 +81,7 @@ export class ExportService {
       if (filters?.startDate) where.createdAt.gte = new Date(filters.startDate);
       if (filters?.endDate) where.createdAt.lte = new Date(filters.endDate);
     }
-    if (filters?.role) where.role = filters.role;
+    if (filters?.role) where.roles = { has: filters.role };
 
     const total = await this.prisma.user.count({ where });
     const columns: Column[] = [

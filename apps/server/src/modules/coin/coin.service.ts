@@ -267,15 +267,15 @@ export class CoinService {
 
     if (attach.type !== "COIN_RECHARGE") return;
 
-    const userId = attach.userId;
-    const amountCoin = attach.amountCoin;
+    const userId = attach.userId as string;
+    const amountCoin = attach.amountCoin as number;
 
     if (!userId || !amountCoin) {
       this.logger.error("充值回调参数缺失", attach);
       return;
     }
 
-    const orderNo = body.out_trade_no;
+    const orderNo = body.out_trade_no as string;
     const lockKey = `recharge:lock:${orderNo}`;
 
     // 分布式锁防并发重复处理
