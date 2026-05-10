@@ -2102,6 +2102,315 @@ async function main() {
   }
   if (coinCreated > 0) console.log("✅ 虚拟币账户: " + coinCreated + " 个");
 
+  // 23. 系统配置
+  const systemConfigs = [
+    { configKey: "site_name", configValue: "国学传统文化平台", description: "站点名称" },
+    { configKey: "site_logo", configValue: "/static/logo.png", description: "站点Logo" },
+    { configKey: "member_monthly_price", configValue: "29.9", description: "月度会员价格" },
+    { configKey: "member_yearly_price", configValue: "299", description: "年度会员价格" },
+    { configKey: "member_lifetime_price", configValue: "999", description: "终身会员价格" },
+    { configKey: "commission_default_rate", configValue: "0.1", description: "默认佣金比例" },
+    { configKey: "withdraw_min_amount", configValue: "50", description: "最低提现金额" },
+    { configKey: "content_audit_mode", configValue: "POST", description: "内容审核模式: PRE(先审后发)/POST(先发后审)" },
+    { configKey: "sms_daily_limit", configValue: "5", description: "每日短信验证码上限" },
+    { configKey: "email_verify_expire", configValue: "600", description: "邮件验证码有效期(秒)" },
+    { configKey: "coin_recharge_rate", configValue: "10", description: "虚拟币充值: 1元=10币" },
+    { configKey: "ai_daily_free_limit", configValue: "5", description: "每日免费AI分析次数" },
+    { configKey: "live_gift_commission", configValue: "0.3", description: "直播打赏平台抽成比例" },
+  ];
+  for (const cfg of systemConfigs) {
+    await (prisma as any).configSystem.upsert({
+      where: { configKey: cfg.configKey },
+      update: { configValue: cfg.configValue },
+      create: cfg,
+    });
+  }
+  console.log("✅ 系统配置: " + systemConfigs.length + " 项");
+
+  // 24. 创建示范分站
+  const stationUser = await prisma.user.upsert({
+    where: { phone: "13900000001" },
+    update: {},
+    create: {
+      phone: "13900000001",
+      nickname: "长安国学馆",
+      avatar: "/static/avatars/station1.png",
+      auths: { create: { provider: "PASSWORD", credential: adminPwd } },
+      roles: { create: { roleType: "STATION_MASTER" } },
+    },
+  });
+
+  const station = await (prisma as any).station.upsert({
+    where: { userId: stationUser.id },
+    update: {},
+    create: {
+      userId: stationUser.id,
+      name: "长安国学馆",
+      code: "CHANGAN",
+      logo: "/static/stations/changan.png",
+      themeColor: "#8B0000",
+      intro: "传承三秦文脉，弘扬长安国学——陕西地区线下研学基地",
+      miniAppId: null,
+      mpAppId: null,
+      status: "ACTIVE",
+      totalEarning: 0,
+    },
+  });
+  console.log("✅ 示范分站: " + station.name);
+
+  // 25. 创建运营商
+  const operatorUser = await prisma.user.upsert({
+    where: { phone: "13900000002" },
+    update: {},
+    create: {
+      phone: "13900000002",
+      nickname: "国学推广合伙人",
+      avatar: "/static/avatars/operator1.png",
+      auths: { create: { provider: "PASSWORD", credential: adminPwd } },
+      roles: { create: { roleType: "OPERATOR" } },
+    },
+  });
+
+  const operator = await (prisma as any).operator.create({
+    data: {
+      userId: operatorUser.id,
+      level: "GOLD",
+      containQuota: 10,
+      usedQuota: 1,
+      status: "ACTIVE",
+    },
+  });
+  console.log("✅ 运营商: " + operatorUser.nickname);
+
+  // 26. 线下驿站
+  const offlineStation = await (prisma as any).stationOffline.create({
+    data: {
+      name: "终南山国学书院",
+      city: "西安市",
+      address: "长安区终南山脚下",
+      phone: "029-88886666",
+      cover: "/static/stations/zhongnanshan.png",
+      ownerUserId: teacher.id,
+      depositAmount: 5000,
+      status: "ACTIVE",
+    },
+  });
+
+  await (prisma as any).offlineCourse.create({
+    data: {
+      stationId: offlineStation.id,
+      title: "终南山道德经七日禅修营",
+      cover: "/static/courses/dao-zen.png",
+      intro: "在终南山中，远离尘嚣，七天沉浸式研读《道德经》，体验道家修行日常。",
+      teacherId: teacher.id,
+      type: "OFFLINE",
+      price: 3980,
+      maxStudents: 30,
+      startTime: new Date("2026-06-01"),
+      endTime: new Date("2026-06-07"),
+      location: "终南山国学书院 · 静心堂",
+      status: "DRAFT",
+    },
+  });
+  console.log("✅ 线下驿站: " + offlineStation.name);
+
+  // 27. 内容管理示例
+  const sampleContents = [
+    { title: "《论语》中的君子之道", type: "ARTICLE", author: "钱穆", dynasty: "现代", excerpt: "君子务本，本立而道生...", body: "<p>《论语》中君子一词出现了107次...</p>", cover: "/static/contents/junzi.png", tags: ["论语", "儒家", "修身"] },
+    { title: "《诗经》中的爱情诗赏析", type: "ARTICLE", author: "叶嘉莹", dynasty: "现代", excerpt: "关关雎鸠，在河之洲...", body: "<p>《诗经》开篇《关雎》以雎鸠起兴...</p>", cover: "/static/contents/shijing-love.png", tags: ["诗经", "爱情", "古典诗词"] },
+    { title: "《金刚经》核心思想解读", type: "ARTICLE", author: "南怀瑾", dynasty: "现代", excerpt: "凡所有相，皆是虚妄...", body: "<p>《金刚经》是大乘佛教最著名的经典之一...</p>", cover: "/static/contents/diamond-sutra.png", tags: ["金刚经", "佛学", "禅宗"] },
+  ];
+  for (const c of sampleContents) {
+    await (prisma as any).content.create({ data: c });
+  }
+  console.log("✅ 内容管理: " + sampleContents.length + " 篇");
+
+  // 28. 研究院成员
+  await (prisma as any).instituteMember.create({
+    data: {
+      userId: teacher2.id,
+      role: "TYPE_A",
+      deposit: 3000,
+      tasksCompleted: 2,
+      tasksRequired: 5,
+      status: "ACTIVE",
+    },
+  });
+  console.log("✅ 研究院成员: " + teacher2.nickname);
+
+  // 29. 付费问答示例
+  if (circles.length >= 4) {
+    await (prisma as any).paidQuestion.create({
+      data: {
+        circleId: circles[3].id, // 命理研习堂
+        askerId: admin.id,
+        answererId: teacher.id,
+        question: "老师好，我八字日主壬水生于辰月，地支申子辰合水局，日主太旺，该如何取用神？",
+        priceCoin: 50,
+        peekPriceCoin: 5,
+        status: "ANSWERED",
+        answer: "壬水生于辰月得库，地支申子辰三合水局，日主极旺。水势奔流，首取戊土制水，次取丙火暖局。有戊土则水得堤防，有丙火则水不寒凝。若原局无土制水，则喜木泄水生财——此所谓强水得木方泄其势也。",
+        answeredAt: new Date(),
+      },
+    });
+    console.log("✅ 付费问答: 1 条");
+
+    // 30. 商品评价
+    const allProducts = await prisma.product.findMany({ take: 2 });
+    if (allProducts.length >= 2) {
+      const reviewData = [
+        { productId: allProducts[0].id, userId: admin.id, rating: 5, content: "质量非常好，手感温润，练字很有感觉！" },
+        { productId: allProducts[0].id, userId: teacher2.id, rating: 4, content: "笔锋不错，就是墨水稍微容易干。" },
+        { productId: allProducts[1].id, userId: admin.id, rating: 5, content: "香韵悠长，打坐时点一支很有禅意。" },
+      ];
+      for (const r of reviewData) {
+        await (prisma as any).productReview.create({ data: r });
+      }
+      console.log("✅ 商品评价: " + reviewData.length + " 条");
+    }
+
+    // 31. 礼物赠送记录
+    const gift1 = await (prisma as any).gift.findFirst();
+    const liveRoom = await prisma.liveRoom.findFirst();
+    if (gift1 && liveRoom) {
+      await (prisma as any).giftRecord.create({
+        data: {
+          userId: admin.id,
+          liveRoomId: liveRoom.id,
+          toUserId: teacher.id,
+          giftId: gift1.id,
+          quantity: 3,
+          totalCoin: gift1.priceCoin * 3,
+        },
+      });
+      console.log("✅ 礼物赠送记录: 1 条");
+    }
+  }
+
+  // 30. 搜索历史
+  const searchQueries = [
+    "道德经", "论语", "易经", "唐诗", "宋词", "八字排盘", "紫微斗数",
+    "风水", "命理", "诗经", "楚辞", "李白", "杜甫", "苏轼", "大学",
+    "中庸", "孟子", "周易", "占卜", "禅修", "茶道", "书法", "国画",
+    "古琴", "中医", "养生", "太极拳", "说文解字", "史记",
+  ];
+
+  for (let i = 0; i < searchQueries.length; i++) {
+    await prisma.searchHistory.create({
+      data: {
+        userId: i % 2 === 0 ? admin.id : teacher.id,
+        keyword: searchQueries[i],
+      },
+    });
+  }
+  console.log("✅ 搜索历史: " + searchQueries.length + " 条");
+
+  // 31. 经典阅读进度（为管理员在学习经典时记录进度）
+  const classicChapters = await prisma.classicChapter.findMany({ take: 20 });
+  for (let i = 0; i < Math.min(classicChapters.length, 15); i++) {
+    await prisma.readingProgress.create({
+      data: {
+        userId: admin.id,
+        bookId: classicChapters[i].bookId,
+        chapterId: classicChapters[i].id,
+        progress: Math.floor(Math.random() * 100) + 1,
+      },
+    });
+  }
+  console.log("✅ 阅读进度: " + Math.min(classicChapters.length, 15) + " 条");
+
+  // 32. 书签
+  const firstBook = await prisma.classicBook.findFirst();
+  if (firstBook) {
+    await prisma.bookmark.create({
+      data: {
+        userId: admin.id,
+        bookId: firstBook.id,
+        chapterId: classicChapters[0]?.id || "",
+        note: "此处值得反复研读",
+      },
+    });
+    console.log("✅ 书签: 1 条");
+  }
+
+  // 33. 用户行为数据（推荐系统种子）
+  const behaviorTypes = ["VIEW", "LIKE", "COLLECT", "SHARE", "LEARN", "PURCHASE"] as const;
+  const targetTypes = ["ARTICLE", "COURSE", "CONTENT", "PRODUCT", "CLASSIC_BOOK"] as const;
+
+  for (let i = 0; i < 60; i++) {
+    const behavior = behaviorTypes[i % behaviorTypes.length];
+    const targetType = targetTypes[i % targetTypes.length];
+    await prisma.userBehavior.create({
+      data: {
+        userId: i % 3 === 0 ? admin.id : (i % 3 === 1 ? teacher.id : teacher2.id),
+        behavior,
+        targetType,
+        targetId: `seed-target-${i}`,
+        weight: behavior === "PURCHASE" ? 10 : (behavior === "SHARE" ? 5 : (behavior === "COLLECT" ? 3 : 1)),
+      },
+    });
+  }
+  console.log("✅ 用户行为: 60 条");
+
+  // 34. 用户兴趣标签（推荐系统种子）
+  const interestTags = ["道家", "儒家", "易经", "诗词", "命理", "中医", "书法", "茶道", "禅修", "历史"];
+  for (let i = 0; i < interestTags.length; i++) {
+    await prisma.userInterest.create({
+      data: {
+        userId: i % 2 === 0 ? admin.id : teacher.id,
+        tag: interestTags[i],
+        score: Math.random() * 0.5 + 0.5,
+        source: "BEHAVIOR",
+      },
+    });
+  }
+  console.log("✅ 用户兴趣: " + interestTags.length + " 条");
+
+  // FeatureFlag 预置 — 关键功能的灰度开关
+  const featureFlags: Array<{
+    key: string; name: string; description: string; enabled: boolean; percentage: number;
+  }> = [
+    { key: "ai_translate", name: "AI翻译", description: "AI文言文-白话文翻译功能", enabled: true, percentage: 100 },
+    { key: "ai_bazi_analysis", name: "AI八字分析", description: "AI命理分析功能（消耗虚拟币）", enabled: true, percentage: 100 },
+    { key: "live_streaming", name: "直播功能", description: "直播间创建与观看", enabled: true, percentage: 100 },
+    { key: "ebook_feature", name: "电子书", description: "电子书阅读、购买、进度同步", enabled: true, percentage: 100 },
+    { key: "coin_recharge", name: "虚拟币充值", description: "微信/支付宝/银联充值虚拟币", enabled: true, percentage: 100 },
+    { key: "member_system", name: "会员系统", description: "会员等级、权益、自动续费", enabled: true, percentage: 100 },
+    { key: "shop_feature", name: "商城", description: "商品浏览与购买", enabled: true, percentage: 100 },
+    { key: "recommend_engine", name: "推荐引擎", description: "个性化推荐、冷启动、A/B实验", enabled: true, percentage: 100 },
+    { key: "paipan_ziwei", name: "紫微斗数排盘", description: "紫微斗数命盘计算", enabled: true, percentage: 100 },
+    { key: "circle_feature", name: "圈子", description: "用户圈子创建与互动", enabled: true, percentage: 100 },
+    { key: "same_city_feature", name: "同城推荐", description: "基于LBS的同城内容推荐", enabled: true, percentage: 100 },
+    { key: "video_feature", name: "短视频", description: "短视频浏览与上传", enabled: false, percentage: 0 },
+    { key: "search_feature", name: "全局搜索", description: "跨模块全文搜索", enabled: true, percentage: 100 },
+    { key: "comment_feature", name: "评论功能", description: "内容评论与回复", enabled: true, percentage: 100 },
+    { key: "notification_feature", name: "通知推送", description: "站内信与模板消息推送", enabled: true, percentage: 100 },
+    { key: "new_user_guide", name: "新用户引导", description: "新用户兴趣选择引导流程（第3周开发）", enabled: false, percentage: 0 },
+    { key: "payment_sandbox", name: "支付沙箱", description: "支付走沙箱环境（开发/测试用）", enabled: true, percentage: 100 },
+    { key: "rate_limit_strict", name: "严格限流", description: "启用更严格的API限流策略", enabled: false, percentage: 0 },
+    { key: "debug_log", name: "调试日志", description: "输出详细调试日志", enabled: false, percentage: 0 },
+    { key: "content_review_ai", name: "AI内容审核", description: "使用AI辅助内容审核", enabled: false, percentage: 0 },
+  ];
+
+  for (const ff of featureFlags) {
+    await prisma.featureFlag.upsert({
+      where: { key: ff.key },
+      create: {
+        key: ff.key,
+        name: ff.name,
+        description: ff.description,
+        enabled: ff.enabled,
+        percentage: ff.percentage,
+        targetUserIds: [],
+      },
+      update: {
+        name: ff.name,
+        description: ff.description,
+      },
+    });
+  }
+  console.log("✅ FeatureFlag 预置: " + featureFlags.length + " 个开关");
+
   console.log("\n🎉 种子数据填充完成！");
   console.log("   管理员: 13800000000 / guoxue123");
   console.log("   讲师1:  13800000001 / teacher123");
