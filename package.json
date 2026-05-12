@@ -12,7 +12,13 @@
     "lint:fix": "eslint . --ext .ts,.vue --fix",
     "lint:packages": "pnpm -r lint",
     "db:migrate": "pnpm --filter @guoxue/server db:migrate",
-    "db:generate": "pnpm --filter @guoxue/server db:generate"
+    "db:generate": "pnpm --filter @guoxue/server db:generate",
+    "test:server": "pnpm --filter @guoxue/server exec jest --config jest.config.ts --testPathPattern \"src/\"",
+    "test:e2e": "pnpm --filter @guoxue/server exec jest --config jest.config.ts --testPathPattern \"test/\" --runInBand",
+    "test:coverage": "pnpm --filter @guoxue/server exec jest --config jest.config.ts --coverage",
+    "typecheck": "pnpm --filter @guoxue/server exec tsc --noEmit",
+    "precommit": "bash scripts/pre-commit.sh",
+    "prepare": "npx husky install 2>/dev/null || echo 'husky 初始化跳过（非 git 环境）'"
   },
   "engines": {
     "node": ">=20",
