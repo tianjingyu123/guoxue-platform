@@ -13,7 +13,7 @@ RUN pnpm install --frozen-lockfile
 
 # 源代码 + 构建
 COPY . .
-RUN npx prisma generate --schema=apps/server/prisma/schema.prisma
+RUN pnpm --filter @guoxue/server exec prisma generate
 RUN pnpm --filter @guoxue/bazi-engine build
 RUN pnpm --filter @guoxue/ziwei-engine build
 RUN pnpm build:server
