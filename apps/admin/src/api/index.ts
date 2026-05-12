@@ -595,39 +595,48 @@ export const financeApi = {
 
 // ───────── 风控管理 ─────────
 export const riskApi = {
+  // 预警规则
   listRules: (params?: any) => api.get("/risk-control/rules", { params }),
   createRule: (data: any) => api.post("/risk-control/rules", data),
   updateRule: (id: string, data: any) => api.put(`/risk-control/rules/${id}`, data),
   deleteRule: (id: string) => api.delete(`/risk-control/rules/${id}`),
-  toggleRule: (id: string, enabled: boolean) => api.put(`/risk-control/rules/${id}/toggle`, { enabled }),
+  toggleRule: (id: string, enabled: boolean) => api.put(`/risk-control/rules/${id}`, { enabled }),
+  // 预警列表
   listAlerts: (params?: any) => api.get("/risk-control/alerts", { params }),
-  processAlert: (id: string, data: any) => api.put(`/risk-control/alerts/${id}`, data),
-  listFraudCases: (params?: any) => api.get("/risk-control/fraud-cases", { params }),
+  handleAlert: (id: string, note?: string) => api.put(`/risk-control/alerts/${id}/handle`, { note }),
+  dismissAlert: (id: string) => api.put(`/risk-control/alerts/${id}/dismiss`),
+  // 刷单检测
+  listFraudDetections: (params?: any) => api.get("/risk-control/fraud-detections", { params }),
+  confirmFraud: (id: string) => api.put(`/risk-control/fraud-detections/${id}/confirm`),
+  dismissFraud: (id: string) => api.put(`/risk-control/fraud-detections/${id}/dismiss`),
+  // 行为轨迹
   getUserTimeline: (userId: string, params?: any) => api.get(`/risk-control/user-timeline/${userId}`, { params }),
+  // 申诉处理
   listAppeals: (params?: any) => api.get("/risk-control/appeals", { params }),
-  processAppeal: (id: string, data: any) => api.put(`/risk-control/appeals/${id}`, data),
+  approveAppeal: (id: string) => api.put(`/risk-control/appeals/${id}/approve`),
+  rejectAppeal: (id: string, reviewNote: string) => api.put(`/risk-control/appeals/${id}/reject`, { reviewNote }),
 };
 
 // ───────── AI 管理 ─────────
 export const aiAdminApi = {
-  // 对话日志
-  listChatLogs: (params?: any) => api.get("/ai/admin/chat-logs", { params }),
-  getChatLogDetail: (id: string) => api.get(`/ai/admin/chat-logs/${id}`),
-  deleteChatLog: (id: string) => api.delete(`/ai/admin/chat-logs/${id}`),
+  // 对话日志（后端为 call-logs）
+  listChatLogs: (params?: any) => api.get("/ai/call-logs", { params }),
+  getChatLogDetail: (id: string) => api.get(`/ai/call-logs/${id}`),
+  deleteChatLog: (id: string) => api.delete(`/ai/call-logs/${id}`),
   // 调用统计
-  getCallStats: () => api.get("/ai/admin/call-stats"),
-  getCallLogs: (params?: any) => api.get("/ai/admin/call-logs", { params }),
-  getAbnormalCalls: () => api.get("/ai/admin/abnormal-calls"),
-  // 圈主助理
-  listCircleAssistants: (params?: any) => api.get("/ai/admin/circle-assistants", { params }),
-  updateCircleAssistant: (id: string, data: any) => api.put(`/ai/admin/circle-assistants/${id}`, data),
-  approveCircleAssistant: (circleId: string) => api.post(`/ai/admin/circle-assistants/${circleId}/approve`),
-  rejectCircleAssistant: (circleId: string, reason?: string) => api.post(`/ai/admin/circle-assistants/${circleId}/reject`, { reason }),
-  getKnowledgeBase: (circleId: string) => api.get(`/ai/admin/knowledge/${circleId}`),
-  createKnowledgeEntry: (circleId: string, data: any) => api.post(`/ai/admin/knowledge/${circleId}`, data),
-  updateKnowledgeEntry: (id: string, data: any) => api.put(`/ai/admin/knowledge/${id}`, data),
-  deleteKnowledgeEntry: (id: string) => api.delete(`/ai/admin/knowledge/${id}`),
-  getUsageData: (circleId: string) => api.get(`/ai/admin/usage/${circleId}`),
+  getCallStats: (period?: string) => api.get("/ai/usage-stats", { params: { period: period || "day" } }),
+  getCallLogs: (params?: any) => api.get("/ai/call-logs", { params }),
+  getAbnormalCalls: () => api.get("/ai/abnormal-alerts"),
+  // 圈主助理（后端暂无，保留接口待后端补充）
+  listCircleAssistants: (params?: any) => api.get("/ai/circle-assistants", { params }),
+  updateCircleAssistant: (id: string, data: any) => api.put(`/ai/circle-assistants/${id}`, data),
+  approveCircleAssistant: (circleId: string) => api.post(`/ai/circle-assistants/${circleId}/approve`),
+  rejectCircleAssistant: (circleId: string, reason?: string) => api.post(`/ai/circle-assistants/${circleId}/reject`, { reason }),
+  getKnowledgeBase: (circleId: string) => api.get(`/ai/knowledge/${circleId}`),
+  createKnowledgeEntry: (circleId: string, data: any) => api.post(`/ai/knowledge/${circleId}`, data),
+  updateKnowledgeEntry: (id: string, data: any) => api.put(`/ai/knowledge/${id}`, data),
+  deleteKnowledgeEntry: (id: string) => api.delete(`/ai/knowledge/${id}`),
+  getUsageData: (circleId: string) => api.get(`/ai/usage/${circleId}`),
 };
 
 export default api;

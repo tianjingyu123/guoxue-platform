@@ -29,7 +29,7 @@ async function fetchList() {
   try {
     const params: Record<string, any> = { page: page.value, pageSize: 20 }
     if (statusFilter.value) params.status = statusFilter.value
-    const { data } = await riskApi.listFraudCases(params)
+    const { data } = await riskApi.listFraudDetections(params)
     list.value = data.fraudCases || data.data || []
     total.value = data.total || 0
   } catch {
@@ -47,7 +47,7 @@ async function confirmFraud(id: string) {
       cancelButtonText: '取消',
       confirmButtonClass: 'el-button--danger',
     })
-    await riskApi.processAlert(id, { action: 'CONFIRM_FRAUD' })
+    await riskApi.confirmFraud(id)
     ElMessage.success('已确认为刷单')
     fetchList()
   } catch {
@@ -62,7 +62,7 @@ async function dismissFraud(id: string) {
       confirmButtonText: '确认忽略',
       cancelButtonText: '取消',
     })
-    await riskApi.processAlert(id, { action: 'DISMISS_FRAUD' })
+    await riskApi.dismissFraud(id)
     ElMessage.success('已标记为误报')
     fetchList()
   } catch {

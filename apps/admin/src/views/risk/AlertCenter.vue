@@ -90,10 +90,11 @@ function openProcess(row: any) {
 async function processAlert() {
   saving.value = true
   try {
-    await riskApi.processAlert(editingId.value, {
-      action: processForm.action,
-      remark: processForm.remark,
-    })
+    if (processForm.action === 'DISMISS') {
+      await riskApi.dismissAlert(editingId.value)
+    } else {
+      await riskApi.handleAlert(editingId.value, processForm.remark)
+    }
     ElMessage.success('已处理')
     dialogVisible.value = false
     fetchList()

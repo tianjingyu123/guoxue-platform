@@ -64,7 +64,7 @@ async function approve(id: string) {
       confirmButtonText: '确认通过',
       cancelButtonText: '取消',
     })
-    await riskApi.processAppeal(id, { status: 'APPROVED' })
+    await riskApi.approveAppeal(id)
     ElMessage.success('已通过')
     fetchList()
   } catch {
@@ -85,10 +85,7 @@ async function reject() {
   }
   saving.value = true
   try {
-    await riskApi.processAppeal(rejectId.value, {
-      status: 'REJECTED',
-      reason: rejectForm.reason,
-    })
+    await riskApi.rejectAppeal(rejectId.value, rejectForm.reason)
     ElMessage.success('已驳回')
     rejectDialogVisible.value = false
     fetchList()
