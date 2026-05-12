@@ -1,5 +1,5 @@
 FROM node:20-alpine AS builder
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN npm install -g corepack@latest && corepack enable && corepack prepare pnpm@10 --activate
 WORKDIR /app
 
 # 依赖缓存层
@@ -20,7 +20,7 @@ RUN pnpm build:server
 
 # ── 运行阶段 ──
 FROM node:20-alpine
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN npm install -g corepack@latest && corepack enable && corepack prepare pnpm@10 --activate
 WORKDIR /app
 
 # 仅复制运行时依赖

@@ -408,22 +408,13 @@ jobs:
       - name: 检查所有必需 job 结果
         run: |
           echo "## CI 检查结果" >> $GITHUB_STEP_SUMMARY
-          JOBS=(
-            "build-packages"
-            "typecheck"
-            "lint"
-            "test-packages"
-            "build-server"
-            "test-server"
-            "e2e"
-          )
-          FAILED=0
-          for job in "${JOBS[@]}"; do
-            RESULT="${{ needs.$job.result }}"
-            # needs.*.result 仅在 depends-on job 完成时有值
-            # 使用 github-runner context 检查
-            echo "- $job: $RESULT" >> $GITHUB_STEP_SUMMARY
-          done
+          echo "- build-packages: ${{ needs.build-packages.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- typecheck: ${{ needs.typecheck.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- lint: ${{ needs.lint.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- test-packages: ${{ needs.test-packages.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- build-server: ${{ needs.build-server.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- test-server: ${{ needs.test-server.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- e2e: ${{ needs.e2e.result }}" >> $GITHUB_STEP_SUMMARY
 
       - name: 验证全部通过
         if: |
