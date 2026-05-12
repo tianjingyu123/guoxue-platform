@@ -3,81 +3,213 @@
     <div class="header">
       <h2>直播管理</h2>
       <div>
-        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width:120px;margin-right:12px" @change="fetchList">
-          <el-option label="全部" value="" />
-          <el-option label="待开播" value="PENDING" />
-          <el-option label="直播中" value="LIVING" />
-          <el-option label="已结束" value="ENDED" />
-          <el-option label="回放" value="REPLAY" />
+        <el-select
+          v-model="statusFilter"
+          placeholder="状态筛选"
+          clearable
+          style="width:120px;margin-right:12px"
+          @change="fetchList"
+        >
+          <el-option
+            label="全部"
+            value=""
+          />
+          <el-option
+            label="待开播"
+            value="PENDING"
+          />
+          <el-option
+            label="直播中"
+            value="LIVING"
+          />
+          <el-option
+            label="已结束"
+            value="ENDED"
+          />
+          <el-option
+            label="回放"
+            value="REPLAY"
+          />
         </el-select>
-        <el-button type="primary" @click="openEdit()">添加直播</el-button>
+        <el-button
+          type="primary"
+          @click="openEdit()"
+        >
+          添加直播
+        </el-button>
       </div>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
-      <el-table-column prop="title" label="直播间" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="host.nickname" label="主播" width="100" />
-      <el-table-column label="状态" width="90">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="title"
+        label="直播间"
+        min-width="180"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="host.nickname"
+        label="主播"
+        width="100"
+      />
+      <el-table-column
+        label="状态"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'LIVING' ? 'danger' : row.status === 'ENDED' ? 'info' : row.status === 'REPLAY' ? 'success' : 'warning'" size="small">
+          <el-tag
+            :type="row.status === 'LIVING' ? 'danger' : row.status === 'ENDED' ? 'info' : row.status === 'REPLAY' ? 'success' : 'warning'"
+            size="small"
+          >
             {{ statusLabel(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="viewCount" label="观看" width="80" />
-      <el-table-column prop="createdAt" label="创建时间" width="170">
-        <template #default="{ row }">{{ row.createdAt?.slice(0,16).replace('T',' ') }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="250" fixed="right">
+      <el-table-column
+        prop="viewCount"
+        label="观看"
+        width="80"
+      />
+      <el-table-column
+        prop="createdAt"
+        label="创建时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button v-if="row.status === 'LIVING'" size="small" type="danger" @click="endRoom(row)">结束</el-button>
-          <el-button size="small" @click="viewDetail(row)">详情</el-button>
-          <el-button size="small" type="danger" @click="del(row.id)">删除</el-button>
+          {{ row.createdAt?.slice(0,16).replace('T',' ') }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="250"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-if="row.status === 'LIVING'"
+            size="small"
+            type="danger"
+            @click="endRoom(row)"
+          >
+            结束
+          </el-button>
+          <el-button
+            size="small"
+            @click="viewDetail(row)"
+          >
+            详情
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="del(row.id)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 创建/编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑直播' : '添加直播'" width="500px">
-      <el-form :model="form" label-width="100px">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editingId ? '编辑直播' : '添加直播'"
+      width="500px"
+    >
+      <el-form
+        :model="form"
+        label-width="100px"
+      >
         <el-form-item label="标题">
           <el-input v-model="form.title" />
         </el-form-item>
         <el-form-item label="封面URL">
-          <el-input v-model="form.cover" placeholder="封面图片地址" />
+          <el-input
+            v-model="form.cover"
+            placeholder="封面图片地址"
+          />
         </el-form-item>
         <el-form-item label="主播用户ID">
-          <el-input v-model="form.hostUserId" placeholder="用户ID" />
+          <el-input
+            v-model="form.hostUserId"
+            placeholder="用户ID"
+          />
         </el-form-item>
         <el-form-item label="收费类型">
           <el-select v-model="form.chargeType">
-            <el-option label="免费" value="FREE" />
-            <el-option label="付费" value="PAID" />
+            <el-option
+              label="免费"
+              value="FREE"
+            />
+            <el-option
+              label="付费"
+              value="PAID"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="收费价格" v-if="form.chargeType === 'PAID'">
-          <el-input-number v-model="form.chargePrice" :min="0" />
+        <el-form-item
+          v-if="form.chargeType === 'PAID'"
+          label="收费价格"
+        >
+          <el-input-number
+            v-model="form.chargePrice"
+            :min="0"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveRoom" :loading="saving">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="saveRoom"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 直播详情对话框 -->
-    <el-dialog v-model="detailVisible" title="直播详情" width="600px">
-      <div v-if="detail" class="detail">
+    <el-dialog
+      v-model="detailVisible"
+      title="直播详情"
+      width="600px"
+    >
+      <div
+        v-if="detail"
+        class="detail"
+      >
         <p><b>标题：</b>{{ detail.title }}</p>
         <p><b>主播：</b>{{ detail.host?.nickname }}</p>
         <p><b>状态：</b>{{ statusLabel(detail.status) }}</p>
-        <p v-if="detail.coverUrl"><b>封面：</b>{{ detail.coverUrl }}</p>
-        <p v-if="detail.replayUrl"><b>回放：</b>{{ detail.replayUrl }}</p>
+        <p v-if="detail.coverUrl">
+          <b>封面：</b>{{ detail.coverUrl }}
+        </p>
+        <p v-if="detail.replayUrl">
+          <b>回放：</b>{{ detail.replayUrl }}
+        </p>
         <p><b>观众数：</b>{{ detail.viewCount }}</p>
         <p><b>创建时间：</b>{{ detail.createdAt?.slice(0,16).replace('T',' ') }}</p>
-        <p v-if="detail.startedAt"><b>开播时间：</b>{{ detail.startedAt?.slice(0,16).replace('T',' ') }}</p>
-        <p v-if="detail.endedAt"><b>结束时间：</b>{{ detail.endedAt?.slice(0,16).replace('T',' ') }}</p>
+        <p v-if="detail.startedAt">
+          <b>开播时间：</b>{{ detail.startedAt?.slice(0,16).replace('T',' ') }}
+        </p>
+        <p v-if="detail.endedAt">
+          <b>结束时间：</b>{{ detail.endedAt?.slice(0,16).replace('T',' ') }}
+        </p>
       </div>
     </el-dialog>
   </div>

@@ -9,10 +9,27 @@
       :before-upload="beforeUpload"
       accept="image/*"
     >
-      <img v-if="modelValue" :src="modelValue" class="preview" />
-      <el-icon v-else class="upload-icon"><Plus /></el-icon>
+      <img
+        v-if="modelValue"
+        :src="modelValue"
+        class="preview"
+      >
+      <el-icon
+        v-else
+        class="upload-icon"
+      >
+        <Plus />
+      </el-icon>
     </el-upload>
-    <el-button v-if="modelValue" text type="danger" size="small" @click="handleRemove">移除图片</el-button>
+    <el-button
+      v-if="modelValue"
+      text
+      type="danger"
+      size="small"
+      @click="handleRemove"
+    >
+      移除图片
+    </el-button>
   </div>
 </template>
 

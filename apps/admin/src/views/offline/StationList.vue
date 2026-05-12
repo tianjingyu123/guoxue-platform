@@ -3,46 +3,130 @@
     <div class="header">
       <h2>分站管理</h2>
       <div class="header-actions">
-        <el-button @click="exportData">导出CSV</el-button>
-        <el-button type="primary" @click="openCreate">新建分站</el-button>
+        <el-button @click="exportData">
+          导出CSV
+        </el-button>
+        <el-button
+          type="primary"
+          @click="openCreate"
+        >
+          新建分站
+        </el-button>
       </div>
     </div>
 
-    <el-table :data="stations" border stripe v-loading="loading">
-      <el-table-column prop="name" label="名称" width="150" />
-      <el-table-column prop="code" label="推广码" width="120" />
-      <el-table-column prop="intro" label="简介" min-width="180" show-overflow-tooltip />
-      <el-table-column label="负责人" width="120">
-        <template #default="{ row }">{{ row.user?.nickname || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="90">
+    <el-table
+      v-loading="loading"
+      :data="stations"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="name"
+        label="名称"
+        width="150"
+      />
+      <el-table-column
+        prop="code"
+        label="推广码"
+        width="120"
+      />
+      <el-table-column
+        prop="intro"
+        label="简介"
+        min-width="180"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="负责人"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" size="small">
+          {{ row.user?.nickname || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
+        width="90"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="row.status === 'ACTIVE' ? 'success' : 'danger'"
+            size="small"
+          >
             {{ row.status === 'ACTIVE' ? '正常' : '已禁用' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="totalEarning" label="累计收益" width="120" />
-      <el-table-column label="创建时间" width="170">
-        <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="330" fixed="right">
+      <el-table-column
+        prop="totalEarning"
+        label="累计收益"
+        width="120"
+      />
+      <el-table-column
+        label="创建时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" @click="openBrandEdit(row)">编辑品牌</el-button>
-          <el-button size="small" @click="toggleOperators(row)">运营商</el-button>
+          {{ new Date(row.createdAt).toLocaleString() }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="330"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            @click="openBrandEdit(row)"
+          >
+            编辑品牌
+          </el-button>
+          <el-button
+            size="small"
+            @click="toggleOperators(row)"
+          >
+            运营商
+          </el-button>
           <el-button
             v-if="row.status === 'ACTIVE'"
-            size="small" type="danger"
+            size="small"
+            type="danger"
             @click="toggleStatus(row, 'DISABLED')"
-          >禁用</el-button>
-          <el-button v-else size="small" type="success" @click="toggleStatus(row, 'ACTIVE')">启用</el-button>
-          <el-button size="small" type="danger" @click="delStation(row.id)">删除</el-button>
+          >
+            禁用
+          </el-button>
+          <el-button
+            v-else
+            size="small"
+            type="success"
+            @click="toggleStatus(row, 'ACTIVE')"
+          >
+            启用
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="delStation(row.id)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <div class="pagination-wrap" v-if="total > pageSize">
+    <div
+      v-if="total > pageSize"
+      class="pagination-wrap"
+    >
       <el-pagination
         v-model:current-page="page"
         :page-size="pageSize"
@@ -53,58 +137,147 @@
     </div>
 
     <!-- 新建/编辑分站对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEditing ? '编辑分站' : '新建分站'" width="500px">
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="名称" required>
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEditing ? '编辑分站' : '新建分站'"
+      width="500px"
+    >
+      <el-form
+        :model="form"
+        label-width="80px"
+      >
+        <el-form-item
+          label="名称"
+          required
+        >
           <el-input v-model="form.name" />
         </el-form-item>
-        <el-form-item label="推广码" required>
-          <el-input v-model="form.code" :disabled="isEditing" />
+        <el-form-item
+          label="推广码"
+          required
+        >
+          <el-input
+            v-model="form.code"
+            :disabled="isEditing"
+          />
         </el-form-item>
         <el-form-item label="简介">
-          <el-input v-model="form.intro" type="textarea" :rows="3" />
+          <el-input
+            v-model="form.intro"
+            type="textarea"
+            :rows="3"
+          />
         </el-form-item>
-        <el-form-item label="状态" v-if="isEditing">
+        <el-form-item
+          v-if="isEditing"
+          label="状态"
+        >
           <el-select v-model="form.status">
-            <el-option label="正常" value="ACTIVE" />
-            <el-option label="禁用" value="DISABLED" />
+            <el-option
+              label="正常"
+              value="ACTIVE"
+            />
+            <el-option
+              label="禁用"
+              value="DISABLED"
+            />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="save" :loading="saving">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 运营商管理对话框 -->
-    <el-dialog v-model="operatorDialogVisible" title="运营商管理" width="700px">
+    <el-dialog
+      v-model="operatorDialogVisible"
+      title="运营商管理"
+      width="700px"
+    >
       <div class="operator-header">
         <span v-if="currentStation">分站：{{ currentStation.name }}</span>
-        <el-button type="primary" size="small" @click="openCreateOperator">新建运营商</el-button>
+        <el-button
+          type="primary"
+          size="small"
+          @click="openCreateOperator"
+        >
+          新建运营商
+        </el-button>
       </div>
-      <el-table :data="operators" border stripe v-loading="operatorsLoading" size="small">
-        <el-table-column label="用户" width="120">
-          <template #default="{ row }">{{ row.user?.nickname || '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="level" label="等级" width="100" />
-        <el-table-column prop="containQuota" label="站长名额" width="100" />
-        <el-table-column prop="usedQuota" label="已使用" width="80" />
-        <el-table-column label="状态" width="80">
+      <el-table
+        v-loading="operatorsLoading"
+        :data="operators"
+        border
+        stripe
+        size="small"
+      >
+        <el-table-column
+          label="用户"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" size="small">
+            {{ row.user?.nickname || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="level"
+          label="等级"
+          width="100"
+        />
+        <el-table-column
+          prop="containQuota"
+          label="站长名额"
+          width="100"
+        />
+        <el-table-column
+          prop="usedQuota"
+          label="已使用"
+          width="80"
+        />
+        <el-table-column
+          label="状态"
+          width="80"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="row.status === 'ACTIVE' ? 'success' : 'danger'"
+              size="small"
+            >
               {{ row.status === 'ACTIVE' ? '正常' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="到期时间" width="120">
-          <template #default="{ row }">{{ row.expireAt ? new Date(row.expireAt).toLocaleDateString() : '永久' }}</template>
+        <el-table-column
+          label="到期时间"
+          width="120"
+        >
+          <template #default="{ row }">
+            {{ row.expireAt ? new Date(row.expireAt).toLocaleDateString() : '永久' }}
+          </template>
         </el-table-column>
-        <el-table-column label="创建时间" width="140">
-          <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
+        <el-table-column
+          label="创建时间"
+          width="140"
+        >
+          <template #default="{ row }">
+            {{ new Date(row.createdAt).toLocaleString() }}
+          </template>
         </el-table-column>
       </el-table>
-      <div class="pagination-wrap" v-if="operatorTotal > operatorPageSize">
+      <div
+        v-if="operatorTotal > operatorPageSize"
+        class="pagination-wrap"
+      >
         <el-pagination
           v-model:current-page="operatorPage"
           :page-size="operatorPageSize"
@@ -117,50 +290,115 @@
     </el-dialog>
 
     <!-- 新建运营商对话框 -->
-    <el-dialog v-model="operatorCreateVisible" title="新建运营商" width="500px">
-      <el-form :model="operatorForm" label-width="110px">
-        <el-form-item label="用户ID" required>
-          <el-input v-model="operatorForm.userId" placeholder="输入用户ID" />
+    <el-dialog
+      v-model="operatorCreateVisible"
+      title="新建运营商"
+      width="500px"
+    >
+      <el-form
+        :model="operatorForm"
+        label-width="110px"
+      >
+        <el-form-item
+          label="用户ID"
+          required
+        >
+          <el-input
+            v-model="operatorForm.userId"
+            placeholder="输入用户ID"
+          />
         </el-form-item>
-        <el-form-item label="等级" required>
+        <el-form-item
+          label="等级"
+          required
+        >
           <el-select v-model="operatorForm.level">
-            <el-option label="一级运营商" value="LEVEL_1" />
-            <el-option label="二级运营商" value="LEVEL_2" />
-            <el-option label="三级运营商" value="LEVEL_3" />
+            <el-option
+              label="一级运营商"
+              value="LEVEL_1"
+            />
+            <el-option
+              label="二级运营商"
+              value="LEVEL_2"
+            />
+            <el-option
+              label="三级运营商"
+              value="LEVEL_3"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="包含站长名额">
-          <el-input-number v-model="operatorForm.containQuota" :min="0" />
+          <el-input-number
+            v-model="operatorForm.containQuota"
+            :min="0"
+          />
         </el-form-item>
         <el-form-item label="上级运营商ID">
-          <el-input v-model="operatorForm.parentOperatorId" placeholder="留空则为顶级" />
+          <el-input
+            v-model="operatorForm.parentOperatorId"
+            placeholder="留空则为顶级"
+          />
         </el-form-item>
         <el-form-item label="到期时间">
-          <el-date-picker v-model="operatorForm.expireAt" type="date" placeholder="留空为永久" style="width:100%" />
+          <el-date-picker
+            v-model="operatorForm.expireAt"
+            type="date"
+            placeholder="留空为永久"
+            style="width:100%"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="operatorCreateVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveOperator" :loading="operatorSaving">保存</el-button>
+        <el-button @click="operatorCreateVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="operatorSaving"
+          @click="saveOperator"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 品牌编辑对话框 -->
-    <el-dialog v-model="brandDialogVisible" title="编辑品牌" width="500px">
-      <el-form :model="brandForm" label-width="100px">
+    <el-dialog
+      v-model="brandDialogVisible"
+      title="编辑品牌"
+      width="500px"
+    >
+      <el-form
+        :model="brandForm"
+        label-width="100px"
+      >
         <el-form-item label="分站名称">
-          <el-input v-model="brandForm.name" placeholder="输入分站名称" />
+          <el-input
+            v-model="brandForm.name"
+            placeholder="输入分站名称"
+          />
         </el-form-item>
         <el-form-item label="Logo">
           <ImageUpload v-model="brandForm.logo" />
         </el-form-item>
         <el-form-item label="主题色">
-          <el-color-picker v-model="brandForm.themeColor" show-alpha />
+          <el-color-picker
+            v-model="brandForm.themeColor"
+            show-alpha
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="brandDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveBrand" :loading="brandSaving">保存</el-button>
+        <el-button @click="brandDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="brandSaving"
+          @click="saveBrand"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

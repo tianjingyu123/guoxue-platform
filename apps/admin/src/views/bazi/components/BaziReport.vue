@@ -32,7 +32,9 @@ const pillars = [
 
 <template>
   <div class="report-bazi">
-    <h2 class="report-title">八字命理报告</h2>
+    <h2 class="report-title">
+      八字命理报告
+    </h2>
 
     <!-- 基本信息 -->
     <div class="report-section info">
@@ -45,11 +47,18 @@ const pillars = [
     </div>
 
     <!-- 四柱详情 -->
-    <div class="report-section" v-for="p in pillars" :key="p.label">
+    <div
+      v-for="p in pillars"
+      :key="p.label"
+      class="report-section"
+    >
       <h3>{{ p.label }}</h3>
       <div class="pillar-detail">
         <div class="pillar-main">
-          <span class="gan" :style="{ color: ganColor[p.p.gan] }">{{ p.p.gan }}</span>
+          <span
+            class="gan"
+            :style="{ color: ganColor[p.p.gan] }"
+          >{{ p.p.gan }}</span>
           <span class="zhi">{{ p.p.zhi }}</span>
         </div>
         <div class="pillar-info">
@@ -58,7 +67,11 @@ const pillars = [
           <span>纳音：<strong>{{ p.p.nayin }}</strong></span>
           <span v-if="p.p.cangGan.length">
             藏干：
-            <span v-for="cg in p.p.cangGan" :key="cg.gan" class="canggan">
+            <span
+              v-for="cg in p.p.cangGan"
+              :key="cg.gan"
+              class="canggan"
+            >
               <span :style="{ color: ganColor[cg.gan] }">{{ cg.gan }}</span>({{ cg.shiShen }})
             </span>
           </span>
@@ -85,15 +98,26 @@ const pillars = [
     <div class="report-section">
       <h3>大运流年</h3>
       <div class="dayun-list">
-        <div class="dayun-row" v-for="(step, idx) in qiYun.daYun" :key="idx">
+        <div
+          v-for="(step, idx) in qiYun.daYun"
+          :key="idx"
+          class="dayun-row"
+        >
           <div class="dayun-header">
             <span class="dayun-step">第{{ idx + 1 }}步</span>
             <span class="dayun-ganzhi">{{ step.ganZhi }}</span>
             <span class="dayun-shishen">{{ step.ganShiShen }}{{ step.zhiShiShen !== step.ganShiShen ? '/' + step.zhiShiShen : '' }}</span>
             <span class="dayun-age">{{ step.startAge }}-{{ step.endAge }}岁</span>
           </div>
-          <div class="liunian-row" v-if="step.liuNian.length">
-            <span class="liunian-year" v-for="ln in step.liuNian.slice(0, 10)" :key="ln.year">
+          <div
+            v-if="step.liuNian.length"
+            class="liunian-row"
+          >
+            <span
+              v-for="ln in step.liuNian.slice(0, 10)"
+              :key="ln.year"
+              class="liunian-year"
+            >
               {{ ln.year }}<small>{{ ln.ganZhi }}</small>
             </span>
           </div>
@@ -102,17 +126,36 @@ const pillars = [
     </div>
 
     <!-- 合冲刑害 -->
-    <div class="report-section" v-if="Object.values(fenXiTiShi).some(v => v.length)">
+    <div
+      v-if="Object.values(fenXiTiShi).some(v => v.length)"
+      class="report-section"
+    >
       <h3>合冲刑害</h3>
       <div class="relation-list">
-        <p v-if="fenXiTiShi.ganHe.length">天干五合：{{ fenXiTiShi.ganHe.join('、') }}</p>
-        <p v-if="fenXiTiShi.liuHe.length">地支六合：{{ fenXiTiShi.liuHe.join('、') }}</p>
-        <p v-if="fenXiTiShi.sanHe.length">三合局：{{ fenXiTiShi.sanHe.join('、') }}</p>
-        <p v-if="fenXiTiShi.sanHui.length">三会局：{{ fenXiTiShi.sanHui.join('、') }}</p>
-        <p v-if="fenXiTiShi.liuChong.length">六冲：{{ fenXiTiShi.liuChong.join('、') }}</p>
-        <p v-if="fenXiTiShi.liuHai.length">六害：{{ fenXiTiShi.liuHai.join('、') }}</p>
-        <p v-if="fenXiTiShi.sanXing.length">三刑：{{ fenXiTiShi.sanXing.join('、') }}</p>
-        <p v-if="fenXiTiShi.ziXing.length">自刑：{{ fenXiTiShi.ziXing.join('、') }}</p>
+        <p v-if="fenXiTiShi.ganHe.length">
+          天干五合：{{ fenXiTiShi.ganHe.join('、') }}
+        </p>
+        <p v-if="fenXiTiShi.liuHe.length">
+          地支六合：{{ fenXiTiShi.liuHe.join('、') }}
+        </p>
+        <p v-if="fenXiTiShi.sanHe.length">
+          三合局：{{ fenXiTiShi.sanHe.join('、') }}
+        </p>
+        <p v-if="fenXiTiShi.sanHui.length">
+          三会局：{{ fenXiTiShi.sanHui.join('、') }}
+        </p>
+        <p v-if="fenXiTiShi.liuChong.length">
+          六冲：{{ fenXiTiShi.liuChong.join('、') }}
+        </p>
+        <p v-if="fenXiTiShi.liuHai.length">
+          六害：{{ fenXiTiShi.liuHai.join('、') }}
+        </p>
+        <p v-if="fenXiTiShi.sanXing.length">
+          三刑：{{ fenXiTiShi.sanXing.join('、') }}
+        </p>
+        <p v-if="fenXiTiShi.ziXing.length">
+          自刑：{{ fenXiTiShi.ziXing.join('、') }}
+        </p>
       </div>
     </div>
   </div>
@@ -138,7 +181,7 @@ const pillars = [
 .report-section {
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1px dashed #e0d5c1;
+  border-bottom: 1px dashed #E8E0D5;
 }
 .report-section h3 {
   font-size: 16px;

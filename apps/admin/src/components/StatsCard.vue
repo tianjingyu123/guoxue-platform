@@ -1,12 +1,24 @@
 <template>
-  <el-card :class="['stats-card', { 'is-loading': loading }]" shadow="hover">
+  <el-card
+    :class="['stats-card', { 'is-loading': loading }]"
+    shadow="hover"
+  >
     <div class="stats-inner">
-      <div class="stats-icon" :style="{ background: color }">
-        <el-icon :size="24"><component :is="icon" /></el-icon>
+      <div
+        class="stats-icon"
+        :style="{ background: color }"
+      >
+        <el-icon :size="24">
+          <component :is="icon" />
+        </el-icon>
       </div>
       <div class="stats-info">
-        <div class="stats-value">{{ loading ? '-' : value }}</div>
-        <div class="stats-title">{{ title }}</div>
+        <div class="stats-value">
+          {{ loading ? '-' : value }}
+        </div>
+        <div class="stats-title">
+          {{ title }}
+        </div>
       </div>
     </div>
   </el-card>

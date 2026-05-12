@@ -1,128 +1,51 @@
 <template>
   <el-container class="layout">
-    <el-aside width="220px">
-      <div class="logo">国学平台</div>
-      <el-menu router :default-active="route.path" background-color="#304156" text-color="#bfcbd9" active-text-color="#409eff">
-        <el-menu-item index="/dashboard">
-          <span>仪表盘</span>
-        </el-menu-item>
-        <el-menu-item index="/contents">
-          <span>内容管理</span>
-        </el-menu-item>
-        <el-menu-item index="/classics">
-          <span>古籍管理</span>
-        </el-menu-item>
-        <el-sub-menu index="community">
-          <template #title><span>社区管理</span></template>
-          <el-menu-item index="/circles">
-            <span>圈子管理</span>
-          </el-menu-item>
-          <el-menu-item index="/videos">
-            <span>视频管理</span>
-          </el-menu-item>
-          <el-menu-item index="/lives">
-            <span>直播管理</span>
-          </el-menu-item>
-          <el-menu-item index="/questions">
-            <span>付费问答</span>
-          </el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="tools">
-          <template #title><span>排盘工具</span></template>
-          <el-menu-item index="/bazi">
-            <span>八字排盘</span>
-          </el-menu-item>
-          <el-menu-item index="/ziwei">
-            <span>紫微排盘</span>
-          </el-menu-item>
-          <el-menu-item index="/paipan-records">
-            <span>排盘记录</span>
-          </el-menu-item>
-          <el-menu-item index="/bots">
-            <span>Bot管理</span>
-          </el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="edu">
-          <template #title><span>教学管理</span></template>
-          <el-menu-item index="/courses">
-            <span>课程管理</span>
-          </el-menu-item>
-        </el-sub-menu>
-        <el-menu-item index="/reports">
-          <span>举报管理</span>
-        </el-menu-item>
-        <el-menu-item index="/comments">
-          <span>评论管理</span>
-        </el-menu-item>
-        <el-menu-item index="/search-analytics">
-          <span>搜索分析</span>
-        </el-menu-item>
-        <el-sub-menu index="offline">
-          <template #title><span>线下管理</span></template>
-          <el-menu-item index="/stations">
-            <span>分站管理</span>
-          </el-menu-item>
-          <el-menu-item index="/offline-venues">
-            <span>线下驿站</span>
-          </el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="shop">
-          <template #title><span>商城管理</span></template>
-          <el-menu-item index="/products">
-            <span>商品管理</span>
-          </el-menu-item>
-          <el-menu-item index="/orders">
-            <span>订单管理</span>
-          </el-menu-item>
-          <el-menu-item index="/coupons">
-            <span>优惠券管理</span>
-          </el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="commission">
-          <template #title><span>营销分佣</span></template>
-          <el-menu-item index="/commission-config">
-            <span>佣金配置</span>
-          </el-menu-item>
-          <el-menu-item index="/withdrawals">
-            <span>提现审核</span>
-          </el-menu-item>
-        </el-sub-menu>
-        <el-sub-menu index="finance">
-          <template #title><span>财务管理</span></template>
-          <el-menu-item index="/recharges">
-            <span>充值记录</span>
-          </el-menu-item>
-          <el-menu-item index="/gifts">
-            <span>礼物管理</span>
-          </el-menu-item>
-        </el-sub-menu>
-        <el-menu-item index="/notifications">
-          <span>通知管理</span>
-        </el-menu-item>
-        <el-menu-item index="/institutes">
-          <span>研究院管理</span>
-        </el-menu-item>
-        <el-sub-menu index="system">
-          <template #title><span>系统管理</span></template>
-          <el-menu-item index="/users">
-            <span>用户管理</span>
-          </el-menu-item>
-          <el-menu-item index="/banners">
-            <span>Banner管理</span>
-          </el-menu-item>
-          <el-menu-item index="/system-settings">
-            <span>系统设置</span>
-          </el-menu-item>
-          <el-menu-item index="/audit-logs">
-            <span>审计日志</span>
-          </el-menu-item>
-        </el-sub-menu>
-      </el-menu>
+    <el-aside :width="isCollapse ? '64px' : '220px'" class="aside">
+      <div class="logo">
+        <span v-if="!isCollapse">🏮 热卜国学</span>
+        <span v-else>🏮</span>
+      </div>
+      <div class="menu-scroll">
+        <el-menu
+          router
+          :default-active="route.path"
+          :collapse="isCollapse"
+          background-color="#1a1a1a"
+          text-color="#bfcbd9"
+          active-text-color="#C9A96E"
+        >
+          <SidebarMenu :items="auth.menus" />
+        </el-menu>
+      </div>
     </el-aside>
+
     <el-container>
       <el-header>
-        <span>{{ auth.user?.nickname }}</span>
-        <el-button text @click="logout">退出</el-button>
+        <div class="header-left">
+          <el-button text @click="isCollapse = !isCollapse">
+            {{ isCollapse ? '☰' : '✕' }}
+          </el-button>
+          <el-breadcrumb separator="/">
+            <el-breadcrumb-item :to="{ path: '/dashboard' }">首页</el-breadcrumb-item>
+            <el-breadcrumb-item v-if="route.meta.title">{{ route.meta.title }}</el-breadcrumb-item>
+          </el-breadcrumb>
+        </div>
+        <div class="header-right">
+          <el-tag
+            v-for="label in auth.roleLabels"
+            :key="label"
+            size="small"
+            effect="plain"
+            style="margin-right: 6px;"
+          >
+            {{ label }}
+          </el-tag>
+          <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+            <el-button text @click="goNotifications" style="font-size:18px">🔔</el-button>
+          </el-badge>
+          <span class="nickname">{{ auth.user?.nickname }}</span>
+          <el-button text type="danger" @click="logout">退出</el-button>
+        </div>
       </el-header>
       <el-main>
         <router-view />
@@ -132,17 +55,35 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { useAuthStore } from "../store/auth";
+import { useAuthStore } from "@/store/auth";
+import SidebarMenu from "@/components/SidebarMenu.vue";
 
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
+const isCollapse = ref(false);
+const unreadCount = ref(0);
+
+async function fetchUnread() {
+  try {
+    const { data } = await (await import('@/api')).api.get('/notifications/unread-count')
+    unreadCount.value = data?.count ?? data?.unreadCount ?? 0
+  } catch {}
+}
+
+function goNotifications() {
+  router.push('/notifications')
+}
 
 onMounted(async () => {
   try {
     await auth.fetchProfile();
+    await auth.fetchMenus();
+    fetchUnread();
+    // 每 60s 轮询未读通知数
+    setInterval(fetchUnread, 60000)
   } catch {
     router.push("/login");
   }
@@ -156,8 +97,56 @@ function logout() {
 
 <style scoped>
 .layout { height: 100vh; }
-.el-aside { background: #304156; }
-.logo { color: #fff; text-align: center; padding: 16px; font-size: 18px; font-weight: bold; }
-.el-header { background: #fff; display: flex; align-items: center; justify-content: flex-end; gap: 12px; border-bottom: 1px solid #e6e6e6; }
-.el-main { background: #f0f2f5; }
+.aside {
+  background: #1a1a1a;
+  transition: width 0.2s;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.menu-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.menu-scroll::-webkit-scrollbar { width: 4px; }
+.menu-scroll::-webkit-scrollbar-thumb { background: rgba(201, 169, 110, 0.3); border-radius: 2px; }
+.logo {
+  color: #C9A96E;
+  text-align: center;
+  padding: 18px 12px;
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  border-bottom: 1px solid rgba(201, 169, 110, 0.15);
+  white-space: nowrap;
+}
+.el-header {
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #E8E0D5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 0 20px;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nickname {
+  color: #333;
+  font-size: 14px;
+}
+.el-main { background: #F5F0E8; }
+
+.el-menu--collapse {
+  width: 64px;
+}
 </style>

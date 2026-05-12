@@ -2,13 +2,24 @@
   <div class="search-analytics">
     <div class="page-header">
       <h3>搜索分析</h3>
-      <el-button size="small" @click="fetchData">刷新</el-button>
+      <el-button
+        size="small"
+        @click="fetchData"
+      >
+        刷新
+      </el-button>
     </div>
 
     <!-- 概览卡片 -->
-    <el-row :gutter="16" class="stat-row">
+    <el-row
+      :gutter="16"
+      class="stat-row"
+    >
       <el-col :span="12">
-        <el-card shadow="hover" class="stat-card">
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
           <div class="stat-inner">
             <span class="stat-label">总搜索次数</span>
             <span class="stat-val">{{ fmt(stats.totalSearches) }}</span>
@@ -16,7 +27,10 @@
         </el-card>
       </el-col>
       <el-col :span="12">
-        <el-card shadow="hover" class="stat-card today">
+        <el-card
+          shadow="hover"
+          class="stat-card today"
+        >
           <div class="stat-inner">
             <span class="stat-label">今日搜索次数</span>
             <span class="stat-val blue">{{ fmt(stats.todaySearches) }}</span>
@@ -29,8 +43,13 @@
     <el-row :gutter="16">
       <el-col :span="14">
         <el-card shadow="hover">
-          <template #header><span>热搜关键词 TOP20</span></template>
-          <div class="keyword-cloud" v-if="stats.hotKeywords?.length">
+          <template #header>
+            <span>热搜关键词 TOP20</span>
+          </template>
+          <div
+            v-if="stats.hotKeywords?.length"
+            class="keyword-cloud"
+          >
             <el-tag
               v-for="(kw, idx) in stats.hotKeywords"
               :key="kw.keyword"
@@ -41,19 +60,34 @@
               {{ kw.keyword }} <span class="kw-count">({{ kw.count }})</span>
             </el-tag>
           </div>
-          <el-empty v-else description="暂无热搜数据" />
+          <el-empty
+            v-else
+            description="暂无热搜数据"
+          />
         </el-card>
       </el-col>
       <el-col :span="10">
         <el-card shadow="hover">
-          <template #header><span>最近搜索</span></template>
-          <div class="recent-list" v-if="stats.recentSearches?.length">
-            <div v-for="s in stats.recentSearches" :key="s.keyword + s.createdAt" class="recent-item">
+          <template #header>
+            <span>最近搜索</span>
+          </template>
+          <div
+            v-if="stats.recentSearches?.length"
+            class="recent-list"
+          >
+            <div
+              v-for="s in stats.recentSearches"
+              :key="s.keyword + s.createdAt"
+              class="recent-item"
+            >
               <span class="recent-keyword">{{ s.keyword }}</span>
               <span class="recent-meta">{{ s.user?.nickname || '匿名' }} · {{ fmtTime(s.createdAt) }}</span>
             </div>
           </div>
-          <el-empty v-else description="暂无搜索记录" />
+          <el-empty
+            v-else
+            description="暂无搜索记录"
+          />
         </el-card>
       </el-col>
     </el-row>

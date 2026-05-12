@@ -2,31 +2,99 @@
   <div class="classic-page">
     <div class="header">
       <h2>古籍管理</h2>
-      <el-button type="primary" @click="openEdit()">添加古籍</el-button>
+      <el-button
+        type="primary"
+        @click="openEdit()"
+      >
+        添加古籍
+      </el-button>
     </div>
 
-    <el-table :data="books" border stripe v-loading="loading">
-      <el-table-column prop="title" label="书名" width="140" />
-      <el-table-column prop="author" label="作者" width="120" />
-      <el-table-column prop="dynasty" label="朝代" width="80" />
-      <el-table-column label="分类" width="70">
-        <template #default="{ row }">{{ row.category }}</template>
-      </el-table-column>
-      <el-table-column prop="intro" label="简介" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="chapterCount" label="章节" width="70" />
-      <el-table-column prop="viewCount" label="阅读" width="80" />
-      <el-table-column label="操作" width="180" fixed="right">
+    <el-table
+      v-loading="loading"
+      :data="books"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="title"
+        label="书名"
+        width="140"
+      />
+      <el-table-column
+        prop="author"
+        label="作者"
+        width="120"
+      />
+      <el-table-column
+        prop="dynasty"
+        label="朝代"
+        width="80"
+      />
+      <el-table-column
+        label="分类"
+        width="70"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openChapters(row)">章节</el-button>
-          <el-button size="small" type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="delBook(row.id)">删除</el-button>
+          {{ row.category }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="intro"
+        label="简介"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="chapterCount"
+        label="章节"
+        width="70"
+      />
+      <el-table-column
+        prop="viewCount"
+        label="阅读"
+        width="80"
+      />
+      <el-table-column
+        label="操作"
+        width="180"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="openChapters(row)"
+          >
+            章节
+          </el-button>
+          <el-button
+            size="small"
+            type="primary"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="delBook(row.id)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="editingBook?.id ? '编辑古籍' : '添加古籍'" width="560px">
-      <el-form :model="form" label-width="80px">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editingBook?.id ? '编辑古籍' : '添加古籍'"
+      width="560px"
+    >
+      <el-form
+        :model="form"
+        label-width="80px"
+      >
         <el-form-item label="书名">
           <el-input v-model="form.title" />
         </el-form-item>
@@ -38,12 +106,30 @@
         </el-form-item>
         <el-form-item label="分类">
           <el-select v-model="form.category">
-            <el-option label="经部" value="经" />
-            <el-option label="史部" value="史" />
-            <el-option label="子部" value="子" />
-            <el-option label="集部" value="集" />
-            <el-option label="佛教" value="释" />
-            <el-option label="道教" value="道" />
+            <el-option
+              label="经部"
+              value="经"
+            />
+            <el-option
+              label="史部"
+              value="史"
+            />
+            <el-option
+              label="子部"
+              value="子"
+            />
+            <el-option
+              label="集部"
+              value="集"
+            />
+            <el-option
+              label="佛教"
+              value="释"
+            />
+            <el-option
+              label="道教"
+              value="道"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="封面">
@@ -53,54 +139,133 @@
           <el-input v-model="form.source" />
         </el-form-item>
         <el-form-item label="简介">
-          <el-input v-model="form.intro" type="textarea" :rows="3" />
+          <el-input
+            v-model="form.intro"
+            type="textarea"
+            :rows="3"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveBook" :loading="saving">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="saveBook"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 章节管理对话框 -->
-    <el-dialog v-model="chapterVisible" title="章节管理" width="700px">
-      <el-table :data="chapters" border size="small" max-height="400">
-        <el-table-column prop="title" label="标题" width="180" />
-        <el-table-column prop="content" label="原文" min-width="200" show-overflow-tooltip />
-        <el-table-column label="操作" width="120">
+    <el-dialog
+      v-model="chapterVisible"
+      title="章节管理"
+      width="700px"
+    >
+      <el-table
+        :data="chapters"
+        border
+        size="small"
+        max-height="400"
+      >
+        <el-table-column
+          prop="title"
+          label="标题"
+          width="180"
+        />
+        <el-table-column
+          prop="content"
+          label="原文"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="操作"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="editChapter(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="delChapter(row.id)">删除</el-button>
+            <el-button
+              size="small"
+              @click="editChapter(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="delChapter(row.id)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
       <div style="margin-top:12px">
-        <el-button size="small" type="primary" @click="editChapter()">添加章节</el-button>
+        <el-button
+          size="small"
+          type="primary"
+          @click="editChapter()"
+        >
+          添加章节
+        </el-button>
       </div>
       <template #footer>
-        <el-button @click="chapterVisible = false">关闭</el-button>
+        <el-button @click="chapterVisible = false">
+          关闭
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 章节编辑对话框 -->
-    <el-dialog v-model="chEditVisible" :title="chForm.id ? '编辑章节' : '添加章节'" width="600px">
-      <el-form :model="chForm" label-width="80px">
+    <el-dialog
+      v-model="chEditVisible"
+      :title="chForm.id ? '编辑章节' : '添加章节'"
+      width="600px"
+    >
+      <el-form
+        :model="chForm"
+        label-width="80px"
+      >
         <el-form-item label="标题">
           <el-input v-model="chForm.title" />
         </el-form-item>
         <el-form-item label="原文">
-          <el-input v-model="chForm.content" type="textarea" :rows="6" />
+          <el-input
+            v-model="chForm.content"
+            type="textarea"
+            :rows="6"
+          />
         </el-form-item>
         <el-form-item label="译文">
-          <el-input v-model="chForm.translation" type="textarea" :rows="4" />
+          <el-input
+            v-model="chForm.translation"
+            type="textarea"
+            :rows="4"
+          />
         </el-form-item>
         <el-form-item label="注释">
-          <el-input v-model="chForm.annotation" type="textarea" :rows="2" />
+          <el-input
+            v-model="chForm.annotation"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="chEditVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveChapter" :loading="saving">保存</el-button>
+        <el-button @click="chEditVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="saveChapter"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

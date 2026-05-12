@@ -5,54 +5,163 @@
     </div>
 
     <div class="filter-row">
-      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="onFilterChange">
-        <el-option label="全部" value="" />
-        <el-option label="待回答" value="PENDING" />
-        <el-option label="已回答" value="ANSWERED" />
-        <el-option label="已过期" value="EXPIRED" />
-        <el-option label="已退款" value="REFUNDED" />
+      <el-select
+        v-model="filterStatus"
+        placeholder="状态"
+        clearable
+        style="width:130px"
+        @change="onFilterChange"
+      >
+        <el-option
+          label="全部"
+          value=""
+        />
+        <el-option
+          label="待回答"
+          value="PENDING"
+        />
+        <el-option
+          label="已回答"
+          value="ANSWERED"
+        />
+        <el-option
+          label="已过期"
+          value="EXPIRED"
+        />
+        <el-option
+          label="已退款"
+          value="REFUNDED"
+        />
       </el-select>
-      <el-button type="warning" @click="refundExpired" :loading="refunding">超时退款（7天）</el-button>
-      <el-button @click="fetchList">查询</el-button>
+      <el-button
+        type="warning"
+        :loading="refunding"
+        @click="refundExpired"
+      >
+        超时退款（7天）
+      </el-button>
+      <el-button @click="fetchList">
+        查询
+      </el-button>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading" size="small">
-      <el-table-column label="问题" min-width="200" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.question }}</template>
-      </el-table-column>
-      <el-table-column label="提问者" width="120">
-        <template #default="{ row }">{{ row.asker?.nickname || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="回答者" width="120">
-        <template #default="{ row }">{{ row.answerer?.nickname || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="圈子" width="100" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.circle?.name || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="提问价格" width="90" align="center">
-        <template #default="{ row }">{{ row.priceCoin }}币</template>
-      </el-table-column>
-      <el-table-column label="围观价" width="80" align="center">
-        <template #default="{ row }">{{ row.peekPriceCoin || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="围观数" width="70" align="center" prop="peekCount" />
-      <el-table-column label="状态" width="90">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+      size="small"
+    >
+      <el-table-column
+        label="问题"
+        min-width="200"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
-          <el-tag :type="statusColor(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+          {{ row.question }}
         </template>
       </el-table-column>
-      <el-table-column label="时间" width="140">
-        <template #default="{ row }">{{ row.createdAt?.slice(0, 16).replace("T", " ") }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
+      <el-table-column
+        label="提问者"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-button type="primary" link size="small" @click="showDetail(row)">详情</el-button>
-          <el-button v-if="row.status === 'EXPIRED'" type="danger" link size="small" @click="handleRefundItem(row)">退款</el-button>
+          {{ row.asker?.nickname || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="回答者"
+        width="120"
+      >
+        <template #default="{ row }">
+          {{ row.answerer?.nickname || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="圈子"
+        width="100"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          {{ row.circle?.name || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="提问价格"
+        width="90"
+        align="center"
+      >
+        <template #default="{ row }">
+          {{ row.priceCoin }}币
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="围观价"
+        width="80"
+        align="center"
+      >
+        <template #default="{ row }">
+          {{ row.peekPriceCoin || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="围观数"
+        width="70"
+        align="center"
+        prop="peekCount"
+      />
+      <el-table-column
+        label="状态"
+        width="90"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="statusColor(row.status)"
+            size="small"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="时间"
+        width="140"
+      >
+        <template #default="{ row }">
+          {{ row.createdAt?.slice(0, 16).replace("T", " ") }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="140"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            type="primary"
+            link
+            size="small"
+            @click="showDetail(row)"
+          >
+            详情
+          </el-button>
+          <el-button
+            v-if="row.status === 'EXPIRED'"
+            type="danger"
+            link
+            size="small"
+            @click="handleRefundItem(row)"
+          >
+            退款
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <div class="pagination" v-if="total > pageSize">
+    <div
+      v-if="total > pageSize"
+      class="pagination"
+    >
       <el-pagination
         v-model:current-page="page"
         :page-size="pageSize"
@@ -63,41 +172,83 @@
     </div>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="dialogVisible" title="问答详情" width="640px">
+    <el-dialog
+      v-model="dialogVisible"
+      title="问答详情"
+      width="640px"
+    >
       <template v-if="detail">
         <div class="detail-section">
-          <div class="detail-label">提问者</div>
-          <div class="detail-value">{{ detail.asker?.nickname || '-' }}</div>
-        </div>
-        <div class="detail-section">
-          <div class="detail-label">回答者</div>
-          <div class="detail-value">{{ detail.answerer?.nickname || '-' }}</div>
-        </div>
-        <div class="detail-section">
-          <div class="detail-label">圈子</div>
-          <div class="detail-value">{{ detail.circle?.name || '-' }}</div>
-        </div>
-        <div class="detail-section">
-          <div class="detail-label">提问价格</div>
-          <div class="detail-value">{{ detail.priceCoin }}币</div>
-        </div>
-        <div class="detail-section">
-          <div class="detail-label">问题内容</div>
-          <div class="detail-value question-body">{{ detail.question }}</div>
-        </div>
-        <div class="detail-section" v-if="detail.answer">
-          <div class="detail-label">回答内容</div>
-          <div class="detail-value answer-body">{{ detail.answer }}</div>
-        </div>
-        <div class="detail-section">
-          <div class="detail-label">状态</div>
+          <div class="detail-label">
+            提问者
+          </div>
           <div class="detail-value">
-            <el-tag :type="statusColor(detail.status)" size="small">{{ statusLabel(detail.status) }}</el-tag>
+            {{ detail.asker?.nickname || '-' }}
           </div>
         </div>
         <div class="detail-section">
-          <div class="detail-label">围观统计</div>
-          <div class="detail-value">{{ detail.peekCount || 0 }}次围观 · 围观价{{ detail.peekPriceCoin || 0 }}币</div>
+          <div class="detail-label">
+            回答者
+          </div>
+          <div class="detail-value">
+            {{ detail.answerer?.nickname || '-' }}
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">
+            圈子
+          </div>
+          <div class="detail-value">
+            {{ detail.circle?.name || '-' }}
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">
+            提问价格
+          </div>
+          <div class="detail-value">
+            {{ detail.priceCoin }}币
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">
+            问题内容
+          </div>
+          <div class="detail-value question-body">
+            {{ detail.question }}
+          </div>
+        </div>
+        <div
+          v-if="detail.answer"
+          class="detail-section"
+        >
+          <div class="detail-label">
+            回答内容
+          </div>
+          <div class="detail-value answer-body">
+            {{ detail.answer }}
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">
+            状态
+          </div>
+          <div class="detail-value">
+            <el-tag
+              :type="statusColor(detail.status)"
+              size="small"
+            >
+              {{ statusLabel(detail.status) }}
+            </el-tag>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-label">
+            围观统计
+          </div>
+          <div class="detail-value">
+            {{ detail.peekCount || 0 }}次围观 · 围观价{{ detail.peekPriceCoin || 0 }}币
+          </div>
         </div>
       </template>
     </el-dialog>

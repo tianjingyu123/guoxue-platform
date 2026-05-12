@@ -1,10 +1,18 @@
 <template>
   <div class="page-header">
     <div class="header-left">
-      <h2 class="header-title">{{ title }}</h2>
-      <span v-if="description" class="header-desc">{{ description }}</span>
+      <h2 class="header-title">
+        {{ title }}
+      </h2>
+      <span
+        v-if="description"
+        class="header-desc"
+      >{{ description }}</span>
     </div>
-    <div v-if="$slots.actions" class="header-actions">
+    <div
+      v-if="$slots.actions"
+      class="header-actions"
+    >
       <slot name="actions" />
     </div>
   </div>

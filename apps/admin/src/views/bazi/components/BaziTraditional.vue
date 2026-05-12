@@ -62,54 +62,119 @@ function zhiStyle(z: string) {
     <table class="bazi-table">
       <thead>
         <tr>
-          <th></th>
-          <th v-for="col in pillars" :key="col.key">{{ col.label }}</th>
-          <th v-for="col in extraCols" :key="col.label">{{ col.label }}</th>
+          <th />
+          <th
+            v-for="col in pillars"
+            :key="col.key"
+          >
+            {{ col.label }}
+          </th>
+          <th
+            v-for="col in extraCols"
+            :key="col.label"
+          >
+            {{ col.label }}
+          </th>
         </tr>
       </thead>
       <tbody>
         <!-- 天干行 -->
         <tr>
-          <td class="label">天干</td>
-          <td v-for="col in pillars" :key="'gan-'+col.key">
+          <td class="label">
+            天干
+          </td>
+          <td
+            v-for="col in pillars"
+            :key="'gan-'+col.key"
+          >
             <span :style="ganStyle(col.p.gan)">{{ col.p.gan }}</span>
           </td>
-          <td v-for="col in extraCols" :key="'gan-'+col.label">
+          <td
+            v-for="col in extraCols"
+            :key="'gan-'+col.label"
+          >
             <span :style="ganStyle(col.p.gan)">{{ col.p.gan }}</span>
           </td>
         </tr>
         <!-- 十神行 -->
         <tr>
-          <td class="label">十神</td>
-          <td v-for="col in pillars" :key="'gs-'+col.key">{{ col.p.ganShiShen }}</td>
-          <td v-for="col in extraCols" :key="'gs-'+col.label">{{ col.p.ganShiShen }}</td>
+          <td class="label">
+            十神
+          </td>
+          <td
+            v-for="col in pillars"
+            :key="'gs-'+col.key"
+          >
+            {{ col.p.ganShiShen }}
+          </td>
+          <td
+            v-for="col in extraCols"
+            :key="'gs-'+col.label"
+          >
+            {{ col.p.ganShiShen }}
+          </td>
         </tr>
         <!-- 地支行 -->
         <tr>
-          <td class="label">地支</td>
-          <td v-for="col in pillars" :key="'zhi-'+col.key">
+          <td class="label">
+            地支
+          </td>
+          <td
+            v-for="col in pillars"
+            :key="'zhi-'+col.key"
+          >
             <span :style="zhiStyle(col.p.zhi)">{{ col.p.zhi }}</span>
           </td>
-          <td v-for="col in extraCols" :key="'zhi-'+col.label">
+          <td
+            v-for="col in extraCols"
+            :key="'zhi-'+col.label"
+          >
             <span :style="zhiStyle(col.p.zhi)">{{ col.p.zhi }}</span>
           </td>
         </tr>
         <!-- 藏干行 -->
         <tr>
-          <td class="label">藏干</td>
-          <td v-for="col in pillars" :key="'cg-'+col.key" class="canggan-cell">
-            <span v-for="cg in col.p.cangGan" :key="cg.gan" class="canggan-item">
+          <td class="label">
+            藏干
+          </td>
+          <td
+            v-for="col in pillars"
+            :key="'cg-'+col.key"
+            class="canggan-cell"
+          >
+            <span
+              v-for="cg in col.p.cangGan"
+              :key="cg.gan"
+              class="canggan-item"
+            >
               <span :style="ganStyle(cg.gan)">{{ cg.gan }}</span>
               <sub>{{ cg.shiShen }}</sub>
             </span>
           </td>
-          <td v-for="col in extraCols" :key="'cg-'+col.label">—</td>
+          <td
+            v-for="col in extraCols"
+            :key="'cg-'+col.label"
+          >
+            —
+          </td>
         </tr>
         <!-- 纳音行 -->
         <tr>
-          <td class="label">纳音</td>
-          <td v-for="col in pillars" :key="'ny-'+col.key">{{ col.p.nayin }}</td>
-          <td v-for="col in extraCols" :key="'ny-'+col.label">{{ col.p.nayin }}</td>
+          <td class="label">
+            纳音
+          </td>
+          <td
+            v-for="col in pillars"
+            :key="'ny-'+col.key"
+          >
+            {{ col.p.nayin }}
+          </td>
+          <td
+            v-for="col in extraCols"
+            :key="'ny-'+col.label"
+          >
+            {{ col.p.nayin }}
+          </td>
         </tr>
       </tbody>
     </table>
@@ -125,27 +190,45 @@ function zhiStyle(z: string) {
       <thead>
         <tr>
           <th>大运</th>
-          <th v-for="(step, idx) in qiYun.daYun" :key="idx">
+          <th
+            v-for="(step, idx) in qiYun.daYun"
+            :key="idx"
+          >
             {{ step.ganZhi }}
           </th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td class="label">十神</td>
-          <td v-for="(step, idx) in qiYun.daYun" :key="'ss-'+idx">
+          <td class="label">
+            十神
+          </td>
+          <td
+            v-for="(step, idx) in qiYun.daYun"
+            :key="'ss-'+idx"
+          >
             {{ step.ganShiShen }}{{ step.zhiShiShen !== step.ganShiShen ? '/' + step.zhiShiShen : '' }}
           </td>
         </tr>
         <tr>
-          <td class="label">年龄</td>
-          <td v-for="(step, idx) in qiYun.daYun" :key="'age-'+idx">
+          <td class="label">
+            年龄
+          </td>
+          <td
+            v-for="(step, idx) in qiYun.daYun"
+            :key="'age-'+idx"
+          >
             {{ step.startAge }}-{{ step.endAge }}
           </td>
         </tr>
         <tr>
-          <td class="label">年份</td>
-          <td v-for="(step, idx) in qiYun.daYun" :key="'yr-'+idx">
+          <td class="label">
+            年份
+          </td>
+          <td
+            v-for="(step, idx) in qiYun.daYun"
+            :key="'yr-'+idx"
+          >
             {{ step.startYear }}-{{ step.endYear }}
           </td>
         </tr>
@@ -180,7 +263,7 @@ function zhiStyle(z: string) {
 }
 .bazi-table th, .bazi-table td,
 .dayun-table th, .dayun-table td {
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
   padding: 8px 12px;
   text-align: center;
   font-size: 14px;

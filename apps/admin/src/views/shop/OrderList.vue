@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import api from "../../api";
-import { exportCSV } from "../../utils/export";
+import { orderApi, shopApi } from "@/api";
+import { exportCSV } from "@/utils/export";
 
 const orders = ref<any[]>([]);
 const total = ref(0);
@@ -31,8 +31,8 @@ onMounted(() => fetchList());
 async function fetchList() {
   loading.value = true;
   try {
-    const { data } = await api.get("/shop/orders", {
-      params: { page: page.value, pageSize: 20, status: filterStatus.value || undefined },
+    const { data } = await orderApi.list({
+      page: page.value, pageSize: 20, status: filterStatus.value || undefined,
     });
     orders.value = data.orders;
     total.value = data.total;
@@ -41,7 +41,7 @@ async function fetchList() {
 
 /** 确认支付（直接操作无需二次确认） */
 async function handlePay(orderId: string) {
-  await api.put(`/shop/orders/${orderId}/pay`);
+  await orderApi.pay(orderId);
   ElMessage.success("支付确认成功");
   fetchList();
 }
@@ -50,7 +50,7 @@ async function handlePay(orderId: string) {
 async function handleShip(orderId: string) {
   try {
     await ElMessageBox.confirm("确认要发货吗？", "操作确认", { type: "warning", confirmButtonText: "确认发货" });
-    await api.put(`/shop/orders/${orderId}/ship`);
+    await orderApi.ship(orderId);
     ElMessage.success("发货成功");
     fetchList();
   } catch { /* 用户取消 */ }
@@ -64,7 +64,7 @@ async function handleRefund(orderId: string) {
       "退款确认",
       { type: "warning", confirmButtonText: "确认退款", confirmButtonClass: "el-button--danger" },
     );
-    await api.put(`/shop/orders/${orderId}/refund`);
+    await orderApi.refund(orderId);
     ElMessage.success("退款成功");
     fetchList();
   } catch { /* 用户取消 */ }
@@ -74,7 +74,7 @@ async function handleRefund(orderId: string) {
 async function handleComplete(orderId: string) {
   try {
     await ElMessageBox.confirm("确认要完成该订单吗？", "操作确认", { type: "info", confirmButtonText: "确认完成" });
-    await api.put(`/shop/orders/${orderId}/complete`);
+    await orderApi.complete(orderId);
     ElMessage.success("订单已完成");
     fetchList();
   } catch { /* 用户取消 */ }
@@ -84,7 +84,7 @@ async function handleComplete(orderId: string) {
 async function openLogistics(row: any) {
   logisticsOrderId.value = row.id;
   try {
-    const { data } = await api.get(`/shop/orders/${row.id}/logistics`);
+    const { data } = await orderApi.getLogistics(row.id);
     if (data.logistics) {
       Object.assign(logisticsForm, {
         company: data.logistics.company || "",
@@ -121,7 +121,7 @@ async function saveLogistics() {
     Object.entries(logisticsForm).forEach(([k, v]) => {
       if (v) payload[k] = v;
     });
-    await api.put(`/shop/orders/${logisticsOrderId.value}/logistics`, payload);
+    await orderApi.updateLogistics(logisticsOrderId.value, payload);
     ElMessage.success("物流信息已保存");
     logisticsVisible.value = false;
     fetchList();
@@ -162,64 +162,174 @@ function exportData() {
   <div class="order-list">
     <div class="toolbar">
       <h3>订单管理</h3>
-      <el-select v-model="filterStatus" placeholder="状态" clearable @change="fetchList" style="width:120px">
-        <el-option v-for="(label, key) in statusLabels" :key="key" :label="label" :value="key" />
+      <el-select
+        v-model="filterStatus"
+        placeholder="状态"
+        clearable
+        style="width:120px"
+        @change="fetchList"
+      >
+        <el-option
+          v-for="(label, key) in statusLabels"
+          :key="key"
+          :label="label"
+          :value="key"
+        />
       </el-select>
-      <el-button @click="exportData">导出CSV</el-button>
+      <el-button @click="exportData">
+        导出CSV
+      </el-button>
     </div>
-    <el-table :data="orders" v-loading="loading" stripe>
-      <el-table-column label="用户" width="100">
-        <template #default="{ row }">{{ row.user?.nickname || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="类型" width="80">
-        <template #default="{ row }">{{ typeLabels[row.type] || row.type }}</template>
-      </el-table-column>
-      <el-table-column prop="targetId" label="目标ID" width="280" />
-      <el-table-column label="金额" width="100">
-        <template #default="{ row }">¥{{ row.amount }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="90">
+    <el-table
+      v-loading="loading"
+      :data="orders"
+      stripe
+    >
+      <el-table-column
+        label="用户"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag size="small" :type="row.status === 'PAID' ? 'warning' : row.status === 'COMPLETED' ? 'success' : row.status === 'REFUNDED' ? 'info' : ''">
+          {{ row.user?.nickname || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="类型"
+        width="80"
+      >
+        <template #default="{ row }">
+          {{ typeLabels[row.type] || row.type }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="targetId"
+        label="目标ID"
+        width="280"
+      />
+      <el-table-column
+        label="金额"
+        width="100"
+      >
+        <template #default="{ row }">
+          ¥{{ row.amount }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
+        width="90"
+      >
+        <template #default="{ row }">
+          <el-tag
+            size="small"
+            :type="row.status === 'PAID' ? 'warning' : row.status === 'COMPLETED' ? 'success' : row.status === 'REFUNDED' ? 'info' : ''"
+          >
             {{ statusLabels[row.status] || row.status }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="时间" width="170">
-        <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="300" fixed="right">
+      <el-table-column
+        label="时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="primary" link @click="showDetail(row)">详情</el-button>
+          {{ new Date(row.createdAt).toLocaleString() }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="300"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            link
+            @click="showDetail(row)"
+          >
+            详情
+          </el-button>
           <template v-if="row.status === 'PENDING'">
-            <el-button size="small" type="success" @click="handlePay(row.id)">确认支付</el-button>
+            <el-button
+              size="small"
+              type="success"
+              @click="handlePay(row.id)"
+            >
+              确认支付
+            </el-button>
           </template>
           <template v-if="row.status === 'PAID'">
-            <el-button size="small" @click="handleShip(row.id)">发货</el-button>
-            <el-button size="small" type="danger" @click="handleRefund(row.id)">退款</el-button>
+            <el-button
+              size="small"
+              @click="handleShip(row.id)"
+            >
+              发货
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="handleRefund(row.id)"
+            >
+              退款
+            </el-button>
           </template>
           <template v-if="row.status === 'SHIPPED'">
-            <el-button size="small" type="success" @click="handleComplete(row.id)">完成</el-button>
+            <el-button
+              size="small"
+              type="success"
+              @click="handleComplete(row.id)"
+            >
+              完成
+            </el-button>
           </template>
-          <el-button size="small" type="info" @click="openLogistics(row)" v-if="['PAID','SHIPPED'].includes(row.status)">物流</el-button>
-          <span v-if="['COMPLETED','REFUNDED','CANCELLED'].includes(row.status)" style="color:#999">-</span>
+          <el-button
+            v-if="['PAID','SHIPPED'].includes(row.status)"
+            size="small"
+            type="info"
+            @click="openLogistics(row)"
+          >
+            物流
+          </el-button>
+          <span
+            v-if="['COMPLETED','REFUNDED','CANCELLED'].includes(row.status)"
+            style="color:#999"
+          >-</span>
         </template>
       </el-table-column>
     </el-table>
-    <el-pagination v-model:current-page="page" :total="total" @change="fetchList" layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end" />
+    <el-pagination
+      v-model:current-page="page"
+      :total="total"
+      layout="total, prev, pager, next"
+      style="margin-top:16px;justify-content:flex-end"
+      @change="fetchList"
+    />
 
     <!-- 物流信息弹窗 -->
-    <el-dialog v-model="logisticsVisible" title="物流信息" width="550px">
-      <el-form :model="logisticsForm" label-width="100px">
+    <el-dialog
+      v-model="logisticsVisible"
+      title="物流信息"
+      width="550px"
+    >
+      <el-form
+        :model="logisticsForm"
+        label-width="100px"
+      >
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="物流公司">
-              <el-input v-model="logisticsForm.company" placeholder="如 顺丰速运" />
+              <el-input
+                v-model="logisticsForm.company"
+                placeholder="如 顺丰速运"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="物流单号">
-              <el-input v-model="logisticsForm.logisticsNo" placeholder="快递单号" />
+              <el-input
+                v-model="logisticsForm.logisticsNo"
+                placeholder="快递单号"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -253,62 +363,167 @@ function exportData() {
           </el-col>
         </el-row>
         <el-form-item label="详细地址">
-          <el-input v-model="logisticsForm.address" placeholder="街道/门牌号" />
+          <el-input
+            v-model="logisticsForm.address"
+            placeholder="街道/门牌号"
+          />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="logisticsForm.remark" type="textarea" :rows="2" />
+          <el-input
+            v-model="logisticsForm.remark"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="logisticsVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveLogistics">保存</el-button>
+        <el-button @click="logisticsVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="saveLogistics"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 订单详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="订单详情" width="640px">
+    <el-dialog
+      v-model="detailVisible"
+      title="订单详情"
+      width="640px"
+    >
       <template v-if="detailRow">
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="订单编号" :span="2">{{ detailRow.id }}</el-descriptions-item>
-          <el-descriptions-item label="用户">{{ detailRow.user?.nickname || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="类型">{{ typeLabels[detailRow.type] || detailRow.type }}</el-descriptions-item>
-          <el-descriptions-item label="金额">¥{{ detailRow.amount }}</el-descriptions-item>
-          <el-descriptions-item label="虚拟币">{{ detailRow.coinAmount ?? '-' }}</el-descriptions-item>
+        <el-descriptions
+          :column="2"
+          border
+          size="small"
+        >
+          <el-descriptions-item
+            label="订单编号"
+            :span="2"
+          >
+            {{ detailRow.id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="用户">
+            {{ detailRow.user?.nickname || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="类型">
+            {{ typeLabels[detailRow.type] || detailRow.type }}
+          </el-descriptions-item>
+          <el-descriptions-item label="金额">
+            ¥{{ detailRow.amount }}
+          </el-descriptions-item>
+          <el-descriptions-item label="虚拟币">
+            {{ detailRow.coinAmount ?? '-' }}
+          </el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag size="small" :type="detailRow.status === 'PAID' ? 'warning' : detailRow.status === 'COMPLETED' ? 'success' : detailRow.status === 'REFUNDED' ? 'info' : ''">
+            <el-tag
+              size="small"
+              :type="detailRow.status === 'PAID' ? 'warning' : detailRow.status === 'COMPLETED' ? 'success' : detailRow.status === 'REFUNDED' ? 'info' : ''"
+            >
               {{ statusLabels[detailRow.status] || detailRow.status }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="创建时间" :span="2">{{ new Date(detailRow.createdAt).toLocaleString() }}</el-descriptions-item>
-          <el-descriptions-item label="支付时间" :span="2" v-if="detailRow.paidAt">{{ new Date(detailRow.paidAt).toLocaleString() }}</el-descriptions-item>
-          <el-descriptions-item label="目标ID" :span="2">{{ detailRow.targetId || '-' }}</el-descriptions-item>
+          <el-descriptions-item
+            label="创建时间"
+            :span="2"
+          >
+            {{ new Date(detailRow.createdAt).toLocaleString() }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailRow.paidAt"
+            label="支付时间"
+            :span="2"
+          >
+            {{ new Date(detailRow.paidAt).toLocaleString() }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            label="目标ID"
+            :span="2"
+          >
+            {{ detailRow.targetId || '-' }}
+          </el-descriptions-item>
         </el-descriptions>
 
-        <el-divider content-position="left">收货信息</el-divider>
-        <el-descriptions :column="2" border size="small" v-if="detailRow.address">
-          <el-descriptions-item label="收件人">{{ detailRow.address.contactName || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="联系电话">{{ detailRow.address.contactPhone || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="收货地址" :span="2">
+        <el-divider content-position="left">
+          收货信息
+        </el-divider>
+        <el-descriptions
+          v-if="detailRow.address"
+          :column="2"
+          border
+          size="small"
+        >
+          <el-descriptions-item label="收件人">
+            {{ detailRow.address.contactName || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="联系电话">
+            {{ detailRow.address.contactPhone || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            label="收货地址"
+            :span="2"
+          >
             {{ [detailRow.address.province, detailRow.address.city, detailRow.address.district, detailRow.address.address].filter(Boolean).join(' ') || '-' }}
           </el-descriptions-item>
-          <el-descriptions-item label="邮编" v-if="detailRow.address.zipCode">{{ detailRow.address.zipCode }}</el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailRow.address.zipCode"
+            label="邮编"
+          >
+            {{ detailRow.address.zipCode }}
+          </el-descriptions-item>
         </el-descriptions>
-        <el-empty v-else description="暂无收货信息" :image-size="60" />
+        <el-empty
+          v-else
+          description="暂无收货信息"
+          :image-size="60"
+        />
 
-        <el-divider content-position="left">商品明细</el-divider>
+        <el-divider content-position="left">
+          商品明细
+        </el-divider>
         <template v-if="detailRow.items && detailRow.items.length > 0">
-          <el-table :data="detailRow.items" border size="small">
-            <el-table-column label="商品名称" prop="name" min-width="160" />
-            <el-table-column label="单价" width="100">
-              <template #default="{ row }">¥{{ row.price }}</template>
+          <el-table
+            :data="detailRow.items"
+            border
+            size="small"
+          >
+            <el-table-column
+              label="商品名称"
+              prop="name"
+              min-width="160"
+            />
+            <el-table-column
+              label="单价"
+              width="100"
+            >
+              <template #default="{ row }">
+                ¥{{ row.price }}
+              </template>
             </el-table-column>
-            <el-table-column label="数量" width="70" prop="quantity" />
-            <el-table-column label="小计" width="100">
-              <template #default="{ row }">¥{{ (row.price * row.quantity).toFixed(2) }}</template>
+            <el-table-column
+              label="数量"
+              width="70"
+              prop="quantity"
+            />
+            <el-table-column
+              label="小计"
+              width="100"
+            >
+              <template #default="{ row }">
+                ¥{{ (row.price * row.quantity).toFixed(2) }}
+              </template>
             </el-table-column>
           </el-table>
         </template>
-        <el-empty v-else description="暂无商品明细" :image-size="60" />
+        <el-empty
+          v-else
+          description="暂无商品明细"
+          :image-size="60"
+        />
       </template>
     </el-dialog>
   </div>

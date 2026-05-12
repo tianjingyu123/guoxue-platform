@@ -2,46 +2,131 @@
   <div class="page">
     <div class="header">
       <h2>系统配置</h2>
-      <el-button type="primary" @click="openAdd">添加配置</el-button>
+      <el-button
+        type="primary"
+        @click="openAdd"
+      >
+        添加配置
+      </el-button>
     </div>
 
-    <el-table :data="configs" border stripe v-loading="loading">
-      <el-table-column prop="configKey" label="配置键" width="200" />
-      <el-table-column prop="configValue" label="值" min-width="300">
+    <el-table
+      v-loading="loading"
+      :data="configs"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="configKey"
+        label="配置键"
+        width="200"
+      />
+      <el-table-column
+        prop="configValue"
+        label="值"
+        min-width="300"
+      >
         <template #default="{ row }">
           <template v-if="row.configKey === 'search_hot_words'">
-            <el-tag v-for="(w, i) in tryParseJson(row.configValue)" :key="i" size="small" style="margin:2px">{{ w }}</el-tag>
+            <el-tag
+              v-for="(w, i) in tryParseJson(row.configValue)"
+              :key="i"
+              size="small"
+              style="margin:2px"
+            >
+              {{ w }}
+            </el-tag>
           </template>
           <span v-else>{{ row.configValue }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="说明" width="200" show-overflow-tooltip />
-      <el-table-column label="更新时间" width="170">
-        <template #default="{ row }">{{ row.updatedAt?.slice(0, 16).replace("T", " ") }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column
+        prop="description"
+        label="说明"
+        width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="更新时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button type="danger" size="small" @click="remove(row)">删除</el-button>
+          {{ row.updatedAt?.slice(0, 16).replace("T", " ") }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="160"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            type="primary"
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            type="danger"
+            size="small"
+            @click="remove(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑配置' : '添加配置'" width="500px" :close-on-click-modal="false">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="配置键" required>
-          <el-input v-model="form.configKey" :disabled="isEdit" placeholder="如 search_hot_words" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? '编辑配置' : '添加配置'"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        :model="form"
+        label-width="100px"
+      >
+        <el-form-item
+          label="配置键"
+          required
+        >
+          <el-input
+            v-model="form.configKey"
+            :disabled="isEdit"
+            placeholder="如 search_hot_words"
+          />
         </el-form-item>
-        <el-form-item label="配置值" required>
-          <el-input v-model="form.configValue" type="textarea" :rows="4" placeholder="配置值" />
+        <el-form-item
+          label="配置值"
+          required
+        >
+          <el-input
+            v-model="form.configValue"
+            type="textarea"
+            :rows="4"
+            placeholder="配置值"
+          />
         </el-form-item>
         <el-form-item label="说明">
-          <el-input v-model="form.description" placeholder="配置说明" />
+          <el-input
+            v-model="form.description"
+            placeholder="配置说明"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="save" :loading="saving">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

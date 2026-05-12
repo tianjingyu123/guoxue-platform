@@ -1,13 +1,46 @@
 <template>
   <div class="search-filter">
-    <el-form :inline="true" :model="localFilters">
-      <el-form-item v-if="showKeyword" label="关键词">
-        <el-input v-model="localFilters.keyword" :placeholder="placeholder" clearable style="width: 200px" @keyup.enter="handleSearch" />
+    <el-form
+      :inline="true"
+      :model="localFilters"
+    >
+      <el-form-item
+        v-if="showKeyword"
+        label="关键词"
+      >
+        <el-input
+          v-model="localFilters.keyword"
+          :placeholder="placeholder"
+          clearable
+          style="width: 200px"
+          @keyup.enter="handleSearch"
+        />
       </el-form-item>
-      <el-form-item v-for="f in customFilters" :key="f.key" :label="f.label">
-        <el-input v-if="f.type === 'input'" v-model="localFilters[f.key]" :placeholder="f.placeholder" clearable style="width: 160px" />
-        <el-select v-else-if="f.type === 'select'" v-model="localFilters[f.key]" :placeholder="f.placeholder ?? '全部'" clearable style="width: 140px">
-          <el-option v-for="o in f.options" :key="o.value" :label="o.label" :value="o.value" />
+      <el-form-item
+        v-for="f in customFilters"
+        :key="f.key"
+        :label="f.label"
+      >
+        <el-input
+          v-if="f.type === 'input'"
+          v-model="localFilters[f.key]"
+          :placeholder="f.placeholder"
+          clearable
+          style="width: 160px"
+        />
+        <el-select
+          v-else-if="f.type === 'select'"
+          v-model="localFilters[f.key]"
+          :placeholder="f.placeholder ?? '全部'"
+          clearable
+          style="width: 140px"
+        >
+          <el-option
+            v-for="o in f.options"
+            :key="o.value"
+            :label="o.label"
+            :value="o.value"
+          />
         </el-select>
         <el-date-picker
           v-else-if="f.type === 'date'"
@@ -19,8 +52,15 @@
         />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button @click="handleReset">重置</el-button>
+        <el-button
+          type="primary"
+          @click="handleSearch"
+        >
+          搜索
+        </el-button>
+        <el-button @click="handleReset">
+          重置
+        </el-button>
       </el-form-item>
     </el-form>
   </div>

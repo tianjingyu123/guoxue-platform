@@ -11,45 +11,114 @@
           @clear="onFilterChange"
           @keyup.enter="onFilterChange"
         />
-        <el-button type="primary" @click="onFilterChange">搜索</el-button>
-        <el-button type="success" @click="openRechargeDialog">管理员充值</el-button>
-        <el-button @click="exportData">导出CSV</el-button>
+        <el-button
+          type="primary"
+          @click="onFilterChange"
+        >
+          搜索
+        </el-button>
+        <el-button
+          type="success"
+          @click="openRechargeDialog"
+        >
+          管理员充值
+        </el-button>
+        <el-button @click="exportData">
+          导出CSV
+        </el-button>
       </div>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
-      <el-table-column label="用户昵称" width="130">
-        <template #default="{ row }">{{ row.user?.nickname || "--" }}</template>
-      </el-table-column>
-      <el-table-column label="手机号" width="130">
-        <template #default="{ row }">{{ row.user?.phone || "--" }}</template>
-      </el-table-column>
-      <el-table-column label="用户ID" width="80">
-        <template #default="{ row }">{{ row.userId }}</template>
-      </el-table-column>
-      <el-table-column label="人民币金额" width="110">
-        <template #default="{ row }">¥{{ Number(row.amount).toFixed(2) }}</template>
-      </el-table-column>
-      <el-table-column label="币数" width="90">
-        <template #default="{ row }">{{ row.coins }}</template>
-      </el-table-column>
-      <el-table-column label="支付方式" width="100">
-        <template #default="{ row }">{{ payMethodLabel(row.payMethod) }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="80">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        label="用户昵称"
+        width="130"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+          {{ row.user?.nickname || "--" }}
         </template>
       </el-table-column>
-      <el-table-column label="备注" width="160" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.remark || "--" }}</template>
+      <el-table-column
+        label="手机号"
+        width="130"
+      >
+        <template #default="{ row }">
+          {{ row.user?.phone || "--" }}
+        </template>
       </el-table-column>
-      <el-table-column label="充值时间" width="170">
-        <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
+      <el-table-column
+        label="用户ID"
+        width="80"
+      >
+        <template #default="{ row }">
+          {{ row.userId }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="人民币金额"
+        width="110"
+      >
+        <template #default="{ row }">
+          ¥{{ Number(row.amount).toFixed(2) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="币数"
+        width="90"
+      >
+        <template #default="{ row }">
+          {{ row.coins }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="支付方式"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ payMethodLabel(row.payMethod) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
+        width="80"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="statusType(row.status)"
+            size="small"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="备注"
+        width="160"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          {{ row.remark || "--" }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="充值时间"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ formatTime(row.createdAt) }}
+        </template>
       </el-table-column>
     </el-table>
 
-    <div class="pagination" v-if="total > pageSize">
+    <div
+      v-if="total > pageSize"
+      class="pagination"
+    >
       <el-pagination
         v-model:current-page="page"
         :page-size="pageSize"
@@ -60,13 +129,34 @@
     </div>
 
     <!-- 管理员充值弹窗 -->
-    <el-dialog v-model="rechargeVisible" title="管理员充值" width="500px">
-      <el-form :model="rechargeForm" label-width="100px">
-        <el-form-item label="用户ID" required>
-          <el-input v-model="rechargeForm.userId" placeholder="输入用户ID" />
+    <el-dialog
+      v-model="rechargeVisible"
+      title="管理员充值"
+      width="500px"
+    >
+      <el-form
+        :model="rechargeForm"
+        label-width="100px"
+      >
+        <el-form-item
+          label="用户ID"
+          required
+        >
+          <el-input
+            v-model="rechargeForm.userId"
+            placeholder="输入用户ID"
+          />
         </el-form-item>
-        <el-form-item label="充值币数" required>
-          <el-input-number v-model="rechargeForm.coins" :min="1" :step="100" style="width: 100%" />
+        <el-form-item
+          label="充值币数"
+          required
+        >
+          <el-input-number
+            v-model="rechargeForm.coins"
+            :min="1"
+            :step="100"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="备注">
           <el-input
@@ -78,8 +168,16 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rechargeVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitRecharge" :loading="submitting">确认充值</el-button>
+        <el-button @click="rechargeVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="submitRecharge"
+        >
+          确认充值
+        </el-button>
       </template>
     </el-dialog>
   </div>

@@ -3,14 +3,33 @@
     <div class="header">
       <h2>礼物管理</h2>
       <div class="filter-row">
-        <el-button type="primary" @click="openCreate">新增礼物</el-button>
-        <el-button @click="exportData">导出CSV</el-button>
+        <el-button
+          type="primary"
+          @click="openCreate"
+        >
+          新增礼物
+        </el-button>
+        <el-button @click="exportData">
+          导出CSV
+        </el-button>
       </div>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
-      <el-table-column prop="name" label="名称" min-width="140" />
-      <el-table-column label="图标" width="80">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="name"
+        label="名称"
+        min-width="140"
+      />
+      <el-table-column
+        label="图标"
+        width="80"
+      >
         <template #default="{ row }">
           <el-image
             v-if="row.icon"
@@ -18,29 +37,70 @@
             style="width: 36px; height: 36px; border-radius: 4px"
             fit="cover"
           />
-          <span v-else style="color: #999">无</span>
+          <span
+            v-else
+            style="color: #999"
+          >无</span>
         </template>
       </el-table-column>
-      <el-table-column label="价格（币）" width="110">
-        <template #default="{ row }">{{ row.price }} 币</template>
-      </el-table-column>
-      <el-table-column label="等级" width="100">
+      <el-table-column
+        label="价格（币）"
+        width="110"
+      >
         <template #default="{ row }">
-          <el-tag :type="levelType(row.level)" size="small">{{ levelLabel(row.level) }}</el-tag>
+          {{ row.price }} 币
         </template>
       </el-table-column>
-      <el-table-column prop="sort" label="排序" width="70" />
-      <el-table-column label="状态" width="80">
+      <el-table-column
+        label="等级"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'" size="small">
+          <el-tag
+            :type="levelType(row.level)"
+            size="small"
+          >
+            {{ levelLabel(row.level) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="sort"
+        label="排序"
+        width="70"
+      />
+      <el-table-column
+        label="状态"
+        width="80"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="row.status === 'ACTIVE' ? 'success' : 'info'"
+            size="small"
+          >
             {{ row.status === 'ACTIVE' ? '启用' : '禁用' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="260" fixed="right">
+      <el-table-column
+        label="操作"
+        width="260"
+        fixed="right"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="primary" @click="openSendDialog(row)">发送</el-button>
+          <el-button
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="primary"
+            @click="openSendDialog(row)"
+          >
+            发送
+          </el-button>
           <el-button
             size="small"
             :type="row.status === 'ACTIVE' ? 'warning' : 'success'"
@@ -48,7 +108,13 @@
           >
             {{ row.status === 'ACTIVE' ? '禁用' : '启用' }}
           </el-button>
-          <el-button size="small" type="danger" @click="handleDeleteGift(row)">删除</el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="handleDeleteGift(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -59,63 +125,159 @@
       :page-size="pageSize"
       :total="total"
       layout="total, prev, pager, next"
-      @current-change="fetchList"
       style="margin-top: 16px; justify-content: flex-end"
+      @current-change="fetchList"
     />
 
     <!-- 新增/编辑礼物弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑礼物' : '新增礼物'" width="550px">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="名称" required>
-          <el-input v-model="form.name" placeholder="礼物名称" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editingId ? '编辑礼物' : '新增礼物'"
+      width="550px"
+    >
+      <el-form
+        :model="form"
+        label-width="100px"
+      >
+        <el-form-item
+          label="名称"
+          required
+        >
+          <el-input
+            v-model="form.name"
+            placeholder="礼物名称"
+          />
         </el-form-item>
-        <el-form-item label="图标URL" required>
-          <el-input v-model="form.icon" placeholder="https://..." />
-          <div v-if="form.icon" style="margin-top: 8px">
-            <el-image :src="form.icon" style="width: 48px; height: 48px; border-radius: 4px" fit="cover" />
+        <el-form-item
+          label="图标URL"
+          required
+        >
+          <el-input
+            v-model="form.icon"
+            placeholder="https://..."
+          />
+          <div
+            v-if="form.icon"
+            style="margin-top: 8px"
+          >
+            <el-image
+              :src="form.icon"
+              style="width: 48px; height: 48px; border-radius: 4px"
+              fit="cover"
+            />
           </div>
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="价格（币）" required>
-              <el-input-number v-model="form.price" :min="1" :step="10" style="width: 100%" />
+            <el-form-item
+              label="价格（币）"
+              required
+            >
+              <el-input-number
+                v-model="form.price"
+                :min="1"
+                :step="10"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="等级" required>
-              <el-select v-model="form.level" style="width: 100%">
-                <el-option label="基础" value="BASIC" />
-                <el-option label="中级" value="MID" />
-                <el-option label="高级" value="HIGH" />
-                <el-option label="顶级" value="TOP" />
+            <el-form-item
+              label="等级"
+              required
+            >
+              <el-select
+                v-model="form.level"
+                style="width: 100%"
+              >
+                <el-option
+                  label="基础"
+                  value="BASIC"
+                />
+                <el-option
+                  label="中级"
+                  value="MID"
+                />
+                <el-option
+                  label="高级"
+                  value="HIGH"
+                />
+                <el-option
+                  label="顶级"
+                  value="TOP"
+                />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="排序" required>
-          <el-input-number v-model="form.sort" :min="0" :step="1" style="width: 100%" />
+        <el-form-item
+          label="排序"
+          required
+        >
+          <el-input-number
+            v-model="form.sort"
+            :min="0"
+            :step="1"
+            style="width: 100%"
+          />
           <span style="color: #999; font-size: 12px; margin-left: 8px">数字越小越靠前</span>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveGift" :loading="saving">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="saveGift"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 发放礼物弹窗 -->
-    <el-dialog v-model="showSendDialog" title="发放礼物" width="400px">
-      <el-form :model="sendForm" label-width="80px">
-        <el-form-item label="用户ID" required>
-          <el-input v-model="sendForm.userId" placeholder="接收用户ID" />
+    <el-dialog
+      v-model="showSendDialog"
+      title="发放礼物"
+      width="400px"
+    >
+      <el-form
+        :model="sendForm"
+        label-width="80px"
+      >
+        <el-form-item
+          label="用户ID"
+          required
+        >
+          <el-input
+            v-model="sendForm.userId"
+            placeholder="接收用户ID"
+          />
         </el-form-item>
-        <el-form-item label="数量" required>
-          <el-input-number v-model="sendForm.quantity" :min="1" :step="1" style="width: 100%" />
+        <el-form-item
+          label="数量"
+          required
+        >
+          <el-input-number
+            v-model="sendForm.quantity"
+            :min="1"
+            :step="1"
+            style="width: 100%"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showSendDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleSendGift">发放</el-button>
+        <el-button @click="showSendDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="handleSendGift"
+        >
+          发放
+        </el-button>
       </template>
     </el-dialog>
   </div>

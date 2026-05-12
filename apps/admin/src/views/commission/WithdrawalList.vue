@@ -3,58 +3,142 @@
     <div class="header">
       <h2>提现审核</h2>
       <div class="filter-row">
-        <el-radio-group v-model="filterStatus" @change="onFilterChange">
-          <el-radio-button value="">全部</el-radio-button>
-          <el-radio-button value="PENDING">待审核</el-radio-button>
-          <el-radio-button value="APPROVED">已通过</el-radio-button>
-          <el-radio-button value="PAID">已打款</el-radio-button>
-          <el-radio-button value="REJECTED">已拒绝</el-radio-button>
+        <el-radio-group
+          v-model="filterStatus"
+          @change="onFilterChange"
+        >
+          <el-radio-button value="">
+            全部
+          </el-radio-button>
+          <el-radio-button value="PENDING">
+            待审核
+          </el-radio-button>
+          <el-radio-button value="APPROVED">
+            已通过
+          </el-radio-button>
+          <el-radio-button value="PAID">
+            已打款
+          </el-radio-button>
+          <el-radio-button value="REJECTED">
+            已拒绝
+          </el-radio-button>
         </el-radio-group>
-        <el-button @click="exportData">导出CSV</el-button>
+        <el-button @click="exportData">
+          导出CSV
+        </el-button>
       </div>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
-      <el-table-column label="申请人" width="120">
-        <template #default="{ row }">{{ row.user?.nickname || "--" }}</template>
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        label="申请人"
+        width="120"
+      >
+        <template #default="{ row }">
+          {{ row.user?.nickname || "--" }}
+        </template>
       </el-table-column>
-      <el-table-column label="手机号" width="130">
-        <template #default="{ row }">{{ row.user?.phone || "--" }}</template>
+      <el-table-column
+        label="手机号"
+        width="130"
+      >
+        <template #default="{ row }">
+          {{ row.user?.phone || "--" }}
+        </template>
       </el-table-column>
-      <el-table-column label="分站" width="140">
-        <template #default="{ row }">{{ row.station?.name || "--" }}</template>
+      <el-table-column
+        label="分站"
+        width="140"
+      >
+        <template #default="{ row }">
+          {{ row.station?.name || "--" }}
+        </template>
       </el-table-column>
-      <el-table-column label="提现金额" width="110">
-        <template #default="{ row }">¥{{ Number(row.amount).toFixed(2) }}</template>
+      <el-table-column
+        label="提现金额"
+        width="110"
+      >
+        <template #default="{ row }">
+          ¥{{ Number(row.amount).toFixed(2) }}
+        </template>
       </el-table-column>
-      <el-table-column label="提现方式" width="120">
+      <el-table-column
+        label="提现方式"
+        width="120"
+      >
         <template #default="{ row }">
           {{ row.alipayAccount ? "支付宝" : row.bankName ? "银行卡" : "未指定" }}
         </template>
       </el-table-column>
-      <el-table-column label="账号" width="180" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.alipayAccount || row.bankAccount || "--" }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="90">
+      <el-table-column
+        label="账号"
+        width="180"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+          {{ row.alipayAccount || row.bankAccount || "--" }}
         </template>
       </el-table-column>
-      <el-table-column label="申请时间" width="170">
-        <template #default="{ row }">{{ row.createdAt?.slice(0, 16).replace("T", " ") }}</template>
+      <el-table-column
+        label="状态"
+        width="90"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="statusType(row.status)"
+            size="small"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
+        </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column
+        label="申请时间"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ row.createdAt?.slice(0, 16).replace("T", " ") }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="180"
+        fixed="right"
+      >
         <template #default="{ row }">
           <template v-if="row.status === 'PENDING'">
-            <el-button type="success" size="small" @click="audit(row, 'APPROVED')">通过</el-button>
-            <el-button type="danger" size="small" @click="audit(row, 'REJECTED')">拒绝</el-button>
+            <el-button
+              type="success"
+              size="small"
+              @click="audit(row, 'APPROVED')"
+            >
+              通过
+            </el-button>
+            <el-button
+              type="danger"
+              size="small"
+              @click="audit(row, 'REJECTED')"
+            >
+              拒绝
+            </el-button>
           </template>
-          <span v-else style="color:#999">--</span>
+          <span
+            v-else
+            style="color:#999"
+          >--</span>
         </template>
       </el-table-column>
     </el-table>
 
-    <div class="pagination" v-if="total > pageSize">
+    <div
+      v-if="total > pageSize"
+      class="pagination"
+    >
       <el-pagination
         v-model:current-page="page"
         :page-size="pageSize"

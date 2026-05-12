@@ -2,54 +2,157 @@
   <div class="page">
     <div class="header">
       <h2>佣金配置管理</h2>
-      <p class="desc">调整各业务场景的分佣比例，修改即时生效。</p>
+      <p class="desc">
+        调整各业务场景的分佣比例，修改即时生效。
+      </p>
     </div>
 
-    <el-table :data="configs" border stripe v-loading="loading">
-      <el-table-column prop="configKey" label="配置键" width="160" />
-      <el-table-column prop="configName" label="名称" width="180" />
-      <el-table-column label="角色A比例" width="110">
-        <template #default="{ row }">{{ formatRate(row, 'rateA') }}</template>
-      </el-table-column>
-      <el-table-column label="角色B比例" width="110">
-        <template #default="{ row }">{{ formatRate(row, 'rateB') }}</template>
-      </el-table-column>
-      <el-table-column label="角色C比例" width="110">
-        <template #default="{ row }">{{ row.rateC != null ? formatRate(row, 'rateC') : '--' }}</template>
-      </el-table-column>
-      <el-table-column prop="description" label="说明" min-width="240" />
-      <el-table-column label="操作" width="80" fixed="right">
+    <el-table
+      v-loading="loading"
+      :data="configs"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="configKey"
+        label="配置键"
+        width="160"
+      />
+      <el-table-column
+        prop="configName"
+        label="名称"
+        width="180"
+      />
+      <el-table-column
+        label="角色A比例"
+        width="110"
+      >
         <template #default="{ row }">
-          <el-button type="primary" size="small" @click="openEdit(row)">编辑</el-button>
+          {{ formatRate(row, 'rateA') }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="角色B比例"
+        width="110"
+      >
+        <template #default="{ row }">
+          {{ formatRate(row, 'rateB') }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="角色C比例"
+        width="110"
+      >
+        <template #default="{ row }">
+          {{ row.rateC != null ? formatRate(row, 'rateC') : '--' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="description"
+        label="说明"
+        min-width="240"
+      />
+      <el-table-column
+        label="操作"
+        width="80"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            type="primary"
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 编辑对话框 -->
-    <el-dialog v-model="dialogVisible" title="编辑佣金配置" width="500px" :close-on-click-modal="false">
-      <el-form :model="form" label-position="left" label-width="130px" v-if="editRow">
+    <el-dialog
+      v-model="dialogVisible"
+      title="编辑佣金配置"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        v-if="editRow"
+        :model="form"
+        label-position="left"
+        label-width="130px"
+      >
         <el-form-item label="配置名称">
-          <el-input :model-value="editRow.configName" disabled />
+          <el-input
+            :model-value="editRow.configName"
+            disabled
+          />
         </el-form-item>
         <el-form-item :label="rateALabel">
-          <el-input-number v-model="form.rateA" :min="0" :max="isWithdrawalMin ? 99999 : 100" :step="isWithdrawalMin ? 10 : 0.5" :precision="isWithdrawalMin ? 0 : 1" controls-position="right" style="width:200px" />
-          <span v-if="!isWithdrawalMin" class="rate-unit">%</span>
+          <el-input-number
+            v-model="form.rateA"
+            :min="0"
+            :max="isWithdrawalMin ? 99999 : 100"
+            :step="isWithdrawalMin ? 10 : 0.5"
+            :precision="isWithdrawalMin ? 0 : 1"
+            controls-position="right"
+            style="width:200px"
+          />
+          <span
+            v-if="!isWithdrawalMin"
+            class="rate-unit"
+          >%</span>
         </el-form-item>
-        <el-form-item v-if="!isWithdrawalMin" label="角色B比例">
-          <el-input-number v-model="form.rateB" :min="0" :max="100" :step="0.5" :precision="1" controls-position="right" style="width:200px" />
+        <el-form-item
+          v-if="!isWithdrawalMin"
+          label="角色B比例"
+        >
+          <el-input-number
+            v-model="form.rateB"
+            :min="0"
+            :max="100"
+            :step="0.5"
+            :precision="1"
+            controls-position="right"
+            style="width:200px"
+          />
           <span class="rate-unit">%</span>
         </el-form-item>
-        <el-form-item v-if="!isWithdrawalMin" label="角色C比例">
-          <el-input-number v-model="form.rateC" :min="0" :max="100" :step="0.5" :precision="1" controls-position="right" style="width:200px" />
+        <el-form-item
+          v-if="!isWithdrawalMin"
+          label="角色C比例"
+        >
+          <el-input-number
+            v-model="form.rateC"
+            :min="0"
+            :max="100"
+            :step="0.5"
+            :precision="1"
+            controls-position="right"
+            style="width:200px"
+          />
           <span class="rate-unit">%</span>
         </el-form-item>
         <el-form-item label="说明">
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="配置说明" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="3"
+            placeholder="配置说明"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="save" :loading="saving">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

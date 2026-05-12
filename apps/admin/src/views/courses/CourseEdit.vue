@@ -1,76 +1,190 @@
 <template>
   <div class="course-edit">
-    <el-page-header @back="router.push('/courses')" title="返回" style="margin-bottom:16px">
-      <template #content>{{ isEdit ? '编辑课程' : '新建课程' }}</template>
+    <el-page-header
+      title="返回"
+      style="margin-bottom:16px"
+      @back="router.push('/courses')"
+    >
+      <template #content>
+        {{ isEdit ? '编辑课程' : '新建课程' }}
+      </template>
     </el-page-header>
 
     <div class="edit-body">
       <!-- 主编辑区 -->
       <div class="edit-main">
         <el-card>
-          <el-form :model="form" label-width="80px">
-            <el-form-item label="标题" required>
-              <el-input v-model="form.title" placeholder="课程标题" size="large" />
+          <el-form
+            :model="form"
+            label-width="80px"
+          >
+            <el-form-item
+              label="标题"
+              required
+            >
+              <el-input
+                v-model="form.title"
+                placeholder="课程标题"
+                size="large"
+              />
             </el-form-item>
             <el-form-item label="简介">
-              <el-input v-model="form.intro" type="textarea" :rows="3" placeholder="课程简介" />
+              <el-input
+                v-model="form.intro"
+                type="textarea"
+                :rows="3"
+                placeholder="课程简介"
+              />
             </el-form-item>
             <el-row :gutter="16">
               <el-col :span="8">
                 <el-form-item label="类型">
-                  <el-select v-model="form.type" style="width:100%">
-                    <el-option label="视频" value="VIDEO" />
-                    <el-option label="音频" value="AUDIO" />
-                    <el-option label="文本" value="TEXT" />
-                    <el-option label="电子书" value="EBOOK" />
-                    <el-option label="组合" value="COMBO" />
+                  <el-select
+                    v-model="form.type"
+                    style="width:100%"
+                  >
+                    <el-option
+                      label="视频"
+                      value="VIDEO"
+                    />
+                    <el-option
+                      label="音频"
+                      value="AUDIO"
+                    />
+                    <el-option
+                      label="文本"
+                      value="TEXT"
+                    />
+                    <el-option
+                      label="电子书"
+                      value="EBOOK"
+                    />
+                    <el-option
+                      label="组合"
+                      value="COMBO"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="价格">
-                  <el-input-number v-model="form.price" :min="0" :precision="2" style="width:100%" />
+                  <el-input-number
+                    v-model="form.price"
+                    :min="0"
+                    :precision="2"
+                    style="width:100%"
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="原价">
-                  <el-input-number v-model="form.originalPrice" :min="0" :precision="2" style="width:100%" />
+                  <el-input-number
+                    v-model="form.originalPrice"
+                    :min="0"
+                    :precision="2"
+                    style="width:100%"
+                  />
                 </el-form-item>
               </el-col>
             </el-row>
             <el-form-item>
-              <el-button type="primary" @click="save" :loading="saving">保存课程</el-button>
-              <el-button v-if="isEdit" type="danger" @click="handleDelete">删除课程</el-button>
+              <el-button
+                type="primary"
+                :loading="saving"
+                @click="save"
+              >
+                保存课程
+              </el-button>
+              <el-button
+                v-if="isEdit"
+                type="danger"
+                @click="handleDelete"
+              >
+                删除课程
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>
 
         <!-- 章节管理（仅编辑模式） -->
-        <el-card v-if="isEdit" style="margin-top:16px">
+        <el-card
+          v-if="isEdit"
+          style="margin-top:16px"
+        >
           <template #header>
             <div class="section-header">
               <span>章节管理 ({{ chapters.length }})</span>
-              <el-button type="primary" size="small" @click="openChapterDialog()">添加章节</el-button>
+              <el-button
+                type="primary"
+                size="small"
+                @click="openChapterDialog()"
+              >
+                添加章节
+              </el-button>
             </div>
           </template>
-          <el-table :data="chapters" stripe>
-            <el-table-column label="排序" width="60" prop="sortOrder" />
-            <el-table-column prop="title" label="标题" min-width="200" />
-            <el-table-column label="类型" width="80">
-              <template #default="{ row }">{{ row.mediaUrl ? '视频' : row.content ? '文本' : '-' }}</template>
-            </el-table-column>
-            <el-table-column label="时长" width="80">
-              <template #default="{ row }">{{ row.duration ? row.duration + '分' : '-' }}</template>
-            </el-table-column>
-            <el-table-column label="试看" width="70">
+          <el-table
+            :data="chapters"
+            stripe
+          >
+            <el-table-column
+              label="排序"
+              width="60"
+              prop="sortOrder"
+            />
+            <el-table-column
+              prop="title"
+              label="标题"
+              min-width="200"
+            />
+            <el-table-column
+              label="类型"
+              width="80"
+            >
               <template #default="{ row }">
-                <el-tag v-if="row.freeTrial" type="success" size="small">免费</el-tag>
+                {{ row.mediaUrl ? '视频' : row.content ? '文本' : '-' }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="150">
+            <el-table-column
+              label="时长"
+              width="80"
+            >
               <template #default="{ row }">
-                <el-button size="small" @click="openChapterDialog(row)">编辑</el-button>
-                <el-button size="small" type="danger" @click="deleteChapter(row.id)">删除</el-button>
+                {{ row.duration ? row.duration + '分' : '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="试看"
+              width="70"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  v-if="row.freeTrial"
+                  type="success"
+                  size="small"
+                >
+                  免费
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="操作"
+              width="150"
+            >
+              <template #default="{ row }">
+                <el-button
+                  size="small"
+                  @click="openChapterDialog(row)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  @click="deleteChapter(row.id)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -78,20 +192,48 @@
       </div>
 
       <!-- 右侧面板 -->
-      <div class="edit-sidebar" v-if="isEdit">
+      <div
+        v-if="isEdit"
+        class="edit-sidebar"
+      >
         <div class="sidebar-section">
           <h4>封面图片</h4>
           <div class="cover-upload">
-            <div class="cover-preview" v-if="form.cover">
-              <img :src="form.cover" alt="封面" />
-              <el-button size="small" type="danger" @click="form.cover = ''" class="cover-remove">移除</el-button>
+            <div
+              v-if="form.cover"
+              class="cover-preview"
+            >
+              <img
+                :src="form.cover"
+                alt="封面"
+              >
+              <el-button
+                size="small"
+                type="danger"
+                class="cover-remove"
+                @click="form.cover = ''"
+              >
+                移除
+              </el-button>
             </div>
-            <div class="cover-placeholder" v-else>
+            <div
+              v-else
+              class="cover-placeholder"
+            >
               <span>暂无封面</span>
             </div>
             <div class="cover-input-row">
-              <el-input v-model="coverUrl" placeholder="输入图片URL" size="small" />
-              <el-button size="small" @click="form.cover = coverUrl">设置</el-button>
+              <el-input
+                v-model="coverUrl"
+                placeholder="输入图片URL"
+                size="small"
+              />
+              <el-button
+                size="small"
+                @click="form.cover = coverUrl"
+              >
+                设置
+              </el-button>
             </div>
             <el-upload
               :show-file-list="false"
@@ -99,7 +241,13 @@
               accept="image/*"
               style="margin-top:8px"
             >
-              <el-button size="small" type="primary" :loading="uploading">本地上传</el-button>
+              <el-button
+                size="small"
+                type="primary"
+                :loading="uploading"
+              >
+                本地上传
+              </el-button>
             </el-upload>
           </div>
         </div>
@@ -107,26 +255,52 @@
     </div>
 
     <!-- 章节编辑弹窗 -->
-    <el-dialog v-model="chapterDialog" :title="editingChapter ? '编辑章节' : '添加章节'" width="700px" top="5vh">
-      <el-form :model="chapterForm" label-width="80px">
-        <el-form-item label="标题" required>
-          <el-input v-model="chapterForm.title" placeholder="章节标题" />
+    <el-dialog
+      v-model="chapterDialog"
+      :title="editingChapter ? '编辑章节' : '添加章节'"
+      width="700px"
+      top="5vh"
+    >
+      <el-form
+        :model="chapterForm"
+        label-width="80px"
+      >
+        <el-form-item
+          label="标题"
+          required
+        >
+          <el-input
+            v-model="chapterForm.title"
+            placeholder="章节标题"
+          />
         </el-form-item>
         <el-form-item label="媒体URL">
-          <el-input v-model="chapterForm.mediaUrl" placeholder="视频/音频URL" />
+          <el-input
+            v-model="chapterForm.mediaUrl"
+            placeholder="视频/音频URL"
+          />
         </el-form-item>
         <el-form-item label="正文">
-          <div ref="chapterEditorEl" class="chapter-editor-box"></div>
+          <div
+            ref="chapterEditorEl"
+            class="chapter-editor-box"
+          />
         </el-form-item>
         <el-row :gutter="12">
           <el-col :span="8">
             <el-form-item label="时长(分)">
-              <el-input-number v-model="chapterForm.duration" :min="0" />
+              <el-input-number
+                v-model="chapterForm.duration"
+                :min="0"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="排序">
-              <el-input-number v-model="chapterForm.sortOrder" :min="0" />
+              <el-input-number
+                v-model="chapterForm.sortOrder"
+                :min="0"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -137,8 +311,15 @@
         </el-row>
       </el-form>
       <template #footer>
-        <el-button @click="chapterDialog = false">取消</el-button>
-        <el-button type="primary" @click="saveChapter">保存</el-button>
+        <el-button @click="chapterDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="saveChapter"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -148,7 +329,7 @@
 import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { courseApi, uploadApi } from '../../api'
+import { courseApi, uploadApi } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -321,7 +502,7 @@ function initChapterEditor() {
 .cover-preview { position: relative; width: 100%; aspect-ratio: 16/10; border-radius: 4px; overflow: hidden; background: #f5f5f5; margin-bottom: 8px; }
 .cover-preview img { width: 100%; height: 100%; object-fit: cover; }
 .cover-remove { position: absolute; top: 4px; right: 4px; }
-.cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed #e0d5c1; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 13px; margin-bottom: 8px; }
+.cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed #E8E0D5; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 13px; margin-bottom: 8px; }
 .cover-input-row { display: flex; gap: 4px; }
 
 .chapter-editor-box { min-height: 200px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }

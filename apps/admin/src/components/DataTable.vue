@@ -1,14 +1,18 @@
 <template>
   <div class="data-table-wrap">
     <el-table
-      :data="data"
       v-loading="loading"
+      :data="data"
       stripe
       border
       @sort-change="$emit('sortChange', $event)"
       @selection-change="$emit('selectionChange', $event)"
     >
-      <el-table-column v-if="selectable" type="selection" width="50" />
+      <el-table-column
+        v-if="selectable"
+        type="selection"
+        width="50"
+      />
       <el-table-column
         v-for="col in columns"
         :key="col.prop"
@@ -21,17 +25,36 @@
         :align="col.align ?? 'left'"
         :show-overflow-tooltip="col.showOverflow ?? true"
       >
-        <template v-if="col.slot" #default="{ row, $index }">
-          <slot :name="col.slot" :row="row" :index="$index" />
+        <template
+          v-if="col.slot"
+          #default="{ row, $index }"
+        >
+          <slot
+            :name="col.slot"
+            :row="row"
+            :index="$index"
+          />
         </template>
       </el-table-column>
-      <el-table-column v-if="$slots.actions" label="操作" :width="actionsWidth" fixed="right">
+      <el-table-column
+        v-if="$slots.actions"
+        label="操作"
+        :width="actionsWidth"
+        fixed="right"
+      >
         <template #default="{ row, $index }">
-          <slot name="actions" :row="row" :index="$index" />
+          <slot
+            name="actions"
+            :row="row"
+            :index="$index"
+          />
         </template>
       </el-table-column>
     </el-table>
-    <div v-if="showPagination" class="pagination-wrap">
+    <div
+      v-if="showPagination"
+      class="pagination-wrap"
+    >
       <el-pagination
         v-model:current-page="currentPage"
         v-model:page-size="currentPageSize"

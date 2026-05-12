@@ -1,6 +1,6 @@
 import { defineStore } from "pinia"
 import { ref } from "vue"
-import { dashboardApi } from "../api"
+import { dashboardApi, api } from "@/api"
 
 export const useDashboardStore = defineStore("dashboard", () => {
   const stats = ref({
@@ -55,5 +55,25 @@ export const useDashboardStore = defineStore("dashboard", () => {
     } catch { /* 非关键，静默失败 */ }
   }
 
-  return { stats, trends, charts, loading, fetchStats, fetchTrends, fetchCharts }
+  // 角色专属看板扩展方法
+  async function fetchAlerts(params?: any) {
+    try { const { data } = await api.get('/dashboard/alerts', { params }); return data } catch { return { alerts: [], total: 0 } }
+  }
+  async function fetchRevenueOverview() {
+    try { const { data } = await api.get('/dashboard/revenue'); return data } catch { return null }
+  }
+  async function fetchSystemHealth() {
+    try { const { data } = await api.get('/dashboard/system-health'); return data } catch { return null }
+  }
+  async function fetchContentHealth() {
+    try { const { data } = await api.get('/dashboard/content-health'); return data } catch { return null }
+  }
+  async function fetchFunnel() {
+    try { const { data } = await api.get('/dashboard/funnel'); return data } catch { return null }
+  }
+  async function fetchRealtime() {
+    try { const { data } = await api.get('/dashboard/realtime'); return data } catch { return null }
+  }
+
+  return { stats, trends, charts, loading, fetchStats, fetchTrends, fetchCharts, fetchAlerts, fetchRevenueOverview, fetchSystemHealth, fetchContentHealth, fetchFunnel, fetchRealtime }
 })

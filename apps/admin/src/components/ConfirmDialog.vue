@@ -7,15 +7,23 @@
     @update:model-value="$emit('update:visible', $event)"
   >
     <div class="confirm-content">
-      <el-icon :size="48" :color="iconColor">
+      <el-icon
+        :size="48"
+        :color="iconColor"
+      >
         <WarningFilled v-if="type === 'danger' || type === 'warning'" />
         <InfoFilled v-else />
       </el-icon>
       <p>{{ content }}</p>
     </div>
     <template #footer>
-      <el-button @click="$emit('cancel')">{{ cancelText }}</el-button>
-      <el-button :type="type === 'info' ? 'primary' : type" @click="$emit('confirm')">
+      <el-button @click="$emit('cancel')">
+        {{ cancelText }}
+      </el-button>
+      <el-button
+        :type="type === 'info' ? 'primary' : type"
+        @click="$emit('confirm')"
+      >
         {{ confirmText }}
       </el-button>
     </template>

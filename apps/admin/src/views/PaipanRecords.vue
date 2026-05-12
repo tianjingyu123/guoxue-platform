@@ -1,6 +1,9 @@
 <template>
   <div class="paipan-records">
-    <PageHeader title="排盘记录管理" description="查看所有用户的八字和紫微斗数排盘记录" />
+    <PageHeader
+      title="排盘记录管理"
+      description="查看所有用户的八字和紫微斗数排盘记录"
+    />
 
     <!-- 筛选 -->
     <SearchFilter
@@ -24,7 +27,10 @@
       @change="fetchRecords()"
     >
       <template #type="{ row }">
-        <el-tag :type="row.paipanType === 'BAZI' ? 'warning' : 'success'" size="small">
+        <el-tag
+          :type="row.paipanType === 'BAZI' ? 'warning' : 'success'"
+          size="small"
+        >
           {{ row.paipanType === 'BAZI' ? '八字' : '紫微' }}
         </el-tag>
       </template>
@@ -35,33 +41,68 @@
         <span>{{ formatDate(row.createdAt) }}</span>
       </template>
       <template #actions="{ row }">
-        <el-button size="small" type="primary" text @click="viewDetail(row)">查看详情</el-button>
+        <el-button
+          size="small"
+          type="primary"
+          text
+          @click="viewDetail(row)"
+        >
+          查看详情
+        </el-button>
       </template>
     </DataTable>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="showDetail" title="排盘详情" width="600px" destroy-on-close>
-      <el-descriptions v-if="detail" :column="2" border>
-        <el-descriptions-item label="姓名">{{ detail.clientName }}</el-descriptions-item>
-        <el-descriptions-item label="出生">{{ detail.clientBirth }}</el-descriptions-item>
+    <el-dialog
+      v-model="showDetail"
+      title="排盘详情"
+      width="600px"
+      destroy-on-close
+    >
+      <el-descriptions
+        v-if="detail"
+        :column="2"
+        border
+      >
+        <el-descriptions-item label="姓名">
+          {{ detail.clientName }}
+        </el-descriptions-item>
+        <el-descriptions-item label="出生">
+          {{ detail.clientBirth }}
+        </el-descriptions-item>
         <el-descriptions-item label="类型">
-          <el-tag :type="detail.paipanType === 'BAZI' ? 'warning' : 'success'" size="small">
+          <el-tag
+            :type="detail.paipanType === 'BAZI' ? 'warning' : 'success'"
+            size="small"
+          >
             {{ detail.paipanType === 'BAZI' ? '八字' : '紫微斗数' }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="时间">{{ formatDate(detail.createdAt) }}</el-descriptions-item>
+        <el-descriptions-item label="时间">
+          {{ formatDate(detail.createdAt) }}
+        </el-descriptions-item>
       </el-descriptions>
-      <div v-if="detail?.resultData && detail.paipanType === 'ZIWEI'" class="ziwei-preview">
+      <div
+        v-if="detail?.resultData && detail.paipanType === 'ZIWEI'"
+        class="ziwei-preview"
+      >
         <h4>命盘摘要</h4>
         <div class="ziwei-grid">
-          <div class="ziwei-cell" v-for="gong in detail.resultData.gongWei" :key="gong.name">
+          <div
+            v-for="gong in detail.resultData.gongWei"
+            :key="gong.name"
+            class="ziwei-cell"
+          >
             <span class="gong-name">{{ gong.name }}</span>
             <span class="gong-ganzhi">{{ gong.gan }}{{ gong.zhi }}</span>
             <span class="gong-stars">{{ gong.stars?.map((s: any) => s.name).join(' ') || '空宫' }}</span>
           </div>
         </div>
       </div>
-      <div v-if="detail?.resultData && detail.paipanType === 'BAZI'" class="bazi-preview">
+      <div
+        v-if="detail?.resultData && detail.paipanType === 'BAZI'"
+        class="bazi-preview"
+      >
         <h4>八字排盘</h4>
         <pre class="bazi-json">{{ JSON.stringify(detail.resultData, null, 2) }}</pre>
       </div>

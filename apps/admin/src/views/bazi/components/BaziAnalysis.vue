@@ -20,19 +20,30 @@ const xiongShen = shenSha.filter(s => s.type === 'xiong')
 <template>
   <div class="analysis-bazi">
     <!-- 格局分析 -->
-    <section class="analysis-section" v-if="geJu">
+    <section
+      v-if="geJu"
+      class="analysis-section"
+    >
       <h3>格局分析</h3>
       <div class="geju-card">
         <div class="geju-name">
-          <span class="tag" :class="geJu.type">{{ geJu.type === 'zheng' ? '正格' : '变格' }}</span>
+          <span
+            class="tag"
+            :class="geJu.type"
+          >{{ geJu.type === 'zheng' ? '正格' : '变格' }}</span>
           <strong>{{ geJu.name }}</strong>
         </div>
-        <p class="geju-desc">{{ geJu.desc }}</p>
+        <p class="geju-desc">
+          {{ geJu.desc }}
+        </p>
       </div>
     </section>
 
     <!-- 用神喜忌 -->
-    <section class="analysis-section" v-if="geJu">
+    <section
+      v-if="geJu"
+      class="analysis-section"
+    >
       <h3>用神 · 喜忌</h3>
       <div class="yongshen-row">
         <div class="yongshen-item use">
@@ -64,73 +75,144 @@ const xiongShen = shenSha.filter(s => s.type === 'xiong')
         </div>
       </div>
       <!-- 五行柱状图 -->
-      <div class="wuxing-bars" v-if="wuXingEnergy">
-        <div class="wx-bar" v-for="k in (['mu','huo','tu','jin','shui'] as const)" :key="k">
-          <div class="bar-label">{{ wuXingNames[k] }}</div>
+      <div
+        v-if="wuXingEnergy"
+        class="wuxing-bars"
+      >
+        <div
+          v-for="k in (['mu','huo','tu','jin','shui'] as const)"
+          :key="k"
+          class="wx-bar"
+        >
+          <div class="bar-label">
+            {{ wuXingNames[k] }}
+          </div>
           <div class="bar-track">
             <div
               class="bar-fill"
               :style="{ width: Math.max(wuXingEnergy[k] / 50 * 100, 2) + '%' }"
-            ></div>
+            />
           </div>
-          <div class="bar-val">{{ wuXingEnergy[k] }}</div>
+          <div class="bar-val">
+            {{ wuXingEnergy[k] }}
+          </div>
         </div>
-        <p class="wx-desc">{{ wuXingEnergy?.desc }}</p>
+        <p class="wx-desc">
+          {{ wuXingEnergy?.desc }}
+        </p>
       </div>
     </section>
 
     <!-- 合冲刑害 -->
-    <section class="analysis-section" v-if="Object.values(fenXiTiShi).some(v => v.length)">
+    <section
+      v-if="Object.values(fenXiTiShi).some(v => v.length)"
+      class="analysis-section"
+    >
       <h3>合冲刑害</h3>
       <div class="relation-tags">
         <template v-if="fenXiTiShi.ganHe.length">
-          <span class="tag ganhe" v-for="h in fenXiTiShi.ganHe" :key="h">{{ h }}</span>
+          <span
+            v-for="h in fenXiTiShi.ganHe"
+            :key="h"
+            class="tag ganhe"
+          >{{ h }}</span>
         </template>
         <template v-if="fenXiTiShi.liuHe.length">
-          <span class="tag liuhe" v-for="h in fenXiTiShi.liuHe" :key="h">{{ h }}</span>
+          <span
+            v-for="h in fenXiTiShi.liuHe"
+            :key="h"
+            class="tag liuhe"
+          >{{ h }}</span>
         </template>
         <template v-if="fenXiTiShi.sanHe.length">
-          <span class="tag sanhe" v-for="h in fenXiTiShi.sanHe" :key="h">{{ h }}</span>
+          <span
+            v-for="h in fenXiTiShi.sanHe"
+            :key="h"
+            class="tag sanhe"
+          >{{ h }}</span>
         </template>
         <template v-if="fenXiTiShi.sanHui.length">
-          <span class="tag sanhui" v-for="h in fenXiTiShi.sanHui" :key="h">{{ h }}</span>
+          <span
+            v-for="h in fenXiTiShi.sanHui"
+            :key="h"
+            class="tag sanhui"
+          >{{ h }}</span>
         </template>
         <template v-if="fenXiTiShi.liuChong.length">
-          <span class="tag chong" v-for="h in fenXiTiShi.liuChong" :key="h">{{ h }}</span>
+          <span
+            v-for="h in fenXiTiShi.liuChong"
+            :key="h"
+            class="tag chong"
+          >{{ h }}</span>
         </template>
         <template v-if="fenXiTiShi.liuHai.length">
-          <span class="tag hai" v-for="h in fenXiTiShi.liuHai" :key="h">{{ h }}</span>
+          <span
+            v-for="h in fenXiTiShi.liuHai"
+            :key="h"
+            class="tag hai"
+          >{{ h }}</span>
         </template>
         <template v-if="fenXiTiShi.sanXing.length">
-          <span class="tag xing" v-for="h in fenXiTiShi.sanXing" :key="h">{{ h }}</span>
+          <span
+            v-for="h in fenXiTiShi.sanXing"
+            :key="h"
+            class="tag xing"
+          >{{ h }}</span>
         </template>
         <template v-if="fenXiTiShi.ziXing.length">
-          <span class="tag xing" v-for="h in fenXiTiShi.ziXing" :key="h">{{ h }}</span>
+          <span
+            v-for="h in fenXiTiShi.ziXing"
+            :key="h"
+            class="tag xing"
+          >{{ h }}</span>
         </template>
       </div>
     </section>
 
     <!-- 神煞 -->
-    <section class="analysis-section" v-if="shenSha.length">
+    <section
+      v-if="shenSha.length"
+      class="analysis-section"
+    >
       <h3>神煞</h3>
       <div class="shensha-grid">
-        <div class="shensha-col good" v-if="jiShen.length">
-          <h4 class="ji">吉神 ({{ jiShen.length }})</h4>
+        <div
+          v-if="jiShen.length"
+          class="shensha-col good"
+        >
+          <h4 class="ji">
+            吉神 ({{ jiShen.length }})
+          </h4>
           <ul>
-            <li v-for="s in jiShen" :key="'ji-'+s.name">
+            <li
+              v-for="s in jiShen"
+              :key="'ji-'+s.name"
+            >
               <strong>{{ s.name }}</strong>
               <span class="pillar-tag">{{ s.pillar }}</span>
-              <p class="desc">{{ s.desc }}</p>
+              <p class="desc">
+                {{ s.desc }}
+              </p>
             </li>
           </ul>
         </div>
-        <div class="shensha-col bad" v-if="xiongShen.length">
-          <h4 class="xiong">凶煞 ({{ xiongShen.length }})</h4>
+        <div
+          v-if="xiongShen.length"
+          class="shensha-col bad"
+        >
+          <h4 class="xiong">
+            凶煞 ({{ xiongShen.length }})
+          </h4>
           <ul>
-            <li v-for="s in xiongShen" :key="'xiong-'+s.name">
+            <li
+              v-for="s in xiongShen"
+              :key="'xiong-'+s.name"
+            >
               <strong>{{ s.name }}</strong>
               <span class="pillar-tag">{{ s.pillar }}</span>
-              <p class="desc">{{ s.desc }}</p>
+              <p class="desc">
+                {{ s.desc }}
+              </p>
             </li>
           </ul>
         </div>

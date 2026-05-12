@@ -3,49 +3,96 @@
     <div class="edit-header">
       <h3>{{ isEdit ? '编辑内容' : '新建内容' }}</h3>
       <div class="header-actions">
-        <el-button @click="handleSave" type="primary" :loading="saving">保存</el-button>
-        <el-button @click="handleSave('DRAFT')" :loading="saving">存草稿</el-button>
-        <el-button @click="$router.back()">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="handleSave"
+        >
+          保存
+        </el-button>
+        <el-button
+          :loading="saving"
+          @click="handleSave('DRAFT')"
+        >
+          存草稿
+        </el-button>
+        <el-button @click="$router.back()">
+          取消
+        </el-button>
       </div>
     </div>
 
     <div class="edit-body">
       <!-- 左侧：编辑区 -->
       <div class="edit-main">
-        <el-form :model="form" label-width="60px">
+        <el-form
+          :model="form"
+          label-width="60px"
+        >
           <el-form-item label="标题">
-            <el-input v-model="form.title" placeholder="请输入标题" size="large" />
+            <el-input
+              v-model="form.title"
+              placeholder="请输入标题"
+              size="large"
+            />
           </el-form-item>
 
           <el-row :gutter="16">
             <el-col :span="8">
               <el-form-item label="类型">
-                <el-select v-model="form.type" size="large" style="width:100%">
-                  <el-option label="文章" value="ARTICLE" />
-                  <el-option label="诗词" value="POEM" />
-                  <el-option label="经典" value="CLASSIC" />
+                <el-select
+                  v-model="form.type"
+                  size="large"
+                  style="width:100%"
+                >
+                  <el-option
+                    label="文章"
+                    value="ARTICLE"
+                  />
+                  <el-option
+                    label="诗词"
+                    value="POEM"
+                  />
+                  <el-option
+                    label="经典"
+                    value="CLASSIC"
+                  />
                 </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="8">
               <el-form-item label="作者">
-                <el-input v-model="form.author" placeholder="作者" />
+                <el-input
+                  v-model="form.author"
+                  placeholder="作者"
+                />
               </el-form-item>
             </el-col>
             <el-col :span="8">
               <el-form-item label="朝代">
-                <el-input v-model="form.dynasty" placeholder="如 唐、宋" />
+                <el-input
+                  v-model="form.dynasty"
+                  placeholder="如 唐、宋"
+                />
               </el-form-item>
             </el-col>
           </el-row>
 
           <el-form-item label="摘要">
-            <el-input v-model="form.excerpt" type="textarea" :rows="2" placeholder="简要描述" />
+            <el-input
+              v-model="form.excerpt"
+              type="textarea"
+              :rows="2"
+              placeholder="简要描述"
+            />
           </el-form-item>
 
           <el-form-item label="正文">
             <div class="editor-wrapper">
-              <div ref="editorEl" class="ql-editor-container"></div>
+              <div
+                ref="editorEl"
+                class="ql-editor-container"
+              />
             </div>
           </el-form-item>
         </el-form>
@@ -56,16 +103,41 @@
         <div class="sidebar-section">
           <h4>封面图片</h4>
           <div class="cover-upload">
-            <div class="cover-preview" v-if="form.cover">
-              <img :src="form.cover" alt="封面" />
-              <el-button size="small" type="danger" @click="form.cover = ''" class="cover-remove">移除</el-button>
+            <div
+              v-if="form.cover"
+              class="cover-preview"
+            >
+              <img
+                :src="form.cover"
+                alt="封面"
+              >
+              <el-button
+                size="small"
+                type="danger"
+                class="cover-remove"
+                @click="form.cover = ''"
+              >
+                移除
+              </el-button>
             </div>
-            <div class="cover-placeholder" v-else>
+            <div
+              v-else
+              class="cover-placeholder"
+            >
               <span>暂无封面</span>
             </div>
             <div class="cover-input-row">
-              <el-input v-model="coverUrl" placeholder="输入图片URL" size="small" />
-              <el-button size="small" @click="form.cover = coverUrl">设置</el-button>
+              <el-input
+                v-model="coverUrl"
+                placeholder="输入图片URL"
+                size="small"
+              />
+              <el-button
+                size="small"
+                @click="form.cover = coverUrl"
+              >
+                设置
+              </el-button>
             </div>
             <el-upload
               :show-file-list="false"
@@ -73,7 +145,13 @@
               accept="image/*"
               style="margin-top:8px"
             >
-              <el-button size="small" type="primary" :loading="uploading">本地上传</el-button>
+              <el-button
+                size="small"
+                type="primary"
+                :loading="uploading"
+              >
+                本地上传
+              </el-button>
             </el-upload>
           </div>
         </div>
@@ -87,25 +165,42 @@
               size="small"
               @keyup.enter="addTag"
             />
-            <el-button size="small" @click="addTag">添加</el-button>
+            <el-button
+              size="small"
+              @click="addTag"
+            >
+              添加
+            </el-button>
           </div>
           <div class="tag-list">
             <el-tag
               v-for="t in form.tags"
               :key="t"
               closable
-              @close="form.tags = form.tags.filter(x => x !== t)"
               size="small"
-            >{{ t }}</el-tag>
-            <span v-if="!form.tags?.length" class="no-tags">暂无标签</span>
+              @close="form.tags = form.tags.filter(x => x !== t)"
+            >
+              {{ t }}
+            </el-tag>
+            <span
+              v-if="!form.tags?.length"
+              class="no-tags"
+            >暂无标签</span>
           </div>
         </div>
 
         <div class="sidebar-section">
           <h4>状态</h4>
-          <el-radio-group v-model="form.status" size="small">
-            <el-radio-button value="PUBLISHED">发布</el-radio-button>
-            <el-radio-button value="DRAFT">草稿</el-radio-button>
+          <el-radio-group
+            v-model="form.status"
+            size="small"
+          >
+            <el-radio-button value="PUBLISHED">
+              发布
+            </el-radio-button>
+            <el-radio-button value="DRAFT">
+              草稿
+            </el-radio-button>
           </el-radio-group>
         </div>
       </div>
@@ -116,7 +211,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { contentApi, uploadApi } from '../api'
+import { contentApi, uploadApi } from '@/api'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
@@ -265,7 +360,7 @@ async function handleSave(status?: string) {
   align-items: center;
   padding: 12px 24px;
   background: #fff;
-  border-bottom: 1px solid #e0d5c1;
+  border-bottom: 1px solid #E8E0D5;
 }
 .edit-header h3 { margin: 0; font-size: 18px; color: #8b4513; }
 .header-actions { display: flex; gap: 8px; }
@@ -283,7 +378,7 @@ async function handleSave(status?: string) {
   background: #fff;
   padding: 20px;
   border-radius: 8px 0 0 8px;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
   border-right: none;
 }
 
@@ -291,7 +386,7 @@ async function handleSave(status?: string) {
   width: 280px;
   flex-shrink: 0;
   background: #fff;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
   border-radius: 0 8px 8px 0;
   padding: 16px;
   display: flex;
@@ -317,7 +412,7 @@ async function handleSave(status?: string) {
 .cover-preview { position: relative; width: 100%; aspect-ratio: 16/10; border-radius: 4px; overflow: hidden; background: #f5f5f5; }
 .cover-preview img { width: 100%; height: 100%; object-fit: cover; }
 .cover-remove { position: absolute; top: 4px; right: 4px; }
-.cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed #e0d5c1; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 13px; }
+.cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed #E8E0D5; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 13px; }
 .cover-input-row { display: flex; gap: 4px; }
 
 /* 标签 */
@@ -327,7 +422,7 @@ async function handleSave(status?: string) {
 
 @media (max-width: 900px) {
   .edit-body { flex-direction: column; }
-  .edit-sidebar { width: 100%; border-radius: 0 0 8px 8px; border-top: none; border-left: 1px solid #e0d5c1; }
-  .edit-main { border-radius: 8px 8px 0 0; border-right: 1px solid #e0d5c1; }
+  .edit-sidebar { width: 100%; border-radius: 0 0 8px 8px; border-top: none; border-left: 1px solid #E8E0D5; }
+  .edit-main { border-radius: 8px 8px 0 0; border-right: 1px solid #E8E0D5; }
 }
 </style>

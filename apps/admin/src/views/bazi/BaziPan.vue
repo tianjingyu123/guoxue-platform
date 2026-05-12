@@ -45,30 +45,77 @@ doCalc()
     <!-- 输入面板 -->
     <div class="input-panel">
       <h2>八字排盘</h2>
-      <el-form :model="form" inline>
+      <el-form
+        :model="form"
+        inline
+      >
         <el-form-item label="姓名">
-          <el-input v-model="form.name" placeholder="请输入姓名" size="small" />
+          <el-input
+            v-model="form.name"
+            placeholder="请输入姓名"
+            size="small"
+          />
         </el-form-item>
         <el-form-item label="性别">
-          <el-radio-group v-model="form.gender" size="small">
-            <el-radio-button value="男">男</el-radio-button>
-            <el-radio-button value="女">女</el-radio-button>
+          <el-radio-group
+            v-model="form.gender"
+            size="small"
+          >
+            <el-radio-button value="男">
+              男
+            </el-radio-button>
+            <el-radio-button value="女">
+              女
+            </el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="出生日期">
-          <el-input-number v-model="form.year" :min="1900" :max="2100" size="small" />年
-          <el-input-number v-model="form.month" :min="1" :max="12" size="small" />月
-          <el-input-number v-model="form.day" :min="1" :max="31" size="small" />日
+          <el-input-number
+            v-model="form.year"
+            :min="1900"
+            :max="2100"
+            size="small"
+          />年
+          <el-input-number
+            v-model="form.month"
+            :min="1"
+            :max="12"
+            size="small"
+          />月
+          <el-input-number
+            v-model="form.day"
+            :min="1"
+            :max="31"
+            size="small"
+          />日
         </el-form-item>
         <el-form-item label="时辰">
-          <el-input-number v-model="form.hour" :min="0" :max="23" size="small" />时
-          <el-input-number v-model="form.minute" :min="0" :max="59" size="small" />分
+          <el-input-number
+            v-model="form.hour"
+            :min="0"
+            :max="23"
+            size="small"
+          />时
+          <el-input-number
+            v-model="form.minute"
+            :min="0"
+            :max="59"
+            size="small"
+          />分
         </el-form-item>
         <el-form-item label="城市">
-          <el-input v-model="form.city" placeholder="用于真太阳时（可选）" size="small" />
+          <el-input
+            v-model="form.city"
+            placeholder="用于真太阳时（可选）"
+            size="small"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="doCalc" :loading="loading">
+          <el-button
+            type="primary"
+            :loading="loading"
+            @click="doCalc"
+          >
             排盘
           </el-button>
         </el-form-item>
@@ -76,19 +123,43 @@ doCalc()
     </div>
 
     <!-- 展示模式切换 -->
-    <div class="mode-tabs" v-if="result">
+    <div
+      v-if="result"
+      class="mode-tabs"
+    >
       <el-tabs v-model="mode">
-        <el-tab-pane label="传统模式" name="traditional" />
-        <el-tab-pane label="报告模式" name="report" />
-        <el-tab-pane label="分析模式" name="analysis" />
+        <el-tab-pane
+          label="传统模式"
+          name="traditional"
+        />
+        <el-tab-pane
+          label="报告模式"
+          name="report"
+        />
+        <el-tab-pane
+          label="分析模式"
+          name="analysis"
+        />
       </el-tabs>
     </div>
 
     <!-- 结果展示 -->
-    <div class="result-area" v-if="result">
-      <BaziTraditional v-if="mode === 'traditional'" :result="result" />
-      <BaziReport v-if="mode === 'report'" :result="result" />
-      <BaziAnalysis v-if="mode === 'analysis'" :result="result" />
+    <div
+      v-if="result"
+      class="result-area"
+    >
+      <BaziTraditional
+        v-if="mode === 'traditional'"
+        :result="result"
+      />
+      <BaziReport
+        v-if="mode === 'report'"
+        :result="result"
+      />
+      <BaziAnalysis
+        v-if="mode === 'analysis'"
+        :result="result"
+      />
     </div>
   </div>
 </template>
@@ -102,7 +173,7 @@ doCalc()
 .input-panel {
   background: #fff;
   padding: 16px 24px;
-  border-bottom: 1px solid #e0d5c1;
+  border-bottom: 1px solid #E8E0D5;
   box-shadow: 0 1px 3px rgba(0,0,0,.06);
 }
 .input-panel h2 {
@@ -114,7 +185,7 @@ doCalc()
 .mode-tabs {
   background: #fff;
   padding: 0 24px;
-  border-bottom: 1px solid #e0d5c1;
+  border-bottom: 1px solid #E8E0D5;
 }
 
 .result-area {

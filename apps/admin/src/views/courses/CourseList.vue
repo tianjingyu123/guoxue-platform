@@ -2,8 +2,8 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { courseApi } from "../../api";
-import { exportCSV } from "../../utils/export";
+import { courseApi } from "@/api";
+import { exportCSV } from "@/utils/export";
 
 const router = useRouter();
 const courses = ref<any[]>([]);
@@ -74,41 +74,129 @@ function exportData() {
 <template>
   <div class="course-list">
     <div class="toolbar">
-      <el-button type="primary" @click="router.push('/courses/create')">新建课程</el-button>
-      <el-button @click="exportData">导出CSV</el-button>
-      <el-select v-model="filters.auditStatus" placeholder="审核状态" clearable @change="fetchList" style="width:140px">
-        <el-option label="待审核" value="PENDING" />
-        <el-option label="已通过" value="APPROVED" />
-        <el-option label="已驳回" value="REJECTED" />
+      <el-button
+        type="primary"
+        @click="router.push('/courses/create')"
+      >
+        新建课程
+      </el-button>
+      <el-button @click="exportData">
+        导出CSV
+      </el-button>
+      <el-select
+        v-model="filters.auditStatus"
+        placeholder="审核状态"
+        clearable
+        style="width:140px"
+        @change="fetchList"
+      >
+        <el-option
+          label="待审核"
+          value="PENDING"
+        />
+        <el-option
+          label="已通过"
+          value="APPROVED"
+        />
+        <el-option
+          label="已驳回"
+          value="REJECTED"
+        />
       </el-select>
     </div>
 
-    <el-table :data="courses" v-loading="loading" stripe>
-      <el-table-column prop="title" label="标题" min-width="200" />
-      <el-table-column label="类型" width="80">
-        <template #default="{ row }">{{ typeLabels[row.type] || row.type }}</template>
-      </el-table-column>
-      <el-table-column label="价格" width="100">
-        <template #default="{ row }">¥{{ row.price }}{{ row.originalPrice ? `/ ¥${row.originalPrice}` : '' }}</template>
-      </el-table-column>
-      <el-table-column prop="studentCount" label="学员" width="80" />
-      <el-table-column prop="_count.chapters" label="章节" width="70" />
-      <el-table-column label="状态" width="100">
+    <el-table
+      v-loading="loading"
+      :data="courses"
+      stripe
+    >
+      <el-table-column
+        prop="title"
+        label="标题"
+        min-width="200"
+      />
+      <el-table-column
+        label="类型"
+        width="80"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.auditStatus === 'APPROVED' ? 'success' : row.auditStatus === 'PENDING' ? 'warning' : 'danger'" size="small">
+          {{ typeLabels[row.type] || row.type }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="价格"
+        width="100"
+      >
+        <template #default="{ row }">
+          ¥{{ row.price }}{{ row.originalPrice ? `/ ¥${row.originalPrice}` : '' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="studentCount"
+        label="学员"
+        width="80"
+      />
+      <el-table-column
+        prop="_count.chapters"
+        label="章节"
+        width="70"
+      />
+      <el-table-column
+        label="状态"
+        width="100"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="row.auditStatus === 'APPROVED' ? 'success' : row.auditStatus === 'PENDING' ? 'warning' : 'danger'"
+            size="small"
+          >
             {{ row.auditStatus === 'APPROVED' ? '已通过' : row.auditStatus === 'PENDING' ? '待审核' : '已驳回' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="作者" width="120">
-        <template #default="{ row }">{{ row.user?.nickname || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column
+        label="作者"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="router.push(`/courses/${row.id}/edit`)">编辑</el-button>
-          <el-button size="small" type="success" @click="handleAudit(row.id, 'APPROVED')" v-if="row.auditStatus !== 'APPROVED'">通过</el-button>
-          <el-button size="small" type="warning" @click="handleAudit(row.id, 'REJECTED')" v-if="row.auditStatus === 'PENDING'">驳回</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row.id)">删除</el-button>
+          {{ row.user?.nickname || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="280"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="router.push(`/courses/${row.id}/edit`)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-if="row.auditStatus !== 'APPROVED'"
+            size="small"
+            type="success"
+            @click="handleAudit(row.id, 'APPROVED')"
+          >
+            通过
+          </el-button>
+          <el-button
+            v-if="row.auditStatus === 'PENDING'"
+            size="small"
+            type="warning"
+            @click="handleAudit(row.id, 'REJECTED')"
+          >
+            驳回
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="handleDelete(row.id)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -117,9 +205,9 @@ function exportData() {
       v-model:current-page="page"
       v-model:page-size="pageSize"
       :total="total"
-      @change="fetchList"
       layout="total, prev, pager, next"
       style="margin-top:16px;justify-content:flex-end"
+      @change="fetchList"
     />
   </div>
 </template>

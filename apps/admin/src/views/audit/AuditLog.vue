@@ -5,8 +5,19 @@
     </div>
 
     <div class="filter-row">
-      <el-select v-model="filterAction" placeholder="操作类型" clearable style="width:140px" @change="onFilterChange">
-        <el-option v-for="a in actionList" :key="a" :label="actionLabel(a)" :value="a" />
+      <el-select
+        v-model="filterAction"
+        placeholder="操作类型"
+        clearable
+        style="width:140px"
+        @change="onFilterChange"
+      >
+        <el-option
+          v-for="a in actionList"
+          :key="a"
+          :label="actionLabel(a)"
+          :value="a"
+        />
       </el-select>
       <el-date-picker
         v-model="dateRange"
@@ -19,26 +30,73 @@
         style="width:260px"
         @change="onFilterChange"
       />
-      <el-button @click="fetchList">查询</el-button>
+      <el-button @click="fetchList">
+        查询
+      </el-button>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading" size="small">
-      <el-table-column label="时间" width="170">
-        <template #default="{ row }">{{ row.createdAt?.slice(0, 16).replace("T", " ") }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="120">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+      size="small"
+    >
+      <el-table-column
+        label="时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-tag :type="actionColor(row.action)" size="small">{{ actionLabel(row.action) }}</el-tag>
+          {{ row.createdAt?.slice(0, 16).replace("T", " ") }}
         </template>
       </el-table-column>
-      <el-table-column prop="targetType" label="对象类型" width="120" />
-      <el-table-column prop="targetId" label="对象ID" width="200" show-overflow-tooltip />
-      <el-table-column prop="detail" label="详情" min-width="250" show-overflow-tooltip />
-      <el-table-column prop="userId" label="操作人" width="200" show-overflow-tooltip />
-      <el-table-column prop="ip" label="IP" width="140" />
+      <el-table-column
+        label="操作"
+        width="120"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="actionColor(row.action)"
+            size="small"
+          >
+            {{ actionLabel(row.action) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="targetType"
+        label="对象类型"
+        width="120"
+      />
+      <el-table-column
+        prop="targetId"
+        label="对象ID"
+        width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="detail"
+        label="详情"
+        min-width="250"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="userId"
+        label="操作人"
+        width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="ip"
+        label="IP"
+        width="140"
+      />
     </el-table>
 
-    <div class="pagination" v-if="total > pageSize">
+    <div
+      v-if="total > pageSize"
+      class="pagination"
+    >
       <el-pagination
         v-model:current-page="page"
         :page-size="pageSize"

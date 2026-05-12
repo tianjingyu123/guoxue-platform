@@ -57,60 +57,156 @@ function starClass(star: any) {
     <!-- 输入面板 -->
     <div class="input-panel">
       <h2>紫微斗数排盘</h2>
-      <el-form :model="form" inline>
+      <el-form
+        :model="form"
+        inline
+      >
         <el-form-item label="姓名">
-          <el-input v-model="form.name" placeholder="请输入姓名" size="small" style="width:120px" />
+          <el-input
+            v-model="form.name"
+            placeholder="请输入姓名"
+            size="small"
+            style="width:120px"
+          />
         </el-form-item>
         <el-form-item label="性别">
-          <el-radio-group v-model="form.gender" size="small">
-            <el-radio-button value="男">男</el-radio-button>
-            <el-radio-button value="女">女</el-radio-button>
+          <el-radio-group
+            v-model="form.gender"
+            size="small"
+          >
+            <el-radio-button value="男">
+              男
+            </el-radio-button>
+            <el-radio-button value="女">
+              女
+            </el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="农历年">
-          <el-input-number v-model="form.year" :min="1900" :max="2100" size="small" />年
+          <el-input-number
+            v-model="form.year"
+            :min="1900"
+            :max="2100"
+            size="small"
+          />年
         </el-form-item>
         <el-form-item label="农历月">
-          <el-select v-model="form.lunarMonth" size="small" style="width:80px">
-            <el-option v-for="m in 12" :key="m" :label="m+'月'" :value="m" />
+          <el-select
+            v-model="form.lunarMonth"
+            size="small"
+            style="width:80px"
+          >
+            <el-option
+              v-for="m in 12"
+              :key="m"
+              :label="m+'月'"
+              :value="m"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="农历日">
-          <el-select v-model="form.lunarDay" size="small" style="width:80px">
-            <el-option v-for="d in 30" :key="d" :label="d+'日'" :value="d" />
+          <el-select
+            v-model="form.lunarDay"
+            size="small"
+            style="width:80px"
+          >
+            <el-option
+              v-for="d in 30"
+              :key="d"
+              :label="d+'日'"
+              :value="d"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="时辰">
-          <el-select v-model="form.lunarHour" size="small" style="width:150px">
-            <el-option v-for="sc in shiChen" :key="sc.value" :label="sc.label" :value="sc.value" />
+          <el-select
+            v-model="form.lunarHour"
+            size="small"
+            style="width:150px"
+          >
+            <el-option
+              v-for="sc in shiChen"
+              :key="sc.value"
+              :label="sc.label"
+              :value="sc.value"
+            />
           </el-select>
         </el-form-item>
       </el-form>
-      <el-form :model="form" inline style="margin-top:8px">
+      <el-form
+        :model="form"
+        inline
+        style="margin-top:8px"
+      >
         <el-form-item label="年干">
-          <el-select v-model="form.lunarYearGan" size="small" style="width:80px">
-            <el-option v-for="g in tianGan" :key="g" :label="g" :value="g" />
+          <el-select
+            v-model="form.lunarYearGan"
+            size="small"
+            style="width:80px"
+          >
+            <el-option
+              v-for="g in tianGan"
+              :key="g"
+              :label="g"
+              :value="g"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="年支">
-          <el-select v-model="form.lunarYearZhi" size="small" style="width:80px">
-            <el-option v-for="z in diZhi" :key="z" :label="z" :value="z" />
+          <el-select
+            v-model="form.lunarYearZhi"
+            size="small"
+            style="width:80px"
+          >
+            <el-option
+              v-for="z in diZhi"
+              :key="z"
+              :label="z"
+              :value="z"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="doCalc" :loading="loading">排盘</el-button>
+          <el-button
+            type="primary"
+            :loading="loading"
+            @click="doCalc"
+          >
+            排盘
+          </el-button>
         </el-form-item>
       </el-form>
     </div>
 
     <!-- 结果展示 -->
-    <div class="result-area" v-if="result">
+    <div
+      v-if="result"
+      class="result-area"
+    >
       <!-- 概览 -->
       <div class="overview">
-        <el-tag type="warning" size="large">{{ result.wuXingJu }}</el-tag>
-        <el-tag size="large">命宫: {{ result.mingGong?.name }} {{ result.mingGong?.gan }}{{ result.mingGong?.zhi }}</el-tag>
-        <el-tag type="success" size="large">身宫: {{ result.shenGong }}</el-tag>
-        <el-tag v-if="result.geShi?.length" type="danger" size="large">格局: {{ result.geShi.join(' · ') }}</el-tag>
+        <el-tag
+          type="warning"
+          size="large"
+        >
+          {{ result.wuXingJu }}
+        </el-tag>
+        <el-tag size="large">
+          命宫: {{ result.mingGong?.name }} {{ result.mingGong?.gan }}{{ result.mingGong?.zhi }}
+        </el-tag>
+        <el-tag
+          type="success"
+          size="large"
+        >
+          身宫: {{ result.shenGong }}
+        </el-tag>
+        <el-tag
+          v-if="result.geShi?.length"
+          type="danger"
+          size="large"
+        >
+          格局: {{ result.geShi.join(' · ') }}
+        </el-tag>
       </div>
 
       <!-- 四化 -->
@@ -131,15 +227,28 @@ function starClass(star: any) {
           <div class="gong-header">
             <div class="gong-title-row">
               <span class="gong-name">{{ gong.name }}</span>
-              <span v-if="gong.shenGong" class="gong-badge shen">身</span>
-              <span v-if="gong.name === '命宫'" class="gong-badge ming">命</span>
+              <span
+                v-if="gong.shenGong"
+                class="gong-badge shen"
+              >身</span>
+              <span
+                v-if="gong.name === '命宫'"
+                class="gong-badge ming"
+              >命</span>
             </div>
             <span class="gong-ganzhi">{{ gong.gan }}{{ gong.zhi }}</span>
             <span class="gong-daxian">大限: {{ gong.daXianStart }}-{{ gong.daXianEnd }}岁</span>
           </div>
           <div class="gong-stars">
-            <span v-if="!gong.stars?.length" class="empty-gong">空宫</span>
-            <span v-for="star in gong.stars" :key="star.name" :class="starClass(star)">
+            <span
+              v-if="!gong.stars?.length"
+              class="empty-gong"
+            >空宫</span>
+            <span
+              v-for="star in gong.stars"
+              :key="star.name"
+              :class="starClass(star)"
+            >
               {{ star.name }}
             </span>
           </div>
@@ -153,7 +262,10 @@ function starClass(star: any) {
     </div>
 
     <!-- 空状态 -->
-    <div class="empty-state" v-if="!result && !loading">
+    <div
+      v-if="!result && !loading"
+      class="empty-state"
+    >
       <p>请输入出生信息，点击"排盘"查看紫微斗数命盘</p>
     </div>
   </div>
@@ -169,7 +281,7 @@ function starClass(star: any) {
 .input-panel {
   background: #fff;
   padding: 16px 24px;
-  border-bottom: 1px solid #e0d5c1;
+  border-bottom: 1px solid #E8E0D5;
   box-shadow: 0 1px 3px rgba(0,0,0,.06);
 }
 .input-panel h2 {
@@ -218,7 +330,7 @@ function starClass(star: any) {
   border: 1px solid #e8dcc8;
   border-radius: 8px;
   padding: 12px;
-  border-left: 3px solid #e0d5c1;
+  border-left: 3px solid #E8E0D5;
 }
 .gong-card.ming {
   border-left-color: #8b4513;
