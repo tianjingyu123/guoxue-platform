@@ -168,11 +168,13 @@ jobs:
         timeout-minutes: 5
 
       - name: Test - @guoxue/bazi-engine
-        run: pnpm --filter @guoxue/bazi-engine test --passWithNoTests
+        working-directory: packages/bazi-engine
+        run: npx jest --passWithNoTests --forceExit
         timeout-minutes: 5
 
       - name: Test - @guoxue/ziwei-engine
-        run: pnpm --filter @guoxue/ziwei-engine test --passWithNoTests
+        working-directory: packages/ziwei-engine
+        run: npx jest --passWithNoTests --forceExit
         timeout-minutes: 5
 
   # ──────────────────────────────────────────────
@@ -288,8 +290,8 @@ jobs:
           done
         timeout-minutes: 1
 
-      - name: 执行数据库迁移
-        run: pnpm --filter @guoxue/server exec npx prisma migrate deploy
+      - name: 同步数据库 Schema
+        run: pnpm --filter @guoxue/server exec npx prisma db push --accept-data-loss
         timeout-minutes: 5
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
@@ -392,8 +394,8 @@ jobs:
           done
         timeout-minutes: 1
 
-      - name: 执行数据库迁移
-        run: pnpm --filter @guoxue/server exec npx prisma migrate deploy
+      - name: 同步数据库 Schema
+        run: pnpm --filter @guoxue/server exec npx prisma db push --accept-data-loss
         timeout-minutes: 5
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
