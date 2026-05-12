@@ -353,7 +353,14 @@ export class FinanceService {
 
   // ───────── 5. 财务报表 ─────────
 
-  async getMonthlyReport(period: string) {
+  async getMonthlyReport(period?: string) {
+    // 未指定月份时返回所有已保存的月报列表
+    if (!period) {
+      return this.prisma.financialReport.findMany({
+        where: { type: "MONTHLY" },
+        orderBy: { period: "desc" },
+      });
+    }
     const report = await this.prisma.financialReport.findUnique({
       where: { type_period: { type: "MONTHLY", period } },
     });
@@ -372,6 +379,9 @@ export class FinanceService {
 
   private async generateMonthlyData(period: string) {
     const [year, month] = period.split("-").map(Number);
+    if (!year || !month || month < 1 || month > 12) {
+      throw new BadRequestException("无效的周期格式，应为 YYYY-MM（如 2026-05）");
+    }
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 

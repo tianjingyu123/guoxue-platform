@@ -133,6 +133,10 @@ function handleRoleChange(val: string) {
   loadRolePermissions()
 }
 
+function onTreeCheck(_data: any, treeState: any) {
+  checkedKeys.value = treeState.checkedKeys
+}
+
 async function savePermissions() {
   saving.value = true
   try {
@@ -170,7 +174,7 @@ async function savePermissions() {
             :default-expanded-keys="defaultExpandedKeys"
             show-checkbox
             check-strictly
-            @check="(data, { checkedKeys: keys }) => { checkedKeys = keys }"
+            @check="onTreeCheck"
           />
         </div>
         <div style="margin-top:16px;text-align:right">

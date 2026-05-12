@@ -229,9 +229,9 @@ export class FinanceController {
   @Get("reports/monthly")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "月报数据" })
-  @ApiQuery({ name: "period", required: true, type: String, description: "报表周期（如 2026-05）" })
-  getMonthlyReport(@Query("period") period: string) {
+  @ApiOperation({ summary: "月报数据（不传period则返回全部已保存报表列表）" })
+  @ApiQuery({ name: "period", required: false, type: String, description: "报表周期（如 2026-05）" })
+  getMonthlyReport(@Query("period") period?: string) {
     return this.svc.getMonthlyReport(period);
   }
 

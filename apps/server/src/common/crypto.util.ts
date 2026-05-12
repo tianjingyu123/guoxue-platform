@@ -22,14 +22,19 @@ export function encrypt(plaintext: string): string {
 }
 
 export function decrypt(ciphertext: string): string {
-  const key = getKey();
-  const buf = Buffer.from(ciphertext, "base64");
-  const iv = buf.subarray(0, IV_LENGTH);
-  const tag = buf.subarray(buf.length - TAG_LENGTH);
-  const encrypted = buf.subarray(IV_LENGTH, buf.length - TAG_LENGTH);
-  const decipher = createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAuthTag(tag);
-  return decipher.update(encrypted) + decipher.final("utf8");
+  try {
+    const key = getKey();
+    const buf = Buffer.from(ciphertext, "base64");
+    const iv = buf.subarray(0, IV_LENGTH);
+    const tag = buf.subarray(buf.length - TAG_LENGTH);
+    const encrypted = buf.subarray(IV_LENGTH, buf.length - TAG_LENGTH);
+    const decipher = createDecipheriv(ALGORITHM, key, iv);
+    decipher.setAuthTag(tag);
+    return decipher.update(encrypted) + decipher.final("utf8");
+  } catch {
+    // 解密失败（明文存储或密钥不匹配），返回原值
+    return ciphertext;
+  }
 }
 
 export function maskPhone(phone: string | null): string {

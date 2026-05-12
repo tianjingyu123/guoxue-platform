@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { financeApi } from '@/api'
+import { exportCSV } from '@/utils/export'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -12,12 +13,16 @@ const pageSize = 20
 
 const statusFilter = ref('')
 
-const rejectDialogVisible = ref(false)
+const rejectVisible = ref(false)
 const rejectForm = reactive({ id: '', reason: '' })
+
+const detailVisible = ref(false)
+const detailData = ref<any>(null)
 
 onMounted(() => fetchList())
 
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatMoney(v: any) { return v != null ? '¥' + Number(v).toFixed(2) : '-' }
 
 function maskBankCard(card: string) {
   if (!card) return '-'
@@ -26,23 +31,13 @@ function maskBankCard(card: string) {
 }
 
 function statusTagType(status: string) {
-  switch (status) {
-    case 'PAID': return 'success'
-    case 'APPROVED': return 'primary'
-    case 'REJECTED': return 'danger'
-    case 'PENDING': return 'warning'
-    default: return 'info'
-  }
+  const m: Record<string, string> = { PAID: 'success', APPROVED: 'primary', REJECTED: 'danger', PENDING: 'warning' }
+  return m[status] || 'info'
 }
 
 function statusLabel(status: string) {
-  switch (status) {
-    case 'PAID': return '已打款'
-    case 'APPROVED': return '已通过'
-    case 'REJECTED': return '已拒绝'
-    case 'PENDING': return '待审批'
-    default: return status
-  }
+  const m: Record<string, string> = { PAID: '已打款', APPROVED: '已通过', REJECTED: '已拒绝', PENDING: '待审批' }
+  return m[status] || status
 }
 
 async function fetchList() {
@@ -56,39 +51,66 @@ async function fetchList() {
   } catch { list.value = [] } finally { loading.value = false }
 }
 
+function viewDetail(row: any) { detailData.value = row; detailVisible.value = true }
+
 async function approve(row: any) {
   try {
-    await ElMessageBox.confirm('确定通过该提现申请？', '提示', { type: 'warning' })
-    await financeApi.approveWithdrawal(row.id, { status: 'APPROVED' })
+    await ElMessageBox.confirm(
+      `确定批准 ${row.userName || row.userId} 的提现申请？\n金额：${formatMoney(row.amount)}`,
+      '审批确认',
+      { type: 'warning', confirmButtonText: '批准', cancelButtonText: '取消' }
+    )
+    await financeApi.approveWithdrawal(row.id)
     ElMessage.success('已批准')
     fetchList()
-  } catch { /* 取消操作不处理 */ }
+  } catch { /* 取消 */ }
 }
 
 function openReject(row: any) {
   rejectForm.id = row.id
   rejectForm.reason = ''
-  rejectDialogVisible.value = true
+  rejectVisible.value = true
 }
 
 async function reject() {
-  if (!rejectForm.reason) { ElMessage.warning('请输入拒绝原因'); return }
+  if (!rejectForm.reason.trim()) { ElMessage.warning('请输入拒绝原因'); return }
   saving.value = true
   try {
-    await financeApi.approveWithdrawal(rejectForm.id, { status: 'REJECTED', reason: rejectForm.reason })
+    await financeApi.rejectWithdrawal(rejectForm.id, rejectForm.reason)
     ElMessage.success('已拒绝')
-    rejectDialogVisible.value = false
+    rejectVisible.value = false
     fetchList()
   } catch { ElMessage.error('操作失败') } finally { saving.value = false }
 }
 
 async function markPaid(row: any) {
   try {
-    await ElMessageBox.confirm('确定该笔提现已打款？', '提示', { type: 'warning' })
-    await financeApi.approveWithdrawal(row.id, { status: 'PAID' })
+    await ElMessageBox.confirm(
+      `确认已向 ${row.userName || row.userId} 打款 ${formatMoney(row.amount)}？`,
+      '确认打款',
+      { type: 'warning', confirmButtonText: '确认已打款', cancelButtonText: '取消' }
+    )
+    await financeApi.payWithdrawal(row.id)
     ElMessage.success('已标记打款')
     fetchList()
-  } catch { /* 取消操作不处理 */ }
+  } catch { /* 取消 */ }
+}
+
+function handleExport() {
+  exportCSV('提现记录', [
+    { label: '申请人', key: 'userName' },
+    { label: '用户ID', key: 'userId' },
+    { label: '金额', key: 'amount' },
+    { label: '银行卡', key: 'bankCard' },
+    { label: '状态', key: 'statusLabel' },
+    { label: '申请时间', key: 'createdAt' },
+  ], list.value.map(r => ({
+    ...r,
+    amount: formatMoney(r.amount),
+    bankCard: maskBankCard(r.bankCard),
+    statusLabel: statusLabel(r.status),
+    createdAt: formatDate(r.createdAt),
+  })))
 }
 </script>
 
@@ -104,12 +126,15 @@ async function markPaid(row: any) {
           <el-option label="已拒绝" value="REJECTED" />
           <el-option label="已打款" value="PAID" />
         </el-select>
+        <el-button @click="handleExport">导出CSV</el-button>
       </div>
     </div>
 
     <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="userName" label="申请人" width="120" :show-overflow-tooltip="true" />
-      <el-table-column label="金额" width="120"><template #default="{ row }">{{ row.amount != null ? Number(row.amount).toFixed(2) : '-' }}</template></el-table-column>
+      <el-table-column prop="userName" label="申请人" width="120" show-overflow-tooltip />
+      <el-table-column label="金额" width="120">
+        <template #default="{ row }"><span style="font-weight:600;color:#e6a23c">{{ formatMoney(row.amount) }}</span></template>
+      </el-table-column>
       <el-table-column label="银行卡" width="200">
         <template #default="{ row }">
           <span v-if="row.bankName || row.bankCard">{{ row.bankName || '' }} {{ maskBankCard(row.bankCard) }}</span>
@@ -121,17 +146,22 @@ async function markPaid(row: any) {
           <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="申请时间" width="170"><template #default="{ row }">{{ formatDate(row.createdAt) }}</template></el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column label="申请时间" width="170">
+        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="240" fixed="right">
         <template #default="{ row }">
-          <el-button v-if="row.status === 'PENDING'" size="small" type="primary" @click="approve(row)">通过</el-button>
-          <el-button v-if="row.status === 'PENDING'" size="small" @click="openReject(row)">拒绝</el-button>
-          <el-button v-if="row.status === 'APPROVED'" size="small" @click="markPaid(row)">确认打款</el-button>
-          <span v-if="row.status === 'PAID'" style="color:#67c23a;font-size:12px">已打款</span>
-          <span v-if="row.status === 'REJECTED'" style="color:#999;font-size:12px">已拒绝</span>
+          <el-button size="small" @click="viewDetail(row)">详情</el-button>
+          <el-button v-if="row.status === 'PENDING'" size="small" type="success" @click="approve(row)">通过</el-button>
+          <el-button v-if="row.status === 'PENDING'" size="small" type="danger" @click="openReject(row)">拒绝</el-button>
+          <el-button v-if="row.status === 'APPROVED'" size="small" type="primary" @click="markPaid(row)">确认打款</el-button>
+          <span v-else-if="row.status === 'PAID'" style="color:#67c23a;font-size:12px">✓ 已打款</span>
+          <span v-else-if="row.status === 'REJECTED'" style="color:#f56c6c;font-size:12px">✗ 已拒绝</span>
         </template>
       </el-table-column>
     </el-table>
+
+    <el-empty v-if="!loading && list.length === 0" description="暂无提现记录" style="margin-top:40px" />
 
     <el-pagination
       v-model:current-page="page" :total="total" :page-size="pageSize"
@@ -139,14 +169,30 @@ async function markPaid(row: any) {
       @current-change="fetchList"
     />
 
-    <el-dialog v-model="rejectDialogVisible" title="拒绝提现" width="450px">
+    <!-- 详情弹窗 -->
+    <el-dialog v-model="detailVisible" title="提现详情" width="520px">
+      <el-descriptions v-if="detailData" :column="2" border>
+        <el-descriptions-item label="申请人" :span="2">{{ detailData.userName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="金额"><span style="font-weight:600;color:#e6a23c">{{ formatMoney(detailData.amount) }}</span></el-descriptions-item>
+        <el-descriptions-item label="状态"><el-tag :type="statusTagType(detailData.status)" size="small">{{ statusLabel(detailData.status) }}</el-tag></el-descriptions-item>
+        <el-descriptions-item label="银行" :span="2">{{ detailData.bankName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="卡号" :span="2">{{ maskBankCard(detailData.bankCard) }}</el-descriptions-item>
+        <el-descriptions-item label="开户名">{{ detailData.accountName || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="申请时间">{{ formatDate(detailData.createdAt) }}</el-descriptions-item>
+        <el-descriptions-item v-if="detailData.reviewNote" label="审核备注" :span="2">{{ detailData.reviewNote }}</el-descriptions-item>
+        <el-descriptions-item v-if="detailData.paidAt" label="打款时间" :span="2">{{ formatDate(detailData.paidAt) }}</el-descriptions-item>
+      </el-descriptions>
+    </el-dialog>
+
+    <!-- 拒绝弹窗 -->
+    <el-dialog v-model="rejectVisible" title="拒绝提现" width="450px">
       <el-form label-width="80px">
         <el-form-item label="拒绝原因" required>
-          <el-input v-model="rejectForm.reason" type="textarea" :rows="3" placeholder="请输入拒绝原因" />
+          <el-input v-model="rejectForm.reason" type="textarea" :rows="4" placeholder="请输入拒绝原因（必填）" maxlength="200" show-word-limit />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rejectDialogVisible = false">取消</el-button>
+        <el-button @click="rejectVisible = false">取消</el-button>
         <el-button type="danger" :loading="saving" @click="reject">确认拒绝</el-button>
       </template>
     </el-dialog>

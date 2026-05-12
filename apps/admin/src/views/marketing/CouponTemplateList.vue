@@ -66,7 +66,7 @@
       <el-table :data="records" stripe max-height="400">
         <el-table-column prop="userId" label="用户ID" width="120" />
         <el-table-column prop="userName" label="用户名" width="120" />
-        <el-table-column label="状态" width="80"><template #default="{ row }"><el-tag size="small" :type="row.status === 'USED' ? 'success' : row.status === 'EXPIRED' ? 'danger' : 'info'">{{ { USED: '已使用', UNUSED: '未使用', EXPIRED: '已过期' }[row.status] || row.status }}</el-tag></template></el-table-column>
+        <el-table-column label="状态" width="80"><template #default="{ row }"><el-tag size="small" :type="row.status === 'USED' ? 'success' : row.status === 'EXPIRED' ? 'danger' : 'info'">{{ (recordStatusMap as Record<string,string>)[row.status] || row.status }}</el-tag></template></el-table-column>
         <el-table-column label="领取时间" width="170"><template #default="{ row }">{{ formatDate(row.createdAt) }}</template></el-table-column>
       </el-table>
     </el-dialog>
@@ -86,6 +86,8 @@ const grantVis = ref(false); const granting = ref(false); const grantTarget = re
 const grantMode = ref('single'); const grantUserId = ref(''); const grantUserIds = ref(''); const grantCount = ref(1)
 
 const recordsVis = ref(false); const records = ref<any[]>([]); const recordsLoading = ref(false)
+
+const recordStatusMap = { USED: '已使用', UNUSED: '未使用', EXPIRED: '已过期' }
 
 onMounted(() => fetchList())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }

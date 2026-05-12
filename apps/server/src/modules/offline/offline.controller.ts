@@ -95,7 +95,7 @@ export class OfflineController {
   @ApiOperation({ summary: "获取驿站课程列表" })
   @ApiQuery({ name: "stationId", required: true })
   listCourses(@Query("stationId") stationId: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
-    return this.svc.listOfflineCourses(stationId, page, pageSize);
+    return this.svc.listOfflineCourses(stationId, Number(page) || 1, Number(pageSize) || 20);
   }
 
   @Get("courses/:id")
@@ -133,7 +133,7 @@ export class OfflineController {
   @Get("courses/:id/registrations")
   @ApiOperation({ summary: "课程报名列表" })
   listRegistrations(@Param("id") id: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
-    return this.svc.listRegistrations(id, page, pageSize);
+    return this.svc.listRegistrations(id, Number(page) || 1, Number(pageSize) || 20);
   }
 
   // ───────── 驿站商品 ─────────

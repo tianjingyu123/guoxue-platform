@@ -7,12 +7,18 @@
     </el-tabs>
 
     <!-- 开通审批 -->
-    <div v-if="activeTab === 'approvals'">
-      <el-table v-loading="loading" :data="list" stripe>
+    <div v-if="activeTab === 'approvals'" v-loading="loading">
+      <el-table v-if="list.length > 0" :data="list" stripe>
         <el-table-column prop="circleName" label="圈子名称" min-width="140" />
         <el-table-column prop="circleId" label="圈子ID" width="120" />
         <el-table-column prop="applicantName" label="申请人" width="120" />
-        <el-table-column label="状态" width="100"><template #default="{ row }"><el-tag :type="row.status === 'APPROVED' ? 'success' : row.status === 'PENDING' ? 'warning' : 'info'" size="small">{{ row.status === 'PENDING' ? '待审批' : row.status === 'APPROVED' ? '已通过' : '已驳回' }}</el-tag></template></el-table-column>
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'APPROVED' ? 'success' : row.status === 'PENDING' ? 'warning' : 'info'" size="small">
+              {{ row.status === 'PENDING' ? '待审批' : row.status === 'APPROVED' ? '已通过' : '已驳回' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="申请时间" width="170"><template #default="{ row }">{{ formatDate(row.createdAt) }}</template></el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
@@ -22,17 +28,17 @@
           </template>
         </el-table-column>
       </el-table>
+      <el-empty v-else-if="!loading" description="暂无审批记录" />
     </div>
 
     <!-- 知识库管理 -->
     <div v-if="activeTab === 'knowledge'">
       <div style="margin-bottom:12px;display:flex;gap:12px">
-        <el-input v-model="knowledgeCircleId" placeholder="输入圈子ID" style="width:200px" clearable />
-        <el-button type="primary" @click="fetchKnowledge">查询</el-button>
-        <el-button @click="openKnowledgeCreate" :disabled="!knowledgeCircleId">添加条目</el-button>
+        <el-input v-model="knowledgeCircleId" placeholder="输入圈子ID" size="small" style="width:200px" clearable />
+        <el-button type="primary" size="small" @click="fetchKnowledge">查询</el-button>
+        <el-button size="small" @click="openKnowledgeCreate" :disabled="!knowledgeCircleId">添加条目</el-button>
       </div>
-      <el-table v-loading="kLoading" :data="kList" stripe>
-        <el-table-column prop="id" label="ID" width="120" />
+      <el-table v-if="kList.length > 0" v-loading="kLoading" :data="kList" stripe>
         <el-table-column prop="title" label="标题" min-width="140" />
         <el-table-column prop="content" label="内容" min-width="200" show-overflow-tooltip />
         <el-table-column label="创建时间" width="170"><template #default="{ row }">{{ formatDate(row.createdAt) }}</template></el-table-column>
@@ -43,13 +49,14 @@
           </template>
         </el-table-column>
       </el-table>
+      <el-empty v-else-if="!kLoading" description="请先输入圈子ID查询" />
     </div>
 
     <!-- 使用数据 -->
     <div v-if="activeTab === 'usage'">
       <div style="margin-bottom:12px;display:flex;gap:12px">
-        <el-input v-model="usageCircleId" placeholder="输入圈子ID" style="width:200px" clearable />
-        <el-button type="primary" @click="fetchUsage">查询</el-button>
+        <el-input v-model="usageCircleId" placeholder="输入圈子ID" size="small" style="width:200px" clearable />
+        <el-button type="primary" size="small" @click="fetchUsage">查询</el-button>
       </div>
       <el-descriptions v-if="usageData" :column="2" border>
         <el-descriptions-item label="圈子ID">{{ usageData.circleId || usageCircleId }}</el-descriptions-item>
@@ -76,45 +83,46 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { api } from '@/api'
+import { aiAdminApi } from '@/api'
 
 const activeTab = ref('approvals')
-const loading = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const loading = ref(false); const list = ref<any[]>([])
 
-// 知识库
 const kLoading = ref(false); const kSaving = ref(false); const kList = ref<any[]>([])
 const kVis = ref(false); const kEditingId = ref('')
 const knowledgeCircleId = ref('')
 const kForm = reactive({ title: '', content: '' })
 
-// 使用数据
 const uLoading = ref(false); const usageCircleId = ref(''); const usageData = ref<any>(null)
 
 onMounted(() => fetchApprovals())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 function onTabChange(tab: string) {
-  if (tab === 'approvals') fetchApprovals()
+  if (tab === 'approvals' && list.value.length === 0) fetchApprovals()
 }
 
 async function fetchApprovals() {
   loading.value = true
-  try { const { data } = await api.get('/bots/manage/approvals', { params: { page: page.value, pageSize: 20 } }); list.value = data.approvals || data.data || []; total.value = data.total || 0 } catch { list.value = [] } finally { loading.value = false }
+  try { const { data } = await aiAdminApi.listCircleAssistants(); list.value = data.approvals || data.data || [] } catch { list.value = [] } finally { loading.value = false }
 }
 
 async function approveBot(row: any) {
-  try { await api.post(`/bots/manage/approvals/${row.circleId}/approve`); ElMessage.success('已通过'); fetchApprovals() } catch { ElMessage.error('操作失败') }
+  try { await aiAdminApi.approveCircleAssistant(row.circleId); ElMessage.success('已通过'); fetchApprovals() } catch { ElMessage.error('操作失败') }
 }
 
 async function rejectBot(row: any) {
-  try { await ElMessageBox.prompt('请输入驳回原因', '驳回', { type: 'warning' }); ElMessage.info('操作已提交') } catch {}
+  try {
+    const { value } = await ElMessageBox.prompt('请输入驳回原因', '驳回申请', { type: 'warning', inputType: 'textarea' })
+    await aiAdminApi.rejectCircleAssistant(row.circleId, value)
+    ElMessage.success('已驳回'); fetchApprovals()
+  } catch {}
 }
 
-// 知识库
 async function fetchKnowledge() {
   if (!knowledgeCircleId.value) return
   kLoading.value = true
-  try { const { data } = await api.get(`/bots/manage/knowledge/${knowledgeCircleId.value}`); kList.value = data.entries || data.data || [] } catch { kList.value = [] } finally { kLoading.value = false }
+  try { const { data } = await aiAdminApi.getKnowledgeBase(knowledgeCircleId.value); kList.value = data.entries || data.data || [] } catch { kList.value = [] } finally { kLoading.value = false }
 }
 
 function openKnowledgeCreate() { kEditingId.value = ''; Object.assign(kForm, { title: '', content: '' }); kVis.value = true }
@@ -123,21 +131,20 @@ function openKnowledgeEdit(row: any) { kEditingId.value = row.id; Object.assign(
 async function saveKnowledge() {
   kSaving.value = true
   try {
-    if (kEditingId.value) { await api.put(`/bots/manage/knowledge/${kEditingId.value}`, kForm) }
-    else { await api.post(`/bots/manage/knowledge/${knowledgeCircleId.value}`, kForm) }
+    if (kEditingId.value) { await aiAdminApi.updateKnowledgeEntry(kEditingId.value, kForm) }
+    else { await aiAdminApi.createKnowledgeEntry(knowledgeCircleId.value, kForm) }
     ElMessage.success('已保存'); kVis.value = false; fetchKnowledge()
   } catch { ElMessage.error('保存失败') } finally { kSaving.value = false }
 }
 
 async function delKnowledge(id: string) {
-  try { await ElMessageBox.confirm('删除该条目？', '提示', { type: 'warning' }); await api.delete(`/bots/manage/knowledge/${id}`); ElMessage.success('已删除'); fetchKnowledge() } catch {}
+  try { await ElMessageBox.confirm('删除该条目？', '提示', { type: 'warning' }); await aiAdminApi.deleteKnowledgeEntry(id); ElMessage.success('已删除'); fetchKnowledge() } catch {}
 }
 
-// 使用数据
 async function fetchUsage() {
   if (!usageCircleId.value) return
   uLoading.value = true
-  try { const { data } = await api.get(`/bots/manage/usage/${usageCircleId.value}`); usageData.value = data } catch { usageData.value = null } finally { uLoading.value = false }
+  try { const { data } = await aiAdminApi.getUsageData(usageCircleId.value); usageData.value = data } catch { usageData.value = null } finally { uLoading.value = false }
 }
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }</style>

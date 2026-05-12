@@ -2,25 +2,25 @@
   <div class="page">
     <div class="toolbar"><h3>AI 用量统计</h3></div>
 
-    <!-- 用量概览 -->
     <el-row :gutter="16" style="margin-bottom:20px">
       <el-col :span="6" v-for="card in statsCards" :key="card.title">
-        <el-card>
-          <el-statistic :title="card.title" :value="card.value" />
+        <el-card shadow="hover">
+          <div style="text-align:center">
+            <div style="font-size:14px;color:#909399;margin-bottom:8px">{{ card.title }}</div>
+            <div style="font-size:28px;font-weight:700;color:#303133">{{ card.value }}</div>
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- 调用日志 -->
-    <el-card title="调用日志" style="margin-bottom:16px">
-      <template #header>调用日志</template>
+    <el-card header="调用日志" style="margin-bottom:16px">
       <el-table :data="callLogs" stripe>
         <el-table-column prop="userId" label="用户ID" width="180" />
         <el-table-column prop="botConfigId" label="Bot ID" width="180" />
         <el-table-column label="查询" min-width="200">
-          <template #default="{ row }">{{ row.query?.substring(0, 80) }}{{ row.query?.length > 80 ? '...' : '' }}</template>
+          <template #default="{ row }">{{ (row.query || '').substring(0, 80) }}{{ (row.query || '').length > 80 ? '...' : '' }}</template>
         </el-table-column>
-        <el-table-column label="Token用量" width="120">
+        <el-table-column label="Token用量" width="130">
           <template #default="{ row }">
             <span v-if="row.tokenUsage">P:{{ row.tokenUsage.promptTokens }} C:{{ row.tokenUsage.completionTokens }}</span>
             <span v-else>-</span>
@@ -28,14 +28,12 @@
         </el-table-column>
         <el-table-column prop="modelName" label="模型" width="150" />
         <el-table-column label="时间" width="160">
-          <template #default="{ row }">{{ fmt(row.createdAt) }}</template>
+          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <!-- 异常告警 -->
-    <el-card title="异常告警">
-      <template #header>异常告警</template>
+    <el-card header="异常告警">
       <el-table :data="alerts" stripe>
         <el-table-column prop="type" label="类型" width="120" />
         <el-table-column prop="title" label="标题" min-width="200" />
@@ -54,7 +52,7 @@
           </template>
         </el-table-column>
         <el-table-column label="时间" width="160">
-          <template #default="{ row }">{{ fmt(row.createdAt) }}</template>
+          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
         </el-table-column>
       </el-table>
     </el-card>
@@ -63,7 +61,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { aiUsageApi } from '@/api'
+import { aiAdminApi } from '@/api'
 
 const statsCards = ref([
   { title: '总调用次数', value: 0 },
@@ -74,28 +72,28 @@ const statsCards = ref([
 const callLogs = ref<any[]>([])
 const alerts = ref<any[]>([])
 
-function fmt(d: string) { return d ? new Date(d).toLocaleDateString('zh-CN') : '-' }
+function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 onMounted(async () => {
   try {
-    const res = await aiUsageApi.getStats()
-    const data = res.data as any
-    if (data) {
-      statsCards.value[0].value = data.totalCalls || 0
-      statsCards.value[1].value = data.todayCalls || 0
-      statsCards.value[2].value = data.activeBots || 0
-      statsCards.value[3].value = data.abnormalAlerts || 0
+    const res = await aiAdminApi.getCallStats()
+    const d = res.data as any
+    if (d) {
+      statsCards.value[0].value = d.totalCalls || 0
+      statsCards.value[1].value = d.todayCalls || 0
+      statsCards.value[2].value = d.activeBots || 0
+      statsCards.value[3].value = d.abnormalAlerts || 0
     }
   } catch {}
 
   try {
-    const res = await aiUsageApi.getCallLogs({ page: 1, pageSize: 20 })
-    callLogs.value = ((res.data as any)?.list || [])
+    const res = await aiAdminApi.getCallLogs({ page: 1, pageSize: 20 })
+    callLogs.value = ((res.data as any)?.list || (res.data as any)?.data || [])
   } catch {}
 
   try {
-    const res = await aiUsageApi.getAbnormalAlerts()
-    alerts.value = (res.data as any) || []
+    const res = await aiAdminApi.getAbnormalCalls()
+    alerts.value = (res.data as any)?.alerts || (res.data as any)?.data || []
   } catch {}
 })
 </script>
@@ -103,4 +101,5 @@ onMounted(async () => {
 <style scoped>
 .page { padding: 20px; }
 .toolbar { margin-bottom: 16px; }
+.toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }
 </style>

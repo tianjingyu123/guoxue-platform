@@ -565,19 +565,32 @@ export const marketingApi = {
 
 // ───────── 财务管理 ─────────
 export const financeApi = {
-  listReconciliations: (params?: any) => api.get("/finance/reconciliations", { params }),
-  createReconciliation: (data: any) => api.post("/finance/reconciliations", data),
+  // 对账中心
+  listReconciliations: (params?: any) => api.get("/finance/reconciliation", { params }),
+  createReconciliation: (data: any) => api.post("/finance/reconciliation", data),
+  getReconciliationDetail: (id: string) => api.get(`/finance/reconciliation/${id}`),
+  // 发票管理
   listInvoices: (params?: any) => api.get("/finance/invoices", { params }),
   createInvoice: (data: any) => api.post("/finance/invoices", data),
+  issueInvoice: (id: string, invoiceUrl: string) => api.put(`/finance/invoices/${id}/issue`, { invoiceUrl }),
+  mailInvoice: (id: string, expressNo: string) => api.put(`/finance/invoices/${id}/mail`, { expressNo }),
+  // 结算单
   listSettlements: (params?: any) => api.get("/finance/settlements", { params }),
-  createSettlement: (data: any) => api.post("/finance/settlements", data),
-  listWithdrawals: (params?: any) => api.get("/finance/admin/withdrawals", { params }),
-  approveWithdrawal: (id: string, data: any) => api.put(`/finance/admin/withdrawals/${id}`, data),
-  listReports: (params?: any) => api.get("/finance/reports", { params }),
-  generateReport: (type: string, date?: string) => api.post("/finance/reports/generate", { type, date }),
+  generateSettlement: (data: any) => api.post("/finance/settlements/generate", data),
+  approveSettlement: (id: string) => api.put(`/finance/settlements/${id}/approve`),
+  paySettlement: (id: string) => api.put(`/finance/settlements/${id}/pay`),
+  // 提现审批
+  listWithdrawals: (params?: any) => api.get("/finance/withdrawals", { params }),
+  approveWithdrawal: (id: string, reviewNote?: string) => api.put(`/finance/withdrawals/${id}/approve`, { reviewNote }),
+  rejectWithdrawal: (id: string, reviewNote: string) => api.put(`/finance/withdrawals/${id}/reject`, { reviewNote }),
+  payWithdrawal: (id: string) => api.post(`/finance/withdrawals/${id}/pay`),
+  // 资金冻结
   freezeFund: (data: any) => api.post("/finance/freeze", data),
-  unfreezeFund: (id: string) => api.post(`/finance/unfreeze/${id}`),
-  listFreezes: (params?: any) => api.get("/finance/freezes", { params }),
+  unfreezeFund: (data: any) => api.post("/finance/unfreeze", data),
+  listFreezes: (params?: any) => api.get("/finance/freeze-records", { params }),
+  // 财务报表
+  getMonthlyReport: (period: string) => api.get("/finance/reports/monthly", { params: { period } }),
+  generateMonthlyReport: (period: string) => api.post(`/finance/reports/monthly/generate`, null, { params: { period } }),
 };
 
 // ───────── 风控管理 ─────────
@@ -588,22 +601,33 @@ export const riskApi = {
   deleteRule: (id: string) => api.delete(`/risk-control/rules/${id}`),
   toggleRule: (id: string, enabled: boolean) => api.put(`/risk-control/rules/${id}/toggle`, { enabled }),
   listAlerts: (params?: any) => api.get("/risk-control/alerts", { params }),
-  processAlert: (id: string, action: string) => api.put(`/risk-control/alerts/${id}`, { action }),
+  processAlert: (id: string, data: any) => api.put(`/risk-control/alerts/${id}`, data),
   listFraudCases: (params?: any) => api.get("/risk-control/fraud-cases", { params }),
-  getUserTimeline: (userId: string) => api.get(`/risk-control/user-timeline/${userId}`),
+  getUserTimeline: (userId: string, params?: any) => api.get(`/risk-control/user-timeline/${userId}`, { params }),
   listAppeals: (params?: any) => api.get("/risk-control/appeals", { params }),
   processAppeal: (id: string, data: any) => api.put(`/risk-control/appeals/${id}`, data),
 };
 
 // ───────── AI 管理 ─────────
 export const aiAdminApi = {
+  // 对话日志
   listChatLogs: (params?: any) => api.get("/ai/admin/chat-logs", { params }),
   getChatLogDetail: (id: string) => api.get(`/ai/admin/chat-logs/${id}`),
   deleteChatLog: (id: string) => api.delete(`/ai/admin/chat-logs/${id}`),
+  // 调用统计
   getCallStats: () => api.get("/ai/admin/call-stats"),
+  getCallLogs: (params?: any) => api.get("/ai/admin/call-logs", { params }),
   getAbnormalCalls: () => api.get("/ai/admin/abnormal-calls"),
+  // 圈主助理
   listCircleAssistants: (params?: any) => api.get("/ai/admin/circle-assistants", { params }),
   updateCircleAssistant: (id: string, data: any) => api.put(`/ai/admin/circle-assistants/${id}`, data),
+  approveCircleAssistant: (circleId: string) => api.post(`/ai/admin/circle-assistants/${circleId}/approve`),
+  rejectCircleAssistant: (circleId: string, reason?: string) => api.post(`/ai/admin/circle-assistants/${circleId}/reject`, { reason }),
+  getKnowledgeBase: (circleId: string) => api.get(`/ai/admin/knowledge/${circleId}`),
+  createKnowledgeEntry: (circleId: string, data: any) => api.post(`/ai/admin/knowledge/${circleId}`, data),
+  updateKnowledgeEntry: (id: string, data: any) => api.put(`/ai/admin/knowledge/${id}`, data),
+  deleteKnowledgeEntry: (id: string) => api.delete(`/ai/admin/knowledge/${id}`),
+  getUsageData: (circleId: string) => api.get(`/ai/admin/usage/${circleId}`),
 };
 
 export default api;

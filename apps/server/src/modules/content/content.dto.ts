@@ -78,6 +78,14 @@ export class UpdateContentDto {
   @IsString({ each: true })
   @IsOptional()
   tags?: string[];
+
+  @IsString()
+  @IsOptional()
+  status?: string;
+
+  @IsString()
+  @IsOptional()
+  auditReason?: string;
 }
 
 export class ContentListQueryDto {

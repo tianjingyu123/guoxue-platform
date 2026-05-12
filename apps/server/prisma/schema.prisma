@@ -320,7 +320,8 @@ model Content {
   tags        String[]
   viewCount   Int      @default(0)
   likeCount   Int      @default(0)
-  status      String   @default("PUBLISHED") // PUBLISHED, DRAFT
+  status      String   @default("PUBLISHED") // PUBLISHED, DRAFT, PENDING, APPROVED, REJECTED
+  auditReason String?  // 审核驳回原因
   stationId   String?  // 分站数据隔离（null = 平台级）
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
