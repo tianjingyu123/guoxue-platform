@@ -29,7 +29,6 @@ COPY --from=builder /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
 
 # Prisma 生成产物 + dist + 构建后的 workspace 包
-COPY --from=builder /app/apps/server/node_modules/.prisma ./apps/server/node_modules/.prisma
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
 COPY --from=builder /app/apps/server/package.json ./apps/server/
