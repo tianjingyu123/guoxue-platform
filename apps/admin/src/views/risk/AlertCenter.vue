@@ -99,7 +99,6 @@ async function processAlert() {
     dialogVisible.value = false
     fetchList()
   } catch {
-    ElMessage.error('处理失败')
   } finally {
     saving.value = false
   }

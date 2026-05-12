@@ -101,7 +101,6 @@ async function save() {
     dialogVisible.value = false
     fetchList()
   } catch {
-    ElMessage.error('保存失败')
   } finally {
     saving.value = false
   }
@@ -113,7 +112,6 @@ async function toggleRule(row: any) {
     ElMessage.success(row.enabled ? '已禁用' : '已启用')
     fetchList()
   } catch {
-    ElMessage.error('操作失败')
   }
 }
 

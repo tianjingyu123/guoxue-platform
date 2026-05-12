@@ -152,7 +152,7 @@ async function saveConfig() {
     Object.assign(payload, form)
     await systemApi.setConfig(configKey, { value: JSON.stringify(payload) })
     ElMessage.success('配置已保存')
-  } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 
 async function testConnection() {

@@ -47,7 +47,7 @@ function openCreate() { editingId.value = ''; Object.assign(form, { name: '', pr
 function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name, productId: row.productId || '', discountRate: Number(row.discountRate), startTime: row.startTime || '', endTime: row.endTime || '' }); vis.value = true }
 async function save() {
   saving.value = true
-  try { if (editingId.value) { await marketingApi.updateDiscount(editingId.value, form) } else { await marketingApi.createDiscount(form) }; ElMessage.success('已保存'); vis.value = false; fetchList() } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  try { if (editingId.value) { await marketingApi.updateDiscount(editingId.value, form) } else { await marketingApi.createDiscount(form) }; ElMessage.success('已保存'); vis.value = false; fetchList() } catch { } finally { saving.value = false }
 }
 async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteDiscount(id); ElMessage.success('已删除'); fetchList() } catch {} }
 </script>

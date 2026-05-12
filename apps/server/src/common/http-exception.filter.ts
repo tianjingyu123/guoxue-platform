@@ -50,7 +50,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     response.status(status).json({
       code: status,
       errorCode: errorCode ?? status,
-      message: Array.isArray(message) ? message.join("; ") : message,
+      message,
       timestamp: Date.now(),
       path: request.url,
     });

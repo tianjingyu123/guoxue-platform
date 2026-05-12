@@ -97,7 +97,7 @@ async function save() {
     if (editingId.value) { await abTestApi.update(editingId.value, form.value); ElMessage.success('已更新') }
     else { await abTestApi.create(form.value); ElMessage.success('已创建') }
     dialogVisible.value = false; fetchList()
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '保存失败') }
+  } catch (e: any) { }
   finally { saving.value = false }
 }
 
@@ -121,11 +121,11 @@ async function viewMetrics(row: any) {
 }
 
 async function fetchReport() {
-  try { const res = await abTestApi.getReport(); ElMessage.success(JSON.stringify(res.data)) } catch (e: any) { ElMessage.error('获取失败') }
+  try { const res = await abTestApi.getReport(); ElMessage.success(JSON.stringify(res.data)) } catch (e: any) { }
 }
 
 async function generateReport() {
-  try { await abTestApi.generateReport(); ElMessage.success('报告生成中') } catch (e: any) { ElMessage.error('生成失败') }
+  try { await abTestApi.generateReport(); ElMessage.success('报告生成中') } catch (e: any) { }
 }
 </script>
 

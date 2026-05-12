@@ -177,7 +177,6 @@ async function doApprove() {
     approveDialog.value = false
     fetchList()
   } catch (e: any) {
-    ElMessage.error(e.response?.data?.message || '操作失败')
   } finally { saving.value = false }
 }
 
@@ -196,7 +195,6 @@ async function doReject() {
     rejectDialog.value = false
     fetchList()
   } catch (e: any) {
-    ElMessage.error(e.response?.data?.message || '操作失败')
   } finally { saving.value = false }
 }
 

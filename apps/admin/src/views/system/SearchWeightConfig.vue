@@ -80,7 +80,7 @@ async function saveWeight(row: any) {
   try {
     await searchApi.upsertWeight({ entityType: row.entityType, fieldName: row.fieldName, weight: Number(row.weight), enabled: row.enabled })
     ElMessage.success('已保存')
-  } catch { ElMessage.error('保存失败') }
+  } catch { }
 }
 
 async function toggleWeight(row: any) {
@@ -92,11 +92,11 @@ async function del(id: string) {
 }
 
 async function seedDefaults() {
-  try { await searchApi.seedWeights(); ElMessage.success('已初始化默认权重'); fetchList() } catch { ElMessage.error('初始化失败') }
+  try { await searchApi.seedWeights(); ElMessage.success('已初始化默认权重'); fetchList() } catch { }
 }
 
 async function doAdd() {
-  try { await searchApi.upsertWeight({ entityType: addForm.entityType, fieldName: addForm.fieldName, weight: addForm.weight }); ElMessage.success('已添加'); addVis.value = false; fetchList() } catch { ElMessage.error('添加失败') }
+  try { await searchApi.upsertWeight({ entityType: addForm.entityType, fieldName: addForm.fieldName, weight: addForm.weight }); ElMessage.success('已添加'); addVis.value = false; fetchList() } catch { }
 }
 </script>
 

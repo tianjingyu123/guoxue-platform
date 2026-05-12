@@ -477,7 +477,6 @@ async function uploadImage(options: any) {
     if (data.url) form.images.push(data.url)
     ElMessage.success('上传成功')
   } catch (e: any) {
-    ElMessage.error('上传失败')
   } finally { uploading.value = false }
 }
 
@@ -539,7 +538,6 @@ async function saveProduct() {
     dialogVisible.value = false
     fetchList()
   } catch (e: any) {
-    ElMessage.error(e.response?.data?.message || '保存失败')
   } finally { saving.value = false }
 }
 
@@ -584,7 +582,6 @@ async function addSkuAction() {
     skuKey.value = ''; skuVal.value = ''; skuForm.price = 0; skuForm.stock = 0
     openSkus(skuProduct.value)
   } catch (e: any) {
-    ElMessage.error(e.response?.data?.message || '添加失败')
   }
 }
 

@@ -108,7 +108,7 @@ async function fetchApprovals() {
 }
 
 async function approveBot(row: any) {
-  try { await aiAdminApi.approveCircleAssistant(row.circleId); ElMessage.success('已通过'); fetchApprovals() } catch { ElMessage.error('操作失败') }
+  try { await aiAdminApi.approveCircleAssistant(row.circleId); ElMessage.success('已通过'); fetchApprovals() } catch { }
 }
 
 async function rejectBot(row: any) {
@@ -134,7 +134,7 @@ async function saveKnowledge() {
     if (kEditingId.value) { await aiAdminApi.updateKnowledgeEntry(kEditingId.value, kForm) }
     else { await aiAdminApi.createKnowledgeEntry(knowledgeCircleId.value, kForm) }
     ElMessage.success('已保存'); kVis.value = false; fetchKnowledge()
-  } catch { ElMessage.error('保存失败') } finally { kSaving.value = false }
+  } catch { } finally { kSaving.value = false }
 }
 
 async function delKnowledge(id: string) {

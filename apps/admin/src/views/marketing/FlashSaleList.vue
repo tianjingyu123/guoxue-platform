@@ -68,7 +68,7 @@ async function save() {
     if (editingId.value) { await marketingApi.updateFlashSale(editingId.value, payload); ElMessage.success('已更新') }
     else { await marketingApi.createFlashSale(payload); ElMessage.success('已创建') }
     vis.value = false; fetchList()
-  } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 async function startActivity(row: any) { await marketingApi.startFlashSale(row.id); ElMessage.success('已开始'); fetchList() }
 async function endActivity(row: any) { await marketingApi.endFlashSale(row.id); ElMessage.success('已结束'); fetchList() }

@@ -121,7 +121,7 @@ async function save() {
     if (editingId.value) { await recommendRuleApi.update(editingId.value, payload); ElMessage.success('已更新') }
     else { await recommendRuleApi.create(payload); ElMessage.success('已创建') }
     dialogVisible.value = false; fetchList()
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '保存失败') }
+  } catch (e: any) { }
   finally { saving.value = false }
 }
 

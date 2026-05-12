@@ -90,11 +90,11 @@ function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { ti
 
 async function save() {
   saving.value = true
-  try { if (editingId.value) { await marketingApi.updatePage(editingId.value, form) } else { await marketingApi.createPage(form) }; ElMessage.success('已保存'); vis.value = false; fetchList() } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  try { if (editingId.value) { await marketingApi.updatePage(editingId.value, form) } else { await marketingApi.createPage(form) }; ElMessage.success('已保存'); vis.value = false; fetchList() } catch { } finally { saving.value = false }
 }
 
 async function doPublish(row: any) {
-  try { await marketingApi.publishPage(row.id); ElMessage.success('已发布'); fetchList() } catch { ElMessage.error('发布失败') }
+  try { await marketingApi.publishPage(row.id); ElMessage.success('已发布'); fetchList() } catch { }
 }
 
 async function del(id: string) {
@@ -113,7 +113,7 @@ function openCompEdit(row: any) { compEditingId.value = row.id; Object.assign(co
 
 async function saveComp() {
   let config: any = {}
-  try { config = JSON.parse(compForm.configStr) } catch { ElMessage.error('配置JSON格式错误'); return }
+  try { config = JSON.parse(compForm.configStr) } catch { return }
   compSaving.value = true
   const payload = { type: compForm.type, title: compForm.title, config }
   try {
@@ -126,7 +126,7 @@ async function saveComp() {
     ElMessage.success('已保存'); compFormVis.value = false
     const { data } = await marketingApi.getPage(currentPageId.value)
     components.value = data.components || []
-  } catch { ElMessage.error('保存失败') } finally { compSaving.value = false }
+  } catch { } finally { compSaving.value = false }
 }
 
 async function delComp(compId: string) {

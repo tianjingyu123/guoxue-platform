@@ -311,7 +311,6 @@ async function handleCoverUpload(options: any) {
     coverUrl.value = data.url
     ElMessage.success('封面上传成功')
   } catch (e: any) {
-    ElMessage.error('上传失败：' + (e.message || '未知错误'))
   } finally {
     uploading.value = false
   }
@@ -344,7 +343,6 @@ async function handleSave(status?: string) {
     ElMessage.success('保存成功')
     router.push('/contents')
   } catch (e: any) {
-    ElMessage.error('保存失败：' + (e.message || '未知错误'))
   } finally {
     saving.value = false
   }

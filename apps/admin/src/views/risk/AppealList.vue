@@ -90,7 +90,6 @@ async function reject() {
     rejectDialogVisible.value = false
     fetchList()
   } catch {
-    ElMessage.error('操作失败')
   } finally {
     saving.value = false
   }

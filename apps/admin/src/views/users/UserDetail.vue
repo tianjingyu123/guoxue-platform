@@ -187,7 +187,7 @@ async function assignRole() {
     newRole.value = ''
     const { data } = await userApi.detail(userId)
     userRoles.value = data.roles || []
-  } catch { ElMessage.error('分配失败') }
+  } catch { }
 }
 
 async function removeRole(row: any) {

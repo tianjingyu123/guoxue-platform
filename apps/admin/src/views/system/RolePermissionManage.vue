@@ -144,7 +144,7 @@ async function savePermissions() {
       permissions: checkedKeys.value,
     })
     ElMessage.success('权限已保存')
-  } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 </script>
 

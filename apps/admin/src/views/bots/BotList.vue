@@ -658,7 +658,6 @@ async function openBindCircle(row: any) {
     circleList.value = data.circles || (Array.isArray(data) ? data : []);
     bindDialogVisible.value = true;
   } catch {
-    ElMessage.error("获取圈子列表失败");
   }
 }
 

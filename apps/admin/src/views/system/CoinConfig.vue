@@ -113,7 +113,7 @@ async function saveTier() {
       await api.post('/system/configs', { key: TIER_PREFIX + form.name, value: JSON.stringify(payload) })
     }
     ElMessage.success('已保存'); vis.value = false; fetchTiers()
-  } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 
 async function delTier(row: any) {
@@ -145,7 +145,7 @@ async function saveGift() {
       await api.post(GIFT_BASE, giftForm)
     }
     ElMessage.success('已保存'); giftVis.value = false; fetchGifts()
-  } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 
 async function del(id: string) {

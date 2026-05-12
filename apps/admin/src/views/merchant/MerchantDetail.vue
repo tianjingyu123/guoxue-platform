@@ -340,7 +340,7 @@ async function doApprove() {
     ElMessage.success('审核已通过')
     approveDialog.value = false
     fetchDetail()
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '操作失败') }
+  } catch (e: any) { }
   finally { saving.value = false }
 }
 function openReject() { rejectReason.value = ''; rejectDialog.value = true }
@@ -352,7 +352,7 @@ async function doReject() {
     ElMessage.success('已驳回')
     rejectDialog.value = false
     fetchDetail()
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '操作失败') }
+  } catch (e: any) { }
   finally { saving.value = false }
 }
 async function changeStatus(status: string) {
@@ -378,7 +378,7 @@ async function doCreateViolation() {
     ElMessage.success('违规记录已创建')
     violationDialog.value = false
     fetchDetail()
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '操作失败') }
+  } catch (e: any) { }
   finally { saving.value = false }
 }
 
@@ -391,7 +391,7 @@ async function doRefund() {
     ElMessage.success('保证金已退还')
     refundDialog.value = false
     fetchDetail()
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '操作失败') }
+  } catch (e: any) { }
   finally { saving.value = false }
 }
 function openAdjust() { adjustAmount.value = 0; adjustReason.value = ''; adjustDialog.value = true }
@@ -403,7 +403,7 @@ async function doAdjust() {
     ElMessage.success('保证金已调整')
     adjustDialog.value = false
     fetchDetail()
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '操作失败') }
+  } catch (e: any) { }
   finally { saving.value = false }
 }
 
@@ -419,7 +419,7 @@ async function doSetCommission() {
     ElMessage.success('分佣比例已更新')
     commissionDialog.value = false
     fetchDetail()
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '操作失败') }
+  } catch (e: any) { }
   finally { saving.value = false }
 }
 </script>

@@ -386,7 +386,6 @@ async function saveGift() {
     dialogVisible.value = false;
     fetchList();
   } catch (e: any) {
-    ElMessage.error(e.response?.data?.message || "保存失败");
   } finally {
     saving.value = false;
   }
@@ -399,7 +398,6 @@ async function toggleStatus(row: any) {
     ElMessage.success(newStatus === "ACTIVE" ? "已启用" : "已禁用");
     fetchList();
   } catch (e: any) {
-    ElMessage.error(e.response?.data?.message || "操作失败");
   }
 }
 

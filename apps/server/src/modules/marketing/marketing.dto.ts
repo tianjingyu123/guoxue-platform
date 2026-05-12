@@ -28,6 +28,11 @@ export class PaginationDto {
 // ════════════════════════════════════════
 
 export class CreateFlashSaleDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name: string;
+
   @IsDateString()
   startTime: string;
 
@@ -38,6 +43,20 @@ export class CreateFlashSaleDto {
   @IsInt()
   @Min(0)
   warmupMinutes?: number;
+
+  @IsOptional()
+  @IsString()
+  productId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.01)
+  flashPrice?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  limitPerUser?: number;
 }
 
 export class UpdateFlashSaleDto {

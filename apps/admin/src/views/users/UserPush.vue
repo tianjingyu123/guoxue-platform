@@ -108,7 +108,7 @@ async function sendPush() {
     ElMessage.success('推送已发送')
     estimatedCount.value = 0
     form.title = ''; form.content = ''
-  } catch { ElMessage.error('发送失败') } finally { sending.value = false }
+  } catch { } finally { sending.value = false }
 }
 </script>
 

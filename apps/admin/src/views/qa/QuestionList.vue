@@ -296,7 +296,6 @@ async function showDetail(row: any) {
     detail.value = data;
     dialogVisible.value = true;
   } catch {
-    ElMessage.error("加载详情失败");
   }
 }
 
@@ -307,7 +306,6 @@ async function refundExpired() {
     ElMessage.success(`已退款 ${data?.refunded || 0} 条超时问题`);
     fetchList();
   } catch {
-    ElMessage.error("操作失败");
   } finally {
     refunding.value = false;
   }

@@ -167,7 +167,7 @@ async function save() {
     ElMessage.success(editingId.value ? '已更新' : '已创建')
     dialogVisible.value = false
     fetchList()
-  } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 async function handleDelete(row: any) {
   try {

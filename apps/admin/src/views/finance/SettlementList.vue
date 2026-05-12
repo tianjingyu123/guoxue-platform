@@ -60,7 +60,7 @@ async function doGenerate() {
     ElMessage.success('结算单已生成')
     generateVisible.value = false
     fetchList()
-  } catch { ElMessage.error('生成结算单失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 
 async function doApprove(row: any) {

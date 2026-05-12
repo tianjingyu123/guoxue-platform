@@ -78,7 +78,7 @@ async function save() {
     ElMessage.success('已保存')
     vis.value = false
     fetchList()
-  } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 
 async function del(id: string) {

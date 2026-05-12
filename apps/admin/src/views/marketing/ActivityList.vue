@@ -58,10 +58,10 @@ function openCreate() { editingId.value = ''; Object.assign(form, { name: '', ty
 function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name, type: row.type || '', description: row.description || '', startTime: row.startTime || '', endTime: row.endTime || '' }); vis.value = true }
 async function save() {
   saving.value = true
-  try { if (editingId.value) { await marketingApi.updateActivity(editingId.value, form) } else { await marketingApi.createActivity(form) }; ElMessage.success('已保存'); vis.value = false; fetchList() } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  try { if (editingId.value) { await marketingApi.updateActivity(editingId.value, form) } else { await marketingApi.createActivity(form) }; ElMessage.success('已保存'); vis.value = false; fetchList() } catch { } finally { saving.value = false }
 }
 async function viewMetrics(row: any) {
-  try { const { data } = await marketingApi.getActivityMetrics(row.id); metrics.value = data; metricsVis.value = true } catch { ElMessage.error('获取数据失败') }
+  try { const { data } = await marketingApi.getActivityMetrics(row.id); metrics.value = data; metricsVis.value = true } catch { }
 }
 async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteActivity(id); ElMessage.success('已删除'); fetchList() } catch {} }
 </script>

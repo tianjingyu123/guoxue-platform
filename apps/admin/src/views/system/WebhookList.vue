@@ -87,13 +87,13 @@ async function doRegister() {
   if (!form.value.url) { ElMessage.warning('请输入回调URL'); return }
   saving.value = true
   try { await webhookApi.register(form.value); ElMessage.success('已注册'); dialogVisible.value = false; fetchList() }
-  catch (e: any) { ElMessage.error(e.response?.data?.message || '操作失败') }
+  catch (e: any) { }
   finally { saving.value = false }
 }
 
 async function toggle(row: any) {
   try { await webhookApi.toggle(row.id, !row.isActive); ElMessage.success(row.isActive ? '已禁用' : '已启用'); fetchList() }
-  catch (e: any) { ElMessage.error(e.response?.data?.message || '操作失败') }
+  catch (e: any) { }
 }
 
 async function del(id: string) {

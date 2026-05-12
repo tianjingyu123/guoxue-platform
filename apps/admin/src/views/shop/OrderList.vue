@@ -126,7 +126,6 @@ async function saveLogistics() {
     logisticsVisible.value = false;
     fetchList();
   } catch (e: any) {
-    ElMessage.error(e.response?.data?.message || "保存失败");
   }
 }
 

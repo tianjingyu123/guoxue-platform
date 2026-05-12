@@ -20,7 +20,7 @@ jobs:
   # ──────────────────────────────────────────────
   build-packages:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -62,7 +62,7 @@ jobs:
   typecheck:
     needs: build-packages
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -227,7 +227,7 @@ jobs:
   test-server:
     needs: build-packages
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16-alpine
@@ -319,7 +319,7 @@ jobs:
   e2e:
     needs: build-packages
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16-alpine

@@ -65,7 +65,7 @@ async function submitFreeze() {
     ElMessage.success('冻结成功')
     freezeVisible.value = false
     fetchList()
-  } catch { ElMessage.error('冻结失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 
 function openUnfreeze(row: any) {
@@ -81,7 +81,7 @@ async function submitUnfreeze() {
     ElMessage.success('解冻成功')
     unfreezeVisible.value = false
     fetchList()
-  } catch { ElMessage.error('解冻失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 
 function handleExport() {

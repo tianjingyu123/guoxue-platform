@@ -53,7 +53,7 @@ async function sendEmail() {
   if (!emailForm.value.to || !emailForm.value.subject) { ElMessage.warning('请填写收件人和主题'); return }
   sending.value = true
   try { await emailApi.send(emailForm.value); ElMessage.success('邮件已发送') }
-  catch (e: any) { ElMessage.error(e.response?.data?.message || '发送失败') }
+  catch (e: any) { }
   finally { sending.value = false }
 }
 
@@ -61,14 +61,14 @@ async function sendVerifyCode() {
   if (!verifyEmail.value) { ElMessage.warning('请输入邮箱'); return }
   sending.value = true
   try { await emailApi.sendVerifyCode(verifyEmail.value); ElMessage.success('验证码已发送') }
-  catch (e: any) { ElMessage.error(e.response?.data?.message || '发送失败') }
+  catch (e: any) { }
   finally { sending.value = false }
 }
 
 async function testEmail() {
   sending.value = true
   try { await emailApi.test(); ElMessage.success('邮件服务配置正常') }
-  catch (e: any) { ElMessage.error(e.response?.data?.message || '测试失败') }
+  catch (e: any) { }
   finally { sending.value = false }
 }
 </script>

@@ -61,7 +61,7 @@ async function save() {
     ElMessage.success('已保存')
     vis.value = false
     fetchList()
-  } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 
 async function toggleEnabled(row: any) {
@@ -72,7 +72,6 @@ async function toggleEnabled(row: any) {
     ElMessage.success(row.enabled ? '已开启' : '已关闭')
   } catch {
     row.enabled = oldVal
-    ElMessage.error('操作失败')
   }
 }
 

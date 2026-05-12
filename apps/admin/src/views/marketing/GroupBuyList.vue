@@ -67,7 +67,7 @@ function openCreate() { editingId.value = ''; Object.assign(form, { name: '', pr
 function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name, productId: row.productId, groupSize: row.groupSize, groupPrice: Number(row.groupPrice), durationHours: row.durationHours }); vis.value = true }
 async function save() {
   saving.value = true
-  try { if (editingId.value) { await marketingApi.updateGroupBuy(editingId.value, form); ElMessage.success('已更新') } else { await marketingApi.createGroupBuy(form); ElMessage.success('已创建') }; vis.value = false; fetchList() } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  try { if (editingId.value) { await marketingApi.updateGroupBuy(editingId.value, form); ElMessage.success('已更新') } else { await marketingApi.createGroupBuy(form); ElMessage.success('已创建') }; vis.value = false; fetchList() } catch { } finally { saving.value = false }
 }
 async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteGroupBuy(id); ElMessage.success('已删除'); fetchList() } catch {} }
 

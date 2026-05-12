@@ -325,7 +325,6 @@ async function saveBook() {
     fetchBooks();
   } catch (e: any) {
     const msg = e.response?.data?.message;
-    ElMessage.error(typeof msg === "string" ? msg : (Array.isArray(msg) ? msg.join("；") : "保存失败"));
   } finally {
     saving.value = false;
   }
@@ -379,7 +378,6 @@ async function saveChapter() {
     openChapters({ id: currentBookId.value });
   } catch (e: any) {
     const msg = e.response?.data?.message;
-    ElMessage.error(typeof msg === "string" ? msg : (Array.isArray(msg) ? msg.join("；") : "保存失败"));
   } finally {
     saving.value = false;
   }

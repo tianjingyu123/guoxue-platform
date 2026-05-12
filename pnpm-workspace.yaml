@@ -9,3 +9,5 @@ onlyBuiltDependencies:
   - "esbuild"
   - "@nestjs/core"
   - "@parcel/watcher"
+  - "protobufjs"
+  - "@apollo/protobufjs"

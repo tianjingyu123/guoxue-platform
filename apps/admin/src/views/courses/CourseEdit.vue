@@ -407,7 +407,6 @@ async function handleCoverUpload(options: any) {
     coverUrl.value = data.url
     ElMessage.success('封面上传成功')
   } catch (e: any) {
-    ElMessage.error('上传失败：' + (e.message || '未知错误'))
   } finally {
     uploading.value = false
   }

@@ -90,7 +90,7 @@ async function doImport() {
     const res = await importApi.importCsv(importType.value, file.value)
     importResult.value = res.data
     ElMessage.success('导入完成')
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '导入失败') }
+  } catch (e: any) { }
   finally { importing.value = false }
 }
 </script>

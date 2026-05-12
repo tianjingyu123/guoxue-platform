@@ -102,7 +102,7 @@ async function doAdd() {
       ElMessage.success(`已添加 ${lines.length} 个敏感词`)
     }
     addDialog.value = false; fetchList()
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '操作失败') }
+  } catch (e: any) { }
   finally { saving.value = false }
 }
 

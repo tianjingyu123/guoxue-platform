@@ -2070,6 +2070,7 @@ model OperationLog {
 
 model FlashSale {
   id           String   @id @default(uuid())
+  name         String   @default("")           // 活动名称
   startTime    DateTime                        // 秒杀开始时间
   endTime      DateTime                        // 秒杀结束时间
   warmupMinutes Int     @default(0)            // 预热提前分钟数

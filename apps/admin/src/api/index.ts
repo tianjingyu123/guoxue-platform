@@ -1,5 +1,5 @@
 import axios from "axios";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElNotification } from "element-plus";
 
 export const api = axios.create({
   baseURL: "/api/v1",
@@ -15,6 +15,21 @@ api.interceptors.request.use((config) => {
 });
 
 let refreshing = false;
+
+/** 展示错误消息：多条用通知框，单条用顶部提示 */
+function showError(msg: string | string[]) {
+  if (Array.isArray(msg)) {
+    ElNotification({
+      title: "提交失败，请检查以下问题",
+      message: msg.map((m) => `<div style="margin:4px 0">${m}</div>`).join(""),
+      type: "error",
+      duration: 6000,
+      dangerouslyUseHTMLString: true,
+    });
+  } else {
+    ElMessage.error(msg);
+  }
+}
 
 api.interceptors.response.use(
   (res) => {
@@ -42,7 +57,7 @@ api.interceptors.response.use(
       return Promise.reject(err);
     }
 
-    ElMessage.error(msg);
+    showError(msg);
     return Promise.reject(err);
   },
 );

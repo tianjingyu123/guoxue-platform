@@ -179,7 +179,7 @@ async function save() {
     if (editingId.value) { await ebookApi.update(editingId.value, form.value); ElMessage.success('已更新') }
     else { await ebookApi.create(form.value); ElMessage.success('已创建') }
     dialogVisible.value = false; fetchList()
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '保存失败') }
+  } catch (e: any) { }
   finally { saving.value = false }
 }
 
@@ -202,7 +202,7 @@ async function saveChapter() {
     if (editingChapterId.value) { await ebookApi.updateChapter(editingChapterId.value, chapterForm.value); ElMessage.success('已更新') }
     else { await ebookApi.createChapter(chapterBook.value.id, chapterForm.value); ElMessage.success('已创建') }
     chapterFormDialog.value = false; fetchChapters(chapterBook.value.id)
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '保存失败') }
+  } catch (e: any) { }
   finally { saving.value = false }
 }
 

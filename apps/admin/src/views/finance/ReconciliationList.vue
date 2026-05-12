@@ -56,7 +56,7 @@ async function doGenerate() {
     ElMessage.success('对账已生成')
     generateVisible.value = false
     fetchList()
-  } catch { ElMessage.error('生成对账失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 
 async function viewDetail(row: any) {
@@ -64,7 +64,7 @@ async function viewDetail(row: any) {
     const { data } = await financeApi.getReconciliationDetail(row.id)
     detailData.value = data
     detailVisible.value = true
-  } catch { ElMessage.error('获取对账详情失败') }
+  } catch { }
 }
 
 function handleExport() {

@@ -10,6 +10,7 @@ import { AppGraphqlModule } from "./app-graphql.module";
 import { RedisThrottleGuard } from "./common/redis-throttle.guard";
 import { RedisService } from "./redis/redis.service";
 import { AllExceptionsFilter } from "./common/http-exception.filter";
+import { chineseValidationExceptionFactory } from "./common/validation-chinese";
 import { LoggingInterceptor } from "./common/logging.interceptor";
 import { TracingInterceptor } from "./common/tracing.interceptor";
 import { ResponseInterceptor } from "./common/response.interceptor";
@@ -56,6 +57,7 @@ async function bootstrap() {
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
+      exceptionFactory: chineseValidationExceptionFactory,
     }),
   );
 

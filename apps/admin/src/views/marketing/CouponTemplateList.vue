@@ -103,7 +103,7 @@ async function save() {
   try {
     if (editingId.value) { await marketingApi.updateCoupon(editingId.value, form) } else { await marketingApi.createCoupon(form) }
     ElMessage.success('已保存'); vis.value = false; fetchList()
-  } catch { ElMessage.error('保存失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteCoupon(id); ElMessage.success('已删除'); fetchList() } catch {} }
 
@@ -120,7 +120,7 @@ async function doGrant() {
       await marketingApi.batchGrantCoupon(templateId, { userIds: ids, count: grantCount.value })
     }
     ElMessage.success('发放成功'); grantVis.value = false
-  } catch { ElMessage.error('发放失败') } finally { granting.value = false }
+  } catch { } finally { granting.value = false }
 }
 
 async function openRecords(row: any) {

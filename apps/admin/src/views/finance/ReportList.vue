@@ -60,7 +60,7 @@ async function generateReport() {
     await financeApi.generateMonthlyReport(month.value)
     ElMessage.success('月报已生成')
     fetchList()
-  } catch { ElMessage.error('生成月报失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 
 function viewDetail(row: any) { detailData.value = row; detailVisible.value = true }

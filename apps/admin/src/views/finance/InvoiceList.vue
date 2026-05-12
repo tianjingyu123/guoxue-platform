@@ -69,7 +69,7 @@ async function reject() {
     ElMessage.success('已拒绝开票')
     rejectVisible.value = false
     fetchList()
-  } catch { ElMessage.error('操作失败') } finally { saving.value = false }
+  } catch { } finally { saving.value = false }
 }
 
 async function doMail(row: any) {
