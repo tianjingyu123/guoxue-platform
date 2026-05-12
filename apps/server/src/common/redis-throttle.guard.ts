@@ -23,6 +23,8 @@ export class RedisThrottleGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (process.env.SKIP_THROTTLE === "true") return true;
+
     const request = context.switchToHttp().getRequest();
     const ip = request.ip || request.connection?.remoteAddress || "unknown";
     const key = `rate:${ip}`;

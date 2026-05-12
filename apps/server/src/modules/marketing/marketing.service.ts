@@ -31,12 +31,30 @@ export class MarketingService {
     const end = new Date(dto.endTime);
     if (start >= end) throw new BadRequestException("秒杀开始时间必须早于结束时间");
 
-    return this.prisma.flashSale.create({
+    const flashSale = await this.prisma.flashSale.create({
       data: {
+        name: dto.name,
         startTime: start,
         endTime: end,
         warmupMinutes: dto.warmupMinutes ?? 0,
       },
+    });
+
+    // 如果传了商品信息，同时创建秒杀项
+    if (dto.productId && dto.flashPrice != null) {
+      await this.prisma.flashSaleItem.create({
+        data: {
+          flashSaleId: flashSale.id,
+          productId: dto.productId,
+          flashPrice: dto.flashPrice,
+          limitCount: dto.limitPerUser ?? 1,
+          stock: 999,
+        },
+      });
+    }
+
+    return this.prisma.flashSale.findUnique({
+      where: { id: flashSale.id },
       include: { items: true },
     });
   }
