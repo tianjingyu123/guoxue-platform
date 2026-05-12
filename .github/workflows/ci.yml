@@ -16,7 +16,7 @@ env:
 
 jobs:
   # ──────────────────────────────────────────────
-  # 构建 workspace 包（供后续 typecheck 使用）
+  # 构建 workspace 包（基础验证 + 为后续 job 打底）
   # ──────────────────────────────────────────────
   build-packages:
     runs-on: ubuntu-latest
@@ -47,15 +47,6 @@ jobs:
         run: pnpm --filter @guoxue/ziwei-engine build
         timeout-minutes: 5
 
-      # 上传构建产物供后续 job 使用
-      - name: 缓存构建产物
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            packages/bazi-engine/dist
-            packages/ziwei-engine/dist
-          key: pkg-dist-${{ github.run_id }}
-
   # ──────────────────────────────────────────────
   # 类型检查
   # ──────────────────────────────────────────────
@@ -81,13 +72,17 @@ jobs:
         run: pnpm install --frozen-lockfile
         timeout-minutes: 10
 
-      - name: 恢复构建产物
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            packages/bazi-engine/dist
-            packages/ziwei-engine/dist
-          key: pkg-dist-${{ github.run_id }}
+      - name: 构建 @guoxue/bazi-engine
+        run: pnpm --filter @guoxue/bazi-engine build
+        timeout-minutes: 5
+
+      - name: 构建 @guoxue/ziwei-engine
+        run: pnpm --filter @guoxue/ziwei-engine build
+        timeout-minutes: 5
+
+      - name: 生成 Prisma Client
+        run: pnpm --filter @guoxue/server exec npx prisma generate
+        timeout-minutes: 3
 
       - name: TypeCheck - @guoxue/bazi-engine
         run: pnpm --filter @guoxue/bazi-engine exec npx tsc --noEmit
@@ -103,7 +98,7 @@ jobs:
 
       - name: TypeCheck - @guoxue/admin
         run: pnpm --filter @guoxue/admin exec npx vue-tsc --noEmit
-        continue-on-error: true  # UniApp 类型可能缺失，不阻断 CI
+        continue-on-error: true
         timeout-minutes: 5
 
   # ──────────────────────────────────────────────
@@ -145,7 +140,7 @@ jobs:
   test-packages:
     needs: build-packages
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -164,13 +159,13 @@ jobs:
         run: pnpm install --frozen-lockfile
         timeout-minutes: 10
 
-      - name: 恢复构建产物
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            packages/bazi-engine/dist
-            packages/ziwei-engine/dist
-          key: pkg-dist-${{ github.run_id }}
+      - name: 构建 @guoxue/bazi-engine
+        run: pnpm --filter @guoxue/bazi-engine build
+        timeout-minutes: 5
+
+      - name: 构建 @guoxue/ziwei-engine
+        run: pnpm --filter @guoxue/ziwei-engine build
+        timeout-minutes: 5
 
       - name: Test - @guoxue/bazi-engine
         run: pnpm --filter @guoxue/bazi-engine test --passWithNoTests
@@ -186,7 +181,7 @@ jobs:
   build-server:
     needs: build-packages
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -205,13 +200,13 @@ jobs:
         run: pnpm install --frozen-lockfile
         timeout-minutes: 10
 
-      - name: 恢复构建产物
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            packages/bazi-engine/dist
-            packages/ziwei-engine/dist
-          key: pkg-dist-${{ github.run_id }}
+      - name: 构建 @guoxue/bazi-engine
+        run: pnpm --filter @guoxue/bazi-engine build
+        timeout-minutes: 5
+
+      - name: 构建 @guoxue/ziwei-engine
+        run: pnpm --filter @guoxue/ziwei-engine build
+        timeout-minutes: 5
 
       - name: 生成 Prisma Client
         run: pnpm --filter @guoxue/server exec npx prisma generate
@@ -269,17 +264,29 @@ jobs:
         run: pnpm install --frozen-lockfile
         timeout-minutes: 10
 
-      - name: 恢复构建产物
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            packages/bazi-engine/dist
-            packages/ziwei-engine/dist
-          key: pkg-dist-${{ github.run_id }}
+      - name: 构建 @guoxue/bazi-engine
+        run: pnpm --filter @guoxue/bazi-engine build
+        timeout-minutes: 5
+
+      - name: 构建 @guoxue/ziwei-engine
+        run: pnpm --filter @guoxue/ziwei-engine build
+        timeout-minutes: 5
 
       - name: 生成 Prisma Client
         run: pnpm --filter @guoxue/server exec npx prisma generate
         timeout-minutes: 3
+
+      - name: 等待 PostgreSQL 就绪
+        run: |
+          for i in $(seq 1 15); do
+            if pg_isready -h localhost -p 5432 -U guoxue -d guoxue; then
+              echo "PostgreSQL 就绪"
+              break
+            fi
+            echo "等待 PostgreSQL... ($i/15)"
+            sleep 2
+          done
+        timeout-minutes: 1
 
       - name: 执行数据库迁移
         run: pnpm --filter @guoxue/server exec npx prisma migrate deploy
@@ -361,17 +368,29 @@ jobs:
         run: pnpm install --frozen-lockfile
         timeout-minutes: 10
 
-      - name: 恢复构建产物
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            packages/bazi-engine/dist
-            packages/ziwei-engine/dist
-          key: pkg-dist-${{ github.run_id }}
+      - name: 构建 @guoxue/bazi-engine
+        run: pnpm --filter @guoxue/bazi-engine build
+        timeout-minutes: 5
+
+      - name: 构建 @guoxue/ziwei-engine
+        run: pnpm --filter @guoxue/ziwei-engine build
+        timeout-minutes: 5
 
       - name: 生成 Prisma Client
         run: pnpm --filter @guoxue/server exec npx prisma generate
         timeout-minutes: 3
+
+      - name: 等待 PostgreSQL 就绪
+        run: |
+          for i in $(seq 1 15); do
+            if pg_isready -h localhost -p 5432 -U guoxue -d guoxue; then
+              echo "PostgreSQL 就绪"
+              break
+            fi
+            echo "等待 PostgreSQL... ($i/15)"
+            sleep 2
+          done
+        timeout-minutes: 1
 
       - name: 执行数据库迁移
         run: pnpm --filter @guoxue/server exec npx prisma migrate deploy
