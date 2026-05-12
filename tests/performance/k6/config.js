@@ -52,7 +52,7 @@ export const PERF_BASELINES = {
  * - soak:   浸泡测试，中等并发长时间运行，检测内存泄漏
  * - spike:  尖峰测试，突发流量冲击，验证自动扩容
  */
-export const SCENARIOS: Record<string, Record<string, any>> = {
+export const SCENARIOS = {
   // ─── 冒烟测试 ───
   smoke: {
     smoke: {
