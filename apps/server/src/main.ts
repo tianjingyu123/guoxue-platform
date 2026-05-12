@@ -3,6 +3,7 @@ import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { json, urlencoded } from "express";
 import compression from "compression";
 import helmet from "helmet";
 import { AppGraphqlModule } from "./app-graphql.module";
@@ -21,7 +22,9 @@ async function bootstrap() {
   const logger = PinoLoggerService.getInstance();
   const app = await NestFactory.create<NestExpressApplication>(AppGraphqlModule, { logger });
 
-  // 响应压缩
+  // 请求体大小限制 — 防止大payload攻击
+  app.use(json({ limit: "10mb" }));
+  app.use(urlencoded({ limit: "10mb", extended: true }));
   app.use(compression());
 
   // 静态文件服务
