@@ -168,13 +168,11 @@ jobs:
         timeout-minutes: 5
 
       - name: Test - @guoxue/bazi-engine
-        working-directory: packages/bazi-engine
-        run: npx jest --passWithNoTests --forceExit
+        run: pnpm --filter @guoxue/bazi-engine exec jest --passWithNoTests --forceExit
         timeout-minutes: 5
 
       - name: Test - @guoxue/ziwei-engine
-        working-directory: packages/ziwei-engine
-        run: npx jest --passWithNoTests --forceExit
+        run: pnpm --filter @guoxue/ziwei-engine exec jest --passWithNoTests --forceExit
         timeout-minutes: 5
 
   # ──────────────────────────────────────────────
@@ -297,7 +295,7 @@ jobs:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: 运行单元测试
-        run: pnpm --filter @guoxue/server exec npx jest --testPathPattern "src/" --coverage --forceExit
+        run: pnpm --filter @guoxue/server exec npx jest --config jest.config.ts --testPathPattern "src/" --passWithNoTests --forceExit --runInBand
         timeout-minutes: 10
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
@@ -305,6 +303,7 @@ jobs:
           ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
           JWT_SECRET: ${{ env.JWT_SECRET }}
           NODE_ENV: test
+          SKIP_THROTTLE: 'true'
 
       - name: 上传覆盖率报告
         uses: actions/upload-artifact@v4
@@ -409,6 +408,7 @@ jobs:
           ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
           JWT_SECRET: ${{ env.JWT_SECRET }}
           NODE_ENV: test
+          SKIP_THROTTLE: 'true'
 
   # ──────────────────────────────────────────────
   # 汇总检查（所有必须通过的 job 完成后才允许合并）
