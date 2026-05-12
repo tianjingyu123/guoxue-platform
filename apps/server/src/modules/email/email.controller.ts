@@ -4,7 +4,7 @@ import { EmailService } from "./email.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
-import { StrictThrottleGuard } from "../../common/throttle.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { SendEmailDto, SendVerifyCodeDto, TestEmailDto } from "./email.dto";
 
 @ApiTags("邮件")
@@ -22,7 +22,7 @@ export class EmailController {
   }
 
   @Post("send-code")
-  @UseGuards(StrictThrottleGuard)
+  @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "发送邮件验证码" })
   sendVerifyCode(@Body() dto: SendVerifyCodeDto) {
     return this.email.sendVerifyCode(dto.email, this.generateCode());

@@ -83,9 +83,11 @@ model User {
   ebookBookmarks     EbookBookmark[]
   ebookNotes         EbookNote[]
   ebookPurchases     EbookPurchase[]
+  merchant           Merchant?
 
   @@index([phone])
   @@index([memberLevel])
+  @@index([status, createdAt])
 }
 
 model Auth {
@@ -106,6 +108,9 @@ enum RoleType {
   SUPER_ADMIN
   OPERATION_ADMIN
   CONTENT_AUDITOR
+  FINANCE_ADMIN
+  CUSTOMER_SERVICE
+  GOODS_AUDITOR
   CIRCLE_OWNER
   LECTURER
   STATION_MASTER
@@ -166,6 +171,7 @@ model ReferralRelation {
 
   @@unique([userId, referrerId])
   @@index([referrerId])
+  @@index([userId, relationStatus])
 }
 
 model Follow {
@@ -179,6 +185,8 @@ model Follow {
 
   @@unique([userId, followedUserId])
   @@index([followedUserId])
+  @@index([userId, createdAt])
+  @@index([followedUserId, createdAt])
 }
 
 // ─────────────────────────────────────────────────
@@ -257,6 +265,7 @@ model CircleMember {
 
   @@unique([circleId, userId])
   @@index([userId])
+  @@index([userId, joinedAt])
 }
 
 // ─────────────────────────────────────────────────
@@ -356,6 +365,7 @@ model Article {
   @@index([isPushHome, auditStatus])
   @@index([userId, createdAt])
   @@index([stationId])
+  @@index([auditStatus, createdAt])
 }
 
 model ArticleRecommend {
@@ -415,6 +425,7 @@ model Course {
   @@index([auditStatus])
   @@index([userId, createdAt])
   @@index([stationId])
+  @@index([type, auditStatus])
 }
 
 model CourseChapter {
@@ -511,6 +522,7 @@ model Product {
   @@index([stationId])
   @@index([status, createdAt])
   @@index([circleId])
+  @@index([supplierType, status])
 }
 
 model ProductSku {
@@ -560,6 +572,7 @@ model Order {
   amount          Decimal     @db.Decimal(10, 2)
   payAmount       Decimal?    @db.Decimal(10, 2) // 实付金额
   couponId        String?
+  merchantId      String?     // 商家ID（商家商品订单，用于分佣和数据隔离）
   status          OrderStatus @default(PENDING)
   referrerId      String?     // 永久推荐人
   tempReferrerId  String?     // 临时推荐人
@@ -582,6 +595,9 @@ model Order {
   @@index([payTransactionId])
   @@index([type, status])
   @@index([userId, type, targetId, status])
+  @@index([type])
+  @@index([userId, type, status, createdAt])
+  @@index([merchantId, status])
 }
 
 enum CouponType {
@@ -753,6 +769,7 @@ model LiveRoom {
   @@index([circleId])
   @@index([courseId])
   @@index([status, startTime])
+  @@index([hostUserId, status])
 }
 
 model LiveProduct {
@@ -981,6 +998,7 @@ model PaipanRecord {
   @@index([userId, createdAt])
   @@index([userId, paipanType, createdAt])
   @@index([createdAt])
+  @@index([paipanType])
 }
 
 model AiAnalysisRecord {
@@ -1300,6 +1318,8 @@ model Comment {
   replies  Comment[] @relation("CommentReplies")
 
   @@index([targetType, targetId, createdAt])
+  @@index([parentId, createdAt])
+  @@index([status])
 }
 
 model Collect {
@@ -1332,6 +1352,7 @@ model Report {
 
   @@index([status])
   @@index([targetType, targetId])
+  @@index([reporterId, createdAt])
 }
 
 // ─────────────────────────────────────────────────
@@ -1392,6 +1413,21 @@ model SearchHistory {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([keyword])
+}
+
+// 搜索权重配置 — 按实体类型和字段调整搜索排序权重
+model SearchWeight {
+  id         String   @id @default(uuid())
+  entityType String   // article | course | product | circle | video | user | classic | content
+  fieldName  String   @default("all") // all | title | excerpt | intro | name | nickname | author
+  weight     Float    @default(1.0) // 权重系数，默认 1.0
+  enabled    Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@unique([entityType, fieldName])
 }
 
 // ─────────────────────────────────────────────────
@@ -1579,6 +1615,7 @@ model VirtualCoinTransaction {
 
   @@index([userId, createdAt])
   @@index([refId])
+  @@index([userId, type, createdAt])
 }
 
 model VirtualCoinRecharge {
@@ -1763,6 +1800,7 @@ model UserBehavior {
   @@index([userId, targetType, targetId], name: "idx_user_target")
   @@index([targetType, targetId])
   @@index([userId, createdAt])
+  @@index([createdAt])
 }
 
 model UserInterest {
@@ -1777,6 +1815,7 @@ model UserInterest {
   @@unique([userId, tag])
   @@index([userId, score])
   @@index([tag, score])
+  @@index([tag])
 }
 
 model RecommendRule {
@@ -2459,5 +2498,127 @@ model FullReductionRule {
   updatedAt   DateTime @updatedAt
 
   @@index([status, startTime, endTime])
+}
+
+// ─────────────────────────────────────────────────
+// 商家入驻系统
+// ─────────────────────────────────────────────────
+
+enum MerchantStatus {
+  PENDING_REVIEW    // 待审核
+  REVIEW_FAILED     // 审核驳回
+  DEPOSIT_PENDING   // 待缴纳保证金
+  AGREEMENT_PENDING // 待签署协议
+  ACTIVE            // 已开通（正常经营）
+  SUSPENDED         // 已暂停
+  CLOSED            // 已关闭
+}
+
+enum ViolationSeverity {
+  MINOR
+  MODERATE
+  SEVERE
+}
+
+model Merchant {
+  id               String         @id @default(uuid())
+  userId           String         @unique
+  shopName         String                                          // 店铺名称
+  shopLogo         String?                                         // 店铺Logo
+  shopIntro        String?                                         // 店铺简介
+  contactName      String                                          // 联系人姓名
+  contactPhone     String                                          // 联系电话
+  idCardNumber     String                                          // 身份证号（加密存储）
+  idCardFront      String?                                         // 身份证正面照
+  idCardBack       String?                                         // 身份证反面照
+  businessLicense  String?                                         // 营业执照（可选）
+  brandAuth        String?                                         // 品牌授权书（可选）
+  categoryIds      String[]       @default([])                     // 经营类目
+  status           MerchantStatus @default(PENDING_REVIEW)
+  depositAmount    Decimal?       @db.Decimal(10, 2)               // 应缴保证金
+  depositPaid      Boolean        @default(false)                  // 保证金是否已缴纳
+  agreementSigned  Boolean        @default(false)                  // 协议是否已签署
+  agreementUrl     String?                                         // 已签协议文件URL
+  signedAt         DateTime?                                       // 协议签署时间
+  signedIp         String?                                         // 签署IP
+  rejectReason     String?                                         // 驳回原因
+  commissionRate   Decimal?       @db.Decimal(5, 4)                // 商家自定义分佣比例
+  totalSales       Decimal        @default(0) @db.Decimal(12, 2)   // 累计销售额
+  totalOrders      Int            @default(0)                      // 累计订单数
+  rating           Decimal        @default(5.0) @db.Decimal(3, 2)  // 店铺评分
+  openedAt         DateTime?                                       // 开店时间
+  closedAt         DateTime?                                       // 关店时间
+  reviewedBy       String?                                         // 审核人ID
+  reviewedAt       DateTime?                                       // 审核时间
+  remark           String?                                         // 内部备注
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  user           User                    @relation(fields: [userId], references: [id])
+  violations     MerchantViolation[]
+  depositRecords MerchantDepositRecord[]
+  agreements     MerchantAgreement[]
+
+  @@index([status])
+  @@index([status, createdAt])
+  @@index([shopName])
+}
+
+model MerchantViolation {
+  id          String           @id @default(uuid())
+  merchantId  String
+  type        ViolationSeverity
+  title       String                                             // 违规标题
+  description String                                             // 违规描述
+  penalty     Decimal?         @db.Decimal(10, 2)                // 罚款金额
+  status      ViolationStatus  @default(PENDING)
+  evidence    Json?                                              // 证据材料
+  handledBy   String?                                            // 处理人
+  handledAt   DateTime?                                          // 处理时间
+  appeal      String?                                            // 申诉内容
+  appealAt    DateTime?                                          // 申诉时间
+  createdAt   DateTime         @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+  @@index([status])
+}
+
+enum ViolationStatus {
+  PENDING
+  CONFIRMED
+  DISMISSED
+}
+
+model MerchantDepositRecord {
+  id               String   @id @default(uuid())
+  merchantId       String
+  amount           Decimal  @db.Decimal(10, 2)
+  type             String                                        // PAYMENT / REFUND / DEDUCTION / TOPUP
+  status           String   @default("PENDING")                  // PENDING / SUCCESS / FAILED
+  payMethod        String?                                       // WECHAT / ALIPAY / BANK_TRANSFER
+  payTransactionId String?
+  remark           String?
+  createdAt        DateTime @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
+}
+
+model MerchantAgreement {
+  id         String    @id @default(uuid())
+  merchantId String
+  version    String                                              // 版本号
+  title      String    @default("商家入驻协议")
+  content    String                                              // 协议内容（HTML/Markdown）
+  signedAt   DateTime?
+  ipAddress  String?
+  createdAt  DateTime  @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId])
 }
 

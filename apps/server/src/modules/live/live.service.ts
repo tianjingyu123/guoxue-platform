@@ -5,6 +5,8 @@ import { LiveStreamService } from "./live-stream.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { CreateRoomDto, UpdateRoomDto } from "./live.dto";
 import { Prisma, LiveStatus } from "@prisma/client";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 @Injectable()
 export class LiveService {
@@ -112,7 +114,7 @@ export class LiveService {
   async getPlayUrl(id: string, userId: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
     if (!room) throw new NotFoundException("直播间不存在");
-    if (room.status !== "LIVING") throw new Error("直播未开始或已结束");
+    if (room.status !== "LIVING") throw new BadRequestException("直播未开始或已结束");
 
     const streamKey = `room_${id}`;
     return this.stream.genPlayUrlWithAuth(streamKey, userId);
@@ -273,7 +275,7 @@ export class LiveService {
     const existing = await this.prisma.liveMic.findUnique({
       where: { liveRoomId_position: { liveRoomId: roomId, position } },
     });
-    if (existing) throw new Error("该麦位已被占用");
+    if (existing) throw new ConflictException("该麦位已被占用");
 
     try {
       return this.prisma.liveMic.create({
@@ -316,7 +318,7 @@ export class LiveService {
         await this.prisma.liveMic.delete({ where: { id: mic.id } });
         return { success: true };
       default:
-        throw new Error("无效操作");
+        throw new BadRequestException("无效操作");
     }
   }
 
@@ -424,7 +426,7 @@ export class LiveService {
   async startFlashSale(saleId: string) {
     const sale = await this.prisma.liveFlashSale.findUnique({ where: { id: saleId } });
     if (!sale) throw new NotFoundException("秒杀活动不存在");
-    if (sale.status !== "WAITING") throw new Error("秒杀状态不允许开始");
+    if (sale.status !== "WAITING") throw new BadRequestException("秒杀状态不允许开始");
 
     return this.prisma.liveFlashSale.update({
       where: { id: saleId },
@@ -436,15 +438,15 @@ export class LiveService {
   async flashSaleOrder(saleId: string, userId: string) {
     const sale = await this.prisma.liveFlashSale.findUnique({ where: { id: saleId } });
     if (!sale) throw new NotFoundException("秒杀活动不存在");
-    if (sale.status !== "ACTIVE") throw new Error("秒杀未开始或已结束");
-    if (new Date() > sale.endTime) throw new Error("秒杀已结束");
+    if (sale.status !== "ACTIVE") throw new BadRequestException("秒杀未开始或已结束");
+    if (new Date() > sale.endTime) throw new BadRequestException("秒杀已结束");
 
     // 原子扣减：where 加 soldCount < stock 防止超卖
     const updated = await this.prisma.liveFlashSale.updateMany({
       where: { id: saleId, soldCount: { lt: sale.stock } },
       data: { soldCount: { increment: 1 } },
     });
-    if (updated.count === 0) throw new Error("秒杀库存不足");
+    if (updated.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "秒杀库存不足");
 
     return { saleId, userId, flashPrice: sale.flashPrice, productId: sale.productId };
   }

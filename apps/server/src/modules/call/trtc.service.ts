@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const TLSSigAPIv2 = require("tls-sig-api-v2");
@@ -25,7 +27,7 @@ export class TrtcService {
   /** 为用户生成进入指定房间的 PrivateMapKey */
   genRoomToken(userId: string, roomId: string, expireSeconds = 3600): string {
     if (!this.sdkAppId || !this.key) {
-      throw new Error("IM 未配置，无法生成TRTC房间Token");
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "IM 未配置，无法生成TRTC房间Token");
     }
     const api = new TLSSigAPIv2.Api(this.sdkAppId, this.key);
     // 为TRTC房间生成权限签名

@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from "@nes
 import { PrismaService } from "../../prisma/prisma.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { MemoryCache } from "../../common/cache.util";
+import { encrypt, decrypt } from "../../common/crypto.util";
 
 @Injectable()
 export class CommissionService {
@@ -191,9 +192,9 @@ export class CommissionService {
         stationId,
         amount: dto.amount,
         bankName: dto.bankName,
-        bankAccount: dto.bankAccount,
-        bankHolder: dto.bankHolder,
-        alipayAccount: dto.alipayAccount,
+        bankAccount: dto.bankAccount ? encrypt(dto.bankAccount) : null,
+        bankHolder: dto.bankHolder ? encrypt(dto.bankHolder) : null,
+        alipayAccount: dto.alipayAccount ? encrypt(dto.alipayAccount) : null,
         status: "PENDING",
       },
     });
@@ -223,7 +224,14 @@ export class CommissionService {
       }),
       this.prisma.withdrawal.count({ where }),
     ]);
-    return { withdrawals, total, page, pageSize };
+    // 解密敏感金融字段
+    const decoded = withdrawals.map(w => ({
+      ...w,
+      bankAccount: w.bankAccount ? decrypt(w.bankAccount) : null,
+      bankHolder: w.bankHolder ? decrypt(w.bankHolder) : null,
+      alipayAccount: w.alipayAccount ? decrypt(w.alipayAccount) : null,
+    }));
+    return { withdrawals: decoded, total, page, pageSize };
   }
 
   async auditWithdrawal(id: string, dto: { status: string; remark?: string }) {
@@ -252,7 +260,14 @@ export class CommissionService {
       }),
       this.prisma.withdrawal.count({ where }),
     ]);
-    return { withdrawals, total, page, pageSize };
+    // 解密敏感金融字段
+    const decoded = withdrawals.map(w => ({
+      ...w,
+      bankAccount: w.bankAccount ? decrypt(w.bankAccount) : null,
+      bankHolder: w.bankHolder ? decrypt(w.bankHolder) : null,
+      alipayAccount: w.alipayAccount ? decrypt(w.alipayAccount) : null,
+    }));
+    return { withdrawals: decoded, total, page, pageSize };
   }
 
   // ───────── 推荐链接 ─────────
@@ -304,6 +319,7 @@ export class CommissionService {
       MEMBER: "station_member",
       CIRCLE_JOIN: "circle_join",
       BOT: "bot_call",
+      MERCHANT_PRODUCT: "merchant_product",
     };
     return map[type] || "product_platform";
   }

@@ -1,6 +1,9 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, Inject, Optional } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { BaziResult } from "@guoxue/bazi-engine";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { MetricsService } from "../../common/metrics.service";
 
 /**
  * AI 排盘解析服务
@@ -12,7 +15,10 @@ import type { BaziResult } from "@guoxue/bazi-engine";
 export class PaipanAiService {
   private apiKey: string;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    @Optional() @Inject(MetricsService) private metrics?: MetricsService,
+  ) {
     this.apiKey = process.env.DEEPSEEK_API_KEY || "";
   }
 
@@ -257,43 +263,57 @@ ${fenXiLines.join("\n") || "无显著合冲刑害关系"}
 
   /** 调用 DeepSeek API */
   private async callDeepSeek(prompt: string): Promise<{ content: string; tokenUsage: { promptTokens: number; completionTokens: number } }> {
-    const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          {
-            role: "system",
-            content:
-              "你是一位精通中国传统八字命理学的资深专家，擅长根据八字排盘结果进行详细专业的命理分析。请用简体中文回答，语言专业但通俗易懂，多举实例，给出实用的人生建议。",
-          },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: 4096,
-        temperature: 0.7,
-      }),
-    });
+    const start = Date.now();
+    try {
+      const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content:
+                "你是一位精通中国传统八字命理学的资深专家，擅长根据八字排盘结果进行详细专业的命理分析。请用简体中文回答，语言专业但通俗易懂，多举实例，给出实用的人生建议。",
+            },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: 4096,
+          temperature: 0.7,
+        }),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`DeepSeek API 调用失败 (${response.status}): ${errorText}`);
+      const duration = Date.now() - start;
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const reason = `HTTP_${response.status}`;
+        this.metrics?.recordExternalApi("deepseek", "chat/completions", false, duration, reason);
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `DeepSeek API 调用失败 (${response.status}): ${errorText}`);
+      }
+
+      const data = (await response.json()) as {
+        choices: { message: { content: string } }[];
+        usage: { prompt_tokens: number; completion_tokens: number };
+      };
+
+      this.metrics?.recordExternalApi("deepseek", "chat/completions", true, duration);
+      return {
+        content: data.choices[0].message.content,
+        tokenUsage: {
+          promptTokens: data.usage?.prompt_tokens || 0,
+          completionTokens: data.usage?.completion_tokens || 0,
+        },
+      };
+    } catch (err) {
+      const duration = Date.now() - start;
+      if (err instanceof BusinessException) throw err;
+      const reason = (err as Error).message?.substring(0, 50) ?? "network_error";
+      this.metrics?.recordExternalApi("deepseek", "chat/completions", false, duration, reason);
+      throw err;
     }
-
-    const data = (await response.json()) as {
-      choices: { message: { content: string } }[];
-      usage: { prompt_tokens: number; completion_tokens: number };
-    };
-
-    return {
-      content: data.choices[0].message.content,
-      tokenUsage: {
-        promptTokens: data.usage?.prompt_tokens || 0,
-        completionTokens: data.usage?.completion_tokens || 0,
-      },
-    };
   }
 }

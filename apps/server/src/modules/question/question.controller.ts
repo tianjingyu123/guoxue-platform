@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Body, Param, Query, Req, UseGuards, UsePipes } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request } from "express";
 import { QuestionService } from "./question.service";
@@ -6,6 +6,7 @@ import { AskQuestionDto, AnswerQuestionDto, QuestionQueryDto, RejectQuestionDto 
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { SanitizePipe } from "../../common/sanitize.pipe";
 
 @ApiTags("付费问答")
 @ApiBearerAuth()
@@ -15,6 +16,7 @@ export class QuestionController {
 
   @Post("ask")
   @UseGuards(JwtAuthGuard)
+  @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "发起付费提问", description: "消耗虚拟币向指定回答者发起付费提问" })
   ask(@Req() req: Request, @Body() dto: AskQuestionDto) {
     return this.svc.ask(req.user.id, dto);

@@ -1,5 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
 import * as crypto from "crypto";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { MetricsService } from "../../common/metrics.service";
 
 interface WechatBaseResponse {
   errcode?: number;
@@ -77,7 +80,9 @@ export class WechatService {
   private miniAccessToken: string = "";
   private miniAccessTokenExpireAt: number = 0;
 
-  constructor() {
+  constructor(
+    @Optional() @Inject(MetricsService) private metrics?: MetricsService,
+  ) {
     this.appId = process.env.WECHAT_APP_ID || "";
     this.appSecret = process.env.WECHAT_APP_SECRET || "";
     // 小程序独立凭证，未配置时回退到公众号凭证
@@ -112,15 +117,41 @@ export class WechatService {
     return this.miniAccessToken;
   }
 
+  /** 通用微信 API 调用（含指标上报） */
+  private async callWechatApi<T extends WechatBaseResponse>(
+    path: string,
+    url: string,
+    options?: RequestInit,
+  ): Promise<T> {
+    const start = Date.now();
+    try {
+      const resp = await fetch(url, options);
+      const duration = Date.now() - start;
+      const data = await resp.json() as T;
+
+      if (data.errcode && data.errcode !== 0) {
+        this.metrics?.recordExternalApi("wechat", path, false, duration, String(data.errcode));
+      } else {
+        this.metrics?.recordExternalApi("wechat", path, true, duration);
+      }
+      return data;
+    } catch (err) {
+      const duration = Date.now() - start;
+      if (err instanceof BusinessException) throw err;
+      const reason = (err as Error).message?.substring(0, 50) ?? "network_error";
+      this.metrics?.recordExternalApi("wechat", path, false, duration, reason);
+      throw err;
+    }
+  }
+
   /** 通用获取 Access Token */
   private async fetchAccessToken(appId: string, appSecret: string): Promise<string> {
     const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appId}&secret=${appSecret}`;
-    const resp = await fetch(url);
-    const data = (await resp.json()) as WechatTokenResponse;
+    const data = await this.callWechatApi<WechatTokenResponse>("cgi-bin/token", url);
 
     if (data.errcode || !data.access_token) {
-      this.logger.error("获取微信 Access Token 失败", data);
-      throw new Error(`获取 Access Token 失败: ${data.errmsg}`);
+      this.logger.error(`获取微信 Access Token 失败: ${data.errcode} ${data.errmsg}`);
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `获取 Access Token 失败: ${data.errmsg}`);
     }
     return data.access_token;
   }
@@ -134,13 +165,11 @@ export class WechatService {
   /** H5 OAuth: 用 code 换取 access_token 和 openId */
   async exchangeOAuthCode(code: string): Promise<{ openId: string; unionId?: string }> {
     const url = `https://api.weixin.qq.com/sns/oauth2/access_token?appid=${this.appId}&secret=${this.appSecret}&code=${code}&grant_type=authorization_code`;
-
-    const resp = await fetch(url);
-    const data = (await resp.json()) as WechatTokenResponse;
+    const data = await this.callWechatApi<WechatTokenResponse>("sns/oauth2/access_token", url);
 
     if (data.errcode || !data.openid) {
-      this.logger.error("微信 OAuth code 换取失败", data);
-      throw new Error(`微信授权失败: ${data.errmsg || "未知错误"}`);
+      this.logger.error(`微信 OAuth code 换取失败: ${data.errcode} ${data.errmsg}`);
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `微信授权失败: ${data.errmsg || "未知错误"}`);
     }
 
     return { openId: data.openid!, unionId: data.unionid };
@@ -149,13 +178,11 @@ export class WechatService {
   /** 小程序登录: 用 code 换取 session_key 和 openId（使用小程序独立AppId） */
   async exchangeMiniCode(code: string): Promise<{ openId: string; sessionKey: string; unionId?: string }> {
     const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${this.miniAppId}&secret=${this.miniAppSecret}&js_code=${code}&grant_type=authorization_code`;
-
-    const resp = await fetch(url);
-    const data = (await resp.json()) as WechatSessionResponse;
+    const data = await this.callWechatApi<WechatSessionResponse>("sns/jscode2session", url);
 
     if (data.errcode || !data.openid) {
-      this.logger.error("小程序 code2session 失败", data);
-      throw new Error(`微信小程序登录失败: ${data.errmsg || "未知错误"}`);
+      this.logger.error(`小程序 code2session 失败: ${data.errcode} ${data.errmsg}`);
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `微信小程序登录失败: ${data.errmsg || "未知错误"}`);
     }
 
     return { openId: data.openid!, sessionKey: data.session_key!, unionId: data.unionid };
@@ -168,19 +195,16 @@ export class WechatService {
     purePhoneNumber: string;
   }> {
     const token = await this.getMiniAccessToken();
-    const resp = await fetch(
-      `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${token}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      },
-    );
-    const data = await resp.json() as WechatPhoneResponse;
+    const url = `https://api.weixin.qq.com/wxa/business/getuserphonenumber?access_token=${token}`;
+    const data = await this.callWechatApi<WechatPhoneResponse>("wxa/business/getuserphonenumber", url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
 
     if (data.errcode !== 0) {
       this.logger.error("获取手机号失败", data);
-      throw new Error(`获取手机号失败: ${data.errmsg || "未知错误"}`);
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `获取手机号失败: ${data.errmsg || "未知错误"}`);
     }
 
     const phoneInfo = data.phone_info;
@@ -205,7 +229,7 @@ export class WechatService {
       return data.purePhoneNumber || data.phoneNumber;
     } catch (err: unknown) {
       this.logger.error("解密手机号失败", err instanceof Error ? err.message : String(err));
-      throw new Error("解密手机号失败");
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, "解密手机号失败");
     }
   }
 
@@ -218,7 +242,7 @@ export class WechatService {
 
     if (data.errcode) {
       this.logger.error("获取微信用户信息失败", data);
-      throw new Error(`获取微信用户信息失败: ${data.errmsg}`);
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `获取微信用户信息失败: ${data.errmsg}`);
     }
 
     return {
@@ -275,7 +299,7 @@ export class WechatService {
 
     if (result.errcode !== 0) {
       this.logger.error("图片异步检测提交失败", result);
-      throw new Error(`图片检测提交失败: ${result.errmsg}`);
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `图片检测提交失败: ${result.errmsg}`);
     }
     return { traceId: result.trace_id };
   }
@@ -315,7 +339,7 @@ export class WechatService {
     if (contentType.includes("application/json")) {
       const err = await resp.json() as WechatBaseResponse;
       this.logger.error("小程序码生成失败", err);
-      throw new Error(`小程序码生成失败: ${err.errmsg || "未知错误"}`);
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `小程序码生成失败: ${err.errmsg || "未知错误"}`);
     }
 
     const arrayBuffer = await resp.arrayBuffer();
@@ -343,7 +367,7 @@ export class WechatService {
     const contentType = resp.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {
       const err = await resp.json() as WechatBaseResponse;
-      throw new Error(`小程序码生成失败: ${err.errmsg || "未知错误"}`);
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `小程序码生成失败: ${err.errmsg || "未知错误"}`);
     }
 
     const arrayBuffer = await resp.arrayBuffer();
@@ -374,7 +398,7 @@ export class WechatService {
     const result = await resp.json() as WechatShortLinkResponse;
     if (result.errcode !== 0) {
       this.logger.error("短链接生成失败", result);
-      throw new Error(`短链接生成失败: ${result.errmsg}`);
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `短链接生成失败: ${result.errmsg}`);
     }
     return result.link;
   }

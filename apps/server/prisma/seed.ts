@@ -48,6 +48,65 @@ async function main() {
   });
   console.log("✅ 讲师: " + teacher.nickname + ", " + teacher2.nickname);
 
+  // 2.5 创建新管理角色用户
+  const adminPwd2 = await bcrypt.hash("admin123", 10);
+  const financeAdmin = await prisma.user.upsert({
+    where: { phone: "13800000003" },
+    update: {},
+    create: {
+      phone: "13800000003",
+      nickname: "财务管理员",
+      avatar: "/static/avatars/admin.png",
+      auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
+      roles: { create: { roleType: "FINANCE_ADMIN" } },
+    },
+  });
+  const csAdmin = await prisma.user.upsert({
+    where: { phone: "13800000004" },
+    update: {},
+    create: {
+      phone: "13800000004",
+      nickname: "客服管理员",
+      avatar: "/static/avatars/admin.png",
+      auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
+      roles: { create: { roleType: "CUSTOMER_SERVICE" } },
+    },
+  });
+  const goodsAuditor = await prisma.user.upsert({
+    where: { phone: "13800000005" },
+    update: {},
+    create: {
+      phone: "13800000005",
+      nickname: "商品品控",
+      avatar: "/static/avatars/admin.png",
+      auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
+      roles: { create: { roleType: "GOODS_AUDITOR" } },
+    },
+  });
+  const opsAdmin = await prisma.user.upsert({
+    where: { phone: "13800000001" },
+    update: {},
+    create: {
+      phone: "13800000001",
+      nickname: "运营管理员",
+      avatar: "/static/avatars/admin.png",
+      auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
+      roles: { create: { roleType: "OPERATION_ADMIN" } },
+    },
+  });
+  const contentAuditor = await prisma.user.upsert({
+    where: { phone: "13800000002" },
+    update: {},
+    create: {
+      phone: "13800000002",
+      nickname: "内容审核员",
+      avatar: "/static/avatars/admin.png",
+      auths: { create: { provider: "PASSWORD", credential: adminPwd2 } },
+      roles: { create: { roleType: "CONTENT_AUDITOR" } },
+    },
+  });
+  console.log("✅ 新角色: 运营/内容审核/财务/客服/商品品控 (密码均为 admin123)");
+
   // 3. 创建圈子
   const circlesData = [
     {
@@ -2117,6 +2176,10 @@ async function main() {
     { configKey: "coin_recharge_rate", configValue: "10", description: "虚拟币充值: 1元=10币" },
     { configKey: "ai_daily_free_limit", configValue: "5", description: "每日免费AI分析次数" },
     { configKey: "live_gift_commission", configValue: "0.3", description: "直播打赏平台抽成比例" },
+    { configKey: "merchant_commission_rate", configValue: "0.85", description: "商家默认分佣比例" },
+    { configKey: "merchant_deposit_base", configValue: "1000", description: "保证金基础金额（元）" },
+    { configKey: "merchant_deposit_per_category", configValue: "500", description: "每增加一个经营类目增加的保证金（元）" },
+    { configKey: "merchant_settlement_cycle", configValue: "MONTHLY", description: "结算周期（MONTHLY/WEEKLY/BIWEEKLY）" },
   ];
   for (const cfg of systemConfigs) {
     await (prisma as any).configSystem.upsert({
@@ -2390,6 +2453,10 @@ async function main() {
     { key: "rate_limit_strict", name: "严格限流", description: "启用更严格的API限流策略", enabled: false, percentage: 0 },
     { key: "debug_log", name: "调试日志", description: "输出详细调试日志", enabled: false, percentage: 0 },
     { key: "content_review_ai", name: "AI内容审核", description: "使用AI辅助内容审核", enabled: false, percentage: 0 },
+    { key: "merchant_onboarding", name: "商家入驻", description: "商家入驻申请入口开关", enabled: false, percentage: 0 },
+    { key: "merchant_backend", name: "商家后台", description: "商家后台管理功能开关", enabled: false, percentage: 0 },
+    { key: "merchant_auto_approve", name: "商品上架自动审核", description: "商家商品上架自动审核通过，无需人工审核", enabled: false, percentage: 0 },
+    { key: "merchant_deposit_auto", name: "保证金自动计算", description: "根据经营类目自动计算保证金金额", enabled: true, percentage: 100 },
   ];
 
   for (const ff of featureFlags) {

@@ -153,6 +153,15 @@ export class MarketingController {
     return this.marketing.updateGroupBuy(id, dto);
   }
 
+  @Delete("group-buys/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "删除拼团活动" })
+  @ApiBearerAuth()
+  deleteGroupBuy(@Param("id") id: string) {
+    return this.marketing.deleteGroupBuy(id);
+  }
+
   @Get("group-buys/:id/participants")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -195,6 +204,15 @@ export class MarketingController {
   @ApiBearerAuth()
   updateCouponTemplate(@Param("id") id: string, @Body() dto: UpdateCouponTemplateDto) {
     return this.marketing.updateCouponTemplate(id, dto);
+  }
+
+  @Delete("coupons/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "删除优惠券模板" })
+  @ApiBearerAuth()
+  deleteCouponTemplate(@Param("id") id: string) {
+    return this.marketing.deleteCouponTemplate(id);
   }
 
   @Post("coupons/:id/grant")
@@ -292,6 +310,15 @@ export class MarketingController {
     return this.marketing.listPages();
   }
 
+  @Get("pages/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取微页面详情" })
+  @ApiBearerAuth()
+  getPage(@Param("id") id: string) {
+    return this.marketing.getPage(id);
+  }
+
   @Put("pages/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -299,6 +326,15 @@ export class MarketingController {
   @ApiBearerAuth()
   updatePage(@Param("id") id: string, @Body() dto: UpdateMarketingPageDto) {
     return this.marketing.updatePage(id, dto);
+  }
+
+  @Delete("pages/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "删除微页面" })
+  @ApiBearerAuth()
+  deletePage(@Param("id") id: string) {
+    return this.marketing.deletePage(id);
   }
 
   @Post("pages/:id/components")
@@ -391,6 +427,15 @@ export class MarketingController {
   @ApiBearerAuth()
   updateActivity(@Param("id") id: string, @Body() dto: UpdateActivityDto) {
     return this.marketing.updateActivity(id, dto);
+  }
+
+  @Delete("activities/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "删除活动" })
+  @ApiBearerAuth()
+  deleteActivity(@Param("id") id: string) {
+    return this.marketing.deleteActivity(id);
   }
 
   @Get("activities/:id/metrics")

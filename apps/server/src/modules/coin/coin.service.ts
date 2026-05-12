@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { WechatPayService } from "../shop/wechat-pay.service";
+import { COIN_TO_RMB } from "../../common/constants";
 
 @Injectable()
 export class CoinService {
@@ -11,7 +11,6 @@ export class CoinService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
-    @Inject(forwardRef(() => WechatPayService)) private wechatPay?: WechatPayService,
   ) {}
 
   /** 获取或创建虚拟币账户 */
@@ -47,7 +46,7 @@ export class CoinService {
       const rec = await tx.virtualCoinRecharge.create({
         data: {
           userId,
-          amountRmb: dto.amountCoin / 10, // 10币=1元
+          amountRmb: dto.amountCoin / COIN_TO_RMB,
           amountCoin: dto.amountCoin,
           payMethod: dto.payMethod || "ADMIN",
           orderNo: dto.orderNo || `ADMIN_${Date.now()}`,
@@ -184,8 +183,29 @@ export class CoinService {
   }
 
   /** 创建礼物（管理员） */
-  async createGift(dto: { name: string; icon?: string; priceCoin: number; level?: string; effectUrl?: string; sortOrder?: number }) {
-    return this.prisma.gift.create({ data: dto as Prisma.GiftCreateInput });
+  async createGift(dto: { name: string; icon?: string; iconUrl?: string; price?: number; priceCoin?: number; level?: string; animationType?: string; effectUrl?: string; sortOrder?: number }) {
+    const data: Prisma.GiftCreateInput = {
+      name: dto.name,
+      icon: dto.icon || dto.iconUrl || "",
+      priceCoin: dto.priceCoin ?? dto.price ?? 0,
+      level: dto.level || dto.animationType || dto.effectUrl || "",
+      sortOrder: dto.sortOrder ?? 0,
+    };
+    return this.prisma.gift.create({ data });
+  }
+
+  /** 更新礼物（管理员） */
+  async updateGift(giftId: string, dto: { name?: string; icon?: string; iconUrl?: string; price?: number; priceCoin?: number; level?: string; animationType?: string; effectUrl?: string; sortOrder?: number }) {
+    const existing = await this.prisma.gift.findUnique({ where: { id: giftId } });
+    if (!existing) throw new NotFoundException("礼物不存在");
+    const data: Prisma.GiftUpdateInput = {};
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.icon !== undefined || dto.iconUrl !== undefined) data.icon = (dto.icon || dto.iconUrl)!;
+    if (dto.priceCoin !== undefined || dto.price !== undefined) data.priceCoin = (dto.priceCoin ?? dto.price)!;
+    const animOrLevel = dto.level || dto.animationType || dto.effectUrl;
+    if (animOrLevel !== undefined) data.level = animOrLevel;
+    if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
+    return this.prisma.gift.update({ where: { id: giftId }, data });
   }
 
   /** 删除礼物（管理员） */
@@ -229,32 +249,8 @@ export class CoinService {
   }
 
   // ───────── 微信支付充值 ─────────
-
-  /** 创建微信支付JSAPI充值订单 */
-  async createRechargePayment(
-    userId: string,
-    openid: string,
-    amountCoin: number,
-    notifyUrl?: string,
-  ) {
-    if (!this.wechatPay) throw new BadRequestException("支付服务未配置");
-
-    const tier = this.getRechargeTiers().find(t => t.amountCoin === amountCoin);
-    const amountRmb = tier ? tier.amountRmb : amountCoin / 10;
-    const totalFen = Math.round(amountRmb * 100);
-
-    const orderNo = `RC${Date.now()}${userId.slice(0, 6)}`;
-    const result = await this.wechatPay.createJsapiOrder({
-      outTradeNo: orderNo,
-      description: `${amountCoin}国学币充值`,
-      amount: { total: totalFen },
-      payer: { openid },
-      attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin }),
-      notifyUrl,
-    });
-
-    return result.paySign;
-  }
+  // 注意: createRechargePayment 已迁至 ShopService
+  // 充值支付由商城模块统一处理，支付回调通过 ShopService.handlePaymentNotify → CoinService.handleRechargeCallback
 
   /** 处理充值支付回调（由支付通知中心调用） */
   async handleRechargeCallback(body: Record<string, unknown>) {
@@ -292,7 +288,7 @@ export class CoinService {
       });
       if (existing?.status === "PAID") return;
 
-      const amountRmb = amountCoin / 10;
+      const amountRmb = amountCoin / COIN_TO_RMB;
 
       await this.recharge(userId, {
         amountCoin,

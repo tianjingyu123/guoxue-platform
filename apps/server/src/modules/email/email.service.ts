@@ -123,7 +123,7 @@ export class EmailService {
     return new Promise((resolve, reject) => {
       const smtp = this.config.smtp!;
       const socket = tlsConnect(smtp.port, smtp.host, {
-        rejectUnauthorized: false,
+        rejectUnauthorized: process.env.SMTP_TLS_REJECT_UNAUTHORIZED !== "false",
       });
 
       let buffer = "";

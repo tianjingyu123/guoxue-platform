@@ -4,7 +4,13 @@ import { PrismaService } from "../../../prisma/prisma.service";
 import { RedisService } from "../../../redis/redis.service";
 
 const mockPrisma = {
-  recommendRule: { findMany: jest.fn() },
+  recommendRule: {
+    findMany: jest.fn(),
+    findUniqueOrThrow: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+  },
 };
 const mockRedis = { getJson: jest.fn(), setJson: jest.fn(), del: jest.fn() };
 
@@ -112,6 +118,50 @@ describe("RuleService", () => {
   describe("clearCache", () => {
     it("删除运营规则缓存", async () => {
       await svc.clearCache();
+      expect(mockRedis.del).toHaveBeenCalledWith("recommend:rules:active");
+    });
+  });
+
+  describe("CRUD", () => {
+    it("listRules — 返回所有规则按创建时间降序", async () => {
+      const mockRules = [{ id: "r1", scene: "ALL", ruleType: "BOOST", priority: 10 }];
+      mockPrisma.recommendRule.findMany.mockResolvedValue(mockRules);
+      const result = await svc.listRules();
+      expect(result).toEqual(mockRules);
+      expect(mockPrisma.recommendRule.findMany).toHaveBeenCalledWith({ orderBy: { createdAt: "desc" } });
+    });
+
+    it("getRule — 根据ID查找规则", async () => {
+      const mockRule = { id: "r1", scene: "ALL", ruleType: "BOOST" };
+      mockPrisma.recommendRule.findUniqueOrThrow.mockResolvedValue(mockRule);
+      const result = await svc.getRule("r1");
+      expect(result).toEqual(mockRule);
+    });
+
+    it("createRule — 创建规则并清除缓存", async () => {
+      const mockRule = { id: "r1", scene: "ALL", ruleType: "BOOST" };
+      mockPrisma.recommendRule.create.mockResolvedValue(mockRule);
+      const result = await svc.createRule({
+        targetType: "COURSE", targetId: "c1", ruleType: "BOOST", ruleValue: 2,
+      } as any);
+      expect(result).toEqual(mockRule);
+      expect(mockPrisma.recommendRule.create).toHaveBeenCalled();
+      expect(mockRedis.del).toHaveBeenCalledWith("recommend:rules:active");
+    });
+
+    it("updateRule — 更新规则并清除缓存", async () => {
+      const mockRule = { id: "r1", scene: "GUESS_LIKE", ruleType: "BOOST", priority: 5 };
+      mockPrisma.recommendRule.update.mockResolvedValue(mockRule);
+      const result = await svc.updateRule("r1", { scene: "GUESS_LIKE" } as any);
+      expect(result).toEqual(mockRule);
+      expect(mockPrisma.recommendRule.update).toHaveBeenCalled();
+      expect(mockRedis.del).toHaveBeenCalledWith("recommend:rules:active");
+    });
+
+    it("deleteRule — 删除规则并清除缓存", async () => {
+      mockPrisma.recommendRule.delete.mockResolvedValue(undefined);
+      await svc.deleteRule("r1");
+      expect(mockPrisma.recommendRule.delete).toHaveBeenCalledWith({ where: { id: "r1" } });
       expect(mockRedis.del).toHaveBeenCalledWith("recommend:rules:active");
     });
   });

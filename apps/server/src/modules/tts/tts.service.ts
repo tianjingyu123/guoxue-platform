@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common"
 import { RedisService } from "../../redis/redis.service"
 import { createHash } from "node:crypto"
+import { BusinessException } from "../../common/business.exception"
+import { ErrorCode } from "../../common/error-codes"
 
 /** 可选的中文语音 */
 const VOICES: Record<string, string> = {
@@ -53,7 +55,7 @@ export class TtsService {
     })
 
     if (!res.ok) {
-      throw new Error(`TTS API 请求失败: ${res.status}`)
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `TTS API 请求失败: ${res.status}`)
     }
 
     const audio = Buffer.from(await res.arrayBuffer())

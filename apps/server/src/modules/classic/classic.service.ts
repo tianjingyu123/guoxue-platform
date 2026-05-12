@@ -61,6 +61,13 @@ export class ClassicService {
     });
   }
 
+  async listChaptersByBook(bookId: string) {
+    return this.prisma.classicChapter.findMany({
+      where: { bookId },
+      orderBy: { sortOrder: "asc" },
+    });
+  }
+
   async createChapter(bookId: string, dto: Omit<Prisma.ClassicChapterCreateInput, "book">) {
     const ch = await this.prisma.classicChapter.create({
       data: { ...dto, bookId } as unknown as Prisma.ClassicChapterCreateInput,

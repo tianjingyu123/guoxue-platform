@@ -13,7 +13,10 @@ export class WsAuthService {
   private readonly jwtSecret: string;
 
   constructor() {
-    this.jwtSecret = process.env.JWT_SECRET || "guoxue-dev-secret";
+    this.jwtSecret = process.env.JWT_SECRET || "";
+    if (!this.jwtSecret) {
+      throw new Error("JWT_SECRET 环境变量未设置，WebSocket 认证服务无法启动");
+    }
   }
 
   /** 使用原生 crypto 验证 JWT HS256 签名并解析 payload */

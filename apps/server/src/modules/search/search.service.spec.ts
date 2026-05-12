@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 
 const mockPrisma = {
   $queryRaw: jest.fn().mockResolvedValue([]),
+  $queryRawUnsafe: jest.fn().mockResolvedValue([]),
   searchHistory: {
     groupBy: jest.fn(),
     create: jest.fn(),
@@ -24,7 +25,7 @@ describe("SearchService", () => {
     svc = mod.get(SearchService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); mockPrisma.$queryRaw.mockResolvedValue([]); });
+  beforeEach(() => { jest.clearAllMocks(); mockPrisma.$queryRaw.mockResolvedValue([]); mockPrisma.$queryRawUnsafe.mockResolvedValue([]); });
 
   describe("search", () => {
     it("无 type 时搜索所有类型", async () => {
@@ -40,7 +41,7 @@ describe("SearchService", () => {
     });
 
     it("指定 type 只搜索对应类型（全文搜索排名）", async () => {
-      mockPrisma.$queryRaw.mockResolvedValue([{ id: "a1", title: "论语", rank: 0.8 }]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([{ id: "a1", title: "论语", rank: 0.8 }]);
       const result = await svc.search({ q: "论语", type: "article" });
       expect(result.articles).toHaveLength(1);
       expect(result.courses).toBeUndefined();
@@ -52,10 +53,9 @@ describe("SearchService", () => {
     });
 
     it("支持分页参数", async () => {
-      mockPrisma.$queryRaw.mockResolvedValue([]);
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([]);
       await svc.search({ q: "国学", type: "article", page: 2, pageSize: 10 });
-      // $queryRaw 至少被调用一次（article 类型）
-      expect(mockPrisma.$queryRaw).toHaveBeenCalled();
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalled();
     });
   });
 

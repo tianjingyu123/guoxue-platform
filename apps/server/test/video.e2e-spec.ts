@@ -111,8 +111,11 @@ describe("Video E2E", () => {
 
   describe("GET /api/v1/videos/vod/play-signature/:fileId", () => {
     it("获取播放签名成功", async () => {
+      const token = jwt.sign({ sub: "u1" })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
       const res = await request(app.getHttpServer())
         .get("/api/v1/videos/vod/play-signature/file123?expire=7200")
+        .set("Authorization", `Bearer ${token}`)
         .expect(200)
 
       expect(res.body).toHaveProperty("psign")

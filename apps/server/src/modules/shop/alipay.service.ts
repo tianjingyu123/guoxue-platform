@@ -1,7 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
 import { createSign, createVerify, randomUUID } from "crypto";
 import { readFileSync } from "fs";
 import { MemoryCache } from "../../common/cache.util";
+import { MetricsService } from "../../common/metrics.service";
 
 /**
  * 支付宝支付 API 服务（RSA2+SHA256签名，无SDK）
@@ -17,7 +18,9 @@ export class AlipayService {
   private readonly notifyUrl: string;
   private readonly notifyDedup = new MemoryCache<boolean>(10000); // 通知去重，1h TTL
 
-  constructor() {
+  constructor(
+    @Optional() @Inject(MetricsService) private metrics?: MetricsService,
+  ) {
     this.appId = process.env.ALIPAY_APP_ID || "";
     this.notifyUrl = process.env.ALIPAY_NOTIFY_URL || "";
     const sandbox = process.env.ALIPAY_SANDBOX === "true";
@@ -172,12 +175,30 @@ export class AlipayService {
     const signContent = this.buildParamStr(params);
     params.sign = this.sign(signContent);
 
-    const resp = await fetch(this.gateway, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: this.buildParamStr(params) + `&sign=${encodeURIComponent(params.sign)}`,
-    });
-    return resp.json() as Promise<Record<string, unknown>>;
+    const start = Date.now();
+    try {
+      const resp = await fetch(this.gateway, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: this.buildParamStr(params) + `&sign=${encodeURIComponent(params.sign)}`,
+      });
+      const duration = Date.now() - start;
+      const result = await resp.json() as Record<string, unknown>;
+
+      const ok = (result.alipay_trade_query_response as any)?.code === "10000";
+      if (!ok) {
+        const reason = ((result.alipay_trade_query_response as any)?.sub_code ?? "unknown") as string;
+        this.metrics?.recordExternalApi("alipay", "alipay.trade.query", false, duration, reason);
+      } else {
+        this.metrics?.recordExternalApi("alipay", "alipay.trade.query", true, duration);
+      }
+      return result;
+    } catch (err) {
+      const duration = Date.now() - start;
+      const reason = (err as Error).message?.substring(0, 50) ?? "network_error";
+      this.metrics?.recordExternalApi("alipay", "alipay.trade.query", false, duration, reason);
+      throw err;
+    }
   }
 
   /** 退款 */
@@ -210,12 +231,18 @@ export class AlipayService {
   /** 验签回调（含重放攻击防护：验签 + 5分钟时间窗口 + notify_id 去重） */
   async verifyNotify(params: Record<string, any>): Promise<{ valid: boolean; data?: Record<string, unknown>; error?: string }> {
     const sign = params.sign;
-    if (!sign) return { valid: false, error: "缺少签名字段" };
+    if (!sign) {
+      this.metrics?.recordPaymentCallback("alipay", false, "missing_sign");
+      return { valid: false, error: "缺少签名字段" };
+    }
 
     // 1. RSA2 验签
     const { sign: _, sign_type, ...rest } = params;
     const valid = this.verifySign(rest, sign);
-    if (!valid) return { valid: false, error: "RSA2验签失败" };
+    if (!valid) {
+      this.metrics?.recordPaymentCallback("alipay", false, "verify_failed");
+      return { valid: false, error: "RSA2验签失败" };
+    }
 
     // 2. 重放攻击防护：检查通知时间（5分钟窗口）
     const notifyTime = params.notify_time;
@@ -223,6 +250,7 @@ export class AlipayService {
       const nt = new Date(notifyTime).getTime();
       const diff = Math.abs(Date.now() - nt);
       if (diff > 5 * 60 * 1000) {
+        this.metrics?.recordPaymentCallback("alipay", false, "timeout");
         this.logger.warn(`支付宝通知超时，时间差${Math.round(diff / 1000)}秒`);
         return { valid: false, error: "通知时间窗口超时（5分钟）" };
       }
@@ -241,6 +269,7 @@ export class AlipayService {
     // 4. 检查交易状态
     const tradeStatus = params.trade_status;
     if (tradeStatus === "TRADE_SUCCESS" || tradeStatus === "TRADE_FINISHED") {
+      this.metrics?.recordPaymentCallback("alipay", true);
       return {
         valid: true,
         data: {
@@ -254,6 +283,7 @@ export class AlipayService {
         },
       };
     }
+    this.metrics?.recordPaymentCallback("alipay", true);
     return { valid: true, data: { tradeStatus } };
   }
 }

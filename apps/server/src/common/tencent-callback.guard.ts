@@ -18,6 +18,10 @@ export class TencentCallbackGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     if (!this.callbackKey) {
+      if (process.env.NODE_ENV === "production") {
+        this.logger.error("生产环境 TENCENT_CALLBACK_KEY 未配置，回调签名验证无法执行");
+        throw new UnauthorizedException("回调签名验证未配置");
+      }
       this.logger.warn("TENCENT_CALLBACK_KEY 未配置，回调签名验证已跳过");
       return true;
     }

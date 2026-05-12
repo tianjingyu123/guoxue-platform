@@ -1,0 +1,326 @@
+import { Test } from "@nestjs/testing";
+import { FinanceService } from "./finance.service";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NotFoundException, BadRequestException } from "@nestjs/common";
+
+const mockPrisma: any = {
+  order: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    update: jest.fn(),
+    aggregate: jest.fn(),
+    count: jest.fn(),
+  },
+  reconciliationRecord: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    count: jest.fn(),
+  },
+  invoice: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+    count: jest.fn(),
+  },
+  settlementOrder: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    count: jest.fn(),
+  },
+  withdrawalApplication: {
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+    count: jest.fn(),
+  },
+  financialReport: {
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+  },
+  userEarning: {
+    findMany: jest.fn(),
+    aggregate: jest.fn(),
+  },
+  stationEarning: {
+    findMany: jest.fn(),
+    aggregate: jest.fn(),
+  },
+  auditLog: {
+    create: jest.fn().mockResolvedValue({}),
+  },
+};
+
+describe("FinanceService", () => {
+  let svc: FinanceService;
+
+  beforeAll(async () => {
+    const mod = await Test.createTestingModule({
+      providers: [
+        FinanceService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
+    }).compile();
+    svc = mod.get(FinanceService);
+  });
+
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  // ─── 1. 对账中心 ───
+
+  describe("triggerReconciliation", () => {
+    it("触发对账并生成对账记录", async () => {
+      mockPrisma.order.findMany.mockResolvedValue([
+        { id: "o1", payAmount: 99, payMethod: "WECHAT", payTransactionId: "tx1" },
+        { id: "o2", payAmount: 49, payMethod: "WECHAT", payTransactionId: "tx2" },
+      ]);
+      mockPrisma.reconciliationRecord.create.mockResolvedValue({
+        id: "r1", source: "WECHAT", status: "MATCHED", totalAmount: 148,
+      });
+      const result = await svc.triggerReconciliation({ source: "WECHAT", billDate: "2026-05-10" });
+      expect(result.status).toBe("MATCHED");
+    });
+  });
+
+  describe("getReconciliationList", () => {
+    it("分页查询对账记录", async () => {
+      mockPrisma.reconciliationRecord.findMany.mockResolvedValue([{ id: "r1", source: "WECHAT" }]);
+      mockPrisma.reconciliationRecord.count.mockResolvedValue(1);
+      const result = await svc.getReconciliationList({ page: 1, pageSize: 20 });
+      expect(result.records).toHaveLength(1);
+    });
+
+    it("按渠道和状态筛选", async () => {
+      mockPrisma.reconciliationRecord.findMany.mockResolvedValue([]);
+      mockPrisma.reconciliationRecord.count.mockResolvedValue(0);
+      const result = await svc.getReconciliationList({ source: "WECHAT", status: "MATCHED", page: 1, pageSize: 20 });
+      expect(result.total).toBe(0);
+    });
+  });
+
+  describe("getReconciliationDetail", () => {
+    it("返回对账详情", async () => {
+      mockPrisma.reconciliationRecord.findUnique.mockResolvedValue({ id: "r1", source: "WECHAT", detail: {} });
+      const result = await svc.getReconciliationDetail("r1");
+      expect(result.id).toBe("r1");
+    });
+
+    it("对账记录不存在抛出异常", async () => {
+      mockPrisma.reconciliationRecord.findUnique.mockResolvedValue(null);
+      await expect(svc.getReconciliationDetail("invalid")).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ─── 2. 发票管理 ───
+
+  describe("createInvoice", () => {
+    it("创建发票申请成功", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", userId: "u1" });
+      mockPrisma.invoice.create.mockResolvedValue({ id: "inv1", orderId: "o1", type: "PERSONAL" });
+      const result = await svc.createInvoice({ orderId: "o1", type: "PERSONAL", title: "张三", amount: 99 });
+      expect(result.type).toBe("PERSONAL");
+    });
+
+    it("订单不存在抛出异常", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(null);
+      await expect(svc.createInvoice({ orderId: "invalid", type: "PERSONAL", title: "x", amount: 99 })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("issueInvoice", () => {
+    it("开具发票成功", async () => {
+      mockPrisma.invoice.findUnique.mockResolvedValue({ id: "inv1", status: "PENDING" });
+      mockPrisma.invoice.update.mockResolvedValue({ id: "inv1", status: "ISSUED", invoiceUrl: "https://..." });
+      const result = await svc.issueInvoice("inv1", "https://...");
+      expect(result.status).toBe("ISSUED");
+    });
+
+    it("发票不存在抛出异常", async () => {
+      mockPrisma.invoice.findUnique.mockResolvedValue(null);
+      await expect(svc.issueInvoice("invalid", "url")).rejects.toThrow(NotFoundException);
+    });
+
+    it("非PENDING状态无法开具", async () => {
+      mockPrisma.invoice.findUnique.mockResolvedValue({ id: "inv1", status: "ISSUED" });
+      await expect(svc.issueInvoice("inv1", "url")).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe("mailInvoice", () => {
+    it("标记邮寄成功", async () => {
+      mockPrisma.invoice.findUnique.mockResolvedValue({ id: "inv1", status: "ISSUED" });
+      mockPrisma.invoice.update.mockResolvedValue({ id: "inv1", status: "MAILED", expressNo: "SF123" });
+      const result = await svc.mailInvoice("inv1", "SF123");
+      expect(result.status).toBe("MAILED");
+    });
+
+    it("非ISSUED状态无法邮寄", async () => {
+      mockPrisma.invoice.findUnique.mockResolvedValue({ id: "inv1", status: "PENDING" });
+      await expect(svc.mailInvoice("inv1", "SF123")).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── 3. 结算单 ───
+
+  describe("generateSettlement", () => {
+    it("生成结算单成功", async () => {
+      mockPrisma.settlementOrder.findFirst.mockResolvedValue(null);
+      mockPrisma.userEarning.findMany.mockResolvedValue([
+        { id: "e1", scene: "ARTICLE_READ", amountRmb: 100, amountCoin: 0 },
+      ]);
+      mockPrisma.stationEarning.findMany.mockResolvedValue([
+        { id: "se1", type: "STATION_SHARE", earned: 50 },
+      ]);
+      mockPrisma.settlementOrder.create.mockResolvedValue({
+        id: "s1", userId: "u1", period: "2026-05", amount: 150, status: "PENDING",
+      });
+      const result = await svc.generateSettlement({ userId: "u1", period: "2026-05" });
+      expect(result.status).toBe("PENDING");
+    });
+
+    it("结算单已存在抛出异常", async () => {
+      mockPrisma.settlementOrder.findFirst.mockResolvedValue({ id: "s1" });
+      await expect(svc.generateSettlement({ userId: "u1", period: "2026-05" })).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe("approveSettlement", () => {
+    it("审批结算单成功", async () => {
+      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", status: "PENDING" });
+      mockPrisma.settlementOrder.update.mockResolvedValue({ id: "s1", status: "APPROVED" });
+      const result = await svc.approveSettlement("s1", "admin1");
+      expect(result.status).toBe("APPROVED");
+    });
+
+    it("非PENDING状态无法审批", async () => {
+      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", status: "APPROVED" });
+      await expect(svc.approveSettlement("s1", "admin1")).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe("paySettlement", () => {
+    it("打款成功", async () => {
+      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", status: "APPROVED" });
+      mockPrisma.settlementOrder.update.mockResolvedValue({ id: "s1", status: "PAID" });
+      const result = await svc.paySettlement("s1");
+      expect(result.status).toBe("PAID");
+    });
+
+    it("非APPROVED状态无法打款", async () => {
+      mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", status: "PENDING" });
+      await expect(svc.paySettlement("s1")).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  // ─── 4. 提现审批 ───
+
+  describe("approveWithdrawal", () => {
+    it("批准提现成功", async () => {
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "PENDING" });
+      mockPrisma.withdrawalApplication.update.mockResolvedValue({ id: "w1", status: "APPROVED" });
+      const result = await svc.approveWithdrawal("w1", "admin1");
+      expect(result.status).toBe("APPROVED");
+    });
+
+    it("非PENDING状态无法批准", async () => {
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "APPROVED" });
+      await expect(svc.approveWithdrawal("w1", "admin1")).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe("rejectWithdrawal", () => {
+    it("驳回提现成功", async () => {
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "PENDING" });
+      mockPrisma.withdrawalApplication.update.mockResolvedValue({ id: "w1", status: "REJECTED", reviewNote: "资料不全" });
+      const result = await svc.rejectWithdrawal("w1", "admin1", "资料不全");
+      expect(result.status).toBe("REJECTED");
+    });
+  });
+
+  describe("confirmWithdrawalPay", () => {
+    it("确认打款成功", async () => {
+      mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "APPROVED" });
+      mockPrisma.withdrawalApplication.update.mockResolvedValue({ id: "w1", status: "PAID" });
+      const result = await svc.confirmWithdrawalPay("w1");
+      expect(result.status).toBe("PAID");
+    });
+  });
+
+  // ─── 5. 资金冻结/解冻 ───
+
+  describe("freezeAmount", () => {
+    it("冻结订单资金成功", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", frozenAmount: null });
+      mockPrisma.order.update.mockResolvedValue({ id: "o1", frozenAmount: 99 });
+      const result = await svc.freezeAmount({ orderId: "o1", amount: 99, reason: "可疑交易" });
+      expect(result.frozenAmount).toBe(99);
+    });
+
+    it("订单不存在抛出异常", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(null);
+      await expect(svc.freezeAmount({ orderId: "invalid", amount: 99 })).rejects.toThrow(NotFoundException);
+    });
+
+    it("非PAID状态无法冻结", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PENDING", frozenAmount: null });
+      await expect(svc.freezeAmount({ orderId: "o1", amount: 99 })).rejects.toThrow(BadRequestException);
+    });
+
+    it("已有冻结金额无法重复冻结", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", frozenAmount: 50 });
+      await expect(svc.freezeAmount({ orderId: "o1", amount: 99 })).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe("unfreezeAmount", () => {
+    it("解冻订单资金成功", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", frozenAmount: 99 });
+      mockPrisma.order.update.mockResolvedValue({ id: "o1", frozenAmount: null });
+      const result = await svc.unfreezeAmount({ orderId: "o1" });
+      expect(result.frozenAmount).toBeNull();
+    });
+
+    it("无冻结金额无法解冻", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", frozenAmount: null });
+      await expect(svc.unfreezeAmount({ orderId: "o1" })).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe("getFreezeRecords", () => {
+    it("查询冻结记录列表", async () => {
+      mockPrisma.order.findMany.mockResolvedValue([{ id: "o1", frozenAmount: 99 }]);
+      mockPrisma.order.count.mockResolvedValue(1);
+      const result = await svc.getFreezeRecords({ page: 1, pageSize: 20 });
+      expect(result.items).toHaveLength(1);
+    });
+  });
+
+  // ─── 6. 财务报表 ───
+
+  describe("getMonthlyReport", () => {
+    it("返回已有月报", async () => {
+      mockPrisma.financialReport.findUnique.mockResolvedValue({
+        id: "r1", type: "MONTHLY", period: "2026-05", data: { revenue: 10000 },
+      });
+      const result: any = await svc.getMonthlyReport("2026-05");
+      expect(result.data.revenue).toBe(10000);
+    });
+
+    it("无月报时实时生成", async () => {
+      mockPrisma.financialReport.findUnique.mockResolvedValue(null);
+      mockPrisma.order.aggregate
+        .mockResolvedValueOnce({ _sum: { payAmount: 5000 }, _count: 10 })
+        .mockResolvedValueOnce({ _sum: { payAmount: 200 }, _count: 1 });
+      mockPrisma.stationEarning.aggregate.mockResolvedValue({ _sum: { earned: 300 }, _count: 5 });
+      mockPrisma.userEarning.aggregate.mockResolvedValue({ _sum: { amountRmb: 100, amountCoin: 50 }, _count: 3 });
+      const result: any = await svc.getMonthlyReport("2026-05");
+      expect(result.revenue).toBe(5000);
+      expect(result.netProfit).toBe(5000 - 200 - 300 - 100);
+    });
+  });
+});

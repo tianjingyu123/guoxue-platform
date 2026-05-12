@@ -1,0 +1,97 @@
+import { Test } from "@nestjs/testing";
+import { MerchantBackendController } from "./merchant-backend.controller";
+import { MerchantService } from "./merchant.service";
+import { MerchantSettlementService } from "./merchant-settlement.service";
+import { MerchantGuard } from "./merchant.guard";
+
+const mockMerchantSvc = {
+  getDashboard: jest.fn().mockResolvedValue({ todayOrders: 5, totalProducts: 10, pendingReviews: 2, totalSales: 10000 }),
+  getMerchantById: jest.fn().mockResolvedValue({ id: "m1", shopName: "店铺A" }),
+  updateProfile: jest.fn().mockResolvedValue({ id: "m1" }),
+  listProducts: jest.fn().mockResolvedValue({ list: [], total: 0, page: 1, pageSize: 20 }),
+  createProduct: jest.fn().mockResolvedValue({ id: "p1" }),
+  getProduct: jest.fn().mockResolvedValue({ id: "p1", userId: "u1", status: "PENDING" }),
+  updateProduct: jest.fn().mockResolvedValue({ count: 1 }),
+  deleteProduct: jest.fn().mockResolvedValue({ count: 1 }),
+  listProduct: jest.fn().mockResolvedValue({ count: 1 }),
+  unlistProduct: jest.fn().mockResolvedValue({ count: 1 }),
+  listOrders: jest.fn().mockResolvedValue({ list: [], total: 0 }),
+  getOrder: jest.fn().mockResolvedValue({ id: "o1", merchantId: "m1", status: "PAID" }),
+  shipOrder: jest.fn().mockResolvedValue({ success: true }),
+  approveRefund: jest.fn().mockResolvedValue({ count: 1 }),
+  listReviews: jest.fn().mockResolvedValue({ list: [], total: 0 }),
+  replyReview: jest.fn().mockResolvedValue({ id: "r1" }),
+  listViolations: jest.fn().mockResolvedValue({ list: [], total: 0 }),
+  appealViolation: jest.fn().mockResolvedValue({ id: "v1" }),
+};
+
+const mockSettlementSvc = {
+  getRevenueOverview: jest.fn().mockResolvedValue({ totalSales: 5000, merchantShare: 4000 }),
+  listSettlements: jest.fn().mockResolvedValue({ list: [], total: 0 }),
+};
+
+describe("MerchantBackendController", () => {
+  let ctrl: MerchantBackendController;
+
+  beforeAll(async () => {
+    const mod = await Test.createTestingModule({
+      controllers: [MerchantBackendController],
+      providers: [
+        { provide: MerchantService, useValue: mockMerchantSvc },
+        { provide: MerchantSettlementService, useValue: mockSettlementSvc },
+      ],
+    })
+      .overrideGuard(MerchantGuard).useValue({ canActivate: () => true })
+      .compile();
+    ctrl = mod.get(MerchantBackendController);
+  });
+
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  const mockReq = () => {
+    const req: any = { user: { id: "u1" } };
+    req.merchant = { id: "m1", userId: "u1", status: "ACTIVE" };
+    return req;
+  };
+
+  it("GET /merchant-backend/dashboard — 数据概览", async () => {
+    const result = await ctrl.getDashboard(mockReq());
+    expect(result.todayOrders).toBe(5);
+  });
+
+  it("GET /merchant-backend/profile — 获取店铺信息", async () => {
+    const result = await ctrl.getProfile(mockReq());
+    expect(result.shopName).toBe("店铺A");
+  });
+
+  it("PUT /merchant-backend/profile — 更新店铺信息", async () => {
+    const result = await ctrl.updateProfile(mockReq(), { shopName: "新名称" });
+    expect(result.id).toBe("m1");
+    expect(mockMerchantSvc.updateProfile).toHaveBeenCalled();
+  });
+
+  it("GET /merchant-backend/products — 商品列表", async () => {
+    const result = await ctrl.listProducts(mockReq(), {});
+    expect(result.list).toHaveLength(0);
+  });
+
+  it("POST /merchant-backend/products — 发布商品", async () => {
+    const result = await ctrl.createProduct(mockReq(), { title: "测试商品", detail: "<p>详情</p>", price: 99, stock: 10 } as any);
+    expect(result.id).toBe("p1");
+  });
+
+  it("PUT /merchant-backend/orders/:id/ship — 发货", async () => {
+    const result = await ctrl.shipOrder(mockReq(), "o1", { company: "顺丰", trackingNo: "SF123" });
+    expect(result.success).toBe(true);
+  });
+
+  it("GET /merchant-backend/revenue — 收入概览", async () => {
+    const result = await ctrl.getRevenue(mockReq());
+    expect(result.merchantShare).toBe(4000);
+  });
+
+  it("GET /merchant-backend/violations — 违规记录", async () => {
+    const result = await ctrl.listViolations(mockReq(), {});
+    expect(result.list).toHaveLength(0);
+  });
+});

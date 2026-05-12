@@ -89,8 +89,11 @@ export class VideoController {
   // ───────── VOD 播放鉴权 ─────────
 
   @Get("vod/play-signature/:fileId")
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取VOD播放器鉴权签名（psign）" })
+  @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "返回播放签名" })
+  @ApiResponse({ status: 401, description: "未认证" })
   getPlaySignature(
     @Param("fileId") fileId: string,
     @Query("expire") expire?: string,
@@ -202,9 +205,11 @@ export class VideoController {
   // ───────── VOD 回调 ─────────
 
   @Post("vod/callback")
+  @UseGuards(TencentCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "VOD事件回调（转码/截图/上传完成通知）" })
   @ApiResponse({ status: 200, description: "回调处理成功" })
+  @ApiResponse({ status: 401, description: "签名验证失败" })
   vodCallback(@Body() body: Record<string, unknown>) {
     this.svc.handleVodCallback(body);
     return { code: 0 };

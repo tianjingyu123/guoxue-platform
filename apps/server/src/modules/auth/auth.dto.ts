@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MinLength, MaxLength, IsPhoneNumber } from "class-validator";
+import { IsString, IsOptional, IsInt, MinLength, MaxLength, IsPhoneNumber } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PhoneRegisterDto {
@@ -108,7 +108,7 @@ export class UpdateProfileDto {
   @IsOptional()
   avatar?: string;
 
-  @IsOptional()
+  @IsOptional() @IsInt()
   gender?: number;
 
   @IsString()

@@ -229,23 +229,19 @@ export class RiskControlService {
       });
     }
 
-    // 将结果写入 FraudDetection 表
-    let created = 0;
-    for (const r of results) {
-      await this.prisma.fraudDetection.create({
-        data: {
-          type: r.type,
-          userId: r.userId,
-          confidence: r.confidence,
-          evidence: r.evidence,
-          status: "PENDING",
-        },
-      });
-      created++;
-    }
+    // 将结果批量写入 FraudDetection 表
+    await this.prisma.fraudDetection.createMany({
+      data: results.map((r) => ({
+        type: r.type,
+        userId: r.userId,
+        confidence: r.confidence,
+        evidence: r.evidence,
+        status: "PENDING",
+      })),
+    });
 
-    this.logger.log(`刷单扫描完成，发现 ${created} 条可疑记录`);
-    return { scanned: created, results };
+    this.logger.log(`刷单扫描完成，发现 ${results.length} 条可疑记录`);
+    return { scanned: results.length, results };
   }
 
   async confirmFraudDetection(id: string) {

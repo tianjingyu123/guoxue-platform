@@ -1,5 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
 import { WechatService } from "../auth/wechat.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { MetricsService } from "../../common/metrics.service";
 
 /**
  * 消息推送服务（纯原生API）
@@ -12,7 +15,10 @@ export class PushService {
   private readonly miniAppId: string;
   private readonly mpAppId: string;
 
-  constructor(private wechat: WechatService) {
+  constructor(
+    private wechat: WechatService,
+    @Optional() @Inject(MetricsService) private metrics?: MetricsService,
+  ) {
     this.miniAppId = process.env.WECHAT_MINI_APP_ID || process.env.WECHAT_APP_ID || "";
     this.mpAppId = process.env.WECHAT_MP_APP_ID || process.env.WECHAT_APP_ID || "";
   }
@@ -27,29 +33,44 @@ export class PushService {
     data: Record<string, { value: string }>; // 模板数据
   }) {
     const accessToken = await this.wechat.getAccessToken();
+    const path = "cgi-bin/message/subscribe/send";
+    const start = Date.now();
 
-    const resp = await fetch(
-      `https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=${accessToken}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          touser: params.touser,
-          template_id: params.templateId,
-          page: params.page || "",
-          data: params.data,
-          miniprogram_state: "formal",
-          lang: "zh_CN",
-        }),
-      },
-    );
+    try {
+      const resp = await fetch(
+        `https://api.weixin.qq.com/${path}?access_token=${accessToken}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            touser: params.touser,
+            template_id: params.templateId,
+            page: params.page || "",
+            data: params.data,
+            miniprogram_state: "formal",
+            lang: "zh_CN",
+          }),
+        },
+      );
 
-    const result = await resp.json() as { errcode: number; errmsg: string };
-    if (result.errcode !== 0) {
-      this.logger.error("小程序订阅消息发送失败", result);
-      throw new Error(`订阅消息发送失败: ${result.errmsg}`);
+      const duration = Date.now() - start;
+      const result = await resp.json() as { errcode: number; errmsg: string };
+
+      if (result.errcode !== 0) {
+        this.metrics?.recordExternalApi("wechat", path, false, duration, String(result.errcode));
+        this.logger.error("小程序订阅消息发送失败", result);
+        throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `订阅消息发送失败: ${result.errmsg}`);
+      }
+
+      this.metrics?.recordExternalApi("wechat", path, true, duration);
+      return result;
+    } catch (err) {
+      if (err instanceof BusinessException) throw err;
+      const duration = Date.now() - start;
+      const reason = (err as Error).message?.substring(0, 50) ?? "network_error";
+      this.metrics?.recordExternalApi("wechat", path, false, duration, reason);
+      throw err;
     }
-    return result;
   }
 
   // ───────── 公众号模板消息 ─────────
@@ -63,30 +84,45 @@ export class PushService {
     data: Record<string, { value: string; color?: string }>;
   }) {
     const accessToken = await this.wechat.getAccessToken();
+    const path = "cgi-bin/message/template/send";
+    const start = Date.now();
 
-    const body: Record<string, unknown> = {
-      touser: params.touser,
-      template_id: params.templateId,
-      data: params.data,
-    };
-    if (params.url) body.url = params.url;
-    if (params.miniprogram) body.miniprogram = params.miniprogram;
+    try {
+      const body: Record<string, unknown> = {
+        touser: params.touser,
+        template_id: params.templateId,
+        data: params.data,
+      };
+      if (params.url) body.url = params.url;
+      if (params.miniprogram) body.miniprogram = params.miniprogram;
 
-    const resp = await fetch(
-      `https://api.weixin.qq.com/cgi-bin/message/template/send?access_token=${accessToken}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    );
+      const resp = await fetch(
+        `https://api.weixin.qq.com/${path}?access_token=${accessToken}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
 
-    const result = await resp.json() as { errcode: number; errmsg: string };
-    if (result.errcode !== 0) {
-      this.logger.error("公众号模板消息发送失败", result);
-      throw new Error(`模板消息发送失败: ${result.errmsg}`);
+      const duration = Date.now() - start;
+      const result = await resp.json() as { errcode: number; errmsg: string };
+
+      if (result.errcode !== 0) {
+        this.metrics?.recordExternalApi("wechat", path, false, duration, String(result.errcode));
+        this.logger.error("公众号模板消息发送失败", result);
+        throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `模板消息发送失败: ${result.errmsg}`);
+      }
+
+      this.metrics?.recordExternalApi("wechat", path, true, duration);
+      return result;
+    } catch (err) {
+      if (err instanceof BusinessException) throw err;
+      const duration = Date.now() - start;
+      const reason = (err as Error).message?.substring(0, 50) ?? "network_error";
+      this.metrics?.recordExternalApi("wechat", path, false, duration, reason);
+      throw err;
     }
-    return result;
   }
 
   // ───────── 快捷发送 ─────────

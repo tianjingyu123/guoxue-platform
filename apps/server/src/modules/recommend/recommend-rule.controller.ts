@@ -1,7 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
-import { Prisma } from "@prisma/client";
-import { PrismaService } from "../../prisma/prisma.service";
 import { RuleService } from "./services/rule.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -13,79 +11,40 @@ import { CreateRecommendRuleDto, UpdateRecommendRuleDto } from "./recommend.dto"
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class RecommendRuleController {
-  constructor(
-    private prisma: PrismaService,
-    private ruleService: RuleService,
-  ) {}
+  constructor(private ruleService: RuleService) {}
 
   @Get()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取所有推荐规则" })
-  async list() {
-    return this.prisma.recommendRule.findMany({ orderBy: { createdAt: "desc" } });
+  list() {
+    return this.ruleService.listRules();
   }
 
   @Get(":id")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取规则详情" })
-  async detail(@Param("id") id: string) {
-    return this.prisma.recommendRule.findUniqueOrThrow({ where: { id } });
+  detail(@Param("id") id: string) {
+    return this.ruleService.getRule(id);
   }
 
   @Post()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建推荐规则" })
-  async create(@Body() dto: CreateRecommendRuleDto) {
-    const rule = await this.prisma.recommendRule.create({
-      data: {
-        scene: dto.scene ?? "ALL",
-        targetType: dto.targetType,
-        targetId: dto.targetId,
-        ruleType: dto.ruleType,
-        ruleValue: dto.ruleValue,
-        priority: dto.priority ?? 0,
-        conditionJson: dto.conditionJson as Prisma.InputJsonValue,
-        startAt: dto.startAt ? new Date(dto.startAt) : null,
-        endAt: dto.endAt ? new Date(dto.endAt) : null,
-        remark: dto.remark,
-        createdBy: dto.createdBy ?? "admin",
-      },
-    });
-
-    await this.ruleService.clearCache();
-    return rule;
+  create(@Body() dto: CreateRecommendRuleDto) {
+    return this.ruleService.createRule(dto);
   }
 
   @Put(":id")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新推荐规则" })
-  async update(@Param("id") id: string, @Body() dto: UpdateRecommendRuleDto) {
-    const rule = await this.prisma.recommendRule.update({
-      where: { id },
-      data: {
-        scene: dto.scene,
-        targetType: dto.targetType,
-        targetId: dto.targetId,
-        ruleType: dto.ruleType,
-        ruleValue: dto.ruleValue,
-        priority: dto.priority,
-        conditionJson: dto.conditionJson as Prisma.InputJsonValue,
-        startAt: dto.startAt ? new Date(dto.startAt) : undefined,
-        endAt: dto.endAt ? new Date(dto.endAt) : undefined,
-        remark: dto.remark,
-      },
-    });
-
-    await this.ruleService.clearCache();
-    return rule;
+  update(@Param("id") id: string, @Body() dto: UpdateRecommendRuleDto) {
+    return this.ruleService.updateRule(id, dto);
   }
 
   @Delete(":id")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除推荐规则" })
-  async delete(@Param("id") id: string) {
-    await this.prisma.recommendRule.delete({ where: { id } });
-    await this.ruleService.clearCache();
-    return { success: true };
+  delete(@Param("id") id: string) {
+    return this.ruleService.deleteRule(id);
   }
 }

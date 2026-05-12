@@ -39,6 +39,14 @@ export class StationService {
     return updated;
   }
 
+  async deleteStation(id: string) {
+    const station = await this.prisma.station.findUnique({ where: { id } });
+    if (!station) throw new NotFoundException("分站不存在");
+    await this.redis.del(`station:brand:id:${id}`);
+    await this.redis.del(`station:brand:code:${station.code}`);
+    return this.prisma.station.delete({ where: { id } });
+  }
+
   async getStation(id: string) {
     const station = await this.prisma.station.findUnique({
       where: { id },

@@ -1,12 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { createHash, createHmac } from "crypto";
-
-interface TencentCloudResponse {
-  Response?: {
-    Error?: { Code: string; Message: string };
-    [key: string]: unknown;
-  };
-}
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
 
 /**
  * 腾讯云内容审核服务（纯原生API）
@@ -34,38 +29,25 @@ export class ModerationService {
     action: string,
     params: Record<string, unknown>,
   ) {
-    const host = `${service}.tencentcloudapi.com`;
-    const timestamp = Math.floor(Date.now() / 1000);
-    const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
-    const payload = JSON.stringify(params);
-
-    const canonicalRequest = `POST\n/\n\ncontent-type:application/json; charset=utf-8\nhost:${host}\n\ncontent-type;host\n${createHash("sha256").update(payload).digest("hex")}`;
-    const stringToSign = `TC3-HMAC-SHA256\n${timestamp}\n${date}/${service}/tc3_request\n${createHash("sha256").update(canonicalRequest).digest("hex")}`;
-
-    const kDate = createHmac("sha256", `TC3${this.secretKey}`).update(date).digest();
-    const kService = createHmac("sha256", kDate).update(service).digest();
-    const kSigning = createHmac("sha256", kService).update("tc3_request").digest();
-    const signature = createHmac("sha256", kSigning).update(stringToSign).digest("hex");
-
-    const authorization = `TC3-HMAC-SHA256 Credential=${this.secretId}/${date}/${service}/tc3_request, SignedHeaders=content-type;host, Signature=${signature}`;
+    const { host, headers, payloadStr } = tc3Sign({
+      secretId: this.secretId,
+      secretKey: this.secretKey,
+      service,
+      action,
+      version: "2020-12-29",
+      payload: params,
+    });
 
     const resp = await fetch(`https://${host}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Host": host,
-        "X-TC-Action": action,
-        "X-TC-Version": "2020-12-29",
-        "X-TC-Timestamp": String(timestamp),
-        "Authorization": authorization,
-      },
-      body: payload,
+      headers,
+      body: payloadStr,
     });
 
     const data = await resp.json() as TencentCloudResponse;
     if (data.Response?.Error) {
       this.logger.error(`${service} API错误 [${action}]`, data.Response.Error);
-      throw new Error(`${service} ${action} 失败: ${data.Response.Error.Message}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `${service} ${action} 失败: ${data.Response.Error.Message}`);
     }
     return data.Response!;
   }
@@ -126,7 +108,7 @@ export class ModerationService {
     if (!result) return true;
     // Suggestion: Pass/Review/Block
     const r = result as { Suggestion?: string | number; Data?: { Suggestion?: string | number } };
-    const suggestion = r.Suggestion || r.Data?.Suggestion;
+    const suggestion = r.Suggestion ?? r.Data?.Suggestion;
     return suggestion === "Pass" || suggestion === 0;
   }
 
@@ -134,7 +116,7 @@ export class ModerationService {
   isTextPass(result: unknown): boolean {
     if (!result) return true;
     const r = result as { Suggestion?: string | number; Data?: { Suggestion?: string | number } };
-    const suggestion = r.Suggestion || r.Data?.Suggestion;
+    const suggestion = r.Suggestion ?? r.Data?.Suggestion;
     return suggestion === "Pass" || suggestion === 0;
   }
 

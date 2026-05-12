@@ -107,6 +107,8 @@ function createRedisMock() {
     sadd: jest.fn().mockResolvedValue(1),
     srem: jest.fn().mockResolvedValue(1),
     scard: jest.fn().mockResolvedValue(5),
+    incrWithTtl: jest.fn().mockResolvedValue({ count: 1, ttl: 60 }),
+    setNX: jest.fn().mockResolvedValue(true),
   }
 }
 

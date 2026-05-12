@@ -58,6 +58,14 @@ export class ClassicController {
   // ── 章节管理 ──
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
+  @Get("books/:bookId/chapters")
+  @ApiOperation({ summary: "获取书籍章节列表" })
+  listChaptersByBook(@Param("bookId") bookId: string) {
+    return this.svc.listChaptersByBook(bookId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post("books/:bookId/chapters")
   @ApiOperation({ summary: "创建章节" })
   createChapter(@Param("bookId") bookId: string, @Body() dto: CreateChapterDto) {

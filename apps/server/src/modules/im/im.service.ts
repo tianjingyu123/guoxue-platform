@@ -1,5 +1,8 @@
-import { Injectable, Logger, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger, BadRequestException, Inject, Optional } from "@nestjs/common";
 import { TlsSigService } from "./tlssig.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { MetricsService } from "../../common/metrics.service";
 
 export interface TimApiResponse {
   ErrorCode: number;
@@ -14,7 +17,10 @@ export class ImService {
   private readonly adminId: string;
   private readonly baseUrl = "https://console.tim.qq.com";
 
-  constructor(private tlsSig: TlsSigService) {
+  constructor(
+    private tlsSig: TlsSigService,
+    @Optional() @Inject(MetricsService) private metrics?: MetricsService,
+  ) {
     this.appId = this.tlsSig.getAppId();
     this.adminId = process.env.IM_ADMIN_ID || "administrator";
   }
@@ -39,18 +45,32 @@ export class ImService {
     const adminSig = this.tlsSig.genAdminSig();
     const url = `${this.baseUrl}/v4/${path}?sdkappid=${this.appId}&identifier=${encodeURIComponent(this.adminId)}&usersig=${encodeURIComponent(adminSig)}&random=${Date.now()}&contenttype=json`;
 
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const start = Date.now();
+    try {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
 
-    const data = (await resp.json()) as TimApiResponse;
-    if (data.ErrorCode !== 0) {
-      this.logger.error(`IM API 调用失败: ${path}`, data);
-      throw new Error(`IM 操作失败: ${data.ErrorInfo || "未知错误"}`);
+      const duration = Date.now() - start;
+      const data = (await resp.json()) as TimApiResponse;
+
+      if (data.ErrorCode !== 0) {
+        this.metrics?.recordExternalApi("im", path, false, duration, String(data.ErrorCode));
+        this.logger.error(`IM API 调用失败: ${path}`, data);
+        throw new BusinessException(ErrorCode.THIRD_IM_FAILED, `IM 操作失败: ${data.ErrorInfo || "未知错误"}`);
+      }
+
+      this.metrics?.recordExternalApi("im", path, true, duration);
+      return data;
+    } catch (err) {
+      const duration = Date.now() - start;
+      if (err instanceof BusinessException) throw err;
+      const reason = (err as Error).message?.substring(0, 50) ?? "network_error";
+      this.metrics?.recordExternalApi("im", path, false, duration, reason);
+      throw err;
     }
-    return data;
   }
 
   // ───────── 账号管理 ─────────

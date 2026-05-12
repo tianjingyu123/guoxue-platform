@@ -2,12 +2,14 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaService } from "../prisma/prisma.service";
+import { BusinessException } from "./business.exception";
+import { ErrorCode } from "./error-codes";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private prisma: PrismaService) {
     const secret = process.env.JWT_SECRET;
-    if (!secret) throw new Error("JWT_SECRET 环境变量未设置");
+    if (!secret) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "JWT_SECRET 环境变量未设置");
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       secretOrKey: secret,

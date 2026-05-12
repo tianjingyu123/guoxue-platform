@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGuards, Logger } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { BotService } from "./bot.service";
@@ -10,6 +10,7 @@ import { Roles } from "../../common/roles.decorator";
 @ApiTags("智能体")
 @Controller("bots")
 export class BotController {
+  private readonly logger = new Logger(BotController.name);
   constructor(private svc: BotService) {}
 
   @Post()
@@ -124,6 +125,7 @@ export class BotController {
         res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
       },
       error: (err: Error) => {
+        this.logger.warn(`智能体SSE流错误 [${id}]: ${err.message}`);
         res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
         res.end();
       },

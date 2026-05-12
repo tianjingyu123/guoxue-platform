@@ -34,3 +34,4 @@ uploads/
 .claude/settings.json
 
 # Prisma (migrations must be tracked for DB versioning)
+.backup/

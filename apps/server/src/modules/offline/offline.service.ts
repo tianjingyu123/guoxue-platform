@@ -274,14 +274,27 @@ export class OfflineService {
   // ───────── 订单 ─────────
 
   async createOrder(stationId: string, userId: string, dto: { orderType: string; targetId: string; amount: number }) {
-    // 驿站收益 = 订单金额的70%（默认分成比例）
-    const stationIncome = dto.amount * 0.7;
+    // 服务端校验金额：从数据库查询实际价格，忽略前端传入的 amount
+    let actualAmount: number;
+    if (dto.orderType === "COURSE") {
+      const course = await this.prisma.offlineCourse.findUnique({ where: { id: dto.targetId } });
+      if (!course) throw new NotFoundException("课程不存在");
+      actualAmount = Number(course.price);
+    } else if (dto.orderType === "PRODUCT") {
+      const product = await this.prisma.stationProduct.findUnique({ where: { id: dto.targetId } });
+      if (!product) throw new NotFoundException("商品不存在");
+      actualAmount = Number(product.price);
+    } else {
+      actualAmount = dto.amount; // 其他类型（如 TEACHER_BOOKING）保留前端传入金额
+    }
+
+    const stationIncome = actualAmount * 0.7;
     return this.prisma.stationOrder.create({
       data: {
         stationId,
         orderType: dto.orderType,
         targetId: dto.targetId,
-        amount: dto.amount,
+        amount: actualAmount,
         stationIncome,
       },
     });

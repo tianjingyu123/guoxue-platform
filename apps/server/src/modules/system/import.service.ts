@@ -183,12 +183,12 @@ export class ImportService {
   private transformField(mapped: Record<string, unknown>, type: string) {
     if (mapped.price !== undefined) {
       const price = Number(mapped.price);
-      if (isNaN(price) || price < 0) throw new Error(`价格格式无效: ${mapped.price}`);
+      if (isNaN(price) || price < 0) throw new BadRequestException(`价格格式无效: ${mapped.price}`);
       mapped.price = price;
     }
     if (mapped.stock !== undefined) {
       const stock = Number(mapped.stock);
-      if (isNaN(stock) || stock < 0) throw new Error(`库存格式无效: ${mapped.stock}`);
+      if (isNaN(stock) || stock < 0) throw new BadRequestException(`库存格式无效: ${mapped.stock}`);
       mapped.stock = Math.floor(stock);
     }
   }

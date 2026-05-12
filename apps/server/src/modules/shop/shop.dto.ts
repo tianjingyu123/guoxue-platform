@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, Max, IsObject } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, Max, IsBoolean, IsObject } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -310,41 +310,53 @@ export class CreateReviewDto {
 
 export class CreateFreightTemplateDto {
   @ApiProperty({ description: "模板名称" })
+  @IsString()
   name: string;
 
   @ApiProperty({ description: "计费方式", enum: ["FREE", "FIXED", "CONDITIONAL"] })
+  @IsOptional() @IsString()
   type?: string;
 
   @ApiProperty({ description: "默认运费" })
+  @IsOptional() @IsNumber()
   defaultFee?: number;
 
   @ApiProperty({ description: "包邮条件JSON" })
+  @IsOptional() @IsObject()
   conditionFree?: Record<string, unknown>;
 
   @ApiProperty({ description: "区域运费JSON" })
+  @IsOptional() @IsObject()
   regions?: Record<string, unknown>;
 
   @ApiProperty({ description: "是否启用" })
+  @IsOptional() @IsBoolean()
   isActive?: boolean;
 }
 
 export class UpdateFreightTemplateDto {
   @ApiPropertyOptional({ description: "模板名称" })
+  @IsOptional() @IsString()
   name?: string;
 
   @ApiPropertyOptional({ description: "计费方式" })
+  @IsOptional() @IsString()
   type?: string;
 
   @ApiPropertyOptional({ description: "默认运费" })
+  @IsOptional() @IsNumber()
   defaultFee?: number;
 
   @ApiPropertyOptional({ description: "包邮条件JSON" })
+  @IsOptional() @IsObject()
   conditionFree?: Record<string, unknown>;
 
   @ApiPropertyOptional({ description: "区域运费JSON" })
+  @IsOptional() @IsObject()
   regions?: Record<string, unknown>;
 
   @ApiPropertyOptional({ description: "是否启用" })
+  @IsOptional() @IsBoolean()
   isActive?: boolean;
 }
 
@@ -352,6 +364,7 @@ export class UpdateFreightTemplateDto {
 
 export class ReplyReviewDto {
   @ApiProperty({ description: "回复内容" })
+  @IsString()
   reply: string;
 }
 

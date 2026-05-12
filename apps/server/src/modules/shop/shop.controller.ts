@@ -65,6 +65,15 @@ export class ShopController {
     return this.shop.updateProduct(req.user.id, id, dto);
   }
 
+  @Put("products/:id/status")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
+  @ApiOperation({ summary: "更新商品状态" })
+  @ApiBearerAuth()
+  updateProductStatus(@Param("id") id: string, @Body("status") status: string) {
+    return this.shop.updateProductStatus(id, status);
+  }
+
   @Delete("products/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除商品" })
@@ -264,6 +273,26 @@ export class ShopController {
     return "success";
   }
 
+  @Post("refund/notify")
+  @SkipFormat()
+  @ApiOperation({ summary: "微信退款回调通知" })
+  async handleRefundNotify(@Req() req: AuthRequest) {
+    const signHeader = (req.headers["wechatpay-signature"] as string) || "";
+    const timestamp = (req.headers["wechatpay-timestamp"] as string) || "";
+    const nonce = (req.headers["wechatpay-nonce"] as string) || "";
+    const serialNo = (req.headers["wechatpay-serial"] as string) || "";
+    const rawBody = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+
+    const { valid, data, error } = await this.shop.verifyAndDecryptNotify(
+      signHeader, rawBody, timestamp, nonce, serialNo,
+    );
+    if (!valid || !data) {
+      return { code: "FAIL", message: error || "验签失败" };
+    }
+    await this.shop.handleRefundNotify(data);
+    return { code: "SUCCESS", message: "OK" };
+  }
+
   // ───────── 支付管理（管理员） ─────────
 
   @Post("alipay/query")
@@ -346,6 +375,15 @@ export class ShopController {
   @ApiBearerAuth()
   deleteCoupon(@Param("id") id: string) {
     return this.shop.deleteCoupon(id);
+  }
+
+  @Put("coupons/:id/status")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "更新优惠券状态" })
+  @ApiBearerAuth()
+  updateCouponStatus(@Param("id") id: string, @Body("status") status: string) {
+    return this.shop.updateCouponStatus(id, status);
   }
 
   @Post("coupons/:id/claim")

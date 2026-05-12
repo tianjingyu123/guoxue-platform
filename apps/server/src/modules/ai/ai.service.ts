@@ -1,8 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { createHmac, createHash, randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { MemoryCache } from "../../common/cache.util";
 import { PrismaService } from "../../prisma/prisma.service";
+import { tc3Sign } from "../../common/tc3.util";
 
 /**
  * 腾讯云 AI 能力服务（语音识别/OCR/NLP/翻译）
@@ -25,42 +26,23 @@ export class AiService {
     }
   }
 
-  // ───────── TC3 签名 ─────────
-
-  private sign(service: string, action: string, body: Record<string, unknown>, region = "ap-guangzhou") {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
-    const payload = JSON.stringify(body);
-    const host = `${service}.tencentcloudapi.com`;
-
-    // 1. Canonical Request
-    const canonicalHeaders = `content-type:application/json\nhost:${host}\n`;
-    const signedHeaders = "content-type;host";
-    const hashedPayload = createHash("sha256").update(payload).digest("hex");
-    const canonicalRequest = `POST\n/\n\n${canonicalHeaders}\n${signedHeaders}\n${hashedPayload}`;
-
-    // 2. String to Sign
-    const algorithm = "TC3-HMAC-SHA256";
-    const hashedCanonicalRequest = createHash("sha256").update(canonicalRequest).digest("hex");
-    const stringToSign = `${algorithm}\n${timestamp}\n${date}/${service}/tc3_request\n${hashedCanonicalRequest}`;
-
-    // 3. Signature
-    const kDate = createHmac("sha256", `TC3${this.secretKey}`).update(date).digest();
-    const kService = createHmac("sha256", kDate).update(service).digest();
-    const kSigning = createHmac("sha256", kService).update("tc3_request").digest();
-    const signature = createHmac("sha256", kSigning).update(stringToSign).digest("hex");
-
-    // 4. Authorization Header
-    const authorization = `${algorithm} Credential=${this.secretId}/${date}/${service}/tc3_request, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-    return { authorization, timestamp, host, payload };
-  }
+  // ───────── TC3 API 调用 ─────────
 
   private async callApi(service: string, action: string, body: Record<string, unknown>, region?: string, retries = 2): Promise<Record<string, unknown> | null> {
-    const { authorization, timestamp, host, payload } = this.sign(service, action, body, region);
+    const version = this.getVersion(service);
+    const region_ = region || "ap-guangzhou";
+    const { host, headers, payloadStr } = tc3Sign({
+      secretId: this.secretId,
+      secretKey: this.secretKey,
+      service,
+      action,
+      version,
+      payload: body,
+      region: region_,
+    });
+
     const startedAt = Date.now();
 
-    // 超时控制：默认 8 秒
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
@@ -68,16 +50,8 @@ export class AiService {
       try {
         const resp = await fetch(`https://${host}`, {
           method: "POST",
-          headers: {
-            "Authorization": authorization,
-            "Content-Type": "application/json",
-            "Host": host,
-            "X-TC-Action": action,
-            "X-TC-Timestamp": String(timestamp),
-            "X-TC-Version": this.getVersion(service),
-            "X-TC-Region": region || "ap-guangzhou",
-          },
-          body: payload,
+          headers,
+          body: payloadStr,
           signal: controller.signal,
         });
 

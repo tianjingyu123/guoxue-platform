@@ -14,7 +14,7 @@ import {
   ChangePasswordDto,
 } from "./auth.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-import { StrictThrottleGuard } from "../../common/throttle.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { SanitizePipe } from "../../common/sanitize.pipe";
 import { maskPhone } from "../../common/crypto.util";
 import { Request } from "express";
@@ -31,7 +31,7 @@ export class AuthController {
 
   @Post("register/phone")
   @ApiOperation({ summary: "手机号注册", description: "使用手机号和密码注册新用户" })
-  @UseGuards(StrictThrottleGuard)
+  @UseGuards(StrictRedisThrottleGuard)
   async phoneRegister(@Body() dto: PhoneRegisterDto, @Req() req: Request) {
     const result = await this.auth.phoneRegister(dto);
     this.systemService.logAudit({
@@ -47,7 +47,7 @@ export class AuthController {
 
   @Post("login/phone")
   @ApiOperation({ summary: "手机号登录", description: "使用手机号和密码登录" })
-  @UseGuards(StrictThrottleGuard)
+  @UseGuards(StrictRedisThrottleGuard)
   async phoneLogin(@Body() dto: PhoneLoginDto, @Req() req: Request) {
     try {
       const result = await this.auth.phoneLogin(dto);
@@ -72,7 +72,7 @@ export class AuthController {
 
   @Post("login/sms")
   @ApiOperation({ summary: "短信验证码登录", description: "使用手机号和短信验证码登录" })
-  @UseGuards(StrictThrottleGuard)
+  @UseGuards(StrictRedisThrottleGuard)
   async smsLogin(@Body() dto: SmsLoginDto, @Req() req: Request) {
     try {
       const result = await this.auth.smsLogin(dto);
@@ -97,13 +97,13 @@ export class AuthController {
 
   @Post("sms/send")
   @ApiOperation({ summary: "发送短信验证码", description: "向指定手机号发送验证码" })
-  @UseGuards(StrictThrottleGuard)
+  @UseGuards(StrictRedisThrottleGuard)
   sendCode(@Body() dto: SendCodeDto) {
     return this.auth.sendSmsCode(dto);
   }
 
   @Get("wechat/oauth-url")
-  @UseGuards(StrictThrottleGuard)
+  @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "获取微信 OAuth 授权 URL", description: "H5 微信登录：前端跳转到该 URL 完成授权后回调" })
   @ApiQuery({ name: "redirectUri", description: "授权后回调地址", example: "https://example.com/callback" })
   @ApiQuery({ name: "scope", description: "授权范围", example: "snsapi_userinfo", required: false })
@@ -118,14 +118,14 @@ export class AuthController {
 
   @Post("login/wechat")
   @ApiOperation({ summary: "微信登录（H5/小程序）", description: "使用微信授权 code 登录，自动判断 H5 OAuth 或小程序" })
-  @UseGuards(StrictThrottleGuard)
+  @UseGuards(StrictRedisThrottleGuard)
   wechatLogin(@Body() dto: WechatLoginDto) {
     return this.auth.wechatLogin(dto);
   }
 
   @Post("login/mini-phone")
   @ApiOperation({ summary: "小程序手机号快速登录", description: "微信小程序一键登录：wx.login + getPhoneNumber 获取手机号后自动登录/注册" })
-  @UseGuards(StrictThrottleGuard)
+  @UseGuards(StrictRedisThrottleGuard)
   miniPhoneLogin(@Body() dto: MiniPhoneLoginDto) {
     return this.auth.miniPhoneLogin(dto);
   }
@@ -136,6 +136,13 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   getProfile(@Req() req: Request) {
     return this.auth.getProfile(req.user.id);
+  }
+
+  @Post("refresh")
+  @ApiOperation({ summary: "刷新 Token", description: "使用 refreshToken 换取新的 accessToken + refreshToken（轮换防重放）" })
+  async refresh(@Body("refreshToken") refreshToken: string) {
+    if (!refreshToken) throw new BadRequestException("refreshToken 参数必填");
+    return this.auth.refreshToken(refreshToken);
   }
 
   @Put("profile")

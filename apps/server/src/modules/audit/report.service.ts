@@ -1,6 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 export interface CreateReportDto {
   targetType: "POST" | "COMMENT" | "CIRCLE" | "USER" | "COURSE" | "PRODUCT" | "ARTICLE" | "LIVE" | "VIDEO";
@@ -45,8 +47,8 @@ export class ReportService {
   /** 管理员处理举报 */
   async handle(reportId: string, dto: HandleReportDto) {
     const report = await this.prisma.report.findUnique({ where: { id: reportId } });
-    if (!report) throw new Error("举报不存在");
-    if (report.status !== "PENDING") throw new Error("该举报已处理");
+    if (!report) throw new NotFoundException("举报不存在");
+    if (report.status !== "PENDING") throw new BusinessException(ErrorCode.CONTENT_STATUS_INVALID, "该举报已处理");
 
     // 执行处置动作
     switch (dto.action) {

@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, UsePipes } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { CircleService } from "./circle.service";
 import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto, ExpertConfigDto } from "./circle.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StationId } from "../../common/station-id.decorator";
+import { SanitizePipe } from "../../common/sanitize.pipe";
 import { Request } from "express";
 
 @ApiTags("圈子")
@@ -13,6 +14,7 @@ export class CircleController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
+  @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "创建圈子" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -61,6 +63,7 @@ export class CircleController {
 
   @Put(":id")
   @UseGuards(JwtAuthGuard)
+  @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "更新圈子" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -81,6 +84,7 @@ export class CircleController {
 
   @Put(":id/announcement")
   @UseGuards(JwtAuthGuard)
+  @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "设置圈子公告（圈主/管理员）" })
   @ApiBearerAuth()
   setAnnouncement(@Param("id") circleId: string, @Req() req: Request, @Body("content") content: string) {
@@ -156,6 +160,7 @@ export class CircleController {
 
   @Post(":id/posts")
   @UseGuards(JwtAuthGuard)
+  @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "创建帖子" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "发帖成功" })
@@ -193,6 +198,7 @@ export class CircleController {
 
   @Put(":id/posts/:postId")
   @UseGuards(JwtAuthGuard)
+  @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "更新帖子" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "更新成功" })

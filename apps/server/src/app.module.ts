@@ -48,7 +48,9 @@ import { EbookModule } from "./modules/ebook/ebook.module";
 import { RiskControlModule } from "./modules/risk-control/risk-control.module";
 import { MarketingModule } from "./modules/marketing/marketing.module";
 import { FinanceModule } from "./modules/finance/finance.module";
+import { MenuModule } from "./modules/menu/menu.module";
+import { MerchantModule } from "./modules/merchant/merchant.module";
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule],
 })
 export class AppModule {}

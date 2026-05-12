@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request } from "express";
 import { CoinService } from "./coin.service";
@@ -76,6 +76,14 @@ export class CoinController {
   @ApiOperation({ summary: "创建礼物", description: "管理员创建新礼物类型" })
   createGift(@Body() dto: CreateGiftDto) {
     return this.coin.createGift(dto);
+  }
+
+  @Put("gifts/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "更新礼物", description: "管理员更新礼物信息" })
+  updateGift(@Param("id") id: string, @Body() dto: CreateGiftDto) {
+    return this.coin.updateGift(id, dto);
   }
 
   @Delete("gifts/:id")

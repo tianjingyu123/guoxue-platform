@@ -8,6 +8,7 @@ import { AlipayService } from "./alipay.service";
 import { UnionpayService } from "./unionpay.service";
 import { CoinService } from "../coin/coin.service";
 import { WebhookService } from "../webhook/webhook.service";
+import { COIN_TO_RMB, RMB_TO_FEN } from "../../common/constants";
 import {
   CreateProductDto, UpdateProductDto, CreateOrderDto, CreateCouponDto,
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
@@ -75,6 +76,12 @@ export class ShopService {
     return { success: true };
   }
 
+  /** 更新商品状态 */
+  async updateProductStatus(productId: string, status: string) {
+    await this.prisma.product.findUniqueOrThrow({ where: { id: productId } });
+    return this.prisma.product.update({ where: { id: productId }, data: { status } });
+  }
+
   async getProduct(productId: string) {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
@@ -130,15 +137,44 @@ export class ShopService {
   // ═══════════════════ 订单管理 ═══════════════════
 
   async createOrder(userId: string, dto: CreateOrderDto) {
-    // 非会员订单需验证商品（读操作放在事务外）
+    // 服务端计算实际金额，无视前端传入的 amount（防篡改）
+    let actualAmount = 0;
+    let supplierUserId: string | undefined;
+    let supplierType: string | undefined;
     if (dto.type !== "MEMBER") {
-      const product = await this.prisma.product.findUnique({
-        where: { id: dto.targetId },
-        select: { id: true, price: true, status: true },
-      });
-      if (!product || product.status !== "ON_SALE") {
-        throw new BadRequestException("商品不可购买");
+      if (dto.skuId) {
+        const sku = await this.prisma.productSku.findUnique({
+          where: { id: dto.skuId },
+          select: { price: true, product: { select: { id: true, status: true, supplierType: true, userId: true } } },
+        });
+        if (!sku || sku.product.status !== "ON_SALE") {
+          throw new BadRequestException("商品不可购买");
+        }
+        actualAmount = Number(sku.price);
+        supplierType = sku.product.supplierType;
+        supplierUserId = sku.product.userId ?? undefined;
+      } else {
+        const product = await this.prisma.product.findUnique({
+          where: { id: dto.targetId },
+          select: { id: true, price: true, status: true, supplierType: true, userId: true },
+        });
+        if (!product || product.status !== "ON_SALE") {
+          throw new BadRequestException("商品不可购买");
+        }
+        actualAmount = Number(product.price);
+        supplierType = product.supplierType;
+        supplierUserId = product.userId ?? undefined;
       }
+    }
+
+    // 商家商品：查找商家ID
+    let merchantId: string | undefined;
+    if (supplierType === "CERTIFIED_MERCHANT" && supplierUserId) {
+      const merchant = await this.prisma.merchant.findUnique({
+        where: { userId: supplierUserId },
+        select: { id: true },
+      });
+      merchantId = merchant?.id;
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -148,8 +184,9 @@ export class ShopService {
           type: dto.type as any,
           targetId: dto.targetId,
           skuId: dto.skuId,
-          amount: dto.amount,
+          amount: actualAmount,
           couponId: dto.couponId,
+          merchantId,
           referrerId: dto.referrerId,
           tempReferrerId: dto.tempReferrerId,
           status: "PENDING",
@@ -236,7 +273,7 @@ export class ShopService {
     if (order.status !== "PENDING") throw new BadRequestException("订单状态不可支付");
 
     const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
-    const totalFen = Math.round(Number(order.amount) * 100);
+    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
 
     const result = await this.wechatPay.createJsapiOrder({
       outTradeNo,
@@ -264,7 +301,7 @@ export class ShopService {
     if (order.status !== "PENDING") throw new BadRequestException("订单状态不可支付");
 
     const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
-    const totalFen = Math.round(Number(order.amount) * 100);
+    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
 
     const result = await this.wechatPay.createNativeOrder({
       outTradeNo,
@@ -282,14 +319,39 @@ export class ShopService {
     return result;
   }
 
+  /** 创建虚拟币充值支付订单 */
+  async createRechargePayment(
+    userId: string,
+    openid: string,
+    amountCoin: number,
+    notifyUrl?: string,
+  ) {
+    const amountRmb = amountCoin / COIN_TO_RMB;
+    const totalFen = Math.round(amountRmb * RMB_TO_FEN);
+
+    const orderNo = `RC${Date.now()}${userId.slice(0, 6)}`;
+    const result = await this.wechatPay.createJsapiOrder({
+      outTradeNo: orderNo,
+      description: `${amountCoin}国学币充值`,
+      amount: { total: totalFen },
+      payer: { openid },
+      attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin }),
+      notifyUrl,
+    });
+
+    return result.paySign;
+  }
+
   /** 验签+解密支付回调 */
   async verifyAndDecryptNotify(
-    signHeader: string, rawBody: string, timestamp: string, nonce: string, serialNo: string,
+    signature: string, rawBody: string, timestamp: string, nonce: string, serialNo: string,
   ): Promise<{ valid: boolean; data?: Record<string, unknown>; error?: string }> {
     // 防重放攻击
     if (!WechatPayService.isTimestampValid(timestamp)) {
       return { valid: false, error: "时间戳已过期" };
     }
+    // 组装为 wechat-pay 期望的签名头格式
+    const signHeader = `timestamp="${timestamp}",nonce_str="${nonce}",signature="${signature}",serial_no="${serialNo}"`;
     return this.wechatPay.verifyAndDecryptNotify(signHeader, rawBody) as Promise<{ valid: boolean; data?: Record<string, unknown>; error?: string }>;
   }
 
@@ -517,34 +579,80 @@ export class ShopService {
 
   /** 申请退款 */
   async refundOrder(orderId: string, reason?: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order || !["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) {
-      throw new BadRequestException("订单不可退款");
+    // 分布式锁防并发重复退款
+    const lockKey = `refund:lock:${orderId}`;
+    const locked = await this.redis.setNX(lockKey, "1", 30);
+    if (!locked) {
+      throw new BadRequestException("退款正在处理中，请勿重复操作");
     }
 
-    const totalFen = Math.round(Number(order.amount) * 100);
-    const outRefundNo = `RF${Date.now()}${orderId.slice(0, 8)}`;
+    try {
+      const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!order || !["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) {
+        throw new BadRequestException("订单不可退款");
+      }
 
-    const result = await this.wechatPay.refund({
-      outTradeNo: order.payTransactionId || undefined,
-      outRefundNo,
-      amount: { refund: totalFen, total: totalFen },
-      reason: reason || "用户申请退款",
-    });
+      const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+      const outRefundNo = `RF${Date.now()}${orderId.slice(0, 8)}`;
 
-    if (result.status === "SUCCESS" || result.status === "PROCESSING") {
-      await this.prisma.order.update({
-        where: { id: orderId },
-        data: { status: "REFUNDED", refundedAt: new Date() },
-      });
-      this.webhook.fire("ORDER_REFUNDED", {
-        orderId,
-        amount: Number(order.amount),
+      const result = await this.wechatPay.refund({
+        outTradeNo: order.payTransactionId || undefined,
+        outRefundNo,
+        amount: { refund: totalFen, total: totalFen },
         reason: reason || "用户申请退款",
-      }).catch((err) => this.logger.warn("Webhook ORDER_REFUNDED 发送失败", err));
+      });
+
+      if (result.status === "SUCCESS" || result.status === "PROCESSING") {
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: { status: "REFUNDED", refundedAt: new Date() },
+        });
+        this.webhook.fire("ORDER_REFUNDED", {
+          orderId,
+          amount: Number(order.amount),
+          reason: reason || "用户申请退款",
+        }).catch((err) => this.logger.warn("Webhook ORDER_REFUNDED 发送失败", err));
+      }
+
+      return result;
+    } finally {
+      await this.redis.del(lockKey);
+    }
+  }
+
+  /** 处理微信退款回调通知 */
+  async handleRefundNotify(body: Record<string, unknown>) {
+    const outRefundNo = body.out_refund_no as string;
+    const lockKey = `refund:cb:${outRefundNo}`;
+
+    const locked = await this.redis.setNX(lockKey, "1", 30);
+    if (!locked) {
+      this.logger.warn(`退款回调重复处理被拦截: ${outRefundNo}`);
+      return;
     }
 
-    return result;
+    try {
+      const refundStatus = body.refund_status as string;
+      const outTradeNo = body.out_trade_no as string;
+
+      if (refundStatus === "SUCCESS") {
+        await this.prisma.order.updateMany({
+          where: { payTransactionId: outTradeNo, status: { not: "REFUNDED" } },
+          data: { status: "REFUNDED", refundedAt: new Date() },
+        });
+        const refundAmount = (body.amount as Record<string, unknown>)?.refund ?? body.refund_amount;
+        this.webhook.fire("ORDER_REFUNDED", {
+          outTradeNo,
+          outRefundNo,
+          refundAmount,
+        }).catch((err) => this.logger.warn("Webhook ORDER_REFUNDED 发送失败", err));
+        this.logger.log(`退款回调: ${outRefundNo} 成功, 订单: ${outTradeNo}`);
+      } else if (refundStatus === "FAIL" || refundStatus === "CLOSED") {
+        this.logger.warn(`退款回调: ${outRefundNo} 失败/关闭, 状态: ${refundStatus}, 订单: ${outTradeNo}`);
+      }
+    } finally {
+      await this.redis.del(lockKey);
+    }
   }
 
   async shipOrder(orderId: string) {
@@ -674,6 +782,12 @@ export class ShopService {
   async deleteCoupon(id: string) {
     await this.prisma.coupon.delete({ where: { id } });
     return { success: true };
+  }
+
+  /** 更新优惠券状态 */
+  async updateCouponStatus(id: string, status: string) {
+    await this.prisma.coupon.findUniqueOrThrow({ where: { id } });
+    return this.prisma.coupon.update({ where: { id }, data: { status } });
   }
 
   /** 用户领取优惠券 */

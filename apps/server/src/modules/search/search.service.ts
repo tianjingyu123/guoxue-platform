@@ -13,164 +13,196 @@ interface SearchResult {
 export class SearchService {
   constructor(private prisma: PrismaService) {}
 
-  /** 全局搜索（PostgreSQL 全文搜索，tsvector + tsquery + ts_rank） */
+  /** 全局搜索（加权重排 + LIKE 回退） */
   async search(params: {
     q: string;
     type?: string;
     page?: number;
     pageSize?: number;
+    weightMap?: Map<string, number>;
   }) {
-    const { q, type, page = 1, pageSize = 20 } = params;
+    const { q, type, page = 1, pageSize = 20, weightMap } = params;
     const limit = type ? pageSize : 5;
     const offset = type ? (page - 1) * pageSize : 0;
     const results: Record<string, unknown> = { q, type };
 
     if (!q?.trim()) return results;
 
-    // 各类型并行的全文本搜索（参数化查询防 SQL 注入）
     const searches: Promise<void>[] = [];
 
     if (!type || type === "article") {
-      searches.push(this.ftsArticles(q, limit, offset).then((rows) => { results.articles = rows; }));
+      searches.push(this.ftsOrLike("Article", q, limit, offset, weightMap).then((rows) => { results.articles = rows; }));
     }
     if (!type || type === "course") {
-      searches.push(this.ftsCourses(q, limit, offset).then((rows) => { results.courses = rows; }));
+      searches.push(this.ftsOrLike("Course", q, limit, offset, weightMap).then((rows) => { results.courses = rows; }));
     }
     if (!type || type === "product") {
-      searches.push(this.ftsProducts(q, limit, offset).then((rows) => { results.products = rows; }));
+      searches.push(this.ftsOrLike("Product", q, limit, offset, weightMap).then((rows) => { results.products = rows; }));
     }
     if (!type || type === "circle") {
-      searches.push(this.ftsCircles(q, limit, offset).then((rows) => { results.circles = rows; }));
+      searches.push(this.ftsOrLike("Circle", q, limit, offset, weightMap).then((rows) => { results.circles = rows; }));
     }
     if (!type || type === "video") {
-      searches.push(this.ftsVideos(q, limit, offset).then((rows) => { results.videos = rows; }));
+      searches.push(this.ftsOrLike("Video", q, limit, offset, weightMap).then((rows) => { results.videos = rows; }));
     }
     if (!type || type === "user") {
-      searches.push(this.ftsUsers(q, limit, offset).then((rows) => { results.users = rows; }));
+      searches.push(this.ftsOrLike("User", q, limit, offset, weightMap).then((rows) => { results.users = rows; }));
     }
     if (!type || type === "classic") {
-      searches.push(this.ftsClassics(q, limit, offset).then((rows) => { results.classics = rows; }));
+      searches.push(this.ftsOrLike("ClassicBook", q, limit, offset, weightMap).then((rows) => { results.classics = rows; }));
     }
     if (!type || type === "content") {
-      searches.push(this.ftsContents(q, limit, offset).then((rows) => { results.contents = rows; }));
+      searches.push(this.ftsOrLike("Content", q, limit, offset, weightMap).then((rows) => { results.contents = rows; }));
     }
 
     await Promise.all(searches);
     return results;
   }
 
-  // ───── 各类型全文搜索 ─────
+  /** 通用 FTS + LIKE 回退搜索 */
+  private async ftsOrLike(
+    entityType: string,
+    q: string,
+    limit: number,
+    offset: number,
+    weightMap?: Map<string, number>,
+  ) {
+    // 1. 先尝试 PostgreSQL 全文搜索
+    let rows = await this.runFts(entityType, q, limit, offset);
 
-  private async ftsArticles(q: string, limit: number, offset: number) {
-    return this.prisma.$queryRaw<any[]>`
-      SELECT id, title, cover, excerpt, "viewCount",
-             ts_rank(to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(excerpt,'')),
-                     plainto_tsquery('simple', ${q})) AS rank
-      FROM "Article"
-      WHERE to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(excerpt,''))
-            @@ plainto_tsquery('simple', ${q})
-        AND "auditStatus" = 'APPROVED'
-      ORDER BY rank DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
+    // 2. 如果 FTS 无结果，回退到 ILIKE（中文适配）
+    if (rows.length === 0) {
+      rows = await this.runLike(entityType, q, limit, offset);
+    }
+
+    // 3. 应用权重
+    if (weightMap && weightMap.size > 0) {
+      for (const row of rows) {
+        const entityWeight = weightMap.get(`${entityType.toLowerCase()}:all`) ?? 1.0;
+        row.rank = (row.rank || 0.1) * entityWeight;
+      }
+      rows.sort((a, b) => (b.rank || 0) - (a.rank || 0));
+    }
+
+    return rows;
   }
 
-  private async ftsCourses(q: string, limit: number, offset: number) {
-    return this.prisma.$queryRaw<any[]>`
-      SELECT id, title, cover, intro, price, "studentCount",
-             ts_rank(to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(intro,'')),
-                     plainto_tsquery('simple', ${q})) AS rank
-      FROM "Course"
-      WHERE to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(intro,''))
-            @@ plainto_tsquery('simple', ${q})
-        AND "auditStatus" = 'APPROVED'
-      ORDER BY rank DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
+  /** PostgreSQL 全文搜索 */
+  private async runFts(entityType: string, q: string, limit: number, offset: number): Promise<any[]> {
+    const configs: Record<string, { table: string; fields: string; select: string; where: string }> = {
+      Article: {
+        table: "Article", fields: "coalesce(title,'') || ' ' || coalesce(excerpt,'')",
+        select: `id, title, cover, excerpt, "viewCount"`, where: `"auditStatus" = 'APPROVED'`,
+      },
+      Course: {
+        table: "Course", fields: "coalesce(title,'') || ' ' || coalesce(intro,'')",
+        select: `id, title, cover, intro, price, "studentCount"`, where: `"auditStatus" = 'APPROVED'`,
+      },
+      Product: {
+        table: "Product", fields: "coalesce(title,'') || ' ' || coalesce(intro,'')",
+        select: `id, title, images, price, "salesCount"`, where: `"status" = 'ON_SALE'`,
+      },
+      Circle: {
+        table: "Circle", fields: "coalesce(name,'') || ' ' || coalesce(intro,'')",
+        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE'`,
+      },
+      Video: {
+        table: "Video", fields: "coalesce(title,'')",
+        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED'`,
+      },
+      User: {
+        table: "User", fields: "coalesce(nickname,'')",
+        select: `id, nickname, avatar`, where: `"status" = 'ACTIVE'`,
+      },
+      ClassicBook: {
+        table: "ClassicBook", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(intro,'')",
+        select: `id, title, author, cover, category, dynasty`, where: `"status" = 'PUBLISHED'`,
+      },
+      Content: {
+        table: "Content", fields: "coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(excerpt,'')",
+        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED'`,
+      },
+    };
+
+    const cfg = configs[entityType];
+    if (!cfg) return [];
+
+    try {
+      return await this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT ${cfg.select},
+                ts_rank(to_tsvector('simple', ${cfg.fields}),
+                        plainto_tsquery('simple', $1)) AS rank
+         FROM "${cfg.table}"
+         WHERE to_tsvector('simple', ${cfg.fields})
+               @@ plainto_tsquery('simple', $1)
+           AND ${cfg.where}
+         ORDER BY rank DESC
+         LIMIT $2 OFFSET $3`,
+        q, limit, offset,
+      );
+    } catch {
+      return [];
+    }
   }
 
-  private async ftsProducts(q: string, limit: number, offset: number) {
-    return this.prisma.$queryRaw<any[]>`
-      SELECT id, title, images, price, "salesCount",
-             ts_rank(to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(intro,'')),
-                     plainto_tsquery('simple', ${q})) AS rank
-      FROM "Product"
-      WHERE to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(intro,''))
-            @@ plainto_tsquery('simple', ${q})
-        AND "status" = 'ON_SALE'
-      ORDER BY rank DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-  }
+  /** ILIKE 回退搜索（更好的中文支持） */
+  private async runLike(entityType: string, q: string, limit: number, offset: number): Promise<any[]> {
+    const configs: Record<string, { table: string; searchFields: string[]; select: string; where: string }> = {
+      Article: {
+        table: "Article", searchFields: ["title", "excerpt"],
+        select: `id, title, cover, excerpt, "viewCount"`, where: `"auditStatus" = 'APPROVED'`,
+      },
+      Course: {
+        table: "Course", searchFields: ["title", "intro"],
+        select: `id, title, cover, intro, price, "studentCount"`, where: `"auditStatus" = 'APPROVED'`,
+      },
+      Product: {
+        table: "Product", searchFields: ["title", "intro"],
+        select: `id, title, images, price, "salesCount"`, where: `"status" = 'ON_SALE'`,
+      },
+      Circle: {
+        table: "Circle", searchFields: ["name", "intro"],
+        select: `id, name, cover, intro, "memberCount"`, where: `"status" = 'ACTIVE'`,
+      },
+      Video: {
+        table: "Video", searchFields: ["title"],
+        select: `id, title, "videoUrl", "coverUrl", duration, "viewCount"`, where: `"status" = 'PUBLISHED'`,
+      },
+      User: {
+        table: "User", searchFields: ["nickname"],
+        select: `id, nickname, avatar`, where: `"status" = 'ACTIVE'`,
+      },
+      ClassicBook: {
+        table: "ClassicBook", searchFields: ["title", "author", "intro"],
+        select: `id, title, author, cover, category, dynasty`, where: `"status" = 'PUBLISHED'`,
+      },
+      Content: {
+        table: "Content", searchFields: ["title", "author", "excerpt"],
+        select: `id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount"`, where: `"status" = 'PUBLISHED'`,
+      },
+    };
 
-  private async ftsCircles(q: string, limit: number, offset: number) {
-    return this.prisma.$queryRaw<any[]>`
-      SELECT id, name, cover, intro, "memberCount",
-             ts_rank(to_tsvector('simple', coalesce(name,'') || ' ' || coalesce(intro,'')),
-                     plainto_tsquery('simple', ${q})) AS rank
-      FROM "Circle"
-      WHERE to_tsvector('simple', coalesce(name,'') || ' ' || coalesce(intro,''))
-            @@ plainto_tsquery('simple', ${q})
-        AND "status" = 'ACTIVE'
-      ORDER BY rank DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-  }
+    const cfg = configs[entityType];
+    if (!cfg) return [];
 
-  private async ftsVideos(q: string, limit: number, offset: number) {
-    return this.prisma.$queryRaw<any[]>`
-      SELECT id, title, "videoUrl", "coverUrl", duration, "viewCount",
-             ts_rank(to_tsvector('simple', coalesce(title,'')),
-                     plainto_tsquery('simple', ${q})) AS rank
-      FROM "Video"
-      WHERE to_tsvector('simple', coalesce(title,''))
-            @@ plainto_tsquery('simple', ${q})
-        AND "status" = 'PUBLISHED'
-      ORDER BY rank DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-  }
+    const likeClauses = cfg.searchFields.map((f) => `"${f}" ILIKE '%' || $1 || '%'`);
+    const likeWhere = `(${likeClauses.join(" OR ")})`;
 
-  private async ftsUsers(q: string, limit: number, offset: number) {
-    return this.prisma.$queryRaw<any[]>`
-      SELECT id, nickname, avatar,
-             ts_rank(to_tsvector('simple', coalesce(nickname,'')),
-                     plainto_tsquery('simple', ${q})) AS rank
-      FROM "User"
-      WHERE to_tsvector('simple', coalesce(nickname,''))
-            @@ plainto_tsquery('simple', ${q})
-        AND "status" = 'ACTIVE'
-      ORDER BY rank DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-  }
+    // 用匹配字段数作为排序评分
+    const rankScore = cfg.searchFields.map((f) => `CASE WHEN "${f}" ILIKE '%' || $1 || '%' THEN 1 ELSE 0 END`).join(" + ");
 
-  private async ftsClassics(q: string, limit: number, offset: number) {
-    return this.prisma.$queryRaw<any[]>`
-      SELECT id, title, author, cover, category, dynasty,
-             ts_rank(to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(intro,'')),
-                     plainto_tsquery('simple', ${q})) AS rank
-      FROM "ClassicBook"
-      WHERE to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(intro,''))
-            @@ plainto_tsquery('simple', ${q})
-        AND "status" = 'PUBLISHED'
-      ORDER BY rank DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-  }
-
-  private async ftsContents(q: string, limit: number, offset: number) {
-    return this.prisma.$queryRaw<any[]>`
-      SELECT id, title, type, author, dynasty, cover, excerpt, "viewCount", "likeCount",
-             ts_rank(to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(excerpt,'')),
-                     plainto_tsquery('simple', ${q})) AS rank
-      FROM "Content"
-      WHERE to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(author,'') || ' ' || coalesce(excerpt,''))
-            @@ plainto_tsquery('simple', ${q})
-        AND "status" = 'PUBLISHED'
-      ORDER BY rank DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
+    try {
+      return await this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT ${cfg.select}, (${rankScore})::float AS rank
+         FROM "${cfg.table}"
+         WHERE ${likeWhere} AND ${cfg.where}
+         ORDER BY rank DESC
+         LIMIT $2 OFFSET $3`,
+        q, limit, offset,
+      );
+    } catch {
+      return [];
+    }
   }
 
   /** 热门搜索（基于搜索历史频次 + 种子数据兜底） */

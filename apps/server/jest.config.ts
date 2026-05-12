@@ -19,8 +19,19 @@ const config: Config = {
     },
   },
   maxWorkers: 1,
+  testPathIgnorePatterns: ["<rootDir>/.backup/", ".backup/"],
   testEnvironment: "node",
   setupFiles: ["./test/jest-setup.ts"],
+  reporters: [
+    "default",
+    ["jest-junit", {
+      outputDirectory: ".",
+      outputName: "junit.xml",
+      suiteName: "guoxue-server-unit",
+      classNameTemplate: "{filepath}",
+      titleTemplate: "{title}",
+    }],
+  ],
   transformIgnorePatterns: [
     "node_modules/(?!(@nestjs/graphql|@nestjs/apollo|@apollo/server|graphql|@apollo|uuid)/)",
   ],

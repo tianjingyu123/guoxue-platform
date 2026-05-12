@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
-
-const COIN_TO_RMB = 10; // 10币 = ¥1
+import { COIN_TO_RMB } from "../../common/constants";
 
 // 分佣比例（可通过 CommissionConfig 动态读取，此处为默认值）
 const DEFAULT_RATES = {

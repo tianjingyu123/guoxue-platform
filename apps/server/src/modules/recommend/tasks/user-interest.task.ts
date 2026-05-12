@@ -120,21 +120,17 @@ export class UserInterestTask {
       }
     }
 
-    // 批量 Upsert UserInterest
-    let upsertCount = 0;
-    for (const [key, score] of scoreMap) {
+    // 批量 Upsert UserInterest（事务包裹）
+    const upserts = Array.from(scoreMap.entries()).map(([key, score]) => {
       const [userId, tag] = key.split(":", 2);
-      try {
-        await this.prisma.userInterest.upsert({
-          where: { userId_tag: { userId, tag } },
-          update: { score, updatedAt: new Date() },
-          create: { userId, tag, score, source: "BEHAVIOR" },
-        });
-        upsertCount++;
-      } catch {
-        // skip
-      }
-    }
+      return this.prisma.userInterest.upsert({
+        where: { userId_tag: { userId, tag } },
+        update: { score, updatedAt: new Date() },
+        create: { userId, tag, score, source: "BEHAVIOR" },
+      });
+    });
+    await this.prisma.$transaction(upserts);
+    const upsertCount = upserts.length;
 
     // 清理缓存
     const userIds = new Set<string>();

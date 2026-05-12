@@ -24,11 +24,26 @@ export class SystemController {
 
   @Get("configs")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "获取所有系统配置" })
+  @ApiOperation({ summary: "获取所有系统配置，支持 keyPrefix 过滤" })
   @ApiBearerAuth()
-  async listConfigs() {
+  @ApiQuery({ name: "keyPrefix", required: false, type: String, description: "按 key 前缀过滤" })
+  async listConfigs(@Query("keyPrefix") keyPrefix?: string) {
     const configs = await this.systemService.getAllConfigs();
+    if (keyPrefix) {
+      return { configs: configs.filter((c: any) => c.configKey?.startsWith(keyPrefix)) };
+    }
     return { configs };
+  }
+
+  @Post("configs")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "创建系统配置" })
+  @ApiBearerAuth()
+  async createConfig(@Body() body: { key: string; value: string; description?: string }, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    const updatedBy = u?.nickname || u?.id;
+    return this.systemService.setConfig(body.key, body.value, body.description, updatedBy);
   }
 
   @Get("configs/:key")
@@ -94,32 +109,14 @@ export class SystemController {
   @Get("public/banners")
   @ApiOperation({ summary: "获取首页Banner（公开）" })
   async getPublicBanners() {
-    const config = await this.systemService.getConfig("home_banners");
-    if (!config) return { banners: [] };
-    try {
-      return { banners: JSON.parse(config.configValue) };
-    } catch {
-      return { banners: [] };
-    }
+    return this.systemService.getPublicBanners();
   }
 
   /** 公开接口：获取首页布局配置 */
   @Get("public/home-config")
   @ApiOperation({ summary: "获取首页布局配置（公开）" })
   async getHomeConfig() {
-    const keys = ["home:layout", "home:paipan_slot", "home:featured_tags"];
-    const results = await Promise.all(keys.map((k) => this.systemService.getConfig(k)));
-
-    const getValue = (config: { configValue: string } | null, defaultValue: string) => {
-      if (!config) return defaultValue;
-      try { return JSON.parse(config.configValue); } catch { return config.configValue; }
-    };
-
-    return {
-      layout: getValue(results[0], "default"),
-      paipanSlot: Number(getValue(results[1], "6")), // 默认第6位
-      featuredTags: getValue(results[2], "[]"),
-    };
+    return this.systemService.getHomeConfig();
   }
 
   // ── 审计日志 ──
@@ -318,15 +315,24 @@ export class SystemController {
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "查询配置历史版本" })
   @ApiBearerAuth()
-  @ApiQuery({ name: "configKey", required: true })
+  @ApiQuery({ name: "configKey", required: false })
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
   async getConfigVersions(
-    @Query("configKey") configKey: string,
+    @Query("configKey") configKey?: string,
     @Query("page") page = "1",
     @Query("pageSize") pageSize = "20",
   ) {
     return this.systemService.getConfigVersions(configKey, Number(page), Number(pageSize));
+  }
+
+  @Get("config-versions/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "获取单个配置版本详情" })
+  @ApiBearerAuth()
+  async getConfigVersion(@Param("id") id: string) {
+    return this.systemService.getConfigVersion(id);
   }
 
   @Post("config-versions/rollback")
@@ -372,6 +378,25 @@ export class SystemController {
   @ApiBearerAuth()
   async upsertMemberConfig(@Body() dto: UpsertMemberConfigDto) {
     return this.systemService.upsertMemberConfig(dto);
+  }
+
+  @Put("member-configs/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "更新会员等级配置" })
+  @ApiBearerAuth()
+  async updateMemberConfig(@Param("id") id: string, @Body() dto: UpsertMemberConfigDto) {
+    return this.systemService.updateMemberConfig(id, dto);
+  }
+
+  @Delete("member-configs/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "删除会员等级配置" })
+  @ApiBearerAuth()
+  async deleteMemberConfig(@Param("id") id: string) {
+    await this.systemService.deleteMemberConfig(id);
+    return { ok: true };
   }
 
   /** 发送文件到客户端 */

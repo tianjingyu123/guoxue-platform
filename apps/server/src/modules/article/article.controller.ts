@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, UsePipes } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { ArticleService } from "./article.service";
 import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.dto";
@@ -6,6 +6,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StationId } from "../../common/station-id.decorator";
+import { SanitizePipe } from "../../common/sanitize.pipe";
 import { Request } from "express";
 
 @ApiTags("文章")
@@ -17,6 +18,7 @@ export class ArticleController {
 
   @Post("circles/:circleId")
   @UseGuards(JwtAuthGuard)
+  @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "创建文章" })
   @ApiBearerAuth()
   create(@Param("circleId") circleId: string, @Req() req: Request, @Body() dto: CreateArticleDto) {
@@ -74,6 +76,7 @@ export class ArticleController {
 
   @Put(":id")
   @UseGuards(JwtAuthGuard)
+  @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "更新文章" })
   @ApiBearerAuth()
   update(@Param("id") id: string, @Req() req: Request, @Body() dto: UpdateArticleDto) {

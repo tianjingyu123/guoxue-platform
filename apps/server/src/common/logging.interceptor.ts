@@ -32,7 +32,9 @@ export class LoggingInterceptor implements NestInterceptor {
               next: () => {
                 const res = context.switchToHttp().getResponse();
                 const ms = Date.now() - start;
-                res.setHeader("X-Trace-Id", traceId);
+                if (!res.headersSent) {
+                  res.setHeader("X-Trace-Id", traceId);
+                }
                 pino.info({ method, url, status: res.statusCode, ms }, `${method} ${url} → ${res.statusCode} ${ms}ms`);
               },
               error: (err) => {

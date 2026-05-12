@@ -1,6 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
 import { createHash, createSign, createVerify, randomUUID, createDecipheriv } from "crypto";
 import { readFileSync } from "fs";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { MetricsService } from "../../common/metrics.service";
 
 /**
  * 微信支付 V3 API 服务（纯原生HTTP+加密，不依赖SDK）
@@ -18,7 +21,9 @@ export class WechatPayService {
   // 平台证书序列号 → { pem, expireAt }
   private platformCerts: Map<string, { pem: string; expireAt: number }> = new Map();
 
-  constructor() {
+  constructor(
+    @Optional() @Inject(MetricsService) private metrics?: MetricsService,
+  ) {
     this.mchId = process.env.WECHAT_PAY_MCH_ID || "";
     this.serialNo = process.env.WECHAT_PAY_SERIAL_NO || "";
     this.apiV3Key = process.env.WECHAT_PAY_API_V3_KEY || "";
@@ -62,24 +67,39 @@ export class WechatPayService {
   ): Promise<Record<string, unknown>> {
     const bodyStr = body ? JSON.stringify(body) : "";
     const { authorization } = this.sign(method, path, bodyStr);
+    const start = Date.now();
 
-    const resp = await fetch(`${this.baseUrl}${path}`, {
-      method,
-      headers: {
-        "Authorization": authorization,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "guoxue-platform/1.0",
-      },
-      body: bodyStr || undefined,
-    });
+    try {
+      const resp = await fetch(`${this.baseUrl}${path}`, {
+        method,
+        headers: {
+          "Authorization": authorization,
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "User-Agent": "guoxue-platform/1.0",
+        },
+        body: bodyStr || undefined,
+      });
 
-    const respBody = await resp.json() as any;
-    if (resp.status >= 400) {
-      this.logger.error(`微信支付API错误 [${method} ${path}]`, respBody);
-      throw new Error(`微信支付失败: ${respBody.message || respBody.code || "未知错误"}`);
+      const duration = Date.now() - start;
+      const respBody = await resp.json() as any;
+
+      if (resp.status >= 400) {
+        const reason = (respBody.code || respBody.message || "unknown") as string;
+        this.metrics?.recordExternalApi("wechatpay", path, false, duration, reason);
+        this.logger.error(`微信支付API错误 [${method} ${path}]`, respBody);
+        throw new BusinessException(ErrorCode.PAY_FAILED, `微信支付失败: ${respBody.message || respBody.code || "未知错误"}`);
+      }
+
+      this.metrics?.recordExternalApi("wechatpay", path, true, duration);
+      return respBody;
+    } catch (err) {
+      const duration = Date.now() - start;
+      if (err instanceof BusinessException) throw err;
+      const reason = (err as Error).message?.substring(0, 50) ?? "network_error";
+      this.metrics?.recordExternalApi("wechatpay", path, false, duration, reason);
+      throw err;
     }
-    return respBody;
   }
 
   // ───────── 平台证书管理 ─────────
@@ -103,7 +123,7 @@ export class WechatPayService {
     // 从微信获取最新证书列表
     const resp = await this.callApi("GET", "/v3/certificates") as Record<string, unknown>;
     const certList = (resp.data || []) as Array<Record<string, unknown>>;
-    if (certList.length === 0) throw new Error("获取平台证书失败");
+    if (certList.length === 0) throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, "获取平台证书失败");
 
     for (const certData of certList) {
       const serial = certData.serial_no as string;
@@ -128,7 +148,7 @@ export class WechatPayService {
   async getPlatformCertBySerial(serialNo: string): Promise<string> {
     const certs = await this.getPlatformCerts();
     const pem = certs.get(serialNo);
-    if (!pem) throw new Error(`平台证书不存在: ${serialNo}`);
+    if (!pem) throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `平台证书不存在: ${serialNo}`);
     return pem;
   }
 
@@ -374,6 +394,7 @@ export class WechatPayService {
     // 1. 验签
     const valid = await this.verifyNotifySign(signHeader, body);
     if (!valid) {
+      this.metrics?.recordPaymentCallback("wechatpay", false, "verify_failed");
       return { valid: false, error: "签名验证失败" };
     }
 
@@ -381,13 +402,16 @@ export class WechatPayService {
     try {
       const notify = JSON.parse(body) as any;
       if (!notify.resource) {
+        this.metrics?.recordPaymentCallback("wechatpay", true);
         return { valid: true, data: notify }; // 无加密资源的通知
       }
 
       const { ciphertext, associated_data, nonce } = notify.resource;
       const decrypted = this.aesGcmDecrypt(associated_data, nonce, ciphertext);
+      this.metrics?.recordPaymentCallback("wechatpay", true);
       return { valid: true, data: JSON.parse(decrypted) };
     } catch (err: unknown) {
+      this.metrics?.recordPaymentCallback("wechatpay", false, "decrypt_failed");
       return { valid: true, error: `解密失败: ${(err as Error).message}` };
     }
   }

@@ -1,5 +1,6 @@
 import { Test } from "@nestjs/testing";
 import { HealthController } from "../src/modules/health/health.controller";
+import { HealthService } from "../src/modules/health/health.service";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { RedisService } from "../src/redis/redis.service";
 
@@ -16,6 +17,7 @@ describe("HealthController", () => {
     const mod = await Test.createTestingModule({
       controllers: [HealthController],
       providers: [
+        HealthService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
       ],
@@ -27,8 +29,8 @@ describe("HealthController", () => {
   it("健康检查返回 ok", async () => {
     const result = await healthController.check();
     expect(["ok", "degraded"]).toContain(result.status);
-    expect(result.checks.db).toBe("ok");
-    expect(result.checks.redis).toBe("ok");
+    expect(result.checks.db.status).toBe("ok");
+    expect(result.checks.redis.status).toBe("ok");
     expect(result.uptime).toBeGreaterThan(0);
   });
 
@@ -41,6 +43,7 @@ describe("HealthController", () => {
     const mod = await Test.createTestingModule({
       controllers: [HealthController],
       providers: [
+        HealthService,
         { provide: PrismaService, useValue: mockPrismaFail },
         { provide: RedisService, useValue: mockRedisOk },
       ],
@@ -48,6 +51,6 @@ describe("HealthController", () => {
     const ctrl = mod.get(HealthController);
     const result = await ctrl.check();
     expect(result.status).toBe("degraded");
-    expect(result.checks.db).toBe("fail");
+    expect(result.checks.db.status).toBe("fail");
   });
 });

@@ -1,7 +1,7 @@
 import { Controller, Post, Get, Body, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { SmsService } from "./sms.service";
-import { StrictThrottleGuard } from "../../common/throttle.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { SendSmsDto, VerifySmsDto } from "./sms.dto";
 
 @ApiTags("短信服务")
@@ -10,7 +10,7 @@ export class SmsController {
   constructor(private sms: SmsService) {}
 
   @Post("send")
-  @UseGuards(StrictThrottleGuard)
+  @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "发送短信验证码" })
   sendCode(
     @Body() body: SendSmsDto,
@@ -19,7 +19,7 @@ export class SmsController {
   }
 
   @Post("verify")
-  @UseGuards(StrictThrottleGuard)
+  @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "验证短信验证码" })
   verifyCode(
     @Body() body: VerifySmsDto,

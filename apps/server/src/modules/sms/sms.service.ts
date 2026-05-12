@@ -1,14 +1,10 @@
-import { Injectable, Logger, BadRequestException } from "@nestjs/common";
-import { createHash, createHmac } from "crypto";
+import { Injectable, Logger, BadRequestException, Inject, Optional } from "@nestjs/common";
 import { RedisService } from "../../redis/redis.service";
 import { maskPhone } from "../../common/crypto.util";
-
-interface TencentCloudResponse {
-  Response?: {
-    Error?: { Code: string; Message: string };
-    [key: string]: unknown;
-  };
-}
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
+import { MetricsService } from "../../common/metrics.service";
 
 /**
  * 腾讯云短信 SMS 服务（纯原生API，不依赖SDK）
@@ -25,7 +21,10 @@ export class SmsService {
   private readonly host = "sms.tencentcloudapi.com";
   private readonly apiVersion = "2021-01-11";
 
-  constructor(private redis: RedisService) {
+  constructor(
+    private redis: RedisService,
+    @Optional() @Inject(MetricsService) private metrics?: MetricsService,
+  ) {
     this.secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "";
     this.secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "";
     this.appId = process.env.SMS_APP_ID || "";
@@ -39,40 +38,42 @@ export class SmsService {
 
   /** TC3-HMAC-SHA256 签名调用 */
   private async callApi(action: string, params: Record<string, unknown>) {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
-    const payload = JSON.stringify(params);
-    const service = "sms";
-
-    const canonicalRequest = `POST\n/\n\ncontent-type:application/json; charset=utf-8\nhost:${this.host}\n\ncontent-type;host\n${createHash("sha256").update(payload).digest("hex")}`;
-    const stringToSign = `TC3-HMAC-SHA256\n${timestamp}\n${date}/${service}/tc3_request\n${createHash("sha256").update(canonicalRequest).digest("hex")}`;
-
-    const kDate = createHmac("sha256", `TC3${this.secretKey}`).update(date).digest();
-    const kService = createHmac("sha256", kDate).update(service).digest();
-    const kSigning = createHmac("sha256", kService).update("tc3_request").digest();
-    const signature = createHmac("sha256", kSigning).update(stringToSign).digest("hex");
-
-    const authorization = `TC3-HMAC-SHA256 Credential=${this.secretId}/${date}/${service}/tc3_request, SignedHeaders=content-type;host, Signature=${signature}`;
-
-    const resp = await fetch(`https://${this.host}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Host": this.host,
-        "X-TC-Action": action,
-        "X-TC-Version": this.apiVersion,
-        "X-TC-Timestamp": String(timestamp),
-        "Authorization": authorization,
-      },
-      body: payload,
+    const { host, headers, payloadStr } = tc3Sign({
+      secretId: this.secretId,
+      secretKey: this.secretKey,
+      service: "sms",
+      action,
+      version: this.apiVersion,
+      payload: params,
     });
 
-    const data = await resp.json() as TencentCloudResponse;
-    if (data.Response?.Error) {
-      this.logger.error(`SMS API错误 [${action}]`, data.Response.Error);
-      throw new Error(`短信发送失败: ${data.Response.Error.Message}`);
+    const start = Date.now();
+    try {
+      const resp = await fetch(`https://${host}`, {
+        method: "POST",
+        headers,
+        body: payloadStr,
+      });
+
+      const duration = Date.now() - start;
+      const data = await resp.json() as TencentCloudResponse;
+
+      if (data.Response?.Error) {
+        const reason = (data.Response.Error.Code || "unknown") as string;
+        this.metrics?.recordExternalApi("sms", action, false, duration, reason);
+        this.logger.error(`SMS API错误 [${action}]`, data.Response.Error);
+        throw new BusinessException(ErrorCode.THIRD_SMS_FAILED, `短信发送失败: ${data.Response.Error.Message}`);
+      }
+
+      this.metrics?.recordExternalApi("sms", action, true, duration);
+      return data.Response!;
+    } catch (err) {
+      const duration = Date.now() - start;
+      if (err instanceof BusinessException) throw err;
+      const reason = (err as Error).message?.substring(0, 50) ?? "network_error";
+      this.metrics?.recordExternalApi("sms", action, false, duration, reason);
+      throw err;
     }
-    return data.Response!;
   }
 
   /** 发送短信验证码 */

@@ -77,9 +77,11 @@ export class LiveController {
   }
 
   @Get("rooms/:id/play-url")
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取观众拉流地址" })
-  playUrl(@Param("id") id: string, @Query("userId") userId: string) {
-    return this.svc.getPlayUrl(id, userId);
+  @ApiBearerAuth()
+  playUrl(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.getPlayUrl(id, req.user.id);
   }
 
   @Put("rooms/:id/end")

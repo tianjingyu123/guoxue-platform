@@ -37,6 +37,9 @@ export class CreateBotDto {
 
 export class UpdateBotDto {
   @IsOptional() @IsString()
+  apiKey?: string;
+
+  @IsOptional() @IsString()
   name?: string;
 
   @IsOptional() @IsString()

@@ -68,6 +68,34 @@ export class SystemService {
     return map;
   }
 
+  /** 公开：获取首页 Banner */
+  async getPublicBanners() {
+    const config = await this.getConfig("home_banners");
+    if (!config) return { banners: [] };
+    try {
+      return { banners: JSON.parse(config.configValue) };
+    } catch {
+      return { banners: [] };
+    }
+  }
+
+  /** 公开：获取首页布局配置 */
+  async getHomeConfig() {
+    const keys = ["home:layout", "home:paipan_slot", "home:featured_tags"];
+    const results = await Promise.all(keys.map((k) => this.getConfig(k)));
+
+    const parseValue = (config: { configValue: string } | null, defaultValue: string) => {
+      if (!config) return defaultValue;
+      try { return JSON.parse(config.configValue); } catch { return config.configValue; }
+    };
+
+    return {
+      layout: parseValue(results[0], "default"),
+      paipanSlot: Number(parseValue(results[1], "6")),
+      featuredTags: parseValue(results[2], "[]"),
+    };
+  }
+
   // ── 审计日志（委托给 AuditService）──
 
   async logAudit(data: {
@@ -229,16 +257,19 @@ export class SystemService {
   // ───────── 配置版本管理 ─────────
 
   /** 查询配置历史版本 */
-  async getConfigVersions(configKey: string, page: number, pageSize: number) {
+  async getConfigVersions(configKey: string | undefined, page: number, pageSize: number) {
     this.logger.log(`查询配置历史版本: configKey=${configKey}`);
+    const where: Prisma.ConfigVersionWhereInput = {};
+    if (configKey) where.configKey = configKey;
+
     const [records, total] = await Promise.all([
       this.prisma.configVersion.findMany({
-        where: { configKey },
+        where,
         orderBy: { version: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      this.prisma.configVersion.count({ where: { configKey } }),
+      this.prisma.configVersion.count({ where }),
     ]);
 
     return {
@@ -248,6 +279,13 @@ export class SystemService {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
     };
+  }
+
+  /** 获取单个配置版本详情 */
+  async getConfigVersion(id: string) {
+    const record = await this.prisma.configVersion.findUnique({ where: { id } });
+    if (!record) throw new NotFoundException("配置版本不存在");
+    return { configValue: record.value, ...record };
   }
 
   /** 回滚配置到指定版本 */
@@ -341,5 +379,33 @@ export class SystemService {
         isActive: dto.isActive,
       },
     });
+  }
+
+  /** 更新会员等级配置 */
+  async updateMemberConfig(id: string, dto: {
+    name?: string;
+    price?: number;
+    coinBonus?: number;
+    benefits?: Record<string, unknown>;
+    maxBorrowDays?: number;
+    isActive?: boolean;
+  }) {
+    const existing = await this.prisma.memberConfig.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("会员配置不存在");
+    const data: Prisma.MemberConfigUpdateInput = {};
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.price !== undefined) data.price = dto.price;
+    if (dto.coinBonus !== undefined) data.coinBonus = dto.coinBonus;
+    if (dto.benefits !== undefined) data.benefits = dto.benefits as Prisma.InputJsonValue;
+    if (dto.maxBorrowDays !== undefined) data.maxBorrowDays = dto.maxBorrowDays;
+    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    return this.prisma.memberConfig.update({ where: { id }, data });
+  }
+
+  /** 删除会员等级配置 */
+  async deleteMemberConfig(id: string) {
+    const existing = await this.prisma.memberConfig.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("会员配置不存在");
+    return this.prisma.memberConfig.delete({ where: { id } });
   }
 }

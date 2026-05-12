@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 // tls-sig-api-v2 是 JS 模块，不支持 ESM import
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -26,7 +28,7 @@ export class TlsSigService {
    */
   genUserSig(userId: string, expire: number = 7 * 24 * 3600): string {
     if (!this.sdkAppId || !this.key) {
-      throw new Error("IM 未配置，请联系管理员");
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "IM 未配置，请联系管理员");
     }
     const api = new TLSSigAPIv2.Api(this.sdkAppId, this.key);
     return api.genSig(userId, expire);

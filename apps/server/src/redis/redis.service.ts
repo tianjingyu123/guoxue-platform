@@ -1,6 +1,17 @@
 import { Injectable, OnModuleDestroy, Logger } from "@nestjs/common";
 import Redis from "ioredis";
 
+/** 脱敏 Redis URL，隐藏密码部分 */
+function maskRedisUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    if (u.password) u.password = "***";
+    return u.toString();
+  } catch {
+    return url.replace(/\/\/.*?@/, "//***:***@");
+  }
+}
+
 /**
  * Redis 缓存服务
  *
@@ -45,7 +56,7 @@ export class RedisService implements OnModuleDestroy {
       this.connected = true;
       return this.client;
     } catch {
-      console.warn("[Redis] Redis 不可用（%s），降级为内存缓存", process.env.REDIS_URL);
+      this.logger.warn(`Redis 不可用（${maskRedisUrl(process.env.REDIS_URL || "")}），降级为内存缓存`);
       return null;
     }
   }
@@ -80,7 +91,14 @@ export class RedisService implements OnModuleDestroy {
       const result = await conn.set(key, value, "EX", ttlSeconds, "NX");
       return result === "OK";
     }
-    if (this.memory.has(key)) return false;
+    const entry = this.memory.get(key);
+    if (entry) {
+      if (entry.expiry > 0 && Date.now() > entry.expiry) {
+        this.memory.delete(key);
+      } else {
+        return false;
+      }
+    }
     this.memory.set(key, { value, expiry: Date.now() + ttlSeconds * 1000 });
     return true;
   }

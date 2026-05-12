@@ -1,4 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { BusinessException } from "./business.exception";
+import { ErrorCode } from "./error-codes";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
@@ -6,7 +8,7 @@ const TAG_LENGTH = 16;
 
 function getKey(): Buffer {
   const secret = process.env.ENCRYPTION_KEY;
-  if (!secret) throw new Error("ENCRYPTION_KEY 环境变量未设置");
+  if (!secret) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "ENCRYPTION_KEY 环境变量未设置");
   return Buffer.from(secret.padEnd(32).slice(0, 32), "utf8");
 }
 
@@ -30,7 +32,7 @@ export function decrypt(ciphertext: string): string {
   return decipher.update(encrypted) + decipher.final("utf8");
 }
 
-export function maskPhone(phone: string): string {
-  if (!phone || phone.length < 7) return phone;
+export function maskPhone(phone: string | null): string {
+  if (!phone || phone.length < 7) return phone ?? "";
   return phone.slice(0, 3) + "****" + phone.slice(-4);
 }

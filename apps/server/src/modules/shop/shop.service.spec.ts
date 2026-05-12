@@ -44,6 +44,7 @@ const mockRedis = {
   set: jest.fn().mockResolvedValue(undefined),
   del: jest.fn().mockResolvedValue(undefined),
   delByPattern: jest.fn().mockResolvedValue(undefined),
+  setNX: jest.fn().mockResolvedValue(true),
 }
 
 const mockPrisma: any = {

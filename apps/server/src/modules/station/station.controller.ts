@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request } from "express";
 import { StationService } from "./station.service";
@@ -57,6 +57,14 @@ export class StationController {
   @ApiOperation({ summary: "更新分站（含品牌配置）" })
   updateStation(@Param("id") id: string, @Body() dto: UpdateStationDto) {
     return this.svc.updateStation(id, dto);
+  }
+
+  @Delete(":id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "删除分站" })
+  deleteStation(@Param("id") id: string) {
+    return this.svc.deleteStation(id);
   }
 
   @Get(":id/earnings")

@@ -31,8 +31,15 @@ describe("AiService", () => {
 
   describe("签名生成", () => {
     it("应能生成签名（不抛异常）", () => {
-      const body = { Text: "测试" };
-      expect(() => (svc as any).sign("asr", "SentenceRecognition", body)).not.toThrow();
+      const { tc3Sign } = require("../../common/tc3.util");
+      expect(() => tc3Sign({
+        secretId: "test-id",
+        secretKey: "test-key",
+        service: "asr",
+        action: "SentenceRecognition",
+        version: "2019-06-14",
+        payload: { Text: "测试" },
+      })).not.toThrow();
     });
   });
 

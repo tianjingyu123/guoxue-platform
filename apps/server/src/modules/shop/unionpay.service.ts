@@ -50,16 +50,26 @@ export class UnionpayService {
 
   /** 从PFX/P12文件提取私钥（简化实现：OpenSSL提取） */
   private loadPfx(pfxBuf: Buffer, password: string): { privateKey: string; cert: string } {
-    // 使用Node.js crypto处理PKCS12比较底层，这里提供容错
-    // 生产环境建议从环境变量直接提供PEM格式私钥
     const { spawnSync } = require("child_process");
+    const { randomUUID } = require("crypto");
     const tmp = require("os").tmpdir();
-    const pfxPath = `${tmp}/unionpay-temp-${Date.now()}.pfx`;
-    require("fs").writeFileSync(pfxPath, pfxBuf);
-    const key = spawnSync("openssl", ["pkcs12", "-in", pfxPath, "-nocerts", "-nodes", "-passin", `pass:${password}`], { encoding: "utf-8" }).stdout;
-    const cert = spawnSync("openssl", ["pkcs12", "-in", pfxPath, "-clcerts", "-nokeys", "-passin", `pass:${password}`], { encoding: "utf-8" }).stdout;
-    require("fs").unlinkSync(pfxPath);
-    return { privateKey: key || "", cert: cert || "" };
+    const pfxPath = `${tmp}/unionpay-${randomUUID()}.pfx`;
+    try {
+      require("fs").writeFileSync(pfxPath, pfxBuf);
+      // 密码通过 stdin 传递，避免出现在进程列表的命令行参数中
+      const key = spawnSync("openssl", ["pkcs12", "-in", pfxPath, "-nocerts", "-nodes", "-passin", "stdin"], {
+        encoding: "utf-8",
+        input: password,
+      }).stdout;
+      const cert = spawnSync("openssl", ["pkcs12", "-in", pfxPath, "-clcerts", "-nokeys", "-passin", "stdin"], {
+        encoding: "utf-8",
+        input: password,
+      }).stdout;
+      return { privateKey: key || "", cert: cert || "" };
+    } finally {
+      // 确保临时文件在任何情况下都被清理
+      try { require("fs").unlinkSync(pfxPath); } catch { /* 忽略删除失败 */ }
+    }
   }
 
   // ───────── 签名与请求 ─────────

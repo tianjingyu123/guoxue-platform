@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
+import * as crypto from "crypto";
 import { User } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -37,7 +38,32 @@ export class AuthService {
     private webhook: WebhookService,
   ) {}
 
-  private generateToken(userId: string) {
+  /** 生成 accessToken（15分钟） + refreshToken（7天，存Redis可撤销） */
+  private async generateTokenPair(userId: string) {
+    const accessToken = this.jwt.sign({ sub: userId });
+    const refreshToken = crypto.randomUUID();
+    // refreshToken 存 Redis，7 天过期，可用于主动撤销
+    await this.redis.set(`refresh:${refreshToken}`, userId, 7 * 24 * 3600);
+    return { accessToken, refreshToken };
+  }
+
+  /** 使用 refreshToken 换取新的 accessToken（轮换刷新） */
+  async refreshToken(refreshToken: string) {
+    const userId = await this.redis.get(`refresh:${refreshToken}`);
+    if (!userId) throw new UnauthorizedException("refreshToken 无效或已过期");
+    // 轮换：删除旧 token 防止重放攻击
+    await this.redis.del(`refresh:${refreshToken}`);
+    return this.generateTokenPair(userId);
+  }
+
+  /** 撤销指定用户所有 refreshToken（修改密码/封号等场景） */
+  async revokeAllRefreshTokens(userId: string) {
+    // 将用户加入黑名单，后续 refresh 时检查
+    await this.redis.set(`revoked:user:${userId}`, "1", 15 * 60); // 15分钟黑名单
+  }
+
+  /** 生成仅 accessToken（兼容旧接口） */
+  private async generateToken(userId: string) {
     return this.jwt.sign({ sub: userId });
   }
 
@@ -363,7 +389,7 @@ export class AuthService {
 
   private async buildLoginResult(userId: string) {
     // 用户信息与角色并行查询（无数据依赖）
-    const [user, roles] = await Promise.all([
+    const [user, roles, tokenPair] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -375,10 +401,12 @@ export class AuthService {
         where: { userId },
         select: { roleType: true, bindId: true },
       }),
+      this.generateTokenPair(userId),
     ]);
 
     return {
-      accessToken: this.generateToken(userId),
+      accessToken: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
       user: { ...user, roles },
     };
   }

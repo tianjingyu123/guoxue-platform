@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CozeService } from "./coze.service";
 import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDto } from "./bot.dto";
+import { encrypt, decrypt } from "../../common/crypto.util";
 
 @Injectable()
 export class BotService {
@@ -23,7 +24,7 @@ export class BotService {
         avatar: dto.avatar,
         intro: dto.intro || "",
         botId: dto.botId,
-        apiKey: dto.apiKey,
+        apiKey: encrypt(dto.apiKey),
         isFree: dto.isFree ?? true,
         dailyLimit: dto.dailyLimit ?? 5,
         price: dto.price,
@@ -34,7 +35,9 @@ export class BotService {
   }
 
   async update(id: string, dto: UpdateBotDto) {
-    return this.prisma.botConfig.update({ where: { id }, data: dto as Prisma.BotConfigUpdateInput });
+    const data: Prisma.BotConfigUpdateInput = { ...dto };
+    if (dto.apiKey) data.apiKey = encrypt(dto.apiKey);
+    return this.prisma.botConfig.update({ where: { id }, data });
   }
 
   async delete(id: string) {
@@ -46,10 +49,12 @@ export class BotService {
     const where: Prisma.BotConfigWhereInput = { status: "ACTIVE" };
     if (type) where.type = type;
 
-    return this.prisma.botConfig.findMany({
+    const bots = await this.prisma.botConfig.findMany({
       where,
       orderBy: { sortOrder: "asc" },
     });
+    // 解密 apiKey
+    return bots.map(b => ({ ...b, apiKey: b.apiKey ? decrypt(b.apiKey) : b.apiKey }));
   }
 
   async getDetail(id: string) {
@@ -61,7 +66,7 @@ export class BotService {
       },
     });
     if (!bot) throw new NotFoundException("智能体不存在");
-    return bot;
+    return { ...bot, apiKey: bot.apiKey ? decrypt(bot.apiKey) : bot.apiKey };
   }
 
   // ───────── 圈子绑定 ─────────
@@ -80,10 +85,14 @@ export class BotService {
   }
 
   async getCircleBot(circleId: string) {
-    return this.prisma.circleBot.findUnique({
+    const bot = await this.prisma.circleBot.findUnique({
       where: { circleId },
       include: { botConfig: true },
     });
+    if (bot?.botConfig?.apiKey) {
+      bot.botConfig.apiKey = decrypt(bot.botConfig.apiKey);
+    }
+    return bot;
   }
 
   // ───────── 知识库 ─────────

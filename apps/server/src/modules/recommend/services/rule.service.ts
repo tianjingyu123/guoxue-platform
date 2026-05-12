@@ -1,6 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RedisService } from "../../../redis/redis.service";
+import { CreateRecommendRuleDto, UpdateRecommendRuleDto } from "../recommend.dto";
 
 export interface ActiveRule {
   id: string;
@@ -97,5 +99,60 @@ export class RuleService {
 
   async clearCache() {
     await this.redis.del("recommend:rules:active");
+  }
+
+  // ─── CRUD ───
+
+  async listRules() {
+    return this.prisma.recommendRule.findMany({ orderBy: { createdAt: "desc" } });
+  }
+
+  async getRule(id: string) {
+    return this.prisma.recommendRule.findUniqueOrThrow({ where: { id } });
+  }
+
+  async createRule(dto: CreateRecommendRuleDto) {
+    const rule = await this.prisma.recommendRule.create({
+      data: {
+        scene: dto.scene ?? "ALL",
+        targetType: dto.targetType,
+        targetId: dto.targetId,
+        ruleType: dto.ruleType,
+        ruleValue: dto.ruleValue,
+        priority: dto.priority ?? 0,
+        conditionJson: dto.conditionJson as Prisma.InputJsonValue,
+        startAt: dto.startAt ? new Date(dto.startAt) : null,
+        endAt: dto.endAt ? new Date(dto.endAt) : null,
+        remark: dto.remark,
+        createdBy: dto.createdBy ?? "admin",
+      },
+    });
+    await this.clearCache();
+    return rule;
+  }
+
+  async updateRule(id: string, dto: UpdateRecommendRuleDto) {
+    const rule = await this.prisma.recommendRule.update({
+      where: { id },
+      data: {
+        scene: dto.scene,
+        targetType: dto.targetType,
+        targetId: dto.targetId,
+        ruleType: dto.ruleType,
+        ruleValue: dto.ruleValue,
+        priority: dto.priority,
+        conditionJson: dto.conditionJson as Prisma.InputJsonValue,
+        startAt: dto.startAt ? new Date(dto.startAt) : undefined,
+        endAt: dto.endAt ? new Date(dto.endAt) : undefined,
+        remark: dto.remark,
+      },
+    });
+    await this.clearCache();
+    return rule;
+  }
+
+  async deleteRule(id: string) {
+    await this.prisma.recommendRule.delete({ where: { id } });
+    await this.clearCache();
   }
 }

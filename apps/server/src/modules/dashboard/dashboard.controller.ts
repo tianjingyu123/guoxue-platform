@@ -146,6 +146,27 @@ export class DashboardController {
     return this.svc.getOfflineDashboard(id);
   }
 
+  // ───────── 角色专属仪表盘 ─────────
+
+  @Get("role/:roleType")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE", "CONTENT_AUDITOR", "GOODS_AUDITOR")
+  @ApiOperation({ summary: "角色专属仪表盘（6种管理角色各返回专属数据）" })
+  @ApiParam({ name: "roleType", description: "角色类型：SUPER_ADMIN/OPERATION_ADMIN/FINANCE_ADMIN/CUSTOMER_SERVICE/CONTENT_AUDITOR/GOODS_AUDITOR" })
+  getRoleDashboard(@Param("roleType") roleType: string) {
+    return this.svc.getRoleDashboard(roleType);
+  }
+
+  // ───────── 平台总览 ─────────
+
+  @Get("platform")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "平台总览（用户/内容/交易/收入四维聚合）" })
+  getPlatformOverview() {
+    return this.svc.getPlatformOverview();
+  }
+
   // ───────── 运营日报生成 ─────────
 
   @Post("report/daily")

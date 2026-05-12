@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Logger } from "@nes
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { MemberLevel, Prisma, RoleType, UserStatus } from "@prisma/client";
+import { maskPhone } from "../../common/crypto.util";
 
 @Injectable()
 export class UserService {
@@ -62,7 +63,7 @@ export class UserService {
       this.prisma.user.count({ where }),
     ]);
 
-    return { users, total, page, pageSize };
+    return { users: users.map(u => ({ ...u, phone: maskPhone(u.phone) })), total, page, pageSize };
   }
 
   async assignRole(userId: string, roleType: RoleType, bindId?: string) {
@@ -142,7 +143,7 @@ export class UserService {
     if (existing) throw new BadRequestException("已关注该用户");
 
     try {
-      return this.prisma.follow.create({
+      return await this.prisma.follow.create({
         data: { userId: followerId, followedUserId },
       });
     } catch (e: unknown) {
@@ -279,7 +280,7 @@ export class UserService {
         })
       : [];
 
-    return { users, total, page, pageSize };
+    return { users: users.map(u => ({ ...u, phone: maskPhone(u.phone) })), total, page, pageSize };
   }
 
   async addWhitelist(userId: string): Promise<{ success: boolean; userId: string }> {
@@ -357,7 +358,11 @@ export class UserService {
       ]);
 
     return {
-      userInfo,
+      userInfo: {
+        ...userInfo,
+        phone: maskPhone(userInfo.phone),
+        birthday: userInfo.birthday ? userInfo.birthday.toISOString().slice(0, 7) : null, // 仅展示年月
+      },
       memberInfo,
       orderStats: {
         totalOrders: orderStats._count,

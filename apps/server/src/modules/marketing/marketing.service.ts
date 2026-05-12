@@ -202,6 +202,14 @@ export class MarketingService {
     });
   }
 
+  async deleteGroupBuy(id: string) {
+    const existing = await this.prisma.groupBuy.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("拼团活动不存在");
+    await this.prisma.groupBuy.delete({ where: { id } });
+    this.logger.log(`拼团活动已删除: ${id}`);
+    return { success: true };
+  }
+
   async getGroupBuyParticipants(id: string) {
     const groupBuy = await this.prisma.groupBuy.findUnique({ where: { id } });
     if (!groupBuy) throw new NotFoundException("拼团活动不存在");
@@ -279,6 +287,14 @@ export class MarketingService {
     });
   }
 
+  async deleteCouponTemplate(id: string) {
+    const existing = await this.prisma.couponTemplate.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("优惠券模板不存在");
+    await this.prisma.couponTemplate.delete({ where: { id } });
+    this.logger.log(`优惠券模板已删除: ${id}`);
+    return { success: true };
+  }
+
   async grantCoupon(id: string, dto: GrantCouponDto) {
     const template = await this.prisma.couponTemplate.findUnique({ where: { id } });
     if (!template) throw new NotFoundException("优惠券模板不存在");
@@ -309,20 +325,24 @@ export class MarketingService {
     const template = await this.prisma.couponTemplate.findUnique({ where: { id } });
     if (!template) throw new NotFoundException("优惠券模板不存在");
 
+    // 一次性查询当前已领取数，避免循环中 N+1 查询
+    let claimedCount = 0;
+    if (template.totalCount > 0) {
+      const current = await this.prisma.couponTemplate.findUnique({
+        where: { id },
+        select: { claimedCount: true },
+      });
+      claimedCount = current?.claimedCount ?? 0;
+    }
+
     const results: Array<{ userId: string; success: boolean; error?: string }> = [];
 
     for (const userId of dto.userIds) {
       try {
-        // 检查发行总量
-        if (template.totalCount > 0) {
-          const current = await this.prisma.couponTemplate.findUnique({
-            where: { id },
-            select: { claimedCount: true },
-          });
-          if (current && current.claimedCount >= template.totalCount) {
-            results.push({ userId, success: false, error: "优惠券已领完" });
-            continue;
-          }
+        // 检查发行总量（本地计数 + 数据库基准）
+        if (template.totalCount > 0 && claimedCount >= template.totalCount) {
+          results.push({ userId, success: false, error: "优惠券已领完" });
+          continue;
         }
 
         await this.prisma.$transaction(async (tx) => {
@@ -340,6 +360,7 @@ export class MarketingService {
           });
         });
 
+        claimedCount++;
         results.push({ userId, success: true });
       } catch (err: unknown) {
         this.logger.warn(`批量发放优惠券失败 userId=${userId}: ${(err as Error).message}`);
@@ -455,6 +476,15 @@ export class MarketingService {
     });
   }
 
+  async getPage(id: string) {
+    const page = await this.prisma.marketingPage.findUnique({
+      where: { id },
+      include: { components: { orderBy: { sortOrder: "asc" } } },
+    });
+    if (!page) throw new NotFoundException("微页面不存在");
+    return page;
+  }
+
   async updatePage(id: string, dto: UpdateMarketingPageDto) {
     const existing = await this.prisma.marketingPage.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException("微页面不存在");
@@ -463,6 +493,15 @@ export class MarketingService {
       where: { id },
       data: dto as Prisma.MarketingPageUpdateInput,
     });
+  }
+
+  async deletePage(id: string) {
+    const existing = await this.prisma.marketingPage.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("微页面不存在");
+    await this.prisma.marketingPageComponent.deleteMany({ where: { pageId: id } });
+    await this.prisma.marketingPage.delete({ where: { id } });
+    this.logger.log(`微页面已删除: ${id}`);
+    return { success: true };
   }
 
   async addPageComponent(id: string, dto: CreatePageComponentDto) {
@@ -628,6 +667,14 @@ export class MarketingService {
       where: { id },
       data,
     });
+  }
+
+  async deleteActivity(id: string) {
+    const existing = await this.prisma.activity.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("活动不存在");
+    await this.prisma.activity.delete({ where: { id } });
+    this.logger.log(`活动已删除: ${id}`);
+    return { success: true };
   }
 
   async getActivityMetrics(id: string) {
