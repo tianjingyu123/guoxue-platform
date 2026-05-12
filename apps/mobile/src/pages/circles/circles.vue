@@ -1,22 +1,20 @@
 <template>
   <view class="page">
-    <!-- 顶部标题 -->
-    <view class="title-row">
-      <text class="title-text">圈子</text>
-      <text class="title-sub">以文会友，以友辅仁</text>
+    <!-- 页面标题 -->
+    <view class="page-header">
+      <text class="page-title">圈子</text>
+      <text class="page-subtitle">以文会友 · 以友辅仁</text>
     </view>
 
     <!-- 类型筛选 -->
     <view class="filter-bar">
-      <view
+      <text
         v-for="tab in typeTabs"
         :key="tab.key"
         class="filter-item"
         :class="{ active: currentTab === tab.key }"
         @click="switchTab(tab.key)"
-      >
-        <text>{{ tab.label }}</text>
-      </view>
+      >{{ tab.label }}</text>
     </view>
 
     <!-- 下拉刷新提示 -->
@@ -144,23 +142,24 @@ async function fetchCircles(reset: boolean) {
 }
 
 /* 标题 */
-.title-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #e0d5c1;
+.page-header {
+  text-align: center;
+  padding: 12px 0 10px;
 }
-.title-text {
-  font-size: 20px;
+.page-title {
+  font-size: 24px;
   font-weight: bold;
   color: #C41E3A;
+  display: block;
+  font-family: 'Noto Serif SC', serif;
+  letter-spacing: 3px;
 }
-.title-sub {
-  font-size: 12px;
+.page-subtitle {
+  font-size: 13px;
   color: #C9A96E;
-  font-style: italic;
+  margin-top: 4px;
+  display: block;
+  letter-spacing: 2px;
 }
 
 /* ===== 类型筛选 ===== */
@@ -168,19 +167,22 @@ async function fetchCircles(reset: boolean) {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
+  justify-content: center;
 }
 .filter-item {
-  padding: 6px 18px;
-  border-radius: 16px;
+  padding: 7px 18px;
+  border-radius: 18px;
   font-size: 13px;
-  color: #666;
+  color: #888;
   background: #fff;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
 }
 .filter-item.active {
   color: #fff;
-  background: #C41E3A;
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
   border-color: #C41E3A;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(196, 30, 58, 0.2);
 }
 
 /* 下拉刷新 */

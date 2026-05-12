@@ -89,7 +89,7 @@ const defaultBots: Bot[] = [
   { id: "bot-01", name: "智能客服", desc: "7×24小时智能解答平台使用问题", category: "office", tag: "免费", usageCount: 1286, color: "#4a90d9", intro: "您好！我是智能客服助手，可以解答您在平台使用中的任何问题，帮助您快速上手各项功能。", suggestions: ["如何发布帖子？", "怎样加入圈子？", "如何查看我的收藏？"] },
   { id: "bot-02", name: "圈主助理", desc: "协助管理圈子日常运营与成员互动", category: "customer", tag: "免费", usageCount: 876, color: "#50b86c", intro: "您好！我是圈主助理，帮您高效管理圈子，提升成员活跃度。", suggestions: ["如何提升圈子活跃度？", "如何设置圈子公告？", "成员管理技巧有哪些？"] },
   { id: "bot-03", name: "站长助理", desc: "帮助站长管理平台内容与数据", category: "customer", tag: "免费", usageCount: 654, color: "#e67e22", intro: "您好！我是站长助理，为您提供内容管理和数据分析帮助。", suggestions: ["如何分析平台数据？", "内容审核标准是什么？", "如何优化SEO？"] },
-  { id: "bot-04", name: "获客文案生成器", desc: "自动生成营销获客文案与推广内容", category: "copywriting", tag: "付费", usageCount: 2341, color: "#e74c3c", intro: "您好！我是获客文案生成器，帮您快速产出高质量营销文案。", suggestions: ["写一篇国学课程推广文案", "生成朋友圈获客文案", "写一个节日营销标题"] },
+  { id: "bot-04", name: "获客文案生成器", desc: "自动生成营销获客文案与推广内容", category: "copywriting", tag: "付费", usageCount: 2341, color: "#C41E3A", intro: "您好！我是获客文案生成器，帮您快速产出高质量营销文案。", suggestions: ["写一篇国学课程推广文案", "生成朋友圈获客文案", "写一个节日营销标题"] },
   { id: "bot-05", name: "报告工厂", desc: "一键生成各类分析报告与总结文档", category: "copywriting", tag: "付费", usageCount: 1523, color: "#9b59b6", intro: "您好！我是报告工厂，把您的数据变成专业报告。", suggestions: ["生成月度运营报告", "写一份竞品分析报告", "总结本周数据趋势"] },
   { id: "bot-06", name: "开运好物推荐官", desc: "推荐开运好物与风水吉祥用品", category: "copywriting", tag: "免费", usageCount: 3210, color: "#f39c12", intro: "您好！我是开运好物推荐官，为您推荐开运吉祥物和风水好物。", suggestions: ["本命年适合戴什么？", "办公桌风水摆件推荐", "求学业戴什么吉祥物？"] },
   { id: "bot-07", name: "白标AI助手", desc: "定制化AI助手服务，打造专属品牌形象", category: "office", tag: "会员专享", usageCount: 432, color: "#1abc9c", intro: "您好！我是白标AI助手，为您提供个性化定制AI服务。", suggestions: ["如何配置白标助手？", "支持哪些自定义功能？", "如何集成到我的网站？"] },
@@ -97,7 +97,7 @@ const defaultBots: Bot[] = [
   { id: "bot-09", name: "古籍活字典", desc: "查询古籍字词释义与典故出处", category: "study", tag: "免费", usageCount: 4567, color: "#2c3e50", intro: "您好！我是古籍活字典，通晓四书五经、诸子百家，随时为您答疑解惑。", suggestions: ["'道可道非常道'什么意思？", "《论语》中'仁'的涵义", "解释'上善若水'的典故"] },
   { id: "bot-10", name: "客户关系管家", desc: "智能管理客户关系与跟进记录", category: "customer", tag: "付费", usageCount: 765, color: "#16a085", intro: "您好！我是客户关系管家，帮您高效管理客户资源。", suggestions: ["如何分类管理客户？", "设置跟进提醒", "客户数据分析方法"] },
   { id: "bot-11", name: "全能办公助理", desc: "一站式办公辅助，涵盖文档、表格、PPT", category: "office", tag: "免费", usageCount: 2890, color: "#3498db", intro: "您好！我是全能办公助理，写作、制表、做PPT，样样精通。", suggestions: ["帮我写一份活动策划", "生成课程表模板", "写一份会议纪要"] },
-  { id: "bot-12", name: "个人运势自查台", desc: "随时随地自查运势，掌握人生节奏", category: "paipan", tag: "免费", usageCount: 5432, color: "#e74c3c", intro: "您好！我是个人运势自查台，为您解读每日运势变化。", suggestions: ["今日运势如何？", "本月财运分析", "事业运程查询"] },
+  { id: "bot-12", name: "个人运势自查台", desc: "随时随地自查运势，掌握人生节奏", category: "paipan", tag: "免费", usageCount: 5432, color: "#C41E3A", intro: "您好！我是个人运势自查台，为您解读每日运势变化。", suggestions: ["今日运势如何？", "本月财运分析", "事业运程查询"] },
   { id: "bot-13", name: "大师时间守护者", desc: "提醒重要吉日、节气和学习计划", category: "study", tag: "会员专享", usageCount: 1098, color: "#8e44ad", intro: "您好！我是大师时间守护者，为您守护每一个重要的时刻。", suggestions: ["本月吉日查询", "最近节气是什么？", "制定每日国学学习计划"] },
   { id: "bot-14", name: "个人IP孵化器", desc: "打造个人品牌IP，从0到1全方位孵化", category: "copywriting", tag: "会员专享", usageCount: 543, color: "#c0392b", intro: "您好！我是个人IP孵化器，帮助您打造独具影响力的个人品牌。", suggestions: ["如何定位个人IP？", "打造国学博主账号", "内容创作规划建议"] },
 ];
@@ -146,47 +146,52 @@ function goChat(bot: Bot) {
 
 .page-header {
   text-align: center;
-  padding: 16px 0 12px;
+  padding: 20px 0 14px;
 }
 
 .page-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: bold;
   color: #C41E3A;
   display: block;
+  font-family: 'Noto Serif SC', serif;
+  letter-spacing: 3px;
 }
 
 .page-subtitle {
   font-size: 13px;
-  color: #999;
-  margin-top: 4px;
+  color: #C9A96E;
+  margin-top: 6px;
   display: block;
+  letter-spacing: 1px;
 }
 
 /* 分类标签 */
 .tabs {
   display: flex;
   white-space: nowrap;
-  padding: 8px 0 12px;
+  padding: 4px 0 14px;
   width: 100%;
 }
 
 .tab {
   display: inline-block;
-  padding: 6px 16px;
+  padding: 7px 16px;
   margin-right: 8px;
   font-size: 13px;
-  color: #666;
+  color: #888;
   background: #fff;
-  border-radius: 16px;
-  border: 1px solid #e0d5c1;
+  border-radius: 18px;
+  border: 1px solid #E8E0D5;
   flex-shrink: 0;
 }
 
 .tab.active {
   color: #fff;
-  background: #C41E3A;
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
   border-color: #C41E3A;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(196, 30, 58, 0.2);
 }
 
 /* 卡片列表 */

@@ -109,13 +109,13 @@ async function handleCancel() {
 .loading-text { color: #999; font-size: 14px; }
 
 .status-bar {
-  background: #ebf5fb; border-radius: 10px 10px 0 0; padding: 20px; text-align: center;
+  background: #F5F0E8; border-radius: 10px 10px 0 0; padding: 20px; text-align: center;
 }
 .status-pending { background: #fef5e7; }
 .status-completed { background: #eafaf1; }
-.status-cancelled { background: #f5f5f5; }
-.status-text { font-size: 20px; font-weight: bold; color: #3498db; }
-.status-pending .status-text { color: #e67e22; }
+.status-cancelled { background: #F5F0E8; }
+.status-text { font-size: 20px; font-weight: bold; color: #C41E3A; }
+.status-pending .status-text { color: #C9A96E; }
 .status-completed .status-text { color: #27ae60; }
 .status-cancelled .status-text { color: #bbb; }
 
@@ -129,7 +129,7 @@ async function handleCancel() {
 .info-row:last-child { border-bottom: none; }
 .label { font-size: 14px; color: #999; }
 .value { font-size: 14px; color: #333; max-width: 60%; text-align: right; word-break: break-all; }
-.amount { color: #e74c3c; font-weight: bold; font-size: 16px; }
+.amount { color: #C41E3A; font-weight: bold; font-size: 16px; }
 
 .actions { display: flex; gap: 12px; margin-top: 8px; }
 .btn-primary {
@@ -138,7 +138,7 @@ async function handleCancel() {
 }
 .btn-cancel {
   flex: 1; background: #fff; color: #999; border-radius: 8px;
-  font-size: 15px; padding: 12px; border: 1px solid #e0d5c1; text-align: center;
+  font-size: 15px; padding: 12px; border: 1px solid #E8E0D5; text-align: center;
 }
 
 .empty { display: flex; justify-content: center; padding: 80px 0; }

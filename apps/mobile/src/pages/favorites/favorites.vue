@@ -219,7 +219,7 @@ function goDetail(item: CollectItem) {
 
 /* ========== 下拉刷新 ========== */
 .refresh-hint {
-  text-align: center; font-size: 12px; color: #b8a88a; padding: 8px 0;
+  text-align: center; font-size: 12px; color: #C9A96E; padding: 8px 0;
 }
 
 /* ========== 兜底卡片 ========== */

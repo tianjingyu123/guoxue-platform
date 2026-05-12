@@ -40,8 +40,15 @@
       </view>
     </view>
 
+    <!-- 错误状态 -->
+    <view v-if="errorMsg" class="error-state">
+      <text class="error-icon">⚠️</text>
+      <text class="error-text">{{ errorMsg }}</text>
+      <text class="retry-btn" @click="fetchVideos()">点击重试</text>
+    </view>
+
     <!-- 空状态 -->
-    <view v-if="!loading && videos.length === 0" class="empty">
+    <view v-if="!errorMsg && !loading && videos.length === 0" class="empty">
       <text class="empty-icon">🎬</text>
       <text>暂无视频</text>
     </view>
@@ -53,7 +60,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onReachBottom } from "vue";
+import { ref, onMounted } from "vue";
+import { onReachBottom, onPullDownRefresh } from "@dcloudio/uni-app";
 import { videoApi } from "../../api";
 
 const videos = ref<any[]>([]);
@@ -62,6 +70,8 @@ const loading = ref(false);
 const loadingMore = ref(false);
 const page = ref(1);
 const totalPages = ref(1);
+const errorMsg = ref("");
+const hasMore = ref(true);
 
 const tabs = [
   { label: "推荐", value: "hot" },
@@ -73,9 +83,25 @@ const tabs = [
 
 onMounted(() => fetchVideos());
 
+onReachBottom(() => {
+  if (!loadingMore.value && hasMore.value) {
+    page.value++;
+    fetchVideos(true);
+  }
+});
+
+onPullDownRefresh(async () => {
+  page.value = 1;
+  hasMore.value = true;
+  errorMsg.value = "";
+  await fetchVideos();
+  uni.stopPullDownRefresh();
+});
+
 async function fetchVideos(append = false) {
   if (!append) loading.value = true;
   else loadingMore.value = true;
+  errorMsg.value = "";
   try {
     const data = await videoApi.list({
       sort: activeTab.value,
@@ -85,11 +111,15 @@ async function fetchVideos(append = false) {
     });
     const list = data.videos || data.data || [];
     totalPages.value = data.totalPages || 1;
+    hasMore.value = list.length >= 12;
     if (append) {
       videos.value = [...videos.value, ...list];
     } else {
       videos.value = list;
     }
+  } catch {
+    if (!append) errorMsg.value = "加载失败，请下拉刷新重试";
+    else page.value--;
   } finally {
     loading.value = false;
     loadingMore.value = false;
@@ -99,6 +129,8 @@ async function fetchVideos(append = false) {
 function switchTab(v: string) {
   activeTab.value = v;
   page.value = 1;
+  hasMore.value = true;
+  errorMsg.value = "";
   fetchVideos();
 }
 
@@ -271,5 +303,26 @@ function formatCount(n: number | undefined): string {
   padding: 20px;
   color: #999;
   font-size: 13px;
+}
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 0;
+  gap: 10px;
+}
+.error-icon {
+  font-size: 40px;
+}
+.error-text {
+  font-size: 14px;
+  color: #999;
+}
+.retry-btn {
+  font-size: 14px;
+  color: #C41E3A;
+  padding: 8px 28px;
+  border: 1px solid #C41E3A;
+  border-radius: 20px;
 }
 </style>

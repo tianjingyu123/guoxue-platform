@@ -210,7 +210,7 @@ onReachBottom(() => {
   justify-content: space-between;
   padding: 12px 16px;
   background: #fff;
-  border-bottom: 1px solid #e8ddd0;
+  border-bottom: 1px solid #E8E0D5;
 }
 .header-title {
   font-size: 18px;
@@ -273,7 +273,7 @@ onReachBottom(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #e74c3c;
+  background: #C41E3A;
 }
 .icon-wrap {
   width: 36px;
@@ -286,7 +286,7 @@ onReachBottom(() => {
   color: #fff;
 }
 .icon-system { background: #999; }
-.icon-like { background: #e74c3c; }
+.icon-like { background: #C41E3A; }
 .icon-comment { background: #3498db; }
 .icon-follow { background: #2ecc71; }
 

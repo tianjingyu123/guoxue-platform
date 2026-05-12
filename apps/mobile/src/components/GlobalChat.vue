@@ -349,7 +349,7 @@ function scrollToBottom() {
   padding: 0 14px;
   font-size: 14px;
   color: #333;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
 }
 .send-btn {
   min-width: 56px;

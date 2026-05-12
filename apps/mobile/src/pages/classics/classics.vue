@@ -6,8 +6,8 @@
       <text class="page-subtitle">经史子集 · 涵泳古今</text>
     </view>
 
-    <!-- 分类标签（横向滚动） -->
-    <view class="category-section">
+    <!-- 分类 + 排序 -->
+    <view class="toolbar">
       <scroll-view scroll-x class="category-scroll" show-scrollbar="false">
         <view class="category-inner">
           <text
@@ -16,18 +16,23 @@
             :class="['category-tab', { active: curCategory === cat.key }]"
             @click="selectCategory(cat.key)"
           >
-            <text class="cat-icon">{{ cat.icon }}</text>
-            <text class="cat-label">{{ cat.label }}</text>
+            <text class="cat-label">{{ cat.icon }} {{ cat.label }}</text>
+            <text v-if="cat.count != null" class="cat-count">{{ cat.count }}</text>
           </text>
         </view>
       </scroll-view>
     </view>
 
-    <!-- 加载骨架屏 -->
+    <!-- 加载骨架 -->
     <view v-if="loading && books.length === 0" class="books-list">
-      <LoadingSkeleton type="card" />
-      <LoadingSkeleton type="card" />
-      <LoadingSkeleton type="card" />
+      <view v-for="i in 4" :key="i" class="book-card-skeleton">
+        <view class="sk-cover" />
+        <view class="sk-body">
+          <view class="sk-line w80" />
+          <view class="sk-line w50" />
+          <view class="sk-line w90" />
+        </view>
+      </view>
     </view>
 
     <!-- 书籍列表 -->
@@ -37,9 +42,8 @@
         :key="book.id"
         class="book-card"
         @click="goReader(book)"
-        hover-class="book-card-hover"
       >
-        <!-- 封面区域 -->
+        <!-- 封面 -->
         <view class="book-cover-wrap">
           <image
             v-if="book.cover"
@@ -47,27 +51,34 @@
             class="book-cover"
             mode="aspectFill"
           />
-          <view v-else class="book-cover-placeholder">
-            <text class="placeholder-icon">&#128214;</text>
-            <text class="placeholder-cat">{{ getCategoryShort(book.category) }}</text>
+          <view v-else class="book-cover-placeholder" :style="{ background: placeholderBg(book.id) }">
+            <text class="plc-cat">{{ getCategoryShort(book.category) }}</text>
+            <text class="plc-name">{{ (book.title || book.name || '经').charAt(0) }}</text>
           </view>
         </view>
 
-        <!-- 书籍信息 -->
-        <view class="book-info">
-          <text class="book-title">{{ book.title || book.name }}</text>
-          <view class="book-meta-row">
+        <!-- 信息 -->
+        <view class="book-body">
+          <view class="book-top">
+            <text class="book-title">{{ book.title || book.name }}</text>
+            <text v-if="book.category" class="book-cat-tag">{{ getCategoryLabel(book.category) }}</text>
+          </view>
+          <view class="book-meta">
             <text class="book-author">{{ book.author || '佚名' }}</text>
             <text v-if="book.dynasty" class="book-dynasty">{{ book.dynasty }}</text>
           </view>
-          <view class="book-tags">
-            <text v-if="book.category" class="book-cat-tag">{{ getCategoryLabel(book.category) }}</text>
-          </view>
           <text class="book-intro">{{ book.intro || book.description || '暂无简介' }}</text>
           <view class="book-stats">
-            <text class="stat-item" v-if="book.chapterCount">&#128196; {{ book.chapterCount }}章</text>
-            <text class="stat-item" v-if="book.viewCount">&#128065; {{ book.viewCount }}阅读</text>
-            <text class="stat-item" v-if="book.chapterCount">&#128214; {{ book.chapterCount }}节</text>
+            <text v-if="book.chapterCount" class="bstat">📖 {{ book.chapterCount }} 章</text>
+            <text v-if="book.viewCount" class="bstat">👁 {{ formatNum(book.viewCount) }}</text>
+          </view>
+
+          <!-- 阅读进度 -->
+          <view v-if="book.progress" class="book-progress">
+            <view class="bp-bar-bg">
+              <view class="bp-bar-fill" :style="{ width: book.progress + '%' }" />
+            </view>
+            <text class="bp-text">已读 {{ book.progress }}%</text>
           </view>
         </view>
       </view>
@@ -75,19 +86,15 @@
 
     <!-- 空状态 -->
     <view v-else-if="!loading">
-      <EmptyState icon="&#128214;" text="暂无古籍数据">
-        <view class="empty-action">
-          <button class="empty-btn" @click="refreshData">重新加载</button>
-        </view>
+      <EmptyState icon="📜" text="暂无古籍数据">
+        <button class="empty-btn" @click="refreshData">重新加载</button>
       </EmptyState>
     </view>
 
     <!-- 错误状态 -->
     <view v-if="errorMsg">
-      <EmptyState icon="&#9888;" :text="errorMsg">
-        <view class="empty-action">
-          <button class="empty-btn" @click="refreshData">重新加载</button>
-        </view>
+      <EmptyState icon="⚠️" :text="errorMsg">
+        <button class="empty-btn" @click="refreshData">重新加载</button>
       </EmptyState>
     </view>
   </view>
@@ -100,26 +107,47 @@ import { classicApi } from '../../api'
 import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
 import EmptyState from '../../components/EmptyState.vue'
 
-// ========== 分类 ==========
 interface CategoryItem {
   key: string
   label: string
   icon: string
+  count?: number
 }
 const categories: CategoryItem[] = [
-  { key: '', label: '全部', icon: '&#128218;' },
-  { key: '经', label: '经部', icon: '&#128214;' },
-  { key: '史', label: '史部', icon: '&#128240;' },
-  { key: '子', label: '子部', icon: '&#128300;' },
-  { key: '集', label: '集部', icon: '&#127912;' },
-  { key: '释', label: '释部', icon: '&#128329;' },
-  { key: '道', label: '道部', icon: '&#9775;' },
+  { key: '', label: '全部', icon: '📚' },
+  { key: '经', label: '经部', icon: '📖' },
+  { key: '史', label: '史部', icon: '📰' },
+  { key: '子', label: '子部', icon: '🔬' },
+  { key: '集', label: '集部', icon: '🎨' },
+  { key: '释', label: '释部', icon: '🕯️' },
+  { key: '道', label: '道部', icon: '☯️' },
 ]
+
+const placeholderGradients = [
+  'linear-gradient(135deg, #E8E0D5, #C9A96E)',
+  'linear-gradient(135deg, #d8cdc0, #c8bca8)',
+  'linear-gradient(135deg, #eddcc8, #daccb0)',
+  'linear-gradient(135deg, #e0cfb8, #d0bfa5)',
+  'linear-gradient(135deg, #e5d5c0, #d5c5b0)',
+]
+function placeholderBg(id: string): string {
+  let hash = 0
+  for (let i = 0; i < (id || '0').length; i++) {
+    hash = (hash * 31 + (id || '0').charCodeAt(i)) & 0xffff
+  }
+  return placeholderGradients[hash % placeholderGradients.length]
+}
 
 const curCategory = ref('')
 const books = ref<any[]>([])
 const loading = ref(false)
 const errorMsg = ref('')
+
+function formatNum(n: number): string {
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + 'w'
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
+  return String(n)
+}
 
 function selectCategory(key: string) {
   curCategory.value = key
@@ -130,12 +158,8 @@ function selectCategory(key: string) {
 
 function getCategoryLabel(cat: string): string {
   const map: Record<string, string> = {
-    '经': '经部',
-    '史': '史部',
-    '子': '子部',
-    '集': '集部',
-    '释': '释部',
-    '道': '道部',
+    '经': '经部', '史': '史部', '子': '子部',
+    '集': '集部', '释': '释部', '道': '道部',
   }
   return map[cat] || cat
 }
@@ -144,7 +168,6 @@ function getCategoryShort(cat: string): string {
   return cat || '典'
 }
 
-/** 从 API 响应中提取数组（兼容多种返回格式） */
 function extractList(data: any, key: string): any[] {
   if (Array.isArray(data)) return data
   if (data?.[key] && Array.isArray(data[key])) return data[key]
@@ -159,14 +182,51 @@ async function fetchBooks() {
   errorMsg.value = ''
   try {
     const params: Record<string, any> = {}
-    if (curCategory.value) {
-      params.category = curCategory.value
+    if (curCategory.value) params.category = curCategory.value
+
+    const [booksData, progressData] = await Promise.all([
+      classicApi.books(params).catch(() => []),
+      // 尝试获取阅读进度（如果登录了）
+      classicApi.myProgress?.().catch(() => ({})) || Promise.resolve({}),
+    ])
+
+    const rawBooks = extractList(booksData, 'books')
+    const progressMap: Record<string, number> = {}
+    if (progressData?.progresses) {
+      for (const p of progressData.progresses) {
+        progressMap[p.bookId || p.classicId] = p.progress || 0
+      }
     }
-    const data = await classicApi.books(params)
-    books.value = extractList(data, 'books')
+
+    books.value = rawBooks.map((b: any) => ({
+      id: b.id,
+      title: b.title || b.name,
+      name: b.name || b.title,
+      cover: b.cover,
+      author: b.author,
+      dynasty: b.dynasty,
+      category: b.category,
+      intro: b.intro || b.description,
+      description: b.description,
+      chapterCount: b.chapterCount,
+      viewCount: b.viewCount,
+      progress: progressMap[b.id] || 0,
+    }))
+
+    // 更新分类计数
+    if (!curCategory.value && rawBooks.length > 0) {
+      const catCounts: Record<string, number> = {}
+      for (const b of rawBooks) {
+        if (b.category) {
+          catCounts[b.category] = (catCounts[b.category] || 0) + 1
+        }
+      }
+      for (const cat of categories) {
+        if (cat.key) cat.count = catCounts[cat.key] || 0
+      }
+    }
   } catch (e: any) {
     errorMsg.value = e.errMsg || '加载失败，请检查网络连接'
-    books.value = []
   } finally {
     loading.value = false
   }
@@ -184,111 +244,158 @@ function goReader(book: any) {
   })
 }
 
-// ========== 页面生命周期 ==========
 onMounted(() => {
   fetchBooks()
 })
 
 onPullDownRefresh(() => {
   errorMsg.value = ''
-  fetchBooks().finally(() => {
-    uni.stopPullDownRefresh()
-  })
+  fetchBooks().finally(() => uni.stopPullDownRefresh())
 })
 </script>
 
-<style scoped>
-/* ========== 页面整体 ========== */
+<style>
 .page {
-  padding: 12px;
+  padding: 0;
   background: #F5F0E8;
   min-height: 100vh;
   padding-bottom: 40px;
 }
 
-/* ========== 页头 ========== */
+/* ===== 页头 ===== */
 .page-header {
   text-align: center;
-  padding: 10px 0 14px;
+  padding: 20px 0 10px;
 }
 .page-title {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: bold;
   color: #C41E3A;
   display: block;
+  font-family: 'Noto Serif SC', serif;
+  letter-spacing: 4px;
 }
 .page-subtitle {
-  font-size: 12px;
-  color: #b87c4b;
-  margin-top: 4px;
+  font-size: 13px;
+  color: #C9A96E;
+  margin-top: 6px;
   display: block;
+  letter-spacing: 2px;
 }
 
-/* ========== 分类切换 ========== */
-.category-section {
-  margin-bottom: 14px;
+/* ===== 分类标签 ===== */
+.toolbar {
+  padding: 0 12px;
+  margin-bottom: 12px;
 }
 .category-scroll {
   width: 100%;
 }
 .category-inner {
   display: inline-flex;
-  gap: 8px;
+  gap: 6px;
   padding: 2px 0;
 }
 .category-tab {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 8px 16px;
+  padding: 7px 14px;
   background: #fff;
-  border-radius: 20px;
-  border: 1px solid #ede6d8;
+  border-radius: 18px;
+  border: 1px solid #E8E0D5;
   transition: all 0.2s;
   flex-shrink: 0;
+  font-size: 13px;
 }
 .category-tab.active {
-  background: linear-gradient(135deg, #C41E3A, #a0522d);
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
   border-color: #C41E3A;
+  box-shadow: 0 2px 8px rgba(196, 30, 58, 0.2);
 }
 .category-tab.active .cat-label {
   color: #fff;
-  font-weight: bold;
+  font-weight: 600;
 }
-.cat-icon {
-  font-size: 14px;
+.category-tab.active .cat-count {
+  color: rgba(255, 255, 255, 0.7);
 }
 .cat-label {
-  font-size: 13px;
   color: #666;
 }
-
-/* ========== 书籍列表 ========== */
-.books-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.cat-count {
+  font-size: 10px;
+  color: #bbb;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 6px;
+  border-radius: 8px;
 }
 
-/* ========== 书籍卡片 ========== */
+/* ===== 书籍列表 ===== */
+.books-list {
+  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ===== 骨架屏 ===== */
+.book-card-skeleton {
+  display: flex;
+  gap: 12px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px;
+}
+.sk-cover {
+  width: 72px;
+  height: 96px;
+  border-radius: 6px;
+  background: #E8E0D5;
+  flex-shrink: 0;
+  animation: shimmer 1.5s infinite;
+}
+.sk-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+.sk-line {
+  height: 14px;
+  border-radius: 4px;
+  background: #E8E0D5;
+  animation: shimmer 1.5s infinite;
+}
+.sk-line.w80 { width: 80%; }
+.sk-line.w50 { width: 50%; }
+.sk-line.w90 { width: 90%; }
+
+@keyframes shimmer {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+/* ===== 书籍卡片 ===== */
 .book-card {
   display: flex;
   gap: 12px;
   background: #fff;
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 14px;
-  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.06);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   transition: transform 0.15s;
 }
-.book-card-hover {
-  transform: scale(0.98);
-  opacity: 0.9;
+.book-card:active {
+  transform: scale(0.985);
 }
 
 /* 封面 */
 .book-cover-wrap {
-  width: 80px;
-  height: 110px;
+  width: 72px;
+  height: 96px;
   flex-shrink: 0;
   border-radius: 6px;
   overflow: hidden;
@@ -300,42 +407,57 @@ onPullDownRefresh(() => {
 .book-cover-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #f5ede2, #e8ddd0);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
 }
-.placeholder-icon {
-  font-size: 28px;
+.plc-cat {
+  font-size: 18px;
 }
-.placeholder-cat {
-  font-size: 11px;
-  color: #C41E3A;
+.plc-name {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.4);
   font-weight: bold;
 }
 
-/* 书籍信息 */
-.book-info {
+/* 信息 */
+.book-body {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+}
+.book-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 .book-title {
   font-size: 16px;
   font-weight: bold;
-  color: #333;
+  color: #2C2C2C;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.book-meta-row {
+.book-cat-tag {
+  font-size: 10px;
+  color: #C9A96E;
+  background: rgba(201, 169, 110, 0.08);
+  padding: 1px 8px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+.book-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 .book-author {
   font-size: 12px;
@@ -346,19 +468,7 @@ onPullDownRefresh(() => {
   color: #C41E3A;
   background: #F5F0E8;
   padding: 0 6px;
-  border-radius: 4px;
-}
-.book-tags {
-  display: flex;
-  gap: 4px;
-}
-.book-cat-tag {
-  font-size: 10px;
-  color: #C41E3A;
-  background: #F5F0E8;
-  padding: 1px 8px;
-  border-radius: 8px;
-  border: 1px solid #e8d5b8;
+  border-radius: 3px;
 }
 .book-intro {
   font-size: 12px;
@@ -368,25 +478,44 @@ onPullDownRefresh(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-top: 2px;
+  flex: 1;
 }
 .book-stats {
   display: flex;
-  gap: 10px;
-  margin-top: auto;
-  padding-top: 6px;
+  gap: 12px;
+  margin-top: 6px;
 }
-.stat-item {
+.bstat {
   font-size: 11px;
   color: #bbb;
 }
 
-/* ========== 空操作 ========== */
-.empty-action {
-  margin-top: 12px;
+/* 阅读进度 */
+.book-progress {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
 }
+.bp-bar-bg {
+  flex: 1;
+  height: 4px;
+  background: #E8E0D5;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.bp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #C9A96E, #C41E3A);
+  border-radius: 2px;
+}
+.bp-text {
+  font-size: 10px;
+  color: #C9A96E;
+  flex-shrink: 0;
+}
+
+/* ===== 空操作 ===== */
 .empty-btn {
   background: #C41E3A;
   color: #fff;
@@ -394,5 +523,6 @@ onPullDownRefresh(() => {
   padding: 8px 24px;
   font-size: 14px;
   border: none;
+  margin-top: 12px;
 }
 </style>

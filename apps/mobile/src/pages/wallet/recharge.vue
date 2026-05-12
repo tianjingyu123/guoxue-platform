@@ -123,7 +123,7 @@ function handleRecharge() {
   gap: 12px;
 }
 .tier-card {
-  border: 2px solid #e8ddd0;
+  border: 2px solid #E8E0D5;
   border-radius: 12px;
   padding: 16px;
   position: relative;
@@ -149,14 +149,14 @@ function handleRecharge() {
 }
 .tier-bonus {
   font-size: 12px;
-  color: #e74c3c;
+  color: #C41E3A;
   margin-top: 2px;
 }
 .tier-badge {
   position: absolute;
   top: -1px;
   right: 16px;
-  background: #e74c3c;
+  background: #C41E3A;
   color: #fff;
   font-size: 11px;
   padding: 2px 10px;

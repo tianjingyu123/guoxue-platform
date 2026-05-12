@@ -243,12 +243,12 @@ function formatDate(d: string): string {
   justify-content: center;
   min-width: 70px;
   padding-right: 12px;
-  border-right: 1px dashed #e0d5c1;
+  border-right: 1px dashed #E8E0D5;
 }
 .cc-amount {
   font-size: 24px;
   font-weight: bold;
-  color: #d03050;
+  color: #C41E3A;
   line-height: 1.2;
 }
 .cc-symbol {

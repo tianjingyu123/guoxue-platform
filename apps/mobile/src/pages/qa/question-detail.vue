@@ -158,7 +158,7 @@ async function doPeek() {
 .status-REFUNDED { background: #f8f9fa; color: #6c757d; }
 .q-body { font-size: 16px; color: #333; display: block; line-height: 1.6; margin-bottom: 10px; }
 .q-footer { display: flex; gap: 12px; }
-.q-price { font-size: 14px; color: #e74c3c; font-weight: bold; }
+.q-price { font-size: 14px; color: #C41E3A; font-weight: bold; }
 .q-circle { font-size: 12px; color: #999; }
 
 .answer-card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 12px; border-left: 3px solid #C41E3A; }
@@ -176,7 +176,7 @@ async function doPeek() {
 
 .answer-section { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
 .section-title { font-size: 14px; font-weight: bold; color: #333; display: block; margin-bottom: 10px; }
-.answer-textarea { width: 100%; min-height: 100px; padding: 10px; border: 1px solid #e8e0d6; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+.answer-textarea { width: 100%; min-height: 100px; padding: 10px; border: 1px solid #E8E0D5; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
 .char-count { font-size: 11px; color: #bbb; text-align: right; display: block; margin: 4px 0 10px; }
 .answer-btn { width: 100%; background: #C41E3A; color: #fff; border-radius: 24px; padding: 12px; font-size: 16px; border: none; }
 </style>

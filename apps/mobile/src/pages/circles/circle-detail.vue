@@ -630,7 +630,7 @@ function formatTime(timeStr?: string): string {
   background: #7a3a0f;
 }
 .action-btn.leave {
-  background: #e0d5c1;
+  background: #E8E0D5;
   color: #666;
 }
 .action-btn:disabled {
@@ -665,7 +665,7 @@ function formatTime(timeStr?: string): string {
   margin: 10px 12px;
   padding: 12px 14px;
   border-radius: 8px;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
 }
 .create-post-icon {
   font-size: 18px;
@@ -727,7 +727,7 @@ function formatTime(timeStr?: string): string {
   border-radius: 8px;
 }
 .badge.top {
-  color: #e74c3c;
+  color: #C41E3A;
   background: #fde8e8;
 }
 .badge.essence {
@@ -872,7 +872,7 @@ function formatTime(timeStr?: string): string {
 .post-title-input {
   width: 100%;
   height: 40px;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
   border-radius: 6px;
   padding: 0 10px;
   font-size: 14px;
@@ -883,7 +883,7 @@ function formatTime(timeStr?: string): string {
 .post-content-input {
   width: 100%;
   min-height: 100px;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
   border-radius: 6px;
   padding: 10px;
   font-size: 14px;
@@ -912,7 +912,7 @@ function formatTime(timeStr?: string): string {
   right: -6px;
   width: 20px;
   height: 20px;
-  background: #e74c3c;
+  background: #C41E3A;
   color: #fff;
   border-radius: 50%;
   text-align: center;
@@ -935,7 +935,7 @@ function formatTime(timeStr?: string): string {
   color: #C41E3A;
   padding: 6px 12px;
   border-radius: 16px;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
   background: #fafaf5;
 }
 .panel-right {

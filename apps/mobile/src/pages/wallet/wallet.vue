@@ -166,11 +166,24 @@ function formatTime(timeStr?: string): string {
    余额卡片
    ============================ */
 .balance-card {
-  background: linear-gradient(135deg, #C41E3A, #C9A96E);
-  border-radius: 12px;
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
+  border-radius: 16px;
   padding: 32px 24px 24px;
   text-align: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 16px rgba(196, 30, 58, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+.balance-card::after {
+  content: '';
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 120px;
+  height: 120px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 50%;
 }
 .balance-label {
   color: rgba(255,255,255,0.8);
@@ -222,16 +235,21 @@ function formatTime(timeStr?: string): string {
    ============================ */
 .section {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 .section-header {
   margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #E8E0D5;
 }
 .section-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: bold;
-  color: #333;
+  color: #2C2C2C;
+  padding-left: 8px;
+  border-left: 3px solid #C41E3A;
 }
 
 /* ============================
@@ -246,7 +264,7 @@ function formatTime(timeStr?: string): string {
   align-items: center;
   justify-content: space-between;
   padding: 14px 0;
-  border-bottom: 1px solid #F5F0E8;
+  border-bottom: 1px solid #E8E0D5;
 }
 .transaction-item:last-child {
   border-bottom: none;
@@ -271,7 +289,7 @@ function formatTime(timeStr?: string): string {
   background: #27ae60;
 }
 .tx-icon.icon-spend {
-  background: #e74c3c;
+  background: #C41E3A;
 }
 .tx-icon.icon-refund {
   background: #3498db;
@@ -306,7 +324,7 @@ function formatTime(timeStr?: string): string {
   color: #27ae60;
 }
 .tx-amount.amount-spend {
-  color: #e74c3c;
+  color: #C41E3A;
 }
 .tx-amount.amount-refund {
   color: #3498db;

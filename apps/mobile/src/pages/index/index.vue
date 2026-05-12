@@ -36,23 +36,27 @@
       </swiper-item>
     </swiper>
 
-    <!-- 快捷工具 -->
+    <!-- 快捷工具（极简版） -->
     <view class="quick-tools">
       <view class="tool-item" @click="goPage('/pages/bazi/bazi')">
         <text class="tool-icon">🔮</text>
-        <text class="tool-name">八字排盘</text>
+        <text class="tool-name">八字</text>
       </view>
       <view class="tool-item" @click="goPage('/pages/ziwei/ziwei')">
         <text class="tool-icon">⭐</text>
-        <text class="tool-name">紫微斗数</text>
+        <text class="tool-name">紫微</text>
       </view>
       <view class="tool-item" @click="goPage('/pages/courses/courses')">
         <text class="tool-icon">📚</text>
-        <text class="tool-name">课程学习</text>
+        <text class="tool-name">课程</text>
       </view>
       <view class="tool-item" @click="goPage('/pages/videos/videos')">
         <text class="tool-icon">🎬</text>
-        <text class="tool-name">视频讲解</text>
+        <text class="tool-name">视频</text>
+      </view>
+      <view class="tool-item" @click="goPage('/pages/shop/shop')">
+        <text class="tool-icon">🛍️</text>
+        <text class="tool-name">商城</text>
       </view>
     </view>
 
@@ -69,86 +73,112 @@
       </view>
     </view>
 
-    <!-- 下拉刷新提示 -->
-    <view v-if="refreshing" class="refresh-tip">刷新中...</view>
-
     <!-- 骨架屏 -->
     <LoadingSkeleton v-if="loading && list.length === 0" type="card" />
 
-    <!-- 文章列表（推荐Tab用列表布局） -->
-    <view v-if="currentTab === 'recommend' && list.length > 0" class="article-list">
-      <view
-        v-for="(item, idx) in list"
-        :key="item._type + '-' + item.id + '-' + idx"
-        class="article-item"
-        @click="goItem(item)"
-      >
-        <view class="article-thumb">
-          <text v-if="item.cover">{{ '' }}</text>
-          <image v-if="item.cover" :src="item.cover" class="article-thumb-img" mode="aspectFill" />
-          <text v-else class="article-thumb-icon">{{ item._type === 'circle' ? '👥' : '📜' }}</text>
-        </view>
-        <view class="article-content">
-          <text class="article-title">{{ item.title || item.name }}</text>
-          <view class="article-meta">
-            <text v-if="item.author">{{ item.author }}</text>
-            <text v-if="item.dynasty" class="meta-tag">{{ item.dynasty }}</text>
-            <text v-if="item._type === 'circle'" class="meta-tag">圈子</text>
-            <text class="meta-time">{{ formatTime(item.createdAt) }}</text>
+    <!-- ========== 双列瀑布流（所有Tab统一） ========== -->
+    <view v-if="list.length > 0" class="waterfall-wrap">
+      <view class="waterfall-col">
+        <view
+          v-for="(item, idx) in leftList"
+          :key="item._type + '-' + item.id + '-l-' + idx"
+          class="wf-card"
+          @click="goItem(item)"
+        >
+          <!-- 封面图区 -->
+          <view class="wf-cover">
+            <image
+              v-if="item.cover"
+              :src="item.cover"
+              class="wf-img"
+              mode="widthFix"
+            />
+            <view v-else class="wf-placeholder" :style="{ background: placeholderBg(idx) }">
+              <text class="wf-placeholder-icon">
+                {{ item._type === 'video' ? '🎬' : item._type === 'live' ? '📡' : item._type === 'product' ? '🛍️' : item._type === 'circle' ? '👥' : '📜' }}
+              </text>
+            </view>
+
+            <!-- 图片上的叠加信息 -->
+            <!-- 直播中角标 -->
+            <view v-if="item._type === 'live'" class="wf-badge-live">🔴 直播</view>
+            <!-- 视频时长角标 -->
+            <view v-if="item._type === 'video' && item.duration" class="wf-badge-dur">
+              {{ formatDuration(item.duration) }}
+            </view>
+            <!-- 点赞数 -->
+            <view v-if="item.likeCount > 0" class="wf-like-tag">
+              <text>♥ {{ formatCount(item.likeCount) }}</text>
+            </view>
+          </view>
+
+          <!-- 卡片信息 -->
+          <view class="wf-body">
+            <text class="wf-title">{{ item.title || item.name }}</text>
+            <view class="wf-meta">
+              <view class="wf-author">
+                <image
+                  v-if="item.authorAvatar"
+                  :src="item.authorAvatar"
+                  class="wf-avatar"
+                />
+                <text v-else class="wf-avatar-placeholder">👤</text>
+                <text class="wf-author-name">{{ item.author || item.anchorName || '国学平台' }}</text>
+              </view>
+              <view v-if="item._type === 'product' && item.price" class="wf-price">
+                <text>¥{{ item.price }}</text>
+              </view>
+            </view>
           </view>
         </view>
       </view>
-    </view>
 
-    <!-- 双列瀑布流（热门/直播Tab） -->
-    <view v-else-if="list.length > 0" class="feed-grid">
-      <view
-        v-for="(item, idx) in list"
-        :key="item._type + '-' + item.id + '-' + idx"
-        class="feed-card"
-        :class="'type-' + item._type"
-        @click="goItem(item)"
-      >
-        <!-- ===== 短视频卡片 ===== -->
-        <template v-if="item._type === 'video'">
-          <view class="card-cover-wrap">
-            <image :src="item.cover" class="card-cover" mode="aspectFill" />
-            <view class="card-badge-dur">{{ formatDuration(item.duration) }}</view>
+      <view class="waterfall-col">
+        <view
+          v-for="(item, idx) in rightList"
+          :key="item._type + '-' + item.id + '-r-' + idx"
+          class="wf-card"
+          @click="goItem(item)"
+        >
+          <view class="wf-cover">
+            <image
+              v-if="item.cover"
+              :src="item.cover"
+              class="wf-img"
+              mode="widthFix"
+            />
+            <view v-else class="wf-placeholder" :style="{ background: placeholderBg(idx + 100) }">
+              <text class="wf-placeholder-icon">
+                {{ item._type === 'video' ? '🎬' : item._type === 'live' ? '📡' : item._type === 'product' ? '🛍️' : item._type === 'circle' ? '👥' : '📜' }}
+              </text>
+            </view>
+            <view v-if="item._type === 'live'" class="wf-badge-live">🔴 直播</view>
+            <view v-if="item._type === 'video' && item.duration" class="wf-badge-dur">
+              {{ formatDuration(item.duration) }}
+            </view>
+            <view v-if="item.likeCount > 0" class="wf-like-tag">
+              <text>♥ {{ formatCount(item.likeCount) }}</text>
+            </view>
           </view>
-          <view class="card-body">
-            <text class="card-title">{{ item.title }}</text>
-          </view>
-          <view class="card-footer">
-            <text class="meta-stat">👁 {{ item.viewCount || 0 }}</text>
-            <text class="meta-stat">👍 {{ item.likeCount || 0 }}</text>
-          </view>
-        </template>
 
-        <!-- ===== 直播卡片 ===== -->
-        <template v-else-if="item._type === 'live'">
-          <view class="card-cover-wrap">
-            <image :src="item.cover || item.thumbnail" class="card-cover" mode="aspectFill" />
-            <view class="card-badge-live">🔴 直播中</view>
+          <view class="wf-body">
+            <text class="wf-title">{{ item.title || item.name }}</text>
+            <view class="wf-meta">
+              <view class="wf-author">
+                <image
+                  v-if="item.authorAvatar"
+                  :src="item.authorAvatar"
+                  class="wf-avatar"
+                />
+                <text v-else class="wf-avatar-placeholder">👤</text>
+                <text class="wf-author-name">{{ item.author || item.anchorName || '国学平台' }}</text>
+              </view>
+              <view v-if="item._type === 'product' && item.price" class="wf-price">
+                <text>¥{{ item.price }}</text>
+              </view>
+            </view>
           </view>
-          <view class="card-body">
-            <text class="card-title">{{ item.title || item.name }}</text>
-            <text class="card-extra" v-if="item.anchorName">{{ item.anchorName }}</text>
-          </view>
-          <view class="card-footer">
-            <text class="meta-stat">👁 {{ item.viewerCount || item.viewCount || 0 }} 观看</text>
-          </view>
-        </template>
-
-        <!-- ===== 商品卡片 ===== -->
-        <template v-else-if="item._type === 'product'">
-          <view class="card-cover-wrap">
-            <image :src="item.cover" class="card-cover" mode="aspectFill" />
-          </view>
-          <view class="card-body">
-            <text class="card-title">{{ item.title || item.name }}</text>
-            <text class="card-price">¥{{ item.price ?? 0 }}</text>
-          </view>
-        </template>
+        </view>
       </view>
     </view>
 
@@ -157,7 +187,7 @@
 
     <!-- 加载更多 -->
     <view v-if="loadingMore" class="load-more-indicator">
-      <text class="load-more-text">加载更多...</text>
+      <text class="load-more-text">加载中...</text>
     </view>
     <view v-if="!hasMore && list.length > 0" class="no-more">— 已全部加载 —</view>
   </view>
@@ -197,6 +227,7 @@ interface FeedItem {
   duration?: number
   price?: number
   author?: string
+  authorAvatar?: string
   dynasty?: string
   tags?: string[]
   viewerCount?: number
@@ -212,7 +243,7 @@ interface FeedItem {
 
 // ===== Banner 数据（默认兜底） =====
 const defaultBanners = [
-  { icon: '📜', title: '国学经典', sub: '品读四书五经，传承中华文化', bg: 'linear-gradient(135deg, #C41E3A, #a0522d)' },
+  { icon: '📜', title: '国学经典', sub: '品读四书五经，传承中华文化', bg: 'linear-gradient(135deg, #C41E3A, #8B0000)' },
   { icon: '🌸', title: '诗词欣赏', sub: '唐诗宋词，感受千年风雅', bg: 'linear-gradient(135deg, #6b3a1f, #C9A96E)' },
   { icon: '🧘', title: '修身养性', sub: '以文化人，以德润身', bg: 'linear-gradient(135deg, #5a3a1a, #8b6914)' },
 ]
@@ -230,7 +261,7 @@ const currentTab = ref<ChannelKey>('recommend')
 const loading = ref(false)
 const loadingMore = ref(false)
 const refreshing = ref(false)
-const fetching = ref(false) // 防并发
+const fetching = ref(false)
 
 const tabData = ref<Record<ChannelKey, TabState>>({
   recommend: { list: [], page: 1, hasMore: true, loaded: false },
@@ -243,7 +274,24 @@ const list = computed(() => tabData.value[currentTab.value].list)
 const hasMore = computed(() => tabData.value[currentTab.value].hasMore)
 const currentTabLabel = computed(() => channels.find((c) => c.key === currentTab.value)?.label || '')
 
+// 双列瀑布流拆分
+const leftList = computed(() => list.value.filter((_, i) => i % 2 === 0))
+const rightList = computed(() => list.value.filter((_, i) => i % 2 === 1))
+
 // ===== 通用工具函数 =====
+
+/** 占位图背景色（无封面时随机暖色调） */
+const placeholderColors = [
+  'linear-gradient(135deg, #e8d5c5, #d4bfa5)',
+  'linear-gradient(135deg, #d5c4b0, #c4b098)',
+  'linear-gradient(135deg, #e0d0c0, #cfbfa8)',
+  'linear-gradient(135deg, #E8E0D5, #C9A96E)',
+  'linear-gradient(135deg, #d8c8b8, #c8b8a0)',
+  'linear-gradient(135deg, #eddcc8, #ddccb4)',
+]
+function placeholderBg(idx: number): string {
+  return placeholderColors[idx % placeholderColors.length]
+}
 
 /** 从 API 响应中提取数组 */
 function extractList(data: any, key: string): any[] {
@@ -283,11 +331,19 @@ function calcHeat(views: number, likes: number, createdAt?: string): number {
   if (!createdAt) return base
   try {
     const hours = (Date.now() - new Date(createdAt).getTime()) / 3600000
-    const decay = Math.max(0.1, 1 - hours / 720) // 30天衰减到0.1
+    const decay = Math.max(0.1, 1 - hours / 720)
     return Math.round(base * decay)
   } catch {
     return base
   }
+}
+
+/** 数字格式化：1.2k, 3.4w */
+function formatCount(n?: number): string {
+  if (!n) return '0'
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + 'w'
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
+  return String(n)
 }
 
 /** 视频时长 mm:ss */
@@ -331,7 +387,6 @@ async function fetchFeed(reset: boolean) {
 
   try {
     if (key === 'recommend') {
-      // 推荐：文章 + 编辑内容 + 圈子混排
       const [articleData, contentsData, circleData] = await Promise.all([
         contentApi.feed({ page: state.page, pageSize: 8 }).catch(() => ({ list: [] })),
         contentsApi.list({ page: state.page, pageSize: 6, status: 'PUBLISHED' }).catch(() => ({ data: [] })),
@@ -383,7 +438,6 @@ async function fetchFeed(reset: boolean) {
       }
       state.hasMore = articles.length >= 4
     } else if (key === 'hot') {
-      // 热门：短视频 + 商品混排
       const [videoData, productData] = await Promise.all([
         videoApi.list({ page: state.page, pageSize: 8, sort: 'hot' }).catch(() => ({ videos: [] })),
         shopApi.products({ page: state.page, pageSize: 4 }).catch(() => ({ products: [] })),
@@ -416,7 +470,6 @@ async function fetchFeed(reset: boolean) {
       }
       state.hasMore = videos.length >= 6
     } else if (key === 'live') {
-      // 直播：仅直播间
       const roomData = await liveApi
         .rooms({ page: state.page, pageSize: 10, status: 'LIVING' })
         .catch(() => ({ rooms: [] }))
@@ -455,7 +508,7 @@ function switchTab(key: ChannelKey) {
   if (!state.loaded) {
     fetchFeed(true)
   } else {
-    fetchFeed(true) // 后台静默刷新
+    fetchFeed(true)
   }
 }
 
@@ -579,10 +632,9 @@ onReachBottom(() => {
 
 /* ===== Banner ===== */
 .banner-swiper {
-  width: 100%;
-  height: 140px;
-  margin: 15px;
-  width: calc(100% - 30px);
+  width: calc(100% - 24px);
+  height: 130px;
+  margin: 12px;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -597,7 +649,7 @@ onReachBottom(() => {
   box-sizing: border-box;
 }
 .banner-icon {
-  font-size: 40px;
+  font-size: 36px;
   flex-shrink: 0;
 }
 .banner-text {
@@ -605,249 +657,200 @@ onReachBottom(() => {
   flex-direction: column;
 }
 .banner-title {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: bold;
   color: #fff;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 .banner-sub {
-  font-size: 13px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.85);
   margin-top: 4px;
 }
 
-/* ===== Quick Tools ===== */
+/* ===== Quick Tools（极简横向滚动） ===== */
 .quick-tools {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin: 15px;
-}
-.tool-item {
-  background: #FFFFFF;
+  display: flex;
+  gap: 0;
+  margin: 0 12px;
+  background: #fff;
   border-radius: 12px;
-  padding: 15px 10px;
-  text-align: center;
+  padding: 8px 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
+.tool-item {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  transition: transform 0.15s;
+}
 .tool-item:active {
-  transform: scale(0.98);
+  transform: scale(0.95);
 }
 .tool-icon {
-  font-size: 28px;
+  font-size: 22px;
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 3px;
 }
 .tool-name {
-  font-size: 12px;
+  font-size: 11px;
+  color: #666;
   font-weight: 500;
-  color: #2C2C2C;
 }
 
 /* ===== Tab Nav ===== */
 .tab-nav {
   display: flex;
-  gap: 20px;
-  margin: 0 15px;
-  border-bottom: 1px solid #E8E0D5;
-  padding-bottom: 0;
+  gap: 24px;
+  margin: 14px 12px 10px;
 }
 .tab-item {
-  padding: 12px 0;
-  font-size: 14px;
-  color: #666666;
+  font-size: 15px;
+  color: #888;
+  padding-bottom: 4px;
   border-bottom: 2px solid transparent;
   transition: all 0.2s;
 }
 .tab-item.active {
-  color: #C41E3A;
-  border-bottom-color: #C41E3A;
-  font-weight: 500;
-}
-
-/* ===== 下拉刷新 ===== */
-.refresh-tip {
-  text-align: center;
-  font-size: 12px;
-  color: #C9A96E;
-  padding: 6px 0;
-}
-
-/* ===== 文章列表（推荐Tab） ===== */
-.article-list {
-  margin: 15px;
-}
-.article-item {
-  display: flex;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid #E8E0D5;
-}
-.article-item:last-child {
-  border-bottom: none;
-}
-.article-thumb {
-  width: 80px;
-  height: 60px;
-  background: linear-gradient(135deg, #e8d5c5, #d4c4b0);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-.article-thumb-img {
-  width: 100%;
-  height: 100%;
-}
-.article-thumb-icon {
-  font-size: 24px;
-}
-.article-content {
-  flex: 1;
-  min-width: 0;
-}
-.article-title {
-  font-size: 14px;
-  font-weight: 500;
   color: #2C2C2C;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  margin-bottom: 5px;
-}
-.article-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #999999;
-}
-.meta-tag {
-  background: #F5F0E8;
-  color: #C41E3A;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 10px;
-}
-.meta-time {
-  margin-left: auto;
-  flex-shrink: 0;
-  color: #999999;
+  border-bottom-color: #C41E3A;
+  font-weight: 600;
 }
 
 /* ===== 双列瀑布流 ===== */
-.feed-grid {
+.waterfall-wrap {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
-  padding: 0 15px 4px;
+  padding: 0 10px;
+  align-items: flex-start;
+}
+.waterfall-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.feed-card {
-  width: calc(50% - 4px);
+/* 瀑布流卡片 */
+.wf-card {
   background: #fff;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   transition: transform 0.15s;
-  box-sizing: border-box;
 }
-.feed-card:active {
+.wf-card:active {
   transform: scale(0.98);
 }
 
-/* ===== 封面容器 ===== */
-.card-cover-wrap {
+/* 封面图区 */
+.wf-cover {
   position: relative;
   width: 100%;
-  overflow: hidden;
   background: #F5F0E8;
+  line-height: 0;
 }
-.feed-card.type-video .card-cover-wrap,
-.feed-card.type-live .card-cover-wrap,
-.feed-card.type-product .card-cover-wrap {
-  max-height: 160px;
-}
-
-.card-cover {
+.wf-img {
   width: 100%;
-  height: 100%;
   display: block;
-  min-height: 100px;
+}
+.wf-placeholder {
+  width: 100%;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wf-placeholder-icon {
+  font-size: 36px;
+  opacity: 0.6;
 }
 
-/* ===== 角标 ===== */
-.card-badge-live {
+/* 封面角标 */
+.wf-badge-live {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: 6px;
+  left: 6px;
   z-index: 2;
   font-size: 10px;
-  padding: 3px 10px;
-  border-radius: 4px;
+  padding: 2px 8px;
+  border-radius: 3px;
   font-weight: bold;
-  background: #e53935;
+  background: #C41E3A;
   color: #fff;
 }
-
-.card-badge-dur {
+.wf-badge-dur {
   position: absolute;
   bottom: 6px;
   right: 6px;
   z-index: 2;
   font-size: 10px;
   padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.7);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.65);
   color: #fff;
-  font-weight: bold;
+}
+.wf-like-tag {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  z-index: 2;
+  font-size: 11px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-/* ===== 卡片内容 ===== */
-.card-body {
-  padding: 10px 10px 0;
+/* 卡片信息 */
+.wf-body {
+  padding: 8px 10px 10px;
 }
-.card-title {
-  font-size: 14px;
+.wf-title {
+  font-size: 13px;
   font-weight: 500;
   color: #2C2C2C;
-  display: block;
-  line-height: 1.4;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin-bottom: 6px;
 }
-.card-extra {
+.wf-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.wf-author {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.wf-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.wf-avatar-placeholder {
   font-size: 12px;
+  flex-shrink: 0;
+}
+.wf-author-name {
+  font-size: 11px;
   color: #999;
-  margin-top: 4px;
-  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.card-price {
-  display: block;
-  font-size: 16px;
+.wf-price {
+  font-size: 14px;
   font-weight: bold;
   color: #C41E3A;
-  margin-top: 6px;
-}
-
-.card-footer {
-  display: flex;
-  gap: 10px;
-  padding: 8px 10px 10px;
-  font-size: 11px;
-  color: #999999;
-}
-.meta-stat {
-  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 6px;
 }
 
 /* ===== 加载更多 ===== */
@@ -861,7 +864,7 @@ onReachBottom(() => {
 }
 .no-more {
   text-align: center;
-  color: #999999;
+  color: #999;
   padding: 16px 0;
   font-size: 12px;
 }

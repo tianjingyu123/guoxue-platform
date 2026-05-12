@@ -228,13 +228,13 @@ function formatDateTime(t: string): string {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #d03050;
+  color: #C41E3A;
 }
 .living-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #e74c3c;
+  background: #C41E3A;
   animation: pulse 1.5s infinite;
 }
 @keyframes pulse {
@@ -290,7 +290,7 @@ function formatDateTime(t: string): string {
   gap: 4px;
 }
 .rc-LIVING {
-  background: #e74c3c;
+  background: #C41E3A;
 }
 .rc-UPCOMING {
   background: #f39c12;
@@ -356,7 +356,7 @@ function formatDateTime(t: string): string {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #e0d5c1;
+  background: #E8E0D5;
 }
 .rc-host-name {
   font-size: 13px;

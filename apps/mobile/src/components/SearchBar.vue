@@ -63,7 +63,7 @@ function clear() {
   background: #fff;
   border-radius: 20px;
   padding: 0 14px;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
   height: 40px;
 }
 

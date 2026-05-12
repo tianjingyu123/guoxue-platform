@@ -233,7 +233,7 @@ function formatTime(t: string): string {
 </script>
 
 <style scoped>
-.page { padding: 16px; background: #f5f5f5; min-height: 100vh; }
+.page { padding: 16px; background: #F5F0E8; min-height: 100vh; }
 
 /* 分站品牌头 */
 .brand-header {
@@ -285,7 +285,7 @@ function formatTime(t: string): string {
   justify-content: space-between;
   align-items: center;
   padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #F5F0E8;
 }
 .earning-item:last-child, .w-item:last-child { border-bottom: none; }
 .earn-left { display: flex; flex-direction: column; gap: 4px; }
@@ -303,7 +303,7 @@ function formatTime(t: string): string {
   text-align: center;
   padding: 14px 0 6px;
   font-size: 13px;
-  color: #409eff;
+  color: #C41E3A;
 }
 .load-more.load-end { color: #999; }
 .load-more:active { opacity: 0.7; }
@@ -319,6 +319,6 @@ function formatTime(t: string): string {
 .label { width: 60px; font-size: 14px; color: #666; }
 .input { flex: 1; border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; font-size: 14px; }
 .modal-btns { display: flex; gap: 12px; margin-top: 20px; }
-.btn-cancel { flex: 1; background: #f0f0f0; border: none; border-radius: 8px; padding: 10px; font-size: 14px; }
+.btn-cancel { flex: 1; background: #F5F0E8; border: none; border-radius: 8px; padding: 10px; font-size: 14px; }
 .btn-confirm { flex: 1; background: #667eea; color: #fff; border: none; border-radius: 8px; padding: 10px; font-size: 14px; }
 </style>

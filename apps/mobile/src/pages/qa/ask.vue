@@ -122,12 +122,12 @@ async function submit() {
 .form-value { font-size: 14px; color: #666; }
 .form-hint { font-size: 11px; color: #bbb; display: block; margin-top: 4px; }
 .picker-text { font-size: 14px; color: #C41E3A; padding: 8px 12px; background: #F5F0E8; border-radius: 6px; display: block; }
-.textarea { width: 100%; min-height: 100px; padding: 10px; border: 1px solid #e8e0d6; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+.textarea { width: 100%; min-height: 100px; padding: 10px; border: 1px solid #E8E0D5; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
 .char-count { font-size: 11px; color: #bbb; text-align: right; display: block; margin-top: 4px; }
 .price-options { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .price-tag { padding: 6px 14px; border-radius: 16px; font-size: 13px; background: #F5F0E8; color: #666; }
 .price-tag.active { background: #C41E3A; color: #fff; }
-.custom-input { width: 100%; padding: 8px 10px; border: 1px solid #e8e0d6; border-radius: 6px; font-size: 14px; box-sizing: border-box; margin-top: 6px; }
+.custom-input { width: 100%; padding: 8px 10px; border: 1px solid #E8E0D5; border-radius: 6px; font-size: 14px; box-sizing: border-box; margin-top: 6px; }
 .submit-btn { width: 100%; background: #C41E3A; color: #fff; border-radius: 24px; padding: 12px; font-size: 16px; border: none; margin-top: 8px; }
 .submit-btn[disabled] { background: #ccc; }
 </style>

@@ -5,28 +5,38 @@
 
     <!-- 内容区 -->
     <template v-else-if="course">
-      <!-- 顶部课程信息 -->
+      <!-- 顶部封面 -->
       <view class="header">
         <image v-if="course.cover" :src="course.cover" class="cover" mode="aspectFill" />
         <view v-else class="cover-placeholder">
           <text class="placeholder-icon">📚</text>
         </view>
+
+        <!-- 返回按钮 -->
+        <view class="back-btn" @click="goBack">
+          <text class="back-icon">‹</text>
+        </view>
+
+        <!-- 封面上的信息渐变叠加 -->
         <view class="header-overlay">
           <view class="header-info">
             <view class="header-top">
               <text class="title">{{ course.title }}</text>
-              <text v-if="course.type" class="type-tag">{{ typeLabel }}</text>
+              <view class="header-badges">
+                <text v-if="course.type" class="type-tag">{{ typeLabel }}</text>
+                <text v-if="course.level" class="level-tag">{{ course.level }}</text>
+              </view>
             </view>
-            <text class="intro">{{ course.intro || course.description || '暂无简介' }}</text>
             <view class="header-stats">
-              <text class="stat-item">👤 {{ course.studentCount || 0 }} 学员</text>
+              <text class="stat-item">👤 {{ formatNum(course.studentCount || 0) }} 学员</text>
               <text v-if="chapterCount" class="stat-item">📖 {{ chapterCount }} 章节</text>
+              <text v-if="course.rating" class="stat-item">⭐ {{ course.rating }}</text>
             </view>
           </view>
         </view>
       </view>
 
-      <!-- 价格行 -->
+      <!-- 价格 + 进度行 -->
       <view class="price-row">
         <view class="price-group">
           <text class="price" :class="{ free: course.price === 0 }">
@@ -39,19 +49,38 @@
             ¥{{ course.originalPrice }}
           </text>
         </view>
-        <!-- 学习进度（已登录时显示） -->
-        <view v-if="isLogin && chapters.length > 0" class="progress-area">
+        <view v-if="isLogin && chapters.length > 0 && progressPercent > 0" class="progress-area">
           <view class="progress-bar-bg">
             <view class="progress-bar-fill" :style="{ width: progressPercent + '%' }" />
           </view>
-          <text class="progress-text">{{ progressPercent }}%</text>
+          <text class="progress-text">已学 {{ progressPercent }}%</text>
+        </view>
+        <text class="share-btn" @click="doShare">📤 分享</text>
+      </view>
+
+      <!-- 教师信息 -->
+      <view v-if="course.teacher" class="section">
+        <view class="section-title">授课讲师</view>
+        <view class="teacher-card">
+          <image
+            v-if="course.teacherAvatar"
+            :src="course.teacherAvatar"
+            class="teacher-avatar"
+          />
+          <view v-else class="teacher-avatar-plc">👨‍🏫</view>
+          <view class="teacher-info">
+            <text class="teacher-name">{{ course.teacher }}</text>
+            <text class="teacher-bio" v-if="course.teacherBio">{{ course.teacherBio }}</text>
+          </view>
         </view>
       </view>
 
       <!-- 课程简介 -->
       <view class="section">
         <view class="section-title">课程简介</view>
-        <text class="desc-text">{{ course.description || course.intro || '暂无详细介绍' }}</text>
+        <view class="desc-card">
+          <text class="desc-text">{{ course.description || course.intro || '暂无详细介绍' }}</text>
+        </view>
       </view>
 
       <!-- 章节列表 -->
@@ -61,25 +90,56 @@
           <text class="section-badge">{{ chapters.length }} 章</text>
         </view>
 
-        <view v-if="chapters.length === 0" class="empty">暂无章节内容</view>
+        <view v-if="chapters.length === 0" class="empty-chapters">
+          <text class="empty-icon">📝</text>
+          <text>暂无章节内容</text>
+        </view>
 
-        <view
-          v-for="(ch, idx) in chapters"
-          :key="ch.id"
-          class="chapter-item"
-        >
-          <view class="ch-left">
-            <text class="ch-index">{{ idx + 1 }}</text>
-            <view class="ch-info">
-              <text class="ch-title">{{ ch.title }}</text>
-              <text v-if="ch.duration" class="ch-duration">⏱ {{ formatDuration(ch.duration) }}</text>
+        <view v-else class="chapter-list">
+          <view
+            v-for="(ch, idx) in chapters"
+            :key="ch.id"
+            class="chapter-item"
+            @click="openChapter(ch, idx)"
+          >
+            <view class="ch-left">
+              <view class="ch-index" :class="{ done: completedChs.has(ch.id) }">
+                <text v-if="completedChs.has(ch.id)">✓</text>
+                <text v-else>{{ idx + 1 }}</text>
+              </view>
+              <view class="ch-info">
+                <text class="ch-title">{{ ch.title }}</text>
+                <view class="ch-meta">
+                  <text v-if="ch.duration" class="ch-duration">⏱ {{ formatDuration(ch.duration) }}</text>
+                  <text v-if="ch.isFree" class="free-tag">免费试看</text>
+                </view>
+              </view>
             </view>
-          </view>
-          <view class="ch-right">
-            <text v-if="ch.isFree" class="free-tag">免费试看</text>
-            <text v-if="completedChs.has(ch.id)" class="done-tag">✓ 已学</text>
+            <text class="ch-arrow">›</text>
           </view>
         </view>
+      </view>
+
+      <!-- 相关课程推荐 -->
+      <view v-if="related.length > 0" class="section">
+        <view class="section-title">相关推荐</view>
+        <scroll-view scroll-x class="related-scroll" show-scrollbar="false">
+          <view
+            v-for="rc in related"
+            :key="rc.id"
+            class="related-card"
+            @click="goCourse(rc.id)"
+          >
+            <image v-if="rc.cover" :src="rc.cover" class="related-cover" mode="aspectFill" />
+            <view v-else class="related-cover-plc">📚</view>
+            <view class="related-body">
+              <text class="related-title">{{ rc.title }}</text>
+              <text class="related-price" :class="{ free: rc.price === 0 }">
+                {{ rc.price > 0 ? '¥' + rc.price : '免费' }}
+              </text>
+            </view>
+          </view>
+        </scroll-view>
       </view>
     </template>
 
@@ -92,7 +152,7 @@
     <!-- 底部操作栏 -->
     <view v-if="course" class="bottom-bar">
       <button class="action-btn" @click="handleAction">
-        {{ isJoined ? '继续学习' : '加入学习' }}
+        {{ isJoined ? (firstUncompleted ? '继续学习' : '已全部完成 ✓') : (course.price > 0 ? '立即购买' : '加入学习') }}
       </button>
     </view>
   </view>
@@ -115,9 +175,14 @@ interface CourseDetail {
   intro?: string
   description?: string
   type?: string
+  level?: string
   price: number
   originalPrice?: number
   studentCount?: number
+  rating?: number
+  teacher?: string
+  teacherAvatar?: string
+  teacherBio?: string
 }
 
 interface Chapter {
@@ -128,9 +193,7 @@ interface Chapter {
   sort?: number
 }
 
-// 页面参数
 const id = ref('')
-
 const course = ref<CourseDetail | null>(null)
 const chapters = ref<Chapter[]>([])
 const loading = ref(false)
@@ -138,6 +201,11 @@ const chapterCount = ref(0)
 const completedChs = ref<Set<string>>(new Set())
 const progressPercent = ref(0)
 const isJoined = ref(false)
+const related = ref<any[]>([])
+
+const firstUncompleted = computed(() =>
+  chapters.value.find((ch) => !completedChs.value.has(ch.id))
+)
 
 const typeLabel = computed(() => {
   const map: Record<string, string> = {
@@ -156,6 +224,11 @@ onMounted(() => {
   id.value = opts.id || ''
   if (id.value) fetchCourse()
 })
+
+function formatNum(n: number): string {
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + '万'
+  return String(n)
+}
 
 function formatDuration(seconds?: number): string {
   if (!seconds) return ''
@@ -185,13 +258,17 @@ async function fetchCourse() {
         intro: courseData.intro || courseData.description,
         description: courseData.description,
         type: courseData.type,
+        level: courseData.level,
         price: courseData.price ?? 0,
         originalPrice: courseData.originalPrice,
         studentCount: courseData.studentCount,
+        rating: courseData.rating,
+        teacher: courseData.teacher || courseData.teacherName,
+        teacherAvatar: courseData.teacherAvatar,
+        teacherBio: courseData.teacherBio || courseData.teacherDesc,
       }
     }
 
-    // 处理章节
     const rawChs: any[] = Array.isArray(chData) ? chData : chData?.list || chData?.items || []
     chapters.value = rawChs.map((c: any) => ({
       id: c.id,
@@ -202,17 +279,21 @@ async function fetchCourse() {
     }))
     chapterCount.value = chapters.value.length
 
-    // 处理进度
     if (progressData) {
       progressPercent.value = progressData.courseProgress || 0
       if (progressData.completedChapters) {
         completedChs.value = new Set(progressData.completedChapters)
       }
-      const progressCourseId = courseData?.id || id.value
-      if (progressData.courseId === progressCourseId) {
+      if (progressData.courseId === (courseData?.id || id.value)) {
         isJoined.value = true
       }
     }
+
+    // 加载相关课程
+    try {
+      const relData = await courseApi.related(id.value).catch(() => [])
+      related.value = (Array.isArray(relData) ? relData : relData?.list || []).slice(0, 6)
+    } catch { /* skip */ }
   } catch {
     uni.showToast({ title: '加载失败', icon: 'none' })
   } finally {
@@ -220,25 +301,58 @@ async function fetchCourse() {
   }
 }
 
-/** 底部按钮动作 */
+/** 打开章节学习 */
+function openChapter(ch: Chapter, idx: number) {
+  // 标记为已加入
+  if (!isJoined.value) {
+    isJoined.value = true
+  }
+  uni.navigateTo({
+    url: `/pages/reader/reader?bookId=${id.value}&chapterId=${ch.id}&title=${encodeURIComponent(ch.title)}`,
+  })
+}
+
+/** 底部按钮 */
 function handleAction() {
   if (!course.value) return
   if (isJoined.value) {
-    // 继续学习：跳转到第一个未完成的章节，或章节列表
-    const firstUncompleted = chapters.value.find((ch) => !completedChs.value.has(ch.id))
-    const targetIdx = firstUncompleted
-      ? chapters.value.indexOf(firstUncompleted)
-      : 0
-    // 打开章节阅读
-    uni.navigateTo({
-      url: `/pages/courses/course-detail?id=${id.value}&chapter=${chapters.value[targetIdx]?.id || ''}`,
-    })
+    const target = firstUncompleted.value
+    if (target) {
+      openChapter(target, chapters.value.indexOf(target))
+    } else {
+      // 全部完成，从第一个开始
+      if (chapters.value.length > 0) {
+        openChapter(chapters.value[0], 0)
+      }
+    }
   } else {
-    // 加入学习：调用课程加入接口，然后跳转
-    uni.showToast({ title: '开始学习', icon: 'success' })
-    isJoined.value = true
-    // 如果有加入课程接口可调用，否则仅本地标记
+    // 加入/购买
+    if (course.value.price > 0) {
+      uni.navigateTo({ url: `/pages/shop/product-detail?id=${id.value}` })
+    } else {
+      isJoined.value = true
+      uni.showToast({ title: '已加入学习', icon: 'success' })
+      if (chapters.value.length > 0) {
+        setTimeout(() => openChapter(chapters.value[0], 0), 800)
+      }
+    }
   }
+}
+
+function goCourse(courseId: string) {
+  uni.navigateTo({ url: `/pages/courses/course-detail?id=${courseId}` })
+}
+
+function doShare() {
+  if (!course.value) return
+  uni.setClipboardData({
+    data: `【热卜国学】${course.value.title} - 快来一起学习吧！`,
+    success: () => uni.showToast({ title: '链接已复制', icon: 'success' }),
+  })
+}
+
+function goBack() {
+  uni.navigateBack()
 }
 </script>
 
@@ -253,7 +367,7 @@ function handleAction() {
 .header {
   position: relative;
   width: 100%;
-  height: 220px;
+  height: 240px;
   overflow: hidden;
 }
 .cover {
@@ -263,7 +377,7 @@ function handleAction() {
 .cover-placeholder {
   width: 100%;
   height: 100%;
-  background: #f0e8d8;
+  background: linear-gradient(135deg, #E8E0D5, #C9A96E);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -271,10 +385,32 @@ function handleAction() {
 .placeholder-icon {
   font-size: 64px;
 }
+
+/* 返回按钮 */
+.back-btn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  width: 34px;
+  height: 34px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: calc(env(safe-area-inset-top));
+}
+.back-icon {
+  font-size: 24px;
+  color: #fff;
+  line-height: 1;
+}
+
 .header-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(transparent 40%, rgba(0,0,0,0.7));
+  background: linear-gradient(transparent 35%, rgba(0, 0, 0, 0.75));
   display: flex;
   align-items: flex-end;
   padding: 16px;
@@ -284,40 +420,45 @@ function handleAction() {
 }
 .header-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
+  flex-wrap: wrap;
 }
 .title {
-  font-size: 22px;
+  font-size: 21px;
   font-weight: bold;
   color: #fff;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
   flex: 1;
+  min-width: 0;
 }
-.type-tag {
-  font-size: 11px;
-  color: #fff;
-  background: rgba(139,69,19,0.85);
-  padding: 2px 10px;
-  border-radius: 10px;
+.header-badges {
+  display: flex;
+  gap: 6px;
   flex-shrink: 0;
 }
-.intro {
-  font-size: 13px;
-  color: rgba(255,255,255,0.85);
-  margin: 4px 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.type-tag {
+  font-size: 10px;
+  color: #fff;
+  background: rgba(196, 30, 58, 0.85);
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+.level-tag {
+  font-size: 10px;
+  color: #C9A96E;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 2px 10px;
+  border-radius: 10px;
 }
 .header-stats {
   display: flex;
-  gap: 16px;
-  margin-top: 6px;
+  gap: 14px;
+  margin-top: 8px;
 }
 .stat-item {
   font-size: 12px;
-  color: rgba(255,255,255,0.9);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* ===== 价格行 ===== */
@@ -325,8 +466,9 @@ function handleAction() {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 16px;
   background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 .price-group {
   display: flex;
@@ -335,9 +477,9 @@ function handleAction() {
   flex-shrink: 0;
 }
 .price {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: bold;
-  color: #e74c3c;
+  color: #C41E3A;
 }
 .price.free {
   color: #2e7d32;
@@ -357,7 +499,7 @@ function handleAction() {
 .progress-bar-bg {
   flex: 1;
   height: 6px;
-  background: #f0e8d8;
+  background: #E8E0D5;
   border-radius: 3px;
   overflow: hidden;
 }
@@ -368,21 +510,28 @@ function handleAction() {
   transition: width 0.4s ease;
 }
 .progress-text {
-  font-size: 12px;
+  font-size: 11px;
   color: #C41E3A;
   white-space: nowrap;
+}
+.share-btn {
+  font-size: 12px;
+  color: #999;
+  flex-shrink: 0;
+  padding: 4px 8px;
 }
 
 /* ===== 通用区块 ===== */
 .section {
   padding: 0 16px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 .section-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: bold;
-  color: #C41E3A;
-  padding: 12px 0 8px;
+  color: #2C2C2C;
+  padding: 8px 0 8px 8px;
+  border-left: 3px solid #C41E3A;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -395,29 +544,95 @@ function handleAction() {
   padding: 1px 8px;
   border-radius: 8px;
 }
-.desc-text {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.7;
+
+/* ===== 教师卡片 ===== */
+.teacher-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   background: #fff;
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+.teacher-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.teacher-avatar-plc {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #F5F0E8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+.teacher-info {
+  flex: 1;
+  min-width: 0;
+}
+.teacher-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #2C2C2C;
+}
+.teacher-bio {
+  font-size: 12px;
+  color: #999;
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   display: block;
 }
 
+/* ===== 简介 ===== */
+.desc-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+.desc-text {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.8;
+}
+
 /* ===== 章节列表 ===== */
+.empty-chapters {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 0;
+  color: #bbb;
+  font-size: 13px;
+  gap: 8px;
+}
+.empty-icon {
+  font-size: 32px;
+}
+.chapter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 .chapter-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 14px 12px;
-  margin-bottom: 6px;
-  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 .chapter-item:active {
-  transform: scale(0.99);
+  background: #fdf5f0;
 }
 .ch-left {
   display: flex;
@@ -427,16 +642,20 @@ function handleAction() {
   min-width: 0;
 }
 .ch-index {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: #f0e8d8;
+  background: #F5F0E8;
   color: #C41E3A;
   text-align: center;
-  line-height: 26px;
+  line-height: 28px;
   font-size: 12px;
   font-weight: bold;
   flex-shrink: 0;
+}
+.ch-index.done {
+  background: #e8f5e9;
+  color: #2e7d32;
 }
 .ch-info {
   flex: 1;
@@ -444,47 +663,86 @@ function handleAction() {
 }
 .ch-title {
   font-size: 14px;
-  color: #333;
+  color: #2C2C2C;
   font-weight: 500;
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.ch-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
 .ch-duration {
   font-size: 11px;
   color: #bbb;
-  margin-top: 2px;
-  display: block;
-}
-.ch-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  margin-left: 8px;
 }
 .free-tag {
   font-size: 10px;
   color: #2e7d32;
   background: #e8f5e9;
-  padding: 2px 8px;
-  border-radius: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
 }
-.done-tag {
-  font-size: 10px;
-  color: #C41E3A;
-  background: #F5F0E8;
-  padding: 2px 8px;
-  border-radius: 8px;
+.ch-arrow {
+  font-size: 20px;
+  color: #ccc;
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
-/* ===== 空状态 ===== */
-.empty {
-  text-align: center;
-  color: #bbb;
-  padding: 24px 0;
+/* ===== 相关推荐 ===== */
+.related-scroll {
+  white-space: nowrap;
+}
+.related-card {
+  display: inline-block;
+  width: 140px;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-right: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  vertical-align: top;
+}
+.related-cover {
+  width: 100%;
+  height: 90px;
+}
+.related-cover-plc {
+  width: 100%;
+  height: 90px;
+  background: linear-gradient(135deg, #E8E0D5, #C9A96E);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+.related-body {
+  padding: 8px 10px 10px;
+}
+.related-title {
+  font-size: 13px;
+  color: #2C2C2C;
+  font-weight: 500;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.related-price {
   font-size: 14px;
+  font-weight: bold;
+  color: #C41E3A;
+  margin-top: 4px;
+  display: block;
+}
+.related-price.free {
+  color: #2e7d32;
+  font-size: 12px;
 }
 
 /* ===== 异常状态 ===== */
@@ -513,23 +771,25 @@ function handleAction() {
   padding: 10px 16px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom));
   background: #fff;
-  border-top: 1px solid #e0d5c1;
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+  border-top: 1px solid #E8E0D5;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  z-index: 100;
 }
 .action-btn {
   width: 100%;
-  height: 44px;
-  background: #C41E3A;
+  height: 46px;
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
   color: #fff;
-  border-radius: 22px;
+  border-radius: 23px;
   font-size: 16px;
   font-weight: bold;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 12px rgba(196, 30, 58, 0.25);
 }
 .action-btn:active {
-  background: #7a3a0f;
+  transform: scale(0.98);
 }
 </style>

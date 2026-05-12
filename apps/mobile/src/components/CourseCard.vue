@@ -120,7 +120,7 @@ function goDetail() {
 .price {
   font-size: 18px;
   font-weight: bold;
-  color: #e74c3c;
+  color: #C41E3A;
 }
 
 .price.free {

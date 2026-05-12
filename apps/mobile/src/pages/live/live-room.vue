@@ -327,7 +327,7 @@ function goBack() {
   border-radius: 50%;
 }
 .status-dot.living {
-  background: #e74c3c;
+  background: #C41E3A;
   animation: pulse 1.5s infinite;
 }
 @keyframes pulse {
@@ -358,7 +358,7 @@ function goBack() {
 }
 .leave-action {
   font-size: 14px;
-  color: #e74c3c;
+  color: #C41E3A;
   padding: 8px;
 }
 .leave-stay {

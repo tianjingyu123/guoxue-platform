@@ -777,7 +777,7 @@ function goHistory() {
   border: 1px solid transparent;
 }
 .gender-btn.active {
-  background: linear-gradient(135deg, #C41E3A, #a0522d);
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
   color: #fff;
   border-color: #C41E3A;
   font-weight: bold;
@@ -848,7 +848,7 @@ function goHistory() {
 .sc-dizhi {
   font-size: 15px;
   font-weight: bold;
-  color: #5d3a1a;
+  color: #C41E3A;
 }
 .sc-time {
   font-size: 9px;
@@ -931,7 +931,7 @@ function goHistory() {
 
 /* ========== 四柱八字表 ========== */
 .bazi-table {
-  border: 1px solid #e8ddd0;
+  border: 1px solid #E8E0D5;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -939,7 +939,7 @@ function goHistory() {
   display: flex;
 }
 .bt-row:not(:last-child) {
-  border-bottom: 1px solid #e8ddd0;
+  border-bottom: 1px solid #E8E0D5;
 }
 .bt-cell {
   flex: 1;
@@ -952,7 +952,7 @@ function goHistory() {
   gap: 2px;
 }
 .bt-cell:not(:last-child) {
-  border-right: 1px solid #e8ddd0;
+  border-right: 1px solid #E8E0D5;
 }
 .bt-header .bt-cell {
   background: #f5ede2;
@@ -1043,7 +1043,7 @@ function goHistory() {
 .tms-ganzhi {
   font-size: 22px;
   font-weight: bold;
-  color: #5d3a1a;
+  color: #C41E3A;
 }
 .tms-nayin {
   font-size: 11px;
@@ -1052,7 +1052,7 @@ function goHistory() {
 .tms-divider {
   width: 1px;
   height: 50px;
-  background: #e8ddd0;
+  background: #E8E0D5;
 }
 
 /* ========== 五行统计 ========== */
@@ -1195,7 +1195,7 @@ function goHistory() {
   transition: all 0.2s;
 }
 .dayun-item.active {
-  background: linear-gradient(135deg, #C41E3A, #a0522d);
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
   border-color: #C41E3A;
 }
 .dayun-item.active .dy-ganzhi {
@@ -1210,7 +1210,7 @@ function goHistory() {
 .dy-ganzhi {
   font-size: 17px;
   font-weight: bold;
-  color: #5d3a1a;
+  color: #C41E3A;
 }
 .dy-shishen {
   font-size: 11px;
@@ -1277,7 +1277,7 @@ function goHistory() {
 .geju-name {
   font-size: 18px;
   font-weight: bold;
-  color: #5d3a1a;
+  color: #C41E3A;
 }
 .geju-badge {
   font-size: 11px;
@@ -1477,7 +1477,7 @@ function goHistory() {
   border: none;
 }
 .save-btn {
-  background: linear-gradient(135deg, #C41E3A, #a0522d);
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
   color: #fff;
 }
 .history-btn {

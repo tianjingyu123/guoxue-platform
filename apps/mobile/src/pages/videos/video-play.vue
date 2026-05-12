@@ -348,7 +348,7 @@ function formatCount(n: number | undefined): string {
   transform: translateX(-50%);
   width: 20px;
   height: 20px;
-  background: #e74c3c;
+  background: #C41E3A;
   color: #fff;
   border-radius: 50%;
   text-align: center;

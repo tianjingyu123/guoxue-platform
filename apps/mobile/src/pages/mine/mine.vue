@@ -931,7 +931,7 @@ function formatTime(timeStr?: string): string {
 /* ── 退出登录 ── */
 .logout-btn {
   text-align: center; background: #fff; border-radius: 12px;
-  padding: 14px; margin: 20px 15px; color: #e74c3c; font-size: 15px;
+  padding: 14px; margin: 20px 15px; color: #C41E3A; font-size: 15px;
 }
 
 /* ── 登录弹窗 ── */
@@ -949,7 +949,7 @@ function formatTime(timeStr?: string): string {
   background: #F5F0E8; border-radius: 10px; padding: 12px 14px;
   font-size: 15px; margin-bottom: 12px; border: 1px solid #E8E0D5; width: 100%; box-sizing: border-box;
 }
-.login-error { color: #e74c3c; font-size: 13px; margin-bottom: 12px; }
+.login-error { color: #C41E3A; font-size: 13px; margin-bottom: 12px; }
 .modal-btn {
   background: linear-gradient(135deg, #C41E3A, #8B0000); color: #fff; border-radius: 24px;
   font-size: 16px; padding: 12px; width: 100%; border: none; margin-top: 4px;

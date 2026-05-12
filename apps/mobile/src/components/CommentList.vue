@@ -188,7 +188,7 @@ function formatTime(dateStr?: string): string {
   border-radius: 20px;
   padding: 8px 14px;
   font-size: 14px;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
   color: #333;
 }
 

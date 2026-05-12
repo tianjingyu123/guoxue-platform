@@ -1088,7 +1088,7 @@ function goBack() {
 .tts-progress-track {
   flex: 1;
   height: 4px;
-  background: #e8e0d6;
+  background: #E8E0D5;
   border-radius: 2px;
   overflow: hidden;
 }
@@ -1225,7 +1225,7 @@ function goBack() {
 .annotation-block {
   margin-top: 20px;
   padding: 14px;
-  border-top: 1px dashed #e0d5c1;
+  border-top: 1px dashed #E8E0D5;
 }
 .annotation-body {
   color: #777;

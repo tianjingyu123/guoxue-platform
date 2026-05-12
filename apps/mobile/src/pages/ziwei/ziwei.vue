@@ -1,5 +1,6 @@
 <template>
   <view class="page">
+    <!-- 页面标题 -->
     <view class="page-header">
       <text class="page-title">紫微斗数</text>
       <text class="page-subtitle">十二宫 · 星曜 · 四化</text>
@@ -7,7 +8,7 @@
 
     <!-- 输入表单 -->
     <view class="form-card">
-      <view class="form-section-title">个人信息</view>
+      <view class="form-section-title">👤 个人信息</view>
 
       <view class="form-row">
         <text class="form-label">姓名</text>
@@ -17,14 +18,14 @@
       <view class="form-row">
         <text class="form-label">性别</text>
         <view class="gender-group">
-          <text :class="['gender-btn', { active: form.gender === '男' }]" @click="form.gender='男'">男</text>
-          <text :class="['gender-btn', { active: form.gender === '女' }]" @click="form.gender='女'">女</text>
+          <text :class="['gender-btn', { active: form.gender === '男' }]" @click="form.gender='男'">♂ 男</text>
+          <text :class="['gender-btn', { active: form.gender === '女' }]" @click="form.gender='女'">♀ 女</text>
         </view>
       </view>
 
       <view class="form-divider" />
 
-      <view class="form-section-title">农历出生信息</view>
+      <view class="form-section-title">📅 农历出生信息</view>
 
       <view class="form-row">
         <text class="form-label">农历年份</text>
@@ -72,7 +73,7 @@
 
       <view class="form-divider" />
 
-      <view class="form-section-title">年份干支</view>
+      <view class="form-section-title">🗓 年份干支</view>
       <view class="form-row">
         <text class="form-label">年干</text>
         <view class="tiangan-list">
@@ -97,8 +98,8 @@
       </view>
 
       <button class="calc-btn" :loading="loading" @click="doCalc" :disabled="loading">
-        <text v-if="!loading">开始排盘</text>
-        <text v-else>推演中 ...</text>
+        <text v-if="!loading">☯ 开始排盘</text>
+        <text v-else>推演中...</text>
       </button>
     </view>
 
@@ -114,6 +115,7 @@
     <view v-if="result && !loading" class="result-section">
       <!-- 概览卡片 -->
       <view class="overview-card">
+        <view class="ov-header">命盘总览</view>
         <view class="overview-grid">
           <view class="ov-item">
             <text class="ov-label">五行局</text>
@@ -140,18 +142,30 @@
       <view class="sihua-card">
         <view class="sihua-row">
           <view class="sihua-item lu">
+            <view class="sihua-icon-wrap lu-bg">
+              <text class="sihua-icon">禄</text>
+            </view>
             <text class="sihua-label">化禄</text>
             <text class="sihua-star">{{ result.siHua.huaLu }}</text>
           </view>
           <view class="sihua-item quan">
+            <view class="sihua-icon-wrap quan-bg">
+              <text class="sihua-icon">权</text>
+            </view>
             <text class="sihua-label">化权</text>
             <text class="sihua-star">{{ result.siHua.huaQuan }}</text>
           </view>
           <view class="sihua-item ke">
+            <view class="sihua-icon-wrap ke-bg">
+              <text class="sihua-icon">科</text>
+            </view>
             <text class="sihua-label">化科</text>
             <text class="sihua-star">{{ result.siHua.huaKe }}</text>
           </view>
           <view class="sihua-item ji">
+            <view class="sihua-icon-wrap ji-bg">
+              <text class="sihua-icon">忌</text>
+            </view>
             <text class="sihua-label">化忌</text>
             <text class="sihua-star">{{ result.siHua.huaJi }}</text>
           </view>
@@ -159,7 +173,7 @@
       </view>
 
       <!-- 十二宫 -->
-      <view class="section-title">十二宫（{{ result.wuXingJu }}）</view>
+      <view class="section-title">十二宫 · {{ result.wuXingJu }}</view>
       <view class="gong-list">
         <view
           v-for="gong in result.gongWei"
@@ -186,9 +200,9 @@
           </view>
 
           <view class="gong-extra">
-            <text class="extra-text">三方: {{ gong.sanFang.join('·') }}</text>
-            <text class="extra-text">对宫: {{ gong.duiGong }}</text>
-            <text class="extra-text">宫气: {{ gong.gongQi }}</text>
+            <text class="extra-row"><text class="extra-label">三方</text> {{ gong.sanFang.join(' · ') }}</text>
+            <text class="extra-row"><text class="extra-label">对宫</text> {{ gong.duiGong }}</text>
+            <text class="extra-row"><text class="extra-label">宫气</text> {{ gong.gongQi }}</text>
           </view>
         </view>
       </view>
@@ -278,104 +292,102 @@ async function doCalc() {
 
 <style scoped>
 .page {
-  padding: 16px;
-  background: #f7f3ee;
+  padding: 12px;
+  background: #F5F0E8;
   min-height: 100vh;
+  padding-bottom: 40px;
 }
 
+/* ===== 页头 ===== */
 .page-header {
   text-align: center;
-  margin-bottom: 20px;
+  padding: 16px 0 12px;
 }
-
 .page-title {
   font-size: 24px;
   font-weight: bold;
-  color: #5d3a1a;
+  color: #C41E3A;
   display: block;
+  font-family: 'Noto Serif SC', serif;
+  letter-spacing: 4px;
 }
-
 .page-subtitle {
   font-size: 13px;
-  color: #999;
-  margin-top: 4px;
+  color: #C9A96E;
+  margin-top: 6px;
+  display: block;
+  letter-spacing: 2px;
 }
 
-/* 表单 */
+/* ===== 表单卡片 ===== */
 .form-card {
   background: #fff;
   border-radius: 12px;
   padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
-
 .form-section-title {
   font-size: 14px;
   font-weight: bold;
   color: #C41E3A;
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #f0e6d3;
+  border-bottom: 1px solid #E8E0D5;
 }
-
 .form-row {
   margin-bottom: 14px;
 }
-
 .form-label {
   font-size: 13px;
   color: #666;
   display: block;
   margin-bottom: 6px;
 }
-
 .form-input {
-  border: 1px solid #e0d8cc;
+  border: 1px solid #E8E0D5;
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 15px;
-  background: #faf9f6;
+  background: #F5F0E8;
   width: 100%;
   box-sizing: border-box;
+  color: #2C2C2C;
 }
-
 .form-divider {
   height: 1px;
-  background: #f0e6d3;
+  background: #E8E0D5;
   margin: 16px 0;
 }
 
-/* 性别选择 */
+/* ===== 性别选择 ===== */
 .gender-group {
   display: flex;
   gap: 12px;
 }
-
 .gender-btn {
   flex: 1;
   text-align: center;
   padding: 10px 0;
   border-radius: 8px;
-  border: 1px solid #e0d8cc;
+  border: 1px solid #E8E0D5;
   font-size: 15px;
   color: #666;
-  background: #faf9f6;
+  background: #F5F0E8;
 }
-
 .gender-btn.active {
   background: #C41E3A;
   color: #fff;
   border-color: #C41E3A;
+  font-weight: 600;
 }
 
-/* 天干地支选择 */
+/* ===== 天干地支选择 ===== */
 .tiangan-list, .dizhi-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .gan-btn, .zhi-btn {
   width: 40px;
   height: 40px;
@@ -383,342 +395,328 @@ async function doCalc() {
   text-align: center;
   border-radius: 50%;
   font-size: 15px;
-  border: 1px solid #e0d8cc;
-  background: #faf9f6;
+  border: 1px solid #E8E0D5;
+  background: #F5F0E8;
   color: #666;
 }
-
-.gan-btn.active {
-  background: #409eff;
-  color: #fff;
-  border-color: #409eff;
-}
-
-.zhi-btn.active {
+.gan-btn.active, .zhi-btn.active {
   background: #C41E3A;
   color: #fff;
   border-color: #C41E3A;
+  font-weight: bold;
+  box-shadow: 0 2px 6px rgba(196, 30, 58, 0.25);
 }
 
-/* 时辰选择 */
+/* ===== 时辰选择 ===== */
 .shichen-list {
   margin-top: 4px;
 }
-
 .shichen-scroll {
   white-space: nowrap;
 }
-
 .shichen-inner {
   display: flex;
   gap: 6px;
 }
-
 .shichen-btn {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid #e0d8cc;
-  background: #faf9f6;
+  border-radius: 10px;
+  border: 1px solid #E8E0D5;
+  background: #F5F0E8;
   min-width: 52px;
   flex-shrink: 0;
 }
-
 .shichen-btn.active {
   background: #C41E3A;
   border-color: #C41E3A;
 }
-
 .shichen-btn.active .sc-dizhi,
 .shichen-btn.active .sc-time {
   color: #fff;
 }
-
 .sc-dizhi {
   font-size: 16px;
   font-weight: bold;
-  color: #5d3a1a;
+  color: #2C2C2C;
 }
-
 .sc-time {
   font-size: 10px;
   color: #999;
   margin-top: 2px;
 }
 
-/* 计算按钮 */
+/* ===== 排盘按钮 ===== */
 .calc-btn {
   margin-top: 16px;
   width: 100%;
   padding: 14px 0;
-  border-radius: 8px;
+  border-radius: 24px;
   border: none;
-  background: linear-gradient(135deg, #C41E3A, #a0522d);
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
   color: #fff;
   font-size: 17px;
   font-weight: bold;
   letter-spacing: 2px;
+  box-shadow: 0 4px 14px rgba(196, 30, 58, 0.3);
 }
-
 .calc-btn[disabled] {
   opacity: 0.6;
 }
 
-/* 加载 */
+/* ===== 加载动画 ===== */
 .loading-section {
   display: flex;
   justify-content: center;
   padding: 40px 0;
 }
-
 .loading-animation {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
-
 .loading-icon {
-  font-size: 40px;
+  font-size: 48px;
   animation: spin 2s linear infinite;
 }
-
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
-
 .loading-text {
   font-size: 14px;
-  color: #999;
+  color: #C9A96E;
 }
 
-/* 结果区域 */
+/* ===== 结果区域 ===== */
 .result-section {
   animation: fadeIn 0.5s ease;
 }
-
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ===== 通用区块标题 ===== */
 .section-title {
   font-size: 16px;
   font-weight: bold;
-  color: #5d3a1a;
-  margin: 20px 0 12px;
+  color: #2C2C2C;
+  margin: 16px 0 10px;
   padding-left: 10px;
   border-left: 3px solid #C41E3A;
 }
 
-/* 概览卡片 */
+/* ===== 概览卡片 ===== */
 .overview-card {
   background: #fff;
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
-
+.ov-header {
+  font-size: 15px;
+  font-weight: bold;
+  color: #C41E3A;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #E8E0D5;
+}
 .overview-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 14px;
 }
-
 .ov-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-
 .ov-label {
   font-size: 12px;
-  color: #999;
+  color: #bbb;
 }
-
 .ov-val {
   font-size: 15px;
   font-weight: bold;
-  color: #333;
+  color: #2C2C2C;
 }
-
 .ov-val.highlight {
   color: #C41E3A;
-  font-size: 16px;
+  font-size: 18px;
 }
-
 .ov-val.dim {
-  color: #bbb;
+  color: #ccc;
   font-weight: normal;
   font-size: 13px;
 }
 
-/* 四化 */
+/* ===== 四化 ===== */
 .sihua-card {
   background: #fff;
   border-radius: 12px;
-  padding: 12px 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
-
 .sihua-row {
   display: flex;
   justify-content: space-around;
 }
-
 .sihua-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
-
-.sihua-label {
-  font-size: 12px;
-  color: #999;
+.sihua-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-
-.sihua-star {
-  font-size: 18px;
+.lu-bg { background: #e8f5e9; }
+.quan-bg { background: #e3f2fd; }
+.ke-bg { background: #f3e5f5; }
+.ji-bg { background: #ffebee; }
+.sihua-icon {
+  font-size: 16px;
   font-weight: bold;
 }
+.lu-bg .sihua-icon { color: #2e7d32; }
+.quan-bg .sihua-icon { color: #1565c0; }
+.ke-bg .sihua-icon { color: #7b1fa2; }
+.ji-bg .sihua-icon { color: #c62828; }
+.sihua-label {
+  font-size: 11px;
+  color: #999;
+}
+.sihua-star {
+  font-size: 15px;
+  font-weight: bold;
+  color: #2C2C2C;
+}
 
-.sihua-item.lu .sihua-star { color: #67c23a; }
-.sihua-item.quan .sihua-star { color: #409eff; }
-.sihua-item.ke .sihua-star { color: #9b59b6; }
-.sihua-item.ji .sihua-star { color: #f56c6c; }
-
-/* 十二宫 */
+/* ===== 十二宫 ===== */
 .gong-list {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
-
 .gong-card {
   background: #fff;
   border-radius: 10px;
   padding: 12px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  border-left: 3px solid #e0d8cc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-left: 3px solid #E8E0D5;
 }
-
 .gong-card.ming {
   border-left-color: #C41E3A;
-  background: #fefbf6;
+  background: #fefbf7;
 }
-
 .gong-card.shen {
-  border-left-color: #e6a23c;
+  border-left-color: #C9A96E;
 }
-
 .gong-header {
   margin-bottom: 8px;
 }
-
 .gong-name-row {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-bottom: 2px;
 }
-
 .gong-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: bold;
-  color: #333;
+  color: #2C2C2C;
 }
-
 .gong-badge {
-  font-size: 10px;
-  padding: 1px 5px;
+  font-size: 9px;
+  padding: 1px 6px;
   border-radius: 4px;
   color: #fff;
+  font-weight: bold;
 }
-
 .ming-badge { background: #C41E3A; }
-.shen-badge { background: #e6a23c; }
-
+.shen-badge { background: #C9A96E; }
 .gong-ganzhi {
-  font-size: 13px;
-  color: #666;
-  margin-top: 2px;
+  font-size: 12px;
+  color: #C41E3A;
+  font-weight: 500;
   display: block;
 }
-
 .gong-daxian {
-  font-size: 11px;
+  font-size: 10px;
   color: #bbb;
-  margin-top: 2px;
   display: block;
+  margin-top: 1px;
 }
-
 .gong-stars {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 6px;
 }
-
 .no-star {
-  font-size: 12px;
+  font-size: 11px;
   color: #ddd;
 }
-
 .star-badge {
-  font-size: 11px;
+  font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: #f0f0f0;
+  background: #F5F0E8;
   color: #666;
 }
-
-.star-badge.吉 { background: #f0f9eb; color: #67c23a; }
-.star-badge.凶 { background: #fef0f0; color: #f56c6c; }
-.star-badge.main { font-weight: bold; }
-.star-badge.assist { font-size: 10px; }
+.star-badge.吉 { background: #e8f5e9; color: #2e7d32; }
+.star-badge.凶 { background: #ffebee; color: #c62828; }
+.star-badge.main { font-weight: bold; background: #fff3e0; color: #e65100; }
+.star-badge.assist { font-size: 9px; }
 .star-badge.sisha { font-style: italic; }
-
 .gong-extra {
-  border-top: 1px dashed #f0f0f0;
+  border-top: 1px dashed #E8E0D5;
   padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
-
-.extra-text {
+.extra-row {
   font-size: 10px;
-  color: #ccc;
-  display: block;
+  color: #bbb;
   line-height: 1.6;
 }
+.extra-label {
+  color: #C9A96E;
+  margin-right: 2px;
+}
 
-/* picker */
+/* ===== picker ===== */
 .form-picker {
   width: 100%;
 }
-
 .picker-value {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border: 1px solid #e0d8cc;
+  border: 1px solid #E8E0D5;
   border-radius: 8px;
   padding: 10px 12px;
-  background: #faf9f6;
+  background: #F5F0E8;
 }
-
 .picker-text {
   font-size: 15px;
-  color: #333;
+  color: #2C2C2C;
 }
-
 .picker-text.placeholder {
   color: #bbb;
 }
-
 .picker-arrow {
-  font-size: 12px;
-  color: #999;
+  font-size: 11px;
+  color: #C9A96E;
 }
 </style>

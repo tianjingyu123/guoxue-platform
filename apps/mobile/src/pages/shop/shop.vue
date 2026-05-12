@@ -230,7 +230,7 @@ function goEarnings() {
   border-radius: 20px;
   padding: 8px 16px;
   font-size: 14px;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
 }
 .search-btn {
   background: #C41E3A;
@@ -288,7 +288,7 @@ function goEarnings() {
   position: absolute;
   top: 6px;
   left: 6px;
-  background: #d03050;
+  background: #C41E3A;
   color: #fff;
   font-size: 10px;
   padding: 1px 6px;
@@ -327,7 +327,7 @@ function goEarnings() {
 .p-price {
   font-size: 18px;
   font-weight: bold;
-  color: #d03050;
+  color: #C41E3A;
 }
 .p-original {
   font-size: 12px;

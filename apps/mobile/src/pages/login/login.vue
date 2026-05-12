@@ -217,7 +217,7 @@ function visitorLogin() {
   background: #fff;
   border-radius: 10px;
   padding: 0 14px;
-  border: 1px solid #e0d5c1;
+  border: 1px solid #E8E0D5;
   transition: border-color 0.2s;
 }
 .input-wrap:focus-within {
@@ -246,7 +246,7 @@ function visitorLogin() {
 .agree-box {
   width: 18px;
   height: 18px;
-  border: 2px solid #d0c8b8;
+  border: 2px solid #E8E0D5;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -270,7 +270,7 @@ function visitorLogin() {
 }
 
 .submit-btn {
-  background: linear-gradient(135deg, #C41E3A, #a0522d);
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
   color: #fff;
   border-radius: 24px;
   padding: 13px;

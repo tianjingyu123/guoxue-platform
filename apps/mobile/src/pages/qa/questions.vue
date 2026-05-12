@@ -132,7 +132,7 @@ function goAsk() {
 .status-REFUNDED { background: #f8f9fa; color: #6c757d; }
 .q-body { font-size: 15px; color: #333; display: block; margin-bottom: 10px; line-height: 1.5; }
 .q-footer { display: flex; gap: 12px; align-items: center; }
-.q-price { font-size: 13px; color: #e74c3c; font-weight: bold; }
+.q-price { font-size: 13px; color: #C41E3A; font-weight: bold; }
 .q-has-answer { font-size: 11px; color: #27ae60; background: #eafaf1; padding: 2px 8px; border-radius: 8px; }
 .q-peek { font-size: 11px; color: #999; }
 .pagination { text-align: center; margin-top: 20px; }
