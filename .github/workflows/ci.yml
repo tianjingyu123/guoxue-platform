@@ -168,12 +168,28 @@ jobs:
         timeout-minutes: 5
 
       - name: Test - @guoxue/bazi-engine
-        run: pnpm --filter @guoxue/bazi-engine exec jest --passWithNoTests --forceExit
+        run: pnpm --filter @guoxue/bazi-engine exec jest --passWithNoTests --forceExit 2>&1 | tee /tmp/bazi-test.log
         timeout-minutes: 5
 
+      - name: 上传 bazi-engine 测试日志
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: bazi-test-log
+          path: /tmp/bazi-test.log
+          retention-days: 3
+
       - name: Test - @guoxue/ziwei-engine
-        run: pnpm --filter @guoxue/ziwei-engine exec jest --passWithNoTests --forceExit
+        run: pnpm --filter @guoxue/ziwei-engine exec jest --passWithNoTests --forceExit 2>&1 | tee /tmp/ziwei-test.log
         timeout-minutes: 5
+
+      - name: 上传 ziwei-engine 测试日志
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ziwei-test-log
+          path: /tmp/ziwei-test.log
+          retention-days: 3
 
   # ──────────────────────────────────────────────
   # 服务构建验证
@@ -295,7 +311,7 @@ jobs:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: 运行单元测试
-        run: pnpm --filter @guoxue/server exec npx jest --config jest.config.ts --testPathPattern "src/" --passWithNoTests --forceExit --runInBand
+        run: pnpm --filter @guoxue/server exec npx jest --config jest.config.ts --testPathPattern "src/" --passWithNoTests --forceExit --runInBand 2>&1 | tee /tmp/server-test.log
         timeout-minutes: 10
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
@@ -304,6 +320,14 @@ jobs:
           JWT_SECRET: ${{ env.JWT_SECRET }}
           NODE_ENV: test
           SKIP_THROTTLE: 'true'
+
+      - name: 上传 server 测试日志
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: server-test-log
+          path: /tmp/server-test.log
+          retention-days: 3
 
       - name: 上传覆盖率报告
         uses: actions/upload-artifact@v4
