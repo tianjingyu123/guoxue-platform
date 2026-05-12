@@ -259,4 +259,174 @@ export const questionApi = {
   peek: (id: string) => api.post(`/question/${id}/peek`),
 };
 
+// ==================== 短信验证码 ====================
+export const smsApi = {
+  /** 发送短信验证码 */
+  send: (phone: string, scene: string) => api.post("/sms/send", { phone, scene }),
+  /** 校验短信验证码 */
+  verify: (phone: string, code: string, scene: string) => api.post("/sms/verify", { phone, code, scene }),
+};
+
+// ==================== 文件上传 ====================
+export const uploadApi = {
+  /** 上传单张图片 */
+  image: (filePath: string) =>
+    new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: BASE + "/upload/image",
+        filePath,
+        name: "file",
+        header: { Authorization: token() ? `Bearer ${token()}` : "" },
+        success: (res) => resolve(JSON.parse(res.data)),
+        fail: reject,
+      });
+    }),
+  /** 上传多张图片 */
+  images: (filePaths: string[]) =>
+    Promise.all(filePaths.map((p) => uploadApi.image(p))),
+  /** 上传音频 */
+  audio: (filePath: string) =>
+    new Promise((resolve, reject) => {
+      uni.uploadFile({
+        url: BASE + "/upload/audio",
+        filePath,
+        name: "file",
+        header: { Authorization: token() ? `Bearer ${token()}` : "" },
+        success: (res) => resolve(JSON.parse(res.data)),
+        fail: reject,
+      });
+    }),
+};
+
+// ==================== 电子书 ====================
+export const ebookApi = {
+  categories: () => api.get("/ebook/categories"),
+  books: (params?: any) => api.get("/ebook/books", params),
+  detail: (id: string) => api.get(`/ebook/books/${id}`),
+  chapter: (id: string) => api.get(`/ebook/chapters/${id}`),
+  /** 购买电子书 */
+  purchase: (ebookId: string) => api.post(`/ebook/purchase/${ebookId}`),
+  /** 已购列表 */
+  purchases: () => api.get("/ebook/purchases"),
+  /** 阅读进度 */
+  getProgress: (ebookId: string) => api.get(`/ebook/progress/${ebookId}`),
+  updateProgress: (ebookId: string, chapterId: string, progress: number) =>
+    api.put(`/ebook/progress/${ebookId}`, { chapterId, progress }),
+  /** 书签 */
+  bookmarks: (ebookId?: string) => api.get("/ebook/bookmarks", { ebookId }),
+  addBookmark: (ebookId: string, data: { chapterId: string; position: number; note?: string }) =>
+    api.post(`/ebook/bookmarks/${ebookId}`, data),
+  deleteBookmark: (id: string) => api.delete(`/ebook/bookmarks/${id}`),
+  /** 笔记 */
+  notes: (params?: any) => api.get("/ebook/notes", params),
+  addNote: (ebookId: string, data: { chapterId: string; content: string; position?: number }) =>
+    api.post(`/ebook/notes/${ebookId}`, data),
+  updateNote: (id: string, data: { content: string }) => api.put(`/ebook/notes/${id}`, data),
+  deleteNote: (id: string) => api.delete(`/ebook/notes/${id}`),
+  /** 文言文翻译 */
+  translate: (text: string) => api.post("/ebook/translate", { text }),
+  /** 字词查询 */
+  lookup: (char: string) => api.post("/ebook/lookup", { char }),
+};
+
+// ==================== 内容举报 ====================
+export const reportApi = {
+  /** 举报内容 */
+  report: (data: { targetType: string; targetId: string; reason: string; description?: string }) =>
+    api.post("/audit/reports", data),
+  /** 查看举报统计 */
+  stats: (type: string, id: string) => api.get(`/audit/reports/stats/${type}/${id}`),
+};
+
+// ==================== 首页推荐 ====================
+export const recommendApi = {
+  /** 场景推荐（首页/课程页/圈子页等） */
+  getScene: (scene: string, params?: { page?: number; pageSize?: number }) =>
+    api.get(`/recommend/${scene}`, params),
+  /** 个性化推荐 */
+  personalized: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/recommend/personalized", params),
+  /** 热门趋势 */
+  trending: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/recommend/trending", params),
+  /** 相关内容推荐 */
+  related: (contentId: string) => api.get(`/recommend/related/${contentId}`),
+  /** 上报用户行为（点击/曝光/时长） */
+  log: (data: { scene: string; action: string; contentId?: string; duration?: number }) =>
+    api.post("/recommend/log", data),
+  /** 默认兴趣标签 */
+  defaultInterests: () => api.get("/recommend/interests/defaults"),
+  /** 设置兴趣标签 */
+  setInterests: (interestIds: string[]) => api.post("/recommend/interests", { interestIds }),
+};
+
+// ==================== 直播（增强） ====================
+export const liveRoomApi = {
+  /** 获取推流/播放地址 */
+  getStreamUrls: (roomId: string) => api.get(`/live/rooms/${roomId}/stream-urls`),
+  /** 获取播放地址 */
+  getPlayUrl: (roomId: string) => api.get(`/live/rooms/${roomId}/play-url`),
+  /** 预约直播 */
+  book: (roomId: string) => api.post(`/live/rooms/${roomId}/book`),
+  /** 取消预约 */
+  unbook: (roomId: string) => api.delete(`/live/rooms/${roomId}/book`),
+  /** 我的预约 */
+  bookings: (roomId: string) => api.get(`/live/rooms/${roomId}/bookings`),
+  /** 日程列表 */
+  scheduled: () => api.get("/live/scheduled"),
+  /** 获取连麦列表 */
+  getMics: (roomId: string) => api.get(`/live/rooms/${roomId}/mics`),
+  /** 申请连麦 */
+  applyMic: (roomId: string) => api.post(`/live/rooms/${roomId}/mics`),
+  /** 取消连麦 */
+  cancelMic: (roomId: string) => api.delete(`/live/rooms/${roomId}/mics/${""}`),
+  /** 直播间秒杀列表 */
+  getFlashSales: (roomId: string) => api.get(`/live/rooms/${roomId}/flash-sales`),
+  /** 秒杀下单 */
+  flashSaleOrder: (saleId: string) => api.post(`/live/flash-sales/${saleId}/order`),
+};
+
+// ==================== 线下驿站 ====================
+export const offlineApi = {
+  /** 驿站列表 */
+  stations: (params?: any) => api.get("/offline/stations", params),
+  /** 发现附近驿站 */
+  discover: (params?: { lat?: number; lng?: number; radius?: number }) =>
+    api.get("/offline/stations/discover", params),
+  /** 驿站详情 */
+  stationDetail: (id: string) => api.get(`/offline/stations/${id}`),
+  /** 线下课程列表 */
+  courses: (params?: any) => api.get("/offline/courses", params),
+};
+
+// ==================== 研究院 ====================
+export const instituteApi = {
+  /** 申请成为讲师 */
+  apply: (data: any) => api.post("/institute/members", data),
+  /** 我的申请状态 */
+  myStatus: () => api.get("/institute/my"),
+  /** 讲师列表 */
+  members: (params?: any) => api.get("/institute/members", params),
+  /** 讲师详情 */
+  memberDetail: (id: string) => api.get(`/institute/members/${id}`),
+  /** 候选讲师 */
+  candidates: () => api.get("/institute/candidates"),
+  /** 领取任务 */
+  acceptTask: (memberId: string, data: any) => api.post(`/institute/members/${memberId}/tasks`, data),
+  /** 完成任务 */
+  completeTask: (taskId: string) => api.post(`/institute/tasks/${taskId}/complete`),
+  /** 活动列表 */
+  events: (params?: any) => api.get("/institute/events", params),
+};
+
+// ==================== 系统配置（增强） ====================
+export const homeApi = {
+  /** 首页配置 */
+  getConfig: () => api.get("/system/public/home-config"),
+  /** 会员套餐列表 */
+  memberConfigs: () => api.get("/system/member-configs"),
+  /** 站点公告 */
+  siteNotices: () => api.get("/system/site-notices"),
+};
+
 export default api;
