@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, UseGuards } from "@nestjs/common";
+import { Controller, Post, Get, Body, Query, UseGuards, Param, Put, Delete } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { AiService } from "./ai.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -133,5 +133,79 @@ export class AiController {
   @ApiBearerAuth()
   getAiAbnormalAlerts() {
     return this.ai.getAiAbnormalAlerts();
+  }
+
+  // ───────── 圈主助理管理（管理员） ─────────
+
+  @Get("circle-assistants")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取圈主助理列表" })
+  @ApiBearerAuth()
+  getCircleAssistants() {
+    return this.ai.getCircleAssistants();
+  }
+
+  @Post("circle-assistants/:circleId/approve")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "审批通过圈主助理" })
+  @ApiBearerAuth()
+  approveCircleAssistant(@Param("circleId") circleId: string) {
+    return this.ai.approveCircleAssistant(circleId);
+  }
+
+  @Post("circle-assistants/:circleId/reject")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "驳回圈主助理" })
+  @ApiBearerAuth()
+  rejectCircleAssistant(@Param("circleId") circleId: string, @Body("reason") reason?: string) {
+    return this.ai.rejectCircleAssistant(circleId, reason);
+  }
+
+  @Get("knowledge/:circleId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取圈子知识库" })
+  @ApiBearerAuth()
+  getKnowledgeBase(@Param("circleId") circleId: string) {
+    return this.ai.getKnowledgeBase(circleId);
+  }
+
+  @Post("knowledge/:circleId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "添加知识库条目" })
+  @ApiBearerAuth()
+  createKnowledgeEntry(@Param("circleId") circleId: string, @Body() body: { title: string; content: string }) {
+    return this.ai.createKnowledgeEntry(circleId, body);
+  }
+
+  @Put("knowledge/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "更新知识库条目" })
+  @ApiBearerAuth()
+  updateKnowledgeEntry(@Param("id") id: string, @Body() body: { title?: string; content?: string }) {
+    return this.ai.updateKnowledgeEntry(id, body);
+  }
+
+  @Delete("knowledge/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "删除知识库条目" })
+  @ApiBearerAuth()
+  deleteKnowledgeEntry(@Param("id") id: string) {
+    return this.ai.deleteKnowledgeEntry(id);
+  }
+
+  @Get("usage/:circleId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取圈子AI使用数据" })
+  @ApiBearerAuth()
+  getCircleUsage(@Param("circleId") circleId: string) {
+    return this.ai.getCircleUsage(circleId);
   }
 }

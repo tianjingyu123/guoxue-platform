@@ -92,6 +92,16 @@ export const MENU_CONFIG: MenuItem[] = [
     ],
   },
   {
+    title: "会员管理",
+    icon: "Medal",
+    roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"],
+    children: [
+      { title: "购买记录", path: "/member/purchases" },
+      { title: "会员统计", path: "/member/stats" },
+      { title: "会员管理", path: "/member/manage", roles: ["SUPER_ADMIN"] },
+    ],
+  },
+  {
     title: "商城管理",
     icon: "Goods",
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR"],

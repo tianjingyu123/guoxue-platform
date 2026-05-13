@@ -654,4 +654,14 @@ export const aiAdminApi = {
   getUsageData: (circleId: string) => api.get(`/ai/usage/${circleId}`),
 };
 
+// ───────── 会员管理（管理员） ─────────
+export const memberAdminApi = {
+  getPurchases: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/member/admin/purchases", { params }),
+  getStats: () => api.get("/member/admin/stats"),
+  grant: (data: { userId: string; level: string; durationDays?: number }) =>
+    api.post("/member/admin/grant", data),
+  revoke: (userId: string) => api.post(`/member/admin/revoke/${userId}`),
+};
+
 export default api;

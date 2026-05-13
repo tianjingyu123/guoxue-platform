@@ -1,6 +1,11 @@
 <template>
   <div class="page">
     <div class="toolbar"><h3>限时折扣</h3><el-button type="primary" @click="openCreate">创建折扣</el-button></div>
+    <el-row :gutter="16" style="margin-bottom:16px">
+      <el-col :span="6"><el-card shadow="hover"><el-statistic title="进行中" :value="activeCount" /></el-card></el-col>
+      <el-col :span="6"><el-card shadow="hover"><el-statistic title="已停用" :value="inactiveCount" /></el-card></el-col>
+      <el-col :span="6"><el-card shadow="hover"><el-statistic title="折扣总数" :value="list.length" /></el-card></el-col>
+    </el-row>
     <el-table v-loading="loading" :data="list" stripe>
       <el-table-column prop="name" label="活动名称" min-width="150" />
       <el-table-column label="折扣率" width="80"><template #default="{ row }">{{ (Number(row.discountRate) * 100).toFixed(0) }}%</template></el-table-column>
@@ -28,7 +33,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
 
@@ -37,6 +42,8 @@ const vis = ref(false); const editingId = ref('')
 const form = reactive({ name: '', productId: '', discountRate: 0.85, startTime: '', endTime: '' })
 
 onMounted(() => fetchList())
+const activeCount = computed(() => list.value.filter((d: any) => d.status === 'ACTIVE').length)
+const inactiveCount = computed(() => list.value.filter((d: any) => d.status !== 'ACTIVE').length)
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {

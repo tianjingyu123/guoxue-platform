@@ -472,4 +472,148 @@ export class AiService {
       items: alerts.sort((a, b) => b.time.getTime() - a.time.getTime()),
     };
   }
+
+  // ═══════════════════ 圈主助理管理 ═══════════════════
+
+  /** 获取圈主助理审批列表 */
+  async getCircleAssistants() {
+    const circles = await this.prisma.circle.findMany({
+      where: { status: "ACTIVE" },
+      select: {
+        id: true,
+        name: true,
+        ownerId: true,
+        createdAt: true,
+        owner: { select: { id: true, nickname: true } },
+        _count: { select: { members: true, posts: true } },
+      },
+      orderBy: { createdAt: "desc" as const },
+    });
+
+    // 查询每个圈子是否有知识库内容
+    const circleIds = circles.map((c) => c.id);
+    const knowledgeCounts = circleIds.length > 0
+      ? await this.prisma.circleKnowledge.groupBy({
+          by: ["circleId"],
+          where: { circleId: { in: circleIds }, status: "active" },
+          _count: true,
+        })
+      : [];
+
+    const kMap = new Map(knowledgeCounts.map((k) => [k.circleId, k._count]));
+
+    return circles.map((c) => ({
+      circleId: c.id,
+      circleName: c.name,
+      ownerId: c.ownerId,
+      applicantName: c.owner?.nickname || c.ownerId,
+      memberCount: c._count.members,
+      postCount: c._count.posts,
+      knowledgeCount: kMap.get(c.id) || 0,
+      status: kMap.has(c.id) ? "APPROVED" : "PENDING",
+      createdAt: c.createdAt,
+    }));
+  }
+
+  /** 审批通过圈主助理 */
+  async approveCircleAssistant(circleId: string) {
+    // 将 circle 的知识内容标记为 active
+    await this.prisma.circleKnowledge.updateMany({
+      where: { circleId, status: { not: "active" } },
+      data: { status: "active" },
+    });
+    this.logger.log(`审批通过圈主助理 [circle=${circleId}]`);
+    return { circleId, status: "APPROVED" };
+  }
+
+  /** 驳回圈主助理 */
+  async rejectCircleAssistant(circleId: string, reason?: string) {
+    this.logger.log(`驳回圈主助理 [circle=${circleId}] reason=${reason}`);
+    return { circleId, status: "REJECTED", reason };
+  }
+
+  /** 获取圈子知识库条目 */
+  async getKnowledgeBase(circleId: string) {
+    const entries = await this.prisma.circleKnowledge.findMany({
+      where: { circleId, status: "active" },
+      select: { id: true, sourceType: true, content: true, addedBy: true, addedAt: true, updatedAt: true },
+      orderBy: { addedAt: "desc" },
+    });
+    return { circleId, entries, total: entries.length };
+  }
+
+  /** 添加知识库条目 */
+  async createKnowledgeEntry(circleId: string, data: { title: string; content: string }) {
+    const crypto = await import("crypto");
+    const contentHash = crypto.createHash("md5").update(data.content).digest("hex");
+    const entry = await this.prisma.circleKnowledge.create({
+      data: {
+        circleId,
+        sourceType: "manual",
+        content: `[${data.title}] ${data.content}`,
+        contentHash,
+        addedBy: "ADMIN",
+        status: "active",
+      },
+    });
+    this.logger.log(`添加知识库条目 [circle=${circleId}]: ${data.title}`);
+    return entry;
+  }
+
+  /** 更新知识库条目 */
+  async updateKnowledgeEntry(id: string, data: { title?: string; content?: string }) {
+    let content: string | undefined;
+    if (data.title || data.content) {
+      const entry = await this.prisma.circleKnowledge.findUnique({ where: { id }, select: { content: true } });
+      if (entry) {
+        const title = data.title || entry.content.slice(1, entry.content.indexOf("] "));
+        const body = data.content || entry.content.slice(entry.content.indexOf("] ") + 2);
+        content = `[${title}] ${body}`;
+      }
+    }
+    return this.prisma.circleKnowledge.update({
+      where: { id },
+      data: content ? { content } : {},
+    });
+  }
+
+  /** 删除知识库条目 */
+  async deleteKnowledgeEntry(id: string) {
+    await this.prisma.circleKnowledge.update({
+      where: { id },
+      data: { status: "removed" },
+    });
+    return { deleted: true };
+  }
+
+  /** 获取圈子AI使用数据 */
+  async getCircleUsage(circleId: string) {
+    // 统计该圈子相关的AI调用
+    const records = await this.prisma.aiAnalysisRecord.findMany({
+      where: {
+        analyzeType: { in: ["circle_qa", "classic_qa"] },
+        createdAt: { gte: new Date(Date.now() - 30 * 86400000) },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    // 统计圈主助理调用（场景为 circle_qa）
+    const circleRecords = records.filter((r) => r.analyzeType === "circle_qa");
+    const totalConversations = circleRecords.length;
+    const totalMessages = circleRecords.length;
+    const activeUsers = new Set(circleRecords.map((r) => r.userId)).size;
+    const lastCall = circleRecords.length > 0 ? circleRecords[circleRecords.length - 1].createdAt : null;
+
+    const acceptedCount = circleRecords.filter((r) => r.userAccepted === true).length;
+    const acceptanceRate = circleRecords.length > 0 ? acceptedCount / circleRecords.length : 0;
+
+    return {
+      circleId,
+      totalConversations,
+      totalMessages,
+      activeUsers,
+      avgSatisfaction: acceptanceRate,
+      lastCallAt: lastCall?.toISOString() ?? null,
+    };
+  }
 }

@@ -577,6 +577,25 @@ const routes = [
         component: () => import("@/views/merchant/MerchantDetail.vue"),
         meta: { hidden: true, title: "商家详情", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      // === 会员管理 ===
+      {
+        path: "member/purchases",
+        name: "MemberPurchaseList",
+        component: () => import("@/views/member/MemberPurchaseList.vue"),
+        meta: { title: "购买记录", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      },
+      {
+        path: "member/stats",
+        name: "MemberStats",
+        component: () => import("@/views/member/MemberStats.vue"),
+        meta: { title: "会员统计", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      },
+      {
+        path: "member/manage",
+        name: "MemberManage",
+        component: () => import("@/views/member/MemberManage.vue"),
+        meta: { title: "会员管理", roles: ["SUPER_ADMIN"] },
+      },
       // === 搜索 ===
       {
         path: "search-analytics",

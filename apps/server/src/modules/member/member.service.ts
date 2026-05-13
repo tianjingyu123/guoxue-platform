@@ -81,6 +81,76 @@ export class MemberService {
     return this.purchase(userId, planId);
   }
 
+  // ═══════════════════ 管理员方法 ═══════════════════
+
+  /** 管理员查看所有会员购买记录 */
+  async getAdminPurchases(page = 1, pageSize = 20) {
+    const [items, total] = await Promise.all([
+      this.prisma.memberPurchase.findMany({
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { paidAt: "desc" },
+        include: { user: { select: { id: true, nickname: true, phone: true } } },
+      }),
+      this.prisma.memberPurchase.count(),
+    ]);
+    return { items, total, page, pageSize };
+  }
+
+  /** 管理员查看会员统计 */
+  async getMemberStats() {
+    const [levelCounts, revenueAgg, totalMembers] = await Promise.all([
+      this.prisma.user.groupBy({ by: ["memberLevel"], _count: true }),
+      this.prisma.memberPurchase.aggregate({ _sum: { amount: true } }),
+      this.prisma.user.count({ where: { memberLevel: { not: "NONE" } } }),
+    ]);
+    const byLevel: Record<string, number> = {};
+    for (const g of levelCounts) byLevel[g.memberLevel] = g._count;
+    return {
+      totalMembers,
+      totalRevenue: revenueAgg._sum.amount || 0,
+      byLevel,
+    };
+  }
+
+  /** 管理员手动授予会员 */
+  async grantMember(userId: string, level: string, durationDays = 30) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+
+    const now = new Date();
+    const expireAt = level === "LIFETIME" ? null : new Date(now.getTime() + durationDays * 86400000);
+
+    await this.prisma.$transaction([
+      this.prisma.memberPurchase.create({
+        data: {
+          userId,
+          memberType: level as any,
+          amount: 0, // 手动授予不计费
+          paidAt: now,
+          expireAt,
+        },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { memberLevel: level as any, memberExpire: expireAt },
+      }),
+    ]);
+
+    this.logger.log(`管理员授予用户 ${userId} 会员 ${level}`);
+    return { userId, level, expireAt };
+  }
+
+  /** 管理员撤销会员 */
+  async revokeMember(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { memberLevel: "NONE", memberExpire: null },
+    });
+    this.logger.log(`管理员撤销用户 ${userId} 会员`);
+    return { userId, revoked: true };
+  }
+
   /** 获取当前会员权益 */
   async getBenefits(userId: string) {
     const user = await this.prisma.user.findUnique({

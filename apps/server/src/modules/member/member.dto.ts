@@ -44,3 +44,17 @@ export class MemberStatusDto {
   @ApiProperty({ description: "剩余天数" })
   remainingDays: number;
 }
+
+export class GrantMemberDto {
+  @ApiProperty({ description: "目标用户ID" })
+  @IsString()
+  userId: string;
+
+  @ApiProperty({ description: "会员等级" })
+  @IsEnum(MemberLevel)
+  level: MemberLevel;
+
+  @ApiPropertyOptional({ description: "有效天数（MONTHLY=30, YEARLY=365, LIFETIME=永久）" })
+  @IsOptional()
+  durationDays?: number;
+}
