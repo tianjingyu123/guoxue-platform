@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -30,7 +32,7 @@ export class CoinService {
 
   /** 充值（管理员手动充值 或 支付回调触发） */
   async recharge(userId: string, dto: { amountCoin: number; payMethod?: string; orderNo?: string; description?: string }) {
-    if (dto.amountCoin <= 0) throw new BadRequestException("充值币数必须大于0");
+    if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "充值币数必须大于0");
 
     await this.getOrCreateAccount(userId);
 
@@ -72,7 +74,7 @@ export class CoinService {
 
   /** 消费虚拟币（交互式事务 + 原子扣减防超额） */
   async spend(userId: string, dto: { amountCoin: number; scene: string; refId?: string; description?: string }) {
-    if (dto.amountCoin <= 0) throw new BadRequestException("消费币数必须大于0");
+    if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "消费币数必须大于0");
 
     await this.getOrCreateAccount(userId);
 
@@ -84,7 +86,7 @@ export class CoinService {
           totalSpent: { increment: dto.amountCoin },
         },
       });
-      if (result.count === 0) throw new BadRequestException("虚拟币余额不足");
+      if (result.count === 0) throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, "虚拟币余额不足");
 
       const acc = await tx.virtualCoinAccount.findUnique({ where: { userId } });
       const txn = await tx.virtualCoinTransaction.create({
@@ -104,7 +106,7 @@ export class CoinService {
 
   /** 退款（平台赠送等，交互式事务 + 原子增量） */
   async refund(userId: string, amountCoin: number, description: string) {
-    if (amountCoin <= 0) throw new BadRequestException("退款币数必须大于0");
+    if (amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "退款币数必须大于0");
 
     await this.getOrCreateAccount(userId);
 
@@ -183,21 +185,21 @@ export class CoinService {
   }
 
   /** 创建礼物（管理员） */
-  async createGift(dto: { name: string; icon?: string; iconUrl?: string; price?: number; priceCoin?: number; level?: string; animationType?: string; effectUrl?: string; sortOrder?: number }) {
+  async createGift(dto: { name: string; icon?: string; iconUrl?: string; price?: number; priceCoin?: number; level?: string; animationType?: string; effectUrl?: string; sort?: number; sortOrder?: number }) {
     const data: Prisma.GiftCreateInput = {
       name: dto.name,
       icon: dto.icon || dto.iconUrl || "",
       priceCoin: dto.priceCoin ?? dto.price ?? 0,
       level: dto.level || dto.animationType || dto.effectUrl || "",
-      sortOrder: dto.sortOrder ?? 0,
+      sortOrder: dto.sortOrder ?? dto.sort ?? 0,
     };
     return this.prisma.gift.create({ data });
   }
 
   /** 更新礼物（管理员） */
-  async updateGift(giftId: string, dto: { name?: string; icon?: string; iconUrl?: string; price?: number; priceCoin?: number; level?: string; animationType?: string; effectUrl?: string; sortOrder?: number }) {
+  async updateGift(giftId: string, dto: { name?: string; icon?: string; iconUrl?: string; price?: number; priceCoin?: number; level?: string; animationType?: string; effectUrl?: string; sort?: number; sortOrder?: number }) {
     const existing = await this.prisma.gift.findUnique({ where: { id: giftId } });
-    if (!existing) throw new NotFoundException("礼物不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "礼物不存在");
     const data: Prisma.GiftUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.icon !== undefined || dto.iconUrl !== undefined) data.icon = (dto.icon || dto.iconUrl)!;
@@ -205,6 +207,7 @@ export class CoinService {
     const animOrLevel = dto.level || dto.animationType || dto.effectUrl;
     if (animOrLevel !== undefined) data.level = animOrLevel;
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
+    if (dto.sort !== undefined && dto.sortOrder === undefined) data.sortOrder = dto.sort;
     return this.prisma.gift.update({ where: { id: giftId }, data });
   }
 
@@ -217,7 +220,7 @@ export class CoinService {
   /** 打赏 */
   async sendGift(userId: string, liveRoomId: string, toUserId: string, giftId: string, quantity = 1) {
     const gift = await this.prisma.gift.findUnique({ where: { id: giftId } });
-    if (!gift) throw new NotFoundException("礼物不存在");
+    if (!gift) throw new BusinessException(ErrorCode.NOT_FOUND, "礼物不存在");
 
     const totalCoin = gift.priceCoin * quantity;
 

@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { MerchantService } from "./merchant.service";
 import { PayDepositDto, RefundDepositDto, AdjustDepositDto } from "./merchant.dto";
-import { DEPOSIT_OUT_TRADE_NO_PREFIX } from "./merchant.types";
 
 @Injectable()
 export class MerchantDepositService {
@@ -13,7 +14,7 @@ export class MerchantDepositService {
 
   async getDepositInfo(userId: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { userId } });
-    if (!merchant) throw new NotFoundException("商家不存在");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
 
     return {
       depositAmount: Number(merchant.depositAmount ?? 0),
@@ -25,9 +26,9 @@ export class MerchantDepositService {
   /** 发起保证金支付（返回支付记录，实际支付参数由前端调起） */
   async payDeposit(userId: string, dto: PayDepositDto) {
     const merchant = await this.prisma.merchant.findUnique({ where: { userId } });
-    if (!merchant) throw new NotFoundException("商家不存在");
-    if (merchant.status !== "DEPOSIT_PENDING") throw new BadRequestException("当前状态不可缴纳保证金");
-    if (!merchant.depositAmount || Number(merchant.depositAmount) <= 0) throw new BadRequestException("保证金金额未设置");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+    if (merchant.status !== "DEPOSIT_PENDING") throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "当前状态不可缴纳保证金");
+    if (!merchant.depositAmount || Number(merchant.depositAmount) <= 0) throw new BusinessException(ErrorCode.MERCHANT_DEPOSIT_NOT_PAID, "保证金金额未设置");
 
     const record = await this.prisma.merchantDepositRecord.create({
       data: {
@@ -45,7 +46,7 @@ export class MerchantDepositService {
   /** 管理员退还保证金 */
   async refundDeposit(merchantId: string, operatorId: string, dto: RefundDepositDto) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
-    if (!merchant) throw new NotFoundException("商家不存在");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
 
     const refundAmount = dto.amount ?? Number(merchant.depositAmount ?? 0);
 
@@ -63,7 +64,7 @@ export class MerchantDepositService {
   /** 管理员调整保证金金额 */
   async adjustDeposit(merchantId: string, dto: AdjustDepositDto) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
-    if (!merchant) throw new NotFoundException("商家不存在");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
 
     return this.prisma.merchant.update({
       where: { id: merchantId },

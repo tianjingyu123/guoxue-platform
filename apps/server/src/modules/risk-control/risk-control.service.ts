@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma } from "@prisma/client";
 
@@ -46,7 +48,7 @@ export class RiskControlService {
 
   async updateRule(id: string, data: { name?: string; type?: string; conditions?: Record<string, any>; action?: string; enabled?: boolean }) {
     const existing = await this.prisma.riskRule.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("规则不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "规则不存在");
 
     this.logger.log(`更新预警规则: ${id}`);
     return this.prisma.riskRule.update({
@@ -57,7 +59,7 @@ export class RiskControlService {
 
   async deleteRule(id: string) {
     const existing = await this.prisma.riskRule.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("规则不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "规则不存在");
 
     this.logger.log(`删除预警规则: ${id}`);
     return this.prisma.riskRule.delete({ where: { id } });
@@ -89,8 +91,8 @@ export class RiskControlService {
 
   async handleAlert(id: string, userId: string, note?: string) {
     const existing = await this.prisma.riskAlert.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("预警不存在");
-    if (existing.status !== "OPEN") throw new BadRequestException("仅可处理 OPEN 状态的预警");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "预警不存在");
+    if (existing.status !== "OPEN") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅可处理 OPEN 状态的预警");
 
     this.logger.log(`处理预警: ${id}, 处理人: ${userId}`);
     return this.prisma.riskAlert.update({
@@ -106,7 +108,7 @@ export class RiskControlService {
 
   async dismissAlert(id: string) {
     const existing = await this.prisma.riskAlert.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("预警不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "预警不存在");
 
     this.logger.log(`忽略预警: ${id}`);
     return this.prisma.riskAlert.update({
@@ -246,7 +248,7 @@ export class RiskControlService {
 
   async confirmFraudDetection(id: string) {
     const existing = await this.prisma.fraudDetection.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("记录不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "记录不存在");
 
     this.logger.log(`确认为刷单: ${id}`);
     return this.prisma.fraudDetection.update({
@@ -257,7 +259,7 @@ export class RiskControlService {
 
   async dismissFraudDetection(id: string) {
     const existing = await this.prisma.fraudDetection.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("记录不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "记录不存在");
 
     this.logger.log(`标记为误报: ${id}`);
     return this.prisma.fraudDetection.update({
@@ -303,8 +305,8 @@ export class RiskControlService {
 
   async approveAppeal(id: string, reviewerId: string) {
     const existing = await this.prisma.appealRecord.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("申诉不存在");
-    if (existing.status !== "PENDING") throw new BadRequestException("仅可处理 PENDING 状态的申诉");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "申诉不存在");
+    if (existing.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅可处理 PENDING 状态的申诉");
 
     this.logger.log(`批准申诉: ${id}, 审批人: ${reviewerId}`);
     return this.prisma.appealRecord.update({
@@ -319,8 +321,8 @@ export class RiskControlService {
 
   async rejectAppeal(id: string, reviewerId: string, reviewNote: string) {
     const existing = await this.prisma.appealRecord.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("申诉不存在");
-    if (existing.status !== "PENDING") throw new BadRequestException("仅可处理 PENDING 状态的申诉");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "申诉不存在");
+    if (existing.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅可处理 PENDING 状态的申诉");
 
     this.logger.log(`驳回申诉: ${id}, 审批人: ${reviewerId}`);
     return this.prisma.appealRecord.update({

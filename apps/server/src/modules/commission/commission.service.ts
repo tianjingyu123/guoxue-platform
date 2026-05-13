@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { MemoryCache } from "../../common/cache.util";
@@ -26,7 +28,7 @@ export class CommissionService {
 
   async updateConfig(key: string, dto: { rateA?: number; rateB?: number; rateC?: number; description?: string }) {
     const config = await this.prisma.commissionConfig.findUnique({ where: { configKey: key } });
-    if (!config) throw new NotFoundException("配置不存在");
+    if (!config) throw new BusinessException(ErrorCode.NOT_FOUND, "配置不存在");
     const updated = await this.prisma.commissionConfig.update({
       where: { configKey: key },
       data: {
@@ -137,7 +139,7 @@ export class CommissionService {
       where: { id: stationId },
       select: { totalEarning: true },
     });
-    if (!station) throw new NotFoundException("分站不存在");
+    if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
 
     // 计算已提现金额
     const withdrawn = await this.prisma.withdrawal.aggregate({
@@ -168,7 +170,7 @@ export class CommissionService {
     let stationId = dto.stationId;
     if (!stationId) {
       const station = await this.prisma.station.findUnique({ where: { userId } });
-      if (!station) throw new BadRequestException("您还没有分站，无法提现");
+      if (!station) throw new BusinessException(ErrorCode.BAD_REQUEST, "您还没有分站，无法提现");
       stationId = station.id;
     }
 
@@ -178,12 +180,12 @@ export class CommissionService {
       this.prisma.commissionConfig.findUnique({ where: { configKey: "withdrawal_min" } }),
     ]);
     if (balance < dto.amount) {
-      throw new BadRequestException(`余额不足，当前可提现余额 ¥${balance.toFixed(2)}`);
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `余额不足，当前可提现余额 ¥${balance.toFixed(2)}`);
     }
 
     const minAmount = cfg ? Number(cfg.rateA) : 100;
     if (dto.amount < minAmount) {
-      throw new BadRequestException(`最低提现金额为 ¥${minAmount}`);
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `最低提现金额为 ¥${minAmount}`);
     }
 
     const withdrawal = await this.prisma.withdrawal.create({
@@ -236,8 +238,8 @@ export class CommissionService {
 
   async auditWithdrawal(id: string, dto: { status: string; remark?: string }) {
     const w = await this.prisma.withdrawal.findUnique({ where: { id } });
-    if (!w) throw new NotFoundException("提现记录不存在");
-    if (w.status !== "PENDING") throw new BadRequestException("该记录已处理");
+    if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现记录不存在");
+    if (w.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录已处理");
 
     return this.prisma.withdrawal.update({
       where: { id },

@@ -3,11 +3,6 @@ import { VectorRecallProvider } from "./vector-recall.strategy";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RedisService } from "../../../redis/redis.service";
 
-interface EmbeddingCacheEntry {
-  text: string;
-  vector: number[];
-}
-
 /**
  * OpenAI 兼容的 Embedding Provider
  *

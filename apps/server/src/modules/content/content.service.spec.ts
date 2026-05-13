@@ -3,7 +3,7 @@ import { ContentService } from "./content.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { WebhookService } from "../webhook/webhook.service";
-import { NotFoundException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 import { ContentType } from "./content.dto";
 
 const mockPrisma = {
@@ -80,7 +80,7 @@ describe("ContentService", () => {
     });
     it("不存在抛出 NotFoundException", async () => {
       mockPrisma.content.findUnique.mockResolvedValue(null);
-      await expect(svc.detail("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.detail("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -93,7 +93,7 @@ describe("ContentService", () => {
     });
     it("不存在抛出 NotFoundException", async () => {
       mockPrisma.content.findUnique.mockResolvedValue(null);
-      await expect(svc.update("invalid", {})).rejects.toThrow(NotFoundException);
+      await expect(svc.update("invalid", {})).rejects.toThrow(BusinessException);
     });
   });
 
@@ -106,7 +106,7 @@ describe("ContentService", () => {
     });
     it("不存在抛出 NotFoundException", async () => {
       mockPrisma.content.findUnique.mockResolvedValue(null);
-      await expect(svc.remove("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.remove("invalid")).rejects.toThrow(BusinessException);
     });
   });
 });

@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { CommissionService } from "./commission.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WebhookService } from "../webhook/webhook.service";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   commissionConfig: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
@@ -48,7 +48,7 @@ describe("CommissionService", () => {
     });
     it("配置不存在抛出 NotFoundException", async () => {
       mockPrisma.commissionConfig.findUnique.mockResolvedValue(null);
-      await expect(svc.updateConfig("invalid", {})).rejects.toThrow(NotFoundException);
+      await expect(svc.updateConfig("invalid", {})).rejects.toThrow(BusinessException);
     });
   });
 
@@ -99,7 +99,7 @@ describe("CommissionService", () => {
     });
     it("分站不存在抛出 NotFoundException", async () => {
       mockPrisma.station.findUnique.mockResolvedValue(null);
-      await expect(svc.getStationBalance("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getStationBalance("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -121,11 +121,11 @@ describe("CommissionService", () => {
       mockPrisma.station.findUnique.mockResolvedValueOnce({ id: "station-1", totalEarning: 50 });
       mockPrisma.stationEarning.aggregate.mockResolvedValue({ _sum: { earned: 50 } });
       mockPrisma.withdrawal.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
-      await expect(svc.applyWithdrawal("user-1", { amount: 200 })).rejects.toThrow(BadRequestException);
+      await expect(svc.applyWithdrawal("user-1", { amount: 200 })).rejects.toThrow(BusinessException);
     });
     it("无分站抛出 BadRequestException", async () => {
       mockPrisma.station.findUnique.mockResolvedValue(null);
-      await expect(svc.applyWithdrawal("user-1", { amount: 200 })).rejects.toThrow(BadRequestException);
+      await expect(svc.applyWithdrawal("user-1", { amount: 200 })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -138,11 +138,11 @@ describe("CommissionService", () => {
     });
     it("不存在抛出 NotFoundException", async () => {
       mockPrisma.withdrawal.findUnique.mockResolvedValue(null);
-      await expect(svc.auditWithdrawal("w-1", { status: "APPROVED" })).rejects.toThrow(NotFoundException);
+      await expect(svc.auditWithdrawal("w-1", { status: "APPROVED" })).rejects.toThrow(BusinessException);
     });
     it("已处理记录不可重复审核", async () => {
       mockPrisma.withdrawal.findUnique.mockResolvedValue({ id: "w-1", status: "APPROVED" });
-      await expect(svc.auditWithdrawal("w-1", { status: "PAID" })).rejects.toThrow(BadRequestException);
+      await expect(svc.auditWithdrawal("w-1", { status: "PAID" })).rejects.toThrow(BusinessException);
     });
   });
 

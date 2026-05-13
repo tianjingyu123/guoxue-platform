@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, Inject, Optional } from "@nestjs/common";
+import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
 import { TlsSigService } from "./tlssig.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -28,7 +28,7 @@ export class ImService {
   /** 检查 IM 是否已配置 */
   private ensureConfigured() {
     if (!this.appId || !process.env.IM_ADMIN_KEY) {
-      throw new BadRequestException("IM 未配置，请联系管理员");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "IM 未配置，请联系管理员");
     }
   }
 
@@ -165,7 +165,7 @@ export class ImService {
   }
 
   /** 获取群组历史消息 */
-  async getGroupHistory(groupId: string, page = 1, pageSize = 20) {
+  async getGroupHistory(groupId: string, _page = 1, pageSize = 20) {
     return this.callImApi("group_open_http_svc/group_msg_get_simple", {
       GroupId: groupId,
       ReqMsgNumber: pageSize,

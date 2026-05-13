@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsArray, IsInt, Min, Max } from "class-validator";
+import { IsString, IsOptional, IsNumber, IsArray, IsInt, Min, Max, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -9,6 +9,7 @@ export class CreateRoomDto {
 
   @ApiProperty({ description: "直播标题" })
   @IsString()
+  @MinLength(1)
   title: string;
 
   @ApiPropertyOptional({ description: "封面图URL" })
@@ -17,6 +18,7 @@ export class CreateRoomDto {
 
   @ApiProperty({ description: "主播用户ID" })
   @IsString()
+  @MinLength(1)
   hostUserId: string;
 
   @ApiPropertyOptional({ description: "副播用户ID列表" })
@@ -55,6 +57,7 @@ export class UpdateRoomDto {
 export class MicManageDto {
   @ApiProperty({ description: "用户ID" })
   @IsString()
+  @MinLength(1)
   userId: string;
 
   @ApiProperty({ description: "麦位序号 (1-6)", minimum: 1, maximum: 6 })
@@ -73,10 +76,12 @@ export class MicManageDto {
 export class SlideCreateDto {
   @ApiProperty({ description: "课件标题" })
   @IsString()
+  @MinLength(1)
   title: string;
 
   @ApiProperty({ description: "课件URL（COS地址）" })
   @IsString()
+  @MinLength(1)
   url: string;
 
   @ApiPropertyOptional({ description: "课件类型: PPT/PDF/IMAGE", default: "IMAGE" })
@@ -94,6 +99,7 @@ export class SlideCreateDto {
 export class MuteUserDto {
   @ApiProperty({ description: "被禁言用户ID" })
   @IsString()
+  @MinLength(1)
   userId: string;
 
   @ApiPropertyOptional({ description: "禁言时长（分钟），为空=永久禁言" })
@@ -108,6 +114,7 @@ export class MuteUserDto {
 export class FlashSaleDto {
   @ApiProperty({ description: "商品ID" })
   @IsString()
+  @MinLength(1)
   productId: string;
 
   @ApiProperty({ description: "秒杀价格（币）" })
@@ -124,9 +131,11 @@ export class FlashSaleDto {
 
   @ApiProperty({ description: "秒杀开始时间" })
   @IsString()
+  @MinLength(1)
   startTime: string;
 
   @ApiProperty({ description: "秒杀结束时间" })
   @IsString()
+  @MinLength(1)
   endTime: string;
 }

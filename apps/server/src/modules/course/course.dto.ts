@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, Min, Max, IsArray } from "class-validator";
+import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, Min, Max, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 
 export enum CourseType {
@@ -17,6 +17,7 @@ export class CreateCourseDto {
 
   @ApiProperty({ description: "课程标题" })
   @IsString()
+  @MinLength(1)
   title: string;
 
   @ApiPropertyOptional({ description: "封面图URL" })
@@ -73,6 +74,7 @@ export class UpdateCourseDto {
 export class CreateChapterDto {
   @ApiProperty({ description: "章节标题" })
   @IsString()
+  @MinLength(1)
   title: string;
 
   @ApiPropertyOptional({ description: "章节内容" })
@@ -132,6 +134,7 @@ export class UpdateProgressDto {
 export class SubmitWorkDto {
   @ApiProperty({ description: "作业内容" })
   @IsString()
+  @MinLength(1)
   content: string;
 }
 
@@ -151,6 +154,10 @@ export class CourseListQueryDto {
   @ApiPropertyOptional({ description: "审核状态" })
   @IsOptional() @IsString()
   auditStatus?: string;
+
+  @ApiPropertyOptional({ description: "状态筛选（前端兼容字段，等同auditStatus）" })
+  @IsOptional() @IsString()
+  status?: string;
 
   @ApiPropertyOptional({ description: "分站ID" })
   @IsOptional() @IsString()
@@ -182,6 +189,7 @@ export class CreateReviewDto {
 
   @ApiProperty({ description: "评价内容" })
   @IsString()
+  @MinLength(1)
   content: string;
 
   @ApiPropertyOptional({ description: "订单ID" })

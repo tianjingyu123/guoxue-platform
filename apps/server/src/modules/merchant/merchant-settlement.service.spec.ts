@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { MerchantSettlementService } from "./merchant-settlement.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SystemService } from "../system/system.service";
-import { NotFoundException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockSystemService = {
   getConfig: jest.fn().mockResolvedValue({ configKey: "merchant_commission_rate", configValue: "0.85" }),
@@ -42,7 +42,7 @@ describe("MerchantSettlementService", () => {
 
     it("商家不存在抛出异常", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
-      await expect(svc.getRevenueOverview("m1")).rejects.toThrow(NotFoundException);
+      await expect(svc.getRevenueOverview("m1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -72,7 +72,7 @@ describe("MerchantSettlementService", () => {
 
     it("商家不存在抛出异常", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
-      await expect(svc.setCommissionRate("invalid", { rate: 0.9 })).rejects.toThrow(NotFoundException);
+      await expect(svc.setCommissionRate("invalid", { rate: 0.9 })).rejects.toThrow(BusinessException);
     });
   });
 });

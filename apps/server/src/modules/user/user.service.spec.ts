@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { UserService } from "./user.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockRedis = {
   get: jest.fn().mockResolvedValue(null),
@@ -73,7 +73,7 @@ describe("UserService", () => {
 
     it("用户不存在抛出 NotFoundException", async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
-      await expect(svc.getUserById("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getUserById("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -241,18 +241,18 @@ describe("UserService", () => {
     });
 
     it("不能关注自己", async () => {
-      await expect(svc.follow("u1", "u1")).rejects.toThrow(BadRequestException);
+      await expect(svc.follow("u1", "u1")).rejects.toThrow(BusinessException);
     });
 
     it("目标用户不存在", async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
-      await expect(svc.follow("u1", "no-user")).rejects.toThrow(NotFoundException);
+      await expect(svc.follow("u1", "no-user")).rejects.toThrow(BusinessException);
     });
 
     it("重复关注抛出错误", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: "u2", status: "ACTIVE" });
       mockPrisma.follow.findUnique.mockResolvedValue({ id: "f1" });
-      await expect(svc.follow("u1", "u2")).rejects.toThrow(BadRequestException);
+      await expect(svc.follow("u1", "u2")).rejects.toThrow(BusinessException);
     });
 
   });
@@ -267,7 +267,7 @@ describe("UserService", () => {
 
     it("未关注时取消返回错误", async () => {
       mockPrisma.follow.findUnique.mockResolvedValue(null);
-      await expect(svc.unfollow("u1", "u2")).rejects.toThrow(NotFoundException);
+      await expect(svc.unfollow("u1", "u2")).rejects.toThrow(BusinessException);
     });
   });
 

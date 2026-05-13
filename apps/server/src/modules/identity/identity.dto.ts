@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsIn } from "class-validator";
+import { MinLength,  IsString, IsOptional, IsEnum, IsIn } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -19,20 +19,24 @@ export class IdCardOcrDto {
 export class IdCardVerifyDto {
   @ApiProperty({ description: "真实姓名", example: "张三" })
   @IsString()
+  @MinLength(1)
   name: string;
 
   @ApiProperty({ description: "身份证号码", example: "110101199001011234" })
   @IsString()
+  @MinLength(1)
   idCard: string;
 }
 
 export class FaceTokenDto {
   @ApiProperty({ description: "真实姓名" })
   @IsString()
+  @MinLength(1)
   name: string;
 
   @ApiProperty({ description: "身份证号码" })
   @IsString()
+  @MinLength(1)
   idCard: string;
 
   @ApiPropertyOptional({ description: "鉴权完成跳转URL" })
@@ -45,6 +49,7 @@ export class FaceTokenDto {
 export class AuditIdentityDto {
   @ApiProperty({ description: "认证记录ID" })
   @IsString()
+  @MinLength(1)
   id: string;
 
   @ApiPropertyOptional({ description: "审核备注" })

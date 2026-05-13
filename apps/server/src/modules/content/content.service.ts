@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { WebhookService } from "../webhook/webhook.service";
@@ -93,7 +95,7 @@ export class ContentService {
     }
 
     const content = await this.prisma.content.findUnique({ where: { id } });
-    if (!content) throw new NotFoundException("内容不存在");
+    if (!content) throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "内容不存在");
 
     // 异步增加浏览数
     this.prisma.content.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((e) => this.logger.warn(`内容 ${id} 浏览计数失败`, e));
@@ -105,7 +107,7 @@ export class ContentService {
 
   async update(id: string, dto: UpdateContentDto) {
     const content = await this.prisma.content.findUnique({ where: { id } });
-    if (!content) throw new NotFoundException("内容不存在");
+    if (!content) throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "内容不存在");
 
     const updated = await this.prisma.content.update({
       where: { id },
@@ -120,7 +122,7 @@ export class ContentService {
 
   async remove(id: string) {
     const content = await this.prisma.content.findUnique({ where: { id } });
-    if (!content) throw new NotFoundException("内容不存在");
+    if (!content) throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "内容不存在");
 
     await this.prisma.content.delete({ where: { id } });
     this.redis.del(`content:detail:${id}`).catch((err) => this.logger.warn("缓存删除失败", err));

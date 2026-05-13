@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, Inject, Optional } from "@nestjs/common";
+import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
 import { RedisService } from "../../redis/redis.service";
 import { maskPhone } from "../../common/crypto.util";
 import { BusinessException } from "../../common/business.exception";
@@ -82,20 +82,11 @@ export class SmsService {
     const rateKey = `sms:rate:${phone}`;
     const lastSent = await this.redis.get(rateKey);
     if (lastSent) {
-      throw new BadRequestException("验证码已发送，请60秒后再试");
+      throw new BusinessException(ErrorCode.THIRD_SMS_FAILED, "验证码已发送，请60秒后再试");
     }
 
     // 生成6位验证码
     const code = String(Math.floor(100000 + Math.random() * 900000));
-
-    // 场景描述映射
-    const sceneMap: Record<string, string> = {
-      LOGIN: "登录",
-      REGISTER: "注册",
-      RESET_PASSWORD: "找回密码",
-      BIND_PHONE: "绑定手机号",
-      VERIFY: "身份验证",
-    };
 
     const templateParamSet = [code, "5"]; // 验证码, 有效期5分钟
     const phoneNumberSet = [`+86${phone}`];
@@ -130,11 +121,11 @@ export class SmsService {
     const storedCode = await this.redis.get(codeKey);
 
     if (!storedCode) {
-      throw new BadRequestException("验证码已过期，请重新获取");
+      throw new BusinessException(ErrorCode.AUTH_SMS_CODE_EXPIRED, "验证码已过期，请重新获取");
     }
 
     if (storedCode !== code) {
-      throw new BadRequestException("验证码错误");
+      throw new BusinessException(ErrorCode.AUTH_SMS_CODE_INVALID, "验证码错误");
     }
 
     // 验证成功后删除验证码，防止重复使用

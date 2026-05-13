@@ -29,6 +29,7 @@ export class CreateContentDto {
   excerpt?: string;
 
   @IsString()
+  @MinLength(1)
   body: string;
 
   @IsString()

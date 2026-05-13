@@ -1,4 +1,7 @@
-import { Injectable, NotFoundException, ConflictException, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { HttpStatus } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
   LikeDto, CreateCommentDto, CollectDto,
@@ -104,7 +107,7 @@ export class InteractionService {
 
   async deleteComment(commentId: string, userId: string) {
     const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
-    if (!comment) throw new NotFoundException("评论不存在");
+    if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
     if (comment.userId !== userId) {
       // 管理员也可以删
     }
@@ -162,7 +165,7 @@ export class InteractionService {
 
   async toggleFollow(userId: string, dto: FollowDto) {
     if (userId === dto.followedUserId) {
-      throw new ConflictException("不能关注自己");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "不能关注自己", HttpStatus.CONFLICT);
     }
 
     const where = { userId_followedUserId: { userId, followedUserId: dto.followedUserId } };

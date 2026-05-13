@@ -66,7 +66,7 @@ export class CollabMatrixTask {
 
       // 只保留相似度 > 0.05 的关系以控制体积
       for (const [itemB, coCount] of neighbors) {
-        const [bType, bId] = itemB.split(":", 2);
+        const [, bId] = itemB.split(":", 2);
         const countB = itemCounts.get(itemB) ?? 1;
         const jaccard = coCount / (countA + countB - coCount);
 

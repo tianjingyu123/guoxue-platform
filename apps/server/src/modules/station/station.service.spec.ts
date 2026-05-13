@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { StationService } from "./station.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { NotFoundException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   station: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn() },
@@ -58,7 +58,7 @@ describe("StationService", () => {
     });
     it("分站不存在抛出 NotFoundException", async () => {
       mockPrisma.station.findUnique.mockResolvedValue(null);
-      await expect(svc.getStation("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getStation("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -80,7 +80,7 @@ describe("StationService", () => {
     it("分站不存在抛出 NotFoundException", async () => {
       mockRedis.getJson.mockResolvedValue(null);
       mockPrisma.station.findUnique.mockResolvedValue(null);
-      await expect(svc.getBrandByCode("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getBrandByCode("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -100,7 +100,7 @@ describe("StationService", () => {
     it("分站不存在抛出 NotFoundException", async () => {
       mockRedis.getJson.mockResolvedValue(null);
       mockPrisma.station.findUnique.mockResolvedValue(null);
-      await expect(svc.getBrand("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getBrand("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -175,7 +175,7 @@ describe("StationService", () => {
 
     it("分站不存在抛出 NotFoundException", async () => {
       mockPrisma.station.findUnique.mockResolvedValue(null);
-      await expect(svc.getMiniConfig("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getMiniConfig("invalid")).rejects.toThrow(BusinessException);
     });
   });
 

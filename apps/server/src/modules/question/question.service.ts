@@ -1,4 +1,7 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { HttpStatus } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CoinService } from "../coin/coin.service";
@@ -24,15 +27,15 @@ export class QuestionService {
     peekPriceCoin?: number;
     isPublic?: boolean;
   }) {
-    if (userId === dto.answererId) throw new ConflictException("不能向自己提问");
+    if (userId === dto.answererId) throw new BusinessException(ErrorCode.BAD_REQUEST, "不能向自己提问", HttpStatus.CONFLICT);
 
     const circle = await this.prisma.circle.findUnique({ where: { id: dto.circleId } });
-    if (!circle) throw new NotFoundException("圈子不存在");
+    if (!circle) throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在");
 
     const member = await this.prisma.circleMember.findFirst({
       where: { circleId: dto.circleId, userId: dto.answererId },
     });
-    if (!member) throw new BadRequestException("回答者不在该圈子中");
+    if (!member) throw new BusinessException(ErrorCode.BAD_REQUEST, "回答者不在该圈子中");
 
     await this.coin.spend(userId, {
       amountCoin: dto.priceCoin,
@@ -66,9 +69,9 @@ export class QuestionService {
   /** 回答提问 */
   async answer(answererId: string, questionId: string, dto: { answer: string; images?: string[]; answerAudioUrl?: string }) {
     const question = await this.prisma.paidQuestion.findUnique({ where: { id: questionId } });
-    if (!question) throw new NotFoundException("问题不存在");
-    if (question.answererId !== answererId) throw new ForbiddenException("只有被提问者可以回答");
-    if (question.status !== "PENDING") throw new BadRequestException("问题状态不允许回答");
+    if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    if (question.answererId !== answererId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有被提问者可以回答");
+    if (question.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "问题状态不允许回答");
 
     const answerText = dto.answerAudioUrl
       ? `${dto.answer}\n[音频回复: ${dto.answerAudioUrl}]`
@@ -100,9 +103,9 @@ export class QuestionService {
   /** 拒绝提问 */
   async reject(answererId: string, questionId: string, reason?: string) {
     const question = await this.prisma.paidQuestion.findUnique({ where: { id: questionId } });
-    if (!question) throw new NotFoundException("问题不存在");
-    if (question.answererId !== answererId) throw new ForbiddenException("只有被提问者可以拒绝");
-    if (question.status !== "PENDING") throw new BadRequestException("问题状态不允许拒绝");
+    if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    if (question.answererId !== answererId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有被提问者可以拒绝");
+    if (question.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "问题状态不允许拒绝");
 
     await this.coin.refund(question.askerId, question.priceCoin, `回答者拒绝了您的提问（问题ID: ${questionId}）${reason ? `，理由: ${reason}` : ""}`);
 
@@ -118,9 +121,9 @@ export class QuestionService {
   /** 围观答案 */
   async peek(userId: string, questionId: string) {
     const question = await this.prisma.paidQuestion.findUnique({ where: { id: questionId } });
-    if (!question) throw new NotFoundException("问题不存在");
-    if (question.status !== "ANSWERED") throw new BadRequestException("问题尚未回答");
-    if (question.peekPriceCoin <= 0) throw new BadRequestException("该问题不支持围观");
+    if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
+    if (question.status !== "ANSWERED") throw new BusinessException(ErrorCode.BAD_REQUEST, "问题尚未回答");
+    if (question.peekPriceCoin <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该问题不支持围观");
 
     if (userId === question.askerId || userId === question.answererId) {
       return question;
@@ -218,7 +221,7 @@ export class QuestionService {
         circle: { select: { id: true, name: true } },
       },
     });
-    if (!question) throw new NotFoundException("问题不存在");
+    if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "问题不存在");
     return question;
   }
 }

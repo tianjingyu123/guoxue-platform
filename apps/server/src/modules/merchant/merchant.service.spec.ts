@@ -4,7 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { FeatureFlagService } from "../feature-flag/feature-flag.service";
 import { NotificationService } from "../notification/notification.service";
 import { SystemService } from "../system/system.service";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockFeatureFlag = { isEnabled: jest.fn().mockResolvedValue(true) };
 const mockNotification = { send: jest.fn().mockResolvedValue(undefined) };
@@ -70,7 +70,7 @@ describe("MerchantService", () => {
 
     it("重复申请抛出异常", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1" });
-      await expect(svc.createApplication("u1", { shopName: "测试" } as any)).rejects.toThrow(BadRequestException);
+      await expect(svc.createApplication("u1", { shopName: "测试" } as any)).rejects.toThrow(BusinessException);
     });
   });
 
@@ -83,7 +83,7 @@ describe("MerchantService", () => {
 
     it("无申请记录抛出 NotFoundException", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
-      await expect(svc.getApplication("u1")).rejects.toThrow(NotFoundException);
+      await expect(svc.getApplication("u1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -97,7 +97,7 @@ describe("MerchantService", () => {
 
     it("非可修改状态抛出异常", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "ACTIVE" });
-      await expect(svc.updateApplication("u1", { shopName: "新名称" })).rejects.toThrow(BadRequestException);
+      await expect(svc.updateApplication("u1", { shopName: "新名称" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -117,7 +117,7 @@ describe("MerchantService", () => {
         id: "m1", userId: "u1", status: "PENDING_REVIEW", contactName: null,
         idCardNumber: null, contactPhone: null, categoryIds: [],
       });
-      await expect(svc.submitForReview("u1")).rejects.toThrow(BadRequestException);
+      await expect(svc.submitForReview("u1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -163,7 +163,7 @@ describe("MerchantService", () => {
 
     it("商家不存在抛出异常", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
-      await expect(svc.getMerchantById("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getMerchantById("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -179,7 +179,7 @@ describe("MerchantService", () => {
 
     it("非待审核状态抛出异常", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "ACTIVE" });
-      await expect(svc.approveApplication("m1", "admin1", {})).rejects.toThrow(BadRequestException);
+      await expect(svc.approveApplication("m1", "admin1", {})).rejects.toThrow(BusinessException);
     });
   });
 
@@ -236,7 +236,7 @@ describe("MerchantService", () => {
 
     it("商家不存在抛出异常", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
-      await expect(svc.getDashboard("u1")).rejects.toThrow(NotFoundException);
+      await expect(svc.getDashboard("u1")).rejects.toThrow(BusinessException);
     });
   });
 });

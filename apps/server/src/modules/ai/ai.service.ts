@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { createHash, randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
 import { MemoryCache } from "../../common/cache.util";
 import { PrismaService } from "../../prisma/prisma.service";

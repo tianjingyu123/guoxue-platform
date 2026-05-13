@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
@@ -47,7 +47,7 @@ export class ReportService {
   /** 管理员处理举报 */
   async handle(reportId: string, dto: HandleReportDto) {
     const report = await this.prisma.report.findUnique({ where: { id: reportId } });
-    if (!report) throw new NotFoundException("举报不存在");
+    if (!report) throw new BusinessException(ErrorCode.NOT_FOUND, "举报不存在");
     if (report.status !== "PENDING") throw new BusinessException(ErrorCode.CONTENT_STATUS_INVALID, "该举报已处理");
 
     // 执行处置动作

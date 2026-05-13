@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsInt, IsOptional, Min, Max, IsIn } from "class-validator";
+import { IsString, IsInt, IsOptional, Min, Max, IsIn, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 
 export class BaziInputDto {
@@ -54,6 +54,7 @@ export class BaziInputDto {
 export class ZiweiInputDto {
   @ApiProperty({ description: "姓名", example: "测试" })
   @IsString()
+  @MinLength(1)
   name: string;
 
   @ApiProperty({ description: "性别", enum: ["男", "女"], example: "女" })
@@ -134,6 +135,7 @@ export class BaziRecordQueryDto {
 export class AnalyzeDto {
   @ApiProperty({ description: "排盘记录ID" })
   @IsString()
+  @MinLength(1)
   recordId: string;
 }
 

@@ -1,7 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { FinanceService } from "./finance.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma: any = {
   order: {
@@ -112,7 +112,7 @@ describe("FinanceService", () => {
 
     it("对账记录不存在抛出异常", async () => {
       mockPrisma.reconciliationRecord.findUnique.mockResolvedValue(null);
-      await expect(svc.getReconciliationDetail("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getReconciliationDetail("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -128,7 +128,7 @@ describe("FinanceService", () => {
 
     it("订单不存在抛出异常", async () => {
       mockPrisma.order.findUnique.mockResolvedValue(null);
-      await expect(svc.createInvoice({ orderId: "invalid", type: "PERSONAL", title: "x", amount: 99 })).rejects.toThrow(NotFoundException);
+      await expect(svc.createInvoice({ orderId: "invalid", type: "PERSONAL", title: "x", amount: 99 })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -142,12 +142,12 @@ describe("FinanceService", () => {
 
     it("发票不存在抛出异常", async () => {
       mockPrisma.invoice.findUnique.mockResolvedValue(null);
-      await expect(svc.issueInvoice("invalid", "url")).rejects.toThrow(NotFoundException);
+      await expect(svc.issueInvoice("invalid", "url")).rejects.toThrow(BusinessException);
     });
 
     it("非PENDING状态无法开具", async () => {
       mockPrisma.invoice.findUnique.mockResolvedValue({ id: "inv1", status: "ISSUED" });
-      await expect(svc.issueInvoice("inv1", "url")).rejects.toThrow(BadRequestException);
+      await expect(svc.issueInvoice("inv1", "url")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -161,7 +161,7 @@ describe("FinanceService", () => {
 
     it("非ISSUED状态无法邮寄", async () => {
       mockPrisma.invoice.findUnique.mockResolvedValue({ id: "inv1", status: "PENDING" });
-      await expect(svc.mailInvoice("inv1", "SF123")).rejects.toThrow(BadRequestException);
+      await expect(svc.mailInvoice("inv1", "SF123")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -185,7 +185,7 @@ describe("FinanceService", () => {
 
     it("结算单已存在抛出异常", async () => {
       mockPrisma.settlementOrder.findFirst.mockResolvedValue({ id: "s1" });
-      await expect(svc.generateSettlement({ userId: "u1", period: "2026-05" })).rejects.toThrow(BadRequestException);
+      await expect(svc.generateSettlement({ userId: "u1", period: "2026-05" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -199,7 +199,7 @@ describe("FinanceService", () => {
 
     it("非PENDING状态无法审批", async () => {
       mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", status: "APPROVED" });
-      await expect(svc.approveSettlement("s1", "admin1")).rejects.toThrow(BadRequestException);
+      await expect(svc.approveSettlement("s1", "admin1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -213,7 +213,7 @@ describe("FinanceService", () => {
 
     it("非APPROVED状态无法打款", async () => {
       mockPrisma.settlementOrder.findUnique.mockResolvedValue({ id: "s1", status: "PENDING" });
-      await expect(svc.paySettlement("s1")).rejects.toThrow(BadRequestException);
+      await expect(svc.paySettlement("s1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -229,7 +229,7 @@ describe("FinanceService", () => {
 
     it("非PENDING状态无法批准", async () => {
       mockPrisma.withdrawalApplication.findUnique.mockResolvedValue({ id: "w1", status: "APPROVED" });
-      await expect(svc.approveWithdrawal("w1", "admin1")).rejects.toThrow(BadRequestException);
+      await expect(svc.approveWithdrawal("w1", "admin1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -263,17 +263,17 @@ describe("FinanceService", () => {
 
     it("订单不存在抛出异常", async () => {
       mockPrisma.order.findUnique.mockResolvedValue(null);
-      await expect(svc.freezeAmount({ orderId: "invalid", amount: 99 })).rejects.toThrow(NotFoundException);
+      await expect(svc.freezeAmount({ orderId: "invalid", amount: 99 })).rejects.toThrow(BusinessException);
     });
 
     it("非PAID状态无法冻结", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PENDING", frozenAmount: null });
-      await expect(svc.freezeAmount({ orderId: "o1", amount: 99 })).rejects.toThrow(BadRequestException);
+      await expect(svc.freezeAmount({ orderId: "o1", amount: 99 })).rejects.toThrow(BusinessException);
     });
 
     it("已有冻结金额无法重复冻结", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", frozenAmount: 50 });
-      await expect(svc.freezeAmount({ orderId: "o1", amount: 99 })).rejects.toThrow(BadRequestException);
+      await expect(svc.freezeAmount({ orderId: "o1", amount: 99 })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -287,7 +287,7 @@ describe("FinanceService", () => {
 
     it("无冻结金额无法解冻", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", frozenAmount: null });
-      await expect(svc.unfreezeAmount({ orderId: "o1" })).rejects.toThrow(BadRequestException);
+      await expect(svc.unfreezeAmount({ orderId: "o1" })).rejects.toThrow(BusinessException);
     });
   });
 

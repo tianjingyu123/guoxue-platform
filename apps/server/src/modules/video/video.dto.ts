@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, IsNumber, IsArray, Min, Max, ValidateNested } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsArray, Min, Max, ValidateNested, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateVideoDto {
@@ -13,6 +13,7 @@ export class CreateVideoDto {
 
   @ApiProperty({ description: "视频URL" })
   @IsString()
+  @MinLength(1)
   videoUrl: string;
 
   @ApiPropertyOptional({ description: "封面图URL" })
@@ -93,6 +94,7 @@ export class PullUploadDto {
 export class PullUrlItem {
   @ApiProperty({ description: "视频源URL" })
   @IsString()
+  @MinLength(1)
   url: string;
 
   @ApiPropertyOptional({ description: "文件名" })
@@ -121,6 +123,7 @@ export class ProcessMediaDto {
 export class ClipVideoDto {
   @ApiProperty({ description: "源文件ID" })
   @IsString()
+  @MinLength(1)
   fileId: string;
 
   @ApiProperty({ description: "起始偏移（秒）" })
@@ -161,9 +164,11 @@ export class UploadSignatureDto {
 export class PlaybackStatsQueryDto {
   @ApiProperty({ description: "开始日期 YYYY-MM-DD" })
   @IsString()
+  @MinLength(1)
   startDate: string;
 
   @ApiProperty({ description: "结束日期 YYYY-MM-DD" })
   @IsString()
+  @MinLength(1)
   endDate: string;
 }

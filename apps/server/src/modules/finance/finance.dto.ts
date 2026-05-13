@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber, IsIn, IsDateString, Min } from "class-validator";
+import { MinLength,  IsOptional, IsString, IsNumber, IsIn, IsDateString, Min } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -39,6 +39,7 @@ export class ReconciliationQueryDto {
 
 export class CreateInvoiceDto {
   @IsString()
+  @MinLength(1)
   orderId: string;
 
   @IsString()
@@ -46,6 +47,7 @@ export class CreateInvoiceDto {
   type: string;
 
   @IsString()
+  @MinLength(1)
   title: string;
 
   @IsOptional()
@@ -75,11 +77,13 @@ export class InvoiceQueryDto {
 
 export class IssueInvoiceDto {
   @IsString()
+  @MinLength(1)
   invoiceUrl: string;
 }
 
 export class MailInvoiceDto {
   @IsString()
+  @MinLength(1)
   expressNo: string;
 }
 
@@ -112,9 +116,11 @@ export class SettlementQueryDto {
 
 export class GenerateSettlementDto {
   @IsString()
+  @MinLength(1)
   userId: string;
 
   @IsString()
+  @MinLength(1)
   period: string;
 }
 
@@ -145,6 +151,7 @@ export class ApproveWithdrawalDto {
 
 export class RejectWithdrawalDto {
   @IsString()
+  @MinLength(1)
   reviewNote: string;
 }
 
@@ -152,6 +159,7 @@ export class RejectWithdrawalDto {
 
 export class MonthlyReportDto {
   @IsString()
+  @MinLength(1)
   period: string;
 }
 
@@ -160,6 +168,7 @@ export class MonthlyReportDto {
 export class FreezeAmountDto {
   @ApiProperty({ description: "订单ID" })
   @IsString()
+  @MinLength(1)
   orderId: string;
 
   @ApiProperty({ description: "冻结金额" })
@@ -175,6 +184,7 @@ export class FreezeAmountDto {
 export class UnfreezeAmountDto {
   @ApiProperty({ description: "订单ID" })
   @IsString()
+  @MinLength(1)
   orderId: string;
 
   @ApiPropertyOptional({ description: "解冻原因" })

@@ -163,7 +163,7 @@ describe("SystemController", () => {
   });
 
   it("POST /system/config-versions/rollback — 回滚配置", async () => {
-    const result: any = await ctrl.rollbackConfig({ configKey: "test", version: 1 });
+    const result: any = await ctrl.rollbackConfig({ configKey: "test", version: 1 }, { user: { id: "u1" } } as any);
     expect(result.version).toBe(1);
   });
 

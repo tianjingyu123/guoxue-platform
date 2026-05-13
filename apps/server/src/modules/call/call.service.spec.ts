@@ -6,7 +6,7 @@ import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
 import { TrtcService } from "./trtc.service";
 import { AppGateway } from "../websocket/websocket.gateway";
-import { BadRequestException, NotFoundException, ConflictException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 describe("CallService", () => {
   let svc: CallService;
@@ -58,7 +58,7 @@ describe("CallService", () => {
 
   describe("create", () => {
     it("不能向自己发起连麦", async () => {
-      await expect(svc.create("u1", { calleeId: "u1", circleId: "c1" })).rejects.toThrow(ConflictException);
+      await expect(svc.create("u1", { calleeId: "u1", circleId: "c1" })).rejects.toThrow(BusinessException);
     });
 
     it("对方不在圈子中时拒绝", async () => {
@@ -104,7 +104,7 @@ describe("CallService", () => {
   describe("accept", () => {
     it("通话记录不存在时报错", async () => {
       prisma.audioCallRecord.findUnique.mockResolvedValue(null);
-      await expect(svc.accept("u2", "call1")).rejects.toThrow(NotFoundException);
+      await expect(svc.accept("u2", "call1")).rejects.toThrow(BusinessException);
     });
 
     it("非被叫方不能接听", async () => {

@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, forwardRef, Inject, Logger } from "@nestjs/common";
+import { Injectable, forwardRef, Inject, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Prisma, MemberLevel, Order } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -10,9 +12,9 @@ import { CoinService } from "../coin/coin.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { COIN_TO_RMB, RMB_TO_FEN } from "../../common/constants";
 import {
-  CreateProductDto, UpdateProductDto, CreateOrderDto, CreateCouponDto,
+  CreateProductDto, UpdateProductDto, CreateOrderDto,
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
-  CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
+  CreateFreightTemplateDto, UpdateFreightTemplateDto,
   ProductListQueryDto, OrderListQueryDto,
 } from "./shop.dto";
 
@@ -60,18 +62,29 @@ export class ShopService {
 
   async updateProduct(userId: string, productId: string, dto: UpdateProductDto) {
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
-    if (!product) throw new NotFoundException("商品不存在");
-    if (product.userId !== userId) throw new ForbiddenException("只能修改自己的商品");
+    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
+    if (product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的商品");
+
+    const data: Prisma.ProductUpdateInput = {};
+    if (dto.title !== undefined) data.title = dto.title;
+    if (dto.intro !== undefined) data.intro = dto.intro;
+    if (dto.detail !== undefined) data.detail = dto.detail;
+    if (dto.images !== undefined) data.images = dto.images;
+    if (dto.price !== undefined) data.price = dto.price;
+    if (dto.stock !== undefined) data.stock = dto.stock;
+    if (dto.status !== undefined) data.status = dto.status;
 
     return this.prisma.product.update({
       where: { id: productId },
-      data: dto as Prisma.ProductUpdateInput,
+      data,
       include: { skus: true },
     });
   }
 
-  async deleteProduct(productId: string) {
-    await this.prisma.product.findUniqueOrThrow({ where: { id: productId } });
+  async deleteProduct(userId: string, productId: string, isAdmin = false) {
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
+    if (!isAdmin && product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的商品");
     await this.prisma.product.delete({ where: { id: productId } });
     return { success: true };
   }
@@ -90,7 +103,7 @@ export class ShopService {
         circle: { select: { id: true, name: true } },
       },
     });
-    if (!product) throw new NotFoundException("商品不存在");
+    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
     return product;
   }
 
@@ -117,7 +130,10 @@ export class ShopService {
 
   // ═══════════════════ SKU 管理 ═══════════════════
 
-  async addSku(productId: string, dto: { specs: Record<string, string>; price: number; stock?: number; skuCode?: string }) {
+  async addSku(userId: string, productId: string, dto: { specs: Record<string, string>; price: number; stock?: number; skuCode?: string }, isAdmin = false) {
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
+    if (!isAdmin && product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能给自己的商品添加SKU");
     return this.prisma.productSku.create({
       data: {
         productId,
@@ -129,7 +145,10 @@ export class ShopService {
     });
   }
 
-  async deleteSku(skuId: string) {
+  async deleteSku(userId: string, skuId: string, isAdmin = false) {
+    const sku = await this.prisma.productSku.findUnique({ where: { id: skuId }, include: { product: true } });
+    if (!sku) throw new BusinessException(ErrorCode.NOT_FOUND, "SKU不存在");
+    if (!isAdmin && sku.product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己商品的SKU");
     await this.prisma.productSku.delete({ where: { id: skuId } });
     return { success: true };
   }
@@ -148,7 +167,7 @@ export class ShopService {
           select: { price: true, product: { select: { id: true, status: true, supplierType: true, userId: true } } },
         });
         if (!sku || sku.product.status !== "ON_SALE") {
-          throw new BadRequestException("商品不可购买");
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
         }
         actualAmount = Number(sku.price);
         supplierType = sku.product.supplierType;
@@ -159,7 +178,7 @@ export class ShopService {
           select: { id: true, price: true, status: true, supplierType: true, userId: true },
         });
         if (!product || product.status !== "ON_SALE") {
-          throw new BadRequestException("商品不可购买");
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
         }
         actualAmount = Number(product.price);
         supplierType = product.supplierType;
@@ -193,18 +212,20 @@ export class ShopService {
         },
       });
 
-      // 扣减库存（非会员订单）
+      // 扣减库存（非会员订单），带库存 > 0 约束防止超卖
       if (dto.type !== "MEMBER") {
         if (dto.skuId) {
-          await tx.productSku.update({
-            where: { id: dto.skuId },
+          const skuResult = await tx.productSku.updateMany({
+            where: { id: dto.skuId, stock: { gt: 0 } },
             data: { stock: { decrement: 1 } },
           });
+          if (skuResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "SKU库存不足");
         } else {
-          await tx.product.update({
-            where: { id: dto.targetId },
+          const productResult = await tx.product.updateMany({
+            where: { id: dto.targetId, stock: { gt: 0 } },
             data: { stock: { decrement: 1 } },
           });
+          if (productResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
         }
       }
 
@@ -220,13 +241,16 @@ export class ShopService {
     });
   }
 
-  async getOrder(orderId: string) {
-    return this.prisma.order.findUnique({
+  async getOrder(orderId: string, userId?: string, isAdmin = false) {
+    const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
         user: { select: { id: true, nickname: true } },
       },
     });
+    if (!order) throw new BusinessException(ErrorCode.NOT_FOUND, "订单不存在");
+    if (!isAdmin && userId && order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看自己的订单");
+    return order;
   }
 
   async listOrders(dto: OrderListQueryDto) {
@@ -269,8 +293,8 @@ export class ShopService {
     notifyUrl?: string,
   ) {
     const order = await this.getOrder(orderId);
-    if (!order || order.userId !== userId) throw new NotFoundException("订单不存在");
-    if (order.status !== "PENDING") throw new BadRequestException("订单状态不可支付");
+    if (!order || order.userId !== userId) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
 
     const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
     const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
@@ -296,9 +320,9 @@ export class ShopService {
   /** 创建Native扫码支付 */
   async createNativePayment(orderId: string, userId: string, notifyUrl?: string) {
     const order = await this.getOrder(orderId);
-    if (!order) throw new NotFoundException("订单不存在");
-    if (order.userId !== userId) throw new ForbiddenException("只能支付自己的订单");
-    if (order.status !== "PENDING") throw new BadRequestException("订单状态不可支付");
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
+    if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
 
     const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
     const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
@@ -569,9 +593,9 @@ export class ShopService {
   }
 
   /** 查询订单支付状态 */
-  async queryPaymentStatus(orderId: string) {
-    const order = await this.getOrder(orderId);
-    if (!order?.payTransactionId) throw new BadRequestException("订单无支付记录");
+  async queryPaymentStatus(orderId: string, userId?: string) {
+    const order = await this.getOrder(orderId, userId);
+    if (!order?.payTransactionId) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单无支付记录");
 
     const result = await this.wechatPay.queryOrder(order.payTransactionId);
     return { tradeState: result.trade_state, raw: result };
@@ -583,13 +607,13 @@ export class ShopService {
     const lockKey = `refund:lock:${orderId}`;
     const locked = await this.redis.setNX(lockKey, "1", 30);
     if (!locked) {
-      throw new BadRequestException("退款正在处理中，请勿重复操作");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "退款正在处理中，请勿重复操作");
     }
 
     try {
       const order = await this.prisma.order.findUnique({ where: { id: orderId } });
       if (!order || !["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) {
-        throw new BadRequestException("订单不可退款");
+        throw new BusinessException(ErrorCode.ORDER_REFUND_DENIED, "订单不可退款");
       }
 
       const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
@@ -657,7 +681,7 @@ export class ShopService {
 
   async shipOrder(orderId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order || order.status !== "PAID") throw new BadRequestException("订单不可发货");
+    if (!order || order.status !== "PAID") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单不可发货");
 
     return this.prisma.order.update({
       where: { id: orderId },
@@ -665,20 +689,23 @@ export class ShopService {
     });
   }
 
-  /** 管理员手动确认支付 */
-  async adminPayOrder(orderId: string) {
+  /** 管理员手动确认支付（需提供实际支付流水号，防止伪造支付确认） */
+  async adminPayOrder(orderId: string, payTransactionId: string, operatorId: string) {
+    if (!payTransactionId) throw new BusinessException(ErrorCode.BAD_REQUEST, "必须提供支付流水号");
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order || order.status !== "PENDING") throw new BadRequestException("仅待支付订单可确认支付");
+    if (!order || order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待支付订单可确认支付");
 
-    return this.prisma.order.update({
+    await this.prisma.order.update({
       where: { id: orderId },
-      data: { status: "PAID", paidAt: new Date() },
+      data: { status: "PAID", paidAt: new Date(), payTransactionId },
     });
+    this.logger.log(`管理员 ${operatorId} 手动确认支付: ${orderId}, 流水号: ${payTransactionId}`);
+    return { success: true, orderId, payTransactionId };
   }
 
   async completeOrder(orderId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { status: true, userId: true, type: true, targetId: true } });
-    if (!order || order.status !== "SHIPPED") throw new BadRequestException("仅已发货订单可确认完成");
+    if (!order || order.status !== "SHIPPED") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅已发货订单可确认完成");
     const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: "COMPLETED", completedAt: new Date() },
@@ -692,9 +719,9 @@ export class ShopService {
 
   async cancelOrder(orderId: string, userId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException("订单不存在");
-    if (order.status !== "PENDING") throw new BadRequestException("仅待付款订单可取消");
-    if (order.userId !== userId) throw new ForbiddenException("无权取消");
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待付款订单可取消");
+    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权取消");
 
     return this.prisma.order.update({
       where: { id: orderId },
@@ -756,7 +783,7 @@ export class ShopService {
   /** 更新优惠券（管理员） */
   async updateCoupon(id: string, dto: CreateCouponV2Dto) {
     const existing = await this.prisma.coupon.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("优惠券不存在");
+    if (!existing) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
 
     const updateData: Prisma.CouponUpdateInput = {};
     if (dto.name !== undefined) updateData.name = dto.name;
@@ -794,17 +821,17 @@ export class ShopService {
   async claimCoupon(userId: string, couponId: string) {
     return this.prisma.$transaction(async (tx) => {
       const coupon = await tx.coupon.findUnique({ where: { id: couponId } });
-      if (!coupon) throw new NotFoundException("优惠券不存在");
-      if (coupon.status !== "ACTIVE") throw new BadRequestException("优惠券已失效");
-      if (new Date() > coupon.validEnd) throw new BadRequestException("优惠券已过期");
+      if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
+      if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
+      if (new Date() > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
       if (coupon.totalCount !== -1 && coupon.usedCount >= coupon.totalCount) {
-        throw new BadRequestException("优惠券已被领完");
+        throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已被领完");
       }
 
       const existing = await tx.userCoupon.findFirst({
         where: { userId, couponId, used: false },
       });
-      if (existing) throw new BadRequestException("已领取过该优惠券");
+      if (existing) throw new BusinessException(ErrorCode.COUPON_INVALID, "已领取过该优惠券");
 
       await tx.coupon.update({
         where: { id: couponId },
@@ -824,7 +851,6 @@ export class ShopService {
   }
 
   async getUserCoupons(userId: string) {
-    const now = new Date();
     return this.prisma.userCoupon.findMany({
       where: { userId, used: false },
       include: { coupon: true },
@@ -837,11 +863,11 @@ export class ShopService {
   async createReview(userId: string, productId: string, dto: CreateReviewDto) {
     // 验证商品存在
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
-    if (!product) throw new NotFoundException("商品不存在");
+    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
 
     // 验证评分范围
     if (dto.rating < 1 || dto.rating > 5) {
-      throw new BadRequestException("评分范围为 1-5 星");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "评分范围为 1-5 星");
     }
 
     return this.prisma.productReview.create({
@@ -876,7 +902,7 @@ export class ShopService {
   /** 管理员回复评价 */
   async replyProductReview(reviewId: string, reply: string) {
     const review = await this.prisma.productReview.findUnique({ where: { id: reviewId } });
-    if (!review) throw new NotFoundException("评价不存在");
+    if (!review) throw new BusinessException(ErrorCode.NOT_FOUND, "评价不存在");
 
     return this.prisma.productReview.update({
       where: { id: reviewId },
@@ -896,7 +922,7 @@ export class ShopService {
   /** 获取物流信息 */
   async getLogistics(orderId: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException("订单不存在");
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
 
     const logistics = await this.prisma.orderLogistics.findUnique({
       where: { orderId },
@@ -907,9 +933,9 @@ export class ShopService {
   /** 管理员更新物流信息 */
   async updateLogistics(orderId: string, dto: UpdateLogisticsDto) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new NotFoundException("订单不存在");
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.status !== "PAID" && order.status !== "SHIPPED") {
-      throw new BadRequestException("当前订单状态不可设置物流");
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "当前订单状态不可设置物流");
     }
 
     // upsert: 存在则更新，不存在则创建
@@ -947,7 +973,7 @@ export class ShopService {
 
   async updateFreightTemplate(id: string, dto: UpdateFreightTemplateDto) {
     const existing = await this.prisma.freightTemplate.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("运费模板不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "运费模板不存在");
 
     const data: Prisma.FreightTemplateUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
@@ -985,7 +1011,7 @@ export class ShopService {
 
   async getFreightTemplate(id: string) {
     const template = await this.prisma.freightTemplate.findUnique({ where: { id } });
-    if (!template) throw new NotFoundException("运费模板不存在");
+    if (!template) throw new BusinessException(ErrorCode.NOT_FOUND, "运费模板不存在");
     return template;
   }
 

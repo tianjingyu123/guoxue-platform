@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { MemberLevel, Prisma, RoleType, UserStatus } from "@prisma/client";
@@ -25,7 +27,7 @@ export class UserService {
         operator: { select: { id: true, level: true } },
       },
     });
-    if (!user) throw new NotFoundException("用户不存在");
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
     return user;
   }
 
@@ -132,22 +134,22 @@ export class UserService {
   // ───────── 关注系统 ─────────
 
   async follow(followerId: string, followedUserId: string) {
-    if (followerId === followedUserId) throw new BadRequestException("不能关注自己");
+    if (followerId === followedUserId) throw new BusinessException(ErrorCode.BAD_REQUEST, "不能关注自己");
 
     const target = await this.prisma.user.findUnique({ where: { id: followedUserId } });
-    if (!target) throw new NotFoundException("目标用户不存在");
+    if (!target) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "目标用户不存在");
 
     const existing = await this.prisma.follow.findUnique({
       where: { userId_followedUserId: { userId: followerId, followedUserId } },
     });
-    if (existing) throw new BadRequestException("已关注该用户");
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已关注该用户");
 
     try {
       return await this.prisma.follow.create({
         data: { userId: followerId, followedUserId },
       });
     } catch (e: unknown) {
-      if ((e as Error)?.message?.includes("P2002") || (e as Record<string, unknown>)?.code === "P2002") throw new BadRequestException("已关注该用户");
+      if ((e as Error)?.message?.includes("P2002") || (e as Record<string, unknown>)?.code === "P2002") throw new BusinessException(ErrorCode.BAD_REQUEST, "已关注该用户");
       throw e;
     }
   }
@@ -156,7 +158,7 @@ export class UserService {
     const existing = await this.prisma.follow.findUnique({
       where: { userId_followedUserId: { userId: followerId, followedUserId } },
     });
-    if (!existing) throw new NotFoundException("未关注该用户");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "未关注该用户");
 
     await this.prisma.follow.delete({
       where: { userId_followedUserId: { userId: followerId, followedUserId } },
@@ -285,7 +287,7 @@ export class UserService {
 
   async addWhitelist(userId: string): Promise<{ success: boolean; userId: string }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException("用户不存在");
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
 
     const key = this.getWhitelistKey();
     const list: string[] = (await this.redis.getJson<string[]>(key)) || [];
@@ -322,7 +324,7 @@ export class UserService {
         birthday: true, phone: true, email: true, status: true, createdAt: true,
       },
     });
-    if (!userInfo) throw new NotFoundException("用户不存在");
+    if (!userInfo) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
 
     const [memberInfo, orderStats, coinAccount, circleCount, learningProgress, recentBehavior, deviceList] =
       await Promise.all([

@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { PaipanService } from "./paipan.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { NotFoundException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 jest.mock("@guoxue/bazi-engine", () => ({
   calcBazi: jest.fn(),
@@ -108,7 +108,7 @@ describe("PaipanService", () => {
     });
     it("记录不存在抛出 NotFoundException", async () => {
       mockPrisma.paipanRecord.findUnique.mockResolvedValue(null);
-      await expect(svc.getBaziRecord("invalid", "user-1")).rejects.toThrow(NotFoundException);
+      await expect(svc.getBaziRecord("invalid", "user-1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -174,7 +174,7 @@ describe("PaipanService", () => {
     });
     it("记录不存在抛出 NotFoundException", async () => {
       mockPrisma.paipanRecord.findUnique.mockResolvedValue(null);
-      await expect(svc.getZiweiRecord("invalid", "user-1")).rejects.toThrow(NotFoundException);
+      await expect(svc.getZiweiRecord("invalid", "user-1")).rejects.toThrow(BusinessException);
     });
   });
 

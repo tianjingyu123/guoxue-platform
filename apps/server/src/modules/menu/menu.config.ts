@@ -218,6 +218,10 @@ export const MENU_CONFIG: MenuItem[] = [
     children: [
       { title: "Banner管理", path: "/banners" },
       { title: "系统设置", path: "/system-settings" },
+      { title: "敏感词管理", path: "/system/sensitive-words" },
+      { title: "Webhook管理", path: "/system/webhooks" },
+      { title: "数据导入", path: "/system/import" },
+      { title: "邮件管理", path: "/system/email", roles: ["SUPER_ADMIN"] },
       { title: "虚拟币配置", path: "/system/coin-config" },
       { title: "会员配置", path: "/system/member-config" },
       { title: "运营商等级", path: "/system/operator-level" },

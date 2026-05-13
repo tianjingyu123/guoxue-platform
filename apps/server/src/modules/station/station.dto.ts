@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsHexColor, IsObject, MaxLength, IsInt } from "class-validator";
+import { IsString, IsOptional, IsHexColor, IsObject, MaxLength, IsInt, MinLength } from "class-validator";
 
 export class CreateStationDto {
   @IsString()
@@ -77,6 +77,7 @@ export class UpdateStationDto {
 
 export class CreateOperatorDto {
   @IsString()
+  @MinLength(1)
   level: string;
 
   @IsOptional()

@@ -11,6 +11,8 @@ const app = createApp(App);
 // 全局 Vue 错误处理 — 捕获组件内未处理的异常
 app.config.errorHandler = (err, _instance, info) => {
   console.error("[全局错误]", info, err);
+  // axios 错误已由 API 拦截器统一提示，此处不重复弹出
+  if ((err as any)?.response?.status) return;
   const msg = err instanceof Error ? err.message : String(err);
   ElMessage.error(`操作失败：${msg}`);
 };

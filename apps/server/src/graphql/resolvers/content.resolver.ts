@@ -1,6 +1,6 @@
 import { Resolver, Query, Args, Int } from "@nestjs/graphql";
 import { PrismaService } from "../../prisma/prisma.service";
-import { Content, ClassicBook, PageInfo } from "../models";
+import { Content, ClassicBook } from "../models";
 import { ContentFilter, ClassicFilter } from "../dto/query.dto";
 
 @Resolver(() => Content)

@@ -6,13 +6,12 @@ import {
   Param,
   Query,
   Req,
-  Res,
   UseGuards,
   Header,
 } from "@nestjs/common";
 import { Request } from "express";
 import type { BaziResult } from "@guoxue/bazi-engine";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
 import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, AnalyzeDto, AnalysisQueryDto } from "./paipan.dto";

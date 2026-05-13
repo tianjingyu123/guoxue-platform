@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { connect as tlsConnect, TLSSocket } from "tls";
+import { connect as tlsConnect } from "tls";
 
 /**
  * 邮件发送服务
@@ -78,7 +78,6 @@ export class EmailService {
     text?: string;
     from?: string;
   }): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    const smtp = this.config.smtp!;
     const from = params.from || this.config.from;
     const to = Array.isArray(params.to) ? params.to.join(", ") : params.to;
 

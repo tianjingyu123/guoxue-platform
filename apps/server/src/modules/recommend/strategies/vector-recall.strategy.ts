@@ -37,7 +37,7 @@ export class VectorRecallStrategy extends BaseRecommendStrategy {
   // 向量召回提供者，默认为 null（未接入）
   private provider: VectorRecallProvider | null = null;
 
-  supports(scene: RecommendScene): boolean {
+  supports(_scene: RecommendScene): boolean {
     // 向量召回需要 provider 才可用
     return this.provider !== null;
   }

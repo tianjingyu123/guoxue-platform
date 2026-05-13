@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -41,7 +43,7 @@ export class StationService {
 
   async deleteStation(id: string) {
     const station = await this.prisma.station.findUnique({ where: { id } });
-    if (!station) throw new NotFoundException("分站不存在");
+    if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
     await this.redis.del(`station:brand:id:${id}`);
     await this.redis.del(`station:brand:code:${station.code}`);
     return this.prisma.station.delete({ where: { id } });
@@ -52,7 +54,7 @@ export class StationService {
       where: { id },
       include: { user: { select: { id: true, nickname: true } } },
     });
-    if (!station) throw new NotFoundException("分站不存在");
+    if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
     return station;
   }
 
@@ -73,7 +75,7 @@ export class StationService {
         intro: true,
       },
     });
-    if (!station) throw new NotFoundException("分站不存在");
+    if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
 
     await this.redis.setJson(cacheKey, station, this.BRAND_TTL);
     return station;
@@ -96,7 +98,7 @@ export class StationService {
         intro: true,
       },
     });
-    if (!station) throw new NotFoundException("分站不存在");
+    if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
 
     await this.redis.setJson(cacheKey, station, this.BRAND_TTL);
     return station;
@@ -163,7 +165,7 @@ export class StationService {
         logo: true, themeColor: true,
       },
     });
-    if (!station) throw new NotFoundException("分站不存在");
+    if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
 
     const platformMiniAppId = process.env.WECHAT_MINI_APP_ID || process.env.WECHAT_APP_ID || "";
     // 如果分站有独立小程序则用分站的，否则用平台主小程序
@@ -222,7 +224,7 @@ export class StationService {
       where: { id: stationId },
       select: { id: true, name: true, totalEarning: true },
     });
-    if (!station) throw new NotFoundException("分站不存在");
+    if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
 
     const [earningsAgg, earningBreakdown] = await Promise.all([
       this.prisma.stationEarning.aggregate({

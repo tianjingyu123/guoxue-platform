@@ -10,7 +10,7 @@ import { VectorRecallStrategy } from "./strategies/vector-recall.strategy";
 import { TfidfVectorProvider } from "./strategies/tfidf-vector.provider";
 import { OpenAIEmbeddingProvider } from "./strategies/openai-embedding.provider";
 import { AbTestService } from "./services/ab-test.service";
-import { NotFoundException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   article: { findUnique: jest.fn(), findMany: jest.fn() },
@@ -62,7 +62,7 @@ describe("RecommendService", () => {
     });
     it("文章不存在抛出 NotFoundException", async () => {
       mockPrisma.article.findUnique.mockResolvedValue(null);
-      await expect(svc.related("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.related("invalid")).rejects.toThrow(BusinessException);
     });
     it("文章无标签时返回空数组", async () => {
       mockPrisma.article.findUnique.mockResolvedValue({ id: "a1", tags: [] });

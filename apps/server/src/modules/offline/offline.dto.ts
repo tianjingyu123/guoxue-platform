@@ -1,22 +1,26 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsBoolean } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateStationDto {
   @ApiProperty({ description: "驿站名称" })
   @IsString()
+  @MinLength(1)
   name: string;
 
   @ApiProperty({ description: "城市" })
   @IsString()
+  @MinLength(1)
   city: string;
 
   @ApiProperty({ description: "详细地址" })
   @IsString()
+  @MinLength(1)
   address: string;
 
   @ApiProperty({ description: "联系电话" })
   @IsString()
+  @MinLength(1)
   phone: string;
 
   @ApiPropertyOptional({ description: "封面图" })
@@ -31,10 +35,12 @@ export class CreateStationDto {
 export class CreateOfflineCourseDto {
   @ApiProperty({ description: "驿站ID" })
   @IsString()
+  @MinLength(1)
   stationId: string;
 
   @ApiProperty({ description: "课程标题" })
   @IsString()
+  @MinLength(1)
   title: string;
 
   @ApiPropertyOptional({ description: "封面图" })
@@ -59,14 +65,17 @@ export class CreateOfflineCourseDto {
 
   @ApiProperty({ description: "开始时间" })
   @IsString()
+  @MinLength(1)
   startTime: string;
 
   @ApiProperty({ description: "结束时间" })
   @IsString()
+  @MinLength(1)
   endTime: string;
 
   @ApiProperty({ description: "上课地点" })
   @IsString()
+  @MinLength(1)
   location: string;
 }
 
@@ -81,6 +90,7 @@ export class UpdateMemberDto {
 export class AuditStationDto {
   @ApiProperty({ description: "审核状态: ACTIVE/DISABLED" })
   @IsString()
+  @MinLength(1)
   status: string;
 }
 
@@ -89,12 +99,14 @@ export class AuditStationDto {
 export class RegisterCourseDto {
   @ApiProperty({ description: "课程ID" })
   @IsString()
+  @MinLength(1)
   courseId: string;
 }
 
 export class SignInCourseDto {
   @ApiProperty({ description: "签到码/QR码" })
   @IsString()
+  @MinLength(1)
   qrCode: string;
 }
 
@@ -103,6 +115,7 @@ export class SignInCourseDto {
 export class CreateProductDto {
   @ApiProperty({ description: "商品名称" })
   @IsString()
+  @MinLength(1)
   name: string;
 
   @ApiProperty({ description: "价格（分）" })
@@ -141,6 +154,7 @@ export class UpdateProductDto {
 export class CreateTeacherBookingDto {
   @ApiProperty({ description: "讲师ID" })
   @IsString()
+  @MinLength(1)
   teacherId: string;
 
   @ApiProperty({ description: "关联课程ID" })
@@ -149,6 +163,7 @@ export class CreateTeacherBookingDto {
 
   @ApiProperty({ description: "预约日期" })
   @IsString()
+  @MinLength(1)
   bookingDate: string;
 
   @ApiPropertyOptional({ description: "备注" })
@@ -161,10 +176,12 @@ export class CreateTeacherBookingDto {
 export class CreateStationOrderDto {
   @ApiProperty({ description: "订单类型: OFFLINE_COURSE/PRODUCT/SERVICE" })
   @IsString()
+  @MinLength(1)
   orderType: string;
 
   @ApiProperty({ description: "目标ID（课程ID或商品ID）" })
   @IsString()
+  @MinLength(1)
   targetId: string;
 
   @ApiProperty({ description: "金额（分）" })
@@ -177,6 +194,7 @@ export class CreateStationOrderDto {
 export class CreateSettlementDto {
   @ApiProperty({ description: "结算周期，如 2026-05" })
   @IsString()
+  @MinLength(1)
   period: string;
 
   @ApiProperty({ description: "驿站收入总额" })

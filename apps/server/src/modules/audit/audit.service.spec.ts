@@ -42,9 +42,11 @@ describe("AuditService", () => {
       mockPrisma.auditLog.create.mockResolvedValue({ id: "a1", action: "LOGIN" })
       const result = await svc.log({ userId: "u1", action: "LOGIN", ip: "127.0.0.1" })
       expect(result.action).toBe("LOGIN")
-      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith({
-        data: { userId: "u1", action: "LOGIN", ip: "127.0.0.1" },
-      })
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ userId: "u1", action: "LOGIN", ip: "127.0.0.1" }),
+        }),
+      )
     })
   })
 

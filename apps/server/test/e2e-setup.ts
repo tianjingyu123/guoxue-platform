@@ -17,7 +17,8 @@ const modelMethods = [
 function createModelMock() {
   const mock: Record<string, jest.Mock> = {}
   for (const m of modelMethods) {
-    mock[m] = jest.fn().mockResolvedValue(undefined)
+    // updateMany/deleteMany/createMany 默认返回 { count: N }，避免 .count 访问报错
+    mock[m] = jest.fn().mockResolvedValue(m.endsWith("Many") ? { count: 1 } : undefined)
   }
   return mock
 }

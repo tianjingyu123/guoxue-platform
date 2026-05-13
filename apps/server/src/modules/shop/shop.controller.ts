@@ -9,7 +9,7 @@ import { ShopService } from "./shop.service";
 import { LogisticsService } from "./logistics.service";
 import { SystemService } from "../system/system.service";
 import {
-  CreateProductDto, UpdateProductDto, CreateOrderDto, CreateCouponDto,
+  CreateProductDto, UpdateProductDto, CreateOrderDto,
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
   ProductListQueryDto, OrderListQueryDto,
@@ -22,7 +22,7 @@ import { StrictThrottleGuard } from "../../common/throttle.guard";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
-  user: { id: string; [key: string]: unknown };
+  user: { id: string; roles: string[]; nickname?: string; [key: string]: unknown };
 };
 
 @ApiTags("商城")
@@ -78,8 +78,9 @@ export class ShopController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除商品" })
   @ApiBearerAuth()
-  deleteProduct(@Param("id") id: string) {
-    return this.shop.deleteProduct(id);
+  deleteProduct(@Req() req: AuthRequest, @Param("id") id: string) {
+    const isAdmin = req.user.roles?.includes("SUPER_ADMIN") || req.user.roles?.includes("OPERATION_ADMIN");
+    return this.shop.deleteProduct(req.user.id, id, isAdmin);
   }
 
   // ───────── SKU ─────────
@@ -88,16 +89,18 @@ export class ShopController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "添加商品SKU" })
   @ApiBearerAuth()
-  addSku(@Param("id") id: string, @Body() dto: CreateSkuDto) {
-    return this.shop.addSku(id, dto);
+  addSku(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: CreateSkuDto) {
+    const isAdmin = req.user.roles?.includes("SUPER_ADMIN") || req.user.roles?.includes("OPERATION_ADMIN");
+    return this.shop.addSku(req.user.id, id, dto, isAdmin);
   }
 
   @Delete("skus/:skuId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除商品SKU" })
   @ApiBearerAuth()
-  deleteSku(@Param("skuId") skuId: string) {
-    return this.shop.deleteSku(skuId);
+  deleteSku(@Req() req: AuthRequest, @Param("skuId") skuId: string) {
+    const isAdmin = req.user.roles?.includes("SUPER_ADMIN") || req.user.roles?.includes("OPERATION_ADMIN");
+    return this.shop.deleteSku(req.user.id, skuId, isAdmin);
   }
 
   // ───────── 订单 ─────────
@@ -142,8 +145,9 @@ export class ShopController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取订单详情" })
   @ApiBearerAuth()
-  getOrder(@Param("id") id: string) {
-    return this.shop.getOrder(id);
+  getOrder(@Req() req: AuthRequest, @Param("id") id: string) {
+    const isAdmin = req.user.roles?.includes("SUPER_ADMIN") || req.user.roles?.includes("OPERATION_ADMIN");
+    return this.shop.getOrder(id, req.user.id, isAdmin);
   }
 
   @Post("orders/:id/pay/jsapi")
@@ -174,8 +178,8 @@ export class ShopController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "查询订单支付状态" })
   @ApiBearerAuth()
-  queryPaymentStatus(@Param("id") id: string) {
-    return this.shop.queryPaymentStatus(id);
+  queryPaymentStatus(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.shop.queryPaymentStatus(id, req.user.id);
   }
 
   @Put("orders/:id/ship")
@@ -189,11 +193,12 @@ export class ShopController {
 
   @Put("orders/:id/pay")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "管理员确认支付" })
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "管理员确认支付（需提供实际支付流水号）" })
   @ApiBearerAuth()
-  adminPayOrder(@Param("id") id: string) {
-    return this.shop.adminPayOrder(id);
+  adminPayOrder(@Req() req: AuthRequest, @Param("id") id: string, @Body() body: { payTransactionId: string }) {
+    const u = req.user;
+    return this.shop.adminPayOrder(id, body.payTransactionId, u.nickname || u.id);
   }
 
   @Put("orders/:id/complete")
@@ -254,7 +259,7 @@ export class ShopController {
   @ApiOperation({ summary: "支付宝支付回调通知" })
   async handleAlipayNotify(@Req() req: AuthRequest) {
     const params = req.body;
-    const { valid, data, error } = await this.shop.verifyAlipayNotify(params);
+    const { valid, data } = await this.shop.verifyAlipayNotify(params);
     if (!valid || !data) return "fail";
     if ((data as any).dedup) return "success"; // 重复通知，返回成功避免重发
     await this.shop.handleAlipayNotify(data);
@@ -266,7 +271,7 @@ export class ShopController {
   @ApiOperation({ summary: "银联支付回调通知" })
   async handleUnionpayNotify(@Req() req: AuthRequest) {
     const params = req.body;
-    const { valid, data, error } = await this.shop.verifyUnionpayNotify(params);
+    const { valid, data } = await this.shop.verifyUnionpayNotify(params);
     if (!valid || !data) return "fail";
     if ((data as any).dedup) return "success";
     await this.shop.handleUnionpayNotify(data);

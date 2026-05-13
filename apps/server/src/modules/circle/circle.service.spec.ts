@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { CircleService } from "./circle.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { NotFoundException, ConflictException, ForbiddenException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   circle: {
@@ -80,7 +80,7 @@ describe("CircleService", () => {
 
     it("圈子不存在时抛 NotFoundException", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue(null);
-      await expect(svc.getDetail("c99")).rejects.toThrow(NotFoundException);
+      await expect(svc.getDetail("c99")).rejects.toThrow(BusinessException);
     });
 
     it("缓存命中直接返回", async () => {
@@ -119,13 +119,13 @@ describe("CircleService", () => {
 
     it("圈子不存在抛 NotFoundException", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue(null);
-      await expect(svc.join("c99", "u2")).rejects.toThrow(NotFoundException);
+      await expect(svc.join("c99", "u2")).rejects.toThrow(BusinessException);
     });
 
     it("重复加入抛 ConflictException", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE" });
       mockPrisma.circleMember.findUnique.mockResolvedValue({ userId: "u2", role: "MEMBER" });
-      await expect(svc.join("c1", "u2")).rejects.toThrow(ConflictException);
+      await expect(svc.join("c1", "u2")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -140,12 +140,12 @@ describe("CircleService", () => {
 
     it("圈主不能退出", async () => {
       mockPrisma.circleMember.findUnique.mockResolvedValue({ userId: "u1", role: "OWNER" });
-      await expect(svc.leave("c1", "u1")).rejects.toThrow(ForbiddenException);
+      await expect(svc.leave("c1", "u1")).rejects.toThrow(BusinessException);
     });
 
     it("未加入抛 NotFoundException", async () => {
       mockPrisma.circleMember.findUnique.mockResolvedValue(null);
-      await expect(svc.leave("c1", "u2")).rejects.toThrow(NotFoundException);
+      await expect(svc.leave("c1", "u2")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -162,7 +162,7 @@ describe("CircleService", () => {
       mockPrisma.circleMember.findUnique.mockResolvedValue(null);
       await expect(
         svc.createPost("c1", "u2", { title: "帖子", content: "内容", type: "TEXT" }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(BusinessException);
     });
   });
 
@@ -192,7 +192,7 @@ describe("CircleService", () => {
 
     it("非管理员无法移除", async () => {
       mockPrisma.circleMember.findUnique.mockResolvedValue(null);
-      await expect(svc.removeMember("c1", "u2", "u3")).rejects.toThrow(ForbiddenException);
+      await expect(svc.removeMember("c1", "u2", "u3")).rejects.toThrow(BusinessException);
     });
   });
 });

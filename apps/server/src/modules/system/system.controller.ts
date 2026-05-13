@@ -105,6 +105,28 @@ export class SystemController {
     return this.systemService.toggleMaintenance(body.enabled);
   }
 
+  // ── 自动化开关 ──
+
+  @Get("automation/status")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "查询自动化开关状态" })
+  @ApiBearerAuth()
+  async getAutomationStatus() {
+    const enabled = await this.systemService.isAutomationEnabled();
+    return { automationEnabled: enabled };
+  }
+
+  @Post("automation/toggle")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "一键接管 — 开/关自动化（关闭后 Claude 权限降为只读）" })
+  @ApiBearerAuth()
+  async toggleAutomation(@Body() body: { enabled: boolean }, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    const operator = u?.nickname || u?.id || "ADMIN";
+    return this.systemService.toggleAutomation(body.enabled, operator);
+  }
+
   /** 公开接口：获取首页 Banner */
   @Get("public/banners")
   @ApiOperation({ summary: "获取首页Banner（公开）" })
@@ -153,6 +175,64 @@ export class SystemController {
   @ApiBearerAuth()
   async getAuditActions() {
     return { actions: await this.systemService.getAuditActions() };
+  }
+
+  // ── 操作回滚 ──
+
+  @Get("rollbackable-logs")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取可回滚的审计日志列表" })
+  @ApiBearerAuth()
+  async getRollbackableLogs(
+    @Query("page") page = "1",
+    @Query("pageSize") pageSize = "20",
+    @Query("targetType") targetType?: string,
+    @Query("targetId") targetId?: string,
+  ) {
+    return this.systemService.getRollbackableLogs({ page: Number(page), pageSize: Number(pageSize), targetType, targetId });
+  }
+
+  @Get("audit-logs/:id/rollback-preview")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "预览回滚数据（回滚前查看将恢复的状态）" })
+  @ApiBearerAuth()
+  async previewRollback(@Param("id") id: string) {
+    return this.systemService.previewRollback(id);
+  }
+
+  @Post("audit-logs/:id/rollback")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "回滚操作 — 根据审计日志快照恢复状态" })
+  @ApiBearerAuth()
+  async rollbackAuditLog(@Param("id") id: string, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    return this.systemService.executeRollback(id, u?.nickname || u?.id || "ADMIN");
+  }
+
+  // ── Cron Webhook ──
+
+  @Post("cron/:jobName")
+  @ApiOperation({ summary: "定时任务触发入口（由 Vercel Cron / 阿里云函数计算调用）" })
+  @ApiQuery({ name: "secret", required: false, description: "Webhook 密钥（可选，生产环境建议配置）" })
+  async triggerCron(
+    @Param("jobName") jobName: string,
+    @Query("secret") secret?: string,
+  ) {
+    this.systemService.validateCronSecret(secret);
+    return this.systemService.executeCronJob(jobName);
+  }
+
+  @Get("cron-status")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "查询最近定时任务执行状态" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "limit", required: false, description: "返回最近 N 条记录", example: "10" })
+  async getCronStatus(@Query("limit") limit = "10") {
+    return { jobs: await this.systemService.getRecentCronJobs(Number(limit)) };
   }
 
   // ───────── 数据导出 ─────────
@@ -340,8 +420,9 @@ export class SystemController {
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "回滚配置到指定版本" })
   @ApiBearerAuth()
-  async rollbackConfig(@Body() dto: RollbackConfigDto) {
-    return this.systemService.rollbackConfig(dto.configKey, dto.version);
+  async rollbackConfig(@Body() dto: RollbackConfigDto, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    return this.systemService.rollbackConfig(dto.configKey, dto.version, u?.nickname || u?.id || "ADMIN");
   }
 
   @Get("config-diff")
@@ -402,12 +483,14 @@ export class SystemController {
   /** 发送文件到客户端 */
   private sendFile(res: Response, filePath: string, filename: string) {
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
     const stream = fs.createReadStream(filePath);
     stream.pipe(res);
-    // 发送完成后清理
+    stream.on("error", (err) => {
+      if (!res.headersSent) res.status(500).json({ message: "文件读取失败" });
+    });
     stream.on("end", () => {
-      try { fs.unlinkSync(filePath); } catch { /* cleanup best-effort */ }
+      fs.unlink(filePath, () => { /* cleanup best-effort */ });
     });
     return res;
   }

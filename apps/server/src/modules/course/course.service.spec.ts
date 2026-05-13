@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { CourseService } from "./course.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { NotFoundException, ForbiddenException, BadRequestException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   course: {
@@ -109,12 +109,12 @@ describe("CourseService", () => {
 
     it("课程不存在抛出 NotFoundException", async () => {
       mockPrisma.course.findUnique.mockResolvedValue(null);
-      await expect(svc.update("invalid", "u1", { title: "新标题" })).rejects.toThrow(NotFoundException);
+      await expect(svc.update("invalid", "u1", { title: "新标题" })).rejects.toThrow(BusinessException);
     });
 
     it("编辑他人课程抛出 ForbiddenException", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", userId: "u2" });
-      await expect(svc.update("co1", "u1", { title: "新标题" })).rejects.toThrow(ForbiddenException);
+      await expect(svc.update("co1", "u1", { title: "新标题" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -128,12 +128,12 @@ describe("CourseService", () => {
 
     it("课程不存在抛出 NotFoundException", async () => {
       mockPrisma.course.findUnique.mockResolvedValue(null);
-      await expect(svc.delete("invalid", "u1")).rejects.toThrow(NotFoundException);
+      await expect(svc.delete("invalid", "u1")).rejects.toThrow(BusinessException);
     });
 
     it("删除他人课程抛出 ForbiddenException", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", userId: "u2" });
-      await expect(svc.delete("co1", "u1")).rejects.toThrow(ForbiddenException);
+      await expect(svc.delete("co1", "u1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -161,7 +161,7 @@ describe("CourseService", () => {
     it("课程不存在抛出 NotFoundException", async () => {
       mockRedis.getJson.mockResolvedValue(null);
       mockPrisma.course.findUnique.mockResolvedValue(null);
-      await expect(svc.getDetail("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getDetail("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -205,7 +205,7 @@ describe("CourseService", () => {
 
     it("非所有者添加章节抛出 ForbiddenException", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", userId: "u2" });
-      await expect(svc.addChapter("co1", "u1", { title: "第一章" })).rejects.toThrow(ForbiddenException);
+      await expect(svc.addChapter("co1", "u1", { title: "第一章" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -271,7 +271,7 @@ describe("CourseService", () => {
       });
       mockPrisma.course.findUnique.mockResolvedValue({ price: 99, userId: "u2" });
       mockPrisma.order.findFirst.mockResolvedValue(null);
-      await expect(svc.getChapterContent("u1", "ch1")).rejects.toThrow(ForbiddenException);
+      await expect(svc.getChapterContent("u1", "ch1")).rejects.toThrow(BusinessException);
     });
 
     it("已购买用户可访问付费章节", async () => {
@@ -287,7 +287,7 @@ describe("CourseService", () => {
 
     it("章节不存在抛出 NotFoundException", async () => {
       mockPrisma.courseChapter.findUnique.mockResolvedValue(null);
-      await expect(svc.getChapterContent("u1", "invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getChapterContent("u1", "invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -309,7 +309,7 @@ describe("CourseService", () => {
 
     it("章节不存在抛出 NotFoundException", async () => {
       mockPrisma.courseChapter.findUnique.mockResolvedValue(null);
-      await expect(svc.updateProgress("u1", "invalid", { progress: 50 })).rejects.toThrow(NotFoundException);
+      await expect(svc.updateProgress("u1", "invalid", { progress: 50 })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -331,7 +331,7 @@ describe("CourseService", () => {
 
     it("章节不存在抛出 NotFoundException", async () => {
       mockPrisma.courseChapter.findUnique.mockResolvedValue(null);
-      await expect(svc.submitWork("u1", "invalid", { content: "作业" })).rejects.toThrow(NotFoundException);
+      await expect(svc.submitWork("u1", "invalid", { content: "作业" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -377,7 +377,7 @@ describe("CourseService", () => {
     it("已购买抛出 BadRequestException", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", price: 99, title: "论语" });
       mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", paidAt: new Date() });
-      await expect(svc.purchase("u1", "co1")).rejects.toThrow(BadRequestException);
+      await expect(svc.purchase("u1", "co1")).rejects.toThrow(BusinessException);
     });
 
     it("有未支付订单直接返回", async () => {
@@ -392,7 +392,7 @@ describe("CourseService", () => {
 
     it("课程不存在抛出 NotFoundException", async () => {
       mockPrisma.course.findUnique.mockResolvedValue(null);
-      await expect(svc.purchase("u1", "invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.purchase("u1", "invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -462,7 +462,7 @@ describe("CourseService", () => {
     it("未购买不能评价", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", price: 99, userId: "u2" });
       mockPrisma.order.findFirst.mockResolvedValue(null);
-      await expect(svc.createReview("u1", "co1", { rating: 5, content: "很棒" })).rejects.toThrow(ForbiddenException);
+      await expect(svc.createReview("u1", "co1", { rating: 5, content: "很棒" })).rejects.toThrow(BusinessException);
     });
 
     it("课程作者不需要购买也能评价", async () => {
@@ -481,18 +481,18 @@ describe("CourseService", () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", price: 99, userId: "u2" });
       mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", status: "PAID", paidAt: new Date() });
       mockPrisma.courseReview.findFirst.mockResolvedValue({ id: "r1" });
-      await expect(svc.createReview("u1", "co1", { rating: 3, content: "再次" })).rejects.toThrow(BadRequestException);
+      await expect(svc.createReview("u1", "co1", { rating: 3, content: "再次" })).rejects.toThrow(BusinessException);
     });
 
     it("评分范围校验", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", price: 0, userId: "u1" });
-      await expect(svc.createReview("u1", "co1", { rating: 6, content: "过高" })).rejects.toThrow(BadRequestException);
-      await expect(svc.createReview("u1", "co1", { rating: 0, content: "过低" })).rejects.toThrow(BadRequestException);
+      await expect(svc.createReview("u1", "co1", { rating: 6, content: "过高" })).rejects.toThrow(BusinessException);
+      await expect(svc.createReview("u1", "co1", { rating: 0, content: "过低" })).rejects.toThrow(BusinessException);
     });
 
     it("课程不存在抛出 NotFoundException", async () => {
       mockPrisma.course.findUnique.mockResolvedValue(null);
-      await expect(svc.createReview("u1", "invalid", { rating: 5, content: "好" })).rejects.toThrow(NotFoundException);
+      await expect(svc.createReview("u1", "invalid", { rating: 5, content: "好" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -556,7 +556,7 @@ describe("CourseService", () => {
 
     it("非课程作者查看统计抛出 ForbiddenException", async () => {
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1", userId: "u2", title: "别人的课" });
-      await expect(svc.getCourseStats("u1", "co1")).rejects.toThrow(ForbiddenException);
+      await expect(svc.getCourseStats("u1", "co1")).rejects.toThrow(BusinessException);
     });
   });
 });

@@ -1,7 +1,7 @@
 import { Test } from "@nestjs/testing"
 import { PaipanAiService } from "./paipan-ai.service"
 import { PrismaService } from "../../prisma/prisma.service"
-import { NotFoundException } from "@nestjs/common"
+import { BusinessException } from "../../common/business.exception"
 
 const mockPrisma = {
   aiAnalysisRecord: {
@@ -111,7 +111,7 @@ describe("PaipanAiService", () => {
 
     it("记录不存在", async () => {
       mockPrisma.aiAnalysisRecord.findFirst.mockResolvedValue(null)
-      await expect(svc.getAnalysisRecord("no", "u1")).rejects.toThrow(NotFoundException)
+      await expect(svc.getAnalysisRecord("no", "u1")).rejects.toThrow(BusinessException)
     })
   })
 
@@ -128,7 +128,7 @@ describe("PaipanAiService", () => {
 
     it("无分析记录", async () => {
       mockPrisma.aiAnalysisRecord.findFirst.mockResolvedValue(null)
-      await expect(svc.getAnalysisByPaipanRecord("no", "u1")).rejects.toThrow(NotFoundException)
+      await expect(svc.getAnalysisByPaipanRecord("no", "u1")).rejects.toThrow(BusinessException)
     })
   })
 

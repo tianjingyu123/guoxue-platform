@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -161,7 +161,7 @@ export class IdentityService {
   // ───────── 审核管理 ─────────
 
   /** 获取实名认证审核列表 */
-  async getIdentityAuditList(page: number, pageSize: number, status?: string) {
+  async getIdentityAuditList(page: number, pageSize: number, _status?: string) {
     const where: Record<string, unknown> = {
       OR: [
         { action: "IDENTITY_VERIFY" },
@@ -216,7 +216,7 @@ export class IdentityService {
   /** 通过实名认证 */
   async approveIdentity(id: string, remark?: string) {
     const log = await this.prisma.auditLog.findUnique({ where: { id } });
-    if (!log) throw new NotFoundException("认证记录不存在");
+    if (!log) throw new BusinessException(ErrorCode.IDENTITY_VERIFY_FAILED, "认证记录不存在");
 
     // 记录审批通过操作
     await this.prisma.auditLog.create({
@@ -236,7 +236,7 @@ export class IdentityService {
   /** 拒绝实名认证 */
   async rejectIdentity(id: string, remark: string) {
     const log = await this.prisma.auditLog.findUnique({ where: { id } });
-    if (!log) throw new NotFoundException("认证记录不存在");
+    if (!log) throw new BusinessException(ErrorCode.IDENTITY_VERIFY_FAILED, "认证记录不存在");
 
     // 记录审批拒绝操作
     await this.prisma.auditLog.create({

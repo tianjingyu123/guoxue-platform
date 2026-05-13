@@ -19,7 +19,7 @@ export class SearchHotStrategy extends BaseRecommendStrategy {
     return scene === RecommendScene.SEARCH_EMPTY;
   }
 
-  async recommend(ctx: RecommendContext): Promise<RecommendItem[]> {
+  async recommend(_ctx: RecommendContext): Promise<RecommendItem[]> {
     // 查询近 7 天热门搜索词（从 RecommendLog 中聚合搜索行为）
     const since = new Date();
     since.setDate(since.getDate() - 7);

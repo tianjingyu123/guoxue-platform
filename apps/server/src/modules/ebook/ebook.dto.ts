@@ -203,6 +203,8 @@ export class EbookListQueryDto {
   @IsOptional() @IsString() categoryId?: string;
   @ApiPropertyOptional({ description: "关键词搜索" })
   @IsOptional() @IsString() keyword?: string;
+  @ApiPropertyOptional({ description: "状态筛选" })
+  @IsOptional() @IsString() status?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page?: number;
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) pageSize?: number;
 }

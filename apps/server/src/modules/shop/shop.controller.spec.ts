@@ -115,19 +115,19 @@ describe("ShopController", () => {
   });
 
   it("DELETE /shop/products/:id — 删除商品", async () => {
-    const result: any = await ctrl.deleteProduct("p1");
+    const result: any = await ctrl.deleteProduct({ user: { id: "u1", roles: [] } } as any, "p1");
     expect(result.success).toBe(true);
   });
 
   // ─── SKU ───
   it("POST /shop/products/:id/skus — 添加SKU", async () => {
     const dto: any = { name: "标准版", price: 99, stock: 100 };
-    const result: any = await ctrl.addSku("p1", dto);
+    const result: any = await ctrl.addSku({ user: { id: "u1", roles: [] } } as any, "p1", dto);
     expect(result.name).toBe("标准版");
   });
 
   it("DELETE /shop/skus/:skuId — 删除SKU", async () => {
-    const result: any = await ctrl.deleteSku("sku1");
+    const result: any = await ctrl.deleteSku({ user: { id: "u1", roles: [] } } as any, "sku1");
     expect(result.success).toBe(true);
   });
 
@@ -152,7 +152,7 @@ describe("ShopController", () => {
   });
 
   it("GET /shop/orders/:id — 订单详情", async () => {
-    const result: any = await ctrl.getOrder("o1");
+    const result: any = await ctrl.getOrder({ user: { id: "u1", roles: [] } } as any, "o1");
     expect(result.status).toBe("PAID");
   });
 
@@ -170,7 +170,7 @@ describe("ShopController", () => {
   });
 
   it("GET /shop/orders/:id/payment-status — 支付状态", async () => {
-    const result: any = await ctrl.queryPaymentStatus("o1");
+    const result: any = await ctrl.queryPaymentStatus({ user: { id: "u1", roles: [] } } as any, "o1");
     expect(result.status).toBe("PAID");
   });
 
@@ -180,7 +180,7 @@ describe("ShopController", () => {
   });
 
   it("PUT /shop/orders/:id/pay — 管理员确认支付", async () => {
-    const result: any = await ctrl.adminPayOrder("o1");
+    const result: any = await ctrl.adminPayOrder({ user: { id: "admin", roles: ["SUPER_ADMIN"], nickname: "管理员" } } as any, "o1", { payTransactionId: "TXN-001" });
     expect(result.status).toBe("PAID");
   });
 

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsArray, IsBoolean, MinLength, MaxLength, IsNumber, IsInt, Min, Max } from "class-validator";
+import { IsString, IsOptional, IsArray, MinLength, MaxLength, IsNumber, IsInt, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateCircleDto {
@@ -27,6 +27,7 @@ export class CreateCircleDto {
 
   @ApiProperty({ description: "圈子类型", enum: ["FREE", "PAID", "YEARLY"], example: "FREE" })
   @IsString()
+  @MinLength(1)
   type: string;
 
   @ApiPropertyOptional({ description: "付费金额（分），PAID/YEARLY 时必填" })
@@ -77,6 +78,7 @@ export class UpdateCircleDto {
 export class CreatePostDto {
   @ApiProperty({ description: "帖子类型", enum: ["TEXT", "IMAGE", "VIDEO", "FILE", "LINK"], example: "TEXT" })
   @IsString()
+  @MinLength(1)
   type: string;
 
   @ApiPropertyOptional({ description: "帖子标题" })
@@ -86,6 +88,7 @@ export class CreatePostDto {
 
   @ApiProperty({ description: "帖子内容" })
   @IsString()
+  @MinLength(1)
   content: string;
 
   @ApiPropertyOptional({ description: "图片URL列表" })
@@ -124,6 +127,7 @@ export class JoinCircleDto {
 export class UpdateMemberRoleDto {
   @ApiProperty({ description: "成员角色", enum: ["PARTNER", "ADMIN", "GUEST", "VOLUNTEER", "MEMBER"] })
   @IsString()
+  @MinLength(1)
   role: string;
 }
 

@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SystemService } from "../system/system.service";
 import { MERCHANT_CONFIG_KEYS } from "./merchant.types";
-import { PaginationDto, SetCommissionRateDto, PaySettlementDto } from "./merchant.dto";
+import { PaginationDto, SetCommissionRateDto } from "./merchant.dto";
 
 @Injectable()
 export class MerchantSettlementService {
@@ -14,7 +16,7 @@ export class MerchantSettlementService {
   /** 商家收入概览 */
   async getRevenueOverview(merchantId: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
-    if (!merchant) throw new NotFoundException("商家不存在");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
 
     const salesAgg = await this.prisma.order.aggregate({
       where: { merchantId, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
@@ -39,7 +41,7 @@ export class MerchantSettlementService {
   /** 结算计算 */
   async calculateCommission(orderAmount: number, merchantId: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
-    if (!merchant) throw new NotFoundException("商家不存在");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
 
     const cfg = await this.systemService.getConfig(MERCHANT_CONFIG_KEYS.COMMISSION_RATE);
     const defaultRate = cfg ? parseFloat(cfg.configValue) : 0.85;
@@ -62,7 +64,7 @@ export class MerchantSettlementService {
   /** 管理员设置分佣比例 */
   async setCommissionRate(merchantId: string, dto: SetCommissionRateDto) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
-    if (!merchant) throw new NotFoundException("商家不存在");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
 
     return this.prisma.merchant.update({
       where: { id: merchantId },

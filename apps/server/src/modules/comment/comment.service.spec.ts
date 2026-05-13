@@ -1,7 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { CommentService } from "./comment.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { NotFoundException, ForbiddenException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   comment: {
@@ -37,11 +37,11 @@ describe("CommentService", () => {
     });
     it("回复时父评论不存在抛出 NotFoundException", async () => {
       mockPrisma.comment.findUnique.mockResolvedValue(null);
-      await expect(svc.create("u1", { targetType: "ARTICLE", targetId: "a1", content: "回复", parentId: "invalid" })).rejects.toThrow(NotFoundException);
+      await expect(svc.create("u1", { targetType: "ARTICLE", targetId: "a1", content: "回复", parentId: "invalid" })).rejects.toThrow(BusinessException);
     });
     it("回复时目标不匹配抛出 ForbiddenException", async () => {
       mockPrisma.comment.findUnique.mockResolvedValue({ id: "p1", targetType: "VIDEO", targetId: "v1" });
-      await expect(svc.create("u1", { targetType: "ARTICLE", targetId: "a1", content: "回复", parentId: "p1" })).rejects.toThrow(ForbiddenException);
+      await expect(svc.create("u1", { targetType: "ARTICLE", targetId: "a1", content: "回复", parentId: "p1" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -65,7 +65,7 @@ describe("CommentService", () => {
     });
     it("父评论不存在抛出 NotFoundException", async () => {
       mockPrisma.comment.findUnique.mockResolvedValue(null);
-      await expect(svc.findReplies("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.findReplies("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -78,7 +78,7 @@ describe("CommentService", () => {
     });
     it("评论不存在抛出 NotFoundException", async () => {
       mockPrisma.comment.findUnique.mockResolvedValue(null);
-      await expect(svc.like("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.like("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -91,7 +91,7 @@ describe("CommentService", () => {
     });
     it("删除他人评论抛出 ForbiddenException", async () => {
       mockPrisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u2" });
-      await expect(svc.delete("u1", "c1")).rejects.toThrow(ForbiddenException);
+      await expect(svc.delete("u1", "c1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -104,7 +104,7 @@ describe("CommentService", () => {
     });
     it("评论不存在抛出 NotFoundException", async () => {
       mockPrisma.comment.findUnique.mockResolvedValue(null);
-      await expect(svc.hide("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.hide("invalid")).rejects.toThrow(BusinessException);
     });
   });
 

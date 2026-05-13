@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, Min, Max } from "class-validator";
+import { IsString, IsOptional, IsInt, Min, Max, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 
 export class MiniHomeQueryDto {
@@ -42,10 +42,12 @@ export class MiniContentQueryDto {
 export class MiniShareQueryDto {
   @ApiProperty({ description: "分享目标类型", example: "CONTENT" })
   @IsString()
+  @MinLength(1)
   targetType: string;
 
   @ApiProperty({ description: "分享目标ID" })
   @IsString()
+  @MinLength(1)
   targetId: string;
 
   @ApiPropertyOptional({ description: "分站ID" })

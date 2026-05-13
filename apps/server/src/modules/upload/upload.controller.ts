@@ -1,8 +1,8 @@
 import {
-  Controller, Post, Delete, Get, UseGuards, UseInterceptors,
-  UploadedFile, UploadedFiles, BadRequestException, Param, Query,
+  Controller, Post, Delete, UseGuards, UseInterceptors,
+  UploadedFile, UploadedFiles, BadRequestException, Param,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { UploadService } from "./upload.service";

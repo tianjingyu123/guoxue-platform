@@ -91,7 +91,7 @@ export class InstituteController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "验证任务（管理员）" })
   @ApiBearerAuth()
-  verifyTask(@Param("id") taskId: string, @Req() req: Request, @Body() dto?: VerifyTaskDto) {
+  verifyTask(@Param("id") taskId: string, @Req() req: Request, @Body() _dto?: VerifyTaskDto) {
     return this.svc.verifyTask(taskId, req.user.id);
   }
 

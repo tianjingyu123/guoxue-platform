@@ -1,4 +1,4 @@
-import { IsString, IsInt, IsOptional, IsObject, Min, Max, IsBoolean } from "class-validator";
+import { IsString, IsInt, IsOptional, IsObject, Min, Max, MinLength } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 /** A/B 实验状态 */
@@ -37,6 +37,7 @@ export interface AbTestConfig {
 export class CreateAbTestDto {
   @ApiProperty({ description: "实验名称" })
   @IsString()
+  @MinLength(1)
   name: string;
 
   @ApiPropertyOptional({ description: "实验描述" })

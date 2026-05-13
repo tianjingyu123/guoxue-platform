@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, MinLength, MaxLength, IsPhoneNumber } from "class-validator";
+import { IsString, IsOptional, IsInt, MinLength, MaxLength } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PhoneRegisterDto {
@@ -10,6 +10,7 @@ export class PhoneRegisterDto {
 
   @ApiProperty({ description: "手机号", example: "13800138000" })
   @IsString()
+  @MinLength(1)
   phone: string;
 
   @ApiProperty({ description: "密码，至少6位", example: "123456" })
@@ -27,18 +28,22 @@ export class PhoneRegisterDto {
 export class PhoneLoginDto {
   @ApiProperty({ description: "手机号", example: "13800138000" })
   @IsString()
+  @MinLength(1)
   phone: string;
 
   @ApiProperty({ description: "密码", example: "123456" })
   @IsString()
+  @MinLength(1)
   password: string;
 }
 
 export class SmsLoginDto {
   @IsString()
+  @MinLength(1)
   phone: string;
 
   @IsString()
+  @MinLength(1)
   code: string;
 
   @IsString()
@@ -48,12 +53,14 @@ export class SmsLoginDto {
 
 export class SendCodeDto {
   @IsString()
+  @MinLength(1)
   phone: string;
 }
 
 export class WechatLoginDto {
   @ApiProperty({ description: "微信授权 code", example: "081xxx" })
   @IsString()
+  @MinLength(1)
   code: string;
 
   @ApiPropertyOptional({ description: "登录类型：h5 或 miniprogram", example: "h5", default: "h5" })
@@ -80,10 +87,12 @@ export class WechatLoginDto {
 export class MiniPhoneLoginDto {
   @ApiProperty({ description: "wx.login 返回的 code", example: "081xxx" })
   @IsString()
+  @MinLength(1)
   wxCode: string;
 
   @ApiProperty({ description: "getPhoneNumber 返回的 code（新API）或加密数据", example: "xxx" })
   @IsString()
+  @MinLength(1)
   phoneCode: string;
 
   @ApiPropertyOptional({ description: "加密数据iv（旧版getPhoneNumber需要）" })
@@ -118,6 +127,7 @@ export class UpdateProfileDto {
 
 export class ChangePasswordDto {
   @IsString()
+  @MinLength(1)
   oldPassword: string;
 
   @IsString()

@@ -1,7 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { MarketingService } from "./marketing.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const makeMockPrisma = () => {
   const mock: any = {
@@ -76,12 +76,13 @@ describe("MarketingService", () => {
   describe("createFlashSale", () => {
     it("创建秒杀成功", async () => {
       mockPrisma.flashSale.create.mockResolvedValue({ id: "fs1", items: [] });
-      const result = await svc.createFlashSale({ startTime: "2026-06-01T00:00:00Z", endTime: "2026-06-02T00:00:00Z" });
+      mockPrisma.flashSale.findUnique.mockResolvedValue({ id: "fs1", items: [] });
+      const result: any = await svc.createFlashSale({ name: "测试秒杀", startTime: "2026-06-01T00:00:00Z", endTime: "2026-06-02T00:00:00Z" });
       expect(result.id).toBe("fs1");
     });
 
     it("开始时间晚于结束时间抛出异常", async () => {
-      await expect(svc.createFlashSale({ startTime: "2026-06-02T00:00:00Z", endTime: "2026-06-01T00:00:00Z" })).rejects.toThrow(BadRequestException);
+      await expect(svc.createFlashSale({ name: "测试秒杀", startTime: "2026-06-02T00:00:00Z", endTime: "2026-06-01T00:00:00Z" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -98,13 +99,13 @@ describe("MarketingService", () => {
     it("更新秒杀成功", async () => {
       mockPrisma.flashSale.findUnique.mockResolvedValue({ id: "fs1", startTime: new Date("2026-06-01"), endTime: new Date("2026-06-02") });
       mockPrisma.flashSale.update.mockResolvedValue({ id: "fs1", items: [] });
-      const result = await svc.updateFlashSale("fs1", { warmupMinutes: 10 });
+      const result: any = await svc.updateFlashSale("fs1", { warmupMinutes: 10 });
       expect(result.id).toBe("fs1");
     });
 
     it("秒杀不存在抛出异常", async () => {
       mockPrisma.flashSale.findUnique.mockResolvedValue(null);
-      await expect(svc.updateFlashSale("invalid", {})).rejects.toThrow(NotFoundException);
+      await expect(svc.updateFlashSale("invalid", {})).rejects.toThrow(BusinessException);
     });
   });
 
@@ -127,7 +128,7 @@ describe("MarketingService", () => {
 
     it("秒杀活动不存在抛出异常", async () => {
       mockPrisma.flashSale.findUnique.mockResolvedValue(null);
-      await expect(svc.addFlashSaleItem("invalid", { productId: "p1", flashPrice: 9.9, stock: 100 })).rejects.toThrow(NotFoundException);
+      await expect(svc.addFlashSaleItem("invalid", { productId: "p1", flashPrice: 9.9, stock: 100 })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -141,7 +142,7 @@ describe("MarketingService", () => {
 
     it("无商品无法启动", async () => {
       mockPrisma.flashSale.findUnique.mockResolvedValue({ id: "fs1", items: [] });
-      await expect(svc.startFlashSale("fs1")).rejects.toThrow(BadRequestException);
+      await expect(svc.startFlashSale("fs1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -187,7 +188,7 @@ describe("MarketingService", () => {
     it("领取时间校验失败", async () => {
       await expect(svc.createCouponTemplate({
         name: "x", type: "FIXED", faceValue: 10, startTime: "2026-07-01T00:00:00Z", endTime: "2026-06-01T00:00:00Z",
-      })).rejects.toThrow(BadRequestException);
+      })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -201,7 +202,7 @@ describe("MarketingService", () => {
 
     it("已领完抛出异常", async () => {
       mockPrisma.couponTemplate.findUnique.mockResolvedValue({ id: "ct1", totalCount: 100, claimedCount: 100 });
-      await expect(svc.grantCoupon("ct1", { userId: "u1" })).rejects.toThrow(BadRequestException);
+      await expect(svc.grantCoupon("ct1", { userId: "u1" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -240,7 +241,7 @@ describe("MarketingService", () => {
     it("时间校验失败", async () => {
       await expect(svc.createDiscount({
         name: "x", discountPct: 80, startTime: "2026-06-18T00:00:00Z", endTime: "2026-06-01T00:00:00Z", productIds: ["p1"],
-      })).rejects.toThrow(BadRequestException);
+      })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -306,7 +307,7 @@ describe("MarketingService", () => {
       mockPrisma.marketingPage.findUnique.mockResolvedValue(null);
       await expect(svc.createActivity({
         name: "x", startTime: "2026-06-01T00:00:00Z", endTime: "2026-06-15T00:00:00Z", pageId: "invalid",
-      })).rejects.toThrow(NotFoundException);
+      })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -340,7 +341,7 @@ describe("MarketingService", () => {
     it("减金额不小于满金额抛出异常", async () => {
       await expect(svc.createFullReduction({
         name: "x", threshold: 100, reduction: 100, startTime: "2026-06-01T00:00:00Z", endTime: "2026-06-30T00:00:00Z",
-      })).rejects.toThrow(BadRequestException);
+      })).rejects.toThrow(BusinessException);
     });
   });
 

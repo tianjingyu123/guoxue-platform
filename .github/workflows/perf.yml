@@ -29,6 +29,8 @@ env:
   REDIS_URL: 'redis://localhost:6379'
   ENCRYPTION_KEY: 'perf-test-key-32bytes-long!!'
   JWT_SECRET: 'perf-test-jwt-secret-key!!'
+  DISABLE_RATE_LIMIT: 'true'
+  BULLMQ_DISABLED: 'true'
   SCENARIO: ${{ github.event.inputs.scenario || 'load' }}
 
 jobs:
@@ -93,7 +95,7 @@ jobs:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: 构建服务
-        run: pnpm build:server
+        run: pnpm --filter @guoxue/server build
         timeout-minutes: 5
 
       - name: 启动服务
@@ -161,4 +163,4 @@ jobs:
       - name: 停止服务
         if: always()
         run: |
-          pkill -f "node dist/main.js" || true
+          kill $(lsof -t -i:3000) 2>/dev/null || true

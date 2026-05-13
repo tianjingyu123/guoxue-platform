@@ -6,7 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { JwtService } from "@nestjs/jwt";
 import { RedisService } from "../../redis/redis.service";
 import { WebhookService } from "../webhook/webhook.service";
-import { ConflictException, UnauthorizedException, BadRequestException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 jest.mock("bcryptjs");
 import * as bcrypt from "bcryptjs";
@@ -76,7 +76,7 @@ describe("AuthService", () => {
     });
     it("手机号已注册抛出 ConflictException", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: "existing" });
-      await expect(svc.phoneRegister({ nickname: "张三", phone: "13800138000", password: "123456" })).rejects.toThrow(ConflictException);
+      await expect(svc.phoneRegister({ nickname: "张三", phone: "13800138000", password: "123456" })).rejects.toThrow(BusinessException);
     });
     it("带推荐码注册成功", async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
@@ -106,14 +106,14 @@ describe("AuthService", () => {
     });
     it("手机号不存在抛出 UnauthorizedException", async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
-      await expect(svc.phoneLogin({ phone: "13800138000", password: "123456" })).rejects.toThrow(UnauthorizedException);
+      await expect(svc.phoneLogin({ phone: "13800138000", password: "123456" })).rejects.toThrow(BusinessException);
     });
     it("密码错误抛出 UnauthorizedException", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({
         id: "user-1", auths: [{ provider: "PASSWORD", credential: "hashed" }],
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-      await expect(svc.phoneLogin({ phone: "13800138000", password: "wrong" })).rejects.toThrow(UnauthorizedException);
+      await expect(svc.phoneLogin({ phone: "13800138000", password: "wrong" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -140,11 +140,11 @@ describe("AuthService", () => {
     });
     it("验证码错误抛出 BadRequestException", async () => {
       mockRedis.get.mockResolvedValue("654321");
-      await expect(svc.smsLogin({ phone: "13800138000", code: "123456" })).rejects.toThrow(BadRequestException);
+      await expect(svc.smsLogin({ phone: "13800138000", code: "123456" })).rejects.toThrow(BusinessException);
     });
     it("验证码过期抛出 BadRequestException", async () => {
       mockRedis.get.mockResolvedValue(null);
-      await expect(svc.smsLogin({ phone: "13800138000", code: "123456" })).rejects.toThrow(BadRequestException);
+      await expect(svc.smsLogin({ phone: "13800138000", code: "123456" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -159,7 +159,7 @@ describe("AuthService", () => {
 
   describe("wechatLogin", () => {
     it("微信登录暂未开放", async () => {
-      await expect(svc.wechatLogin({ code: "code" })).rejects.toThrow(BadRequestException);
+      await expect(svc.wechatLogin({ code: "code" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -200,12 +200,12 @@ describe("AuthService", () => {
     });
     it("未设置密码抛出 BadRequestException", async () => {
       mockPrisma.auth.findFirst.mockResolvedValue(null);
-      await expect(svc.changePassword("user-1", { oldPassword: "123456", newPassword: "654321" })).rejects.toThrow(BadRequestException);
+      await expect(svc.changePassword("user-1", { oldPassword: "123456", newPassword: "654321" })).rejects.toThrow(BusinessException);
     });
     it("原密码错误抛出 BadRequestException", async () => {
       mockPrisma.auth.findFirst.mockResolvedValue({ id: "auth-1", credential: "hash" });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-      await expect(svc.changePassword("user-1", { oldPassword: "wrong", newPassword: "654321" })).rejects.toThrow(BadRequestException);
+      await expect(svc.changePassword("user-1", { oldPassword: "wrong", newPassword: "654321" })).rejects.toThrow(BusinessException);
     });
   });
 });

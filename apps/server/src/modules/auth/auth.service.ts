@@ -1,10 +1,9 @@
 import {
   Injectable,
-  UnauthorizedException,
-  ConflictException,
-  BadRequestException,
   Logger,
 } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
 import * as crypto from "crypto";
@@ -50,7 +49,7 @@ export class AuthService {
   /** 使用 refreshToken 换取新的 accessToken（轮换刷新） */
   async refreshToken(refreshToken: string) {
     const userId = await this.redis.get(`refresh:${refreshToken}`);
-    if (!userId) throw new UnauthorizedException("refreshToken 无效或已过期");
+    if (!userId) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "refreshToken 无效或已过期");
     // 轮换：删除旧 token 防止重放攻击
     await this.redis.del(`refresh:${refreshToken}`);
     return this.generateTokenPair(userId);
@@ -69,7 +68,7 @@ export class AuthService {
 
   async phoneRegister(dto: PhoneRegisterDto) {
     const existing = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
-    if (existing) throw new ConflictException("手机号已注册");
+    if (existing) throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已注册");
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
     let user: User;
@@ -82,7 +81,7 @@ export class AuthService {
         },
       });
     } catch (e: unknown) {
-      if ((e as { code?: string })?.code === "P2002") throw new ConflictException("手机号已注册");
+      if ((e as { code?: string })?.code === "P2002") throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已注册");
       throw e;
     }
 
@@ -101,13 +100,13 @@ export class AuthService {
       where: { phone: dto.phone },
       include: { auths: { where: { provider: "PASSWORD" } } },
     });
-    if (!user) throw new UnauthorizedException("手机号或密码错误");
+    if (!user) throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "手机号或密码错误");
 
     const auth = user.auths[0];
-    if (!auth?.credential) throw new UnauthorizedException("账号未设置密码");
+    if (!auth?.credential) throw new BusinessException(ErrorCode.BAD_REQUEST, "账号未设置密码");
 
     const valid = await bcrypt.compare(dto.password, auth.credential);
-    if (!valid) throw new UnauthorizedException("手机号或密码错误");
+    if (!valid) throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "手机号或密码错误");
 
     this.importToIm(user.id, user.nickname);
     return this.buildLoginResult(user.id);
@@ -157,7 +156,7 @@ export class AuthService {
 
   async wechatLogin(dto: WechatLoginDto) {
     if (!process.env.WECHAT_APP_ID || !process.env.WECHAT_APP_SECRET) {
-      throw new BadRequestException("微信登录未配置，请联系管理员");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "微信登录未配置，请联系管理员");
     }
 
     // 用 code 换取 openId（自动判断 H5 OAuth 还是小程序）
@@ -176,11 +175,11 @@ export class AuthService {
       }
     } catch (e: unknown) {
       this.logger.error("微信 code 换取失败", (e as Error).message);
-      throw new BadRequestException((e as Error).message || "微信授权失败，请重试");
+      throw new BusinessException(ErrorCode.AUTH_WECHAT_FAILED, (e as Error).message || "微信授权失败，请重试");
     }
 
     if (!openId) {
-      throw new BadRequestException("微信授权失败，未获取到 openId");
+      throw new BusinessException(ErrorCode.AUTH_WECHAT_FAILED, "微信授权失败，未获取到 openId");
     }
 
     // 查找已有的微信认证记录
@@ -260,7 +259,7 @@ export class AuthService {
     const { openId, sessionKey } = session;
 
     if (!openId) {
-      throw new BadRequestException("微信授权失败，未获取到 openId");
+      throw new BusinessException(ErrorCode.AUTH_WECHAT_FAILED, "微信授权失败，未获取到 openId");
     }
 
     // 2. 获取手机号
@@ -276,11 +275,11 @@ export class AuthService {
       }
     } catch (err: unknown) {
       this.logger.error("获取手机号失败", (err as Error).message);
-      throw new BadRequestException("获取手机号失败，请重试");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "获取手机号失败，请重试");
     }
 
     if (!phone) {
-      throw new BadRequestException("未能获取手机号");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "未能获取手机号");
     }
 
     // 3. 通过手机号查找或创建用户
@@ -360,10 +359,10 @@ export class AuthService {
     const auth = await this.prisma.auth.findFirst({
       where: { userId, provider: "PASSWORD" },
     });
-    if (!auth?.credential) throw new BadRequestException("未设置密码");
+    if (!auth?.credential) throw new BusinessException(ErrorCode.BAD_REQUEST, "未设置密码");
 
     const valid = await bcrypt.compare(dto.oldPassword, auth.credential);
-    if (!valid) throw new BadRequestException("原密码错误");
+    if (!valid) throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "原密码错误");
 
     const newHash = await bcrypt.hash(dto.newPassword, 10);
     await this.prisma.auth.update({
@@ -428,8 +427,8 @@ export class AuthService {
   private async verifySmsCode(phone: string, code: string) {
     const smsKey = `sms_code:${phone}`;
     const storedCode = await this.redis.get(smsKey);
-    if (!storedCode) throw new BadRequestException("验证码已过期，请重新发送");
-    if (storedCode !== code) throw new BadRequestException("验证码错误");
+    if (!storedCode) throw new BusinessException(ErrorCode.AUTH_SMS_CODE_EXPIRED, "验证码已过期，请重新发送");
+    if (storedCode !== code) throw new BusinessException(ErrorCode.AUTH_SMS_CODE_INVALID, "验证码错误");
     // 验证成功后删除已使用的验证码
     await this.redis.del(smsKey);
   }

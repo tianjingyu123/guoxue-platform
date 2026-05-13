@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
-  IsString, IsOptional, IsArray, IsBoolean, IsNumber, IsIn, Min, Max, MaxLength, Matches, IsNumberString,
+  IsString, IsOptional, IsArray, IsBoolean, IsNumber, IsIn, Min, Max, MaxLength, Matches, MinLength,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -9,6 +9,7 @@ import { Type } from "class-transformer";
 export class CreateMerchantApplyDto {
   @ApiProperty({ description: "店铺名称" })
   @IsString()
+  @MinLength(1)
   shopName: string;
 
   @ApiPropertyOptional({ description: "店铺Logo URL" })
@@ -21,14 +22,19 @@ export class CreateMerchantApplyDto {
 
   @ApiProperty({ description: "联系人姓名" })
   @IsString()
+  @MinLength(1)
   contactName: string;
 
   @ApiProperty({ description: "联系电话" })
-  @IsString() @Matches(/^1[3-9]\d{9}$/)
+  @IsString()
+  @MinLength(1)
+  @Matches(/^1[3-9]\d{9}$/)
   contactPhone: string;
 
   @ApiProperty({ description: "身份证号" })
-  @IsString() @Matches(/^[1-9]\d{5}(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/)
+  @IsString()
+  @MinLength(1)
+  @Matches(/^[1-9]\d{5}(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/)
   idCardNumber: string;
 
   @ApiPropertyOptional({ description: "身份证正面照URL" })
@@ -120,6 +126,7 @@ export class PayDepositDto {
 export class SignAgreementDto {
   @ApiProperty({ description: "协议版本号" })
   @IsString()
+  @MinLength(1)
   version: string;
 
   @ApiProperty({ description: "同意协议标识", default: true })
@@ -148,6 +155,7 @@ export class ApproveMerchantDto {
 export class RejectMerchantDto {
   @ApiProperty({ description: "驳回原因" })
   @IsString()
+  @MinLength(1)
   reason: string;
 }
 
@@ -172,10 +180,12 @@ export class CreateViolationDto {
 
   @ApiProperty({ description: "违规标题" })
   @IsString()
+  @MinLength(1)
   title: string;
 
   @ApiProperty({ description: "违规描述" })
   @IsString()
+  @MinLength(1)
   description: string;
 
   @ApiPropertyOptional({ description: "罚款金额" })
@@ -205,6 +215,7 @@ export class HandleViolationDto {
 export class AppealViolationDto {
   @ApiProperty({ description: "申诉内容" })
   @IsString()
+  @MinLength(1)
   appeal: string;
 }
 
@@ -259,14 +270,17 @@ export class PaySettlementDto {
 export class CreateAgreementDto {
   @ApiProperty({ description: "版本号" })
   @IsString()
+  @MinLength(1)
   version: string;
 
   @ApiProperty({ description: "协议标题" })
   @IsString()
+  @MinLength(1)
   title: string;
 
   @ApiProperty({ description: "协议内容（HTML/Markdown）" })
   @IsString()
+  @MinLength(1)
   content: string;
 }
 
@@ -351,16 +365,19 @@ export class MerchantOrderQueryDto {
 export class ShipOrderDto {
   @ApiProperty({ description: "物流公司" })
   @IsString()
+  @MinLength(1)
   company: string;
 
   @ApiProperty({ description: "快递单号" })
   @IsString()
+  @MinLength(1)
   trackingNo: string;
 }
 
 export class RejectRefundDto {
   @ApiProperty({ description: "拒绝原因" })
   @IsString()
+  @MinLength(1)
   reason: string;
 }
 
@@ -384,6 +401,7 @@ export class ReviewQueryDto {
 export class ReplyReviewDto {
   @ApiProperty({ description: "回复内容" })
   @IsString()
+  @MinLength(1)
   reply: string;
 }
 
@@ -402,6 +420,7 @@ export class PaginationDto {
 export class MerchantProductDto {
   @ApiProperty({ description: "商品标题" })
   @IsString()
+  @MinLength(1)
   title: string;
 
   @ApiPropertyOptional({ description: "商品简介" })
@@ -410,6 +429,7 @@ export class MerchantProductDto {
 
   @ApiProperty({ description: "商品详情（HTML）" })
   @IsString()
+  @MinLength(1)
   detail: string;
 
   @ApiPropertyOptional({ description: "商品图片" })

@@ -7,7 +7,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import {
   CreateStationDto, CreateOfflineCourseDto, UpdateMemberDto, AuditStationDto,
-  RegisterCourseDto, SignInCourseDto,
+  SignInCourseDto,
   CreateProductDto, UpdateProductDto,
   CreateTeacherBookingDto,
   CreateStationOrderDto, CreateSettlementDto,

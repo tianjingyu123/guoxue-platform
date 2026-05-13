@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { MerchantAgreementService } from "./merchant-agreement.service";
 import { MerchantService } from "./merchant.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockMerchantSvc = {
   handleAgreementSigned: jest.fn().mockResolvedValue({ id: "m1" }),
@@ -48,7 +48,7 @@ describe("MerchantAgreementService", () => {
 
     it("无可用协议抛出异常", async () => {
       mockPrisma.merchantAgreement.findFirst.mockResolvedValue(null);
-      await expect(svc.getLatestAgreement()).rejects.toThrow(NotFoundException);
+      await expect(svc.getLatestAgreement()).rejects.toThrow(BusinessException);
     });
   });
 
@@ -67,12 +67,12 @@ describe("MerchantAgreementService", () => {
 
     it("不同意协议抛出异常", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "AGREEMENT_PENDING" });
-      await expect(svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: false })).rejects.toThrow(BadRequestException);
+      await expect(svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: false })).rejects.toThrow(BusinessException);
     });
 
     it("状态不正确抛出异常", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "PENDING_REVIEW" });
-      await expect(svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: true })).rejects.toThrow(BadRequestException);
+      await expect(svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: true })).rejects.toThrow(BusinessException);
     });
   });
 

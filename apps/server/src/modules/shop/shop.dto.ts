@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, Max, IsBoolean, IsObject } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsEnum, IsArray, Min, Max, IsBoolean, IsObject, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -15,6 +15,7 @@ export class CreateProductDto {
 
   @ApiProperty({ description: "商品标题" })
   @IsString()
+  @MinLength(1)
   title: string;
 
   @ApiPropertyOptional({ description: "分类ID" })
@@ -106,10 +107,12 @@ export class CreateSkuDto {
 export class CreateOrderDto {
   @ApiProperty({ description: "订单类型（COURSE/PRODUCT/MEMBER/CIRCLE/BOT）" })
   @IsString()
+  @MinLength(1)
   type: string;
 
   @ApiProperty({ description: "购买目标ID" })
   @IsString()
+  @MinLength(1)
   targetId: string;
 
   @ApiPropertyOptional({ description: "SKU ID" })
@@ -137,6 +140,7 @@ export class CreateOrderDto {
 export class CreateCouponDto {
   @ApiProperty({ description: "优惠券类型（FIXED/DISCOUNT）" })
   @IsString()
+  @MinLength(1)
   type: string;
 
   @ApiProperty({ description: "优惠面值（固定减或折扣率如0.8）" })
@@ -161,10 +165,12 @@ export class CreateCouponDto {
 
   @ApiProperty({ description: "有效期起始（ISO datetime）" })
   @IsString()
+  @MinLength(1)
   validStart: string;
 
   @ApiProperty({ description: "有效期截止（ISO datetime）" })
   @IsString()
+  @MinLength(1)
   validEnd: string;
 }
 
@@ -193,6 +199,7 @@ export class ProductListQueryDto {
 export class JsapiPayDto {
   @ApiProperty({ description: "微信openid" })
   @IsString()
+  @MinLength(1)
   openid: string;
 
   @ApiPropertyOptional({ description: "回调通知地址" })
@@ -239,6 +246,7 @@ export class OrderListQueryDto {
 export class CreateCouponV2Dto {
   @ApiProperty({ description: "优惠券类型" })
   @IsString()
+  @MinLength(1)
   type: string;
 
   @ApiPropertyOptional({ description: "优惠券名称" })
@@ -279,10 +287,12 @@ export class CreateCouponV2Dto {
 
   @ApiProperty({ description: "有效期起始" })
   @IsString()
+  @MinLength(1)
   validStart: string;
 
   @ApiProperty({ description: "有效期截止" })
   @IsString()
+  @MinLength(1)
   validEnd: string;
 }
 
@@ -297,6 +307,7 @@ export class CreateReviewDto {
 
   @ApiProperty({ description: "评价内容" })
   @IsString()
+  @MinLength(1)
   content: string;
 
   @ApiPropertyOptional({ description: "评价图片" })
@@ -311,6 +322,7 @@ export class CreateReviewDto {
 export class CreateFreightTemplateDto {
   @ApiProperty({ description: "模板名称" })
   @IsString()
+  @MinLength(1)
   name: string;
 
   @ApiProperty({ description: "计费方式", enum: ["FREE", "FIXED", "CONDITIONAL"] })
@@ -365,6 +377,7 @@ export class UpdateFreightTemplateDto {
 export class ReplyReviewDto {
   @ApiProperty({ description: "回复内容" })
   @IsString()
+  @MinLength(1)
   reply: string;
 }
 

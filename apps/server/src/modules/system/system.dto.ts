@@ -1,7 +1,8 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsObject } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsObject, MinLength } from "class-validator";
 
 export class SetConfigDto {
   @IsString()
+  @MinLength(1)
   value: string;
 
   @IsOptional() @IsString()
@@ -70,12 +71,15 @@ export class ExportEarningsDto {
 
 export class UpsertPageContentDto {
   @IsString()
+  @MinLength(1)
   pageRoute: string;
 
   @IsString()
+  @MinLength(1)
   fieldKey: string;
 
   @IsString()
+  @MinLength(1)
   content: string;
 }
 
@@ -83,9 +87,11 @@ export class UpsertPageContentDto {
 
 export class CreateSiteNoticeDto {
   @IsString()
+  @MinLength(1)
   title: string;
 
   @IsString()
+  @MinLength(1)
   content: string;
 
   @IsOptional() @IsString()
@@ -125,6 +131,7 @@ export class UpdateSiteNoticeDto {
 
 export class RollbackConfigDto {
   @IsString()
+  @MinLength(1)
   configKey: string;
 
   @IsInt()
@@ -143,9 +150,11 @@ export class ExportExcelDto {
 
 export class UpsertMemberConfigDto {
   @IsString()
+  @MinLength(1)
   level: string;
 
   @IsString()
+  @MinLength(1)
   name: string;
 
   @IsNumber()

@@ -105,7 +105,7 @@ export class EbookController {
   @ApiBearerAuth()
   @Post("purchase/:ebookId")
   @ApiOperation({ summary: "购买电子书" })
-  purchase(@Req() req: Request, @Param("ebookId") ebookId: string, @Body() dto: PurchaseEbookDto) {
+  purchase(@Req() req: Request, @Param("ebookId") ebookId: string, @Body() _dto: PurchaseEbookDto) {
     return this.svc.purchase(req.user.id, ebookId);
   }
 

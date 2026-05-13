@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, ValidateIf, ArrayNotEmpty, Validate } from "class-validator";
+import { MinLength,  IsString, IsOptional, Validate } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments } from "class-validator";
 
@@ -21,6 +21,7 @@ export class SendEmailDto {
 
   @ApiProperty({ description: "邮件主题", example: "国学平台通知" })
   @IsString()
+  @MinLength(1)
   subject: string;
 
   @ApiPropertyOptional({ description: "HTML正文" })
@@ -35,11 +36,13 @@ export class SendEmailDto {
 export class SendVerifyCodeDto {
   @ApiProperty({ description: "接收验证码的邮箱", example: "user@example.com" })
   @IsString()
+  @MinLength(1)
   email: string;
 }
 
 export class TestEmailDto {
   @ApiProperty({ description: "测试收件人邮箱", example: "admin@example.com" })
   @IsString()
+  @MinLength(1)
   to: string;
 }

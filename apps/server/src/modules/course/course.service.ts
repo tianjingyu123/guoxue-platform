@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma, OrderStatus } from "@prisma/client";
 import { RedisService } from "../../redis/redis.service";
@@ -42,8 +44,8 @@ export class CourseService {
 
   async update(courseId: string, userId: string, dto: UpdateCourseDto) {
     const course = await this.prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new NotFoundException("课程不存在");
-    if (course.userId !== userId) throw new ForbiddenException("只能编辑自己的课程");
+    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的课程");
 
     const updated = await this.prisma.course.update({
       where: { id: courseId },
@@ -60,8 +62,8 @@ export class CourseService {
 
   async delete(courseId: string, userId: string) {
     const course = await this.prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new NotFoundException("课程不存在");
-    if (course.userId !== userId) throw new ForbiddenException("只能删除自己的课程");
+    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的课程");
 
     await this.prisma.course.delete({ where: { id: courseId } });
 
@@ -91,7 +93,7 @@ export class CourseService {
         chapters: { orderBy: { sortOrder: "asc" } },
       },
     });
-    if (!course) throw new NotFoundException("课程不存在");
+    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
 
     await this.prisma.course.update({
       where: { id: courseId },
@@ -104,10 +106,11 @@ export class CourseService {
 
   async listCourses(params: {
     page: number; pageSize: number; circleId?: string;
-    auditStatus?: string; stationId?: string; keyword?: string;
+    auditStatus?: string; status?: string; stationId?: string; keyword?: string;
   }) {
-    const { page, pageSize, circleId, auditStatus, stationId, keyword } = params;
-    const filterHash = `${circleId ?? ""}:${auditStatus ?? ""}:${keyword ?? ""}`;
+    const { page, pageSize, circleId, auditStatus, status, stationId, keyword } = params;
+    const filterStatus = auditStatus || status;
+    const filterHash = `${circleId ?? ""}:${filterStatus ?? ""}:${keyword ?? ""}`;
     const cacheKey = `courses:list:${page}:${pageSize}:${filterHash}`;
 
     // 关键词搜索不缓存（搜索组合太多）
@@ -118,7 +121,7 @@ export class CourseService {
 
     const where: Prisma.CourseWhereInput = {};
     if (circleId) where.circleId = circleId;
-    if (auditStatus) where.auditStatus = auditStatus;
+    if (filterStatus) where.auditStatus = filterStatus;
     else where.auditStatus = "APPROVED";
     if (stationId) where.stationId = stationId;
     if (keyword) where.title = { contains: keyword };
@@ -150,9 +153,9 @@ export class CourseService {
 
   async audit(courseId: string, status: string) {
     const course = await this.prisma.course.findUnique({ where: { id: courseId }, select: { auditStatus: true } });
-    if (!course) throw new NotFoundException("课程不存在");
-    if (course.auditStatus !== "PENDING") throw new BadRequestException("该课程已审核，不可重复操作");
-    if (!["APPROVED", "REJECTED"].includes(status)) throw new BadRequestException("审核结果只能是 APPROVED 或 REJECTED");
+    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+    if (course.auditStatus !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该课程已审核，不可重复操作");
+    if (!["APPROVED", "REJECTED"].includes(status)) throw new BusinessException(ErrorCode.BAD_REQUEST, "审核结果只能是 APPROVED 或 REJECTED");
     return this.prisma.course.update({
       where: { id: courseId },
       data: { auditStatus: status },
@@ -206,7 +209,7 @@ export class CourseService {
       where: { id: chapterId },
       include: { course: { select: { id: true, price: true, userId: true } } },
     });
-    if (!chapter) throw new NotFoundException("章节不存在");
+    if (!chapter) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "章节不存在");
 
     // 免费章节 or 课程免费 or 课程作者本人 — 直接放行
     if (chapter.freeTrial || Number(chapter.course.price) === 0 || chapter.course.userId === userId) {
@@ -215,7 +218,7 @@ export class CourseService {
 
     // 检查是否已购买
     const hasAccess = await this.checkAccess(userId, chapter.course.id);
-    if (!hasAccess) throw new ForbiddenException("请先购买课程");
+    if (!hasAccess) throw new BusinessException(ErrorCode.COURSE_CHAPTER_LOCKED, "请先购买课程");
 
     return chapter;
   }
@@ -227,7 +230,7 @@ export class CourseService {
       where: { id: chapterId },
       select: { courseId: true },
     });
-    if (!chapter) throw new NotFoundException("章节不存在");
+    if (!chapter) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "章节不存在");
 
     const completed = dto.progress >= 100;
 
@@ -266,7 +269,7 @@ export class CourseService {
       where: { id: chapterId },
       select: { courseId: true },
     });
-    if (!chapter) throw new NotFoundException("章节不存在");
+    if (!chapter) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "章节不存在");
 
     return this.prisma.courseWork.create({
       data: {
@@ -290,9 +293,9 @@ export class CourseService {
 
   async scoreWork(workId: string, userId: string, score: number, feedback?: string) {
     const work = await this.prisma.courseWork.findUnique({ where: { id: workId }, select: { courseId: true } });
-    if (!work) throw new NotFoundException("作业不存在");
+    if (!work) throw new BusinessException(ErrorCode.NOT_FOUND, "作业不存在");
     const course = await this.prisma.course.findUnique({ where: { id: work.courseId }, select: { userId: true } });
-    if (!course || course.userId !== userId) throw new ForbiddenException("只有讲师可以评分");
+    if (!course || course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有讲师可以评分");
     return this.prisma.courseWork.update({
       where: { id: workId },
       data: { score, feedback },
@@ -307,7 +310,7 @@ export class CourseService {
       where: { id: courseId },
       select: { id: true, price: true, title: true, validityDays: true },
     });
-    if (!course) throw new NotFoundException("课程不存在");
+    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
 
     // 检查是否已购买（含有效期判断）
     const existingOrder = await this.prisma.order.findFirst({
@@ -319,11 +322,11 @@ export class CourseService {
       if (course.validityDays > 0) {
         const expiresAt = new Date(existingOrder.paidAt.getTime() + course.validityDays * 86400000);
         if (expiresAt > new Date()) {
-          throw new BadRequestException("该课程仍在有效期内，无需重复购买");
+          throw new BusinessException(ErrorCode.COURSE_ALREADY_ENROLLED, "该课程仍在有效期内，无需重复购买");
         }
       } else {
         // 永久有效课程禁止重复购买
-        throw new BadRequestException("已购买该课程");
+        throw new BusinessException(ErrorCode.COURSE_ALREADY_ENROLLED, "已购买该课程");
       }
     }
 
@@ -391,7 +394,7 @@ export class CourseService {
       where: { id: courseId },
       select: { validityDays: true },
     });
-    if (!course) throw new NotFoundException("课程不存在");
+    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
 
     // validityDays === 0 表示永久有效
     if (course.validityDays === 0) {
@@ -512,22 +515,22 @@ export class CourseService {
 
   async createReview(userId: string, courseId: string, dto: CreateReviewDto) {
     const course = await this.prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new NotFoundException("课程不存在");
+    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
 
     // 检查是否已购买
     const hasAccess = await this.checkAccess(userId, courseId);
     if (!hasAccess && course.userId !== userId) {
-      throw new ForbiddenException("购买课程后才能评价");
+      throw new BusinessException(ErrorCode.FORBIDDEN, "购买课程后才能评价");
     }
 
     // 检查是否已评价
     const existing = await this.prisma.courseReview.findFirst({
       where: { userId, courseId },
     });
-    if (existing) throw new BadRequestException("已评价过该课程");
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已评价过该课程");
 
     if (dto.rating < 1 || dto.rating > 5) {
-      throw new BadRequestException("评分范围为1-5星");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "评分范围为1-5星");
     }
 
     const review = await this.prisma.courseReview.create({
@@ -626,8 +629,8 @@ export class CourseService {
       where: { id: courseId },
       select: { id: true, userId: true, title: true },
     });
-    if (!course) throw new NotFoundException("课程不存在");
-    if (course.userId !== userId) throw new ForbiddenException("只能查看自己课程的统计");
+    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看自己课程的统计");
 
     const [
       enrollmentCount,
@@ -668,7 +671,7 @@ export class CourseService {
 
   private async ensureOwner(courseId: string, userId: string) {
     const course = await this.prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) throw new NotFoundException("课程不存在");
-    if (course.userId !== userId) throw new ForbiddenException("只能编辑自己的课程");
+    if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的课程");
   }
 }

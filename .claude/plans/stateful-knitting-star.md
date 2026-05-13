@@ -177,3 +177,14 @@ guoxue-platform/
 - [x] OpenTelemetry 链路追踪（OTLP → Jaeger/Tempo，tracing.ts + TracingInterceptor）
 - [ ] 管理后台核心页面（Trae 负责 — Claude 不涉及）
 - [x] 生产部署文档 + Runbook（apps/server/docs/DEPLOYMENT.md）
+
+### P4 自动化运营基建
+- [x] CLAUDE.md 数字员工角色 + 自动化规范
+- [x] 自动化基建规范文档（docs/automation-infrastructure.md）
+- [x] 任务池数据模型 + API（Prisma schema + TaskModule）
+- [x] 统一角色权限体系（Permission/Role 模型 + PermissionGuard）
+- [x] 一键接管开关（AutomationGuard + Toggle API + Redis 缓存）
+- [x] 操作审计与回滚（AuditLog 模型 + AuditInterceptor 已存在，补充 rollback API）
+- [x] 定时任务框架（Cron Webhook + 运营简报生成）
+- [x] 高可用部署（云服务器初始化脚本 + GitHub Actions CI/CD + 健康检查 + 自动回滚 + 监控栈 + systemd 自启动）
+- [ ] Vercel + GitHub 自动部署（等前端就绪）

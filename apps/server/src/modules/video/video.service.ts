@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VodService } from "./vod.service";
 import { Prisma } from "@prisma/client";
@@ -28,15 +30,15 @@ export class VideoService {
 
   async update(userId: string, id: string, dto: { title?: string; coverUrl?: string; status?: string }) {
     const video = await this.prisma.video.findUnique({ where: { id }, select: { userId: true } });
-    if (!video) throw new NotFoundException("视频不存在");
-    if (video.userId !== userId) throw new ForbiddenException("只能修改自己的视频");
+    if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
+    if (video.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的视频");
     return this.prisma.video.update({ where: { id }, data: dto as Prisma.VideoUpdateInput });
   }
 
   async delete(userId: string, id: string) {
     const video = await this.prisma.video.findUnique({ where: { id }, select: { userId: true } });
-    if (!video) throw new NotFoundException("视频不存在");
-    if (video.userId !== userId) throw new ForbiddenException("只能删除自己的视频");
+    if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
+    if (video.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的视频");
     await this.prisma.video.delete({ where: { id } });
     return { success: true };
   }
@@ -75,7 +77,7 @@ export class VideoService {
         products: true,
       },
     });
-    if (!video) throw new NotFoundException("视频不存在");
+    if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
 
     await this.prisma.video.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((e) => this.logger.warn(`视频 ${id} 浏览计数失败`, e));
     return video;
@@ -83,7 +85,7 @@ export class VideoService {
 
   async toggleLike(id: string) {
     const video = await this.prisma.video.findUnique({ where: { id } });
-    if (!video) throw new NotFoundException("视频不存在");
+    if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
     return this.prisma.video.update({
       where: { id },
       data: { likeCount: { increment: 1 } },

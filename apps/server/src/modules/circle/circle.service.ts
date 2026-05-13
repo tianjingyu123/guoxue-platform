@@ -1,10 +1,9 @@
 import {
   Injectable,
-  NotFoundException,
-  ForbiddenException,
-  ConflictException,
-  BadRequestException,
+  Logger,
 } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto } from "./circle.dto";
@@ -12,6 +11,7 @@ import { Prisma, CircleMemberRole, CircleType, PostType } from "@prisma/client";
 
 @Injectable()
 export class CircleService {
+  private readonly logger = new Logger(CircleService.name);
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
@@ -89,7 +89,7 @@ export class CircleService {
         _count: { select: { posts: true, articles: true, courses: true } },
       },
     });
-    if (!circle) throw new NotFoundException("圈子不存在");
+    if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
 
     // 检查当前用户是否已加入
     let membership = null;
@@ -185,14 +185,14 @@ export class CircleService {
 
   // ───────── 成员管理 ─────────
 
-  async join(circleId: string, userId: string, dto?: JoinCircleDto) {
+  async join(circleId: string, userId: string, _dto?: JoinCircleDto) {
     const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
-    if (!circle || circle.status !== "ACTIVE") throw new NotFoundException("圈子不存在或已下架");
+    if (!circle || circle.status !== "ACTIVE") throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
 
     const existing = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
-    if (existing) throw new ConflictException("已加入该圈子");
+    if (existing) throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
 
     let member: Awaited<ReturnType<typeof this.prisma.circleMember.create>> | undefined;
     try {
@@ -200,7 +200,7 @@ export class CircleService {
         data: { circleId, userId, role: "MEMBER" },
       });
     } catch (e: unknown) {
-      if ((e as { code?: string })?.code === "P2002") throw new ConflictException("已加入该圈子");
+      if ((e as { code?: string })?.code === "P2002") throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
       throw e;
     }
 
@@ -220,8 +220,8 @@ export class CircleService {
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
-    if (!member) throw new NotFoundException("未加入该圈子");
-    if (member.role === "OWNER") throw new ForbiddenException("圈主不能退出，请先转让圈子");
+    if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "未加入该圈子");
+    if (member.role === "OWNER") throw new BusinessException(ErrorCode.FORBIDDEN, "圈主不能退出，请先转让圈子");
 
     await this.prisma.circleMember.delete({
       where: { circleId_userId: { circleId, userId } },
@@ -274,8 +274,8 @@ export class CircleService {
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId: targetUserId } },
     });
-    if (!member) throw new NotFoundException("成员不存在");
-    if (member.role === "OWNER") throw new ForbiddenException("不能移除圈主");
+    if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
+    if (member.role === "OWNER") throw new BusinessException(ErrorCode.FORBIDDEN, "不能移除圈主");
 
     await this.prisma.circleMember.delete({
       where: { circleId_userId: { circleId, userId: targetUserId } },
@@ -359,9 +359,9 @@ export class CircleService {
   /** 发布草稿 */
   async publishPost(postId: string, userId: string) {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new NotFoundException("帖子不存在");
-    if (post.userId !== userId) throw new ForbiddenException("只能发布自己的帖子");
-    if (post.status !== "DRAFT") throw new BadRequestException("该帖子不是草稿");
+    if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+    if (post.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能发布自己的帖子");
+    if (post.status !== "DRAFT") throw new BusinessException(ErrorCode.BAD_REQUEST, "该帖子不是草稿");
 
     await this.prisma.circle.update({
       where: { id: post.circleId },
@@ -376,15 +376,15 @@ export class CircleService {
 
   async updatePost(postId: string, userId: string, dto: Partial<CreatePostDto>) {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new NotFoundException("帖子不存在");
-    if (post.userId !== userId) throw new ForbiddenException("只能编辑自己的帖子");
+    if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+    if (post.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的帖子");
 
     return this.prisma.post.update({ where: { id: postId }, data: dto as Prisma.PostUpdateInput });
   }
 
   async deletePost(postId: string, userId: string, circleId: string) {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new NotFoundException("帖子不存在");
+    if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
 
     // 检查权限：作者、圈主、管理员可删除
     if (post.userId !== userId) {
@@ -432,14 +432,14 @@ export class CircleService {
         circle: { select: { id: true, name: true } },
       },
     });
-    if (!post) throw new NotFoundException("帖子不存在");
+    if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
     return post;
   }
 
   async toggleEssence(postId: string, circleId: string, userId: string) {
     await this.checkAdmin(circleId, userId);
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new NotFoundException("帖子不存在");
+    if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
 
     return this.prisma.post.update({
       where: { id: postId },
@@ -450,7 +450,7 @@ export class CircleService {
   async toggleTop(postId: string, circleId: string, userId: string) {
     await this.checkAdmin(circleId, userId);
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new NotFoundException("帖子不存在");
+    if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
 
     return this.prisma.post.update({
       where: { id: postId },
@@ -469,9 +469,9 @@ export class CircleService {
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
-    if (!member) throw new NotFoundException("成员不存在");
+    if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
     if (!["OWNER", "PARTNER", "GUEST"].includes(member.role)) {
-      throw new ForbiddenException("只有圈主、合伙人和嘉宾可以配置咨询价格");
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只有圈主、合伙人和嘉宾可以配置咨询价格");
     }
 
     const updated = await this.prisma.circleMember.update({
@@ -501,7 +501,7 @@ export class CircleService {
         user: { select: { id: true, nickname: true, avatar: true } },
       },
     });
-    if (!member) throw new NotFoundException("成员不存在");
+    if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
     return member;
   }
 
@@ -585,7 +585,7 @@ export class CircleService {
       where: { id: circleId },
       select: { id: true },
     });
-    if (!circle) throw new NotFoundException("圈子不存在");
+    if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
 
     const now = new Date();
     let periodStart: Date | undefined;
@@ -687,7 +687,7 @@ export class CircleService {
   private async checkOwnership(circleId: string, userId: string) {
     const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
     if (!circle || circle.ownerId !== userId) {
-      throw new ForbiddenException("仅圈主可执行此操作");
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主可执行此操作");
     }
   }
 
@@ -696,7 +696,7 @@ export class CircleService {
       where: { circleId_userId: { circleId, userId } },
     });
     if (!member || !["OWNER", "PARTNER", "ADMIN"].includes(member.role)) {
-      throw new ForbiddenException("权限不足");
+      throw new BusinessException(ErrorCode.FORBIDDEN, "权限不足");
     }
   }
 
@@ -704,6 +704,6 @@ export class CircleService {
     const member = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
-    if (!member) throw new ForbiddenException("请先加入圈子");
+    if (!member) throw new BusinessException(ErrorCode.FORBIDDEN, "请先加入圈子");
   }
 }

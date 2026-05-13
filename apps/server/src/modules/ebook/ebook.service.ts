@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiService } from "../ai/ai.service";
 import { Prisma } from "@prisma/client";
@@ -31,10 +33,15 @@ export class EbookService {
   // 电子书 CRUD
   // ═══════════════════════════════════════════
 
-  async listBooks(query: { categoryId?: string; keyword?: string; page?: number; pageSize?: number }) {
+  async listBooks(query: { categoryId?: string; keyword?: string; status?: string; page?: number; pageSize?: number }) {
     const page = query.page || 1;
     const pageSize = query.pageSize || 20;
-    const where: Prisma.EbookWhereInput = { status: "PUBLISHED" };
+    const where: Prisma.EbookWhereInput = {};
+    if (query.status) {
+      where.status = query.status as any;
+    } else {
+      where.status = "PUBLISHED";
+    }
     if (query.categoryId) where.categoryId = query.categoryId;
     if (query.keyword) {
       where.OR = [
@@ -75,7 +82,7 @@ export class EbookService {
         ? this.prisma.ebookPurchase.findUnique({ where: { userId_ebookId: { userId, ebookId: id } } })
         : Promise.resolve(null),
     ]);
-    if (!book) throw new NotFoundException("电子书不存在");
+    if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "电子书不存在");
 
     // 异步增加浏览数
     this.prisma.ebook.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((err) => this.logger.warn("缓存写入失败", err));
@@ -89,13 +96,13 @@ export class EbookService {
 
   async updateEbook(id: string, dto: UpdateEbookDto) {
     const book = await this.prisma.ebook.findUnique({ where: { id } });
-    if (!book) throw new NotFoundException("电子书不存在");
+    if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "电子书不存在");
     return this.prisma.ebook.update({ where: { id }, data: dto });
   }
 
   async deleteEbook(id: string) {
     return this.prisma.ebook.delete({ where: { id } }).catch(() => {
-      throw new NotFoundException("电子书不存在");
+      throw new BusinessException(ErrorCode.NOT_FOUND, "电子书不存在");
     });
   }
 
@@ -108,14 +115,14 @@ export class EbookService {
       where: { id },
       include: { ebook: { select: { id: true, title: true, price: true, memberFree: true } } },
     });
-    if (!chapter) throw new NotFoundException("章节不存在");
+    if (!chapter) throw new BusinessException(ErrorCode.NOT_FOUND, "章节不存在");
 
     // 免费试读直接放行
     if (chapter.freeTrial) return chapter;
 
     // 检查购买/会员权限
     const hasAccess = await this.checkAccess(chapter.ebookId, userId);
-    if (!hasAccess) throw new BadRequestException("请先购买电子书");
+    if (!hasAccess) throw new BusinessException(ErrorCode.BAD_REQUEST, "请先购买电子书");
 
     return chapter;
   }
@@ -152,7 +159,7 @@ export class EbookService {
 
   async purchase(userId: string, ebookId: string) {
     const book = await this.prisma.ebook.findUnique({ where: { id: ebookId } });
-    if (!book) throw new NotFoundException("电子书不存在");
+    if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "电子书不存在");
 
     // 会员免费
     if (book.memberFree) {
@@ -180,7 +187,7 @@ export class EbookService {
     const existing = await this.prisma.ebookPurchase.findUnique({
       where: { userId_ebookId: { userId, ebookId } },
     });
-    if (existing) throw new BadRequestException("已购买该电子书");
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已购买该电子书");
 
     let purchase: Record<string, unknown>;
     try {
@@ -188,7 +195,7 @@ export class EbookService {
         data: { userId, ebookId, amount },
       }) as unknown as Record<string, unknown>;
     } catch (e: unknown) {
-      if ((e as { code?: string })?.code === "P2002") throw new BadRequestException("已购买该电子书");
+      if ((e as { code?: string })?.code === "P2002") throw new BusinessException(ErrorCode.BAD_REQUEST, "已购买该电子书");
       throw e;
     }
 
@@ -292,7 +299,7 @@ export class EbookService {
 
   async deleteBookmark(id: string) {
     return this.prisma.ebookBookmark.delete({ where: { id } }).catch(() => {
-      throw new NotFoundException("书签不存在");
+      throw new BusinessException(ErrorCode.NOT_FOUND, "书签不存在");
     });
   }
 
@@ -332,7 +339,7 @@ export class EbookService {
 
   async deleteNote(id: string) {
     return this.prisma.ebookNote.delete({ where: { id } }).catch(() => {
-      throw new NotFoundException("笔记不存在");
+      throw new BusinessException(ErrorCode.NOT_FOUND, "笔记不存在");
     });
   }
 

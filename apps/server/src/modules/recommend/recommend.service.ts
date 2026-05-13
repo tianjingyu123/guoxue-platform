@@ -1,10 +1,11 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import {
   RecommendContext,
   RecommendResponse,
-  RecommendItemVO,
   RecommendLogDto,
   RecommendScene,
 } from "./recommend.dto";
@@ -668,7 +669,7 @@ export class RecommendService {
     return items;
   }
 
-  private async sceneSearchEmpty(ctx: RecommendContext): Promise<RecommendItem[]> {
+  private async sceneSearchEmpty(_ctx: RecommendContext): Promise<RecommendItem[]> {
     const items: RecommendItem[] = [];
 
     // 全平台热门内容混排
@@ -689,7 +690,7 @@ export class RecommendService {
 
   // ───── 新增场景：会话列表底部猜你喜欢 ─────
 
-  private async sceneConversationGuess(ctx: RecommendContext): Promise<RecommendItem[]> {
+  private async sceneConversationGuess(_ctx: RecommendContext): Promise<RecommendItem[]> {
     // 推荐热门圈子 + 热门课程
     const [circles, courses] = await Promise.all([
       this.prisma.circle.findMany({
@@ -743,7 +744,7 @@ export class RecommendService {
 
   // ───── 新增场景：通讯录空状态发现更多 ─────
 
-  private async sceneContactsDiscover(ctx: RecommendContext): Promise<RecommendItem[]> {
+  private async sceneContactsDiscover(_ctx: RecommendContext): Promise<RecommendItem[]> {
     // 推荐热门圈主 + 热门讲师
     const [topCircles, topCourses] = await Promise.all([
       this.prisma.circle.findMany({
@@ -1016,7 +1017,7 @@ export class RecommendService {
   async insertContent(position: number, contentId: string, contentType: string) {
     // 验证要插入的内容是否存在
     const item = await this.fetchContentItemForInsert(contentType, contentId);
-    if (!item) throw new NotFoundException("要强插的内容不存在");
+    if (!item) throw new BusinessException(ErrorCode.NOT_FOUND, "要强插的内容不存在");
 
     // 若该位置已有强插规则则更新，否则新建
     const existing = await this.prisma.recommendRule.findFirst({
@@ -1047,7 +1048,7 @@ export class RecommendService {
     const existing = await this.prisma.recommendRule.findFirst({
       where: { ruleType: "INSERT", position },
     });
-    if (!existing) throw new NotFoundException("该位置没有强插规则");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "该位置没有强插规则");
 
     await this.prisma.recommendRule.delete({ where: { id: existing.id } });
     return { success: true };
@@ -1160,7 +1161,7 @@ export class RecommendService {
       where: { id: contentId },
       select: { tags: true },
     });
-    if (!article) throw new NotFoundException("文章不存在");
+    if (!article) throw new BusinessException(ErrorCode.NOT_FOUND, "文章不存在");
 
     const tags = article.tags ?? [];
     if (tags.length === 0) return [];

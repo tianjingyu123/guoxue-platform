@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateCommentDto, CommentQueryDto } from "./comment.dto";
 import { Prisma } from "@prisma/client";
@@ -20,9 +22,9 @@ export class CommentService {
         where: { id: dto.parentId },
         select: { id: true, targetType: true, targetId: true, parentId: true },
       });
-      if (!parent) throw new NotFoundException("父评论不存在");
+      if (!parent) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "父评论不存在");
       if (parent.targetType !== dto.targetType || parent.targetId !== dto.targetId) {
-        throw new ForbiddenException("回复评论与目标不匹配");
+        throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN, "回复评论与目标不匹配");
       }
     }
 
@@ -40,7 +42,7 @@ export class CommentService {
     });
 
     // 异步记录行为
-    this.prisma.userBehavior.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId, behavior: "COMMENT", weight: 1.5 } }).catch((err) => this.logger.warn("缓存清理失败", err));
+    this.prisma.userBehavior.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId, behavior: "COMMENT", weight: 1.5 } }).catch((err) => this.logger.warn("行为记录失败", err));
 
     return comment;
   }
@@ -121,7 +123,7 @@ export class CommentService {
 
   async findReplies(parentId: string) {
     const parent = await this.prisma.comment.findUnique({ where: { id: parentId } });
-    if (!parent) throw new NotFoundException("评论不存在");
+    if (!parent) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
 
     return this.prisma.comment.findMany({
       where: { parentId, status: "PUBLISHED" },
@@ -132,7 +134,7 @@ export class CommentService {
 
   async like(commentId: string) {
     const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
-    if (!comment) throw new NotFoundException("评论不存在");
+    if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
 
     return this.prisma.comment.update({
       where: { id: commentId },
@@ -143,8 +145,8 @@ export class CommentService {
 
   async delete(userId: string, commentId: string) {
     const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
-    if (!comment) throw new NotFoundException("评论不存在");
-    if (comment.userId !== userId) throw new ForbiddenException("只能删除自己的评论");
+    if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
+    if (comment.userId !== userId) throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN, "只能删除自己的评论");
 
     await this.prisma.comment.delete({ where: { id: commentId } });
     return { success: true };
@@ -152,7 +154,7 @@ export class CommentService {
 
   async hide(commentId: string) {
     const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
-    if (!comment) throw new NotFoundException("评论不存在");
+    if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
 
     return this.prisma.comment.update({
       where: { id: commentId },

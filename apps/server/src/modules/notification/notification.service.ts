@@ -1,4 +1,6 @@
-import { Injectable, ForbiddenException, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { PushService } from "./push.service";
@@ -176,7 +178,7 @@ export class NotificationService {
   /** 标记单条已读 */
   async markRead(notificationId: string, userId: string) {
     const notification = await this.prisma.notification.findUnique({ where: { id: notificationId }, select: { userId: true } });
-    if (!notification || notification.userId !== userId) throw new ForbiddenException("无权操作此通知");
+    if (!notification || notification.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此通知");
     return this.prisma.notification.update({
       where: { id: notificationId },
       data: { isRead: true },

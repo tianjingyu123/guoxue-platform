@@ -1,6 +1,8 @@
 import {
-  Injectable, Logger, BadRequestException, NotFoundException,
+  Injectable, Logger,
 } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma } from "@prisma/client";
 import {
@@ -29,7 +31,7 @@ export class MarketingService {
   async createFlashSale(dto: CreateFlashSaleDto) {
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
-    if (start >= end) throw new BadRequestException("秒杀开始时间必须早于结束时间");
+    if (start >= end) throw new BusinessException(ErrorCode.BAD_REQUEST, "秒杀开始时间必须早于结束时间");
 
     const flashSale = await this.prisma.flashSale.create({
       data: {
@@ -80,7 +82,7 @@ export class MarketingService {
 
   async updateFlashSale(id: string, dto: UpdateFlashSaleDto) {
     const existing = await this.prisma.flashSale.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("秒杀活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
 
     const data: Prisma.FlashSaleUpdateInput = {};
     if (dto.startTime !== undefined) data.startTime = new Date(dto.startTime);
@@ -91,7 +93,7 @@ export class MarketingService {
     // 如果同时修改了起止时间，校验
     const start = data.startTime ?? existing.startTime;
     const end = data.endTime ?? existing.endTime;
-    if (start >= end) throw new BadRequestException("秒杀开始时间必须早于结束时间");
+    if (start >= end) throw new BusinessException(ErrorCode.BAD_REQUEST, "秒杀开始时间必须早于结束时间");
 
     return this.prisma.flashSale.update({
       where: { id },
@@ -102,7 +104,7 @@ export class MarketingService {
 
   async deleteFlashSale(id: string) {
     const existing = await this.prisma.flashSale.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("秒杀活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
 
     await this.prisma.flashSale.delete({ where: { id } });
     this.logger.log(`秒杀活动已删除: ${id}`);
@@ -111,7 +113,7 @@ export class MarketingService {
 
   async addFlashSaleItem(id: string, dto: CreateFlashSaleItemDto) {
     const flashSale = await this.prisma.flashSale.findUnique({ where: { id } });
-    if (!flashSale) throw new NotFoundException("秒杀活动不存在");
+    if (!flashSale) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
 
     return this.prisma.flashSaleItem.create({
       data: {
@@ -131,7 +133,7 @@ export class MarketingService {
     const item = await this.prisma.flashSaleItem.findFirst({
       where: { id: itemId, flashSaleId: id },
     });
-    if (!item) throw new NotFoundException("秒杀商品不存在");
+    if (!item) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀商品不存在");
 
     return this.prisma.flashSaleItem.update({
       where: { id: itemId },
@@ -143,7 +145,7 @@ export class MarketingService {
     const item = await this.prisma.flashSaleItem.findFirst({
       where: { id: itemId, flashSaleId: id },
     });
-    if (!item) throw new NotFoundException("秒杀商品不存在");
+    if (!item) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀商品不存在");
 
     await this.prisma.flashSaleItem.delete({ where: { id: itemId } });
     return { success: true };
@@ -151,10 +153,10 @@ export class MarketingService {
 
   async startFlashSale(id: string) {
     const flashSale = await this.prisma.flashSale.findUnique({ where: { id }, include: { items: true } });
-    if (!flashSale) throw new NotFoundException("秒杀活动不存在");
+    if (!flashSale) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
 
     if (flashSale.items.length === 0) {
-      throw new BadRequestException("秒杀活动没有商品，无法启动");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "秒杀活动没有商品，无法启动");
     }
 
     return this.prisma.flashSale.update({
@@ -166,7 +168,7 @@ export class MarketingService {
 
   async endFlashSale(id: string) {
     const flashSale = await this.prisma.flashSale.findUnique({ where: { id } });
-    if (!flashSale) throw new NotFoundException("秒杀活动不存在");
+    if (!flashSale) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
 
     return this.prisma.flashSale.update({
       where: { id },
@@ -212,7 +214,7 @@ export class MarketingService {
 
   async updateGroupBuy(id: string, dto: UpdateGroupBuyDto) {
     const existing = await this.prisma.groupBuy.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("拼团活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "拼团活动不存在");
 
     return this.prisma.groupBuy.update({
       where: { id },
@@ -222,7 +224,7 @@ export class MarketingService {
 
   async deleteGroupBuy(id: string) {
     const existing = await this.prisma.groupBuy.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("拼团活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "拼团活动不存在");
     await this.prisma.groupBuy.delete({ where: { id } });
     this.logger.log(`拼团活动已删除: ${id}`);
     return { success: true };
@@ -230,7 +232,7 @@ export class MarketingService {
 
   async getGroupBuyParticipants(id: string) {
     const groupBuy = await this.prisma.groupBuy.findUnique({ where: { id } });
-    if (!groupBuy) throw new NotFoundException("拼团活动不存在");
+    if (!groupBuy) throw new BusinessException(ErrorCode.NOT_FOUND, "拼团活动不存在");
 
     return this.prisma.groupBuyParticipant.findMany({
       where: { groupBuyId: id },
@@ -245,7 +247,7 @@ export class MarketingService {
   async createCouponTemplate(dto: CreateCouponTemplateDto) {
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
-    if (start >= end) throw new BadRequestException("领取开始时间必须早于结束时间");
+    if (start >= end) throw new BusinessException(ErrorCode.BAD_REQUEST, "领取开始时间必须早于结束时间");
 
     return this.prisma.couponTemplate.create({
       data: {
@@ -284,7 +286,7 @@ export class MarketingService {
 
   async updateCouponTemplate(id: string, dto: UpdateCouponTemplateDto) {
     const existing = await this.prisma.couponTemplate.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("优惠券模板不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "优惠券模板不存在");
 
     const data: Prisma.CouponTemplateUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
@@ -307,7 +309,7 @@ export class MarketingService {
 
   async deleteCouponTemplate(id: string) {
     const existing = await this.prisma.couponTemplate.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("优惠券模板不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "优惠券模板不存在");
     await this.prisma.couponTemplate.delete({ where: { id } });
     this.logger.log(`优惠券模板已删除: ${id}`);
     return { success: true };
@@ -315,11 +317,11 @@ export class MarketingService {
 
   async grantCoupon(id: string, dto: GrantCouponDto) {
     const template = await this.prisma.couponTemplate.findUnique({ where: { id } });
-    if (!template) throw new NotFoundException("优惠券模板不存在");
+    if (!template) throw new BusinessException(ErrorCode.NOT_FOUND, "优惠券模板不存在");
 
     // 检查发行量
     if (template.totalCount > 0 && template.claimedCount >= template.totalCount) {
-      throw new BadRequestException("优惠券已领完");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "优惠券已领完");
     }
 
     // 使用事务：原子增加 claimedCount + 创建领取记录
@@ -341,7 +343,7 @@ export class MarketingService {
 
   async batchGrantCoupon(id: string, dto: BatchGrantCouponDto) {
     const template = await this.prisma.couponTemplate.findUnique({ where: { id } });
-    if (!template) throw new NotFoundException("优惠券模板不存在");
+    if (!template) throw new BusinessException(ErrorCode.NOT_FOUND, "优惠券模板不存在");
 
     // 一次性查询当前已领取数，避免循环中 N+1 查询
     let claimedCount = 0;
@@ -391,7 +393,7 @@ export class MarketingService {
 
   async getCouponRecords(id: string, dto: CouponRecordFilterDto) {
     const template = await this.prisma.couponTemplate.findUnique({ where: { id } });
-    if (!template) throw new NotFoundException("优惠券模板不存在");
+    if (!template) throw new BusinessException(ErrorCode.NOT_FOUND, "优惠券模板不存在");
 
     const { page = 1, pageSize = 20,status } = dto;
     const where: Prisma.CouponRecordWhereInput = { couponId: id };
@@ -417,7 +419,7 @@ export class MarketingService {
   async createDiscount(dto: CreateDiscountDto) {
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
-    if (start >= end) throw new BadRequestException("折扣开始时间必须早于结束时间");
+    if (start >= end) throw new BusinessException(ErrorCode.BAD_REQUEST, "折扣开始时间必须早于结束时间");
 
     return this.prisma.discountActivity.create({
       data: {
@@ -450,7 +452,7 @@ export class MarketingService {
 
   async updateDiscount(id: string, dto: UpdateDiscountDto) {
     const existing = await this.prisma.discountActivity.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("限时折扣不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "限时折扣不存在");
 
     const data: Prisma.DiscountActivityUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
@@ -468,7 +470,7 @@ export class MarketingService {
 
   async deleteDiscount(id: string) {
     const existing = await this.prisma.discountActivity.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("限时折扣不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "限时折扣不存在");
 
     await this.prisma.discountActivity.delete({ where: { id } });
     this.logger.log(`限时折扣已删除: ${id}`);
@@ -499,13 +501,13 @@ export class MarketingService {
       where: { id },
       include: { components: { orderBy: { sortOrder: "asc" } } },
     });
-    if (!page) throw new NotFoundException("微页面不存在");
+    if (!page) throw new BusinessException(ErrorCode.NOT_FOUND, "微页面不存在");
     return page;
   }
 
   async updatePage(id: string, dto: UpdateMarketingPageDto) {
     const existing = await this.prisma.marketingPage.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("微页面不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "微页面不存在");
 
     return this.prisma.marketingPage.update({
       where: { id },
@@ -515,7 +517,7 @@ export class MarketingService {
 
   async deletePage(id: string) {
     const existing = await this.prisma.marketingPage.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("微页面不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "微页面不存在");
     await this.prisma.marketingPageComponent.deleteMany({ where: { pageId: id } });
     await this.prisma.marketingPage.delete({ where: { id } });
     this.logger.log(`微页面已删除: ${id}`);
@@ -524,7 +526,7 @@ export class MarketingService {
 
   async addPageComponent(id: string, dto: CreatePageComponentDto) {
     const page = await this.prisma.marketingPage.findUnique({ where: { id } });
-    if (!page) throw new NotFoundException("微页面不存在");
+    if (!page) throw new BusinessException(ErrorCode.NOT_FOUND, "微页面不存在");
 
     return this.prisma.marketingPageComponent.create({
       data: {
@@ -544,7 +546,7 @@ export class MarketingService {
     const comp = await this.prisma.marketingPageComponent.findFirst({
       where: { id: compId, pageId: id },
     });
-    if (!comp) throw new NotFoundException("页面组件不存在");
+    if (!comp) throw new BusinessException(ErrorCode.NOT_FOUND, "页面组件不存在");
 
     const data: Prisma.MarketingPageComponentUpdateInput = {};
     if (dto.type !== undefined) data.type = dto.type;
@@ -565,7 +567,7 @@ export class MarketingService {
     const comp = await this.prisma.marketingPageComponent.findFirst({
       where: { id: compId, pageId: id },
     });
-    if (!comp) throw new NotFoundException("页面组件不存在");
+    if (!comp) throw new BusinessException(ErrorCode.NOT_FOUND, "页面组件不存在");
 
     await this.prisma.marketingPageComponent.delete({ where: { id: compId } });
     return { success: true };
@@ -573,7 +575,7 @@ export class MarketingService {
 
   async sortPageComponents(id: string, dto: SortComponentsDto) {
     const page = await this.prisma.marketingPage.findUnique({ where: { id } });
-    if (!page) throw new NotFoundException("微页面不存在");
+    if (!page) throw new BusinessException(ErrorCode.NOT_FOUND, "微页面不存在");
 
     // 批量更新排序值
     const updates = dto.componentIds.map((compId, index) =>
@@ -592,7 +594,7 @@ export class MarketingService {
       where: { id },
       include: { components: true },
     });
-    if (!page) throw new NotFoundException("微页面不存在");
+    if (!page) throw new BusinessException(ErrorCode.NOT_FOUND, "微页面不存在");
 
     // 保存历史版本到 ConfigVersion 表
     await this.prisma.configVersion.create({
@@ -617,7 +619,7 @@ export class MarketingService {
 
   async getPageVersions(id: string) {
     const page = await this.prisma.marketingPage.findUnique({ where: { id } });
-    if (!page) throw new NotFoundException("微页面不存在");
+    if (!page) throw new BusinessException(ErrorCode.NOT_FOUND, "微页面不存在");
 
     return this.prisma.configVersion.findMany({
       where: { configKey: `marketing_page_${id}` },
@@ -632,12 +634,12 @@ export class MarketingService {
   async createActivity(dto: CreateActivityDto) {
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
-    if (start >= end) throw new BadRequestException("活动开始时间必须早于结束时间");
+    if (start >= end) throw new BusinessException(ErrorCode.BAD_REQUEST, "活动开始时间必须早于结束时间");
 
     // 如果指定了 pageId，验证页面存在
     if (dto.pageId) {
       const page = await this.prisma.marketingPage.findUnique({ where: { id: dto.pageId } });
-      if (!page) throw new NotFoundException("关联的微页面不存在");
+      if (!page) throw new BusinessException(ErrorCode.NOT_FOUND, "关联的微页面不存在");
     }
 
     return this.prisma.activity.create({
@@ -671,7 +673,7 @@ export class MarketingService {
 
   async updateActivity(id: string, dto: UpdateActivityDto) {
     const existing = await this.prisma.activity.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "活动不存在");
 
     const data: Prisma.ActivityUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
@@ -689,7 +691,7 @@ export class MarketingService {
 
   async deleteActivity(id: string) {
     const existing = await this.prisma.activity.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "活动不存在");
     await this.prisma.activity.delete({ where: { id } });
     this.logger.log(`活动已删除: ${id}`);
     return { success: true };
@@ -700,7 +702,7 @@ export class MarketingService {
       where: { id },
       include: { metrics: true },
     });
-    if (!activity) throw new NotFoundException("活动不存在");
+    if (!activity) throw new BusinessException(ErrorCode.NOT_FOUND, "活动不存在");
 
     return activity.metrics || { pv: 0, uv: 0, conversions: 0, revenue: 0 };
   }
@@ -712,8 +714,8 @@ export class MarketingService {
   async createFullReduction(dto: CreateFullReductionDto) {
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
-    if (start >= end) throw new BadRequestException("满减送开始时间必须早于结束时间");
-    if (dto.reduction >= dto.threshold) throw new BadRequestException("减金额必须小于满金额");
+    if (start >= end) throw new BusinessException(ErrorCode.BAD_REQUEST, "满减送开始时间必须早于结束时间");
+    if (dto.reduction >= dto.threshold) throw new BusinessException(ErrorCode.BAD_REQUEST, "减金额必须小于满金额");
 
     return this.prisma.fullReductionRule.create({
       data: {
@@ -732,7 +734,7 @@ export class MarketingService {
 
   async updateFullReduction(id: string, dto: UpdateFullReductionDto) {
     const existing = await this.prisma.fullReductionRule.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("满减送活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "满减送活动不存在");
 
     const data: Prisma.FullReductionRuleUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
@@ -748,7 +750,7 @@ export class MarketingService {
     // 校验
     const threshold = dto.threshold ?? Number(existing.threshold);
     const reduction = dto.reduction ?? Number(existing.reduction);
-    if (reduction >= threshold) throw new BadRequestException("减金额必须小于满金额");
+    if (reduction >= threshold) throw new BusinessException(ErrorCode.BAD_REQUEST, "减金额必须小于满金额");
 
     return this.prisma.fullReductionRule.update({
       where: { id },
@@ -758,7 +760,7 @@ export class MarketingService {
 
   async deleteFullReduction(id: string) {
     const existing = await this.prisma.fullReductionRule.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("满减送活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "满减送活动不存在");
 
     await this.prisma.fullReductionRule.delete({ where: { id } });
     this.logger.log(`满减送活动已删除: ${id}`);
@@ -784,7 +786,7 @@ export class MarketingService {
 
   async getFullReduction(id: string) {
     const rule = await this.prisma.fullReductionRule.findUnique({ where: { id } });
-    if (!rule) throw new NotFoundException("满减送活动不存在");
+    if (!rule) throw new BusinessException(ErrorCode.NOT_FOUND, "满减送活动不存在");
     return rule;
   }
 

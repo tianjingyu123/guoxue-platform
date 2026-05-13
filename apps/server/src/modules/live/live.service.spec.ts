@@ -4,7 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { LiveStreamService } from "./live-stream.service";
 import { WebhookService } from "../webhook/webhook.service";
-import { NotFoundException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   liveRoom: {
@@ -160,7 +160,7 @@ describe("LiveService", () => {
 
     it("直播间不存在抛出 NotFoundException", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue(null);
-      await expect(svc.getRoom("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getRoom("invalid")).rejects.toThrow(BusinessException);
     });
   });
 

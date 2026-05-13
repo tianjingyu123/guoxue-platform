@@ -13,6 +13,7 @@ env:
   REDIS_URL: 'redis://localhost:6379'
   ENCRYPTION_KEY: 'ci-test-key-32bytes-long!!!!'
   JWT_SECRET: 'ci-test-jwt-secret-for-e2e'
+  BULLMQ_DISABLED: 'true'
 
 jobs:
   # ──────────────────────────────────────────────
@@ -319,7 +320,7 @@ jobs:
           ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
           JWT_SECRET: ${{ env.JWT_SECRET }}
           NODE_ENV: test
-          SKIP_THROTTLE: 'true'
+          DISABLE_RATE_LIMIT: 'true'
 
       - name: 上传 server 测试日志
         uses: actions/upload-artifact@v4
@@ -432,7 +433,35 @@ jobs:
           ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
           JWT_SECRET: ${{ env.JWT_SECRET }}
           NODE_ENV: test
-          SKIP_THROTTLE: 'true'
+          DISABLE_RATE_LIMIT: 'true'
+
+  # ──────────────────────────────────────────────
+  # 依赖安全扫描
+  # ──────────────────────────────────────────────
+  security-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+        timeout-minutes: 10
+
+      - name: 依赖漏洞扫描
+        run: pnpm audit --audit-level=high
+        timeout-minutes: 5
 
   # ──────────────────────────────────────────────
   # 汇总检查（所有必须通过的 job 完成后才允许合并）
@@ -446,6 +475,7 @@ jobs:
       - build-server
       - test-server
       - e2e
+      - security-audit
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 1
@@ -460,6 +490,7 @@ jobs:
           echo "- build-server: ${{ needs.build-server.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- test-server: ${{ needs.test-server.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- e2e: ${{ needs.e2e.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- security-audit: ${{ needs.security-audit.result }}" >> $GITHUB_STEP_SUMMARY
 
       - name: 验证全部通过
         if: |
@@ -469,7 +500,8 @@ jobs:
           needs.test-packages.result != 'success' ||
           needs.build-server.result != 'success' ||
           needs.test-server.result != 'success' ||
-          needs.e2e.result != 'success'
+          needs.e2e.result != 'success' ||
+          needs.security-audit.result != 'success'
         run: |
           echo "❌ 存在失败的 CI 检查，禁止合并"
           exit 1

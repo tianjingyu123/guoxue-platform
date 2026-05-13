@@ -26,45 +26,41 @@ const errorRate = new Rate("errors");
 const cacheHits = new Counter("cache_hits");
 
 // ─── 默认请求头 ───
+const TEST_TOKEN = __ENV.TEST_AUTH_TOKEN || "";
 const HEADERS = {
   "Content-Type": "application/json",
   "User-Agent": "k6-performance-test/1.0",
 };
+if (TEST_TOKEN) {
+  HEADERS["Authorization"] = `Bearer ${TEST_TOKEN}`;
+}
 
-// ═══════════════════════════════════════════
-// 工具函数
-// ═══════════════════════════════════════════
+// ─── 工具函数 ───
 
-function get(url, tags) {
-  const res = http.get(`${BASE_URL}${url}`, {
-    headers: HEADERS,
-    tags: tags ?? {},
-  });
-  const ok = res.status === 200;
+function get(url, arg2, arg3) {
+  const tags = typeof arg2 === "object" ? arg2 : (typeof arg3 === "object" ? arg3 : {});
+  const expected = typeof arg2 === "number" ? arg2 : 200;
+  const res = http.get(`${BASE_URL}${url}`, { headers: HEADERS, tags });
+  const ok = res.status === expected;
   if (!ok) {
     errorRate.add(1);
     console.error(`GET ${url} → ${res.status}: ${res.body?.substring(0, 200)}`);
   }
-  check(res, {
-    [`GET ${url} → 200`]: () => res.status === 200,
-  });
+  check(res, { [`GET ${url} → ${expected}`]: () => res.status === expected });
   sleep(0.1);
   return res;
 }
 
-function post(url, body, tags) {
-  const res = http.post(`${BASE_URL}${url}`, JSON.stringify(body), {
-    headers: HEADERS,
-    tags: tags ?? {},
-  });
-  const ok = res.status === 200 || res.status === 201;
+function post(url, body, arg3, arg4) {
+  const tags = typeof arg3 === "object" ? arg3 : (typeof arg4 === "object" ? arg4 : {});
+  const expected = typeof arg3 === "number" ? arg3 : 200;
+  const res = http.post(`${BASE_URL}${url}`, JSON.stringify(body), { headers: HEADERS, tags });
+  const ok = res.status === expected;
   if (!ok) {
     errorRate.add(1);
     console.error(`POST ${url} → ${res.status}: ${res.body?.substring(0, 200)}`);
   }
-  check(res, {
-    [`POST ${url} → 2xx`]: () => ok,
-  });
+  check(res, { [`POST ${url} → ${expected}`]: () => res.status === expected });
   sleep(0.1);
   return res;
 }

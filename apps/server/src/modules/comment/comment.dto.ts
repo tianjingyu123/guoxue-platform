@@ -1,14 +1,17 @@
-import { IsString, IsOptional, IsInt, Min, Max } from "class-validator";
+import { MinLength,  IsString, IsOptional, IsInt, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateCommentDto {
   @IsString()
+  @MinLength(1)
   targetType: string;
 
   @IsString()
+  @MinLength(1)
   targetId: string;
 
   @IsString()
+  @MinLength(1)
   content: string;
 
   @IsString()
@@ -17,11 +20,13 @@ export class CreateCommentDto {
 }
 
 export class CommentQueryDto {
+  @IsOptional()
   @IsString()
-  targetType: string;
+  targetType?: string;
 
+  @IsOptional()
   @IsString()
-  targetId: string;
+  targetId?: string;
 
   @Type(() => Number)
   @IsInt()

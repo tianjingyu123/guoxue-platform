@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -23,28 +25,28 @@ export class CallService {
 
   /** 发起连麦请求 */
   async create(callerId: string, dto: { calleeId: string; circleId: string }) {
-    if (callerId === dto.calleeId) throw new ConflictException("不能向自己发起连麦");
+    if (callerId === dto.calleeId) throw new BusinessException(ErrorCode.BAD_REQUEST, "不能向自己发起连麦");
 
     // 验证圈子
     const circle = await this.prisma.circle.findUnique({ where: { id: dto.circleId } });
-    if (!circle) throw new NotFoundException("圈子不存在");
+    if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
 
     // 验证双方均为圈子成员
     const [callerMember, calleeMember] = await Promise.all([
       this.prisma.circleMember.findFirst({ where: { circleId: dto.circleId, userId: callerId } }),
       this.prisma.circleMember.findFirst({ where: { circleId: dto.circleId, userId: dto.calleeId } }),
     ]);
-    if (!callerMember) throw new BadRequestException("您不在该圈子中");
-    if (!calleeMember) throw new BadRequestException("对方不在该圈子中");
+    if (!callerMember) throw new BusinessException(ErrorCode.BAD_REQUEST, "您不在该圈子中");
+    if (!calleeMember) throw new BusinessException(ErrorCode.BAD_REQUEST, "对方不在该圈子中");
 
     // 验证被叫方设置了连麦价格
     const pricePerMinute = calleeMember.callPricePerMinuteCoin;
-    if (pricePerMinute <= 0) throw new BadRequestException("对方未开启连麦服务");
+    if (pricePerMinute <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "对方未开启连麦服务");
 
     // 检查余额（至少够1分钟）
     const balance = await this.coin.getBalance(callerId);
     if (balance.balance < pricePerMinute) {
-      throw new BadRequestException(`余额不足，每分钟费用为${pricePerMinute}币，当前余额${balance.balance}币`);
+      throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, `余额不足，每分钟费用为${pricePerMinute}币，当前余额${balance.balance}币`);
     }
 
     // 创建TRTC房间
@@ -80,9 +82,9 @@ export class CallService {
   /** 接听连麦 */
   async accept(calleeId: string, callId: string) {
     const call = await this.prisma.audioCallRecord.findUnique({ where: { id: callId } });
-    if (!call) throw new NotFoundException("通话记录不存在");
-    if (call.calleeId !== calleeId) throw new BadRequestException("只有被呼叫者可以接听");
-    if (call.status !== "WAITING") throw new BadRequestException("通话状态不允许接听");
+    if (!call) throw new BusinessException(ErrorCode.NOT_FOUND, "通话记录不存在");
+    if (call.calleeId !== calleeId) throw new BusinessException(ErrorCode.BAD_REQUEST, "只有被呼叫者可以接听");
+    if (call.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "通话状态不允许接听");
 
     // 再次检查余额
     const balance = await this.coin.getBalance(call.callerId);
@@ -94,7 +96,7 @@ export class CallService {
       });
       this.wsGateway.sendToUser(call.callerId, "call_cancelled", { callId, reason: "余额不足" });
       this.wsGateway.sendToUser(call.calleeId, "call_cancelled", { callId, reason: "对方余额不足" });
-      throw new BadRequestException("余额不足，通话已取消");
+      throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, "余额不足，通话已取消");
     }
 
     // 生成TRTC房间Token
@@ -126,12 +128,12 @@ export class CallService {
   /** 挂断连麦 */
   async hangup(userId: string, callId: string) {
     const call = await this.prisma.audioCallRecord.findUnique({ where: { id: callId } });
-    if (!call) throw new NotFoundException("通话记录不存在");
+    if (!call) throw new BusinessException(ErrorCode.NOT_FOUND, "通话记录不存在");
     if (call.callerId !== userId && call.calleeId !== userId) {
-      throw new ForbiddenException("无权操作该通话");
+      throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作该通话");
     }
     if (call.status !== "IN_PROGRESS" && call.status !== "WAITING") {
-      throw new BadRequestException("通话状态不允许挂断");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "通话状态不允许挂断");
     }
 
     const now = new Date();
@@ -292,9 +294,9 @@ export class CallService {
         callee: { select: { id: true, nickname: true, avatar: true } },
       },
     });
-    if (!call) throw new NotFoundException("通话记录不存在");
+    if (!call) throw new BusinessException(ErrorCode.NOT_FOUND, "通话记录不存在");
     if (call.callerId !== userId && call.calleeId !== userId) {
-      throw new ForbiddenException("无权查看该通话");
+      throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看该通话");
     }
 
     let currentDuration = 0;

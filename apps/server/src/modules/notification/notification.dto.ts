@@ -1,13 +1,19 @@
-import { IsString, IsOptional, IsInt, IsArray } from "class-validator";
+import { IsString, IsOptional, IsArray, MinLength } from "class-validator";
 
 export class SendNotificationDto {
+  @IsOptional() @IsString()
+  userId?: string;
+
   @IsString()
+  @MinLength(1)
   type: string;
 
   @IsString()
+  @MinLength(1)
   title: string;
 
   @IsString()
+  @MinLength(1)
   content: string;
 
   @IsOptional() @IsString()
@@ -22,12 +28,15 @@ export class BatchSendDto {
   userIds: string[];
 
   @IsString()
+  @MinLength(1)
   type: string;
 
   @IsString()
+  @MinLength(1)
   title: string;
 
   @IsString()
+  @MinLength(1)
   content: string;
 
   @IsOptional() @IsString()

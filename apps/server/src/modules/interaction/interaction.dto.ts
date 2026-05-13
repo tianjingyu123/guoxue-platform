@@ -1,49 +1,60 @@
-import { IsString, IsOptional, IsInt, Min } from "class-validator";
+import { IsString, IsOptional, IsInt, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 
 export class LikeDto {
   @IsString()
+  @MinLength(1)
   targetType: string;
 
   @IsString()
+  @MinLength(1)
   targetId: string;
 }
 
 export class CreateCommentDto {
   @IsString()
+  @MinLength(1)
   targetType: string;
 
   @IsString()
+  @MinLength(1)
   targetId: string;
 
   @IsOptional() @IsString()
   parentId?: string;
 
   @IsString()
+  @MinLength(1)
   content: string;
 }
 
 export class CollectDto {
   @IsString()
+  @MinLength(1)
   targetType: string;
 
   @IsString()
+  @MinLength(1)
   targetId: string;
 }
 
 export class FollowDto {
   @IsString()
+  @MinLength(1)
   followedUserId: string;
 }
 
 export class ReportDto {
   @IsString()
+  @MinLength(1)
   targetType: string;
 
   @IsString()
+  @MinLength(1)
   targetId: string;
 
   @IsString()
+  @MinLength(1)
   reason: string;
 }
 

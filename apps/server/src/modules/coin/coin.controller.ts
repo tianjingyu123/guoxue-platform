@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, BadRequestException } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request } from "express";
 import { CoinService } from "./coin.service";
-import { AdminRechargeDto, CoinTransactionQueryDto, SpendDto, CreateGiftDto, SendGiftDto } from "./coin.dto";
+import { AdminRechargeDto, SpendDto, CreateGiftDto, SendGiftDto } from "./coin.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -98,7 +98,9 @@ export class CoinController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "赠送礼物", description: "在直播间向主播赠送礼物" })
   sendGift(@Req() req: Request, @Body() dto: SendGiftDto) {
-    return this.coin.sendGift(req.user.id, dto.liveRoomId, dto.toUserId, dto.giftId, dto.quantity || 1);
+    const targetUserId = dto.toUserId || dto.userId;
+    if (!targetUserId) throw new BadRequestException("请指定接收用户ID");
+    return this.coin.sendGift(req.user.id, dto.liveRoomId || "admin", targetUserId, dto.giftId, dto.quantity || 1);
   }
 
   @Get("gifts/rank/:liveRoomId")

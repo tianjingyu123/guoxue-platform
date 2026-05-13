@@ -3,7 +3,7 @@ import { QuestionService } from "./question.service"
 import { PrismaService } from "../../prisma/prisma.service"
 import { CoinService } from "../coin/coin.service"
 import { RevenueService } from "../revenue/revenue.service"
-import { NotFoundException, BadRequestException, ConflictException, ForbiddenException } from "@nestjs/common"
+import { BusinessException } from "../../common/business.exception"
 
 const txProxy = new Proxy({} as any, {
   get(_: any, prop: string) { return (mockPrisma as any)[prop]; },
@@ -55,18 +55,18 @@ describe("QuestionService", () => {
     const askDto = { circleId: "c1", answererId: "u2", questionTitle: "测试", question: "你好", priceCoin: 50 }
 
     it("不能向自己提问", async () => {
-      await expect(svc.ask("u1", { ...askDto, answererId: "u1" })).rejects.toThrow(ConflictException)
+      await expect(svc.ask("u1", { ...askDto, answererId: "u1" })).rejects.toThrow(BusinessException)
     })
 
     it("圈子不存在", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue(null)
-      await expect(svc.ask("u1", askDto)).rejects.toThrow(NotFoundException)
+      await expect(svc.ask("u1", askDto)).rejects.toThrow(BusinessException)
     })
 
     it("回答者不在圈子中", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
       mockPrisma.circleMember.findFirst.mockResolvedValue(null)
-      await expect(svc.ask("u1", askDto)).rejects.toThrow(BadRequestException)
+      await expect(svc.ask("u1", askDto)).rejects.toThrow(BusinessException)
     })
 
     it("提问成功", async () => {
@@ -82,17 +82,17 @@ describe("QuestionService", () => {
   describe("answer", () => {
     it("问题不存在", async () => {
       mockPrisma.paidQuestion.findUnique.mockResolvedValue(null)
-      await expect(svc.answer("u2", "no", { answer: "回复" })).rejects.toThrow(NotFoundException)
+      await expect(svc.answer("u2", "no", { answer: "回复" })).rejects.toThrow(BusinessException)
     })
 
     it("只有被提问者可回答", async () => {
       mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", answererId: "u2", status: "PENDING", priceCoin: 50 })
-      await expect(svc.answer("u3", "q1", { answer: "回复" })).rejects.toThrow(ForbiddenException)
+      await expect(svc.answer("u3", "q1", { answer: "回复" })).rejects.toThrow(BusinessException)
     })
 
     it("非待回答状态不可回答", async () => {
       mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", answererId: "u2", status: "ANSWERED", priceCoin: 50 })
-      await expect(svc.answer("u2", "q1", { answer: "回复" })).rejects.toThrow(BadRequestException)
+      await expect(svc.answer("u2", "q1", { answer: "回复" })).rejects.toThrow(BusinessException)
     })
 
     it("回答成功并记录收益", async () => {
@@ -110,17 +110,17 @@ describe("QuestionService", () => {
   describe("peek", () => {
     it("问题不存在", async () => {
       mockPrisma.paidQuestion.findUnique.mockResolvedValue(null)
-      await expect(svc.peek("u3", "no")).rejects.toThrow(NotFoundException)
+      await expect(svc.peek("u3", "no")).rejects.toThrow(BusinessException)
     })
 
     it("问题尚未回答", async () => {
       mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", status: "PENDING", peekPriceCoin: 10, askerId: "u1", answererId: "u2" })
-      await expect(svc.peek("u3", "q1")).rejects.toThrow(BadRequestException)
+      await expect(svc.peek("u3", "q1")).rejects.toThrow(BusinessException)
     })
 
     it("不支持围观", async () => {
       mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", status: "ANSWERED", peekPriceCoin: 0, askerId: "u1", answererId: "u2" })
-      await expect(svc.peek("u3", "q1")).rejects.toThrow(BadRequestException)
+      await expect(svc.peek("u3", "q1")).rejects.toThrow(BusinessException)
     })
 
     it("提问者或回答者可免费围观", async () => {
@@ -180,7 +180,7 @@ describe("QuestionService", () => {
 
     it("问题不存在", async () => {
       mockPrisma.paidQuestion.findUnique.mockResolvedValue(null)
-      await expect(svc.getQuestion("no")).rejects.toThrow(NotFoundException)
+      await expect(svc.getQuestion("no")).rejects.toThrow(BusinessException)
     })
   })
 })

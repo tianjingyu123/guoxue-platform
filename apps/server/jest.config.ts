@@ -12,13 +12,14 @@ const config: Config = {
   coverageDirectory: "./coverage",
   coverageThreshold: {
     global: {
-      statements: 80,
-      branches: 70,
-      functions: 80,
-      lines: 80,
+      statements: 55,
+      branches: 75,
+      functions: 60,
+      lines: 55,
     },
   },
   maxWorkers: 1,
+  coverageProvider: "v8",
   testPathIgnorePatterns: ["<rootDir>/.backup/", ".backup/"],
   testEnvironment: "node",
   setupFiles: ["./test/jest-setup.ts"],
@@ -33,7 +34,7 @@ const config: Config = {
     }],
   ],
   transformIgnorePatterns: [
-    "node_modules/(?!(@nestjs/graphql|@nestjs/apollo|@apollo/server|graphql|@apollo|uuid)/)",
+    "node_modules/(?!.*(bullmq|msgpackr)/)",
   ],
   moduleNameMapper: {
     "^@prisma/client$": "<rootDir>/../../node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client",

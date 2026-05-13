@@ -1,13 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 
-interface SearchResult {
-  id: string;
-  title?: string;
-  name?: string;
-  rank: number;
-  headline?: string;
-}
 
 @Injectable()
 export class SearchService {

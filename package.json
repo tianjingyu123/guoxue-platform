@@ -3,11 +3,15 @@
   "private": true,
   "description": "国学传统文化综合平台",
   "scripts": {
+    "quickstart": "bash scripts/quick-start.sh",
+    "dev:setup": "bash scripts/dev-setup.sh",
     "dev:server": "pnpm --filter @guoxue/server dev",
     "dev:admin": "pnpm --filter @guoxue/admin dev",
     "dev:mobile": "pnpm --filter @guoxue/mobile dev",
     "build:server": "pnpm --filter @guoxue/server build",
     "build:admin": "pnpm --filter @guoxue/admin build",
+    "format": "prettier --write \"apps/**/*.{ts,vue,json}\" \"packages/**/*.ts\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,vue,json}\" \"packages/**/*.ts\"",
     "lint": "eslint . --ext .ts,.vue",
     "lint:fix": "eslint . --ext .ts,.vue --fix",
     "lint:packages": "pnpm -r lint",
@@ -26,16 +30,26 @@
   },
   "pnpm": {
     "overrides": {
+      "fast-xml-parser": "4.5.5",
       "form-data": "2.5.4",
-      "fast-xml-parser": "4.5.4",
-      "lodash": "4.18.1"
+      "lodash": "4.18.1",
+      "multer": "2.1.1",
+      "picomatch": "4.0.4",
+      "protobufjs": "8.0.2",
+      "glob": "10.5.0"
     }
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.10",
     "@typescript-eslint/eslint-plugin": "^8.59.2",
     "@typescript-eslint/parser": "^8.59.2",
     "eslint": "^8.57.1",
     "eslint-plugin-vue": "^9.33.0",
+    "prettier": "^3.8.3",
+    "pretty-quick": "^4.2.2",
     "vue-eslint-parser": "^9.4.3"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.3"
   }
 }

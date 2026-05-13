@@ -1,14 +1,16 @@
-import { IsString, IsInt, IsOptional, IsArray, IsBoolean, Min, Max, MaxLength } from "class-validator";
+import { IsString, IsInt, IsOptional, IsArray, IsBoolean, Min, Max, MaxLength, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class AskQuestionDto {
   @ApiProperty({ description: "圈子ID" })
   @IsString()
+  @MinLength(1)
   circleId: string;
 
   @ApiProperty({ description: "回答者用户ID" })
   @IsString()
+  @MinLength(1)
   answererId: string;
 
   @ApiProperty({ description: "问题标题", maxLength: 100, example: "请问老师，如何判断八字中的用神？" })

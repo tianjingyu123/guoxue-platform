@@ -1,13 +1,15 @@
-import { IsString, IsInt, IsOptional, Min } from "class-validator";
+import { IsString, IsInt, IsOptional, Min, MinLength } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateCallDto {
   @ApiProperty({ description: "被连麦用户ID（圈主/嘉宾）" })
   @IsString()
+  @MinLength(1)
   calleeId: string;
 
   @ApiProperty({ description: "所属圈子ID" })
   @IsString()
+  @MinLength(1)
   circleId: string;
 }
 

@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsArray, IsInt, IsEnum, Min, Max } from "class-validator";
+import { IsOptional, IsString, IsArray, IsInt, Min, Max, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -92,6 +92,7 @@ export class RecommendResponse {
 
 export class RecommendLogDto {
   @IsString()
+  @MinLength(1)
   recommendId: string;
 
   @IsArray()

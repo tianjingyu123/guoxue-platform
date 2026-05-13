@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsBoolean, Min, IsObject } from "class-validator";
+import { IsString, IsOptional, IsInt, IsBoolean, Min, IsObject, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 
 // ─── 通用分页 ───
@@ -15,15 +15,18 @@ export class PaginationDto {
 
 export class CreateRuleDto {
   @IsString()
+  @MinLength(1)
   name: string;
 
   @IsString()
+  @MinLength(1)
   type: string;
 
   @IsObject()
   conditions: Record<string, any>;
 
   @IsString()
+  @MinLength(1)
   action: string;
 
   @IsOptional() @IsBoolean()
@@ -89,6 +92,7 @@ export class AppealListQueryDto extends PaginationDto {
 
 export class RejectAppealDto {
   @IsString()
+  @MinLength(1)
   reviewNote: string;
 }
 

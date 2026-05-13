@@ -48,7 +48,11 @@
         </div>
       </el-header>
       <el-main>
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="fade-slide" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </el-main>
     </el-container>
   </el-container>
@@ -59,6 +63,7 @@ import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/store/auth";
 import SidebarMenu from "@/components/SidebarMenu.vue";
+import { api } from "@/api";
 
 const router = useRouter();
 const route = useRoute();
@@ -68,8 +73,8 @@ const unreadCount = ref(0);
 
 async function fetchUnread() {
   try {
-    const { data } = await (await import('@/api')).api.get('/notifications/unread-count')
-    unreadCount.value = data?.count ?? data?.unreadCount ?? 0
+    const { data } = await api.get("/notifications/unread-count");
+    unreadCount.value = data?.count ?? data?.unreadCount ?? 0;
   } catch {}
 }
 
@@ -145,6 +150,19 @@ function logout() {
   font-size: 14px;
 }
 .el-main { background: #F5F0E8; }
+
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.25s ease;
+}
+.fade-slide-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
 
 .el-menu--collapse {
   width: 64px;

@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { EbookService } from "./ebook.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiService } from "../ai/ai.service";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   ebookCategory: { findMany: jest.fn(), create: jest.fn() },
@@ -133,7 +133,7 @@ describe("EbookService", () => {
 
     it("throws NotFoundException for missing ebook", async () => {
       mockPrisma.ebook.findUnique.mockResolvedValue(null);
-      await expect(svc.getBook("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getBook("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -155,7 +155,7 @@ describe("EbookService", () => {
 
     it("throws NotFoundException", async () => {
       mockPrisma.ebook.findUnique.mockResolvedValue(null);
-      await expect(svc.updateEbook("invalid", {})).rejects.toThrow(NotFoundException);
+      await expect(svc.updateEbook("invalid", {})).rejects.toThrow(BusinessException);
     });
   });
 
@@ -168,7 +168,7 @@ describe("EbookService", () => {
 
     it("throws NotFoundException for missing", async () => {
       mockPrisma.ebook.delete.mockRejectedValue(new Error());
-      await expect(svc.deleteEbook("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.deleteEbook("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -190,7 +190,7 @@ describe("EbookService", () => {
         ebook: { id: "b1", title: "lunyu", price: 99, memberFree: false },
       });
       mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 99, memberFree: false });
-      await expect(svc.getChapter("ch1")).rejects.toThrow(BadRequestException);
+      await expect(svc.getChapter("ch1")).rejects.toThrow(BusinessException);
     });
 
     it("purchased user can access", async () => {
@@ -206,7 +206,7 @@ describe("EbookService", () => {
 
     it("chapter not found", async () => {
       mockPrisma.ebookChapter.findUnique.mockResolvedValue(null);
-      await expect(svc.getChapter("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getChapter("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -272,12 +272,12 @@ describe("EbookService", () => {
     it("already purchased throws", async () => {
       mockPrisma.ebook.findUnique.mockResolvedValue({ id: "b1", price: 99, memberFree: false });
       mockPrisma.ebookPurchase.findUnique.mockResolvedValue({ id: "p1" });
-      await expect(svc.purchase("u1", "b1")).rejects.toThrow(BadRequestException);
+      await expect(svc.purchase("u1", "b1")).rejects.toThrow(BusinessException);
     });
 
     it("ebook not found throws", async () => {
       mockPrisma.ebook.findUnique.mockResolvedValue(null);
-      await expect(svc.purchase("u1", "invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.purchase("u1", "invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -398,7 +398,7 @@ describe("EbookService", () => {
 
     it("throws NotFoundException", async () => {
       mockPrisma.ebookBookmark.delete.mockRejectedValue(new Error());
-      await expect(svc.deleteBookmark("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.deleteBookmark("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -439,7 +439,7 @@ describe("EbookService", () => {
 
     it("throws NotFoundException", async () => {
       mockPrisma.ebookNote.delete.mockRejectedValue(new Error());
-      await expect(svc.deleteNote("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.deleteNote("invalid")).rejects.toThrow(BusinessException);
     });
   });
 

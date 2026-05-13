@@ -1192,6 +1192,17 @@ async function main() {
     { configKey: "tts_default_rate", configValue: "0%", description: "TTS默认语速" },
     { configKey: "content_audit_auto", configValue: "true", description: "内容自动审核开关" },
     { configKey: "register_free_trial_days", configValue: "7", description: "新用户免费试用天数" },
+    { configKey: "ai_model_routing", configValue: JSON.stringify({
+      default: { model: "deepseek-v4-flash", fallbackModel: "deepseek-v4-flash", temperature: 0.3, maxTokens: 2048, topP: 0.9 },
+      scenes: {
+        circle_assistant: { model: "deepseek-v4-flash", temperature: 0.3, maxTokens: 1024, topP: 0.9 },
+        customer_service: { model: "deepseek-v4-flash", temperature: 0.3, maxTokens: 1024, topP: 0.9 },
+        smart_search: { model: "deepseek-v4-flash", temperature: 0.2, maxTokens: 512, topP: 0.9 },
+        classic_qa: { model: "deepseek-v4-flash", temperature: 0.3, maxTokens: 1536, topP: 0.9 },
+        smart_feed: { model: "deepseek-v4-flash", temperature: 0.2, maxTokens: 256, topP: 0.9 },
+        smart_push: { model: "deepseek-v4-flash", temperature: 0.5, maxTokens: 256, topP: 0.9 },
+      },
+    }), description: "AI模型路由配置（按场景路由到不同模型和参数）" },
   ];
   let configCount = 0;
   for (const sc of sysConfigs) {
@@ -2428,6 +2439,109 @@ async function main() {
     });
   }
   console.log("✅ 用户兴趣: " + interestTags.length + " 条");
+
+  // 35. 营销活动 — 秒杀
+  const now = new Date();
+  const tomorrow = new Date(now.getTime() + 24 * 3600_000);
+  const nextWeek = new Date(now.getTime() + 7 * 24 * 3600_000);
+  const product1 = await prisma.product.findFirst({ where: { title: "《道德经》线装珍藏版" } });
+  const product2 = await prisma.product.findFirst({ where: { title: "易经六十四卦卡牌" } });
+  const product3 = await prisma.product.findFirst({ where: { title: "手工檀香 · 静心礼盒" } });
+
+  if (product1 && product2) {
+    const flashSale = await prisma.flashSale.create({
+      data: {
+        name: "国学618秒杀专场",
+        startTime: tomorrow,
+        endTime: new Date(tomorrow.getTime() + 2 * 3600_000),
+        warmupMinutes: 30,
+        status: "UPCOMING",
+      },
+    });
+    await prisma.flashSaleItem.createMany({
+      data: [
+        { flashSaleId: flashSale.id, productId: product1.id, flashPrice: 199, limitCount: 2, stock: 50 },
+        { flashSaleId: flashSale.id, productId: product2.id, flashPrice: 88, limitCount: 3, stock: 100 },
+      ],
+    });
+    console.log("✅ 秒杀活动: " + flashSale.name);
+  }
+
+  // 36. 营销活动 — 拼团
+  if (product3) {
+    const groupBuy = await prisma.groupBuy.create({
+      data: {
+        productId: product3.id,
+        groupPrice: 128,
+        minMembers: 3,
+        expireMinutes: 1440,
+        status: "ACTIVE",
+        autoComplete: true,
+      },
+    });
+    // 创建示范拼团组
+    const groupId = "grp_demo_" + Date.now();
+    await prisma.groupBuyParticipant.createMany({
+      data: [
+        { groupBuyId: groupBuy.id, userId: admin.id, groupId, isLeader: true, status: "WAITING" },
+        { groupBuyId: groupBuy.id, userId: teacher.id, groupId, isLeader: false, status: "WAITING" },
+      ],
+    });
+    console.log("✅ 拼团活动: 檀香礼盒 3人团 128元");
+  }
+
+  // 37. 营销活动 — 折扣
+  if (product1 && product3) {
+    await prisma.discountActivity.create({
+      data: {
+        name: "会员专享8折",
+        discountPct: 80,
+        startTime: now,
+        endTime: nextWeek,
+        productIds: [product1.id, product3.id],
+        status: "ACTIVE",
+      },
+    });
+    console.log("✅ 折扣活动: 会员专享8折");
+  }
+
+  // 38. 营销活动 — 优惠券模板
+  const couponTemplates = [
+    { name: "新人满100减20", type: "FIXED", faceValue: 20, threshold: 100, totalCount: 500, validDays: 14, startTime: now, endTime: nextWeek },
+    { name: "全场9折券", type: "PERCENT", faceValue: 90, threshold: 50, totalCount: 1000, validDays: 7, startTime: now, endTime: nextWeek },
+    { name: "免邮券", type: "SHIPPING", faceValue: 10, threshold: 0, totalCount: 200, validDays: 30, startTime: now, endTime: nextWeek },
+  ];
+  for (const ct of couponTemplates) {
+    await prisma.couponTemplate.upsert({
+      where: { id: ct.name },
+      update: {},
+      create: { id: ct.name, ...ct, status: "ACTIVE" },
+    });
+  }
+  console.log("✅ 优惠券模板: " + couponTemplates.length + " 种");
+
+  // 39. 营销页面
+  const marketingPage = await prisma.marketingPage.upsert({
+    where: { route: "/marketing/618" },
+    update: {},
+    create: {
+      name: "618国学盛典",
+      route: "/marketing/618",
+      status: "PUBLISHED",
+      publishedAt: now,
+    },
+  });
+  await prisma.marketingPageComponent.createMany({
+    data: [
+      { pageId: marketingPage.id, type: "banner", title: "主Banner", config: { image: "/static/banner/618_main.jpg", link: "/shop" }, sortOrder: 0 },
+      { pageId: marketingPage.id, type: "countdown", title: "倒计时", config: { targetTime: tomorrow.toISOString(), label: "距秒杀开始" }, sortOrder: 1, startTime: now, endTime: tomorrow },
+      { pageId: marketingPage.id, type: "flashsale", title: "秒杀专区", config: { displayCount: 4 }, sortOrder: 2, startTime: tomorrow, endTime: new Date(tomorrow.getTime() + 2 * 3600_000) },
+      { pageId: marketingPage.id, type: "groupbuy", title: "拼团专区", config: { displayCount: 6 }, sortOrder: 3 },
+      { pageId: marketingPage.id, type: "coupon", title: "领券中心", config: { templateIds: couponTemplates.map(c => c.name) }, sortOrder: 4 },
+      { pageId: marketingPage.id, type: "recommend", title: "为您推荐", config: { scene: "MARKETING_PAGE", count: 10 }, sortOrder: 5 },
+    ],
+  });
+  console.log("✅ 营销页面: " + marketingPage.name);
 
   // FeatureFlag 预置 — 关键功能的灰度开关
   const featureFlags: Array<{

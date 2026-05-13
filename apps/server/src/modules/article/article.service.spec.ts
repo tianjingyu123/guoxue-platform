@@ -3,7 +3,7 @@ import { ArticleService } from "./article.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { RecommendService } from "../recommend/recommend.service";
-import { NotFoundException, ForbiddenException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   article: {
@@ -67,7 +67,7 @@ describe("ArticleService", () => {
       mockPrisma.circleMember.findUnique.mockResolvedValue(null);
       await expect(svc.create("c1", "u1", {
         title: "测试", content: "正文", tags: ["儒家"],
-      })).rejects.toThrow(ForbiddenException);
+      })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -84,12 +84,12 @@ describe("ArticleService", () => {
 
     it("文章不存在抛出 NotFoundException", async () => {
       mockPrisma.article.findUnique.mockResolvedValue(null);
-      await expect(svc.update("invalid", "u1", { title: "新标题" })).rejects.toThrow(NotFoundException);
+      await expect(svc.update("invalid", "u1", { title: "新标题" })).rejects.toThrow(BusinessException);
     });
 
     it("编辑他人文章抛出 ForbiddenException", async () => {
       mockPrisma.article.findUnique.mockResolvedValue({ id: "a1", userId: "u2" });
-      await expect(svc.update("a1", "u1", { title: "新标题" })).rejects.toThrow(ForbiddenException);
+      await expect(svc.update("a1", "u1", { title: "新标题" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -103,13 +103,13 @@ describe("ArticleService", () => {
 
     it("文章不存在抛出 NotFoundException", async () => {
       mockPrisma.article.findUnique.mockResolvedValue(null);
-      await expect(svc.delete("invalid", "u1")).rejects.toThrow(NotFoundException);
+      await expect(svc.delete("invalid", "u1")).rejects.toThrow(BusinessException);
     });
 
     it("非作者非管理员删除抛出 ForbiddenException", async () => {
       mockPrisma.article.findUnique.mockResolvedValue({ id: "a1", userId: "u2", circleId: "c1" });
       mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "MEMBER" });
-      await expect(svc.delete("a1", "u1")).rejects.toThrow(ForbiddenException);
+      await expect(svc.delete("a1", "u1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -139,7 +139,7 @@ describe("ArticleService", () => {
     it("文章不存在抛出 NotFoundException", async () => {
       mockRedis.getJson.mockResolvedValue(null);
       mockPrisma.article.findUnique.mockResolvedValue(null);
-      await expect(svc.getDetail("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getDetail("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -200,7 +200,7 @@ describe("ArticleService", () => {
 
     it("文章不存在抛出 NotFoundException", async () => {
       mockPrisma.article.findUnique.mockResolvedValue(null);
-      await expect(svc.getRelated("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getRelated("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -214,7 +214,7 @@ describe("ArticleService", () => {
 
     it("文章不存在抛出 NotFoundException", async () => {
       mockPrisma.article.findUnique.mockResolvedValue(null);
-      await expect(svc.auditArticle("invalid", "APPROVED")).rejects.toThrow(NotFoundException);
+      await expect(svc.auditArticle("invalid", "APPROVED")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -239,7 +239,7 @@ describe("ArticleService", () => {
 
     it("推荐卡片不存在抛出 NotFoundException", async () => {
       mockPrisma.articleRecommend.findUnique.mockResolvedValue(null);
-      await expect(svc.removeRecommend("invalid", "u1")).rejects.toThrow(NotFoundException);
+      await expect(svc.removeRecommend("invalid", "u1")).rejects.toThrow(BusinessException);
     });
   });
 });

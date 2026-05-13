@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -71,7 +73,7 @@ export class PaipanService {
   }
 
   /** 获取单条排盘记录 */
-  async getBaziRecord(id: string, userId: string) {
+  async getBaziRecord(id: string, _userId: string) {
     const record = await this.prisma.paipanRecord.findUnique({
       where: { id },
       select: {
@@ -84,7 +86,7 @@ export class PaipanService {
       },
     });
 
-    if (!record) throw new NotFoundException("排盘记录不存在");
+    if (!record) throw new BusinessException(ErrorCode.PAIPAN_RECORD_NOT_FOUND, "排盘记录不存在");
 
     return this.decryptRecord(record);
   }
@@ -163,7 +165,7 @@ export class PaipanService {
   }
 
   /** 获取单条紫微排盘记录 */
-  async getZiweiRecord(id: string, userId: string) {
+  async getZiweiRecord(id: string, _userId: string) {
     const record = await this.prisma.paipanRecord.findUnique({
       where: { id },
       select: {
@@ -176,7 +178,7 @@ export class PaipanService {
       },
     });
 
-    if (!record) throw new NotFoundException("排盘记录不存在");
+    if (!record) throw new BusinessException(ErrorCode.PAIPAN_RECORD_NOT_FOUND, "排盘记录不存在");
 
     return this.decryptRecord(record);
   }
@@ -285,7 +287,7 @@ export class PaipanService {
 
   /** 脱敏 resultData：移除内嵌的 input（生辰已在 clientBirth 加密存储），避免明文泄露 */
   private sanitizeResult(result: object): object {
-    const { input, ...rest } = result as any;
+    const { ...rest } = result as any;
     return rest;
   }
 

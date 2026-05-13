@@ -1,7 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { OfflineService } from "./offline.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { NotFoundException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   stationOffline: {
@@ -120,7 +120,7 @@ describe("OfflineService", () => {
 
     it("驿站不存在抛出 NotFoundException", async () => {
       mockPrisma.stationOffline.findUnique.mockResolvedValue(null);
-      await expect(svc.getStation("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getStation("invalid")).rejects.toThrow(BusinessException);
     });
   });
 

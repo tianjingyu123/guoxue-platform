@@ -1,6 +1,6 @@
 import {
   IsString, IsOptional, IsInt, IsNumber, IsArray, IsBoolean,
-  Min, Max, IsDateString, MinLength, MaxLength, IsUUID, ArrayNotEmpty,
+  Min, Max, IsDateString, MinLength, MaxLength, ArrayNotEmpty,
 } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
@@ -86,6 +86,7 @@ export class FlashSaleFilterDto extends PaginationDto {
 
 export class CreateFlashSaleItemDto {
   @IsString()
+  @MinLength(1)
   productId: string;
 
   @IsOptional()
@@ -137,6 +138,7 @@ export class UpdateFlashSaleItemDto {
 
 export class CreateGroupBuyDto {
   @IsString()
+  @MinLength(1)
   productId: string;
 
   @IsOptional()
@@ -204,6 +206,7 @@ export class CreateCouponTemplateDto {
   name: string;
 
   @IsString()
+  @MinLength(1)
   type: string; // FIXED / PERCENT / SHIPPING
 
   @IsNumber()
@@ -300,6 +303,7 @@ export class CouponFilterDto extends PaginationDto {
 
 export class GrantCouponDto {
   @IsString()
+  @MinLength(1)
   userId: string;
 }
 
@@ -389,6 +393,7 @@ export class CreateMarketingPageDto {
   name: string;
 
   @IsString()
+  @MinLength(1)
   route: string;
 }
 
@@ -404,6 +409,7 @@ export class UpdateMarketingPageDto {
 
 export class CreatePageComponentDto {
   @IsString()
+  @MinLength(1)
   type: string; // banner / countdown / flashsale / groupbuy / coupon / recommend / richtext / tabs
 
   @IsOptional()

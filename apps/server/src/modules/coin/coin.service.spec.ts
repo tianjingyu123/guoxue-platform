@@ -3,7 +3,7 @@ import { CoinService } from "./coin.service"
 import { PrismaService } from "../../prisma/prisma.service"
 import { RedisService } from "../../redis/redis.service"
 import { WechatPayService } from "../shop/wechat-pay.service"
-import { NotFoundException, BadRequestException } from "@nestjs/common"
+import { BusinessException } from "../../common/business.exception"
 
 const mockWechatPay = {
   createNativeOrder: jest.fn().mockResolvedValue({ code_url: "weixin://wxpay/mock" }),
@@ -126,7 +126,7 @@ describe("CoinService", () => {
     })
 
     it("充值金额必须大于0", async () => {
-      await expect(svc.recharge("u1", { amountCoin: 0 })).rejects.toThrow(BadRequestException)
+      await expect(svc.recharge("u1", { amountCoin: 0 })).rejects.toThrow(BusinessException)
     })
   })
 
@@ -142,11 +142,11 @@ describe("CoinService", () => {
     it("余额不足", async () => {
       mockPrisma.virtualCoinAccount.findUnique.mockResolvedValue({ userId: "u1", balance: 10 })
       mockPrisma.virtualCoinAccount.updateMany.mockResolvedValue({ count: 0 })
-      await expect(svc.spend("u1", { amountCoin: 50, scene: "CIRCLE_JOIN" })).rejects.toThrow(BadRequestException)
+      await expect(svc.spend("u1", { amountCoin: 50, scene: "CIRCLE_JOIN" })).rejects.toThrow(BusinessException)
     })
 
     it("消费金额必须大于0", async () => {
-      await expect(svc.spend("u1", { amountCoin: 0, scene: "CIRCLE_JOIN" })).rejects.toThrow(BadRequestException)
+      await expect(svc.spend("u1", { amountCoin: 0, scene: "CIRCLE_JOIN" })).rejects.toThrow(BusinessException)
     })
   })
 
@@ -160,7 +160,7 @@ describe("CoinService", () => {
     })
 
     it("退款金额必须大于0", async () => {
-      await expect(svc.refund("u1", 0, "x")).rejects.toThrow(BadRequestException)
+      await expect(svc.refund("u1", 0, "x")).rejects.toThrow(BusinessException)
     })
   })
 
@@ -203,7 +203,7 @@ describe("CoinService", () => {
 
     it("礼物不存在", async () => {
       mockPrisma.gift.findUnique.mockResolvedValue(null)
-      await expect(svc.sendGift("u1", "room1", "host1", "no", 1)).rejects.toThrow(NotFoundException)
+      await expect(svc.sendGift("u1", "room1", "host1", "no", 1)).rejects.toThrow(BusinessException)
     })
   })
 })

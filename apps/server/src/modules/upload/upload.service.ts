@@ -1,4 +1,6 @@
-import { Injectable, BadRequestException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { StorageProvider, UploadResult } from "./storage.interface";
 import { LocalStorageProvider } from "./local-storage.provider";
 import { CosStorageProvider } from "./cos-storage.provider";
@@ -22,8 +24,8 @@ export class UploadService {
   }
 
   async uploadMany(files: Express.Multer.File[]): Promise<UploadResult[]> {
-    if (!files || files.length === 0) throw new BadRequestException("未选择文件");
-    if (files.length > 9) throw new BadRequestException("单次最多上传9个文件");
+    if (!files || files.length === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "未选择文件");
+    if (files.length > 9) throw new BusinessException(ErrorCode.BAD_REQUEST, "单次最多上传9个文件");
     const results = await Promise.all(files.map((f) => this.provider.upload(f)));
     return results;
   }
@@ -35,22 +37,22 @@ export class UploadService {
   }
 
   validateImage(file: Express.Multer.File) {
-    if (!file) throw new BadRequestException("未选择文件");
+    if (!file) throw new BusinessException(ErrorCode.BAD_REQUEST, "未选择文件");
     if (!ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException(`不支持的图片格式: ${file.mimetype}，仅支持 ${ALLOWED_IMAGE_TYPES.join(", ")}`);
+      throw new BusinessException(ErrorCode.UPLOAD_FILE_TYPE_DENIED, `不支持的图片格式: ${file.mimetype}，仅支持 ${ALLOWED_IMAGE_TYPES.join(", ")}`);
     }
     if (file.size > MAX_IMAGE_SIZE) {
-      throw new BadRequestException(`图片大小不能超过 ${MAX_IMAGE_SIZE / 1024 / 1024}MB`);
+      throw new BusinessException(ErrorCode.UPLOAD_FILE_TOO_LARGE, `图片大小不能超过 ${MAX_IMAGE_SIZE / 1024 / 1024}MB`);
     }
   }
 
   validateAudio(file: Express.Multer.File) {
-    if (!file) throw new BadRequestException("未选择文件");
+    if (!file) throw new BusinessException(ErrorCode.BAD_REQUEST, "未选择文件");
     if (!ALLOWED_AUDIO_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException(`不支持的音频格式: ${file.mimetype}，仅支持 ${ALLOWED_AUDIO_TYPES.join(", ")}`);
+      throw new BusinessException(ErrorCode.UPLOAD_FILE_TYPE_DENIED, `不支持的音频格式: ${file.mimetype}，仅支持 ${ALLOWED_AUDIO_TYPES.join(", ")}`);
     }
     if (file.size > MAX_AUDIO_SIZE) {
-      throw new BadRequestException(`音频大小不能超过 ${MAX_AUDIO_SIZE / 1024 / 1024}MB`);
+      throw new BusinessException(ErrorCode.UPLOAD_FILE_TOO_LARGE, `音频大小不能超过 ${MAX_AUDIO_SIZE / 1024 / 1024}MB`);
     }
   }
 }

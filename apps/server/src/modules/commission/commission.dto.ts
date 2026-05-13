@@ -1,5 +1,4 @@
-import { IsOptional, IsString, IsNumber, IsIn } from "class-validator";
-import { Type } from "class-transformer";
+import { MinLength,  IsOptional, IsString, IsNumber, IsIn } from "class-validator";
 
 export class ConfigUpdateDto {
   @IsOptional() @IsNumber()
@@ -45,9 +44,11 @@ export class WithdrawalAuditDto {
 
 export class CreateReferralDto {
   @IsString()
+  @MinLength(1)
   targetType: string;
 
   @IsString()
+  @MinLength(1)
   targetId: string;
 
   @IsOptional() @IsString()

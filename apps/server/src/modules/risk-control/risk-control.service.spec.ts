@@ -1,7 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { RiskControlService } from "./risk-control.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma: any = {
   $queryRaw: jest.fn(),
@@ -97,7 +97,7 @@ describe("RiskControlService", () => {
 
     it("规则不存在抛出异常", async () => {
       mockPrisma.riskRule.findUnique.mockResolvedValue(null);
-      await expect(svc.updateRule("invalid", { name: "x" })).rejects.toThrow(NotFoundException);
+      await expect(svc.updateRule("invalid", { name: "x" })).rejects.toThrow(BusinessException);
     });
   });
 
@@ -111,7 +111,7 @@ describe("RiskControlService", () => {
 
     it("规则不存在抛出异常", async () => {
       mockPrisma.riskRule.findUnique.mockResolvedValue(null);
-      await expect(svc.deleteRule("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.deleteRule("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -143,12 +143,12 @@ describe("RiskControlService", () => {
 
     it("预警不存在抛出异常", async () => {
       mockPrisma.riskAlert.findUnique.mockResolvedValue(null);
-      await expect(svc.handleAlert("invalid", "admin1")).rejects.toThrow(NotFoundException);
+      await expect(svc.handleAlert("invalid", "admin1")).rejects.toThrow(BusinessException);
     });
 
     it("非OPEN状态无法处理", async () => {
       mockPrisma.riskAlert.findUnique.mockResolvedValue({ id: "a1", status: "HANDLED" });
-      await expect(svc.handleAlert("a1", "admin1")).rejects.toThrow(BadRequestException);
+      await expect(svc.handleAlert("a1", "admin1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -162,7 +162,7 @@ describe("RiskControlService", () => {
 
     it("预警不存在抛出异常", async () => {
       mockPrisma.riskAlert.findUnique.mockResolvedValue(null);
-      await expect(svc.dismissAlert("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.dismissAlert("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -219,7 +219,7 @@ describe("RiskControlService", () => {
 
     it("记录不存在抛出异常", async () => {
       mockPrisma.fraudDetection.findUnique.mockResolvedValue(null);
-      await expect(svc.confirmFraudDetection("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.confirmFraudDetection("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -265,12 +265,12 @@ describe("RiskControlService", () => {
 
     it("申诉不存在抛出异常", async () => {
       mockPrisma.appealRecord.findUnique.mockResolvedValue(null);
-      await expect(svc.approveAppeal("invalid", "admin1")).rejects.toThrow(NotFoundException);
+      await expect(svc.approveAppeal("invalid", "admin1")).rejects.toThrow(BusinessException);
     });
 
     it("非PENDING状态无法处理", async () => {
       mockPrisma.appealRecord.findUnique.mockResolvedValue({ id: "ap1", status: "APPROVED" });
-      await expect(svc.approveAppeal("ap1", "admin1")).rejects.toThrow(BadRequestException);
+      await expect(svc.approveAppeal("ap1", "admin1")).rejects.toThrow(BusinessException);
     });
   });
 

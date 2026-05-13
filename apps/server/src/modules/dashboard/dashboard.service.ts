@@ -217,7 +217,6 @@ export class DashboardService {
     const now = new Date();
     const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
     const [
       totalRevenue,
@@ -1251,7 +1250,6 @@ export class DashboardService {
 
   private async getFinanceAdminDashboard(today: Date, thisMonth: Date) {
     const lastMonth = new Date(thisMonth.getFullYear(), thisMonth.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(thisMonth.getFullYear(), thisMonth.getMonth(), 0);
 
     const [
       monthRevenue, lastMonthRevenue, todayRevenue,
@@ -1329,7 +1327,7 @@ export class DashboardService {
     };
   }
 
-  private async getCustomerServiceDashboard(today: Date, thisMonth: Date) {
+  private async getCustomerServiceDashboard(today: Date, _thisMonth: Date) {
     // 客服关注：举报量、纠纷量、处理时效
     const [
       pendingReports, totalReports,
@@ -1378,7 +1376,7 @@ export class DashboardService {
     };
   }
 
-  private async getContentAuditorDashboard(today: Date, thisMonth: Date) {
+  private async getContentAuditorDashboard(today: Date, _thisMonth: Date) {
     const [
       pendingArticles, pendingCourses,
       approvedArticles, approvedCourses,
@@ -1429,7 +1427,7 @@ export class DashboardService {
     };
   }
 
-  private async getGoodsAuditorDashboard(today: Date, thisMonth: Date) {
+  private async getGoodsAuditorDashboard(today: Date, _thisMonth: Date) {
     const [
       pendingProducts, onSaleProducts, offShelfProducts,
       lowStockProducts, outOfStockProducts,

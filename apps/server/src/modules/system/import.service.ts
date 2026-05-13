@@ -1,4 +1,6 @@
-import { Injectable, BadRequestException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 
 export interface ImportResult {
@@ -38,10 +40,10 @@ export class ImportService {
     options?: { userId?: string; stationId?: string },
   ): Promise<ImportResult> {
     const fieldMap = FIELD_MAP[type];
-    if (!fieldMap) throw new BadRequestException(`不支持的导入类型: ${type}`);
+    if (!fieldMap) throw new BusinessException(ErrorCode.BAD_REQUEST, `不支持的导入类型: ${type}`);
 
     const rows = this.parseCsv(buffer);
-    if (rows.length === 0) throw new BadRequestException("CSV 文件无数据行");
+    if (rows.length === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "CSV 文件无数据行");
 
     const required = REQUIRED_FIELDS[type] || [];
     const errors: ImportResult["errors"] = [];
@@ -180,15 +182,15 @@ export class ImportService {
   }
 
   /** 类型转换与校验 */
-  private transformField(mapped: Record<string, unknown>, type: string) {
+  private transformField(mapped: Record<string, unknown>, _type: string) {
     if (mapped.price !== undefined) {
       const price = Number(mapped.price);
-      if (isNaN(price) || price < 0) throw new BadRequestException(`价格格式无效: ${mapped.price}`);
+      if (isNaN(price) || price < 0) throw new BusinessException(ErrorCode.BAD_REQUEST, `价格格式无效: ${mapped.price}`);
       mapped.price = price;
     }
     if (mapped.stock !== undefined) {
       const stock = Number(mapped.stock);
-      if (isNaN(stock) || stock < 0) throw new BadRequestException(`库存格式无效: ${mapped.stock}`);
+      if (isNaN(stock) || stock < 0) throw new BusinessException(ErrorCode.BAD_REQUEST, `库存格式无效: ${mapped.stock}`);
       mapped.stock = Math.floor(stock);
     }
   }

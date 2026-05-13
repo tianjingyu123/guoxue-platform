@@ -1,4 +1,6 @@
-import { Injectable, BadRequestException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Prisma, RoleType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import * as fs from "fs";
@@ -126,7 +128,7 @@ export class ExportService {
   ): Promise<Buffer> {
     if (type === "users") return this.exportUsersExcel(filters);
     if (type === "orders") return this.exportOrdersExcel(filters);
-    throw new BadRequestException(`不支持的导出类型: ${type}`);
+    throw new BusinessException(ErrorCode.BAD_REQUEST, `不支持的导出类型: ${type}`);
   }
 
   private async exportUsersExcel(filters?: Record<string, any>): Promise<Buffer> {

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { InstituteService } from "./institute.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 describe("InstituteService", () => {
   let svc: InstituteService;
@@ -42,7 +42,7 @@ describe("InstituteService", () => {
   describe("join", () => {
     it("已是成员时报错", async () => {
       prisma.instituteMember.findUnique.mockResolvedValue({ id: "m1" });
-      await expect(svc.join("u1", { role: "TYPE_A", joinYear: 2026 })).rejects.toThrow(BadRequestException);
+      await expect(svc.join("u1", { role: "TYPE_A", joinYear: 2026 })).rejects.toThrow(BusinessException);
     });
 
     it("成功加入研究院", async () => {
@@ -62,7 +62,7 @@ describe("InstituteService", () => {
   describe("getMember", () => {
     it("成员不存在时报错", async () => {
       prisma.instituteMember.findUnique.mockResolvedValue(null);
-      await expect(svc.getMember("m1")).rejects.toThrow(NotFoundException);
+      await expect(svc.getMember("m1")).rejects.toThrow(BusinessException);
     });
 
     it("返回成员详情含任务列表", async () => {

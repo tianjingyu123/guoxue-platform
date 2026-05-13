@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { BotService } from "./bot.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CozeService } from "./coze.service";
-import { NotFoundException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   botConfig: {
@@ -115,7 +115,7 @@ describe("BotService", () => {
 
     it("智能体不存在抛出 NotFoundException", async () => {
       mockPrisma.botConfig.findUnique.mockResolvedValue(null);
-      await expect(svc.getDetail("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getDetail("invalid")).rejects.toThrow(BusinessException);
     });
   });
 

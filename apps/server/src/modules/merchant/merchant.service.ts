@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { FeatureFlagService } from "../feature-flag/feature-flag.service";
 import { NotificationService } from "../notification/notification.service";
@@ -7,7 +9,7 @@ import { MERCHANT_CONFIG_KEYS, MERCHANT_FEATURE_FLAGS } from "./merchant.types";
 import {
   CreateMerchantApplyDto, UpdateMerchantApplyDto, ApproveMerchantDto, UpdateMerchantStatusDto,
   MerchantListQueryDto, UpdateMerchantProfileDto, ProductQueryDto, MerchantOrderQueryDto,
-  ShipOrderDto, ReviewQueryDto, ReplyReviewDto, PaginationDto, AppealViolationDto,
+  ShipOrderDto, ReviewQueryDto, PaginationDto,
   CreateViolationDto, HandleViolationDto, MerchantProductDto,
 } from "./merchant.dto";
 
@@ -24,7 +26,7 @@ export class MerchantService {
 
   async createApplication(userId: string, dto: CreateMerchantApplyDto) {
     const existing = await this.prisma.merchant.findUnique({ where: { userId } });
-    if (existing) throw new BadRequestException("您已提交过入驻申请");
+    if (existing) throw new BusinessException(ErrorCode.MERCHANT_ALREADY_EXISTS, "您已提交过入驻申请");
 
     return this.prisma.merchant.create({
       data: {
@@ -47,15 +49,15 @@ export class MerchantService {
 
   async getApplication(userId: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { userId } });
-    if (!merchant) throw new NotFoundException("未找到入驻申请");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "未找到入驻申请");
     return merchant;
   }
 
   async updateApplication(userId: string, dto: UpdateMerchantApplyDto) {
     const merchant = await this.prisma.merchant.findUnique({ where: { userId } });
-    if (!merchant) throw new NotFoundException("未找到入驻申请");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "未找到入驻申请");
     if (merchant.status !== "PENDING_REVIEW" && merchant.status !== "REVIEW_FAILED") {
-      throw new BadRequestException("当前状态不可修改");
+      throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "当前状态不可修改");
     }
 
     return this.prisma.merchant.update({
@@ -69,11 +71,11 @@ export class MerchantService {
 
   async submitForReview(userId: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { userId } });
-    if (!merchant) throw new NotFoundException("未找到入驻申请");
-    if (merchant.status !== "PENDING_REVIEW") throw new BadRequestException("当前状态不可提交");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "未找到入驻申请");
+    if (merchant.status !== "PENDING_REVIEW") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可提交");
 
     if (!merchant.contactName || !merchant.idCardNumber || !merchant.contactPhone) {
-      throw new BadRequestException("请完善入驻信息");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请完善入驻信息");
     }
 
     // 自动计算保证金
@@ -183,14 +185,14 @@ export class MerchantService {
         depositRecords: { orderBy: { createdAt: "desc" }, take: 10 },
       },
     });
-    if (!merchant) throw new NotFoundException("商家不存在");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
     return merchant;
   }
 
   async approveApplication(merchantId: string, reviewerId: string, dto: ApproveMerchantDto) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
-    if (!merchant) throw new NotFoundException("商家不存在");
-    if (merchant.status !== "PENDING_REVIEW") throw new BadRequestException("当前状态不可审核");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+    if (merchant.status !== "PENDING_REVIEW") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可审核");
 
     const updateData: any = {
       status: "DEPOSIT_PENDING",
@@ -224,8 +226,8 @@ export class MerchantService {
 
   async rejectApplication(merchantId: string, reviewerId: string, reason: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
-    if (!merchant) throw new NotFoundException("商家不存在");
-    if (merchant.status !== "PENDING_REVIEW") throw new BadRequestException("当前状态不可审核");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+    if (merchant.status !== "PENDING_REVIEW") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可审核");
 
     const updated = await this.prisma.merchant.update({
       where: { id: merchantId },
@@ -253,7 +255,7 @@ export class MerchantService {
 
   async updateMerchantStatus(merchantId: string, operatorId: string, dto: UpdateMerchantStatusDto) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
-    if (!merchant) throw new NotFoundException("商家不存在");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
 
     const updateData: any = { status: dto.status };
     if (dto.status === "CLOSED") updateData.closedAt = new Date();
@@ -301,7 +303,7 @@ export class MerchantService {
 
   async getDashboard(userId: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { userId } });
-    if (!merchant) throw new NotFoundException("商家不存在");
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -369,7 +371,7 @@ export class MerchantService {
 
   async getProduct(userId: string, productId: string) {
     const product = await this.prisma.product.findFirst({ where: { id: productId, userId } });
-    if (!product) throw new BadRequestException("商品不存在");
+    if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
     return product;
   }
 
@@ -411,14 +413,14 @@ export class MerchantService {
 
   async getOrder(merchantId: string, orderId: string) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });
-    if (!order) throw new BadRequestException("订单不存在");
+    if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
     return order;
   }
 
   async shipOrder(merchantId: string, orderId: string, dto: ShipOrderDto) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });
-    if (!order) throw new BadRequestException("订单不存在");
-    if (order.status !== "PAID") throw new BadRequestException("当前订单状态不可发货");
+    if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
+    if (order.status !== "PAID") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前订单状态不可发货");
 
     await this.prisma.order.update({ where: { id: orderId }, data: { status: "SHIPPED", shippedAt: new Date() } });
     await this.prisma.orderLogistics.create({
@@ -454,7 +456,7 @@ export class MerchantService {
     const review = await this.prisma.productReview.findFirst({
       where: { id: reviewId, product: { userId } },
     });
-    if (!review) throw new BadRequestException("评价不存在");
+    if (!review) throw new BusinessException(ErrorCode.BAD_REQUEST, "评价不存在");
     return this.prisma.productReview.update({
       where: { id: reviewId }, data: { reply, repliedAt: new Date() },
     });
@@ -477,7 +479,7 @@ export class MerchantService {
     const violation = await this.prisma.merchantViolation.findFirst({
       where: { id: violationId, merchantId },
     });
-    if (!violation) throw new BadRequestException("违规记录不存在");
+    if (!violation) throw new BusinessException(ErrorCode.BAD_REQUEST, "违规记录不存在");
     return this.prisma.merchantViolation.update({
       where: { id: violationId }, data: { appeal, appealAt: new Date() },
     });

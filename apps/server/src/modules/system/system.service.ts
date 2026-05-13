@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -126,6 +128,50 @@ export class SystemService {
     return rows.map((a) => a.action);
   }
 
+  // ── 操作回滚 ──
+
+  /** 获取可回滚的审计日志列表 */
+  async getRollbackableLogs(params: { page: number; pageSize: number; targetType?: string; targetId?: string }) {
+    return this.audit.listRollbackable(params);
+  }
+
+  /** 预览回滚数据 */
+  async previewRollback(logId: string) {
+    const log = await this.audit.getLogWithRollback(logId);
+    return {
+      logId: log.id,
+      action: log.action,
+      targetType: log.targetType,
+      targetId: log.targetId,
+      executor: log.executor,
+      createdAt: log.createdAt,
+      rollbackSnapshot: log.rollbackData,
+    };
+  }
+
+  /** 执行回滚 — 记录回滚操作 */
+  async executeRollback(logId: string, operator: string) {
+    const log = await this.audit.getLogWithRollback(logId);
+    this.logger.log(`回滚操作: logId=${logId}, action=${log.action}, operator=${operator}`);
+
+    // 记录回滚审计
+    await this.audit.log({
+      executor: operator,
+      action: `rollback.${log.action}`,
+      targetType: log.targetType || undefined,
+      targetId: log.targetId || undefined,
+      detail: `回滚操作 ${log.action} (原审计ID: ${logId})，快照数据: ${JSON.stringify(log.rollbackData)}`,
+    });
+
+    return {
+      success: true,
+      rollbackedLogId: logId,
+      originalAction: log.action,
+      snapshot: log.rollbackData,
+      message: "回滚已记录。具体业务数据恢复需由对应模块处理。",
+    };
+  }
+
   // ── 健康检查 ──
 
   async healthCheck() {
@@ -151,6 +197,27 @@ export class SystemService {
   async toggleMaintenance(enabled: boolean) {
     await this.setConfig("maintenance_mode", enabled ? "true" : "false", "维护模式开关");
     return { maintenanceMode: enabled };
+  }
+
+  // ── 自动化开关 ──
+
+  async isAutomationEnabled(): Promise<boolean> {
+    const cfg = await this.getConfig("automation_enabled");
+    // 默认开启（不存在配置时视为开启）
+    return cfg?.configValue !== "false";
+  }
+
+  async toggleAutomation(enabled: boolean, operator: string) {
+    await this.setConfig("automation_enabled", enabled ? "true" : "false", `自动化开关 — ${operator}`);
+    const status = enabled ? "已开启" : "已关闭（Claude 权限降为只读）";
+    await this.audit.log({
+      userId: operator,
+      action: enabled ? "automation.enabled" : "automation.disabled",
+      targetType: "system",
+      targetId: "automation",
+      detail: `自动化开关由 ${operator} ${status}`,
+    });
+    return { automationEnabled: enabled, operator, status };
   }
 
   // ───────── 页面文案配置 ─────────
@@ -284,24 +351,31 @@ export class SystemService {
   /** 获取单个配置版本详情 */
   async getConfigVersion(id: string) {
     const record = await this.prisma.configVersion.findUnique({ where: { id } });
-    if (!record) throw new NotFoundException("配置版本不存在");
+    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "配置版本不存在");
     return { configValue: record.value, ...record };
   }
 
   /** 回滚配置到指定版本 */
-  async rollbackConfig(configKey: string, version: number) {
+  async rollbackConfig(configKey: string, version: number, operator?: string) {
     this.logger.log(`回滚配置: configKey=${configKey}, version=${version}`);
     const versionRecord = await this.prisma.configVersion.findFirst({
       where: { configKey, version },
     });
     if (!versionRecord) {
-      throw new NotFoundException(`配置版本不存在: ${configKey}@v${version}`);
+      throw new BusinessException(ErrorCode.NOT_FOUND, `配置版本不存在: ${configKey}@v${version}`);
     }
 
     const value = versionRecord.value;
-    // 将快照值写回系统配置表（JSONB → String）
     const rollbackValue = typeof value === "string" ? value : JSON.stringify(value);
     await this.setConfig(configKey, rollbackValue, `回滚到版本 v${version}`);
+
+    await this.audit.log({
+      action: "config.rollback",
+      targetType: "config",
+      targetId: configKey,
+      detail: `回滚到版本 v${version}，操作人: ${operator || "SYSTEM"}`,
+      executor: operator || "SYSTEM",
+    });
 
     return { success: true, configKey, rolledBackTo: version };
   }
@@ -315,7 +389,7 @@ export class SystemService {
     ]);
 
     if (!v1 || !v2) {
-      throw new NotFoundException("配置版本不存在");
+      throw new BusinessException(ErrorCode.NOT_FOUND, "配置版本不存在");
     }
 
     return {
@@ -336,6 +410,191 @@ export class SystemService {
       },
       isDifferent: JSON.stringify(v1.value) !== JSON.stringify(v2.value),
     };
+  }
+
+  // ── Cron Webhook ──
+
+  /** 验证 Cron Webhook 密钥 */
+  validateCronSecret(secret?: string): void {
+    const configured = process.env.CRON_WEBHOOK_SECRET;
+    // 生产环境必须配置密钥
+    if (!configured && process.env.NODE_ENV === "production") {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "Cron Webhook 未配置密钥");
+    }
+    if (configured && configured !== secret) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "Cron Webhook 密钥无效");
+    }
+  }
+
+  /** 执行定时任务 */
+  async executeCronJob(jobName: string) {
+    const startTime = Date.now();
+    this.logger.log(`Cron 任务触发: ${jobName}`);
+
+    try {
+      let result: any;
+      switch (jobName) {
+        case "health_check":
+          result = await this.healthCheck();
+          break;
+        case "daily_report":
+          result = await this.generateDailyReport();
+          break;
+        case "content_audit":
+          result = await this.autoAuditContent();
+          break;
+        case "user_growth":
+          result = await this.analyzeUserGrowth();
+          break;
+        case "feedback_process":
+          result = await this.processFeedback();
+          break;
+        case "db_backup_check":
+          result = await this.checkDbBackup();
+          break;
+        default:
+          throw new BusinessException(ErrorCode.NOT_FOUND, `未知的定时任务: ${jobName}`);
+      }
+
+      await this.prisma.operationLog.create({
+        data: {
+          action: `cron.${jobName}`,
+          targetType: "cron",
+          targetId: jobName,
+          detail: { duration: Date.now() - startTime, result } as any,
+        },
+      });
+
+      this.logger.log(`Cron 任务完成: ${jobName}, ${Date.now() - startTime}ms`);
+      return { ok: true, job: jobName, duration: Date.now() - startTime, result };
+    } catch (err: any) {
+      this.logger.error(`Cron 任务失败: ${jobName}`, err.message);
+      await this.prisma.operationLog.create({
+        data: {
+          action: `cron.${jobName}.error`,
+          targetType: "cron",
+          targetId: jobName,
+          detail: { error: err.message, duration: Date.now() - startTime } as any,
+        },
+      });
+      throw err;
+    }
+  }
+
+  /** 获取最近定时任务执行记录 */
+  async getRecentCronJobs(limit: number) {
+    return this.prisma.operationLog.findMany({
+      where: { action: { startsWith: "cron." } },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+  }
+
+  // ── 后台定时任务 ──
+
+  private async generateDailyReport() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today.getTime() - 86400000);
+
+    const [
+      newUsers, activeUsers, newOrders, newContents,
+      totalRevenue, pendingReports, pendingWithdrawals,
+    ] = await Promise.all([
+      this.prisma.user.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
+      this.prisma.userBehavior.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
+      this.prisma.order.count({ where: { createdAt: { gte: yesterday, lt: today }, status: "PAID" } }),
+      this.prisma.content.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
+      this.prisma.order.aggregate({ where: { createdAt: { gte: yesterday, lt: today }, status: "PAID" }, _sum: { amount: true } }),
+      this.prisma.report.count({ where: { status: "PENDING" } }),
+      this.prisma.withdrawal.count({ where: { status: "PENDING" } }),
+    ]);
+
+    const report = {
+      date: yesterday.toISOString().split("T")[0],
+      newUsers,
+      activeUsers,
+      newOrders,
+      newContents,
+      totalRevenue: totalRevenue._sum.amount || 0,
+      pendingReports,
+      pendingWithdrawals,
+    };
+
+    return report;
+  }
+
+  private async autoAuditContent() {
+    const pendingContent = await this.prisma.content.findMany({
+      where: { status: "PENDING" },
+      take: 50,
+      orderBy: { createdAt: "asc" },
+    });
+
+    let audited = 0;
+    for (const content of pendingContent) {
+      try {
+        const passed = await this.quickContentCheck(content.title, content.body || "");
+        await this.prisma.content.update({
+          where: { id: content.id },
+          data: { status: passed ? "PUBLISHED" : "REJECTED", auditReason: passed ? undefined : "自动审核不通过" },
+        });
+        audited++;
+      } catch { /* 单条失败不中断整体 */ }
+    }
+
+    return { total: pendingContent.length, audited };
+  }
+
+  private async quickContentCheck(title: string, body: string): Promise<boolean> {
+    const keywords = (await this.getConfig("audit_block_keywords"))?.configValue;
+    if (keywords) {
+      const blockList = keywords.split(",").map((k: string) => k.trim()).filter(Boolean);
+      const text = title + body;
+      if (blockList.some((k: string) => text.includes(k))) return false;
+    }
+    return true;
+  }
+
+  private async analyzeUserGrowth() {
+    const now = new Date();
+    const periods = [7, 30, 90];
+    const growth: Record<string, number> = {};
+    for (const days of periods) {
+      const since = new Date(now.getTime() - days * 86400000);
+      growth[`${days}d`] = await this.prisma.user.count({ where: { createdAt: { gte: since } } });
+    }
+    return growth;
+  }
+
+  private async processFeedback() {
+    const pending = await this.prisma.report.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "asc" },
+      take: 20,
+    });
+
+    let processed = 0;
+    for (const report of pending) {
+      try {
+        await this.prisma.report.update({
+          where: { id: report.id },
+          data: { status: "PROCESSED", result: "自动处理", processedAt: new Date() },
+        });
+        processed++;
+      } catch { /* 单条失败继续 */ }
+    }
+
+    return { total: pending.length, processed };
+  }
+
+  private async checkDbBackup() {
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      return { database: "ok" };
+    } catch {
+      return { database: "error" };
+    }
   }
 
   // ───────── 会员配置 ─────────
@@ -391,7 +650,7 @@ export class SystemService {
     isActive?: boolean;
   }) {
     const existing = await this.prisma.memberConfig.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("会员配置不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "会员配置不存在");
     const data: Prisma.MemberConfigUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.price !== undefined) data.price = dto.price;
@@ -405,7 +664,7 @@ export class SystemService {
   /** 删除会员等级配置 */
   async deleteMemberConfig(id: string) {
     const existing = await this.prisma.memberConfig.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException("会员配置不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "会员配置不存在");
     return this.prisma.memberConfig.delete({ where: { id } });
   }
 }

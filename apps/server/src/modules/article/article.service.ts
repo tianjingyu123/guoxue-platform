@@ -1,9 +1,9 @@
 import {
   Injectable,
   Logger,
-  NotFoundException,
-  ForbiddenException,
 } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { RecommendService } from "../recommend/recommend.service";
@@ -44,8 +44,8 @@ export class ArticleService {
 
   async update(articleId: string, userId: string, dto: UpdateArticleDto) {
     const article = await this.prisma.article.findUnique({ where: { id: articleId } });
-    if (!article) throw new NotFoundException("文章不存在");
-    if (article.userId !== userId) throw new ForbiddenException("只能编辑自己的文章");
+    if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
+    if (article.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的文章");
 
     const updated = await this.prisma.article.update({
       where: { id: articleId },
@@ -62,7 +62,7 @@ export class ArticleService {
 
   async delete(articleId: string, userId: string) {
     const article = await this.prisma.article.findUnique({ where: { id: articleId } });
-    if (!article) throw new NotFoundException("文章不存在");
+    if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
     if (article.userId !== userId) {
       await this.ensureCircleAdmin(article.circleId, userId);
     }
@@ -97,7 +97,7 @@ export class ArticleService {
         recommends: { orderBy: { sortOrder: "asc" } },
       },
     });
-    if (!article) throw new NotFoundException("文章不存在");
+    if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
 
     // 并发放大浏览数与获取相关推荐
     const [, related] = await Promise.all([
@@ -192,7 +192,7 @@ export class ArticleService {
       where: { id: articleId },
       select: { circleId: true, tags: true },
     });
-    if (!article) throw new NotFoundException("文章不存在");
+    if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
 
     return this.prisma.article.findMany({
       where: {
@@ -217,7 +217,7 @@ export class ArticleService {
 
   async auditArticle(articleId: string, auditStatus: string) {
     const article = await this.prisma.article.findUnique({ where: { id: articleId } });
-    if (!article) throw new NotFoundException("文章不存在");
+    if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
 
     return this.prisma.article.update({
       where: { id: articleId },
@@ -229,8 +229,8 @@ export class ArticleService {
 
   async addRecommend(articleId: string, userId: string, dto: AddRecommendDto) {
     const article = await this.prisma.article.findUnique({ where: { id: articleId } });
-    if (!article) throw new NotFoundException("文章不存在");
-    if (article.userId !== userId) throw new ForbiddenException("只能编辑自己的文章");
+    if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
+    if (article.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的文章");
 
     return this.prisma.articleRecommend.create({
       data: {
@@ -249,8 +249,8 @@ export class ArticleService {
       where: { id: recommendId },
       include: { article: { select: { userId: true } } },
     });
-    if (!rec) throw new NotFoundException("推荐卡片不存在");
-    if (rec.article.userId !== userId) throw new ForbiddenException("权限不足");
+    if (!rec) throw new BusinessException(ErrorCode.NOT_FOUND, "推荐卡片不存在");
+    if (rec.article.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "权限不足");
 
     await this.prisma.articleRecommend.delete({ where: { id: recommendId } });
     return { success: true };
@@ -263,7 +263,7 @@ export class ArticleService {
       where: { circleId_userId: { circleId, userId } },
     });
     if (!member || !["OWNER", "PARTNER", "ADMIN"].includes(member.role)) {
-      throw new ForbiddenException("仅圈主/合伙人/管理员可发布文章");
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主/合伙人/管理员可发布文章");
     }
   }
 }

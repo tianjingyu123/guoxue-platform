@@ -72,7 +72,7 @@ describe("MarketingController", () => {
   // ─── 秒杀 ───
 
   it("POST /marketing/flash-sales — 创建秒杀", async () => {
-    const result = await ctrl.createFlashSale({ startTime: "2026-06-01T00:00:00Z", endTime: "2026-06-02T00:00:00Z" });
+    const result: any = await ctrl.createFlashSale({ name: "测试秒杀", startTime: "2026-06-01T00:00:00Z", endTime: "2026-06-02T00:00:00Z" });
     expect(result.id).toBe("fs1");
   });
 
@@ -99,7 +99,7 @@ describe("MarketingController", () => {
   // ─── 拼团 ───
 
   it("POST /marketing/group-buys — 创建拼团", async () => {
-    const result = await ctrl.createGroupBuy({ productId: "p1", groupPrice: 79 });
+    const result: any = await ctrl.createGroupBuy({ productId: "p1", groupPrice: 79 });
     expect(result.id).toBe("gb1");
   });
 
@@ -149,7 +149,7 @@ describe("MarketingController", () => {
   // ─── 微页面 ───
 
   it("POST /marketing/pages — 创建微页面", async () => {
-    const result = await ctrl.createPage({ name: "首页", route: "/home" });
+    const result: any = await ctrl.createPage({ name: "首页", route: "/home" });
     expect(result.id).toBe("mp1");
   });
 

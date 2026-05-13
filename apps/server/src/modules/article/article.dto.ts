@@ -7,6 +7,7 @@ export class CreateArticleDto {
   title: string;
 
   @IsString()
+  @MinLength(1)
   content: string;
 
   @IsString()
@@ -58,9 +59,11 @@ export class UpdateArticleDto {
 
 export class AddRecommendDto {
   @IsString()
+  @MinLength(1)
   recommendType: string; // CIRCLE, COURSE, PRODUCT, PAIPAN, BOT
 
   @IsString()
+  @MinLength(1)
   targetId: string;
 
   @IsString()

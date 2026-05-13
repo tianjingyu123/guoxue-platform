@@ -1,7 +1,7 @@
 import { Test } from "@nestjs/testing"
 import { InteractionService } from "./interaction.service"
 import { PrismaService } from "../../prisma/prisma.service"
-import { NotFoundException, ConflictException } from "@nestjs/common"
+import { BusinessException } from "../../common/business.exception"
 
 const mockPrisma = {
   like: {
@@ -141,7 +141,7 @@ describe("InteractionService", () => {
   describe("deleteComment", () => {
     it("评论不存在抛出 NotFoundException", async () => {
       mockPrisma.comment.findUnique.mockResolvedValue(null)
-      await expect(svc.deleteComment("no", "u1")).rejects.toThrow(NotFoundException)
+      await expect(svc.deleteComment("no", "u1")).rejects.toThrow(BusinessException)
     })
 
     it("删除评论及子回复", async () => {
@@ -193,7 +193,7 @@ describe("InteractionService", () => {
 
   describe("toggleFollow", () => {
     it("不能关注自己", async () => {
-      await expect(svc.toggleFollow("u1", { followedUserId: "u1" })).rejects.toThrow(ConflictException)
+      await expect(svc.toggleFollow("u1", { followedUserId: "u1" })).rejects.toThrow(BusinessException)
     })
 
     it("关注成功", async () => {

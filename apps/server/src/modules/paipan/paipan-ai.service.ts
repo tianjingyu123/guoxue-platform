@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Inject, Optional } from "@nestjs/common";
+import { Injectable, Inject, Optional } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { BaziResult } from "@guoxue/bazi-engine";
 import { BusinessException } from "../../common/business.exception";
@@ -105,7 +105,7 @@ export class PaipanAiService {
         createdAt: true,
       },
     });
-    if (!record) throw new NotFoundException("分析记录不存在");
+    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "分析记录不存在");
     return record;
   }
 
@@ -124,7 +124,7 @@ export class PaipanAiService {
         createdAt: true,
       },
     });
-    if (!record) throw new NotFoundException("该排盘记录暂无 AI 分析结果");
+    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "该排盘记录暂无 AI 分析结果");
     return record;
   }
 

@@ -8,7 +8,7 @@ import { UnionpayService } from "./unionpay.service"
 import { CoinService } from "../coin/coin.service"
 import { WebhookService } from "../webhook/webhook.service"
 import { RedisService } from "../../redis/redis.service"
-import { NotFoundException, BadRequestException, ForbiddenException } from "@nestjs/common"
+import { BusinessException } from "../../common/business.exception"
 
 const mockWechatPay = {
   createNativeOrder: jest.fn().mockResolvedValue({ codeUrl: "weixin://wxpay/mock" }),
@@ -58,11 +58,15 @@ const mockPrisma: any = {
     findUniqueOrThrow: jest.fn(),
     findMany: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     delete: jest.fn(),
     count: jest.fn(),
   },
   productSku: {
     create: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     delete: jest.fn(),
   },
   productReview: {
@@ -161,7 +165,7 @@ describe("ShopService", () => {
 
     it("商品不存在抛出 NotFoundException", async () => {
       mockPrisma.product.findUnique.mockResolvedValue(null)
-      await expect(svc.getProduct("no")).rejects.toThrow(NotFoundException)
+      await expect(svc.getProduct("no")).rejects.toThrow(BusinessException)
     })
   })
 
@@ -185,14 +189,14 @@ describe("ShopService", () => {
 
     it("商品不存在抛出 NotFoundException", async () => {
       mockPrisma.product.findUnique.mockResolvedValue(null)
-      await expect(svc.updateProduct("u1", "no", { title: "x" })).rejects.toThrow(NotFoundException)
+      await expect(svc.updateProduct("u1", "no", { title: "x" })).rejects.toThrow(BusinessException)
     })
   })
 
   describe("deleteProduct", () => {
     it("删除成功", async () => {
-      mockPrisma.product.findUniqueOrThrow.mockResolvedValue({ id: "p1" })
-      const result = await svc.deleteProduct("p1")
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", userId: "u1" })
+      const result = await svc.deleteProduct("u1", "p1")
       expect(result.success).toBe(true)
     })
   })
@@ -204,7 +208,7 @@ describe("ShopService", () => {
       mockPrisma.product.findUnique.mockResolvedValue(null)
       await expect(
         svc.createOrder("u1", { type: "PRODUCT", targetId: "bad", amount: 99 }),
-      ).rejects.toThrow(BadRequestException)
+      ).rejects.toThrow(BusinessException)
     })
 
     it("创建订单成功", async () => {
@@ -235,12 +239,12 @@ describe("ShopService", () => {
 
     it("已支付订单不可重复支付", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ ...mockOrder, status: "PAID" })
-      await expect(svc.createNativePayment("o1", "u1")).rejects.toThrow(BadRequestException)
+      await expect(svc.createNativePayment("o1", "u1")).rejects.toThrow(BusinessException)
     })
 
     it("订单不存在", async () => {
       mockPrisma.order.findUnique.mockResolvedValue(null)
-      await expect(svc.createNativePayment("no", "u1")).rejects.toThrow(NotFoundException)
+      await expect(svc.createNativePayment("no", "u1")).rejects.toThrow(BusinessException)
     })
   })
 
@@ -254,12 +258,12 @@ describe("ShopService", () => {
 
     it("他人不可取消订单", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", userId: "u1", status: "PENDING" })
-      await expect(svc.cancelOrder("o1", "u2")).rejects.toThrow(ForbiddenException)
+      await expect(svc.cancelOrder("o1", "u2")).rejects.toThrow(BusinessException)
     })
 
     it("已支付订单不可取消", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", userId: "u1", status: "PAID" })
-      await expect(svc.cancelOrder("o1", "u1")).rejects.toThrow(BadRequestException)
+      await expect(svc.cancelOrder("o1", "u1")).rejects.toThrow(BusinessException)
     })
   })
 
@@ -273,7 +277,7 @@ describe("ShopService", () => {
 
     it("待付款订单不可退款", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PENDING" })
-      await expect(svc.refundOrder("o1")).rejects.toThrow(BadRequestException)
+      await expect(svc.refundOrder("o1")).rejects.toThrow(BusinessException)
     })
   })
 
@@ -313,13 +317,13 @@ describe("ShopService", () => {
 
     it("优惠券已领完", async () => {
       mockPrisma.coupon.findUnique.mockResolvedValue({ ...mockCoupon, totalCount: 1, usedCount: 1 })
-      await expect(svc.claimCoupon("u1", "c1")).rejects.toThrow(BadRequestException)
+      await expect(svc.claimCoupon("u1", "c1")).rejects.toThrow(BusinessException)
     })
 
     it("已领过不可重复领", async () => {
       mockPrisma.coupon.findUnique.mockResolvedValue(mockCoupon)
       mockPrisma.userCoupon.findFirst.mockResolvedValue({ id: "existing" })
-      await expect(svc.claimCoupon("u1", "c1")).rejects.toThrow(BadRequestException)
+      await expect(svc.claimCoupon("u1", "c1")).rejects.toThrow(BusinessException)
     })
   })
 
@@ -343,12 +347,12 @@ describe("ShopService", () => {
 
     it("评分超出范围", async () => {
       mockPrisma.product.findUnique.mockResolvedValue({ id: "p1" })
-      await expect(svc.createReview("u1", "p1", { rating: 6, content: "x" })).rejects.toThrow(BadRequestException)
+      await expect(svc.createReview("u1", "p1", { rating: 6, content: "x" })).rejects.toThrow(BusinessException)
     })
 
     it("商品不存在", async () => {
       mockPrisma.product.findUnique.mockResolvedValue(null)
-      await expect(svc.createReview("u1", "no", { rating: 4, content: "x" })).rejects.toThrow(NotFoundException)
+      await expect(svc.createReview("u1", "no", { rating: 4, content: "x" })).rejects.toThrow(BusinessException)
     })
   })
 
@@ -373,7 +377,7 @@ describe("ShopService", () => {
 
     it("订单不存在", async () => {
       mockPrisma.order.findUnique.mockResolvedValue(null)
-      await expect(svc.getLogistics("no")).rejects.toThrow(NotFoundException)
+      await expect(svc.getLogistics("no")).rejects.toThrow(BusinessException)
     })
   })
 
@@ -388,7 +392,7 @@ describe("ShopService", () => {
 
     it("待付款订单不可更新物流", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PENDING" })
-      await expect(svc.updateLogistics("o1", { logisticsNo: "SF456" })).rejects.toThrow(BadRequestException)
+      await expect(svc.updateLogistics("o1", { logisticsNo: "SF456" })).rejects.toThrow(BusinessException)
     })
   })
 })

@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ModerationService } from "./moderation.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 @Injectable()
 export class AuditService {
@@ -14,13 +16,61 @@ export class AuditService {
 
   log(params: {
     userId?: string;
+    executor?: string;
     action: string;
     targetType?: string;
     targetId?: string;
     detail?: string;
+    rollbackData?: Record<string, any>;
     ip?: string;
   }) {
-    return this.prisma.auditLog.create({ data: params });
+    return this.prisma.auditLog.create({
+      data: {
+        userId: params.userId,
+        executor: params.executor || params.userId || "SYSTEM",
+        action: params.action,
+        targetType: params.targetType,
+        targetId: params.targetId,
+        detail: params.detail,
+        rollbackData: params.rollbackData as any,
+        ip: params.ip,
+      },
+    });
+  }
+
+  /** 查询含回滚数据的审计日志 */
+  async getLogWithRollback(id: string) {
+    const log = await this.prisma.auditLog.findUnique({ where: { id } });
+    if (!log) throw new BusinessException(ErrorCode.NOT_FOUND, "审计日志不存在");
+    if (!log.rollbackData) throw new BusinessException(ErrorCode.NOT_FOUND, "该操作无可回滚数据");
+    return log;
+  }
+
+  /** 获取可回滚的操作列表 */
+  async listRollbackable(params: {
+    targetType?: string;
+    targetId?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const page = params.page || 1;
+    const pageSize = params.pageSize || 20;
+    const where: Prisma.AuditLogWhereInput = {
+      rollbackData: { not: Prisma.DbNull },
+    };
+    if (params.targetType) where.targetType = params.targetType;
+    if (params.targetId) where.targetId = params.targetId;
+
+    const [logs, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+    return { logs, total, page, pageSize };
   }
 
   // ───────── 内容审核 ─────────

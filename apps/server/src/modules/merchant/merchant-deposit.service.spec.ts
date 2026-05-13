@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { MerchantDepositService } from "./merchant-deposit.service";
 import { MerchantService } from "./merchant.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { NotFoundException, BadRequestException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockMerchantSvc = {
   calculateDeposit: jest.fn().mockResolvedValue(2000),
@@ -49,7 +49,7 @@ describe("MerchantDepositService", () => {
 
     it("商家不存在抛出异常", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
-      await expect(svc.getDepositInfo("u1")).rejects.toThrow(NotFoundException);
+      await expect(svc.getDepositInfo("u1")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -70,7 +70,7 @@ describe("MerchantDepositService", () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({
         id: "m1", userId: "u1", status: "ACTIVE", depositAmount: 2000,
       });
-      await expect(svc.payDeposit("u1", { payMethod: "WECHAT" })).rejects.toThrow(BadRequestException);
+      await expect(svc.payDeposit("u1", { payMethod: "WECHAT" })).rejects.toThrow(BusinessException);
     });
   });
 

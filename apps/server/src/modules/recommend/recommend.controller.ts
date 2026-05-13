@@ -105,6 +105,7 @@ export class RecommendController {
   }
 
   // ───── 统一场景入口（参数路由放最后） ─────
+  // 注意：新增静态路由的控制器必须在本控制器之前注册，否则会被 :scene 通配拦截
 
   @Get(":scene")
   @ApiOperation({ summary: "全页面智能推荐" })

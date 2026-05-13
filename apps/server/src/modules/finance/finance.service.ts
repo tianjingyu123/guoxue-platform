@@ -1,4 +1,6 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma } from "@prisma/client";
 
@@ -63,7 +65,7 @@ export class FinanceService {
 
   async getReconciliationDetail(id: string) {
     const record = await this.prisma.reconciliationRecord.findUnique({ where: { id } });
-    if (!record) throw new NotFoundException("对账记录不存在");
+    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "对账记录不存在");
     return record;
   }
 
@@ -71,7 +73,7 @@ export class FinanceService {
 
   async createInvoice(dto: { orderId: string; type: string; title: string; taxNo?: string; amount: number }) {
     const order = await this.prisma.order.findUnique({ where: { id: dto.orderId } });
-    if (!order) throw new NotFoundException("订单不存在");
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
 
     return this.prisma.invoice.create({
       data: {
@@ -103,8 +105,8 @@ export class FinanceService {
 
   async issueInvoice(id: string, invoiceUrl: string) {
     const invoice = await this.prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) throw new NotFoundException("发票不存在");
-    if (invoice.status !== "PENDING") throw new BadRequestException("当前状态不允许开具发票");
+    if (!invoice) throw new BusinessException(ErrorCode.NOT_FOUND, "发票不存在");
+    if (invoice.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许开具发票");
 
     return this.prisma.invoice.update({
       where: { id },
@@ -114,8 +116,8 @@ export class FinanceService {
 
   async mailInvoice(id: string, expressNo: string) {
     const invoice = await this.prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) throw new NotFoundException("发票不存在");
-    if (invoice.status !== "ISSUED") throw new BadRequestException("当前状态不允许标记邮寄");
+    if (!invoice) throw new BusinessException(ErrorCode.NOT_FOUND, "发票不存在");
+    if (invoice.status !== "ISSUED") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许标记邮寄");
 
     return this.prisma.invoice.update({
       where: { id },
@@ -158,7 +160,7 @@ export class FinanceService {
     const existing = await this.prisma.settlementOrder.findFirst({
       where: { userId: dto.userId, period: dto.period },
     });
-    if (existing) throw new BadRequestException("该周期结算单已存在");
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "该周期结算单已存在");
 
     // 聚合该用户该周期所有收益
     const [earnings, stationEarnings] = await Promise.all([
@@ -199,8 +201,8 @@ export class FinanceService {
 
   async approveSettlement(id: string, adminId: string) {
     const settlement = await this.prisma.settlementOrder.findUnique({ where: { id } });
-    if (!settlement) throw new NotFoundException("结算单不存在");
-    if (settlement.status !== "PENDING") throw new BadRequestException("当前状态不允许审批");
+    if (!settlement) throw new BusinessException(ErrorCode.NOT_FOUND, "结算单不存在");
+    if (settlement.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许审批");
 
     return this.prisma.settlementOrder.update({
       where: { id },
@@ -210,8 +212,8 @@ export class FinanceService {
 
   async paySettlement(id: string) {
     const settlement = await this.prisma.settlementOrder.findUnique({ where: { id } });
-    if (!settlement) throw new NotFoundException("结算单不存在");
-    if (settlement.status !== "APPROVED") throw new BadRequestException("当前状态不允许打款");
+    if (!settlement) throw new BusinessException(ErrorCode.NOT_FOUND, "结算单不存在");
+    if (settlement.status !== "APPROVED") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许打款");
 
     return this.prisma.settlementOrder.update({
       where: { id },
@@ -239,8 +241,8 @@ export class FinanceService {
 
   async approveWithdrawal(id: string, adminId: string, reviewNote?: string) {
     const w = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
-    if (!w) throw new NotFoundException("提现申请不存在");
-    if (w.status !== "PENDING") throw new BadRequestException("当前状态不允许审批");
+    if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现申请不存在");
+    if (w.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许审批");
 
     return this.prisma.withdrawalApplication.update({
       where: { id },
@@ -250,8 +252,8 @@ export class FinanceService {
 
   async rejectWithdrawal(id: string, adminId: string, reviewNote: string) {
     const w = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
-    if (!w) throw new NotFoundException("提现申请不存在");
-    if (w.status !== "PENDING") throw new BadRequestException("当前状态不允许驳回");
+    if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现申请不存在");
+    if (w.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许驳回");
 
     return this.prisma.withdrawalApplication.update({
       where: { id },
@@ -261,8 +263,8 @@ export class FinanceService {
 
   async confirmWithdrawalPay(id: string) {
     const w = await this.prisma.withdrawalApplication.findUnique({ where: { id } });
-    if (!w) throw new NotFoundException("提现申请不存在");
-    if (w.status !== "APPROVED") throw new BadRequestException("当前状态不允许打款");
+    if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现申请不存在");
+    if (w.status !== "APPROVED") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不允许打款");
 
     return this.prisma.withdrawalApplication.update({
       where: { id },
@@ -275,9 +277,9 @@ export class FinanceService {
   /** 冻结订单资金 */
   async freezeAmount(dto: { orderId: string; amount: number; reason?: string }) {
     const order = await this.prisma.order.findUnique({ where: { id: dto.orderId } });
-    if (!order) throw new NotFoundException("订单不存在");
-    if (order.status !== "PAID") throw new BadRequestException("仅已支付订单可冻结");
-    if (Number(order.frozenAmount || 0) > 0) throw new BadRequestException("该订单已有冻结金额，请先解冻");
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (order.status !== "PAID") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已支付订单可冻结");
+    if (Number(order.frozenAmount || 0) > 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已有冻结金额，请先解冻");
 
     const updated = await this.prisma.order.update({
       where: { id: dto.orderId },
@@ -302,8 +304,8 @@ export class FinanceService {
   /** 解冻订单资金 */
   async unfreezeAmount(dto: { orderId: string; reason?: string }) {
     const order = await this.prisma.order.findUnique({ where: { id: dto.orderId } });
-    if (!order) throw new NotFoundException("订单不存在");
-    if (!order.frozenAmount || Number(order.frozenAmount) === 0) throw new BadRequestException("该订单无冻结金额");
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (!order.frozenAmount || Number(order.frozenAmount) === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单无冻结金额");
 
     const updated = await this.prisma.order.update({
       where: { id: dto.orderId },
@@ -380,7 +382,7 @@ export class FinanceService {
   private async generateMonthlyData(period: string) {
     const [year, month] = period.split("-").map(Number);
     if (!year || !month || month < 1 || month > 12) {
-      throw new BadRequestException("无效的周期格式，应为 YYYY-MM（如 2026-05）");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的周期格式，应为 YYYY-MM（如 2026-05）");
     }
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);

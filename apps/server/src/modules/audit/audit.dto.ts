@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt } from "class-validator";
+import { IsString, IsOptional, IsInt, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 
 export class AuditListQueryDto {
@@ -40,6 +40,7 @@ export class ModerateImageDto {
 
 export class ModerateTextDto {
   @IsString()
+  @MinLength(1)
   content: string;
 
   @IsOptional() @IsString()

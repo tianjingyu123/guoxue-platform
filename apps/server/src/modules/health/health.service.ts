@@ -30,7 +30,7 @@ export class HealthService {
     const checks: Record<string, HealthCheck> = {};
 
     // DB + Redis + 第三方服务并发检查
-    const results = await Promise.allSettled([
+    await Promise.allSettled([
       this.checkDb().then((r) => (checks.db = r)),
       this.checkRedis().then((r) => (checks.redis = r)),
       this.checkDeepSeek().then((r) => (checks.deepseek = r)),

@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
@@ -45,7 +47,7 @@ export class OfflineService {
         teacherBookings: { orderBy: { bookingDate: "desc" }, take: 10 },
       },
     });
-    if (!s) throw new NotFoundException("驿站不存在");
+    if (!s) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站不存在");
     return s;
   }
 
@@ -113,7 +115,7 @@ export class OfflineService {
         registrations: true,
       },
     });
-    if (!course) throw new NotFoundException("课程不存在");
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
     return course;
   }
 
@@ -124,15 +126,15 @@ export class OfflineService {
       where: { id: courseId },
       include: { _count: { select: { registrations: true } } },
     });
-    if (!course) throw new NotFoundException("课程不存在");
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
 
     const existing = await this.prisma.offlineCourseRegistration.findUnique({
       where: { courseId_userId: { courseId, userId } },
     });
-    if (existing) throw new BadRequestException("已报名该课程");
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
 
     if (course._count.registrations >= course.maxStudents) {
-      throw new BadRequestException("课程名额已满");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "课程名额已满");
     }
 
     const qrCode = `QR_${courseId}_${userId}_${Date.now()}`;
@@ -141,7 +143,7 @@ export class OfflineService {
         data: { courseId, userId, qrCode },
       });
     } catch (e: unknown) {
-      if ((e as Record<string, unknown>)?.code === "P2002") throw new BadRequestException("已报名该课程");
+      if ((e as Record<string, unknown>)?.code === "P2002") throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
       throw e;
     }
   }
@@ -150,8 +152,8 @@ export class OfflineService {
     const reg = await this.prisma.offlineCourseRegistration.findUnique({
       where: { courseId_userId: { courseId, userId } },
     });
-    if (!reg) throw new NotFoundException("未报名该课程");
-    if (reg.status === "SIGNED_IN") throw new BadRequestException("已签到，无法取消");
+    if (!reg) throw new BusinessException(ErrorCode.NOT_FOUND, "未报名该课程");
+    if (reg.status === "SIGNED_IN") throw new BusinessException(ErrorCode.BAD_REQUEST, "已签到，无法取消");
 
     return this.prisma.offlineCourseRegistration.update({
       where: { id: reg.id },
@@ -164,9 +166,9 @@ export class OfflineService {
       where: { qrCode, course: { stationId } },
       include: { course: true },
     });
-    if (!reg) throw new NotFoundException("无效的签到码");
-    if (reg.status === "CANCELLED") throw new BadRequestException("报名已取消");
-    if (reg.status === "SIGNED_IN") throw new BadRequestException("已签到");
+    if (!reg) throw new BusinessException(ErrorCode.NOT_FOUND, "无效的签到码");
+    if (reg.status === "CANCELLED") throw new BusinessException(ErrorCode.BAD_REQUEST, "报名已取消");
+    if (reg.status === "SIGNED_IN") throw new BusinessException(ErrorCode.BAD_REQUEST, "已签到");
 
     return this.prisma.offlineCourseRegistration.update({
       where: { id: reg.id },
@@ -278,11 +280,11 @@ export class OfflineService {
     let actualAmount: number;
     if (dto.orderType === "COURSE") {
       const course = await this.prisma.offlineCourse.findUnique({ where: { id: dto.targetId } });
-      if (!course) throw new NotFoundException("课程不存在");
+      if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
       actualAmount = Number(course.price);
     } else if (dto.orderType === "PRODUCT") {
       const product = await this.prisma.stationProduct.findUnique({ where: { id: dto.targetId } });
-      if (!product) throw new NotFoundException("商品不存在");
+      if (!product) throw new BusinessException(ErrorCode.NOT_FOUND, "商品不存在");
       actualAmount = Number(product.price);
     } else {
       actualAmount = dto.amount; // 其他类型（如 TEACHER_BOOKING）保留前端传入金额
@@ -354,8 +356,8 @@ export class OfflineService {
     const settlement = await this.prisma.stationSettlement.findFirst({
       where: { id: settlementId, stationId },
     });
-    if (!settlement) throw new NotFoundException("结算单不存在");
-    if (settlement.settled) throw new BadRequestException("已结算");
+    if (!settlement) throw new BusinessException(ErrorCode.NOT_FOUND, "结算单不存在");
+    if (settlement.settled) throw new BusinessException(ErrorCode.BAD_REQUEST, "已结算");
 
     return this.prisma.stationSettlement.update({
       where: { id: settlementId },
@@ -367,7 +369,7 @@ export class OfflineService {
 
   async getRevenueDashboard(stationId: string) {
     const station = await this.prisma.stationOffline.findUnique({ where: { id: stationId } });
-    if (!station) throw new NotFoundException("驿站不存在");
+    if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站不存在");
 
     const [orders, settlements, courses, products] = await Promise.all([
       this.prisma.stationOrder.aggregate({

@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { VideoService } from "./video.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VodService } from "./vod.service";
-import { NotFoundException } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   video: {
@@ -126,7 +126,7 @@ describe("VideoService", () => {
 
     it("视频不存在抛出 NotFoundException", async () => {
       mockPrisma.video.findUnique.mockResolvedValue(null);
-      await expect(svc.getDetail("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.getDetail("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
@@ -140,7 +140,7 @@ describe("VideoService", () => {
 
     it("视频不存在抛出 NotFoundException", async () => {
       mockPrisma.video.findUnique.mockResolvedValue(null);
-      await expect(svc.toggleLike("invalid")).rejects.toThrow(NotFoundException);
+      await expect(svc.toggleLike("invalid")).rejects.toThrow(BusinessException);
     });
   });
 
