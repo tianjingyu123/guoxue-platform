@@ -188,3 +188,28 @@ guoxue-platform/
 - [x] 定时任务框架（Cron Webhook + 运营简报生成）
 - [x] 高可用部署（云服务器初始化脚本 + GitHub Actions CI/CD + 健康检查 + 自动回滚 + 监控栈 + systemd 自启动）
 - [ ] Vercel + GitHub 自动部署（等前端就绪）
+
+### P4 增强基础设施 ✅ (2026-05-13)
+- [x] BullMQ 消息队列 + PostgreSQL 读副本 + Redis Sentinel HA
+- [x] 数据库复合索引优化（3 个 migration）
+- [x] AI Gateway 模块（多模型路由/RAG/向量服务/客服）
+- [x] 圈子智能体 + 知识库 + 经典问答 + Smart Feed
+- [x] 监控栈：Tempo OTLP + Blackbox Exporter + 2 仪表盘
+
+### P5 代码质量 ✅ (2026-05-13)
+- [x] CI/CD 全链路修复 + 测试覆盖率 V8 provider
+- [x] ErrorCode 全面迁移（33 service）+ ESLint 收紧 + Prettier
+- [x] pnpm overrides 安全补丁 + SECURITY.md
+
+### P6 开发体验 ✅ (2026-05-13)
+- [x] quick-start.sh + dev-setup.sh + 种子营销数据 + 管理后台审查
+
+### P7 运维 + 移动端 ✅ (2026-05-13)
+- [x] db-ops.sh（备份/恢复/校验/调度）+ k6-run.sh（6场景+HTML报告）
+- [x] 移动端 API 补充 5 模块（营销/AI/会员/同城）
+
+### 当前统计 (2026-05-13)
+- 后端：50+ 模块，400+ API，171 suites，2318 tests
+- 管理后台：97 视图，vue-tsc 零错误
+- 监控：Prometheus + Loki + Tempo + Grafana（7 仪表盘）
+- 运维：6 脚本 | CI/CD：3 流水线 + k6 五场景
