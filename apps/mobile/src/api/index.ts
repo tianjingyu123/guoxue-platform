@@ -491,7 +491,7 @@ export const memberApi = {
 export const sameCityApi = {
   /** 同城内容推荐 */
   feed: (params?: { lat?: number; lng?: number; radius?: number; page?: number }) =>
-    api.get("/recommend/same-city", params),
+    api.get("/recommend/same_city", params),
   /** 附近的人 */
   nearbyUsers: (params?: { lat?: number; lng?: number; radius?: number }) =>
     api.get("/interaction/nearby", params),

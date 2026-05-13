@@ -125,6 +125,28 @@ export class InteractionController {
     return this.svc.getFollowing(userId, +page, +pageSize);
   }
 
+  // ───────── 附近的人 ─────────
+
+  @Get("nearby")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "发现附近的人" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "lat", required: false, type: Number, description: "纬度" })
+  @ApiQuery({ name: "lng", required: false, type: Number, description: "经度" })
+  @ApiQuery({ name: "radius", required: false, type: Number, description: "搜索半径（km）" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  getNearbyUsers(
+    @Req() req: Request,
+    @Query("lat") lat?: number,
+    @Query("lng") lng?: number,
+    @Query("radius") radius?: number,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.getNearbyUsers(req.user.id, { lat, lng, radius: radius ?? 10, page: +page, pageSize: +pageSize });
+  }
+
   // ───────── 举报 ─────────
 
   @Post("report")

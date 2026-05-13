@@ -13,10 +13,44 @@ class AiSearchDto {
   results!: Array<{ title: string; content: string }>;
 }
 
+class AiQueryDto {
+  @IsString()
+  query!: string;
+}
+
 @ApiTags("AI搜索")
 @Controller("search")
 export class AiSearchController {
   constructor(private readonly gateway: AiGatewayService) {}
+
+  /** AI 智能搜索（简化入口，仅需 query） */
+  @Post("ai")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "AI智能搜索 — 输入问题直接返回AI回答" })
+  @ApiBearerAuth()
+  async aiQuery(@Body() body: AiQueryDto, @Req() req: Request) {
+    const userId = (req as any).user?.id;
+    try {
+      const result = await this.gateway.chat({
+        scene: "smart_search",
+        userId,
+        messages: [
+          {
+            role: "system",
+            content: "你是一个博学的国学搜索助手，请根据用户的问题给出简洁准确的回答（300字以内），使用中文。",
+          },
+          { role: "user", content: body.query },
+        ],
+        options: { temperature: 0.3, maxTokens: 768 },
+      });
+      return { answer: result.content, query: body.query };
+    } catch (err: any) {
+      if (err.message?.includes("未配置")) {
+        throw new HttpException(err.message, HttpStatus.SERVICE_UNAVAILABLE);
+      }
+      throw err;
+    }
+  }
 
   /** AI 语义搜索总结 */
   @Post("ai/summary")

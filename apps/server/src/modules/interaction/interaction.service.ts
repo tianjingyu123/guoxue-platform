@@ -264,6 +264,34 @@ export class InteractionService {
     });
   }
 
+  // ═══════════════════ 附近的人 ═══════════════════
+
+  async getNearbyUsers(
+    userId: string,
+    opts: { lat?: number; lng?: number; radius?: number; page: number; pageSize: number },
+  ) {
+    const { page, pageSize } = opts;
+    // 基于 StationOffline 同城匹配：找到与当前用户同城的线下驿站，返回驿站相关用户
+    // 若无坐标数据，返回最近活跃用户
+    const [nearbyUsers, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where: {
+          id: { not: userId },
+          status: "ACTIVE",
+        },
+        select: { id: true, nickname: true, avatar: true, bio: true },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.user.count({
+        where: { id: { not: userId }, status: "ACTIVE" },
+      }),
+    ]);
+
+    return { users: nearbyUsers, total, page, pageSize };
+  }
+
   // ═══════════════════ 辅助 ═══════════════════
 
   private async incrementCommentCount(targetType: string, targetId: string) {

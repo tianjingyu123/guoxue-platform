@@ -9,6 +9,20 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 export class CircleAssistantController {
   constructor(private readonly assistant: CircleAssistantService) {}
 
+  /** 简化提问（无需 /ask 后缀） */
+  @Post(":circleId/assistant")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "向圈主助理提问（简化路径）" })
+  @ApiBearerAuth()
+  async askSimple(
+    @Param("circleId") circleId: string,
+    @Body() body: { question: string },
+    @Req() req: Request,
+  ) {
+    const userId = (req as any).user?.id;
+    return this.assistant.ask(body.question, circleId, userId);
+  }
+
   /** 非流式提问 */
   @Post(":circleId/assistant/ask")
   @UseGuards(JwtAuthGuard)
