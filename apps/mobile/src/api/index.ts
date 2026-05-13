@@ -429,4 +429,72 @@ export const homeApi = {
   siteNotices: () => api.get("/system/site-notices"),
 };
 
+// ==================== 营销活动 ====================
+export const marketingApi = {
+  /** 秒杀列表 */
+  flashSales: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/marketing/flash-sales", params),
+  /** 秒杀详情 */
+  flashSaleDetail: (id: string) => api.get(`/marketing/flash-sales/${id}`),
+  /** 拼团列表 */
+  groupBuys: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/marketing/group-buys", params),
+  /** 拼团详情 */
+  groupBuyDetail: (id: string) => api.get(`/marketing/group-buys/${id}`),
+  /** 发起拼团 */
+  joinGroupBuy: (groupBuyId: string, data?: { groupId?: string }) =>
+    api.post(`/marketing/group-buys/${groupBuyId}/join`, data),
+  /** 我的拼团 */
+  myGroupBuys: () => api.get("/marketing/group-buys/my"),
+  /** 折扣活动列表 */
+  discounts: () => api.get("/marketing/discounts"),
+  /** 营销页面 */
+  pageByRoute: (route: string) => api.get(`/marketing/pages/${encodeURIComponent(route)}`),
+};
+
+// ==================== AI 智能体增强 ====================
+export const aiApi = {
+  /** 智能推荐流 */
+  smartFeed: (params?: { page?: number; pageSize?: number; scene?: string }) =>
+    api.get("/recommend/smart-feed", params),
+  /** 经典问答 */
+  classicQA: (classicId: string, question: string) =>
+    api.post(`/classic/${classicId}/qa`, { question }),
+  /** 经典问答历史 */
+  classicQAHistory: (classicId: string) => api.get(`/classic/${classicId}/qa`),
+  /** 圈子智能助手 */
+  circleAssistant: (circleId: string, message: string) =>
+    api.post(`/circles/${circleId}/assistant`, { message }),
+  /** AI 翻译 */
+  translate: (text: string, from?: string, to?: string) =>
+    api.post("/ai/translate", { text, from, to }),
+  /** AI 搜索 */
+  aiSearch: (query: string) => api.post("/search/ai", { query }),
+};
+
+// ==================== 会员系统 ====================
+export const memberApi = {
+  /** 会员套餐列表 */
+  plans: () => api.get("/member/plans"),
+  /** 购买会员 */
+  purchase: (planId: string, data?: { couponId?: string }) =>
+    api.post(`/member/purchase/${planId}`, data),
+  /** 我的会员状态 */
+  myStatus: () => api.get("/member/status"),
+  /** 续费 */
+  renew: (planId: string) => api.post(`/member/renew/${planId}`),
+  /** 权益列表 */
+  myBenefits: () => api.get("/member/benefits"),
+};
+
+// ==================== 同城发现 ====================
+export const sameCityApi = {
+  /** 同城内容推荐 */
+  feed: (params?: { lat?: number; lng?: number; radius?: number; page?: number }) =>
+    api.get("/recommend/same-city", params),
+  /** 附近的人 */
+  nearbyUsers: (params?: { lat?: number; lng?: number; radius?: number }) =>
+    api.get("/interaction/nearby", params),
+};
+
 export default api;
