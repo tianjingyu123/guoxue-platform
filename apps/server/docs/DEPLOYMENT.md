@@ -476,3 +476,80 @@ npx prisma migrate deploy
 - [ ] .env 文件不包含在版本控制中
 - [ ] Docker 镜像定期更新基础镜像
 - [ ] 备份文件加密或存储在安全位置
+
+---
+
+## 12. GitHub Actions CI/CD 密钥配置
+
+部署流水线 (`.github/workflows/deploy.yml`) 需要以下 GitHub Secrets：
+
+### 12.1 Staging 环境
+
+| Secret | 说明 |
+|--------|------|
+| `STAGING_HOST` | 预发布服务器 IP/域名 |
+| `STAGING_USER` | SSH 用户名 |
+| `STAGING_SSH_KEY` | SSH 私钥（对应公钥已添加到服务器） |
+| `DEPLOY_PORT` | SSH 端口（默认 22） |
+
+### 12.2 Production 环境
+
+| Secret | 说明 |
+|--------|------|
+| `PROD_HOST` | 生产服务器 IP/域名 |
+| `PROD_USER` | SSH 用户名 |
+| `PROD_SSH_KEY` | SSH 私钥 |
+| `DATABASE_URL` | 生产数据库连接串（迁移用） |
+
+### 12.3 通知（可选）
+
+| Secret | 说明 |
+|--------|------|
+| `WEWORK_WEBHOOK_URL` | 企业微信机器人 Webhook，用于部署结果通知 |
+
+### 12.4 配置命令
+
+```bash
+# 在 GitHub 仓库 → Settings → Secrets and variables → Actions → New repository secret
+gh secret set STAGING_HOST --body "123.45.67.89"
+gh secret set STAGING_USER --body "deploy"
+gh secret set STAGING_SSH_KEY --body "$(cat ~/.ssh/id_ed25519)"
+gh secret set PROD_HOST --body "prod.example.com"
+gh secret set PROD_USER --body "deploy"
+gh secret set PROD_SSH_KEY --body "$(cat ~/.ssh/id_ed25519_prod)"
+gh secret set DEPLOY_PORT --body "22"
+gh secret set DATABASE_URL --body "postgresql://guoxue:<password>@localhost:5432/guoxue"
+gh secret set WEWORK_WEBHOOK_URL --body "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"
+
+# 在服务器上添加公钥
+ssh-copy-id -i ~/.ssh/id_ed25519.pub deploy@123.45.67.89
+```
+
+---
+
+## 13. 云服务器一键初始化
+
+```bash
+# 在新服务器上（Ubuntu 20.04+ / Debian 11+ / Rocky 8+）
+curl -fsSL https://raw.githubusercontent.com/<user>/guoxue-platform/main/docker/setup-server.sh | sudo bash
+
+# 或本地执行
+sudo REPO_URL=https://github.com/<user>/guoxue-platform.git DOMAIN=guoxue.ac.cn ./docker/setup-server.sh
+```
+
+脚本自动执行：
+1. 系统优化（时区/swap/内核参数）
+2. 安装 Docker + Docker Compose
+3. 配置防火墙（22/80/443）
+4. 克隆仓库 + 构建镜像
+5. SSL 证书签发（Let's Encrypt）
+6. 数据库迁移
+7. 注册 systemd 自启动服务
+8. 配置定时备份 + 日志清理 cron
+
+服务管理：
+```bash
+systemctl status guoxue       # 查看状态
+systemctl restart guoxue      # 重启全部服务
+journalctl -u guoxue -f       # 查看日志
+```

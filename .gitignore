@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+.env.*
 .env.local
 *.log
 .turbo
@@ -26,6 +27,14 @@ uploads/
 .backup/
 .reference/
 
+# SSL 证书和密钥（绝对不可提交）
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+docker/nginx/ssl/
+
 # TypeScript build info
 *.tsbuildinfo
 
@@ -33,5 +42,7 @@ uploads/
 .claude/mcp.json
 .claude/settings.json
 
-# Prisma (migrations must be tracked for DB versioning)
-.backup/
+# Lint/Test temp outputs
+eslint-report.json
+.eslint-output.json
+failing-tests.txt

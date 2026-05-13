@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { createHash, createSign, createVerify } from "crypto";
+import { createSign, createVerify } from "crypto";
 import { readFileSync } from "fs";
 import { MemoryCache } from "../../common/cache.util";
 
@@ -245,7 +245,8 @@ export class UnionpayService {
     if (!signature) return { valid: false, error: "缺少签名字段" };
 
     // 1. RSA-SHA256 验签
-    const { signature: _, sign, ...rest } = params;
+    const rest = { ...params };
+    delete rest.signature;
     const signStr = this.buildSignStr(rest);
     const valid = this.verifySign(signStr, signature);
     if (!valid) return { valid: false, error: "RSA-SHA256验签失败" };

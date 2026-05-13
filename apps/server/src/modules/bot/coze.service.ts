@@ -238,4 +238,150 @@ export class CozeService {
     }
     return data.data;
   }
+
+  /** 获取单条消息详情 */
+  async retrieveMessage(
+    conversationId: string,
+    chatId: string,
+    messageId: string,
+    apiKey: string,
+  ) {
+    const resp = await fetch(
+      `${this.baseUrl}/chat/message/retrieve?chat_id=${chatId}&conversation_id=${conversationId}&message_id=${messageId}`,
+      { headers: { "Authorization": `Bearer ${apiKey}` } },
+    );
+    const data = await resp.json() as Record<string, unknown>;
+    if (data.code !== 0) {
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `获取消息详情失败: ${data.msg}`);
+    }
+    return data.data;
+  }
+
+  // ───────── 智能体管理 ─────────
+
+  /** 从 Coze 获取智能体详情（含 voice_id 等配置） */
+  async retrieveBot(botId: string, apiKey: string) {
+    const resp = await fetch(`https://api.coze.cn/v1/bot/retrieve?bot_id=${botId}`, {
+      headers: { "Authorization": `Bearer ${apiKey}` },
+    });
+    const data = await resp.json() as Record<string, unknown>;
+    if (data.code !== 0) {
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `获取智能体信息失败: ${data.msg}`);
+    }
+    return data.data as Record<string, unknown>;
+  }
+
+  /** 获取 Coze 空间下的所有智能体列表 */
+  async listBots(apiKey: string, spaceId?: string) {
+    const params = new URLSearchParams();
+    if (spaceId) params.set("space_id", spaceId);
+    const url = `https://api.coze.cn/v1/space/list_bot${params.toString() ? "?" + params.toString() : ""}`;
+    const resp = await fetch(url, {
+      headers: { "Authorization": `Bearer ${apiKey}` },
+    });
+    const data = await resp.json() as Record<string, unknown>;
+    if (data.code !== 0) {
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `获取智能体列表失败: ${data.msg}`);
+    }
+    return data.data as Record<string, unknown>;
+  }
+
+  // ───────── 语音通话 ─────────
+
+  /** 创建 RTC 语音通话房间 */
+  async createVoiceRoom(params: {
+    botId: string;
+    apiKey: string;
+    voiceId?: string;
+    prologue?: string;
+  }) {
+    const body: Record<string, unknown> = {
+      bot_id: params.botId,
+      config: {
+        room_mode: "default",
+        audio_config: { codec: "OPUS" },
+        turn_detection: { type: "server_vad" },
+      },
+    };
+    if (params.voiceId) body.voice_id = params.voiceId;
+    if (params.prologue) (body.config as Record<string, unknown>).prologue_content = params.prologue;
+
+    const resp = await fetch("https://api.coze.cn/v1/audio/rooms", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${params.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json() as Record<string, unknown>;
+    if (data.code !== 0) {
+      this.logger.error("创建语音房间失败", data);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `创建语音房间失败: ${data.msg}`);
+    }
+    return data.data as Record<string, unknown>;
+  }
+
+  /** 获取可用音色列表 */
+  async listVoices(apiKey: string) {
+    const resp = await fetch("https://api.coze.cn/v1/audio/voices", {
+      headers: { "Authorization": `Bearer ${apiKey}` },
+    });
+    const data = await resp.json() as Record<string, unknown>;
+    if (data.code !== 0) {
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `获取音色列表失败: ${data.msg}`);
+    }
+    return data.data as Record<string, unknown>;
+  }
+
+  // ───────── 工作流 ─────────
+
+  /** 执行 Coze 工作流 */
+  async runWorkflow(params: {
+    workflowId: string;
+    apiKey: string;
+    parameters?: Record<string, unknown>;
+  }) {
+    const resp = await fetch("https://api.coze.cn/v1/workflow/run", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${params.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        workflow_id: params.workflowId,
+        parameters: params.parameters || {},
+      }),
+    });
+    const data = await resp.json() as Record<string, unknown>;
+    if (data.code !== 0) {
+      this.logger.error("工作流执行失败", data);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `工作流执行失败: ${data.msg}`);
+    }
+    return {
+      result: data.data,
+      debugUrl: data.debug_url as string | undefined,
+      usage: data.usage,
+    };
+  }
+
+  // ───────── 文件上传 ─────────
+
+  /** 上传文件到 Coze（用于多模态对话） */
+  async uploadFile(file: Buffer, filename: string, apiKey: string) {
+    const form = new FormData();
+    form.append("file", new Blob([file]), filename);
+
+    const resp = await fetch("https://api.coze.cn/v1/file/upload", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${apiKey}` },
+      body: form,
+    });
+    const data = await resp.json() as Record<string, unknown>;
+    if (data.code !== 0) {
+      this.logger.error("文件上传失败", data);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `文件上传失败: ${data.msg}`);
+    }
+    return data.data as Record<string, unknown>;
+  }
 }

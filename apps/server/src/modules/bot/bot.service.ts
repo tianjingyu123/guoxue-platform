@@ -1,4 +1,6 @@
-import { Injectable, NotFoundException, Logger, BadRequestException } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CozeService } from "./coze.service";
@@ -30,6 +32,7 @@ export class BotService {
         price: dto.price,
         monthlyPrice: dto.monthlyPrice,
         sortOrder: dto.sortOrder ?? 0,
+        voiceEnabled: dto.voiceEnabled ?? false,
       },
     });
   }
@@ -65,7 +68,7 @@ export class BotService {
         knowledgeBases: { orderBy: { createdAt: "desc" } },
       },
     });
-    if (!bot) throw new NotFoundException("智能体不存在");
+    if (!bot) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在");
     return { ...bot, apiKey: bot.apiKey ? decrypt(bot.apiKey) : bot.apiKey };
   }
 
@@ -124,9 +127,9 @@ export class BotService {
   /** 获取智能体配置（含API密钥） */
   private async getBotOrThrow(id: string) {
     const bot = await this.prisma.botConfig.findUnique({ where: { id } });
-    if (!bot) throw new NotFoundException("智能体不存在");
-    if (!bot.apiKey || !bot.botId) throw new BadRequestException("智能体未配置API密钥");
-    return bot;
+    if (!bot) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在");
+    if (!bot.apiKey || !bot.botId) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置API密钥");
+    return { ...bot, apiKey: decrypt(bot.apiKey) };
   }
 
   /** 非流式对话 */
@@ -135,7 +138,7 @@ export class BotService {
 
     const dailyCount = await this.getUserDailyCount(userId, botConfigId);
     if (!bot.isFree && dailyCount >= bot.dailyLimit) {
-      throw new BadRequestException(`今日对话次数已达上限（${bot.dailyLimit}次）`);
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `今日对话次数已达上限（${bot.dailyLimit}次）`);
     }
 
     const result = await this.coze.chat({
@@ -161,15 +164,18 @@ export class BotService {
   }
 
   /** 流式对话（返回 Observable，控制器处理为SSE） */
-  chatStream(botConfigId: string, userId: string, dto: ChatDto) {
-    // 需在控制器层异步获取bot配置后传递
-    return this.coze.chatStream;
+  chatStream(botId: string, apiKey: string, userId: string, query: string, conversationId?: string) {
+    return this.coze.chatStream({
+      botId,
+      apiKey,
+      userId,
+      query,
+      conversationId,
+    });
   }
 
   /** 获取对话历史 */
   async getChatHistory(botConfigId: string, conversationId: string) {
-    const bot = await this.getBotOrThrow(botConfigId);
-
     const logs = await this.prisma.botChatLog.findMany({
       where: { botConfigId, conversationId },
       orderBy: { createdAt: "asc" },
@@ -291,7 +297,7 @@ export class BotService {
       where: { circleId },
     });
     if (!circleBot) {
-      throw new BadRequestException("该圈子未开通圈主助理");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该圈子未开通圈主助理");
     }
 
     return this.prisma.botKnowledgeBase.create({
@@ -325,7 +331,7 @@ export class BotService {
       where: { circleId },
     });
     if (!circleBot) {
-      throw new BadRequestException("该圈子未开通圈主助理");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该圈子未开通圈主助理");
     }
 
     const botConfigId = circleBot.botConfigId;
@@ -389,5 +395,114 @@ export class BotService {
       trend,
       topQueries,
     };
+  }
+
+  // ───────── 语音通话 ─────────
+
+  /** 获取全局 Coze PAT（用于管理类 API） */
+  private getGlobalApiKey(): string {
+    const key = process.env.COZE_API_KEY;
+    if (!key) throw new BusinessException(ErrorCode.BAD_REQUEST, "未配置全局 COZE_API_KEY");
+    return key;
+  }
+
+  /** 创建语音通话房间 */
+  async createVoiceRoom(botConfigId: string, userId: string) {
+    const bot = await this.getBotOrThrow(botConfigId);
+    if (!bot.voiceEnabled) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该智能体未开通语音通话");
+    }
+
+    const room = await this.coze.createVoiceRoom({
+      botId: bot.botId,
+      apiKey: bot.apiKey,
+    });
+
+    return {
+      ...room,
+      botName: bot.name,
+      userId,
+    };
+  }
+
+  // ───────── Coze 同步 ─────────
+
+  /** 从 Coze 同步智能体列表，返回我们平台尚未注册的 */
+  async syncFromCoze(apiKey?: string) {
+    const key = apiKey || this.getGlobalApiKey();
+    const result = await this.coze.listBots(key);
+    const bots = (result as any)?.space_bots || (result as any)?.items || [];
+
+    // 获取平台已有的 botId 列表
+    const existing = await this.prisma.botConfig.findMany({
+      select: { botId: true, name: true },
+    });
+    const existingIds = new Set(existing.map((e) => e.botId));
+
+    const newBots: Array<Record<string, unknown>> = [];
+    const synced: Array<Record<string, unknown>> = [];
+
+    for (const bot of bots) {
+      const botId = bot.bot_id as string;
+      if (existingIds.has(botId)) {
+        synced.push(bot);
+      } else {
+        newBots.push(bot);
+      }
+    }
+
+    return {
+      total: bots.length,
+      synced: synced.length,
+      new: newBots.length,
+      newBots: newBots.map((b: any) => ({
+        botId: b.bot_id,
+        name: b.bot_name || b.name,
+        description: b.description,
+        avatarUrl: b.avatar_url || b.icon_url,
+        voiceEnabled: !!b.voice_id,
+      })),
+      syncedBots: synced.map((b: any) => ({
+        botId: b.bot_id,
+        name: b.bot_name || b.name,
+      })),
+    };
+  }
+
+  /** 获取 Coze 侧智能体详细信息 */
+  async getCozeBotInfo(botConfigId: string) {
+    const bot = await this.getBotOrThrow(botConfigId);
+    const info = await this.coze.retrieveBot(bot.botId, this.getGlobalApiKey());
+    return {
+      local: { id: bot.id, name: bot.name, voiceEnabled: bot.voiceEnabled },
+      coze: info,
+    };
+  }
+
+  // ───────── 工作流 ─────────
+
+  /** 执行 Coze 工作流 */
+  async runWorkflow(dto: {
+    botConfigId?: string;
+    workflowId: string;
+    parameters?: Record<string, unknown>;
+  }) {
+    const key = dto.botConfigId
+      ? (await this.getBotOrThrow(dto.botConfigId)).apiKey
+      : this.getGlobalApiKey();
+
+    return this.coze.runWorkflow({
+      workflowId: dto.workflowId,
+      apiKey: key,
+      parameters: dto.parameters,
+    });
+  }
+
+  // ───────── 文件上传 ─────────
+
+  /** 上传文件到 Coze（多模态对话用） */
+  async uploadFile(botConfigId: string, file: Buffer, filename: string) {
+    const bot = await this.getBotOrThrow(botConfigId);
+    return this.coze.uploadFile(file, filename, bot.apiKey);
   }
 }

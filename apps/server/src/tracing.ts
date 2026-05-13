@@ -43,7 +43,7 @@ const sdk = new NodeSDK({
 export async function startTracing() {
   try {
     await sdk.start();
-    console.log("[OpenTelemetry] 链路追踪已启动");
+    console.warn("[OpenTelemetry] 链路追踪已启动");
   } catch (err) {
     console.warn("[OpenTelemetry] 链路追踪启动失败（无 Collector 可用，继续运行）:", (err as Error).message);
   }
@@ -52,7 +52,7 @@ export async function startTracing() {
 export async function stopTracing() {
   try {
     await sdk.shutdown();
-    console.log("[OpenTelemetry] 链路追踪已关闭");
+    console.warn("[OpenTelemetry] 链路追踪已关闭");
   } catch {
     // ignore
   }

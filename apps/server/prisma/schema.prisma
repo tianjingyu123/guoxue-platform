@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
@@ -242,6 +243,7 @@ model Circle {
   liveRooms     LiveRoom[]
   paidQuestions PaidQuestion[]
   bot           CircleBot?
+  knowledgeItems CircleKnowledge[]
 
   @@index([ownerId])
   @@index([status])
@@ -301,6 +303,7 @@ model Post {
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([circleId, createdAt])
+  @@index([circleId, status, createdAt])
   @@index([userId])
 }
 
@@ -367,6 +370,7 @@ model Article {
   @@index([userId, createdAt])
   @@index([stationId])
   @@index([auditStatus, createdAt])
+  @@index([circleId, auditStatus, createdAt])
 }
 
 model ArticleRecommend {
@@ -427,6 +431,7 @@ model Course {
   @@index([userId, createdAt])
   @@index([stationId])
   @@index([type, auditStatus])
+  @@index([circleId, auditStatus, createdAt])
 }
 
 model CourseChapter {
@@ -596,6 +601,7 @@ model Order {
   @@index([payTransactionId])
   @@index([type, status])
   @@index([userId, type, targetId, status])
+  @@index([userId, status])
   @@index([type])
   @@index([userId, type, status, createdAt])
   @@index([merchantId, status])
@@ -768,6 +774,7 @@ model LiveRoom {
 
   @@index([status])
   @@index([circleId])
+  @@index([circleId, status])
   @@index([courseId])
   @@index([status, startTime])
   @@index([hostUserId, status])
@@ -895,6 +902,7 @@ model Video {
   @@index([status])
   @@index([stationId])
   @@index([status, createdAt])
+  @@index([circleId, status, createdAt])
 }
 
 model VideoProduct {
@@ -924,8 +932,9 @@ model BotConfig {
   dailyLimit  Int      @default(5) // 每日免费次数
   price       Decimal? @db.Decimal(10, 2) // 付费调用单价
   monthlyPrice Decimal? @db.Decimal(10, 2)
-  sortOrder   Int      @default(0)
-  status      String   @default("ACTIVE")
+  sortOrder    Int      @default(0)
+  voiceEnabled Boolean? @default(false) // Coze 语音通话开关
+  status       String   @default("ACTIVE")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -973,7 +982,7 @@ model BotChatLog {
   chatId         String?
   createdAt      DateTime @default(now())
 
-  @@index([userId])
+  @@index([userId, createdAt])
   @@index([botConfigId])
   @@index([conversationId])
   @@index([createdAt])
@@ -1005,19 +1014,31 @@ model PaipanRecord {
 model AiAnalysisRecord {
   id             String   @id @default(uuid())
   userId         String
-  paipanRecordId String
+  paipanRecordId String?
   analyzeType    String   // CAREER, LOVE, WEALTH, HEALTH, GENERAL
   analysisContent String  // 分析全文
   modelName      String   @default("deepseek-v4-pro")
   tokenUsage     Json?    // { promptTokens, completionTokens }
   isCached       Boolean  @default(false)
+  // AI网关扩展字段
+  scene          String?  // 调用场景：circle_assistant / customer_service / smart_search / classic_qa
+  modelUsed      String?  // 实际使用的模型
+  fallbackUsed   Boolean  @default(false) // 是否触发降级
+  fallbackModel  String?  // 降级后模型
+  latency        Int?     // 响应延迟（ms）
+  cost           Float?   // 费用（元）
+  inputSummary   String?  // 输入内容摘要（前200字符）
+  outputSummary  String?  // 输出内容摘要（前200字符）
+  userAccepted   Boolean? // 用户是否采纳（创作辅助类）
   createdAt      DateTime @default(now())
 
-  user         User         @relation(fields: [userId], references: [id])
-  paipanRecord PaipanRecord @relation(fields: [paipanRecordId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  paipanRecord PaipanRecord? @relation(fields: [paipanRecordId], references: [id])
 
-  @@index([userId, paipanRecordId, analyzeType])
+  @@index([userId, analyzeType, createdAt])
   @@index([createdAt])
+  @@index([scene, createdAt])
+  @@index([modelUsed, createdAt])
 }
 
 // ─────────────────────────────────────────────────
@@ -1320,6 +1341,7 @@ model Comment {
 
   @@index([targetType, targetId, createdAt])
   @@index([parentId, createdAt])
+  @@index([userId, createdAt])
   @@index([status])
 }
 
@@ -1363,14 +1385,17 @@ model Report {
 model AuditLog {
   id         String   @id @default(uuid())
   userId     String?
+  executor   String?  // "CLAUDE" | 用户ID（区分自动化/人工操作）
   action     String
   targetType String?
   targetId   String?
   detail     String?
+  rollbackData Json?  // 回滚数据快照
   ip         String?
   createdAt  DateTime @default(now())
 
   @@index([userId, createdAt])
+  @@index([executor, createdAt])
   @@index([action, createdAt])
   @@index([targetType, targetId])
 }
@@ -1403,6 +1428,7 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead, createdAt])
+  @@index([userId, type, createdAt])
 }
 
 model SearchHistory {
@@ -2059,8 +2085,8 @@ model OperationLog {
   ip         String?
   createdAt  DateTime @default(now())
 
-  @@index([userId])
-  @@index([action])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
   @@index([createdAt])
 }
 
@@ -2622,5 +2648,182 @@ model MerchantAgreement {
   merchant Merchant @relation(fields: [merchantId], references: [id])
 
   @@index([merchantId])
+}
+
+// ─────────────────────────────────────────────────
+// 圈主助理知识库（pgvector）
+// ─────────────────────────────────────────────────
+
+model CircleKnowledge {
+  id          String                        @id @default(uuid())
+  circleId    String
+  sourceType  String                        // article/post/course/file/manual
+  sourceId    String?
+  content     String                        // 知识库文本内容
+  contentHash String                        // MD5哈希值，用于去重
+  vectorJson  String?                       // pgvector不可用时的JSON向量备份
+  status      String                        @default("active") // active/removed/pending
+  addedBy     String?                       // 添加人ID（圈主ID或"SYSTEM"）
+  addedAt     DateTime                      @default(now())
+  updatedAt   DateTime                      @updatedAt
+
+  circle Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+
+  @@unique([contentHash, circleId])
+  @@index([circleId, status])
+  @@index([circleId, sourceType])
+}
+
+model CircleKnowledgeManual {
+  id         String   @id @default(uuid())
+  circleId   String
+  userId     String   // 操作人（圈主）
+  targetType String   // post/article
+  targetId   String
+  action     String   // add/remove
+  createdAt  DateTime @default(now())
+
+  @@index([circleId, createdAt])
+}
+
+model CircleKnowledgeCandidate {
+  id               String   @id @default(uuid())
+  circleId         String
+  sourceType       String   // article/post/course/file
+  sourceId         String?
+  content          String
+  contentHash      String
+  similarityScore  Float?   // 与已有内容的最高相似度
+  similarToId      String?  // 疑似重复的目标内容ID
+  status           String   @default("pending") // pending/confirmed/rejected
+  createdAt        DateTime @default(now())
+
+  @@index([circleId, status])
+}
+
+// ─────────────────────────────────────────────────
+// 自动化运营 — 任务池系统
+// ─────────────────────────────────────────────────
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  NEEDS_REVIEW
+  CANCELLED
+}
+
+enum TaskType {
+  CODE_DEVELOP
+  BUG_FIX
+  DATA_ANALYSIS
+  USER_FEEDBACK
+  CONTENT_REVIEW
+  FINANCE_CHECK
+  SYSTEM_HEALTH
+  SCHEDULED_TASK
+}
+
+model Task {
+  id            String     @id @default(uuid())
+  type          TaskType
+  priority      TaskPriority @default(MEDIUM)
+  status        TaskStatus @default(PENDING)
+  title         String
+  description   String?
+  executorType  String     // "CLAUDE" | "HUMAN"
+  executorId    String?    // Claude实例ID 或 用户ID
+  snapshot      Json?      // 任务数据快照（切换执行者时恢复现场）
+  result        Json?      // 执行结果
+  errorLog      String?    // 失败原因
+  rollbackData  Json?      // 回滚所需数据
+  rollbackUrl   String?    // 回滚API路径
+  needsApproval Boolean    @default(false) // 高风险操作需审批
+  approvedBy    String?    // 审批人ID
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  completedAt   DateTime?
+
+  transferLogs  TaskTransferLog[]
+
+  @@index([status])
+  @@index([executorType, status])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+model TaskTransferLog {
+  id        String   @id @default(uuid())
+  taskId    String
+  fromType  String   // "CLAUDE" | "HUMAN"
+  fromId    String?
+  toType    String   // "CLAUDE" | "HUMAN"
+  toId      String?
+  reason    String   // 转交原因
+  snapshot  Json?    // 转交时的任务状态快照
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────
+// 自动化运营 — 权限系统
+// ─────────────────────────────────────────────────
+
+model AutomationPermission {
+  id        String @id @default(uuid())
+  resource  String // "task", "user", "content", "finance", "system"
+  action    String // "read", "write", "delete", "approve", "manage"
+  createdAt DateTime @default(now())
+
+  rolePermissions AutomationRolePermission[]
+
+  @@unique([resource, action])
+}
+
+model AutomationRole {
+  id          String   @id @default(uuid())
+  name        String   @unique  // "SUPER_ADMIN", "DIGITAL_EMPLOYEE", "OPERATOR", "AUDITOR"
+  description String?
+  isSystem    Boolean  @default(false) // 系统内置角色不可删除
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  permissions AutomationRolePermission[]
+  assignees  AutomationRoleAssignee[]
+}
+
+model AutomationRolePermission {
+  id           String @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  role       AutomationRole      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission AutomationPermission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model AutomationRoleAssignee {
+  id        String   @id @default(uuid())
+  roleId    String
+  userId    String
+  isActive  Boolean  @default(true) // 可临时冻结
+  assignedAt DateTime @default(now())
+
+  role AutomationRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, userId])
+  @@index([userId])
 }
 

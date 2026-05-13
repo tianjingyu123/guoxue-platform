@@ -53,9 +53,11 @@ services:
       dockerfile: docker/Dockerfile
     environment:
       NODE_ENV: production
-      DATABASE_URL: ${DATABASE_URL:-postgresql://guoxue:${DB_PASSWORD:-guoxue123}@postgres:5432/guoxue}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://guoxue:${DB_PASSWORD:-guoxue123}@postgres:5432/guoxue?connection_limit=20&pool_timeout=10}
+      DATABASE_REPLICA_URL: ${DATABASE_REPLICA_URL:-}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
+      JWT_PREVIOUS_SECRETS: ${JWT_PREVIOUS_SECRETS:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       PORT: 3000
       PRISMA_SLOW_QUERY_MS: ${PRISMA_SLOW_QUERY_MS:-500}
@@ -97,6 +99,9 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      # 可观测性 — OTLP 链路追踪
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4318/v1/traces}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-guoxue-platform}
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:3000/api/v1/health || exit 1"]
       interval: 30s

@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGu
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { BotService } from "./bot.service";
-import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDto, AddBotKnowledgeItemDto, UpdateBotKnowledgeItemDto } from "./bot.dto";
+import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDto, AddBotKnowledgeItemDto, UpdateBotKnowledgeItemDto, RunWorkflowDto } from "./bot.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -115,9 +115,12 @@ export class BotController {
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    const stream = this.svc.chatStream(id, req.user.id, dto);
-    const obs = stream(
-      { botId: bot.botId, apiKey: bot.apiKey, userId: req.user.id, query: dto.query, conversationId: dto.conversationId },
+    const obs = this.svc.chatStream(
+      bot.botId,
+      bot.apiKey,
+      req.user.id,
+      dto.query,
+      dto.conversationId,
     );
 
     obs.subscribe({
@@ -145,6 +148,64 @@ export class BotController {
     @Param("conversationId") conversationId: string,
   ) {
     return this.svc.getChatHistory(id, conversationId);
+  }
+
+  // ───────── 语音通话 ─────────
+
+  @Post(":id/voice-room")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "创建语音通话房间（Coze RTC）" })
+  @ApiBearerAuth()
+  createVoiceRoom(
+    @Req() req: Request,
+    @Param("id") id: string,
+  ) {
+    return this.svc.createVoiceRoom(id, req.user.id);
+  }
+
+  // ───────── Coze 同步 ─────────
+
+  @Post("sync/coze")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "从 Coze 同步智能体列表" })
+  @ApiBearerAuth()
+  syncFromCoze() {
+    return this.svc.syncFromCoze();
+  }
+
+  @Get(":id/coze-info")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取 Coze 侧智能体详细信息" })
+  @ApiBearerAuth()
+  getCozeBotInfo(@Param("id") id: string) {
+    return this.svc.getCozeBotInfo(id);
+  }
+
+  // ───────── 工作流 ─────────
+
+  @Post("workflow/run")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "执行 Coze 工作流" })
+  @ApiBearerAuth()
+  runWorkflow(@Body() dto: RunWorkflowDto) {
+    return this.svc.runWorkflow(dto);
+  }
+
+  // ───────── 文件上传 ─────────
+
+  @Post(":id/upload-file")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "上传文件到 Coze（多模态对话）" })
+  @ApiBearerAuth()
+  uploadFile(
+    @Req() req: Request,
+    @Param("id") id: string,
+    @Body() body: { file: string; filename: string },
+  ) {
+    return this.svc.uploadFile(id, Buffer.from(body.file, "base64"), body.filename);
   }
 
   // ───────── 圈主助理管理（管理员） ─────────

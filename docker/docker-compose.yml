@@ -3,7 +3,7 @@ version: "3.9"
 services:
   # ── 数据库 ──
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: guoxue-postgres
     restart: unless-stopped
     environment:
@@ -48,7 +48,8 @@ services:
       - "3000:3000"
     environment:
       # ── 基础设施 ──
-      DATABASE_URL: postgresql://guoxue:guoxue123@postgres:5432/guoxue
+      DATABASE_URL: postgresql://guoxue:guoxue123@postgres:5432/guoxue?connection_limit=20
+      DATABASE_REPLICA_URL: ${DATABASE_REPLICA_URL:-}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       PORT: 3000

@@ -1,5 +1,5 @@
 import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
-import { createSign, createVerify, randomUUID } from "crypto";
+import { createSign, createVerify } from "crypto";
 import { readFileSync } from "fs";
 import { MemoryCache } from "../../common/cache.util";
 import { MetricsService } from "../../common/metrics.service";
@@ -237,7 +237,8 @@ export class AlipayService {
     }
 
     // 1. RSA2 验签
-    const { sign: _, sign_type, ...rest } = params;
+    const rest = { ...params };
+    delete rest.sign;
     const valid = this.verifySign(rest, sign);
     if (!valid) {
       this.metrics?.recordPaymentCallback("alipay", false, "verify_failed");

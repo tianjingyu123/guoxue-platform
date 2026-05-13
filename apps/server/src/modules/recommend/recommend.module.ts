@@ -24,9 +24,13 @@ import { TfidfVectorProvider } from "./strategies/tfidf-vector.provider";
 import { OpenAIEmbeddingProvider } from "./strategies/openai-embedding.provider";
 import { AbTestService } from "./services/ab-test.service";
 import { AbTestController } from "./ab-test.controller";
+import { SmartFeedService } from "./smart-feed.service";
+import { SmartFeedController } from "./smart-feed.controller";
+import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 
 @Module({
-  controllers: [RecommendController, RecommendRuleController, AbTestController],
+  imports: [AiGatewayModule],
+  controllers: [SmartFeedController, RecommendController, RecommendRuleController, AbTestController],
   providers: [
     RecommendService,
     BehaviorService,
@@ -50,6 +54,7 @@ import { AbTestController } from "./ab-test.controller";
     TfidfVectorProvider,
     OpenAIEmbeddingProvider,
     AbTestService,
+    SmartFeedService,
   ],
   exports: [
     RecommendService,
@@ -57,6 +62,7 @@ import { AbTestController } from "./ab-test.controller";
     DedupService,
     RuleService,
     RecommendCacheService,
+    SmartFeedService,
   ],
 })
 export class RecommendModule {}

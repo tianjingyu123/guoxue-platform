@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.turbo
+.cache
+pnpm-lock.yaml
+*.log
+junit.xml
+junit-e2e.xml
+.backup/
+.reference/
+uploads/
+docker/nginx/ssl/

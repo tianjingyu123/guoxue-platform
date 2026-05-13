@@ -38,6 +38,7 @@ import { MapModule } from "./modules/map/map.module";
 import { EmailModule } from "./modules/email/email.module";
 import { WebsocketModule } from "./modules/websocket/websocket.module";
 import { AiModule } from "./modules/ai/ai.module";
+import { AiGatewayModule } from "./modules/ai-gateway/ai-gateway.module";
 import { MiniModule } from "./modules/mini/mini.module";
 import { WebhookModule } from "./modules/webhook/webhook.module";
 import { CallModule } from "./modules/call/call.module";
@@ -50,7 +51,15 @@ import { MarketingModule } from "./modules/marketing/marketing.module";
 import { FinanceModule } from "./modules/finance/finance.module";
 import { MenuModule } from "./modules/menu/menu.module";
 import { MerchantModule } from "./modules/merchant/merchant.module";
+import { QueueModule } from "./modules/queue/queue.module";
+import { TaskModule } from "./modules/task/task.module";
+
+const conditionalModules: any[] = [];
+if (process.env.BULLMQ_DISABLED !== "true") {
+  conditionalModules.push(QueueModule);
+}
+
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule],
 })
 export class AppModule {}

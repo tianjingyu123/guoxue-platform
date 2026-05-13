@@ -32,6 +32,25 @@ datasources:
         - name: traceId
           matcherRegex: '"traceId":"(\w+)"'
           url: "$${__value.raw}"
+          datasourceUid: tempo
+
+  # 分布式追踪 — Tempo
+  - name: Tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+        filterByTraceID: true
+        spanStartTimeShift: "-5m"
+        spanEndTimeShift: "5m"
+        tags:
+          - key: "traceId"
+            value: "traceId"
+      lokiSearch:
+        datasourceUid: loki
 
   # PostgreSQL 监控
   - name: PostgreSQL

@@ -27,7 +27,27 @@ export class RedisService implements OnModuleDestroy {
   private triedConnect = false;
 
   constructor() {
-    if (process.env.REDIS_URL) {
+    const sentinelHosts = process.env.REDIS_SENTINEL_HOSTS;
+    const sentinelName = process.env.REDIS_SENTINEL_NAME || "mymaster";
+
+    if (sentinelHosts) {
+      // Sentinel 模式：高可用连接
+      const sentinels = sentinelHosts.split(",").map((h) => {
+        const [host, port] = h.trim().split(":");
+        return { host, port: parseInt(port || "26379", 10) };
+      });
+      this.logger.log(`Redis Sentinel 模式: ${sentinels.map((s) => `${s.host}:${s.port}`).join(", ")} / ${sentinelName}`);
+      this.client = new Redis({
+        sentinels,
+        name: sentinelName,
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+        sentinelRetryStrategy(times: number) {
+          if (times > 10) return null;
+          return Math.min(times * 200, 3000);
+        },
+      });
+    } else if (process.env.REDIS_URL) {
       this.client = new Redis(process.env.REDIS_URL, {
         lazyConnect: true,
         maxRetriesPerRequest: 3,

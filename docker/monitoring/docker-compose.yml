@@ -137,10 +137,41 @@ services:
       - monitoring
     restart: unless-stopped
 
+  # ═══════════ Tempo — 分布式追踪后端 ═══════════
+  tempo:
+    image: grafana/tempo:2.7.0
+    container_name: guoxue-tempo
+    volumes:
+      - ./tempo-config.yml:/etc/tempo/config.yml:ro
+      - tempo_data:/var/tempo
+    command:
+      - "-config.file=/etc/tempo/config.yml"
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+      - "4318:4318"   # OTLP HTTP (OpenTelemetry Collector)
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # ═══════════ Blackbox Exporter — 第三方服务拨测 ═══════════
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: guoxue-blackbox-exporter
+    command:
+      - "--config.file=/etc/blackbox/blackbox.yml"
+    volumes:
+      - ./blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    ports:
+      - "9115:9115"
+    networks:
+      - monitoring
+    restart: unless-stopped
+
 volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  tempo_data:
 
 networks:
   monitoring:

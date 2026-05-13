@@ -14,6 +14,8 @@ import { chineseValidationExceptionFactory } from "./common/validation-chinese";
 import { LoggingInterceptor } from "./common/logging.interceptor";
 import { TracingInterceptor } from "./common/tracing.interceptor";
 import { ResponseInterceptor } from "./common/response.interceptor";
+import { AuditInterceptor } from "./common/audit.interceptor";
+import { AuditService } from "./modules/audit/audit.service";
 import { PinoLoggerService } from "./common/pino-logger.service";
 import { join } from "path";
 
@@ -49,7 +51,12 @@ async function bootstrap() {
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   });
-  app.useGlobalInterceptors(new TracingInterceptor(), new LoggingInterceptor(), new ResponseInterceptor());
+  app.useGlobalInterceptors(
+    new TracingInterceptor(),
+    new LoggingInterceptor(),
+    new ResponseInterceptor(),
+    new AuditInterceptor(app.get(AuditService)),
+  );
   app.useGlobalGuards(new RedisThrottleGuard(app.get(RedisService)));
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalPipes(

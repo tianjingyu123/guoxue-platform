@@ -1,5 +1,5 @@
 import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
-import { createHash, createSign, createVerify, randomUUID, createDecipheriv } from "crypto";
+import { createSign, createVerify, randomUUID, createDecipheriv } from "crypto";
 import { readFileSync } from "fs";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
