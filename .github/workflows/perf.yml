@@ -31,7 +31,7 @@ env:
   JWT_SECRET: 'perf-test-jwt-secret-key!!'
   DISABLE_RATE_LIMIT: 'true'
   BULLMQ_DISABLED: 'true'
-  SCENARIO: ${{ github.event.inputs.scenario || 'load' }}
+  SCENARIO: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.scenario) || 'load' }}
 
 jobs:
   perf-test:
