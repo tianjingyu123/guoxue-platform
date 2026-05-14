@@ -50,7 +50,6 @@ jobs:
       packages: write
       actions: write
     outputs:
-      image-tags: ${{ steps.meta.outputs.tags }}
       version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
@@ -113,10 +112,11 @@ jobs:
           script: |
             set -e
             TAG="${{ needs.build-and-push.outputs.version || github.sha }}"
+            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAG"
 
             # 拉取镜像
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ github.actor }}" --password-stdin
-            docker pull ${{ needs.build-and-push.outputs.image-tags }}
+            docker pull "$IMAGE"
 
             # 备份旧容器
             if docker ps -q --filter "name=guoxue-server" | grep -q .; then
@@ -129,7 +129,7 @@ jobs:
               docker run --rm \
                 --network guoxue-net \
                 -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-                ${{ needs.build-and-push.outputs.image-tags }} \
+                "$IMAGE" \
                 npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
             fi
 
@@ -144,7 +144,7 @@ jobs:
               --network guoxue-net \
               -p 3000:3000 \
               --env-file "$ENV_FILE" \
-              ${{ needs.build-and-push.outputs.image-tags }}
+              "$IMAGE"
 
             # 健康检查
             for i in $(seq 1 15); do
@@ -188,13 +188,14 @@ jobs:
           script: |
             set -e
             TAG="${{ needs.build-and-push.outputs.version || github.ref_name }}"
+            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAG"
             echo "[deploy] 生产部署 — 版本: $TAG"
 
             # 登录 GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ github.actor }}" --password-stdin
 
             # 拉取镜像
-            docker pull ${{ needs.build-and-push.outputs.image-tags }}
+            docker pull "$IMAGE"
 
             # 备份旧容器
             if docker ps -q --filter "name=guoxue-server" | grep -q .; then
@@ -212,7 +213,7 @@ jobs:
               docker run --rm \
                 --network guoxue-net \
                 -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-                ${{ needs.build-and-push.outputs.image-tags }} \
+                "$IMAGE" \
                 npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
             fi
 
@@ -232,7 +233,7 @@ jobs:
               --memory-reservation 256M \
               --cap-drop ALL \
               --cap-add NET_BIND_SERVICE \
-              ${{ needs.build-and-push.outputs.image-tags }}
+              "$IMAGE"
 
             # 健康检查 (最长 90s)
             echo "[deploy] 健康检查..."

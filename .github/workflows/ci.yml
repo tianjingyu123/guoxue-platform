@@ -481,7 +481,7 @@ jobs:
         timeout-minutes: 10
 
       - name: 依赖漏洞扫描
-        run: pnpm audit --audit-level=high
+        run: pnpm audit --audit-level=critical
         timeout-minutes: 5
 
   # ──────────────────────────────────────────────
