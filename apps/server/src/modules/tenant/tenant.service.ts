@@ -151,19 +151,14 @@ export class TenantService {
   async consume(tenantId: string, dto: TenantConsumeDto, ip?: string, startTime?: number) {
     const cost = dto.cost ?? 1;
 
-    // 原子扣减
-    const result = await this.prisma.tenant.updateMany({
-      where: {
-        id: tenantId,
-        quotaTotal: { gte: cost + 0 }, // 使用 gte 来确保配额充足（quotaUsed 在后续也算）
-      },
-      data: {
-        quotaUsed: { increment: cost },
-      },
+    // 交互式事务：先查后扣，确保剩余配额充足
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { quotaTotal: true, quotaUsed: true },
     });
 
-    if (result.count === 0) {
-      // 记录超配额调用
+    if (!tenant) throw new BusinessException(ErrorCode.NOT_FOUND, "租户不存在");
+    if (tenant.quotaTotal - tenant.quotaUsed < cost) {
       await this.prisma.tenantApiCall.create({
         data: {
           tenantId,
@@ -179,6 +174,12 @@ export class TenantService {
       throw new BusinessException(ErrorCode.FORBIDDEN, "配额不足");
     }
 
+    // 原子扣减
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { quotaUsed: { increment: cost } },
+    });
+
     // 记录调用
     await this.prisma.tenantApiCall.create({
       data: {
@@ -193,7 +194,8 @@ export class TenantService {
       },
     });
 
-    return { consumed: cost, remainingQuota: 0 }; // 查询最新剩余配额
+    const remaining = tenant.quotaTotal - tenant.quotaUsed - cost;
+    return { consumed: cost, remainingQuota: remaining };
   }
 
   /** 查询剩余配额 */
