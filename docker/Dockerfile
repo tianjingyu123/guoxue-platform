@@ -1,5 +1,5 @@
-FROM node:20-alpine AS builder
-RUN npm install -g corepack@latest && corepack enable && corepack prepare pnpm@10 --activate
+FROM node:20.19-alpine AS builder
+RUN npm install -g pnpm@10.33.3
 WORKDIR /app
 
 # 依赖缓存层
@@ -19,8 +19,8 @@ RUN pnpm --filter @guoxue/ziwei-engine build
 RUN pnpm build:server
 
 # ── 运行阶段 ──
-FROM node:20-alpine
-RUN npm install -g corepack@latest && corepack enable && corepack prepare pnpm@10 --activate
+FROM node:20.19-alpine
+RUN npm install -g pnpm@10.33.3
 WORKDIR /app
 
 # 仅复制运行时依赖
