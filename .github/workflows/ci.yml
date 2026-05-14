@@ -40,6 +40,10 @@ jobs:
         run: pnpm install --frozen-lockfile
         timeout-minutes: 10
 
+      - name: 构建 @guoxue/shared
+        run: pnpm --filter @guoxue/shared build
+        timeout-minutes: 3
+
       - name: 构建 @guoxue/bazi-engine
         run: pnpm --filter @guoxue/bazi-engine build
         timeout-minutes: 5
@@ -72,6 +76,10 @@ jobs:
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
         timeout-minutes: 10
+
+      - name: 构建 @guoxue/shared
+        run: pnpm --filter @guoxue/shared build
+        timeout-minutes: 3
 
       - name: 构建 @guoxue/bazi-engine
         run: pnpm --filter @guoxue/bazi-engine build
@@ -217,6 +225,10 @@ jobs:
         run: pnpm install --frozen-lockfile
         timeout-minutes: 10
 
+      - name: 构建 @guoxue/shared
+        run: pnpm --filter @guoxue/shared build
+        timeout-minutes: 3
+
       - name: 构建 @guoxue/bazi-engine
         run: pnpm --filter @guoxue/bazi-engine build
         timeout-minutes: 5
@@ -280,6 +292,10 @@ jobs:
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
         timeout-minutes: 10
+
+      - name: 构建 @guoxue/shared
+        run: pnpm --filter @guoxue/shared build
+        timeout-minutes: 3
 
       - name: 构建 @guoxue/bazi-engine
         run: pnpm --filter @guoxue/bazi-engine build
@@ -393,6 +409,10 @@ jobs:
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
         timeout-minutes: 10
+
+      - name: 构建 @guoxue/shared
+        run: pnpm --filter @guoxue/shared build
+        timeout-minutes: 3
 
       - name: 构建 @guoxue/bazi-engine
         run: pnpm --filter @guoxue/bazi-engine build
