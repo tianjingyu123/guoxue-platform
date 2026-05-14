@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Husky pre-push hook — 国学平台
+# 推送前快速检查：lint → tsc，拦截常见错误
+
+set -e
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  pre-push: 快速检查"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# ── Lint 检查 ──
+echo ""
+echo "→ Lint: @guoxue/server..."
+pnpm --filter @guoxue/server lint --quiet 2>&1 || {
+  echo ""
+  echo "❌ Server lint 失败，推送已取消。请运行 pnpm --filter @guoxue/server lint 查看详情。"
+  exit 1
+}
+echo "  ✅ Server lint 通过"
+
+# ── TypeScript 检查（仅 server，最快反馈） ──
+echo ""
+echo "→ TypeCheck: @guoxue/server..."
+pnpm --filter @guoxue/server exec npx tsc --noEmit 2>&1 || {
+  echo ""
+  echo "❌ Server TypeScript 检查失败，推送已取消。请运行 pnpm --filter @guoxue/server exec npx tsc --noEmit 查看详情。"
+  exit 1
+}
+echo "  ✅ Server tsc 通过"
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  ✅ 快速检查全部通过，正在推送..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -17,9 +17,43 @@ env:
 
 jobs:
   # ──────────────────────────────────────────────
+  # 快速检查（不依赖构建，2-3 分钟反馈）
+  # ──────────────────────────────────────────────
+  quick-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+        timeout-minutes: 10
+
+      - name: Lint - @guoxue/server
+        run: pnpm --filter @guoxue/server lint
+        timeout-minutes: 5
+
+      - name: Lint - 根目录
+        run: npx eslint . --ext .ts,.vue --max-warnings 50
+        continue-on-error: true
+        timeout-minutes: 5
+
+  # ──────────────────────────────────────────────
   # 构建 workspace 包（基础验证 + 为后续 job 打底）
   # ──────────────────────────────────────────────
   build-packages:
+    needs: quick-checks
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -107,39 +141,6 @@ jobs:
 
       - name: TypeCheck - @guoxue/admin
         run: pnpm --filter @guoxue/admin exec npx vue-tsc --noEmit
-        continue-on-error: true
-        timeout-minutes: 5
-
-  # ──────────────────────────────────────────────
-  # 代码检查
-  # ──────────────────────────────────────────────
-  lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: 安装依赖
-        run: pnpm install --frozen-lockfile
-        timeout-minutes: 10
-
-      - name: Lint - @guoxue/server
-        run: pnpm --filter @guoxue/server lint
-        timeout-minutes: 5
-
-      - name: Lint - 根目录
-        run: npx eslint . --ext .ts,.vue --max-warnings 50
         continue-on-error: true
         timeout-minutes: 5
 
@@ -488,9 +489,9 @@ jobs:
   # ──────────────────────────────────────────────
   checks-pass:
     needs:
+      - quick-checks
       - build-packages
       - typecheck
-      - lint
       - test-packages
       - build-server
       - test-server
@@ -503,9 +504,9 @@ jobs:
       - name: 检查所有必需 job 结果
         run: |
           echo "## CI 检查结果" >> $GITHUB_STEP_SUMMARY
+          echo "- quick-checks: ${{ needs.quick-checks.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- build-packages: ${{ needs.build-packages.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- typecheck: ${{ needs.typecheck.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- lint: ${{ needs.lint.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- test-packages: ${{ needs.test-packages.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- build-server: ${{ needs.build-server.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- test-server: ${{ needs.test-server.result }}" >> $GITHUB_STEP_SUMMARY
@@ -514,9 +515,9 @@ jobs:
 
       - name: 验证全部通过
         if: |
+          needs.quick-checks.result != 'success' ||
           needs.build-packages.result != 'success' ||
           needs.typecheck.result != 'success' ||
-          needs.lint.result != 'success' ||
           needs.test-packages.result != 'success' ||
           needs.build-server.result != 'success' ||
           needs.test-server.result != 'success' ||

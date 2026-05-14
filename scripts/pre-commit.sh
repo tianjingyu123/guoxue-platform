@@ -39,14 +39,53 @@ echo ""
 
 # ───── 1. 类型检查 ─────
 echo -e "${YELLOW}[类型检查]${NC}"
-check_step "TypeScript 编译检查" npx tsc --noEmit 2>&1 || true
-# tsc 检查全局（含 server + packages）
-if npx tsc --noEmit 2>/dev/null; then
-  echo -e "  ${GREEN}✓${NC}"
-  PASS=$((PASS + 1))
+
+# 检查暂存文件所属的包，只对相关包做 tsc 检查
+STAGED_TS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ts$' || true)
+TSC_PASS=0
+TSC_FAIL=0
+
+run_tsc() {
+  local pkg="$1"
+  local label="$2"
+  echo -n "  ${label} ... "
+  if pnpm --filter "$pkg" exec npx tsc --noEmit > /dev/null 2>&1; then
+    echo -e "${GREEN}✓${NC}"
+    TSC_PASS=$((TSC_PASS + 1))
+  else
+    echo -e "${RED}✗${NC}"
+    TSC_FAIL=$((TSC_FAIL + 1))
+  fi
+}
+
+if [ -n "$STAGED_TS_FILES" ]; then
+  if echo "$STAGED_TS_FILES" | grep -q 'packages/bazi-engine/'; then
+    run_tsc "@guoxue/bazi-engine" "bazi-engine tsc"
+  fi
+  if echo "$STAGED_TS_FILES" | grep -q 'packages/ziwei-engine/'; then
+    run_tsc "@guoxue/ziwei-engine" "ziwei-engine tsc"
+  fi
+  if echo "$STAGED_TS_FILES" | grep -q 'packages/shared/'; then
+    run_tsc "@guoxue/shared" "shared tsc"
+  fi
+  if echo "$STAGED_TS_FILES" | grep -q 'apps/server/'; then
+    run_tsc "@guoxue/server" "server tsc"
+  fi
+  if echo "$STAGED_TS_FILES" | grep -q 'apps/admin/'; then
+    run_tsc "@guoxue/admin" "admin vue-tsc"
+  fi
+  if [ $TSC_FAIL -eq 0 ] && [ $TSC_PASS -gt 0 ]; then
+    PASS=$((PASS + 1))
+  elif [ $TSC_FAIL -gt 0 ]; then
+    echo -e "  ${RED}✗ 类型错误，请修复后重试${NC}"
+    FAIL=$((FAIL + 1))
+  else
+    echo "  (无匹配包的 TypeScript 文件变更，跳过)"
+    PASS=$((PASS + 1))
+  fi
 else
-  echo -e "  ${RED}✗ 类型错误，请修复后重试${NC}"
-  FAIL=$((FAIL + 1))
+  echo "  (无 TypeScript 文件变更，跳过)"
+  PASS=$((PASS + 1))
 fi
 
 # ───── 2. 代码规范 ─────
