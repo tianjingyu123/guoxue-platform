@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards 
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request } from "express";
 import { StationService } from "./station.service";
-import { CreateStationDto, UpdateStationDto, CreateOperatorDto } from "./station.dto";
+import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto } from "./station.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -125,5 +125,56 @@ export class StationController {
   @ApiOperation({ summary: "解析跨小程序跳转目标" })
   resolveJumpTarget(@Param("id") id: string, @Param("targetPath") targetPath: string) {
     return this.svc.resolveJumpTarget(id, targetPath);
+  }
+
+  // ───────── 模版系统 ─────────
+
+  @Get("templates/list")
+  @ApiOperation({ summary: "获取可用模版列表" })
+  getTemplateOptions() {
+    return this.svc.getTemplateOptions();
+  }
+
+  @Get("templates/:templateId")
+  @ApiOperation({ summary: "获取模版完整配置" })
+  getTemplateConfig(@Param("templateId") templateId: string) {
+    return this.svc.getTemplateConfig(templateId);
+  }
+
+  @Put(":id/template")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "设置分站模版" })
+  setStationTemplate(@Param("id") id: string, @Body() dto: SetStationTemplateDto) {
+    return this.svc.setStationTemplate(id, dto);
+  }
+
+  @Get("brand/:code/template")
+  @ApiOperation({ summary: "通过推广码获取分站品牌+模版配置" })
+  getBrandWithTemplate(@Param("code") code: string) {
+    return this.svc.getBrandWithTemplate(code);
+  }
+
+  // ───────── 运营商品牌与小程序 ─────────
+
+  @Put("operator/:id/brand")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "更新运营商品牌配置" })
+  updateOperatorBrand(@Param("id") id: string, @Body() dto: Record<string, unknown>) {
+    return this.svc.updateOperatorBrand(id, dto);
+  }
+
+  @Get("operator/:id/mini-config")
+  @ApiOperation({ summary: "获取运营商小程序配置" })
+  getOperatorMiniConfig(@Param("id") id: string) {
+    return this.svc.getOperatorMiniConfig(id);
+  }
+
+  @Get("operator/brand/:code")
+  @ApiOperation({ summary: "通过推广码获取运营商品牌配置" })
+  getOperatorBrandByCode(@Param("code") code: string) {
+    return this.svc.getOperatorBrandByCode(code);
   }
 }

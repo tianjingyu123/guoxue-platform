@@ -4,7 +4,58 @@ import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { CreateStationDto, UpdateStationDto, CreateOperatorDto } from "./station.dto";
+import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto } from "./station.dto";
+
+/** 模版定义 */
+export const STATION_TEMPLATES = {
+  default: {
+    id: "default",
+    name: "通用型",
+    desc: "全内容瀑布流混排，适合综合类分站",
+    hero: null,
+    tabs: ["推荐", "关注", "热门", "直播"],
+    modules: ["article", "course", "circle", "product", "video", "live"],
+    showSections: ["recommend", "circle", "course", "product", "live", "paipan"],
+  },
+  paipan: {
+    id: "paipan",
+    name: "排盘型",
+    desc: "排盘入口置顶，适合命理师/预测师",
+    hero: "paipan_entry",
+    tabs: ["排盘", "课程", "文章", "圈子"],
+    modules: ["paipan", "course", "article", "circle"],
+    showSections: ["paipan", "course", "circle"],
+  },
+  lecturer: {
+    id: "lecturer",
+    name: "讲师型",
+    desc: "课程网格置顶，适合培训讲师",
+    hero: "course_grid",
+    tabs: ["课程", "圈子", "文章"],
+    modules: ["course", "circle", "article"],
+    showSections: ["course", "circle", "article"],
+  },
+  ecommerce: {
+    id: "ecommerce",
+    name: "电商型",
+    desc: "商品瀑布流+直播+秒杀，适合商品卖家",
+    hero: "featured_products",
+    tabs: ["商城", "直播", "秒杀"],
+    modules: ["product", "live", "marketing"],
+    showSections: ["product", "live", "marketing", "circle"],
+  },
+  minimal: {
+    id: "minimal",
+    name: "极简型",
+    desc: "只保留圈子+排盘+主页，适合新手站长",
+    hero: null,
+    tabs: ["圈子", "排盘"],
+    modules: ["circle", "paipan"],
+    showSections: ["circle", "paipan"],
+  },
+} as const;
+
+export type StationTemplateId = keyof typeof STATION_TEMPLATES;
 
 @Injectable()
 export class StationService {
@@ -34,7 +85,7 @@ export class StationService {
   }
 
   async updateStation(id: string, dto: UpdateStationDto) {
-    const updated = await this.prisma.station.update({ where: { id }, data: dto });
+    const updated = await this.prisma.station.update({ where: { id }, data: dto as any });
     // 清除品牌缓存
     await this.redis.del(`station:brand:id:${id}`);
     await this.redis.del(`station:brand:code:${updated.code}`);
@@ -263,5 +314,140 @@ export class StationService {
         earned: b._sum.earned,
       })),
     };
+  }
+
+  // ───────── 模版系统 ─────────
+
+  /** 获取可用模版列表 */
+  getTemplateOptions() {
+    return Object.values(STATION_TEMPLATES).map(t => ({
+      id: t.id,
+      name: t.name,
+      desc: t.desc,
+      preview: {
+        hero: t.hero,
+        tabs: t.tabs,
+        modules: t.modules,
+      },
+    }));
+  }
+
+  /** 获取模版完整配置（含默认值） */
+  getTemplateConfig(templateId: string) {
+    const tpl = STATION_TEMPLATES[templateId as StationTemplateId];
+    if (!tpl) throw new BusinessException(ErrorCode.NOT_FOUND, `模版 ${templateId} 不存在`);
+    return { ...tpl };
+  }
+
+  /** 为分站设置模版 */
+  async setStationTemplate(stationId: string, dto: SetStationTemplateDto) {
+    const tpl = STATION_TEMPLATES[dto.templateId as StationTemplateId];
+    if (!tpl) throw new BusinessException(ErrorCode.NOT_FOUND, `模版 ${dto.templateId} 不存在`);
+
+    const config = dto.templateConfig ?? {};
+    const mergedConfig = { ...tpl, ...config };
+
+    const updated = await this.prisma.station.update({
+      where: { id: stationId },
+      data: {
+        templateId: dto.templateId,
+        templateConfig: mergedConfig as any,
+      },
+    });
+
+    // 清除缓存
+    await this.redis.del(`station:brand:id:${stationId}`);
+    await this.redis.del(`station:brand:code:${updated.code}`);
+
+    return {
+      stationId,
+      templateId: dto.templateId,
+      config: mergedConfig,
+    };
+  }
+
+  /** 获取分站品牌+模版配置（含缓存） */
+  async getBrandWithTemplate(code: string) {
+    const cacheKey = `station:brand:code:${code}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
+    const station = await this.prisma.station.findUnique({
+      where: { code },
+      select: {
+        id: true, name: true, logo: true, themeColor: true,
+        code: true, intro: true,
+        templateId: true, templateConfig: true,
+      },
+    });
+    if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
+
+    const tplId = station.templateId || "default";
+    const baseTpl = STATION_TEMPLATES[tplId as StationTemplateId] ?? STATION_TEMPLATES.default;
+    const tplConfig = (station.templateConfig as Record<string, unknown>) ?? {};
+    const merged = { ...baseTpl, ...tplConfig, templateId: tplId };
+
+    const result = {
+      id: station.id,
+      name: station.name,
+      logo: station.logo,
+      themeColor: station.themeColor,
+      code: station.code,
+      intro: station.intro,
+      template: merged,
+    };
+
+    await this.redis.setJson(cacheKey, result, this.BRAND_TTL);
+    return result;
+  }
+
+  // ───────── 运营商品牌与小程序 ─────────
+
+  async updateOperatorBrand(operatorId: string, dto: Record<string, unknown>) {
+    const data: any = {};
+    if (dto.brandName) data.brandName = dto.brandName;
+    if (dto.brandLogo !== undefined) data.brandLogo = dto.brandLogo;
+    if (dto.brandThemeColor) data.brandThemeColor = dto.brandThemeColor;
+    if (dto.miniAppId !== undefined) data.miniAppId = dto.miniAppId;
+    if (dto.mpAppId !== undefined) data.mpAppId = dto.mpAppId;
+    if (dto.miniPages) data.miniPages = dto.miniPages as any;
+    return this.prisma.operator.update({ where: { id: operatorId }, data });
+  }
+
+  async getOperatorMiniConfig(operatorId: string) {
+    const op = await this.prisma.operator.findUnique({
+      where: { id: operatorId },
+      select: { id: true, brandName: true, brandLogo: true, brandThemeColor: true, miniAppId: true, mpAppId: true, miniPages: true },
+    });
+    if (!op) throw new BusinessException(ErrorCode.NOT_FOUND, "运营商不存在");
+    return {
+      operatorId: op.id,
+      brandName: op.brandName,
+      brand: { logo: op.brandLogo, themeColor: op.brandThemeColor },
+      miniAppId: op.miniAppId || process.env.WECHAT_APP_ID || "",
+      mpAppId: op.mpAppId || process.env.WECHAT_MP_APP_ID || "",
+      pages: (op.miniPages || {}) as Record<string, string>,
+    };
+  }
+
+  async getOperatorBrandByCode(code: string) {
+    const cacheKey = `operator:brand:code:${code}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
+    const op = await this.prisma.operator.findFirst({
+      where: {
+        user: { station: { code } },
+      },
+      select: {
+        id: true, brandName: true, brandLogo: true, brandThemeColor: true,
+        miniAppId: true, mpAppId: true,
+      },
+    });
+    if (!op) throw new BusinessException(ErrorCode.NOT_FOUND, "运营商不存在");
+
+    const result = { ...op };
+    await this.redis.setJson(cacheKey, result, this.BRAND_TTL);
+    return result;
   }
 }

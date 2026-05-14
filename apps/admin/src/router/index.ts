@@ -270,6 +270,25 @@ const routes = [
         component: () => import("@/views/marketing/MicroPageEditor.vue"),
         meta: { title: "微页面管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      // === 定价管理 ===
+      {
+        path: "pricing/rules",
+        name: "PricingRuleList",
+        component: () => import("@/views/pricing/RuleList.vue"),
+        meta: { title: "定价规则", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "pricing/rules/:id",
+        name: "PricingRuleEdit",
+        component: () => import("@/views/pricing/RuleEdit.vue"),
+        meta: { hidden: true, title: "定价规则编辑", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "pricing/demand",
+        name: "DemandHeatmap",
+        component: () => import("@/views/pricing/DemandHeatmap.vue"),
+        meta: { title: "需求热度", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       // === 营销分佣 ===
       {
         path: "commission-config",
@@ -369,6 +388,25 @@ const routes = [
         name: "AppealList",
         component: () => import("@/views/risk/AppealList.vue"),
         meta: { title: "申诉处理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
+      },
+      // === 流失管理 ===
+      {
+        path: "churn",
+        name: "ChurnList",
+        component: () => import("@/views/churn/ChurnList.vue"),
+        meta: { title: "流失预测", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "churn/rules",
+        name: "ChurnRuleList",
+        component: () => import("@/views/churn/ChurnRuleList.vue"),
+        meta: { title: "流失规则", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "churn/actions",
+        name: "ChurnActionList",
+        component: () => import("@/views/churn/ChurnActionList.vue"),
+        meta: { title: "挽回动作", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === AI 管理 ===
       {
@@ -531,6 +569,38 @@ const routes = [
         component: () => import("@/views/reports/ReportList.vue"),
         meta: { title: "举报管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
       },
+      // === 赏金管理 ===
+      {
+        path: "bounty/questions",
+        name: "BountyQuestionList",
+        component: () => import("@/views/bounty/QuestionList.vue"),
+        meta: { title: "赏金问题", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "bounty/reviews",
+        name: "BountyReviewList",
+        component: () => import("@/views/bounty/ReviewList.vue"),
+        meta: { title: "赏金审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "bounty/experts",
+        name: "ExpertManage",
+        component: () => import("@/views/bounty/ExpertManage.vue"),
+        meta: { title: "专家管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      // === 运势管理 ===
+      {
+        path: "fortune/config",
+        name: "FortuneConfig",
+        component: () => import("@/views/fortune/FortuneConfig.vue"),
+        meta: { title: "运势推送配置", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "fortune/history",
+        name: "FortuneHistory",
+        component: () => import("@/views/fortune/FortuneHistory.vue"),
+        meta: { title: "运势推送历史", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       // === 通知 ===
       {
         path: "notifications",
@@ -550,6 +620,25 @@ const routes = [
         name: "OfflineVenueList",
         component: () => import("@/views/offline/OfflineVenueList.vue"),
         meta: { title: "线下驿站", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      // === 运营商管理 ===
+      {
+        path: "operators",
+        name: "OperatorStationList",
+        component: () => import("@/views/operator/StationList.vue"),
+        meta: { title: "运营商管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "operators/earnings",
+        name: "OperatorEarnings",
+        component: () => import("@/views/operator/Earnings.vue"),
+        meta: { title: "运营商收益", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "operators/miniapps",
+        name: "MiniAppManage",
+        component: () => import("@/views/operator/MiniAppManage.vue"),
+        meta: { title: "小程序管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 研究院 ===
       {
@@ -576,6 +665,25 @@ const routes = [
         name: "MerchantDetail",
         component: () => import("@/views/merchant/MerchantDetail.vue"),
         meta: { hidden: true, title: "商家详情", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      // === 租户管理 ===
+      {
+        path: "tenants",
+        name: "TenantList",
+        component: () => import("@/views/tenant/TenantList.vue"),
+        meta: { title: "租户管理", roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "tenants/:id",
+        name: "TenantDetail",
+        component: () => import("@/views/tenant/TenantDetail.vue"),
+        meta: { hidden: true, title: "租户详情", roles: ["SUPER_ADMIN"] },
+      },
+      {
+        path: "tenants/:id/usage",
+        name: "TenantUsage",
+        component: () => import("@/views/tenant/TenantUsage.vue"),
+        meta: { hidden: true, title: "租户使用记录", roles: ["SUPER_ADMIN"] },
       },
       // === 会员管理 ===
       {

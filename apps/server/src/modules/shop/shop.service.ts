@@ -1,4 +1,4 @@
-import { Injectable, forwardRef, Inject, Logger } from "@nestjs/common";
+import { Injectable, forwardRef, Inject, Logger, Optional } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma, MemberLevel, Order } from "@prisma/client";
@@ -8,6 +8,7 @@ import { CommissionService } from "../commission/commission.service";
 import { WechatPayService } from "./wechat-pay.service";
 import { AlipayService } from "./alipay.service";
 import { UnionpayService } from "./unionpay.service";
+import { HuifuService } from "../huifu/huifu.service";
 import { CoinService } from "../coin/coin.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { COIN_TO_RMB, RMB_TO_FEN } from "../../common/constants";
@@ -29,6 +30,7 @@ export class ShopService {
     private alipay: AlipayService,
     private unionpay: UnionpayService,
     private webhook: WebhookService,
+    @Optional() private huifu?: HuifuService,
     @Inject(forwardRef(() => CommissionService)) private commissionSvc?: CommissionService,
     @Inject(forwardRef(() => CoinService)) private coinSvc?: CoinService,
   ) {}
@@ -590,6 +592,93 @@ export class ShopService {
   /** 银联退款 */
   async unionpayRefund(params: { outTradeNo: string; outRefundNo: string; amount: number; origQryId?: string }) {
     return this.unionpay.refund(params);
+  }
+
+  // ═══════════════════ 汇付天下支付 ═══════════════════
+
+  /** 创建汇付天下支付 */
+  async createHuifuPayment(userId: string, orderId: string, openid?: string, payType?: string) {
+    if (!this.huifu) throw new BusinessException(ErrorCode.PAY_FAILED, "汇付支付未配置");
+    return this.huifu.createPayment(userId, { orderId, payType, openid });
+  }
+
+  /** 处理汇付天下支付回调 */
+  async handleHuifuNotify(body: Record<string, unknown>) {
+    if (!this.huifu) {
+      this.logger.error("汇付支付回调但服务未配置");
+      return;
+    }
+
+    const outTradeNo = body.out_trade_no as string;
+    if (!outTradeNo) return;
+
+    const lockKey = `huifu:cb:shop:${outTradeNo}`;
+    const locked = await this.redis.setNX(lockKey, "1", 30);
+    if (!locked) return;
+
+    try {
+      const tradeStatus = body.trade_status || body.status;
+      if (tradeStatus !== "SUCCESS" && tradeStatus !== "TRADE_SUCCESS") return;
+
+      const order = await this.prisma.order.findFirst({
+        where: { payTransactionId: outTradeNo },
+      });
+      if (!order || order.status !== "PENDING") return;
+
+      const transactionId = (body.huifu_order_id || body.transaction_id) as string;
+
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: {
+          status: "PAID",
+          payMethod: "HUIFU",
+          paidAt: new Date(),
+          payTransactionId: outTradeNo,
+        },
+      });
+
+      // 分佣计算
+      if (this.commissionSvc) {
+        try {
+          await this.commissionSvc.calculateAndRecord(
+            order.id, order.type, Number(order.amount),
+            order.referrerId || undefined, order.tempReferrerId || undefined,
+          );
+        } catch (e) {
+          this.logger.error("汇付支付分佣计算失败", e);
+        }
+      }
+
+      // 会员订单处理
+      if (order.type === "MEMBER") {
+        const memberLevel = this.resolveMemberLevel(Number(order.amount));
+        const expiresAt = this.calcMemberExpiry(memberLevel);
+        await this.prisma.user.update({
+          where: { id: order.userId },
+          data: { memberLevel: memberLevel as MemberLevel, memberExpire: expiresAt },
+        });
+        await this.prisma.memberPurchase.create({
+          data: {
+            userId: order.userId,
+            memberType: memberLevel as any,
+            amount: order.amount,
+            referrerId: order.referrerId,
+            paidAt: new Date(),
+            expireAt: expiresAt,
+          },
+        });
+      }
+
+      // 触发 Webhook
+      this.webhook.fire("ORDER_PAID", {
+        orderId: order.id, outTradeNo, payMethod: "HUIFU", tradeNo: transactionId,
+        amount: Number(order.amount), userId: order.userId,
+      }).catch((err) => this.logger.warn("Webhook ORDER_PAID 发送失败", err));
+
+      this.logger.log(`汇付订单 ${order.id} 支付成功, 交易号: ${transactionId}`);
+    } finally {
+      await this.redis.del(lockKey);
+    }
   }
 
   /** 查询订单支付状态 */

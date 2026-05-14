@@ -311,4 +311,108 @@ export class CoinService {
       await this.redis.del(lockKey);
     }
   }
+
+  // ───────── 冻结/解冻/转移（悬赏等场景） ─────────
+
+  /** 冻结虚拟币（原子扣减 balance，增加 frozen） */
+  async freeze(userId: string, amountCoin: number, scene: string, refId?: string) {
+    if (amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "冻结币数必须大于0");
+
+    await this.getOrCreateAccount(userId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.virtualCoinAccount.updateMany({
+        where: { userId, balance: { gte: amountCoin } },
+        data: { balance: { decrement: amountCoin }, frozen: { increment: amountCoin } },
+      });
+      if (result.count === 0) throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, "虚拟币余额不足");
+
+      await tx.virtualCoinFrozen.create({
+        data: { userId, amountCoin, scene, refId, status: "FROZEN" },
+      });
+
+      const acc = await tx.virtualCoinAccount.findUnique({ where: { userId } });
+      await tx.virtualCoinTransaction.create({
+        data: {
+          userId,
+          type: "SPEND",
+          amountCoin: -amountCoin,
+          balanceAfter: acc!.balance,
+          scene: scene as any,
+          refId,
+          description: `冻结虚拟币: ${scene}`,
+        },
+      });
+
+      return { frozen: acc!.frozen, balance: acc!.balance };
+    });
+  }
+
+  /** 解冻虚拟币（归还原余额） */
+  async unfreeze(userId: string, amountCoin: number, refId?: string) {
+    if (amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "解冻币数必须大于0");
+
+    return this.prisma.$transaction(async (tx) => {
+      const result = await tx.virtualCoinAccount.updateMany({
+        where: { userId, frozen: { gte: amountCoin } },
+        data: { balance: { increment: amountCoin }, frozen: { decrement: amountCoin } },
+      });
+      if (result.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "冻结币数不足");
+
+      if (refId) {
+        await tx.virtualCoinFrozen.updateMany({
+          where: { refId, userId, status: "FROZEN" },
+          data: { status: "UNFROZEN", resolvedAt: new Date() },
+        });
+      }
+
+      const acc = await tx.virtualCoinAccount.findUnique({ where: { userId } });
+      return { frozen: acc!.frozen, balance: acc!.balance };
+    });
+  }
+
+  /** 转移冻结币（从冻结方转给接收方） */
+  async transferFrozen(fromUserId: string, toUserId: string, amountCoin: number, refId?: string) {
+    if (amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "转移币数必须大于0");
+
+    await this.getOrCreateAccount(toUserId);
+
+    return this.prisma.$transaction(async (tx) => {
+      // 减扣冻结方
+      const decResult = await tx.virtualCoinAccount.updateMany({
+        where: { userId: fromUserId, frozen: { gte: amountCoin } },
+        data: { frozen: { decrement: amountCoin } },
+      });
+      if (decResult.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "冻结币数不足");
+
+      // 增加接收方余额
+      await tx.virtualCoinAccount.update({
+        where: { userId: toUserId },
+        data: { balance: { increment: amountCoin } },
+      });
+
+      if (refId) {
+        await tx.virtualCoinFrozen.updateMany({
+          where: { refId, userId: fromUserId, status: "FROZEN" },
+          data: { status: "TRANSFERRED", resolvedAt: new Date() },
+        });
+      }
+
+      const toAcc = await tx.virtualCoinAccount.findUnique({ where: { userId: toUserId } });
+      await tx.virtualCoinTransaction.create({
+        data: {
+          userId: toUserId,
+          type: "RECHARGE",
+          amountCoin,
+          balanceAfter: toAcc!.balance,
+          scene: "BOUNTY" as any,
+          refId,
+          description: "悬赏赏金到账",
+        },
+      });
+
+      const fromAcc = await tx.virtualCoinAccount.findUnique({ where: { userId: fromUserId } });
+      return { fromFrozen: fromAcc!.frozen, toBalance: toAcc!.balance };
+    });
+  }
 }

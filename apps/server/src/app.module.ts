@@ -16,6 +16,7 @@ import { BotModule } from "./modules/bot/bot.module";
 import { LiveModule } from "./modules/live/live.module";
 import { VideoModule } from "./modules/video/video.module";
 import { StationModule } from "./modules/station/station.module";
+import { StationPickModule } from "./modules/station-pick/station-pick.module";
 import { OfflineModule } from "./modules/offline/offline.module";
 import { ClassicModule } from "./modules/classic/classic.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
@@ -54,6 +55,13 @@ import { MerchantModule } from "./modules/merchant/merchant.module";
 import { MemberModule } from "./modules/member/member.module";
 import { QueueModule } from "./modules/queue/queue.module";
 import { TaskModule } from "./modules/task/task.module";
+import { HuifuModule } from "./modules/huifu/huifu.module";
+import { TenantModule } from "./modules/tenant/tenant.module";
+import { ChurnModule } from "./modules/churn/churn.module";
+import { FortuneModule } from "./modules/fortune/fortune.module";
+import { PricingModule } from "./modules/pricing/pricing.module";
+import { BountyModule } from "./modules/bounty/bounty.module";
+import { ShareModule } from "./modules/share/share.module";
 
 const conditionalModules: any[] = [];
 if (process.env.BULLMQ_DISABLED !== "true") {
@@ -61,6 +69,6 @@ if (process.env.BULLMQ_DISABLED !== "true") {
 }
 
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, MemberModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, HuifuModule, TenantModule, ChurnModule, FortuneModule, PricingModule, BountyModule, ShareModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, StationPickModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, MemberModule],
 })
 export class AppModule {}

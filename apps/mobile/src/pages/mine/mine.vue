@@ -282,6 +282,26 @@
       </view>
     </view>
 
+    <!-- ==================== 角色管理入口（根据用户角色显示） ==================== -->
+    <view v-if="userStore.isLogin && showAdminEntry" class="menu" style="margin-top: 12px;">
+      <view class="menu-section-title">管理功能</view>
+      <view v-if="isSuperAdmin || isOperationAdmin" class="menu-item" @click="goPage('/pages/mine/role-panels/admin-panel')">
+        <text class="menu-icon">🛠️</text>
+        <text class="menu-label">管理后台</text>
+        <text class="arrow">›</text>
+      </view>
+      <view v-if="isStationMaster" class="menu-item" @click="goPage('/pages/mine/role-panels/station-master-panel')">
+        <text class="menu-icon">🏪</text>
+        <text class="menu-label">分站管理</text>
+        <text class="arrow">›</text>
+      </view>
+      <view v-if="isOperator" class="menu-item" @click="goPage('/pages/mine/role-panels/operator-panel')">
+        <text class="menu-icon">📱</text>
+        <text class="menu-label">运营商中心</text>
+        <text class="arrow">›</text>
+      </view>
+    </view>
+
     <!-- ==================== 退出登录 ==================== -->
     <view v-if="userStore.isLogin" class="logout-btn" @click="handleLogout">退出登录</view>
 
@@ -396,6 +416,27 @@ const loadingMore = ref(false);
 const hasMore = ref(true);
 const page = ref(1);
 const pageSize = 10;
+
+// 角色管理
+const showAdminEntry = computed(() => {
+  return isSuperAdmin.value || isOperationAdmin.value || isStationMaster.value || isOperator.value
+})
+const isSuperAdmin = computed(() => {
+  const u = userStore.user as any
+  return u?.role === 'SUPER_ADMIN' || u?.roles?.includes?.('SUPER_ADMIN')
+})
+const isOperationAdmin = computed(() => {
+  const u = userStore.user as any
+  return u?.role === 'OPERATION_ADMIN' || u?.roles?.includes?.('OPERATION_ADMIN')
+})
+const isStationMaster = computed(() => {
+  const u = userStore.user as any
+  return u?.role === 'STATION_MASTER' || u?.roles?.includes?.('STATION_MASTER')
+})
+const isOperator = computed(() => {
+  const u = userStore.user as any
+  return u?.role === 'OPERATOR' || u?.roles?.includes?.('OPERATOR')
+})
 
 // 当前 tab 的列表长度（用于判断是否显示 "已全部加载"）
 const currentListLength = computed(() => {
@@ -927,6 +968,7 @@ function formatTime(timeStr?: string): string {
 .menu-icon { font-size: 18px; margin-right: 12px; width: 24px; text-align: center; }
 .menu-label { flex: 1; color: #333; font-size: 15px; }
 .arrow { color: #ccc; font-size: 20px; font-weight: bold; }
+.menu-section-title { font-size: 13px; color: #999; padding: 8px 16px 4px; font-weight: 500; }
 
 /* ── 退出登录 ── */
 .logout-btn {

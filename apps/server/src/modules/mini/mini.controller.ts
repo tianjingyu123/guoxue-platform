@@ -1,6 +1,9 @@
-import { Controller, Get, Param, Query, UseGuards, NotFoundException } from "@nestjs/common";
-import { ApiTags, ApiOperation } from "@nestjs/swagger";
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, UseGuards, NotFoundException } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { ThrottleGuard } from "../../common/throttle.guard";
+import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 import { MiniService } from "./mini.service";
 import { MiniHomeQueryDto, MiniContentQueryDto, MiniShareQueryDto } from "./mini.dto";
 
@@ -34,5 +37,57 @@ export class MiniController {
   @ApiOperation({ summary: "小程序分享配置", description: "获取微信分享卡片所需的标题、图片、路径" })
   getShareConfig(@Query() query: MiniShareQueryDto) {
     return this.mini.getShareConfig(query);
+  }
+
+  // ───────── 多域名/多小程序配置 ─────────
+
+  @Get("config/domain")
+  @ApiOperation({ summary: "获取可用域名列表（含备用域名）" })
+  getDomainConfigs() {
+    return this.mini.getDomainConfigs();
+  }
+
+  @Get("config/appid")
+  @ApiOperation({ summary: "获取可用小程序AppId列表" })
+  getAppIdConfigs() {
+    return this.mini.getAppIdConfigs();
+  }
+
+  // ───────── 管理接口（需认证） ─────────
+
+  @Get("admin/apps")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "小程序配置列表" })
+  listMiniApps() {
+    return this.mini.listMiniAppConfigs();
+  }
+
+  @Post("admin/apps")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "创建小程序配置" })
+  createMiniApp(@Body() body: { appId: string; appName: string; type?: string; domain?: string; h5Domain?: string; pathMappings?: Record<string, string> }) {
+    return this.mini.createMiniAppConfig(body);
+  }
+
+  @Put("admin/apps/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "更新小程序配置" })
+  updateMiniApp(@Param("id") id: string, @Body() body: Record<string, unknown>) {
+    return this.mini.updateMiniAppConfig(id, body);
+  }
+
+  @Delete("admin/apps/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "删除小程序配置" })
+  deleteMiniApp(@Param("id") id: string) {
+    return this.mini.deleteMiniAppConfig(id);
   }
 }

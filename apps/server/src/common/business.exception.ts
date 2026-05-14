@@ -32,6 +32,8 @@ export class BusinessException extends HttpException {
     ErrorCode.STATION_NOT_FOUND,
     ErrorCode.MERCHANT_NOT_FOUND,
     ErrorCode.TASK_NOT_FOUND,
+    ErrorCode.STATION_PICK_NOT_FOUND,
+    ErrorCode.STATION_PICK_CONTENT_GONE,
   ]);
 
   private static FORBIDDEN_CODES = new Set<number>([
@@ -51,6 +53,7 @@ export class BusinessException extends HttpException {
     ErrorCode.MERCHANT_ALREADY_EXISTS,
     ErrorCode.IDENTITY_ALREADY_VERIFIED,
     ErrorCode.STATION_CODE_EXISTS,
+    ErrorCode.STATION_PICK_ALREADY_EXISTS,
   ]);
 
   /** 根据错误码自动推断 HTTP 状态码 */

@@ -9,9 +9,10 @@ import { CommissionModule } from "../commission/commission.module";
 import { SystemModule } from "../system/system.module";
 import { CoinModule } from "../coin/coin.module";
 import { WebhookModule } from "../webhook/webhook.module";
+import { HuifuModule } from "../huifu/huifu.module";
 
 @Module({
-  imports: [CommissionModule, SystemModule, forwardRef(() => CoinModule), WebhookModule],
+  imports: [CommissionModule, SystemModule, forwardRef(() => CoinModule), WebhookModule, HuifuModule],
   controllers: [ShopController],
   providers: [ShopService, WechatPayService, AlipayService, UnionpayService, LogisticsService],
   exports: [ShopService, WechatPayService, AlipayService, UnionpayService, LogisticsService],

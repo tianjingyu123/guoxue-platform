@@ -35,6 +35,25 @@ export class CreateStationDto {
   @IsOptional()
   @IsObject()
   miniPages?: Record<string, string>;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  templateId?: string;
+
+  @IsOptional()
+  @IsObject()
+  templateConfig?: Record<string, unknown>;
+}
+
+export class SetStationTemplateDto {
+  @IsString()
+  @MaxLength(30)
+  templateId: string;
+
+  @IsOptional()
+  @IsObject()
+  templateConfig?: Record<string, unknown>;
 }
 
 export class UpdateStationDto {
@@ -73,6 +92,15 @@ export class UpdateStationDto {
   @IsOptional()
   @IsObject()
   miniPages?: Record<string, string>;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  templateId?: string;
+
+  @IsOptional()
+  @IsObject()
+  templateConfig?: Record<string, unknown>;
 }
 
 export class CreateOperatorDto {

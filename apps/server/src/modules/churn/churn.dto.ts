@@ -1,0 +1,48 @@
+import { IsString, IsOptional, IsNumber, IsBoolean, IsObject } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+
+export class CreateChurnRuleDto {
+  @ApiProperty({ description: "规则名称" })
+  @IsString() name: string;
+
+  @ApiProperty({ description: "风险等级 MEDIUM/HIGH/CRITICAL" })
+  @IsString() riskLevel: string;
+
+  @ApiPropertyOptional({ description: "分数阈值" })
+  @IsOptional() @IsNumber() scoreThreshold?: number;
+
+  @ApiPropertyOptional({ description: "天数阈值" })
+  @IsOptional() @IsNumber() daysThreshold?: number;
+
+  @ApiProperty({ description: "动作类型 COUPON/SMS/TEMPLATE_MSG/WEBHOOK" })
+  @IsString() actionType: string;
+
+  @ApiProperty({ description: "动作配置" })
+  @IsObject() actionConfig: Record<string, unknown>;
+
+  @ApiPropertyOptional({ description: "是否启用" })
+  @IsOptional() @IsBoolean() isActive?: boolean;
+}
+
+export class UpdateChurnRuleDto {
+  @ApiPropertyOptional({ description: "规则名称" })
+  @IsOptional() @IsString() name?: string;
+
+  @ApiPropertyOptional({ description: "风险等级" })
+  @IsOptional() @IsString() riskLevel?: string;
+
+  @ApiPropertyOptional({ description: "分数阈值" })
+  @IsOptional() @IsNumber() scoreThreshold?: number;
+
+  @ApiPropertyOptional({ description: "天数阈值" })
+  @IsOptional() @IsNumber() daysThreshold?: number;
+
+  @ApiPropertyOptional({ description: "动作类型" })
+  @IsOptional() @IsString() actionType?: string;
+
+  @ApiPropertyOptional({ description: "动作配置" })
+  @IsOptional() @IsObject() actionConfig?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ description: "是否启用" })
+  @IsOptional() @IsBoolean() isActive?: boolean;
+}

@@ -1066,6 +1066,9 @@ model Station {
   miniAppId   String?  // 分站独立小程序 AppId
   mpAppId     String?  // 分站公众号 AppId（H5 兜底分享）
   miniPages   Json?    // 小程序页面自定义配置 { homePath, sharePath, ... }
+  // 模版系统
+  templateId       String?  @default("default") // 模版ID: default/paipan/lecturer/ecommerce/minimal
+  templateConfig   Json?    // 模版个性化参数 { modules, order, hero, tabs, showSections }
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1078,8 +1081,29 @@ model Station {
   courses     Course[]
   videos      Video[]
   circles     Circle[]
+  picks       StationPick[]
 
   @@index([code])
+}
+
+// ─────────────────────────────────────────────────
+// 站长内容精选
+// ─────────────────────────────────────────────────
+
+model StationPick {
+  id          String   @id @default(uuid())
+  stationId   String
+  contentType String   // ARTICLE / COURSE / PRODUCT / CIRCLE / VIDEO
+  contentId   String
+  sortOrder   Int      @default(0)
+  remark      String?  // 站长推荐语
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  @@unique([stationId, contentType, contentId])
+  @@index([stationId, sortOrder])
 }
 
 model Operator {
@@ -1090,6 +1114,13 @@ model Operator {
   usedQuota      Int          @default(0) // 已使用名额
   parentOperatorId String?
   status         String       @default("ACTIVE")
+  // 运营商独立小程序
+  miniAppId      String?      // 独立小程序 AppId
+  mpAppId        String?      // 公众号 AppId
+  miniPages      Json?        // 页面配置
+  brandName      String?      // 品牌名称
+  brandLogo      String?      // 品牌Logo
+  brandThemeColor String?     @default("#8B4513")
   purchasedAt    DateTime     @default(now())
   expireAt       DateTime?
   createdAt      DateTime     @default(now())
@@ -1598,6 +1629,7 @@ model VirtualCoinAccount {
   id             String @id @default(uuid())
   userId         String @unique
   balance        Int    @default(0) // 当前余额（币数）
+  frozen         Int    @default(0) // 冻结币数（悬赏等）
   totalRecharged Int    @default(0) // 累计充值币数
   totalSpent     Int    @default(0) // 累计消费币数
   createdAt      DateTime @default(now())
@@ -1606,6 +1638,20 @@ model VirtualCoinAccount {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model VirtualCoinFrozen {
+  id         String   @id @default(uuid())
+  userId     String
+  amountCoin Int      // 冻结币数
+  scene      String   // BOUNTY/REFUND/DISPUTE
+  refId      String?  // 关联ID（如悬赏问题ID）
+  status     String   @default("FROZEN") // FROZEN/TRANSFERRED/UNFROZEN
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+
+  @@index([userId, status])
+  @@index([refId])
 }
 
 enum CoinTransType {
@@ -2436,6 +2482,310 @@ model FinancialReport {
   createdAt   DateTime @default(now())
 
   @@unique([type, period])
+}
+
+// ─────────────────────────────────────────────────
+// 汇付天下支付分账
+// ─────────────────────────────────────────────────
+
+model HuifuConfig {
+  id            String   @id @default(uuid())
+  key           String   @unique // 配置键: merchantId/appId/secretKey/rsaPrivateKey/rsaPublicKey/notifyUrl
+  value         String   // 配置值（密钥类加密存储）
+  description   String?
+  enabled       Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+}
+
+model HuifuSplitRecord {
+  id            String   @id @default(uuid())
+  orderId       String   @unique       // 关联平台订单ID
+  huifuOrderId  String?                // 汇付订单号
+  outTradeNo    String   @unique       // 商户订单号
+  totalAmount   Decimal  @db.Decimal(12, 2)
+  splitStatus   String   @default("PENDING") // PENDING/PROCESSING/SUCCESS/FAILED/PARTIAL
+  receivers     Json?                  // 分账接收方 [{acctId, amount, name, status}]
+  rawRequest    Json?                  // 原始请求（用于排查）
+  rawResponse   Json?                  // 原始响应
+  errorMsg      String?
+  splitAt       DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([outTradeNo])
+  @@index([splitStatus])
+}
+
+model HuifuSettlement {
+  id            String   @id @default(uuid())
+  settleDate    DateTime                // 结算日期
+  settleBatchId String?  @unique        // 结算批次号
+  totalAmount   Decimal  @db.Decimal(12, 2)
+  feeAmount     Decimal  @db.Decimal(10, 2) @default(0)
+  actualAmount  Decimal  @db.Decimal(12, 2)
+  detail        Json?                   // 结算明细 [{splitRecordId, amount, fee}]
+  status        String   @default("PENDING") // PENDING/SUCCESS/FAILED
+  rawResponse   Json?
+  createdAt     DateTime @default(now())
+
+  @@index([settleDate])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────────
+// SaaS 租户系统（Type 1 — 外部企业客户，非平台角色体系）
+// ─────────────────────────────────────────────────
+
+enum TenantPlan {
+  BASIC
+  PRO
+  ENTERPRISE
+  CUSTOM
+}
+
+model Tenant {
+  id              String       @id @default(uuid())
+  name            String       @unique       // 企业名称
+  contactName     String                     // 联系人
+  contactPhone    String?
+  contactEmail    String?
+  apiKey          String       @unique       // API密钥
+  plan            TenantPlan   @default(BASIC)
+  status          String       @default("ACTIVE") // ACTIVE/DISABLED/EXPIRED
+  quotaTotal      Int          @default(10000)    // 总配额（调用次数）
+  quotaUsed       Int          @default(0)
+  quotaResetCycle String       @default("MONTHLY") // MONTHLY/YEARLY/NONE
+  expireAt        DateTime?
+  ipWhitelist     String[]     @default([])
+  remark          String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  usageRecords TenantUsageRecord[]
+  apiCalls     TenantApiCall[]
+
+  @@index([apiKey])
+  @@index([status])
+}
+
+model TenantApiCall {
+  id           String   @id @default(uuid())
+  tenantId     String
+  apiType      String   // BAZI_PAIPAN/AI_ANALYSIS/CLASSIC_SEARCH/ZIWEI_PAIPAN
+  endpoint     String?
+  tokensUsed   Int?
+  cost         Decimal  @db.Decimal(10, 4) @default(0)
+  ip           String?
+  responseTime Int?
+  status       String   @default("SUCCESS") // SUCCESS/FAILED/QUOTA_EXCEEDED
+  createdAt    DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([apiType, createdAt])
+}
+
+model TenantUsageRecord {
+  id          String   @id @default(uuid())
+  tenantId    String
+  changeType  String   // RECHARGE/RESET/ADJUST/EXPIRE
+  changeAmount Int
+  quotaBefore Int
+  quotaAfter  Int
+  amountRmb   Decimal? @db.Decimal(10, 2)
+  remark      String?
+  operatorId  String?
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
+
+// ─────────────────────────────────────────────────
+// 多小程序配置
+// ─────────────────────────────────────────────────
+
+model MiniAppConfig {
+  id           String   @id @default(uuid())
+  appId        String   @unique
+  appName      String
+  type         String   @default("MAIN") // MAIN/SHOP/LIVE/BACKUP
+  domain       String?
+  h5Domain     String?
+  pathMappings Json?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([type, isActive])
+}
+
+// ─────────────────────────────────────────────────
+// 流失预警
+// ─────────────────────────────────────────────────
+
+model ChurnPrediction {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  activityScore   Float    @default(100)
+  riskLevel       String   @default("LOW") // LOW/MEDIUM/HIGH/CRITICAL
+  lastActiveAt    DateTime?
+  daysSinceActive Int      @default(0)
+  churnFactors    String[] @default([])
+  predictedAt     DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([riskLevel])
+  @@index([activityScore])
+}
+
+model ChurnAction {
+  id          String   @id @default(uuid())
+  userId      String
+  actionType  String   // COUPON/SMS/TEMPLATE_MSG/WEBHOOK
+  actionData  Json
+  status      String   @default("PENDING") // PENDING/SENT/SUCCESS/FAILED
+  result      String?
+  triggeredBy String   @default("SYSTEM") // SYSTEM/ADMIN/RULE
+  createdAt   DateTime @default(now())
+  sentAt      DateTime?
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model ChurnRule {
+  id             String   @id @default(uuid())
+  name           String
+  riskLevel      String   // MEDIUM/HIGH/CRITICAL
+  scoreThreshold Float?
+  daysThreshold  Int?
+  actionType     String   // COUPON/SMS/TEMPLATE_MSG/WEBHOOK
+  actionConfig   Json
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([riskLevel, isActive])
+}
+
+// ─────────────────────────────────────────────────
+// 个性化运势推送
+// ─────────────────────────────────────────────────
+
+model FortuneSubscription {
+  id         String   @id @default(uuid())
+  userId     String
+  fortuneType String  // DAILY/WEEKLY/MONTHLY/YEARLY
+  pushChannel String  // TEMPLATE_MSG/SMS/APP
+  pushTime   String   @default("08:00")
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, fortuneType, pushChannel])
+  @@index([userId])
+}
+
+model FortuneRecord {
+  id             String   @id @default(uuid())
+  userId         String
+  fortuneType    String   // DAILY/WEEKLY/MONTHLY/YEARLY
+  period         String   // 2026-05-14 / 2026-W20 / 2026-05 / 2026
+  fortuneContent Json
+  luckyDirection String?
+  luckyColor     String?
+  luckyNumber    Int?
+  advice         String?
+  aiCost         Decimal? @db.Decimal(10, 4)
+  sentStatus     String   @default("PENDING") // PENDING/SENT/FAILED
+  sentAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, fortuneType, period])
+  @@index([userId, fortuneType])
+}
+
+// ─────────────────────────────────────────────────
+// 智能定价引擎
+// ─────────────────────────────────────────────────
+
+model PricingRule {
+  id             String   @id @default(uuid())
+  name           String
+  targetType     String   // COURSE/PRODUCT/CONSULT/SERVICE
+  targetIds      String[] @default([])
+  basePrice      Decimal? @db.Decimal(10, 2)
+  minPrice       Decimal? @db.Decimal(10, 2)
+  maxPrice       Decimal? @db.Decimal(10, 2)
+  strategy       String   // FIXED/TIME_DISCOUNT/USER_TAG/DEMAND_BASED
+  strategyConfig Json
+  priority       Int      @default(0)
+  isActive       Boolean  @default(true)
+  startAt        DateTime?
+  endAt          DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([targetType, isActive])
+}
+
+model PricingDemand {
+  id              String   @id @default(uuid())
+  targetType      String   // COURSE/PRODUCT
+  targetId        String
+  viewCount24h    Int      @default(0)
+  purchaseCount24h Int     @default(0)
+  cartCount24h    Int      @default(0)
+  demandLevel     String   @default("LOW") // LOW/MEDIUM/HIGH
+  recordedAt      DateTime @default(now())
+
+  @@index([targetType, targetId, recordedAt])
+}
+
+// ─────────────────────────────────────────────────
+// 悬赏咨询
+// ─────────────────────────────────────────────────
+
+model BountyQuestion {
+  id           String   @id @default(uuid())
+  title        String
+  description  String
+  images       String[] @default([])
+  bountyCoin   Int
+  bountyRmb    Decimal? @db.Decimal(10, 2)
+  category     String   @default("BAZI") // BAZI/ZIWEI/FENGSHUI/CAREER/LOVE/GENERAL
+  circleId     String?
+  askerId      String
+  answererId   String?
+  status       String   @default("OPEN") // OPEN/CLAIMED/ANSWERED/SETTLED/REFUNDED/CLOSED
+  answer       String?
+  answerImages String[] @default([])
+  answerAudioUrl String?
+  lockExpireAt DateTime?
+  createdAt    DateTime @default(now())
+  answeredAt   DateTime?
+  settledAt    DateTime?
+
+  @@index([askerId, createdAt])
+  @@index([answererId])
+  @@index([status, createdAt])
+  @@index([category, status])
+}
+
+model BountyReview {
+  id         String   @id @default(uuid())
+  questionId String
+  reviewerId String
+  status     String   @default("PENDING") // PENDING/APPROVED/REJECTED
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@index([questionId])
 }
 
 // ─────────────────────────────────────────────────

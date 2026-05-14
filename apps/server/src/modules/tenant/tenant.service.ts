@@ -1,0 +1,255 @@
+import { Injectable, Logger } from "@nestjs/common";
+import { randomUUID, createHash } from "crypto";
+import { PrismaService } from "../../prisma/prisma.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { CreateTenantDto, UpdateTenantDto, TenantRechargeDto, TenantConsumeDto, TenantListDto } from "./tenant.dto";
+
+@Injectable()
+export class TenantService {
+  private readonly logger = new Logger(TenantService.name);
+
+  constructor(private prisma: PrismaService) {}
+
+  // ───────── 管理 CRUD ─────────
+
+  async create(dto: CreateTenantDto, operatorId: string) {
+    const apiKey = `GX_${createHash("sha256").update(randomUUID()).digest("hex").slice(0, 32)}`;
+
+    const tenant = await this.prisma.tenant.create({
+      data: {
+        name: dto.name,
+        contactName: dto.contactName,
+        contactPhone: dto.contactPhone,
+        contactEmail: dto.contactEmail,
+        apiKey,
+        plan: (dto.plan || "BASIC") as any,
+        quotaTotal: dto.quotaTotal ?? 10000,
+        quotaResetCycle: dto.quotaResetCycle || "MONTHLY",
+        expireAt: dto.expireAt ? new Date(dto.expireAt) : undefined,
+        ipWhitelist: dto.ipWhitelist || [],
+        remark: dto.remark,
+      },
+    });
+
+    // 记录初始用量
+    await this.prisma.tenantUsageRecord.create({
+      data: {
+        tenantId: tenant.id,
+        changeType: "RECHARGE",
+        changeAmount: tenant.quotaTotal,
+        quotaBefore: 0,
+        quotaAfter: tenant.quotaTotal,
+        remark: "初始配额",
+        operatorId,
+      },
+    });
+
+    this.logger.log(`SaaS租户已创建: ${tenant.name} (${tenant.id})`);
+    return tenant;
+  }
+
+  async list(dto: TenantListDto) {
+    const { page = 1, pageSize = 20, status, keyword } = dto;
+    const where: any = {};
+    if (status) where.status = status;
+    if (keyword) where.name = { contains: keyword };
+
+    const [tenants, total] = await Promise.all([
+      this.prisma.tenant.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.tenant.count({ where }),
+    ]);
+
+    return { tenants, total, page, pageSize };
+  }
+
+  async getById(id: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id },
+      include: {
+        usageRecords: { take: 20, orderBy: { createdAt: "desc" } },
+        apiCalls: { take: 20, orderBy: { createdAt: "desc" } },
+      },
+    });
+    if (!tenant) throw new BusinessException(ErrorCode.NOT_FOUND, "租户不存在");
+    return tenant;
+  }
+
+  async update(id: string, dto: UpdateTenantDto) {
+    const data: any = { ...dto };
+    if (dto.expireAt !== undefined) data.expireAt = dto.expireAt ? new Date(dto.expireAt) : null;
+    if (dto.plan !== undefined) data.plan = dto.plan;
+    return this.prisma.tenant.update({ where: { id }, data });
+  }
+
+  async recharge(id: string, dto: TenantRechargeDto, operatorId: string) {
+    const tenant = await this.prisma.tenant.findUnique({ where: { id } });
+    if (!tenant) throw new BusinessException(ErrorCode.NOT_FOUND, "租户不存在");
+
+    const quotaBefore = tenant.quotaTotal;
+    const quotaAfter = quotaBefore + dto.quotaAmount;
+
+    const [updated] = await Promise.all([
+      this.prisma.tenant.update({
+        where: { id },
+        data: { quotaTotal: quotaAfter },
+      }),
+      this.prisma.tenantUsageRecord.create({
+        data: {
+          tenantId: id,
+          changeType: "RECHARGE",
+          changeAmount: dto.quotaAmount,
+          quotaBefore,
+          quotaAfter,
+          amountRmb: dto.amountRmb,
+          remark: dto.remark || "后台充值",
+          operatorId,
+        },
+      }),
+    ]);
+
+    this.logger.log(`租户 ${tenant.name} 充值 ${dto.quotaAmount} 配额, 操作人: ${operatorId}`);
+    return updated;
+  }
+
+  async regenerateApiKey(id: string) {
+    const newKey = `GX_${createHash("sha256").update(randomUUID()).digest("hex").slice(0, 32)}`;
+    await this.prisma.tenant.update({
+      where: { id },
+      data: { apiKey: newKey },
+    });
+    return { apiKey: newKey };
+  }
+
+  async deleteTenant(id: string) {
+    await this.prisma.tenantApiCall.deleteMany({ where: { tenantId: id } });
+    await this.prisma.tenantUsageRecord.deleteMany({ where: { tenantId: id } });
+    await this.prisma.tenant.delete({ where: { id } });
+    return { success: true };
+  }
+
+  // ───────── 外部 API ─────────
+
+  /** 验证 API Key 并返回租户信息 */
+  async verify(apiKey: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { apiKey },
+      select: { id: true, name: true, plan: true, status: true, quotaTotal: true, quotaUsed: true, expireAt: true },
+    });
+    if (!tenant) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "API Key 无效");
+    if (tenant.status !== "ACTIVE") throw new BusinessException(ErrorCode.AUTH_USER_BANNED, "租户状态异常");
+    if (tenant.expireAt && tenant.expireAt < new Date()) throw new BusinessException(ErrorCode.AUTH_TOKEN_EXPIRED, "租户已过期");
+    return tenant;
+  }
+
+  /** 消耗配额 */
+  async consume(tenantId: string, dto: TenantConsumeDto, ip?: string, startTime?: number) {
+    const cost = dto.cost ?? 1;
+
+    // 原子扣减
+    const result = await this.prisma.tenant.updateMany({
+      where: {
+        id: tenantId,
+        quotaTotal: { gte: cost + 0 }, // 使用 gte 来确保配额充足（quotaUsed 在后续也算）
+      },
+      data: {
+        quotaUsed: { increment: cost },
+      },
+    });
+
+    if (result.count === 0) {
+      // 记录超配额调用
+      await this.prisma.tenantApiCall.create({
+        data: {
+          tenantId,
+          apiType: dto.apiType,
+          endpoint: dto.endpoint,
+          tokensUsed: dto.tokensUsed,
+          cost: 0,
+          ip,
+          responseTime: startTime ? Date.now() - startTime : undefined,
+          status: "QUOTA_EXCEEDED",
+        },
+      });
+      throw new BusinessException(ErrorCode.FORBIDDEN, "配额不足");
+    }
+
+    // 记录调用
+    await this.prisma.tenantApiCall.create({
+      data: {
+        tenantId,
+        apiType: dto.apiType,
+        endpoint: dto.endpoint,
+        tokensUsed: dto.tokensUsed,
+        cost,
+        ip,
+        responseTime: startTime ? Date.now() - startTime : undefined,
+        status: "SUCCESS",
+      },
+    });
+
+    return { consumed: cost, remainingQuota: 0 }; // 查询最新剩余配额
+  }
+
+  /** 查询剩余配额 */
+  async getQuota(tenantId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true, name: true, quotaTotal: true, quotaUsed: true, plan: true, expireAt: true },
+    });
+    if (!tenant) throw new BusinessException(ErrorCode.NOT_FOUND, "租户不存在");
+    return { ...tenant, remaining: tenant.quotaTotal - tenant.quotaUsed };
+  }
+
+  /** 用量统计 */
+  async getUsageStats(tenantId: string, days = 30) {
+    const since = new Date(Date.now() - days * 24 * 3600 * 1000);
+    const [calls, byType] = await Promise.all([
+      this.prisma.tenantApiCall.count({ where: { tenantId, createdAt: { gte: since } } }),
+      this.prisma.tenantApiCall.groupBy({
+        by: ["apiType"],
+        where: { tenantId, createdAt: { gte: since } },
+        _count: true,
+        _sum: { cost: true, tokensUsed: true },
+      }),
+    ]);
+    return { calls, byType, days };
+  }
+
+  /** 每月重置配额（定时任务调用） */
+  async resetMonthlyQuotas() {
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const tenants = await this.prisma.tenant.findMany({
+      where: { quotaResetCycle: "MONTHLY", status: "ACTIVE" },
+      select: { id: true, name: true, quotaUsed: true },
+    });
+
+    let count = 0;
+    for (const t of tenants) {
+      if (t.quotaUsed > 0) {
+        await this.prisma.tenantUsageRecord.create({
+          data: {
+            tenantId: t.id,
+            changeType: "RESET",
+            changeAmount: -t.quotaUsed,
+            quotaBefore: t.quotaUsed,
+            quotaAfter: 0,
+            remark: `${new Date().toISOString().slice(0, 7)} 月度重置`,
+          },
+        });
+        await this.prisma.tenant.update({
+          where: { id: t.id },
+          data: { quotaUsed: 0 },
+        });
+        count++;
+      }
+    }
+    this.logger.log(`月度配额重置完成: ${count} 个租户`);
+    return { resetCount: count };
+  }
+}

@@ -195,6 +195,68 @@ export class MiniService {
 
     return { title, imageUrl, path, targetType, targetId };
   }
+
+  // ───────── 多小程序配置 ─────────
+
+  /** 获取可用域名列表（含备用域名） */
+  async getDomainConfigs() {
+    const configs = await this.prisma.miniAppConfig.findMany({
+      where: { isActive: true },
+      orderBy: { type: "asc" },
+    });
+    return configs.map((c) => ({
+      type: c.type,
+      domain: c.domain,
+      h5Domain: c.h5Domain,
+      appId: c.appId,
+    }));
+  }
+
+  /** 获取可用小程序 AppId 列表 */
+  async getAppIdConfigs() {
+    const configs = await this.prisma.miniAppConfig.findMany({
+      where: { isActive: true },
+      select: { appId: true, appName: true, type: true, domain: true },
+      orderBy: { type: "asc" },
+    });
+    return configs;
+  }
+
+  /** 创建小程序配置 */
+  async createMiniAppConfig(data: {
+    appId: string; appName: string; type?: string;
+    domain?: string; h5Domain?: string; pathMappings?: Record<string, string>;
+  }) {
+    return this.prisma.miniAppConfig.create({
+      data: {
+        appId: data.appId,
+        appName: data.appName,
+        type: data.type || "MAIN",
+        domain: data.domain,
+        h5Domain: data.h5Domain,
+        pathMappings: data.pathMappings as any,
+      },
+    });
+  }
+
+  /** 更新小程序配置 */
+  async updateMiniAppConfig(id: string, data: Record<string, unknown>) {
+    return this.prisma.miniAppConfig.update({
+      where: { id },
+      data: data as any,
+    });
+  }
+
+  /** 小程序配置列表 */
+  async listMiniAppConfigs() {
+    return this.prisma.miniAppConfig.findMany({ orderBy: { createdAt: "desc" } });
+  }
+
+  /** 删除小程序配置 */
+  async deleteMiniAppConfig(id: string) {
+    await this.prisma.miniAppConfig.delete({ where: { id } });
+    return { success: true };
+  }
 }
 
 function safeJsonParse(str: string | undefined, fallback: unknown) {
