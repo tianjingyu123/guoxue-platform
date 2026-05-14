@@ -92,6 +92,7 @@ jobs:
   deploy-staging:
     name: 部署到 Staging
     needs: build-and-push
+    continue-on-error: true
     if: |
       (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
       (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging')
@@ -269,12 +270,18 @@ jobs:
           STAGING_RESULT: ${{ needs.deploy-staging.result }}
           PROD_RESULT: ${{ needs.deploy-production.result }}
         run: |
-          if [ "$STAGING_RESULT" = "success" ] || [ "$PROD_RESULT" = "success" ]; then
-            ENV_LABEL="$([ "$PROD_RESULT" = "success" ] && echo "生产环境" || echo "预发布环境")"
+          if [ "$PROD_RESULT" = "success" ]; then
+            ENV_LABEL="生产环境"
             STATUS="✅ 部署成功"
-          elif [ "$STAGING_RESULT" = "failure" ] || [ "$PROD_RESULT" = "failure" ]; then
-            ENV_LABEL="$([ "$PROD_RESULT" = "failure" ] && echo "生产环境" || echo "预发布环境")"
+          elif [ "$STAGING_RESULT" = "success" ]; then
+            ENV_LABEL="预发布环境"
+            STATUS="✅ 部署成功"
+          elif [ "$PROD_RESULT" = "failure" ]; then
+            ENV_LABEL="生产环境"
             STATUS="❌ 部署失败（已自动回滚）"
+          elif [ "$STAGING_RESULT" = "failure" ]; then
+            ENV_LABEL="预发布环境"
+            STATUS="⚠️ Staging 不可达，已跳过（检查服务器/SSH密钥）"
           else
             ENV_LABEL="—"
             STATUS="⏭️ 跳过"
