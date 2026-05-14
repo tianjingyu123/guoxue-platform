@@ -47,7 +47,7 @@ export class ChurnService {
           await this.triggerActions(user.id, riskLevel);
         }
         processed++;
-      } catch (err) {
+      } catch (_err) {
         this.logger.warn(`用户 ${user.id} 评分计算失败`);
       }
     }

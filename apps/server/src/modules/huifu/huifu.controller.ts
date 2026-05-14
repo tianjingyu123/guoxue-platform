@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Body, Param, Req, UseGuards, Headers } from
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request } from "express";
 import { HuifuService } from "./huifu.service";
-import { HuifuPayDto, HuifuSplitDto, HuifuRefundDto, HuifuQuerySplitDto, UpdateConfigDto } from "./huifu.dto";
+import { HuifuPayDto, HuifuSplitDto, HuifuRefundDto, UpdateConfigDto } from "./huifu.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";

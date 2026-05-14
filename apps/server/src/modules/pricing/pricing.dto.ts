@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsInt, IsBoolean, IsObject, IsArray, Min } from "class-validator";
+import { IsString, IsOptional, IsNumber, IsInt, IsBoolean, IsObject, IsArray } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreatePricingRuleDto {

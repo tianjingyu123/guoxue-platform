@@ -1,9 +1,15 @@
-import { Controller, Post, Get, Query, Body } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
+import { Controller, Post, Get, Body, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { ContentGenerationService } from "./content-generation.service";
+import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 
 @ApiTags("AI内容生成")
+@ApiBearerAuth()
 @Controller("content-generation")
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 export class ContentGenerationController {
   constructor(private readonly service: ContentGenerationService) {}
 

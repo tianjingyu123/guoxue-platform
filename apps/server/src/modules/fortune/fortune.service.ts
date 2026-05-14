@@ -61,7 +61,7 @@ export class FortuneService {
           },
         });
         generated++;
-      } catch (err) {
+      } catch (_err) {
         this.logger.warn(`用户 ${sub.userId} 运势生成失败`);
       }
     }
@@ -89,7 +89,7 @@ export class FortuneService {
             luckyNumber: content.number,
           },
         });
-      } catch (err) {
+      } catch (_err) {
         this.logger.warn(`用户 ${sub.userId} 周运生成失败`);
       }
     }

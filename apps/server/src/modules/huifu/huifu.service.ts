@@ -153,8 +153,6 @@ export class HuifuService {
         body: bodyStr || undefined,
       });
 
-      const duration = Date.now() - start;
-
       const raw = await resp.text();
       let result: Record<string, unknown>;
       try {

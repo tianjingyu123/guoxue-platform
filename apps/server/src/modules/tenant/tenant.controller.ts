@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { Request } from "express";
 import { TenantService } from "./tenant.service";
 import { TenantGuard } from "./tenant.guard";

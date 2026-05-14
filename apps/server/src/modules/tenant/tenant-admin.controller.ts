@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards 
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request } from "express";
 import { TenantService } from "./tenant.service";
-import { CreateTenantDto, UpdateTenantDto, TenantRechargeDto, TenantListDto } from "./tenant.dto";
+import { CreateTenantDto, UpdateTenantDto, TenantRechargeDto } from "./tenant.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";

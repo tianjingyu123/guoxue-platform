@@ -113,16 +113,6 @@ export class ModelRouterService {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     try {
-      const result = await this.prisma.aiAnalysisRecord.aggregate({
-        _sum: {
-          cost: true,
-        },
-        where: {
-          scene,
-          createdAt: { gte: monthStart },
-        },
-      });
-
       // aiAnalysisRecord 的 tokenUsage 是 JSON 字段，无法直接聚合
       // 用 Raw Query 来实现
       const rawResult: Array<{ total_prompt: bigint; total_completion: bigint }> =

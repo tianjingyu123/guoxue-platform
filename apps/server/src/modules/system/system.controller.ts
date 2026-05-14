@@ -486,7 +486,7 @@ export class SystemController {
     res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
     const stream = fs.createReadStream(filePath);
     stream.pipe(res);
-    stream.on("error", (err) => {
+    stream.on("error", (_err) => {
       if (!res.headersSent) res.status(500).json({ message: "文件读取失败" });
     });
     stream.on("end", () => {

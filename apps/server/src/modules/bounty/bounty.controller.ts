@@ -4,8 +4,6 @@ import { Request } from "express";
 import { BountyService } from "./bounty.service";
 import { CreateBountyDto, AnswerBountyDto } from "./bounty.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-import { RolesGuard } from "../../common/roles.guard";
-import { Roles } from "../../common/roles.decorator";
 
 @ApiTags("悬赏咨询")
 @Controller("bounty")

@@ -225,7 +225,6 @@ export class TenantService {
 
   /** 每月重置配额（定时任务调用） */
   async resetMonthlyQuotas() {
-    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const tenants = await this.prisma.tenant.findMany({
       where: { quotaResetCycle: "MONTHLY", status: "ACTIVE" },
       select: { id: true, name: true, quotaUsed: true },

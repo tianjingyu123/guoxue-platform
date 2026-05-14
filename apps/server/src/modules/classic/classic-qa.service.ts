@@ -33,7 +33,7 @@ export class ClassicQaService {
     question: string,
     userId?: string,
     history?: AiMessage[],
-    classicId?: string,
+    _classicId?: string,
   ): Promise<ClassicQAReply> {
     // 1. 向量检索相关古籍段落
     const chunks = await this.rag.searchContext(question, [], 5);
@@ -81,7 +81,7 @@ export class ClassicQaService {
     question: string,
     userId?: string,
     history?: AiMessage[],
-    classicId?: string,
+    _classicId?: string,
   ): AsyncIterable<string> {
     const chunks = await this.rag.searchContext(question, [], 5);
 

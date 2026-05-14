@@ -2,7 +2,7 @@ import { Controller, Get, Post, Param, Req, UseGuards, Body, Query } from "@nest
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { MemberService } from "./member.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-import { PurchaseMemberDto, GrantMemberDto } from "./member.dto";
+import { GrantMemberDto } from "./member.dto";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 

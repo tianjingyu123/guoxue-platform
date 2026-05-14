@@ -1,9 +1,15 @@
-import { Controller, Post, Get, Query } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
+import { Controller, Post, Get, Query, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
 import { OperationEngineService } from "./operation-engine.service";
+import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 
 @ApiTags("自动化运营引擎")
+@ApiBearerAuth()
 @Controller("operation-engine")
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 export class OperationEngineController {
   constructor(private readonly service: OperationEngineService) {}
 

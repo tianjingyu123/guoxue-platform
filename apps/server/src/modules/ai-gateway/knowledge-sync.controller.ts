@@ -1,9 +1,12 @@
-import { Controller, Post, Get, Param, Query, Body } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
+import { Controller, Post, Get, Param, Query, Body, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
 import { KnowledgeSyncService } from "./knowledge-sync.service";
+import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 @ApiTags("圈主助理知识库同步")
+@ApiBearerAuth()
 @Controller("circle-knowledge")
+@UseGuards(JwtAuthGuard)
 export class KnowledgeSyncController {
   constructor(private readonly syncService: KnowledgeSyncService) {}
 

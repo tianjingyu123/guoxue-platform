@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsArray, Min } from "class-validator";
+import { IsString, IsOptional, IsInt, IsArray, Min } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateBountyDto {

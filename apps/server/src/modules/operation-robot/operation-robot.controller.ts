@@ -1,9 +1,15 @@
-import { Controller, Post, Get, Body, Param } from "@nestjs/common";
-import { ApiTags, ApiOperation } from "@nestjs/swagger";
+import { Controller, Post, Get, Body, Param, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { OperationRobotService } from "./operation-robot.service";
+import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 
 @ApiTags("虚拟运营机器人")
+@ApiBearerAuth()
 @Controller("operation-robots")
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 export class OperationRobotController {
   constructor(private readonly service: OperationRobotService) {}
 
