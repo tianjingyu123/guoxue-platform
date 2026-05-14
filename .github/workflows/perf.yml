@@ -31,12 +31,13 @@ env:
   JWT_SECRET: 'perf-test-jwt-secret-key!!'
   DISABLE_RATE_LIMIT: 'true'
   BULLMQ_DISABLED: 'true'
-  SCENARIO: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.scenario) || 'load' }}
 
 jobs:
   perf-test:
-    name: 性能压测 (${{ env.SCENARIO }})
+    name: 性能压测
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    env:
+      SCENARIO: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.scenario) || 'load' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     services:
