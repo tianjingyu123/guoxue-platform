@@ -93,9 +93,7 @@ jobs:
     name: 部署到 Staging
     needs: build-and-push
     continue-on-error: true
-    if: |
-      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging')
+    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'staging'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
