@@ -19,6 +19,7 @@ import { TfidfVectorProvider } from "./strategies/tfidf-vector.provider";
 import { OpenAIEmbeddingProvider } from "./strategies/openai-embedding.provider";
 import { AbTestService } from "./services/ab-test.service";
 import { StrategyWeightOverride } from "./ab-test.dto";
+import { StationPickService } from "../station-pick/station-pick.service";
 
 @Injectable()
 export class RecommendService {
@@ -34,6 +35,7 @@ export class RecommendService {
     private tfidf: TfidfVectorProvider,
     private embedding: OpenAIEmbeddingProvider,
     private abTest: AbTestService,
+    private stationPick: StationPickService,
   ) {
     // 优先使用 OpenAI/DeepSeek Embedding，其次 TF-IDF
     this.vectorRecall.setProvider(this.embedding.isEnabled ? this.embedding : this.tfidf);
@@ -124,6 +126,13 @@ export class RecommendService {
       filtered = await this.applyInsertRules(ctx.scene, filtered);
     } catch (e) {
       this.logger.warn(`分区强插失败: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    // P2: 站长精选注入 — 分站站长配置的精选内容按固定位插入
+    try {
+      filtered = await this.applyStationPicks(ctx, filtered);
+    } catch (e) {
+      this.logger.warn(`站长精选注入失败: ${e instanceof Error ? e.message : String(e)}`);
     }
 
     // 分页切片
@@ -1074,6 +1083,42 @@ export class RecommendService {
 
       const pos = Math.min(rule.position!, result.length);
       result.splice(pos, 0, insertItem);
+    }
+
+    return result;
+  }
+
+  /**
+   * 站长精选注入 — 在推荐流中按分站配置的固定位置插入站长精选内容
+   */
+  private async applyStationPicks(ctx: RecommendContext, items: RecommendItem[]): Promise<RecommendItem[]> {
+    if (!ctx.stationId) return items;
+
+    const station = await this.prisma.station.findUnique({
+      where: { id: ctx.stationId },
+      select: { templateConfig: true },
+    });
+    const config = (station?.templateConfig as Record<string, any>) ?? {};
+    if (config?.stationZoneEnabled === false) return items;
+
+    const positions: number[] = config?.stationPickPositions ?? [2, 5, 9];
+
+    const picks = await this.prisma.stationPick.findMany({
+      where: { stationId: ctx.stationId },
+      orderBy: { sortOrder: "asc" },
+      take: positions.length,
+    });
+    if (picks.length === 0) return items;
+
+    const pickItems = await this.stationPick.fetchContentItems(picks);
+    const validItems = pickItems.filter(Boolean);
+
+    const result = [...items];
+    for (let i = 0; i < Math.min(positions.length, validItems.length); i++) {
+      const pos = positions[i];
+      if (pos < result.length) {
+        result.splice(pos, 0, validItems[i] as any);
+      }
     }
 
     return result;

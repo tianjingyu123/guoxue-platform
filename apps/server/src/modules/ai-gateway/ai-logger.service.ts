@@ -16,6 +16,8 @@ export class AiLoggerService {
     model: string;
     fallbackUsed: boolean;
     fallbackModel?: string;
+    grayReleaseModel?: string;
+    costCapped?: boolean;
     latency: number;
     cost?: number;
     inputSummary?: string;
@@ -31,7 +33,7 @@ export class AiLoggerService {
           analyzeType: "GENERAL",
           analysisContent: params.outputSummary || "",
           scene: params.scene,
-          modelName: params.model,
+          modelName: params.grayReleaseModel || params.model,
           modelUsed: params.model,
           fallbackUsed: params.fallbackUsed,
           fallbackModel: params.fallbackModel,

@@ -40,6 +40,9 @@ import { EmailModule } from "./modules/email/email.module";
 import { WebsocketModule } from "./modules/websocket/websocket.module";
 import { AiModule } from "./modules/ai/ai.module";
 import { AiGatewayModule } from "./modules/ai-gateway/ai-gateway.module";
+import { ContentGenerationModule } from "./modules/content-generation/content-generation.module";
+import { OperationRobotModule } from "./modules/operation-robot/operation-robot.module";
+import { OperationEngineModule } from "./modules/operation-engine/operation-engine.module";
 import { MiniModule } from "./modules/mini/mini.module";
 import { WebhookModule } from "./modules/webhook/webhook.module";
 import { CallModule } from "./modules/call/call.module";
@@ -69,6 +72,6 @@ if (process.env.BULLMQ_DISABLED !== "true") {
 }
 
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, HuifuModule, TenantModule, ChurnModule, FortuneModule, PricingModule, BountyModule, ShareModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, StationPickModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, MemberModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, HuifuModule, TenantModule, ChurnModule, FortuneModule, PricingModule, BountyModule, ShareModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, StationPickModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, ContentGenerationModule, OperationRobotModule, OperationEngineModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, MemberModule],
 })
 export class AppModule {}

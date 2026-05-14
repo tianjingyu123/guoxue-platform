@@ -26,12 +26,13 @@ export class AiGatewayService {
 
   /** 非流式对话 */
   async chat(req: GatewayChatRequest): Promise<AiChatResponse> {
-    const { model, fallbackModel, options } = await this.router.resolve(req.scene);
+    const { model, fallbackModel, options, grayReleaseModel, costCapped } =
+      await this.router.resolve(req.scene);
     const mergedOptions: AiChatOptions = { ...options, ...req.options };
 
     const startedAt = Date.now();
     let fallbackUsed = false;
-    let actualModel = model;
+    let actualModel = grayReleaseModel || model;
 
     let result: AiChatResponse;
     try {
@@ -57,6 +58,8 @@ export class AiGatewayService {
       model: actualModel,
       fallbackUsed,
       fallbackModel: fallbackUsed ? fallbackModel : undefined,
+      grayReleaseModel,
+      costCapped,
       latency,
       promptTokens: result.usage?.promptTokens,
       completionTokens: result.usage?.completionTokens,
@@ -69,12 +72,13 @@ export class AiGatewayService {
 
   /** 流式对话 — 返回 AsyncIterable */
   async *chatStream(req: GatewayChatRequest): AsyncIterable<string> {
-    const { model, fallbackModel, options } = await this.router.resolve(req.scene);
+    const { model, fallbackModel, options, grayReleaseModel, costCapped } =
+      await this.router.resolve(req.scene);
     const mergedOptions: AiChatOptions = { ...options, ...req.options };
 
     const startedAt = Date.now();
     let fallbackUsed = false;
-    let actualModel = model;
+    let actualModel = grayReleaseModel || model;
     let fullContent = "";
 
     try {
@@ -105,6 +109,8 @@ export class AiGatewayService {
       model: actualModel,
       fallbackUsed,
       fallbackModel: fallbackUsed ? fallbackModel : undefined,
+      grayReleaseModel,
+      costCapped,
       latency,
       inputSummary: inputText,
       outputSummary: fullContent,

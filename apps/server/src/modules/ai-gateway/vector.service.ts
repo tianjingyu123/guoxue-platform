@@ -215,6 +215,23 @@ export class VectorService {
     return this.searchJsonFallback(queryVector, [circleId], topK);
   }
 
+  /** 向量相似度搜索 — 全平台知识库（不过滤circleId，用于智能客服等场景） */
+  async searchPublicKnowledge(
+    queryVector: number[],
+    topK = 5,
+  ): Promise<VectorSearchResult[]> {
+    await this.detectPgvector();
+
+    if (this.pgvectorAvailable) {
+      try {
+        return await this.searchPgvectorAll(queryVector, topK);
+      } catch {
+        // pgvector 查询失败，降级到 JSON
+      }
+    }
+    return this.searchJsonFallbackAll(queryVector, topK);
+  }
+
   /** 向量相似度搜索 — 全部知识库（跨圈子） */
   async searchAllKnowledge(
     queryVector: number[],
@@ -295,6 +312,24 @@ export class VectorService {
 
   // ─── pgvector 实现 ───
 
+  /** pgvector 全平台搜索（不过滤circleId） */
+  private async searchPgvectorAll(
+    queryVector: number[],
+    topK: number,
+  ): Promise<VectorSearchResult[]> {
+    const vectorStr = `[${queryVector.join(",")}]`;
+    return this.prisma.$queryRawUnsafe<VectorSearchResult[]>(
+      `SELECT id, content, 1 - (embedding <=> $1::vector) AS similarity
+       FROM circle_knowledge
+       WHERE embedding IS NOT NULL
+         AND status = 'active'
+       ORDER BY embedding <=> $1::vector
+       LIMIT $2`,
+      vectorStr,
+      topK,
+    );
+  }
+
   private async searchPgvector(
     queryVector: number[],
     circleId: string,
@@ -337,6 +372,32 @@ export class VectorService {
   }
 
   // ─── JSON fallback 实现 ───
+
+  /** JSON fallback 全平台搜索（不过滤circleId） */
+  private async searchJsonFallbackAll(
+    queryVector: number[],
+    topK: number,
+  ): Promise<VectorSearchResult[]> {
+    const rows = await this.prisma.circleKnowledge.findMany({
+      where: { status: "active", vectorJson: { not: null } },
+      select: { id: true, content: true, vectorJson: true },
+    });
+
+    const scored: VectorSearchResult[] = [];
+    for (const row of rows) {
+      if (!row.vectorJson) continue;
+      try {
+        const vec = JSON.parse(row.vectorJson) as number[];
+        const similarity = cosineSimilarity(queryVector, vec);
+        scored.push({ id: row.id, content: row.content, similarity });
+      } catch {
+        // 跳过损坏的向量数据
+      }
+    }
+
+    scored.sort((a, b) => b.similarity - a.similarity);
+    return scored.slice(0, topK);
+  }
 
   private async searchJsonFallback(
     queryVector: number[],

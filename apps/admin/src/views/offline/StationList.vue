@@ -92,6 +92,12 @@
           </el-button>
           <el-button
             size="small"
+            @click="openTemplate(row)"
+          >
+            模版
+          </el-button>
+          <el-button
+            size="small"
             @click="toggleOperators(row)"
           >
             运营商
@@ -401,6 +407,51 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 模版选择对话框 -->
+    <el-dialog
+      v-model="templateDialogVisible"
+      title="选择分站模版"
+      width="640px"
+    >
+      <el-radio-group
+        v-model="templateForm.templateId"
+        class="template-list"
+      >
+        <el-radio
+          v-for="tpl in templates"
+          :key="tpl.id"
+          :value="tpl.id"
+          class="template-card"
+          border
+        >
+          <div class="tpl-name">{{ tpl.name }}</div>
+          <div class="tpl-desc">{{ tpl.desc }}</div>
+          <div class="tpl-tags">
+            <el-tag
+              v-for="tab in tpl.preview.tabs"
+              :key="tab"
+              size="small"
+              type="info"
+            >
+              {{ tab }}
+            </el-tag>
+          </div>
+        </el-radio>
+      </el-radio-group>
+      <template #footer>
+        <el-button @click="templateDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="templateSaving"
+          @click="saveTemplate"
+        >
+          应用模版
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -449,6 +500,13 @@ const brandDialogVisible = ref(false);
 const brandSaving = ref(false);
 const brandEditingId = ref("");
 const brandForm = reactive({ name: "", logo: "", themeColor: "" });
+
+// 模版选择
+const templateDialogVisible = ref(false);
+const templateSaving = ref(false);
+const templateStationId = ref("");
+const templates = ref<any[]>([]);
+const templateForm = reactive({ templateId: "default", templateConfig: {} as Record<string, unknown> });
 
 onMounted(() => fetchList());
 
@@ -561,6 +619,37 @@ async function saveBrand() {
   }
 }
 
+// ── 模版选择 ──
+
+async function openTemplate(row: any) {
+  templateStationId.value = row.id;
+  templateForm.templateId = row.templateId || "default";
+  templateForm.templateConfig = {};
+  // 加载可用模版列表
+  try {
+    const { data } = await stationApi.getTemplates();
+    templates.value = data || [];
+  } catch {
+    templates.value = [];
+  }
+  templateDialogVisible.value = true;
+}
+
+async function saveTemplate() {
+  templateSaving.value = true;
+  try {
+    await stationApi.setTemplate(templateStationId.value, {
+      templateId: templateForm.templateId,
+      templateConfig: templateForm.templateConfig,
+    });
+    ElMessage.success("模版已应用，清除缓存后生效");
+    templateDialogVisible.value = false;
+    fetchList();
+  } finally {
+    templateSaving.value = false;
+  }
+}
+
 // ── 运营商管理 ──
 
 async function toggleOperators(row: any) {
@@ -619,4 +708,9 @@ async function saveOperator() {
 .header h2 { margin: 0; font-size: 18px; color: #8b4513; }
 .pagination-wrap { margin-top: 16px; display: flex; justify-content: center; }
 .operator-header { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.template-list { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+.template-card { width: 100%; padding: 12px; }
+.tpl-name { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+.tpl-desc { color: #666; font-size: 13px; margin-bottom: 8px; }
+.tpl-tags { display: flex; gap: 6px; }
 </style>

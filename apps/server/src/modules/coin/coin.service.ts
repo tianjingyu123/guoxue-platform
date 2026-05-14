@@ -338,7 +338,7 @@ export class CoinService {
           type: "SPEND",
           amountCoin: -amountCoin,
           balanceAfter: acc!.balance,
-          scene: scene as any,
+          scene: scene as Prisma.VirtualCoinTransactionCreateInput["scene"],
           refId,
           description: `冻结虚拟币: ${scene}`,
         },

@@ -10,6 +10,7 @@ import { VectorRecallStrategy } from "./strategies/vector-recall.strategy";
 import { TfidfVectorProvider } from "./strategies/tfidf-vector.provider";
 import { OpenAIEmbeddingProvider } from "./strategies/openai-embedding.provider";
 import { AbTestService } from "./services/ab-test.service";
+import { StationPickService } from "../station-pick/station-pick.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -27,6 +28,7 @@ const mockVectorRecall = { recommend: jest.fn().mockResolvedValue([]), setProvid
 const mockTfidf = { ensureBuilt: jest.fn(), embed: jest.fn(), search: jest.fn(), buildUserVector: jest.fn() };
 const mockEmbedding = { isEnabled: false, embed: jest.fn(), search: jest.fn(), buildUserVector: jest.fn() };
 const mockAbTest = { getOverrides: jest.fn().mockResolvedValue([]), getAssignments: jest.fn().mockResolvedValue([]) };
+const mockStationPick = { fetchContentItems: jest.fn().mockResolvedValue([]) };
 
 describe("RecommendService", () => {
   let svc: RecommendService;
@@ -45,6 +47,7 @@ describe("RecommendService", () => {
         { provide: TfidfVectorProvider, useValue: mockTfidf },
         { provide: OpenAIEmbeddingProvider, useValue: mockEmbedding },
         { provide: AbTestService, useValue: mockAbTest },
+        { provide: StationPickService, useValue: mockStationPick },
       ],
     }).compile();
     svc = mod.get(RecommendService);

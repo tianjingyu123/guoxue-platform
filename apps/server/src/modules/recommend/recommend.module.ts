@@ -27,9 +27,10 @@ import { AbTestController } from "./ab-test.controller";
 import { SmartFeedService } from "./smart-feed.service";
 import { SmartFeedController } from "./smart-feed.controller";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
+import { StationPickModule } from "../station-pick/station-pick.module";
 
 @Module({
-  imports: [AiGatewayModule],
+  imports: [AiGatewayModule, StationPickModule],
   controllers: [SmartFeedController, RecommendController, RecommendRuleController, AbTestController],
   providers: [
     RecommendService,

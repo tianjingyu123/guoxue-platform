@@ -235,6 +235,11 @@ export const stationApi = {
   earnings: (id: string, params?: any) => api.get(`/station/${id}/earnings`, { params }),
   operatorList: (params?: any) => api.get("/station/operator/list", { params }),
   createOperator: (data: any) => api.post("/station/operator", data),
+  // 模版
+  getTemplates: () => api.get("/station/templates/list"),
+  getTemplateConfig: (id: string) => api.get(`/station/templates/${id}`),
+  setTemplate: (stationId: string, data: { templateId: string; templateConfig?: Record<string, unknown> }) =>
+    api.put(`/station/${stationId}/template`, data),
 };
 
 // 线下驿站管理（完整 API）

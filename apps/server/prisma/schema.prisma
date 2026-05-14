@@ -35,6 +35,7 @@ model User {
   birthday      DateTime?
   memberLevel   MemberLevel @default(NONE)
   memberExpire  DateTime?
+  interestCategories String[] @default([]) // 用户兴趣品类
   status        UserStatus @default(ACTIVE)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -227,6 +228,8 @@ model Circle {
   ownerId        String
   memberCount    Int          @default(0)
   postCount      Int          @default(0)
+  categoryLevel1 String?      // 一级品类
+  categoryLevel2 String?      // 二级品类
   status         CircleStatus @default(PENDING)
   stationId      String?      // 分站数据隔离（null = 平台级）
   createdAt      DateTime     @default(now())
@@ -295,6 +298,8 @@ model Post {
   linkUrl   String?
   isEssence Boolean  @default(false)
   isTop     Boolean  @default(false)
+  categoryLevel1 String? // 一级品类
+  categoryLevel2 String? // 二级品类
   status    String   @default("PUBLISHED") // PUBLISHED, DRAFT, AUDITING, HIDDEN
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -323,6 +328,8 @@ model Content {
   tags        String[]
   viewCount   Int      @default(0)
   likeCount   Int      @default(0)
+  categoryLevel1 String? // 一级品类
+  categoryLevel2 String? // 二级品类
   status      String   @default("PUBLISHED") // PUBLISHED, DRAFT, PENDING, APPROVED, REJECTED
   auditReason String?  // 审核驳回原因
   stationId   String?  // 分站数据隔离（null = 平台级）
@@ -356,6 +363,8 @@ model Article {
   likeCount   Int      @default(0)
   collectCount Int     @default(0)
   commentCount Int     @default(0)
+  categoryLevel1 String? // 一级品类
+  categoryLevel2 String? // 二级品类
   stationId   String?  // 分站数据隔离（null = 平台级）
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -411,6 +420,8 @@ model Course {
   originalPrice Decimal?   @db.Decimal(10, 2)
   tags          String[]   @default([])
   studentCount  Int        @default(0)
+  categoryLevel1 String?    // 一级品类
+  categoryLevel2 String?    // 二级品类
   auditStatus   String     @default("PENDING")
   validityDays  Int        @default(0) // 购买后有效期（天），0=永久
   stationId     String?    // 分站数据隔离（null = 平台级）
@@ -513,6 +524,8 @@ model Product {
   salesCount   Int          @default(0)
   isPlatform   Boolean      @default(true)
   supplierType SupplierType @default(PLATFORM)
+  categoryLevel1 String?    // 一级品类
+  categoryLevel2 String?    // 二级品类
   status       String       @default("PENDING") // PENDING, ON_SALE, OFF_SHELF
   stationId    String?      // 分站数据隔离（null = 平台级）
   createdAt    DateTime     @default(now())
@@ -889,6 +902,8 @@ model Video {
   commentCount  Int      @default(0)
   shareCount    Int      @default(0)
   collectCount  Int      @default(0)
+  categoryLevel1 String? // 一级品类
+  categoryLevel2 String? // 二级品类
   status        String   @default("PUBLISHED") // PUBLISHED, AUDITING, HIDDEN
   stationId  String?  // 分站数据隔离（null = 平台级）
   createdAt  DateTime @default(now())
@@ -1671,6 +1686,8 @@ enum CoinScene {
   BOT_CALL        // 智能体调用
   REFUND          // 退款
   PLATFORM_GRANT  // 平台赠送
+  BOUNTY          // 悬赏咨询
+  BOUNTY_UNFREEZE // 悬赏解冻
 }
 
 model VirtualCoinTransaction {
@@ -2016,6 +2033,8 @@ model Ebook {
   status        EbookStatus @default(DRAFT)
   viewCount     Int        @default(0)
   purchaseCount Int        @default(0)
+  categoryLevel1 String?   // 一级品类
+  categoryLevel2 String?   // 二级品类
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
