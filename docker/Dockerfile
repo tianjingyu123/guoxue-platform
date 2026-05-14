@@ -14,6 +14,7 @@ RUN pnpm install --frozen-lockfile
 # 源代码 + 构建
 COPY . .
 RUN pnpm --filter @guoxue/server exec prisma generate
+RUN pnpm --filter @guoxue/shared build
 RUN pnpm --filter @guoxue/bazi-engine build
 RUN pnpm --filter @guoxue/ziwei-engine build
 RUN pnpm build:server
@@ -32,6 +33,8 @@ COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_mod
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
 COPY --from=builder /app/apps/server/package.json ./apps/server/
+COPY --from=builder /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/bazi-engine/dist ./packages/bazi-engine/dist
 COPY --from=builder /app/packages/bazi-engine/package.json ./packages/bazi-engine/
 COPY --from=builder /app/packages/ziwei-engine/dist ./packages/ziwei-engine/dist
