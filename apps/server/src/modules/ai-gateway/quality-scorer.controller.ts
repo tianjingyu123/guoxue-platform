@@ -4,7 +4,6 @@ import { QualityScorerService, QualityScore, ScoreRequest } from "./quality-scor
 import { ScoreDto, ScoreBatchDto } from "./dto/quality-scorer.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
-import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 @ApiTags("🤖 AI质量评分")

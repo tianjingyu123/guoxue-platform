@@ -160,7 +160,7 @@ export interface IMultimodalService {
 export class MultimodalService implements IMultimodalService {
   private readonly logger = new Logger(MultimodalService.name);
 
-  async understandImage(req: ImageUnderstandingRequest): Promise<ImageUnderstandingResult> {
+  async understandImage(_req: ImageUnderstandingRequest): Promise<ImageUnderstandingResult> {
     this.logger.warn("图片理解功能尚未实现");
     return {
       description: "多模态图片理解能力待接入（混元/通义/Gemini Vision）",
@@ -177,7 +177,7 @@ export class MultimodalService implements IMultimodalService {
     };
   }
 
-  async understandVideo(req: VideoUnderstandingRequest): Promise<VideoUnderstandingResult> {
+  async understandVideo(_req: VideoUnderstandingRequest): Promise<VideoUnderstandingResult> {
     this.logger.warn("视频理解功能尚未实现");
     return {
       summary: "多模态视频理解能力待接入",

@@ -189,7 +189,7 @@ export class SmsService {
     const yesterday = new Date(today.getTime() - 86400000);
     const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const [total, todayCount, yesterdayCount, monthCount, todaySuccess, todayFail, totalSuccess, totalFail] =
+    const [total, todayCount, yesterdayCount, monthCount, todaySuccess, todayFail, totalSuccess] =
       await Promise.all([
         this.prisma.smsLog.count(),
         this.prisma.smsLog.count({ where: { createdAt: { gte: today } } }),
@@ -198,7 +198,6 @@ export class SmsService {
         this.prisma.smsLog.count({ where: { createdAt: { gte: today }, status: "SUCCESS" } }),
         this.prisma.smsLog.count({ where: { createdAt: { gte: today }, status: "FAIL" } }),
         this.prisma.smsLog.count({ where: { status: "SUCCESS" } }),
-        this.prisma.smsLog.count({ where: { status: "FAIL" } }),
       ]);
 
     return {

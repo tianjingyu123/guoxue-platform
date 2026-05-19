@@ -1,7 +1,7 @@
 // ── 电子罗盘计算引擎 ──
 // 二十四山/磁偏角/纳甲/三合水法/各流派风水指导
 
-import type { LuoPanInput, LuoPanResult, LuoPanLayer, ShanAnalysis, FengShuiAdvice } from "@guoxue/shared";
+import type { LuoPanResult, LuoPanLayer, FengShuiAdvice } from "@guoxue/shared";
 
 const SHAN_24 = ["壬","子","癸","丑","艮","寅","甲","卯","乙","辰","巽","巳","丙","午","丁","未","坤","申","庚","酉","辛","戌","乾","亥"] as const;
 
@@ -110,15 +110,9 @@ function buildLayers(shan: string): LuoPanLayer[] {
 }
 
 /** 各流派风水指导 */
-function buildFengShuiAdvice(shan: string, chaoxiang: string, degree: number): FengShuiAdvice[] {
+function buildFengShuiAdvice(shan: string, chaoxiang: string, _degree: number): FengShuiAdvice[] {
   const ziShan = ["壬","子","癸"];
-  const genShan = ["丑","艮","寅"];
-  const zhenShan = ["甲","卯","乙"];
-  const xunShan = ["辰","巽","巳"];
   const liShan = ["丙","午","丁"];
-  const kunShan = ["未","坤","申"];
-  const duiShan = ["庚","酉","辛"];
-  const qianShan = ["戌","乾","亥"];
 
   const isIn = (arr: string[], s: string) => arr.includes(s);
 
@@ -163,7 +157,6 @@ function buildFengShuiAdvice(shan: string, chaoxiang: string, degree: number): F
 
 function getZhaiGroup(shan: string): string {
   const dongSi = ["坎","震","巽","离"];
-  const xiSi = ["坤","乾","兑","艮"];
   const info = SHAN_INFO[shan];
   if (!info) return "中";
   return dongSi.includes(info.guaGong) ? "东四宅" : "西四宅";

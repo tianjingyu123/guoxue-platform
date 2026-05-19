@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete,
+  Controller, Get, Post, Put,
   Param, Body, Query, UseGuards, Req,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
@@ -10,7 +10,6 @@ import {
   QueryCompetitionDto, QueryRankingDto,
 } from "./competition.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 

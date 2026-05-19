@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Param, Query, Body, Req, Header, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
 import { ToolRegistryService } from "./tool-registry.service";
-import { ToolAiService, ToolAiAnalyzeRequest } from "./tool-ai.service";
+import { ToolAiService } from "./tool-ai.service";
 import { ToolCalculationService } from "./tool-calculation.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 

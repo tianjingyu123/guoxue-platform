@@ -4,7 +4,6 @@
 
 import type {
   QiMenAcupunctureResult,
-  QiMenAcupunctureInput,
   GongDiagnosis,
   AcuPoint,
   BodyPart,
@@ -347,8 +346,7 @@ export function calculateQiMenAcupuncture(input: Record<string, unknown>): QiMen
     const starInfo = STAR_INFLUENCE[gong.star] ?? { nature:"综合" as SymptomType, desc:"一般影响", severity:3 };
     const menInfo = MEN_INFLUENCE[gong.men] ?? "暂无特定影响";
 
-    // 判断是否目标部位相关
-    const isTargetRelated = targetBodyPart ? bodyParts.includes(targetBodyPart) : false;
+    // 判断是否目标部位相关（逻辑已在下方诊断中处理）
 
     // 是否用神宫（日干落宫）
     const isYongShen = gong.tianPan === riGan || gong.diPan === riGan;

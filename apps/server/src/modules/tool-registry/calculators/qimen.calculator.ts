@@ -4,7 +4,7 @@
 // 参考：《奇门遁甲》《遁甲演义》
 
 import type { QimenResult, QimenGong } from "@guoxue/shared";
-import { calcRiZhu, calcNianZhu, calcAllJieQi, getJieQiDate } from "@guoxue/bazi-engine";
+import { calcRiZhu, calcAllJieQi } from "@guoxue/bazi-engine";
 
 const TIAN_GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
 const DI_ZHI = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
@@ -119,7 +119,6 @@ function getXunShouZhi(shiChenGanZhi: string): string {
 /** 阳盘奇门排盘（转盘法） */
 export function calculateQimenYang(input: Record<string, unknown>): QimenResult {
   const datetime = (input.datetime as string) ?? new Date().toISOString();
-  const method = (input.method as string) ?? "zhuanpan";
   const qiJuMethod = (input.qiJuMethod as string) ?? "chaibu";
   const customJu = input.customJu as number | undefined;
 
@@ -168,8 +167,6 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
   // 时干落宫（找时干在地盘干中的位置）
   let zhiFuGongIdx = diPan.indexOf(shiGan);
   if (zhiFuGongIdx === -1) zhiFuGongIdx = 0;
-  // 该宫的地盘星 = 值符星
-  const zhiFuXingIdx = zhiFuGongIdx; // 星和宫一一对应
   const zhiFuXing = JIU_XING[zhiFuGongIdx];
 
   // ── 第3步：确定值使门 ──
@@ -216,10 +213,6 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
     const menSrcIdx = isYangDun
       ? ((zhiShiMenGongIdx + i) % 9)
       : ((zhiShiMenGongIdx - i + 9) % 9);
-    // 中5宫跳过（menSrcIdx=4 → 用下一位）
-    const actualIdx = menSrcIdx >= 4 && i >= 4 - (zhiShiMenGongIdx >= 4 ? 0 : 0)
-      ? menSrcIdx
-      : menSrcIdx;
     menArr.push(BA_MEN[menSrcIdx]);
   }
 
@@ -260,10 +253,8 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
     const kongWangGongIdx = (10 - kongWangZhiIdx / 2 * 2) % 10; // 干支相冲
     const isKongWang = gi === (kongWangGongIdx % 9);
 
-    // 马星：日支对冲宫
+    // 马星：日支对冲宫（寅午戌马在申, 申子辰马在寅, 巳酉丑马在亥, 亥卯未马在巳）
     const riZhiIdx = DI_ZHI.indexOf(riZhi);
-    const maXingZhi = DI_ZHI[(riZhiIdx + 6) % 12];
-    // 寅午戌马在申, 申子辰马在寅, 巳酉丑马在亥, 亥卯未马在巳
     const maXingMap: Record<string, string> = {
       "申":"寅","寅":"申","亥":"巳","巳":"亥",
     };

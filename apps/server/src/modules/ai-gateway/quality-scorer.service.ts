@@ -169,7 +169,7 @@ export class QualityScorerService {
   }
 
   /** 构建评分提示词 */
-  private buildScoringPrompt(req: ScoreRequest): string {
+  private buildScoringPrompt(_req: ScoreRequest): string {
     return `你是一个内容质量评审专家，请对以下AI生成内容进行四维评分。
 
 评分标准（每项0-100分）：

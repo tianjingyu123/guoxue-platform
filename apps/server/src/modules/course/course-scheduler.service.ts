@@ -68,7 +68,6 @@ export class CourseSchedulerService {
         ordersByCourse.set(o.targetId, list);
       }
 
-      const courseMap = new Map(courses.map((c) => [c.id, c]));
       const now = Date.now();
       let notified = 0;
 

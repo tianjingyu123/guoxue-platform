@@ -183,7 +183,7 @@ function calcYinYang(digits: string): { yang: number; yin: number; balance: stri
   for (const d of digits) {
     const n = parseInt(d, 10);
     if (isNaN(n)) continue;
-    n % 2 === 1 ? yang++ : yin++;
+    if (n % 2 === 1) yang++; else yin++;
   }
   const ratio = yang / (digits.length || 1);
   let balance: string;

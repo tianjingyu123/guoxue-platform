@@ -2,7 +2,7 @@
 // 天地盘/四课/三传(九宗门)/课经/神煞
 // 节气计算使用 Meeus 天文算法，日柱使用纯数学计算
 
-import type { DaLiuRenInput, DaLiuRenResult, LiuRenGong, SiKeColumn } from "@guoxue/shared";
+import type { DaLiuRenResult, LiuRenGong, SiKeColumn } from "@guoxue/shared";
 import { calcRiZhu, calcAllJieQi } from "@guoxue/bazi-engine";
 
 const TIAN_GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
@@ -128,10 +128,6 @@ function tianPanLayout(yueJiangZhi: string, zhanShiZhi: string): string[] {
   return result;
 }
 
-/** 天盘神在地盘上的位置 */
-function diPanOfTianPan(tianPanZhi: string, tianPan: string[]): string {
-  return DI_ZHI[tianPan.indexOf(tianPanZhi)];
-}
 
 /** 地盘上方的天盘神 */
 function tianPanOfDiPan(diPanZhi: string, tianPan: string[]): string {
@@ -283,7 +279,7 @@ function pickChuChuanByZeKe(keList: KeInfo[], riGan: string): { chu: KeInfo; met
 }
 
 /** 遥克法：四课无克时，取遥克 */
-function pickChuChuanByYaoKe(siKe: SiKeColumn[], riGan: string, riZhi: string, tianPan: string[]): { chu: KeInfo | null; method: string } {
+function pickChuChuanByYaoKe(siKe: SiKeColumn[], riGan: string, _riZhi: string, _tianPan: string[]): { chu: KeInfo | null; method: string } {
   const ganWx = GAN_WUXING[riGan];
   if (!ganWx) return { chu: null, method: "none" };
 
@@ -342,8 +338,8 @@ function buildSanChuan(
   riGan: string,
   riZhi: string,
   tianPan: string[],
-  dunGanTable: { zhi: string; gan: string }[],
-  dayNight: string,
+  _dunGanTable: { zhi: string; gan: string }[],
+  _dayNight: string,
 ): SanChuanResult {
   const riGanIdx = TIAN_GAN.indexOf(riGan);
   const isYangRi = riGanIdx % 2 === 0;

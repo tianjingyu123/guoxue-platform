@@ -136,9 +136,6 @@ export class MediaAiService {
       // 下载音频文件
       const audioResp = await fetch(params.audioUrl);
       if (!audioResp.ok) throw new Error(`下载音频失败: ${audioResp.status}`);
-      const audioBuffer = Buffer.from(await audioResp.arrayBuffer());
-      const audioBase64 = audioBuffer.toString("base64");
-
       const { host, headers, payloadStr } = tc3Sign({
         secretId,
         secretKey,

@@ -79,9 +79,7 @@ function xunShou(riGanZhi: string): string {
  * - 日支旬首定局基：甲子旬1, 甲戌旬2, ..., 甲寅旬6
  * - 阳遁顺布1-9, 阴遁逆布9-1
  */
-function determineJuShu(riGanZhi: string, shiZhi: string, dunType: "阳遁" | "阴遁"): number {
-  const shiZhiIdx = DI_ZHI.indexOf(shiZhi);
-
+function determineJuShu(riGanZhi: string, shiZhi: string, _dunType: "阳遁" | "阴遁"): number {
   // 三元：子午卯酉=上元(0), 寅申巳亥=中元(1), 辰戌丑未=下元(2)
   const sanYuanMap: Record<string, number> = {
     "子":0, "午":0, "卯":0, "酉":0,

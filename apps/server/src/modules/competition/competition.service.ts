@@ -1,7 +1,6 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { GradingEngineService } from "./grading-engine.service";
-import { CompetitionStatus } from "@prisma/client";
 
 @Injectable()
 export class CompetitionService {

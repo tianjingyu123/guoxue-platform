@@ -109,7 +109,7 @@ export class ClassicImageService {
     });
     if (!book) return null;
 
-    const canvases = images.map((img, i) => ({
+    const canvases = images.map((img, _i) => ({
       id: `${baseUrl}/classic/books/${bookId}/canvas/${img.pageNumber}`,
       type: "Canvas",
       label: { none: [img.label || `第${img.pageNumber}页`] },

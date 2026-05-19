@@ -30,11 +30,6 @@ export class QueueService {
     data: T,
     opts?: { delay?: number; priority?: number; dedupKey?: string; dedupTtl?: number },
   ): Promise<Job<T>> {
-    if (opts?.dedupKey) {
-      const dedupRedisKey = `queue:dedup:${queueName}:${opts.dedupKey}`;
-      // 此处不做 Redis 查重以避免额外依赖，由调用方通过 opts 控制
-      // 若需 Redis 级去重，调用方先检查 key 是否存在
-    }
     const job = await this.getQueue(queueName).add(name, data, {
       attempts: 3,
       backoff: { type: "exponential", delay: 2000 },

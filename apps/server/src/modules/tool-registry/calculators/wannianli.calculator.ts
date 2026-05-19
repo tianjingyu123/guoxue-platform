@@ -1,7 +1,7 @@
 // ── 万年历核心计算引擎 ──
 // 干支历/节气/建除/二十八宿/黄历宜忌
 
-import type { WanNianLiInput, WanNianLiResult, DayDetail } from "@guoxue/shared";
+import type { WanNianLiResult, DayDetail } from "@guoxue/shared";
 import { calcRiZhu, calcAllJieQi, getNianZhuYear } from "@guoxue/bazi-engine";
 import { Solar } from "lunar-javascript";
 
@@ -134,7 +134,7 @@ function jianChuValue(monthZhi: string, dayZhi: string): string {
 function xiuValue(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00+08:00");
   // 使用纯数学日差：1900-01-01 = 角宿日
-  const baseYear = 1900, baseMonth = 1, baseDay = 1;
+  const baseYear = 1900;
   const dateYear = d.getFullYear(), dateMonth = d.getMonth() + 1, dateDay = d.getDate();
   // 简化：计算从1900-01-01起的天数差
   const baseDate = new Date(Date.UTC(baseYear, 0, 1));
@@ -151,13 +151,6 @@ function naYinValue(ganZhi: string): string {
   const z = DI_ZHI.indexOf(ganZhi[1]);
   const idx = (Math.floor(g / 2) * 6 + Math.floor(z / 2)) % 30;
   return NA_YIN[idx] ?? "未知";
-}
-
-/** 生肖 */
-function shengXiao(year: number): string {
-  const idx = (year - 4) % 12;
-  if (idx < 0) return SHENG_XIAO[idx + 12];
-  return SHENG_XIAO[idx];
 }
 
 /** 冲煞 */
@@ -225,15 +218,6 @@ function buildDayDetail(dateStr: string): DayDetail {
     score: calcDayScore(jc, dGan, dZhi),
     festivals: [...(lunar.getFestivals() || []), ...(lunar.getOtherFestivals() || [])],
   };
-}
-
-/** 使用 lunar-javascript 进行真实农历转换 */
-function toLunar(dateStr: string): string {
-  const d = new Date(dateStr + "T00:00:00+08:00");
-  const solar = Solar.fromYmd(d.getFullYear(), d.getMonth() + 1, d.getDate());
-  const lunar = solar.getLunar();
-  const leap = lunar.getMonth() < 0 ? "闰" : "";
-  return `${lunar.getYearInGanZhi()}年（${lunar.getYearShengXiao()}年）${leap}${Math.abs(lunar.getMonth())}月${lunar.getDay()}日`;
 }
 
 // 黄历宜忌规则
@@ -328,7 +312,6 @@ function calcDayScore(jianChu: string, _dGan: string, _dZhi: string): number {
 /** 主计算函数 */
 export function calculateWanNianLi(input: Record<string, unknown>): WanNianLiResult {
   const dateStr = (input.date as string)?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
-  const rangeType = (input.rangeType as string) ?? "day";
   const endDateStr = (input.endDate as string)?.slice(0, 10) ?? dateStr;
 
   const days: DayDetail[] = [];

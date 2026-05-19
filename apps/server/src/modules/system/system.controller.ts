@@ -453,7 +453,7 @@ export class SystemController {
   async getCategoryTree() {
     const config = await this.systemService.getConfig("category_tree");
     if (config?.configValue) {
-      try { return JSON.parse(config.configValue); } catch (err) { /* fall through */ }
+      try { return JSON.parse(config.configValue); } catch (_err) { /* fall through */ }
     }
     // 返回默认品类树
     return {

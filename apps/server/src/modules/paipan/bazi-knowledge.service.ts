@@ -157,7 +157,7 @@ export class BaziKnowledgeService {
           addedBy: "SYSTEM",
         },
       });
-    } catch (err) {
+    } catch (_err) {
       this.logger.debug(`八字知识同步跳过（可能 contentHash 冲突）`);
     }
   }

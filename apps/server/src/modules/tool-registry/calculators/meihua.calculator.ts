@@ -50,12 +50,12 @@ function getGuaName(up: number, low: number): string { return GUA_64_MAP[`${up}$
 function getGuaSymbol(name: string): string { return GUA_SYMBOL_MAP[name] ?? "?"; }
 
 function numToGua(n: number): number {
-  let r = n % 8;
+  const r = n % 8;
   return r === 0 ? 8 : r;
 }
 
 function dongYaoCalc(n: number): number {
-  let r = n % 6;
+  const r = n % 6;
   return r === 0 ? 6 : r;
 }
 

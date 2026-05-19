@@ -72,17 +72,7 @@ const NA_YIN: Record<string, string> = {
 // 天干五合: heGan[A] = B
 const GAN_HE: Record<string, string> = { "甲":"己","乙":"庚","丙":"辛","丁":"壬","戊":"癸","己":"甲","庚":"乙","辛":"丙","壬":"丁","癸":"戊" };
 
-// 地支六合
-const ZHI_HE: Record<string, string> = {
-  "子":"丑","丑":"子","寅":"亥","亥":"寅","卯":"戌","戌":"卯",
-  "辰":"酉","酉":"辰","巳":"申","申":"巳","午":"未","未":"午",
-};
 
-// 地支六害
-const ZHI_HAI: Record<string, string> = {
-  "子":"未","丑":"午","寅":"巳","卯":"辰","辰":"卯",
-  "巳":"寅","午":"丑","未":"子","申":"亥","酉":"戌","戌":"酉","亥":"申",
-};
 
 // 贵人诀
 const GUI_REN_JUE: Record<string, { yang: string; yin: string }> = {
@@ -153,7 +143,7 @@ function getGuiShenOrder(guiRenZhi: string, isDay: boolean): { name: string; gan
 }
 
 /** 生成五动（基于生克表动态推导） */
-function buildWuDong(sk: Record<string, string>, diFenZhi: string, jiangShenZhi: string, guiShenName: string, renYuanGan: string): WuDong[] {
+function buildWuDong(sk: Record<string, string>, _diFenZhi: string, _jiangShenZhi: string, _guiShenName: string, _renYuanGan: string): WuDong[] {
   const result: WuDong[] = [];
 
   // 将克神 → 财动
@@ -176,7 +166,7 @@ function buildWuDong(sk: Record<string, string>, diFenZhi: string, jiangShenZhi:
 }
 
 /** 生成三动 */
-function buildSanDong(sk: Record<string, string>, diFenZhi: string): SanDong[] {
+function buildSanDong(sk: Record<string, string>, _diFenZhi: string): SanDong[] {
   const result: SanDong[] = [];
 
   if (sk.ganFang === "生") result.push({ type:"qi-mou" as SanDongType, name:"妻动", layers:["人元","地分"], desc:"人元生地分，主妻妾之事、财物入宅。", duanYu:"妻妾之事，或有进财之喜。" });
@@ -296,8 +286,7 @@ export function calculateJinKouJue(input: JinKouJueInput): JinKouJueResult {
   const jiangShenGanZhi = jiangShenGan + jiangShenZhi;
 
   // 五行
-  const renYuanWxGan = ZHI_WUXING[TIAN_GAN.indexOf(renYuanGan) % 5 === 0 ? "寅" : DI_ZHI[TIAN_GAN.indexOf(renYuanGan) % 12]] ?? "";
-  const diFenWx = ZHI_WUXING[diFenZhi] ?? "土";
+    const diFenWx = ZHI_WUXING[diFenZhi] ?? "土";
   const jiangShenWx = ZHI_WUXING[jiangShenZhi] ?? "土";
   const guiShenWx = guiShen.wuXing;
 

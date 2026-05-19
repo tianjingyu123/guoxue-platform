@@ -2,11 +2,9 @@
 // 积年计算/五元六纪/十六神盘/三算
 // 参考：《太乙金镜式经》《太乙神数》
 
-import type { TaiYiResult, TaiYiShenName, TaiYiBaJiang, SuanType } from "@guoxue/shared";
+import type { TaiYiResult, TaiYiShenName, TaiYiBaJiang } from "@guoxue/shared";
 import { calcRiZhu, calcAllJieQi } from "@guoxue/bazi-engine";
 
-const TIAN_GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
-const DI_ZHI = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
 const SHI_LIU_SHEN: TaiYiShenName[] = [
   "太乙","文昌","始击","地主","吕申","四神","天目","太簇",
   "大炅","大威","天马","大武","大簇","阴主","阴德","大义",
@@ -125,7 +123,6 @@ export function calculateTaiYi(input: Record<string, unknown>): TaiYiResult {
   const year = d.getFullYear();
   const month = d.getMonth() + 1;
   const day = d.getDate();
-  const hour = d.getHours();
 
   const jieQi = getJieQi(year, month, day);
   const defaultDun = getDunType(year, month, day);

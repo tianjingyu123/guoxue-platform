@@ -387,6 +387,6 @@ export class InteractionService {
           data: { commentCount: { increment: 1 } },
         });
       }
-    } catch (err) { /* 忽略不支持的模型 */ }
+    } catch (_err) { /* 忽略不支持的模型 */ }
   }
 }

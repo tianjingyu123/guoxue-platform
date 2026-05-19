@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Param, Body, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request } from "express";
 import { AdminDedupService } from "./admin-dedup.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";

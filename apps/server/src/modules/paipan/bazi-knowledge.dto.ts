@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsArray } from "class-validator";
-import { ApiPropertyOptional } from "@nestjs/swagger";
+
 
 export class CreateBaziKnowledgeDto {
   @IsString()

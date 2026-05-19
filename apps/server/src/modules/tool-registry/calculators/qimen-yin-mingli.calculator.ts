@@ -2,7 +2,7 @@
 // 出生时间起阴盘奇门命盘，叠加八字+大运+命宫+格局分析
 // 复用 calculateQimenYin 真实排盘 + calcBazi 八字引擎
 
-import type { QimenResult, QimenGong } from "@guoxue/shared";
+import type { QimenGong } from "@guoxue/shared";
 import {
   calcBazi, calcNianZhu,
   type BaziInput, type BaziResult,
@@ -132,7 +132,7 @@ export function calculateQimenYinMingli(input: Record<string, unknown>): Record<
 
   if (daylightSaving) hour = (hour - 1 + 24) % 24;
 
-  const useEarlyLateZi = ziShiMode === "early-late" && hour === 23;
+  // 早晚子时（预留）
 
   // ── 2. 八字排盘 ──
   const baziInput: BaziInput = {

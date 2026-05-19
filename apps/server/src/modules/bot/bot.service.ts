@@ -59,7 +59,7 @@ export class BotService {
       take: 100,
     });
     // apiKey 不对外暴露
-    return bots.map(({ apiKey, ...rest }) => rest);
+    return bots.map(({ apiKey: _apiKey, ...rest }) => rest);
   }
 
   async getDetail(id: string) {
@@ -71,7 +71,7 @@ export class BotService {
       },
     });
     if (!bot) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在");
-    const { apiKey, ...rest } = bot;
+    const { ...rest } = bot;
     return rest;
   }
 
@@ -96,7 +96,7 @@ export class BotService {
       include: { botConfig: true },
     });
     if (bot?.botConfig) {
-      const { apiKey, ...rest } = bot.botConfig;
+      const { ...rest } = bot.botConfig;
       return { ...bot, botConfig: rest };
     }
     return bot;

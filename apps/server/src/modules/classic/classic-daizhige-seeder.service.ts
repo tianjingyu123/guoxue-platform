@@ -45,7 +45,6 @@ export class ClassicDaizhigeSeeder {
     const {
       seedFile = "temp_daizhige_all_seeds.json",
       maxBooks = Infinity,
-      batchSize = 100,
       categoryFilter,
     } = options ?? {};
 

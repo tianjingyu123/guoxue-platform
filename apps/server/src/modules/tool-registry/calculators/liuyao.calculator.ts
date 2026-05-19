@@ -4,8 +4,6 @@
 import type { LiuYaoResult, Yao } from "@guoxue/shared";
 import { calcRiZhu } from "@guoxue/bazi-engine";
 
-const TIAN_GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
-const DI_ZHI = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
 
 // 六十四卦数据（编码：上卦3爻+下卦3爻，1=阳0=阴，上→下）
 const GUA_64: Record<string, { name:string; symbol:string; upper:string; lower:string; gong:string; wuXing:string; shiYao:number; yingYao:number }> = {
@@ -150,7 +148,7 @@ export function calculateLiuYao(input: Record<string, unknown>): LiuYaoResult {
   const datetime = input.datetime as string ?? new Date().toISOString();
 
   // 根据起卦方式生成6个爻（0=阴, 1=阳）
-  let yaoNums: number[] = [];
+  const yaoNums: number[] = [];
   if (method === "auto" || method === "shake") {
     const d = new Date(datetime);
     const seed = d.getTime();
@@ -229,8 +227,6 @@ export function calculateLiuYao(input: Record<string, unknown>): LiuYaoResult {
       isDongYao: isDong,
     });
   }
-
-  const duanYu = `${benGuaEntry.name}，${benGuaEntry.gong}${benGuaEntry.wuXing}。世爻${shiYao}爻，应爻${yingYao}爻。${dongYaoPositions.length > 0 ? `${dongYaoPositions.length}个动爻，变${bianGuaEntry.name}。` : "静卦。"}`;
 
   return {
     input: { method: method as any, datetime },

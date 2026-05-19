@@ -37,29 +37,9 @@ const STAR_ITEMS: Record<string, { items: string[]; method: ResolutionMethod }> 
   "天英": { items:["红色地毯","尖塔水晶","红灯笼"], method:"添加法" },
 };
 
-// ── 八门化解法 ──
-const MEN_METHOD: Record<string, { method: ResolutionMethod; desc: string }> = {
-  "休": { method:"添加法", desc:"休门为吉，宜添加水元素能量，增强贵人运和休息质量。" },
-  "生": { method:"添加法", desc:"生门大吉，宜添加土元素，增强财运和生机活力。" },
-  "伤": { method:"拆填法", desc:"伤门为凶，需移除尖锐金属物品，填加木质圆润之物化解。" },
-  "杜": { method:"转宫法", desc:"杜门阻塞，宜将此宫不利物转至生门方向，疏通能量。" },
-  "景": { method:"拆填法", desc:"景门血光，需移除红色过多物品，填加蓝色水元素降火。" },
-  "死": { method:"转宫法", desc:"死门大凶，必须将此宫不利物移至生门或开门方向。" },
-  "惊": { method:"拆填法", desc:"惊门是非，需移除镜子等反光物，填加厚重之物稳定气场。" },
-  "开": { method:"添加法", desc:"开门大吉，宜添加金色物品，增强事业运和贵人运。" },
-};
+// ── 八门化解法（预留未来扩展）
 
-// ── 神煞化解法 ──
-const SHEN_METHOD: Record<string, { method: ResolutionMethod; desc: string }> = {
-  "值符": { method:"添加法", desc:"值符为统领之神，宜在值符宫摆放权威象征物如印章、官印。" },
-  "螣蛇": { method:"拆填法", desc:"螣蛇主虚惊怪异，需移除奇形怪状之物，填加方正稳重物品。" },
-  "太阴": { method:"添加法", desc:"太阴主阴私密谋，宜添加金属物品增强隐秘守护之力。" },
-  "六合": { method:"添加法", desc:"六合为和合之神，宜添加成对物品如双鱼、双鹤，增强合作运。" },
-  "白虎": { method:"拆填法", desc:"白虎主血光刑伤，需移除白色尖角物，填加水元素化解煞气。" },
-  "玄武": { method:"拆填法", desc:"玄武主盗贼暗昧，需移除黑色杂物，填加明亮灯具提升阳气。" },
-  "九地": { method:"添加法", desc:"九地主稳固长久，宜添加厚重稳当之物如石雕、陶罐。" },
-  "九天": { method:"添加法", desc:"九天主动力上扬，宜添加高耸之物如塔形摆件、向上灯具。" },
-};
+// ── 神煞化解法（预留未来扩展）
 
 // ── 目标→对应宫位映射 ──
 const TARGET_GONG_MAP: Record<string, number[]> = {
@@ -117,8 +97,8 @@ export function calculateQiMenFuZhou(input: Record<string, unknown>): QiMenFuZho
     // 需要化解的判断
     let needsResolution = false;
     let severity = 0;
-    let problems: string[] = [];
-    let symbols: string[] = [];
+    const problems: string[] = [];
+    const symbols: string[] = [];
 
     if (hasBadGuai) {
       if (gong.isRuMu) { problems.push("天干入墓，能量禁锢"); symbols.push(gong.tianPan + "入墓"); severity += 3; }

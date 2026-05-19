@@ -488,9 +488,7 @@ export class StationService {
       where: { userId },
       select: { id: true, name: true },
     });
-    const stationIds = stations.map((s) => s.id);
-
-    const totalEarning = stations.reduce((sum, s) => sum + 0, 0); // 简化统计
+    const totalEarning = stations.reduce((sum, _s) => sum + 0, 0); // 简化统计
 
     return {
       stationCount: stations.length,

@@ -2,7 +2,7 @@
 // 三元九运/运盘/山盘/向盘/替卦/飞星组合/旺山旺向
 // 参考：沈氏玄空学/玄空秘旨/沈竹礽飞星赋
 
-import type { XuanKongInput, XuanKongResult, XuanKongGong, XuanKongGeJu } from "@guoxue/shared";
+import type { XuanKongResult, XuanKongGong, XuanKongGeJu } from "@guoxue/shared";
 
 // ── 二十四山数据（龙山向水+三元龙+阴阳+洛书宫） ──
 const SHAN_24: Record<string, { long: "天元龙"|"地元龙"|"人元龙"; yinYang: "阴"|"阳"; gong: string; luoShu: number; tiGuaStar: number }> = {
@@ -43,8 +43,6 @@ const SHAN_24: Record<string, { long: "天元龙"|"地元龙"|"人元龙"; yinYa
 // ── 九宫飞星路径（洛书飞步） ──
 // 中5→乾6→兑7→艮8→离9→坎1→坤2→震3→巽4
 const FEI_XING_PATH = [5, 6, 7, 8, 9, 1, 2, 3, 4];
-// 洛书→宫名
-const LUOSHU_GONG: Record<number, string> = {1:"坎",2:"坤",3:"震",4:"巽",5:"中",6:"乾",7:"兑",8:"艮",9:"离"};
 // 宫名→方位
 const GONG_DIRECTION: Record<string, string> = {
   "坎":"正北","坤":"西南","震":"正东","巽":"东南","中":"中央","乾":"西北","兑":"正西","艮":"东北","离":"正南",

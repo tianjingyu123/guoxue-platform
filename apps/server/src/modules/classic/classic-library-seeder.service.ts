@@ -164,7 +164,7 @@ export class ClassicLibrarySeeder implements OnModuleInit {
               },
             });
             synced++;
-          } catch (err) {
+          } catch (_err) {
             this.logger.debug(`知识库同步失败（可能 contentHash 重复）`);
           }
         }

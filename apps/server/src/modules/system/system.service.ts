@@ -89,7 +89,7 @@ export class SystemService {
 
     const parseValue = (config: { configValue: string } | null, defaultValue: string) => {
       if (!config) return defaultValue;
-      try { return JSON.parse(config.configValue); } catch (err) { return config.configValue; }
+      try { return JSON.parse(config.configValue); } catch (_err) { return config.configValue; }
     };
 
     return {
@@ -177,8 +177,8 @@ export class SystemService {
 
   async healthCheck() {
     const checks: Record<string, boolean> = {};
-    try { await this.prisma.$queryRaw`SELECT 1`; checks.database = true; } catch (err) { checks.database = false; }
-    try { await this.redis.get("health:check"); checks.redis = true; } catch (err) { checks.redis = false; }
+    try { await this.prisma.$queryRaw`SELECT 1`; checks.database = true; } catch (_err) { checks.database = false; }
+    try { await this.redis.get("health:check"); checks.redis = true; } catch (_err) { checks.redis = false; }
 
     const allHealthy = Object.values(checks).every(Boolean);
     return {
@@ -540,7 +540,7 @@ export class SystemService {
           data: { status: passed ? "PUBLISHED" : "REJECTED", auditReason: passed ? undefined : "自动审核不通过" },
         });
         audited++;
-      } catch (err) { /* 单条失败不中断整体 */ }
+      } catch (_err) { /* 单条失败不中断整体 */ }
     }
 
     return { total: pendingContent.length, audited };
@@ -582,7 +582,7 @@ export class SystemService {
           data: { status: "PROCESSED", result: "自动处理", processedAt: new Date() },
         });
         processed++;
-      } catch (err) { /* 单条失败继续 */ }
+      } catch (_err) { /* 单条失败继续 */ }
     }
 
     return { total: pending.length, processed };

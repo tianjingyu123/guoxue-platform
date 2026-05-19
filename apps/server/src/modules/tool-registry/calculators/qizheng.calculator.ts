@@ -49,7 +49,7 @@ function eclipticToZhiName(deg: number): string {
 
 /** 黄经→二十八宿 */
 function eclipticToXiu(deg: number): { xiu: string; xiuDu: number } {
-  let d = ((deg % 360) + 360) % 360;
+  const d = ((deg % 360) + 360) % 360;
   let accum = 0;
   for (let i = 0; i < 28; i++) {
     accum += XIU_WIDTHS[i];

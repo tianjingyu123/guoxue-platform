@@ -1,9 +1,7 @@
 // ── 五格数理计算引擎 ──
 // 天格/人格/地格/总格/外格 + 三才配置 + 81数理
 
-import type { WuGeInput, WuGeResult, GeDetail, StrokeDetail, SanCaiConfig } from "@guoxue/shared";
-
-const WU_XING = ["金","木","水","火","土"] as const;
+import type { WuGeResult, GeDetail, StrokeDetail, SanCaiConfig } from "@guoxue/shared";
 
 // 81数理表（简体中文习惯命名）
 const SHU_LI_81: { name: string; jiXiong: string; meaning: string; poem: string; hints: { jiYe: string; jiaTing: string; jianKang: string } }[] = [
@@ -142,10 +140,6 @@ function getWuXingByStroke(stroke: number): string {
   if (lastDigit === 5 || lastDigit === 6) return "土";
   if (lastDigit === 7 || lastDigit === 8) return "金";
   return "水";
-}
-
-function getGeJiXiong(n: number): string {
-  return SHU_LI_81[n - 1]?.jiXiong ?? "凶";
 }
 
 function calcSanCai(tianWuXing: string, renWuXing: string, diWuXing: string): SanCaiConfig {

@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Req, Res, UseGuards, Logger, HttpException, HttpStatus } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { AiGatewayService } from "./ai-gateway.service";
 import { ModelRouterService } from "./model-router.service";

@@ -2,7 +2,7 @@
 // 天干化运/地支化气/司天在泉/运气同化/气候病候
 // 参考：《黄帝内经·素问》运气七篇
 
-import type { WuYunLiuQiInput, WuYunLiuQiResult } from "@guoxue/shared";
+import type { WuYunLiuQiResult } from "@guoxue/shared";
 
 const TIAN_GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
 
@@ -42,14 +42,6 @@ const ZHU_YUN = ["木运","火运","土运","金运","水运"];
 // 主气六步
 const ZHU_QI = ["厥阴风木","少阴君火","少阳相火","太阴湿土","阳明燥金","太阳寒水"];
 const QI_STEP_NAMES = ["初之气","二之气","三之气","四之气","五之气","终之气"];
-// 五步主运对应时段（近似）
-const YUN_STEPS = [
-  { name:"初运", timeRange:"大寒至春分后13日" },
-  { name:"二运", timeRange:"春分后13日至芒种后10日" },
-  { name:"三运", timeRange:"芒种后10日至处暑后7日" },
-  { name:"四运", timeRange:"处暑后7日至立冬后4日" },
-  { name:"五运", timeRange:"立冬后4日至大寒" },
-];
 const QI_STEPS = [
   { timeRange:"大寒至春分" },
   { timeRange:"春分至小满" },
@@ -62,7 +54,7 @@ const QI_STEPS = [
 // 客运推算（岁运作初运，按五行相生顺排）
 const YUN_ORDER = ["木运","火运","土运","金运","水运"];
 
-function calcKeYun(suiYun: string, yunState: string): string[] {
+function calcKeYun(suiYun: string, _yunState: string): string[] {
   const startIdx = YUN_ORDER.indexOf(suiYun);
   const result: string[] = [];
   for (let i = 0; i < 5; i++) {
@@ -93,8 +85,6 @@ function calcKeQi(siTian: string): { step: string; qi: string; timeRange: string
 // 运气同化判断
 interface TongHuaCheck { type: string; desc: string; active: boolean }
 function calcTongHua(yearGan: string, yearZhi: string, suiYun: string, siTian: string): TongHuaCheck {
-  const ganKey = yearGan;
-  const zhiKey = yearZhi;
   const results: TongHuaCheck[] = [];
 
   // 天符：岁运与司天五行相同

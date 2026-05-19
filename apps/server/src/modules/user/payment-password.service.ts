@@ -11,7 +11,7 @@ export class PaymentPasswordService {
   private readonly SALT_ROUNDS = 10;
 
   /** 设置支付密码 */
-  async setPassword(userId: string, password: string, smsCode: string) {
+  async setPassword(userId: string, password: string, _smsCode: string) {
     if (!/^\d{6}$/.test(password)) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付密码需为6位数字");
     const existing = await this.prisma.user.findUnique({ where: { id: userId }, select: { paymentPasswordHash: true } });
     if (existing?.paymentPasswordHash) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付密码已设置，请使用修改功能");

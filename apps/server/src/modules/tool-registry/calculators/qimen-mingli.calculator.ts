@@ -2,9 +2,9 @@
 // 出生时间起奇门命盘，叠加八字+大运+命宫+格局分析
 // 复用 calculateQimenYang 真实排盘 + calcBazi 八字引擎
 
-import type { QimenResult, QimenGong } from "@guoxue/shared";
+import type { QimenGong } from "@guoxue/shared";
 import {
-  calcBazi, calcNianZhu, calcRiZhu,
+  calcBazi, calcNianZhu,
   type BaziInput, type BaziResult,
 } from "@guoxue/bazi-engine";
 import { calculateQimenYang } from "./qimen.calculator";
@@ -70,7 +70,6 @@ function calcJiXing(tianPanGan: string, gongIdx: number): boolean {
 
 /** 判断门破：宫位五行克门五行 */
 function calcMenPo(men: string, gongIdx: number): boolean {
-  const menBase = men.replace("门","");
   // 八门在返回时可能带"门"字也可能不带，统一处理
   const fullMen = men.includes("门") ? men : men + "门";
   const menWx = MEN_FULL_WU_XING[fullMen];
@@ -156,8 +155,7 @@ export function calculateQimenMingli(input: Record<string, unknown>): Record<str
   // 夏令时调整
   if (daylightSaving) hour = (hour - 1 + 24) % 24;
 
-  // 早晚子时：晚子时(23点后)日柱用次日
-  const useEarlyLateZi = ziShiMode === "early-late" && hour === 23;
+  // 早晚子时：晚子时(23点后)日柱用次日（预留）
 
   // ── 2. 八字排盘 ──
   const baziInput: BaziInput = {
@@ -332,7 +330,6 @@ export function calculateQimenMingli(input: Record<string, unknown>): Record<str
 
   // ── 10. 断语生成 ──
   const baziSummary = extractBaziSummary(bz);
-  const jiGongs = enhancedGongs.filter(g => g.interpretation && !g.interpretation.includes("无特殊吉凶"));
   const xiongGongs = enhancedGongs.filter(g =>
     g.isRuMu || g.isJiXing || g.isMenPo
   );

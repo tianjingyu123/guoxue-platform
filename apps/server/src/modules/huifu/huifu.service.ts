@@ -157,7 +157,7 @@ export class HuifuService {
       let result: Record<string, unknown>;
       try {
         result = JSON.parse(raw);
-      } catch (err) {
+      } catch (_err) {
         this.logger.error(`汇付API返回非JSON: ${path}`, raw.slice(0, 500));
         throw new BusinessException(ErrorCode.PAY_FAILED, "汇付API响应异常");
       }

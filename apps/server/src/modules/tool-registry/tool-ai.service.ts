@@ -4,7 +4,6 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
 import { ALL_TOOLS } from "@guoxue/shared";
-import type { BaziInput, BaziResult, QimenYangInput, QimenResult, LiuYaoInput, LiuYaoResult, MeiHuaInput, MeiHuaResult } from "@guoxue/shared";
 import { buildBaziPrompt, buildZiWeiPrompt } from "./prompts/bazi-ziwei";
 import { buildQimenYangPrompt, buildQimenYangMingLiPrompt, buildQimenYinPrompt, buildQimenYinMingLiPrompt, buildShanXiangQimenPrompt, buildQimenChuanRenPrompt } from "./prompts/qimen";
 import { buildLiuYaoPrompt, buildMeiHuaPrompt, buildXiaoChengTuPrompt, buildJinQianKePrompt, buildZhuGePrompt, buildKongMingPrompt } from "./prompts/divination";

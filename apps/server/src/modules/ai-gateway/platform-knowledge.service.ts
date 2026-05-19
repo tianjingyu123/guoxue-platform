@@ -1,9 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Cron, CronExpression } from "@nestjs/schedule";
+import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { VectorService } from "./vector.service";
-import { createHash } from "crypto";
 
 @Injectable()
 export class PlatformKnowledgeService {
@@ -48,7 +47,7 @@ export class PlatformKnowledgeService {
 
       for (const item of allItems) {
         const result = await this.upsert(item, existingKeys);
-        result === "added" ? added++ : skipped++;
+        if (result === "added") added++; else skipped++;
       }
 
       this.logger.log(`平台知识汇聚完成: 新增 ${added}，跳过 ${skipped}`);
@@ -245,8 +244,6 @@ export class PlatformKnowledgeService {
     },
     existingKeys?: Set<string>,
   ): Promise<"added" | "skipped"> {
-    const contentHash = createHash("md5").update(item.content).digest("hex");
-
     // 检查是否已存在：优先用预取集合
     const lookupKey = `${item.sourceType}:${item.sourceId}`;
     if (existingKeys) {

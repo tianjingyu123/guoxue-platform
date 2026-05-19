@@ -79,7 +79,6 @@ export function calculateQimenYin(input: Record<string, unknown>): QimenResult {
   // 月干支（立春分界）
   const yGanZhi = monthGanZhi(year, month, day);
   const yZhi = yGanZhi[1];
-  const yGan = yGanZhi[0];
 
   // 阴盘用局：月支定局
   const juNumber = customJu ?? (ZHI_TO_JU[yZhi] ?? 1);

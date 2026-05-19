@@ -95,7 +95,7 @@ export function buildJinKouJuePrompt(_input: any, result: any): string {
   const siWeiLines = sk ? [
     `人元（天干）：${sk.renYuan.gan}（${sk.renYuan.naYin}）— ${sk.renYuan.relation}`,
     `贵神（天将）：${sk.guiShen.name} ${sk.guiShen.ganZhi}（${sk.guiShen.wuXing}·${sk.guiShen.naYin}）`,
-    `月将　　　　　：${sk.yueJiang.name} ${sk.yueJiang.ganZhi}（${sk.yueJiang.wuXing}·${sk.yueJiang.naYin}）`,
+    `月将：${sk.yueJiang.name} ${sk.yueJiang.ganZhi}（${sk.yueJiang.wuXing}·${sk.yueJiang.naYin}）`,
     `地分（地支）：${sk.diFen.zhi}（${sk.diFen.wuXing}·${sk.diFen.direction}·${sk.diFen.sanHe}）`,
   ] : [];
 

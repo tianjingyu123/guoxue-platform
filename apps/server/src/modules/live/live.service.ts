@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { LiveStreamService } from "./live-stream.service";

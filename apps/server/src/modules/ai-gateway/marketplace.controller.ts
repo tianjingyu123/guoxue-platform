@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Post } from "@nestjs/common";
+import { Controller, Get, Param, Query } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
 import { MarketplaceService } from "./marketplace.service";
 

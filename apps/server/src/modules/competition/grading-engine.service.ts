@@ -71,8 +71,6 @@ export class GradingEngineService {
       else wrongSelection++;
     }
 
-    const missedCount = correctSet.size - intersection;
-
     // 完全正确
     if (intersection === correctSet.size && wrongSelection === 0) {
       return { score: maxScore, isCorrect: true, maxScore };

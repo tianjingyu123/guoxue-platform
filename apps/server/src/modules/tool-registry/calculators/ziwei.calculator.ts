@@ -1,7 +1,7 @@
 // ── 紫微斗数排盘计算引擎 ──
 // 封装 @guoxue/ziwei-engine，提供统一的 tool-registry 接口
 
-import type { ZiweiInput, ZiweiResult } from "@guoxue/ziwei-engine";
+import type { ZiweiInput } from "@guoxue/ziwei-engine";
 import { calcZiwei } from "@guoxue/ziwei-engine";
 
 /** 主计算函数 */

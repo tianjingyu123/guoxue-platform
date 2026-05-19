@@ -180,7 +180,6 @@ export class DiscoverService {
   async getRecommendations(userId?: string, page = 1, pageSize = 10) {
     const skip = (page - 1) * pageSize;
     let interests: string[] = [];
-    let personalized = false;
 
     if (userId) {
       const user = await this.prisma.user.findUnique({
@@ -216,7 +215,6 @@ export class DiscoverService {
         take: pageSize - contents.length,
       });
       contents.push(...fallback);
-      personalized = true;
     }
 
     return { page, pageSize, personalized: interests.length > 0, interests, items: contents.map(c => this.toContentItem(c)), total };

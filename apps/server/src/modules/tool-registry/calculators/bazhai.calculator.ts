@@ -1,7 +1,7 @@
 // ── 八宅风水计算引擎 ──
 // 命卦计算/八宅游年星/宅命匹配/八方吉凶
 
-import type { BaZhaiInput, BaZhaiResult, MingGua, ZhaiGua, BaFangJiXiong } from "@guoxue/shared";
+import type { BaZhaiResult, MingGua, ZhaiGua, BaFangJiXiong } from "@guoxue/shared";
 
 const BA_GUA: { name: string; num: number; group: string; direction: string; degreeRange: string }[] = [
   { name:"坎", num:1, group:"东四宅", direction:"正北", degreeRange:"337.5°-22.5°" },

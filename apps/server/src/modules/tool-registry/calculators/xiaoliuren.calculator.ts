@@ -1,7 +1,7 @@
 // ── 小六壬计算引擎 ──
 // 掌诀推算（道家/江氏/江氏二代三法）
 
-import type { XiaoLiuRenInput, XiaoLiuRenResult, ZhangJuePosition, TuiSuanStep } from "@guoxue/shared";
+import type { XiaoLiuRenResult, ZhangJuePosition, TuiSuanStep } from "@guoxue/shared";
 import { Solar } from "lunar-javascript";
 
 const ZHANG_JUE: { name: string; handPos: string; wuXing: string; direction: string; jiXiong: string; numbers: string; duanYu: string; color: string; xiangYi: { main:string; xunRen:string; shiWu:string; chuXing:string; hunYin:string; qiuCai:string; jianKang:string } }[] = [

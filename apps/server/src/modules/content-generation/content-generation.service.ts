@@ -117,7 +117,7 @@ export class ContentGenerationService {
         const parsed = JSON.parse(cfg.configValue);
         if (typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
       }
-    } catch (err) { /* fall through */ }
+    } catch (_err) { /* fall through */ }
     return DEFAULT_CATEGORY_TREE;
   }
 

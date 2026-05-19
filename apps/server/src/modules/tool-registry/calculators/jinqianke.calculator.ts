@@ -109,7 +109,7 @@ export function calculateJinQianKe(input: Record<string, unknown>): JinQianKeRes
   const d = new Date(datetime);
   const seed = d.getTime();
 
-  let yangCodes: number[] = [];
+  const yangCodes: number[] = [];
   for (let i = 0; i < 6; i++) {
     let ziCount: number;
     if (method === "random") {

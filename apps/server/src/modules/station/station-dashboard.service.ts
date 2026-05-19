@@ -101,9 +101,6 @@ export class StationDashboardService {
 
   /** 结算倒计时 */
   async getSettlementTimer(stationId: string) {
-    const config = await this.prisma.configSystem.findFirst({
-      where: { configKey: "commission_settlement_day" },
-    });
     const settleDay = 15; // 默认每月15号结算
 
     const now = new Date();
