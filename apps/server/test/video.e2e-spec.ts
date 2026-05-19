@@ -77,7 +77,7 @@ describe("Video E2E", () => {
 
     it("创建视频成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
       prisma.video.create.mockResolvedValue({ id: "v1", title: "新课", videoUrl: "https://example.com/v.mp4" })
 
       const res = await request(app.getHttpServer())
@@ -95,7 +95,7 @@ describe("Video E2E", () => {
   describe("POST /api/v1/videos/vod/upload-signature", () => {
     it("获取上传签名成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/videos/vod/upload-signature")
@@ -112,7 +112,7 @@ describe("Video E2E", () => {
   describe("GET /api/v1/videos/vod/play-signature/:fileId", () => {
     it("获取播放签名成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
       const res = await request(app.getHttpServer())
         .get("/api/v1/videos/vod/play-signature/file123?expire=7200")
         .set("Authorization", `Bearer ${token}`)
@@ -127,7 +127,7 @@ describe("Video E2E", () => {
   describe("POST /api/v1/videos/vod/pull-upload", () => {
     it("拉取上传成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/videos/vod/pull-upload")
@@ -147,7 +147,7 @@ describe("Video E2E", () => {
   describe("POST /api/v1/videos/vod/process/:fileId", () => {
     it("发起转码处理成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/videos/vod/process/file123")
@@ -164,7 +164,7 @@ describe("Video E2E", () => {
   describe("POST /api/v1/videos/vod/clip", () => {
     it("剪辑视频成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/videos/vod/clip")
@@ -206,7 +206,7 @@ describe("Video E2E", () => {
   describe("GET /api/v1/videos/vod/playback-stats/:fileId", () => {
     it("获取播放统计成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
 
       const res = await request(app.getHttpServer())
         .get("/api/v1/videos/vod/playback-stats/file123?startDate=2026-05-01&endDate=2026-05-10")
@@ -222,7 +222,7 @@ describe("Video E2E", () => {
   describe("POST /api/v1/videos/:id/collect", () => {
     it("收藏视频成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
       prisma.collect.findFirst.mockResolvedValue(null)
       prisma.collect.create.mockResolvedValue({ id: "c1" })
       prisma.video.update.mockResolvedValue({})
@@ -241,7 +241,7 @@ describe("Video E2E", () => {
   describe("POST /api/v1/videos/:id/share", () => {
     it("记录分享成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
       prisma.video.update.mockResolvedValue({ id: "v1", shareCount: 5 })
 
       const res = await request(app.getHttpServer())

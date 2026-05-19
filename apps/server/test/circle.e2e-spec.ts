@@ -82,7 +82,7 @@ describe("Circle E2E", () => {
     it("加入成功", async () => {
       const token = jwt.sign({ sub: "u1" })
       prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
-      prisma.circle.findUnique.mockResolvedValue({ id: "ci1", name: "国学论语圈", status: "ACTIVE" })
+      prisma.circle.findUnique.mockResolvedValue({ id: "ci1", name: "国学论语圈", status: "ACTIVE", type: "FREE" })
       prisma.circleMember.findUnique.mockResolvedValue(null)
       prisma.circleMember.create.mockResolvedValue({ id: "cm1", circleId: "ci1", userId: "u1", role: "MEMBER" })
 

@@ -449,8 +449,12 @@ describe("核心业务流程 E2E", () => {
         if (args?.where?.code === referralCode) {
           return { id: "sta-flow-5", userId: inviterId, code: referralCode, name: "国学推广站" }
         }
-        // commission config
+        // verifyStationAccess / commission config: 按 userId 查分站
         if (args?.where?.userId === inviterId) {
+          return { id: "sta-flow-5", userId: inviterId }
+        }
+        // verifyStationAccess: 按 stationId 查所有权
+        if (args?.where?.id === "sta-flow-5") {
           return { id: "sta-flow-5", userId: inviterId }
         }
         // withdrawal_min config
@@ -515,6 +519,10 @@ describe("核心业务流程 E2E", () => {
         if (id === "sta-flow-5") return { id: "sta-flow-5", totalEarning: 5970 }
         return null
       })
+      prisma.station.findUnique.mockImplementation((args: any) => {
+        if (args?.where?.id === "sta-flow-5") return { id: "sta-flow-5", userId: "u-inviter" }
+        return null
+      })
       prisma.stationEarning.findMany.mockResolvedValue([
         {
           id: "se-flow-5", stationId: "sta-flow-5", orderId: "ord-flow-5",
@@ -533,7 +541,7 @@ describe("核心业务流程 E2E", () => {
       expect(earningsRes.body.totalEarned).toBe(5970)
 
       // Step 6: 查询分站余额
-      prisma.station.findUnique.mockResolvedValue({ id: "sta-flow-5", totalEarning: 5970 })
+      prisma.station.findUnique.mockResolvedValue({ id: "sta-flow-5", userId: inviterId, totalEarning: 5970 })
       prisma.withdrawal.aggregate.mockResolvedValue({ _sum: { amount: 0 } })
 
       const balanceRes = await request(app.getHttpServer())
@@ -553,8 +561,8 @@ describe("核心业务流程 E2E", () => {
       prisma.station.findUnique.mockImplementation((args: any) => {
         // applyWithdrawal: 按 userId 查分站
         if (args?.where?.userId === inviterId) return { id: "sta-flow-5", userId: inviterId }
-        // getStationBalance: 按 stationId 查余额
-        if (args?.where?.id === "sta-flow-5") return { id: "sta-flow-5", totalEarning: 5970 }
+        // getStationBalance / verifyStationAccess: 按 stationId 查
+        if (args?.where?.id === "sta-flow-5") return { id: "sta-flow-5", userId: inviterId, totalEarning: 5970 }
         return null
       })
       prisma.commissionConfig.findUnique.mockResolvedValue(null)

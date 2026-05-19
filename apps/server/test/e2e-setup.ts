@@ -5,6 +5,8 @@ import { PrismaService } from "../src/prisma/prisma.service"
 import { RedisService } from "../src/redis/redis.service"
 import { WechatService } from "../src/modules/auth/wechat.service"
 import { WechatPayService } from "../src/modules/shop/wechat-pay.service"
+import { AlipayService } from "../src/modules/shop/alipay.service"
+import { UnionpayService } from "../src/modules/shop/unionpay.service"
 import { VodService } from "../src/modules/video/vod.service"
 
 const modelMethods = [
@@ -18,7 +20,12 @@ function createModelMock() {
   const mock: Record<string, jest.Mock> = {}
   for (const m of modelMethods) {
     // updateMany/deleteMany/createMany 默认返回 { count: N }，避免 .count 访问报错
-    mock[m] = jest.fn().mockResolvedValue(m.endsWith("Many") ? { count: 1 } : undefined)
+    mock[m] = jest.fn().mockResolvedValue(
+      m === "create" || m === "upsert" ? { id: "mock-id" } :
+      m.endsWith("Many") ? { count: 1 } :
+      m === "count" ? 0 :
+      undefined,
+    )
   }
   return mock
 }
@@ -97,6 +104,22 @@ function createWechatPayMock() {
   }
 }
 
+function createAlipayMock() {
+  return {
+    verifyNotify: jest.fn().mockResolvedValue({ valid: true, data: { outTradeNo: "mock", tradeStatus: "TRADE_SUCCESS" } }),
+    query: jest.fn().mockResolvedValue({}),
+    refund: jest.fn().mockResolvedValue({}),
+  }
+}
+
+function createUnionpayMock() {
+  return {
+    verifyNotify: jest.fn().mockResolvedValue({ valid: true, data: { outTradeNo: "mock", respCode: "00" } }),
+    query: jest.fn().mockResolvedValue({}),
+    refund: jest.fn().mockResolvedValue({}),
+  }
+}
+
 function createRedisMock() {
   return {
     get: jest.fn().mockResolvedValue(null),
@@ -144,6 +167,9 @@ export async function createE2eApp(): Promise<{
   const wechatPay = createWechatPayMock()
   const vod = createVodMock()
 
+  const alipay = createAlipayMock()
+  const unionpay = createUnionpayMock()
+
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
   })
@@ -155,6 +181,10 @@ export async function createE2eApp(): Promise<{
     .useValue(wechat)
     .overrideProvider(WechatPayService)
     .useValue(wechatPay)
+    .overrideProvider(AlipayService)
+    .useValue(alipay)
+    .overrideProvider(UnionpayService)
+    .useValue(unionpay)
     .overrideProvider(VodService)
     .useValue(vod)
     .compile()

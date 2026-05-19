@@ -1,6 +1,6 @@
 // 测试环境标识（排除 GqlModule 等不需要的模块）
 process.env.NODE_ENV = "test";
-process.env.ENCRYPTION_KEY = "test-key-32bytes-long!!!!!!";
+process.env.ENCRYPTION_KEY = "test-key-for-32-byte-encryption!";
 process.env.JWT_SECRET = "test-jwt-secret";
 process.env.BULLMQ_DISABLED = "true";
 

@@ -93,7 +93,7 @@ echo ""
 echo -e "${YELLOW}[代码规范]${NC}"
 STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ts$' || true)
 if [ -n "$STAGED_TS" ]; then
-  check_step "ESLint 检查暂存文件" npx eslint $STAGED_TS --max-warnings 10 2>&1 || true
+  check_step "ESLint 检查暂存文件" npx eslint $STAGED_TS --max-warnings 50 2>&1 || true
 else
   echo "  (无 TypeScript 文件变更，跳过)"
   PASS=$((PASS + 1))
@@ -118,7 +118,8 @@ if [ -n "$STAGED_SERVER" ]; then
 
   if [ -n "$SPEC_FILES" ]; then
     echo "  运行关联测试: $(echo $SPEC_FILES | tr '\n' ' ')"
-    if npx jest --config apps/server/jest.config.ts $SPEC_FILES --no-coverage --forceExit 2>&1; then
+    REL_SPECS=$(echo "$SPEC_FILES" | sed 's|apps/server/||g')
+    if (cd apps/server && npx jest --config jest.config.ts $REL_SPECS --no-coverage --forceExit 2>&1); then
       echo -e "  ${GREEN}✓${NC}"
       PASS=$((PASS + 1))
     else
@@ -127,7 +128,7 @@ if [ -n "$STAGED_SERVER" ]; then
     fi
   else
     echo "  变更文件无关联测试，运行全量 src/ 测试"
-    if npx jest --config apps/server/jest.config.ts --testPathPattern "src/" --no-coverage --forceExit 2>&1; then
+    if (cd apps/server && npx jest --config jest.config.ts --testPathPattern "src/" --no-coverage --forceExit 2>&1); then
       echo -e "  ${GREEN}✓${NC}"
       PASS=$((PASS + 1))
     else

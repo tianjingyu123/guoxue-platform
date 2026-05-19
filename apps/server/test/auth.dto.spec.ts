@@ -7,7 +7,7 @@ describe("Auth DTO 校验", () => {
       const dto = Object.assign(new PhoneRegisterDto(), {
         nickname: "张三",
         phone: "13800138000",
-        password: "123456",
+        password: "Abc12345",
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
@@ -17,18 +17,18 @@ describe("Auth DTO 校验", () => {
       const dto = Object.assign(new PhoneRegisterDto(), {
         nickname: "张",
         phone: "13800138000",
-        password: "123456",
+        password: "Abc12345",
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
       expect(errors[0].property).toBe("nickname");
     });
 
-    it("密码不足6位报错", async () => {
+    it("密码不满足复杂度要求报错", async () => {
       const dto = Object.assign(new PhoneRegisterDto(), {
         nickname: "张三",
         phone: "13800138000",
-        password: "12345",
+        password: "abc1234",
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
@@ -38,7 +38,7 @@ describe("Auth DTO 校验", () => {
     it("缺昵称报错", async () => {
       const dto = Object.assign(new PhoneRegisterDto(), {
         phone: "13800138000",
-        password: "123456",
+        password: "Abc12345",
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
@@ -72,16 +72,16 @@ describe("Auth DTO 校验", () => {
     it("合法输入校验通过", async () => {
       const dto = Object.assign(new ChangePasswordDto(), {
         oldPassword: "abcdef",
-        newPassword: "123456",
+        newPassword: "Abc12345",
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
     });
 
-    it("新密码不足6位报错", async () => {
+    it("新密码不满足复杂度要求报错", async () => {
       const dto = Object.assign(new ChangePasswordDto(), {
         oldPassword: "abcdef",
-        newPassword: "12345",
+        newPassword: "abc1234",
       });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);

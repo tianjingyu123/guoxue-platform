@@ -34,7 +34,7 @@ describe("HealthController", () => {
     expect(result.uptime).toBeGreaterThan(0);
   });
 
-  it("数据库故障时返回 degraded", async () => {
+  it("数据库故障时返回 fail", async () => {
     const mockPrismaFail = { $queryRaw: jest.fn().mockRejectedValue(new Error("DB down")) };
     const mockRedisOk = {
       set: jest.fn().mockResolvedValue(undefined),
@@ -50,7 +50,7 @@ describe("HealthController", () => {
     }).compile();
     const ctrl = mod.get(HealthController);
     const result = await ctrl.check();
-    expect(result.status).toBe("degraded");
+    expect(result.status).toBe("fail");
     expect(result.checks.db.status).toBe("fail");
   });
 });

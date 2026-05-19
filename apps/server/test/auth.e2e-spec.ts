@@ -35,7 +35,7 @@ describe("Auth E2E", () => {
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/auth/register/phone")
-        .send({ nickname: "张三", phone: "13800138000", password: "123456" })
+        .send({ nickname: "张三", phone: "13800138000", password: "Abc12345" })
         .expect(201)
 
       expect(res.body.accessToken).toBeDefined()
