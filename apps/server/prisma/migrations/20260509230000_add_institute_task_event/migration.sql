@@ -1,8 +1,8 @@
 -- InstituteMember: 补充字段
-ALTER TABLE "InstituteMember" ADD COLUMN "depositRefunded" BOOLEAN NOT NULL DEFAULT false;
-ALTER TABLE "InstituteMember" ADD COLUMN "joinYear" INTEGER NOT NULL DEFAULT 2026;
-ALTER TABLE "InstituteMember" ADD COLUMN "lecturerLevel" TEXT NOT NULL DEFAULT 'NONE';
-ALTER TABLE "InstituteMember" ADD COLUMN "status" TEXT NOT NULL DEFAULT 'ACTIVE';
+ALTER TABLE "InstituteMember" ADD COLUMN IF NOT EXISTS "depositRefunded" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "InstituteMember" ADD COLUMN IF NOT EXISTS "joinYear" INTEGER NOT NULL DEFAULT 2026;
+ALTER TABLE "InstituteMember" ADD COLUMN IF NOT EXISTS "lecturerLevel" TEXT NOT NULL DEFAULT 'NONE';
+ALTER TABLE "InstituteMember" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'ACTIVE';
 
 -- InstituteTask: 年度任务
 CREATE TABLE "InstituteTask" (

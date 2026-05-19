@@ -1,15 +1,18 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import { BusinessException } from "./business.exception";
 import { ErrorCode } from "./error-codes";
+import { serverConfig } from "../config/server-config";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
 const TAG_LENGTH = 16;
 
 function getKey(): Buffer {
-  const secret = process.env.ENCRYPTION_KEY;
-  if (!secret) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "ENCRYPTION_KEY 环境变量未设置");
-  return Buffer.from(secret.padEnd(32).slice(0, 32), "utf8");
+  const secret = serverConfig.encryptionKey;
+  if (Buffer.byteLength(secret, "utf8") !== 32) {
+    throw new BusinessException(ErrorCode.INTERNAL_ERROR, "ENCRYPTION_KEY 必须为32字节，请使用 crypto.randomBytes(32).toString('utf8') 生成");
+  }
+  return Buffer.from(secret, "utf8");
 }
 
 export function encrypt(plaintext: string): string {
@@ -31,9 +34,9 @@ export function decrypt(ciphertext: string): string {
     const decipher = createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(tag);
     return decipher.update(encrypted) + decipher.final("utf8");
-  } catch {
-    // 解密失败（明文存储或密钥不匹配），返回原值
-    return ciphertext;
+  } catch (err) {
+    console.warn(`数据解密失败: ${(err as Error).message}`);
+    throw new BusinessException(ErrorCode.INTERNAL_ERROR, "数据解密失败");
   }
 }
 

@@ -32,7 +32,7 @@ export interface ApiResponse<T = any> {
 @Injectable()
 export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T>> {
   /** 跳过包装的路径前缀 */
-  private readonly skipPaths = ["/api-docs", "/health/metrics"];
+  private readonly skipPaths = ["/api-docs", "/health/metrics", "/graphql"];
 
   constructor(@Optional() private reflector?: Reflector) {}
 

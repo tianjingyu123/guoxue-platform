@@ -25,6 +25,16 @@ export class MetricsService {
   readonly slowQueryTotal: Counter<string>;
   readonly dbConnectionPoolUsage: Gauge<string>;
 
+  // AI 数据飞轮指标（P10）
+  readonly aiCallTotal: Counter<string>;          // AI 调用总数（按 scene/model）
+  readonly aiCallDuration: Histogram<string>;     // AI 调用延迟
+  readonly aiSemanticCacheHits: Counter<string>;  // 语义缓存命中数
+  readonly aiRagRecallTotal: Counter<string>;     // RAG 知识召回数
+  readonly aiContentAutoTagged: Counter<string>;  // AI 自动打标数
+  readonly aiContentAutoApproved: Counter<string>;// AI 自动审核通过数
+  readonly aiUserFeedback: Counter<string>;       // 用户满意度反馈
+  readonly recommendCTR: Gauge<string>;           // 推荐点击率
+
   constructor() {
     this.register = new Registry();
     collectDefaultMetrics({ register: this.register, prefix: "guoxue_" });
@@ -115,6 +125,64 @@ export class MetricsService {
       help: "数据库连接池使用率（0-1）",
       registers: [this.register],
     });
+
+    // ── AI 数据飞轮指标 ──
+    this.aiCallTotal = new Counter({
+      name: "guoxue_ai_call_total",
+      help: "AI 调用总数",
+      labelNames: ["scene", "model", "status"],
+      registers: [this.register],
+    });
+
+    this.aiCallDuration = new Histogram({
+      name: "guoxue_ai_call_duration_seconds",
+      help: "AI 调用延迟 (秒)",
+      labelNames: ["scene", "model"],
+      buckets: [0.1, 0.5, 1, 2, 5, 10, 20, 30, 60],
+      registers: [this.register],
+    });
+
+    this.aiSemanticCacheHits = new Counter({
+      name: "guoxue_ai_semantic_cache_hits_total",
+      help: "语义缓存命中数",
+      labelNames: ["scene"],
+      registers: [this.register],
+    });
+
+    this.aiRagRecallTotal = new Counter({
+      name: "guoxue_ai_rag_recall_total",
+      help: "RAG 知识召回数",
+      labelNames: ["scene"],
+      registers: [this.register],
+    });
+
+    this.aiContentAutoTagged = new Counter({
+      name: "guoxue_ai_content_auto_tagged_total",
+      help: "AI 自动打标内容数",
+      labelNames: ["type"],
+      registers: [this.register],
+    });
+
+    this.aiContentAutoApproved = new Counter({
+      name: "guoxue_ai_content_auto_approved_total",
+      help: "AI 自动审核通过数",
+      labelNames: ["type"],
+      registers: [this.register],
+    });
+
+    this.aiUserFeedback = new Counter({
+      name: "guoxue_ai_user_feedback_total",
+      help: "用户 AI 满意度反馈",
+      labelNames: ["scene", "rating"],
+      registers: [this.register],
+    });
+
+    this.recommendCTR = new Gauge({
+      name: "guoxue_recommend_ctr",
+      help: "推荐点击率（点击/曝光）",
+      labelNames: ["scene"],
+      registers: [this.register],
+    });
   }
 
   /** 记录第三方 API 调用（含成功/失败和延迟） */
@@ -139,6 +207,43 @@ export class MetricsService {
   /** 记录慢查询 */
   recordSlowQuery(model: string) {
     this.slowQueryTotal.inc({ model });
+  }
+
+  /** 记录 AI 调用 */
+  recordAiCall(scene: string, model: string, ok: boolean, durationMs: number) {
+    const status = ok ? "success" : "error";
+    this.aiCallTotal.inc({ scene, model, status });
+    this.aiCallDuration.observe({ scene, model }, durationMs / 1000);
+  }
+
+  /** 记录语义缓存命中 */
+  recordSemanticCacheHit(scene: string) {
+    this.aiSemanticCacheHits.inc({ scene });
+  }
+
+  /** 记录 RAG 知识召回 */
+  recordRagRecall(scene: string) {
+    this.aiRagRecallTotal.inc({ scene });
+  }
+
+  /** 记录 AI 自动打标 */
+  recordContentAutoTagged(type: string) {
+    this.aiContentAutoTagged.inc({ type });
+  }
+
+  /** 记录 AI 自动审核通过 */
+  recordContentAutoApproved(type: string) {
+    this.aiContentAutoApproved.inc({ type });
+  }
+
+  /** 记录用户 AI 满意度反馈 */
+  recordAiFeedback(scene: string, rating: "positive" | "negative") {
+    this.aiUserFeedback.inc({ scene, rating });
+  }
+
+  /** 更新推荐点击率 */
+  setRecommendCTR(scene: string, ctr: number) {
+    this.recommendCTR.set({ scene }, ctr);
   }
 
   async metrics(): Promise<string> {

@@ -1,5 +1,6 @@
-import { Global, Module } from "@nestjs/common";
+import { Global, Module, OnModuleInit } from "@nestjs/common";
 import { RedisService } from "./redis.service";
+import { setCacheRedisService } from "../common/cache.decorator";
 
 /**
  * Redis 缓存模块（全局）
@@ -12,4 +13,10 @@ import { RedisService } from "./redis.service";
   providers: [RedisService],
   exports: [RedisService],
 })
-export class RedisModule {}
+export class RedisModule implements OnModuleInit {
+  constructor(private readonly redisService: RedisService) {}
+
+  onModuleInit() {
+    setCacheRedisService(this.redisService);
+  }
+}

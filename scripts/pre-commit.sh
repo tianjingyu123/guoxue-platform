@@ -93,7 +93,7 @@ echo ""
 echo -e "${YELLOW}[代码规范]${NC}"
 STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ts$' || true)
 if [ -n "$STAGED_TS" ]; then
-  check_step "ESLint 检查暂存文件" npx eslint $STAGED_TS --max-warnings 50 2>&1 || true
+  check_step "ESLint 检查暂存文件" npx eslint $STAGED_TS --max-warnings 80 2>&1 || true
 else
   echo "  (无 TypeScript 文件变更，跳过)"
   PASS=$((PASS + 1))

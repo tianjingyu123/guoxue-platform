@@ -6,25 +6,26 @@ import {
   HttpException,
   HttpStatus,
 } from "@nestjs/common";
+import { serverConfig } from "../config/server-config";
 import { RedisService } from "../redis/redis.service";
 
 /**
  * Redis 分布式限流守卫，多实例部署下共享计数。
  * RedisService.incrWithTtl 内部已处理 Redis→内存降级。
  *
- * 默认：单个 IP 每 60 秒最多 60 次请求
+ * 默认：单个 IP 每 60 秒最多 30 次请求
  */
 @Injectable()
 export class RedisThrottleGuard implements CanActivate {
   constructor(
     private redis: RedisService,
-    @Optional() private readonly limit: number = 60,
+    @Optional() private readonly limit: number = 30,
     @Optional() private readonly ttl: number = 60,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // 压测绕过（仅非生产环境生效）
-    if (process.env.NODE_ENV !== "production" && process.env.DISABLE_RATE_LIMIT === "true") return true;
+    if (serverConfig.disableRateLimit) return true;
 
     const request = context.switchToHttp().getRequest();
     const ip = request.ip || request.connection?.remoteAddress || "unknown";

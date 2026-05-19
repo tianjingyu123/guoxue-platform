@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { serverConfig } from "../config/server-config";
 
 /**
  * JWT 密钥服务 — 支持运行时密钥轮换。
@@ -18,20 +19,13 @@ import { Injectable } from "@nestjs/common";
 export class JwtSecretService {
   /** 当前签发密钥 */
   getSigningSecret(): string {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new Error("JWT_SECRET 环境变量未设置");
-    return secret;
+    return serverConfig.jwtSecret;
   }
 
   /** 所有有效验证密钥（当前 + 历史），轮换期间旧 token 仍可验证 */
   getVerificationSecrets(): string[] {
-    const current = process.env.JWT_SECRET;
-    if (!current) throw new Error("JWT_SECRET 环境变量未设置");
-
-    const previous = (process.env.JWT_PREVIOUS_SECRETS || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const current = serverConfig.jwtSecret;
+    const previous = serverConfig.jwtPreviousSecrets;
 
     return [current, ...previous];
   }

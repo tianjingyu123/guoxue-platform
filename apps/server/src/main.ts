@@ -8,14 +8,17 @@ import compression from "compression";
 import helmet from "helmet";
 import { AppGraphqlModule } from "./app-graphql.module";
 import { RedisThrottleGuard } from "./common/redis-throttle.guard";
+import { serverConfig } from "./config/server-config";
 import { RedisService } from "./redis/redis.service";
 import { AllExceptionsFilter } from "./common/http-exception.filter";
+import { PrismaExceptionFilter } from "./common/prisma-exception.filter";
 import { chineseValidationExceptionFactory } from "./common/validation-chinese";
 import { LoggingInterceptor } from "./common/logging.interceptor";
 import { TracingInterceptor } from "./common/tracing.interceptor";
 import { ResponseInterceptor } from "./common/response.interceptor";
 import { AuditInterceptor } from "./common/audit.interceptor";
 import { AuditService } from "./modules/audit/audit.service";
+import { SanitizePipe } from "./common/sanitize.pipe";
 import { PinoLoggerService } from "./common/pino-logger.service";
 import { join } from "path";
 
@@ -34,20 +37,22 @@ async function bootstrap() {
   app.useStaticAssets(join(__dirname, "..", "uploads"), { prefix: "/uploads/" });
   app.useStaticAssets(join(__dirname, "..", "static"), { prefix: "/static/" });
 
-  // Swagger 文档配置
-  const config = new DocumentBuilder()
-    .setTitle("国学平台 API")
-    .setDescription("国学传统文化综合平台 RESTful API 文档")
-    .setVersion("1.0")
-    .addBearerAuth()
-    .addServer("/api/v1")
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("api-docs", app, document);
+  // Swagger 文档配置 — 仅非生产环境启用
+  if (process.env.NODE_ENV !== "production") {
+    const config = new DocumentBuilder()
+      .setTitle("国学平台 API")
+      .setDescription("国学传统文化综合平台 RESTful API 文档")
+      .setVersion("1.0")
+      .addBearerAuth()
+      .addServer("/api/v1")
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup("api-docs", app, document);
+  }
 
   app.setGlobalPrefix("api/v1");
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(",") ?? ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+    origin: serverConfig.corsOrigin,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   });
@@ -58,8 +63,9 @@ async function bootstrap() {
     new AuditInterceptor(app.get(AuditService)),
   );
   app.useGlobalGuards(new RedisThrottleGuard(app.get(RedisService)));
-  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalFilters(new PrismaExceptionFilter(), new AllExceptionsFilter());
   app.useGlobalPipes(
+    new SanitizePipe(),
     new ValidationPipe({
       whitelist: true,
       transform: true,
@@ -87,7 +93,7 @@ async function bootstrap() {
     },
   }));
 
-  const port = process.env.PORT ?? 3000;
+  const port = serverConfig.port;
   await app.listen(port);
   logger.raw().info({ port }, `Server running on http://localhost:${port}`);
 

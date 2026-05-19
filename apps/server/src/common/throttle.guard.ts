@@ -14,7 +14,7 @@ interface RateLimitEntry {
 
 /**
  * 简易内存限流守卫
- * 默认：单个 IP 每 60 秒最多 60 次请求
+ * 默认：单个 IP 每 60 秒最多 30 次请求
  */
 @Injectable()
 export class ThrottleGuard implements CanActivate {
@@ -24,7 +24,7 @@ export class ThrottleGuard implements CanActivate {
   private cleanupTimer: NodeJS.Timeout;
 
   constructor(
-    @Optional() private readonly limit: number = 60,
+    @Optional() private readonly limit: number = 30,
     @Optional() private readonly ttl: number = 60,
   ) {
     this.cleanupTimer = setInterval(() => this.cleanup(), 60000);

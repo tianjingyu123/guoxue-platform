@@ -51,7 +51,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             try {
               jwt.verify(rawJwtToken, secret);
               return done(null, secret);
-            } catch {
+            } catch (err) {
+              console.warn(`JWT 历史密钥验证失败: ${(err as Error).message}`);
               // 继续尝试下一个
             }
           }

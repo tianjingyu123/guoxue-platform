@@ -65,13 +65,21 @@ import { FortuneModule } from "./modules/fortune/fortune.module";
 import { PricingModule } from "./modules/pricing/pricing.module";
 import { BountyModule } from "./modules/bounty/bounty.module";
 import { ShareModule } from "./modules/share/share.module";
+import { CategoryModule } from "./modules/category/category.module";
+import { DiscoverModule } from "./modules/discover/discover.module";
+import { ToolRegistryModule } from "./modules/tool-registry/tool-registry.module";
+import { CompetitionModule } from "./modules/competition/competition.module";
 
 const conditionalModules: any[] = [];
 if (process.env.BULLMQ_DISABLED !== "true") {
   conditionalModules.push(QueueModule);
 }
+// 赛事模块：通过环境变量 COMPETITION_ENABLED=true 启用，或后台功能开关动态控制
+if (process.env.COMPETITION_ENABLED === "true") {
+  conditionalModules.push(CompetitionModule);
+}
 
 @Module({
-  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, CourseModule, InteractionModule, ShopModule, HuifuModule, TenantModule, ChurnModule, FortuneModule, PricingModule, BountyModule, ShareModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, StationPickModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, ContentGenerationModule, OperationRobotModule, OperationEngineModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, MemberModule],
+  imports: [ScheduleModule.forRoot(), PrismaModule, RedisModule, MetricsModule, FeatureFlagModule, TaskModule, ...conditionalModules, AuthModule, UserModule, CircleModule, ArticleModule, PaipanModule, ToolRegistryModule, CourseModule, InteractionModule, ShopModule, HuifuModule, TenantModule, ChurnModule, FortuneModule, PricingModule, BountyModule, ShareModule, CategoryModule, DiscoverModule, NotificationModule, SearchModule, BotModule, LiveModule, VideoModule, StationModule, StationPickModule, OfflineModule, ClassicModule, DashboardModule, CommentModule, TtsModule, RecommendModule, ContentModule, UploadModule, ImModule, CommissionModule, SystemModule, HealthModule, CoinModule, QuestionModule, AuditModule, RevenueModule, SmsModule, IdentityModule, MapModule, EmailModule, WebsocketModule, AiModule, AiGatewayModule, ContentGenerationModule, OperationRobotModule, OperationEngineModule, MiniModule, WebhookModule, CallModule, InstituteModule, EbookModule, RiskControlModule, MarketingModule, FinanceModule, MenuModule, MerchantModule, MemberModule],
 })
 export class AppModule {}

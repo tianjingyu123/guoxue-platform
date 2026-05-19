@@ -7,7 +7,8 @@ function maskRedisUrl(url: string): string {
     const u = new URL(url);
     if (u.password) u.password = "***";
     return u.toString();
-  } catch {
+  } catch (err) {
+    console.warn(`Redis URL 解析失败: ${(err as Error).message}`);
     return url.replace(/\/\/.*?@/, "//***:***@");
   }
 }
@@ -75,8 +76,8 @@ export class RedisService implements OnModuleDestroy {
       await this.client.connect();
       this.connected = true;
       return this.client;
-    } catch {
-      this.logger.warn(`Redis 不可用（${maskRedisUrl(process.env.REDIS_URL || "")}），降级为内存缓存`);
+    } catch (err) {
+      this.logger.warn(`Redis 不可用（${maskRedisUrl(process.env.REDIS_URL || "")}），降级为内存缓存`, err);
       return null;
     }
   }
@@ -147,7 +148,8 @@ export class RedisService implements OnModuleDestroy {
     if (!raw) return null;
     try {
       return JSON.parse(raw) as T;
-    } catch {
+    } catch (err) {
+      this.logger.warn(`Redis JSON 解析失败`, err);
       return null;
     }
   }
@@ -163,13 +165,19 @@ export class RedisService implements OnModuleDestroy {
       const vals = await conn.mget(...keys);
       return vals.map((v: string | null) => {
         if (!v) return null;
-        try { return JSON.parse(v) as T; } catch { return null; }
+        try { return JSON.parse(v) as T; } catch (err) {
+          this.logger.warn(`Redis JSON 解析失败`, err);
+          return null;
+        }
       });
     }
     return keys.map((k) => {
       const entry = this.memory.get(k);
       if (!entry || (entry.expiry > 0 && entry.expiry <= Date.now())) return null;
-      try { return JSON.parse(entry.value) as T; } catch { return null; }
+      try { return JSON.parse(entry.value) as T; } catch (err) {
+        this.logger.warn(`Redis JSON 解析失败`, err);
+        return null;
+      }
     });
   }
 
@@ -199,7 +207,8 @@ export class RedisService implements OnModuleDestroy {
     if (!raw) return null;
     try {
       return Buffer.from(raw, "base64");
-    } catch {
+    } catch (err) {
+      this.logger.warn(`Buffer 解码失败`, err);
       return null;
     }
   }
@@ -272,5 +281,72 @@ export class RedisService implements OnModuleDestroy {
     raw.value = String(count);
     const remaining = Math.ceil((raw.expiry - now) / 1000);
     return { count, ttl: remaining > 0 ? remaining : 0 };
+  }
+
+  // ───────── Sorted Set 操作 ─────────
+
+  private zsetMemory = new Map<string, Array<{ member: string; score: number }>>();
+
+  async zadd(key: string, score: number, member: string): Promise<number> {
+    const conn = await this.getConn();
+    if (conn) return conn.zadd(key, score, member);
+    if (!this.zsetMemory.has(key)) this.zsetMemory.set(key, []);
+    const arr = this.zsetMemory.get(key)!;
+    const existing = arr.find((e) => e.member === member);
+    if (existing) {
+      existing.score = score;
+      return 0;
+    }
+    arr.push({ member, score });
+    return 1;
+  }
+
+  async zrevrange(key: string, start: number, stop: number): Promise<string[]> {
+    const conn = await this.getConn();
+    if (conn) return conn.zrevrange(key, start, stop);
+    const arr = this.zsetMemory.get(key);
+    if (!arr) return [];
+    return arr.sort((a, b) => b.score - a.score).slice(start, stop >= 0 ? stop + 1 : undefined).map((e) => e.member);
+  }
+
+  async zrange(key: string, start: number, stop: number): Promise<string[]> {
+    const conn = await this.getConn();
+    if (conn) return conn.zrange(key, start, stop);
+    const arr = this.zsetMemory.get(key);
+    if (!arr) return [];
+    return arr.sort((a, b) => a.score - b.score).slice(start, stop >= 0 ? stop + 1 : undefined).map((e) => e.member);
+  }
+
+  async zcard(key: string): Promise<number> {
+    const conn = await this.getConn();
+    if (conn) return conn.zcard(key);
+    const arr = this.zsetMemory.get(key);
+    return arr ? arr.length : 0;
+  }
+
+  async zremrangebyrank(key: string, start: number, stop: number): Promise<number> {
+    const conn = await this.getConn();
+    if (conn) return conn.zremrangebyrank(key, start, stop);
+    const arr = this.zsetMemory.get(key);
+    if (!arr) return 0;
+    const sorted = arr.sort((a, b) => a.score - b.score);
+    const removed = sorted.splice(start, stop >= 0 ? stop - start + 1 : sorted.length - start);
+    this.zsetMemory.set(key, sorted);
+    return removed.length;
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    const conn = await this.getConn();
+    if (conn) return conn.keys(pattern);
+    const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
+    const allKeys = new Set(this.memory.keys());
+    for (const key of this.zsetMemory.keys()) allKeys.add(key);
+    return Array.from(allKeys).filter((k) => regex.test(k));
+  }
+
+  /** 获取原始 ioredis 客户端（用于 pipeline 等高级操作），不可用时返回 null */
+  getClient(): Redis | null {
+    if (this.connected && this.client) return this.client;
+    return null;
   }
 }

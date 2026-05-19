@@ -359,6 +359,7 @@ model CircleInvitation {
   @@unique([circleId, inviteeId])
   @@index([circleId, inviterId])
   @@index([inviteCodeId])
+  @@index([inviteeId])
 }
 
 enum PostType {
@@ -590,6 +591,7 @@ model CourseWork {
   user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([chapterId, userId])
+  @@index([courseId])
 }
 
 // 课程问答
@@ -1203,6 +1205,7 @@ model AiAnalysisRecord {
   @@index([createdAt])
   @@index([scene, createdAt])
   @@index([modelUsed, createdAt])
+  @@index([paipanRecordId])
 }
 
 // 【语义缓存】相似问题命中缓存直接返回，降本50%+
@@ -1283,6 +1286,7 @@ model ToolShare {
 
   @@index([shareToken])
   @@index([toolRecordId])
+  @@index([userId])
 }
 
 // 工具付费解锁记录
@@ -1933,6 +1937,7 @@ model ReadingProgress {
 
   @@unique([userId, bookId])
   @@index([userId])
+  @@index([chapterId])
 }
 
 model Bookmark {
@@ -2542,6 +2547,7 @@ model EbookProgress {
 
   @@unique([userId, ebookId])
   @@index([userId])
+  @@index([chapterId])
 }
 
 model EbookBookmark {
@@ -2558,6 +2564,7 @@ model EbookBookmark {
   chapter EbookChapter? @relation(fields: [chapterId], references: [id])
 
   @@index([userId, ebookId])
+  @@index([chapterId])
 }
 
 model EbookNote {
@@ -2577,6 +2584,7 @@ model EbookNote {
 
   @@index([userId, ebookId])
   @@index([ebookId])
+  @@index([chapterId])
 }
 
 model EbookPurchase {
@@ -4194,6 +4202,7 @@ model PlatformKnowledge {
   createdAt     DateTime                     @default(now())
 
   @@index([sourceType])
+  @@index([sourceType, sourceId])
   @@index([category])
   @@index([qualityScore])
   @@index([createdAt])

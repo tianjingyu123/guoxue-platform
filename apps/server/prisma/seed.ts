@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 
@@ -50,7 +51,7 @@ async function main() {
 
   // 2.5 创建新管理角色用户
   const adminPwd2 = await bcrypt.hash("admin123", 10);
-  const financeAdmin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { phone: "13800000003" },
     update: {},
     create: {
@@ -61,7 +62,7 @@ async function main() {
       roles: { create: { roleType: "FINANCE_ADMIN" } },
     },
   });
-  const csAdmin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { phone: "13800000004" },
     update: {},
     create: {
@@ -72,7 +73,7 @@ async function main() {
       roles: { create: { roleType: "CUSTOMER_SERVICE" } },
     },
   });
-  const goodsAuditor = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { phone: "13800000005" },
     update: {},
     create: {
@@ -83,7 +84,7 @@ async function main() {
       roles: { create: { roleType: "GOODS_AUDITOR" } },
     },
   });
-  const opsAdmin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { phone: "13800000001" },
     update: {},
     create: {
@@ -94,7 +95,7 @@ async function main() {
       roles: { create: { roleType: "OPERATION_ADMIN" } },
     },
   });
-  const contentAuditor = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { phone: "13800000002" },
     update: {},
     create: {
@@ -2245,7 +2246,7 @@ async function main() {
     },
   });
 
-  const operator = await (prisma as any).operator.create({
+  await (prisma as any).operator.create({
     data: {
       userId: operatorUser.id,
       level: "GOLD",
@@ -2591,6 +2592,192 @@ async function main() {
     });
   }
   console.log("✅ FeatureFlag 预置: " + featureFlags.length + " 个开关");
+
+  // ══════════════════════════════════════════
+  // 40. 品类标签树（P9 分类体系 — 发现页导航）
+  // ══════════════════════════════════════════
+  const categoriesData = [
+    { name: "经典研读", level: 1, icon: "📖", children: ["儒学", "道家", "佛学", "诸子百家"] },
+    { name: "诗词文赋", level: 1, icon: "📜", children: ["唐诗", "宋词", "诗经楚辞", "古文名篇"] },
+    { name: "易学术数", level: 1, icon: "☯", children: ["易经六十四卦", "八字命理", "紫微斗数", "风水堪舆"] },
+    { name: "修身养性", level: 1, icon: "🧘", children: ["中医养生", "禅修静坐", "茶道香道", "太极武术"] },
+    { name: "历史典故", level: 1, icon: "🏛", children: ["先秦史话", "汉唐风华", "宋明理学", "近代国学"] },
+    { name: "琴棋书画", level: 1, icon: "🎨", children: ["书法碑帖", "国画鉴赏", "古琴雅乐", "围棋对弈"] },
+    { name: "蒙学入门", level: 1, icon: "📚", children: ["三字经", "千字文", "弟子规", "幼学琼林"] },
+    { name: "民间传统", level: 1, icon: "🏮", children: ["二十四节气", "传统节日", "民俗礼仪", "非遗传承"] },
+  ];
+
+  let catCount = 0;
+  for (const cat of categoriesData) {
+    const parent = await prisma.category.upsert({
+      where: { id: `cat_${cat.name}` },
+      update: { name: cat.name, level: cat.level, icon: cat.icon, status: "ACTIVE" },
+      create: {
+        id: `cat_${cat.name}`,
+        name: cat.name,
+        level: cat.level,
+        icon: cat.icon,
+        sortOrder: categoriesData.indexOf(cat),
+        status: "ACTIVE",
+      },
+    });
+    catCount++;
+
+    for (let j = 0; j < cat.children.length; j++) {
+      const childName = cat.children[j];
+      await prisma.category.upsert({
+        where: { id: `cat_${childName}` },
+        update: { name: childName, parentId: parent.id, level: 2, status: "ACTIVE" },
+        create: {
+          id: `cat_${childName}`,
+          name: childName,
+          parentId: parent.id,
+          level: 2,
+          sortOrder: j,
+          status: "ACTIVE",
+        },
+      });
+      catCount++;
+    }
+  }
+  console.log("✅ 品类标签树: " + catCount + " 个节点（" + categoriesData.length + " 大类 + " + categoriesData.reduce((s, c) => s + c.children.length, 0) + " 子类）");
+
+  // ══════════════════════════════════════════
+  // 41. RAG Prompt 模板（AI网关场景预设）
+  // ══════════════════════════════════════════
+  const ragTemplates: Array<{
+    id: string;
+    scene: string;
+    templateName: string;
+    systemPrompt: string;
+    userPromptTemplate?: string;
+    variables?: Array<{ name: string; description: string; required: boolean }>;
+    status: string;
+  }> = [
+    {
+      id: "tpl_circle_assistant",
+      scene: "circle_assistant",
+      templateName: "圈主助理 — 知识问答",
+      systemPrompt: "你是{{circleName}}圈子的AI知识助手。你熟悉该圈子的所有知识内容，能根据知识库中的资料回答圈友的问题。回答风格：严谨、准确、有依据。回答中引用知识库来源时，请标注出处。如果知识库中没有相关信息，请诚实告知，不要编造。用简洁清晰的中文回答。",
+      userPromptTemplate: "问题：{{question}}\n\n参考资料：\n{{context}}",
+      variables: [
+        { name: "circleName", description: "圈子名称", required: true },
+        { name: "question", description: "用户提问", required: true },
+        { name: "context", description: "知识库检索结果", required: true },
+      ],
+      status: "ACTIVE",
+    },
+    {
+      id: "tpl_customer_service",
+      scene: "customer_service",
+      templateName: "智能客服 — 平台帮助",
+      systemPrompt: "你是「国学传统文化平台」的智能客服，擅长解答用户关于平台使用、功能导航、会员权益等常见问题。回答风格：友好、耐心、条理清晰。遇到投诉或无法解决的问题，引导用户联系人工客服。用中文回答，控制在300字以内。",
+      userPromptTemplate: "用户问题：{{question}}\n\n对话历史：\n{{history}}",
+      variables: [
+        { name: "question", description: "用户提问", required: true },
+        { name: "history", description: "对话历史", required: false },
+      ],
+      status: "ACTIVE",
+    },
+    {
+      id: "tpl_smart_search",
+      scene: "smart_search",
+      templateName: "智能搜索 — 结果总结",
+      systemPrompt: "你是一个博学的国学搜索助手。请根据搜索结果，为用户的问题生成简洁准确的回答（300字以内），突出最相关的内容。使用中文。",
+      userPromptTemplate: "用户搜索：{{query}}\n\n搜索结果：\n{{results}}\n\n请为这个搜索生成总结。",
+      variables: [
+        { name: "query", description: "用户搜索查询", required: true },
+        { name: "results", description: "搜索结果列表", required: true },
+      ],
+      status: "ACTIVE",
+    },
+    {
+      id: "tpl_classic_qa",
+      scene: "classic_qa",
+      templateName: "古籍问答 — 典籍解读",
+      systemPrompt: "你是一位古典文献研究专家，精研{{bookName}}。你能够结合原文、历代注疏和现代学术研究回答有关该典籍的各类问题。回答风格：引经据典、深入浅出。回答时先给出核心观点，再展开论证，必要时引用原文。使用中文，控制在500字以内。",
+      userPromptTemplate: "问题：{{question}}\n\n相关原文：\n{{context}}",
+      variables: [
+        { name: "bookName", description: "典籍名称", required: true },
+        { name: "question", description: "用户提问", required: true },
+        { name: "context", description: "检索到的相关原文", required: true },
+      ],
+      status: "ACTIVE",
+    },
+    {
+      id: "tpl_content_generation",
+      scene: "content_generation",
+      templateName: "内容生成 — 国学文章创作",
+      systemPrompt: "你是一位资深国学内容创作者，擅长撰写深入浅出、引人入胜的国学普及文章。你的文章兼具知识性、趣味性和可读性。目标读者是传统文化爱好者，不要求专业学术背景。写作风格：娓娓道来、有故事感、善用比喻。用中文创作，根据指定篇幅要求输出。",
+      userPromptTemplate: "创作主题：{{topic}}\n内容类型：{{type}}\n目标字数：约{{wordCount}}字\n参考方向：{{direction}}",
+      variables: [
+        { name: "topic", description: "创作主题", required: true },
+        { name: "type", description: "内容类型(knowledge/classics/tutorial)", required: true },
+        { name: "wordCount", description: "目标字数", required: false },
+        { name: "direction", description: "创作方向提示", required: false },
+      ],
+      status: "ACTIVE",
+    },
+    {
+      id: "tpl_polish",
+      scene: "polish",
+      templateName: "文字润色 — 发布辅助",
+      systemPrompt: "你是一位文字编辑专家，擅长润色和优化中文文本。请对用户提供的文字进行润色，保持原意不变，使语言更加优美流畅、有文采。如果原文有错别字或语病，请一并修正。输出润色后的完整文本。",
+      userPromptTemplate: "请润色以下文字：\n\n{{text}}",
+      variables: [
+        { name: "text", description: "待润色的原始文字", required: true },
+      ],
+      status: "ACTIVE",
+    },
+    {
+      id: "tpl_tag_suggest",
+      scene: "suggest_tags",
+      templateName: "标签推荐 — 内容分类",
+      systemPrompt: "你是一个内容分类专家。请根据给定内容，推荐3-8个最合适的标签词。标签应为中文、2-4字、能够准确概括内容主题。按相关度从高到低排列，以JSON数组格式输出。",
+      userPromptTemplate: "内容：\n{{content}}",
+      variables: [
+        { name: "content", description: "待分类的内容正文", required: true },
+      ],
+      status: "ACTIVE",
+    },
+    {
+      id: "tpl_quality_score",
+      scene: "quality_score",
+      templateName: "质量评分 — 四维评估",
+      systemPrompt: "你是一位内容质量评审专家。请对待评内容从四个维度进行打分（每项0-1分）：\n1. 内容长度与丰富度（length）：信息量是否充足，结构是否完整\n2. 来源权威性（sourceAuthority）：内容来源是否可靠，引用是否规范\n3. 可读性（readability）：段落组织是否清晰，语言是否流畅\n4. 引用准确性（citation）：引用是否准确，是否有外部参考\n\n以JSON格式输出评分结果。",
+      userPromptTemplate: "待评内容：\n{{content}}\n参考来源：{{context}}",
+      variables: [
+        { name: "content", description: "待评分内容", required: true },
+        { name: "context", description: "内容来源/场景", required: false },
+      ],
+      status: "ACTIVE",
+    },
+  ];
+
+  let tplCount = 0;
+  for (const tpl of ragTemplates) {
+    await prisma.ragPromptTemplate.upsert({
+      where: { id: tpl.id },
+      update: {
+        templateName: tpl.templateName,
+        systemPrompt: tpl.systemPrompt,
+        userPromptTemplate: tpl.userPromptTemplate,
+        variables: tpl.variables,
+        status: tpl.status,
+      },
+      create: {
+        id: tpl.id,
+        scene: tpl.scene,
+        templateName: tpl.templateName,
+        systemPrompt: tpl.systemPrompt,
+        userPromptTemplate: tpl.userPromptTemplate,
+        variables: tpl.variables,
+        status: tpl.status,
+      },
+    });
+    tplCount++;
+  }
+  console.log("✅ RAG Prompt 模板: " + tplCount + " 个场景预设");
 
   console.log("\n🎉 种子数据填充完成！");
   console.log("   管理员: 13800000000 / guoxue123");

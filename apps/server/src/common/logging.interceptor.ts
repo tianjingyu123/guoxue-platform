@@ -35,6 +35,17 @@ export class LoggingInterceptor implements NestInterceptor {
                 if (!res.headersSent) {
                   res.setHeader("X-Trace-Id", traceId);
                 }
+
+                // 慢请求告警
+                const SLOW_THRESHOLD_MS = parseInt(process.env.SLOW_REQUEST_MS || "3000", 10);
+                const CRITICAL_THRESHOLD_MS = 10000;
+
+                if (ms > CRITICAL_THRESHOLD_MS) {
+                  pino.error({ method, url, status: res.statusCode, ms, traceId }, `CRITICAL SLOW ${method} ${url} → ${ms}ms`);
+                } else if (ms > SLOW_THRESHOLD_MS) {
+                  pino.warn({ method, url, status: res.statusCode, ms, traceId }, `SLOW ${method} ${url} → ${ms}ms`);
+                }
+
                 pino.info({ method, url, status: res.statusCode, ms }, `${method} ${url} → ${res.statusCode} ${ms}ms`);
               },
               error: (err) => {

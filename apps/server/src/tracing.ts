@@ -14,6 +14,8 @@ import { ExpressInstrumentation } from "@opentelemetry/instrumentation-express";
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { IORedisInstrumentation } from "@opentelemetry/instrumentation-ioredis";
 
+const tracingLog = (msg: string) => process.stderr.write(`[OpenTelemetry] ${msg}\n`);
+
 const otlpEndpoint =
   process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
   process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
@@ -43,17 +45,17 @@ const sdk = new NodeSDK({
 export async function startTracing() {
   try {
     await sdk.start();
-    console.warn("[OpenTelemetry] 链路追踪已启动");
+    tracingLog("链路追踪已启动");
   } catch (err) {
-    console.warn("[OpenTelemetry] 链路追踪启动失败（无 Collector 可用，继续运行）:", (err as Error).message);
+    tracingLog(`链路追踪启动失败（无 Collector 可用，继续运行）: ${(err as Error).message}`);
   }
 }
 
 export async function stopTracing() {
   try {
     await sdk.shutdown();
-    console.warn("[OpenTelemetry] 链路追踪已关闭");
-  } catch {
-    // ignore
+    tracingLog("链路追踪已关闭");
+  } catch (err) {
+    console.warn(`链路追踪关闭失败: ${(err as Error).message}`);
   }
 }

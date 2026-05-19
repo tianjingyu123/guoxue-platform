@@ -22,6 +22,18 @@ export class PinoLoggerService implements LoggerService {
 
     this.pino = pino({
       level: process.env.LOG_LEVEL ?? (isProd ? "info" : "debug"),
+      redact: {
+        paths: [
+          "password", "newPassword", "oldPassword",
+          "token", "accessToken", "refreshToken",
+          "authorization", "headers.authorization",
+          "apiKey", "secretKey", "secret",
+          "ENCRYPTION_KEY", "JWT_SECRET",
+          "bankAccount", "idCard", "creditCard",
+          "req.headers.authorization", "req.headers.cookie",
+        ],
+        censor: "[REDACTED]",
+      },
       ...(isProd
         ? {}
         : {
