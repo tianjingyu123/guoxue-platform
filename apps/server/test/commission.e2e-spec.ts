@@ -33,11 +33,6 @@ describe("Commission E2E", () => {
     return `Bearer ${jwt.sign({ sub: "admin1" })}`;
   };
 
-  // 分站访问 mock
-  const mockStationAccess = (ownerId = "u1") => {
-    prisma.station.findUnique.mockResolvedValue({ userId: ownerId });
-  };
-
   // ═══════════════════ 获取所有分佣配置（管理员） ═══════════════════
 
   describe("GET /api/v1/commission/configs", () => {

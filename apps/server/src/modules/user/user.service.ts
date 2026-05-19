@@ -396,6 +396,7 @@ export class UserService {
     const users = await this.prisma.user.findMany({
       where: { status: "ACTIVE", interestCategories: { isEmpty: false } },
       select: { interestCategories: true },
+      take: 100000,
     });
 
     const categoryCount: Record<string, number> = {};

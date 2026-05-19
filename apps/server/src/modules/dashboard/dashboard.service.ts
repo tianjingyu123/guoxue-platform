@@ -104,11 +104,13 @@ export class DashboardService {
         where: { createdAt: { gte: startDate } },
         select: { createdAt: true },
         orderBy: { createdAt: "asc" },
+        take: 50000,
       }),
       this.prisma.article.findMany({
         where: { createdAt: { gte: startDate } },
         select: { createdAt: true },
         orderBy: { createdAt: "asc" },
+        take: 50000,
       }),
     ]);
 
@@ -159,6 +161,7 @@ export class DashboardService {
     const recentUsers = await this.prisma.user.findMany({
       where: { createdAt: { gte: sevenDaysAgo } },
       select: { createdAt: true },
+      take: 50000,
     });
 
     // 一次遍历预分组，避免 O(N×7) 重复过滤
@@ -486,6 +489,7 @@ export class DashboardService {
         where: { createdAt: { gte: sevenDaysAgo, lte: sevenDaysEnd } },
         select: { createdAt: true },
         orderBy: { createdAt: "asc" },
+        take: 50000,
       }),
       this.prisma.order.findMany({
         where: {
@@ -494,6 +498,7 @@ export class DashboardService {
         },
         select: { createdAt: true, amount: true },
         orderBy: { createdAt: "asc" },
+        take: 50000,
       }),
     ]);
 
@@ -1237,6 +1242,7 @@ export class DashboardService {
         where: { createdAt: { gte: sevenDaysAgo } },
         select: { createdAt: true },
         orderBy: { createdAt: "asc" },
+        take: 50000,
       }),
     ]);
 
@@ -1305,6 +1311,7 @@ export class DashboardService {
         where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: thisMonth } },
         select: { createdAt: true, amount: true },
         orderBy: { createdAt: "asc" },
+        take: 50000,
       }),
     ]);
 
@@ -1371,6 +1378,7 @@ export class DashboardService {
       this.prisma.comment.findMany({
         where: { status: "HIDDEN" },
         select: { id: true },
+        take: 10000,
       }),
     ]);
 

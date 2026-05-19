@@ -36,6 +36,25 @@ export const PERF_BASELINES = {
   user_profile_p95: 800,        // 用户画像聚合
   ai_usage_p95: 600,            // AI用量统计
 
+  // AI 端点 P95 延迟 (ms)
+  ai_chat_p95: 5000,              // AI网关对话（第三方API）
+  ai_chat_stream_p95: 8000,       // AI流式对话（首字节时间）
+  customer_service_p95: 4000,     // 智能客服
+  circle_assistant_p95: 6000,     // 圈主助理（含RAG检索）
+  classic_qa_p95: 5000,           // 古籍问答
+  bot_chat_p95: 5000,             // 智能体对话（Coze API）
+  ai_search_p95: 4000,            // AI搜索
+  smart_feed_p95: 1500,           // 智能信息流
+  discover_p95: 800,              // 发现页聚合
+  marketplace_p95: 500,           // 智能体广场
+  quality_score_p95: 4000,        // 质量评分
+  media_tts_p95: 5000,            // TTS语音合成
+  knowledge_sync_p95: 3000,       // 知识同步
+  content_generation_p95: 5000,   // AI内容生成
+  operation_engine_p95: 2000,     // 运营引擎
+  ws_connect_p95: 300,            // WebSocket连接建立
+  ws_message_p95: 100,            // WebSocket消息往返
+
   // 错误率
   error_rate: 0.02, // 2%
 };

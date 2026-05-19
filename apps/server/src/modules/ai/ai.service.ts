@@ -489,6 +489,7 @@ export class AiService {
         _count: { select: { members: true, posts: true } },
       },
       orderBy: { createdAt: "desc" as const },
+      take: 1000,
     });
 
     // 查询每个圈子是否有知识库内容

@@ -22,6 +22,8 @@ const financeDuration = new Trend("finance_duration", true);
 const systemConfigDuration = new Trend("system_config_duration", true);
 const userProfileDuration = new Trend("user_profile_duration", true);
 const aiUsageDuration = new Trend("ai_usage_duration", true);
+const discoverDuration = new Trend("discover_duration", true);
+const marketplaceDuration = new Trend("marketplace_duration", true);
 const errorRate = new Rate("errors");
 const cacheHits = new Counter("cache_hits");
 
@@ -349,6 +351,105 @@ function marketingPageList() {
   get("/api/v1/marketing/pages?page=1&pageSize=10", { name: "marketing-page-list" });
 }
 
+// ═══════════════ AI 端点 (P8/P9/P10) ═══════════════
+
+function aiChat() {
+  const res = post("/api/v1/ai/chat", {
+    scene: "general_chat",
+    messages: [
+      { role: "user", content: "请用一句话介绍孔子" },
+    ],
+    temperature: 0.7,
+    maxTokens: 128,
+  }, { name: "ai-chat" });
+  aiTranslateDuration.add(res.timings.duration);
+}
+
+function customerService() {
+  const res = post("/api/v1/ai/customer-service", {
+    question: "如何注册账号？",
+  }, { name: "customer-service" });
+  aiTranslateDuration.add(res.timings.duration);
+}
+
+function circleAssistant() {
+  const res = post("/api/v1/circles/c1/assistant", {
+    question: "这个圈子的主要内容是什么？",
+  }, { name: "circle-assistant" });
+  aiTranslateDuration.add(res.timings.duration);
+}
+
+function classicQa() {
+  const res = post("/api/v1/classic/c1/qa", {
+    question: "请解释'学而时习之'的含义",
+  }, { name: "classic-qa" });
+  aiTranslateDuration.add(res.timings.duration);
+}
+
+function botList() {
+  get("/api/v1/bots?page=1&pageSize=10", { name: "bot-list" });
+}
+
+function marketplaceAgents() {
+  const res = get("/api/v1/ai/marketplace/agents?page=1&pageSize=12", { name: "marketplace-agents" });
+  aiUsageDuration.add(res.timings.duration);
+}
+
+function marketplaceDetail() {
+  get("/api/v1/ai/marketplace/agents/b1", { name: "marketplace-detail" });
+}
+
+function discoverFeed() {
+  const res = get("/api/v1/discover?page=1&pageSize=10", { name: "discover-feed" });
+  recommendDuration.add(res.timings.duration);
+}
+
+function discoverCategories() {
+  get("/api/v1/discover/categories", { name: "discover-categories" });
+}
+
+function smartFeed() {
+  const res = get("/api/v1/recommend/smart-feed?page=1&pageSize=10", { name: "smart-feed" });
+  recommendDuration.add(res.timings.duration);
+}
+
+function qualityScore() {
+  const res = post("/api/v1/api/v1/ai/quality/score", {
+    content: "道可道，非常道；名可名，非常名。这句话的核心思想是：真正的道超越了语言概念的范畴，言语只是在指向道，而非道本身...",
+    scene: "content_generation",
+  }, { name: "quality-score" });
+  aiTranslateDuration.add(res.timings.duration);
+}
+
+function aiPublishPolish() {
+  const res = post("/api/v1/ai/publish/polish", {
+    text: "今天天气很好，我们去外面玩。",
+  }, { name: "ai-publish-polish" });
+  aiTranslateDuration.add(res.timings.duration);
+}
+
+function aiPublishTags() {
+  post("/api/v1/ai/publish/suggest-tags", {
+    content: "易经是中华文化的源头，六十四卦蕴藏着深邃的智慧。",
+  }, { name: "ai-publish-tags" });
+}
+
+function mediaTts() {
+  const res = post("/api/v1/ai/media/tts", {
+    text: "学而时习之，不亦说乎",
+    voice: "zh-CN-Standard-A",
+    speed: 1.0,
+  }, { name: "media-tts" });
+  aiTranslateDuration.add(res.timings.duration);
+}
+
+function botChat() {
+  const res = post("/api/v1/bots/b1/chat", {
+    query: "请用一句话解释道德经的核心思想",
+  }, { name: "bot-chat" });
+  aiTranslateDuration.add(res.timings.duration);
+}
+
 // ═══════════════════════════════════════════
 // 主入口
 // ═══════════════════════════════════════════
@@ -452,15 +553,42 @@ export default function () {
     });
   }
 
+  // 8% 流量：AI对话（P8核心功能）
+  if (vuId % 12 < 1 && vuId % 12 >= 0) {
+    group("AI对话", () => {
+      aiChat();
+      if (iterId % 2 === 0) customerService();
+      if (iterId % 3 === 0) { circleAssistant(); classicQa(); }
+    });
+  }
+
+  // 5% 流量：智能体（bot + marketplace）
+  if (vuId % 20 < 1 && vuId % 12 >= 1) {
+    group("智能体", () => {
+      botList();
+      marketplaceAgents();
+      if (iterId % 2 === 0) { botChat(); marketplaceDetail(); }
+    });
+  }
+
+  // 3% 流量：发现页 + 智能信息流
+  if (vuId % 33 < 1 && vuId % 20 >= 2) {
+    group("智能推荐", () => {
+      discoverFeed();
+      discoverCategories();
+      if (iterId % 2 === 0) smartFeed();
+    });
+  }
+
   // 2% 流量：AI管理
-  if (vuId % 50 < 1) {
+  if (vuId % 50 < 1 && vuId % 33 >= 1) {
     group("AI管理", () => {
       aiUsageStats();
     });
   }
 
   // 2% 流量：公开配置
-  if (vuId % 50 < 2) {
+  if (vuId % 50 < 2 && vuId % 50 >= 1) {
     group("公开配置", () => {
       publicBanners();
       homeConfig();
@@ -541,6 +669,12 @@ export const options = {
     ],
     ai_usage_duration: [
       `p(95)<${PERF_BASELINES.ai_usage_p95}`,
+    ],
+    discover_duration: [
+      `p(95)<${PERF_BASELINES.discover_p95}`,
+    ],
+    marketplace_duration: [
+      `p(95)<${PERF_BASELINES.marketplace_p95}`,
     ],
 
     errors: [
