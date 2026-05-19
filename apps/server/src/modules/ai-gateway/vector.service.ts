@@ -282,6 +282,7 @@ export class VectorService {
     const rows = await this.prisma.circleKnowledge.findMany({
       where: { status: "active", scope: "global", vectorJson: { not: null } },
       select: { id: true, content: true, vectorJson: true },
+      take: 10000,
     });
 
     const scored: VectorSearchResult[] = [];
@@ -430,6 +431,7 @@ export class VectorService {
     const rows = await this.prisma.circleKnowledge.findMany({
       where: { status: "active", vectorJson: { not: null } },
       select: { id: true, content: true, vectorJson: true },
+      take: 10000,
     });
 
     const scored: VectorSearchResult[] = [];
@@ -460,6 +462,7 @@ export class VectorService {
         vectorJson: { not: null },
       },
       select: { id: true, content: true, vectorJson: true },
+      take: 10000,
     });
 
     const scored: VectorSearchResult[] = [];
