@@ -3,6 +3,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VodService } from "./vod.service";
+import { Cacheable, CacheEvict } from "../../common/cache.decorator";
 import { Prisma } from "@prisma/client";
 
 @Injectable()
@@ -14,6 +15,7 @@ export class VideoService {
     private vod: VodService,
   ) {}
 
+  @CacheEvict({ key: "video:list:*", pattern: true })
   async create(userId: string, dto: { circleId?: string; title?: string; videoUrl: string; coverUrl?: string; duration?: number; stationId?: string }) {
     return this.prisma.video.create({
       data: {
@@ -28,6 +30,8 @@ export class VideoService {
     });
   }
 
+  @CacheEvict({ key: (args) => `video:detail:${args[1]}`, pattern: true })
+  @CacheEvict({ key: "video:list:*", pattern: true })
   async update(userId: string, id: string, dto: { title?: string; coverUrl?: string; status?: string }) {
     const video = await this.prisma.video.findUnique({ where: { id }, select: { userId: true } });
     if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
@@ -35,6 +39,8 @@ export class VideoService {
     return this.prisma.video.update({ where: { id }, data: dto as Prisma.VideoUpdateInput });
   }
 
+  @CacheEvict({ key: (args) => `video:detail:${args[1]}`, pattern: true })
+  @CacheEvict({ key: "video:list:*", pattern: true })
   async delete(userId: string, id: string) {
     const video = await this.prisma.video.findUnique({ where: { id }, select: { userId: true } });
     if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
@@ -43,6 +49,7 @@ export class VideoService {
     return { success: true };
   }
 
+  @Cacheable({ key: (args) => `video:list:${JSON.stringify(args[0])}`, ttl: 60 })
   async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string }) {
     const { circleId, status, page = 1, pageSize = 20, stationId } = params;
     const where: Prisma.VideoWhereInput = {};
@@ -68,6 +75,7 @@ export class VideoService {
     return { videos, total, page, pageSize };
   }
 
+  @Cacheable({ key: (args) => `video:detail:${args[0]}`, ttl: 120 })
   async getDetail(id: string) {
     const video = await this.prisma.video.findUnique({
       where: { id },
@@ -83,16 +91,26 @@ export class VideoService {
     return video;
   }
 
-  async toggleLike(id: string) {
-    const video = await this.prisma.video.findUnique({ where: { id } });
+  /** 点赞/取消点赞视频（per-user去重） */
+  async toggleLike(userId: string, videoId: string) {
+    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
     if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
-    return this.prisma.video.update({
-      where: { id },
-      data: { likeCount: { increment: 1 } },
+
+    const existing = await this.prisma.like.findUnique({
+      where: { userId_targetType_targetId: { userId, targetType: "VIDEO", targetId: videoId } },
     });
+    if (existing) {
+      await this.prisma.like.delete({ where: { id: existing.id } });
+      await this.prisma.video.update({ where: { id: videoId }, data: { likeCount: { decrement: 1 } } });
+      return { liked: false };
+    }
+    await this.prisma.like.create({ data: { userId, targetType: "VIDEO", targetId: videoId } });
+    await this.prisma.video.update({ where: { id: videoId }, data: { likeCount: { increment: 1 } } });
+    return { liked: true };
   }
 
   /** 收藏/取消收藏视频 */
+  @CacheEvict({ key: (args) => `video:collected:${args[0]}:*`, pattern: true })
   async toggleCollect(userId: string, videoId: string) {
     const existing = await this.prisma.collect.findFirst({
       where: { userId, targetType: "VIDEO", targetId: videoId },
@@ -136,6 +154,7 @@ export class VideoService {
   }
 
   /** 我收藏的视频 */
+  @Cacheable({ key: (args) => `video:collected:${args[0]}:${args[1]}:${args[2]}`, ttl: 30 })
   async listCollected(userId: string, page = 1, pageSize = 20) {
     const where = { userId, targetType: "VIDEO" };
     const [collects, total] = await Promise.all([

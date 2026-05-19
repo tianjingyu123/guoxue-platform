@@ -1,5 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { AiModelAdapter, AiMessage, AiChatOptions, AiChatResponse } from "./base.adapter";
+import { AiModelAdapter, AiMessage, AiChatOptions, AiChatResponse, AiTimeoutError } from "./base.adapter";
+import { BusinessException } from "../../../common/business.exception";
+import { ErrorCode } from "../../../common/error-codes";
 
 interface DeepSeekResponse {
   choices?: Array<{ message?: { content?: string }; delta?: { content?: string }; finish_reason?: string }>;
@@ -32,8 +34,12 @@ export class DeepSeekAdapter implements AiModelAdapter {
     options?: AiChatOptions,
   ): Promise<AiChatResponse> {
     if (!this.apiKey) {
-      throw new Error("AI服务未配置，请在 .env 中设置 DEEPSEEK_API_KEY");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "AI服务未配置，请在 .env 中设置 DEEPSEEK_API_KEY");
     }
+
+    const timeout = options?.timeout ?? 30_000;
+    const controller = new AbortController();
+    const signal = AbortSignal.timeout(timeout);
 
     const startedAt = Date.now();
     const body = {
@@ -45,27 +51,34 @@ export class DeepSeekAdapter implements AiModelAdapter {
       stream: false,
     };
 
-    const resp = await fetch(`${this.baseUrl}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
+    let resp: Response;
+    try {
+      resp = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (err: any) {
+      if (err.name === "TimeoutError" || err.name === "AbortError") {
+        const elapsed = Date.now() - startedAt;
+        this.logger.warn(`DeepSeek请求超时 [${model}] ${elapsed}ms / ${timeout}ms`);
+        throw new AiTimeoutError(`DeepSeek请求超时 [${model}]`);
+      }
+      throw err;
+    }
 
     if (!resp.ok) {
       const errText = await resp.text().catch(() => "");
       this.logger.error(`DeepSeek API错误 [${resp.status}]: ${errText}`);
-      throw new Error(`DeepSeek API返回 ${resp.status}: ${errText.slice(0, 200)}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `DeepSeek API返回 ${resp.status}: ${errText.slice(0, 200)}`);
     }
 
     const data = await resp.json() as DeepSeekResponse;
     const choice = data.choices?.[0];
-    const elapsed = Date.now() - startedAt;
-    if (elapsed > 5000) {
-      this.logger.warn(`DeepSeek慢请求 [${model}] ${elapsed}ms`);
-    }
 
     return {
       content: choice?.message?.content || "",
@@ -85,8 +98,12 @@ export class DeepSeekAdapter implements AiModelAdapter {
     options?: AiChatOptions,
   ): AsyncIterable<string> {
     if (!this.apiKey) {
-      throw new Error("AI服务未配置，请在 .env 中设置 DEEPSEEK_API_KEY");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "AI服务未配置，请在 .env 中设置 DEEPSEEK_API_KEY");
     }
+
+    const timeout = options?.timeout ?? 30_000;
+    const controller = new AbortController();
+    const signal = AbortSignal.timeout(timeout);
 
     const body = {
       model,
@@ -97,23 +114,33 @@ export class DeepSeekAdapter implements AiModelAdapter {
       stream: true,
     };
 
-    const resp = await fetch(`${this.baseUrl}/v1/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
+    let resp: Response;
+    try {
+      resp = await fetch(`${this.baseUrl}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (err: any) {
+      if (err.name === "TimeoutError" || err.name === "AbortError") {
+        this.logger.warn(`DeepSeek流式请求超时 [${model}]`);
+        throw new AiTimeoutError(`DeepSeek流式请求超时 [${model}]`);
+      }
+      throw err;
+    }
 
     if (!resp.ok) {
       const errText = await resp.text().catch(() => "");
       this.logger.error(`DeepSeek流式API错误 [${resp.status}]: ${errText}`);
-      throw new Error(`DeepSeek流式API返回 ${resp.status}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `DeepSeek流式API返回 ${resp.status}`);
     }
 
     const reader = resp.body?.getReader();
-    if (!reader) throw new Error("无法获取响应流");
+    if (!reader) throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "无法获取响应流");
 
     const decoder = new TextDecoder();
     let buffer = "";
@@ -137,7 +164,8 @@ export class DeepSeekAdapter implements AiModelAdapter {
             const parsed = JSON.parse(data) as DeepSeekResponse;
             const delta = parsed.choices?.[0]?.delta?.content;
             if (delta) yield delta;
-          } catch {
+          } catch (err) {
+            this.logger.warn(`DeepSeek 响应行 JSON 解析失败: ${(err as Error).message}`);
             // 忽略无法解析的行
           }
         }
