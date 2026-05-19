@@ -1,0 +1,71 @@
+{
+  "description": "玄空飞星 Mock 数据",
+  "samples": [
+    {
+      "label": "八运·壬山丙向·2024年",
+      "input": {
+        "shan": "壬",
+        "xiang": "丙",
+        "year": 2024,
+        "yuanYun": 8,
+        "tiGua": true
+      },
+      "result": {
+        "input": {
+          "shan": "壬",
+          "xiang": "丙",
+          "year": 2024,
+          "tiGua": true
+        },
+        "basicInfo": {
+          "yuanYun": 8,
+          "yunRange": "2004-2023（八运）",
+          "shanLong": "地元龙",
+          "xiangLong": "地元龙",
+          "shanYinYang": "阳",
+          "xiangYinYang": "阴",
+          "tiGuaType": "none",
+          "yunStarCenter": 8,
+          "shanStarCenter": 4,
+          "xiangStarCenter": 3
+        },
+        "gongs": [
+          {"gongName": "坎", "direction": "正北", "yunStar": 4, "shanStar": 8, "xiangStar": 7, "shanOrder": "顺", "xiangOrder": "顺", "comment": "8白生气+七赤退气，财星叠见，宜水引财气"},
+          {"gongName": "坤", "direction": "西南", "yunStar": 6, "shanStar": 1, "xiangStar": 9, "shanOrder": "顺", "xiangOrder": "顺", "pattern": "合十", "comment": "一白坎水+九紫离火，水火既济，财运姻缘双旺"},
+          {"gongName": "震", "direction": "正东", "yunStar": 7, "shanStar": 9, "xiangStar": 2, "shanOrder": "顺", "xiangOrder": "顺", "comment": "九紫生气+二黑病符，吉中有凶，宜化解二黑"},
+          {"gongName": "巽", "direction": "东南", "yunStar": 9, "shanStar": 2, "xiangStar": 1, "shanOrder": "逆", "xiangOrder": "逆", "comment": "二黑病符+一白水，病符入巽宫，风水煞重"},
+          {"gongName": "中", "direction": "中央", "yunStar": 8, "shanStar": 4, "xiangStar": 3, "shanOrder": "顺", "xiangOrder": "顺", "comment": "四绿文昌+三碧蚩尤，文昌可用但需避口舌"},
+          {"gongName": "乾", "direction": "西北", "yunStar": 5, "shanStar": 6, "xiangStar": 5, "shanOrder": "顺", "xiangOrder": "顺", "pattern": "反吟", "comment": "五黄大煞+六白乾金，土金相生但五黄需化解"},
+          {"gongName": "兑", "direction": "正西", "yunStar": 1, "shanStar": 5, "xiangStar": 4, "shanOrder": "顺", "xiangOrder": "顺", "comment": "五黄+四绿，文昌可用但五黄入兑宫需小心"},
+          {"gongName": "艮", "direction": "东北", "yunStar": 2, "shanStar": 7, "xiangStar": 6, "shanOrder": "顺", "xiangOrder": "顺", "comment": "七赤+六白，金金比和，乾兑金旺财星"},
+          {"gongName": "离", "direction": "正南", "yunStar": 3, "shanStar": 3, "xiangStar": 8, "shanOrder": "逆", "xiangOrder": "逆", "pattern": "到山到向", "comment": "三碧+8白，向星8白为当令旺星，财运佳"}
+        ],
+        "geJu": [
+          {"name": "到山到向", "active": true, "desc": "离宫向星8白为当令旺星，到向旺财"},
+          {"name": "上山下水", "active": false, "desc": ""},
+          {"name": "伏吟", "active": false, "desc": ""},
+          {"name": "反吟", "active": true, "desc": "乾宫山向双五，为反吟，须化解"},
+          {"name": "收山出煞", "active": true, "desc": "坎宫8白生气可用，巽宫2黑病符宜出煞"},
+          {"name": "合十", "active": true, "desc": "坤宫一白+九紫=十，水火既济之象"}
+        ],
+        "wangShanWangXiang": {
+          "isWang": true,
+          "isShangShan": false,
+          "isShuangXing": false,
+          "desc": "离宫向星8白当令旺星到向，为旺向局。坎宫山星8白为生气，旺运40年"
+        },
+        "advice": [
+          {"direction": "正北", "starCombo": "4-8-7", "jiXiong": "吉", "suggestion": "8白财星在生气位，宜设卧室或客厅，宜见水引财"},
+          {"direction": "西南", "starCombo": "6-1-9", "jiXiong": "大吉", "suggestion": "最佳方位，水火既济，合十吉格，宜主卧或办公室"},
+          {"direction": "正东", "starCombo": "7-9-2", "jiXiong": "平", "suggestion": "宜放置铜器化解二黑病符星"},
+          {"direction": "东南", "starCombo": "9-2-1", "jiXiong": "凶", "suggestion": "二黑病符星，宜放置铜葫芦化解，忌做卧室"},
+          {"direction": "西北", "starCombo": "5-6-5", "jiXiong": "大凶", "suggestion": "双五黄大煞，忌动土，宜放置金器/六帝钱化解"},
+          {"direction": "正西", "starCombo": "1-5-4", "jiXiong": "凶", "suggestion": "五黄+四绿，文昌可用但需化解五黄"},
+          {"direction": "东北", "starCombo": "2-7-6", "jiXiong": "吉", "suggestion": "金金比和，财星聚会，宜书房/办公室"},
+          {"direction": "正南", "starCombo": "3-3-8", "jiXiong": "吉", "suggestion": "8白旺星到向，旺财方，宜客厅/阳台"}
+        ],
+        "duanYu": "壬山丙向八运宅命盘，为旺向局。离宫8白旺星到向主财旺，坎宫8白生气星辅佐。坤宫合十吉格最旺。乾宫双五反吟煞气须以金器化解。总体旺山旺向，旺财40年，为八运上吉之向。"
+      }
+    }
+  ]
+}

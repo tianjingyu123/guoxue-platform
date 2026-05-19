@@ -1,0 +1,70 @@
+{
+  "description": "起名工具 Mock 数据（多流派）",
+  "samples": [
+    {
+      "label": "男孩·五格+八字+生肖多方法起名",
+      "input": {
+        "surname": "陈",
+        "gender": "男",
+        "datetime": "2026-05-18T10:30:00",
+        "mode": "auto",
+        "methods": ["wuge", "bazi-yongshen", "shengxiao", "yinyun", "ziyi", "shici"],
+        "constraints": {
+          "nameLength": 2,
+          "style": "国学"
+        },
+        "count": 5
+      },
+      "result": {
+        "baZiAnalysis": {
+          "baZi": "丙午 癸巳 丙子 癸巳",
+          "riZhu": "丙子",
+          "xiYongShen": ["木", "火"],
+          "jiShen": ["水", "金"],
+          "buYiWuXing": ["木", "火"]
+        },
+        "surnameInfo": {
+          "char": "陈",
+          "kangXiStroke": 16,
+          "wuXing": "火"
+        },
+        "candidates": [
+          {
+            "fullName": "陈彦霖",
+            "givenName": "彦霖",
+            "totalScore": 96,
+            "scores": {"wuGe": 95, "baZi": 97, "yinYun": 92, "ziYi": 98, "ziXing": 95},
+            "wuGeSummary": {"tianGe": 17, "renGe": 25, "diGe": 25, "zongGe": 41, "waiGe": 17, "sanCai": "金土土", "jiXiong": "大吉"},
+            "meaning": "彦：才德出众，才学渊博之士。霖：甘霖恩泽，润泽万物之意。寓意德才兼备，恩泽四方",
+            "origin": "《诗经·郑风》「邦之彦兮」；杜甫《春夜喜雨》「好雨知时节，润物细无声」",
+            "phonetics": {"pinyin": "yàn lín", "tone": "去声+阳平", "comment": "声调起伏有致，平仄相谐，朗朗上口"},
+            "baZiMatch": "彦（木9画）补寅木用神，霖（水16画）调和丙火日主。木火相生，补八字喜用"
+          },
+          {
+            "fullName": "陈景行",
+            "givenName": "景行",
+            "totalScore": 94,
+            "scores": {"wuGe": 93, "baZi": 95, "yinYun": 94, "ziYi": 97, "ziXing": 90},
+            "wuGeSummary": {"tianGe": 17, "renGe": 28, "diGe": 18, "zongGe": 34, "waiGe": 7, "sanCai": "金金金", "jiXiong": "大吉"},
+            "meaning": "景：日光，高大光明。行：实践，行动力。取高山景行之义，品德如高山，行为光明磊落",
+            "origin": "《诗经·小雅》「高山仰止，景行行止」",
+            "phonetics": {"pinyin": "jǐng xíng", "tone": "上声+阳平", "comment": "抑扬顿挫，节奏分明"},
+            "baZiMatch": "景（木12画）取木补火，行（水6画）微调，火为主木为辅，合八字喜用"
+          },
+          {
+            "fullName": "陈昊阳",
+            "givenName": "昊阳",
+            "totalScore": 93,
+            "scores": {"wuGe": 91, "baZi": 96, "yinYun": 90, "ziYi": 93, "ziXing": 88},
+            "wuGeSummary": {"tianGe": 17, "renGe": 24, "diGe": 25, "zongGe": 41, "waiGe": 18, "sanCai": "金火土", "jiXiong": "吉"},
+            "meaning": "昊：昊天广大，大气开阔。阳：阳光明亮。开阳合日，光明磊落",
+            "origin": "《诗经》「昊天罔极」；《周易》「一阴一阳之谓道」",
+            "phonetics": {"pinyin": "hào yáng", "tone": "去声+阳平", "comment": "音韵大气开阔"},
+            "baZiMatch": "昊（火8画）直接补火用神，阳（火17画）增强丙火之力，火势充沛"
+          }
+        ],
+        "advice": "建议优先选择「陈彦霖」，五格全吉（金土土三才），八字木火用神匹配度高，音韵平仄相谐，出自《诗经》典故极佳。生肖马（2026丙午年）喜木火，彦霖二字均有补益。"
+      }
+    }
+  ]
+}

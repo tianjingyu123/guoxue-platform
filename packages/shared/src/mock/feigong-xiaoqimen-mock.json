@@ -1,0 +1,32 @@
+{
+  "input": { "datetime": "2026-05-18T10:00:00+08:00", "method": "shichen", "question": "今日出行如何" },
+  "basicInfo": {
+    "juShu": 6,
+    "xunShou": "甲午",
+    "zhiShiMen": "中门",
+    "zhiFuStar": "天心",
+    "dunType": "阴遁",
+    "shiGanZhi": "丙午"
+  },
+  "gongs": [
+    { "pos":1,"direction":"正北","star":"天柱","men":"惊门","tianGan":"庚","diGan":"辛","jiXiong":"平","comment":"天柱配惊门，中平。" },
+    { "pos":2,"direction":"西南","star":"天任","men":"生门","tianGan":"辛","diGan":"壬","jiXiong":"吉","comment":"天任配生门，吉利可往。" },
+    { "pos":3,"direction":"正东","star":"天蓬","men":"休门","tianGan":"壬","diGan":"乙","jiXiong":"平","comment":"天蓬配休门，中平。" },
+    { "pos":4,"direction":"东南","star":"天辅","men":"杜门","tianGan":"乙","diGan":"庚","jiXiong":"平","comment":"天辅配杜门，中平。" },
+    { "pos":5,"direction":"中央","star":"天禽","men":"中门","tianGan":"丙","diGan":"己","jiXiong":"平","comment":"天禽配中门，中平。" },
+    { "pos":6,"direction":"西北","star":"天心","men":"开门","tianGan":"丁","diGan":"丁","jiXiong":"吉","comment":"天心配开门，吉利可往。" },
+    { "pos":7,"direction":"正西","star":"天柱","men":"惊门","tianGan":"戊","diGan":"癸","jiXiong":"凶","comment":"天柱配惊门，不利，宜避之。" },
+    { "pos":8,"direction":"东北","star":"天任","men":"生门","tianGan":"己","diGan":"戊","jiXiong":"吉","comment":"天任配生门，吉利可往。" },
+    { "pos":9,"direction":"正南","star":"天英","men":"景门","tianGan":"癸","diGan":"丙","jiXiong":"平","comment":"天英配景门，中平。" }
+  ],
+  "yongShen": {
+    "riGanGong": 4,
+    "shiGanGong": 4,
+    "relation": "同宫比和"
+  },
+  "geJu": [
+    { "name":"飞宫得位","gong":6,"desc":"值符落本宫，主事有根基。","jiXiong":"吉" },
+    { "name":"星门相生","gong":7,"desc":"星生门，主顺利。","jiXiong":"吉" }
+  ],
+  "duanYu": "飞宫小奇门阴遁6局，值符天心，值使中门。时辰丙午。所问\"今日出行如何\"，人时比和，吉。"
+}

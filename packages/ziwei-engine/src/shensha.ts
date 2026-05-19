@@ -4,7 +4,7 @@
  * 实现的天刑、天姚、解神、天巫等紫微特有神煞
  */
 import type { Gan, Zhi, Star } from './types'
-import { ZIWEI_SHEN_SHA, ZHI } from './constants'
+import { ZIWEI_SHEN_SHA } from './constants'
 
 /**
  * 计算紫微神煞

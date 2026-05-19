@@ -1,0 +1,44 @@
+{
+  "description": "梅花易数 Mock 数据",
+  "samples": [
+    {
+      "label": "时间起卦·火风鼎变火天大有",
+      "input": { "method": "time", "datetime": "2026-05-18T11:30:00" },
+      "result": {
+        "benGua": {
+          "name": "火风鼎", "symbol": "䷱",
+          "upper": { "number": 3, "name": "离☲", "wuXing": "火" },
+          "lower": { "number": 5, "name": "巽☴", "wuXing": "木" },
+          "binary": "101110"
+        },
+        "dongYao": 2,
+        "bianGua": {
+          "name": "火山旅", "symbol": "䷷",
+          "upper": { "number": 3, "name": "离☲", "wuXing": "火" },
+          "lower": { "number": 7, "name": "艮☶", "wuXing": "土" }
+        },
+        "huGua": {
+          "name": "泽天夬", "symbol": "䷪",
+          "upper": { "number": 2, "name": "兑☱", "wuXing": "金" },
+          "lower": { "number": 1, "name": "乾☰", "wuXing": "金" }
+        },
+        "tiGua": { "number": 3, "name": "离☲", "wuXing": "火" },
+        "yongGua": { "number": 5, "name": "巽☴", "wuXing": "木" },
+        "tiYongRelation": "yong-sheng-ti",
+        "guaQi": { "离": "旺", "巽": "休", "兑": "相", "乾": "相", "艮": "囚" },
+        "ceGui": {
+          "yuanCe": 180,
+          "yuanGui": 720,
+          "yanCe": { "yuan": 9, "hui": 7, "yun": 3, "shi": 2 }
+        },
+        "jieQi": "立夏",
+        "shenSha": ["文昌", "驿马"],
+        "kongWang": "寅卯",
+        "duanYu": "木生火，用生体，大吉。所求之事有贵人相助，进展顺利。",
+        "guaCi": "鼎，元吉，亨。",
+        "yaoCi": "九二：鼎有实，我仇有疾，不我能即，吉。",
+        "tiYongAnalysis": "用卦巽木生体卦离火，主事物对自身有利，有进益之喜。体卦离为火为文明，得木生更旺，主文书、考试、名誉方面得利。"
+      }
+    }
+  ]
+}

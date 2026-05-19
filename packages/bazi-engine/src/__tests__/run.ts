@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * 八字排盘引擎简单验证测试
  */

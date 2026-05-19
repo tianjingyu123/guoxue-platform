@@ -1,0 +1,39 @@
+{
+  "input": { "datetime": "2026-05-18T14:00:00+08:00", "method": "zhuanpan", "qiJuMethod": "chaibu", "trueSolar": false },
+  "qimen": {
+    "juShu": 6,
+    "dunType": "阴遁",
+    "gongs": [
+      { "index":1,"name":"坎","bagua":"坎","diPan":"己","tianPan":"丙","star":"天心","men":"开门","shen":"九地","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+      { "index":2,"name":"坤","bagua":"坤","diPan":"壬","tianPan":"辛","star":"天任","men":"生门","shen":"值符","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+      { "index":3,"name":"震","bagua":"震","diPan":"乙","tianPan":"癸","star":"天蓬","men":"休门","shen":"螣蛇","isRuMu":false,"isJiXing":true,"isMenPo":false,"kongWang":false,"maXing":true },
+      { "index":4,"name":"巽","bagua":"巽","diPan":"丁","tianPan":"戊","star":"天辅","men":"杜门","shen":"白虎","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+      { "index":5,"name":"中","bagua":"中","diPan":"庚","tianPan":"己","star":"天禽","men":"中门","shen":"太阴","isRuMu":true,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+      { "index":6,"name":"乾","bagua":"乾","diPan":"辛","tianPan":"丁","star":"天心","men":"开门","shen":"九天","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+      { "index":7,"name":"兑","bagua":"兑","diPan":"丙","tianPan":"壬","star":"天柱","men":"惊门","shen":"玄武","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+      { "index":8,"name":"艮","bagua":"艮","diPan":"癸","tianPan":"庚","star":"天任","men":"生门","shen":"六合","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+      { "index":9,"name":"离","bagua":"离","diPan":"戊","tianPan":"乙","star":"天英","men":"景门","shen":"值符","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false }
+    ],
+    "zhiFu": "天心",
+    "zhiShiMen": "开门"
+  },
+  "liuren": {
+    "yueJiang": "传送",
+    "tianPan": ["申","酉","戌","亥","子","丑","寅","卯","辰","巳","午","未"],
+    "siKe": ["寅","亥","巳","酉"],
+    "sanChuan": { "chuChuan": "寅", "zhongChuan": "辰", "moChuan": "午" },
+    "guiRen": "丑",
+    "tianJiang": [
+      { "zhi":"子","jiang":"贵人" },{ "zhi":"丑","jiang":"螣蛇" },{ "zhi":"寅","jiang":"朱雀" },
+      { "zhi":"卯","jiang":"六合" },{ "zhi":"辰","jiang":"勾陈" },{ "zhi":"巳","jiang":"青龙" },
+      { "zhi":"午","jiang":"天空" },{ "zhi":"未","jiang":"白虎" },{ "zhi":"申","jiang":"太常" },
+      { "zhi":"酉","jiang":"玄武" },{ "zhi":"戌","jiang":"太阴" },{ "zhi":"亥","jiang":"天后" }
+    ]
+  },
+  "chuanren": {
+    "ju72Name": "第41局",
+    "qimenGongLian": "奇门坎宫连六壬子支",
+    "desc": "以奇门定方，以六壬定时，七十二局吉凶有别。"
+  },
+  "duanYu": "奇门6局穿六壬第41局，值符天心，值使开门。时辰丙辰，月将传送。外壬三传：寅→辰→午。"
+}

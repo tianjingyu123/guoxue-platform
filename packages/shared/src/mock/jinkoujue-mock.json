@@ -1,0 +1,103 @@
+{
+  "description": "金口诀 Mock 数据",
+  "samples": [
+    {
+      "label": "丙子日申时·地分子",
+      "input": {
+        "datetime": "2026-05-18T15:00:00",
+        "diFen": "子",
+        "diFenMethod": "select",
+        "jiangMethod": "zhongqi",
+        "guiRenJue": "jiawugeng-niuyang",
+        "guiRenDayNight": "maoyou",
+        "trueSolar": false
+      },
+      "result": {
+        "basicInfo": {
+          "zhanShi": "申时",
+          "yueJiang": "传送（申）",
+          "riGanZhi": "丙子",
+          "dayNight": "昼",
+          "jieQi": "小满"
+        },
+        "siWeiKe": {
+          "renYuan": {
+            "gan": "丙",
+            "relation": "火生土（干生地分）",
+            "naYin": "涧下水"
+          },
+          "guiShen": {
+            "name": "青龙",
+            "ganZhi": "甲寅",
+            "wuXing": "木",
+            "naYin": "大溪水"
+          },
+          "yueJiang": {
+            "name": "传送（申）",
+            "ganZhi": "庚申",
+            "wuXing": "金",
+            "naYin": "石榴木"
+          },
+          "diFen": {
+            "zhi": "子",
+            "wuXing": "水",
+            "direction": "正北",
+            "sanHe": "申子辰水局"
+          }
+        },
+        "yongYao": {
+          "position": "guiShen",
+          "label": "贵神青龙（甲寅）",
+          "wuXing": "木",
+          "wangShuai": "休",
+          "desc": "青龙入课，贵神为用，主有贵人相助，但休于冬，力量稍弱"
+        },
+        "wuDong": [
+          {
+            "type": "jiang-ke-shen",
+            "name": "将克神",
+            "layers": ["月将", "贵神"],
+            "desc": "月将庚申金 克 贵神甲寅木",
+            "duanYu": "将克神，主求财不得，事有阻隔"
+          }
+        ],
+        "sanDong": [
+          {
+            "type": "guan-dong",
+            "name": "官动",
+            "layers": ["人元", "贵神"],
+            "desc": "人元丙火得贵神甲寅木生",
+            "duanYu": "官动利求官，仕途有进"
+          },
+          {
+            "type": "qi-mou",
+            "name": "妻动",
+            "layers": ["贵神", "月将"],
+            "desc": "贵神克月将为妻动",
+            "duanYu": "妻动利婚姻，问女方事可成"
+          }
+        ],
+        "shengKeTable": {
+          "ganFang": "火克水（干克方）",
+          "ganShen": "火被木生（神生干）",
+          "ganJiang": "火克金（干克将）",
+          "shenFang": "木被水生（方生神）",
+          "shenJiang": "木被金克（将克神）",
+          "jiangFang": "金生水（将生方）"
+        },
+        "shenSha": [
+          { "name": "天德", "type": "ji", "layer": "月将", "description": "申月天德在申，月将自坐天德，大吉" },
+          { "name": "驿马", "type": "ji", "layer": "地分", "description": "申子辰日驿马在寅，地分子见寅为驿马，主出行变动" },
+          { "name": "劫煞", "type": "xiong", "layer": "贵神", "description": "贵神坐劫煞，须防小人破财" }
+        ],
+        "kongWang": ["申", "酉"],
+        "dunGan": "丙",
+        "ganYuan": {
+          "ganShenHe": "干丙与神寅，无合",
+          "ganFangHe": "干丙与方子，无合"
+        },
+        "duanYu": "四位内，人元丙火克月将申金，月将申金克贵神寅木。先克外后克内，主先损人后损己。青龙临课为吉，但遭月将克制，贵人之力减半。地分子水得月将申金生之，根基尚稳。总体先难后易，宜守不宜攻。"
+      }
+    }
+  ]
+}

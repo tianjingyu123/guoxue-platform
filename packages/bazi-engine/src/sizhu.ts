@@ -7,13 +7,26 @@ import {
   GAN, ZHI, ZHI_CANG, ZHI_GAN, WU_HU_DUN, WU_SHU_DUN,
   NA_YIN, SHENG_XIAO, SHI_SHENG_YANG, SHI_SHENG_YIN
 } from './constants'
-import { getYueZhiIndex } from './jieqi'
+import { getYueZhiIndex, getNianZhuYear } from './jieqi'
 
 // ---------- 年柱 ----------
-export function calcNianZhu(year: number): { ganZhi: string; gan: Gan; zhi: Zhi } {
-  const abs = Math.abs(year - 1984)
+/**
+ * 计算年柱干支（按立春分界）
+ * 1984年为甲子年（基准年）
+ * @param year 公历年份
+ * @param month 公历月（1-12），用于判定立春前后
+ * @param day 公历日，用于判定立春前后
+ * @param hour 小时（可选），用于精确判定
+ */
+export function calcNianZhu(year: number, month?: number, day?: number, hour?: number): { ganZhi: string; gan: Gan; zhi: Zhi } {
+  // 按立春分界确定年柱所用的农历年
+  const nianYear = (month !== undefined && day !== undefined)
+    ? getNianZhuYear(year, month, day, hour)
+    : year
+
+  const abs = Math.abs(nianYear - 1984)
   let ganIdx: number, zhiIdx: number
-  if (year >= 1984) {
+  if (nianYear >= 1984) {
     ganIdx = abs % 10
     zhiIdx = abs % 12
   } else {
@@ -28,23 +41,58 @@ export function calcNianZhu(year: number): { ganZhi: string; gan: Gan; zhi: Zhi 
 }
 
 // ---------- 生肖 ----------
-export function calcShengXiao(year: number): string {
-  const { zhi } = calcNianZhu(year)
+export function calcShengXiao(year: number, month?: number, day?: number, hour?: number): string {
+  const { zhi } = calcNianZhu(year, month, day, hour)
   return SHENG_XIAO[ZHI.indexOf(zhi)]
 }
 
-// ---------- 日柱（公历→干支，简化公式）----------
-const JIAZI_EPOCH = new Date('1900-01-01').getTime()
-// 1900-01-01 = 甲戌日 (ganIdx=0, zhiIdx=10), 但实际查表是甲戌日
+// ---------- 日柱（公历→干支）----------
+// 1900-01-01 = 甲戌日: 甲(ganIdx=0), 戌(zhiIdx=10)
+// 60甲子序号: 甲子=0, 乙丑=1, ..., 癸酉=9, 甲戌=10
+
+/** 判断闰年 */
+function isLeapYear(y: number): boolean {
+  return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0
+}
+
+/** 某年某月天数 */
+const MONTH_DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+/** 从 1900-01-01 起算的天数（纯数学计算，无时区依赖） */
+function daysSince1900(year: number, month: number, day: number): number {
+  let total = 0
+  for (let y = 1900; y < year; y++) {
+    total += isLeapYear(y) ? 366 : 365
+  }
+  for (let m = 1; m < month; m++) {
+    total += MONTH_DAYS[m] + (m === 2 && isLeapYear(year) ? 1 : 0)
+  }
+  return total + day - 1
+}
 
 /**
  * 公历日期 → 日干支
- * 公式：日干支序号 = (date - 1900-01-01)天数 + 10
+ * @param year 公历年
+ * @param month 公历月 (1-12)
+ * @param day 公历日
+ * @param dayOffset 日偏移修正（早晚子时用：晚子时+1用次日日柱）
  */
-export function calcRiZhu(date: Date): { ganZhi: string; gan: Gan; zhi: Zhi } {
-  const diffDays = Math.floor((date.getTime() - JIAZI_EPOCH) / 86400000)
-  // 1900-01-01 是甲戌日，索引11
-  const offset = diffDays + 11
+export function calcRiZhu(
+  yearOrDate: number | Date,
+  month?: number,
+  day?: number,
+  dayOffset = 0,
+): { ganZhi: string; gan: Gan; zhi: Zhi } {
+  let diffDays: number
+  if (typeof yearOrDate === 'number') {
+    diffDays = daysSince1900(yearOrDate, month!, day!)
+  } else {
+    // 兼容旧的 Date 调用方式
+    const d = yearOrDate
+    diffDays = daysSince1900(d.getFullYear(), d.getMonth() + 1, d.getDate())
+  }
+  // 1900-01-01 是甲戌日，60甲子序号=10
+  const offset = diffDays + 10 + dayOffset
   const ganIdx = ((offset % 10) + 10) % 10
   const zhiIdx = ((offset % 12) + 12) % 12
   return {
@@ -97,14 +145,34 @@ function calcShiShen(riGan: Gan, targetGan: Gan | Zhi): ShiShen {
   return isYang ? SHI_SHENG_YANG[offset] : SHI_SHENG_YIN[offset]
 }
 
-// ---------- 完整四柱 ----------
+// ---------- 完整四柱（含立春分界 + 早晚子时 + 真太阳时预处理）----------
+/**
+ * 计算完整四柱
+ * @param input 出生信息（已预处理真太阳时）
+ */
 export function calcSiZhu(input: BaziInput): SiZhu {
-  const nian = calcNianZhu(input.year)
-  const birthDate = new Date(input.year, input.month - 1, input.day, input.hour, input.minute)
-  const ri = calcRiZhu(birthDate)
-  const yueIdx = getYueZhiIndex(input.month, input.day)
+  const year = input.year
+  const month = input.month
+  const day = input.day
+  const hour = input.hour
+
+  // 晚子时 (23:00-23:59)：日柱须用次日，时柱五鼠遁也用次日日干
+  const isLateZi = hour >= 23
+  const adjustedHour = isLateZi ? hour - 24 : hour
+
+  // 年柱按立春分界
+  const nian = calcNianZhu(year, month, day, hour)
+
+  // 日柱（纯数学计算，无时区问题；晚子时+1天）
+  const ri = calcRiZhu(year, month, day, isLateZi ? 1 : 0)
+
+  // 月柱（使用精准节气）
+  const yueIdx = getYueZhiIndex(month, day, year)
   const yue = calcYueZhu(nian.gan, yueIdx)
-  const shi = calcShiZhu(ri.gan, input.hour)
+
+  // 时柱（五鼠遁用日干）
+  const effectiveHour = adjustedHour < 0 ? adjustedHour + 24 : adjustedHour
+  const shi = calcShiZhu(ri.gan, effectiveHour)
 
   function makePillar(gz: { ganZhi: string; gan: Gan; zhi: Zhi }, riGan: Gan): Pillar {
     const cangGan = ZHI_CANG[ZHI.indexOf(gz.zhi)].map(cg => ({

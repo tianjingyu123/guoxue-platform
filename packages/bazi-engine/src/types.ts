@@ -113,6 +113,16 @@ export interface BaziInput {
   hour: number
   minute: number
   city?: string
+  longitude?: number        // 手动指定经度（可选，优先级高于city）
+  useTrueSolarTime?: boolean // 是否使用真太阳时（默认false）
+}
+
+/** 真太阳时信息 */
+export interface TaiYangShi {
+  adjustedHour: number
+  adjustedMinute: number
+  offset: number
+  desc: string
 }
 
 /** 完整排盘结果 */
@@ -131,4 +141,5 @@ export interface BaziResult {
   shenSha: ShenShaItem[]
   geJu?: GeJu
   wuXingEnergy?: WuXingEnergy
+  taiYangShi?: TaiYangShi  // 真太阳时校正信息
 }

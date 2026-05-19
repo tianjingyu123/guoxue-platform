@@ -1,0 +1,41 @@
+{
+  "input": { "phone": "13912345678", "system": "all" },
+  "breakdown": {
+    "carrier": "中国移动",
+    "location": "中国大陆",
+    "tail": "5678"
+  },
+  "pairs": [
+    { "pair":"13","ciChang":"天医","jiXiong":"大吉","meaning":"主财运佳，财运旺，利投资。","weight":1 },
+    { "pair":"39","ciChang":"生气","jiXiong":"吉","meaning":"主贵人相助，人际和谐，机遇多。","weight":1 },
+    { "pair":"91","ciChang":"延年","jiXiong":"大吉","meaning":"主事业发达，领导力强，权力运佳。","weight":1 },
+    { "pair":"12","ciChang":"绝命","jiXiong":"大凶","meaning":"主财运起伏大，投资风险高。","weight":1 },
+    { "pair":"23","ciChang":"祸害","jiXiong":"凶","meaning":"主口舌是非，容易有争执。","weight":1 },
+    { "pair":"34","ciChang":"延年","jiXiong":"大吉","meaning":"主事业发达，领导力强，权力运佳。","weight":1 },
+    { "pair":"45","ciChang":"伏位","jiXiong":"平","meaning":"主积蓄等待，宜守成不宜冒进。","weight":1 },
+    { "pair":"56","ciChang":"祸害","jiXiong":"凶","meaning":"主口舌是非，容易有争执。","weight":1 },
+    { "pair":"67","ciChang":"生气","jiXiong":"吉","meaning":"主贵人相助，人际和谐，机遇多。","weight":2 },
+    { "pair":"78","ciChang":"延年","jiXiong":"大吉","meaning":"主事业发达，领导力强，权力运佳。","weight":2 }
+  ],
+  "wuXing": {
+    "distribution": { "金":2,"木":1,"水":2,"火":3,"土":3 },
+    "dominant": "火",
+    "missing": [],
+    "desc": "号码五行以火为主，五行齐全。"
+  },
+  "ciChangSummary": {
+    "main": "延年",
+    "distribution": [
+      { "type":"天医","count":1,"weight":1 },
+      { "type":"生气","count":2,"weight":3 },
+      { "type":"延年","count":3,"weight":4 },
+      { "type":"绝命","count":1,"weight":1 },
+      { "type":"祸害","count":2,"weight":3 },
+      { "type":"伏位","count":1,"weight":1 }
+    ],
+    "jiXiongRatio": "吉6个 / 凶3个"
+  },
+  "totalScore": 77,
+  "scores": { "career":80,"wealth":65,"love":72,"health":68,"social":78 },
+  "duanYu": "号码13912345678，整体大吉。主磁场延年。号码五行以火为主，五行齐全。"
+}

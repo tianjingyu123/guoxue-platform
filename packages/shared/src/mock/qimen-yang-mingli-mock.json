@@ -1,0 +1,36 @@
+{
+  "input": { "birthTime": "1990-06-15T08:30:00+08:00", "birthplace": "北京", "gender": "男", "jiGongMode": "kungong", "trueSolar": false, "dunType": "yang" },
+  "basicInfo": {
+    "juShu": 3,
+    "dunType": "阳遁",
+    "riGanZhi": "壬午",
+    "shiGanZhi": "壬辰",
+    "gender": "男",
+    "birthplace": "北京"
+  },
+  "gongs": [
+    { "index":1,"name":"坎","bagua":"坎","diPan":"庚","tianPan":"壬","star":"天冲","men":"伤门","shen":"螣蛇","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":2,"name":"坤","bagua":"坤","diPan":"丙","tianPan":"戊","star":"天辅","men":"杜门","shen":"太阴","isRuMu":true,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":3,"name":"震","bagua":"震","diPan":"乙","tianPan":"庚","star":"天冲","men":"伤门","shen":"值符","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":true },
+    { "index":4,"name":"巽","bagua":"巽","diPan":"辛","tianPan":"丁","star":"天辅","men":"杜门","shen":"螣蛇","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":5,"name":"中","bagua":"中","diPan":"己","tianPan":"癸","star":"天禽","men":"中门","shen":"九天","isRuMu":true,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":6,"name":"乾","bagua":"乾","diPan":"丁","tianPan":"丙","star":"天心","men":"开门","shen":"九地","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":7,"name":"兑","bagua":"兑","diPan":"癸","tianPan":"辛","star":"天柱","men":"惊门","shen":"六合","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":8,"name":"艮","bagua":"艮","diPan":"戊","tianPan":"乙","star":"天任","men":"生门","shen":"白虎","isRuMu":false,"isJiXing":true,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":9,"name":"离","bagua":"离","diPan":"壬","tianPan":"己","star":"天英","men":"景门","shen":"值符","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false }
+  ],
+  "mingLi": {
+    "birthTime": "1990-06-15T08:30:00+08:00",
+    "gender": "男",
+    "daYun": [
+      { "name":"8-17岁","startAge":8,"endAge":17,"juNumber":4 },
+      { "name":"18-27岁","startAge":18,"endAge":27,"juNumber":5 },
+      { "name":"28-37岁","startAge":28,"endAge":37,"juNumber":6 }
+    ],
+    "baziSwitch": { "available": true }
+  },
+  "geJu": [
+    { "name":"命盘得局","active":true,"desc":"阳遁3局，命宫落坎。","jiXiong":"吉" }
+  ],
+  "duanYu": "阳盘命理奇门，3局。命主男，生于1990-06-15T08:30:00+08:00。时辰壬辰。大运年起8岁。"
+}

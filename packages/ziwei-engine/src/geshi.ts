@@ -8,7 +8,7 @@
  * 4. 紫府朝垣 — 紫微与天府分别在命宫的三方四正
  * 5. 日月并明 — 太阴在亥+太阳在卯 同时出现
  */
-import type { GongWei, Star, GongName } from './types'
+import type { GongWei } from './types'
 
 /** 星曜名称集合 */
 function getStarNames(gong: GongWei): string[] {

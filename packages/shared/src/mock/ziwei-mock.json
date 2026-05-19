@@ -1,0 +1,29 @@
+{
+  "description": "紫微斗数 Mock 数据 — 1组典型命盘",
+  "samples": [
+    {
+      "label": "女命·紫微在午",
+      "input": { "name": "测试", "gender": "女", "year": 1990, "month": 6, "day": 1, "hour": 12, "lunarMonth": 5, "lunarDay": 9, "lunarHour": "午", "lunarYearGan": "庚", "lunarYearZhi": "午" },
+      "result": {
+        "input": { "name": "测试", "gender": "女", "year": 1990, "month": 6, "day": 1, "hour": 12 },
+        "wuXingJu": "金四局",
+        "mingGong": {
+          "name": "命宫", "zhi": "戌", "gan": "壬",
+          "stars": [
+            { "name": "紫微", "type": "main", "wuXing": "土", "liangJi": "吉" },
+            { "name": "天府", "type": "main", "wuXing": "土", "liangJi": "吉" }
+          ],
+          "shenGong": false,
+          "daXianStart": 5, "daXianEnd": 14,
+          "sanFang": ["财帛", "官禄", "迁移"],
+          "duiGong": "兄弟",
+          "gongQi": "壬戌"
+        },
+        "gongWei": [],
+        "siHua": { "huaLu": "天同", "huaQuan": "天机", "huaKe": "文昌", "huaJi": "廉贞" },
+        "shenGong": "财帛",
+        "geShi": ["紫府同宫格", "禄马交驰"]
+      }
+    }
+  ]
+}

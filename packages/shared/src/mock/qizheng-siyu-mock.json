@@ -1,0 +1,54 @@
+{
+  "input": { "datetime": "1995-08-20T06:30:00+08:00", "gender": "male", "trueSolar": false, "system": "guolao" },
+  "basicInfo": {
+    "mingGong": "命宫",
+    "shenGong": "夫妻",
+    "mingZhu": "太阳",
+    "shenZhu": "金星",
+    "riZhuXiu": "星",
+    "system": "guolao"
+  },
+  "starPositions": [
+    { "star":"太阳","gong":"命宫","xiu":"星","xiuDu":5,"eclipticDeg":188.3,"state":"旺","direction":"顺" },
+    { "star":"太阴","gong":"夫妻","xiu":"张","xiuDu":12,"eclipticDeg":203.7,"state":"庙","direction":"顺","sunDistance":15.4 },
+    { "star":"金星","gong":"财帛","xiu":"翼","xiuDu":8,"eclipticDeg":221.1,"state":"平","direction":"顺","sunDistance":32.8 },
+    { "star":"木星","gong":"官禄","xiu":"轸","xiuDu":15,"eclipticDeg":246.8,"state":"庙","direction":"逆","sunDistance":58.5 },
+    { "star":"水星","gong":"迁移","xiu":"角","xiuDu":3,"eclipticDeg":160.2,"state":"陷","direction":"顺","sunDistance":28.1 },
+    { "star":"火星","gong":"田宅","xiu":"亢","xiuDu":7,"eclipticDeg":175.6,"state":"平","direction":"逆","sunDistance":12.7 },
+    { "star":"土星","gong":"福德","xiu":"氐","xiuDu":11,"eclipticDeg":193.4,"state":"旺","direction":"顺","sunDistance":5.1 },
+    { "star":"紫气","gong":"男女","xiu":"房","xiuDu":2,"eclipticDeg":66.9,"state":"平","direction":"顺" },
+    { "star":"月孛","gong":"兄弟","xiu":"心","xiuDu":4,"eclipticDeg":92.3,"state":"陷","direction":"逆" },
+    { "star":"罗睺","gong":"疾厄","xiu":"尾","xiuDu":9,"eclipticDeg":134.7,"state":"平","direction":"逆" },
+    { "star":"计都","gong":"相貌","xiu":"箕","xiuDu":6,"eclipticDeg":151.2,"state":"平","direction":"逆" }
+  ],
+  "gongs": [
+    { "name":"命宫","ruler":"太阳","stars":["太阳"],"startXiu":"角","renShi":"此宫有星，吉凶随星而变。" },
+    { "name":"财帛","ruler":"太阴","stars":["金星"],"startXiu":"斗","renShi":"此宫有星，吉凶随星而变。" },
+    { "name":"兄弟","ruler":"金星","stars":["月孛"],"startXiu":"奎","renShi":"此宫有星，吉凶随星而变。" },
+    { "name":"田宅","ruler":"木星","stars":["火星"],"startXiu":"井","renShi":"此宫有星，吉凶随星而变。" }
+  ],
+  "aspects": [
+    { "star1":"太阳","star2":"紫气","type":"冲","degree":121,"desc":"太阳冲紫气" },
+    { "star1":"太阴","star2":"月孛","type":"拱","degree":111,"desc":"太阴拱月孛" },
+    { "star1":"金星","star2":"罗睺","type":"冲","degree":86,"desc":"金星冲罗睺" },
+    { "star1":"木星","star2":"计都","type":"拱","degree":96,"desc":"木星拱计都" }
+  ],
+  "daXian": [
+    { "startAge":1,"endAge":10,"gong":"命宫","stars":["太阳"],"desc":"命宫大限，1-10岁。" },
+    { "startAge":11,"endAge":20,"gong":"财帛","stars":["金星"],"desc":"财帛大限，11-20岁。" },
+    { "startAge":21,"endAge":30,"gong":"兄弟","stars":["月孛"],"desc":"兄弟大限，21-30岁。" }
+  ],
+  "liuNian": {
+    "year": 2026,
+    "transits": [
+      { "star":"太阳","gong":"命宫","desc":"太阳入命宫" },
+      { "star":"太阴","gong":"夫妻","desc":"太阴入夫妻" },
+      { "star":"金星","gong":"财帛","desc":"金星入财帛" }
+    ]
+  },
+  "geJu": [
+    { "name":"日月合璧","stars":["太阳","太阴"],"desc":"日月在相近宫位，光明照临。","jiXiong":"吉" },
+    { "name":"五星连珠","stars":["金星","木星","水星","火星","土星"],"desc":"五星聚于一宫，大吉之兆。","jiXiong":"吉" }
+  ],
+  "duanYu": "七政四余果老星宗，命宫命宫，身宫夫妻。命主星太阳。星曜分布于十二宫，格局明朗。"
+}

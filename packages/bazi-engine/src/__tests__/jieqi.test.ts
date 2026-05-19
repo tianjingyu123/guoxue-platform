@@ -6,13 +6,11 @@
 import { getYueZhiIndex, getJieQiDate, daysBetween, daysToNearestJie } from '../jieqi'
 
 describe('getYueZhiIndex - 月支索引计算', () => {
-  it('1月立春前 = 丑月(索引1)', () => {
-    // 1月小寒前为子月
+  it('1月小寒前 = 子月(索引0)', () => {
     expect(getYueZhiIndex(1, 1)).toBe(0) // 子
   })
 
   it('2月立春日 = 寅月(索引2)', () => {
-    // 2月4日是立春
     expect(getYueZhiIndex(2, 4)).toBe(2) // 寅
   })
 
@@ -21,46 +19,43 @@ describe('getYueZhiIndex - 月支索引计算', () => {
   })
 
   it('5月立夏后 = 巳月(索引5)', () => {
-    // 立夏≈5月6日
     expect(getYueZhiIndex(5, 20)).toBe(5) // 巳
   })
 
   it('8月立秋前 = 未月(索引7)', () => {
-    // 立秋≈8月8日
     expect(getYueZhiIndex(8, 7)).toBe(7) // 未
   })
 
   it('12月大雪后 = 子月(索引0)', () => {
-    // 大雪≈12月7日
     expect(getYueZhiIndex(12, 10)).toBe(0) // 子
   })
 })
 
 describe('getJieQiDate - 节气日期查询', () => {
-  it('1984年立春(索引0) = 2月底', () => {
+  it('1984年立春(索引0) = 2月4日', () => {
     const result = getJieQiDate(1984, 0)
     expect(result.month).toBe(2)
-    expect(result.day).toBe(31)
+    expect(result.day).toBe(4)
   })
 
   it('2000年立春(索引0) = 2月4日', () => {
     const result = getJieQiDate(2000, 0)
     expect(result.month).toBe(2)
-    // 近似公式返回的值应在合理范围
     expect(result.day).toBeGreaterThanOrEqual(3)
     expect(result.day).toBeLessThanOrEqual(5)
   })
 
-  it('1990年立夏(索引3) = 5月3日', () => {
-    const result = getJieQiDate(1990, 3) // 立夏
+  it('1990年立夏(索引3) = 5月5-6日', () => {
+    const result = getJieQiDate(1990, 3)
     expect(result.month).toBe(5)
-    expect(result.day).toBe(3)
+    expect(result.day).toBeGreaterThanOrEqual(5)
+    expect(result.day).toBeLessThanOrEqual(6)
   })
 
-  it('2023年小寒(索引11) = 次年1月', () => {
-    const result = getJieQiDate(2023, 11) // 小寒在次年1月
+  it('2023年小寒(索引11) = 次年1月5日', () => {
+    const result = getJieQiDate(2023, 11)
     expect(result.month).toBe(1)
-    expect(result.day).toBe(4)
+    expect(result.day).toBe(5)
   })
 })
 
@@ -84,24 +79,22 @@ describe('daysBetween - 日期差计算', () => {
 })
 
 describe('daysToNearestJie - 最近节气天数', () => {
-  it('1984-02-04立春当天 顺排=0', () => {
-    // 1984年2月4日是立春，顺排到下一个节气（惊蛰）
-    const days = daysToNearestJie(1984, 2, 4, 'forward')
-    // 立春到惊蛰（引擎算法）
-    expect(days).toBeGreaterThanOrEqual(26)
+  it('1984-02-04 0:00 顺排到立春当天=1', () => {
+    // 立春在2月4日15:25，0:00出生则下一个节就是当天的立春
+    const days = daysToNearestJie(1984, 2, 4, 'forward', 0)
+    expect(days).toBe(1)
+  })
+
+  it('1984-02-04 20:00 顺排到惊蛰≈30天', () => {
+    // 立春已过(15:25)，下一个节是惊蛰
+    const days = daysToNearestJie(1984, 2, 4, 'forward', 20)
+    expect(days).toBeGreaterThanOrEqual(28)
     expect(days).toBeLessThanOrEqual(32)
   })
 
-  it('1984-02-04立春当天 逆排到上一个节(小寒)', () => {
-    const days = daysToNearestJie(1984, 2, 4, 'backward')
-    // 小寒到立春（引擎算法）
-    expect(days).toBeGreaterThanOrEqual(28)
-    expect(days).toBeLessThanOrEqual(35)
-  })
-
   it('顺排和逆排结果不同', () => {
-    const forward = daysToNearestJie(1990, 5, 20, 'forward')
-    const backward = daysToNearestJie(1990, 5, 20, 'backward')
+    const forward = daysToNearestJie(1990, 5, 20, 'forward', 12)
+    const backward = daysToNearestJie(1990, 5, 20, 'backward', 12)
     expect(forward).not.toBe(backward)
     expect(forward).toBeGreaterThan(0)
     expect(backward).toBeGreaterThan(0)

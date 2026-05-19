@@ -3,7 +3,6 @@
  * 基于月令透出判断格局，结合日干旺衰定用神
  */
 import type { Gan, Zhi, SiZhu, GeJu, WuXingEnergy } from './types'
-import { GAN, ZHI } from './constants'
 import { calcShiShen } from './sizhu'
 
 // ==================== 五行映射 ====================
@@ -91,11 +90,6 @@ function calcDayStrength(siZhu: SiZhu): { score: number; level: '极旺' | '偏�
 }
 
 // ==================== 格局判断 ====================
-/** 判断月令是否透出天干 */
-function monthIsTou(siZhu: SiZhu, targetGan: Gan): boolean {
-  const gans = [siZhu.nian.gan, siZhu.yue.gan, siZhu.ri.gan, siZhu.shi.gan]
-  return gans.some(g => g === targetGan)
-}
 
 /** 月令对应的五行天干 */
 const MONTH_WX_GANS: Record<string, Gan[]> = {
@@ -120,7 +114,6 @@ export function calcGeJu(siZhu: SiZhu): GeJu {
   const monthGans = MONTH_WX_GANS[yueWx] || []
 
   // 1. 月令本气透出 → 以透出十神定格
-  const mainQi = monthGans[0] // 本气（甲丙戊庚壬为阳，乙丁己辛癸为阴）
 
   // 检查月令天干是否透出
   let patternGan: Gan | null = null
@@ -190,8 +183,6 @@ export function calcGeJu(siZhu: SiZhu): GeJu {
 function detectSpecialPattern(siZhu: SiZhu, strength: { score: number; level: string }): GeJu | null {
   const riGan = siZhu.ri.gan
   const riWx = GAN_WU_XING[riGan]
-  const gans = [siZhu.nian.gan, siZhu.yue.gan, siZhu.ri.gan, siZhu.shi.gan]
-  const zhis = [siZhu.nian.zhi, siZhu.yue.zhi, siZhu.ri.zhi, siZhu.shi.zhi]
 
   // 从强格：日干极旺，全盘生扶，无克泄
   if (strength.level === '极旺' && strength.score >= 70) {

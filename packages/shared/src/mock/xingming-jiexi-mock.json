@@ -1,0 +1,45 @@
+{
+  "input": { "surname": "张", "givenName": "伟明", "kangXiStrokes": true, "gender": "male", "shengXiao": "龙" },
+  "strokes": [
+    { "char":"张","kangXiStroke":11,"simpleStroke":7,"wuXing":"水","radical":"张" },
+    { "char":"伟","kangXiStroke":11,"simpleStroke":6,"wuXing":"水","radical":"伟" },
+    { "char":"明","kangXiStroke":8,"simpleStroke":8,"wuXing":"火","radical":"明" }
+  ],
+  "geDetails": [
+    { "name":"天格","number":12,"wuXing":"木","jiXiong":"凶","shuLiName":"两仪之数","meaning":"混沌未分，进退维谷。","poem":"阴阳未定，变化莫测。宜守不宜进，待时而动。","hints":{"jiYe":"需谨慎","jiaTing":"家庭和睦","jianKang":"注意养生"} },
+    { "name":"人格","number":22,"wuXing":"木","jiXiong":"凶","shuLiName":"22数","meaning":"数理22，因人而异。","poem":"数理22，详察其义。","hints":{"jiYe":"需谨慎","jiaTing":"家庭和睦","jianKang":"注意养生"} },
+    { "name":"地格","number":19,"wuXing":"火","jiXiong":"凶","shuLiName":"19数","meaning":"数理19，因人而异。","poem":"数理19，详察其义。","hints":{"jiYe":"需谨慎","jiaTing":"家庭和睦","jianKang":"注意养生"} },
+    { "name":"总格","number":30,"wuXing":"木","jiXiong":"凶","shuLiName":"30数","meaning":"数理30，因人而异。","poem":"数理30，详察其义。","hints":{"jiYe":"需谨慎","jiaTing":"家庭和睦","jianKang":"注意养生"} },
+    { "name":"外格","number":8,"wuXing":"火","jiXiong":"吉","shuLiName":"八卦之数","meaning":"八卦周全，进取有功。","poem":"八卦相荡，成就不凡。坚毅果敢，名利双收。","hints":{"jiYe":"事业有成","jiaTing":"家庭和睦","jianKang":"注意养生"} }
+  ],
+  "sanCai": {
+    "tian": "木",
+    "ren": "木",
+    "di": "火",
+    "combo": "木木火",
+    "jiXiong": "大吉",
+    "desc": "木木火三才配置，天木人木地火，生克有序，大吉大利。",
+    "jiChuYun": "基础稳固，得长辈助力。",
+    "chengGongYun": "成功运迟，需更多耐心。",
+    "sheJiaoYun": "社交需更加主动。"
+  },
+  "renWaiRelation": { "relation":"外格生人格","desc":"人际助力大，外缘好。" },
+  "renDiRelation": { "relation":"人格生地格","desc":"对晚辈/下属有恩。" },
+  "totalScore": 68,
+  "scores": { "wuGe": 40,"sanCai": 25,"ziYi": 22,"yinYun": 15 },
+  "duanYu": "姓名张伟明，天格12/人格22/地格19/总格30/外格8。三才配置木木火，大吉。姓名吉祥，宜使用。 生肖龙适配度75分，喜用字根明(日)。",
+  "shengXiaoAnalysis": {
+    "shengXiao": "龙",
+    "score": 75,
+    "xiYongMatches": [
+      { "char": "明", "radical": "日", "desc": "龙喜阳光，天龙行空" }
+    ],
+    "jiYongMatches": [],
+    "heHui": "猴、鼠",
+    "liuHe": "鸡",
+    "chong": "狗",
+    "hai": "兔",
+    "namingTips": "龙喜水喜云，宜用氵/雨/王/大/日/月等部首。忌山/田/戌，山中困龙田里浅滩。申（猴）子（鼠）三合，辰（龙）酉（鸡）六合最吉。",
+    "analysis": "名字中含1处喜用字根（明→日），利于龙命。生肖龙：与鸡六合，与猴、鼠三合，冲狗，害兔。姓名与生肖较匹配，尚可。"
+  }
+}

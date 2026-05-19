@@ -1,0 +1,38 @@
+{
+  "input": { "birthYear": 1988, "gender": "男", "zuoShan": "坎", "liuNian": false },
+  "basicInfo": {
+    "birthYear": 1988,
+    "gender": "男",
+    "guaNumber": 1,
+    "mingGua": "坎",
+    "dongXiMing": "东四命",
+    "mingGroup": "东四命"
+  },
+  "zhaiYun": {
+    "zuoShan": "坎",
+    "zhaiGua": "坎宅",
+    "dongXiZhai": "东四宅",
+    "zhaiGroup": "东四宅"
+  },
+  "zhaiMingMatch": {
+    "isMatch": true,
+    "score": 8,
+    "desc": "东四命配东四宅，宅命相配，吉利！"
+  },
+  "daYouNian": [
+    { "fangWei":"坐山","bagua":"坎","youNianXing":"辅弼","jiXiong":"吉","liuSha":"伏位","desc":"坎宅坐山，伏位" },
+    { "fangWei":"西南","bagua":"坤","youNianXing":"巨门","jiXiong":"吉","liuSha":"天医","desc":"天医之位，主健康财运" },
+    { "fangWei":"正东","bagua":"震","youNianXing":"贪狼","jiXiong":"吉","liuSha":"生气","desc":"生气之位，主事业贵人" },
+    { "fangWei":"东南","bagua":"巽","youNianXing":"武曲","jiXiong":"吉","liuSha":"延年","desc":"延年之位，主家庭和睦" },
+    { "fangWei":"西北","bagua":"乾","youNianXing":"破军","jiXiong":"凶","liuSha":"绝命","desc":"绝命之位，宜避之" },
+    { "fangWei":"正西","bagua":"兑","youNianXing":"文曲","jiXiong":"凶","liuSha":"祸害","desc":"祸害之位，主疾病口舌" },
+    { "fangWei":"东北","bagua":"艮","youNianXing":"廉贞","jiXiong":"凶","liuSha":"五鬼","desc":"五鬼之位，主破财" },
+    { "fangWei":"正南","bagua":"离","youNianXing":"禄存","jiXiong":"凶","liuSha":"六煞","desc":"六煞之位，凶" }
+  ],
+  "recommend": {
+    "jiFang": ["坐山","东南","西南","正东"],
+    "xiongFang": ["西北","正南","正西","东北"],
+    "advice": "东四命配东四宅，宅命相配，吉利！宜用吉方做卧室、客厅。"
+  },
+  "duanYu": "1988年生，男命。坎命（东四命），坐坎宅（东四宅）。宅命相配，大吉。伏位在坎，生气在震，天医在坤，延年在巽。"
+}

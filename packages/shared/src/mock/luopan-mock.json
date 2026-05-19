@@ -1,0 +1,67 @@
+{
+  "description": "罗盘 Mock 数据",
+  "samples": [
+    {
+      "label": "综合罗盘·午山子向·0°正北",
+      "input": {
+        "type": "zonghe",
+        "degree": 0,
+        "magneticCorrection": true,
+        "longitude": 116.3972,
+        "latitude": 39.9075,
+        "buildYear": 2024
+      },
+      "result": {
+        "degreeInfo": {
+          "rawDegree": 0,
+          "magneticDeclination": -6.8,
+          "trueDegree": 6.8
+        },
+        "shanAnalysis": {
+          "zuoShan": "子",
+          "chaoXiang": "午",
+          "degree": 0,
+          "sanYuanLong": "天元龙",
+          "yinYang": "阳",
+          "guaGong": "坎",
+          "jianXiang": {
+            "isJian": false,
+            "jianDeg": 0,
+            "jianShan": "",
+            "canUse": true,
+            "reason": "正向不兼，中心正线"
+          }
+        },
+        "layers": [
+          {"index": 1, "name": "中心天池（指南针）", "usage": "定南北方向", "data": ["午（南）","子（北）","卯（东）","酉（西）"], "currentValue": "子（北）"},
+          {"index": 2, "name": "先天八卦", "usage": "八卦体用", "data": ["乾","兑","离","震","巽","坎","艮","坤"], "currentValue": "坎"},
+          {"index": 3, "name": "二十四山", "usage": "定向分金", "data": ["壬","子","癸","丑","艮","寅","甲","卯","乙","辰","巽","巳","丙","午","丁","未","坤","申","庚","酉","辛","戌","乾","亥"], "currentValue": "子"},
+          {"index": 4, "name": "穿山七十二龙", "usage": "穿山透地", "data": ["甲子","戊子","壬子","己丑","乙丑","丁丑","庚寅","壬寅","甲寅","丁卯","己卯","辛卯","戊辰","庚辰","壬辰","癸巳","乙巳","丁巳","丙午","戊午","庚午","辛未","癸未","乙未","甲申","丙申","戊申","己酉","辛酉","癸酉","壬戌","甲戌","丙戌","乙亥","丁亥","己亥","丙子","戊子","庚子","丁丑","己丑","辛丑","壬寅","甲寅","丙寅","乙卯","丁卯","己卯","戊辰","庚辰","壬辰","癸巳","乙巳","丁巳","甲午","丙午","戊午","己未","辛未","癸未","庚申","壬申","甲申","癸酉","乙酉","丁酉","丙戌","戊戌","甲戌","辛亥","癸亥","乙亥"], "currentValue": "戊子"},
+          {"index": 5, "name": "正针一百二十分金", "usage": "分金度金线", "data": [], "currentValue": "甲子"},
+          {"index": 6, "name": "人盘中针", "usage": "消砂用", "data": [], "currentValue": ""},
+          {"index": 7, "name": "天盘缝针", "usage": "纳水用", "data": [], "currentValue": ""},
+          {"index": 8, "name": "玄空九星", "usage": "玄空飞星用", "data": [], "currentValue": ""},
+          {"index": 9, "name": "二十八宿分度", "usage": "挨星用", "data": [], "currentValue": "危宿"}
+        ],
+        "naJia": {
+          "zuoNaJia": "坎纳戊",
+          "xiangNaJia": "离纳己"
+        },
+        "sanHeShui": {
+          "shuiKou": "午",
+          "siDaJu": "水局",
+          "changShengShui": "子向长生在申，沐浴在酉",
+          "jiXiong": "子午正向，水出午方为流破长生，不吉"
+        },
+        "fengShuiAdvice": [
+          {"school": "玄空飞星", "method": "宅命盘", "evaluation": "子山午向八运双星到向，前十年旺财", "jiXiong": "吉", "suggestions": ["向首宜见水聚财","坐山宜有靠山","乾宫需化解五黄"]},
+          {"school": "三合水法", "method": "四大局", "evaluation": "水局养向，子午正向，宜右水倒左出巽巳方", "jiXiong": "需化解", "suggestions": ["水口宜在巽巳方","不宜水直流过堂"]},
+          {"school": "八宅", "method": "游年星", "evaluation": "坎宅（子山），坐伏位，离为延年吉方", "jiXiong": "吉", "suggestions": ["大门宜开离方（延年）","主卧宜在震方（天医）"]},
+          {"school": "三元纳气", "method": "零正催照", "evaluation": "子山坎宫为正神方，宜有山不宜见水", "jiXiong": "吉", "suggestions": ["正神方宜有实山靠","零神方宜见水"]},
+          {"school": "金锁玉关", "method": "过路阴阳", "evaluation": "子山属坎，一白水，宜见砂不宜见水", "jiXiong": "需平衡", "suggestions": ["坎方宜有高砂","离方宜有真水"]}
+        ],
+        "duanYu": "子山午向正向，天元龙，坎卦宫。八运双星到向旺财。正向不兼，分金甲子。三合水局养向，宜右水倒左出巽巳。玄空/八宅多派皆吉，唯三合水口需注意不流破长生。磁偏角-6.8°，实际真北方向为6.8°。"
+      }
+    }
+  ]
+}

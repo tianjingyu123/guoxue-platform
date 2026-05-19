@@ -1,0 +1,99 @@
+{
+  "description": "大六壬 Mock 数据",
+  "samples": [
+    {
+      "label": "元首课·丙子日申时·申将",
+      "input": {
+        "datetime": "2026-05-18T15:00:00",
+        "birthYear": 1990,
+        "gender": "男",
+        "liveTime": "2026-05-18T15:00:00",
+        "jiangMethod": "zhongqi",
+        "guiRenJue": "jiawugeng-niuyang",
+        "guiRenDayNight": "maoyou",
+        "sheHaiType": "mengzhongji",
+        "trueSolar": false,
+        "random": false
+      },
+      "result": {
+        "zhanShi": "申",
+        "yueJiang": "传送",
+        "yueJiangZhi": "申",
+        "dayNight": "昼",
+        "jieQi": "小满",
+        "riGanZhi": "丙子",
+        "gongs": [
+          { "zhi": "子", "diPan": "子", "tianPan": "丑", "tianJiang": "贵人", "dunGan": "辛", "liuQin": "妻财", "shenSha": ["文昌"] },
+          { "zhi": "丑", "diPan": "丑", "tianPan": "寅", "tianJiang": "螣蛇", "dunGan": "壬", "liuQin": "官鬼", "shenSha": [] },
+          { "zhi": "寅", "diPan": "寅", "tianPan": "卯", "tianJiang": "朱雀", "dunGan": "癸", "liuQin": "官鬼", "shenSha": ["驿马"] },
+          { "zhi": "卯", "diPan": "卯", "tianPan": "辰", "tianJiang": "六合", "dunGan": "甲", "liuQin": "子孙", "shenSha": [] },
+          { "zhi": "辰", "diPan": "辰", "tianPan": "巳", "tianJiang": "勾陈", "dunGan": "乙", "liuQin": "子孙", "shenSha": ["劫煞"] },
+          { "zhi": "巳", "diPan": "巳", "tianPan": "午", "tianJiang": "青龙", "dunGan": "丙", "liuQin": "妻财", "shenSha": [] },
+          { "zhi": "午", "diPan": "午", "tianPan": "未", "tianJiang": "天空", "dunGan": "丁", "liuQin": "父母", "shenSha": ["桃花"] },
+          { "zhi": "未", "diPan": "未", "tianPan": "申", "tianJiang": "白虎", "dunGan": "戊", "liuQin": "父母", "shenSha": [] },
+          { "zhi": "申", "diPan": "申", "tianPan": "酉", "tianJiang": "太常", "dunGan": "己", "liuQin": "兄弟", "shenSha": ["天喜"] },
+          { "zhi": "酉", "diPan": "酉", "tianPan": "戌", "tianJiang": "玄武", "dunGan": "庚", "liuQin": "兄弟", "shenSha": [] },
+          { "zhi": "戌", "diPan": "戌", "tianPan": "亥", "tianJiang": "太阴", "dunGan": "辛", "liuQin": "妻财", "shenSha": ["天德"] },
+          { "zhi": "亥", "diPan": "亥", "tianPan": "子", "tianJiang": "天后", "dunGan": "壬", "liuQin": "官鬼", "shenSha": [] }
+        ],
+        "siKe": [
+          { "index": 1, "xiaZhi": "巳", "xiaGan": "丙", "shangZhi": "午", "description": "日干丙寄巳，上神午（日干阳神）" },
+          { "index": 2, "xiaZhi": "午", "xiaGan": "丙", "shangZhi": "未", "description": "第一课上神午，上神未" },
+          { "index": 3, "xiaZhi": "子", "xiaGan": "丙", "shangZhi": "丑", "description": "日支子，上神丑（日支阳神）" },
+          { "index": 4, "xiaZhi": "丑", "xiaGan": "丙", "shangZhi": "寅", "description": "第三课上神丑，上神寅" }
+        ],
+        "sanChuan": {
+          "chu": { "zhi": "丑", "dunGan": "辛", "liuQin": "妻财", "tianJiang": "贵人", "description": "第三课上神发用，下克上为贼" },
+          "zhong": { "zhi": "亥", "dunGan": "壬", "liuQin": "官鬼", "tianJiang": "天后", "description": "丑之阴神亥" },
+          "mo": { "zhi": "酉", "dunGan": "庚", "liuQin": "兄弟", "tianJiang": "玄武", "description": "亥之阴神酉" }
+        },
+        "zongMen": "贼克",
+        "zongMenDesc": "第三课上神丑土克下神子水，取下克上（贼）发用",
+        "tianJiangLayout": [
+          { "zhi": "子", "tianJiang": "贵人", "dayNight": "昼" },
+          { "zhi": "丑", "tianJiang": "螣蛇", "dayNight": "昼" },
+          { "zhi": "寅", "tianJiang": "朱雀", "dayNight": "昼" },
+          { "zhi": "卯", "tianJiang": "六合", "dayNight": "昼" },
+          { "zhi": "辰", "tianJiang": "勾陈", "dayNight": "昼" },
+          { "zhi": "巳", "tianJiang": "青龙", "dayNight": "昼" },
+          { "zhi": "午", "tianJiang": "天空", "dayNight": "昼" },
+          { "zhi": "未", "tianJiang": "白虎", "dayNight": "昼" },
+          { "zhi": "申", "tianJiang": "太常", "dayNight": "昼" },
+          { "zhi": "酉", "tianJiang": "玄武", "dayNight": "昼" },
+          { "zhi": "戌", "tianJiang": "太阴", "dayNight": "昼" },
+          { "zhi": "亥", "tianJiang": "天后", "dayNight": "昼" }
+        ],
+        "keJing": [
+          { "name": "元首课", "number": 1, "summary": "一克下为元首，主君臣和合，万事皆吉", "biFaFu": ["元首课中克下宜，事从君上起施为"] },
+          { "name": "知一课", "number": 3, "summary": "二克同见取比用，知一则可知万", "biFaFu": ["知一须知此课名，比用之神最有情"] }
+        ],
+        "shenSha": [
+          { "name": "天乙贵人", "zhi": "子", "type": "ji", "description": "丙日昼贵在子，大吉，主贵人扶持" },
+          { "name": "驿马", "zhi": "寅", "type": "ji", "description": "申子辰日驿马在寅，主出行变动" },
+          { "name": "文昌", "zhi": "子", "type": "ji", "description": "丙日文昌在子，主学业文运" },
+          { "name": "桃花", "zhi": "午", "type": "ji", "description": "申子辰日桃花在午，主人缘感情" },
+          { "name": "劫煞", "zhi": "辰", "type": "xiong", "description": "申子辰日劫煞在辰，主破财是非" },
+          { "name": "天喜", "zhi": "申", "type": "ji", "description": "主喜庆事" },
+          { "name": "天德", "zhi": "戌", "type": "ji", "description": "月德合方，大吉" }
+        ],
+        "kongWang": ["申", "酉"],
+        "nianMing": { "ganZhi": "庚午", "gongWei": "午" },
+        "xingNian": { "ganZhi": "丙子", "gongWei": "子" },
+        "dunGanTable": [
+          { "zhi": "子", "gan": "辛" }, { "zhi": "丑", "gan": "壬" }, { "zhi": "寅", "gan": "癸" },
+          { "zhi": "卯", "gan": "甲" }, { "zhi": "辰", "gan": "乙" }, { "zhi": "巳", "gan": "丙" },
+          { "zhi": "午", "gan": "丁" }, { "zhi": "未", "gan": "戊" }, { "zhi": "申", "gan": "己" },
+          { "zhi": "酉", "gan": "庚" }, { "zhi": "戌", "gan": "辛" }, { "zhi": "亥", "gan": "壬" }
+        ],
+        "liuQinTable": [
+          { "zhi": "子", "liuQin": "妻财" }, { "zhi": "丑", "liuQin": "官鬼" },
+          { "zhi": "寅", "liuQin": "官鬼" }, { "zhi": "卯", "liuQin": "子孙" },
+          { "zhi": "辰", "liuQin": "子孙" }, { "zhi": "巳", "liuQin": "妻财" },
+          { "zhi": "午", "liuQin": "父母" }, { "zhi": "未", "liuQin": "父母" },
+          { "zhi": "申", "liuQin": "兄弟" }, { "zhi": "酉", "liuQin": "兄弟" },
+          { "zhi": "戌", "liuQin": "妻财" }, { "zhi": "亥", "liuQin": "官鬼" }
+        ]
+      }
+    }
+  ]
+}

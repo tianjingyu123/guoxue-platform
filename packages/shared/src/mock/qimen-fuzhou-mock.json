@@ -1,0 +1,68 @@
+{
+  "input": { "datetime": "2026-05-19T10:00:00+08:00", "target": "财运", "description": "近期财运不佳，希望提升偏财运" },
+  "panInfo": {
+    "juNumber": 5,
+    "dunType": "阳",
+    "yongShi": "丁巳时",
+    "zhiFu": "天禽",
+    "zhiShiMen": "中门"
+  },
+  "riZhu": {
+    "riGan": "甲",
+    "riZhi": "子",
+    "ganElement": "木",
+    "zhiElement": "水"
+  },
+  "resolutions": [
+    {
+      "gongIndex": 1,
+      "gongName": "坎",
+      "problem": "天蓬星临宫，坎宫水旺过盛，财星受克",
+      "problemSymbols": ["天蓬", "癸水"],
+      "severity": 7,
+      "method": "添加法",
+      "methodDesc": "在对应方位添加五行物品以平衡气场",
+      "steps": ["在正北方位放置水晶球或鱼缸", "每日辰时（7-9点）更换清水", "连续摆放49天"],
+      "items": [
+        { "name": "黑曜石水晶球", "quantity": "1个（直径5-8cm）", "placement": "正北方位，高度与腰齐平" },
+        { "name": "小型鱼缸", "quantity": "1个（养6条黑色金鱼）", "placement": "正北方位，靠墙放置" }
+      ],
+      "expectedEffect": "调和坎宫水气，引动财星，预计1-2周内见效",
+      "duration": "49天为一周期"
+    },
+    {
+      "gongIndex": 8,
+      "gongName": "艮",
+      "problem": "生门受制，土气不足，财源受阻",
+      "problemSymbols": ["生门", "天任"],
+      "severity": 5,
+      "method": "添加法",
+      "methodDesc": "在对应方位添加五行物品以平衡气场",
+      "steps": ["在东北方位放置黄色陶瓷或方形石", "每日未时（13-15点）焚香一炷", "保持该方位明亮通风"],
+      "items": [
+        { "name": "黄玉貔貅", "quantity": "一对", "placement": "东北方位，面向门窗" },
+        { "name": "方形黄瓷盘", "quantity": "1个", "placement": "东北方位，置于桌面" }
+      ],
+      "expectedEffect": "催旺生门土气，激活财源，配合坎宫调理效果更佳",
+      "duration": "30天为一周期"
+    },
+    {
+      "gongIndex": 6,
+      "gongName": "乾",
+      "problem": "开门逢白虎，金气过刚，事业财运受阻",
+      "problemSymbols": ["开门", "白虎", "庚金"],
+      "severity": 6,
+      "method": "拆填法",
+      "methodDesc": "移除不利物品，填入调和之气",
+      "steps": ["移除西北方位的金属利器", "在该方位放置白色水晶簇", "避免在该方位堆放杂物"],
+      "items": [
+        { "name": "白色水晶簇", "quantity": "1个（天然原石）", "placement": "西北方位高处" },
+        { "name": "铜风铃", "quantity": "1串（五管）", "placement": "西北方位门窗上方" }
+      ],
+      "expectedEffect": "化解白虎煞气，疏通西北财路，开门纳吉",
+      "duration": "60天为一周期"
+    }
+  ],
+  "summary": "当前命盘显示坎宫水旺财星受克，建议重点调理正北方位和东北方位。三法并用：坎宫添加水行物品、艮宫催旺土气生金、乾宫拆填化解金煞。整体调理周期约1-2个月。",
+  "caution": "调理期间避免在正北方位放置红色/火属性物品，火水相冲会加重财运波动。"
+}

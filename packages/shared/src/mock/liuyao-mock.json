@@ -1,0 +1,26 @@
+{
+  "description": "六爻排盘 Mock 数据",
+  "samples": [
+    {
+      "label": "摇卦·风雷益变风地观",
+      "input": { "method": "shake" },
+      "result": {
+        "benGua": { "name": "风雷益", "symbol": "䷩", "upper": "巽☴", "lower": "震☳" },
+        "bianGua": { "name": "风地观", "symbol": "䷓", "upper": "巽☴", "lower": "坤☷" },
+        "huGua": { "name": "山地剥", "symbol": "䷖", "upper": "艮☶", "lower": "坤☷" },
+        "yaos": [
+          { "position": 6, "type": "shaoyang", "naJia": "辛卯", "liuQin": "兄弟", "liuShou": "青龙", "wuXing": "木", "shiYing": "应", "isDongYao": false },
+          { "position": 5, "type": "shaoyin", "naJia": "辛巳", "liuQin": "子孙", "liuShou": "朱雀", "wuXing": "火", "shiYing": null, "isDongYao": false },
+          { "position": 4, "type": "laoyin", "naJia": "辛未", "liuQin": "妻财", "liuShou": "勾陈", "wuXing": "土", "shiYing": null, "isDongYao": true },
+          { "position": 3, "type": "shaoyin", "naJia": "庚辰", "liuQin": "妻财", "liuShou": "螣蛇", "wuXing": "土", "shiYing": null, "isDongYao": false },
+          { "position": 2, "type": "shaoyin", "naJia": "庚寅", "liuQin": "兄弟", "liuShou": "白虎", "wuXing": "木", "shiYing": null, "isDongYao": false },
+          { "position": 1, "type": "shaoyang", "naJia": "庚子", "liuQin": "父母", "liuShou": "玄武", "wuXing": "水", "shiYing": "世", "isDongYao": false }
+        ],
+        "shiYao": 1,
+        "yingYao": 6,
+        "guaGong": "巽宫",
+        "wuXing": "木"
+      }
+    }
+  ]
+}

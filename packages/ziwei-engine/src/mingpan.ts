@@ -4,13 +4,14 @@
  * 包含：定命宫、定十二宫、定五行局、安紫微星、安十四主星、安六辅星、
  *      安神煞、定身宫、定宫干、定大限 = 完整命盘
  */
-import type { ZiweiInput, ZiweiResult, GongWei, GongName, Zhi, Gan, Star, SiHua } from './types'
+import type { ZiweiInput, ZiweiResult, GongWei, GongName, Zhi, Gan, Star } from './types'
 import {
-  ZHI, GAN, WU_XING_JU_TABLE, WU_XING_JU_VALUES,
+  ZHI, WU_XING_JU_TABLE, WU_XING_JU_VALUES,
   ZIWEI_XI_STARS, TIANFU_XI_STARS,
   SHI_ER_GONG_NAMES, LIU_FU_XING,
+  LU_CUN_TABLE, HUO_XING_OFFSET, LING_XING_OFFSET,
   getZhiGroupIndex, getGanGroupIndex,
-  getZhiIndex, getGanIndex,
+  getZhiIndex,
 } from './constants'
 import { calcSiHua } from './sihua'
 import { calcShenSha } from './shensha'
@@ -135,8 +136,40 @@ export function anLiuFuXing(
 }
 
 /**
- * 构建星曜对象
+ * 安七煞辅星：火星、铃星、禄存、擎羊、陀罗、地空、地劫
  */
+export function anQiShaXing(
+  lunarYearGan: Gan,
+  lunarYearZhi: Zhi,
+  lunarHourZhi: Zhi,
+): Record<string, number> {
+  const hourIdx = getZhiIndex(lunarHourZhi)
+  const result: Record<string, number> = {}
+
+  // 火星：年支定起宫，顺数到生时
+  result['火星'] = (HUO_XING_OFFSET[lunarYearZhi] + hourIdx) % 12
+
+  // 铃星：年支定起宫，顺数到生时
+  result['铃星'] = (LING_XING_OFFSET[lunarYearZhi] + hourIdx) % 12
+
+  // 禄存：年干定
+  const luCunIdx = LU_CUN_TABLE[lunarYearGan]
+  result['禄存'] = luCunIdx
+
+  // 擎羊：禄存前一位（顺时针+1）
+  result['擎羊'] = (luCunIdx + 1) % 12
+
+  // 陀罗：禄存后一位（逆时针-1）
+  result['陀罗'] = (luCunIdx - 1 + 12) % 12
+
+  // 地空：亥宫起子时，逆数到生时
+  result['地空'] = (11 - hourIdx + 12) % 12
+
+  // 地劫：亥宫起子时，顺数到生时
+  result['地劫'] = (11 + hourIdx) % 12
+
+  return result
+}
 function makeStar(name: string, type: 'main' | 'assist' | 'sisha'): Star {
   // 从常量表中获取星曜属性
   const mainStars: Record<string, { wuXing: '金' | '木' | '水' | '火' | '土'; liangJi: '吉' | '凶' | '中性' }> = {
@@ -170,6 +203,13 @@ function makeStar(name: string, type: 'main' | 'assist' | 'sisha'): Star {
     '天姚': { wuXing: '水', liangJi: '凶' },
     '解神': { wuXing: '土', liangJi: '吉' },
     '天巫': { wuXing: '水', liangJi: '中性' },
+    '火星': { wuXing: '火', liangJi: '凶' },
+    '铃星': { wuXing: '火', liangJi: '凶' },
+    '禄存': { wuXing: '土', liangJi: '吉' },
+    '擎羊': { wuXing: '金', liangJi: '凶' },
+    '陀罗': { wuXing: '金', liangJi: '凶' },
+    '地空': { wuXing: '水', liangJi: '凶' },
+    '地劫': { wuXing: '水', liangJi: '凶' },
   }
 
   if (type === 'main') {
@@ -226,6 +266,9 @@ export function calcMingPan(input: ZiweiInput): ZiweiResult {
   // 7. 安神煞
   const shenShaList = calcShenSha(lunarMonth, getZhiIndex(lunarHour), lunarYearGan, lunarYearZhi)
 
+  // 7b. 安七煞辅星（火星/铃星/禄存/擎羊/陀罗/地空/地劫）
+  const qiShaPositions = anQiShaXing(lunarYearGan, lunarYearZhi, lunarHour)
+
   // 8. 定十二宫
   const shiErGong = calcShiErGong(mingGongZhi)
 
@@ -276,6 +319,13 @@ export function calcMingPan(input: ZiweiInput): ZiweiResult {
     for (const ss of shenShaList) {
       if (ss.zhiIdx === zhiIdx) {
         stars.push(ss.star)
+      }
+    }
+
+    // 加七煞辅星
+    for (const [starName, starIdx] of Object.entries(qiShaPositions)) {
+      if (starIdx === zhiIdx) {
+        stars.push(makeStar(starName, 'sisha'))
       }
     }
 

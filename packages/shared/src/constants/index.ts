@@ -7,3 +7,6 @@ export const CONTENT_TYPE_LABELS: Record<string, string> = {
 };
 
 export const PAGE_SIZE_DEFAULT = 10;
+
+// ── 工具注册表 ──
+export * from "./tools-catalog";

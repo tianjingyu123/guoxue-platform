@@ -1,0 +1,41 @@
+{
+  "description": "阳盘奇门遁甲 Mock 数据",
+  "samples": [
+    {
+      "label": "阳遁七局·转盘",
+      "input": { "datetime": "2026-05-18T10:00:00", "method": "zhuanpan", "qiJuMethod": "chaibu", "anGanMethod": "zhishimen-qi", "useTrueSolar": false },
+      "result": {
+        "juNumber": 7,
+        "dunType": "yang",
+        "jieQi": "小满",
+        "yongShi": "癸巳时",
+        "zhiFu": "天任星",
+        "zhiShiMen": "生门",
+        "gongs": [
+          { "index": 1, "name": "坎一宫", "bagua": "坎☵", "diPan": "戊", "tianPan": "乙", "star": "天蓬", "men": "休门", "shen": "值符", "isRuMu": false, "isJiXing": false, "isMenPo": false, "changSheng": "病", "kongWang": false, "maXing": false, "shenSha": ["文昌"] }
+        ],
+        "dipanBashen": ["值符","螣蛇","太阴","六合","勾陈","朱雀","九地","九天"],
+        "prevJu": { "number": 6, "type": "yang" },
+        "nextJu": { "number": 8, "type": "yang" }
+      }
+    },
+    {
+      "label": "阴遁三局·飞盘",
+      "input": { "datetime": "2026-11-15T14:00:00", "method": "feipan", "feiGongMode": "yang-shun-yin-ni", "qiJuMethod": "zhirun", "anGanMethod": "zhishimen-qi", "useTrueSolar": false },
+      "result": {
+        "juNumber": 3,
+        "dunType": "yin",
+        "jieQi": "立冬",
+        "yongShi": "丁未时",
+        "zhiFu": "天芮星",
+        "zhiShiMen": "死门",
+        "gongs": [
+          { "index": 1, "name": "坎一宫", "bagua": "坎☵", "diPan": "壬", "tianPan": "辛", "star": "天辅", "men": "杜门", "shen": "九天", "isRuMu": true, "isJiXing": false, "isMenPo": true, "changSheng": "死", "kongWang": false, "maXing": true, "shenSha": ["劫煞"] }
+        ],
+        "dipanBashen": ["值符","九天","九地","朱雀","勾陈","六合","太阴","螣蛇"],
+        "prevJu": { "number": 2, "type": "yin" },
+        "nextJu": { "number": 4, "type": "yin" }
+      }
+    }
+  ]
+}

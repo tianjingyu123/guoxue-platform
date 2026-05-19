@@ -75,33 +75,32 @@ describe('calcYueZhu - 月柱计算', () => {
   })
 
   it('庚年巳月 = 辛巳', () => {
-    // 庚年五虎遁 → 戊寅起，顺推巳月
     const result = calcYueZhu('庚', 5)
     expect(result.ganZhi).toBe('辛巳')
   })
 
   it('丙年子月 = 庚子', () => {
-    const result = calcYueZhu('丙', 0) // 子月索引=0
+    const result = calcYueZhu('丙', 0)
     expect(result.ganZhi).toBe('庚子')
   })
 })
 
 describe('calcRiZhu - 日柱计算', () => {
   it('1984-02-04 = 戊辰', () => {
-    const result = calcRiZhu(new Date(1984, 1, 4))
+    // 使用纯数学计算，避免时区问题
+    const result = calcRiZhu(1984, 2, 4)
     expect(result.ganZhi).toBe('戊辰')
   })
 
   it('1990-05-20 = 乙酉', () => {
-    const result = calcRiZhu(new Date(1990, 4, 20))
+    const result = calcRiZhu(1990, 5, 20)
     expect(result.ganZhi).toBe('乙酉')
   })
 
   it('2023-10-01 国庆节', () => {
-    const result = calcRiZhu(new Date(2023, 9, 1))
+    const result = calcRiZhu(2023, 10, 1)
     expect(result.gan).toBeTruthy()
     expect(result.zhi).toBeTruthy()
-    // ganZhi 长度为2
     expect(result.ganZhi.length).toBe(2)
   })
 })
@@ -137,7 +136,6 @@ describe('calcShiZhu - 时柱计算', () => {
 
 describe('calcShiShen - 十神计算', () => {
   it('甲(日)见甲(年) = 比肩', () => {
-    // 内部calcShiShen接受(riGan, targetGan)
     expect(calcShiShen('甲', '甲' as Gan)).toBe('比')
   })
 
@@ -167,7 +165,9 @@ describe('calcShiShen - 十神计算', () => {
 })
 
 describe('calcSiZhu - 完整四柱', () => {
-  it('1984-02-04 10:00 男 四柱正确', () => {
+  it('1984-02-04 10:00 男 四柱正确（立春前）', () => {
+    // 1984年立春在2月4日15:25，10:00出生在立春前
+    // 年柱应为癸亥(1983年)，月柱丑月
     const result = calcSiZhu({
       name: '测试',
       gender: '男',
@@ -177,13 +177,13 @@ describe('calcSiZhu - 完整四柱', () => {
       hour: 10,
       minute: 0,
     })
-    expect(result.nian.gan).toBe('甲')
-    expect(result.nian.zhi).toBe('子')
-    expect(result.yue.gan).toBe('丙')
-    expect(result.yue.zhi).toBe('寅')
-    expect(result.ri.gan).toBe('己')
-    expect(result.ri.zhi).toBe('巳')
-    expect(result.shi.gan).toBe('己')
+    expect(result.nian.gan).toBe('癸')
+    expect(result.nian.zhi).toBe('亥')
+    expect(result.yue.gan).toBe('乙')
+    expect(result.yue.zhi).toBe('丑')
+    expect(result.ri.gan).toBe('戊')
+    expect(result.ri.zhi).toBe('辰')
+    expect(result.shi.gan).toBe('丁')
     expect(result.shi.zhi).toBe('巳')
   })
 

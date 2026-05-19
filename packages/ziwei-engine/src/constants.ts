@@ -1,4 +1,4 @@
-import type { Gan, Zhi, GongName, WuXing, XingLiangJi, StarName } from './types'
+import type { Gan, Zhi, GongName, WuXing, XingLiangJi } from './types'
 
 /** 十天干 */
 export const GAN: Gan[] = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸']
@@ -208,6 +208,36 @@ export function getZhiIndex(zhi: Zhi): number {
 /** 取得某个天干在天干中的索引（甲=0,乙=1,...） */
 export function getGanIndex(gan: Gan): number {
   return GAN.indexOf(gan)
+}
+
+/**
+ * 禄存星位置（年干定）
+ * 甲→寅, 乙→卯, 丙→巳, 丁→午, 戊→巳, 己→午, 庚→申, 辛→酉, 壬→亥, 癸→子
+ */
+export const LU_CUN_TABLE: Record<Gan, number> = {
+  '甲': 2, '乙': 3, '丙': 5, '丁': 6, '戊': 5,
+  '己': 6, '庚': 8, '辛': 9, '壬': 11, '癸': 0,
+}
+
+/**
+ * 火星起子时宫位（年支定）
+ * 寅午戌→丑, 申子辰→寅, 巳酉丑→卯, 亥卯未→酉
+ */
+export const HUO_XING_OFFSET: Record<string, number> = {
+  '寅': 1, '午': 1, '戌': 1,  // 寅午戌→丑(1)
+  '申': 2, '子': 2, '辰': 2,  // 申子辰→寅(2)
+  '巳': 3, '酉': 3, '丑': 3,  // 巳酉丑→卯(3)
+  '亥': 9, '卯': 9, '未': 9,  // 亥卯未→酉(9)
+}
+
+/**
+ * 铃星起子时宫位（年支定）
+ * 寅午戌→卯, 申子辰/巳酉丑/亥卯未→戌
+ */
+export const LING_XING_OFFSET: Record<string, number> = {
+  '寅': 3, '午': 3, '戌': 3,  // 寅午戌→卯(3)
+  '申': 10, '子': 10, '辰': 10, '巳': 10, '酉': 10, '丑': 10,  // 其余→戌(10)
+  '亥': 10, '卯': 10, '未': 10,
 }
 
 /** 年干是否为阳 */

@@ -1,0 +1,74 @@
+{
+  "input": { "datetime": "2026-05-19T10:00:00+08:00", "chiefComplaint": "头痛失眠，肩颈酸痛", "targetBodyPart": "头部" },
+  "panInfo": {
+    "juNumber": 5,
+    "dunType": "阳",
+    "yongShi": "丁巳时",
+    "ziFu": "天禽",
+    "zhiShiMen": "中门"
+  },
+  "riZhu": {
+    "riGan": "甲",
+    "riZhi": "子",
+    "ganElement": "木",
+    "zhiElement": "水"
+  },
+  "diagnoses": [
+    {
+      "gongIndex": 6,
+      "gongName": "乾",
+      "bodyParts": ["头部", "颈部", "面部", "肺部", "大肠", "骨骼", "男性生殖", "右腿"],
+      "mainSymptoms": ["头痛", "失眠多梦", "颈项僵硬"],
+      "severity": 8,
+      "nature": "实症",
+      "ganPathogenesis": "头风头痛，肺气虚弱，皮肤干燥",
+      "starInfluence": "天心星当令，金气过盛，克木伤肝，肝阳上亢致头痛",
+      "menInfluence": "开门主开泄，白虎主肃杀，金气上冲头部",
+      "acuPoints": [
+        { "name": "风池", "meridian": "足少阳胆经", "location": "项后枕骨下，胸锁乳突肌与斜方肌之间凹陷处", "method": "毫针直刺", "depth": "0.5-0.8寸", "retention": "20分钟" },
+        { "name": "百会", "meridian": "督脉", "location": "头顶正中，两耳尖连线中点", "method": "毫针平刺", "depth": "0.5-0.8寸", "retention": "15分钟" },
+        { "name": "列缺", "meridian": "手太阴肺经", "location": "前臂桡侧缘，桡骨茎突上方，腕横纹上1.5寸", "method": "毫针斜刺", "depth": "0.5-0.8寸", "retention": "20分钟" }
+      ]
+    },
+    {
+      "gongIndex": 3,
+      "gongName": "震",
+      "bodyParts": ["肝脏", "胆囊", "脚部", "毛发", "咽喉", "声带", "左肋", "神经"],
+      "mainSymptoms": ["易怒烦躁", "胁肋胀痛", "眼睛干涩"],
+      "severity": 6,
+      "nature": "气滞",
+      "ganPathogenesis": "肝阳上亢，头痛目赤，易怒失眠",
+      "starInfluence": "天冲星属木，震宫木旺，肝胆气滞化火",
+      "menInfluence": "伤门主损伤，太阴主抑郁，肝气不舒",
+      "acuPoints": [
+        { "name": "太冲", "meridian": "足厥阴肝经", "location": "足背第1、2跖骨结合部前方凹陷处", "method": "毫针直刺", "depth": "0.5-0.8寸", "retention": "20分钟" },
+        { "name": "行间", "meridian": "足厥阴肝经", "location": "足背第1、2趾间，趾蹼缘后方", "method": "毫针直刺", "depth": "0.3-0.5寸", "retention": "15分钟" }
+      ]
+    },
+    {
+      "gongIndex": 9,
+      "gongName": "离",
+      "bodyParts": ["眼部", "乳房", "头部", "心脏", "小肠", "血液", "神经"],
+      "mainSymptoms": ["心烦心悸", "睡眠不安", "目赤干涩"],
+      "severity": 5,
+      "nature": "热症",
+      "ganPathogenesis": "心火亢盛，眼目胀痛，面红口疮",
+      "starInfluence": "天英星属火，离宫火旺，心火上炎扰神",
+      "menInfluence": "景门主光明亦主虚火上浮",
+      "acuPoints": [
+        { "name": "神门", "meridian": "手少阴心经", "location": "腕部，腕掌侧横纹尺侧端，尺侧腕屈肌腱桡侧凹陷处", "method": "毫针直刺", "depth": "0.3-0.5寸", "retention": "15分钟" },
+        { "name": "内关", "meridian": "手厥阴心包经", "location": "前臂掌侧，腕横纹上2寸，掌长肌腱与桡侧腕屈肌腱之间", "method": "毫针直刺", "depth": "0.5-1寸", "retention": "20分钟" }
+      ]
+    }
+  ],
+  "treatmentPlan": {
+    "mainPrinciple": "平肝潜阳，清心安神，通络止痛",
+    "sessionCount": 7,
+    "frequency": "每日1次或隔日1次",
+    "timingAdvice": "优先选择巳时（9-11点）或午时（11-13点）施针",
+    "dietAdvice": "宜清淡饮食，多食绿叶蔬菜，忌辛辣油腻，可饮菊花枸杞茶",
+    "lifeAdvice": "避免熬夜，保持心情舒畅，适当散步放松"
+  },
+  "summary": "当前命盘乾宫金旺克木为主因，导致头痛失眠。建议重点取风池、百会、太冲、神门四穴，7次为一疗程。配合震宫肝气疏导和离宫心火清泻，综合调理。",
+  "caution": "风池穴深刺需谨慎，避免刺入枕骨大孔。百会穴婴幼儿囟门未闭者禁刺。孕妇慎用合谷、三阴交等穴。"
+}

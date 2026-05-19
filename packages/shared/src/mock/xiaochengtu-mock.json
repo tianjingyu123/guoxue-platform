@@ -1,0 +1,38 @@
+{
+  "input": { "datetime": "2026-05-18T09:00:00+08:00", "method": "shici", "question": "问事业" },
+  "basicInfo": {
+    "ganZhi": "2026年5月18日",
+    "process": "以时间起卦：上卦乾(1)，下卦坤(2)，动爻3。本卦天地否。"
+  },
+  "gongs": [
+    { "pos":1,"direction":"正北","tianPanGua":"乾","diPanGua":"坎","chengGua":"天水讼","heBi":"辟","wangLai":"来" },
+    { "pos":2,"direction":"西南","tianPanGua":"兑","diPanGua":"坤","chengGua":"泽地萃","heBi":"阖","wangLai":"来" },
+    { "pos":3,"direction":"正东","tianPanGua":"离","diPanGua":"震","chengG ua":"火雷噬嗑","heBi":"阖","wangLai":"来" },
+    { "pos":4,"direction":"东南","tianPanGua":"震","diPanGua":"巽","chengGua":"雷风恒","heBi":"阖","wangLai":"来" },
+    { "pos":5,"direction":"中央","tianPanGua":"巽","diPanGua":"中","chengGua":"风天小畜","heBi":"辟","wangLai":"不动" },
+    { "pos":6,"direction":"西北","tianPanGua":"坎","diPanGua":"乾","chengGua":"水天需","heBi":"辟","wangLai":"往" },
+    { "pos":7,"direction":"正西","tianPanGua":"艮","diPanGua":"兑","chengGua":"山泽损","heBi":"阖","wangLai":"往" },
+    { "pos":8,"direction":"东北","tianPanGua":"坤","diPanGua":"艮","chengGua":"地山谦","heBi":"辟","wangLai":"往" },
+    { "pos":9,"direction":"正南","tianPanGua":"乾","diPanGua":"离","chengGua":"天火同人","heBi":"辟","wangLai":"往" }
+  ],
+  "mainGua": {
+    "benGua": "天地否",
+    "huGua": "风山渐",
+    "bianGua": "天山遁",
+    "dongYao": 3,
+    "guaCi": "",
+    "yaoCi": "动爻第3爻"
+  },
+  "heBiWangLai": {
+    "heGongs": [2,3,4,7],
+    "biGongs": [1,5,6,8,9],
+    "wangGongs": [6,7,8,9],
+    "laiGongs": [1,2,3,4],
+    "desc": "阖宫4个，辟宫5个，往宫4个，来宫4个。"
+  },
+  "tuiDuan": [
+    { "type":"正推","gong":1,"quXiang":"阖辟往来辨吉凶","duanYu":"阖者藏，辟者显，往来之间见分晓。" },
+    { "type":"旁推","gong":9,"quXiang":"旁通卦象","duanYu":"旁通看变化，卦象可推演。" }
+  ],
+  "duanYu": "天地否，动爻3，阖辟往来之间，观其动静变化。所问\"问事业\"，宜从辟方着手。"
+}

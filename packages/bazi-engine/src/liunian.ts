@@ -10,7 +10,7 @@ export function getLiuNianGanZhi(year: number) {
   return calcNianZhu(year)
 }
 
-/** 流月干支（12个月） */
+/** 流月干支（12个月，寅月=正月起） */
 export function getLiuYueGanZhi(nianGan: Gan): { month: number; ganZhi: string; gan: Gan }[] {
   const nianIdx = GAN.indexOf(nianGan)
   const dunIdx = Math.floor(nianIdx % 5)
@@ -18,9 +18,11 @@ export function getLiuYueGanZhi(nianGan: Gan): { month: number; ganZhi: string; 
 
   for (let i = 0; i < 12; i++) {
     const ganIdx = (GAN.indexOf(WU_HU_DUN[dunIdx]) + i) % 10
+    // 正月=寅月(ZHI[2])，二月=卯月(ZHI[3])，...
+    const zhiIdx = (i + 2) % 12
     result.push({
       month: i + 1,
-      ganZhi: GAN[ganIdx] + ZHI[i],
+      ganZhi: GAN[ganIdx] + ZHI[zhiIdx],
       gan: GAN[ganIdx],
     })
   }
@@ -29,7 +31,7 @@ export function getLiuYueGanZhi(nianGan: Gan): { month: number; ganZhi: string; 
 
 /** 流日干支 */
 export function getLiuRiGanZhi(year: number, month: number, day: number) {
-  return calcRiZhu(new Date(year, month - 1, day))
+  return calcRiZhu(year, month, day)
 }
 
 /** 流时干支 */

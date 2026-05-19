@@ -155,11 +155,11 @@ function getZaiSha(riZhi: Zhi): Zhi | null {
   return null
 }
 
-/** 羊刃（日干查） */
+/** 羊刃（日干查，子平派主流） */
 function getYangRen(riGan: Gan): Zhi | null {
   const map: Record<Gan, Zhi> = {
-    '甲': '卯','乙': '辰','丙': '午','丁': '未','戊': '午',
-    '己': '未','庚': '酉','辛': '戌','壬': '子','癸': '丑',
+    '甲': '卯','乙': '寅','丙': '午','丁': '巳','戊': '午',
+    '己': '巳','庚': '酉','辛': '申','壬': '子','癸': '亥',
   }
   return map[riGan] || null
 }

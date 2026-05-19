@@ -1,0 +1,63 @@
+{
+  "input": { "year": 2026, "showProcess": true },
+  "basicInfo": {
+    "year": 2026,
+    "tianGan": "丙",
+    "diZhi": "午",
+    "ganZhi": "丙午",
+    "yun": "水运",
+    "yunState": "不及",
+    "yunLevel": "六"
+  },
+  "yunInfo": {
+    "yun": "水运",
+    "yunTaiGuoBuJi": "不及",
+    "yunLevel": 6,
+    "levelDesc": "水运不及",
+    "desc": "丙午年，丙化水运，阳年为太过（但丙属阳，水运太过）。"
+  },
+  "qiInfo": {
+    "siTian": "太阴湿土",
+    "zaiQuan": "太阳寒水",
+    "buQi": "四",
+    "qiDesc": "太阴湿土司天，太阳寒水在泉",
+    "mainYunKe": "主运太角"
+  },
+  "yunQiSame": {
+    "isTianFu": false,
+    "isSuiHui": false,
+    "isTongTianFu": false,
+    "desc": "无特殊运气同化"
+  },
+  "liuQi": {
+    "siTian": "太阴湿土",
+    "zaiQuan": "太阳寒水",
+    "zhuQi": [
+      { "step":"初之气","qi":"厥阴风木","timeRange":"大寒-春分","desc":"初之气：厥阴风木" },
+      { "step":"二之气","qi":"少阴君火","timeRange":"春分-小满","desc":"二之气：少阴君火" },
+      { "step":"三之气","qi":"太阴湿土","timeRange":"小满-大暑","desc":"三之气：太阴湿土" }
+    ],
+    "keQi": [
+      { "step":"初之气","qi":"太阴湿土","timeRange":"大寒-春分","desc":"初之气：太阴湿土" }
+    ]
+  },
+  "tongHua": {
+    "tianFu": null,
+    "suiHui": null,
+    "tongTianFu": null,
+    "desc": "丙午年无天符/岁会等运气同化。"
+  },
+  "bingHou": [
+    { "step":"初之气","desc":"风气偏胜，注意肝胆。宜食酸以收之。" }
+  ],
+  "yuFa": {
+    "hasYuFa": false,
+    "desc": "岁运太过，气候偏胜为主。"
+  },
+  "yunQiRelation": {
+    "relation": "气克运",
+    "shunNi": "逆",
+    "desc": "气克运（司天克中运），运气相克，气候反常。"
+  },
+  "duanYu": "丙午年（2026），水运不及。太阴湿土司天，太阳寒水在泉。气克运（天刑），年景偏差。注意湿邪困脾，宜健脾祛湿。"
+}

@@ -2,9 +2,9 @@
  * 大运计算模块
  * 包含：起运时间、8步大运排盘
  */
-import type { Gan, Zhi, SiZhu, QiYun, DaYunStep, LiuNian } from './types'
+import type { Gan, Zhi, QiYun, DaYunStep, LiuNian } from './types'
 import { GAN, ZHI } from './constants'
-import { daysToNearestJie, getYueZhiIndex } from './jieqi'
+import { daysToNearestJie } from './jieqi'
 import { calcNianZhu, calcShiShen } from './sizhu'
 
 /** 判断年柱天干是否为阳年 */
@@ -24,8 +24,8 @@ export function calcQiYun(
   const forward = (yang && gender === '男') || (!yang && gender === '女')
   const direction = forward ? 'forward' : 'backward'
 
-  // 距最近节的天数
-  const dayCount = daysToNearestJie(year, month, day, direction)
+  // 距最近节的天数（传入出生小时用于精确判定）
+  const dayCount = daysToNearestJie(year, month, day, direction, hour)
 
   // 3天折1岁，1天折4个月
   const totalMonths = (dayCount / 3) * 12
@@ -138,18 +138,19 @@ export function fillDaYunShiShen(daYun: DaYunStep[], riGan: Gan): DaYunStep[] {
   })
 }
 
-/** 流月计算：某流年中的12个月干支 */
+/** 流月计算：某流年中的12个月干支（寅月=正月起） */
 export function calcLiuYue(nianGan: Gan): { month: number; ganZhi: string }[] {
   const result = []
   for (let i = 0; i < 12; i++) {
-    // 五虎遁
     const nianIdx = GAN.indexOf(nianGan)
     const dunIdx = Math.floor(nianIdx % 5)
     const WU_HU_DUN: Gan[] = ['丙','戊','庚','壬','甲','丙','戊','庚','壬','甲']
     const ganIdx = (GAN.indexOf(WU_HU_DUN[dunIdx]) + i) % 10
+    // 正月=寅月(ZHI[2])，二月=卯月(ZHI[3])，...
+    const zhiIdx = (i + 2) % 12
     result.push({
       month: i + 1,
-      ganZhi: GAN[ganIdx] + ZHI[i],
+      ganZhi: GAN[ganIdx] + ZHI[zhiIdx],
     })
   }
   return result

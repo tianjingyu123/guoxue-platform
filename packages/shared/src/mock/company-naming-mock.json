@@ -1,0 +1,42 @@
+{
+  "input": { "industry": "科技", "city": "深圳", "companyForm": "有限公司", "style": "创新", "ziHaoLength": 3 },
+  "proposals": [
+    {
+      "rank": 1,
+      "name": { "fullName": "深圳智云创科技有限公司", "region": "深圳", "ziHao": "智云创", "industryDesc": "科技", "form": "有限公司" },
+      "verification": { "risk": "低风险", "hasRestrictedWord": false, "restrictedWords": [], "lengthCompliant": true, "similarityRisk": "低", "duplicationProbability": "约12%", "suggestions": ["字号独特性较好", "建议同时注册相关类别商标"], "passScore": 88 },
+      "wuXing": { "industryWuXing": "火", "totalStrokes": 32, "shuLi": { "number": 32, "jiXiong": "半吉", "desc": "增长之数，迎新去旧，自我增长，多受驳杂" }, "matchScore": 85, "analysis": "科技属火，字号火木相生，数理32半吉但有增长之意，整体匹配良好" },
+      "phoneticsScore": 82,
+      "brandScore": 86,
+      "totalScore": 85,
+      "reason": "字号'智云创'火木相生契合科技行业，读音响亮利于传播，核名风险低"
+    },
+    {
+      "rank": 2,
+      "name": { "fullName": "深圳数联芯科技有限公司", "region": "深圳", "ziHao": "数联芯", "industryDesc": "科技", "form": "有限公司" },
+      "verification": { "risk": "低风险", "hasRestrictedWord": false, "restrictedWords": [], "lengthCompliant": true, "similarityRisk": "低", "duplicationProbability": "约8%", "suggestions": ["字号新颖", "核名通过率较高"], "passScore": 92 },
+      "wuXing": { "industryWuXing": "火", "totalStrokes": 29, "shuLi": { "number": 29, "jiXiong": "大吉", "desc": "掘藏之数，家门余庆，金钱丰盈，白手成家" }, "matchScore": 90, "analysis": "科技属火，29数理大吉'掘藏得宝'，火金土相生流通，五行匹配度极高" },
+      "phoneticsScore": 78,
+      "brandScore": 88,
+      "totalScore": 85,
+      "reason": "29数理大吉'掘藏得宝'，字号'数联芯'精准体现科技行业特征，数字化+连接+芯片"
+    },
+    {
+      "rank": 3,
+      "name": { "fullName": "深圳智源达科技有限公司", "region": "深圳", "ziHao": "智源达", "industryDesc": "科技", "form": "有限公司" },
+      "verification": { "risk": "中风险", "hasRestrictedWord": false, "restrictedWords": [], "lengthCompliant": true, "similarityRisk": "中", "duplicationProbability": "约35%", "suggestions": ["'智源'字号使用较多", "建议增加修饰字降低重名率"], "passScore": 68 },
+      "wuXing": { "industryWuXing": "火", "totalStrokes": 35, "shuLi": { "number": 35, "jiXiong": "凶", "desc": "非运之数，沉浮不定，吉多于凶，可免灾厄" }, "matchScore": 65, "analysis": "35数理偏凶，但'非运'亦有逢凶化吉之意，适合稳扎稳打型企业" },
+      "phoneticsScore": 85,
+      "brandScore": 75,
+      "totalScore": 72,
+      "reason": "读音朗朗上口，但重名风险中等，数理偏弱，作为备选方案"
+    }
+  ],
+  "industryAnalysis": {
+    "industry": "科技",
+    "wuXing": "火",
+    "typicalZiHaoPattern": "宜用火木相生字，如'创''智''明''联''云'",
+    "namingTips": ["宜用火木相生字，如'创''智''明'", "忌用过多水属性字（水克火）", "字号宜体现创新感", "可融入数字、智能等现代科技元素"]
+  },
+  "summary": "科技行业属火，推荐火木相生、数理大吉的字号方案。首选'智云创'和'数联芯'两个方向，前者偏品牌力，后者偏数理大吉。建议核名前先做商标41类查询。"
+}

@@ -10,6 +10,7 @@ import { calcQiYun, fillDaYunShiShen } from './dayun'
 import { calcFenXiTiShi, calcTaiYuan, calcMingGong, calcShenGong, calcWangXiang } from './shensha'
 import { calcAllShenSha } from './shensha-db'
 import { calcGeJu, calcWuXingEnergy } from './geju'
+import { calcTrueSolarTime } from './taiyangshi'
 
 /**
  * 完整八字排盘
@@ -17,11 +18,29 @@ import { calcGeJu, calcWuXingEnergy } from './geju'
  * @returns 完整排盘结果 BaziResult
  */
 export function calcBazi(input: BaziInput): BaziResult {
-  // 1. 四柱
-  const siZhu = calcSiZhu(input)
+  // 0. 真太阳时校正（可选，默认关闭）
+  const useSolar = input.useTrueSolarTime === true
+  let solar: ReturnType<typeof calcTrueSolarTime> | undefined
+  let effectiveInput = input
 
-  // 2. 生肖
-  const shengXiao = calcShengXiao(input.year)
+  if (useSolar) {
+    solar = calcTrueSolarTime(
+      input.hour, input.minute,
+      input.month, input.day,
+      input.city, input.longitude,
+    )
+    effectiveInput = {
+      ...input,
+      hour: Math.floor(solar.adjustedHour),
+      minute: Math.round((solar.adjustedHour - Math.floor(solar.adjustedHour)) * 60),
+    }
+  }
+
+  // 1. 四柱（含立春分界、早晚子时）
+  const siZhu = calcSiZhu(effectiveInput)
+
+  // 2. 生肖（按立春分界）
+  const shengXiao = calcShengXiao(input.year, input.month, input.day, input.hour)
 
   // 3. 空亡（日柱旬空）
   const kongWang = getKongWang(siZhu.ri.gan + siZhu.ri.zhi)
@@ -39,7 +58,6 @@ export function calcBazi(input: BaziInput): BaziResult {
 
   // 5. 胎元
   const taiYuan = calcTaiYuan(siZhu.yue.gan, siZhu.yue.zhi, siZhu.ri.gan)
-  // 补纳音
   taiYuan.nayin = NA_YIN[taiYuan.gan + taiYuan.zhi] || ''
 
   // 6. 命宫
@@ -83,8 +101,20 @@ export function calcBazi(input: BaziInput): BaziResult {
     shenSha,
     geJu,
     wuXingEnergy,
+    ...(solar ? {
+      taiYangShi: {
+        adjustedHour: solar.adjustedHour,
+        adjustedMinute: solar.adjustedMinute,
+        offset: solar.totalOffset,
+        desc: solar.desc,
+      },
+    } : {}),
   }
 }
 
+// 导出公共基础函数，供其他计算器复用
+export { calcRiZhu, calcNianZhu, calcShiShen } from './sizhu'
+export { calcAllJieQi, getJieQiDate, daysToNearestJie, getNianZhuYear } from './jieqi'
+
 // 仅导出外部实际使用的类型
-export type { BaziInput, BaziResult, SiZhu, Pillar, DaYunStep } from './types'
+export type { BaziInput, BaziResult, SiZhu, Pillar, DaYunStep, Gan, Zhi } from './types'

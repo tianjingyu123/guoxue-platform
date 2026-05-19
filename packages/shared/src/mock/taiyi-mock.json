@@ -1,0 +1,55 @@
+{
+  "input": { "datetime": "2026-05-18T14:00:00+08:00", "shiType": "时计", "yangDun": true },
+  "basicInfo": {
+    "shiType": "时计",
+    "ganZhi": "壬子",
+    "dunType": "阳遁",
+    "jieQi": "立夏",
+    "nianHao": "2026年"
+  },
+  "jiNianCalc": {
+    "jiNian": 10155942,
+    "wuYuanLiuJi": "丙子元·甲子纪",
+    "jiName": "甲子纪",
+    "taiYiShu": 212,
+    "process": "上元积年10155942，五元六纪：丙子元第1纪（甲子纪），太乙数212"
+  },
+  "shiLiuShenPan": {
+    "tianPan": [
+      { "shen":"太乙","gong":5 },{ "shen":"文昌","gong":6 },{ "shen":"始击","gong":7 },{ "shen":"地主","gong":8 },
+      { "shen":"吕申","gong":1 },{ "shen":"四神","gong":2 },{ "shen":"天目","gong":3 },{ "shen":"太簇","gong":4 }
+    ],
+    "diPan": [
+      { "shen":"大炅","gong":1 },{ "shen":"大威","gong":2 },{ "shen":"天马","gong":3 },{ "shen":"大武","gong":4 },
+      { "shen":"大簇","gong":5 },{ "shen":"阴主","gong":6 },{ "shen":"阴德","gong":7 },{ "shen":"大义","gong":8 }
+    ],
+    "taiYiGong": 5,
+    "wenChangGong": 7,
+    "shiJiGong": 10,
+    "jiShen": "大簇",
+    "dingMu": "大武"
+  },
+  "baJiang": [
+    { "name":"天蓬","gong":5,"desc":"天蓬临子午卯酉乾坤艮巽宫" },
+    { "name":"天芮","gong":7,"desc":"天芮临子午卯酉乾坤艮巽宫" },
+    { "name":"天冲","gong":9,"desc":"天冲临子午卯酉乾坤艮巽宫" },
+    { "name":"天辅","gong":11,"desc":"天辅临子午卯酉乾坤艮巽宫" },
+    { "name":"天禽","gong":13,"desc":"天禽临子午卯酉乾坤艮巽宫" },
+    { "name":"天心","gong":15,"desc":"天心临子午卯酉乾坤艮巽宫" },
+    { "name":"天柱","gong":1,"desc":"天柱临子午卯酉乾坤艮巽宫" },
+    { "name":"天任","gong":3,"desc":"天任临子午卯酉乾坤艮巽宫" }
+  ],
+  "sanSuan": {
+    "zhuSuan": { "value":31,"wuXing":"水","desc":"主算31，五行属水" },
+    "keSuan": { "value":50,"wuXing":"土","desc":"客算50，五行属土" },
+    "dingSuan": { "value":44,"wuXing":"金","desc":"定算44，五行属金" },
+    "zhuKeRelation": "客算大于主算，客方有利",
+    "shengFu": "客胜"
+  },
+  "shuLi": { "juShu": 20,"zhuanPanShu": 212,"guaXiang": "天心主" },
+  "geJu": [
+    { "name":"太乙天门","active":false,"desc":"太乙入天门，主君道昌明。","jiXiong":"吉" },
+    { "name":"文昌会合","active":true,"desc":"文昌会太乙，主文运亨通。","jiXiong":"吉" }
+  ],
+  "duanYu": "太乙时计，阳遁第212局。太乙在5宫，客胜。"
+}

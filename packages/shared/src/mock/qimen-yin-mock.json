@@ -1,0 +1,27 @@
+{
+  "input": { "datetime": "2026-05-18T10:00:00+08:00", "method": "yinpan", "panType": "shi" },
+  "basicInfo": {
+    "juShu": 5,
+    "dunType": "阳遁",
+    "jieQi": "立夏",
+    "yongShi": "丁巳时",
+    "zhiFu": "天禽",
+    "zhiShiMen": "中门",
+    "panType": "时盘"
+  },
+  "gongs": [
+    { "index":1,"name":"坎","bagua":"坎","diPan":"戊","tianPan":"癸","star":"天蓬","men":"休门","shen":"值符","yinGan":"乙","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":2,"name":"坤","bagua":"坤","diPan":"己","tianPan":"丁","star":"天芮","men":"死门","shen":"玄武","yinGan":"丙","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":3,"name":"震","bagua":"震","diPan":"庚","tianPan":"壬","star":"天冲","men":"伤门","shen":"太阴","yinGan":"丁","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":true },
+    { "index":4,"name":"巽","bagua":"巽","diPan":"辛","tianPan":"乙","star":"天辅","men":"杜门","shen":"螣蛇","yinGan":"戊","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":5,"name":"中","bagua":"中","diPan":"壬","tianPan":"己","star":"天禽","men":"中门","shen":"白虎","yinGan":"庚","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":6,"name":"乾","bagua":"乾","diPan":"癸","tianPan":"戊","star":"天心","men":"开门","shen":"九地","yinGan":"辛","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":7,"name":"兑","bagua":"兑","diPan":"丁","tianPan":"庚","star":"天柱","men":"惊门","shen":"九天","yinGan":"壬","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":8,"name":"艮","bagua":"艮","diPan":"丙","tianPan":"辛","star":"天任","men":"生门","shen":"六合","yinGan":"癸","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false },
+    { "index":9,"name":"离","bagua":"离","diPan":"乙","tianPan":"丙","star":"天英","men":"景门","shen":"值符","yinGan":"己","isRuMu":false,"isJiXing":false,"isMenPo":false,"kongWang":false,"maXing":false }
+  ],
+  "geJu": [
+    { "name":"值符临宫","active":true,"desc":"值符临坎宫，主事有根。","jiXiong":"吉" }
+  ],
+  "duanYu": "阴盘奇门阳遁5局，时盘。值符天禽，值使中门。时辰丁巳。宜移星换斗调理。"
+}

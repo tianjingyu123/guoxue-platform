@@ -1,0 +1,237 @@
+{
+  "description": "万年历 Mock 数据",
+  "samples": [
+    {
+      "label": "2026年5月18日·单日查询",
+      "input": {
+        "date": "2026-05-18",
+        "rangeType": "day",
+        "shiXiang": ["kaiye"],
+        "zeJiMethods": ["huangli", "jian-chu", "er-shi-ba-xiu", "tian-de"]
+      },
+      "result": {
+        "days": [
+          {
+            "solarDate": "2026-05-18",
+            "lunarDate": "丙午年四月初一",
+            "nianGanZhi": "丙午",
+            "yueGanZhi": "癸巳",
+            "riGanZhi": "丙子",
+            "shiGanZhi": ["戊子","己丑","庚寅","辛卯","壬辰","癸巳","甲午","乙未","丙申","丁酉","戊戌","己亥"],
+            "weekDay": "星期一",
+            "lunarMonth": "四月",
+            "lunarDay": "初一",
+            "isLeap": false,
+            "jianChu": "建",
+            "erShiBaXiu": "角",
+            "naYin": "涧下水",
+            "jiuXing": "六白",
+            "zhiShen": "金匮",
+            "pengZu": "丙不修灶必见灾殃，子不问卜自惹祸殃",
+            "taiShen": "厨灶碓，房内东",
+            "chongSha": "冲马（庚午）煞南",
+            "suiSha": "岁煞南",
+            "yi": ["嫁娶","纳采","订婚","祭祀","祈福","出行","动土","上梁","移徙","入宅","安床","开市","交易","立券","栽种"],
+            "ji": ["安葬","行丧","伐木","作梁","开池"],
+            "jiShen": ["月德","天德","金匮","六合","要安"],
+            "xiongSha": ["月煞","月虚","大煞","重日"],
+            "shiChenJiXiong": [
+              {"shi": "子时", "ganZhi": "戊子", "jiXiong": "吉", "chong": "马", "yi": ["祈福","祭祀","出行"], "ji": ["安葬"]},
+              {"shi": "丑时", "ganZhi": "己丑", "jiXiong": "吉", "chong": "羊", "yi": ["开市","交易"], "ji": ["出行"]},
+              {"shi": "寅时", "ganZhi": "庚寅", "jiXiong": "凶", "chong": "猴", "yi": [], "ji": ["嫁娶","出行"]},
+              {"shi": "卯时", "ganZhi": "辛卯", "jiXiong": "吉", "chong": "鸡", "yi": ["嫁娶","祈福"], "ji": []},
+              {"shi": "辰时", "ganZhi": "壬辰", "jiXiong": "凶", "chong": "狗", "yi": [], "ji": ["开市","动土"]},
+              {"shi": "巳时", "ganZhi": "癸巳", "jiXiong": "吉", "chong": "猪", "yi": ["移徙","入宅"], "ji": ["祈福"]},
+              {"shi": "午时", "ganZhi": "甲午", "jiXiong": "凶", "chong": "鼠", "yi": [], "ji": ["出行","动土"]},
+              {"shi": "未时", "ganZhi": "乙未", "jiXiong": "吉", "chong": "牛", "yi": ["嫁娶","开市"], "ji": []},
+              {"shi": "申时", "ganZhi": "丙申", "jiXiong": "吉", "chong": "虎", "yi": ["祈福","出行"], "ji": ["安葬"]},
+              {"shi": "酉时", "ganZhi": "丁酉", "jiXiong": "凶", "chong": "兔", "yi": [], "ji": ["移徙","嫁娶"]},
+              {"shi": "戌时", "ganZhi": "戊戌", "jiXiong": "吉", "chong": "龙", "yi": ["开市","交易"], "ji": []},
+              {"shi": "亥时", "ganZhi": "己亥", "jiXiong": "平", "chong": "蛇", "yi": ["出行"], "ji": ["动土"]}
+            ],
+            "score": 85
+          }
+        ],
+        "jieQiList": [
+          {"name": "小满", "date": "2026-05-21", "time": "06:22:18"},
+          {"name": "芒种", "date": "2026-06-05", "time": "21:39:31"}
+        ],
+        "moonPhases": [
+          {"date": "2026-05-05", "phase": "朔"},
+          {"date": "2026-05-12", "phase": "上弦"},
+          {"date": "2026-05-20", "phase": "望"},
+          {"date": "2026-05-28", "phase": "下弦"}
+        ],
+        "zeJi": {
+          "jiDays": [
+            {"date": "2026-05-18", "score": 85, "reasons": ["月德值日·大吉", "建日·宜开市", "角木蛟值日·百事吉", "金匮值日·大吉"], "methods": ["huangli", "jian-chu", "er-shi-ba-xiu", "tian-de"]},
+            {"date": "2026-05-20", "score": 92, "reasons": ["天德合·大吉", "满日·宜动土", "氐土貉值日·宜出行", "玉堂值日·大吉"], "methods": ["huangli", "jian-chu", "er-shi-ba-xiu"]},
+            {"date": "2026-05-25", "score": 78, "reasons": ["开日·百事大吉", "井木犴值日·宜祭祀", "司命值日·吉"], "methods": ["huangli", "jian-chu", "er-shi-ba-xiu"]}
+          ],
+          "methodAnalysis": [
+            {"method": "huangli", "result": "5月可择吉日3天：5/18（月德·开市）、5/20（天德合·动土）、5/25（开日·通用）", "jiDates": ["2026-05-18", "2026-05-20", "2026-05-25"]},
+            {"method": "jian-chu", "result": "建日开市大吉，满日动土吉，开日百事吉皆可用", "jiDates": ["2026-05-18", "2026-05-20", "2026-05-25"]},
+            {"method": "er-shi-ba-xiu", "result": "角亢氐房心尾箕和斗牛女虚危室壁周行值日各有吉凶", "jiDates": ["2026-05-18", "2026-05-23", "2026-05-25"]},
+            {"method": "tian-de", "result": "丙子日月德贵人，五月天德在乾方", "jiDates": ["2026-05-18", "2026-05-20"]}
+          ],
+          "suggestion": "5月20日「小满」节气前一天，天德合日+满日，动土/开市/开业大吉，建议优先选用。备选：18日（月德·开市）、25日（开日·通用）"
+        },
+        "importantDays": [
+          {"date": "2026-05-18", "name": "四月初一", "type": "节日"},
+          {"date": "2026-05-21", "name": "小满", "type": "节气"},
+          {"date": "2026-05-31", "name": "端午节", "type": "节日"}
+        ]
+      }
+    },
+    {
+      "label": "2026年5月·月历查询",
+      "input": {
+        "date": "2026-05-01",
+        "rangeType": "month",
+        "zeJiMethods": ["huangli", "jian-chu"]
+      },
+      "result": {
+        "days": [
+          {
+            "solarDate": "2026-05-01",
+            "lunarDate": "三月十五",
+            "nianGanZhi": "丙午",
+            "yueGanZhi": "癸巳",
+            "riGanZhi": "甲午",
+            "jieQi": "立夏前",
+            "jianChu": "除",
+            "erShiBaXiu": "参",
+            "naYin": "沙中金",
+            "jiShen": ["天赦","玉堂","天仓"],
+            "xiongSha": ["月破","大耗","劫煞"],
+            "yi": ["祭祀","祈福","出行","开市"],
+            "ji": ["嫁娶","安葬"],
+            "score": 72,
+            "shiGanZhi": [],
+            "shiChenJiXiong": [],
+            "weekDay": "星期五",
+            "lunarMonth": "三月",
+            "lunarDay": "十五",
+            "isLeap": false,
+            "jiuXing": "一白",
+            "zhiShen": "玉堂",
+            "pengZu": "甲不开仓财物耗散",
+            "taiShen": "门碓，房内东",
+            "chongSha": "冲鼠（甲子）煞北",
+            "suiSha": "岁煞北"
+          },
+          {
+            "solarDate": "2026-05-05",
+            "lunarDate": "三月十九",
+            "jiuXing": "四绿",
+            "jieQi": "立夏（08:15）",
+            "jianChu": "满",
+            "erShiBaXiu": "井",
+            "naYin": "沙中金",
+            "yi": ["嫁娶","开市","动土","上梁"],
+            "ji": [],
+            "score": 90,
+            "jiShen": ["月德合","天德","福星"],
+            "xiongSha": [],
+            "shiGanZhi": [],
+            "shiChenJiXiong": [],
+            "weekDay": "星期二",
+            "lunarMonth": "三月",
+            "lunarDay": "十九",
+            "isLeap": false,
+            "zhiShen": "天德",
+            "pengZu": "庚不经络",
+            "taiShen": "占大门",
+            "chongSha": "冲龙煞北",
+            "suiSha": "岁煞北"
+          },
+          {
+            "solarDate": "2026-05-18",
+            "lunarDate": "四月初一",
+            "nianGanZhi": "丙午",
+            "yueGanZhi": "癸巳",
+            "riGanZhi": "丙子",
+            "jieQi": "小满前",
+            "jianChu": "建",
+            "erShiBaXiu": "角",
+            "naYin": "涧下水",
+            "jiuXing": "六白",
+            "zhiShen": "金匮",
+            "pengZu": "丙不修灶，子不问卜",
+            "taiShen": "厨灶碓",
+            "chongSha": "冲马煞南",
+            "suiSha": "岁煞南",
+            "jiShen": ["月德","天德","金匮"],
+            "xiongSha": ["月煞","大煞"],
+            "yi": ["嫁娶","出行","开市","安床"],
+            "ji": ["安葬","行丧"],
+            "score": 85,
+            "shiGanZhi": [],
+            "shiChenJiXiong": [],
+            "weekDay": "星期一",
+            "lunarMonth": "四月",
+            "lunarDay": "初一",
+            "isLeap": false
+          },
+          {
+            "solarDate": "2026-05-25",
+            "lunarDate": "四月初八",
+            "nianGanZhi": "丙午",
+            "yueGanZhi": "癸巳",
+            "riGanZhi": "癸未",
+            "jieQi": "",
+            "jianChu": "开",
+            "erShiBaXiu": "鬼",
+            "naYin": "杨柳木",
+            "jiuXing": "九紫",
+            "zhiShen": "司命",
+            "pengZu": "癸不词讼，未不服药",
+            "taiShen": "碓磨厕",
+            "chongSha": "冲牛煞西",
+            "suiSha": "岁煞南",
+            "jiShen": ["月德","司命","不将"],
+            "xiongSha": [],
+            "yi": ["祭祀","祈福","出行","开市","移徙","入宅","嫁娶"],
+            "ji": [],
+            "score": 88,
+            "shiGanZhi": [],
+            "shiChenJiXiong": [],
+            "weekDay": "星期一",
+            "lunarMonth": "四月",
+            "lunarDay": "初八",
+            "isLeap": false
+          }
+        ],
+        "jieQiList": [
+          {"name": "立夏", "date": "2026-05-05", "time": "08:15:42"},
+          {"name": "小满", "date": "2026-05-21", "time": "06:22:18"}
+        ],
+        "moonPhases": [
+          {"date": "2026-05-05", "phase": "朔"},
+          {"date": "2026-05-12", "phase": "上弦"},
+          {"date": "2026-05-20", "phase": "望"},
+          {"date": "2026-05-28", "phase": "下弦"}
+        ],
+        "importantDays": [
+          {"date": "2026-05-01", "name": "劳动节", "type": "节日"},
+          {"date": "2026-05-05", "name": "立夏", "type": "节气"},
+          {"date": "2026-05-18", "name": "四月初一", "type": "节日"},
+          {"date": "2026-05-21", "name": "小满", "type": "节气"},
+          {"date": "2026-05-31", "name": "端午节", "type": "节日"}
+        ],
+        "zeJi": {
+          "jiDays": [
+            {"date": "2026-05-05", "score": 90, "reasons": ["满日·嫁娶大吉", "立夏节气·月德合日"], "methods": ["huangli", "jian-chu"]},
+            {"date": "2026-05-18", "score": 85, "reasons": ["建日·开市吉", "月德值日"], "methods": ["huangli"]},
+            {"date": "2026-05-25", "score": 88, "reasons": ["开日·百事皆吉", "月德·司命值日"], "methods": ["huangli", "jian-chu"]}
+          ],
+          "methodAnalysis": [
+            {"method": "huangli", "result": "本月择吉日：5日(月德合·嫁娶)、18日(月德·开市)、25日(开日·通用)", "jiDates": ["2026-05-05", "2026-05-18", "2026-05-25"]},
+            {"method": "jian-chu", "result": "满日·开日最吉，建日次之。4月立夏后换月建", "jiDates": ["2026-05-05", "2026-05-25"]}
+          ],
+          "suggestion": "本月最佳吉日为5月5日（立夏，月德合+满日），其次为5月25日（开日+司命值日）。5月18日建日，月德贵人，适合开市交易"
+        }
+      }
+    }
+  ]
+}

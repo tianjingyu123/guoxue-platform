@@ -1,0 +1,91 @@
+{
+  "description": "八字排盘 Mock 数据 — 3组典型命例",
+  "samples": [
+    {
+      "label": "男命·甲木日主",
+      "input": { "name": "张三", "gender": "男", "year": 1984, "month": 11, "day": 15, "hour": 8, "minute": 0, "city": "北京" },
+      "result": {
+        "input": { "name": "张三", "gender": "男", "year": 1984, "month": 11, "day": 15, "hour": 8, "minute": 0, "city": "北京" },
+        "siZhu": {
+          "nian": { "gan": "甲", "zhi": "子", "ganShiShen": "比", "zhiShiShen": "印", "cangGan": [{ "gan": "癸", "shiShen": "印" }], "nayin": "海中金", "diShi": "沐浴" },
+          "yue": { "gan": "乙", "zhi": "亥", "ganShiShen": "劫", "zhiShiShen": "印", "cangGan": [{ "gan": "壬", "shiShen": "枭" }, { "gan": "甲", "shiShen": "比" }], "nayin": "山头火", "diShi": "长生" },
+          "ri": { "gan": "甲", "zhi": "寅", "ganShiShen": "日主", "zhiShiShen": "比", "cangGan": [{ "gan": "甲", "shiShen": "比" }, { "gan": "丙", "shiShen": "食" }, { "gan": "戊", "shiShen": "才" }], "nayin": "大溪水", "diShi": "临官", "ziZuo": "比" },
+          "shi": { "gan": "戊", "zhi": "辰", "ganShiShen": "才", "zhiShiShen": "财", "cangGan": [{ "gan": "戊", "shiShen": "才" }, { "gan": "乙", "shiShen": "劫" }, { "gan": "癸", "shiShen": "印" }], "nayin": "大林木", "diShi": "衰" }
+        },
+        "qiYun": { "startAge": 8, "startYear": 1992, "desc": "8岁起运", "daYun": [] },
+        "kongWang": "子丑",
+        "shengXiao": "鼠",
+        "lunarDate": "甲子年十月廿三日",
+        "taiYuan": { "gan": "丙", "zhi": "寅", "nayin": "炉中火" },
+        "mingGong": { "gan": "庚", "zhi": "申", "nayin": "石榴木" },
+        "shenGong": { "gan": "壬", "zhi": "戌", "nayin": "大海水" },
+        "wangXiang": "木旺·水相·火休·土囚·金死",
+        "fenXiTiShi": { "ganHe": [], "sanHe": ["寅午戌合火局"], "sanHui": ["寅卯辰会木局"], "liuChong": [], "liuHe": ["子丑合"], "liuHai": [], "sanXing": [], "ziXing": [] },
+        "shenSha": [
+          { "name": "文昌", "type": "ji", "desc": "聪明好学", "pillar": "年" },
+          { "name": "驿马", "type": "ji", "desc": "走动奔波", "pillar": "日" },
+          { "name": "华盖", "type": "ji", "desc": "才艺出众", "pillar": "时" }
+        ],
+        "geJu": { "name": "建禄格", "type": "zheng", "yongShen": "火", "xiShen": "土", "jiShen": "水", "desc": "甲木生于寅月，建禄格，身强" },
+        "wuXingEnergy": { "mu": 45, "huo": 10, "tu": 20, "jin": 5, "shui": 20, "desc": "木旺身强，喜火土泄秀，忌水木再生" }
+      }
+    },
+    {
+      "label": "女命·丙火日主",
+      "input": { "name": "李四", "gender": "女", "year": 1990, "month": 6, "day": 1, "hour": 12, "minute": 0, "city": "上海" },
+      "result": {
+        "input": { "name": "李四", "gender": "女", "year": 1990, "month": 6, "day": 1, "hour": 12, "minute": 0, "city": "上海" },
+        "siZhu": {
+          "nian": { "gan": "庚", "zhi": "午", "ganShiShen": "才", "zhiShiShen": "劫", "cangGan": [{ "gan": "丁", "shiShen": "劫" }, { "gan": "己", "shiShen": "伤" }], "nayin": "路旁土", "diShi": "帝旺" },
+          "yue": { "gan": "辛", "zhi": "巳", "ganShiShen": "财", "zhiShiShen": "比", "cangGan": [{ "gan": "丙", "shiShen": "比" }, { "gan": "戊", "shiShen": "食" }, { "gan": "庚", "shiShen": "才" }], "nayin": "白蜡金", "diShi": "临官" },
+          "ri": { "gan": "丙", "zhi": "午", "ganShiShen": "日主", "zhiShiShen": "劫", "cangGan": [{ "gan": "丁", "shiShen": "劫" }, { "gan": "己", "shiShen": "伤" }], "nayin": "天河水", "diShi": "帝旺", "ziZuo": "劫" },
+          "shi": { "gan": "甲", "zhi": "午", "ganShiShen": "枭", "zhiShiShen": "劫", "cangGan": [{ "gan": "丁", "shiShen": "劫" }, { "gan": "己", "shiShen": "伤" }], "nayin": "沙中金", "diShi": "帝旺" }
+        },
+        "qiYun": { "startAge": 5, "startYear": 1995, "desc": "5岁起运", "daYun": [] },
+        "kongWang": "辰巳",
+        "shengXiao": "马",
+        "lunarDate": "庚午年五月初九日",
+        "taiYuan": { "gan": "壬", "zhi": "申", "nayin": "剑锋金" },
+        "mingGong": { "gan": "丙", "zhi": "子", "nayin": "涧下水" },
+        "shenGong": { "gan": "戊", "zhi": "寅", "nayin": "城头土" },
+        "wangXiang": "火旺·土相·木休·水囚·金死",
+        "fenXiTiShi": { "ganHe": ["丙辛合水"], "sanHe": ["寅午戌合火局"], "sanHui": ["巳午未会火局"], "liuChong": ["子午冲"], "liuHe": [], "liuHai": [], "sanXing": [], "ziXing": ["午午自刑"] },
+        "shenSha": [
+          { "name": "羊刃", "type": "xiong", "desc": "性格刚烈", "pillar": "日" },
+          { "name": "桃花", "type": "ji", "desc": "人缘佳", "pillar": "月" }
+        ],
+        "geJu": { "name": "羊刃格", "type": "bian", "yongShen": "水", "xiShen": "金", "jiShen": "木火", "desc": "丙火午月，三午汇聚，炎上格" },
+        "wuXingEnergy": { "mu": 10, "huo": 65, "tu": 15, "jin": 8, "shui": 2, "desc": "火极旺，炎上之势，急需金水调候" }
+      }
+    },
+    {
+      "label": "男命·壬水日主",
+      "input": { "name": "王五", "gender": "男", "year": 2000, "month": 12, "day": 25, "hour": 3, "minute": 15, "city": "" },
+      "result": {
+        "input": { "name": "王五", "gender": "男", "year": 2000, "month": 12, "day": 25, "hour": 3, "minute": 15, "city": "" },
+        "siZhu": {
+          "nian": { "gan": "庚", "zhi": "辰", "ganShiShen": "枭", "zhiShiShen": "杀", "cangGan": [{ "gan": "戊", "shiShen": "杀" }, { "gan": "乙", "shiShen": "伤" }, { "gan": "癸", "shiShen": "劫" }], "nayin": "白蜡金", "diShi": "墓" },
+          "yue": { "gan": "戊", "zhi": "子", "ganShiShen": "杀", "zhiShiShen": "劫", "cangGan": [{ "gan": "癸", "shiShen": "劫" }], "nayin": "霹雳火", "diShi": "帝旺" },
+          "ri": { "gan": "壬", "zhi": "子", "ganShiShen": "日主", "zhiShiShen": "劫", "cangGan": [{ "gan": "癸", "shiShen": "劫" }], "nayin": "桑柘木", "diShi": "帝旺", "ziZuo": "劫" },
+          "shi": { "gan": "壬", "zhi": "寅", "ganShiShen": "比", "zhiShiShen": "食", "cangGan": [{ "gan": "甲", "shiShen": "食" }, { "gan": "丙", "shiShen": "财" }, { "gan": "戊", "shiShen": "杀" }], "nayin": "金箔金", "diShi": "病" }
+        },
+        "qiYun": { "startAge": 3, "startYear": 2003, "desc": "3岁起运", "daYun": [] },
+        "kongWang": "寅卯",
+        "shengXiao": "龙",
+        "lunarDate": "庚辰年十一月三十日",
+        "taiYuan": { "gan": "己", "zhi": "卯", "nayin": "城头土" },
+        "mingGong": { "gan": "甲", "zhi": "辰", "nayin": "覆灯火" },
+        "shenGong": { "gan": "丙", "zhi": "午", "nayin": "天河水" },
+        "wangXiang": "水旺·木相·金休·土囚·火死",
+        "fenXiTiShi": { "ganHe": [], "sanHe": ["申子辰合水局"], "sanHui": [], "liuChong": [], "liuHe": ["子丑合"], "liuHai": [], "sanXing": [], "ziXing": [] },
+        "shenSha": [
+          { "name": "将星", "type": "ji", "desc": "领导才能", "pillar": "日" },
+          { "name": "华盖", "type": "ji", "desc": "智慧过人", "pillar": "年" },
+          { "name": "劫煞", "type": "xiong", "desc": "注意财务", "pillar": "时" }
+        ],
+        "geJu": { "name": "羊刃格", "type": "bian", "yongShen": "木", "xiShen": "火", "jiShen": "金水", "desc": "壬水子月，子辰半合水局，身强" },
+        "wuXingEnergy": { "mu": 12, "huo": 3, "tu": 15, "jin": 10, "shui": 60, "desc": "水极旺，需木火泄秀暖局" }
+      }
+    }
+  ]
+}

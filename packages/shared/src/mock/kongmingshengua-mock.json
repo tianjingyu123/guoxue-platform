@@ -1,0 +1,45 @@
+{
+  "input": { "datetime": "2026-05-18T10:30:00+08:00", "method": "shici", "question": "何时遇良缘" },
+  "process": {
+    "method": "shici",
+    "calcDesc": "时辰起卦",
+    "guaNumber": 11,
+    "dongYao": 5
+  },
+  "benGua": {
+    "index": 11,
+    "name": "地天泰",
+    "shangGua": "地",
+    "xiaGua": "天",
+    "symbol": "䷊",
+    "guaCi": "小往大来吉亨。",
+    "tuanCi": "泰，小往大来。",
+    "daXiang": "天地交泰，后以财成天地之道。"
+  },
+  "bianGua": {
+    "index": 15,
+    "name": "地山谦",
+    "shangGua": "地",
+    "xiaGua": "山",
+    "symbol": "䷎",
+    "guaCi": "亨，君子有终。",
+    "tuanCi": "谦亨。",
+    "daXiang": "地中有山谦。"
+  },
+  "dongYaoCi": {
+    "position": 5,
+    "yaoName": "五九",
+    "yaoCi": "飞龙在天",
+    "xiaoXiang": "爻位5象曰：飞龙在天"
+  },
+  "jieGua": {
+    "daYi": "小往大来吉亨。",
+    "shiYe": "稳步发展",
+    "caiYun": "财运平稳",
+    "ganQing": "温柔以待",
+    "jianKang": "注意调养",
+    "chuXing": "宜静不宜动",
+    "specific": "针对\"何时遇良缘\"，小往大来吉亨。。"
+  },
+  "duanYu": "地天泰䷊，5爻动：飞龙在天。小往大来吉亨。。"
+}

@@ -1,0 +1,41 @@
+{
+  "input": { "zuoShan": "子", "xiang": "午", "duShu": 7, "year": 2026 },
+  "basicInfo": {
+    "zuoShan": "子",
+    "xiang": "午",
+    "duShu": 7,
+    "dunType": "阳遁",
+    "juShu": 8,
+    "ju72Number": 5,
+    "ju72Name": "第5局",
+    "duanName": "坐山子·中局·阳遁8",
+    "nianGanZhi": "丙午",
+    "shiGanZhi": "戊子",
+    "xunShou": "甲申",
+    "shuangShan": "壬子"
+  },
+  "gongs": [
+    { "pos":1,"direction":"正北","bagua":"坎","diPan":"辛","tianPan":"癸","star":"天柱","men":"惊门","shen":"螣蛇","isZuoShanGong":true,"isXiangGong":false,"shanXiangJiXiong":"坐山落此宫，主人丁","isRuMu":false,"isJiXing":false,"kongWang":false,"maXing":false },
+    { "pos":2,"direction":"西南","bagua":"坤","diPan":"壬","tianPan":"丁","star":"天任","men":"生门","shen":"太阴","isZuoShanGong":false,"isXiangGong":false,"isRuMu":true,"isJiXing":false,"kongWang":false,"maXing":false },
+    { "pos":3,"direction":"正东","bagua":"震","diPan":"乙","tianPan":"壬","star":"天蓬","men":"休门","shen":"九地","isZuoShanGong":false,"isXiangGong":false,"isRuMu":false,"isJiXing":false,"kongWang":false,"maXing":true },
+    { "pos":4,"direction":"东南","bagua":"巽","diPan":"庚","tianPan":"乙","star":"天辅","men":"杜门","shen":"值符","isZuoShanGong":false,"isXiangGong":false,"isRuMu":false,"isJiXing":false,"kongWang":false,"maXing":false },
+    { "pos":5,"direction":"中央","bagua":"中","diPan":"己","tianPan":"己","star":"天禽","men":"中门","shen":"白虎","isZuoShanGong":false,"isXiangGong":false,"isRuMu":true,"isJiXing":false,"kongWang":false,"maXing":false },
+    { "pos":6,"direction":"西北","bagua":"乾","diPan":"丁","tianPan":"戊","star":"天心","men":"开门","shen":"九天","isZuoShanGong":false,"isXiangGong":false,"isRuMu":false,"isJiXing":false,"kongWang":false,"maXing":false },
+    { "pos":7,"direction":"正西","bagua":"兑","diPan":"癸","tianPan":"庚","star":"天柱","men":"惊门","shen":"六合","isZuoShanGong":false,"isXiangGong":false,"isRuMu":false,"isJiXing":false,"kongWang":false,"maXing":false },
+    { "pos":8,"direction":"东北","bagua":"艮","diPan":"戊","tianPan":"辛","star":"天任","men":"生门","shen":"值符","isZuoShanGong":false,"isXiangGong":false,"isRuMu":false,"isJiXing":false,"kongWang":false,"maXing":false },
+    { "pos":9,"direction":"正南","bagua":"离","diPan":"丙","tianPan":"丙","star":"天英","men":"景门","shen":"玄武","isZuoShanGong":false,"isXiangGong":true,"shanXiangJiXiong":"朝向落此宫，主财运","isRuMu":false,"isJiXing":false,"kongWang":false,"maXing":false }
+  ],
+  "zuoShanAnalysis": {
+    "shan": "子","xianTian":"坎","luoShu":1,"direction":"正北","gong":1,
+    "desc": "坐山子（先天坎卦，洛书1宫）"
+  },
+  "xiangAnalysis": {
+    "shan": "午","xianTian":"离","luoShu":9,"direction":"正南","gong":9,
+    "desc": "朝向午（先天离卦，洛书9宫）"
+  },
+  "geJu": [
+    { "name":"坐山得位","active":true,"desc":"坐山不在墓空，根基稳固。","jiXiong":"吉" },
+    { "name":"朝向有气","active":true,"desc":"朝向不逢刑空，财气可纳。","jiXiong":"吉" }
+  ],
+  "duanYu": "山向奇门第5局（72局），阳遁8局。坐山子（先天坎卦，洛书1宫），朝向午（先天离卦，洛书9宫）。度数7°属中局。用事2026年（丙午）。山管人丁水管财，天柱临坐山，景门照朝向。"
+}
