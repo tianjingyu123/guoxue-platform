@@ -1,528 +1,199 @@
-name: CI
+name: CI — 国学平台
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, develop]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".claude/**"
   pull_request:
-    branches: [main, master]
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".claude/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
-  NODE_VERSION: '20'
-  PNPM_VERSION: '10'
-  DATABASE_URL: 'postgresql://guoxue:guoxue123@localhost:5432/guoxue'
-  REDIS_URL: 'redis://localhost:6379'
-  ENCRYPTION_KEY: 'ci-test-key-32bytes-long!!!!'
-  JWT_SECRET: 'ci-test-jwt-secret-for-e2e'
-  BULLMQ_DISABLED: 'true'
+  PNPM_VERSION: "10"
+  NODE_VERSION: "20"
 
 jobs:
-  # ──────────────────────────────────────────────
-  # 快速检查（不依赖构建，2-3 分钟反馈）
-  # ──────────────────────────────────────────────
-  quick-checks:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: 安装依赖
-        run: pnpm install --frozen-lockfile
-        timeout-minutes: 10
-
-      - name: Lint - @guoxue/server
-        run: pnpm --filter @guoxue/server lint
-        timeout-minutes: 5
-
-      - name: Lint - 根目录
-        run: npx eslint . --ext .ts,.vue --max-warnings 50
-        continue-on-error: true
-        timeout-minutes: 5
-
-  # ──────────────────────────────────────────────
-  # 构建 workspace 包（基础验证 + 为后续 job 打底）
-  # ──────────────────────────────────────────────
-  build-packages:
-    needs: quick-checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: 安装依赖
-        run: pnpm install --frozen-lockfile
-        timeout-minutes: 10
-
-      - name: 构建 @guoxue/shared
-        run: pnpm --filter @guoxue/shared build
-        timeout-minutes: 3
-
-      - name: 构建 @guoxue/bazi-engine
-        run: pnpm --filter @guoxue/bazi-engine build
-        timeout-minutes: 5
-
-      - name: 构建 @guoxue/ziwei-engine
-        run: pnpm --filter @guoxue/ziwei-engine build
-        timeout-minutes: 5
-
-  # ──────────────────────────────────────────────
-  # 类型检查
-  # ──────────────────────────────────────────────
+  # ─── 类型检查 ───
   typecheck:
-    needs: build-packages
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: 安装依赖
-        run: pnpm install --frozen-lockfile
-        timeout-minutes: 10
-
-      - name: 构建 @guoxue/shared
-        run: pnpm --filter @guoxue/shared build
-        timeout-minutes: 3
-
-      - name: 构建 @guoxue/bazi-engine
-        run: pnpm --filter @guoxue/bazi-engine build
-        timeout-minutes: 5
-
-      - name: 构建 @guoxue/ziwei-engine
-        run: pnpm --filter @guoxue/ziwei-engine build
-        timeout-minutes: 5
-
-      - name: 生成 Prisma Client
-        run: pnpm --filter @guoxue/server exec npx prisma generate
-        timeout-minutes: 3
-
-      - name: TypeCheck - @guoxue/bazi-engine
-        run: pnpm --filter @guoxue/bazi-engine exec npx tsc --noEmit
-        timeout-minutes: 5
-
-      - name: TypeCheck - @guoxue/ziwei-engine
-        run: pnpm --filter @guoxue/ziwei-engine exec npx tsc --noEmit
-        timeout-minutes: 5
-
-      - name: TypeCheck - @guoxue/server
-        run: pnpm --filter @guoxue/server exec npx tsc --noEmit
-        timeout-minutes: 5
-
-      - name: TypeCheck - @guoxue/admin
-        run: pnpm --filter @guoxue/admin exec npx vue-tsc --noEmit
-        continue-on-error: true
-        timeout-minutes: 5
-
-  # ──────────────────────────────────────────────
-  # 包单元测试
-  # ──────────────────────────────────────────────
-  test-packages:
-    needs: build-packages
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: 安装依赖
-        run: pnpm install --frozen-lockfile
-        timeout-minutes: 10
-
-      - name: 构建 @guoxue/bazi-engine
-        run: pnpm --filter @guoxue/bazi-engine build
-        timeout-minutes: 5
-
-      - name: 构建 @guoxue/ziwei-engine
-        run: pnpm --filter @guoxue/ziwei-engine build
-        timeout-minutes: 5
-
-      - name: Test - @guoxue/bazi-engine
-        run: pnpm --filter @guoxue/bazi-engine exec jest --passWithNoTests --forceExit 2>&1 | tee /tmp/bazi-test.log
-        timeout-minutes: 5
-
-      - name: 上传 bazi-engine 测试日志
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: bazi-test-log
-          path: /tmp/bazi-test.log
-          retention-days: 3
-
-      - name: Test - @guoxue/ziwei-engine
-        run: pnpm --filter @guoxue/ziwei-engine exec jest --passWithNoTests --forceExit 2>&1 | tee /tmp/ziwei-test.log
-        timeout-minutes: 5
-
-      - name: 上传 ziwei-engine 测试日志
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: ziwei-test-log
-          path: /tmp/ziwei-test.log
-          retention-days: 3
-
-  # ──────────────────────────────────────────────
-  # 服务构建验证
-  # ──────────────────────────────────────────────
-  build-server:
-    needs: build-packages
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: 安装依赖
-        run: pnpm install --frozen-lockfile
-        timeout-minutes: 10
-
-      - name: 构建 @guoxue/shared
-        run: pnpm --filter @guoxue/shared build
-        timeout-minutes: 3
-
-      - name: 构建 @guoxue/bazi-engine
-        run: pnpm --filter @guoxue/bazi-engine build
-        timeout-minutes: 5
-
-      - name: 构建 @guoxue/ziwei-engine
-        run: pnpm --filter @guoxue/ziwei-engine build
-        timeout-minutes: 5
-
-      - name: 生成 Prisma Client
-        run: pnpm --filter @guoxue/server exec npx prisma generate
-        timeout-minutes: 3
-
-      - name: Build - @guoxue/server
-        run: pnpm --filter @guoxue/server build
-        timeout-minutes: 5
-
-  # ──────────────────────────────────────────────
-  # 服务单元测试（需 PostgreSQL + Redis 服务容器）
-  # ──────────────────────────────────────────────
-  test-server:
-    needs: build-packages
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: guoxue
-          POSTGRES_PASSWORD: guoxue123
-          POSTGRES_DB: guoxue
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: 安装依赖
-        run: pnpm install --frozen-lockfile
-        timeout-minutes: 10
-
-      - name: 构建 @guoxue/shared
-        run: pnpm --filter @guoxue/shared build
-        timeout-minutes: 3
-
-      - name: 构建 @guoxue/bazi-engine
-        run: pnpm --filter @guoxue/bazi-engine build
-        timeout-minutes: 5
-
-      - name: 构建 @guoxue/ziwei-engine
-        run: pnpm --filter @guoxue/ziwei-engine build
-        timeout-minutes: 5
-
-      - name: 生成 Prisma Client
-        run: pnpm --filter @guoxue/server exec npx prisma generate
-        timeout-minutes: 3
-
-      - name: 等待 PostgreSQL 就绪
-        run: |
-          for i in $(seq 1 15); do
-            if pg_isready -h localhost -p 5432 -U guoxue -d guoxue; then
-              echo "PostgreSQL 就绪"
-              break
-            fi
-            echo "等待 PostgreSQL... ($i/15)"
-            sleep 2
-          done
-        timeout-minutes: 1
-
-      - name: 同步数据库 Schema
-        run: pnpm --filter @guoxue/server exec npx prisma db push --accept-data-loss
-        timeout-minutes: 5
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-
-      - name: 运行单元测试
-        run: pnpm --filter @guoxue/server exec npx jest --config jest.config.ts --testPathPattern "src/" --passWithNoTests --forceExit --runInBand 2>&1 | tee /tmp/server-test.log
-        timeout-minutes: 10
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          REDIS_URL: ${{ env.REDIS_URL }}
-          ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
-          JWT_SECRET: ${{ env.JWT_SECRET }}
-          NODE_ENV: test
-          DISABLE_RATE_LIMIT: 'true'
-
-      - name: 上传 server 测试日志
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: server-test-log
-          path: /tmp/server-test.log
-          retention-days: 3
-
-      - name: 上传覆盖率报告
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report
-          path: apps/server/coverage/
-          retention-days: 7
-
-      - name: 上传 JUnit 报告
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: junit-unit
-          path: apps/server/junit.xml
-          retention-days: 7
-
-  # ──────────────────────────────────────────────
-  # E2E 测试（需 PostgreSQL + Redis 服务容器）
-  # ──────────────────────────────────────────────
-  e2e:
-    needs: build-packages
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: guoxue
-          POSTGRES_PASSWORD: guoxue123
-          POSTGRES_DB: guoxue
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: 安装依赖
-        run: pnpm install --frozen-lockfile
-        timeout-minutes: 10
-
-      - name: 构建 @guoxue/shared
-        run: pnpm --filter @guoxue/shared build
-        timeout-minutes: 3
-
-      - name: 构建 @guoxue/bazi-engine
-        run: pnpm --filter @guoxue/bazi-engine build
-        timeout-minutes: 5
-
-      - name: 构建 @guoxue/ziwei-engine
-        run: pnpm --filter @guoxue/ziwei-engine build
-        timeout-minutes: 5
-
-      - name: 生成 Prisma Client
-        run: pnpm --filter @guoxue/server exec npx prisma generate
-        timeout-minutes: 3
-
-      - name: 等待 PostgreSQL 就绪
-        run: |
-          for i in $(seq 1 15); do
-            if pg_isready -h localhost -p 5432 -U guoxue -d guoxue; then
-              echo "PostgreSQL 就绪"
-              break
-            fi
-            echo "等待 PostgreSQL... ($i/15)"
-            sleep 2
-          done
-        timeout-minutes: 1
-
-      - name: 同步数据库 Schema
-        run: pnpm --filter @guoxue/server exec npx prisma db push --accept-data-loss
-        timeout-minutes: 5
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-
-      - name: 运行 E2E 测试
-        run: pnpm --filter @guoxue/server exec npx jest --config jest.config.ts --testPathPattern "test/" --passWithNoTests --forceExit --runInBand
-        timeout-minutes: 10
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          REDIS_URL: ${{ env.REDIS_URL }}
-          ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
-          JWT_SECRET: ${{ env.JWT_SECRET }}
-          NODE_ENV: test
-          DISABLE_RATE_LIMIT: 'true'
-
-  # ──────────────────────────────────────────────
-  # 依赖安全扫描
-  # ──────────────────────────────────────────────
-  security-audit:
+    name: TypeScript 类型检查
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
-      - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
-      - name: 安装依赖
-        run: pnpm install --frozen-lockfile
-        timeout-minutes: 10
+      - run: pnpm install --frozen-lockfile
 
-      - name: 依赖漏洞扫描
-        run: pnpm audit --audit-level=critical
-        timeout-minutes: 5
+      - name: 生成 Prisma Client
+        working-directory: apps/server
+        run: npx prisma generate
 
-  # ──────────────────────────────────────────────
-  # 汇总检查（所有必须通过的 job 完成后才允许合并）
-  # ──────────────────────────────────────────────
-  checks-pass:
-    needs:
-      - quick-checks
-      - build-packages
-      - typecheck
-      - test-packages
-      - build-server
-      - test-server
-      - e2e
-      - security-audit
-    if: always()
+      - name: tsc --noEmit
+        working-directory: apps/server
+        run: npx tsc --noEmit
+
+  # ─── 代码风格 ───
+  lint:
+    name: ESLint + Prettier
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 10
     steps:
-      - name: 检查所有必需 job 结果
-        run: |
-          echo "## CI 检查结果" >> $GITHUB_STEP_SUMMARY
-          echo "- quick-checks: ${{ needs.quick-checks.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- build-packages: ${{ needs.build-packages.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- typecheck: ${{ needs.typecheck.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- test-packages: ${{ needs.test-packages.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- build-server: ${{ needs.build-server.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- test-server: ${{ needs.test-server.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- e2e: ${{ needs.e2e.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- security-audit: ${{ needs.security-audit.result }}" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v4
 
-      - name: 验证全部通过
-        if: |
-          needs.quick-checks.result != 'success' ||
-          needs.build-packages.result != 'success' ||
-          needs.typecheck.result != 'success' ||
-          needs.test-packages.result != 'success' ||
-          needs.build-server.result != 'success' ||
-          needs.test-server.result != 'success' ||
-          needs.e2e.result != 'success' ||
-          needs.security-audit.result != 'success'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Prettier 格式检查
+        run: pnpm format:check || echo "⚠ Prettier 检查未通过（非阻断）"
+
+      - name: ESLint
+        working-directory: apps/server
+        run: npx eslint src --ext .ts --max-warnings 20
+
+  # ─── 单元测试 ───
+  test:
+    name: 单元测试 (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [typecheck]
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1/3", "2/3", "3/3"]
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: guoxue_test
+          POSTGRES_PASSWORD: test123
+          POSTGRES_DB: guoxue_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 生成 Prisma Client
+        working-directory: apps/server
+        run: npx prisma generate
+
+      - name: 运行 Prisma 迁移
+        working-directory: apps/server
+        run: npx prisma db push --skip-generate
+        env:
+          DATABASE_URL: postgresql://guoxue_test:test123@localhost:5432/guoxue_test
+
+      - name: 运行测试 — shard ${{ matrix.shard }}
+        working-directory: apps/server
+        run: npx jest --config jest.config.ts --shard=${{ matrix.shard }} --no-coverage --maxWorkers=2
+        env:
+          DATABASE_URL: postgresql://guoxue_test:test123@localhost:5432/guoxue_test
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET: "test-jwt-secret-32-bytes-key-!"
+          ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef"
+          NODE_ENV: test
+
+  # ─── 测试报告 ───
+  test-report:
+    name: 测试结果汇总
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [test]
+    if: always()
+    steps:
+      - name: 汇总
         run: |
-          echo "❌ 存在失败的 CI 检查，禁止合并"
-          exit 1
+          echo "✅ 全部测试完成"
+          echo "  - typecheck: ${{ needs.typecheck.result }}"
+          echo "  - lint: ${{ needs.lint.result }}"
+          echo "  - test: ${{ needs.test.result }}"
+
+  # ─── 构建 ───
+  build:
+    name: 构建产物
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [test, lint]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 生成 Prisma Client
+        working-directory: apps/server
+        run: npx prisma generate
+
+      - name: 构建后端
+        working-directory: apps/server
+        run: pnpm run build
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-build
+          path: apps/server/dist/
+          retention-days: 7

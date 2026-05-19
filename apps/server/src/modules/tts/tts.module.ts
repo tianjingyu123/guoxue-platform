@@ -7,5 +7,6 @@ import { RedisModule } from "../../redis/redis.module"
   imports: [RedisModule],
   controllers: [TtsController],
   providers: [TtsService],
+  exports: [TtsService],
 })
 export class TtsModule {}

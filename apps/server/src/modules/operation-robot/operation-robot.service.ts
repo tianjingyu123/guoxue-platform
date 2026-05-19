@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -14,20 +14,40 @@ interface RobotConfig {
 /** 机器人角色 */
 type RobotRole = "like_bot" | "comment_bot" | "signin_bot" | "question_bot";
 
+export interface ExecutionLog {
+  id: string;
+  role: RobotRole;
+  action: string;
+  result: "success" | "error";
+  detail: string;
+  createdAt: string;
+}
+
+const MAX_LOG_SIZE = 200;
+
 @Injectable()
-export class OperationRobotService {
+export class OperationRobotService implements OnModuleInit {
   private readonly logger = new Logger(OperationRobotService.name);
   private robotConfigs: Map<RobotRole, RobotConfig> = new Map();
   private botUserIds: Map<RobotRole, string> = new Map();
   private initialized = false;
+  /** 执行日志环形缓冲 */
+  private executionLogs: ExecutionLog[] = [];
+  private logSeq = 0;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: AiGatewayService,
   ) {}
 
-  /** 初始化：从 config_system 加载机器人配置，确保虚拟用户存在 */
+  /** 外部调用的初始化入口 */
   async init() {
+    this.initialized = false;
+    await this.onModuleInit();
+  }
+
+  /** 模块初始化：从 config_system 加载机器人配置，确保虚拟用户存在 */
+  async onModuleInit() {
     if (this.initialized) return;
     this.initialized = true;
 
@@ -41,8 +61,9 @@ export class OperationRobotService {
           this.robotConfigs.set(role as RobotRole, cfg);
         }
       }
-    } catch {
+    } catch (err) {
       // 使用默认配置
+      this.logger.warn(`运营机器人配置加载失败，使用默认配置`, err);
     }
 
     // 默认配置
@@ -73,8 +94,9 @@ export class OperationRobotService {
               status: "ACTIVE",
             },
           });
-        } catch {
+        } catch (err) {
           // 可能已存在
+          this.logger.warn(`机器人虚拟用户创建失败`, err);
         }
       }
       this.botUserIds.set(role, systemUserId);
@@ -106,12 +128,14 @@ export class OperationRobotService {
         const likeCount = Math.ceil(Math.random() * 3); // 1-3个赞
         await this.prisma.content.update({
           where: { id: content.id },
-          data: { likeCount: content.likeCount + likeCount },
+          data: { likeCount: { increment: likeCount } },
         });
         this.logger.log(`点赞机器人: "${content.title}" +${likeCount}赞`);
       }
+      this.addLog("like_bot", "定时点赞", "success", `为${recentContents.length}篇内容点赞`);
     } catch (err: any) {
       this.logger.error(`点赞机器人异常: ${err.message}`);
+      this.addLog("like_bot", "定时点赞", "error", err.message);
     }
   }
 
@@ -156,8 +180,10 @@ export class OperationRobotService {
 
         this.logger.log(`评论机器人: "${content.title}" → "${commentText.slice(0, 40)}..."`);
       }
+      this.addLog("comment_bot", "定时评论", "success", `为${hotContents.length}篇内容生成评论`);
     } catch (err: any) {
       this.logger.error(`评论机器人异常: ${err.message}`);
+      this.addLog("comment_bot", "定时评论", "error", err.message);
     }
   }
 
@@ -201,8 +227,10 @@ export class OperationRobotService {
 
         this.logger.log(`签到机器人: 圈子"${circle.name}"发布了话题帖`);
       }
+      this.addLog("signin_bot", "定时签到", "success", `为${inactiveCircles.length}个圈子发帖`);
     } catch (err: any) {
       this.logger.error(`签到机器人异常: ${err.message}`);
+      this.addLog("signin_bot", "定时签到", "error", err.message);
     }
   }
 
@@ -237,7 +265,7 @@ export class OperationRobotService {
           where: { circleId_userId: { circleId: member.circleId, userId: botUserId } },
           create: { circleId: member.circleId, userId: botUserId, role: "MEMBER" },
           update: {},
-        }).catch(() => {});
+        }).catch((err: any) => this.logger.warn(`圈子成员注册失败: ${err.message}`));
       }
 
       for (const member of paidMembers) {
@@ -257,8 +285,9 @@ export class OperationRobotService {
             options: { temperature: 0.9, maxTokens: 120 },
           });
           questionText = resp.content.trim();
-        } catch {
+        } catch (err: any) {
           // AI生成失败，用预设问题
+          this.logger.debug(`AI 问题生成失败: ${err.message}，使用预设问题`);
           const fallbacks = [
             `请问${topic}入门应该从哪些经典开始学习？`,
             `${topic}中最容易被误解的概念是什么？`,
@@ -284,8 +313,10 @@ export class OperationRobotService {
 
         this.logger.log(`提问机器人: 圈子[${member.circle.name}] → "${questionText.slice(0, 40)}..." (${member.questionPriceCoin}币)`);
       }
+      this.addLog("question_bot", "定时提问", "success", `为${paidMembers.length}个圈子生成提问`);
     } catch (err: any) {
       this.logger.error(`提问机器人异常: ${err.message}`);
+      this.addLog("question_bot", "定时提问", "error", err.message);
     }
   }
 
@@ -298,6 +329,71 @@ export class OperationRobotService {
       status.push({ role, name: cfg.name, enabled: cfg.enabled, frequency: cfg.frequency });
     }
     return status;
+  }
+
+  // ═══════════════════ 执行日志 ═══════════════════
+
+  private addLog(role: RobotRole, action: string, result: "success" | "error", detail: string) {
+    const entry: ExecutionLog = {
+      id: `${++this.logSeq}`,
+      role,
+      action,
+      result,
+      detail: detail.slice(0, 200),
+      createdAt: new Date().toISOString(),
+    };
+    this.executionLogs.push(entry);
+    if (this.executionLogs.length > MAX_LOG_SIZE) {
+      this.executionLogs = this.executionLogs.slice(-MAX_LOG_SIZE);
+    }
+  }
+
+  /** 获取执行日志 */
+  getExecutionLogs(role?: RobotRole, limit = 50) {
+    let logs = this.executionLogs;
+    if (role) logs = logs.filter((l) => l.role === role);
+    return logs.slice(-limit).reverse();
+  }
+
+  /** 获取单个机器人详细配置 */
+  getRobotConfig(role: RobotRole) {
+    const cfg = this.robotConfigs.get(role);
+    if (!cfg) return null;
+    const prompts: Record<string, string> = {
+      like_bot: "对2小时内新发布且点赞≤2的内容，自动点赞1-3个",
+      comment_bot: "对24小时内点赞≥5的热门内容，用AI生成50字互动评论",
+      signin_bot: "对24小时无新帖的低活跃圈子，自动发布话题签到帖",
+      question_bot: "对开通付费问答的圈子，用AI生成高质量问题",
+    };
+    return {
+      role,
+      ...cfg,
+      prompt: prompts[role] || "无描述",
+      userId: this.botUserIds.get(role) || null,
+      recentLogs: this.getExecutionLogs(role, 10),
+    };
+  }
+
+  /** 手动触发指定机器人任务 */
+  async triggerRobot(role: RobotRole) {
+    const cfg = this.robotConfigs.get(role);
+    if (!cfg) return { success: false, error: `未知机器人: ${role}` };
+    if (!cfg.enabled) return { success: false, error: `${role} 未启用，请先开启` };
+
+    try {
+      switch (role) {
+        case "like_bot": await this.likeBotTask(); break;
+        case "comment_bot": await this.commentBotTask(); break;
+        case "signin_bot": await this.signinBotTask(); break;
+        case "question_bot": await this.questionBotTask(); break;
+        default: return { success: false, error: `不支持的机器人: ${role}` };
+      }
+      this.addLog(role, "手动触发", "success", "管理员手动触发执行");
+      return { success: true, message: `${role} 手动触发完成` };
+    } catch (err: any) {
+      this.addLog(role, "手动触发", "error", err.message);
+      return { success: false, error: err.message };
+    }
   }
 
   /** 切换机器人开关 */

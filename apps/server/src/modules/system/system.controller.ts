@@ -23,7 +23,8 @@ export class SystemController {
   ) {}
 
   @Get("configs")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取所有系统配置，支持 keyPrefix 过滤" })
   @ApiBearerAuth()
   @ApiQuery({ name: "keyPrefix", required: false, type: String, description: "按 key 前缀过滤" })
@@ -47,7 +48,8 @@ export class SystemController {
   }
 
   @Get("configs/:key")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取单个系统配置" })
   @ApiBearerAuth()
   async getConfig(@Param("key") key: string) {
@@ -439,6 +441,71 @@ export class SystemController {
     @Query("v2") v2: string,
   ) {
     return this.systemService.getConfigDiff(configKey, Number(v1), Number(v2));
+  }
+
+  // ───────── 品类标签树管理 ─────────
+
+  @Get("category-tree")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取品类标签树" })
+  @ApiBearerAuth()
+  async getCategoryTree() {
+    const config = await this.systemService.getConfig("category_tree");
+    if (config?.configValue) {
+      try { return JSON.parse(config.configValue); } catch (err) { /* fall through */ }
+    }
+    // 返回默认品类树
+    return {
+      "国学经典": ["儒家经典", "道家典籍", "佛学经典", "诸子百家"],
+      "中医养生": ["中医基础", "食疗药膳", "经络穴位", "四季养生"],
+      "诗词歌赋": ["唐诗", "宋词", "元曲", "现代诗词创作"],
+      "民俗节庆": ["传统节日", "民俗活动", "民间故事", "礼仪习俗"],
+      "非遗传承": ["传统技艺", "传统美术", "传统音乐", "民俗活动"],
+      "茶道香道": ["茶道文化", "香道文化", "茶具鉴赏", "品茶技法"],
+      "书法绘画": ["书法入门", "国画技法", "名家鉴赏", "篆刻艺术"],
+      "传统音乐": ["古琴", "古筝", "琵琶", "二胡"],
+      "武术太极": ["太极拳", "八段锦", "武术基础", "养生气功"],
+      "易经智慧": ["八字命理", "紫微斗数", "风水堪舆", "姓名学"],
+    };
+  }
+
+  @Put("category-tree")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "更新品类标签树" })
+  @ApiBearerAuth()
+  async updateCategoryTree(@Body() tree: Record<string, string[]>, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    await this.systemService.setConfig("category_tree", JSON.stringify(tree), "品类标签树", u?.nickname || u?.id);
+    return { ok: true, categories: Object.keys(tree).length, totalSub: Object.values(tree).reduce((s, arr) => s + arr.length, 0) };
+  }
+
+  // ───────── 课程品类树管理 ─────────
+
+  @Get("course-category-tree")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取课程品类树" })
+  @ApiBearerAuth()
+  async getCourseCategoryTree() {
+    const config = await this.systemService.getConfig("course_category_tree");
+    if (config?.configValue) {
+      try { return JSON.parse(config.configValue); } catch { /* fall through */ }
+    }
+    // 默认值由 course.service 返回
+    return {};
+  }
+
+  @Put("course-category-tree")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "更新课程品类树" })
+  @ApiBearerAuth()
+  async updateCourseCategoryTree(@Body() tree: Record<string, string[]>, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    await this.systemService.setConfig("course_category_tree", JSON.stringify(tree), "课程品类树", u?.nickname || u?.id);
+    return { ok: true, categories: Object.keys(tree).length, totalSub: Object.values(tree).reduce((s, arr) => s + arr.length, 0) };
   }
 
   // ───────── 会员配置 ─────────

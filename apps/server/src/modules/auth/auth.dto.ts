@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, MinLength, MaxLength } from "class-validator";
+import { IsString, IsOptional, IsInt, MinLength, MaxLength, Matches } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PhoneRegisterDto {
@@ -13,10 +13,11 @@ export class PhoneRegisterDto {
   @MinLength(1)
   phone: string;
 
-  @ApiProperty({ description: "密码，至少6位", example: "123456" })
+  @ApiProperty({ description: "密码，至少8位，需包含大小写字母和数字", example: "Abc12345" })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
   @MaxLength(20)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { message: "密码需包含大小写字母和数字，至少8位" })
   password: string;
 
   @ApiPropertyOptional({ description: "推荐码（可选）", example: "ABC123" })
@@ -55,6 +56,10 @@ export class SendCodeDto {
   @IsString()
   @MinLength(1)
   phone: string;
+
+  @IsOptional()
+  @IsString()
+  scene?: string;
 }
 
 export class WechatLoginDto {
@@ -131,6 +136,7 @@ export class ChangePasswordDto {
   oldPassword: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { message: "新密码需包含大小写字母和数字，至少8位" })
   newPassword: string;
 }

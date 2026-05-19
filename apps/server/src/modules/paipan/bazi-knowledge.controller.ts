@@ -1,0 +1,94 @@
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
+import { BaziKnowledgeService } from "./bazi-knowledge.service";
+import { BaziKnowledgeSeeder } from "./bazi-knowledge-seeder.service";
+import { CreateBaziKnowledgeDto, UpdateBaziKnowledgeDto } from "./bazi-knowledge.dto";
+import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
+
+@ApiTags("八字·知识库")
+@Controller("bazi/knowledge")
+export class BaziKnowledgeController {
+  constructor(
+    private readonly svc: BaziKnowledgeService,
+    private readonly seeder: BaziKnowledgeSeeder,
+  ) {}
+
+  @Get("stats")
+  @ApiOperation({ summary: "知识库统计概览" })
+  getStats() {
+    return this.svc.stats();
+  }
+
+  @Get("search")
+  @ApiOperation({ summary: "搜索八字知识" })
+  @ApiQuery({ name: "keyword", required: true })
+  @ApiQuery({ name: "category", required: false })
+  search(@Query("keyword") keyword: string, @Query("category") category?: string) {
+    return this.svc.search(keyword, category);
+  }
+
+  @Get("category/:category")
+  @ApiOperation({ summary: "按分类列出知识条目" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  listByCategory(
+    @Param("category") category: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.listByCategory(category, +page, +pageSize);
+  }
+
+  @Get(":id")
+  @ApiOperation({ summary: "获取知识条目详情" })
+  getById(@Param("id") id: string) {
+    return this.svc.getById(id);
+  }
+
+  @Post()
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "创建知识条目" })
+  create(@Body() dto: CreateBaziKnowledgeDto) {
+    return this.svc.create(dto);
+  }
+
+  @Put(":id")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "更新知识条目" })
+  update(@Param("id") id: string, @Body() dto: UpdateBaziKnowledgeDto) {
+    return this.svc.update(id, dto);
+  }
+
+  @Delete(":id")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "删除知识条目" })
+  delete(@Param("id") id: string) {
+    return this.svc.delete(id);
+  }
+
+  @Post("admin/seed")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "填充八字知识库种子数据" })
+  seed() {
+    return this.seeder.seed();
+  }
+
+  @Post("admin/vectorize")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "向量化未索引的知识" })
+  vectorizeUnindexed() {
+    return this.svc.vectorizeUnindexed(50);
+  }
+}

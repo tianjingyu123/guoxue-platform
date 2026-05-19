@@ -1,5 +1,6 @@
 import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
 import { RedisService } from "../../redis/redis.service";
+import { PrismaService } from "../../prisma/prisma.service";
 import { maskPhone } from "../../common/crypto.util";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -23,6 +24,7 @@ export class SmsService {
 
   constructor(
     private redis: RedisService,
+    private prisma: PrismaService,
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
   ) {
     this.secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "";
@@ -107,11 +109,22 @@ export class SmsService {
       // 设置频率限制（60秒）
       await this.redis.set(rateKey, "1", 60);
 
+      // 异步写日志
+      this.prisma.smsLog.create({
+        data: { phone: maskPhone(phone), scene, status: "SUCCESS" },
+      }).catch((e) => this.logger.warn("SMS日志写入失败", e));
+
       this.logger.log(`验证码已发送到 ${maskPhone(phone)}，场景: ${scene}`);
       return { ok: true, message: "验证码已发送" };
     } catch (err: unknown) {
-      this.logger.error(`短信发送失败: ${maskPhone(phone)}`, (err as Error).message);
-      return { ok: false, message: (err as Error).message };
+      const errorMsg = (err as Error).message;
+      // 异步写失败日志
+      this.prisma.smsLog.create({
+        data: { phone: maskPhone(phone), scene, status: "FAIL", errorMsg: errorMsg?.substring(0, 200) },
+      }).catch((e) => this.logger.warn("SMS日志写入失败", e));
+
+      this.logger.error(`短信发送失败: ${maskPhone(phone)}`, errorMsg);
+      return { ok: false, message: errorMsg };
     }
   }
 
@@ -150,5 +163,50 @@ export class SmsService {
       PhoneNumberSet: [`+86${phone}`],
       SerialNo: serialNo,
     });
+  }
+
+  // ───────── 管理端 ─────────
+
+  async getAdminLogs(page = 1, pageSize = 20, status?: string) {
+    const where: any = {};
+    if (status) where.status = status;
+
+    const [logs, total] = await Promise.all([
+      this.prisma.smsLog.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.smsLog.count({ where }),
+    ]);
+    return { logs, total, page, pageSize };
+  }
+
+  async getAdminStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today.getTime() - 86400000);
+    const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    const [total, todayCount, yesterdayCount, monthCount, todaySuccess, todayFail, totalSuccess, totalFail] =
+      await Promise.all([
+        this.prisma.smsLog.count(),
+        this.prisma.smsLog.count({ where: { createdAt: { gte: today } } }),
+        this.prisma.smsLog.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
+        this.prisma.smsLog.count({ where: { createdAt: { gte: thisMonth } } }),
+        this.prisma.smsLog.count({ where: { createdAt: { gte: today }, status: "SUCCESS" } }),
+        this.prisma.smsLog.count({ where: { createdAt: { gte: today }, status: "FAIL" } }),
+        this.prisma.smsLog.count({ where: { status: "SUCCESS" } }),
+        this.prisma.smsLog.count({ where: { status: "FAIL" } }),
+      ]);
+
+    return {
+      total,
+      today: { total: todayCount, success: todaySuccess, fail: todayFail },
+      yesterday: yesterdayCount,
+      thisMonth: monthCount,
+      successRate: total > 0 ? ((totalSuccess / total) * 100).toFixed(1) : "0",
+    };
   }
 }

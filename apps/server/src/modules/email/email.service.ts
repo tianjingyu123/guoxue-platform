@@ -1,5 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { connect as tlsConnect } from "tls";
+import { randomUUID } from "crypto";
+import { PrismaService } from "../../prisma/prisma.service";
 
 /**
  * 邮件发送服务
@@ -17,7 +19,7 @@ export class EmailService {
     from: string;
   };
 
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     const mode = process.env.EMAIL_MODE || "smtp";
     this.config = {
       mode: mode as "smtp" | "api",
@@ -256,6 +258,117 @@ export class EmailService {
     }
   }
 
+  // ───────── 模板管理 ─────────
+
+  /** 获取模板列表 */
+  async getTemplates() {
+    try {
+      const cfg = await this.prisma.configSystem.findUnique({ where: { configKey: "email_templates" } });
+      if (cfg?.configValue) return JSON.parse(cfg.configValue) as EmailTemplate[];
+    } catch { /* ignore */ }
+    return [];
+  }
+
+  /** 创建模板 */
+  async createTemplate(dto: { name: string; subject: string; html: string; description?: string }) {
+    const templates = await this.getTemplates();
+    const tpl: EmailTemplate = { id: randomUUID(), ...dto, createdAt: new Date().toISOString() };
+    templates.push(tpl);
+    await this.saveTemplates(templates);
+    return tpl;
+  }
+
+  /** 更新模板 */
+  async updateTemplate(id: string, dto: { name?: string; subject?: string; html?: string; description?: string }) {
+    const templates = await this.getTemplates();
+    const idx = templates.findIndex((t) => t.id === id);
+    if (idx === -1) return null;
+    if (dto.name !== undefined) templates[idx].name = dto.name;
+    if (dto.subject !== undefined) templates[idx].subject = dto.subject;
+    if (dto.html !== undefined) templates[idx].html = dto.html;
+    if (dto.description !== undefined) templates[idx].description = dto.description;
+    await this.saveTemplates(templates);
+    return templates[idx];
+  }
+
+  /** 删除模板 */
+  async deleteTemplate(id: string) {
+    const templates = await this.getTemplates();
+    const filtered = templates.filter((t) => t.id !== id);
+    if (filtered.length === templates.length) return false;
+    await this.saveTemplates(filtered);
+    return true;
+  }
+
+  /** 用模板发送邮件 */
+  async sendWithTemplate(templateId: string, to: string | string[], vars: Record<string, string> = {}) {
+    const templates = await this.getTemplates();
+    const tpl = templates.find((t) => t.id === templateId);
+    if (!tpl) return { success: false, error: "模板不存在" };
+
+    let html = tpl.html;
+    let subject = tpl.subject;
+    for (const [key, val] of Object.entries(vars)) {
+      const re = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+      html = html.replace(re, val);
+      subject = subject.replace(re, val);
+    }
+    return this.send({ to, subject, html });
+  }
+
+  private async saveTemplates(templates: EmailTemplate[]) {
+    await this.prisma.configSystem.upsert({
+      where: { configKey: "email_templates" },
+      create: { configKey: "email_templates", configValue: JSON.stringify(templates) },
+      update: { configValue: JSON.stringify(templates) },
+    });
+  }
+
+  // ───────── 退订管理 ─────────
+
+  /** 退订邮件 */
+  async unsubscribe(email: string, reason?: string) {
+    const list = await this.getUnsubscribeList();
+    if (list.find((e) => e.email === email)) return { success: true, message: "已退订" };
+    list.push({ email, reason: reason || "用户主动退订", createdAt: new Date().toISOString() });
+    await this.saveUnsubscribeList(list);
+    this.logger.log(`邮件退订: ${email}`);
+    return { success: true, message: "退订成功" };
+  }
+
+  /** 重新订阅 */
+  async resubscribe(email: string) {
+    const list = await this.getUnsubscribeList();
+    const filtered = list.filter((e) => e.email !== email);
+    if (filtered.length === list.length) return { success: true, message: "该邮箱未退订" };
+    await this.saveUnsubscribeList(filtered);
+    this.logger.log(`邮件重新订阅: ${email}`);
+    return { success: true, message: "已重新订阅" };
+  }
+
+  /** 检查是否已退订 */
+  async isUnsubscribed(email: string): Promise<boolean> {
+    const list = await this.getUnsubscribeList();
+    return list.some((e) => e.email === email);
+  }
+
+  /** 获取退订列表 */
+  async getUnsubscribeList(): Promise<UnsubscribeEntry[]> {
+    try {
+      const cfg = await this.prisma.configSystem.findUnique({ where: { configKey: "email_unsubscribes" } });
+      if (cfg?.configValue) return JSON.parse(cfg.configValue);
+    } catch { /* ignore */ }
+    return [];
+  }
+
+  private async saveUnsubscribeList(list: UnsubscribeEntry[]) {
+    await this.prisma.configSystem.upsert({
+      where: { configKey: "email_unsubscribes" },
+      create: { configKey: "email_unsubscribes", configValue: JSON.stringify(list) },
+      update: { configValue: JSON.stringify(list) },
+    });
+  }
+
   // ───────── 快捷方法 ─────────
 
   /** 发送验证码邮件 */
@@ -304,4 +417,19 @@ export class EmailService {
       </div>`;
     return this.send({ to, subject: title, html });
   }
+}
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  html: string;
+  description?: string;
+  createdAt: string;
+}
+
+export interface UnsubscribeEntry {
+  email: string;
+  reason: string;
+  createdAt: string;
 }

@@ -78,7 +78,34 @@ export class MemberService {
     if (!user || user.memberLevel === "NONE") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "你还不是会员，请先购买");
     }
-    return this.purchase(userId, planId);
+
+    const plan = await this.prisma.memberConfig.findUnique({ where: { id: planId } });
+    if (!plan || !plan.isActive) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "套餐不存在或已下架");
+    }
+
+    const now = new Date();
+    // 基于当前到期时间累加（已过期则从当前时间算起）
+    const baseDate = user.memberExpire && user.memberExpire > now ? user.memberExpire : now;
+    let expireAt: Date | null = null;
+    switch (plan.level) {
+      case "MONTHLY": expireAt = new Date(baseDate.getTime() + 30 * 86400000); break;
+      case "YEARLY":  expireAt = new Date(baseDate.getTime() + 365 * 86400000); break;
+      case "LIFETIME": expireAt = null; break;
+    }
+
+    const [purchase] = await this.prisma.$transaction([
+      this.prisma.memberPurchase.create({
+        data: { userId, memberType: plan.level as any, amount: plan.price, paidAt: now, expireAt },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { memberLevel: plan.level as any, memberExpire: expireAt },
+      }),
+    ]);
+
+    this.logger.log(`用户 ${userId} 续费会员 ${plan.level}`);
+    return { id: purchase.id, level: plan.level, amount: plan.price, expireAt };
   }
 
   // ═══════════════════ 管理员方法 ═══════════════════

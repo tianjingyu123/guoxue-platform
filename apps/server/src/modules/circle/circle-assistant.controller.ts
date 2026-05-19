@@ -2,16 +2,18 @@ import { Controller, Post, Body, Param, Req, Res, UseGuards } from "@nestjs/comm
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { CircleAssistantService } from "./circle-assistant.service";
+import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 @ApiTags("圈主助理")
 @Controller("circles")
 export class CircleAssistantController {
-  constructor(private readonly assistant: CircleAssistantService) {}
+  constructor(private readonly assistant: CircleAssistantService, private readonly sse: StreamUnifierService) {}
 
   /** 简化提问（无需 /ask 后缀） */
   @Post(":circleId/assistant")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "向圈主助理提问（简化路径）" })
   @ApiBearerAuth()
   async askSimple(
@@ -25,7 +27,7 @@ export class CircleAssistantController {
 
   /** 非流式提问 */
   @Post(":circleId/assistant/ask")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "向圈主助理提问（非流式）" })
   @ApiBearerAuth()
   async ask(
@@ -39,7 +41,7 @@ export class CircleAssistantController {
 
   /** 流式提问 (SSE) */
   @Post(":circleId/assistant/stream")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "向圈主助理提问（SSE流式）" })
   @ApiBearerAuth()
   async askStream(
@@ -58,11 +60,11 @@ export class CircleAssistantController {
 
     try {
       for await (const chunk of this.assistant.askStream(body.question, circleId, userId, body.history)) {
-        res.write(`data: ${JSON.stringify({ delta: chunk })}\n\n`);
+        res.write(this.sse.encode({ type: "chunk", content: chunk }));
       }
-      res.write("data: [DONE]\n\n");
+      res.write(this.sse.encode({ type: "done" }));
     } catch (err: any) {
-      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.write(this.sse.encode({ type: "error", message: err.message }));
     } finally {
       res.end();
     }

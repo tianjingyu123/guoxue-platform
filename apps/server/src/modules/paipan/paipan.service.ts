@@ -258,7 +258,7 @@ export class PaipanService {
 
   /** 解密记录中的 clientBirth 字段 */
   private decryptRecord<T extends { clientBirth: string }>(record: T): T {
-    try { record.clientBirth = decrypt(record.clientBirth) as any; } catch { /* 兼容未加密旧数据 */ }
+    try { record.clientBirth = decrypt(record.clientBirth) as any; } catch (err) { /* 兼容未加密旧数据 */ }
     return record;
   }
 

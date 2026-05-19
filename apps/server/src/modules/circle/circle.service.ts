@@ -1,11 +1,16 @@
 import {
   Injectable,
   Logger,
+  Optional,
 } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { CoinService } from "../coin/coin.service";
+import { CommissionService } from "../commission/commission.service";
+import { NotificationService } from "../notification/notification.service";
 import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto } from "./circle.dto";
 import { Prisma, CircleMemberRole, CircleType, PostType } from "@prisma/client";
 
@@ -15,6 +20,9 @@ export class CircleService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    @Optional() private coinService?: CoinService,
+    @Optional() private commissionService?: CommissionService,
+    @Optional() private notificationService?: NotificationService,
   ) {}
 
   // ───────── 圈子 CRUD ─────────
@@ -71,11 +79,11 @@ export class CircleService {
         // 成员关系独立缓存，避免缓存命中后重复查 DB
         const memKey = `circles:member:${circleId}:${userId}`;
         let membership = await this.redis.getJson<any>(memKey);
-        if (membership === undefined) {
+        if (membership === null) {
           membership = await this.prisma.circleMember.findUnique({
             where: { circleId_userId: { circleId, userId } },
           });
-          await this.redis.setJson(memKey, membership, 60);
+          await this.redis.setJson(memKey, membership, 300);
         }
         return { ...cached, membership: membership || null };
       }
@@ -171,33 +179,469 @@ export class CircleService {
   // ───────── 圈子公告 ─────────
 
   async getAnnouncement(circleId: string) {
-    const key = `circle:announcement:${circleId}`;
-    const content = await this.redis.get(key);
-    return { content: content || "", updatedAt: null };
+    const latest = await this.prisma.circleAnnouncement.findFirst({
+      where: { circleId, isTop: true },
+      orderBy: { createdAt: "desc" },
+      include: { user: { select: { id: true, nickname: true, avatar: true } } },
+    });
+    if (latest) return { ...latest, content: latest.content, updatedAt: latest.updatedAt.toISOString() };
+    const fallback = await this.prisma.circleAnnouncement.findFirst({
+      where: { circleId },
+      orderBy: { createdAt: "desc" },
+    });
+    return { content: fallback?.content || "", updatedAt: fallback?.updatedAt?.toISOString() || null };
   }
 
-  async setAnnouncement(circleId: string, userId: string, content: string) {
+  async setAnnouncement(circleId: string, userId: string, content: string, isTop?: boolean) {
     await this.checkAdmin(circleId, userId);
-    const key = `circle:announcement:${circleId}`;
-    await this.redis.set(key, content, 86400 * 90); // 90天过期
-    return { content, updatedAt: new Date().toISOString() };
+    if (isTop) {
+      await this.prisma.circleAnnouncement.updateMany({
+        where: { circleId, isTop: true },
+        data: { isTop: false },
+      });
+    }
+    const announcement = await this.prisma.circleAnnouncement.create({
+      data: { circleId, userId, content, isTop: isTop ?? true },
+    });
+    return { ...announcement, content: announcement.content, updatedAt: announcement.updatedAt.toISOString() };
+  }
+
+  async listAnnouncements(circleId: string, page = 1, pageSize = 20) {
+    const [list, total] = await Promise.all([
+      this.prisma.circleAnnouncement.findMany({
+        where: { circleId },
+        include: { user: { select: { id: true, nickname: true, avatar: true } } },
+        orderBy: [{ isTop: "desc" }, { createdAt: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.circleAnnouncement.count({ where: { circleId } }),
+    ]);
+    return { list, total, page, pageSize };
+  }
+
+  async deleteAnnouncement(circleId: string, userId: string, announcementId: string) {
+    await this.checkAdmin(circleId, userId);
+    await this.prisma.circleAnnouncement.delete({ where: { id: announcementId } });
+    return { success: true };
+  }
+
+  // ───────── 圈子邀请 ─────────
+
+  async generateInviteCode(circleId: string, userId: string, maxUses = 0) {
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (!member) throw new BusinessException(ErrorCode.CIRCLE_NOT_MEMBER, "你不是该圈子成员");
+
+    const existing = await this.prisma.circleInviteCode.findFirst({
+      where: { circleId, userId, expiredAt: { gte: new Date() } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (existing) return existing;
+
+    const prefix = circleId.replace(/-/g, "").slice(0, 6).toUpperCase();
+    const random = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const code = `${prefix}${random}`;
+
+    return this.prisma.circleInviteCode.create({
+      data: { circleId, userId, code, maxUses },
+    });
+  }
+
+  async joinByInviteCode(code: string, inviteeId: string) {
+    const inviteCode = await this.prisma.circleInviteCode.findUnique({ where: { code } });
+    if (!inviteCode) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "邀请码无效");
+    if (inviteCode.expiredAt && new Date(inviteCode.expiredAt) < new Date()) {
+      throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "邀请码已过期");
+    }
+    if (inviteCode.maxUses > 0 && inviteCode.useCount >= inviteCode.maxUses) {
+      throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "邀请码已达使用上限");
+    }
+
+    const circle = await this.prisma.circle.findUnique({ where: { id: inviteCode.circleId } });
+    if (!circle || circle.status !== "ACTIVE") {
+      throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
+    }
+
+    const existingMember = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId: inviteCode.circleId, userId: inviteeId } },
+    });
+    if (existingMember) throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.circleMember.create({
+        data: { circleId: inviteCode.circleId, userId: inviteeId, role: "MEMBER" },
+      });
+      await tx.circleInviteCode.update({
+        where: { id: inviteCode.id },
+        data: { useCount: { increment: 1 } },
+      });
+      await tx.circleInvitation.create({
+        data: {
+          circleId: inviteCode.circleId,
+          inviterId: inviteCode.userId,
+          inviteeId,
+          inviteCodeId: inviteCode.id,
+        },
+      });
+      await tx.circle.update({
+        where: { id: inviteCode.circleId },
+        data: { memberCount: { increment: 1 } },
+      });
+    });
+
+    return { success: true, circleId: inviteCode.circleId };
+  }
+
+  async listMyInviteCodes(circleId: string, userId: string) {
+    return this.prisma.circleInviteCode.findMany({
+      where: { circleId, userId },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async getInvitationStats(circleId: string, userId: string) {
+    const [total, records] = await Promise.all([
+      this.prisma.circleInvitation.count({ where: { circleId, inviterId: userId } }),
+      this.prisma.circleInvitation.findMany({
+        where: { circleId, inviterId: userId },
+        include: { invitee: { select: { id: true, nickname: true, avatar: true } } },
+        orderBy: { joinedAt: "desc" },
+        take: 20,
+      }),
+    ]);
+    return { total, records };
   }
 
   // ───────── 成员管理 ─────────
 
-  async join(circleId: string, userId: string, _dto?: JoinCircleDto) {
+  /**
+   * 加入圈子：免费圈直接加入，付费圈需先调用 prepareJoin 创建订单并支付后调用 confirmJoin
+   */
+  async join(circleId: string, userId: string, dto?: JoinCircleDto) {
     const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
     if (!circle || circle.status !== "ACTIVE") throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
 
     const existing = await this.prisma.circleMember.findUnique({
       where: { circleId_userId: { circleId, userId } },
     });
-    if (existing) throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
+    if (existing) {
+      // 如果已加入但已过期（年费圈），提示续费
+      if (existing.expireAt && new Date(existing.expireAt) < new Date()) {
+        throw new BusinessException(ErrorCode.CIRCLE_JOIN_DENIED, "会员已过期，请续费后重新加入");
+      }
+      throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
+    }
 
+    // 免费圈子直接加入
+    if (circle.type === "FREE") {
+      return this.createMembership(circleId, userId, null, dto?.referrerId);
+    }
+
+    // 付费圈子需要先支付
+    throw new BusinessException(ErrorCode.CIRCLE_JOIN_DENIED, "付费圈子请先完成支付");
+  }
+
+  /** 创建付费入圈订单（返回订单信息供前端拉起支付） */
+  async prepareJoin(circleId: string, userId: string, dto?: { payMethod?: string; referrerId?: string }) {
+    const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+    if (!circle || circle.status !== "ACTIVE") throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
+    if (circle.type === "FREE") throw new BusinessException(ErrorCode.BAD_REQUEST, "免费圈子无需支付");
+
+    const existing = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (existing && (!existing.expireAt || new Date(existing.expireAt) > new Date())) {
+      throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已是圈子成员");
+    }
+
+    const priceYuan = Number(circle.price);
+    if (priceYuan <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子价格配置异常");
+
+    // 尝试虚拟币支付
+    if (!dto?.payMethod || dto.payMethod === "COIN") {
+      if (!this.coinService) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付服务暂不可用");
+      const balance = await this.coinService.getBalance(userId);
+      const coinNeeded = Math.ceil(priceYuan * 10); // 1元=10币
+      if (balance.balance >= coinNeeded) {
+        // 币够直接扣
+        return this.confirmJoin(circleId, userId, { payMethod: "COIN", referrerId: dto?.referrerId });
+      }
+      // 币不够，返回充值提示
+      return {
+        needPayment: true,
+        payMethod: "COIN",
+        priceYuan,
+        coinNeeded,
+        currentBalance: balance.balance,
+        shortage: coinNeeded - balance.balance,
+        orderNo: `CIRCLE_JOIN_${circleId}_${userId}_${Date.now()}`,
+        message: "虚拟币余额不足，请先充值",
+      };
+    }
+
+    // 微信/支付宝支付 — 创建待支付订单
+    const orderNo = `CIRCLE_JOIN_${circleId.slice(0, 8)}_${Date.now()}`;
+    const order = await this.prisma.order.create({
+      data: {
+        userId,
+        type: "CIRCLE_JOIN",
+        targetId: circleId,
+        amount: circle.price,
+        payAmount: circle.price,
+        status: "PENDING",
+        payMethod: dto.payMethod,
+        referrerId: dto.referrerId || undefined,
+      },
+    });
+
+    return {
+      needPayment: true,
+      payMethod: dto.payMethod,
+      priceYuan,
+      coinNeeded: 0,
+      orderNo,
+      orderId: order.id,
+      message: "请完成支付",
+    };
+  }
+
+  /** 支付完成后确认入圈（由支付回调或前端调用） */
+  async confirmJoin(circleId: string, userId: string, dto: { payMethod?: string; orderNo?: string; orderId?: string; referrerId?: string }) {
+    const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+    if (!circle || circle.status !== "ACTIVE") throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
+
+    // 再次校验是否已加入
+    const existing = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (existing && (!existing.expireAt || new Date(existing.expireAt) > new Date())) {
+      throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已是圈子成员");
+    }
+
+    // 虚拟币支付：扣币
+    if (dto.payMethod === "COIN") {
+      const priceYuan = Number(circle.price);
+      const coinNeeded = Math.ceil(priceYuan * 10);
+      if (this.coinService) {
+        await this.coinService.spend(userId, {
+          amountCoin: coinNeeded,
+          scene: "CIRCLE_JOIN",
+          refId: circleId,
+          description: `加入圈子: ${circle.name}`,
+        });
+      }
+    } else if (dto.orderNo || dto.orderId) {
+      // 外部支付：校验订单状态
+      const order = await this.prisma.order.findFirst({
+        where: {
+          OR: [
+            { id: dto.orderId || "" },
+            { payTransactionId: dto.orderNo || "" },
+          ],
+          type: "CIRCLE_JOIN",
+          targetId: circleId,
+          userId,
+        },
+      });
+      if (!order || order.status !== "PAID") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "订单未支付或不存在");
+      }
+    }
+
+    // 计算到期时间
+    let expireAt: Date | null = null;
+    if (circle.type === "YEARLY") {
+      expireAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    }
+
+    const member = await this.createMembership(circleId, userId, expireAt, dto.referrerId);
+
+    // 记录圈子收益
+    const priceYuan = Number(circle.price);
+    if (priceYuan > 0 && this.commissionService) {
+      this.commissionService.recordCircleRevenue(circleId, "circle_join", member.id, priceYuan).catch(
+        (err) => this.logger.warn("记录入圈收益失败", err),
+      );
+    }
+
+    // 更新订单状态
+    if (dto.orderNo || dto.orderId) {
+      await this.prisma.order.updateMany({
+        where: {
+          OR: [
+            { id: dto.orderId || "" },
+            { id: dto.orderNo || "" },
+          ],
+          type: "CIRCLE_JOIN",
+          userId,
+          status: "PAID",
+        },
+        data: { status: "COMPLETED", completedAt: new Date() },
+      });
+    }
+
+    return member;
+  }
+
+  /** 续费年费圈子 */
+  async renewCircle(circleId: string, userId: string, dto?: { payMethod?: string }) {
+    const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+    if (!circle || circle.status !== "ACTIVE") throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在或已下架");
+    if (circle.type !== "YEARLY") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅年费圈子支持续费");
+
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+    });
+    if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "未加入该圈子");
+
+    const priceYuan = Number(circle.price);
+    const coinNeeded = Math.ceil(priceYuan * 10);
+
+    // 续费仅支持虚拟币支付
+    if (dto?.payMethod && dto.payMethod !== "COIN") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "续费仅支持虚拟币支付");
+    }
+    if (!this.coinService) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付服务暂不可用");
+    await this.coinService.spend(userId, {
+      amountCoin: coinNeeded,
+      scene: "CIRCLE_RENEW",
+      refId: circleId,
+      description: `续费圈子: ${circle.name}`,
+    });
+
+    // 延长到期时间：从当前到期时间或现在开始 +365天
+    const baseDate = member.expireAt && new Date(member.expireAt) > new Date()
+      ? new Date(member.expireAt)
+      : new Date();
+    const newExpireAt = new Date(baseDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+
+    const updated = await this.prisma.circleMember.update({
+      where: { circleId_userId: { circleId, userId } },
+      data: { expireAt: newExpireAt },
+    });
+
+    // 记录续费收益
+    if (priceYuan > 0 && this.commissionService) {
+      this.commissionService.recordCircleRevenue(circleId, "circle_join", member.id, priceYuan).catch(
+        (err) => this.logger.warn("记录续费收益失败", err),
+      );
+    }
+
+    await this.redis.del(`circles:member:${circleId}:${userId}`);
+    return { ...updated, newExpireAt: newExpireAt.toISOString() };
+  }
+
+  /** 检查用户加入状态 */
+  async getJoinStatus(circleId: string, userId: string) {
+    const member = await this.prisma.circleMember.findUnique({
+      where: { circleId_userId: { circleId, userId } },
+      select: { id: true, role: true, joinedAt: true, expireAt: true },
+    });
+    if (!member) return { joined: false };
+    const expired = member.expireAt ? new Date(member.expireAt) < new Date() : false;
+    return {
+      joined: !expired,
+      expired,
+      role: member.role,
+      joinedAt: member.joinedAt,
+      expireAt: member.expireAt,
+    };
+  }
+
+  /** 每日定时清理过期成员 */
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async cleanupExpiredMembers() {
+    const expired = await this.prisma.circleMember.findMany({
+      where: {
+        expireAt: { lt: new Date() },
+        role: { not: "OWNER" },
+      },
+      select: { id: true, circleId: true, userId: true },
+    });
+
+    if (expired.length === 0) return;
+
+    // 分批处理
+    const batchSize = 100;
+    for (let i = 0; i < expired.length; i += batchSize) {
+      const batch = expired.slice(i, i + batchSize);
+      const ids = batch.map((m) => m.id);
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.circleMember.deleteMany({ where: { id: { in: ids } } });
+        // 更新各圈子成员数（归并计数）
+        const circleIds = [...new Set(batch.map((m) => m.circleId))];
+        for (const cid of circleIds) {
+          const count = await tx.circleMember.count({ where: { circleId: cid } });
+          await tx.circle.update({
+            where: { id: cid },
+            data: { memberCount: count },
+          });
+        }
+      });
+
+      // 清除缓存 + 发送通知
+      for (const m of batch) {
+        await this.redis.del(`circles:member:${m.circleId}:${m.userId}`);
+        if (this.notificationService) {
+          this.notificationService.send(m.userId, {
+            type: "CIRCLE_EXPIRED",
+            title: "圈子会员已过期",
+            content: "您的圈子会员已过期，可续费重新加入",
+            targetType: "CIRCLE",
+            targetId: m.circleId,
+          }).catch(() => {});
+        }
+      }
+    }
+
+    this.logger.log(`已清理 ${expired.length} 个过期圈子成员`);
+  }
+
+  /** 到期前提醒（提前7天/3天/1天） */
+  @Cron(CronExpression.EVERY_DAY_AT_10AM)
+  async sendExpirationReminders() {
+    const remindDays = [7, 3, 1];
+    for (const days of remindDays) {
+      const targetDate = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+      const expiringSoon = await this.prisma.circleMember.findMany({
+        where: {
+          expireAt: { gte: startOfDay, lt: endOfDay },
+          role: { not: "OWNER" },
+        },
+        select: { userId: true, circleId: true },
+        take: 500,
+      });
+
+      for (const m of expiringSoon) {
+        if (this.notificationService) {
+          this.notificationService.send(m.userId, {
+            type: "CIRCLE_EXPIRING",
+            title: "圈子即将到期",
+            content: `您的圈子会员将于 ${days} 天后到期，请及时续费`,
+            targetType: "CIRCLE",
+            targetId: m.circleId,
+          }).catch(() => {});
+        }
+      }
+
+      if (expiringSoon.length > 0) {
+        this.logger.log(`发送了 ${expiringSoon.length} 条 ${days} 天到期提醒`);
+      }
+    }
+  }
+
+  /** 内部方法：创建成员关系 */
+  private async createMembership(circleId: string, userId: string, expireAt: Date | null, referrerId?: string) {
     let member: Awaited<ReturnType<typeof this.prisma.circleMember.create>> | undefined;
     try {
       member = await this.prisma.circleMember.create({
-        data: { circleId, userId, role: "MEMBER" },
+        data: { circleId, userId, role: "MEMBER", expireAt },
       });
     } catch (e: unknown) {
       if ((e as { code?: string })?.code === "P2002") throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
@@ -212,6 +656,13 @@ export class CircleService {
       this.redis.del(`circles:member:${circleId}:${userId}`),
       this.redis.del(`circles:detail:${circleId}`),
     ]);
+
+    // 处理推荐人奖励
+    if (referrerId && this.commissionService) {
+      this.commissionService.recordCircleRevenue(circleId, "circle_join_referral", member.id, 0).catch(
+        (err) => this.logger.warn("记录推荐收益失败", err),
+      );
+    }
 
     return member;
   }
@@ -680,6 +1131,75 @@ export class CircleService {
       })
       .sort((a, b) => b.hotScore - a.hotScore)
       .slice(0, limit);
+  }
+
+  // ───────── 成员分组 ─────────
+
+  async createMemberGroup(circleId: string, userId: string, name: string, color?: string) {
+    await this.checkAdmin(circleId, userId);
+    return this.prisma.circleMemberGroup.create({
+      data: { circleId, name, color: color || "#3b82f6" },
+    });
+  }
+
+  async listMemberGroups(circleId: string) {
+    return this.prisma.circleMemberGroup.findMany({
+      where: { circleId },
+      include: { _count: { select: { members: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  async updateMemberGroup(circleId: string, groupId: string, userId: string, name?: string, color?: string) {
+    await this.checkAdmin(circleId, userId);
+    const data: Prisma.CircleMemberGroupUpdateInput = {};
+    if (name !== undefined) data.name = name;
+    if (color !== undefined) data.color = color;
+    return this.prisma.circleMemberGroup.update({ where: { id: groupId }, data });
+  }
+
+  async deleteMemberGroup(circleId: string, groupId: string, userId: string) {
+    await this.checkAdmin(circleId, userId);
+    await this.prisma.circleMemberGroupRelation.deleteMany({ where: { groupId } });
+    await this.prisma.circleMemberGroup.delete({ where: { id: groupId } });
+    return { success: true };
+  }
+
+  async addMembersToGroup(circleId: string, groupId: string, userId: string, userIds: string[]) {
+    await this.checkAdmin(circleId, userId);
+    const data = userIds.map((uid) => ({ groupId, userId: uid }));
+    await this.prisma.circleMemberGroupRelation.createMany({ data, skipDuplicates: true });
+    return { success: true };
+  }
+
+  async removeMemberFromGroup(circleId: string, groupId: string, userId: string, targetUserId: string) {
+    await this.checkAdmin(circleId, userId);
+    await this.prisma.circleMemberGroupRelation.deleteMany({
+      where: { groupId, userId: targetUserId },
+    });
+    return { success: true };
+  }
+
+  async getGroupMembers(circleId: string, groupId: string, page = 1, pageSize = 20) {
+    const where = { groupId };
+    const [relations, total] = await Promise.all([
+      this.prisma.circleMemberGroupRelation.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.circleMemberGroupRelation.count({ where }),
+    ]);
+    const userIds = relations.map((r) => r.userId);
+    const users = userIds.length > 0
+      ? await this.prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, nickname: true, avatar: true },
+        })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const members = relations.map((r) => userMap.get(r.userId) || { id: r.userId, nickname: "", avatar: null });
+    return { members, total, page, pageSize };
   }
 
   // ───────── 私有辅助 ─────────

@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
-import { CreateCommentDto, CommentQueryDto } from "./comment.dto";
+import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from "./comment.dto";
 import { Prisma } from "@prisma/client";
 
 export interface ReplyNode {
@@ -128,6 +128,18 @@ export class CommentService {
     return this.prisma.comment.findMany({
       where: { parentId, status: "PUBLISHED" },
       orderBy: { createdAt: "asc" },
+      include: { user: { select: { id: true, nickname: true, avatar: true } } },
+    });
+  }
+
+  async update(userId: string, commentId: string, dto: UpdateCommentDto) {
+    const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
+    if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
+    if (comment.userId !== userId) throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN, "只能编辑自己的评论");
+
+    return this.prisma.comment.update({
+      where: { id: commentId },
+      data: { content: dto.content },
       include: { user: { select: { id: true, nickname: true, avatar: true } } },
     });
   }

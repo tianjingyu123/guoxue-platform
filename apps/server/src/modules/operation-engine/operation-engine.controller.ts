@@ -56,4 +56,16 @@ export class OperationEngineController {
     await this.service.rotateHomepageContent();
     return { message: "首页内容轮换已触发" };
   }
+
+  @Post("mark-hot")
+  @ApiOperation({ summary: "手动触发热门内容标记" })
+  async markHot() {
+    return this.service.markHotContent();
+  }
+
+  @Post("fill-empty")
+  @ApiOperation({ summary: "手动触发空品类AI内容填充" })
+  async fillEmpty() {
+    return this.service.fillEmptyCategories();
+  }
 }

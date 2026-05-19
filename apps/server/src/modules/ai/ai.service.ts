@@ -295,6 +295,7 @@ export class AiService {
     const records = await this.prisma.aiAnalysisRecord.findMany({
       where: { createdAt: { gte: startDate } },
       orderBy: { createdAt: "asc" },
+      take: 10000,
     });
 
     // 模型单价估算（元/千token）
@@ -595,6 +596,7 @@ export class AiService {
         createdAt: { gte: new Date(Date.now() - 30 * 86400000) },
       },
       orderBy: { createdAt: "asc" },
+      take: 5000,
     });
 
     // 统计圈主助理调用（场景为 circle_qa）

@@ -109,11 +109,9 @@ export class ClassicQaService {
     }
   }
 
-  /** 索引古籍文本（由定时任务调用） */
-  async indexClassicTexts(batchSize = 20): Promise<number> {
-    // 此处由 classic-index.task.ts 调用
-    // 实际实现中需要从 ClassicBook/ClassicChapter 读取内容并向量化
-    this.logger.log(`古籍文本索引: batchSize=${batchSize}`);
-    return 0; // 占位，具体实现需要读取 ClassicBook 内容
+  /** 索引古籍文本（委托定时任务，保留接口兼容） */
+  async indexClassicTexts(_batchSize = 20): Promise<number> {
+    this.logger.warn("indexClassicTexts 已由 ClassicIndexTask 接管，调用无效");
+    return 0;
   }
 }

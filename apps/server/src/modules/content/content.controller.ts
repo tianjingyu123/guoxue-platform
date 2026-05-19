@@ -43,6 +43,26 @@ export class ContentController {
     return this.content.list(q);
   }
 
+  // ───────── 诗词专属 ─────────
+
+  @Get("poem/random")
+  @ApiOperation({ summary: "随机获取一首诗词" })
+  getRandomPoem() {
+    return this.content.getRandomPoem();
+  }
+
+  @Get("poem/daily")
+  @ApiOperation({ summary: "每日推荐诗词" })
+  getDailyPoem() {
+    return this.content.getDailyPoem();
+  }
+
+  @Get("poem/:id/appreciation")
+  @ApiOperation({ summary: "获取诗词注释/赏析" })
+  getPoemAppreciation(@Param("id") id: string) {
+    return this.content.getPoemAppreciation(id);
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "获取内容详情" })
   detail(@Param("id") id: string) {
@@ -107,6 +127,7 @@ export class ContentController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "内容统计概览" })
+  @ApiBearerAuth()
   getStats() {
     return this.content.getStats();
   }

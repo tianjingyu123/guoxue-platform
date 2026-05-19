@@ -450,4 +450,69 @@ export class StationService {
     await this.redis.setJson(cacheKey, result, this.BRAND_TTL);
     return result;
   }
+
+  // ───────── 团队管理 ─────────
+
+  async getTeamMembers(userId: string, page = 1, pageSize = 20) {
+    const where: Prisma.StationWhereInput = { userId };
+    const [stations, total] = await Promise.all([
+      this.prisma.station.findMany({
+        where,
+        select: { id: true, name: true, code: true, logo: true, totalEarning: true, createdAt: true },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.station.count({ where }),
+    ]);
+    return { members: stations, total, page, pageSize };
+  }
+
+  async getTeamLeaderboard(page = 1, pageSize = 20, sortBy?: string) {
+    const orderField = sortBy === "revenue" ? "totalEarning" : sortBy === "orderCount" ? "totalOrders" : "totalEarning";
+    const [stations, total] = await Promise.all([
+      this.prisma.station.findMany({
+        where: { status: "ACTIVE" },
+        select: { id: true, name: true, code: true, logo: true, totalEarning: true, createdAt: true },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { [orderField]: "desc" },
+      }),
+      this.prisma.station.count({ where: { status: "ACTIVE" } }),
+    ]);
+    return { items: stations, total, page, pageSize };
+  }
+
+  async getTeamActivity(userId: string) {
+    const stations = await this.prisma.station.findMany({
+      where: { userId },
+      select: { id: true, name: true },
+    });
+    const stationIds = stations.map((s) => s.id);
+
+    const totalEarning = stations.reduce((sum, s) => sum + 0, 0); // 简化统计
+
+    return {
+      stationCount: stations.length,
+      weekNewOrders: 0, // Order 模型无 stationId 字段，由 commission 模块统计
+      weekActiveUsers: 0,
+      stations: stations.map((s) => ({ id: s.id, name: s.name })),
+      totalEarning,
+    };
+  }
+
+  async getSuccessCases(page = 1, pageSize = 20) {
+    const where: Prisma.StationWhereInput = { status: "ACTIVE", totalEarning: { gt: 0 } };
+    const [stations, total] = await Promise.all([
+      this.prisma.station.findMany({
+        where,
+        select: { id: true, name: true, logo: true, intro: true, totalEarning: true, createdAt: true },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { totalEarning: "desc" },
+      }),
+      this.prisma.station.count({ where }),
+    ]);
+    return { items: stations, total, page, pageSize };
+  }
 }

@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Query, UseGuards, Logger,
+  Body, Param, Query, Req, UseGuards, Logger,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { MarketingService } from "./marketing.service";
@@ -502,6 +502,38 @@ export class MarketingController {
   @ApiOperation({ summary: "获取进行中的满减送活动（公开接口）" })
   getActiveFullReductions() {
     return this.marketing.getActiveFullReductions();
+  }
+
+  // ═══════════════════════════════════════
+  // 用户端公开接口
+  // ═══════════════════════════════════════
+
+  @Get("flash-sales/active")
+  @ApiOperation({ summary: "获取进行中和预告中的秒杀活动（用户端公开）" })
+  getActiveFlashSales() {
+    return this.marketing.getActiveFlashSales();
+  }
+
+  @Get("group-buys/active")
+  @ApiOperation({ summary: "获取进行中的拼团活动（用户端公开）" })
+  getActiveGroupBuys() {
+    return this.marketing.getActiveGroupBuys();
+  }
+
+  @Post("group-buys/:id/join")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "参与拼团" })
+  @ApiBearerAuth()
+  joinGroupBuy(@Req() req: any, @Param("id") id: string, @Body() dto?: { groupId?: string }) {
+    return this.marketing.joinGroupBuy(req.user.id, id, dto?.groupId);
+  }
+
+  @Get("group-buys/my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的拼团记录" })
+  @ApiBearerAuth()
+  getMyGroupBuys(@Req() req: any) {
+    return this.marketing.getMyGroupBuys(req.user.id);
   }
 
   @Get("full-reductions/:id")

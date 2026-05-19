@@ -13,6 +13,7 @@ import { RedisService } from "../../redis/redis.service";
 import { WechatService } from "./wechat.service";
 import { ImService } from "../im/im.service";
 import { WebhookService } from "../webhook/webhook.service";
+import { SmsService } from "../sms/sms.service";
 import {
   PhoneRegisterDto,
   PhoneLoginDto,
@@ -35,6 +36,7 @@ export class AuthService {
     private wechat: WechatService,
     private im: ImService,
     private webhook: WebhookService,
+    private sms: SmsService,
   ) {}
 
   /** 生成 accessToken（15分钟） + refreshToken（7天，存Redis可撤销） */
@@ -147,11 +149,7 @@ export class AuthService {
   }
 
   async sendSmsCode(dto: SendCodeDto) {
-    const code = process.env.NODE_ENV === "production" ? this.generateSmsCode() : "123456";
-    // 存入 Redis，有效期5分钟
-    const smsKey = `sms_code:${dto.phone}`;
-    await this.redis.set(smsKey, code, 300);
-    return { success: true, message: "验证码已发送" };
+    return this.sms.sendVerifyCode(dto.phone, dto.scene || "LOGIN");
   }
 
   async wechatLogin(dto: WechatLoginDto) {
@@ -346,8 +344,11 @@ export class AuthService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
-    const data: Record<string, unknown> = { ...dto };
-    if (dto.birthday) data.birthday = new Date(dto.birthday);
+    const data: Record<string, unknown> = {};
+    if (dto.nickname !== undefined) data.nickname = dto.nickname;
+    if (dto.avatar !== undefined) data.avatar = dto.avatar;
+    if (dto.gender !== undefined) data.gender = dto.gender;
+    if (dto.birthday !== undefined) data.birthday = new Date(dto.birthday);
     return this.prisma.user.update({
       where: { id: userId },
       data,
@@ -425,15 +426,6 @@ export class AuthService {
   }
 
   private async verifySmsCode(phone: string, code: string) {
-    const smsKey = `sms_code:${phone}`;
-    const storedCode = await this.redis.get(smsKey);
-    if (!storedCode) throw new BusinessException(ErrorCode.AUTH_SMS_CODE_EXPIRED, "验证码已过期，请重新发送");
-    if (storedCode !== code) throw new BusinessException(ErrorCode.AUTH_SMS_CODE_INVALID, "验证码错误");
-    // 验证成功后删除已使用的验证码
-    await this.redis.del(smsKey);
-  }
-
-  private generateSmsCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return this.sms.verifyCode(phone, code, "LOGIN");
   }
 }

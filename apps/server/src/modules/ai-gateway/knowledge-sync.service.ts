@@ -1,7 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VectorService } from "./vector.service";
 import { Cron, CronExpression } from "@nestjs/schedule";
+import { serverConfig } from "../../config/server-config";
 import * as crypto from "crypto";
 
 @Injectable()
@@ -16,11 +19,8 @@ export class KnowledgeSyncService {
     private readonly prisma: PrismaService,
     private readonly vector: VectorService,
   ) {
-    // 从环境变量加载阈值
-    const envThreshold = process.env.KNOWLEDGE_DEDUP_THRESHOLD;
-    if (envThreshold) {
-      this.similarityThreshold = parseFloat(envThreshold);
-    }
+    // 从统一配置加载去重阈值
+    this.similarityThreshold = serverConfig.knowledgeDedupThreshold;
   }
 
   /** 每日凌晨4点：自动同步所有开通圈主助理的圈子知识库 */
@@ -58,93 +58,92 @@ export class KnowledgeSyncService {
   async syncCircleKnowledge(circleId: string): Promise<number> {
     let syncedCount = 0;
 
-    // 1. 同步圈主文章（自动入库）
+    // 批量预取已有知识库条目的 contentHash，消除 N+1
     const articles = await this.prisma.article.findMany({
       where: { circleId, auditStatus: "APPROVED" },
       select: { id: true, title: true, content: true },
       orderBy: { createdAt: "desc" },
     });
-    for (const article of articles) {
-      const added = await this.autoAddToKnowledge(
-        circleId,
-        "article",
-        article.id,
-        article.title,
-        article.content,
-        "SYSTEM",
-      );
-      if (added) syncedCount++;
-    }
-
-    // 2. 同步精华帖（自动入库）
     const essencePosts = await this.prisma.post.findMany({
       where: { circleId, isEssence: true, status: "PUBLISHED" },
       select: { id: true, title: true, content: true },
       orderBy: { createdAt: "desc" },
     });
-    for (const post of essencePosts) {
-      const added = await this.autoAddToKnowledge(
-        circleId,
-        "post",
-        post.id,
-        post.title || post.content.slice(0, 30),
-        post.content,
-        "SYSTEM",
-      );
-      if (added) syncedCount++;
-    }
-
-    // 3. 同步课程（自动入库）
     const courses = await this.prisma.course.findMany({
       where: { circleId, auditStatus: "APPROVED" },
       select: { id: true, title: true, intro: true },
       orderBy: { createdAt: "desc" },
     });
-    for (const course of courses) {
-      const content = `${course.title}。${course.intro || ""}`;
+
+    // 收集所有候选 contentHash
+    const allHashes: string[] = [];
+    for (const a of articles) allHashes.push(crypto.createHash("md5").update(`${a.title}\n${a.content}`).digest("hex"));
+    for (const p of essencePosts) allHashes.push(crypto.createHash("md5").update(`${p.title || p.content.slice(0, 30)}\n${p.content}`).digest("hex"));
+    for (const c of courses) {
+      const content = `${c.title}。${c.intro || ""}`;
+      allHashes.push(crypto.createHash("md5").update(content).digest("hex"));
+    }
+
+    // 一次查询获取所有已存在的 contentHash
+    const existingSet = new Set(
+      allHashes.length > 0
+        ? (await this.prisma.circleKnowledge.findMany({
+            where: { circleId, contentHash: { in: allHashes } },
+            select: { contentHash: true },
+          })).map((e) => e.contentHash)
+        : [],
+    );
+
+    // 1. 同步圈主文章（自动入库）
+    for (const article of articles) {
       const added = await this.autoAddToKnowledge(
-        circleId,
-        "course",
-        course.id,
-        course.title,
-        content,
-        "SYSTEM",
+        circleId, "article", article.id, article.title, article.content, "SYSTEM", existingSet,
       );
       if (added) syncedCount++;
     }
 
-    // 4. 同步热门帖（候选入库，需圈主确认）
-    const hotPosts = await this.prisma.post.findMany({
+    // 2. 同步精华帖（自动入库）
+    for (const post of essencePosts) {
+      const added = await this.autoAddToKnowledge(
+        circleId, "post", post.id, post.title || post.content.slice(0, 30), post.content, "SYSTEM", existingSet,
+      );
+      if (added) syncedCount++;
+    }
+
+    // 3. 同步课程（自动入库）
+    for (const course of courses) {
+      const content = `${course.title}。${course.intro || ""}`;
+      const added = await this.autoAddToKnowledge(
+        circleId, "course", course.id, course.title, content, "SYSTEM", existingSet,
+      );
+      if (added) syncedCount++;
+    }
+
+    // 4. 同步近期活跃帖（近30天，候选入库需圈主确认）
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recentPosts = await this.prisma.post.findMany({
       where: {
         circleId,
         status: "PUBLISHED",
         isEssence: false,
-        // 假设点赞数≥10为热门（未来可配置）
+        createdAt: { gte: thirtyDaysAgo },
       },
-      select: {
-        id: true,
-        title: true,
-        content: true,
-      },
+      select: { id: true, title: true, content: true },
       orderBy: { createdAt: "desc" },
-      take: 10,
+      take: 20,
     });
 
-    for (const post of hotPosts) {
+    for (const post of recentPosts) {
       const contentHash = crypto.createHash("md5").update(post.content).digest("hex");
       const existing = await this.prisma.circleKnowledge.findUnique({
         where: { contentHash_circleId: { contentHash, circleId } },
       });
 
       if (!existing) {
-        // 检查向量相似度
         const isDuplicate = await this.checkVectorSimilarity(circleId, post.content);
         if (!isDuplicate) {
-          // 加入候选列表
           await this.prisma.circleKnowledgeCandidate.upsert({
-            where: {
-              id: `candidate_${circleId}_${post.id}`,
-            },
+            where: { id: `candidate_${circleId}_${post.id}` },
             create: {
               id: `candidate_${circleId}_${post.id}`,
               circleId,
@@ -164,6 +163,55 @@ export class KnowledgeSyncService {
       }
     }
 
+    // 5. 同步嘉宾帖（GUEST 角色成员帖子，候选入库）
+    const guestMemberUserIds = await this.prisma.circleMember.findMany({
+      where: { circleId, role: "GUEST" },
+      select: { userId: true },
+    });
+
+    if (guestMemberUserIds.length > 0) {
+      const guestPosts = await this.prisma.post.findMany({
+        where: {
+          circleId,
+          userId: { in: guestMemberUserIds.map((m) => m.userId) },
+          status: "PUBLISHED",
+          isEssence: false,
+        },
+        select: { id: true, title: true, content: true },
+        orderBy: { createdAt: "desc" },
+      });
+
+      for (const post of guestPosts) {
+        const contentHash = crypto.createHash("md5").update(post.content).digest("hex");
+        const existing = await this.prisma.circleKnowledge.findUnique({
+          where: { contentHash_circleId: { contentHash, circleId } },
+        });
+
+        if (!existing) {
+          const isDuplicate = await this.checkVectorSimilarity(circleId, post.content);
+          if (!isDuplicate) {
+            await this.prisma.circleKnowledgeCandidate.upsert({
+              where: { id: `candidate_${circleId}_${post.id}` },
+              create: {
+                id: `candidate_${circleId}_${post.id}`,
+                circleId,
+                sourceType: "guest_post",
+                sourceId: post.id,
+                content: `${post.title || ""}\n${post.content}`,
+                contentHash,
+                status: "pending",
+              },
+              update: {
+                content: `${post.title || ""}\n${post.content}`,
+                contentHash,
+              },
+            });
+            syncedCount++;
+          }
+        }
+      }
+    }
+
     return syncedCount;
   }
 
@@ -175,15 +223,20 @@ export class KnowledgeSyncService {
     title: string,
     content: string,
     addedBy: string,
+    existingHashes?: Set<string>,
   ): Promise<boolean> {
     const fullContent = `${title}\n${content}`;
     const contentHash = crypto.createHash("md5").update(fullContent).digest("hex");
 
-    // 去重检查
-    const existing = await this.prisma.circleKnowledge.findUnique({
-      where: { contentHash_circleId: { contentHash, circleId } },
-    });
-    if (existing) return false;
+    // 去重检查：优先用预取集合
+    if (existingHashes) {
+      if (existingHashes.has(contentHash)) return false;
+    } else {
+      const existing = await this.prisma.circleKnowledge.findUnique({
+        where: { contentHash_circleId: { contentHash, circleId } },
+      });
+      if (existing) return false;
+    }
 
     // 向量相似度去重
     const isDuplicate = await this.checkVectorSimilarity(circleId, fullContent);
@@ -231,6 +284,7 @@ export class KnowledgeSyncService {
     userId: string,
     targetType: string,
     targetId: string,
+    extra?: { title?: string; content?: string; fileName?: string },
   ) {
     let title = "";
     let content = "";
@@ -239,20 +293,39 @@ export class KnowledgeSyncService {
     switch (targetType) {
       case "post": {
         const post = await this.prisma.post.findUnique({ where: { id: targetId } });
-        if (!post) throw new Error("帖子不存在");
+        if (!post) throw new BusinessException(ErrorCode.CIRCLE_POST_NOT_FOUND, "帖子不存在");
         title = post.title || "";
         content = post.content;
         break;
       }
       case "article": {
         const article = await this.prisma.article.findUnique({ where: { id: targetId } });
-        if (!article) throw new Error("文章不存在");
+        if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
         title = article.title;
         content = article.content;
         break;
       }
+      case "file": {
+        if (!extra?.content) throw new BusinessException(ErrorCode.BAD_REQUEST, "文件内容不能为空");
+        title = extra.fileName || extra.title || targetId;
+        content = extra.content;
+        break;
+      }
+      case "course": {
+        const course = await this.prisma.course.findUnique({ where: { id: targetId } });
+        if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+        title = course.title;
+        content = `${course.title}。${course.intro || ""}`;
+        break;
+      }
+      case "free_text": {
+        if (!extra?.content) throw new BusinessException(ErrorCode.BAD_REQUEST, "自由文本内容不能为空");
+        title = extra.title || "";
+        content = extra.content;
+        break;
+      }
       default:
-        throw new Error(`不支持的内容类型: ${targetType}`);
+        throw new BusinessException(ErrorCode.BAD_REQUEST, `不支持的内容类型: ${targetType}`);
     }
 
     const added = await this.autoAddToKnowledge(
@@ -311,7 +384,7 @@ export class KnowledgeSyncService {
     const candidate = await this.prisma.circleKnowledgeCandidate.findUnique({
       where: { id: candidateId },
     });
-    if (!candidate) throw new Error("候选内容不存在");
+    if (!candidate) throw new BusinessException(ErrorCode.NOT_FOUND, "候选内容不存在");
 
     // 加入正式知识库
     await this.prisma.circleKnowledge.create({

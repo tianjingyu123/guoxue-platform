@@ -1,10 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { COIN_TO_RMB } from "../../common/constants";
+import { CommissionService } from "../commission/commission.service";
 
 @Injectable()
 export class CoinService {
@@ -13,6 +14,7 @@ export class CoinService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    @Optional() private commission?: CommissionService,
   ) {}
 
   /** 获取或创建虚拟币账户 */
@@ -181,6 +183,7 @@ export class CoinService {
     return this.prisma.gift.findMany({
       where: { status: "ACTIVE" },
       orderBy: { sortOrder: "asc" },
+      take: 200,
     });
   }
 
@@ -233,9 +236,34 @@ export class CoinService {
     });
 
     // 记录打赏
-    return this.prisma.giftRecord.create({
+    const record = await this.prisma.giftRecord.create({
       data: { userId, liveRoomId, toUserId, giftId, quantity, totalCoin },
     });
+
+    // 平台抽成 + 圈主收益（fire-and-forget）
+    if (this.commission) {
+      this.recordGiftCommission(liveRoomId, record.id, gift.priceCoin * quantity * COIN_TO_RMB).catch(
+        (err) => this.logger.warn("礼物抽成记录失败", err),
+      );
+    }
+
+    return record;
+  }
+
+  /** 记录礼物平台抽成 */
+  private async recordGiftCommission(liveRoomId: string, giftRecordId: string, amountRmb: number) {
+    const liveRoom = await this.prisma.liveRoom.findUnique({
+      where: { id: liveRoomId },
+      select: { circleId: true },
+    });
+    if (!liveRoom?.circleId || !this.commission) return;
+
+    await this.commission.recordCircleRevenue(
+      liveRoom.circleId,
+      "gift",
+      giftRecordId,
+      amountRmb,
+    );
   }
 
   /** 直播打赏榜单 */

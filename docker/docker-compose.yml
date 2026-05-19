@@ -20,6 +20,27 @@ services:
       timeout: 3s
       retries: 5
 
+  # ── 数据库读副本（可选，启用 HA profile 时启动）──
+  postgres-replica:
+    image: pgvector/pgvector:pg16
+    container_name: guoxue-postgres-replica
+    restart: unless-stopped
+    profiles: ["ha"]
+    environment:
+      POSTGRES_USER: guoxue
+      POSTGRES_PASSWORD: guoxue123
+      POSTGRES_DB: guoxue
+    volumes:
+      - pgdata-replica:/var/lib/postgresql/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guoxue"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   # ── 缓存 ──
   redis:
     image: redis:7-alpine
@@ -36,6 +57,62 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+
+  # ── Redis 从节点（可选，启用 HA profile 时启动）──
+  redis-secondary:
+    image: redis:7-alpine
+    container_name: guoxue-redis-secondary
+    restart: unless-stopped
+    profiles: ["ha"]
+    volumes:
+      - ./redis-secondary.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── Redis Sentinel ×3（可选，启用 HA profile 时启动，生产建议至少 3 节点）──
+  redis-sentinel-1:
+    image: redis:7-alpine
+    container_name: guoxue-redis-sentinel-1
+    restart: unless-stopped
+    profiles: ["ha"]
+    ports:
+      - "26379:26379"
+    volumes:
+      - ./redis-sentinel.conf:/etc/redis/sentinel.conf:ro
+    command: redis-sentinel /etc/redis/sentinel.conf
+    depends_on:
+      - redis
+      - redis-secondary
+
+  redis-sentinel-2:
+    image: redis:7-alpine
+    container_name: guoxue-redis-sentinel-2
+    restart: unless-stopped
+    profiles: ["ha"]
+    ports:
+      - "26380:26379"
+    volumes:
+      - ./redis-sentinel.conf:/etc/redis/sentinel.conf:ro
+    command: redis-sentinel /etc/redis/sentinel.conf
+    depends_on:
+      - redis
+      - redis-secondary
+
+  redis-sentinel-3:
+    image: redis:7-alpine
+    container_name: guoxue-redis-sentinel-3
+    restart: unless-stopped
+    profiles: ["ha"]
+    ports:
+      - "26381:26379"
+    volumes:
+      - ./redis-sentinel.conf:/etc/redis/sentinel.conf:ro
+    command: redis-sentinel /etc/redis/sentinel.conf
+    depends_on:
+      - redis
+      - redis-secondary
 
   # ── 反向代理 ──
   nginx:
@@ -113,6 +190,7 @@ services:
 
       # ── 腾讯地图 ──
       TENCENT_MAP_KEY: ${TENCENT_MAP_KEY:-}
+      TENCENT_MAP_SK: ${TENCENT_MAP_SK:-}
 
       # ── AI ──
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
@@ -186,6 +264,7 @@ services:
 
 volumes:
   pgdata:
+  pgdata-replica:
   redisdata:
   uploads_data:
   static_data:

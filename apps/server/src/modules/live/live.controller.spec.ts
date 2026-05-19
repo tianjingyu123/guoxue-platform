@@ -67,13 +67,13 @@ describe("LiveController", () => {
   });
 
   it("GET /live/rooms — 直播列表", async () => {
-    const result: any = await ctrl.listRooms("LIVE", undefined, 1 as any, 20 as any);
+    const result: any = await ctrl.listRooms("LIVE", undefined, undefined, 1 as any, 20 as any);
     expect(result).toHaveLength(1);
-    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith("LIVE", 1, 20);
+    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith("LIVE", 1, 20, undefined);
   });
 
   it("GET /live/rooms — 按课程过滤", async () => {
-    const result: any = await ctrl.listRooms(undefined, "c1", 1 as any, 20 as any);
+    const result: any = await ctrl.listRooms(undefined, "c1", undefined, 1 as any, 20 as any);
     expect(result).toHaveLength(1);
     expect(mockLiveSvc.listCourseRooms).toHaveBeenCalledWith("c1", 1, 20);
   });
@@ -97,7 +97,8 @@ describe("LiveController", () => {
   });
 
   it("GET /live/rooms/:id/stream-urls — 推拉流地址", async () => {
-    const result: any = await ctrl.getStreamUrls("r1");
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.getStreamUrls("r1", req);
     expect(result.pushUrl).toBeTruthy();
   });
 

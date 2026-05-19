@@ -39,8 +39,8 @@ export class CircleKnowledgeTask {
           content: `${post.title || ""}\n${post.content}`.trim(),
         });
         if (result) added++;
-      } catch {
-        // 跳过重复等异常
+      } catch (err) {
+        this.logger.debug(`精华帖知识同步跳过: ${(err as Error).message}`);
       }
     }
     this.logger.log(`精华帖扫描完成: ${posts.length} 篇, 新增候选 ${added} 条`);
@@ -72,8 +72,8 @@ export class CircleKnowledgeTask {
           content: `${post.title || ""}\n${post.content}`.trim(),
         });
         if (result) added++;
-      } catch {
-        // 跳过重复
+      } catch (err) {
+        this.logger.debug(`近期内容知识同步跳过: ${(err as Error).message}`);
       }
     }
     this.logger.log(`近期内容扫描完成: ${posts.length} 篇, 新增候选 ${added} 条`);

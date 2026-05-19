@@ -2,6 +2,8 @@ import { Controller, Post, Get, Delete, Body, Query, Param, UseGuards, Req, Forb
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 import { ImService } from "./im.service";
 import {
   GenUserSigDto,
@@ -63,7 +65,8 @@ export class ImController {
   @Post("groups")
   @ApiOperation({ summary: "创建群组", description: "为圈子/直播间等创建 IM 群组" })
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   createGroup(@Body() dto: CreateGroupDto) {
     return this.im.createGroup(dto.groupId, dto.name, dto.type, dto.ownerId);
   }
@@ -71,7 +74,8 @@ export class ImController {
   @Delete("groups/:groupId")
   @ApiOperation({ summary: "解散群组" })
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   destroyGroup(@Param("groupId") groupId: string) {
     return this.im.destroyGroup(groupId);
   }
@@ -79,7 +83,8 @@ export class ImController {
   @Post("groups/:groupId/members")
   @ApiOperation({ summary: "添加群成员" })
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   addGroupMembers(
     @Param("groupId") groupId: string,
     @Body() dto: AddGroupMembersDto,
@@ -90,7 +95,8 @@ export class ImController {
   @Delete("groups/:groupId/members")
   @ApiOperation({ summary: "删除群成员" })
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   deleteGroupMembers(
     @Param("groupId") groupId: string,
     @Body() dto: AddGroupMembersDto,
@@ -111,9 +117,10 @@ export class ImController {
   }
 
   @Get("groups/:groupId/history")
-  @ApiOperation({ summary: "获取群组历史消息" })
+  @ApiOperation({ summary: "获取群组历史消息（管理员）" })
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   getGroupHistory(
     @Param("groupId") groupId: string,
     @Query("page") page?: string,
@@ -184,5 +191,89 @@ export class ImController {
   @UseGuards(JwtAuthGuard)
   addBlacklist(@Req() req: Request, @Body() dto: FriendDto) {
     return this.im.addBlacklist(req.user.id, dto.toUserId);
+  }
+
+  @Post("blacklist/remove")
+  @ApiOperation({ summary: "取消拉黑" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  removeBlacklist(@Req() req: Request, @Body() dto: FriendDto) {
+    return this.im.removeBlacklist(req.user.id, dto.toUserId);
+  }
+
+  @Get("blacklist")
+  @ApiOperation({ summary: "获取黑名单列表" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  getBlacklist(@Req() req: Request) {
+    return this.im.getBlacklist(req.user.id);
+  }
+
+  // ───────── 好友申请处理 ─────────
+
+  @Post("friends/approve")
+  @ApiOperation({ summary: "通过好友申请" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  approveFriendRequest(@Req() req: Request, @Body() dto: FriendDto) {
+    return this.im.approveFriendRequest(req.user.id, dto.toUserId);
+  }
+
+  @Post("friends/reject")
+  @ApiOperation({ summary: "拒绝好友申请" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  rejectFriendRequest(@Req() req: Request, @Body() dto: FriendDto) {
+    return this.im.rejectFriendRequest(req.user.id, dto.toUserId);
+  }
+
+  @Get("friends/pending")
+  @ApiOperation({ summary: "获取待处理好友申请" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  listPendingFriendRequests(@Req() req: Request) {
+    return this.im.listPendingFriendRequests(req.user.id);
+  }
+
+  // ───────── 群组详情 ─────────
+
+  @Get("groups/:groupId/detail")
+  @ApiOperation({ summary: "获取群组详细信息" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  getGroupInfo(@Param("groupId") groupId: string) {
+    return this.im.getGroupInfo([groupId]);
+  }
+
+  @Get("groups/:groupId/members")
+  @ApiOperation({ summary: "获取群成员列表" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  getGroupMembers(@Param("groupId") groupId: string) {
+    return this.im.getGroupMembers(groupId);
+  }
+
+  // ───────── 富媒体消息 ─────────
+
+  @Post("c2c/image")
+  @ApiOperation({ summary: "发送图片消息（单聊）" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  sendC2CImage(
+    @Req() req: Request,
+    @Body() dto: { toUserId: string; imageUrl: string; width?: number; height?: number },
+  ) {
+    return this.im.sendC2CImage(req.user.id, dto.toUserId, dto.imageUrl, dto.width, dto.height);
+  }
+
+  @Post("c2c/custom")
+  @ApiOperation({ summary: "发送自定义消息" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  sendCustomMsg(
+    @Req() req: Request,
+    @Body() dto: { toUserId: string; data: Record<string, unknown>; desc?: string },
+  ) {
+    return this.im.sendCustomMsg(req.user.id, dto.toUserId, dto.data, dto.desc);
   }
 }

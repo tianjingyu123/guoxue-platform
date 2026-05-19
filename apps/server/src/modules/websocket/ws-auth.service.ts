@@ -61,18 +61,30 @@ export class WsAuthService {
     }
   }
 
-  /** 从 handshake 提取并验证 token */
+  /** 从 handshake 提取并验证 token（优先 auth 对象，query string 仅作兼容降级） */
   extractUser(handshake: Record<string, unknown>): WsUser | null {
     const auth = handshake.auth as Record<string, unknown> | undefined;
     const query = handshake.query as Record<string, unknown> | undefined;
     const headers = handshake.headers as Record<string, unknown> | undefined;
-    const token: string =
-      (auth?.token as string) ||
-      (query?.token as string) ||
-      (headers?.authorization as string)?.replace("Bearer ", "") ||
-      "";
+
+    let token = (auth?.token as string) || "";
+    let source = "auth";
+
+    if (!token && headers?.authorization) {
+      token = (headers.authorization as string).replace("Bearer ", "");
+      source = "header";
+    }
+
+    if (!token && query?.token) {
+      token = query.token as string;
+      source = "query";
+      this.logger.warn("客户端通过 query string 传递 token，建议迁移到 socket.io auth 对象");
+    }
+
     if (!token) return null;
-    return this.verifyToken(token);
+    const user = this.verifyToken(token);
+    if (user) this.logger.debug(`WS认证成功 [${source}]: ${user.userId}`);
+    return user;
   }
 }
 

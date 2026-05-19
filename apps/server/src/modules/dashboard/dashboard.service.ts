@@ -13,6 +13,16 @@ export class DashboardService {
   private readonly logger = new Logger(DashboardService.name);
 
   async getStats() {
+    const cacheKey = "dashboard:stats";
+    const cached = await this.redis.getJson<ReturnType<typeof this.buildStats>>(cacheKey);
+    if (cached) return cached;
+
+    const data = await this.buildStats();
+    await this.redis.setJson(cacheKey, data, 30);
+    return data;
+  }
+
+  private async buildStats() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -182,6 +192,7 @@ export class DashboardService {
 
     // ── TOP10 热门文章（按浏览量降序） ──
     const topArticles = await this.prisma.article.findMany({
+      where: { auditStatus: "APPROVED" },
       orderBy: { viewCount: "desc" },
       take: 10,
       select: {
@@ -214,6 +225,10 @@ export class DashboardService {
   }
 
   async getRevenueOverview() {
+    const cacheKey = "dashboard:revenue";
+    const cached = await this.redis.getJson<Record<string, unknown>>(cacheKey);
+    if (cached) return cached;
+
     const now = new Date();
     const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -254,7 +269,7 @@ export class DashboardService {
     const lastMonthRev = Number(lastMonthRevenue._sum.amount || 0);
     const growth = lastMonthRev > 0 ? ((monthRev - lastMonthRev) / lastMonthRev * 100).toFixed(1) : "0";
 
-    return {
+    const data = {
       totalRevenue: Number(totalRevenue._sum.amount || 0),
       monthRevenue: monthRev,
       lastMonthRevenue: lastMonthRev,
@@ -268,6 +283,8 @@ export class DashboardService {
       activeOfflineStations: offlineStationCount,
       pendingWithdrawals: withdrawalPending,
     };
+    await this.redis.setJson(cacheKey, data, 60);
+    return data;
   }
 
   async getRealtimeStats() {
@@ -367,6 +384,7 @@ export class DashboardService {
         commentCount: true, collectCount: true, createdAt: true,
         user: { select: { nickname: true } },
       },
+      take: 500,
     });
 
     const scored = articles.map((a) => {
@@ -606,6 +624,7 @@ export class DashboardService {
         where: { circleId, joinedAt: { gte: thirtyDaysAgo } },
         select: { joinedAt: true },
         orderBy: { joinedAt: "asc" },
+        take: 2000,
       });
       const memberMap = new Map<string, number>();
       for (const m of members) {
@@ -623,6 +642,7 @@ export class DashboardService {
       const circlePosts = await this.prisma.post.findMany({
         where: { circleId },
         select: { id: true },
+        take: 1000,
       });
       const postIds = circlePosts.map(p => p.id);
 
@@ -638,9 +658,9 @@ export class DashboardService {
 
       // 收入来源分布：课程收入、商品收入、打赏收入
       const [circleCourses, circleProducts, circleLiveRooms] = await Promise.all([
-        this.prisma.course.findMany({ where: { circleId }, select: { id: true } }),
-        this.prisma.product.findMany({ where: { circleId }, select: { id: true } }),
-        this.prisma.liveRoom.findMany({ where: { circleId }, select: { id: true } }),
+        this.prisma.course.findMany({ where: { circleId }, select: { id: true }, take: 200 }),
+        this.prisma.product.findMany({ where: { circleId }, select: { id: true }, take: 200 }),
+        this.prisma.liveRoom.findMany({ where: { circleId }, select: { id: true }, take: 200 }),
       ]);
       const courseIds = circleCourses.map(c => c.id);
       const productIds = circleProducts.map(p => p.id);
@@ -660,7 +680,7 @@ export class DashboardService {
 
       // 热门内容 Top 10
       const topArticles = await this.prisma.article.findMany({
-        where: { circleId },
+        where: { circleId, auditStatus: "APPROVED" },
         orderBy: { viewCount: "desc" },
         take: 10,
         select: {
@@ -760,6 +780,7 @@ export class DashboardService {
       const allProgress = await this.prisma.courseProgress.findMany({
         where: { courseId },
         select: { userId: true, progress: true, completed: true },
+        take: 5000,
       });
       const userBestProgress = new Map<string, { progress: number; completed: boolean }>();
       for (const p of allProgress) {
@@ -796,6 +817,7 @@ export class DashboardService {
         const chapterProgress = await this.prisma.courseProgress.findMany({
           where: { courseId, completed: true },
           select: { chapterId: true, userId: true },
+          take: 5000,
         });
         const chapterCompleted = new Map<string, Set<string>>();
         for (const cp of chapterProgress) {
@@ -877,10 +899,12 @@ export class DashboardService {
         this.prisma.giftRecord.findMany({
           where: { liveRoomId: liveId },
           select: { totalCoin: true, userId: true },
+          take: 500,
         }),
         this.prisma.order.findMany({
           where: { type: "LIVESTREAM", targetId: liveId, status: { in: ["PAID", "COMPLETED"] } },
           select: { amount: true },
+          take: 500,
         }),
       ]);
 
@@ -1027,6 +1051,7 @@ export class DashboardService {
       const offlineCourses = await this.prisma.offlineCourse.findMany({
         where: { stationId: offlineId },
         select: { id: true, title: true, price: true, status: true, maxStudents: true, startTime: true },
+        take: 100,
       });
       const courseIds = offlineCourses.map(c => c.id);
 
@@ -1044,6 +1069,7 @@ export class DashboardService {
       const products = await this.prisma.stationProduct.findMany({
         where: { stationId: offlineId },
         select: { id: true, name: true, price: true, stock: true, status: true },
+        take: 200,
       });
       const productOrderAgg = await this.prisma.stationOrder.aggregate({
         where: { stationId: offlineId, orderType: "PRODUCT", status: "PAID" },
@@ -1055,6 +1081,7 @@ export class DashboardService {
         ? await this.prisma.offlineCourseRegistration.findMany({
             where: { courseId: { in: courseIds } },
             select: { userId: true },
+            take: 500,
           })
         : [];
       const userCounts = new Map<string, number>();
@@ -1070,6 +1097,7 @@ export class DashboardService {
       const monthlyOrders = await this.prisma.stationOrder.findMany({
         where: { stationId: offlineId, createdAt: { gte: twelveMonthsAgo } },
         select: { amount: true, createdAt: true, status: true },
+        take: 2000,
       });
       const monthRevenueMap = new Map<string, number>();
       for (const o of monthlyOrders) {
@@ -1484,6 +1512,10 @@ export class DashboardService {
   // ───────── 平台总览 ─────────
 
   async getPlatformOverview() {
+    const cacheKey = "dashboard:platform";
+    const cached = await this.redis.getJson<Record<string, unknown>>(cacheKey);
+    if (cached) return cached;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -1525,7 +1557,7 @@ export class DashboardService {
     const monthRev = Number(monthRevenue._sum.amount || 0);
     const lastMonthRev = Number(lastMonthRevenue._sum.amount || 0);
 
-    return {
+    const data = {
       users: { total: totalUsers, monthNew: monthNewUsers, todayActive: todayActiveUsers },
       content: { articles: totalArticles, courses: totalCourses, circles: totalCircles, products: totalProducts },
       orders: {
@@ -1548,6 +1580,8 @@ export class DashboardService {
       },
       alerts: openAlerts,
     };
+    await this.redis.setJson(cacheKey, data, 60);
+    return data;
   }
 
   // ───────── 运营日报生成 ─────────

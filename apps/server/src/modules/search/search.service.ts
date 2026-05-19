@@ -1,12 +1,38 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
+import { SemanticSearchService } from "./semantic-search.service";
 
+/** 搜索结果缓存 TTL */
+const SEARCH_CACHE_TTL = 120;
 
 @Injectable()
 export class SearchService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(SearchService.name);
 
-  /** 全局搜索（加权重排 + LIKE 回退） */
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+    @Optional() private semantic?: SemanticSearchService,
+  ) {}
+
+  /** 语义搜索 — 基于向量相似度的内容发现 */
+  async semanticSearch(query: string, topK = 10) {
+    if (!this.semantic) {
+      this.logger.warn("SemanticSearchService 未注入，回退到 FTS");
+      return this.search({ q: query, pageSize: topK });
+    }
+    return this.semantic.search(query, topK);
+  }
+
+  /** 语义查询建议 — 相似搜索词推荐 */
+  async suggestSimilarQueries(query: string, limit = 5) {
+    if (!this.semantic) return [];
+    return this.semantic.suggestSimilar(query, limit);
+  }
+
+  /** 全局搜索（加权重排 + LIKE 回退，带缓存） */
   async search(params: {
     q: string;
     type?: string;
@@ -15,11 +41,16 @@ export class SearchService {
     weightMap?: Map<string, number>;
   }) {
     const { q, type, page = 1, pageSize = 20, weightMap } = params;
+
+    if (!q?.trim()) return { q, type };
+
+    const cacheKey = `search:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
     const limit = type ? pageSize : 5;
     const offset = type ? (page - 1) * pageSize : 0;
     const results: Record<string, unknown> = { q, type };
-
-    if (!q?.trim()) return results;
 
     const searches: Promise<void>[] = [];
 
@@ -44,11 +75,15 @@ export class SearchService {
     if (!type || type === "classic") {
       searches.push(this.ftsOrLike("ClassicBook", q, limit, offset, weightMap).then((rows) => { results.classics = rows; }));
     }
+    if (!type || type === "ebook") {
+      searches.push(this.ftsOrLike("Ebook", q, limit, offset, weightMap).then((rows) => { results.ebooks = rows; }));
+    }
     if (!type || type === "content") {
       searches.push(this.ftsOrLike("Content", q, limit, offset, weightMap).then((rows) => { results.contents = rows; }));
     }
 
     await Promise.all(searches);
+    await this.redis.setJson(cacheKey, results, SEARCH_CACHE_TTL);
     return results;
   }
 
@@ -133,7 +168,8 @@ export class SearchService {
          LIMIT $2 OFFSET $3`,
         q, limit, offset,
       );
-    } catch {
+    } catch (err: unknown) {
+      this.logger.warn(`FTS 搜索 ${entityType} 失败: ${(err as Error).message}`);
       return [];
     }
   }
@@ -193,7 +229,8 @@ export class SearchService {
          LIMIT $2 OFFSET $3`,
         q, limit, offset,
       );
-    } catch {
+    } catch (err: unknown) {
+      this.logger.warn(`Like 搜索 ${entityType} 失败: ${(err as Error).message}`);
       return [];
     }
   }
@@ -215,8 +252,9 @@ export class SearchService {
         try {
           const hotWords = JSON.parse(config.configValue) as Array<{ keyword: string; count: number }>;
           return hotWords.slice(0, limit).map((r) => ({ keyword: r.keyword, count: r.count }));
-        } catch {
+        } catch (err) {
           // JSON 解析失败则忽略
+          this.logger.warn(`热搜词 JSON 解析失败`, err);
         }
       }
     }

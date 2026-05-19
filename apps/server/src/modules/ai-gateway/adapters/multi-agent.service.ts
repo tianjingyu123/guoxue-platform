@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { AiMessage } from "./base.adapter";
 import { BusinessException } from "../../../common/business.exception";
 import { ErrorCode } from "../../../common/error-codes";
@@ -184,7 +184,7 @@ export class MultiAgentService {
   async execute(task: OrchestrationTask): Promise<OrchestrationResult> {
     const startedAt = Date.now();
     const agentResults: OrchestrationResult["agentResults"] = [];
-    let totalTokens = 0;
+    const totalTokens = 0;
 
     this.logger.log(`编排开始: ${task.id} 策略=${task.strategy} agent数=${task.agents.length}`);
 

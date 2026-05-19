@@ -106,7 +106,7 @@ describe("CircleService", () => {
 
   describe("join", () => {
     it("成功加入圈子", async () => {
-      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE" });
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", type: "FREE" });
       mockPrisma.circleMember.findUnique.mockResolvedValue(null);
       mockPrisma.circleMember.create.mockResolvedValue({ id: "m1", circleId: "c1", userId: "u2", role: "MEMBER" });
       mockPrisma.circle.update.mockResolvedValue({});
@@ -123,7 +123,7 @@ describe("CircleService", () => {
     });
 
     it("重复加入抛 ConflictException", async () => {
-      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE" });
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", type: "FREE" });
       mockPrisma.circleMember.findUnique.mockResolvedValue({ userId: "u2", role: "MEMBER" });
       await expect(svc.join("c1", "u2")).rejects.toThrow(BusinessException);
     });

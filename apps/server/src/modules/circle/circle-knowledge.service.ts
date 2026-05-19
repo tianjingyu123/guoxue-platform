@@ -230,6 +230,66 @@ export class CircleKnowledgeService {
     });
   }
 
+  // ───────── 知识库导出 ─────────
+
+  /** 导出圈子知识库（JSON 格式） */
+  async exportJson(circleId: string, params?: { sourceType?: string; startDate?: Date; endDate?: Date }) {
+    const where: any = { circleId, status: "active" };
+    if (params?.sourceType) where.sourceType = params.sourceType;
+    if (params?.startDate || params?.endDate) {
+      where.addedAt = {};
+      if (params.startDate) where.addedAt.gte = params.startDate;
+      if (params.endDate) where.addedAt.lte = params.endDate;
+    }
+
+    const items = await this.prisma.circleKnowledge.findMany({
+      where,
+      select: {
+        id: true,
+        sourceType: true,
+        content: true,
+        addedAt: true,
+      },
+      orderBy: { addedAt: "desc" },
+    });
+
+    return {
+      exportVersion: "1.0",
+      circleId,
+      exportedAt: new Date().toISOString(),
+      totalItems: items.length,
+      items: items.map((item) => ({
+        id: item.id,
+        type: item.sourceType,
+        content: item.content,
+        createdAt: item.addedAt?.toISOString(),
+      })),
+    };
+  }
+
+  /** 导出圈子知识库（Markdown 格式） */
+  async exportMarkdown(circleId: string, params?: { sourceType?: string; startDate?: Date; endDate?: Date }) {
+    const json = await this.exportJson(circleId, params);
+
+    const circle = await this.prisma.circle.findUnique({
+      where: { id: circleId },
+      select: { name: true },
+    });
+
+    let md = `# ${circle?.name || "圈子"} — 知识库导出\n\n`;
+    md += `> 导出时间: ${json.exportedAt}\n`;
+    md += `> 条目数: ${json.totalItems}\n\n---\n\n`;
+
+    for (let i = 0; i < json.items.length; i++) {
+      const item = json.items[i];
+      md += `## ${i + 1}. [${item.type}] ${item.content.slice(0, 50)}${item.content.length > 50 ? "..." : ""}\n\n`;
+      md += `${item.content}\n\n`;
+      md += `*${item.createdAt}* | *ID: ${item.id}*\n\n---\n\n`;
+    }
+
+    return { markdown: md, filename: `knowledge-${circleId.slice(0, 8)}.md`, totalItems: json.totalItems };
+  }
+
   // ───────── 内部工具 ─────────
 
   /** 为单条知识生成向量 */

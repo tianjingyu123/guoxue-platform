@@ -1,6 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGuards, HttpException, HttpStatus } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
-import { Request } from "express";
+import { Request, Response } from "express";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
@@ -106,5 +106,63 @@ export class CircleKnowledgeController {
     @Param("candidateId") candidateId: string,
   ) {
     return this.knowledge.rejectCandidate(circleId, candidateId);
+  }
+
+  // ───────── 知识库导出 ─────────
+
+  @Get(":circleId/knowledge/export/json")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "导出知识库（JSON 格式）" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "sourceType", required: false })
+  @ApiQuery({ name: "startDate", required: false })
+  @ApiQuery({ name: "endDate", required: false })
+  async exportJson(
+    @Param("circleId") circleId: string,
+    @Query("sourceType") sourceType?: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+    @Res() res?: Response,
+  ) {
+    const data = await this.knowledge.exportJson(circleId, {
+      sourceType,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+    });
+
+    if (res) {
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Content-Disposition", `attachment; filename="knowledge-${circleId.slice(0, 8)}.json"`);
+      return res.json(data);
+    }
+    return data;
+  }
+
+  @Get(":circleId/knowledge/export/markdown")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "导出知识库（Markdown 格式）" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "sourceType", required: false })
+  @ApiQuery({ name: "startDate", required: false })
+  @ApiQuery({ name: "endDate", required: false })
+  async exportMarkdown(
+    @Param("circleId") circleId: string,
+    @Query("sourceType") sourceType?: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+    @Res() res?: Response,
+  ) {
+    const data = await this.knowledge.exportMarkdown(circleId, {
+      sourceType,
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+    });
+
+    if (res) {
+      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${data.filename}"`);
+      return res.send(data.markdown);
+    }
+    return data;
   }
 }

@@ -5,7 +5,7 @@ import { LogisticsService } from "./logistics.service";
 import { SystemService } from "../system/system.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
-import { StrictThrottleGuard } from "../../common/throttle.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { Logger } from "@nestjs/common";
 
 const mockShopSvc = {
@@ -81,7 +81,7 @@ describe("ShopController", () => {
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
-      .overrideGuard(StrictThrottleGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(ShopController);
   });
@@ -363,7 +363,8 @@ describe("ShopController", () => {
 
   // ─── 物流 ───
   it("GET /shop/orders/:id/logistics — 物流信息", async () => {
-    const result: any = await ctrl.getLogistics("o1");
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.getLogistics(req, "o1");
     expect(result.status).toBe("IN_TRANSIT");
   });
 

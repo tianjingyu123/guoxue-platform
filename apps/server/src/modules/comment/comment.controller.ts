@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, UseP
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Request } from "express";
 import { CommentService } from "./comment.service";
-import { CreateCommentDto, CommentQueryDto } from "./comment.dto";
+import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from "./comment.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -41,6 +41,15 @@ export class CommentController {
   @ApiBearerAuth()
   like(@Param("id") id: string) {
     return this.comment.like(id);
+  }
+
+  @Put(":id")
+  @UseGuards(JwtAuthGuard)
+  @UsePipes(new SanitizePipe())
+  @ApiOperation({ summary: "编辑评论" })
+  @ApiBearerAuth()
+  update(@Req() req: Request, @Param("id") id: string, @Body() dto: UpdateCommentDto) {
+    return this.comment.update(req.user.id, id, dto);
   }
 
   @Delete(":id")

@@ -4,6 +4,7 @@ import { Request } from "express";
 import { CoinService } from "./coin.service";
 import { AdminRechargeDto, SpendDto, CreateGiftDto, SendGiftDto } from "./coin.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 
@@ -40,7 +41,7 @@ export class CoinController {
   }
 
   @Post("admin/recharge")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员充值", description: "管理员为用户账户充值虚拟币" })
   adminRecharge(@Body() dto: AdminRechargeDto) {
@@ -56,7 +57,7 @@ export class CoinController {
   }
 
   @Post("spend")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "消费虚拟币", description: "按场景扣除余额（提问/打赏/入圈等）" })
   spend(@Req() req: Request, @Body() dto: SpendDto) {
     return this.coin.spend(req.user.id, dto);
@@ -95,7 +96,7 @@ export class CoinController {
   }
 
   @Post("gifts/send")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "赠送礼物", description: "在直播间向主播赠送礼物" })
   sendGift(@Req() req: Request, @Body() dto: SendGiftDto) {
     const targetUserId = dto.toUserId || dto.userId;

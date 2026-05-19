@@ -251,4 +251,124 @@ export class ImService {
       To_Account: [toUserId],
     });
   }
+
+  /** 取消拉黑 */
+  async removeBlacklist(fromUserId: string, toUserId: string) {
+    return this.callImApi("sns/black_list_delete", {
+      From_Account: fromUserId,
+      To_Account: [toUserId],
+    });
+  }
+
+  /** 获取黑名单列表 */
+  async getBlacklist(userId: string) {
+    return this.callImApi("sns/black_list_get", {
+      From_Account: userId,
+    });
+  }
+
+  // ───────── 好友申请 ─────────
+
+  /** 审批好友申请 */
+  async approveFriendRequest(userId: string, fromUserId: string) {
+    return this.callImApi("sns/friend_add_response", {
+      From_Account: userId,
+      ResponseItem: [
+        {
+          To_Account: fromUserId,
+          ResponseAction: "Response_Action_Agree",
+        },
+      ],
+    });
+  }
+
+  /** 拒绝好友申请 */
+  async rejectFriendRequest(userId: string, fromUserId: string) {
+    return this.callImApi("sns/friend_add_response", {
+      From_Account: userId,
+      ResponseItem: [
+        {
+          To_Account: fromUserId,
+          ResponseAction: "Response_Action_Reject",
+        },
+      ],
+    });
+  }
+
+  /** 获取待处理好友申请 */
+  async listPendingFriendRequests(userId: string) {
+    return this.callImApi("sns/friend_get_pendency", {
+      From_Account: userId,
+    });
+  }
+
+  // ───────── 群组详情 ─────────
+
+  /** 获取群组详细信息 */
+  async getGroupInfo(groupIds: string[]) {
+    return this.callImApi("group_open_http_svc/get_group_info", {
+      GroupIdList: groupIds.map((id) => ({ GroupId: id })),
+      ResponseFilter: {
+        GroupBaseInfoFilter: [
+          "Type", "Name", "Introduction", "Notification", "FaceUrl",
+          "Owner_Account", "CreateTime", "MemberNum", "MaxMemberNum",
+          "ApplyJoinOption",
+        ],
+      },
+    });
+  }
+
+  /** 获取群成员列表 */
+  async getGroupMembers(groupId: string) {
+    return this.callImApi("group_open_http_svc/get_group_member_info", {
+      GroupId: groupId,
+      Offset: 0,
+      Limit: 500,
+    });
+  }
+
+  /** 发送图片消息（单聊） */
+  async sendC2CImage(fromUserId: string, toUserId: string, imageUrl: string, width?: number, height?: number) {
+    return this.callImApi("openim/sendmsg", {
+      SyncOtherMachine: 1,
+      From_Account: fromUserId,
+      To_Account: toUserId,
+      MsgLifeTime: 604800,
+      MsgRandom: Math.floor(Math.random() * 0xffffffff),
+      MsgTimeStamp: Math.floor(Date.now() / 1000),
+      MsgBody: [
+        {
+          MsgType: "TIMImageElem",
+          MsgContent: {
+            UUID: imageUrl,
+            ImageFormat: 1,
+            ImageInfoArray: [
+              { Type: 1, Size: 0, Width: width || 0, Height: height || 0, URL: imageUrl },
+            ],
+          },
+        },
+      ],
+    });
+  }
+
+  /** 发送自定义消息 */
+  async sendCustomMsg(fromUserId: string, toUserId: string, data: Record<string, unknown>, desc?: string) {
+    return this.callImApi("openim/sendmsg", {
+      SyncOtherMachine: 1,
+      From_Account: fromUserId,
+      To_Account: toUserId,
+      MsgLifeTime: 604800,
+      MsgRandom: Math.floor(Math.random() * 0xffffffff),
+      MsgTimeStamp: Math.floor(Date.now() / 1000),
+      MsgBody: [
+        {
+          MsgType: "TIMCustomElem",
+          MsgContent: {
+            Data: JSON.stringify(data),
+            Desc: desc || "",
+          },
+        },
+      ],
+    });
+  }
 }

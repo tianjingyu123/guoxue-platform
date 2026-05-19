@@ -36,6 +36,8 @@ export interface AiChatOptions {
   temperature?: number;
   maxTokens?: number;
   topP?: number;
+  /** 请求超时时间(ms)，超时后适配器抛出 AiTimeoutError */
+  timeout?: number;
 }
 
 export interface AiChatResponse {
@@ -47,4 +49,12 @@ export interface AiChatResponse {
     totalTokens: number;
   };
   finishReason?: string;
+}
+
+/** 超时专用错误，网关捕获后触发 fallback */
+export class AiTimeoutError extends Error {
+  constructor(message = "AI请求超时") {
+    super(message);
+    this.name = "AiTimeoutError";
+  }
 }

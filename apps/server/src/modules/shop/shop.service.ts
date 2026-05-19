@@ -1,9 +1,21 @@
 import { Injectable, forwardRef, Inject, Logger, Optional } from "@nestjs/common";
+import { createHash } from "node:crypto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma, MemberLevel, Order } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+
+/** 商品详情缓存 TTL */
+const PRODUCT_CACHE_TTL = 300;
+/** 商品列表缓存 TTL */
+const PRODUCT_LIST_CACHE_TTL = 120;
+/** 订单缓存 TTL */
+const ORDER_CACHE_TTL = 300;
+/** 订单列表缓存 TTL */
+const ORDER_LIST_CACHE_TTL = 60;
+/** 缓存前缀 */
+const CACHE_PREFIX = "shop:";
 import { CommissionService } from "../commission/commission.service";
 import { WechatPayService } from "./wechat-pay.service";
 import { AlipayService } from "./alipay.service";
@@ -76,11 +88,14 @@ export class ShopService {
     if (dto.stock !== undefined) data.stock = dto.stock;
     if (dto.status !== undefined) data.status = dto.status;
 
-    return this.prisma.product.update({
+    const updated = await this.prisma.product.update({
       where: { id: productId },
       data,
       include: { skus: true },
     });
+    // 清除商品缓存
+    await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
+    return updated;
   }
 
   async deleteProduct(userId: string, productId: string, isAdmin = false) {
@@ -88,16 +103,23 @@ export class ShopService {
     if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
     if (!isAdmin && product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的商品");
     await this.prisma.product.delete({ where: { id: productId } });
+    await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
     return { success: true };
   }
 
   /** 更新商品状态 */
   async updateProductStatus(productId: string, status: string) {
     await this.prisma.product.findUniqueOrThrow({ where: { id: productId } });
-    return this.prisma.product.update({ where: { id: productId }, data: { status } });
+    const updated = await this.prisma.product.update({ where: { id: productId }, data: { status } });
+    await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
+    return updated;
   }
 
   async getProduct(productId: string) {
+    const cacheKey = `${CACHE_PREFIX}product:${productId}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
       include: {
@@ -106,11 +128,21 @@ export class ShopService {
       },
     });
     if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
+
+    await this.redis.setJson(cacheKey, product, PRODUCT_CACHE_TTL);
     return product;
   }
 
   async listProducts(dto: ProductListQueryDto) {
     const { page = 1, pageSize = 20, categoryId, status, stationId } = dto;
+    const filterHash = createHash("sha1")
+      .update(`${categoryId || ""}|${status || ""}|${stationId || ""}`)
+      .digest("hex");
+    const cacheKey = `${CACHE_PREFIX}products:${page}:${pageSize}:${filterHash}`;
+
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
     const where: Prisma.ProductWhereInput = {};
     if (categoryId) where.categoryId = categoryId;
     if (status) where.status = status;
@@ -127,7 +159,9 @@ export class ShopService {
       this.prisma.product.count({ where }),
     ]);
 
-    return { products, total, page, pageSize };
+    const data = { products, total, page, pageSize };
+    await this.redis.setJson(cacheKey, data, PRODUCT_LIST_CACHE_TTL);
+    return data;
   }
 
   // ═══════════════════ SKU 管理 ═══════════════════
@@ -244,6 +278,13 @@ export class ShopService {
   }
 
   async getOrder(orderId: string, userId?: string, isAdmin = false) {
+    const cacheKey = `${CACHE_PREFIX}order:${orderId}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) {
+      if (!isAdmin && userId && cached.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看自己的订单");
+      return cached;
+    }
+
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -252,11 +293,21 @@ export class ShopService {
     });
     if (!order) throw new BusinessException(ErrorCode.NOT_FOUND, "订单不存在");
     if (!isAdmin && userId && order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看自己的订单");
+
+    await this.redis.setJson(cacheKey, order, ORDER_CACHE_TTL);
     return order;
   }
 
   async listOrders(dto: OrderListQueryDto) {
     const { page = 1, pageSize = 20, type, status, userId } = dto;
+    const filterHash = createHash("sha1")
+      .update(`${type || ""}|${status || ""}|${userId || ""}`)
+      .digest("hex");
+    const cacheKey = `${CACHE_PREFIX}orders:${page}:${pageSize}:${filterHash}`;
+
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
     const where: Prisma.OrderWhereInput = {};
     if (type) where.type = type as any;
     if (status) where.status = status as any;
@@ -275,16 +326,24 @@ export class ShopService {
       this.prisma.order.count({ where }),
     ]);
 
-    return { orders, total, page, pageSize };
+    const data = { orders, total, page, pageSize };
+    await this.redis.setJson(cacheKey, data, ORDER_LIST_CACHE_TTL);
+    return data;
   }
 
   async getUserOrders(userId: string, page = 1, pageSize = 20) {
+    const cacheKey = `${CACHE_PREFIX}userOrders:${userId}:${page}:${pageSize}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
     const where = { userId };
     const [orders, total] = await Promise.all([
       this.prisma.order.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
       this.prisma.order.count({ where }),
     ]);
-    return { orders, total, page, pageSize };
+    const data = { orders, total, page, pageSize };
+    await this.redis.setJson(cacheKey, data, ORDER_LIST_CACHE_TTL);
+    return data;
   }
 
   /** 创建微信支付JSAPI订单（小程序内支付） */
@@ -400,7 +459,8 @@ export class ShopService {
       let attach: Record<string, unknown> = {};
       try {
         attach = typeof body.attach === "string" ? JSON.parse(body.attach) : body.attach || {};
-      } catch {
+      } catch (err) {
+        this.logger.warn(`支付回调 attach 解析失败`, err);
         attach = {};
       }
 
@@ -772,10 +832,12 @@ export class ShopService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order || order.status !== "PAID") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单不可发货");
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: "SHIPPED", shippedAt: new Date() },
     });
+    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    return updated;
   }
 
   /** 管理员手动确认支付（需提供实际支付流水号，防止伪造支付确认） */
@@ -788,6 +850,7 @@ export class ShopService {
       where: { id: orderId },
       data: { status: "PAID", paidAt: new Date(), payTransactionId },
     });
+    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
     this.logger.log(`管理员 ${operatorId} 手动确认支付: ${orderId}, 流水号: ${payTransactionId}`);
     return { success: true, orderId, payTransactionId };
   }
@@ -799,6 +862,7 @@ export class ShopService {
       where: { id: orderId },
       data: { status: "COMPLETED", completedAt: new Date() },
     });
+    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
     // 异步记录购买行为
     if (order) {
       this.prisma.userBehavior.create({ data: { userId: order.userId, targetType: order.type, targetId: order.targetId, behavior: "PURCHASE", weight: 5 } }).catch((e) => this.logger.warn("用户购买行为记录失败", e));
@@ -812,10 +876,13 @@ export class ShopService {
     if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待付款订单可取消");
     if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权取消");
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id: orderId },
       data: { status: "CANCELLED" },
     });
+    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    await this.redis.del(`${CACHE_PREFIX}userOrders:${order.userId}:1:20`);
+    return updated;
   }
 
   // ═══════════════════ 优惠券管理 ═══════════════════
@@ -1009,9 +1076,10 @@ export class ShopService {
   // ═══════════════════ 物流追踪 ═══════════════════
 
   /** 获取物流信息 */
-  async getLogistics(orderId: string) {
+  async getLogistics(orderId: string, userId?: string) {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (userId && order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看他人订单物流");
 
     const logistics = await this.prisma.orderLogistics.findUnique({
       where: { orderId },
@@ -1102,6 +1170,161 @@ export class ShopService {
     const template = await this.prisma.freightTemplate.findUnique({ where: { id } });
     if (!template) throw new BusinessException(ErrorCode.NOT_FOUND, "运费模板不存在");
     return template;
+  }
+
+  // ═══════════════════ 售后管理 ═══════════════════
+
+  async applyAfterSale(userId: string, orderId: string, type: string, reason: string, amount?: number) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能对自己的订单申请售后");
+    if (!["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) {
+      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "当前订单状态不可申请售后");
+    }
+    return this.prisma.afterSale.create({
+      data: { orderId, userId, type, reason, amount: amount || Number(order.amount), status: "PENDING" },
+    });
+  }
+
+  async getUserAfterSales(userId: string, page = 1, pageSize = 20) {
+    const where = { userId };
+    const [items, total] = await Promise.all([
+      this.prisma.afterSale.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.afterSale.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
+  }
+
+  async getAfterSale(id: string, userId: string) {
+    const record = await this.prisma.afterSale.findUnique({ where: { id } });
+    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "售后记录不存在");
+    if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看自己的售后记录");
+    return record;
+  }
+
+  async cancelAfterSale(id: string, userId: string) {
+    const record = await this.prisma.afterSale.findUnique({ where: { id } });
+    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "售后记录不存在");
+    if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能取消自己的售后申请");
+    if (record.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅待处理状态可取消");
+    return this.prisma.afterSale.update({ where: { id }, data: { status: "CANCELLED" } });
+  }
+
+  async listAfterSales(page = 1, pageSize = 20, status?: string) {
+    const where: Prisma.AfterSaleWhereInput = {};
+    if (status) where.status = status;
+    const [items, total] = await Promise.all([
+      this.prisma.afterSale.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.afterSale.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
+  }
+
+  async processAfterSale(id: string, action: string, remark?: string) {
+    const status = action === "approve" ? "APPROVED" : action === "reject" ? "REJECTED" : "PROCESSING";
+    const data: any = { status };
+    if (remark) data.logistics = remark;
+    return this.prisma.afterSale.update({ where: { id }, data });
+  }
+
+  // ═══════════════════ 购物车（Redis） ═══════════════════
+
+  private cartKey(userId: string) { return `shop:cart:${userId}`; }
+
+  async getCart(userId: string) {
+    const key = this.cartKey(userId);
+    const items: any[] = await this.redis.getJson<any[]>(key) || [];
+    if (items.length === 0) return { items: [], totalCount: 0, totalAmount: 0 };
+
+    // 补全商品信息
+    const productIds = [...new Set(items.map(i => i.productId))];
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds }, status: "ON_SALE" },
+      select: { id: true, title: true, price: true, images: true, stock: true, status: true },
+    });
+    const productMap = new Map(products.map(p => [p.id, p]));
+
+    // 补全SKU信息
+    const skuIds = items.filter(i => i.skuId).map(i => i.skuId!);
+    const skus = skuIds.length > 0 ? await this.prisma.productSku.findMany({
+      where: { id: { in: skuIds } },
+      select: { id: true, specs: true, price: true, stock: true, skuCode: true },
+    }) : [];
+    const skuMap = new Map(skus.map(s => [s.id, s]));
+
+    const enriched = items.map(item => {
+      const product = productMap.get(item.productId);
+      const sku = item.skuId ? skuMap.get(item.skuId) : null;
+      const unitPrice = sku ? Number(sku.price) : (product ? Number(product.price) : 0);
+      return {
+        id: item.id,
+        productId: item.productId,
+        skuId: item.skuId || null,
+        product: product ? { id: product.id, title: product.title, image: product.images?.[0] || null, status: product.status } : null,
+        sku: sku ? { id: sku.id, specs: sku.specs, price: Number(sku.price), stock: sku.stock } : null,
+        quantity: item.quantity || 1,
+        unitPrice,
+        totalPrice: unitPrice * (item.quantity || 1),
+        addedAt: item.addedAt,
+      };
+    });
+
+    const totalAmount = enriched.reduce((sum, i) => sum + i.totalPrice, 0);
+    return { items: enriched, totalCount: enriched.length, totalAmount: Number(totalAmount.toFixed(2)) };
+  }
+
+  async addToCart(userId: string, productId: string, skuId?: string, quantity = 1) {
+    // 校验商品存在且上架
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true, status: true, stock: true },
+    });
+    if (!product || product.status !== "ON_SALE") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在或已下架");
+    }
+
+    const key = this.cartKey(userId);
+    const items: any[] = await this.redis.getJson<any[]>(key) || [];
+
+    const existingIdx = items.findIndex(
+      i => i.productId === productId && (i.skuId || null) === (skuId || null),
+    );
+    if (existingIdx >= 0) {
+      items[existingIdx].quantity += quantity;
+    } else {
+      items.push({
+        id: `${productId}_${skuId || "default"}`,
+        productId,
+        skuId: skuId || null,
+        quantity,
+        addedAt: new Date().toISOString(),
+      });
+    }
+    await this.redis.setJson(key, items, 7 * 86400); // 7天过期
+    return this.getCart(userId);
+  }
+
+  async updateCartItem(userId: string, itemId: string, quantity: number) {
+    const key = this.cartKey(userId);
+    const items: any[] = await this.redis.getJson<any[]>(key) || [];
+    const idx = items.findIndex(i => i.id === itemId);
+    if (idx < 0) throw new BusinessException(ErrorCode.NOT_FOUND, "购物车商品不存在");
+    if (quantity <= 0) {
+      items.splice(idx, 1);
+    } else {
+      items[idx].quantity = quantity;
+    }
+    await this.redis.setJson(key, items, 7 * 86400);
+    return this.getCart(userId);
+  }
+
+  async removeCartItem(userId: string, itemId: string) {
+    return this.updateCartItem(userId, itemId, 0);
+  }
+
+  async clearCart(userId: string) {
+    await this.redis.del(this.cartKey(userId));
+    return { success: true };
   }
 
   // ═══════════════════ 会员辅助 ═══════════════════

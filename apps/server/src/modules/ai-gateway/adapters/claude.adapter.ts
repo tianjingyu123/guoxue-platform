@@ -1,4 +1,4 @@
-import { AiModelAdapter, AiMessage, AiChatOptions, AiChatResponse, AiTimeoutError } from "./base.adapter";
+import { AiModelAdapter, AiMessage, AiChatOptions, AiChatResponse } from "./base.adapter";
 import { BusinessException } from "../../../common/business.exception";
 import { ErrorCode } from "../../../common/error-codes";
 
@@ -21,6 +21,7 @@ export class ClaudeAdapter implements AiModelAdapter {
     throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Claude适配器尚未实现。请配置 ANTHROPIC_API_KEY 后启用。");
   }
 
+  // eslint-disable-next-line require-yield
   async *chatStream(
     _model: string,
     _messages: AiMessage[],

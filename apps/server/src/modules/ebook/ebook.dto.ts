@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsBoolean, IsOptional, IsInt, IsNumber, Min, Max } from "class-validator";
+import { IsString, IsBoolean, IsOptional, IsInt, IsNumber, Min, Max, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 
 // ═══════════════ 电子书 CRUD ═══════════════
@@ -232,4 +232,27 @@ export class LookupWordDto {
   @IsString() text: string;
   @ApiPropertyOptional({ description: "上下文" })
   @IsOptional() @IsString() context?: string;
+}
+
+export class CreateReviewDto {
+  @ApiProperty({ description: "评分1-5" })
+  @IsInt() @Min(1) @Max(5)
+  rating: number;
+
+  @ApiProperty({ description: "评价内容" })
+  @IsString() @MinLength(2)
+  content: string;
+}
+
+export class RecordReadingDto {
+  @ApiProperty({ description: "电子书ID" })
+  @IsString() ebookId: string;
+
+  @ApiProperty({ description: "阅读时长(秒)" })
+  @IsInt() @Min(1)
+  duration: number;
+
+  @ApiPropertyOptional({ description: "阅读页数" })
+  @IsOptional() @IsInt() @Min(0)
+  pages?: number;
 }

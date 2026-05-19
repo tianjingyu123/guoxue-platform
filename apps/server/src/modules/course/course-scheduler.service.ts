@@ -1,0 +1,149 @@
+import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { PrismaService } from "../../prisma/prisma.service";
+import { NotificationService } from "../notification/notification.service";
+
+@Injectable()
+export class CourseSchedulerService {
+  private readonly logger = new Logger(CourseSchedulerService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private notification?: NotificationService,
+  ) {}
+
+  /** 每分钟检查定时发布的课程 */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async publishScheduledCourses() {
+    try {
+      const now = new Date();
+      const result = await this.prisma.course.updateMany({
+        where: {
+          scheduledAt: { lte: now },
+          auditStatus: "DRAFT",
+        },
+        data: {
+          auditStatus: "PENDING",
+          createdAt: now,
+        },
+      });
+      if (result.count > 0) {
+        this.logger.log(`定时发布: ${result.count} 门课程已提交审核`);
+      }
+    } catch (err) {
+      this.logger.error("定时发布课程失败", err);
+    }
+  }
+
+  /** 每天9点检查即将到期的课程，发送提醒 */
+  @Cron("0 9 * * *")
+  async checkExpiringCourses() {
+    if (!this.notification) return;
+    try {
+      // 获取所有有效期课程
+      const courses = await this.prisma.course.findMany({
+        where: { validityDays: { gt: 0 }, auditStatus: "APPROVED" },
+        select: { id: true, title: true, validityDays: true },
+      });
+
+      const courseIds = courses.map((c) => c.id);
+      if (courseIds.length === 0) return;
+
+      // 批量查询所有相关订单（避免 N+1）
+      const allOrders = await this.prisma.order.findMany({
+        where: {
+          type: "COURSE",
+          targetId: { in: courseIds },
+          status: { in: ["PAID", "COMPLETED"] },
+          paidAt: { not: null },
+        },
+        select: { targetId: true, userId: true, paidAt: true },
+      });
+
+      // 按课程分组
+      const ordersByCourse = new Map<string, { userId: string; paidAt: Date }[]>();
+      for (const o of allOrders) {
+        const list = ordersByCourse.get(o.targetId) || [];
+        list.push({ userId: o.userId, paidAt: o.paidAt! });
+        ordersByCourse.set(o.targetId, list);
+      }
+
+      const courseMap = new Map(courses.map((c) => [c.id, c]));
+      const now = Date.now();
+      let notified = 0;
+
+      for (const course of courses) {
+        const orders = ordersByCourse.get(course.id) || [];
+        const userIdsToNotify: string[] = [];
+
+        for (const order of orders) {
+          const expiresAt = order.paidAt.getTime() + course.validityDays * 86400000;
+          const remainingDays = Math.ceil((expiresAt - now) / 86400000);
+          if (remainingDays > 0 && remainingDays <= 3) {
+            userIdsToNotify.push(order.userId);
+          }
+        }
+
+        if (userIdsToNotify.length > 0) {
+          await this.notification.batchSend({
+            userIds: userIdsToNotify,
+            type: "SYSTEM",
+            title: "课程即将到期",
+            content: `您购买的课程《${course.title}》即将在3天内到期，请尽快完成学习`,
+            targetType: "COURSE",
+            targetId: course.id,
+          });
+          notified += userIdsToNotify.length;
+        }
+      }
+
+      if (notified > 0) {
+        this.logger.log(`到期提醒: 向 ${notified} 名用户发送了课程到期通知`);
+      }
+    } catch (err) {
+      this.logger.error("到期提醒检查失败", err);
+    }
+  }
+
+  /** 每天凌晨2点巡检已过期课程（统计+日志，实际拦截在 checkAccess 中执行） */
+  @Cron("0 2 * * *")
+  async handleExpiredCourses() {
+    try {
+      const courses = await this.prisma.course.findMany({
+        where: { validityDays: { gt: 0 }, auditStatus: "APPROVED" },
+        select: { id: true, validityDays: true },
+      });
+
+      const courseIds = courses.map((c) => c.id);
+      if (courseIds.length === 0) return;
+
+      // 批量查询所有相关订单（避免 N+1）
+      const orders = await this.prisma.order.findMany({
+        where: {
+          type: "COURSE",
+          targetId: { in: courseIds },
+          status: { in: ["PAID", "COMPLETED"] },
+          paidAt: { not: null },
+        },
+        select: { targetId: true, userId: true, paidAt: true },
+      });
+
+      const validityMap = new Map(courses.map((c) => [c.id, c.validityDays]));
+      const now = Date.now();
+      let expiredCount = 0;
+
+      for (const order of orders) {
+        const validityDays = validityMap.get(order.targetId) || 0;
+        if (!order.paidAt) continue;
+        const expiresAt = order.paidAt.getTime() + validityDays * 86400000;
+        if (expiresAt <= now) expiredCount++;
+      }
+
+      if (expiredCount > 0) {
+        this.logger.log(`过期巡检: ${expiredCount} 条学习记录已过期（共 ${orders.length} 条有效订单，${courses.length} 门有效期课程）`);
+      }
+    } catch (err) {
+      this.logger.error("过期课程巡检失败", err);
+    }
+  }
+}

@@ -38,7 +38,6 @@ export class DeepSeekAdapter implements AiModelAdapter {
     }
 
     const timeout = options?.timeout ?? 30_000;
-    const controller = new AbortController();
     const signal = AbortSignal.timeout(timeout);
 
     const startedAt = Date.now();
@@ -102,7 +101,6 @@ export class DeepSeekAdapter implements AiModelAdapter {
     }
 
     const timeout = options?.timeout ?? 30_000;
-    const controller = new AbortController();
     const signal = AbortSignal.timeout(timeout);
 
     const body = {

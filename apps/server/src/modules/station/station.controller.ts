@@ -1,11 +1,13 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Request } from "express";
 import { StationService } from "./station.service";
 import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto } from "./station.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 @ApiTags("分站系统")
 @ApiBearerAuth()
@@ -70,7 +72,8 @@ export class StationController {
   @Get(":id/earnings")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "分站收益明细" })
-  getEarnings(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+  async getEarnings(@Req() req: Request, @Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    await this.checkStationOwnership(id, req);
     return this.svc.getStationEarnings(id, +page, +pageSize);
   }
 
@@ -107,7 +110,8 @@ export class StationController {
   @Get(":id/revenue-dashboard")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "分站收益看板" })
-  getRevenueDashboard(@Param("id") id: string) {
+  async getRevenueDashboard(@Req() req: Request, @Param("id") id: string) {
+    await this.checkStationOwnership(id, req);
     return this.svc.getRevenueDashboard(id);
   }
 
@@ -176,5 +180,50 @@ export class StationController {
   @ApiOperation({ summary: "通过推广码获取运营商品牌配置" })
   getOperatorBrandByCode(@Param("code") code: string) {
     return this.svc.getOperatorBrandByCode(code);
+  }
+
+  // ───────── 团队管理 ─────────
+
+  @Get("team/members")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "下线站长列表" })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  getTeamMembers(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.getTeamMembers(req.user.id, +page, +pageSize);
+  }
+
+  @Get("team/leaderboard")
+  @ApiOperation({ summary: "团队排行榜" })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  @ApiQuery({ name: "sortBy", required: false, description: "排序字段：revenue/memberCount/orderCount" })
+  getTeamLeaderboard(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("sortBy") sortBy?: string) {
+    return this.svc.getTeamLeaderboard(+page, +pageSize, sortBy);
+  }
+
+  @Get("team/activity")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "团队活跃监控" })
+  getTeamActivity(@Req() req: Request) {
+    return this.svc.getTeamActivity(req.user.id);
+  }
+
+  @Get("team/success-cases")
+  @ApiOperation({ summary: "成功案例库" })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  getSuccessCases(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.getSuccessCases(+page, +pageSize);
+  }
+
+  /** 校验当前用户是否为分站所有者或管理员 */
+  private async checkStationOwnership(stationId: string, req: Request) {
+    const roles: string[] = req.user?.roles ?? [];
+    if (roles.includes("SUPER_ADMIN") || roles.includes("OPERATION_ADMIN")) return;
+    const station = await this.svc.getStation(stationId);
+    if (station.userId !== req.user?.id) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该分站数据");
+    }
   }
 }

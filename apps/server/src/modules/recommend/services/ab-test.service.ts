@@ -226,8 +226,8 @@ export class AbTestService {
         let metrics: AbTestMetrics | null = null;
         try {
           metrics = await this.getMetrics(exp.id);
-        } catch {
-          // 指标计算失败时跳过
+        } catch (err) {
+          this.logger.warn(`AB 测试指标计算失败: ${(err as Error).message}`);
         }
         return { id: exp.id, name: exp.name, status: exp.status, metrics };
       }),

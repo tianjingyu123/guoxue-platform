@@ -40,6 +40,48 @@ export class SendVerifyCodeDto {
   email: string;
 }
 
+export class CreateEmailTemplateDto {
+  @ApiProperty({ description: "模板名称", example: "欢迎邮件" })
+  @IsString()
+  @MinLength(1)
+  name: string;
+
+  @ApiProperty({ description: "邮件主题", example: "欢迎加入国学平台" })
+  @IsString()
+  @MinLength(1)
+  subject: string;
+
+  @ApiProperty({ description: "HTML正文，支持 {{变量}} 占位" })
+  @IsString()
+  @MinLength(1)
+  html: string;
+
+  @ApiPropertyOptional({ description: "模板描述" })
+  @IsOptional() @IsString()
+  description?: string;
+}
+
+export class UpdateEmailTemplateDto {
+  @ApiPropertyOptional({ description: "模板名称" })
+  @IsOptional() @IsString()
+  @MinLength(1)
+  name?: string;
+
+  @ApiPropertyOptional({ description: "邮件主题" })
+  @IsOptional() @IsString()
+  @MinLength(1)
+  subject?: string;
+
+  @ApiPropertyOptional({ description: "HTML正文" })
+  @IsOptional() @IsString()
+  @MinLength(1)
+  html?: string;
+
+  @ApiPropertyOptional({ description: "模板描述" })
+  @IsOptional() @IsString()
+  description?: string;
+}
+
 export class TestEmailDto {
   @ApiProperty({ description: "测试收件人邮箱", example: "admin@example.com" })
   @IsString()

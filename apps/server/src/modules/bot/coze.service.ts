@@ -142,7 +142,8 @@ export class CozeService {
                   if (data.type === "answer" && data.content_type === "text") {
                     subscriber.next(data.content);
                   }
-                } catch {
+                } catch (err) {
+                  this.logger.warn(`Coze 响应行 JSON 解析失败`, err);
                   // 非JSON行，忽略
                 }
               }

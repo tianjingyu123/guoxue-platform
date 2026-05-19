@@ -1,10 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, Req } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { FeatureFlagService } from "./feature-flag.service";
 import { UpsertFeatureFlagDto } from "./feature-flag.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+
+// ═══════════════════ 管理后台接口 ═══════════════════
 
 @ApiTags("功能开关")
 @Controller("admin/feature-flags")
@@ -43,5 +46,29 @@ export class FeatureFlagController {
   async delete(@Param("key") key: string) {
     await this.service.delete(key);
     return { success: true };
+  }
+}
+
+// ═══════════════════ 公开接口（前端检测功能开关） ═══════════════════
+
+@ApiTags("公开配置")
+@Controller("config")
+export class FeatureFlagPublicController {
+  constructor(private readonly service: FeatureFlagService) {}
+
+  @Get("features")
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "获取当前启用的功能列表（公开）" })
+  async getEnabledFeatures(@Req() req: any) {
+    const userId = req.user?.id;
+    const allFlags = await this.service.list();
+
+    // 返回 { key: boolean } 映射供前端使用
+    const features: Record<string, boolean> = {};
+    for (const flag of allFlags) {
+      features[flag.key] = await this.service.isEnabled(flag.key, userId);
+    }
+
+    return { features };
   }
 }

@@ -65,4 +65,20 @@ export class FortuneController {
   listRecords(@Query("page") page?: string, @Query("pageSize") pageSize?: string, @Query("fortuneType") fortuneType?: string) {
     return this.svc.adminListRecords(page ? +page : 1, pageSize ? +pageSize : 20, fortuneType);
   }
+
+  // ───────── 排盘工具聚合 ─────────
+
+  @Get("tools")
+  @ApiOperation({ summary: "排盘工具首页聚合（工具网格+最近使用+课程推荐+智能体引导）" })
+  getTools(@Req() req?: Request) {
+    return this.svc.getToolsGrid(req?.user?.id);
+  }
+
+  @Get("guide-card")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "排盘引导卡片数据" })
+  getGuideCard(@Req() req: Request) {
+    return this.svc.getGuideCard(req.user.id);
+  }
 }

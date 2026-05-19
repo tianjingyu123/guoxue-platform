@@ -81,10 +81,11 @@ describe("VideoController", () => {
     expect(mockVideoSvc.delete).toHaveBeenCalledWith("u1", "v1");
   });
 
-  it("POST /videos/:id/like — 点赞视频", async () => {
-    const result: any = await ctrl.like("v1");
+  it("POST /videos/:id/like — 点赞/取消点赞视频", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.like("v1", req);
     expect(result.liked).toBe(true);
-    expect(mockVideoSvc.toggleLike).toHaveBeenCalledWith("v1");
+    expect(mockVideoSvc.toggleLike).toHaveBeenCalledWith("u1", "v1");
   });
 
   it("POST /videos/vod/upload-signature — 上传签名", async () => {

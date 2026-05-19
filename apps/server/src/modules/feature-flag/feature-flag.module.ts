@@ -1,10 +1,10 @@
 import { Module } from "@nestjs/common";
 import { FeatureFlagService } from "./feature-flag.service";
-import { FeatureFlagController } from "./feature-flag.controller";
+import { FeatureFlagController, FeatureFlagPublicController } from "./feature-flag.controller";
 
 @Module({
   providers: [FeatureFlagService],
-  controllers: [FeatureFlagController],
+  controllers: [FeatureFlagController, FeatureFlagPublicController],
   exports: [FeatureFlagService],
 })
 export class FeatureFlagModule {}

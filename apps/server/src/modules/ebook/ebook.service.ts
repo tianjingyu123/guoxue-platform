@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiService } from "../ai/ai.service";
 import { Prisma } from "@prisma/client";
+import { JwtService } from "@nestjs/jwt";
 import { CreateEbookDto, UpdateEbookDto, CreateChapterDto, UpdateChapterDto } from "./ebook.dto";
 import { MemoryCache } from "../../common/cache.util";
 
@@ -11,7 +12,7 @@ import { MemoryCache } from "../../common/cache.util";
 export class EbookService {
   private readonly logger = new Logger(EbookService.name);
   private readonly catCache = new MemoryCache<any>(20);
-  constructor(private prisma: PrismaService, private ai: AiService) {}
+  constructor(private prisma: PrismaService, private ai: AiService, private jwt: JwtService) {}
 
   // ═══════════════════════════════════════════
   // 分类
@@ -365,5 +366,257 @@ export class EbookService {
       english: translation,
       relatedKeywords: keywords,
     };
+  }
+
+  // ═══════════════════════════════════════════
+  // 下载
+  // ═══════════════════════════════════════════
+
+  async generateDownloadUrl(ebookId: string, userId: string) {
+    const book = await this.prisma.ebook.findUnique({ where: { id: ebookId } });
+    if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "电子书不存在");
+
+    const hasAccess = await this.checkAccess(ebookId, userId);
+    if (!hasAccess) throw new BusinessException(ErrorCode.FORBIDDEN, "请先购买电子书");
+
+    const token = this.jwt.sign({ ebookId, userId, type: "ebook_download" }, { expiresIn: "7d" });
+    return { downloadUrl: `/api/v1/ebook/books/${ebookId}/file?token=${token}`, expiresIn: "7天" };
+  }
+
+  async verifyAndGetDownloadContent(ebookId: string, token: string) {
+    let payload: any;
+    try {
+      payload = this.jwt.verify(token);
+    } catch {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "下载链接已过期或无效");
+    }
+    if (payload.ebookId !== ebookId || payload.type !== "ebook_download") {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "下载token不匹配");
+    }
+    const book = await this.prisma.ebook.findUnique({
+      where: { id: ebookId },
+      include: { chapters: { orderBy: { sortOrder: "asc" }, select: { title: true, content: true } } },
+    });
+    if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "电子书不存在");
+    const content = book.chapters.map((ch) => `【${ch.title}】\n\n${ch.content || ""}`).join("\n\n");
+    return { title: book.title, content };
+  }
+
+  async getDownloads(userId: string, page = 1, pageSize = 20) {
+    return { items: [], total: 0, page, pageSize };
+  }
+
+  async getDownloadStatus(downloadId: string) {
+    return { id: downloadId, status: "COMPLETED" };
+  }
+
+  // ═══════════════════════════════════════════
+  // 评价系统
+  // ═══════════════════════════════════════════
+
+  async createReview(userId: string, ebookId: string, dto: { rating: number; content: string }) {
+    if (dto.rating < 1 || dto.rating > 5) throw new BusinessException(ErrorCode.BAD_REQUEST, "评分范围1-5");
+    const book = await this.prisma.ebook.findUnique({ where: { id: ebookId } });
+    if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "电子书不存在");
+
+    const existing = await this.prisma.ebookReview.findUnique({ where: { userId_ebookId: { userId, ebookId } } });
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已评价过该电子书");
+
+    return this.prisma.ebookReview.create({
+      data: { userId, ebookId, rating: dto.rating, content: dto.content },
+      include: { user: { select: { id: true, nickname: true, avatar: true } } },
+    });
+  }
+
+  async listReviews(ebookId: string, page = 1, pageSize = 20) {
+    const where = { ebookId, status: "PUBLISHED" };
+    const [reviews, total] = await Promise.all([
+      this.prisma.ebookReview.findMany({
+        where,
+        include: { user: { select: { id: true, nickname: true, avatar: true } } },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.ebookReview.count({ where }),
+    ]);
+    return { reviews, total, page, pageSize };
+  }
+
+  async getEbookRating(ebookId: string) {
+    const agg = await this.prisma.ebookReview.aggregate({
+      where: { ebookId, status: "PUBLISHED" },
+      _avg: { rating: true },
+      _count: true,
+    });
+    return {
+      avgRating: agg._avg.rating || 0,
+      reviewCount: agg._count,
+    };
+  }
+
+  // ═══════════════════════════════════════════
+  // 阅读统计
+  // ═══════════════════════════════════════════
+
+  async recordReadingSession(userId: string, ebookId: string, duration: number, pages = 0) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return this.prisma.ebookReadingSession.upsert({
+      where: { userId_ebookId_date: { userId, ebookId, date: today } },
+      create: { userId, ebookId, duration, pages, date: today },
+      update: { duration: { increment: duration }, pages: { increment: pages } },
+    });
+  }
+
+  async getReadingStats(userId: string, days = 7) {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    since.setHours(0, 0, 0, 0);
+
+    const sessions = await this.prisma.ebookReadingSession.findMany({
+      where: { userId, date: { gte: since } },
+      orderBy: { date: "asc" },
+      take: 365,
+    });
+
+    const totalDuration = sessions.reduce((sum, s) => sum + s.duration, 0);
+    const totalPages = sessions.reduce((sum, s) => sum + s.pages, 0);
+    const daysActive = new Set(sessions.map((s) => s.date.toISOString().slice(0, 10))).size;
+
+    const dailyStats = sessions.reduce((acc, s) => {
+      const key = s.date.toISOString().slice(0, 10);
+      if (!acc[key]) acc[key] = { date: key, duration: 0, pages: 0 };
+      acc[key].duration += s.duration;
+      acc[key].pages += s.pages;
+      return acc;
+    }, {} as Record<string, { date: string; duration: number; pages: number }>);
+
+    return {
+      totalDuration,
+      totalPages,
+      daysActive,
+      avgDailyDuration: daysActive > 0 ? Math.round(totalDuration / daysActive) : 0,
+      dailyStats: Object.values(dailyStats),
+    };
+  }
+
+  async getReadingRanking(limit = 20) {
+    const since = new Date();
+    since.setDate(since.getDate() - 30);
+
+    const sessions = await this.prisma.ebookReadingSession.groupBy({
+      by: ["userId"],
+      where: { date: { gte: since } },
+      _sum: { duration: true },
+      orderBy: { _sum: { duration: "desc" } },
+      take: limit,
+    });
+
+    const userIds = sessions.map((s) => s.userId);
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, nickname: true, avatar: true },
+    });
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    return sessions.map((s, idx) => ({
+      rank: idx + 1,
+      userId: s.userId,
+      user: userMap.get(s.userId) || null,
+      totalDuration: s._sum.duration || 0,
+    }));
+  }
+
+  // ═══════════════════════════════════════════
+  // 管理端方法
+  // ═══════════════════════════════════════════
+
+  /** 管理端-所有购买记录 */
+  async getAllPurchases(params: { page: number; pageSize: number; ebookId?: string; userId?: string }) {
+    const { page, pageSize, ebookId, userId } = params;
+    const where: Prisma.EbookPurchaseWhereInput = {};
+    if (ebookId) where.ebookId = ebookId;
+    if (userId) where.userId = userId;
+
+    const [purchases, total] = await Promise.all([
+      this.prisma.ebookPurchase.findMany({
+        where,
+        include: {
+          ebook: { select: { id: true, title: true, cover: true, price: true } },
+          user: { select: { id: true, nickname: true } },
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { paidAt: "desc" },
+      }),
+      this.prisma.ebookPurchase.count({ where }),
+    ]);
+    return { purchases, total, page, pageSize };
+  }
+
+  /** 管理端-删除书评 */
+  async deleteReview(id: string) {
+    const review = await this.prisma.ebookReview.findUnique({ where: { id } });
+    if (!review) throw new BusinessException(ErrorCode.NOT_FOUND, "书评不存在");
+    await this.prisma.ebookReview.delete({ where: { id } });
+    return { success: true };
+  }
+
+  /** 管理端-平台阅读统计概览 */
+  async getPlatformReadingStats(days = 30) {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    since.setHours(0, 0, 0, 0);
+
+    const sessions = await this.prisma.ebookReadingSession.findMany({
+      where: { date: { gte: since } },
+      take: 50000,
+    });
+
+    const totalDuration = sessions.reduce((sum, s) => sum + s.duration, 0);
+    const totalPages = sessions.reduce((sum, s) => sum + s.pages, 0);
+    const uniqueUsers = new Set(sessions.map((s) => s.userId)).size;
+    const uniqueBooks = new Set(sessions.map((s) => s.ebookId)).size;
+
+    const dailyStats = sessions.reduce((acc, s) => {
+      const key = s.date.toISOString().slice(0, 10);
+      if (!acc[key]) acc[key] = { date: key, duration: 0, pages: 0, users: 0 };
+      acc[key].duration += s.duration;
+      acc[key].pages += s.pages;
+      return acc;
+    }, {} as Record<string, { date: string; duration: number; pages: number; users: number }>);
+
+    return {
+      totalDuration,
+      totalPages,
+      uniqueUsers,
+      uniqueBooks,
+      dailyStats: Object.values(dailyStats),
+    };
+  }
+
+  /** 管理端-所有公开笔记 */
+  async getAllNotes(params: { page: number; pageSize: number; ebookId?: string }) {
+    const { page, pageSize, ebookId } = params;
+    const where: Prisma.EbookNoteWhereInput = {};
+    if (ebookId) where.ebookId = ebookId;
+
+    const [notes, total] = await Promise.all([
+      this.prisma.ebookNote.findMany({
+        where,
+        include: {
+          ebook: { select: { id: true, title: true } },
+          chapter: { select: { id: true, title: true } },
+          user: { select: { id: true, nickname: true } },
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { updatedAt: "desc" },
+      }),
+      this.prisma.ebookNote.count({ where }),
+    ]);
+    return { notes, total, page, pageSize };
   }
 }

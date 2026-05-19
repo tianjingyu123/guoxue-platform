@@ -16,7 +16,7 @@ export interface RecommendContext {
 
 export interface RecommendItem {
   id: string;
-  type: "ARTICLE" | "COURSE" | "PRODUCT" | "CIRCLE" | "VIDEO" | "CONTENT";
+  type: "ARTICLE" | "COURSE" | "PRODUCT" | "CIRCLE" | "VIDEO" | "CONTENT" | "CLASSIC" | "EBOOK";
   title: string;
   cover?: string;
   excerpt?: string;

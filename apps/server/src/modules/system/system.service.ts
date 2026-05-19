@@ -76,7 +76,8 @@ export class SystemService {
     if (!config) return { banners: [] };
     try {
       return { banners: JSON.parse(config.configValue) };
-    } catch {
+    } catch (err) {
+      this.logger.warn(`首页Banner JSON 解析失败`, err);
       return { banners: [] };
     }
   }
@@ -88,7 +89,7 @@ export class SystemService {
 
     const parseValue = (config: { configValue: string } | null, defaultValue: string) => {
       if (!config) return defaultValue;
-      try { return JSON.parse(config.configValue); } catch { return config.configValue; }
+      try { return JSON.parse(config.configValue); } catch (err) { return config.configValue; }
     };
 
     return {
@@ -176,8 +177,8 @@ export class SystemService {
 
   async healthCheck() {
     const checks: Record<string, boolean> = {};
-    try { await this.prisma.$queryRaw`SELECT 1`; checks.database = true; } catch { checks.database = false; }
-    try { await this.redis.get("health:check"); checks.redis = true; } catch { checks.redis = false; }
+    try { await this.prisma.$queryRaw`SELECT 1`; checks.database = true; } catch (err) { checks.database = false; }
+    try { await this.redis.get("health:check"); checks.redis = true; } catch (err) { checks.redis = false; }
 
     const allHealthy = Object.values(checks).every(Boolean);
     return {
@@ -417,11 +418,10 @@ export class SystemService {
   /** 验证 Cron Webhook 密钥 */
   validateCronSecret(secret?: string): void {
     const configured = process.env.CRON_WEBHOOK_SECRET;
-    // 生产环境必须配置密钥
-    if (!configured && process.env.NODE_ENV === "production") {
+    if (!configured) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "Cron Webhook 未配置密钥");
     }
-    if (configured && configured !== secret) {
+    if (configured !== secret) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "Cron Webhook 密钥无效");
     }
   }
@@ -540,7 +540,7 @@ export class SystemService {
           data: { status: passed ? "PUBLISHED" : "REJECTED", auditReason: passed ? undefined : "自动审核不通过" },
         });
         audited++;
-      } catch { /* 单条失败不中断整体 */ }
+      } catch (err) { /* 单条失败不中断整体 */ }
     }
 
     return { total: pendingContent.length, audited };
@@ -582,7 +582,7 @@ export class SystemService {
           data: { status: "PROCESSED", result: "自动处理", processedAt: new Date() },
         });
         processed++;
-      } catch { /* 单条失败继续 */ }
+      } catch (err) { /* 单条失败继续 */ }
     }
 
     return { total: pending.length, processed };
@@ -592,7 +592,8 @@ export class SystemService {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return { database: "ok" };
-    } catch {
+    } catch (err) {
+      this.logger.warn(`数据库备份检查失败`, err);
       return { database: "error" };
     }
   }

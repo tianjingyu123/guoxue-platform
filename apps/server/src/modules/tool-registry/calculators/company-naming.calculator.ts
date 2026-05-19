@@ -4,7 +4,6 @@
 
 import type {
   CompanyNamingResult,
-  CompanyNamingInput,
   CompanyNameProposal,
   CompanyName,
   NameVerification,
@@ -186,7 +185,7 @@ function generateZiHaoSet(
 }
 
 // ── 核名分析 ──
-function verifyName(ziHao: string, industry: IndustryType): NameVerification {
+function verifyName(ziHao: string, _industry: IndustryType): NameVerification {
   const restrictedHits = checkRestrictedWords(ziHao);
   const lengthCompliant = ziHao.length >= 2 && ziHao.length <= 8;
   const hasRestrictedWord = restrictedHits.length > 0;

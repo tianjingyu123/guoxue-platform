@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { CourseService } from "./course.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -62,11 +63,14 @@ describe("CourseService", () => {
   let svc: CourseService;
 
   beforeAll(async () => {
+    const mockAiGateway = { chat: jest.fn(), chatStream: jest.fn(), embed: jest.fn() };
+
     const mod = await Test.createTestingModule({
       providers: [
         CourseService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
+        { provide: AiGatewayService, useValue: mockAiGateway },
       ],
     }).compile();
     svc = mod.get(CourseService);
@@ -339,7 +343,7 @@ describe("CourseService", () => {
     it("获取作业列表", async () => {
       mockPrisma.courseWork.findMany.mockResolvedValue([{ id: "w1", content: "作业" }]);
       const result = await svc.getWorks("co1");
-      expect(result).toHaveLength(1);
+      expect(result.list).toHaveLength(1);
     });
 
     it("按章节过滤", async () => {
@@ -356,7 +360,7 @@ describe("CourseService", () => {
       mockPrisma.courseWork.findUnique.mockResolvedValue({ courseId: "co1" });
       mockPrisma.course.findUnique.mockResolvedValue({ userId: "u1" });
       mockPrisma.courseWork.update.mockResolvedValue({ id: "w1", score: 95, feedback: "优秀" });
-      const result = await svc.scoreWork("w1", "u1", 95, "优秀");
+      const result = await svc.scoreWork("w1", "u1", 95, true, "优秀");
       expect(result.score).toBe(95);
     });
   });

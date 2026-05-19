@@ -276,15 +276,21 @@ export class FinanceService {
 
   /** 冻结订单资金 */
   async freezeAmount(dto: { orderId: string; amount: number; reason?: string }) {
-    const order = await this.prisma.order.findUnique({ where: { id: dto.orderId } });
-    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
-    if (order.status !== "PAID") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已支付订单可冻结");
-    if (Number(order.frozenAmount || 0) > 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已有冻结金额，请先解冻");
-
-    const updated = await this.prisma.order.update({
-      where: { id: dto.orderId },
+    // 原子操作：仅在未冻结时更新
+    const result = await this.prisma.order.updateMany({
+      where: {
+        id: dto.orderId,
+        status: "PAID",
+        OR: [{ frozenAmount: null }, { frozenAmount: 0 }],
+      },
       data: { frozenAmount: dto.amount },
     });
+    if (result.count === 0) {
+      const order = await this.prisma.order.findUnique({ where: { id: dto.orderId } });
+      if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      if (order.status !== "PAID") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已支付订单可冻结");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已有冻结金额，请先解冻");
+    }
 
     // 记录冻结操作到审计日志
     await this.prisma.auditLog.create({
@@ -298,19 +304,24 @@ export class FinanceService {
     }).catch((e) => this.logger.warn("冻结审计日志记录失败", e));
 
     this.logger.log(`订单 ${dto.orderId} 冻结金额 ${dto.amount}`);
-    return updated;
+    return { success: true, orderId: dto.orderId, frozenAmount: dto.amount };
   }
 
   /** 解冻订单资金 */
   async unfreezeAmount(dto: { orderId: string; reason?: string }) {
-    const order = await this.prisma.order.findUnique({ where: { id: dto.orderId } });
-    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
-    if (!order.frozenAmount || Number(order.frozenAmount) === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单无冻结金额");
-
-    const updated = await this.prisma.order.update({
-      where: { id: dto.orderId },
+    // 原子操作：仅在有冻结金额时解冻
+    const result = await this.prisma.order.updateMany({
+      where: {
+        id: dto.orderId,
+        frozenAmount: { not: null },
+      },
       data: { frozenAmount: null },
     });
+    if (result.count === 0) {
+      const order = await this.prisma.order.findUnique({ where: { id: dto.orderId } });
+      if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单无冻结金额");
+    }
 
     // 记录解冻操作到审计日志
     await this.prisma.auditLog.create({
@@ -319,12 +330,12 @@ export class FinanceService {
         action: "UNFREEZE_AMOUNT",
         targetType: "ORDER",
         targetId: dto.orderId,
-        detail: `解冻金额: ${order.frozenAmount}, 原因: ${dto.reason || "无"}`,
+        detail: `解冻, 原因: ${dto.reason || "无"}`,
       },
     }).catch((e) => this.logger.warn("解冻审计日志记录失败", e));
 
     this.logger.log(`订单 ${dto.orderId} 已解冻`);
-    return updated;
+    return { success: true, orderId: dto.orderId };
   }
 
   /** 查询冻结记录（含冻结金额的订单列表） */

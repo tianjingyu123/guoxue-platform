@@ -23,8 +23,8 @@ const mockSvc = {
   rejectWithdrawal: jest.fn().mockResolvedValue({ id: "w1", status: "REJECTED" }),
   confirmWithdrawalPay: jest.fn().mockResolvedValue({ id: "w1", status: "PAID" }),
 
-  freezeAmount: jest.fn().mockResolvedValue({ id: "o1", frozenAmount: 99 }),
-  unfreezeAmount: jest.fn().mockResolvedValue({ id: "o1", frozenAmount: null }),
+  freezeAmount: jest.fn().mockResolvedValue({ success: true, orderId: "o1", frozenAmount: 99 }),
+  unfreezeAmount: jest.fn().mockResolvedValue({ success: true, orderId: "o1" }),
   getFreezeRecords: jest.fn().mockResolvedValue({ items: [], total: 0 }),
 
   getMonthlyReport: jest.fn().mockResolvedValue({ data: { revenue: 10000 }, period: "2026-05" } as any),
@@ -142,7 +142,7 @@ describe("FinanceController", () => {
 
   it("POST /finance/unfreeze — 解冻资金", async () => {
     const result = await ctrl.unfreezeAmount({ orderId: "o1" });
-    expect(result.frozenAmount).toBeNull();
+    expect(result.success).toBe(true);
   });
 
   it("GET /finance/freeze-records — 冻结记录", async () => {

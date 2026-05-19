@@ -1,13 +1,16 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { Request } from "express";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { EbookService } from "./ebook.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 import {
   CreateCategoryDto, CreateEbookDto, UpdateEbookDto, EbookListQueryDto,
   CreateChapterDto, UpdateChapterDto, UpdateProgressDto,
   CreateBookmarkDto, CreateNoteDto, UpdateNoteDto, PurchaseEbookDto,
   TranslateEbookDto, LookupWordDto,
+  CreateReviewDto, RecordReadingDto,
 } from "./ebook.dto";
 
 @ApiTags("电子书")
@@ -22,7 +25,8 @@ export class EbookController {
     return this.svc.listCategories();
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @Post("categories")
   @ApiOperation({ summary: "创建分类" })
@@ -50,8 +54,9 @@ export class EbookController {
     return this.svc.getChapter(id, req.user?.id);
   }
 
-  // ── 电子书管理（需登录） ──
-  @UseGuards(JwtAuthGuard)
+  // ── 电子书管理（需管理员） ──
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @Post("books")
   @ApiOperation({ summary: "创建电子书" })
@@ -59,7 +64,8 @@ export class EbookController {
     return this.svc.createEbook(dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @Put("books/:id")
   @ApiOperation({ summary: "更新电子书" })
@@ -67,7 +73,8 @@ export class EbookController {
     return this.svc.updateEbook(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @Delete("books/:id")
   @ApiOperation({ summary: "删除电子书" })
@@ -76,7 +83,8 @@ export class EbookController {
   }
 
   // ── 章节管理 ──
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @Post("books/:ebookId/chapters")
   @ApiOperation({ summary: "创建章节" })
@@ -84,7 +92,8 @@ export class EbookController {
     return this.svc.createChapter(ebookId, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @Put("chapters/:id")
   @ApiOperation({ summary: "更新章节" })
@@ -92,7 +101,8 @@ export class EbookController {
     return this.svc.updateChapter(id, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @Delete("chapters/:id")
   @ApiOperation({ summary: "删除章节" })
@@ -208,5 +218,139 @@ export class EbookController {
   @ApiOperation({ summary: "古文查词（选中文本→释义）" })
   lookupWord(@Body() dto: LookupWordDto) {
     return this.svc.lookupWord(dto);
+  }
+
+  // ── 下载 ──
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get("books/:id/download")
+  @ApiOperation({ summary: "生成电子书下载链接（含DRM token）" })
+  downloadBook(@Param("id") ebookId: string, @Req() req: Request) {
+    return this.svc.generateDownloadUrl(ebookId, req.user.id);
+  }
+
+  @Get("books/:id/file")
+  @ApiOperation({ summary: "下载电子书文件（token校验）" })
+  @ApiQuery({ name: "token", required: true })
+  async downloadFile(@Param("id") ebookId: string, @Query("token") token: string, @Res() res: any) {
+    const result = await this.svc.verifyAndGetDownloadContent(ebookId, token);
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(result.title)}.txt"`);
+    res.send(result.content);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get("downloads")
+  @ApiOperation({ summary: "我的下载记录" })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  getDownloads(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.getDownloads(req.user.id, +page, +pageSize);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get("downloads/:id/status")
+  @ApiOperation({ summary: "下载进度查询" })
+  getDownloadStatus(@Param("id") downloadId: string) {
+    return this.svc.getDownloadStatus(downloadId);
+  }
+
+  // ── 评价 ──
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post("books/:ebookId/reviews")
+  @ApiOperation({ summary: "发布书评" })
+  createReview(@Req() req: Request, @Param("ebookId") ebookId: string, @Body() dto: CreateReviewDto) {
+    return this.svc.createReview(req.user.id, ebookId, dto);
+  }
+
+  @Get("books/:ebookId/reviews")
+  @ApiOperation({ summary: "获取书评列表" })
+  listReviews(@Param("ebookId") ebookId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.listReviews(ebookId, +page, +pageSize);
+  }
+
+  @Get("books/:ebookId/rating")
+  @ApiOperation({ summary: "获取评分统计" })
+  getEbookRating(@Param("ebookId") ebookId: string) {
+    return this.svc.getEbookRating(ebookId);
+  }
+
+  // ── 阅读统计 ──
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Post("reading-session")
+  @ApiOperation({ summary: "上报阅读时长" })
+  recordReadingSession(@Req() req: Request, @Body() dto: RecordReadingDto) {
+    return this.svc.recordReadingSession(req.user.id, dto.ebookId, dto.duration, dto.pages);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get("reading-stats")
+  @ApiOperation({ summary: "我的阅读统计" })
+  @ApiQuery({ name: "days", required: false })
+  getReadingStats(@Req() req: Request, @Query("days") days = 7) {
+    return this.svc.getReadingStats(req.user.id, +days);
+  }
+
+  @Get("reading-ranking")
+  @ApiOperation({ summary: "阅读排行榜" })
+  @ApiQuery({ name: "limit", required: false })
+  getReadingRanking(@Query("limit") limit = 20) {
+    return this.svc.getReadingRanking(+limit);
+  }
+
+  // ── 管理端 ──
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get("admin/purchases")
+  @ApiOperation({ summary: "管理端-所有购买记录" })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  @ApiQuery({ name: "ebookId", required: false })
+  @ApiQuery({ name: "userId", required: false })
+  getAdminPurchases(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("ebookId") ebookId?: string,
+    @Query("userId") userId?: string,
+  ) {
+    return this.svc.getAllPurchases({ page: +page, pageSize: +pageSize, ebookId, userId });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Delete("admin/reviews/:id")
+  @ApiOperation({ summary: "管理端-删除书评" })
+  deleteReview(@Param("id") id: string) {
+    return this.svc.deleteReview(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get("admin/reading-stats")
+  @ApiOperation({ summary: "管理端-平台阅读统计概览" })
+  @ApiQuery({ name: "days", required: false })
+  getAdminReadingStats(@Query("days") days = 30) {
+    return this.svc.getPlatformReadingStats(+days);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get("admin/notes")
+  @ApiOperation({ summary: "管理端-所有公开笔记" })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  @ApiQuery({ name: "ebookId", required: false })
+  getAdminNotes(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("ebookId") ebookId?: string,
+  ) {
+    return this.svc.getAllNotes({ page: +page, pageSize: +pageSize, ebookId });
   }
 }

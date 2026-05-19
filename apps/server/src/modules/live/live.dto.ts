@@ -16,10 +16,9 @@ export class CreateRoomDto {
   @IsOptional() @IsString()
   cover?: string;
 
-  @ApiProperty({ description: "主播用户ID" })
-  @IsString()
-  @MinLength(1)
-  hostUserId: string;
+  @ApiPropertyOptional({ description: "主播用户ID，不传则默认为当前用户" })
+  @IsOptional() @IsString()
+  hostUserId?: string;
 
   @ApiPropertyOptional({ description: "副播用户ID列表" })
   @IsOptional() @IsArray()

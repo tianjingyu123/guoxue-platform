@@ -216,6 +216,10 @@ export class ArticleService {
   // ───────── 审核管理 ─────────
 
   async auditArticle(articleId: string, auditStatus: string) {
+    const VALID_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
+    if (!VALID_STATUSES.includes(auditStatus)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的审核状态");
+    }
     const article = await this.prisma.article.findUnique({ where: { id: articleId } });
     if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
 
@@ -256,6 +260,66 @@ export class ArticleService {
     return { success: true };
   }
 
+  // ───────── 草稿管理 ─────────
+
+  async getMyDrafts(userId: string, page = 1, pageSize = 20) {
+    const where: Prisma.ArticleWhereInput = { userId, auditStatus: "DRAFT" };
+    const [items, total] = await Promise.all([
+      this.prisma.article.findMany({
+        where,
+        select: { id: true, title: true, cover: true, excerpt: true, updatedAt: true },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { updatedAt: "desc" },
+      }),
+      this.prisma.article.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
+  }
+
+  async saveDraft(userId: string, dto: CreateArticleDto) {
+    return this.prisma.article.create({
+      data: {
+        userId,
+        circleId: (dto as any).circleId || "",
+        title: dto.title || "未命名草稿",
+        content: dto.content,
+        cover: dto.cover,
+        excerpt: dto.excerpt,
+        tags: dto.tags,
+        auditStatus: "DRAFT",
+      },
+    });
+  }
+
+  async updateDraft(id: string, userId: string, dto: UpdateArticleDto) {
+    const article = await this.prisma.article.findUnique({ where: { id } });
+    if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "草稿不存在");
+    if (article.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的草稿");
+    return this.prisma.article.update({ where: { id }, data: dto as Prisma.ArticleUpdateInput });
+  }
+
+  async deleteDraft(id: string, userId: string) {
+    const article = await this.prisma.article.findUnique({ where: { id } });
+    if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "草稿不存在");
+    if (article.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的草稿");
+    await this.prisma.article.delete({ where: { id } });
+    return { success: true };
+  }
+
+  async publishDraft(id: string, userId: string) {
+    const article = await this.prisma.article.findUnique({ where: { id } });
+    if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "草稿不存在");
+    if (article.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能发布自己的草稿");
+    if (article.auditStatus !== "DRAFT") throw new BusinessException(ErrorCode.BAD_REQUEST, "该文章不是草稿");
+    const updated = await this.prisma.article.update({
+      where: { id },
+      data: { auditStatus: "PENDING", createdAt: new Date() },
+    });
+    await this.redis.delByPattern("articles:list:*");
+    return updated;
+  }
+
   // ───────── 私有 ─────────
 
   private async ensureCircleAdmin(circleId: string, userId: string) {
@@ -265,5 +329,51 @@ export class ArticleService {
     if (!member || !["OWNER", "PARTNER", "ADMIN"].includes(member.role)) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "仅圈主/合伙人/管理员可发布文章");
     }
+  }
+
+  // ═══════════════════════════════════════════
+  // 管理端草稿管理
+  // ═══════════════════════════════════════════
+
+  /** 管理端-列出所有草稿 */
+  async listAllDrafts(params: { page?: number; pageSize?: number; circleId?: string }) {
+    const { page = 1, pageSize = 20, circleId } = params;
+    const where: Prisma.ArticleWhereInput = { auditStatus: "DRAFT" };
+    if (circleId) where.circleId = circleId;
+    const [items, total] = await Promise.all([
+      this.prisma.article.findMany({
+        where,
+        include: {
+          user: { select: { id: true, nickname: true } },
+          circle: { select: { id: true, name: true } },
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { updatedAt: "desc" },
+      }),
+      this.prisma.article.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
+  }
+
+  /** 管理端-删除任意草稿 */
+  async adminDeleteDraft(id: string) {
+    const article = await this.prisma.article.findUnique({ where: { id } });
+    if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "草稿不存在");
+    await this.prisma.article.delete({ where: { id } });
+    return { success: true };
+  }
+
+  /** 管理端-发布任意草稿 */
+  async adminPublishDraft(id: string) {
+    const article = await this.prisma.article.findUnique({ where: { id } });
+    if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "草稿不存在");
+    if (article.auditStatus !== "DRAFT") throw new BusinessException(ErrorCode.BAD_REQUEST, "该文章不是草稿");
+    const updated = await this.prisma.article.update({
+      where: { id },
+      data: { auditStatus: "PENDING", createdAt: new Date() },
+    });
+    await this.redis.delByPattern("articles:list:*");
+    return updated;
   }
 }

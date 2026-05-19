@@ -1,6 +1,12 @@
 import { Test } from "@nestjs/testing";
 import { SearchService } from "./search.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
+
+const mockRedis = {
+  getJson: jest.fn().mockResolvedValue(null),
+  setJson: jest.fn().mockResolvedValue(undefined),
+};
 
 const mockPrisma = {
   $queryRaw: jest.fn().mockResolvedValue([]),
@@ -20,7 +26,11 @@ describe("SearchService", () => {
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [SearchService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        SearchService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: mockRedis },
+      ],
     }).compile();
     svc = mod.get(SearchService);
   });

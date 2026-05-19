@@ -1,8 +1,24 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { EmailService } from "./email.service";
+import { PrismaService } from "../../prisma/prisma.service";
+
+const mockPrisma = {
+  configSystem: {
+    findUnique: jest.fn().mockResolvedValue(null),
+    upsert: jest.fn().mockResolvedValue({}),
+  },
+};
 
 describe("EmailService", () => {
   let svc: EmailService;
+
+  const buildModule = () =>
+    Test.createTestingModule({
+      providers: [
+        EmailService,
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
+    }).compile();
 
   beforeEach(async () => {
     process.env.EMAIL_MODE = "smtp";
@@ -11,9 +27,7 @@ describe("EmailService", () => {
     process.env.SMTP_USER = "test@example.com";
     process.env.SMTP_PASS = "password";
 
-    const mod: TestingModule = await Test.createTestingModule({
-      providers: [EmailService],
-    }).compile();
+    const mod = await buildModule();
     svc = mod.get(EmailService);
   });
 
@@ -25,7 +39,7 @@ describe("EmailService", () => {
 
   it("无SMTP_HOST时应为未配置", async () => {
     delete process.env.SMTP_HOST;
-    const mod = await Test.createTestingModule({ providers: [EmailService] }).compile();
+    const mod = await buildModule();
     const s = mod.get(EmailService);
     expect(s.isConfigured()).toBe(false);
   });
@@ -33,7 +47,7 @@ describe("EmailService", () => {
   it("未配置时send应返回错误", async () => {
     delete process.env.SMTP_HOST;
     delete process.env.SMTP_USER;
-    const mod = await Test.createTestingModule({ providers: [EmailService] }).compile();
+    const mod = await buildModule();
     const s = mod.get(EmailService);
     const result = await s.send({ to: "a@b.com", subject: "Test" });
     expect(result.success).toBe(false);
@@ -43,7 +57,7 @@ describe("EmailService", () => {
   it("API模式配置后应可用", async () => {
     process.env.EMAIL_MODE = "api";
     process.env.EMAIL_API_KEY = "test-api-key";
-    const mod = await Test.createTestingModule({ providers: [EmailService] }).compile();
+    const mod = await buildModule();
     const s = mod.get(EmailService);
     expect(s.isConfigured()).toBe(true);
   });

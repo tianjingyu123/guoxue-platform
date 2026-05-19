@@ -20,7 +20,7 @@ interface SceneRouting {
   };
 }
 
-interface ModelRoutingConfig {
+export interface ModelRoutingConfig {
   default: SceneRouting;
   scenes: Record<string, SceneRouting>;
 }
@@ -33,7 +33,22 @@ const DEFAULT_ROUTING: ModelRoutingConfig = {
     maxTokens: 2048,
     topP: 0.9,
   },
-  scenes: {},
+  scenes: {
+    "multi-agent": {
+      model: "deepseek-v4-flash",
+      fallbackModel: "deepseek-v4-flash",
+      temperature: 0.5,
+      maxTokens: 4096,
+      topP: 0.9,
+    },
+    "knowledge_graph": {
+      model: "deepseek-v4-flash",
+      fallbackModel: "deepseek-v4-flash",
+      temperature: 0.2,
+      maxTokens: 2048,
+      topP: 0.9,
+    },
+  },
 };
 
 @Injectable()
@@ -157,7 +172,7 @@ export class ModelRouterService {
   }
 
   /** 获取路由配置（带5分钟内存缓存） */
-  private async getRoutingConfig(): Promise<ModelRoutingConfig> {
+  async getRoutingConfig(): Promise<ModelRoutingConfig> {
     if (this.routingCache && Date.now() < this.cacheExpireAt) return this.routingCache;
 
     try {
@@ -182,5 +197,22 @@ export class ModelRouterService {
     this.cacheExpireAt = 0;
     this.monthlyUsage.clear();
     this.usageExpireAt = 0;
+  }
+
+  /** 获取所有场景的预算使用情况 */
+  async getSceneBudgets() {
+    const config = await this.getRoutingConfig();
+    const scenes = Object.keys(config.scenes);
+    const budgets: Record<string, { used: number; limit: number; remaining: number; percentage: number }> = {};
+
+    for (const scene of scenes) {
+      budgets[scene] = await this.getBudgetRemaining(scene);
+    }
+
+    return {
+      defaultModel: config.default.model,
+      scenes: budgets,
+      totalScenes: scenes.length,
+    };
   }
 }

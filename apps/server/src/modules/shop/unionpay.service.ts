@@ -68,7 +68,7 @@ export class UnionpayService {
       return { privateKey: key || "", cert: cert || "" };
     } finally {
       // 确保临时文件在任何情况下都被清理
-      try { require("fs").unlinkSync(pfxPath); } catch { /* 忽略删除失败 */ }
+      try { require("fs").unlinkSync(pfxPath); } catch (err) { /* 忽略删除失败 */ }
     }
   }
 

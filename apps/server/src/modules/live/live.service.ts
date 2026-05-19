@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { LiveStreamService } from "./live-stream.service";
@@ -7,6 +7,7 @@ import { CreateRoomDto, UpdateRoomDto } from "./live.dto";
 import { Prisma, LiveStatus } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { CoinService } from "../coin/coin.service";
 
 @Injectable()
 export class LiveService {
@@ -17,6 +18,7 @@ export class LiveService {
     private redis: RedisService,
     private stream: LiveStreamService,
     private webhook: WebhookService,
+    @Optional() private coin?: CoinService,
   ) {}
 
   async createRoom(userId: string, dto: CreateRoomDto) {
@@ -99,9 +101,10 @@ export class LiveService {
   }
 
   /** 获取指定房间的推/拉流地址（主播用） */
-  async getStreamUrls(id: string) {
+  async getStreamUrls(id: string, userId?: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
     if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (userId && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播可获取推流地址");
 
     const streamKey = `room_${id}`;
     return {
@@ -132,9 +135,10 @@ export class LiveService {
     return result;
   }
 
-  async listRooms(status?: string, page = 1, pageSize = 20) {
+  async listRooms(status?: string, page = 1, pageSize = 20, circleId?: string) {
     const where: Prisma.LiveRoomWhereInput = {};
     if (status) where.status = status as LiveStatus;
+    if (circleId) where.circleId = circleId;
 
     const [rooms, total] = await Promise.all([
       this.prisma.liveRoom.findMany({
@@ -169,10 +173,10 @@ export class LiveService {
     return room;
   }
 
-  async deleteRoom(userId: string, id: string) {
+  async deleteRoom(userId: string, id: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { hostUserId: true } });
     if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
-    if (room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的直播间");
+    if (!isAdmin && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的直播间");
     await this.prisma.liveRoom.delete({ where: { id } });
     return { success: true };
   }
@@ -384,7 +388,7 @@ export class LiveService {
     return { success: true };
   }
 
-  /** 禁言列表 */
+  /** 获取禁言列表 */
   async listMutedUsers(roomId: string) {
     return this.prisma.liveMutedUser.findMany({
       where: { liveRoomId: roomId },
@@ -403,6 +407,53 @@ export class LiveService {
       return false;
     }
     return true;
+  }
+
+  // ───────── 直播评论与点赞 ─────────
+
+  /** 发送直播评论/弹幕 */
+  async sendComment(roomId: string, userId: string, content: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
+    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
+
+    const muted = await this.isUserMuted(roomId, userId);
+    if (muted) throw new BusinessException(ErrorCode.BAD_REQUEST, "您已被禁言");
+
+    const comment = await this.prisma.comment.create({
+      data: {
+        targetType: "LIVESTREAM",
+        targetId: roomId,
+        userId,
+        content: content.slice(0, 500),
+      },
+      include: {
+        user: { select: { id: true, nickname: true, avatar: true } },
+      },
+    });
+
+    return comment;
+  }
+
+  /** 直播点赞 */
+  async toggleLike(roomId: string, userId: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
+    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
+
+    await this.prisma.like.create({
+      data: {
+        targetType: "LIVESTREAM",
+        targetId: roomId,
+        userId,
+      },
+    });
+
+    const count = await this.prisma.like.count({
+      where: { targetType: "LIVESTREAM", targetId: roomId },
+    });
+
+    return { liked: true, likeCount: count };
   }
 
   // ───────── 限时秒杀 ─────────
@@ -505,6 +556,167 @@ export class LiveService {
       this.prisma.liveAuditLog.count({ where: { liveRoomId: roomId } }),
     ]);
     return { logs, total, page, pageSize };
+  }
+
+  // ───────── 礼物系统 ─────────
+
+  /** 获取可发送的礼物列表 */
+  async listGifts() {
+    return this.prisma.gift.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { sortOrder: "asc" },
+    });
+  }
+
+  /** 发送礼物 */
+  async sendGift(roomId: string, userId: string, giftId: string, quantity: number = 1) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
+    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
+
+    const gift = await this.prisma.gift.findUnique({ where: { id: giftId } });
+    if (!gift || gift.status !== "ACTIVE") throw new BusinessException(ErrorCode.NOT_FOUND, "礼物不存在或已下架");
+
+    const totalCoin = gift.priceCoin * quantity;
+
+    if (this.coin) {
+      await this.coin.spend(userId, {
+        amountCoin: totalCoin,
+        scene: "LIVE_GIFT",
+        refId: giftId,
+        description: `在直播间 ${room.title} 送出 ${gift.name} x${quantity}`,
+      });
+    }
+
+    const record = await this.prisma.giftRecord.create({
+      data: {
+        userId,
+        liveRoomId: roomId,
+        toUserId: room.hostUserId,
+        giftId,
+        quantity,
+        totalCoin,
+      },
+      include: {
+        user: { select: { id: true, nickname: true, avatar: true } },
+        gift: { select: { id: true, name: true, icon: true, level: true } },
+      },
+    });
+
+    return record;
+  }
+
+  /** 创建礼物（管理员） */
+  async createGift(dto: { name: string; icon?: string; priceCoin: number; level?: string; sortOrder?: number }) {
+    return this.prisma.gift.create({
+      data: {
+        name: dto.name,
+        icon: dto.icon,
+        priceCoin: dto.priceCoin,
+        level: dto.level || "BASIC",
+        sortOrder: dto.sortOrder || 0,
+      },
+    });
+  }
+
+  /** 更新礼物（管理员） */
+  async updateGift(giftId: string, dto: { name?: string; icon?: string; priceCoin?: number; level?: string; status?: string; sortOrder?: number }) {
+    const gift = await this.prisma.gift.findUnique({ where: { id: giftId } });
+    if (!gift) throw new BusinessException(ErrorCode.NOT_FOUND, "礼物不存在");
+    return this.prisma.gift.update({ where: { id: giftId }, data: dto });
+  }
+
+  /** 删除礼物（软删除，设为INACTIVE） */
+  async removeGift(giftId: string) {
+    const gift = await this.prisma.gift.findUnique({ where: { id: giftId } });
+    if (!gift) throw new BusinessException(ErrorCode.NOT_FOUND, "礼物不存在");
+    await this.prisma.gift.update({ where: { id: giftId }, data: { status: "INACTIVE" } });
+    return { success: true };
+  }
+
+  /** 直播间礼物排行榜 */
+  async giftRanking(roomId: string, limit: number = 20) {
+    const topGifters = await this.prisma.giftRecord.groupBy({
+      by: ["userId"],
+      where: { liveRoomId: roomId },
+      _sum: { totalCoin: true },
+      orderBy: { _sum: { totalCoin: "desc" } },
+      take: limit,
+    });
+
+    const userIds = topGifters.map(g => g.userId);
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, nickname: true, avatar: true },
+    });
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    return topGifters.map(g => ({
+      userId: g.userId,
+      nickname: userMap.get(g.userId)?.nickname,
+      avatar: userMap.get(g.userId)?.avatar,
+      totalCoin: Number(g._sum.totalCoin || 0),
+    }));
+  }
+
+  // ───────── 观众画像（暂基于礼物数据） ─────────
+
+  /** 直播间观众画像（基于打赏和互动数据） */
+  async getAudienceProfile(roomId: string) {
+    const giftUserIds = await this.prisma.giftRecord.findMany({
+      where: { liveRoomId: roomId },
+      select: { userId: true },
+      distinct: ["userId"],
+    });
+
+    const commentUserIds = await this.prisma.comment.findMany({
+      where: { targetType: "LIVESTREAM", targetId: roomId },
+      select: { userId: true },
+      distinct: ["userId"],
+    });
+
+    const allUserIds = [...new Set([...giftUserIds.map(g => g.userId), ...commentUserIds.map(c => c.userId)])];
+
+    if (!allUserIds.length) {
+      return { totalAudience: 0, gender: "--", age: "--", region: "--", interests: "--" };
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: allUserIds } },
+      select: { gender: true, birthday: true, interestCategories: true },
+    });
+
+    const maleCount = users.filter((u: { gender: number | null }) => u.gender === 1).length;
+    const femaleCount = users.filter((u: { gender: number | null }) => u.gender === 0).length;
+
+    const now = new Date();
+    const ageGroups = { under20: 0, "20s": 0, "30s": 0, "40s": 0, over50: 0 };
+    users.forEach((u: { birthday: Date | null }) => {
+      if (!u.birthday) return;
+      const age = now.getFullYear() - new Date(u.birthday).getFullYear();
+      if (age < 20) ageGroups.under20++;
+      else if (age < 30) ageGroups["20s"]++;
+      else if (age < 40) ageGroups["30s"]++;
+      else if (age < 50) ageGroups["40s"]++;
+      else ageGroups.over50++;
+    });
+
+    const tagCount: Record<string, number> = {};
+    users.forEach((u: { interestCategories: string[] }) => {
+      (u.interestCategories || []).forEach((t: string) => { tagCount[t] = (tagCount[t] || 0) + 1; });
+    });
+    const topTags = Object.entries(tagCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([t]) => t);
+
+    return {
+      totalAudience: allUserIds.length,
+      gender: `男${maleCount} / 女${femaleCount}`,
+      age: Object.entries(ageGroups).filter(([, v]) => v > 0).map(([k, v]) => `${k}:${v}人`).join(" ") || "--",
+      region: "--",
+      interests: topTags.join("、") || "--",
+    };
   }
 
   // ───────── 课程联动 ─────────

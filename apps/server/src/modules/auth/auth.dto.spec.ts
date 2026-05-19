@@ -8,31 +8,31 @@ import {
 describe("Auth DTO 校验", () => {
   describe("PhoneRegisterDto", () => {
     it("合法输入通过", async () => {
-      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "张三", phone: "13800138000", password: "123456" });
+      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "张三", phone: "13800138000", password: "Abc12345" });
       const errors = await validate(dto); expect(errors.length).toBe(0);
     });
     it("带 referrerCode 通过", async () => {
-      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "张三", phone: "13800138000", password: "123456", referrerCode: "ABC123" });
+      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "张三", phone: "13800138000", password: "Abc12345", referrerCode: "ABC123" });
       const errors = await validate(dto); expect(errors.length).toBe(0);
     });
     it("缺 nickname 报错", async () => {
-      const dto = Object.assign(new PhoneRegisterDto(), { phone: "13800138000", password: "123456" });
+      const dto = Object.assign(new PhoneRegisterDto(), { phone: "13800138000", password: "Abc12345" });
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
     it("nickname 太短报错", async () => {
-      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "张", phone: "13800138000", password: "123456" });
+      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "张", phone: "13800138000", password: "Abc12345" });
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
     it("nickname 超长报错", async () => {
-      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "x".repeat(21), phone: "13800138000", password: "123456" });
+      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "x".repeat(21), phone: "13800138000", password: "Abc12345" });
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
-    it("password 太短报错", async () => {
-      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "张三", phone: "13800138000", password: "12345" });
+    it("password 不满足复杂度要求报错", async () => {
+      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "张三", phone: "13800138000", password: "abc1234" });
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
     it("缺 phone 报错", async () => {
-      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "张三", password: "123456" });
+      const dto = Object.assign(new PhoneRegisterDto(), { nickname: "张三", password: "Abc12345" });
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
   });
@@ -108,15 +108,15 @@ describe("Auth DTO 校验", () => {
   });
   describe("ChangePasswordDto", () => {
     it("合法输入通过", async () => {
-      const dto = Object.assign(new ChangePasswordDto(), { oldPassword: "123456", newPassword: "654321" });
+      const dto = Object.assign(new ChangePasswordDto(), { oldPassword: "123456", newPassword: "Abc12345" });
       const errors = await validate(dto); expect(errors.length).toBe(0);
     });
     it("缺 oldPassword 报错", async () => {
-      const dto = Object.assign(new ChangePasswordDto(), { newPassword: "654321" });
+      const dto = Object.assign(new ChangePasswordDto(), { newPassword: "Abc12345" });
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
-    it("newPassword 太短报错", async () => {
-      const dto = Object.assign(new ChangePasswordDto(), { oldPassword: "123456", newPassword: "12345" });
+    it("newPassword 不满足复杂度要求报错", async () => {
+      const dto = Object.assign(new ChangePasswordDto(), { oldPassword: "123456", newPassword: "abc1234" });
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
   });

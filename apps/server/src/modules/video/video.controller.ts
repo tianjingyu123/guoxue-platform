@@ -9,6 +9,8 @@ import {
   UploadSignatureDto, PlaybackStatsQueryDto,
 } from "./video.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 import { StationId } from "../../common/station-id.decorator";
 
@@ -66,12 +68,12 @@ export class VideoController {
 
   @Post(":id/like")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "点赞视频" })
+  @ApiOperation({ summary: "点赞/取消点赞视频" })
   @ApiBearerAuth()
-  @ApiResponse({ status: 200, description: "点赞成功" })
+  @ApiResponse({ status: 200, description: "操作成功" })
   @ApiResponse({ status: 401, description: "未认证" })
-  like(@Param("id") id: string) {
-    return this.svc.toggleLike(id);
+  like(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.toggleLike(req.user.id, id);
   }
 
   // ───────── VOD 上传签名 ─────────
@@ -104,7 +106,8 @@ export class VideoController {
   // ───────── VOD URL拉取上传 ─────────
 
   @Post("vod/pull-upload")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "从URL拉取视频上传到VOD" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "拉取任务创建成功" })
@@ -121,7 +124,8 @@ export class VideoController {
   // ───────── VOD 媒资处理 ─────────
 
   @Post("vod/process/:fileId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "处理媒资（转码+截图+水印+自适应码流）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "任务提交成功" })
@@ -136,7 +140,8 @@ export class VideoController {
   // ───────── VOD 视频剪辑 ─────────
 
   @Post("vod/clip")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "视频剪辑（截取片段生成新视频）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "剪辑任务创建成功" })
@@ -155,7 +160,8 @@ export class VideoController {
   }
 
   @Delete("vod/media/:fileId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除VOD媒资" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -167,7 +173,9 @@ export class VideoController {
   // ───────── VOD 搜索 ─────────
 
   @Get("vod/search")
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "搜索VOD媒资库" })
+  @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "返回搜索结果" })
   searchVodMedia(
     @Query("keyword") keyword?: string,

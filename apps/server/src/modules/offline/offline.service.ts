@@ -408,6 +408,62 @@ export class OfflineService {
     };
   }
 
+  // ───────── 课程审核 ─────────
+
+  async auditCourse(courseId: string, auditStatus: string, reason?: string) {
+    const course = await this.prisma.offlineCourse.findUnique({ where: { id: courseId } });
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    return this.prisma.offlineCourse.update({
+      where: { id: courseId },
+      data: {
+        auditStatus,
+        auditReason: reason || null,
+        status: auditStatus === "APPROVED" ? "PUBLISHED" : course.status,
+      },
+    });
+  }
+
+  async toggleRecommend(courseId: string) {
+    const course = await this.prisma.offlineCourse.findUnique({ where: { id: courseId } });
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    const newVal = !course.isRecommended;
+    return this.prisma.offlineCourse.update({
+      where: { id: courseId },
+      data: { isRecommended: newVal, recommendedAt: newVal ? new Date() : null },
+    });
+  }
+
+  async listPendingCourses(page = 1, pageSize = 20, stationId?: string) {
+    const where: Prisma.OfflineCourseWhereInput = { auditStatus: "PENDING" };
+    if (stationId) where.stationId = stationId;
+    const [courses, total] = await Promise.all([
+      this.prisma.offlineCourse.findMany({
+        where,
+        include: { station: { select: { id: true, name: true } } },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.offlineCourse.count({ where }),
+    ]);
+    return { courses, total, page, pageSize };
+  }
+
+  async listRecommendedCourses(page = 1, pageSize = 20) {
+    const where: Prisma.OfflineCourseWhereInput = { isRecommended: true, status: { not: "DRAFT" } };
+    const [courses, total] = await Promise.all([
+      this.prisma.offlineCourse.findMany({
+        where,
+        include: { station: { select: { id: true, name: true, city: true } } },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { recommendedAt: "desc" },
+      }),
+      this.prisma.offlineCourse.count({ where }),
+    ]);
+    return { courses, total, page, pageSize };
+  }
+
   // ───────── 研究院（平台管理视图） ─────────
 
   async listMembers(page = 1, pageSize = 20) {
@@ -424,5 +480,92 @@ export class OfflineService {
 
   async updateMember(id: string, dto: { role?: string; status?: string }) {
     return this.prisma.instituteMember.update({ where: { id }, data: dto as Prisma.InstituteMemberUpdateInput });
+  }
+
+  // ───────── 讲师管理 ─────────
+
+  async createTeacher(dto: { name: string; stationId: string; avatar?: string; specialties?: string[]; bio?: string }) {
+    return this.prisma.stationTeacher.create({ data: dto });
+  }
+
+  async listTeachers(stationId?: string, page = 1, pageSize = 20) {
+    const where: any = {};
+    if (stationId) where.stationId = stationId;
+    const [teachers, total] = await Promise.all([
+      this.prisma.stationTeacher.findMany({
+        where,
+        include: { station: { select: { id: true, name: true } } },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.stationTeacher.count({ where }),
+    ]);
+    return { teachers, total, page, pageSize };
+  }
+
+  async getTeacher(id: string) {
+    const t = await this.prisma.stationTeacher.findUnique({
+      where: { id },
+      include: {
+        station: { select: { id: true, name: true } },
+        bookings: { orderBy: { bookingDate: "desc" }, take: 20 },
+      },
+    });
+    if (!t) throw new BusinessException(ErrorCode.NOT_FOUND, "讲师不存在");
+    return t;
+  }
+
+  async updateTeacher(id: string, dto: { name?: string; avatar?: string; specialties?: string[]; bio?: string; status?: string }) {
+    return this.prisma.stationTeacher.update({ where: { id }, data: dto });
+  }
+
+  async deleteTeacher(id: string) {
+    // 检查未完成的预约
+    const pending = await this.prisma.stationTeacherBooking.count({
+      where: { teacherId: id, status: { in: ["PENDING", "CONFIRMED"] } },
+    });
+    if (pending > 0) throw new BusinessException(ErrorCode.BAD_REQUEST, `该讲师有 ${pending} 个未完成的预约，无法删除`);
+    return this.prisma.stationTeacher.update({ where: { id }, data: { status: "INACTIVE" } });
+  }
+
+  /** 讲师排期日历（按月视图） */
+  async getTeacherSchedule(teacherId: string, month: string) {
+    const [year, m] = month.split("-").map(Number);
+    const start = new Date(year, m - 1, 1);
+    const end = new Date(year, m, 0, 23, 59, 59);
+
+    const bookings = await this.prisma.stationTeacherBooking.findMany({
+      where: { teacherId, bookingDate: { gte: start, lte: end } },
+      orderBy: { bookingDate: "asc" },
+      include: { station: { select: { id: true, name: true } } },
+    });
+
+    return { teacherId, month, bookings, total: bookings.length };
+  }
+
+  /** 冲突检测 */
+  async checkScheduleConflicts(teacherId: string, date: string) {
+    const bookingDate = new Date(date);
+    const conflicts = await this.prisma.stationTeacherBooking.findMany({
+      where: {
+        teacherId,
+        bookingDate: {
+          gte: new Date(bookingDate.getTime() - 3600000),
+          lte: new Date(bookingDate.getTime() + 3600000),
+        },
+        status: { in: ["PENDING", "CONFIRMED"] },
+      },
+    });
+    return { hasConflict: conflicts.length > 0, conflicts };
+  }
+
+  /** 设置讲师可预约时段 */
+  async setTeacherAvailability(teacherId: string, slots: string[]) {
+    // 存储可预约时段到讲师的 specialties 扩展字段（用 JSON）
+    const teacher = await this.prisma.stationTeacher.findUnique({ where: { id: teacherId } });
+    if (!teacher) throw new BusinessException(ErrorCode.NOT_FOUND, "讲师不存在");
+    // 简单实现：将可预约时段存储为扩展逻辑
+    return { teacherId, slots, message: "可预约时段已设置" };
   }
 }

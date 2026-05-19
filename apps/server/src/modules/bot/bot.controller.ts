@@ -2,16 +2,18 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGu
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { BotService } from "./bot.service";
+import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDto, AddBotKnowledgeItemDto, UpdateBotKnowledgeItemDto, RunWorkflowDto } from "./bot.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 @ApiTags("智能体")
 @Controller("bots")
 export class BotController {
   private readonly logger = new Logger(BotController.name);
-  constructor(private svc: BotService) {}
+  constructor(private svc: BotService, private sse: StreamUnifierService) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -27,6 +29,18 @@ export class BotController {
   @ApiQuery({ name: "type", required: false, type: String, description: "智能体类型" })
   list(@Query("type") type?: string) {
     return this.svc.list(type);
+  }
+
+  @Get("ranking")
+  @ApiOperation({ summary: "智能体热度排行" })
+  ranking(@Query("limit") limit = 20) {
+    return this.svc.getRanking(+limit);
+  }
+
+  @Get("feed-cards")
+  @ApiOperation({ summary: "信息流智能体卡片（含动态背景色）" })
+  feedCards(@Query("limit") limit = 6) {
+    return this.svc.getFeedCards(+limit);
   }
 
   @Get(":id")
@@ -88,7 +102,7 @@ export class BotController {
   // ───────── COZE 对话 ─────────
 
   @Post(":id/chat")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "智能体对话（非流式）" })
   @ApiBearerAuth()
   chat(
@@ -100,7 +114,7 @@ export class BotController {
   }
 
   @Post(":id/chat/stream")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "智能体对话（流式SSE）" })
   @ApiBearerAuth()
   async chatStream(
@@ -125,15 +139,15 @@ export class BotController {
 
     obs.subscribe({
       next: (chunk: string) => {
-        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+        res.write(this.sse.encode({ type: "chunk", content: chunk }));
       },
       error: (err: Error) => {
         this.logger.warn(`智能体SSE流错误 [${id}]: ${err.message}`);
-        res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+        res.write(this.sse.encode({ type: "error", message: err.message }));
         res.end();
       },
       complete: () => {
-        res.write("data: [DONE]\n\n");
+        res.write(this.sse.encode({ type: "done" }));
         res.end();
       },
     });

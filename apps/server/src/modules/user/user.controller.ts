@@ -7,6 +7,8 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RoleType } from "@prisma/client";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto } from "./user.dto";
 
 @ApiTags("用户")
@@ -31,12 +33,14 @@ export class UserController {
   // ───────── 用户查询 ─────────
 
   @Get(":id")
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取用户详情" })
   getUser(@Param("id") id: string) {
     return this.user.getUserById(id);
   }
 
   @Get(":id/stats")
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取用户统计（文章/课程/粉丝数等）" })
   getUserStats(@Param("id") id: string) {
     return this.user.getUserStats(id);
@@ -116,9 +120,10 @@ export class UserController {
   @ApiOperation({ summary: "获取用户会员购买记录" })
   @ApiBearerAuth()
   getMemberPurchases(@Param("id") userId: string, @Req() req: Request) {
-    // 仅允许查看自己的购买记录或管理员查看
-    if (req.user.id !== userId) {
-      // 由 service 层实际校验角色
+    const roles: string[] = req.user?.roles ?? [];
+    const isAdmin = roles.includes("SUPER_ADMIN") || roles.includes("OPERATION_ADMIN");
+    if (req.user.id !== userId && !isAdmin) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看他人购买记录");
     }
     return this.user.getMemberPurchases(userId);
   }
@@ -217,5 +222,15 @@ export class UserController {
   @ApiOperation({ summary: "获取用户全量画像（订单/币/圈子/行为/设备等）" })
   getUserProfile(@Param("id") id: string) {
     return this.user.getUserProfile(id);
+  }
+
+  // ───────── 兴趣品类分析 ─────────
+
+  @Get("stats/interests")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "用户兴趣品类统计分析（管理员）" })
+  async getInterestStats() {
+    return this.user.getInterestStats();
   }
 }

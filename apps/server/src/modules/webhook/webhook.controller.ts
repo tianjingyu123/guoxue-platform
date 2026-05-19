@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -26,6 +26,15 @@ export class WebhookController {
   @ApiQuery({ name: "event", required: false, description: "按事件类型筛选" })
   list(@Query("event") event?: WebhookEvent) {
     return this.svc.list(event);
+  }
+
+  @Put(":id")
+  @ApiOperation({ summary: "编辑 Webhook 订阅" })
+  update(
+    @Param("id") id: string,
+    @Body() body: { url?: string; secret?: string; description?: string },
+  ) {
+    return this.svc.update(id, body);
   }
 
   @Post(":id/toggle")

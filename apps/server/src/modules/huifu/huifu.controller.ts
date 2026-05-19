@@ -55,12 +55,12 @@ export class HuifuController {
   @Post("notify")
   @ApiOperation({ summary: "汇付天下支付回调（公开接口）" })
   async handleNotify(@Body() body: Record<string, unknown>, @Headers("X-HF-Signature") signature?: string) {
-    // 验签
-    if (signature) {
-      const isValid = await this.svc.verifyNotify(body, signature);
-      if (!isValid) {
-        return { resp_code: "FAIL", resp_msg: "签名验证失败" };
-      }
+    if (!signature) {
+      return { resp_code: "FAIL", resp_msg: "缺少签名" };
+    }
+    const isValid = await this.svc.verifyNotify(body, signature);
+    if (!isValid) {
+      return { resp_code: "FAIL", resp_msg: "签名验证失败" };
     }
     await this.svc.handleNotify(body);
     return { resp_code: "10000", resp_msg: "成功" };

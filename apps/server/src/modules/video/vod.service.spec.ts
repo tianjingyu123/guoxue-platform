@@ -137,7 +137,7 @@ describe('VodService', () => {
       } as any);
 
       const result = await service.genPlayerSignature('file-123');
-      expect(warnSpy).toHaveBeenCalledWith('获取媒资信息失败 file-123，降级为无密钥签名');
+      expect(warnSpy).toHaveBeenCalledWith('获取媒资信息失败 file-123，降级为无密钥签名', expect.any(Object));
       // MD5 hex 为 32 字符
       expect(result.psign).toMatch(/^[0-9a-f]{32}$/);
     });

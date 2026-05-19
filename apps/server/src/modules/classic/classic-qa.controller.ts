@@ -1,26 +1,19 @@
 import { Controller, Post, Get, Body, Param, Req, Res, UseGuards, HttpException, HttpStatus } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
-import { IsString, IsArray, IsOptional } from "class-validator";
 import { Request, Response } from "express";
 import { ClassicQaService } from "./classic-qa.service";
+import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
+import { ClassicQaDto } from "./dto/classic-qa.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-
-class ClassicQaDto {
-  @IsString()
-  question!: string;
-
-  @IsOptional()
-  @IsArray()
-  history?: Array<{ role: "system" | "user" | "assistant"; content: string }>;
-}
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 @ApiTags("古籍问答")
 @Controller("classic")
 export class ClassicQaController {
-  constructor(private readonly qa: ClassicQaService) {}
+  constructor(private readonly qa: ClassicQaService, private readonly sse: StreamUnifierService) {}
 
   @Post(":classicId/qa")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "古籍智能问答（非流式）" })
   @ApiBearerAuth()
   async ask(@Param("classicId") classicId: string, @Body() body: ClassicQaDto, @Req() req: Request) {
@@ -36,7 +29,7 @@ export class ClassicQaController {
   }
 
   @Get(":classicId/qa")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "古籍问答历史" })
   @ApiBearerAuth()
   async getHistory(@Param("classicId") classicId: string, @Req() req: Request) {
@@ -44,7 +37,7 @@ export class ClassicQaController {
   }
 
   @Post(":classicId/qa/stream")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "古籍智能问答（SSE流式）" })
   @ApiBearerAuth()
   async askStream(@Param("classicId") classicId: string, @Body() body: ClassicQaDto, @Req() req: Request, @Res() res: Response) {
@@ -58,11 +51,11 @@ export class ClassicQaController {
 
     try {
       for await (const chunk of this.qa.askStream(body.question, userId, body.history, classicId)) {
-        res.write(`data: ${JSON.stringify({ delta: chunk })}\n\n`);
+        res.write(this.sse.encode({ type: "chunk", content: chunk }));
       }
-      res.write("data: [DONE]\n\n");
+      res.write(this.sse.encode({ type: "done" }));
     } catch (err: any) {
-      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.write(this.sse.encode({ type: "error", message: err.message }));
     } finally {
       res.end();
     }

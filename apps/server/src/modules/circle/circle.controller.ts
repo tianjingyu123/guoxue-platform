@@ -87,13 +87,61 @@ export class CircleController {
   @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "设置圈子公告（圈主/管理员）" })
   @ApiBearerAuth()
-  setAnnouncement(@Param("id") circleId: string, @Req() req: Request, @Body("content") content: string) {
-    return this.circle.setAnnouncement(circleId, req.user.id, content);
+  setAnnouncement(@Param("id") circleId: string, @Req() req: Request, @Body("content") content: string, @Body("isTop") isTop?: boolean) {
+    return this.circle.setAnnouncement(circleId, req.user.id, content, isTop);
+  }
+
+  @Get(":id/announcements")
+  @ApiOperation({ summary: "获取公告列表（分页）" })
+  listAnnouncements(@Param("id") circleId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.circle.listAnnouncements(circleId, +page, +pageSize);
+  }
+
+  @Delete(":id/announcement/:announcementId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "删除公告（圈主/管理员）" })
+  @ApiBearerAuth()
+  deleteAnnouncement(@Param("id") circleId: string, @Param("announcementId") announcementId: string, @Req() req: Request) {
+    return this.circle.deleteAnnouncement(circleId, req.user.id, announcementId);
+  }
+
+  // ───────── 圈子邀请 ─────────
+
+  @Post(":id/invite-code")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "生成邀请码" })
+  @ApiBearerAuth()
+  generateInviteCode(@Param("id") circleId: string, @Req() req: Request, @Body("maxUses") maxUses?: number) {
+    return this.circle.generateInviteCode(circleId, req.user.id, maxUses);
+  }
+
+  @Post("join-by-code")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "通过邀请码加入圈子" })
+  @ApiBearerAuth()
+  joinByInviteCode(@Body("code") code: string, @Req() req: Request) {
+    return this.circle.joinByInviteCode(code, req.user.id);
+  }
+
+  @Get(":id/invite-codes")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的邀请码列表" })
+  @ApiBearerAuth()
+  listMyInviteCodes(@Param("id") circleId: string, @Req() req: Request) {
+    return this.circle.listMyInviteCodes(circleId, req.user.id);
+  }
+
+  @Get(":id/invitation-stats")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "邀请统计" })
+  @ApiBearerAuth()
+  getInvitationStats(@Param("id") circleId: string, @Req() req: Request) {
+    return this.circle.getInvitationStats(circleId, req.user.id);
   }
 
   @Post(":id/join")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "加入圈子" })
+  @ApiOperation({ summary: "加入圈子（免费圈直接加入，付费圈请先调用 prepare-join）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 201, description: "加入成功" })
   @ApiResponse({ status: 401, description: "未认证" })
@@ -101,6 +149,41 @@ export class CircleController {
   @ApiResponse({ status: 409, description: "已是圈子成员" })
   join(@Param("id") id: string, @Req() req: Request, @Body() dto?: JoinCircleDto) {
     return this.circle.join(id, req.user.id, dto);
+  }
+
+  @Post(":id/join/prepare")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "准备付费入圈（创建订单/检查余额）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "返回支付信息" })
+  prepareJoin(@Param("id") circleId: string, @Req() req: Request, @Body() dto?: { payMethod?: string; referrerId?: string }) {
+    return this.circle.prepareJoin(circleId, req.user.id, dto);
+  }
+
+  @Post(":id/join/confirm")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "确认付费入圈（支付完成后调用）" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "入圈成功" })
+  confirmJoin(@Param("id") circleId: string, @Req() req: Request, @Body() dto: { payMethod?: string; orderNo?: string; orderId?: string; referrerId?: string }) {
+    return this.circle.confirmJoin(circleId, req.user.id, dto);
+  }
+
+  @Get(":id/join/status")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "查询入圈状态（是否已加入/是否过期）" })
+  @ApiBearerAuth()
+  getJoinStatus(@Param("id") circleId: string, @Req() req: Request) {
+    return this.circle.getJoinStatus(circleId, req.user.id);
+  }
+
+  @Post(":id/renew")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "续费年费圈子" })
+  @ApiBearerAuth()
+  @ApiResponse({ status: 201, description: "续费成功" })
+  renewCircle(@Param("id") circleId: string, @Req() req: Request, @Body() dto?: { payMethod?: string }) {
+    return this.circle.renewCircle(circleId, req.user.id, dto);
   }
 
   @Post(":id/leave")
@@ -277,7 +360,7 @@ export class CircleController {
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 403, description: "无权限（需圈主/管理员/嘉宾）" })
   setExpertConfig(@Param("id") circleId: string, @Req() req: Request, @Body() dto: ExpertConfigDto) {
-    return this.circle.setExpertConfig(circleId, req.user.id, dto);
+    return this.circle.setExpertConfig(circleId, dto.userId || req.user.id, dto);
   }
 
   @Get(":id/expert/:userId")
@@ -337,5 +420,59 @@ export class CircleController {
     @Query("limit") limit = 10,
   ) {
     return this.circle.getHotContentRanking(id, +limit);
+  }
+
+  // ───────── 成员分组 ─────────
+
+  @Post(":id/member-groups")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "创建成员分组" })
+  @ApiBearerAuth()
+  createMemberGroup(@Param("id") circleId: string, @Req() req: Request, @Body("name") name: string, @Body("color") color?: string) {
+    return this.circle.createMemberGroup(circleId, req.user.id, name, color);
+  }
+
+  @Get(":id/member-groups")
+  @ApiOperation({ summary: "获取成员分组列表" })
+  listMemberGroups(@Param("id") circleId: string) {
+    return this.circle.listMemberGroups(circleId);
+  }
+
+  @Put(":id/member-groups/:groupId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "更新成员分组" })
+  @ApiBearerAuth()
+  updateMemberGroup(@Param("id") circleId: string, @Param("groupId") groupId: string, @Req() req: Request, @Body("name") name?: string, @Body("color") color?: string) {
+    return this.circle.updateMemberGroup(circleId, groupId, req.user.id, name, color);
+  }
+
+  @Delete(":id/member-groups/:groupId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "删除成员分组" })
+  @ApiBearerAuth()
+  deleteMemberGroup(@Param("id") circleId: string, @Param("groupId") groupId: string, @Req() req: Request) {
+    return this.circle.deleteMemberGroup(circleId, groupId, req.user.id);
+  }
+
+  @Post(":id/member-groups/:groupId/members")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "添加成员到分组" })
+  @ApiBearerAuth()
+  addMembersToGroup(@Param("id") circleId: string, @Param("groupId") groupId: string, @Req() req: Request, @Body("userIds") userIds: string[]) {
+    return this.circle.addMembersToGroup(circleId, groupId, req.user.id, userIds);
+  }
+
+  @Delete(":id/member-groups/:groupId/members/:userId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "从分组移除成员" })
+  @ApiBearerAuth()
+  removeMemberFromGroup(@Param("id") circleId: string, @Param("groupId") groupId: string, @Param("userId") targetUserId: string, @Req() req: Request) {
+    return this.circle.removeMemberFromGroup(circleId, groupId, req.user.id, targetUserId);
+  }
+
+  @Get(":id/member-groups/:groupId/members")
+  @ApiOperation({ summary: "获取分组成员列表" })
+  getGroupMembers(@Param("id") circleId: string, @Param("groupId") groupId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.circle.getGroupMembers(circleId, groupId, +page, +pageSize);
   }
 }

@@ -11,7 +11,9 @@ import {
   CreateProductDto, UpdateProductDto,
   CreateTeacherBookingDto,
   CreateStationOrderDto, CreateSettlementDto,
+  AuditCourseDto,
 } from "./offline.dto";
+import { CreateTeacherDto, UpdateTeacherDto, SetAvailabilityDto } from "./dto/teacher.dto";
 
 @ApiTags("线下驿站")
 @Controller("offline")
@@ -102,6 +104,53 @@ export class OfflineController {
   @ApiOperation({ summary: "课程详情（含报名列表）" })
   getCourse(@Param("id") id: string) {
     return this.svc.getOfflineCourse(id);
+  }
+
+  // ───────── 课程审核（管理后台） ─────────
+
+  @Get("admin/courses/pending")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "待审核课程列表" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "stationId", required: false })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  listPendingCourses(
+    @Query("stationId") stationId?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.listPendingCourses(+page, +pageSize, stationId);
+  }
+
+  @Put("admin/courses/:id/audit")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "审核通过/驳回课程" })
+  @ApiBearerAuth()
+  auditCourse(@Param("id") id: string, @Body() dto: AuditCourseDto) {
+    return this.svc.auditCourse(id, dto.auditStatus, dto.reason);
+  }
+
+  @Put("admin/courses/:id/recommend")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "推荐/取消推荐课程" })
+  @ApiBearerAuth()
+  toggleRecommend(@Param("id") id: string) {
+    return this.svc.toggleRecommend(id);
+  }
+
+  @Get("admin/courses/recommended")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "已推荐课程列表" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  listRecommendedCourses(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.listRecommendedCourses(+page, +pageSize);
   }
 
   // ───────── 课程报名 ─────────
@@ -271,6 +320,90 @@ export class OfflineController {
   @ApiBearerAuth()
   settleStation(@Param("settlementId") settlementId: string, @Query("stationId") stationId: string) {
     return this.svc.settleStation(stationId, settlementId);
+  }
+
+  // ───────── 讲师管理（管理后台） ─────────
+
+  @Post("admin/teachers")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "新增讲师" })
+  @ApiBearerAuth()
+  createTeacher(@Body() dto: CreateTeacherDto) {
+    return this.svc.createTeacher(dto);
+  }
+
+  @Get("admin/teachers")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "讲师列表" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "stationId", required: false })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  listTeachers(
+    @Query("stationId") stationId?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.listTeachers(stationId, +page, +pageSize);
+  }
+
+  @Get("admin/teachers/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "讲师详情" })
+  @ApiBearerAuth()
+  getTeacher(@Param("id") id: string) {
+    return this.svc.getTeacher(id);
+  }
+
+  @Put("admin/teachers/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "更新讲师信息" })
+  @ApiBearerAuth()
+  updateTeacher(@Param("id") id: string, @Body() dto: UpdateTeacherDto) {
+    return this.svc.updateTeacher(id, dto);
+  }
+
+  @Delete("admin/teachers/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "删除讲师" })
+  @ApiBearerAuth()
+  deleteTeacher(@Param("id") id: string) {
+    return this.svc.deleteTeacher(id);
+  }
+
+  @Get("admin/teachers/:id/schedule")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "讲师排期日历（按月）" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "month", required: true, description: "月份 如 2026-05" })
+  getTeacherSchedule(@Param("id") id: string, @Query("month") month: string) {
+    return this.svc.getTeacherSchedule(id, month);
+  }
+
+  @Post("admin/teachers/:id/availability")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "设置讲师可预约时段" })
+  @ApiBearerAuth()
+  setAvailability(@Param("id") id: string, @Body() dto: SetAvailabilityDto) {
+    return this.svc.setTeacherAvailability(id, dto.slots);
+  }
+
+  @Get("admin/schedule/conflicts")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "冲突检测" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "teacherId", required: true })
+  @ApiQuery({ name: "date", required: true })
+  checkConflicts(@Query("teacherId") teacherId: string, @Query("date") date: string) {
+    return this.svc.checkScheduleConflicts(teacherId, date);
   }
 
   // ───────── 研究院管理 ─────────

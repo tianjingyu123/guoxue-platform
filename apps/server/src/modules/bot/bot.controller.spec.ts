@@ -1,8 +1,12 @@
 import { Test } from "@nestjs/testing";
 import { BotController } from "./bot.controller";
 import { BotService } from "./bot.service";
+import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+
+const mockSSE = {} as any;
 
 const mockBotSvc = {
   create: jest.fn().mockResolvedValue({ id: "bot1", name: "国学助手" }),
@@ -32,10 +36,11 @@ describe("BotController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [BotController],
-      providers: [{ provide: BotService, useValue: mockBotSvc }],
+      providers: [{ provide: StreamUnifierService, useValue: mockSSE }, { provide: BotService, useValue: mockBotSvc }],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(BotController);
   });

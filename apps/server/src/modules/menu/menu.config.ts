@@ -33,6 +33,7 @@ export const MENU_CONFIG: MenuItem[] = [
       { title: "内容列表", path: "/contents" },
       { title: "内容审核", path: "/contents/audit", roles: ["SUPER_ADMIN", "CONTENT_AUDITOR"] },
       { title: "推荐管理", path: "/contents/recommend", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "品类管理", path: "/categories", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
     ],
   },
   {
@@ -69,6 +70,7 @@ export const MENU_CONFIG: MenuItem[] = [
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
     children: [
       { title: "课程管理", path: "/courses" },
+      { title: "课程分类", path: "/courses/categories", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
     ],
   },
   {
@@ -79,7 +81,14 @@ export const MENU_CONFIG: MenuItem[] = [
       { title: "用户列表", path: "/users" },
       { title: "实名审核", path: "/users/identity", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       { title: "用户推送", path: "/users/push", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "兴趣分析", path: "/users/interests", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
     ],
+  },
+  {
+    title: "文章管理",
+    icon: "Postcard",
+    path: "/articles",
+    roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
   },
   {
     title: "交易管理",
@@ -128,6 +137,7 @@ export const MENU_CONFIG: MenuItem[] = [
     icon: "Money",
     roles: ["SUPER_ADMIN", "FINANCE_ADMIN"],
     children: [
+      { title: "营收总览", path: "/revenue" },
       { title: "充值记录", path: "/recharges" },
       { title: "礼物管理", path: "/gifts" },
       { title: "对账中心", path: "/finance/reconciliation" },
@@ -136,6 +146,7 @@ export const MENU_CONFIG: MenuItem[] = [
       { title: "提现审批", path: "/finance/withdrawals" },
       { title: "财务报表", path: "/finance/reports" },
       { title: "资金冻结", path: "/finance/freeze" },
+      { title: "汇付天下支付", path: "/huifu", roles: ["SUPER_ADMIN", "FINANCE_ADMIN"] },
     ],
   },
   {
@@ -164,10 +175,37 @@ export const MENU_CONFIG: MenuItem[] = [
     icon: "Cpu",
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN"],
     children: [
-      { title: "智能体管理", path: "/bots" },
+      { title: "智能体广场", path: "/ai/agent-marketplace" },
+      { title: "AI媒体处理", path: "/ai/media-processing" },
       { title: "对话日志", path: "/ai/chat-logs" },
       { title: "调用监控", path: "/ai/call-monitor" },
       { title: "圈主助理", path: "/ai/circle-assistants" },
+      { title: "知识库管理", path: "/knowledge" },
+      { title: "AI内容生成", path: "/content-generation" },
+      { title: "AI运营追踪", path: "/ai/operation-dashboard" },
+      { title: "RAG模板管理", path: "/ai/rag-templates" },
+      { title: "智能客服", path: "/ai/customer-service", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
+      { title: "AI内容质量", path: "/ai/content-quality", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "AI模型路由", path: "/system/ai-gateway", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+    ],
+  },
+  {
+    title: "管理驾驶舱",
+    icon: "Odometer",
+    path: "/admin/cockpit",
+    roles: ["SUPER_ADMIN", "OPERATION_ADMIN"],
+  },
+  {
+    title: "对外大屏",
+    icon: "Monitor",
+    roles: ALL_ADMIN,
+    children: [
+      { title: "平台综合大屏", path: "/bigscreen/platform" },
+      { title: "实时交易大屏", path: "/bigscreen/transactions" },
+      { title: "内容生态大屏", path: "/bigscreen/content-eco" },
+      { title: "AI能力大屏", path: "/bigscreen/ai-capability" },
+      { title: "线下驿站大屏", path: "/bigscreen/offline-map" },
+      { title: "Token管理", path: "/admin/bigscreen-tokens", roles: ["SUPER_ADMIN"] },
     ],
   },
   {
@@ -198,6 +236,12 @@ export const MENU_CONFIG: MenuItem[] = [
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"],
   },
   {
+    title: "短信管理",
+    icon: "Message",
+    path: "/sms",
+    roles: ["SUPER_ADMIN", "OPERATION_ADMIN"],
+  },
+  {
     title: "研究院管理",
     icon: "School",
     path: "/institutes",
@@ -216,9 +260,31 @@ export const MENU_CONFIG: MenuItem[] = [
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
   },
   {
+    title: "互动数据",
+    icon: "TrendCharts",
+    path: "/interactions",
+    roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+  },
+  {
+    title: "自动化运营",
+    icon: "Robot",
+    roles: ["SUPER_ADMIN", "OPERATION_ADMIN"],
+    children: [
+      { title: "任务池", path: "/operation/tasks" },
+      { title: "运营引擎", path: "/operation/engine" },
+      { title: "运营机器人", path: "/operation/robots" },
+    ],
+  },
+  {
     title: "搜索分析",
     icon: "Search",
     path: "/search-analytics",
+    roles: ["SUPER_ADMIN", "OPERATION_ADMIN"],
+  },
+  {
+    title: "IM管理",
+    icon: "ChatDotSquare",
+    path: "/im",
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN"],
   },
   {
@@ -242,6 +308,7 @@ export const MENU_CONFIG: MenuItem[] = [
       { title: "配置版本", path: "/system/config-versions" },
       { title: "审计日志", path: "/audit-logs" },
       { title: "搜索权重", path: "/system/search-weights" },
+      { title: "首页模块配置", path: "/system/homepage-config", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
     ],
   },
 ];

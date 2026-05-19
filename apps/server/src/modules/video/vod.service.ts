@@ -126,8 +126,8 @@ export class VodService {
         const basicInfo = mediaSet[0].BasicInfo as Record<string, unknown> | undefined;
         contentKey = (basicInfo?.ContentKey as string) || undefined;
       }
-    } catch {
-      this.logger.warn(`获取媒资信息失败 ${fileId}，降级为无密钥签名`);
+    } catch (err) {
+      this.logger.warn(`获取媒资信息失败 ${fileId}，降级为无密钥签名`, err);
     }
 
     if (contentKey) {

@@ -69,6 +69,7 @@ export class MapController {
   @Get("ip")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "IP定位" })
+  @ApiQuery({ name: "ip", required: true, type: String, description: "IP地址" })
   ipLocation(@Query("ip") ip: string) {
     return this.map.ipLocation(ip);
   }

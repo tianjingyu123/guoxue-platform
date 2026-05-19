@@ -14,7 +14,7 @@ jest.mock("@guoxue/ziwei-engine", () => ({
 import { calcBazi } from "@guoxue/bazi-engine";
 import { calcZiwei } from "@guoxue/ziwei-engine";
 
-process.env.ENCRYPTION_KEY = "test-encryption-key--32chars!!";
+process.env.ENCRYPTION_KEY = "test-key-for-32-byte-encryption!";
 
 const mockCalcBazi = calcBazi as jest.Mock;
 const mockCalcZiwei = calcZiwei as jest.Mock;

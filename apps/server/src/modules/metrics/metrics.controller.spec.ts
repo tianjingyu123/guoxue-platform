@@ -1,6 +1,9 @@
 import { Test } from "@nestjs/testing";
 import { MetricsController } from "./metrics.controller";
 import { MetricsService } from "../../common/metrics.service";
+import { AiInsightService } from "./ai-insight.service";
+
+const mockAiInsight = {} as any;
 
 const mockMetricsSvc = {
   contentType: jest.fn().mockReturnValue("text/plain; version=0.0.4"),
@@ -13,7 +16,7 @@ describe("MetricsController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [MetricsController],
-      providers: [{ provide: MetricsService, useValue: mockMetricsSvc }],
+      providers: [{ provide: MetricsService, useValue: mockMetricsSvc }, { provide: AiInsightService, useValue: mockAiInsight }],
     }).compile();
     ctrl = mod.get(MetricsController);
   });

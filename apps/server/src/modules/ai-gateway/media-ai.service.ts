@@ -1,0 +1,209 @@
+import { Injectable, Logger } from "@nestjs/common";
+import { AiGatewayService } from "./ai-gateway.service";
+import { TtsService } from "../tts/tts.service";
+import { tc3Sign } from "../../common/tc3.util";
+
+interface AuditResult {
+  safe: boolean;
+  category: string | null;
+  reason: string;
+  confidence: number;
+  rawResponse?: string;
+}
+
+interface TranscribeResult {
+  text: string;
+  language: string;
+  confidence: number;
+  model?: string;
+}
+
+interface TencentAsrResponse {
+  Response?: {
+    Result?: string;
+    Confidence?: number;
+    Error?: { Message: string };
+  };
+}
+@Injectable()
+export class MediaAiService {
+  private readonly logger = new Logger(MediaAiService.name);
+
+  constructor(
+    private readonly gateway: AiGatewayService,
+    private readonly tts: TtsService,
+  ) {}
+
+  /** AI 图像内容审核 */
+  async auditImage(params: {
+    imageUrl: string;
+    context?: string;
+    userId?: string;
+  }) {
+    const prompt = [
+      "你是一个内容审核助手。请根据提供的图片信息进行审核，判断是否包含违规内容。",
+      "审核维度：",
+      "1. 色情/低俗内容",
+      "2. 暴力/血腥内容",
+      "3. 违法违规内容（赌博、毒品等）",
+      "4. 政治敏感内容",
+      "5. 侵权/盗版内容",
+      "",
+      `图片URL: ${params.imageUrl}`,
+      params.context ? `图片上下文: ${params.context}` : "",
+      "",
+      "请用JSON格式返回审核结果:",
+      '{ "safe": true/false, "category": "违规类别或null", "reason": "判断理由", "confidence": 0.0-1.0 }',
+    ].join("\n");
+
+    try {
+      const result = await this.gateway.chat({
+        scene: "media_audit",
+        userId: params.userId,
+        messages: [{ role: "user", content: prompt }],
+        options: { temperature: 0.1, maxTokens: 512 },
+      });
+
+      // 尝试从回复中提取 JSON
+      let auditResult: AuditResult = { safe: true, category: null, reason: "AI分析完成", confidence: 0.5 };
+      try {
+        const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          auditResult = JSON.parse(jsonMatch[0]);
+        }
+      } catch (err) {
+        this.logger.warn(`AI 审核 JSON 解析失败`, err);
+        auditResult.rawResponse = result.content;
+      }
+
+      return {
+        imageUrl: params.imageUrl,
+        ...auditResult,
+        model: result.model,
+        tokensUsed: result.usage?.totalTokens || 0,
+      };
+    } catch (err: unknown) {
+      this.logger.error(`图片审核失败: ${(err as Error).message}`);
+      throw err;
+    }
+  }
+
+  /** 文字转语音 — 调用 TtsService 生成真实音频 */
+  async textToSpeech(params: {
+    text: string;
+    voice?: string;
+    speed?: number;
+    userId?: string;
+  }) {
+    try {
+      const voice = params.voice || "xiaoxiao";
+      const rate = params.speed ? `${Math.round((params.speed - 1) * 100)}%` : "0%";
+
+      const { audio, contentType } = await this.tts.synthesize({
+        text: params.text,
+        voice,
+        rate,
+      });
+
+      return {
+        text: params.text,
+        voice,
+        audioBase64: audio.toString("base64"),
+        contentType,
+        size: audio.length,
+      };
+    } catch (err: unknown) {
+      this.logger.error(`TTS失败: ${(err as Error).message}`);
+      throw err;
+    }
+  }
+
+  /** 语音转文字 — 腾讯云 ASR 一句话识别 */
+  async transcribeAudio(params: {
+    audioUrl: string;
+    language?: string;
+    userId?: string;
+  }) {
+    const secretId = process.env.TENCENT_SECRET_ID;
+    const secretKey = process.env.TENCENT_SECRET_KEY;
+
+    if (!secretId || !secretKey) {
+      // 腾讯云未配置时回退到 AI 网关文本模拟
+      return this.transcribeFallback(params);
+    }
+
+    try {
+      // 下载音频文件
+      const audioResp = await fetch(params.audioUrl);
+      if (!audioResp.ok) throw new Error(`下载音频失败: ${audioResp.status}`);
+      const audioBuffer = Buffer.from(await audioResp.arrayBuffer());
+      const audioBase64 = audioBuffer.toString("base64");
+
+      const { host, headers, payloadStr } = tc3Sign({
+        secretId,
+        secretKey,
+        service: "asr",
+        action: "SentenceRecognition",
+        version: "2019-06-14",
+        payload: {
+          ProjectId: 0,
+          SubServiceType: 2,
+          EngSerViceType: (params.language || "zh-CN").includes("en") ? "16k_en" : "16k_zh",
+          SourceType: 1,
+          Url: params.audioUrl,
+          VoiceFormat: "mp3",
+          UsrAudioKey: params.audioUrl,
+        },
+      });
+
+      const resp = await fetch(`https://${host}`, {
+        method: "POST",
+        headers,
+        body: payloadStr,
+      });
+
+      const data = await resp.json() as TencentAsrResponse;
+      if (data.Response?.Error) {
+        throw new Error(`ASR错误: ${data.Response.Error.Message}`);
+      }
+
+      return {
+        audioUrl: params.audioUrl,
+        text: data.Response?.Result || "",
+        language: params.language || "zh-CN",
+        confidence: data.Response?.Confidence || 0,
+        model: "tencent-asr",
+      };
+    } catch (err: unknown) {
+      this.logger.error(`语音转写失败: ${(err as Error).message}`);
+      throw err;
+    }
+  }
+
+  /** AI 文本模拟转写（腾讯云未配置时使用） */
+  private async transcribeFallback(params: { audioUrl: string; language?: string }) {
+    const prompt = [
+      "你是一个语音转文字助手。请根据提供的音频信息进行转写。",
+      `音频URL: ${params.audioUrl}`,
+      `语言: ${params.language || "zh-CN"}`,
+      '返回JSON: { "text": "转写文本", "language": "检测语言", "confidence": 0.0-1.0 }',
+    ].join("\n");
+
+    const result = await this.gateway.chat({
+      scene: "media_transcribe",
+      messages: [{ role: "user", content: prompt }],
+      options: { temperature: 0.1, maxTokens: 256 },
+    });
+
+    let transResult: TranscribeResult = { text: "", language: params.language || "zh", confidence: 0.5 };
+    try {
+      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) transResult = JSON.parse(jsonMatch[0]);
+    } catch (err) {
+      this.logger.warn(`转写 JSON 解析失败`, err);
+      transResult.text = result.content;
+    }
+
+    return { audioUrl: params.audioUrl, ...transResult, model: result.model };
+  }
+}

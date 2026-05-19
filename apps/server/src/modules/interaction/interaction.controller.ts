@@ -46,6 +46,16 @@ export class InteractionController {
     return this.svc.getLikeCount(targetType, targetId);
   }
 
+  @Get("likes/my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我点赞过的内容列表" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  myLikes(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.svc.getMyLikes(req.user.id, +page, +pageSize);
+  }
+
   // ───────── 评论 ─────────
 
   @Post("comment")
@@ -67,7 +77,9 @@ export class InteractionController {
   @ApiOperation({ summary: "删除评论" })
   @ApiBearerAuth()
   deleteComment(@Param("id") id: string, @Req() req: Request) {
-    return this.svc.deleteComment(id, req.user.id);
+    const roles: string[] = req.user?.roles ?? [];
+    const isAdmin = roles.includes("SUPER_ADMIN") || roles.includes("OPERATION_ADMIN");
+    return this.svc.deleteComment(id, req.user.id, isAdmin);
   }
 
   @Put("comment/:id/hide")
@@ -182,5 +194,34 @@ export class InteractionController {
   @ApiBearerAuth()
   dismissReport(@Param("id") id: string) {
     return this.svc.dismissReport(id);
+  }
+
+  // ───────── 管理统计 ─────────
+
+  @Get("admin/stats")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @ApiOperation({ summary: "互动统计总览（管理员）" })
+  @ApiBearerAuth()
+  getAdminStats() {
+    return this.svc.getAdminStats();
+  }
+
+  @Get("admin/trends")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @ApiOperation({ summary: "互动趋势（管理员）" })
+  @ApiBearerAuth()
+  getAdminTrends(@Query("days") days?: number) {
+    return this.svc.getAdminTrends(days || 7);
+  }
+
+  @Get("admin/top-content")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @ApiOperation({ summary: "热门内容排行（管理员）" })
+  @ApiBearerAuth()
+  getAdminTopContent(@Query("limit") limit?: number) {
+    return this.svc.getAdminTopContent(limit || 10);
   }
 }

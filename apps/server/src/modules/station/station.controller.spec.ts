@@ -76,7 +76,8 @@ describe("StationController", () => {
   });
 
   it("GET /station/:id/earnings — 分站收益明细", async () => {
-    const result: any = await ctrl.getEarnings("s1", 1 as any, 20 as any);
+    const req: any = { user: { id: "u1", roles: ["SUPER_ADMIN"] } };
+    const result: any = await ctrl.getEarnings(req, "s1", 1 as any, 20 as any);
     expect(result).toHaveLength(1);
     expect(mockStationSvc.getStationEarnings).toHaveBeenCalledWith("s1", 1, 20);
   });
@@ -102,7 +103,8 @@ describe("StationController", () => {
   });
 
   it("GET /station/:id/revenue-dashboard — 收益看板", async () => {
-    const result: any = await ctrl.getRevenueDashboard("s1");
+    const req: any = { user: { id: "u1", roles: ["SUPER_ADMIN"] } };
+    const result: any = await ctrl.getRevenueDashboard(req, "s1");
     expect(result.revenue).toBe(10000);
     expect(mockStationSvc.getRevenueDashboard).toHaveBeenCalledWith("s1");
   });

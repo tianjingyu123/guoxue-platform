@@ -99,8 +99,9 @@ export class VectorService {
         `SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'vector')`,
       );
       this.pgvectorAvailable = rows[0]?.exists ?? false;
-    } catch {
+    } catch (err: any) {
       this.pgvectorAvailable = false;
+      this.logger.debug(`pgvector 检测失败，降级到JSON: ${err.message}`);
     }
     this.logger.log(this.pgvectorAvailable ? "向量存储: pgvector (<=>)" : "向量存储: JSON (向量在JS侧计算)");
   }
@@ -182,8 +183,8 @@ export class VectorService {
           vectorStr,
           id,
         );
-      } catch {
-        // pgvector 列可能不存在，降级到 JSON
+      } catch (err: any) {
+        this.logger.debug(`pgvector 写入失败，降级到JSON: ${err.message}`);
         await this.prisma.circleKnowledge.update({
           where: { id },
           data: { vectorJson: JSON.stringify(vector) },
@@ -208,8 +209,8 @@ export class VectorService {
     if (this.pgvectorAvailable) {
       try {
         return await this.searchPgvector(queryVector, circleId, topK);
-      } catch {
-        // pgvector 列可能不存在
+      } catch (err: any) {
+        this.logger.debug(`pgvector 操作失败，降级到JSON: ${err.message}`);
       }
     }
     return this.searchJsonFallback(queryVector, [circleId], topK);
@@ -225,8 +226,8 @@ export class VectorService {
     if (this.pgvectorAvailable) {
       try {
         return await this.searchPgvectorAll(queryVector, topK);
-      } catch {
-        // pgvector 查询失败，降级到 JSON
+      } catch (err: any) {
+        this.logger.debug(`pgvector 查询失败，降级到JSON: ${err.message}`);
       }
     }
     return this.searchJsonFallbackAll(queryVector, topK);
@@ -244,11 +245,59 @@ export class VectorService {
     if (this.pgvectorAvailable) {
       try {
         return await this.searchPgvectorMulti(queryVector, circleIds, topK);
-      } catch {
-        // pgvector 列可能不存在
+      } catch (err: any) {
+        this.logger.debug(`pgvector 操作失败，降级到JSON: ${err.message}`);
       }
     }
     return this.searchJsonFallback(queryVector, circleIds, topK);
+  }
+
+  /** 向量相似度搜索 — 全局知识库（scope=global） */
+  async searchGlobalKnowledge(
+    queryVector: number[],
+    topK = 5,
+  ): Promise<VectorSearchResult[]> {
+    await this.detectPgvector();
+
+    if (this.pgvectorAvailable) {
+      try {
+        const vectorStr = `[${queryVector.join(",")}]`;
+        return this.prisma.$queryRawUnsafe<VectorSearchResult[]>(
+          `SELECT id, content, 1 - (embedding <=> $1::vector) AS similarity
+           FROM circle_knowledge
+           WHERE embedding IS NOT NULL
+             AND status = 'active'
+             AND scope = 'global'
+           ORDER BY embedding <=> $1::vector
+           LIMIT $2`,
+          vectorStr,
+          topK,
+        );
+      } catch (err: any) {
+        this.logger.debug(`pgvector 列不存在，降级到JSON: ${err.message}`);
+      }
+    }
+
+    // JSON fallback
+    const rows = await this.prisma.circleKnowledge.findMany({
+      where: { status: "active", scope: "global", vectorJson: { not: null } },
+      select: { id: true, content: true, vectorJson: true },
+    });
+
+    const scored: VectorSearchResult[] = [];
+    for (const row of rows) {
+      if (!row.vectorJson) continue;
+      try {
+        const vec = JSON.parse(row.vectorJson) as number[];
+        const similarity = cosineSimilarity(queryVector, vec);
+        scored.push({ id: row.id, content: row.content, similarity });
+      } catch (err: any) {
+        this.logger.warn(`向量数据解析失败: ${err.message}`);
+      }
+    }
+
+    scored.sort((a, b) => b.similarity - a.similarity);
+    return scored.slice(0, topK);
   }
 
   /** 删除向量 */
@@ -261,8 +310,8 @@ export class VectorService {
           `UPDATE circle_knowledge SET embedding = NULL WHERE id = $1`,
           id,
         );
-      } catch {
-        // 嵌入列可能不存在，降级到 JSON
+      } catch (err: any) {
+        this.logger.debug(`pgvector 删除向量失败，降级到JSON: ${err.message}`);
       }
     }
     await this.prisma.circleKnowledge.update({
@@ -287,8 +336,8 @@ export class VectorService {
            LIMIT $1`,
           limit,
         );
-      } catch {
-        // 嵌入列可能不存在
+      } catch (err: any) {
+        this.logger.debug(`pgvector findUnindexed 失败: ${err.message}`);
       }
     }
 
@@ -390,8 +439,8 @@ export class VectorService {
         const vec = JSON.parse(row.vectorJson) as number[];
         const similarity = cosineSimilarity(queryVector, vec);
         scored.push({ id: row.id, content: row.content, similarity });
-      } catch {
-        // 跳过损坏的向量数据
+      } catch (err: any) {
+        this.logger.warn(`向量数据解析失败: ${err.message}`);
       }
     }
 
@@ -420,8 +469,8 @@ export class VectorService {
         const vec = JSON.parse(row.vectorJson) as number[];
         const similarity = cosineSimilarity(queryVector, vec);
         scored.push({ id: row.id, content: row.content, similarity });
-      } catch {
-        // 跳过损坏的向量数据
+      } catch (err: any) {
+        this.logger.warn(`向量数据解析失败: ${err.message}`);
       }
     }
 

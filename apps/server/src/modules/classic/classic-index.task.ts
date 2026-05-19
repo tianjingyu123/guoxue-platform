@@ -36,7 +36,7 @@ export class ClassicIndexTask {
       const chapters = await this.prisma.classicChapter.findMany({
         where: { bookId: book.id },
         select: { id: true, title: true, content: true },
-        take: 50,
+        take: 200,
       });
 
       for (const chapter of chapters) {
@@ -66,8 +66,9 @@ export class ClassicIndexTask {
           }
 
           indexed++;
-        } catch {
+        } catch (err) {
           // 跳过已存在的
+          this.logger.warn(`古籍章节索引创建失败`, err);
         }
       }
     }

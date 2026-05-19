@@ -1,22 +1,10 @@
 import { Controller, Post, Body, Req, Res, UseGuards, HttpException, HttpStatus } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
-import { IsString, IsArray } from "class-validator";
 import { Request, Response } from "express";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { AiSearchDto, AiQueryDto } from "./dto/ai-search.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-
-class AiSearchDto {
-  @IsString()
-  query!: string;
-
-  @IsArray()
-  results!: Array<{ title: string; content: string }>;
-}
-
-class AiQueryDto {
-  @IsString()
-  query!: string;
-}
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 @ApiTags("AI搜索")
 @Controller("search")
@@ -25,7 +13,7 @@ export class AiSearchController {
 
   /** AI 智能搜索（简化入口，仅需 query） */
   @Post("ai")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI智能搜索 — 输入问题直接返回AI回答" })
   @ApiBearerAuth()
   async aiQuery(@Body() body: AiQueryDto, @Req() req: Request) {
@@ -54,7 +42,7 @@ export class AiSearchController {
 
   /** AI 语义搜索总结 */
   @Post("ai/summary")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI搜索总结 — 对搜索结果生成智能总结" })
   @ApiBearerAuth()
   async searchSummary(@Body() body: AiSearchDto, @Req() req: Request) {
@@ -91,7 +79,7 @@ export class AiSearchController {
 
   /** AI 总结流式输出 */
   @Post("ai/summary/stream")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI搜索总结流式 (SSE)" })
   @ApiBearerAuth()
   async searchSummaryStream(

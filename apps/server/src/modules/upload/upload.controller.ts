@@ -5,6 +5,8 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 import { UploadService } from "./upload.service";
 
 @ApiTags("文件上传")
@@ -76,9 +78,31 @@ export class UploadController {
     return this.uploadService.upload(file);
   }
 
-  @Delete(":key")
+  @Post("video")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "删除已上传的文件" })
+  @ApiOperation({ summary: "上传视频（最大200MB）" })
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: undefined as any,
+      limits: { fileSize: 200 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (!file.mimetype.startsWith("video/")) {
+          cb(new BadRequestException("仅支持视频文件"), false);
+        } else {
+          cb(null, true);
+        }
+      },
+    }),
+  )
+  async uploadVideo(@UploadedFile() file: Express.Multer.File) {
+    this.uploadService.validateVideo(file);
+    return this.uploadService.upload(file);
+  }
+
+  @Delete(":key")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "删除已上传的文件（仅管理员）" })
   async deleteFile(@Param("key") key: string) {
     await this.uploadService.delete(key);
     return { success: true };

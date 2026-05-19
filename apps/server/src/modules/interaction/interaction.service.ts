@@ -49,6 +49,20 @@ export class InteractionService {
     return this.prisma.like.count({ where: { targetType, targetId } });
   }
 
+  async getMyLikes(userId: string, page = 1, pageSize = 20) {
+    const where = { userId };
+    const [likes, total] = await Promise.all([
+      this.prisma.like.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.like.count({ where }),
+    ]);
+    return { items: likes, total, page, pageSize };
+  }
+
   // ═══════════════════ 评论 ═══════════════════
 
   async createComment(userId: string, dto: CreateCommentDto) {
@@ -91,6 +105,7 @@ export class InteractionService {
       include: {
         user: { select: { id: true, nickname: true, avatar: true } },
         replies: {
+          where: { status: "PUBLISHED" },
           include: {
             user: { select: { id: true, nickname: true, avatar: true } },
           },
@@ -105,11 +120,11 @@ export class InteractionService {
     return { comments, total, page, pageSize };
   }
 
-  async deleteComment(commentId: string, userId: string) {
+  async deleteComment(commentId: string, userId: string, isAdmin = false) {
     const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
     if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
-    if (comment.userId !== userId) {
-      // 管理员也可以删
+    if (comment.userId !== userId && !isAdmin) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的评论");
     }
 
     await this.prisma.comment.deleteMany({ where: { parentId: commentId } });
@@ -292,6 +307,75 @@ export class InteractionService {
     return { users: nearbyUsers, total, page, pageSize };
   }
 
+  // ═══════════════════ 管理统计 ═══════════════════
+
+  async getAdminStats() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekAgo = new Date(today.getTime() - 7 * 86400000);
+
+    const [totalLikes, totalComments, totalFollows, totalCollects, totalReports,
+      todayLikes, todayComments, todayFollows, todayCollects, todayReports,
+      weekLikes, weekComments, weekFollows, weekCollects,
+    ] = await Promise.all([
+      this.prisma.like.count(),
+      this.prisma.comment.count(),
+      this.prisma.follow.count(),
+      this.prisma.collect.count(),
+      this.prisma.report.count(),
+      this.prisma.like.count({ where: { createdAt: { gte: today } } }),
+      this.prisma.comment.count({ where: { createdAt: { gte: today } } }),
+      this.prisma.follow.count({ where: { createdAt: { gte: today } } }),
+      this.prisma.collect.count({ where: { createdAt: { gte: today } } }),
+      this.prisma.report.count({ where: { createdAt: { gte: today } } }),
+      this.prisma.like.count({ where: { createdAt: { gte: weekAgo } } }),
+      this.prisma.comment.count({ where: { createdAt: { gte: weekAgo } } }),
+      this.prisma.follow.count({ where: { createdAt: { gte: weekAgo } } }),
+      this.prisma.collect.count({ where: { createdAt: { gte: weekAgo } } }),
+    ]);
+
+    return {
+      total: { likes: totalLikes, comments: totalComments, follows: totalFollows, collects: totalCollects, reports: totalReports },
+      today: { likes: todayLikes, comments: todayComments, follows: todayFollows, collects: todayCollects, reports: todayReports },
+      thisWeek: { likes: weekLikes, comments: weekComments, follows: weekFollows, collects: weekCollects },
+    };
+  }
+
+  async getAdminTrends(days = 7) {
+    const trends: { date: string; likes: number; comments: number; follows: number; collects: number }[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const dayStart = new Date();
+      dayStart.setDate(dayStart.getDate() - i);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart.getTime() + 86400000);
+
+      const [likes, comments, follows, collects] = await Promise.all([
+        this.prisma.like.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } }),
+        this.prisma.comment.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } }),
+        this.prisma.follow.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } }),
+        this.prisma.collect.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } }),
+      ]);
+      trends.push({ date: dayStart.toISOString().slice(0, 10), likes, comments, follows, collects });
+    }
+    return trends;
+  }
+
+  async getAdminTopContent(limit = 10) {
+    // 按点赞数排行的内容
+    const topArticles = await this.prisma.like.groupBy({
+      by: ["targetId", "targetType"],
+      _count: { targetId: true },
+      where: { targetType: { in: ["ARTICLE", "COURSE", "CIRCLE", "PRODUCT", "CLASSIC"] } },
+      orderBy: { _count: { targetId: "desc" } },
+      take: limit,
+    });
+    return topArticles.map((item) => ({
+      targetId: item.targetId,
+      targetType: item.targetType,
+      likeCount: item._count.targetId,
+    }));
+  }
+
   // ═══════════════════ 辅助 ═══════════════════
 
   private async incrementCommentCount(targetType: string, targetId: string) {
@@ -303,6 +387,6 @@ export class InteractionService {
           data: { commentCount: { increment: 1 } },
         });
       }
-    } catch { /* 忽略不支持的模型 */ }
+    } catch (err) { /* 忽略不支持的模型 */ }
   }
 }

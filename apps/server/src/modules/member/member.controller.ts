@@ -1,7 +1,9 @@
 import { Controller, Get, Post, Param, Req, UseGuards, Body, Query } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { Request } from "express";
 import { MemberService } from "./member.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { GrantMemberDto } from "./member.dto";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -18,10 +20,10 @@ export class MemberController {
   }
 
   @Post("purchase/:planId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "购买会员" })
-  purchase(@Req() req: any, @Param("planId") planId: string) {
+  purchase(@Req() req: Request, @Param("planId") planId: string) {
     return this.memberService.purchase(req.user.id, planId);
   }
 
@@ -29,7 +31,7 @@ export class MemberController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "查询我的会员状态" })
-  getStatus(@Req() req: any) {
+  getStatus(@Req() req: Request) {
     return this.memberService.getStatus(req.user.id);
   }
 
@@ -37,7 +39,7 @@ export class MemberController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "续费会员" })
-  renew(@Req() req: any, @Param("planId") planId: string) {
+  renew(@Req() req: Request, @Param("planId") planId: string) {
     return this.memberService.renew(req.user.id, planId);
   }
 
@@ -45,7 +47,7 @@ export class MemberController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "获取当前会员权益" })
-  getBenefits(@Req() req: any) {
+  getBenefits(@Req() req: Request) {
     return this.memberService.getBenefits(req.user.id);
   }
 

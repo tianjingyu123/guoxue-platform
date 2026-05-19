@@ -216,9 +216,8 @@ export class IdentityService {
   /** 通过实名认证 */
   async approveIdentity(id: string, remark?: string) {
     const log = await this.prisma.auditLog.findUnique({ where: { id } });
-    if (!log) throw new BusinessException(ErrorCode.IDENTITY_VERIFY_FAILED, "认证记录不存在");
+    if (!log || !log.userId) throw new BusinessException(ErrorCode.IDENTITY_VERIFY_FAILED, "认证记录不存在");
 
-    // 记录审批通过操作
     await this.prisma.auditLog.create({
       data: {
         userId: log.userId,
@@ -236,9 +235,8 @@ export class IdentityService {
   /** 拒绝实名认证 */
   async rejectIdentity(id: string, remark: string) {
     const log = await this.prisma.auditLog.findUnique({ where: { id } });
-    if (!log) throw new BusinessException(ErrorCode.IDENTITY_VERIFY_FAILED, "认证记录不存在");
+    if (!log || !log.userId) throw new BusinessException(ErrorCode.IDENTITY_VERIFY_FAILED, "认证记录不存在");
 
-    // 记录审批拒绝操作
     await this.prisma.auditLog.create({
       data: {
         userId: log.userId,

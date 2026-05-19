@@ -4,13 +4,20 @@ import { Request } from "express";
 import { CommissionService } from "./commission.service";
 import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, CreateReferralDto } from "./commission.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { PrismaService } from "../../prisma/prisma.service";
 
 @ApiTags("分佣")
 @Controller("commission")
 export class CommissionController {
-  constructor(private svc: CommissionService) {}
+  constructor(
+    private svc: CommissionService,
+    private prisma: PrismaService,
+  ) {}
 
   // ───────── 配置管理（管理员） ─────────
 
@@ -40,11 +47,13 @@ export class CommissionController {
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
-  getStationEarnings(
+  async getStationEarnings(
+    @Req() req: Request,
     @Param("stationId") stationId: string,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
+    await this.verifyStationAccess(stationId, req);
     return this.svc.getStationEarnings(stationId, +page, +pageSize);
   }
 
@@ -52,14 +61,15 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取分站余额" })
   @ApiBearerAuth()
-  getStationBalance(@Param("stationId") stationId: string) {
+  async getStationBalance(@Req() req: Request, @Param("stationId") stationId: string) {
+    await this.verifyStationAccess(stationId, req);
     return this.svc.getStationBalance(stationId);
   }
 
   // ───────── 提现 ─────────
 
   @Post("withdrawal")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "申请提现" })
   @ApiBearerAuth()
   applyWithdrawal(@Req() req: Request, @Body() dto: WithdrawalApplyDto) {
@@ -93,7 +103,7 @@ export class CommissionController {
   }
 
   @Put("admin/withdrawals/:id")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审核提现（管理员）" })
   @ApiBearerAuth()
@@ -144,5 +154,75 @@ export class CommissionController {
   @ApiBody({ schema: { properties: { type: { type: "string" }, rate: { type: "number" } } } })
   updateCommissionConfig(@Body() dto: { type: string; rate: number }) {
     return this.svc.updateCommissionConfig(dto.type, dto.rate);
+  }
+
+  // ───────── 平台抽成管理（管理员） ─────────
+
+  @Get("platform-fee/summary")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "平台抽成汇总" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "startDate", required: false })
+  @ApiQuery({ name: "endDate", required: false })
+  getPlatformFeeSummary(
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+  ) {
+    return this.svc.getPlatformFeeSummary(
+      startDate ? new Date(startDate) : undefined,
+      endDate ? new Date(endDate) : undefined,
+    );
+  }
+
+  // ───────── 圈主收益 ─────────
+
+  @Get("circle-revenue/:circleId/summary")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "圈主收益汇总" })
+  @ApiBearerAuth()
+  async getCircleRevenueSummary(@Req() req: Request, @Param("circleId") circleId: string) {
+    await this.verifyCircleAccess(circleId, req);
+    return this.svc.getCircleRevenueSummary(circleId);
+  }
+
+  @Get("circle-revenue/:circleId/records")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "圈主收益明细" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  async getCircleRevenueRecords(
+    @Req() req: Request,
+    @Param("circleId") circleId: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    await this.verifyCircleAccess(circleId, req);
+    return this.svc.getCircleRevenueRecords(circleId, +page, +pageSize);
+  }
+
+  private async verifyStationAccess(stationId: string, req: Request) {
+    const roles: string[] = req.user?.roles ?? [];
+    if (roles.includes("SUPER_ADMIN") || roles.includes("OPERATION_ADMIN")) return;
+    const station = await this.prisma.station.findUnique({
+      where: { id: stationId },
+      select: { userId: true },
+    });
+    if (!station || station.userId !== req.user?.id) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该分站数据");
+    }
+  }
+
+  private async verifyCircleAccess(circleId: string, req: Request) {
+    const roles: string[] = req.user?.roles ?? [];
+    if (roles.includes("SUPER_ADMIN") || roles.includes("OPERATION_ADMIN")) return;
+    const circle = await this.prisma.circle.findUnique({
+      where: { id: circleId },
+      select: { ownerId: true },
+    });
+    if (!circle || circle.ownerId !== req.user?.id) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该圈子数据");
+    }
   }
 }

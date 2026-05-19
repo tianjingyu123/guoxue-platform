@@ -168,7 +168,13 @@ export class CommissionService {
   }) {
     // 查找分站
     let stationId = dto.stationId;
-    if (!stationId) {
+    if (stationId) {
+      // 校验指定分站的所有权
+      const owned = await this.prisma.station.findUnique({
+        where: { id: stationId, userId },
+      });
+      if (!owned) throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作该分站");
+    } else {
       const station = await this.prisma.station.findUnique({ where: { userId } });
       if (!station) throw new BusinessException(ErrorCode.BAD_REQUEST, "您还没有分站，无法提现");
       stationId = station.id;
@@ -313,6 +319,187 @@ export class CommissionService {
   }
 
   // ───────── 辅助方法 ─────────
+
+  // ═══════════════════════════════════════════
+  // 平台抽成（平台从每笔交易中抽取的费用）
+  // ═══════════════════════════════════════════
+
+  /**
+   * 计算平台抽成
+   * @returns { platformFee, platformRate } 或 null（未配置时）
+   */
+  async calculatePlatformFee(type: string, amount: number): Promise<{ platformFee: number; platformRate: number } | null> {
+    const config = await this.prisma.commissionConfig.findUnique({
+      where: { configKey: type },
+    });
+    if (!config) return null;
+
+    const rate = Number(config.rateB); // rateB = 平台抽成比例
+    if (rate <= 0) return null;
+
+    return {
+      platformFee: Math.round(amount * rate * 100) / 100,
+      platformRate: rate,
+    };
+  }
+
+  /** 记录平台抽成 */
+  async recordPlatformFee(params: {
+    type: string;
+    sourceId: string;
+    sourceAmount: number;
+    platformRate: number;
+    platformFee: number;
+    circleId?: string;
+    circleShare?: number;
+  }) {
+    return this.prisma.platformFeeRecord.create({
+      data: {
+        type: params.type,
+        sourceId: params.sourceId,
+        sourceAmount: params.sourceAmount,
+        platformRate: params.platformRate,
+        platformFee: params.platformFee,
+        circleId: params.circleId,
+        circleShare: params.circleShare,
+      },
+    });
+  }
+
+  /** 获取平台抽成汇总 */
+  async getPlatformFeeSummary(startDate?: Date, endDate?: Date) {
+    const where: any = {};
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = startDate;
+      if (endDate) where.createdAt.lte = endDate;
+    }
+
+    const [total, byType] = await Promise.all([
+      this.prisma.platformFeeRecord.aggregate({
+        where,
+        _sum: { platformFee: true, sourceAmount: true },
+        _count: true,
+      }),
+      this.prisma.platformFeeRecord.groupBy({
+        by: ["type"],
+        where,
+        _sum: { platformFee: true },
+      }),
+    ]);
+
+    return {
+      totalRecords: total._count,
+      totalAmount: total._sum.sourceAmount || 0,
+      totalPlatformFee: total._sum.platformFee || 0,
+      byType: byType.map((b) => ({
+        type: b.type,
+        platformFee: b._sum.platformFee || 0,
+      })),
+    };
+  }
+
+  // ═══════════════════════════════════════════
+  // 圈主收益
+  // ═══════════════════════════════════════════
+
+  /**
+   * 计算并记录圈主收益
+   * @param circleId 圈子ID
+   * @param type 收入类型
+   * @param sourceId 来源记录ID
+   * @param amount 原始金额
+   */
+  async recordCircleRevenue(
+    circleId: string,
+    type: string,
+    sourceId: string,
+    amount: number,
+  ) {
+    // 计算平台抽成
+    const fee = await this.calculatePlatformFee(type, amount);
+    const platformFee = fee?.platformFee || 0;
+
+    // 圈主分成 = 金额 - 平台抽成
+    const ownerShare = amount - platformFee;
+    const splitRate = amount > 0 ? ownerShare / amount : 0;
+
+    const [record] = await Promise.all([
+      this.prisma.circleRevenueRecord.create({
+        data: {
+          circleId,
+          type,
+          sourceId,
+          amount,
+          platformFee,
+          ownerShare: Math.round(ownerShare * 100) / 100,
+          splitRate: Math.round(splitRate * 10000) / 10000,
+        },
+      }),
+      // 同时记录平台抽成
+      fee
+        ? this.recordPlatformFee({
+            type,
+            sourceId,
+            sourceAmount: amount,
+            platformRate: fee.platformRate,
+            platformFee: fee.platformFee,
+            circleId,
+            circleShare: Math.round(ownerShare * 100) / 100,
+          })
+        : Promise.resolve(),
+    ]);
+
+    return record;
+  }
+
+  /** 获取圈主收益汇总 */
+  async getCircleRevenueSummary(circleId: string) {
+    const [total, settled, byType] = await Promise.all([
+      this.prisma.circleRevenueRecord.aggregate({
+        where: { circleId },
+        _sum: { amount: true, platformFee: true, ownerShare: true },
+        _count: true,
+      }),
+      this.prisma.circleRevenueRecord.aggregate({
+        where: { circleId, settled: true },
+        _sum: { ownerShare: true },
+      }),
+      this.prisma.circleRevenueRecord.groupBy({
+        by: ["type"],
+        where: { circleId },
+        _sum: { amount: true, ownerShare: true },
+      }),
+    ]);
+
+    return {
+      totalRecords: total._count,
+      totalAmount: total._sum.amount || 0,
+      totalPlatformFee: total._sum.platformFee || 0,
+      totalOwnerShare: total._sum.ownerShare || 0,
+      settledAmount: settled._sum.ownerShare || 0,
+      byType: byType.map((b) => ({
+        type: b.type,
+        amount: b._sum.amount || 0,
+        ownerShare: b._sum.ownerShare || 0,
+      })),
+    };
+  }
+
+  /** 获取圈主收益明细 */
+  async getCircleRevenueRecords(circleId: string, page = 1, pageSize = 20) {
+    const where = { circleId };
+    const [records, total] = await Promise.all([
+      this.prisma.circleRevenueRecord.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.circleRevenueRecord.count({ where }),
+    ]);
+    return { records, total, page, pageSize };
+  }
 
   private mapTypeToConfigKey(type: string): string {
     const map: Record<string, string> = {

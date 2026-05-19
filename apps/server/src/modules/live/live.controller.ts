@@ -33,16 +33,18 @@ export class LiveController {
   @ApiOperation({ summary: "获取直播间列表" })
   @ApiQuery({ name: "status", required: false, type: String })
   @ApiQuery({ name: "courseId", required: false, type: String, description: "按课程ID过滤" })
+  @ApiQuery({ name: "circleId", required: false, type: String, description: "按圈子ID过滤" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   listRooms(
     @Query("status") status?: string,
     @Query("courseId") courseId?: string,
+    @Query("circleId") circleId?: string,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
     if (courseId) return this.svc.listCourseRooms(courseId, +page, +pageSize);
-    return this.svc.listRooms(status, +page, +pageSize);
+    return this.svc.listRooms(status, +page, +pageSize, circleId);
   }
 
   @Get("rooms/:id")
@@ -72,8 +74,8 @@ export class LiveController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取推拉流地址" })
   @ApiBearerAuth()
-  getStreamUrls(@Param("id") id: string) {
-    return this.svc.getStreamUrls(id);
+  getStreamUrls(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.getStreamUrls(id, req.user.id);
   }
 
   @Get("rooms/:id/play-url")
@@ -103,12 +105,12 @@ export class LiveController {
   }
 
   @Delete("rooms/:id")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "删除直播间" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "删除直播间（房主或管理员）" })
   @ApiBearerAuth()
   deleteRoom(@Req() req: AuthRequest, @Param("id") id: string) {
-    return this.svc.deleteRoom(req.user.id, id);
+    const isAdmin = (req.user as any)?.roles?.some((r: string) => ['SUPER_ADMIN', 'OPERATION_ADMIN'].includes(r));
+    return this.svc.deleteRoom(req.user.id, id, isAdmin);
   }
 
   // ───────── 麦位管理 ─────────
@@ -281,6 +283,81 @@ export class LiveController {
     const eventType = Number(body.event_type);
     this.svc.handleLiveEvent(streamKey, eventType, body);
     return { code: 0 };
+  }
+
+  // ───────── 礼物系统 ─────────
+
+  @Get("gifts")
+  @ApiOperation({ summary: "获取礼物列表" })
+  listGifts() {
+    return this.svc.listGifts();
+  }
+
+  @Post("gifts")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "创建礼物（管理员）" })
+  @ApiBearerAuth()
+  createGift(@Body() dto: { name: string; icon?: string; priceCoin: number; level?: string; sortOrder?: number }) {
+    return this.svc.createGift(dto);
+  }
+
+  @Put("gifts/:giftId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "更新礼物（管理员）" })
+  @ApiBearerAuth()
+  updateGift(@Param("giftId") giftId: string, @Body() dto: { name?: string; icon?: string; priceCoin?: number; level?: string; status?: string; sortOrder?: number }) {
+    return this.svc.updateGift(giftId, dto);
+  }
+
+  @Delete("gifts/:giftId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "删除礼物（管理员）" })
+  @ApiBearerAuth()
+  removeGift(@Param("giftId") giftId: string) {
+    return this.svc.removeGift(giftId);
+  }
+
+  @Post("rooms/:id/gifts")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "发送礼物" })
+  @ApiBearerAuth()
+  sendGift(
+    @Param("id") id: string,
+    @Req() req: AuthRequest,
+    @Body() dto: { giftId: string; quantity?: number },
+  ) {
+    return this.svc.sendGift(id, req.user.id, dto.giftId, dto.quantity || 1);
+  }
+
+  @Get("rooms/:id/gift-ranking")
+  @ApiOperation({ summary: "直播间礼物排行榜" })
+  giftRanking(@Param("id") id: string) {
+    return this.svc.giftRanking(id);
+  }
+
+  // ───────── 评论与点赞 ─────────
+
+  @Post("rooms/:id/comment")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "发送直播评论/弹幕" })
+  @ApiBearerAuth()
+  sendComment(
+    @Param("id") id: string,
+    @Req() req: AuthRequest,
+    @Body() dto: { content: string },
+  ) {
+    return this.svc.sendComment(id, req.user.id, dto.content);
+  }
+
+  @Post("rooms/:id/like")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "直播点赞" })
+  @ApiBearerAuth()
+  toggleLike(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.toggleLike(id, req.user.id);
   }
 
   // ───────── 内容审核 ─────────

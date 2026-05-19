@@ -26,6 +26,8 @@ import { AbTestService } from "./services/ab-test.service";
 import { AbTestController } from "./ab-test.controller";
 import { SmartFeedService } from "./smart-feed.service";
 import { SmartFeedController } from "./smart-feed.controller";
+import { SemanticTaggerService } from "./services/semantic-tagger.service";
+import { SemanticTagTask } from "./tasks/semantic-tag.task";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { StationPickModule } from "../station-pick/station-pick.module";
 
@@ -56,6 +58,8 @@ import { StationPickModule } from "../station-pick/station-pick.module";
     OpenAIEmbeddingProvider,
     AbTestService,
     SmartFeedService,
+    SemanticTaggerService,
+    SemanticTagTask,
   ],
   exports: [
     RecommendService,

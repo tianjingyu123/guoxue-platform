@@ -24,6 +24,8 @@ export enum RecommendItemType {
   CIRCLE = "CIRCLE",
   VIDEO = "VIDEO",
   CONTENT = "CONTENT",
+  CLASSIC = "CLASSIC",
+  EBOOK = "EBOOK",
 }
 
 export class RecommendQueryDto {
@@ -152,6 +154,18 @@ export class UpdateRecommendRuleDto {
   @IsOptional() @IsString() startAt?: string;
   @IsOptional() @IsString() endAt?: string;
   @IsOptional() @IsString() remark?: string;
+}
+
+export class InsertContentDto {
+  @IsInt()
+  @Min(0)
+  position: number;
+
+  @IsString()
+  contentId: string;
+
+  @IsString()
+  contentType: string;
 }
 
 export class SaveUserInterestsDto {

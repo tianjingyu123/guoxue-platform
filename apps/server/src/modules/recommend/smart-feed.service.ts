@@ -5,7 +5,7 @@ import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 
 interface FeedItem {
   id: string;
-  type: "article" | "course" | "circle" | "classic" | "product" | "post";
+  type: "article" | "course" | "circle" | "classic" | "product" | "post" | "ebook";
   title: string;
   subtitle?: string;
   cover?: string;
@@ -95,48 +95,76 @@ export class SmartFeedService {
   // ─── 不同分层的feed策略 ───
 
   private async getNewUserFeed(_userId: string, size: number): Promise<FeedItem[]> {
-    const half = Math.floor(size / 2);
-    const [articles, courses] = await Promise.all([
+    const quarter = Math.floor(size / 4);
+    const [articles, courses, classics, ebooks] = await Promise.all([
       this.prisma.article.findMany({
         where: { auditStatus: "APPROVED" },
         select: { id: true, title: true, excerpt: true, cover: true },
         orderBy: { viewCount: "desc" },
-        take: half,
+        take: quarter,
       }),
       this.prisma.course.findMany({
         where: { auditStatus: "APPROVED" },
         select: { id: true, title: true, intro: true, cover: true },
         orderBy: { studentCount: "desc" },
-        take: half,
+        take: quarter,
+      }),
+      this.prisma.classicBook.findMany({
+        where: { status: "PUBLISHED" },
+        select: { id: true, title: true, intro: true, cover: true },
+        orderBy: { viewCount: "desc" },
+        take: quarter,
+      }),
+      this.prisma.ebook.findMany({
+        where: { status: "PUBLISHED" },
+        select: { id: true, title: true, description: true, cover: true },
+        orderBy: { viewCount: "desc" },
+        take: quarter,
       }),
     ]);
 
     return [
       ...articles.map((a): FeedItem => ({ id: a.id, type: "article", title: a.title, subtitle: a.excerpt || "", cover: a.cover || "", score: 0, reason: "新手推荐" })),
       ...courses.map((c): FeedItem => ({ id: c.id, type: "course", title: c.title, subtitle: c.intro || "", cover: c.cover || "", score: 0, reason: "入门课程" })),
+      ...classics.map((b): FeedItem => ({ id: b.id, type: "classic", title: b.title, subtitle: b.intro || "", cover: b.cover || "", score: 0, reason: "经典必读" })),
+      ...ebooks.map((e): FeedItem => ({ id: e.id, type: "ebook", title: e.title, subtitle: e.description || "", cover: e.cover || "", score: 0, reason: "推荐阅读" })),
     ];
   }
 
   private async getAdvancedFeed(_userId: string, size: number): Promise<FeedItem[]> {
-    const half = Math.floor(size / 2);
-    const [posts, articles] = await Promise.all([
+    const quarter = Math.floor(size / 4);
+    const [posts, articles, classics, ebooks] = await Promise.all([
       this.prisma.post.findMany({
         where: { status: "PUBLISHED", isEssence: true },
         select: { id: true, title: true, content: true },
         orderBy: { createdAt: "desc" },
-        take: half,
+        take: quarter,
       }),
       this.prisma.article.findMany({
         where: { auditStatus: "APPROVED" },
         select: { id: true, title: true, excerpt: true, cover: true },
         orderBy: { viewCount: "desc" },
-        take: half,
+        take: quarter,
+      }),
+      this.prisma.classicBook.findMany({
+        where: { status: "PUBLISHED" },
+        select: { id: true, title: true, intro: true, cover: true },
+        orderBy: { viewCount: "desc" },
+        take: quarter,
+      }),
+      this.prisma.ebook.findMany({
+        where: { status: "PUBLISHED" },
+        select: { id: true, title: true, description: true, cover: true },
+        orderBy: { purchaseCount: "desc" },
+        take: quarter,
       }),
     ]);
 
     return [
       ...posts.map((p): FeedItem => ({ id: p.id, type: "post", title: p.title || "精华帖", subtitle: p.content.slice(0, 100), score: 0, reason: "精华内容" })),
       ...articles.map((a): FeedItem => ({ id: a.id, type: "article", title: a.title, subtitle: a.excerpt || "", cover: a.cover || "", score: 0, reason: "深度推荐" })),
+      ...classics.map((b): FeedItem => ({ id: b.id, type: "classic", title: b.title, subtitle: b.intro || "", cover: b.cover || "", score: 0, reason: "经典研读" })),
+      ...ebooks.map((e): FeedItem => ({ id: e.id, type: "ebook", title: e.title, subtitle: e.description || "", cover: e.cover || "", score: 0, reason: "深度阅读" })),
     ];
   }
 
@@ -176,7 +204,8 @@ export class SmartFeedService {
         score: r.score || 0,
         reason: r.reason || "智能推荐",
       }));
-    } catch {
+    } catch (err) {
+      this.logger.warn(`智能推荐获取失败: ${(err as Error).message}`);
       return [];
     }
   }

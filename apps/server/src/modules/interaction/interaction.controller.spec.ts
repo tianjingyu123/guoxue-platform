@@ -79,7 +79,7 @@ describe("InteractionController", () => {
     const req: any = { user: { id: "u1" } };
     const result: any = await ctrl.deleteComment("c1", req);
     expect(result.success).toBe(true);
-    expect(mockInteractionSvc.deleteComment).toHaveBeenCalledWith("c1", "u1");
+    expect(mockInteractionSvc.deleteComment).toHaveBeenCalledWith("c1", "u1", false);
   });
 
   it("PUT /interaction/comment/:id/hide — 隐藏评论", async () => {

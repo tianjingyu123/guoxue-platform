@@ -1,8 +1,10 @@
 import { Test } from "@nestjs/testing";
 import { CommissionController } from "./commission.controller";
 import { CommissionService } from "./commission.service";
+import { PrismaService } from "../../prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 const mockCommissionSvc = {
   getAllConfigs: jest.fn().mockResolvedValue([{ key: "course", rate: 0.3 }]),
@@ -26,10 +28,14 @@ describe("CommissionController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [CommissionController],
-      providers: [{ provide: CommissionService, useValue: mockCommissionSvc }],
+      providers: [
+        { provide: CommissionService, useValue: mockCommissionSvc },
+        { provide: PrismaService, useValue: { station: { findUnique: jest.fn() } } },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(CommissionController);
   });
@@ -48,12 +54,14 @@ describe("CommissionController", () => {
   });
 
   it("GET /commission/station-earnings/:stationId — 分站收益", async () => {
-    const result: any = await ctrl.getStationEarnings("s1", 1 as any, 20 as any);
+    const req: any = { user: { id: "u1", roles: ["SUPER_ADMIN"] } };
+    const result: any = await ctrl.getStationEarnings(req, "s1", 1 as any, 20 as any);
     expect(result).toHaveLength(1);
   });
 
   it("GET /commission/station-balance/:stationId — 分站余额", async () => {
-    const result: any = await ctrl.getStationBalance("s1");
+    const req: any = { user: { id: "u1", roles: ["SUPER_ADMIN"] } };
+    const result: any = await ctrl.getStationBalance(req, "s1");
     expect(result.available).toBe(5000);
   });
 

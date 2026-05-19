@@ -3,6 +3,7 @@ import { validate } from "class-validator";
 import {
   CreateBookDto, UpdateBookDto, CreateChapterDto,
   UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, BookListQueryDto,
+  DictionaryLookupDto, TranslateDto, ContinueReadingQueryDto,
 } from "./classic.dto";
 
 describe("Classic DTO 校验", () => {
@@ -106,6 +107,63 @@ describe("Classic DTO 校验", () => {
     it("带分页参数通过", async () => {
       const dto = Object.assign(new BookListQueryDto(), { category: "儒家", page: 1, pageSize: 10 });
       const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+    it("带关键词通过", async () => {
+      const dto = Object.assign(new BookListQueryDto(), { keyword: "论语", category: "经" });
+      const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+  });
+
+  describe("DictionaryLookupDto", () => {
+    it("合法输入通过", async () => {
+      const dto = Object.assign(new DictionaryLookupDto(), { word: "仁" });
+      const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+    it("空字符串报错", async () => {
+      const dto = Object.assign(new DictionaryLookupDto(), { word: "" });
+      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+    });
+    it("过长输入报错", async () => {
+      const dto = Object.assign(new DictionaryLookupDto(), { word: "一二三四五六七八九十一二" });
+      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+    });
+    it("缺 word 报错", async () => {
+      const dto = Object.assign(new DictionaryLookupDto(), {});
+      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("TranslateDto", () => {
+    it("合法输入通过", async () => {
+      const dto = Object.assign(new TranslateDto(), { text: "学而时习之" });
+      const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+    it("带上下文通过", async () => {
+      const dto = Object.assign(new TranslateDto(), { text: "道可道", context: "道德经·第一章" });
+      const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+    it("空文本报错", async () => {
+      const dto = Object.assign(new TranslateDto(), { text: "" });
+      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+    });
+    it("缺 text 报错", async () => {
+      const dto = Object.assign(new TranslateDto(), {});
+      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("ContinueReadingQueryDto", () => {
+    it("空对象通过", async () => {
+      const dto = Object.assign(new ContinueReadingQueryDto(), {});
+      const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+    it("合法 limit 通过", async () => {
+      const dto = Object.assign(new ContinueReadingQueryDto(), { limit: 10 });
+      const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+    it("limit 超过50报错", async () => {
+      const dto = Object.assign(new ContinueReadingQueryDto(), { limit: 100 });
+      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
   });
 });

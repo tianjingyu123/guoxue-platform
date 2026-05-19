@@ -148,6 +148,7 @@
 | `SMS_SIGN_NAME` | 开发签名 | 空 | **正式签名** |
 | `SMS_TEMPLATE_ID` | 开发模板 | 空 | **正式模板** |
 | `TENCENT_MAP_KEY` | 个人 Key | 空 | **生产 Key** |
+| `TENCENT_MAP_SK` | 个人 SK | 空 | **生产 SK**（用于签名校验） |
 | `COZE_API_KEY` | 个人 Key | 空 | **生产 Key** |
 | `COZE_BOT_ID` | 开发 Bot | 空 | **生产 Bot** |
 | `KUAIDI100_API_KEY` | 开发 Key | 空 | **生产 Key** |

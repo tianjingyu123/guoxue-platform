@@ -3,6 +3,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger"
 import { Request, Response } from "express";
 import { SearchService } from "./search.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RolesGuard } from "../../common/roles.guard";
+import { Roles } from "../../common/roles.decorator";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { SearchWeightService } from "./search-weight.service";
 
@@ -32,6 +34,7 @@ export class SearchController {
 
   /** 热门搜索 */
   @Get("hot")
+  @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "获取热门搜索" })
   @ApiQuery({ name: "limit", required: false, type: Number, description: "返回数量" })
   hotSearches(@Query("limit") limit = 10) {
@@ -59,6 +62,7 @@ export class SearchController {
 
   /** 搜索建议 */
   @Get("suggest")
+  @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "搜索建议" })
   @ApiQuery({ name: "keyword", required: true, type: String, description: "关键词" })
   suggest(@Query("keyword") keyword: string) {
@@ -76,9 +80,31 @@ export class SearchController {
 
   /** 搜索统计（管理后台用） */
   @Get("stats")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取搜索统计" })
+  @ApiBearerAuth()
   getStats() {
     return this.svc.getStats();
+  }
+
+  /** 语义搜索 */
+  @Get("semantic")
+  @UseGuards(ThrottleGuard)
+  @ApiOperation({ summary: "语义搜索 — 向量相似度匹配" })
+  @ApiQuery({ name: "q", required: true, type: String, description: "搜索关键词" })
+  @ApiQuery({ name: "topK", required: false, type: Number, description: "返回数量" })
+  async semanticSearch(@Query("q") q: string, @Query("topK") topK = 10) {
+    return this.svc.semanticSearch(q || "", +topK);
+  }
+
+  /** 相似查询建议 */
+  @Get("semantic/suggest")
+  @UseGuards(ThrottleGuard)
+  @ApiOperation({ summary: "相似查询词建议" })
+  @ApiQuery({ name: "q", required: true, type: String, description: "当前查询词" })
+  async suggestSimilar(@Query("q") q: string) {
+    return this.svc.suggestSimilarQueries(q || "");
   }
 
   /** SSE 流式搜索 */

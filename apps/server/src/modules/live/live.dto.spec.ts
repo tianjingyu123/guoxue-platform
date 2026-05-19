@@ -26,10 +26,10 @@ describe("Live DTO 校验", () => {
       expect(errors.length).toBeGreaterThan(0);
     });
 
-    it("缺 hostUserId 报错", async () => {
+    it("hostUserId 可选通过", async () => {
       const dto = Object.assign(new CreateRoomDto(), { title: "直播" });
       const errors = await validate(dto);
-      expect(errors.length).toBeGreaterThan(0);
+      expect(errors.length).toBe(0);
     });
 
     it("coHostIds 为字符串报错", async () => {

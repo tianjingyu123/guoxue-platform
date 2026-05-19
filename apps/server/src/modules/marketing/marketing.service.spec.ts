@@ -20,12 +20,12 @@ const makeMockPrisma = () => {
       create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
       update: jest.fn(), count: jest.fn(),
     },
-    groupBuyParticipant: { findMany: jest.fn() },
+    groupBuyParticipant: { findMany: jest.fn(), findFirst: jest.fn(), create: jest.fn() },
     couponTemplate: {
       create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
       update: jest.fn(), count: jest.fn(),
     },
-    couponRecord: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+    couponRecord: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn(), count: jest.fn() },
     discountActivity: {
       create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
       update: jest.fn(), delete: jest.fn(), count: jest.fn(),
@@ -211,7 +211,8 @@ describe("MarketingService", () => {
       mockPrisma.couponTemplate.findUnique
         .mockResolvedValueOnce({ id: "ct1", totalCount: 0, claimedCount: 0 })
         .mockResolvedValue({ id: "ct1", claimedCount: 0 });
-      mockPrisma.couponRecord.create.mockResolvedValue({ id: "cr1" });
+      mockPrisma.couponTemplate.update.mockResolvedValue({ id: "ct1", claimedCount: 2 });
+      mockPrisma.couponRecord.createMany.mockResolvedValue({ count: 2 });
       const result = await svc.batchGrantCoupon("ct1", { userIds: ["u1", "u2"] });
       expect(result.success).toBe(2);
     });

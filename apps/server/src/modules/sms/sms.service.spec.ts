@@ -4,6 +4,8 @@ import { SmsService } from "./sms.service";
 const mockRedis = {
   get: jest.fn(), set: jest.fn(), del: jest.fn(), ttl: jest.fn(),
 };
+const mockPrisma = { smsLog: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() } };
+const mockMetrics = { recordExternalApi: jest.fn() };
 
 describe("SmsService", () => {
   let svc: SmsService;
@@ -15,7 +17,12 @@ describe("SmsService", () => {
     process.env.SMS_TEMPLATE_ID = "123456";
 
     const mod: TestingModule = await Test.createTestingModule({
-      providers: [SmsService, { provide: RedisService, useValue: mockRedis }],
+      providers: [
+        SmsService,
+        { provide: RedisService, useValue: mockRedis },
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: MetricsService, useValue: mockMetrics },
+      ],
     }).compile();
     svc = mod.get(SmsService);
   });
@@ -25,7 +32,12 @@ describe("SmsService", () => {
   it("未配置凭证时应显示警告", () => {
     delete process.env.TENCENT_SECRET_ID;
     expect(() => Test.createTestingModule({
-      providers: [SmsService, { provide: RedisService, useValue: mockRedis }],
+      providers: [
+        SmsService,
+        { provide: RedisService, useValue: mockRedis },
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: MetricsService, useValue: mockMetrics },
+      ],
     }).compile()).not.toThrow();
   });
 
@@ -50,3 +62,5 @@ describe("SmsService", () => {
 });
 
 import { RedisService } from "../../redis/redis.service";
+import { PrismaService } from "../../prisma/prisma.service";
+import { MetricsService } from "../../common/metrics.service";

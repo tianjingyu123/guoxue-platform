@@ -1,4 +1,5 @@
 import { Test } from "@nestjs/testing";
+import { JwtService } from "@nestjs/jwt";
 import { EbookService } from "./ebook.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiService } from "../ai/ai.service";
@@ -34,6 +35,8 @@ const mockAi = {
   extractKeywords: jest.fn().mockResolvedValue(["guoxue", "classic"]),
 };
 
+const mockJwt = { sign: jest.fn().mockReturnValue("mock-jwt-token") };
+
 describe("EbookService", () => {
   let svc: EbookService;
 
@@ -43,6 +46,7 @@ describe("EbookService", () => {
         EbookService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: AiService, useValue: mockAi },
+        { provide: JwtService, useValue: mockJwt },
       ],
     }).compile();
     svc = mod.get(EbookService);
@@ -54,7 +58,7 @@ describe("EbookService", () => {
 
   describe("listCategories", () => {
     beforeEach(() => {
-      svc = new EbookService(mockPrisma as any, mockAi as any);
+      svc = new EbookService(mockPrisma as any, mockAi as any, mockJwt as any);
     });
 
     it("returns category list", async () => {

@@ -47,7 +47,7 @@ export class HealthService {
     // 汇总状态
     const hasFail = Object.values(checks).some((c) => c.status === "fail");
     const hasDegraded = Object.values(checks).some((c) => c.status === "degraded" || c.status === "unconfigured");
-    const status = hasFail ? "degraded" : hasDegraded ? "degraded" : "ok";
+    const status = hasFail ? "fail" : hasDegraded ? "degraded" : "ok";
 
     const mem = process.memoryUsage();
 

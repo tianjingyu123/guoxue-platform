@@ -4,7 +4,7 @@ import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
-import { StrictThrottleGuard } from "../../common/throttle.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 const mockPaipanSvc = {
   calcBaziPreview: jest.fn().mockResolvedValue({ bazi: "甲子 乙丑 丙寅 丁卯", dayun: [] }),
@@ -37,7 +37,7 @@ describe("PaipanController", () => {
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
-      .overrideGuard(StrictThrottleGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(PaipanController);
   });

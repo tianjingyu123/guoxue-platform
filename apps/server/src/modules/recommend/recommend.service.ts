@@ -241,12 +241,14 @@ export class RecommendService {
     const items: RecommendItem[] = [];
 
     // 并行查询各类型热门内容
-    const [courses, articles, products, circles, videos] = await Promise.all([
+    const [courses, articles, products, circles, videos, classics, ebooks] = await Promise.all([
       this.prisma.course.findMany({ where: { auditStatus: "APPROVED", tags: { hasSome: tags } }, select: this.courseSelect(), take: 6, orderBy: { studentCount: "desc" } }),
       this.prisma.article.findMany({ where: { auditStatus: "APPROVED", tags: { hasSome: tags } }, select: this.articleSelect(), take: 6, orderBy: { viewCount: "desc" } }),
       this.prisma.product.findMany({ where: { status: "ON_SALE", tags: { hasSome: tags } }, select: this.productSelect(), take: 6, orderBy: { salesCount: "desc" } }),
       this.prisma.circle.findMany({ where: { status: "ACTIVE", tags: { hasSome: tags } }, select: this.circleSelect(), take: 6, orderBy: { memberCount: "desc" } }),
       this.prisma.video.findMany({ where: { status: "PUBLISHED", tags: { hasSome: tags } }, select: this.videoSelect(), take: 6, orderBy: { viewCount: "desc" } }),
+      this.prisma.classicBook.findMany({ where: { status: "PUBLISHED" }, select: { id: true, title: true, author: true, cover: true, intro: true, viewCount: true, category: true }, take: 6, orderBy: { viewCount: "desc" } }).catch(() => []),
+      this.prisma.ebook.findMany({ where: { status: "PUBLISHED" }, select: { id: true, title: true, author: true, cover: true, description: true, viewCount: true, purchaseCount: true }, take: 6, orderBy: { viewCount: "desc" } }).catch(() => []),
     ]);
 
     items.push(...courses.map((c) => ({ id: c.id, type: "COURSE" as const, title: c.title, cover: c.cover ?? undefined, excerpt: c.intro ?? undefined, tags: c.tags, score: c.studentCount ?? 0, reason: "热门课程推荐", strategies: ["hot-trending"], metadata: { price: Number(c.price), studentCount: c.studentCount } })));
@@ -254,6 +256,8 @@ export class RecommendService {
     items.push(...products.map((p) => ({ id: p.id, type: "PRODUCT" as const, title: p.title, cover: p.images?.[0], excerpt: p.intro ?? undefined, tags: p.tags, score: p.salesCount ?? 0, reason: "热销商品推荐", strategies: ["hot-trending"], metadata: { price: Number(p.price), salesCount: p.salesCount } })));
     items.push(...circles.map((c) => ({ id: c.id, type: "CIRCLE" as const, title: c.name, cover: c.cover ?? undefined, excerpt: c.intro ?? undefined, tags: c.tags, score: c.memberCount ?? 0, reason: "热门圈子推荐", strategies: ["hot-trending"], metadata: { memberCount: c.memberCount } })));
     items.push(...videos.map((v) => ({ id: v.id, type: "VIDEO" as const, title: v.title ?? "", cover: v.coverUrl ?? undefined, tags: v.tags, score: v.viewCount ?? 0, reason: "热门视频推荐", strategies: ["hot-trending"], metadata: { viewCount: v.viewCount, likeCount: v.likeCount } })));
+    items.push(...(Array.isArray(classics) ? classics : []).map((b) => ({ id: b.id, type: "CLASSIC" as const, title: b.title, cover: b.cover ?? undefined, excerpt: b.intro ?? undefined, tags: [b.category].filter(Boolean) as string[], score: b.viewCount ?? 0, reason: "热门古籍推荐", strategies: ["hot-trending"], metadata: { author: b.author, viewCount: b.viewCount } })));
+    items.push(...(Array.isArray(ebooks) ? ebooks : []).map((e) => ({ id: e.id, type: "EBOOK" as const, title: e.title, cover: e.cover ?? undefined, excerpt: e.description ?? undefined, tags: [] as string[], score: (e.viewCount ?? 0) + (e.purchaseCount ?? 0) * 5, reason: "热门电子书推荐", strategies: ["hot-trending"], metadata: { author: e.author, viewCount: e.viewCount, purchaseCount: e.purchaseCount } })));
 
     return items.sort((a, b) => b.score - a.score);
   }
@@ -682,17 +686,21 @@ export class RecommendService {
     const items: RecommendItem[] = [];
 
     // 全平台热门内容混排
-    const [articles, courses, products, circles] = await Promise.all([
+    const [articles, courses, products, circles, classics, ebooks] = await Promise.all([
       this.prisma.article.findMany({ where: { auditStatus: "APPROVED" }, select: this.articleSelect(), take: 6, orderBy: { viewCount: "desc" } }),
       this.prisma.course.findMany({ where: { auditStatus: "APPROVED" }, select: this.courseSelect(), take: 6, orderBy: { studentCount: "desc" } }),
       this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: this.productSelect(), take: 6, orderBy: { salesCount: "desc" } }),
       this.prisma.circle.findMany({ where: { status: "ACTIVE" }, select: this.circleSelect(), take: 6, orderBy: { memberCount: "desc" } }),
+      this.prisma.classicBook.findMany({ where: { status: "PUBLISHED" }, select: { id: true, title: true, author: true, cover: true, intro: true, viewCount: true, category: true }, take: 6, orderBy: { viewCount: "desc" } }).catch(() => []),
+      this.prisma.ebook.findMany({ where: { status: "PUBLISHED" }, select: { id: true, title: true, author: true, cover: true, description: true, viewCount: true, purchaseCount: true }, take: 6, orderBy: { viewCount: "desc" } }).catch(() => []),
     ]);
 
     items.push(...articles.map((a) => ({ id: a.id, type: "ARTICLE" as const, title: a.title, cover: a.cover ?? undefined, excerpt: a.excerpt ?? undefined, tags: a.tags, score: (a.viewCount ?? 0) * 0.3 + (a.likeCount ?? 0) * 2, reason: "全平台热门", strategies: ["hot-trending"], metadata: { viewCount: a.viewCount, likeCount: a.likeCount } })));
     items.push(...courses.map((c) => ({ id: c.id, type: "COURSE" as const, title: c.title, cover: c.cover ?? undefined, excerpt: c.intro ?? undefined, tags: c.tags, score: c.studentCount ?? 0, reason: "全平台热门", strategies: ["hot-trending"], metadata: { price: Number(c.price), studentCount: c.studentCount } })));
     items.push(...products.map((p) => ({ id: p.id, type: "PRODUCT" as const, title: p.title, cover: p.images?.[0], excerpt: p.intro ?? undefined, tags: p.tags, score: p.salesCount ?? 0, reason: "全平台热门", strategies: ["hot-trending"], metadata: { price: Number(p.price), salesCount: p.salesCount } })));
     items.push(...circles.map((c) => ({ id: c.id, type: "CIRCLE" as const, title: c.name, cover: c.cover ?? undefined, excerpt: c.intro ?? undefined, tags: c.tags, score: c.memberCount ?? 0, reason: "全平台热门", strategies: ["hot-trending"], metadata: { memberCount: c.memberCount } })));
+    items.push(...(Array.isArray(classics) ? classics : []).map((b) => ({ id: b.id, type: "CLASSIC" as const, title: b.title, cover: b.cover ?? undefined, excerpt: b.intro ?? undefined, tags: [b.category].filter(Boolean) as string[], score: b.viewCount ?? 0, reason: "全平台热门", strategies: ["hot-trending"], metadata: { author: b.author, viewCount: b.viewCount } })));
+    items.push(...(Array.isArray(ebooks) ? ebooks : []).map((e) => ({ id: e.id, type: "EBOOK" as const, title: e.title, cover: e.cover ?? undefined, excerpt: e.description ?? undefined, tags: [] as string[], score: (e.viewCount ?? 0) + (e.purchaseCount ?? 0) * 5, reason: "全平台热门", strategies: ["hot-trending"], metadata: { author: e.author, viewCount: e.viewCount, purchaseCount: e.purchaseCount } })));
 
     return items.sort((a, b) => b.score - a.score);
   }
@@ -1347,5 +1355,70 @@ export class RecommendService {
       viewCount: true, likeCount: true,
       user: { select: { id: true, nickname: true, avatar: true } },
     } as const;
+  }
+
+  async getRecommendStats(params: { startDate?: string; endDate?: string; scene?: string }) {
+    const where: any = {};
+    if (params.startDate || params.endDate) {
+      where.createdAt = {};
+      if (params.startDate) where.createdAt.gte = new Date(params.startDate);
+      if (params.endDate) where.createdAt.lte = new Date(params.endDate);
+    }
+    if (params.scene) where.scene = params.scene;
+
+    const [totalImpressions, totalClicks, byScene, bySceneClicks, byStrategy, byStrategyClicks] = await Promise.all([
+      this.prisma.recommendLog.count({ where }),
+      this.prisma.recommendLog.count({ where: { ...where, isClick: true } }),
+      this.prisma.recommendLog.groupBy({ by: ["scene"], where, _count: { id: true } }),
+      this.prisma.recommendLog.groupBy({ by: ["scene"], where: { ...where, isClick: true }, _count: { id: true } }),
+      this.prisma.recommendLog.groupBy({ by: ["strategy"], where, _count: { id: true } }),
+      this.prisma.recommendLog.groupBy({ by: ["strategy"], where: { ...where, isClick: true }, _count: { id: true } }),
+    ]);
+
+    const clickMap = Object.fromEntries(bySceneClicks.map(s => [s.scene, s._count.id]));
+    const strategyClickMap = Object.fromEntries(byStrategyClicks.map(s => [s.strategy, s._count.id]));
+
+    const days = 7;
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const recentLogs = await this.prisma.recommendLog.findMany({
+      where: { ...where, createdAt: { gte: since } },
+      select: { createdAt: true, isClick: true },
+    });
+
+    const dailyMap: Record<string, { impressions: number; clicks: number }> = {};
+    for (const log of recentLogs) {
+      const day = log.createdAt.toISOString().slice(0, 10);
+      if (!dailyMap[day]) dailyMap[day] = { impressions: 0, clicks: 0 };
+      dailyMap[day].impressions++;
+      if (log.isClick) dailyMap[day].clicks++;
+    }
+
+    return {
+      total: {
+        impressions: totalImpressions,
+        clicks: totalClicks,
+        ctr: totalImpressions > 0 ? +(totalClicks / totalImpressions).toFixed(4) : 0,
+      },
+      byScene: byScene.map(s => ({
+        scene: s.scene,
+        impressions: s._count.id,
+        clicks: clickMap[s.scene] || 0,
+        ctr: s._count.id > 0 ? +((clickMap[s.scene] || 0) / s._count.id).toFixed(4) : 0,
+      })),
+      byStrategy: byStrategy.map(s => ({
+        strategy: s.strategy,
+        impressions: s._count.id,
+        clicks: strategyClickMap[s.strategy] || 0,
+        ctr: s._count.id > 0 ? +((strategyClickMap[s.strategy] || 0) / s._count.id).toFixed(4) : 0,
+      })),
+      dailyTrend: Object.entries(dailyMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, data]) => ({
+          date,
+          ...data,
+          ctr: data.impressions > 0 ? +(data.clicks / data.impressions).toFixed(4) : 0,
+        })),
+    };
   }
 }

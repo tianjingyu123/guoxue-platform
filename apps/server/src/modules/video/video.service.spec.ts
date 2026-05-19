@@ -13,6 +13,11 @@ const mockPrisma = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  like: {
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    delete: jest.fn(),
+  },
   collect: {
     findFirst: jest.fn(),
     create: jest.fn(),
@@ -131,16 +136,34 @@ describe("VideoService", () => {
   });
 
   describe("toggleLike", () => {
-    it("点赞视频成功", async () => {
+    it("未点赞时点赞视频", async () => {
       mockPrisma.video.findUnique.mockResolvedValue({ id: "v1", likeCount: 10 });
+      mockPrisma.like.findUnique.mockResolvedValue(null);
+      mockPrisma.like.create.mockResolvedValue({ id: "l1" });
       mockPrisma.video.update.mockResolvedValue({ id: "v1", likeCount: 11 });
-      const result = await svc.toggleLike("v1");
-      expect(result.likeCount).toBe(11);
+      const result = await svc.toggleLike("u1", "v1");
+      expect(result.liked).toBe(true);
+      expect(mockPrisma.like.create).toHaveBeenCalledWith({
+        data: { userId: "u1", targetType: "VIDEO", targetId: "v1" },
+      });
+      expect(mockPrisma.video.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { likeCount: { increment: 1 } } }),
+      );
     });
 
-    it("视频不存在抛出 NotFoundException", async () => {
+    it("已点赞时取消点赞", async () => {
+      mockPrisma.video.findUnique.mockResolvedValue({ id: "v1", likeCount: 10 });
+      mockPrisma.like.findUnique.mockResolvedValue({ id: "l1" });
+      mockPrisma.like.delete.mockResolvedValue({});
+      mockPrisma.video.update.mockResolvedValue({ id: "v1", likeCount: 9 });
+      const result = await svc.toggleLike("u1", "v1");
+      expect(result.liked).toBe(false);
+      expect(mockPrisma.like.delete).toHaveBeenCalledWith({ where: { id: "l1" } });
+    });
+
+    it("视频不存在抛出 BusinessException", async () => {
       mockPrisma.video.findUnique.mockResolvedValue(null);
-      await expect(svc.toggleLike("invalid")).rejects.toThrow(BusinessException);
+      await expect(svc.toggleLike("u1", "invalid")).rejects.toThrow(BusinessException);
     });
   });
 

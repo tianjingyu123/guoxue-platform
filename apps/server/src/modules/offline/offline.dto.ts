@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, MinLength } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsIn, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -200,4 +200,16 @@ export class CreateSettlementDto {
   @ApiProperty({ description: "驿站收入总额" })
   @Type(() => Number) @IsNumber()
   totalIncome: number;
+}
+
+// ───────── 课程审核 ─────────
+
+export class AuditCourseDto {
+  @ApiProperty({ description: "审核状态: APPROVED/REJECTED" })
+  @IsString() @IsIn(["APPROVED", "REJECTED"])
+  auditStatus: string;
+
+  @ApiPropertyOptional({ description: "审核原因/驳回理由" })
+  @IsOptional() @IsString()
+  reason?: string;
 }

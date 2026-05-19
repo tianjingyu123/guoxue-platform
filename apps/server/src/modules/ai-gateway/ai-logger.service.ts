@@ -52,4 +52,61 @@ export class AiLoggerService {
       this.logger.error("AI日志写入失败", err);
     }
   }
+
+  /** 查询AI调用日志（支持场景筛选、分页） */
+  async query(params: {
+    page?: number;
+    pageSize?: number;
+    scenes?: string[];
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    keyword?: string;
+  }) {
+    const page = params.page || 1;
+    const pageSize = params.pageSize || 20;
+    const where: any = {};
+
+    if (params.scenes && params.scenes.length > 0) {
+      where.scene = { in: params.scenes };
+    }
+    if (params.startDate || params.endDate) {
+      where.createdAt = {};
+      if (params.startDate) where.createdAt.gte = new Date(params.startDate);
+      if (params.endDate) where.createdAt.lte = new Date(params.endDate);
+    }
+    if (params.keyword) {
+      where.OR = [
+        { inputSummary: { contains: params.keyword } },
+        { outputSummary: { contains: params.keyword } },
+        { analysisContent: { contains: params.keyword } },
+      ];
+    }
+
+    const [list, total] = await Promise.all([
+      this.prisma.aiAnalysisRecord.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          userId: true,
+          scene: true,
+          modelName: true,
+          modelUsed: true,
+          inputSummary: true,
+          outputSummary: true,
+          analysisContent: true,
+          tokenUsage: true,
+          latency: true,
+          cost: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.aiAnalysisRecord.count({ where }),
+    ]);
+
+    return { list, total, page, pageSize };
+  }
 }

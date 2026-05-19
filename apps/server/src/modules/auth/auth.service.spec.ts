@@ -6,6 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { JwtService } from "@nestjs/jwt";
 import { RedisService } from "../../redis/redis.service";
 import { WebhookService } from "../webhook/webhook.service";
+import { SmsService } from "../sms/sms.service";
 import { BusinessException } from "../../common/business.exception";
 
 jest.mock("bcryptjs");
@@ -39,6 +40,7 @@ const mockIm = {
   importAccount: jest.fn().mockResolvedValue(undefined),
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
+const mockSms = { sendVerifyCode: jest.fn(), verifyCode: jest.fn() };
 
 describe("AuthService", () => {
   let svc: AuthService;
@@ -56,6 +58,7 @@ describe("AuthService", () => {
         { provide: WechatService, useValue: mockWechat },
         { provide: ImService, useValue: mockIm },
         { provide: WebhookService, useValue: mockWebhook },
+        { provide: SmsService, useValue: mockSms },
       ],
     }).compile();
     svc = mod.get(AuthService);
@@ -119,19 +122,17 @@ describe("AuthService", () => {
 
   describe("smsLogin", () => {
     it("已存在用户短信登录成功", async () => {
-      mockRedis.get.mockResolvedValue("123456");
+      mockSms.verifyCode.mockResolvedValue(true);
       mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", nickname: "张三", phone: "13800138000" });
-      mockRedis.del.mockResolvedValue(undefined);
       mockPrisma.userRole.findMany.mockResolvedValue([]);
       mockJwt.sign.mockReturnValue("token");
       const result = await svc.smsLogin({ phone: "13800138000", code: "123456" });
       expect(result.accessToken).toBe("token");
     });
     it("新用户自动注册并登录", async () => {
-      mockRedis.get.mockResolvedValue("123456");
+      mockSms.verifyCode.mockResolvedValue(true);
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue({ id: "user-2", nickname: "用户8000", phone: "13800008000" });
-      mockRedis.del.mockResolvedValue(undefined);
       mockPrisma.userRole.findMany.mockResolvedValue([]);
       mockJwt.sign.mockReturnValue("token");
       const result = await svc.smsLogin({ phone: "13800008000", code: "123456" });
@@ -139,21 +140,21 @@ describe("AuthService", () => {
       expect(mockPrisma.user.create).toHaveBeenCalled();
     });
     it("验证码错误抛出 BadRequestException", async () => {
-      mockRedis.get.mockResolvedValue("654321");
+      mockSms.verifyCode.mockRejectedValue(new BusinessException("AUTH_SMS_CODE_INVALID" as any, "验证码错误"));
       await expect(svc.smsLogin({ phone: "13800138000", code: "123456" })).rejects.toThrow(BusinessException);
     });
     it("验证码过期抛出 BadRequestException", async () => {
-      mockRedis.get.mockResolvedValue(null);
+      mockSms.verifyCode.mockRejectedValue(new BusinessException("AUTH_SMS_CODE_EXPIRED" as any, "验证码已过期"));
       await expect(svc.smsLogin({ phone: "13800138000", code: "123456" })).rejects.toThrow(BusinessException);
     });
   });
 
   describe("sendSmsCode", () => {
     it("发送验证码成功", async () => {
-      mockRedis.set.mockResolvedValue(undefined);
+      mockSms.sendVerifyCode.mockResolvedValue({ ok: true, message: "验证码已发送" });
       const result = await svc.sendSmsCode({ phone: "13800138000" });
-      expect(result.success).toBe(true);
-      expect(mockRedis.set).toHaveBeenCalledWith("sms_code:13800138000", "123456", 300);
+      expect(result.ok).toBe(true);
+      expect(mockSms.sendVerifyCode).toHaveBeenCalledWith("13800138000", "LOGIN");
     });
   });
 

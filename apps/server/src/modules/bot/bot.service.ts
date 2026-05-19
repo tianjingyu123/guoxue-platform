@@ -6,6 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CozeService } from "./coze.service";
 import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDto } from "./bot.dto";
 import { encrypt, decrypt } from "../../common/crypto.util";
+import { Cacheable } from "../../common/cache.decorator";
 
 @Injectable()
 export class BotService {
@@ -55,9 +56,10 @@ export class BotService {
     const bots = await this.prisma.botConfig.findMany({
       where,
       orderBy: { sortOrder: "asc" },
+      take: 100,
     });
-    // 解密 apiKey
-    return bots.map(b => ({ ...b, apiKey: b.apiKey ? decrypt(b.apiKey) : b.apiKey }));
+    // apiKey 不对外暴露
+    return bots.map(({ apiKey, ...rest }) => rest);
   }
 
   async getDetail(id: string) {
@@ -69,7 +71,8 @@ export class BotService {
       },
     });
     if (!bot) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在");
-    return { ...bot, apiKey: bot.apiKey ? decrypt(bot.apiKey) : bot.apiKey };
+    const { apiKey, ...rest } = bot;
+    return rest;
   }
 
   // ───────── 圈子绑定 ─────────
@@ -92,8 +95,9 @@ export class BotService {
       where: { circleId },
       include: { botConfig: true },
     });
-    if (bot?.botConfig?.apiKey) {
-      bot.botConfig.apiKey = decrypt(bot.botConfig.apiKey);
+    if (bot?.botConfig) {
+      const { apiKey, ...rest } = bot.botConfig;
+      return { ...bot, botConfig: rest };
     }
     return bot;
   }
@@ -324,6 +328,7 @@ export class BotService {
   }
 
   /** 获取圈主助理使用数据 */
+  @Cacheable({ key: (args) => `bot:usage:${args[0]}`, ttl: 60 })
   async getBotUsageData(circleId: string) {
     this.logger.log(`查询圈主助理使用数据: circleId=${circleId}`);
 
@@ -351,6 +356,7 @@ export class BotService {
     const weekLogs = await this.prisma.botChatLog.findMany({
       where: { botConfigId, createdAt: { gte: weekAgo } },
       orderBy: { createdAt: "asc" },
+      take: 5000,
     });
 
     const trendMap: Record<string, number> = {};
@@ -436,6 +442,7 @@ export class BotService {
     // 获取平台已有的 botId 列表
     const existing = await this.prisma.botConfig.findMany({
       select: { botId: true, name: true },
+      take: 500,
     });
     const existingIds = new Set(existing.map((e) => e.botId));
 
@@ -504,5 +511,27 @@ export class BotService {
   async uploadFile(botConfigId: string, file: Buffer, filename: string) {
     const bot = await this.getBotOrThrow(botConfigId);
     return this.coze.uploadFile(file, filename, bot.apiKey);
+  }
+
+  /** 智能体热度排行 */
+  async getRanking(limit = 20) {
+    return this.prisma.botConfig.findMany({
+      where: { status: "ACTIVE" },
+      select: { id: true, name: true, avatar: true, intro: true, type: true },
+      orderBy: { sortOrder: "asc" },
+      take: limit,
+    });
+  }
+
+  /** 信息流智能体卡片（含动态背景色） */
+  async getFeedCards(limit = 6) {
+    const bots = await this.prisma.botConfig.findMany({
+      where: { status: "ACTIVE" },
+      select: { id: true, name: true, avatar: true, intro: true, type: true },
+      orderBy: { sortOrder: "asc" },
+      take: limit,
+    });
+    const colors = ["#fef3c7", "#dbeafe", "#d1fae5", "#ede9fe", "#fee2e2", "#e0e7ff"];
+    return bots.map((b, i) => ({ ...b, bgColor: colors[i % colors.length] }));
   }
 }

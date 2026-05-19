@@ -161,4 +161,70 @@ export class ContentService {
       select: { id: true, title: true, type: true, author: true, cover: true, excerpt: true, viewCount: true },
     });
   }
+
+  // ───────── 诗词专属 ─────────
+
+  async getRandomPoem() {
+    const count = await this.prisma.content.count({ where: { type: "POEM", status: "PUBLISHED" } });
+    if (count === 0) return null;
+    const skip = Math.floor(Math.random() * count);
+    const poems = await this.prisma.content.findMany({
+      where: { type: "POEM", status: "PUBLISHED" },
+      skip,
+      take: 1,
+      select: { id: true, title: true, author: true, dynasty: true, excerpt: true, body: true, tags: true, viewCount: true, likeCount: true },
+    });
+    return poems[0] ?? null;
+  }
+
+  async getDailyPoem() {
+    const today = new Date().toISOString().slice(0, 10);
+    const cacheKey = `poem:daily:${today}`;
+    const cached = await this.redis.get(cacheKey).catch(() => null);
+    if (cached) return JSON.parse(cached);
+
+    const count = await this.prisma.content.count({ where: { type: "POEM", status: "PUBLISHED" } });
+    if (count === 0) return null;
+
+    const dayNum = parseInt(today.replace(/-/g, ""), 10);
+    const skip = dayNum % count;
+    const poems = await this.prisma.content.findMany({
+      where: { type: "POEM", status: "PUBLISHED" },
+      skip,
+      take: 1,
+      select: { id: true, title: true, author: true, dynasty: true, excerpt: true, body: true, tags: true, viewCount: true, likeCount: true },
+    });
+    const poem = poems[0] ?? null;
+    if (poem) {
+      await this.redis.set(cacheKey, JSON.stringify(poem), 86400).catch(() => {});
+    }
+    return poem;
+  }
+
+  async getPoemAppreciation(id: string) {
+    const cacheKey = `poem:appreciation:${id}`;
+    const cached = await this.redis.get(cacheKey).catch(() => null);
+    if (cached) return JSON.parse(cached);
+
+    const poem = await this.prisma.content.findUnique({
+      where: { id },
+      select: { id: true, title: true, author: true, dynasty: true, body: true, type: true },
+    });
+    if (!poem) throw new BusinessException(ErrorCode.NOT_FOUND, "诗词不存在");
+    if (poem.type !== "POEM") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅支持诗词类型");
+
+    const result = {
+      id: poem.id,
+      title: poem.title,
+      author: poem.author,
+      dynasty: poem.dynasty,
+      originalText: poem.body,
+      annotation: null as string | null,
+      translation: null as string | null,
+      appreciation: null as string | null,
+    };
+
+    await this.redis.set(cacheKey, JSON.stringify(result), 3600).catch(() => {});
+    return result;
+  }
 }

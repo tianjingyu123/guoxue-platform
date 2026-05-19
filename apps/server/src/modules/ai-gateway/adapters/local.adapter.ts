@@ -27,6 +27,7 @@ export class LocalModelAdapter implements AiModelAdapter {
     throw new BusinessException(ErrorCode.INTERNAL_ERROR, "本地模型适配器尚未实现。请配置 LOCAL_MODEL_BASE_URL 后启用。");
   }
 
+  // eslint-disable-next-line require-yield
   async *chatStream(
     _model: string,
     _messages: AiMessage[],

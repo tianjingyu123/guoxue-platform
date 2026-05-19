@@ -13,6 +13,7 @@ import {
   UpdateProgressDto, SubmitWorkDto,
   CourseListQueryDto,
   PurchaseCourseDto, CreateReviewDto, ReviewListQueryDto,
+  AskQuestionDto, AnswerQuestionDto, QaListQueryDto,
 } from "./course.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -66,6 +67,7 @@ export class CourseController {
       circleId: q.circleId,
       auditStatus: q.auditStatus,
       stationId: stationId || q.stationId,
+      type: q.type,
       keyword: q.keyword,
     });
   }
@@ -318,14 +320,19 @@ export class CourseController {
   @ApiQuery({ name: "chapterId", required: false, type: String, description: "章节ID" })
   @ApiResponse({ status: 200, description: "成功返回作业列表" })
   @ApiResponse({ status: 401, description: "未认证" })
-  getWorks(@Param("id") id: string, @Query("chapterId") chapterId?: string) {
-    return this.course.getWorks(id, chapterId);
+  getWorks(
+    @Param("id") id: string,
+    @Query("chapterId") chapterId?: string,
+    @Query("page") page?: number,
+    @Query("pageSize") pageSize?: number,
+  ) {
+    return this.course.getWorks(id, chapterId, page || 1, pageSize || 20);
   }
 
   @Put("works/:workId/score")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "批改作业评分（管理员）" })
+  @ApiOperation({ summary: "批改作业评分（管理员/讲师/助教）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "评分成功" })
   @ApiResponse({ status: 401, description: "未认证" })
@@ -336,7 +343,27 @@ export class CourseController {
     @Body("score") score: number,
     @Body("feedback") feedback?: string,
   ) {
-    return this.course.scoreWork(workId, req.user.id, score, feedback);
+    const isAdmin = (req.user.roles as string[])?.some((r: string) => ['SUPER_ADMIN', 'OPERATION_ADMIN'].includes(r));
+    return this.course.scoreWork(workId, req.user.id, score, isAdmin, feedback);
+  }
+
+  @Post("works/:workId/ai-score")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "AI 自动批改作业" })
+  @ApiBearerAuth()
+  aiScoreWork(@Param("workId") workId: string) {
+    return this.course.aiScoreWork(workId);
+  }
+
+  @Post(":id/works/ai-batch")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "AI 批量批改课程作业" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "chapterId", required: false })
+  aiBatchScoreWorks(@Param("id") courseId: string, @Query("chapterId") chapterId?: string) {
+    return this.course.aiBatchScoreWorks(courseId, chapterId);
   }
 
   // ───────── 课程评价 ─────────
@@ -391,5 +418,251 @@ export class CourseController {
   @ApiResponse({ status: 200, description: "成功返回直播间列表" })
   getLiveRooms(@Param("id") courseId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.liveService.listCourseRooms(courseId, +page, +pageSize);
+  }
+
+  // ───────── 管理端 — 学员管理 ─────────
+
+  @Get(":id/students")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员查看课程学员列表" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  getCourseStudents(@Param("id") courseId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.course.getCourseStudents(courseId, +page, +pageSize);
+  }
+
+  @Get(":id/students/:userId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "查看学生详细学习进度" })
+  @ApiBearerAuth()
+  getStudentProgress(@Param("id") courseId: string, @Param("userId") userId: string) {
+    return this.course.getStudentProgress(courseId, userId);
+  }
+
+  // ───────── 管理端 — 批量操作 ─────────
+
+  @Put("batch/audit")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "批量审核课程" })
+  @ApiBearerAuth()
+  async batchAudit(@Body("ids") ids: string[], @Body("status") status: string, @Req() req: AuthRequest) {
+    const result = await this.course.batchAudit(ids, status);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "BATCH_AUDIT",
+      targetType: "COURSE",
+      detail: `批量审核: ${ids.length}门课程 → ${status}`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    return result;
+  }
+
+  @Delete(":id/force")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "管理员强制删除课程" })
+  @ApiBearerAuth()
+  async forceDelete(@Param("id") id: string, @Req() req: AuthRequest) {
+    const result = await this.course.forceDelete(id);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "FORCE_DELETE",
+      targetType: "COURSE",
+      targetId: id,
+      detail: `管理员强制删除课程`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    return result;
+  }
+
+  @Put(":id/status")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员强制变更课程状态" })
+  @ApiBearerAuth()
+  async forceStatus(@Param("id") id: string, @Body("status") status: string, @Req() req: AuthRequest) {
+    const result = await this.course.forceStatus(id, status);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "FORCE_STATUS",
+      targetType: "COURSE",
+      targetId: id,
+      detail: `强制状态变更: ${status}`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志记录失败", err));
+    return result;
+  }
+
+  // ───────── 管理端 — 评价管理 ─────────
+
+  @Put("reviews/:reviewId/reply")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员回复评价" })
+  @ApiBearerAuth()
+  replyReview(@Param("reviewId") reviewId: string, @Body("reply") reply: string) {
+    return this.course.replyReview(reviewId, reply);
+  }
+
+  @Put("reviews/:reviewId/toggle")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员隐藏/恢复评价" })
+  @ApiBearerAuth()
+  toggleReviewStatus(@Param("reviewId") reviewId: string, @Body("status") status: string) {
+    return this.course.toggleReviewStatus(reviewId, status);
+  }
+
+  @Get(":id/reviews/all")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员查看所有评价（含隐藏）" })
+  @ApiBearerAuth()
+  listAllReviews(@Param("id") courseId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("status") status?: string) {
+    return this.course.listAllReviews(courseId, +page, +pageSize, status);
+  }
+
+  // ───────── 相关课程 ─────────
+
+  @Get(":id/related")
+  @ApiOperation({ summary: "获取相关课程推荐" })
+  @ApiQuery({ name: "useAi", required: false, type: Boolean, description: "是否使用 AI 语义推荐" })
+  getRelatedCourses(@Param("id") courseId: string, @Query("limit") limit = 6, @Query("useAi") useAi?: string) {
+    return this.course.getRelatedCourses(courseId, +limit, useAi === "true" || useAi === "1");
+  }
+
+  // ───────── 课程问答 ─────────
+
+  @Post(":id/questions")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "学生提问" })
+  @ApiBearerAuth()
+  askQuestion(@Req() req: AuthRequest, @Param("id") courseId: string, @Body() dto: AskQuestionDto) {
+    return this.course.askQuestion(req.user.id, courseId, dto);
+  }
+
+  @Get(":id/questions")
+  @ApiOperation({ summary: "课程问答列表" })
+  @ApiQuery({ name: "chapterId", required: false })
+  @ApiQuery({ name: "status", required: false })
+  @ApiQuery({ name: "tag", required: false })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  listQuestions(@Param("id") courseId: string, @Query() q: QaListQueryDto) {
+    return this.course.listQuestions(courseId, q);
+  }
+
+  @Get(":id/questions/my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的提问" })
+  @ApiBearerAuth()
+  getMyQuestions(@Req() req: AuthRequest, @Param("id") courseId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.course.getMyQuestions(req.user.id, courseId, +page, +pageSize);
+  }
+
+  @Get(":id/questions/tags")
+  @ApiOperation({ summary: "课程问答标签列表" })
+  getQuestionTags(@Param("id") courseId: string) {
+    return this.course.getQuestionTags(courseId);
+  }
+
+  @Put("questions/:qaId/answer")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "回答/回复问题" })
+  @ApiBearerAuth()
+  answerQuestion(@Req() req: AuthRequest, @Param("qaId") qaId: string, @Body() dto: AnswerQuestionDto) {
+    return this.course.answerQuestion(qaId, req.user.id, dto);
+  }
+
+  @Post("questions/:qaId/ai-suggest")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "AI 生成回答建议" })
+  @ApiBearerAuth()
+  aiSuggestAnswer(@Param("qaId") qaId: string) {
+    return this.course.aiSuggestAnswer(qaId);
+  }
+
+  @Put("questions/:qaId/close")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "关闭问题" })
+  @ApiBearerAuth()
+  closeQuestion(@Req() req: AuthRequest, @Param("qaId") qaId: string) {
+    return this.course.closeQuestion(qaId, req.user.id);
+  }
+
+  // ───────── 完成评估 + 证书 ─────────
+
+  @Post(":id/complete")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "标记课程完成" })
+  @ApiBearerAuth()
+  completeCourse(@Req() req: AuthRequest, @Param("id") courseId: string) {
+    return this.course.completeCourse(req.user.id, courseId);
+  }
+
+  @Get(":id/certificate")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取结课证书数据" })
+  @ApiBearerAuth()
+  getCertificate(@Req() req: AuthRequest, @Param("id") courseId: string) {
+    return this.course.getCertificate(req.user.id, courseId);
+  }
+
+  // ───────── 课程分类 ─────────
+
+  @Get("categories")
+  @ApiOperation({ summary: "获取课程品类树" })
+  getCourseCategories() {
+    return this.course.getCourseCategories();
+  }
+
+  // ───────── 草稿管理（讲师端）─────────
+
+  @Get("drafts")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取我的课程草稿" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  getMyDrafts(@Req() req: AuthRequest, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.course.getMyDrafts(req.user.id, +page, +pageSize);
+  }
+
+  @Post("drafts")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "保存课程草稿" })
+  @ApiBearerAuth()
+  saveDraft(@Req() req: AuthRequest, @Body() dto: CreateCourseDto) {
+    return this.course.saveDraft(req.user.id, dto);
+  }
+
+  @Put("drafts/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "更新课程草稿" })
+  @ApiBearerAuth()
+  updateDraft(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: UpdateCourseDto) {
+    return this.course.updateDraft(id, req.user.id, dto);
+  }
+
+  @Delete("drafts/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "删除课程草稿" })
+  @ApiBearerAuth()
+  deleteDraft(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.course.deleteDraft(id, req.user.id);
+  }
+
+  @Post("drafts/:id/publish")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "发布课程草稿" })
+  @ApiBearerAuth()
+  publishDraft(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.course.publishDraft(id, req.user.id);
   }
 }

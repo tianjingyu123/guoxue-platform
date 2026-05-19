@@ -197,6 +197,7 @@ export class CallService {
   private async _billingTickImpl() {
     const activeCalls = await this.prisma.audioCallRecord.findMany({
       where: { status: "IN_PROGRESS", startedAt: { not: null } },
+      take: 500,
     });
 
     // 批量查询余额（按用户去重）

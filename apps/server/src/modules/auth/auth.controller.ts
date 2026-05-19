@@ -139,6 +139,7 @@ export class AuthController {
   }
 
   @Post("refresh")
+  @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "刷新 Token", description: "使用 refreshToken 换取新的 accessToken + refreshToken（轮换防重放）" })
   async refresh(@Body("refreshToken") refreshToken: string) {
     if (!refreshToken) throw new BadRequestException("refreshToken 参数必填");

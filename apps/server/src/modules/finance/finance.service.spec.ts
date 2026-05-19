@@ -9,6 +9,7 @@ const mockPrisma: any = {
     findUnique: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     aggregate: jest.fn(),
     count: jest.fn(),
   },
@@ -255,23 +256,25 @@ describe("FinanceService", () => {
 
   describe("freezeAmount", () => {
     it("冻结订单资金成功", async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", frozenAmount: null });
-      mockPrisma.order.update.mockResolvedValue({ id: "o1", frozenAmount: 99 });
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 });
       const result = await svc.freezeAmount({ orderId: "o1", amount: 99, reason: "可疑交易" });
       expect(result.frozenAmount).toBe(99);
     });
 
     it("订单不存在抛出异常", async () => {
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 0 });
       mockPrisma.order.findUnique.mockResolvedValue(null);
       await expect(svc.freezeAmount({ orderId: "invalid", amount: 99 })).rejects.toThrow(BusinessException);
     });
 
     it("非PAID状态无法冻结", async () => {
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 0 });
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PENDING", frozenAmount: null });
       await expect(svc.freezeAmount({ orderId: "o1", amount: 99 })).rejects.toThrow(BusinessException);
     });
 
     it("已有冻结金额无法重复冻结", async () => {
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 0 });
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", frozenAmount: 50 });
       await expect(svc.freezeAmount({ orderId: "o1", amount: 99 })).rejects.toThrow(BusinessException);
     });
@@ -280,12 +283,13 @@ describe("FinanceService", () => {
   describe("unfreezeAmount", () => {
     it("解冻订单资金成功", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", frozenAmount: 99 });
-      mockPrisma.order.update.mockResolvedValue({ id: "o1", frozenAmount: null });
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 });
       const result = await svc.unfreezeAmount({ orderId: "o1" });
-      expect(result.frozenAmount).toBeNull();
+      expect(result.success).toBe(true);
     });
 
     it("无冻结金额无法解冻", async () => {
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 0 });
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", frozenAmount: null });
       await expect(svc.unfreezeAmount({ orderId: "o1" })).rejects.toThrow(BusinessException);
     });

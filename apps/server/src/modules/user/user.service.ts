@@ -28,7 +28,7 @@ export class UserService {
       },
     });
     if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
-    return user;
+    return { ...user, phone: maskPhone(user.phone) };
   }
 
   async listUsers(params: {
@@ -385,6 +385,51 @@ export class UserService {
         isTrusted: d.isTrusted,
         firstSeenAt: d.firstSeenAt,
         lastSeenAt: d.lastSeenAt,
+      })),
+    };
+  }
+
+  /** 用户兴趣品类统计分析 */
+  async getInterestStats() {
+    const totalUsers = await this.prisma.user.count({ where: { status: "ACTIVE" } });
+
+    const users = await this.prisma.user.findMany({
+      where: { status: "ACTIVE", interestCategories: { isEmpty: false } },
+      select: { interestCategories: true },
+    });
+
+    const categoryCount: Record<string, number> = {};
+    for (const u of users) {
+      for (const cat of u.interestCategories) {
+        categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+      }
+    }
+
+    const topInterests = await this.prisma.userInterest.groupBy({
+      by: ["tag"],
+      _count: { tag: true },
+      _avg: { score: true },
+      orderBy: { _count: { tag: "desc" } },
+      take: 30,
+    });
+
+    const distribution = Object.entries(categoryCount)
+      .map(([name, count]) => ({
+        name,
+        count,
+        percentage: totalUsers > 0 ? Math.round((count / totalUsers) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      totalUsers,
+      usersWithInterests: users.length,
+      coverageRate: totalUsers > 0 ? Math.round((users.length / totalUsers) * 100) : 0,
+      distribution,
+      behaviorTags: topInterests.map((t) => ({
+        tag: t.tag,
+        userCount: t._count.tag,
+        avgScore: Math.round((t._avg.score || 0) * 100) / 100,
       })),
     };
   }

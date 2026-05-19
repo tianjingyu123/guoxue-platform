@@ -345,48 +345,40 @@ export class MarketingService {
     const template = await this.prisma.couponTemplate.findUnique({ where: { id } });
     if (!template) throw new BusinessException(ErrorCode.NOT_FOUND, "优惠券模板不存在");
 
-    // 一次性查询当前已领取数，避免循环中 N+1 查询
-    let claimedCount = 0;
+    // 计算可发放数量
+    let remaining = dto.userIds.length;
     if (template.totalCount > 0) {
       const current = await this.prisma.couponTemplate.findUnique({
         where: { id },
         select: { claimedCount: true },
       });
-      claimedCount = current?.claimedCount ?? 0;
+      remaining = Math.max(0, template.totalCount - (current?.claimedCount ?? 0));
     }
 
+    const toGrant = dto.userIds.slice(0, remaining);
+    const cannotGrant = dto.userIds.slice(remaining);
     const results: Array<{ userId: string; success: boolean; error?: string }> = [];
 
-    for (const userId of dto.userIds) {
+    // 单次事务批量发放
+    if (toGrant.length > 0) {
       try {
-        // 检查发行总量（本地计数 + 数据库基准）
-        if (template.totalCount > 0 && claimedCount >= template.totalCount) {
-          results.push({ userId, success: false, error: "优惠券已领完" });
-          continue;
-        }
-
         await this.prisma.$transaction(async (tx) => {
           await tx.couponTemplate.update({
             where: { id },
-            data: { claimedCount: { increment: 1 } },
+            data: { claimedCount: { increment: toGrant.length } },
           });
-
-          await tx.couponRecord.create({
-            data: {
-              couponId: id,
-              userId,
-              status: "UNUSED",
-            },
+          await tx.couponRecord.createMany({
+            data: toGrant.map((userId) => ({ couponId: id, userId, status: "UNUSED" })),
           });
         });
-
-        claimedCount++;
-        results.push({ userId, success: true });
+        toGrant.forEach((userId) => results.push({ userId, success: true }));
       } catch (err: unknown) {
-        this.logger.warn(`批量发放优惠券失败 userId=${userId}: ${(err as Error).message}`);
-        results.push({ userId, success: false, error: (err as Error).message });
+        this.logger.warn(`批量发放优惠券事务失败: ${(err as Error).message}`);
+        toGrant.forEach((userId) => results.push({ userId, success: false, error: (err as Error).message }));
       }
     }
+
+    cannotGrant.forEach((userId) => results.push({ userId, success: false, error: "优惠券已领完" }));
 
     return { total: dto.userIds.length, success: results.filter((r) => r.success).length, failed: results.filter((r) => !r.success).length, results };
   }
@@ -798,6 +790,53 @@ export class MarketingService {
         startTime: { lte: now },
         endTime: { gte: now },
       },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  // ═══════════════════════════════════════
+  // 用户端公开接口
+  // ═══════════════════════════════════════
+
+  async getActiveFlashSales() {
+    const now = new Date();
+    return this.prisma.flashSale.findMany({
+      where: {
+        status: { in: ["ACTIVE", "SCHEDULED"] },
+        endTime: { gte: now },
+      },
+      include: { items: true },
+      orderBy: { startTime: "asc" },
+    });
+  }
+
+  async getActiveGroupBuys() {
+    return this.prisma.groupBuy.findMany({
+      where: { status: "ACTIVE" },
+      include: { _count: { select: { participants: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async joinGroupBuy(userId: string, groupBuyId: string, groupId?: string) {
+    const gb = await this.prisma.groupBuy.findUnique({ where: { id: groupBuyId } });
+    if (!gb) throw new BusinessException(ErrorCode.NOT_FOUND, "拼团活动不存在");
+    if (gb.status !== "ACTIVE") throw new BusinessException(ErrorCode.BAD_REQUEST, "拼团活动已结束");
+
+    const existing = await this.prisma.groupBuyParticipant.findFirst({
+      where: { groupBuyId, userId },
+    });
+    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "您已参与此拼团");
+
+    return this.prisma.groupBuyParticipant.create({
+      data: { groupBuyId, userId, groupId: groupId ?? groupBuyId },
+    });
+  }
+
+  async getMyGroupBuys(userId: string) {
+    return this.prisma.groupBuyParticipant.findMany({
+      where: { userId },
+      include: { groupBuy: true },
       orderBy: { createdAt: "desc" },
     });
   }

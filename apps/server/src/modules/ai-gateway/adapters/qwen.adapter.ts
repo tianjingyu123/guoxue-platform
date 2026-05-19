@@ -21,6 +21,7 @@ export class QwenAdapter implements AiModelAdapter {
     throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Qwen适配器尚未实现。请配置 DASHSCOPE_API_KEY 后启用。");
   }
 
+  // eslint-disable-next-line require-yield
   async *chatStream(
     _model: string,
     _messages: AiMessage[],

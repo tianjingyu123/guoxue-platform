@@ -694,7 +694,8 @@ export class WechatService {
       try {
         const data = await this.getAdGeneral(date);
         results.push({ date, ...(data as Record<string, unknown>) });
-      } catch {
+      } catch (err) {
+        this.logger.warn(`微信广告数据获取失败: ${date}`, err);
         results.push({ date, error: "获取失败" });
       }
     }

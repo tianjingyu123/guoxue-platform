@@ -42,7 +42,8 @@ export class MixedStrategy extends BaseRecommendStrategy {
             score: item.score * weight,
             strategies: [...item.strategies, "mixed"],
           }));
-        } catch {
+        } catch (err) {
+          console.warn(`推荐策略执行失败`, err);
           return [];
         }
       }),

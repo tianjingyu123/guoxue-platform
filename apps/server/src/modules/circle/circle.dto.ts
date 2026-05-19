@@ -76,7 +76,7 @@ export class UpdateCircleDto {
 }
 
 export class CreatePostDto {
-  @ApiProperty({ description: "帖子类型", enum: ["TEXT", "IMAGE", "VIDEO", "FILE", "LINK"], example: "TEXT" })
+  @ApiProperty({ description: "帖子类型", enum: ["TEXT", "IMAGE", "VIDEO", "FILE", "LINK", "AUDIO"], example: "TEXT" })
   @IsString()
   @MinLength(1)
   type: string;
@@ -110,6 +110,16 @@ export class CreatePostDto {
   @IsString()
   @IsOptional()
   linkUrl?: string;
+
+  @ApiPropertyOptional({ description: "音频URL" })
+  @IsString()
+  @IsOptional()
+  audioUrl?: string;
+
+  @ApiPropertyOptional({ description: "音频时长（秒）" })
+  @IsNumber()
+  @IsOptional()
+  audioDuration?: number;
 
   @ApiPropertyOptional({ description: "状态：PUBLISHED 发布 / DRAFT 草稿", default: "PUBLISHED" })
   @IsString()
@@ -158,7 +168,53 @@ export class ListPostQueryDto {
   pageSize?: number;
 }
 
+export class PrepareJoinDto {
+  @ApiPropertyOptional({ description: "支付方式：COIN/WECHAT/ALIPAY", default: "COIN" })
+  @IsString()
+  @IsOptional()
+  payMethod?: string;
+
+  @ApiPropertyOptional({ description: "推荐人ID" })
+  @IsString()
+  @IsOptional()
+  referrerId?: string;
+}
+
+export class ConfirmJoinDto {
+  @ApiPropertyOptional({ description: "支付方式" })
+  @IsString()
+  @IsOptional()
+  payMethod?: string;
+
+  @ApiPropertyOptional({ description: "订单号" })
+  @IsString()
+  @IsOptional()
+  orderNo?: string;
+
+  @ApiPropertyOptional({ description: "订单ID" })
+  @IsString()
+  @IsOptional()
+  orderId?: string;
+
+  @ApiPropertyOptional({ description: "推荐人ID" })
+  @IsString()
+  @IsOptional()
+  referrerId?: string;
+}
+
+export class RenewCircleDto {
+  @ApiPropertyOptional({ description: "支付方式", default: "COIN" })
+  @IsString()
+  @IsOptional()
+  payMethod?: string;
+}
+
 export class ExpertConfigDto {
+  @ApiPropertyOptional({ description: "目标用户ID（管理员替他人配置时传入）" })
+  @IsOptional()
+  @IsString()
+  userId?: string;
+
   @ApiProperty({ description: "提问价格（虚拟币），0=不接提问", minimum: 0 })
   @IsInt()
   @Min(0)

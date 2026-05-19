@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Query, Req, UseGuards, Logger,
+  Body, Param, Query, Req, UseGuards, Logger, ForbiddenException,
 } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
@@ -18,7 +18,7 @@ import {
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
-import { StrictThrottleGuard } from "../../common/throttle.guard";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
@@ -151,7 +151,7 @@ export class ShopController {
   }
 
   @Post("orders/:id/pay/jsapi")
-  @UseGuards(JwtAuthGuard, StrictThrottleGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "JSAPI支付（小程序/公众号内支付）" })
   @ApiBearerAuth()
   async jsapiPay(
@@ -163,7 +163,7 @@ export class ShopController {
   }
 
   @Post("orders/:id/pay/native")
-  @UseGuards(JwtAuthGuard, StrictThrottleGuard)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "Native扫码支付（PC端）" })
   @ApiBearerAuth()
   async nativePay(
@@ -360,7 +360,13 @@ export class ShopController {
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   @ApiQuery({ name: "admin", required: false, type: String, description: "是否管理员查看" })
-  listCoupons(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("admin") admin?: string) {
+  listCoupons(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("admin") admin?: string, @Req() req?: AuthRequest) {
+    if (admin === "true") {
+      const roles: string[] = (req?.user as any)?.roles ?? [];
+      if (!roles.includes("SUPER_ADMIN") && !roles.includes("OPERATION_ADMIN")) {
+        throw new ForbiddenException("无权查看管理端优惠券");
+      }
+    }
     return this.shop.listCoupons(+page, +pageSize, admin === "true");
   }
 
@@ -498,8 +504,10 @@ export class ShopController {
   // ───────── 物流追踪 ─────────
 
   @Get("orders/:id/logistics")
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取物流信息" })
-  getLogistics(@Param("id") id: string) {
+  @ApiBearerAuth()
+  getLogistics(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.shop.getLogistics(id);
   }
 
@@ -518,5 +526,104 @@ export class ShopController {
   @ApiBearerAuth()
   updateLogistics(@Param("id") id: string, @Body() dto: UpdateLogisticsDto) {
     return this.shop.updateLogistics(id, dto);
+  }
+
+  // ───────── 售后 ─────────
+
+  @Post("orders/:id/after-sale")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "申请售后" })
+  @ApiBearerAuth()
+  applyAfterSale(@Req() req: AuthRequest, @Param("id") orderId: string, @Body() body: { type: string; reason: string; amount?: number }) {
+    return this.shop.applyAfterSale(req.user.id, orderId, body.type, body.reason, body.amount);
+  }
+
+  @Get("after-sales")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取我的售后列表" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  myAfterSales(@Req() req: AuthRequest, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.shop.getUserAfterSales(req.user.id, +page, +pageSize);
+  }
+
+  @Get("after-sales/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取售后详情" })
+  @ApiBearerAuth()
+  getAfterSale(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.shop.getAfterSale(id, req.user.id);
+  }
+
+  @Put("after-sales/:id/cancel")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "取消售后申请" })
+  @ApiBearerAuth()
+  cancelAfterSale(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.shop.cancelAfterSale(id, req.user.id);
+  }
+
+  @Get("admin/after-sales")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取售后列表（管理员）" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  @ApiQuery({ name: "status", required: false })
+  listAfterSales(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("status") status?: string) {
+    return this.shop.listAfterSales(+page, +pageSize, status);
+  }
+
+  @Put("admin/after-sales/:id/process")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "处理售后（管理员）" })
+  @ApiBearerAuth()
+  processAfterSale(@Param("id") id: string, @Body("action") action: string, @Body("remark") remark?: string) {
+    return this.shop.processAfterSale(id, action, remark);
+  }
+
+  // ───────── 购物车（Redis） ─────────
+
+  @Get("cart")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取购物车" })
+  @ApiBearerAuth()
+  getCart(@Req() req: AuthRequest) {
+    return this.shop.getCart(req.user.id);
+  }
+
+  @Post("cart")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "加入购物车" })
+  @ApiBearerAuth()
+  addToCart(@Req() req: AuthRequest, @Body() body: { productId: string; skuId?: string; quantity?: number }) {
+    return this.shop.addToCart(req.user.id, body.productId, body.skuId, body.quantity || 1);
+  }
+
+  @Put("cart/:itemId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "更新购物车商品数量" })
+  @ApiBearerAuth()
+  updateCartItem(@Req() req: AuthRequest, @Param("itemId") itemId: string, @Body("quantity") quantity: number) {
+    return this.shop.updateCartItem(req.user.id, itemId, quantity);
+  }
+
+  @Delete("cart/:itemId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "移除购物车商品" })
+  @ApiBearerAuth()
+  removeCartItem(@Req() req: AuthRequest, @Param("itemId") itemId: string) {
+    return this.shop.removeCartItem(req.user.id, itemId);
+  }
+
+  @Delete("cart")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "清空购物车" })
+  @ApiBearerAuth()
+  clearCart(@Req() req: AuthRequest) {
+    return this.shop.clearCart(req.user.id);
   }
 }

@@ -19,14 +19,20 @@ export class CreateCommentDto {
   parentId?: string;
 }
 
-export class CommentQueryDto {
-  @IsOptional()
+export class UpdateCommentDto {
   @IsString()
+  @MinLength(1)
+  content: string;
+}
+
+export class CommentQueryDto {
+  @IsString()
+  @IsOptional()
   targetType?: string;
 
-  @IsOptional()
   @IsString()
-  targetId?: string;
+  @MinLength(1)
+  targetId: string;
 
   @Type(() => Number)
   @IsInt()

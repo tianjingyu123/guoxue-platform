@@ -261,5 +261,5 @@ export class MiniService {
 
 function safeJsonParse(str: string | undefined, fallback: unknown) {
   if (!str) return fallback;
-  try { return JSON.parse(str); } catch { return fallback; }
+  try { return JSON.parse(str); } catch (err) { return fallback; }
 }

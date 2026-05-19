@@ -1,20 +1,37 @@
 import { Test } from "@nestjs/testing";
+import { JwtService } from "@nestjs/jwt";
 import { ClassicService } from "./classic.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
+import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+
+const mockRedis = { getJson: jest.fn().mockResolvedValue(null), setJson: jest.fn(), del: jest.fn().mockResolvedValue(1), delByPattern: jest.fn() };
 
 const mockPrisma = {
-  classicBook: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn(), delete: jest.fn() },
+  classicBook: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn(), delete: jest.fn(), groupBy: jest.fn() },
   classicChapter: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
-  readingProgress: { findUnique: jest.fn(), upsert: jest.fn() },
-  bookmark: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn() },
+  readingProgress: { findUnique: jest.fn(), upsert: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+  bookmark: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
+  classicAnnotation: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
+  $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
 };
+
+const mockJwt = { sign: jest.fn().mockReturnValue("mock-token") };
+
+const mockGateway = { chat: jest.fn() };
 
 describe("ClassicService", () => {
   let svc: ClassicService;
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [ClassicService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        ClassicService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: JwtService, useValue: mockJwt },
+        { provide: RedisService, useValue: mockRedis },
+        { provide: AiGatewayService, useValue: mockGateway },
+      ],
     }).compile();
     svc = mod.get(ClassicService);
   });
@@ -48,10 +65,9 @@ describe("ClassicService", () => {
         { where: { id: "b1" }, data: { viewCount: { increment: 1 } } },
       );
     });
-    it("书籍不存在返回 null", async () => {
+    it("书籍不存在抛出异常", async () => {
       mockPrisma.classicBook.findUnique.mockResolvedValue(null);
-      const result = await svc.getBook("invalid");
-      expect(result).toBeNull();
+      await expect(svc.getBook("invalid")).rejects.toThrow("书籍不存在");
     });
   });
 
@@ -85,6 +101,10 @@ describe("ClassicService", () => {
       const result = await svc.getChapter("ch-1");
       expect(result!.book.title).toBe("论语");
     });
+    it("章节不存在抛出异常", async () => {
+      mockPrisma.classicChapter.findUnique.mockResolvedValue(null);
+      await expect(svc.getChapter("invalid")).rejects.toThrow("章节不存在");
+    });
   });
 
   describe("createChapter", () => {
@@ -117,11 +137,9 @@ describe("ClassicService", () => {
         { where: { id: "b1" }, data: { chapterCount: { increment: -1 } } },
       );
     });
-    it("章节不存在时删除仍调用 delete", async () => {
+    it("章节不存在抛出异常", async () => {
       mockPrisma.classicChapter.findUnique.mockResolvedValue(null);
-      mockPrisma.classicChapter.delete.mockResolvedValue({ id: "ch-1" });
-      const result = await svc.deleteChapter("ch-1");
-      expect(result.id).toBe("ch-1");
+      await expect(svc.deleteChapter("ch-1")).rejects.toThrow("章节不存在");
     });
   });
 
@@ -147,15 +165,20 @@ describe("ClassicService", () => {
   });
 
   describe("listBookmarks", () => {
-    it("返回用户书签列表", async () => {
+    it("返回用户书签列表（分页）", async () => {
       mockPrisma.bookmark.findMany.mockResolvedValue([{ id: "bm-1", position: 100, book: { title: "论语" }, chapter: { title: "学而篇" } }]);
+      mockPrisma.bookmark.count.mockResolvedValue(1);
       const result = await svc.listBookmarks("user-1");
-      expect(result).toHaveLength(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+      expect(result.page).toBe(1);
     });
     it("按书籍过滤书签", async () => {
       mockPrisma.bookmark.findMany.mockResolvedValue([]);
+      mockPrisma.bookmark.count.mockResolvedValue(0);
       const result = await svc.listBookmarks("user-1", "b1");
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
+      expect(result.total).toBe(0);
     });
   });
 
@@ -174,9 +197,184 @@ describe("ClassicService", () => {
 
   describe("deleteBookmark", () => {
     it("删除书签成功", async () => {
+      mockPrisma.bookmark.findUnique.mockResolvedValue({ id: "bm-1", userId: "u1" });
       mockPrisma.bookmark.delete.mockResolvedValue({ id: "bm-1" });
-      const result = await svc.deleteBookmark("bm-1");
+      const result = await svc.deleteBookmark("bm-1", "u1");
       expect(result.id).toBe("bm-1");
+    });
+    it("书签不存在抛出异常", async () => {
+      mockPrisma.bookmark.findUnique.mockResolvedValue(null);
+      await expect(svc.deleteBookmark("bm-1")).rejects.toThrow("书签不存在");
+    });
+  });
+
+  describe("dictionaryLookup", () => {
+    it("返回AI字典查询结果", async () => {
+      mockGateway.chat.mockResolvedValue({
+        content: '{"word":"仁","pinyin":"rén","radicals":"亻","meanings":["仁爱","仁德"],"classicalUsages":["论语·学而——孝弟也者，其为仁之本与"],"commonPhrases":["仁义","仁政"],"explanation":"儒家核心概念"}',
+      });
+      const result = await svc.dictionaryLookup("仁");
+      expect(result.word).toBe("仁");
+      expect(result.pinyin).toBe("rén");
+    });
+    it("AI返回非法JSON时降级", async () => {
+      mockGateway.chat.mockResolvedValue({ content: "这是关于仁的解释..." });
+      const result = await svc.dictionaryLookup("仁");
+      expect(result.word).toBe("仁");
+      expect(result.explanation).toBeTruthy();
+    });
+  });
+
+  describe("translateClassical", () => {
+    it("返回白话翻译结果", async () => {
+      mockGateway.chat.mockResolvedValue({
+        content: '{"original":"学而时习之","translation":"学习并且经常温习","notes":["习：温习、练习"],"source":"论语·学而篇"}',
+      });
+      const result = await svc.translateClassical({ text: "学而时习之" });
+      expect(result.translation).toBeTruthy();
+      expect(result.notes).toHaveLength(1);
+    });
+    it("带上下文翻译", async () => {
+      mockGateway.chat.mockResolvedValue({
+        content: '{"original":"道可道","translation":"道如果可以言说","notes":[],"source":"道德经"}',
+      });
+      const result = await svc.translateClassical({ text: "道可道", context: "道德经·第一章" });
+      expect(result.source).toBe("道德经");
+    });
+  });
+
+  describe("getContinueReading", () => {
+    it("返回最近阅读记录", async () => {
+      mockPrisma.readingProgress.findMany.mockResolvedValue([
+        { userId: "u1", bookId: "b1", progress: 50,
+          book: { id: "b1", title: "论语", author: "孔子", cover: null, category: "经" },
+          chapter: { id: "ch-1", title: "学而篇", sortOrder: 1 },
+          updatedAt: new Date() },
+      ]);
+      const result = await svc.getContinueReading("u1", 10);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].book.title).toBe("论语");
+    });
+  });
+
+  describe("getReadingStats", () => {
+    it("返回阅读统计数据", async () => {
+      mockPrisma.readingProgress.count.mockResolvedValueOnce(5).mockResolvedValueOnce(12);
+      mockPrisma.readingProgress.findMany.mockResolvedValue([
+        { updatedAt: new Date(), bookId: "b1" },
+        { updatedAt: new Date(), bookId: "b2" },
+      ]);
+      mockPrisma.classicBook.groupBy.mockResolvedValue([
+        { category: "经", _count: { id: 2 } },
+        { category: "子", _count: { id: 1 } },
+      ]);
+      const result = await svc.getReadingStats("u1");
+      expect(result.totalBooksRead).toBe(5);
+      expect(result.totalChaptersRead).toBe(12);
+      expect(result.mostReadCategories).toBeDefined();
+      expect(result.recentActivity).toBeDefined();
+    });
+  });
+
+  // ── 注疏标记 ──
+  describe("listAnnotations", () => {
+    it("返回书籍注疏列表（分页）", async () => {
+      mockPrisma.classicAnnotation.findMany.mockResolvedValue([
+        { id: "a1", bookId: "b1", type: "注疏", startPos: 0, endPos: 5, content: "注疏内容", author: "朱熹", dynasty: "宋" },
+      ]);
+      mockPrisma.classicAnnotation.count.mockResolvedValue(1);
+      const result = await svc.listAnnotations("b1");
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+    });
+
+    it("按章节过滤注疏", async () => {
+      mockPrisma.classicAnnotation.findMany.mockResolvedValue([]);
+      mockPrisma.classicAnnotation.count.mockResolvedValue(0);
+      const result = await svc.listAnnotations("b1", "ch1");
+      expect(result.items).toEqual([]);
+    });
+  });
+
+  describe("createAnnotation", () => {
+    it("创建注疏标记", async () => {
+      mockPrisma.classicAnnotation.create.mockResolvedValue({
+        id: "a1", bookId: "b1", type: "注疏", startPos: 0, endPos: 10, content: "古注原文",
+      });
+      const result = await svc.createAnnotation("b1", {
+        startPos: 0, endPos: 10, content: "古注原文", author: "郑玄",
+      });
+      expect(result.id).toBe("a1");
+    });
+  });
+
+  describe("deleteAnnotation", () => {
+    it("删除注疏标记", async () => {
+      mockPrisma.classicAnnotation.findUnique.mockResolvedValue({ id: "a1" });
+      mockPrisma.classicAnnotation.delete.mockResolvedValue({ id: "a1" });
+      const result = await svc.deleteAnnotation("a1");
+      expect(result.id).toBe("a1");
+    });
+    it("注疏不存在抛出异常", async () => {
+      mockPrisma.classicAnnotation.findUnique.mockResolvedValue(null);
+      await expect(svc.deleteAnnotation("a1")).rejects.toThrow("注疏不存在");
+    });
+  });
+
+  // ── 版本管理 ──
+  describe("getBookVersions", () => {
+    it("返回同书其他版本", async () => {
+      mockPrisma.classicBook.findUnique.mockResolvedValue({
+        title: "论语", author: "孔子", dynasty: "春秋",
+      });
+      mockPrisma.classicBook.findMany.mockResolvedValue([
+        { id: "b2", title: "论语集注", author: "朱熹", dynasty: "宋", category: "经", cover: null, source: "宋刻本" },
+      ]);
+      const result = await svc.getBookVersions("b1");
+      expect(result.current.title).toBe("论语");
+      expect(result.versions).toHaveLength(1);
+      expect(result.versions[0].title).toBe("论语集注");
+    });
+  });
+
+  // ── 引用生成 ──
+  describe("generateCitation", () => {
+    it("生成 GB/T 7714 格式引用", async () => {
+      mockPrisma.classicBook.findUnique.mockResolvedValue({
+        id: "b1", title: "论语", author: "孔子", dynasty: "春秋", source: "宋刻本",
+      });
+      const result = await svc.generateCitation("b1", "gbt7714");
+      expect(result.book.title).toBe("论语");
+      expect(result.citations.gbt7714).toContain("论语");
+      expect(result.citations.gbt7714).toContain("孔子");
+    });
+
+    it("生成所有格式引用", async () => {
+      mockPrisma.classicBook.findUnique.mockResolvedValue({
+        id: "b1", title: "论语", author: "孔子", dynasty: "春秋", source: "宋刻本",
+      });
+      const result = await svc.generateCitation("b1", "all");
+      expect(Object.keys(result.citations)).toHaveLength(4);
+      expect(result.citations.chicago).toBeTruthy();
+      expect(result.citations.mla).toBeTruthy();
+      expect(result.citations.apa).toBeTruthy();
+    });
+
+    it("含章节摘录的引用", async () => {
+      mockPrisma.classicBook.findUnique.mockResolvedValue({
+        id: "b1", title: "论语", author: "孔子", dynasty: "春秋", source: "宋刻本",
+      });
+      mockPrisma.classicChapter.findUnique
+        .mockResolvedValueOnce({ title: "学而篇", sortOrder: 1 })  // 第一次调用：章节信息
+        .mockResolvedValueOnce({ content: "子曰：学而时习之，不亦说乎" }); // 第二次调用：摘录
+      const result = await svc.generateCitation("b1", "gbt7714", "ch1", 0, 5);
+      expect(result.chapter!.title).toBe("学而篇");
+      expect(result.citations.gbt7714).toContain("学而篇");
+    });
+
+    it("书籍不存在抛出异常", async () => {
+      mockPrisma.classicBook.findUnique.mockResolvedValue(null);
+      await expect(svc.generateCitation("invalid")).rejects.toThrow("书籍不存在");
     });
   });
 });

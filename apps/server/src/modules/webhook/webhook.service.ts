@@ -49,6 +49,16 @@ export class WebhookService {
     });
   }
 
+  /** 编辑订阅配置 */
+  async update(id: string, params: { url?: string; secret?: string; description?: string }) {
+    const data: Record<string, unknown> = {};
+    if (params.url !== undefined) data.url = params.url;
+    if (params.secret !== undefined) data.secret = params.secret;
+    if (params.description !== undefined) data.description = params.description;
+
+    return this.prisma.webhookSubscription.update({ where: { id }, data });
+  }
+
   /** 手动更新订阅状态 */
   async toggleActive(id: string, isActive: boolean) {
     return this.prisma.webhookSubscription.update({
@@ -150,8 +160,9 @@ export class WebhookService {
           retryCount: { increment: 1 },
         },
       });
-    } catch {
+    } catch (err: any) {
       // 状态更新失败不影响主流程
+      this.logger.warn(`Webhook 状态更新失败: ${err.message}`);
     }
   }
 

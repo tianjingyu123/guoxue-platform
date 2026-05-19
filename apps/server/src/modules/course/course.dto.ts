@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, Min, Max, MinLength } from "class-validator";
+import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, IsArray, IsDateString, Min, Max, MinLength, MaxLength } from "class-validator";
 import { Type } from "class-transformer";
 
 export enum CourseType {
@@ -32,17 +32,37 @@ export class CreateCourseDto {
   @IsOptional() @IsEnum(CourseType)
   type?: CourseType;
 
-  @ApiPropertyOptional({ description: "售价（分），0=免费", default: 0 })
+  @ApiPropertyOptional({ description: "售价（元），0=免费", default: 0 })
   @IsOptional() @IsNumber()
   price?: number;
 
-  @ApiPropertyOptional({ description: "原价（分）" })
+  @ApiPropertyOptional({ description: "原价（元）" })
   @IsOptional() @IsNumber()
   originalPrice?: number;
 
   @ApiPropertyOptional({ description: "所属分站ID" })
   @IsOptional() @IsString()
   stationId?: string;
+
+  @ApiPropertyOptional({ description: "标签列表" })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  tags?: string[];
+
+  @ApiPropertyOptional({ description: "一级品类" })
+  @IsOptional() @IsString()
+  categoryLevel1?: string;
+
+  @ApiPropertyOptional({ description: "二级品类" })
+  @IsOptional() @IsString()
+  categoryLevel2?: string;
+
+  @ApiPropertyOptional({ description: "购买后有效期（天），0=永久", default: 0 })
+  @IsOptional() @IsInt()
+  validityDays?: number;
+
+  @ApiPropertyOptional({ description: "定时发布时间" })
+  @IsOptional() @IsDateString()
+  scheduledAt?: string;
 }
 
 export class UpdateCourseDto {
@@ -69,6 +89,34 @@ export class UpdateCourseDto {
   @ApiPropertyOptional({ description: "原价" })
   @IsOptional() @IsNumber()
   originalPrice?: number;
+
+  @ApiPropertyOptional({ description: "标签列表" })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  tags?: string[];
+
+  @ApiPropertyOptional({ description: "一级品类" })
+  @IsOptional() @IsString()
+  categoryLevel1?: string;
+
+  @ApiPropertyOptional({ description: "二级品类" })
+  @IsOptional() @IsString()
+  categoryLevel2?: string;
+
+  @ApiPropertyOptional({ description: "购买后有效期（天），0=永久" })
+  @IsOptional() @IsInt()
+  validityDays?: number;
+
+  @ApiPropertyOptional({ description: "定时发布时间" })
+  @IsOptional() @IsDateString()
+  scheduledAt?: string;
+
+  @ApiPropertyOptional({ description: "关联圈子ID" })
+  @IsOptional() @IsString()
+  circleId?: string;
+
+  @ApiPropertyOptional({ description: "所属分站ID" })
+  @IsOptional() @IsString()
+  stationId?: string;
 }
 
 export class CreateChapterDto {
@@ -128,6 +176,7 @@ export class UpdateProgressDto {
   @ApiProperty({ description: "进度百分比 0-100", minimum: 0, maximum: 100 })
   @IsNumber()
   @Min(0)
+  @Max(100)
   progress: number;
 }
 
@@ -135,7 +184,13 @@ export class SubmitWorkDto {
   @ApiProperty({ description: "作业内容" })
   @IsString()
   @MinLength(1)
+  @MaxLength(10000)
   content: string;
+
+  @ApiPropertyOptional({ description: "图片URL列表" })
+  @IsOptional()
+  @IsArray()
+  images?: string[];
 }
 
 export class CourseListQueryDto {
@@ -162,6 +217,10 @@ export class CourseListQueryDto {
   @ApiPropertyOptional({ description: "分站ID" })
   @IsOptional() @IsString()
   stationId?: string;
+
+  @ApiPropertyOptional({ description: "课程类型筛选" })
+  @IsOptional() @IsString()
+  type?: string;
 
   @ApiPropertyOptional({ description: "标题关键词搜索" })
   @IsOptional() @IsString()
@@ -205,4 +264,46 @@ export class ReviewListQueryDto {
   @ApiPropertyOptional({ description: "每页数量", default: 20 })
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
   pageSize?: number;
+}
+
+// ═══════════════════ 课程问答 ═══════════════════
+
+export class AskQuestionDto {
+  @ApiProperty({ description: "问题内容" })
+  @IsString()
+  @MinLength(1)
+  question: string;
+
+  @ApiPropertyOptional({ description: "关联章节ID" })
+  @IsOptional() @IsString()
+  chapterId?: string;
+}
+
+export class AnswerQuestionDto {
+  @ApiProperty({ description: "回答内容" })
+  @IsString()
+  @MinLength(1)
+  answer: string;
+}
+
+export class QaListQueryDto {
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
+  pageSize?: number;
+
+  @ApiPropertyOptional({ description: "章节ID筛选" })
+  @IsOptional() @IsString()
+  chapterId?: string;
+
+  @ApiPropertyOptional({ description: "状态筛选：PENDING/ANSWERED/CLOSED" })
+  @IsOptional() @IsString()
+  status?: string;
+
+  @ApiPropertyOptional({ description: "标签筛选" })
+  @IsOptional() @IsString()
+  tag?: string;
 }

@@ -130,13 +130,14 @@ export class BountyService {
   async processExpiredLocks() {
     const expired = await this.prisma.bountyQuestion.findMany({
       where: { status: "CLAIMED", lockExpireAt: { lt: new Date() } },
+      select: { id: true },
     });
-    for (const q of expired) {
-      await this.prisma.bountyQuestion.update({
-        where: { id: q.id },
+    if (expired.length > 0) {
+      await this.prisma.bountyQuestion.updateMany({
+        where: { id: { in: expired.map((q) => q.id) } },
         data: { status: "OPEN", answererId: null, lockExpireAt: null },
       });
+      this.logger.log(`释放超时悬赏: ${expired.length}`);
     }
-    if (expired.length) this.logger.log(`释放超时悬赏: ${expired.length}`);
   }
 }
