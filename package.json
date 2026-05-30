@@ -29,7 +29,7 @@
     "pnpm": ">=10"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["sweph"],
+    "onlyBuiltDependencies": ["sweph", "@prisma/client", "@prisma/engines", "prisma"],
     "overrides": {
       "fast-xml-parser": "4.5.5",
       "form-data": "2.5.5",
