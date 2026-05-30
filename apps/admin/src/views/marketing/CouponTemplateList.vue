@@ -3,12 +3,22 @@
     <div class="toolbar"><h3>优惠券模板</h3><el-button type="primary" @click="openCreate">创建模板</el-button></div>
     <el-table v-loading="loading" :data="list" stripe>
       <el-table-column prop="name" label="模板名称" min-width="140" />
-      <el-table-column label="类型" width="90"><template #default="{ row }">{{ row.type === 'FULL_REDUCE' ? '满减' : row.type === 'DISCOUNT' ? '折扣' : '无门槛' }}</template></el-table-column>
-      <el-table-column label="面额" width="100"><template #default="{ row }">¥{{ Number(row.discountAmount || row.value).toFixed(2) }}</template></el-table-column>
-      <el-table-column label="门槛" width="80"><template #default="{ row }">{{ row.minAmount ? '¥'+Number(row.minAmount) : '无' }}</template></el-table-column>
-      <el-table-column label="总量" width="80"><template #default="{ row }">{{ row.totalCount === -1 ? '不限' : row.totalCount }}</template></el-table-column>
-      <el-table-column label="有效期" width="280"><template #default="{ row }">{{ formatDate(row.validStart) }} ~ {{ formatDate(row.validEnd) }}</template></el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column label="类型" width="90">
+        <template #default="{ row }">{{ typeLabel(row.type) }}</template>
+      </el-table-column>
+      <el-table-column label="面额" width="100">
+        <template #default="{ row }">{{ row.type === 'PERCENT' ? Number(row.faceValue) + '%' : '¥' + Number(row.faceValue).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="门槛" width="90">
+        <template #default="{ row }">{{ row.threshold ? '¥' + Number(row.threshold) : '无' }}</template>
+      </el-table-column>
+      <el-table-column label="已领/总量" width="90">
+        <template #default="{ row }">{{ row.claimedCount || 0 }}/{{ row.totalCount === 0 ? '∞' : row.totalCount }}</template>
+      </el-table-column>
+      <el-table-column label="有效期" width="280">
+        <template #default="{ row }">{{ formatDate(row.startTime) }} ~ {{ formatDate(row.endTime) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="300" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="openEdit(row)">编辑</el-button>
           <el-button size="small" type="success" @click="openGrant(row)">发放</el-button>
@@ -26,9 +36,34 @@
     <el-dialog v-model="vis" :title="editingId ? '编辑模板' : '创建模板'" width="550px">
       <el-form :model="form" label-width="90px">
         <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
-        <el-row :gutter="16"><el-col :span="12"><el-form-item label="类型"><el-select v-model="form.type" style="width:100%"><el-option label="满减" value="FULL_REDUCE" /><el-option label="折扣" value="DISCOUNT" /><el-option label="无门槛" value="NO_THRESHOLD" /></el-select></el-form-item></el-col><el-col :span="12"><el-form-item label="面额/折扣"><el-input-number v-model="form.discountAmount" :min="0.01" :precision="2" style="width:100%" /></el-form-item></el-col></el-row>
-        <el-row :gutter="16"><el-col :span="12"><el-form-item label="门槛金额"><el-input-number v-model="form.minAmount" :min="0" :precision="2" style="width:100%" /></el-form-item></el-col><el-col :span="12"><el-form-item label="发放总量"><el-input-number v-model="form.totalCount" :min="-1" :step="100" style="width:100%" /></el-form-item></el-col></el-row>
-        <el-row :gutter="16"><el-col :span="12"><el-form-item label="开始时间"><el-date-picker v-model="form.validStart" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col><el-col :span="12"><el-form-item label="结束时间"><el-date-picker v-model="form.validEnd" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col></el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="类型">
+              <el-select v-model="form.type" style="width:100%">
+                <el-option label="满减券" value="FIXED" />
+                <el-option label="折扣券" value="PERCENT" />
+                <el-option label="免邮券" value="SHIPPING" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="面额/折扣">
+              <el-input-number v-model="form.faceValue" :min="0.01" :precision="2" style="width:100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="门槛金额"><el-input-number v-model="form.threshold" :min="0" :precision="2" style="width:100%" /></el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="发放总量"><el-input-number v-model="form.totalCount" :min="0" :step="100" style="width:100%" /></el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12"><el-form-item label="开始时间"><el-date-picker v-model="form.startTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="结束时间"><el-date-picker v-model="form.endTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col>
+        </el-row>
       </el-form>
       <template #footer><el-button @click="vis = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
     </el-dialog>
@@ -50,9 +85,6 @@
           <el-form-item v-if="grantMode === 'batch'" label="用户ID列表">
             <el-input v-model="grantUserIds" type="textarea" :rows="4" placeholder="每行一个用户ID" />
           </el-form-item>
-          <el-form-item label="数量">
-            <el-input-number v-model="grantCount" :min="1" :max="100" />
-          </el-form-item>
         </el-form>
       </div>
       <template #footer>
@@ -63,11 +95,17 @@
 
     <!-- 发放记录弹窗 -->
     <el-dialog v-model="recordsVis" title="发放记录" width="650px">
-      <el-table :data="records" stripe max-height="400">
+      <el-table :data="records" stripe max-height="400" v-loading="recordsLoading">
         <el-table-column prop="userId" label="用户ID" width="120" />
         <el-table-column prop="userName" label="用户名" width="120" />
-        <el-table-column label="状态" width="80"><template #default="{ row }"><el-tag size="small" :type="row.status === 'USED' ? 'success' : row.status === 'EXPIRED' ? 'danger' : 'info'">{{ (recordStatusMap as Record<string,string>)[row.status] || row.status }}</el-tag></template></el-table-column>
-        <el-table-column label="领取时间" width="170"><template #default="{ row }">{{ formatDate(row.createdAt) }}</template></el-table-column>
+        <el-table-column label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.status === 'USED' ? 'success' : row.status === 'EXPIRED' ? 'danger' : 'info'">{{ recordStatusMap[row.status] || row.status }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="领取时间" width="170">
+          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+        </el-table-column>
       </el-table>
     </el-dialog>
   </div>
@@ -80,14 +118,18 @@ import { marketingApi } from '@/api'
 
 const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
 const vis = ref(false); const editingId = ref('')
-const form = reactive({ name: '', type: 'FULL_REDUCE', discountAmount: 10, minAmount: 100, totalCount: -1, validStart: '', validEnd: '' })
+const form = reactive({ name: '', type: 'FIXED', faceValue: 10, threshold: 100, totalCount: 0, startTime: '', endTime: '' })
 
 const grantVis = ref(false); const granting = ref(false); const grantTarget = ref<any>(null)
-const grantMode = ref('single'); const grantUserId = ref(''); const grantUserIds = ref(''); const grantCount = ref(1)
+const grantMode = ref('single'); const grantUserId = ref(''); const grantUserIds = ref('')
 
 const recordsVis = ref(false); const records = ref<any[]>([]); const recordsLoading = ref(false)
+const recordStatusMap: Record<string, string> = { USED: '已使用', UNUSED: '未使用', EXPIRED: '已过期' }
 
-const recordStatusMap = { USED: '已使用', UNUSED: '未使用', EXPIRED: '已过期' }
+function typeLabel(t: string) {
+  const m: Record<string, string> = { FIXED: '满减', PERCENT: '折扣', SHIPPING: '免邮' }
+  return m[t] || t
+}
 
 onMounted(() => fetchList())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
@@ -96,28 +138,50 @@ async function fetchList() {
   loading.value = true
   try { const { data } = await marketingApi.listCoupons({ page: page.value, pageSize: 20 }); list.value = data.coupons || data.data || []; total.value = data.total || 0 } catch { list.value = [] } finally { loading.value = false }
 }
-function openCreate() { editingId.value = ''; Object.assign(form, { name: '', type: 'FULL_REDUCE', discountAmount: 10, minAmount: 100, totalCount: -1, validStart: '', validEnd: '' }); vis.value = true }
-function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name, type: row.type, discountAmount: Number(row.discountAmount || row.value), minAmount: Number(row.minAmount) || 0, totalCount: row.totalCount ?? -1, validStart: row.validStart || '', validEnd: row.validEnd || '' }); vis.value = true }
+
+function openCreate() { editingId.value = ''; Object.assign(form, { name: '', type: 'FIXED', faceValue: 10, threshold: 100, totalCount: 0, startTime: '', endTime: '' }); vis.value = true }
+
+function openEdit(row: any) {
+  editingId.value = row.id
+  Object.assign(form, {
+    name: row.name, type: row.type,
+    faceValue: Number(row.faceValue || 0),
+    threshold: Number(row.threshold || 0),
+    totalCount: row.totalCount ?? 0,
+    startTime: row.startTime || '', endTime: row.endTime || '',
+  })
+  vis.value = true
+}
+
 async function save() {
   saving.value = true
   try {
-    if (editingId.value) { await marketingApi.updateCoupon(editingId.value, form) } else { await marketingApi.createCoupon(form) }
+    const payload = {
+      name: form.name, type: form.type,
+      faceValue: form.faceValue, threshold: form.threshold || undefined,
+      totalCount: form.totalCount,
+      startTime: form.startTime ? new Date(form.startTime).toISOString() : undefined,
+      endTime: form.endTime ? new Date(form.endTime).toISOString() : undefined,
+    }
+    if (editingId.value) { await marketingApi.updateCoupon(editingId.value, payload) }
+    else { await marketingApi.createCoupon(payload) }
     ElMessage.success('已保存'); vis.value = false; fetchList()
   } catch { } finally { saving.value = false }
 }
+
 async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteCoupon(id); ElMessage.success('已删除'); fetchList() } catch {} }
 
-function openGrant(row: any) { grantTarget.value = row; grantMode.value = 'single'; grantUserId.value = ''; grantUserIds.value = ''; grantCount.value = 1; grantVis.value = true }
+function openGrant(row: any) { grantTarget.value = row; grantMode.value = 'single'; grantUserId.value = ''; grantUserIds.value = ''; grantVis.value = true }
 
 async function doGrant() {
   granting.value = true
   try {
     const templateId = grantTarget.value.id
     if (grantMode.value === 'single') {
-      await marketingApi.grantCoupon(templateId, { userId: grantUserId.value, count: grantCount.value })
+      await marketingApi.grantCoupon(templateId, { userId: grantUserId.value })
     } else {
-      const ids = grantUserIds.value.split('\n').map(s => s.trim()).filter(Boolean)
-      await marketingApi.batchGrantCoupon(templateId, { userIds: ids, count: grantCount.value })
+      const ids = grantUserIds.value.split('\n').map((s: string) => s.trim()).filter(Boolean)
+      await marketingApi.batchGrantCoupon(templateId, { userIds: ids })
     }
     ElMessage.success('发放成功'); grantVis.value = false
   } catch { } finally { granting.value = false }

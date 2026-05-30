@@ -8,6 +8,7 @@ import { ContentService } from "./content.service";
 import { SystemService } from "../system/system.service";
 import { CreateContentDto, UpdateContentDto, ContentListQueryDto } from "./content.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { ActiveUserGuard } from "../../common/active-user.guard";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
@@ -75,7 +76,7 @@ export class ContentController {
   }
 
   @Get(":id")
-  @UseGuards(JwtAuthGuard, StationIsolationGuard)
+  @UseGuards(OptionalAuthGuard, StationIsolationGuard)
   @ApiOperation({ summary: "获取内容详情" })
   detail(@Param("id") id: string) {
     return this.content.detail(id);

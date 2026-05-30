@@ -59,7 +59,7 @@ export class ShopController {
   }
 
   @Get("products/:id")
-  @UseGuards(JwtAuthGuard, StationIsolationGuard)
+  @UseGuards(OptionalAuthGuard, StationIsolationGuard)
   @ApiOperation({ summary: "获取商品详情" })
   getProduct(@Param("id") id: string) {
     return this.shop.getProduct(id);

@@ -478,12 +478,16 @@ export class MarketingService {
       data: {
         name: dto.name,
         route: dto.route,
+        stationId: dto.stationId || null,
       },
     });
   }
 
-  async listPages() {
+  async listPages(stationId?: string) {
+    const where: Prisma.MarketingPageWhereInput = {};
+    if (stationId !== undefined) where.stationId = stationId;
     return this.prisma.marketingPage.findMany({
+      where,
       orderBy: { updatedAt: "desc" },
     });
   }

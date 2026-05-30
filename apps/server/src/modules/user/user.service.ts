@@ -36,8 +36,12 @@ export class UserService {
     pageSize: number;
     keyword?: string;
     roleType?: RoleType;
+    memberLevel?: MemberLevel;
+    status?: UserStatus;
+    dateFrom?: string;
+    dateTo?: string;
   }) {
-    const { page, pageSize, keyword, roleType } = params;
+    const { page, pageSize, keyword, roleType, memberLevel, status, dateFrom, dateTo } = params;
     const where: Prisma.UserWhereInput = {};
 
     if (keyword) {
@@ -49,6 +53,18 @@ export class UserService {
     if (roleType) {
       where.roles = { some: { roleType } };
     }
+    if (memberLevel) {
+      where.memberLevel = memberLevel;
+    }
+    if (status) {
+      where.status = status;
+    }
+    if (dateFrom || dateTo) {
+      where.createdAt = {
+        ...(dateFrom && { gte: new Date(dateFrom) }),
+        ...(dateTo && { lte: new Date(dateTo + "T23:59:59.999Z") }),
+      };
+    }
 
     const [users, total] = await Promise.all([
       this.prisma.user.findMany({
@@ -57,6 +73,8 @@ export class UserService {
           id: true, nickname: true, avatar: true, phone: true,
           memberLevel: true, status: true, createdAt: true,
           roles: { select: { roleType: true } },
+          _count: { select: { orders: true, collects: true, comments: true } },
+          coinAccount: { select: { balance: true } },
         },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -65,7 +83,40 @@ export class UserService {
       this.prisma.user.count({ where }),
     ]);
 
-    return { users: users.map(u => ({ ...u, phone: maskPhone(u.phone) })), total, page, pageSize };
+    // 批量获取最后活跃时间
+    const userIds = users.map(u => u.id);
+    const latestBehaviors = userIds.length > 0
+      ? await this.prisma.userBehaviorLog.groupBy({
+          by: ["userId"],
+          where: { userId: { in: userIds } },
+          _max: { createdAt: true },
+        })
+      : [];
+
+    const activeMap = new Map(
+      latestBehaviors
+        .filter(b => b.userId)
+        .map(b => [b.userId!, b._max.createdAt!])
+    );
+
+    return {
+      users: users.map(u => ({
+        id: u.id,
+        nickname: u.nickname,
+        avatar: u.avatar,
+        phone: maskPhone(u.phone),
+        memberLevel: u.memberLevel,
+        status: u.status,
+        createdAt: u.createdAt,
+        roles: u.roles,
+        orderCount: u._count.orders,
+        collectCount: u._count.collects,
+        commentCount: u._count.comments,
+        coinBalance: u.coinAccount?.balance ?? 0,
+        lastActiveAt: activeMap.get(u.id) ?? u.createdAt,
+      })),
+      total, page, pageSize,
+    };
   }
 
   async assignRole(userId: string, roleType: RoleType, bindId?: string) {

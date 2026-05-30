@@ -110,7 +110,7 @@ describe("User E2E", () => {
       const token = jwt.sign({ sub: "admin1" })
       prisma.user.findUnique.mockResolvedValue({ id: "admin1", status: "ACTIVE", roles: [{ roleType: "SUPER_ADMIN" }] })
       prisma.user.findMany.mockResolvedValue([
-        { id: "u1", nickname: "张三", avatar: null, phone: "138****0000", memberLevel: "FREE", status: "ACTIVE", createdAt: new Date().toISOString(), roles: [] },
+        { id: "u1", nickname: "张三", avatar: null, phone: "138****0000", memberLevel: "FREE", status: "ACTIVE", createdAt: new Date().toISOString(), roles: [], _count: { orders: 0, collects: 0, comments: 0 }, coinAccount: { balance: 0 } },
       ])
       prisma.user.count.mockResolvedValue(1)
 

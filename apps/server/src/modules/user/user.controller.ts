@@ -48,14 +48,27 @@ export class UserController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "获取用户列表（管理员）" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   @ApiQuery({ name: "keyword", required: false })
   @ApiQuery({ name: "roleType", required: false })
+  @ApiQuery({ name: "memberLevel", required: false })
+  @ApiQuery({ name: "status", required: false })
+  @ApiQuery({ name: "dateFrom", required: false })
+  @ApiQuery({ name: "dateTo", required: false })
   listUsers(@Query() q: UserListQueryDto) {
-    return this.user.listUsers({ page: +(q.page || 1), pageSize: +(q.pageSize || 20), keyword: q.keyword, roleType: q.roleType });
+    return this.user.listUsers({
+      page: +(q.page || 1),
+      pageSize: +(q.pageSize || 20),
+      keyword: q.keyword,
+      roleType: q.roleType,
+      memberLevel: q.memberLevel,
+      status: q.status,
+      dateFrom: q.dateFrom,
+      dateTo: q.dateTo,
+    });
   }
 
   // ───────── 角色管理 ─────────

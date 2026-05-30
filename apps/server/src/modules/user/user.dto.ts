@@ -1,6 +1,6 @@
-import { IsString, IsOptional, IsEnum, IsInt, IsArray, ArrayMinSize, Min, MinLength } from "class-validator";
+import { IsString, IsOptional, IsEnum, IsInt, IsArray, ArrayMinSize, Min, MinLength, IsDateString } from "class-validator";
 import { Type } from "class-transformer";
-import { RoleType } from "@prisma/client";
+import { MemberLevel, RoleType, UserStatus } from "@prisma/client";
 
 export class AssignRoleDto {
   @IsEnum(RoleType)
@@ -27,6 +27,18 @@ export class UserListQueryDto {
 
   @IsOptional() @IsEnum(RoleType)
   roleType?: RoleType;
+
+  @IsOptional() @IsEnum(MemberLevel)
+  memberLevel?: MemberLevel;
+
+  @IsOptional() @IsEnum(UserStatus)
+  status?: UserStatus;
+
+  @IsOptional() @IsDateString()
+  dateFrom?: string;
+
+  @IsOptional() @IsDateString()
+  dateTo?: string;
 }
 
 export class UpdateProfileDto {

@@ -306,8 +306,8 @@ export class MarketingController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "微页面列表" })
   @ApiBearerAuth()
-  listPages() {
-    return this.marketing.listPages();
+  listPages(@Query("stationId") stationId?: string) {
+    return this.marketing.listPages(stationId);
   }
 
   @Get("pages/:id")

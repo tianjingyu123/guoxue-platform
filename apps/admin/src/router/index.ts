@@ -101,6 +101,12 @@ const routes = [
         component: () => import("@/views/classics/ClassicList.vue"),
         meta: { title: "古籍管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
       },
+      {
+        path: "classics/commentaries",
+        name: "ClassicCommentaryManage",
+        component: () => import("@/views/classics/ClassicCommentaryManage.vue"),
+        meta: { title: "古籍注解", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+      },
       // === 社区 ===
       {
         path: "circles",
@@ -323,6 +329,12 @@ const routes = [
         name: "MicroPageEditor",
         component: () => import("@/views/marketing/MicroPageEditor.vue"),
         meta: { title: "微页面管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "marketing/full-reductions",
+        name: "FullReductionList",
+        component: () => import("@/views/marketing/FullReductionList.vue"),
+        meta: { title: "满减送管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 定价管理 ===
       {
@@ -625,6 +637,18 @@ const routes = [
       },
       // === 系统设置 ===
       {
+        path: "system/referrals",
+        name: "ReferralManage",
+        component: () => import("@/views/system/ReferralManage.vue"),
+        meta: { title: "推荐码管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "system/backup",
+        name: "BackupManage",
+        component: () => import("@/views/system/BackupManage.vue"),
+        meta: { title: "数据库备份", roles: ["SUPER_ADMIN"] },
+      },
+      {
         path: "system/sensitive-words",
         name: "SensitiveWordList",
         component: () => import("@/views/system/SensitiveWordList.vue"),
@@ -798,6 +822,18 @@ const routes = [
       },
       // === 线下 ===
       {
+        path: "offline/courses",
+        name: "OfflineCourseList",
+        component: () => import("@/views/offline/OfflineCourseList.vue"),
+        meta: { title: "线下课程管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "offline/teachers",
+        name: "TeacherList",
+        component: () => import("@/views/offline/TeacherList.vue"),
+        meta: { title: "教师管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
         path: "stations",
         name: "StationList",
         component: () => import("@/views/offline/StationList.vue"),
@@ -810,6 +846,12 @@ const routes = [
         meta: { title: "线下驿站", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       // === 运营商管理 ===
+      {
+        path: "operators/picks",
+        name: "StationPickManage",
+        component: () => import("@/views/operator/StationPickManage.vue"),
+        meta: { title: "站点精选", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       {
         path: "operators",
         name: "OperatorStationList",
@@ -947,7 +989,7 @@ const routes = [
       },
       // === 品类标签管理 ===
       {
-        path: "categories",
+        path: "content-categories",
         name: "CategoryManage",
         component: () => import("@/views/content/CategoryManage.vue"),
         meta: { title: "品类标签管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },

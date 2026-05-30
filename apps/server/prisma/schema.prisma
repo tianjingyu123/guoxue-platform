@@ -1451,6 +1451,7 @@ model Station {
   toolRecords    ToolRecord[]
   bountyQuestions BountyQuestion[]
   audioCalls     AudioCallRecord[]
+  marketingPages MarketingPage[]
 
   @@index([code])
   @@index([operatorId])
@@ -2871,6 +2872,7 @@ model DiscountActivity {
 
 model MarketingPage {
   id          String    @id @default(uuid())
+  stationId   String?   // 分站数据隔离（null = 平台级）
   name        String // 页面名称
   route       String    @unique // 路由路径
   status      String    @default("DRAFT") // DRAFT/PUBLISHED/OFFLINE
@@ -2879,7 +2881,10 @@ model MarketingPage {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  station    Station?                   @relation(fields: [stationId], references: [id])
   components MarketingPageComponent[]
+
+  @@index([stationId])
 }
 
 model MarketingPageComponent {

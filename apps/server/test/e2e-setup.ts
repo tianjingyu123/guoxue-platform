@@ -8,6 +8,7 @@ import { WechatPayService } from "../src/modules/shop/wechat-pay.service"
 import { AlipayService } from "../src/modules/shop/alipay.service"
 import { UnionpayService } from "../src/modules/shop/unionpay.service"
 import { VodService } from "../src/modules/video/vod.service"
+import { FeatureFlagService } from "../src/modules/feature-flag/feature-flag.service"
 
 const modelMethods = [
   "findUnique", "findUniqueOrThrow", "findFirst", "findMany", "create",
@@ -24,6 +25,7 @@ function createModelMock() {
       m === "create" || m === "upsert" ? { id: "mock-id" } :
       m.endsWith("Many") ? { count: 1 } :
       m === "count" ? 0 :
+      m === "aggregate" || m === "groupBy" ? [] :
       undefined,
     )
   }
@@ -65,7 +67,7 @@ function createPrismaMock() {
     "userEarning", "systemConfig", "classicBook", "searchHistory",
     "memberPurchase", "orderLogistics", "productSku", "productReview",
     "circleBot", "botKnowledgeBase", "paipanRecord", "station", "commissionConfig",
-    "withdrawal", "referralLink", "upload",
+    "withdrawal", "referralLink", "upload", "userBehaviorLog", "featureFlag",
   ]
 
   for (const name of modelNames) {
@@ -156,6 +158,16 @@ function createVodMock() {
   }
 }
 
+function createFeatureFlagMock() {
+  return {
+    isEnabled: jest.fn().mockResolvedValue(true),
+    list: jest.fn().mockResolvedValue([]),
+    getByKey: jest.fn().mockResolvedValue({ key: "test", enabled: true, percentage: 100, targetUserIds: [] }),
+    upsert: jest.fn().mockResolvedValue({ key: "test", enabled: true }),
+    delete: jest.fn().mockResolvedValue(undefined),
+  }
+}
+
 export async function createE2eApp(): Promise<{
   app: INestApplication
   prisma: ReturnType<typeof createPrismaMock>
@@ -169,6 +181,7 @@ export async function createE2eApp(): Promise<{
 
   const alipay = createAlipayMock()
   const unionpay = createUnionpayMock()
+  const featureFlag = createFeatureFlagMock()
 
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
@@ -187,6 +200,8 @@ export async function createE2eApp(): Promise<{
     .useValue(unionpay)
     .overrideProvider(VodService)
     .useValue(vod)
+    .overrideProvider(FeatureFlagService)
+    .useValue(featureFlag)
     .compile()
 
   const app = moduleFixture.createNestApplication()

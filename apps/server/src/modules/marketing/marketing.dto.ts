@@ -395,6 +395,10 @@ export class CreateMarketingPageDto {
   @IsString()
   @MinLength(1)
   route: string;
+
+  @IsOptional()
+  @IsString()
+  stationId?: string;
 }
 
 export class UpdateMarketingPageDto {
