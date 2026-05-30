@@ -68,7 +68,7 @@ describe("HuifuController", () => {
   describe("分账", () => {
     it("发起分账", async () => {
       mockSvc.createSplit.mockResolvedValue({ splitStatus: "PROCESSING" });
-      const result = await ctrl.createSplit({ orderId: "order-1", receivers: [{ acctId: "A1", amount: 10, name: "张三" }] });
+      const result = await ctrl.createSplit({ orderId: "order-1", amount: 100, receivers: [{ acctId: "A1", amount: 10, name: "张三" }] });
       expect(result.splitStatus).toBe("PROCESSING");
     });
 

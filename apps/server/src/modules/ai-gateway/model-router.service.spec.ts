@@ -2,6 +2,20 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ModelRouterService } from "./model-router.service";
 import { SystemService } from "../system/system.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { randomInt } from "crypto";
+
+// 源码用 crypto.randomInt 做灰度随机，jest.mock 在编译前拦截
+jest.mock("crypto", () => {
+  const actual = jest.requireActual("crypto");
+  return {
+    ...actual,
+    randomInt: jest.fn((min: number, max: number) =>
+      Math.floor(Math.random() * (max - min)) + min,
+    ),
+  };
+});
+
+const mockRandomInt = randomInt as jest.Mock;
 
 const fullConfig = {
   default: {
@@ -44,6 +58,7 @@ describe("ModelRouterService", () => {
 
     svc = mod.get(ModelRouterService);
     jest.spyOn(Date, "now").mockImplementation(() => 1_000_000_000_000);
+    mockRandomInt.mockReturnValue(50);
   });
 
   afterEach(() => {
@@ -84,7 +99,7 @@ describe("ModelRouterService", () => {
     });
 
     it("灰度命中时返回 grayReleaseModel", async () => {
-      jest.spyOn(Math, "random").mockReturnValue(0.1);
+      mockRandomInt.mockReturnValue(5);
       mockSystem.getConfig.mockResolvedValue({
         configValue: JSON.stringify(fullConfig),
       });

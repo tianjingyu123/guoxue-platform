@@ -7,6 +7,7 @@ import { JwtService } from "@nestjs/jwt";
 import { RedisService } from "../../redis/redis.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { SmsService } from "../sms/sms.service";
+import { PermissionService } from "../system/permission.service";
 import { BusinessException } from "../../common/business.exception";
 
 jest.mock("bcryptjs");
@@ -18,6 +19,7 @@ const mockPrisma = {
   userRole: { findMany: jest.fn() },
   station: { findUnique: jest.fn() },
   referralRelation: { create: jest.fn() },
+  merchant: { findUnique: jest.fn() },
 };
 
 const mockJwt = { sign: jest.fn() };
@@ -41,6 +43,7 @@ const mockIm = {
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
 const mockSms = { sendVerifyCode: jest.fn(), verifyCode: jest.fn() };
+const mockPermSvc = { getUserPermissions: jest.fn().mockResolvedValue([]) };
 
 describe("AuthService", () => {
   let svc: AuthService;
@@ -59,6 +62,7 @@ describe("AuthService", () => {
         { provide: ImService, useValue: mockIm },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: SmsService, useValue: mockSms },
+        { provide: PermissionService, useValue: mockPermSvc },
       ],
     }).compile();
     svc = mod.get(AuthService);
@@ -172,8 +176,9 @@ describe("AuthService", () => {
         memberExpire: null, createdAt: new Date(), roles: [],
       };
       mockPrisma.user.findUnique.mockResolvedValue(profile);
+      mockPrisma.merchant.findUnique.mockResolvedValue(null);
       const result = await svc.getProfile("user-1");
-      expect(result).toEqual(profile);
+      expect(result).toEqual({ ...profile, permissions: [], merchant: null });
     });
   });
 

@@ -58,12 +58,12 @@ describe("RevenueController", () => {
   it("GET /revenue/stats — 收入统计", async () => {
     const result: any = await ctrl.revenueStats("u1", "2026-05");
     expect(result.total).toBe(5000);
-    expect(mockRevenueSvc.getRevenueStats).toHaveBeenCalledWith("u1", "2026-05");
+    expect(mockRevenueSvc.getRevenueStats).toHaveBeenCalledWith("u1", "2026-05", undefined, undefined, undefined);
   });
 
   it("GET /revenue/breakdown — 收入分类明细", async () => {
     const result: any = await ctrl.revenueBreakdown("u1", "2026-05");
     expect(result).toHaveLength(1);
-    expect(mockRevenueSvc.getRevenueBreakdown).toHaveBeenCalledWith("u1", "2026-05");
+    expect(mockRevenueSvc.getRevenueBreakdown).toHaveBeenCalledWith("u1", "2026-05", undefined, undefined);
   });
 });

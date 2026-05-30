@@ -1,6 +1,8 @@
 import { Test } from "@nestjs/testing";
 import { DashboardController } from "./dashboard.controller";
 import { DashboardService } from "./dashboard.service";
+import { EntityDashboardService } from "./entity-dashboard.service";
+import { RoleDashboardService } from "./role-dashboard.service";
 import { RolesGuard } from "../../common/roles.guard";
 
 const mockSvc: Record<string, jest.Mock> = {
@@ -15,12 +17,19 @@ const mockSvc: Record<string, jest.Mock> = {
   getTodayOverview: jest.fn().mockResolvedValue({ pendingTasks: 3 } as any),
   getAlertList: jest.fn().mockResolvedValue({ items: [], total: 0 } as any),
   getSystemHealth: jest.fn().mockResolvedValue({ redis: "ok", db: "ok" } as any),
+  generateDailyReport: jest.fn().mockResolvedValue({ date: "2026-05-10" } as any),
+};
+
+const mockEntitySvc: Record<string, jest.Mock> = {
   getCircleDashboard: jest.fn().mockResolvedValue({ members: 100 } as any),
   getCourseDashboard: jest.fn().mockResolvedValue({ students: 50 } as any),
   getLiveDashboard: jest.fn().mockResolvedValue({ viewers: 200 } as any),
   getStationDashboard: jest.fn().mockResolvedValue({ revenue: 3000 } as any),
   getOfflineDashboard: jest.fn().mockResolvedValue({ visitors: 80 } as any),
-  generateDailyReport: jest.fn().mockResolvedValue({ date: "2026-05-10" } as any),
+};
+
+const mockRoleSvc: Record<string, jest.Mock> = {
+  getRoleDashboard: jest.fn().mockResolvedValue({} as any),
 };
 
 describe("DashboardController", () => {
@@ -29,7 +38,11 @@ describe("DashboardController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [DashboardController],
-      providers: [{ provide: DashboardService, useValue: mockSvc }],
+      providers: [
+        { provide: DashboardService, useValue: mockSvc },
+        { provide: EntityDashboardService, useValue: mockEntitySvc },
+        { provide: RoleDashboardService, useValue: mockRoleSvc },
+      ],
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .compile();

@@ -152,14 +152,14 @@ describe("HuifuService", () => {
     it("分账记录不存在应抛出异常", async () => {
       mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue(null);
       await expect(
-        svc.createSplit({ orderId: "order-1", receivers: [{ acctId: "A1", amount: 10, name: "张三" }] }),
+        svc.createSplit({ orderId: "order-1", amount: 10, receivers: [{ acctId: "A1", amount: 10, name: "张三" }] }),
       ).rejects.toThrow("找不到对应的支付记录");
     });
 
     it("分账已完成不可重复分账", async () => {
       mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({ splitStatus: "SUCCESS" });
       await expect(
-        svc.createSplit({ orderId: "order-1", receivers: [{ acctId: "A1", amount: 10, name: "张三" }] }),
+        svc.createSplit({ orderId: "order-1", amount: 10, receivers: [{ acctId: "A1", amount: 10, name: "张三" }] }),
       ).rejects.toThrow("该订单已分账或分账处理中");
     });
   });

@@ -8,9 +8,9 @@ function mockContext(user?: any) {
     getClass: () => ({}),
     switchToHttp: () => ({
       getRequest: () => ({
-        ip: "127.0.0.1",
+        ip: "10.0.0.1",
         user: user ?? null,
-        connection: { remoteAddress: "127.0.0.1" },
+        connection: { remoteAddress: "10.0.0.1" },
       }),
     }),
   } as any;

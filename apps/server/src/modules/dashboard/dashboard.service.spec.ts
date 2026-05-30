@@ -14,10 +14,12 @@ const mockPrisma = {
   like: { count: jest.fn() },
   comment: { count: jest.fn() },
   collect: { count: jest.fn() },
-  order: { count: jest.fn() },
+  order: { count: jest.fn(), aggregate: jest.fn(), groupBy: jest.fn() },
   liveRoom: { count: jest.fn() },
   video: { count: jest.fn() },
   content: { count: jest.fn() },
+  productSku: { count: jest.fn() },
+  post: { groupBy: jest.fn() },
 };
 
 const mockRedis = {
@@ -54,9 +56,13 @@ describe("DashboardService", () => {
       mockPrisma.like.count.mockResolvedValue(200);
       mockPrisma.comment.count.mockResolvedValue(150);
       mockPrisma.collect.count.mockResolvedValue(80);
-      mockPrisma.order.count.mockResolvedValueOnce(60).mockResolvedValueOnce(40);
+      mockPrisma.order.count.mockResolvedValue(60);
+      mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 1000 } });
+      mockPrisma.order.groupBy.mockResolvedValue([]);
       mockPrisma.liveRoom.count.mockResolvedValue(5);
       mockPrisma.video.count.mockResolvedValue(25);
+      mockPrisma.productSku.count.mockResolvedValue(5);
+      mockPrisma.post.groupBy.mockResolvedValue([]);
       const result = await svc.getStats();
       expect(result.articleCount).toBe(100);
       expect(result.userCount).toBe(50);

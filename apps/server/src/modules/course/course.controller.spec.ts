@@ -5,7 +5,9 @@ import { SystemService } from "../system/system.service";
 import { LiveService } from "../live/live.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
-import { Logger } from "@nestjs/common";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { MemberGuard } from "../../common/member.guard";
+import { StationIsolationGuard } from "../../common/station-isolation.guard";
 
 const mockCourseSvc = {
   create: jest.fn().mockResolvedValue({ id: "c1", title: "国学入门" }),
@@ -58,6 +60,9 @@ describe("CourseController", () => {
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
+      .overrideGuard(MemberGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StationIsolationGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(CourseController);
   });
@@ -121,10 +126,8 @@ describe("CourseController", () => {
     expect(result.success).toBe(true);
   });
 
-  it("PUT /courses/:id/audit — 审核课程", async () => {
-    const req: any = { user: { id: "admin1" }, ip: "127.0.0.1" };
-    const result: any = await ctrl.audit("c1", "APPROVED", req);
-    expect(result.auditStatus).toBe("APPROVED");
+  it.skip("PUT /courses/:id/audit — 审核课程", () => {
+    // 审核方法已从控制器移除，测试跳过
   });
 
   // ─── 购买 ───
@@ -199,10 +202,8 @@ describe("CourseController", () => {
     expect(result).toHaveLength(1);
   });
 
-  it("PUT /courses/works/:workId/score — 批改作业", async () => {
-    const req: any = { user: { id: "admin1" } };
-    const result: any = await ctrl.scoreWork("w1", req, 90, "优秀");
-    expect(result.score).toBe(90);
+  it.skip("PUT /courses/works/:workId/score — 批改作业", () => {
+    // 批改作业方法已从控制器移除，测试跳过
   });
 
   // ─── 评价 ───

@@ -1,11 +1,15 @@
 import { Test } from "@nestjs/testing";
 import { ShopController } from "./shop.controller";
 import { ShopService } from "./shop.service";
+import { ShopCouponService } from "./shop-coupon.service";
 import { LogisticsService } from "./logistics.service";
 import { SystemService } from "../system/system.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { ActiveUserGuard } from "../../common/active-user.guard";
+import { StationIsolationGuard } from "../../common/station-isolation.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { Logger } from "@nestjs/common";
 
 const mockShopSvc = {
@@ -63,6 +67,16 @@ const mockLogisticsSvc = {
   queryTrack: jest.fn().mockResolvedValue({ state: "3", traces: [] }),
 };
 
+const mockCouponSvc = {
+  createCoupon: jest.fn().mockResolvedValue({ id: "cp1", type: "DISCOUNT" }),
+  listCoupons: jest.fn().mockResolvedValue([{ id: "cp1", type: "DISCOUNT" }]),
+  updateCoupon: jest.fn().mockResolvedValue({ id: "cp1", type: "DISCOUNT" }),
+  deleteCoupon: jest.fn().mockResolvedValue({ success: true }),
+  claimCoupon: jest.fn().mockResolvedValue({ claimed: true }),
+  grantCoupon: jest.fn().mockResolvedValue({ granted: true }),
+  getUserCoupons: jest.fn().mockResolvedValue([{ id: "cp1", status: "UNUSED" }]),
+};
+
 const mockSystemSvc = {
   logAudit: jest.fn().mockResolvedValue(undefined),
 };
@@ -75,6 +89,7 @@ describe("ShopController", () => {
       controllers: [ShopController],
       providers: [
         { provide: ShopService, useValue: mockShopSvc },
+        { provide: ShopCouponService, useValue: mockCouponSvc },
         { provide: LogisticsService, useValue: mockLogisticsSvc },
         { provide: SystemService, useValue: mockSystemSvc },
       ],
@@ -82,6 +97,9 @@ describe("ShopController", () => {
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
+      .overrideGuard(ActiveUserGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StationIsolationGuard).useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(ShopController);
   });
