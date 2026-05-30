@@ -14,6 +14,9 @@ export class CreateBountyDto {
   @ApiPropertyOptional({ description: "分类 BAZI/ZIWEI/FENGSHUI/CAREER/LOVE/GENERAL" })
   @IsOptional() @IsString() category?: string;
 
+  @ApiPropertyOptional({ description: "分站ID" })
+  @IsOptional() @IsString() stationId?: string;
+
   @ApiPropertyOptional({ description: "圈子ID" })
   @IsOptional() @IsString() circleId?: string;
 

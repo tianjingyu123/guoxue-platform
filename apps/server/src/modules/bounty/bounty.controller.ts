@@ -20,8 +20,8 @@ export class BountyController {
 
   @Get("questions")
   @ApiOperation({ summary: "悬赏列表" })
-  list(@Query("page") page?: string, @Query("pageSize") pageSize?: string, @Query("category") category?: string, @Query("status") status?: string) {
-    return this.svc.list(page ? +page : 1, pageSize ? +pageSize : 20, category, status);
+  list(@Query("page") page?: string, @Query("pageSize") pageSize?: string, @Query("category") category?: string, @Query("status") status?: string, @Query("stationId") stationId?: string) {
+    return this.svc.list(page ? +page : 1, pageSize ? +pageSize : 20, category, status, stationId);
   }
 
   @Get("questions/:id")

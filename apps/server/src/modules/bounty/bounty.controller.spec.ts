@@ -45,7 +45,7 @@ describe("BountyController", () => {
   it("GET /bounty/questions — 悬赏列表", async () => {
     const result = await ctrl.list("1", "20", "cat1", "open");
     expect(result).toBeDefined();
-    expect(mockBountySvc.list).toHaveBeenCalledWith(1, 20, "cat1", "open");
+    expect(mockBountySvc.list).toHaveBeenCalledWith(1, 20, "cat1", "open", undefined);
   });
 
   it("GET /bounty/questions/:id — 悬赏详情", async () => {

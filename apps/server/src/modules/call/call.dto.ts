@@ -7,6 +7,11 @@ export class CreateCallDto {
   @MinLength(1)
   calleeId: string;
 
+  @ApiPropertyOptional({ description: "分站ID" })
+  @IsOptional()
+  @IsString()
+  stationId?: string;
+
   @ApiProperty({ description: "所属圈子ID" })
   @IsString()
   @MinLength(1)

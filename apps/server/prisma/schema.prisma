@@ -1447,8 +1447,10 @@ model Station {
   circles     Circle[]
   liveRooms   LiveRoom[]
   picks       StationPick[]
-  toolConfigs StationToolConfig[]
-  toolRecords ToolRecord[]
+  toolConfigs    StationToolConfig[]
+  toolRecords    ToolRecord[]
+  bountyQuestions BountyQuestion[]
+  audioCalls     AudioCallRecord[]
 
   @@index([code])
   @@index([operatorId])
@@ -2304,6 +2306,7 @@ model PaidQuestion {
 
 model AudioCallRecord {
   id                 String    @id @default(uuid())
+  stationId          String?   // 分站数据隔离（null = 平台级）
   callerId           String // 发起方
   calleeId           String // 接收方
   circleId           String?
@@ -2318,11 +2321,13 @@ model AudioCallRecord {
 
   caller   User               @relation("Caller", fields: [callerId], references: [id], onDelete: Cascade)
   callee   User               @relation("Callee", fields: [calleeId], references: [id], onDelete: Cascade)
+  station  Station?           @relation(fields: [stationId], references: [id])
   billings AudioCallBilling[]
 
   @@index([callerId, createdAt])
   @@index([calleeId])
   @@index([status])
+  @@index([stationId])
 }
 
 // 连麦按分钟扣费明细
@@ -3377,6 +3382,8 @@ model BountyQuestion {
   bountyCoin     Int
   bountyRmb      Decimal?  @db.Decimal(10, 2)
   category       String    @default("BAZI") // BAZI/ZIWEI/FENGSHUI/CAREER/LOVE/GENERAL
+  stationId      String?   // 分站数据隔离（null = 平台级）
+  station         Station?  @relation(fields: [stationId], references: [id])
   circleId       String?
   askerId        String
   answererId     String?
@@ -3393,6 +3400,7 @@ model BountyQuestion {
   @@index([answererId])
   @@index([status, createdAt])
   @@index([category, status])
+  @@index([stationId])
 }
 
 model BountyReview {

@@ -24,7 +24,7 @@ export class CallService {
   ) {}
 
   /** 发起连麦请求 */
-  async create(callerId: string, dto: { calleeId: string; circleId: string }) {
+  async create(callerId: string, dto: { calleeId: string; circleId: string; stationId?: string }) {
     if (callerId === dto.calleeId) throw new BusinessException(ErrorCode.BAD_REQUEST, "不能向自己发起连麦");
 
     // 验证圈子
@@ -55,6 +55,7 @@ export class CallService {
     // 创建通话记录
     const call = await this.prisma.audioCallRecord.create({
       data: {
+        stationId: dto.stationId || null,
         callerId,
         calleeId: dto.calleeId,
         circleId: dto.circleId,
@@ -318,13 +319,14 @@ export class CallService {
   }
 
   /** 获取用户的通话记录 */
-  async listCalls(userId: string, dto: { status?: string; page?: number; pageSize?: number }) {
+  async listCalls(userId: string, dto: { status?: string; page?: number; pageSize?: number; stationId?: string }) {
     const page = dto.page || 1;
     const pageSize = dto.pageSize || 20;
     const where: Prisma.AudioCallRecordWhereInput = {
       OR: [{ callerId: userId }, { calleeId: userId }],
     };
     if (dto.status) where.status = dto.status;
+    if (dto.stationId !== undefined) where.stationId = dto.stationId;
 
     const [calls, total] = await Promise.all([
       this.prisma.audioCallRecord.findMany({

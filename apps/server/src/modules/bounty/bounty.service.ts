@@ -30,6 +30,7 @@ export class BountyService {
         description: dto.description,
         bountyCoin: dto.bountyCoin,
         category: dto.category || "BAZI",
+        stationId: dto.stationId || null,
         circleId: dto.circleId,
         images: dto.images || [],
         askerId: userId,
@@ -104,10 +105,11 @@ export class BountyService {
 
   // ───────── 列表/详情 ─────────
 
-  list(page = 1, pageSize = 20, category?: string, status?: string) {
+  list(page = 1, pageSize = 20, category?: string, status?: string, stationId?: string) {
     const where: any = {};
     if (category) where.category = category;
     if (status) where.status = status;
+    if (stationId !== undefined) where.stationId = stationId;
     return Promise.all([
       this.prisma.bountyQuestion.findMany({
         where,
@@ -121,6 +123,64 @@ export class BountyService {
   getById(id: string) {
     return this.prisma.bountyQuestion.findUnique({
       where: { id },
+    });
+  }
+
+  // ───────── 管理端 ─────────
+
+  async closeQuestion(id: string) {
+    const question = await this.prisma.bountyQuestion.findUnique({ where: { id } });
+    if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "悬赏不存在");
+    // 如果是未回答的悬赏，退还款项
+    if (["OPEN", "CLAIMED"].includes(question.status) && this.coinSvc) {
+      await this.coinSvc.unfreeze(question.askerId, question.bountyCoin);
+    }
+    return this.prisma.bountyQuestion.update({
+      where: { id },
+      data: { status: "CLOSED" },
+    });
+  }
+
+  async listReviews(page = 1, pageSize = 20) {
+    const [reviews, total] = await Promise.all([
+      this.prisma.bountyReview.findMany({
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.bountyReview.count(),
+    ]);
+    // 批量查询关联问题标题
+    const questionIds = [...new Set(reviews.map((r) => r.questionId))];
+    const questions = questionIds.length
+      ? await this.prisma.bountyQuestion.findMany({
+          where: { id: { in: questionIds } },
+          select: { id: true, title: true },
+        })
+      : [];
+    const titleMap = new Map(questions.map((q) => [q.id, q.title]));
+    const list = reviews.map((r) => ({
+      ...r,
+      questionTitle: titleMap.get(r.questionId) || "",
+    }));
+    return { list, total, page, pageSize };
+  }
+
+  async approveReview(id: string) {
+    const review = await this.prisma.bountyReview.findUnique({ where: { id } });
+    if (!review) throw new BusinessException(ErrorCode.NOT_FOUND, "审核记录不存在");
+    return this.prisma.bountyReview.update({
+      where: { id },
+      data: { status: "APPROVED" },
+    });
+  }
+
+  async rejectReview(id: string, reason: string) {
+    const review = await this.prisma.bountyReview.findUnique({ where: { id } });
+    if (!review) throw new BusinessException(ErrorCode.NOT_FOUND, "审核记录不存在");
+    return this.prisma.bountyReview.update({
+      where: { id },
+      data: { status: "REJECTED", reason },
     });
   }
 
