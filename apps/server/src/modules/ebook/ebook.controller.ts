@@ -5,6 +5,7 @@ import { EbookService } from "./ebook.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { MemberGuard } from "../../common/member.guard";
 import {
   CreateCategoryDto, CreateEbookDto, UpdateEbookDto, EbookListQueryDto,
   CreateChapterDto, UpdateChapterDto, UpdateProgressDto,
@@ -49,7 +50,8 @@ export class EbookController {
 
   // ── 章节（公开） ──
   @Get("chapters/:id")
-  @ApiOperation({ summary: "获取章节内容" })
+  @UseGuards(JwtAuthGuard, MemberGuard)
+  @ApiOperation({ summary: "获取章节内容（需会员）" })
   getChapter(@Param("id") id: string, @Req() req: Request) {
     return this.svc.getChapter(id, req.user?.id);
   }

@@ -1,19 +1,39 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma } from "@prisma/client";
+import { WechatPayService } from "../shop/wechat-pay.service";
+
+/** 账单中解析出的订单记录 */
+interface BillEntry {
+  orderNo: string;
+  amount: number;
+  status: string;
+}
 
 @Injectable()
 export class FinanceService {
   private readonly logger = new Logger(FinanceService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private wechatPay?: WechatPayService,
+  ) {}
 
   // ───────── 1. 对账中心 ─────────
 
-  async triggerReconciliation(dto: { source: string; billDate: string }) {
-    const billDate = new Date(dto.billDate);
+  async triggerReconciliation(dto: { period?: string; source?: string; billDate?: string }) {
+    // 支持 period 字段（如 "2026-05"），从中推导 source 和 billDate
+    const source = dto.source || "WECHAT";
+    let billDateStr = dto.billDate;
+    if (!billDateStr && dto.period) {
+      billDateStr = dto.period + "-01"; // 月初日期
+    }
+    if (!billDateStr) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供对账月份(period)或账单日期(billDate)");
+    }
+    const billDate = new Date(billDateStr);
     const startOfDay = new Date(billDate.getFullYear(), billDate.getMonth(), billDate.getDate());
     const endOfDay = new Date(startOfDay.getTime() + 86400000);
 
@@ -27,23 +47,102 @@ export class FinanceService {
     });
 
     const totalAmount = orders.reduce((sum, o) => sum + Number(o.payAmount || 0), 0);
-    const matchAmount = totalAmount;
-    const diffCount = 0;
+
+    // 下载微信支付交易账单并逐笔比对
+    let billEntries: BillEntry[] = [];
+    let billStatus = "UNKNOWN";
+    const mismatches: { orderNo: string; internalAmount: number; billAmount?: number; reason: string }[] = [];
+
+    if (source === "WECHAT" && this.wechatPay) {
+      try {
+        const billCsv = await this.wechatPay.downloadTradeBill({ billDate: billDateStr.replace(/-/g, "") });
+        billEntries = billCsv ? this.parseBillCsv(billCsv) : [];
+        billStatus = "DOWNLOADED";
+      } catch (err) {
+        this.logger.warn(`微信账单下载失败: ${(err as Error).message}，仅以内部分汇总对账`);
+        billStatus = "BILL_UNAVAILABLE";
+      }
+    }
+
+    // 逐笔比对（内部订单 id = 微信账单中的商户订单号）
+    if (billEntries.length > 0) {
+      const internalMap = new Map(orders.map((o) => [o.id, o]));
+      const billMap = new Map(billEntries.map((b) => [b.orderNo, b]));
+
+      // 检查内部订单是否在账单中
+      for (const [orderId, internalOrder] of internalMap) {
+        const billEntry = billMap.get(orderId);
+        if (!billEntry) {
+          mismatches.push({ orderNo: orderId, internalAmount: Number(internalOrder.payAmount || 0), reason: "账单中未找到此订单" });
+        } else if (Math.abs(Number(internalOrder.payAmount || 0) - billEntry.amount) > 0.01) {
+          mismatches.push({
+            orderNo: orderId,
+            internalAmount: Number(internalOrder.payAmount || 0),
+            billAmount: billEntry.amount,
+            reason: "金额不一致",
+          });
+        }
+        billMap.delete(orderId);
+      }
+
+      // 检查账单中是否有内部未记录的订单
+      for (const [orderNo, billEntry] of billMap) {
+        mismatches.push({ orderNo, internalAmount: 0, billAmount: billEntry.amount, reason: "内部系统未找到此订单" });
+      }
+    }
+
+    const diffCount = mismatches.length;
+    const matchAmount = diffCount === 0 && billStatus !== "BILL_UNAVAILABLE"
+      ? totalAmount
+      : billEntries.reduce((sum, b) => sum + b.amount, 0);
 
     const record = await this.prisma.reconciliationRecord.create({
       data: {
-        source: dto.source,
+        source: source,
         billDate: startOfDay,
-        status: "MATCHED",
+        status: mismatches.length > 0 ? "MISMATCHED" : billStatus === "BILL_UNAVAILABLE" ? "PENDING" : "MATCHED",
         totalAmount,
         matchAmount,
         diffCount,
-        detail: { orderCount: orders.length, orders: orders.map((o) => o.id) },
+        detail: {
+          orderCount: orders.length,
+          billEntryCount: billEntries.length,
+          billStatus,
+          mismatches: mismatches.slice(0, 100), // 最多保留100条差异明细
+          orders: orders.map((o) => o.id),
+        },
       },
     });
 
-    this.logger.log(`对账完成: source=${dto.source}, billDate=${dto.billDate}, 订单数=${orders.length}`);
+    this.logger.log(
+      `对账完成: source=${source}, billDate=${billDateStr}, 订单数=${orders.length}, 差异=${mismatches.length}`,
+    );
     return record;
+  }
+
+  /** 解析微信交易账单CSV */
+  private parseBillCsv(csv: string): BillEntry[] {
+    const lines = csv.trim().split("\n");
+    if (lines.length < 2) return [];
+
+    // 微信账单CSV第一行为表头，数据从第二行开始
+    // 格式: 交易时间,公众账号ID,商户号,...,微信订单号(第6列),商户订单号(第7列),...,订单金额(第24列),...
+    const entries: BillEntry[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(",");
+      if (cols.length < 10) continue;
+      // 字段位置去引号
+      const clean = (s: string) => s.replace(/^`|`$/g, "").trim();
+
+      const orderNo = clean(cols[6] || "");
+      const amountStr = clean(cols[23] || cols[22] || "0");
+      const amount = parseFloat(amountStr) || 0;
+
+      if (orderNo && amount > 0) {
+        entries.push({ orderNo, amount, status: "SUCCESS" });
+      }
+    }
+    return entries;
   }
 
   async getReconciliationList(dto: { source?: string; status?: string; page: number; pageSize: number }) {
@@ -151,29 +250,49 @@ export class FinanceService {
     return { settlements, total, page: dto.page, pageSize: dto.pageSize };
   }
 
-  async generateSettlement(dto: { userId: string; period: string }) {
-    const [year, month] = dto.period.split("-").map(Number);
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+  async generateSettlement(dto: { userId?: string; period?: string; startDate?: string; endDate?: string }) {
+    // 从 startDate/endDate 推导 period
+    let period = dto.period;
+    let start: Date, end: Date;
+    if (dto.startDate && dto.endDate) {
+      start = new Date(dto.startDate + "T00:00:00+08:00");
+      end = new Date(dto.endDate + "T23:59:59+08:00");
+      if (!period) {
+        const m = dto.startDate.slice(0, 7);
+        period = m;
+      }
+    } else if (period) {
+      const [year, month] = period.split("-").map(Number);
+      start = new Date(year, month - 1, 1);
+      end = new Date(year, month, 0, 23, 59, 59, 999);
+    } else {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供结算周期(period)或日期范围(startDate/endDate)");
+    }
 
-    // 检查是否已存在
-    const existing = await this.prisma.settlementOrder.findFirst({
-      where: { userId: dto.userId, period: dto.period },
-    });
-    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "该周期结算单已存在");
+    const userId = dto.userId;
 
-    // 聚合该用户该周期所有收益
+    // 检查是否已存在（有 userId 时才检查去重）
+    if (userId) {
+      const existing = await this.prisma.settlementOrder.findFirst({
+        where: { userId, period },
+      });
+      if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "该周期结算单已存在");
+    }
+
+    // 聚合该周期所有收益
+    const earningWhere: any = {
+      createdAt: { gte: start, lte: end },
+    };
+    if (userId) earningWhere.userId = userId;
+
     const [earnings, stationEarnings] = await Promise.all([
       this.prisma.userEarning.findMany({
-        where: {
-          userId: dto.userId,
-          createdAt: { gte: startDate, lte: endDate },
-        },
+        where: earningWhere,
       }),
       this.prisma.stationEarning.findMany({
         where: {
-          station: { userId: dto.userId },
-          createdAt: { gte: startDate, lte: endDate },
+          ...(userId ? { station: { userId } } : {}),
+          createdAt: { gte: start, lte: end },
         },
       }),
     ]);
@@ -190,8 +309,8 @@ export class FinanceService {
 
     return this.prisma.settlementOrder.create({
       data: {
-        userId: dto.userId,
-        period: dto.period,
+        userId: userId || "PLATFORM",
+        period: period!,
         amount: totalAmount,
         detail,
         status: "PENDING",
@@ -275,7 +394,17 @@ export class FinanceService {
   // ───────── 6. 资金冻结/解冻 ─────────
 
   /** 冻结订单资金 */
-  async freezeAmount(dto: { orderId: string; amount: number; reason?: string }) {
+  async freezeAmount(dto: { orderId?: string; userId?: string; amount: number; reason?: string }) {
+    if (!dto.orderId && dto.userId) {
+      // 如果是通过用户ID冻结，则冻结该用户所有已支付订单
+      const userOrders = await this.prisma.order.findMany({
+        where: { userId: dto.userId, status: "PAID" },
+        select: { id: true },
+      });
+      if (userOrders.length === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该用户无符合条件的已支付订单");
+      dto.orderId = userOrders[0].id;
+    }
+    if (!dto.orderId) throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供订单ID或用户ID");
     // 原子操作：仅在未冻结时更新
     const result = await this.prisma.order.updateMany({
       where: {

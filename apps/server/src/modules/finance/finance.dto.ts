@@ -1,16 +1,22 @@
-import { MinLength,  IsOptional, IsString, IsNumber, IsIn, IsDateString, Min } from "class-validator";
+import { MinLength,  IsOptional, IsString, IsNumber, IsIn, Min } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 // ───────── 对账中心 ─────────
 
 export class CreateReconciliationDto {
+  @IsOptional()
+  @IsString()
+  period?: string;
+
+  @IsOptional()
   @IsString()
   @IsIn(["WECHAT", "ALIPAY", "UNIONPAY"])
-  source: string;
+  source?: string;
 
-  @IsDateString()
-  billDate: string;
+  @IsOptional()
+  @IsString()
+  billDate?: string;
 }
 
 export class ReconciliationQueryDto {
@@ -115,13 +121,21 @@ export class SettlementQueryDto {
 }
 
 export class GenerateSettlementDto {
+  @IsOptional()
   @IsString()
-  @MinLength(1)
-  userId: string;
+  userId?: string;
 
+  @IsOptional()
   @IsString()
-  @MinLength(1)
-  period: string;
+  period?: string;
+
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  endDate?: string;
 }
 
 // ───────── 提现审批 ─────────
@@ -166,10 +180,15 @@ export class MonthlyReportDto {
 // ───────── 资金冻结/解冻 ─────────
 
 export class FreezeAmountDto {
-  @ApiProperty({ description: "订单ID" })
+  @ApiPropertyOptional({ description: "用户ID" })
+  @IsOptional()
   @IsString()
-  @MinLength(1)
-  orderId: string;
+  userId?: string;
+
+  @ApiPropertyOptional({ description: "订单ID" })
+  @IsOptional()
+  @IsString()
+  orderId?: string;
 
   @ApiProperty({ description: "冻结金额" })
   @IsNumber()

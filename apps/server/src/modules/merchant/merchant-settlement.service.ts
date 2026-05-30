@@ -4,7 +4,12 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { SystemService } from "../system/system.service";
 import { MERCHANT_CONFIG_KEYS } from "./merchant.types";
-import { PaginationDto, SetCommissionRateDto } from "./merchant.dto";
+import {
+  SetCommissionRateDto,
+  GenerateSettlementDto,
+  SettlementListQueryDto,
+  PaySettlementDto,
+} from "./merchant.dto";
 
 @Injectable()
 export class MerchantSettlementService {
@@ -56,9 +61,119 @@ export class MerchantSettlementService {
     };
   }
 
-  async listSettlements(merchantId: string, query: PaginationDto) {
-    const { page = 1, pageSize = 20 } = query;
-    return { list: [], total: 0, page, pageSize };
+  /** 生成结算单：将一个周期内的已完成订单聚合为一条结算记录 */
+  async generateSettlement(merchantId: string, dto: GenerateSettlementDto) {
+    const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+
+    const periodStart = new Date(dto.periodStart);
+    const periodEnd = new Date(dto.periodEnd);
+
+    // 检查是否有重叠的结算单
+    const existing = await this.prisma.merchantSettlement.findFirst({
+      where: {
+        merchantId,
+        status: { not: "CANCELLED" },
+        periodStart: { lte: periodEnd },
+        periodEnd: { gte: periodStart },
+      },
+    });
+    if (existing) {
+      throw new BusinessException(ErrorCode.MERCHANT_ALREADY_EXISTS, "该时间段内已存在结算单，请勿重复生成");
+    }
+
+    // 聚合该周期内已完成订单
+    const orderAgg = await this.prisma.order.aggregate({
+      where: {
+        merchantId,
+        status: { in: ["PAID", "SHIPPED", "COMPLETED"] },
+        createdAt: { gte: periodStart, lte: periodEnd },
+      },
+      _sum: { amount: true },
+      _count: true,
+    });
+
+    const totalRevenue = Math.round(Number(orderAgg._sum.amount ?? 0));
+    if (totalRevenue === 0) {
+      throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "该时间段内无可结算订单");
+    }
+
+    // commissionRate 存储的是商家分成比例（如 0.85 = 85%归商家）
+    const merchantRate = Number(merchant.commissionRate ?? 0.85);
+    const commission = totalRevenue - Math.round(totalRevenue * merchantRate);
+    const settlementAmount = totalRevenue - commission;
+
+    return this.prisma.merchantSettlement.create({
+      data: {
+        merchantId,
+        periodStart,
+        periodEnd,
+        orderCount: orderAgg._count,
+        totalRevenue,
+        commission,
+        settlementAmount,
+        status: "PENDING",
+      },
+    });
+  }
+
+  /** 结算记录列表 */
+  async listSettlements(merchantId: string, query: SettlementListQueryDto) {
+    const { page = 1, pageSize = 20, status } = query;
+    const where: any = { merchantId };
+    if (status) where.status = status;
+
+    const [list, total] = await Promise.all([
+      this.prisma.merchantSettlement.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.merchantSettlement.count({ where }),
+    ]);
+
+    return { list, total, page, pageSize };
+  }
+
+  /** 结算详情 */
+  async getSettlement(id: string) {
+    const settlement = await this.prisma.merchantSettlement.findUnique({ where: { id } });
+    if (!settlement) throw new BusinessException(ErrorCode.NOT_FOUND, "结算单不存在");
+    return settlement;
+  }
+
+  /** 标记结算已支付 */
+  async paySettlement(id: string, dto: PaySettlementDto) {
+    const settlement = await this.prisma.merchantSettlement.findUnique({ where: { id } });
+    if (!settlement) throw new BusinessException(ErrorCode.NOT_FOUND, "结算单不存在");
+    if (settlement.status !== "PENDING") {
+      throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "只能支付待处理状态的结算单");
+    }
+
+    return this.prisma.merchantSettlement.update({
+      where: { id },
+      data: {
+        status: "PAID",
+        paidAt: new Date(),
+        paidAmount: dto.amount,
+        remark: dto.remark,
+      },
+    });
+  }
+
+  /** 取消结算单 */
+  async cancelSettlement(id: string) {
+    const settlement = await this.prisma.merchantSettlement.findUnique({ where: { id } });
+    if (!settlement) throw new BusinessException(ErrorCode.NOT_FOUND, "结算单不存在");
+    if (settlement.status === "PAID") {
+      throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "已支付的结算单不能取消");
+    }
+
+    return this.prisma.merchantSettlement.update({
+      where: { id },
+      data: { status: "CANCELLED" },
+    });
   }
 
   /** 管理员设置分佣比例 */

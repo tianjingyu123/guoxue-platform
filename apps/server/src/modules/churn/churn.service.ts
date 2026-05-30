@@ -1,6 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { SmsService } from "../sms/sms.service";
+import { NotificationService } from "../notification/notification.service";
 
 /** 每批处理的用户数 */
 const SCORE_BATCH_SIZE = 500;
@@ -9,7 +11,11 @@ const SCORE_BATCH_SIZE = 500;
 export class ChurnService {
   private readonly logger = new Logger(ChurnService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Optional() private smsService?: SmsService,
+    @Optional() private notificationService?: NotificationService,
+  ) {}
 
   // ───────── 每日流失评分 ─────────
 
@@ -164,6 +170,62 @@ export class ChurnService {
 
     if (actions.length > 0) {
       await this.prisma.churnAction.createMany({ data: actions });
+    }
+  }
+
+  /** 每小时执行：处理 PENDING 流失干预动作 */
+  @Cron("0 * * * *")
+  async processChurnActions() {
+    const actions = await this.prisma.churnAction.findMany({
+      where: { status: "PENDING" },
+      take: 100,
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (actions.length === 0) return;
+
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const action of actions) {
+      try {
+        const data = action.actionData as Record<string, unknown> | null;
+        switch (action.actionType) {
+          case "SMS": {
+            if (this.smsService && data?.phone) {
+              await this.smsService.sendVerifyCode(data.phone as string, "CHURN_RETENTION");
+            } else {
+              this.logger.warn(`SMS 流失动作缺少 phone 或 SMS 服务不可用: ${action.id}`);
+            }
+            break;
+          }
+          case "COUPON": {
+            // 优惠券发放需要营销模块支持，记录日志待人工处理
+            this.logger.log(`COUPON 流失动作待人工发放: userId=${action.userId}, data=${JSON.stringify(data)}`);
+            break;
+          }
+          default: {
+            this.logger.warn(`未知流失动作类型: ${action.actionType}`);
+          }
+        }
+
+        await this.prisma.churnAction.update({
+          where: { id: action.id },
+          data: { status: "COMPLETED", executedAt: new Date() },
+        });
+        succeeded++;
+      } catch (err: unknown) {
+        const msg = (err as Error).message?.substring(0, 200);
+        await this.prisma.churnAction.update({
+          where: { id: action.id },
+          data: { status: "FAILED", errorLog: msg },
+        }).catch((err) => this.logger.warn("流失处理状态更新失败", err));
+        failed++;
+      }
+    }
+
+    if (succeeded > 0 || failed > 0) {
+      this.logger.log(`流失动作处理完成: 成功${succeeded}, 失败${failed}`);
     }
   }
 

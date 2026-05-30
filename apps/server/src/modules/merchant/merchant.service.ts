@@ -160,7 +160,7 @@ export class MerchantService {
     const { status, keyword, page = 1, pageSize = 20 } = query;
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
-    if (keyword) where.shopName = { contains: keyword };
+    if (keyword) where.shopName = { contains: keyword, mode: "insensitive" };
 
     const [list, total] = await Promise.all([
       this.prisma.merchant.findMany({
@@ -376,11 +376,15 @@ export class MerchantService {
   }
 
   async updateProduct(userId: string, productId: string, dto: Partial<MerchantProductDto>) {
-    return this.prisma.product.updateMany({ where: { id: productId, userId }, data: dto });
+    const product = await this.prisma.product.findFirst({ where: { id: productId, userId } });
+    if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
+    return this.prisma.product.update({ where: { id: productId }, data: dto });
   }
 
   async deleteProduct(userId: string, productId: string) {
-    return this.prisma.product.deleteMany({ where: { id: productId, userId } });
+    const product = await this.prisma.product.findFirst({ where: { id: productId, userId } });
+    if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
+    return this.prisma.product.delete({ where: { id: productId } });
   }
 
   async listProduct(userId: string, productId: string) {
@@ -433,6 +437,13 @@ export class MerchantService {
     return this.prisma.order.updateMany({
       where: { id: orderId, merchantId }, data: { status: "REFUNDED", refundedAt: new Date() },
     });
+  }
+
+  async rejectRefund(merchantId: string, orderId: string, reason: string) {
+    const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });
+    if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
+    // 拒绝退款：暂不改变订单状态（OrderStatus枚举无REFUND_REJECTED），先验证订单归属后返回
+    return { orderId, status: "REFUND_REJECTED", reason };
   }
 
   // ─── 评价管理 ───
@@ -502,5 +513,78 @@ export class MerchantService {
       where: { id: violationId },
       data: { status: dto.status as any, handledBy: handlerId, handledAt: new Date() },
     });
+  }
+
+  // ─── 售后管理 ───
+
+  async listAfterSales(merchantId: string, q?: { type?: string; status?: string; page?: number; pageSize?: number }) {
+    const { page = 1, pageSize = 20 } = q || {};
+    const orders = await this.prisma.order.findMany({
+      where: { merchantId },
+      select: { id: true, amount: true, status: true },
+    });
+    const orderMap = new Map(orders.map((o) => [o.id, o]));
+    const orderIds = [...orderMap.keys()];
+    if (orderIds.length === 0) return { list: [], total: 0, page, pageSize };
+
+    const where: any = { orderId: { in: orderIds } };
+    if (q?.type) where.type = q.type;
+    if (q?.status) where.status = q.status;
+
+    const [list, total] = await Promise.all([
+      this.prisma.afterSale.findMany({
+        where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.afterSale.count({ where }),
+    ]);
+    return {
+      list: list.map((a) => ({ ...a, order: orderMap.get(a.orderId) })),
+      total, page, pageSize,
+    };
+  }
+
+  async getAfterSale(merchantId: string, afterSaleId: string) {
+    const record = await this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
+    if (!record) return null;
+    const order = await this.prisma.order.findFirst({ where: { id: record.orderId, merchantId } });
+    if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后单不属于您的店铺");
+    return record;
+  }
+
+  async processAfterSale(merchantId: string, afterSaleId: string, dto: { action: string; remark?: string }) {
+    await this.getAfterSale(merchantId, afterSaleId);
+    const status = dto.action === "approve" ? "APPROVED" : dto.action === "reject" ? "REJECTED" : dto.action === "complete" ? "COMPLETED" : undefined;
+    if (!status) throw new BusinessException(ErrorCode.BAD_REQUEST, "无效操作: " + dto.action);
+    return this.prisma.afterSale.update({
+      where: { id: afterSaleId },
+      data: { status },
+    });
+  }
+
+  // ─── 客户管理 ───
+
+  async listCustomers(merchantId: string, q?: { page?: number; pageSize?: number }) {
+    const { page = 1, pageSize = 20 } = q || {};
+    // 查询在该商家下过单的用户，按 userId 聚合
+    const result = await this.prisma.$queryRawUnsafe<any[]>(`
+      SELECT
+        u.id, u.nickname, u.avatar, u.phone,
+        COUNT(o.id)::int as "orderCount",
+        COALESCE(SUM(o."amount"), 0)::decimal as "totalSpent",
+        MAX(o."createdAt") as "lastOrderAt"
+      FROM "User" u
+      JOIN "Order" o ON o."userId" = u.id AND o."merchantId" = $1
+      GROUP BY u.id, u.nickname, u.avatar, u.phone
+      ORDER BY "totalSpent" DESC
+      LIMIT $2 OFFSET $3
+    `, merchantId, pageSize, (page - 1) * pageSize);
+
+    const countResult = await this.prisma.$queryRawUnsafe<any[]>(`
+      SELECT COUNT(DISTINCT o."userId")::int as cnt
+      FROM "Order" o
+      WHERE o."merchantId" = $1
+    `, merchantId);
+
+    return { list: result, total: countResult[0]?.cnt || 0, page, pageSize };
   }
 }

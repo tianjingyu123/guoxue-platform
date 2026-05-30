@@ -115,6 +115,14 @@ export class UserService {
     });
   }
 
+  async batchUpdateStatus(ids: string[], status: string) {
+    const result = await this.prisma.user.updateMany({
+      where: { id: { in: ids } },
+      data: { status: status as UserStatus },
+    });
+    return { updated: result.count };
+  }
+
   // ───────── 用户统计 ─────────
 
   async getUserStats(userId: string) {
@@ -433,5 +441,92 @@ export class UserService {
         avgScore: Math.round((t._avg.score || 0) * 100) / 100,
       })),
     };
+  }
+
+  // ───────── 账号注销（GDPR合规） ─────────
+
+  /** 用户申请注销账号，进入7天冷静期 */
+  async requestAccountDeletion(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true, deleteRequestedAt: true } });
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+    if (user.status === "DISABLED") throw new BusinessException(ErrorCode.FORBIDDEN, "账号已被封禁，无法申请注销");
+
+    const now = new Date();
+    const scheduledAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7天冷静期
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { deleteRequestedAt: now, deleteScheduledAt: scheduledAt },
+    });
+
+    this.logger.log(`用户 ${userId} 申请账号注销，冷静期至 ${scheduledAt.toISOString()}`);
+    return { message: "注销申请已提交，7天冷静期后可执行注销", scheduledAt };
+  }
+
+  /** 用户在冷静期内取消注销申请 */
+  async cancelAccountDeletion(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { deleteRequestedAt: true } });
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+    if (!user.deleteRequestedAt) throw new BusinessException(ErrorCode.BAD_REQUEST, "没有待处理的注销申请");
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { deleteRequestedAt: null, deleteScheduledAt: null },
+    });
+
+    this.logger.log(`用户 ${userId} 已取消注销申请`);
+    return { message: "注销申请已取消" };
+  }
+
+  /** 执行账号注销：匿名化个人数据、禁用账号、保留交易记录用于审计 */
+  async executeAccountDeletion(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { deleteRequestedAt: true, status: true } });
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+    if (!user.deleteRequestedAt) throw new BusinessException(ErrorCode.BAD_REQUEST, "用户未申请注销");
+
+    const anonymizedPhone = `deleted_${userId.slice(0, 8)}`;
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1. 匿名化个人信息
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          nickname: "已注销用户",
+          avatar: null,
+          bio: null,
+          phone: anonymizedPhone,
+          email: null,
+          gender: null,
+          birthday: null,
+          status: "DISABLED",
+          paymentPasswordHash: null,
+          identityVerified: false,
+        },
+      });
+
+      // 2. 清理敏感关联：Auth、通知、搜索历史
+      await tx.auth.deleteMany({ where: { userId } });
+      await tx.notification.updateMany({ where: { userId }, data: { userId: "deleted" } });
+      await tx.searchHistory.deleteMany({ where: { userId } });
+      await tx.readingProgress.deleteMany({ where: { userId } });
+      await tx.bookmark.deleteMany({ where: { userId } });
+
+      // 3. 退出所有圈子
+      await tx.circleMember.deleteMany({ where: { userId } });
+
+      // 4. 记录审计日志
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: "ACCOUNT_DELETED",
+          targetType: "USER",
+          targetId: userId,
+          detail: `用户账号已注销，数据已匿名化`,
+        },
+      });
+    });
+
+    this.logger.log(`用户 ${userId} 账号已注销并匿名化`);
+    return { message: "账号已注销，数据已匿名化处理" };
   }
 }

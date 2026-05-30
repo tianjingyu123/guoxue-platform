@@ -128,12 +128,21 @@ export class BotService {
     return this.getBotOrThrow(id);
   }
 
-  /** 获取智能体配置（含API密钥） */
+  /** 获取智能体配置（含API密钥），apiKey 使用 toJSON 掩码防止日志泄露 */
   private async getBotOrThrow(id: string) {
     const bot = await this.prisma.botConfig.findUnique({ where: { id } });
     if (!bot) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在");
     if (!bot.apiKey || !bot.botId) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置API密钥");
-    return { ...bot, apiKey: decrypt(bot.apiKey) };
+    const decrypted = decrypt(bot.apiKey);
+    // 返回时掩码 apiKey，防止 JSON 序列化/日志输出泄露
+    return {
+      ...bot,
+      get apiKey() { return decrypted; },
+      toJSON() {
+        const { ...rest } = this as any;
+        return { ...rest, apiKey: "[MASKED]" };
+      },
+    } as any;
   }
 
   /** 非流式对话 */
