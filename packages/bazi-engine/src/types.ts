@@ -16,8 +16,12 @@ export interface Pillar {
   zhi: Zhi
   ganShiShen: ShiShen
   zhiShiShen: ShiShen
-  cangGan: { gan: Gan; shiShen: ShiShen }[]
+  cangGan: { gan: Gan; shiShen: ShiShen; type: '元' | '余' | '库' }[]
   nayin: string
+  /** 十二长生/星运：日干对该柱地支的长生状态 */
+  xingYun?: string
+  /** 副星：藏干对应的十神（显式标注） */
+  fuXing?: { gan: Gan; shiShen: ShiShen; type: '元' | '余' | '库' }[]
 }
 
 /** 四柱 */
@@ -81,6 +85,10 @@ export interface FenXiTiShi {
   liuHai: string[]
   sanXing: string[]
   ziXing: string[]
+  /** 地支暗合 */
+  anHe: string[]
+  /** 地支相破 */
+  xiangPo: string[]
 }
 
 /** 格局分析 */
@@ -103,6 +111,9 @@ export interface WuXingEnergy {
   desc: string
 }
 
+/** 早晚子时模式 */
+export type ZiShiMode = 'traditional' | 'modern'
+
 /** 排盘输入 */
 export interface BaziInput {
   name: string
@@ -115,6 +126,8 @@ export interface BaziInput {
   city?: string
   longitude?: number        // 手动指定经度（可选，优先级高于city）
   useTrueSolarTime?: boolean // 是否使用真太阳时（默认false）
+  useDaylightSaving?: boolean // 是否使用夏令时校正（默认false，1986-1991年出生建议开启）
+  ziShiMode?: ZiShiMode      // 早晚子时模式（默认 traditional：23点后日柱用次日）
 }
 
 /** 真太阳时信息 */
@@ -122,6 +135,23 @@ export interface TaiYangShi {
   adjustedHour: number
   adjustedMinute: number
   offset: number
+  desc: string
+}
+
+/** 夏令时校正信息 */
+export interface DaylightSaving {
+  adjusted: boolean
+  originalHour: number
+  adjustedHour: number
+  offset: number
+  desc: string
+}
+
+/** 自坐 */
+export interface ZiZuo {
+  riGan: Gan
+  riZhi: Zhi
+  shiShen: ShiShen
   desc: string
 }
 
@@ -142,4 +172,6 @@ export interface BaziResult {
   geJu?: GeJu
   wuXingEnergy?: WuXingEnergy
   taiYangShi?: TaiYangShi  // 真太阳时校正信息
+  daylightSaving?: DaylightSaving // 夏令时校正信息
+  ziZuo?: ZiZuo            // 自坐：日干对日支的关系
 }

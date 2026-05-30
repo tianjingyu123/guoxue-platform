@@ -6,6 +6,7 @@ import {
   GAN, ZHI,
   GAN_HE_PAIRS, ZHI_HE_PAIRS, ZHI_CHONG_PAIRS, ZHI_HAI_PAIRS,
   ZHI_SAN_HE, ZHI_SAN_HUI, ZHI_SAN_XING, ZHI_ZI_XING,
+  ZHI_AN_HE, ZHI_XIANG_PO,
   CHANG_SHENG, DI_SHI,
 } from './constants'
 import { calcShiShen } from './sizhu'
@@ -129,6 +130,36 @@ export function detectZiXing(zhis: Zhi[]): string[] {
   return results
 }
 
+/** 地支暗合检测 */
+export function detectAnHe(zhis: Zhi[]): string[] {
+  const results: string[] = []
+  for (let i = 0; i < zhis.length; i++) {
+    for (let j = i + 1; j < zhis.length; j++) {
+      for (const [a, b, desc] of ZHI_AN_HE) {
+        if ((zhis[i] === a && zhis[j] === b) || (zhis[i] === b && zhis[j] === a)) {
+          results.push(desc)
+        }
+      }
+    }
+  }
+  return results
+}
+
+/** 地支相破检测 */
+export function detectXiangPo(zhis: Zhi[]): string[] {
+  const results: string[] = []
+  for (let i = 0; i < zhis.length; i++) {
+    for (let j = i + 1; j < zhis.length; j++) {
+      for (const [a, b, desc] of ZHI_XIANG_PO) {
+        if ((zhis[i] === a && zhis[j] === b) || (zhis[i] === b && zhis[j] === a)) {
+          results.push(desc)
+        }
+      }
+    }
+  }
+  return results
+}
+
 /** 完整合冲刑害检测 */
 export function calcFenXiTiShi(siZhu: SiZhu): FenXiTiShi {
   const gans: Gan[] = [siZhu.nian.gan, siZhu.yue.gan, siZhu.ri.gan, siZhu.shi.gan]
@@ -143,6 +174,8 @@ export function calcFenXiTiShi(siZhu: SiZhu): FenXiTiShi {
     liuHai: detectLiuHai(zhis),
     sanXing: detectSanXing(zhis),
     ziXing: detectZiXing(zhis),
+    anHe: detectAnHe(zhis),
+    xiangPo: detectXiangPo(zhis),
   }
 }
 

@@ -109,6 +109,23 @@ export const ZHI_SAN_XING: [Zhi, Zhi, Zhi][] = [['寅','巳','申'],['丑','戌'
 /** 地支自刑 */
 export const ZHI_ZI_XING: Zhi[] = ['辰','午','酉','亥']
 
+/** 地支暗合 */
+export const ZHI_AN_HE: [Zhi, Zhi, string][] = [
+  ['寅', '丑', '寅丑暗合'],
+  ['卯', '申', '卯申暗合'],
+  ['亥', '午', '亥午暗合'],
+]
+
+/** 地支相破 */
+export const ZHI_XIANG_PO: [Zhi, Zhi, string][] = [
+  ['子', '酉', '子酉破'],
+  ['寅', '亥', '寅亥破'],
+  ['辰', '丑', '辰丑破'],
+  ['午', '卯', '午卯破'],
+  ['申', '巳', '申巳破'],
+  ['戌', '未', '戌未破'],
+]
+
 /** 空亡表（日柱旬空） */
 export function getKongWang(riGanZhi: string): string {
   const riIndex = GAN.indexOf(riGanZhi[0] as Gan)

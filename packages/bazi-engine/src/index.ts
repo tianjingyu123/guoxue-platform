@@ -5,12 +5,13 @@
  */
 import type { BaziInput, BaziResult } from './types'
 import { NA_YIN, getKongWang } from './constants'
-import { calcSiZhu, calcShengXiao } from './sizhu'
+import { calcSiZhu, calcShengXiao, calcZiZuo } from './sizhu'
 import { calcQiYun, fillDaYunShiShen } from './dayun'
 import { calcFenXiTiShi, calcTaiYuan, calcMingGong, calcShenGong, calcWangXiang } from './shensha'
 import { calcAllShenSha } from './shensha-db'
 import { calcGeJu, calcWuXingEnergy } from './geju'
 import { calcTrueSolarTime } from './taiyangshi'
+import { applyDaylightSaving } from './xialingshi'
 
 /**
  * 完整八字排盘
@@ -23,14 +24,26 @@ export function calcBazi(input: BaziInput): BaziResult {
   let solar: ReturnType<typeof calcTrueSolarTime> | undefined
   let effectiveInput = input
 
+  // 0a. 夏令时校正（可选，默认关闭，1986-1991年出生建议开启）
+  let daylightSaving: ReturnType<typeof applyDaylightSaving> | undefined
+  if (input.useDaylightSaving) {
+    daylightSaving = applyDaylightSaving(input.hour, input.year, input.month, input.day)
+    if (daylightSaving.inPeriod) {
+      effectiveInput = {
+        ...effectiveInput,
+        hour: daylightSaving.adjustedHour,
+      }
+    }
+  }
+
   if (useSolar) {
     solar = calcTrueSolarTime(
-      input.hour, input.minute,
-      input.month, input.day,
-      input.city, input.longitude,
+      effectiveInput.hour, effectiveInput.minute,
+      effectiveInput.month, effectiveInput.day,
+      effectiveInput.city, effectiveInput.longitude,
     )
     effectiveInput = {
-      ...input,
+      ...effectiveInput,
       hour: Math.floor(solar.adjustedHour),
       minute: Math.round((solar.adjustedHour - Math.floor(solar.adjustedHour)) * 60),
     }
@@ -86,6 +99,9 @@ export function calcBazi(input: BaziInput): BaziResult {
   // 13. 农历日期（简化处理，后续可接入农历库）
   const lunarDate = `${input.year}年${input.month}月${input.day}日`
 
+  // 14. 自坐
+  const ziZuo = calcZiZuo(siZhu.ri.gan, siZhu.ri.zhi)
+
   return {
     input,
     siZhu,
@@ -101,6 +117,7 @@ export function calcBazi(input: BaziInput): BaziResult {
     shenSha,
     geJu,
     wuXingEnergy,
+    ziZuo,
     ...(solar ? {
       taiYangShi: {
         adjustedHour: solar.adjustedHour,
@@ -109,17 +126,34 @@ export function calcBazi(input: BaziInput): BaziResult {
         desc: solar.desc,
       },
     } : {}),
+    ...(daylightSaving?.inPeriod ? {
+      daylightSaving: {
+        adjusted: true,
+        originalHour: input.hour,
+        adjustedHour: daylightSaving.adjustedHour,
+        offset: daylightSaving.offset,
+        desc: daylightSaving.desc,
+      },
+    } : {}),
   }
 }
 
 // 导出公共基础函数，供其他计算器复用
-export { calcRiZhu, calcNianZhu, calcShiShen, calcShiZhu } from './sizhu'
+export { calcRiZhu, calcNianZhu, calcShiShen, calcShiZhu, calcZiZuo, calcSiZhu } from './sizhu'
 export { calcAllJieQi, getJieQiDate, daysToNearestJie, getNianZhuYear } from './jieqi'
 export {
-  GAN, ZHI, NA_YIN,
+  GAN, ZHI, NA_YIN, SHENG_XIAO,
   GAN_HE_PAIRS, ZHI_HE_PAIRS, ZHI_CHONG_PAIRS, ZHI_HAI_PAIRS,
-  ZHI_SAN_HE, ZHI_SAN_XING, ZHI_ZI_XING,
+  ZHI_SAN_HE, ZHI_SAN_HUI, ZHI_SAN_XING, ZHI_ZI_XING,
+  ZHI_AN_HE, ZHI_XIANG_PO,
+  CHANG_SHENG, DI_SHI,
 } from './constants'
+export { applyDaylightSaving, getDaylightSavingOffset } from './xialingshi'
+export { calcTrueSolarTime } from './taiyangshi'
 
 // 仅导出外部实际使用的类型
-export type { BaziInput, BaziResult, SiZhu, Pillar, DaYunStep, Gan, Zhi, ShiShen } from './types'
+export type {
+  BaziInput, BaziResult, SiZhu, Pillar, DaYunStep, Gan, Zhi, ShiShen,
+  ZiShiMode, ZiZuo, DaylightSaving as DaylightSavingInfo,
+  FenXiTiShi, GeJu, ShenShaItem, TaiYangShi, WuXingEnergy,
+} from './types'

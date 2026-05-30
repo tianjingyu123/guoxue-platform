@@ -2,10 +2,11 @@
  * 四柱推算模块
  * 包含：年柱、月柱、日柱、时柱 的干支计算
  */
-import type { BaziInput, Gan, Zhi, ShiShen, Pillar, SiZhu } from './types'
+import type { BaziInput, Gan, Zhi, ShiShen, Pillar, SiZhu, ZiZuo } from './types'
 import {
   GAN, ZHI, ZHI_CANG, ZHI_GAN, WU_HU_DUN, WU_SHU_DUN,
-  NA_YIN, SHENG_XIAO, SHI_SHENG_YANG, SHI_SHENG_YIN
+  NA_YIN, SHENG_XIAO, SHI_SHENG_YANG, SHI_SHENG_YIN,
+  CHANG_SHENG, DI_SHI,
 } from './constants'
 import { getYueZhiIndex, getNianZhuYear } from './jieqi'
 
@@ -145,6 +146,44 @@ function calcShiShen(riGan: Gan, targetGan: Gan | Zhi): ShiShen {
   return isYang ? SHI_SHENG_YANG[offset] : SHI_SHENG_YIN[offset]
 }
 
+// ---------- 十二长生 / 星运 ----------
+/**
+ * 计算日干在地支上的十二长生状态（星运）
+ * @param riGan 日干
+ * @param zhi 目标地支
+ * @returns 地势名称（长生/沐浴/冠带/.../养）
+ */
+function calcXingYun(riGan: Gan, zhi: Zhi): string {
+  const changShengZhi = CHANG_SHENG[riGan]
+  const csIdx = ZHI.indexOf(changShengZhi)
+  const targetIdx = ZHI.indexOf(zhi)
+  const offset = ((targetIdx - csIdx) % 12 + 12) % 12
+  return DI_SHI[offset]
+}
+
+// ---------- 自坐 ----------
+export function calcZiZuo(riGan: Gan, riZhi: Zhi): ZiZuo {
+  const shiShen = calcShiShen(riGan, riZhi)
+  const descMap: Record<string, string> = {
+    '比': '日坐比肩，个性独立自尊心强',
+    '劫': '日坐劫财，慷慨大方但有破耗',
+    '食': '日坐食神，温厚善良、福气深厚',
+    '伤': '日坐伤官，聪明过人但锋芒毕露',
+    '才': '日坐偏财，慷慨大方善于理财',
+    '财': '日坐正财，勤俭持家重视物质',
+    '杀': '日坐七杀，刚强果断事业心强',
+    '官': '日坐正官，正直守法重视名誉',
+    '枭': '日坐偏印，思维独特悟性高',
+    '印': '日坐正印，仁慈善良依赖心强',
+  }
+  return {
+    riGan,
+    riZhi,
+    shiShen,
+    desc: descMap[shiShen] || `日干${riGan}坐${riZhi}(${shiShen})`,
+  }
+}
+
 // ---------- 完整四柱（含立春分界 + 早晚子时 + 真太阳时预处理）----------
 /**
  * 计算完整四柱
@@ -156,28 +195,51 @@ export function calcSiZhu(input: BaziInput): SiZhu {
   const day = input.day
   const hour = input.hour
 
-  // 晚子时 (23:00-23:59)：日柱须用次日，时柱五鼠遁也用次日日干
+  // 早晚子时模式处理
+  const ziShiMode = input.ziShiMode || 'traditional'
   const isLateZi = hour >= 23
-  const adjustedHour = isLateZi ? hour - 24 : hour
+  let dayOffset = 0
+  let effectiveHour: number
+
+  if (isLateZi) {
+    if (ziShiMode === 'traditional') {
+      // 传统派：23点后即次日子时，日柱用次日
+      dayOffset = 1
+      effectiveHour = hour - 24
+    } else {
+      // 现代派：23-0为晚子时，日柱不变但时柱用次日日干
+      // 晚子时 (23:00-23:59) → 日柱当天，时柱次日干
+      dayOffset = 0
+      effectiveHour = hour - 24
+    }
+  } else {
+    effectiveHour = hour
+  }
 
   // 年柱按立春分界
   const nian = calcNianZhu(year, month, day, hour)
 
-  // 日柱（纯数学计算，无时区问题；晚子时+1天）
-  const ri = calcRiZhu(year, month, day, isLateZi ? 1 : 0)
+  // 日柱（纯数学计算，无时区问题）
+  const ri = calcRiZhu(year, month, day, dayOffset)
 
   // 月柱（使用精准节气）
   const yueIdx = getYueZhiIndex(month, day, year)
   const yue = calcYueZhu(nian.gan, yueIdx)
 
   // 时柱（五鼠遁用日干）
-  const effectiveHour = adjustedHour < 0 ? adjustedHour + 24 : adjustedHour
-  const shi = calcShiZhu(ri.gan, effectiveHour)
+  const adjustedHour = effectiveHour < 0 ? effectiveHour + 24 : effectiveHour
+  const shi = calcShiZhu(ri.gan, adjustedHour)
 
   function makePillar(gz: { ganZhi: string; gan: Gan; zhi: Zhi }, riGan: Gan): Pillar {
     const cangGan = ZHI_CANG[ZHI.indexOf(gz.zhi)].map(cg => ({
       gan: cg.gan,
       shiShen: calcShiShen(riGan, cg.gan),
+      type: cg.shiShen as '元' | '余' | '库',
+    }))
+    const fuXing = cangGan.filter(cg => cg.type !== '元').map(cg => ({
+      gan: cg.gan,
+      shiShen: cg.shiShen,
+      type: cg.type,
     }))
     return {
       gan: gz.gan,
@@ -186,6 +248,8 @@ export function calcSiZhu(input: BaziInput): SiZhu {
       zhiShiShen: calcShiShen(riGan, ZHI_GAN[ZHI.indexOf(gz.zhi)]),
       cangGan,
       nayin: NA_YIN[gz.ganZhi] || '',
+      xingYun: calcXingYun(riGan, gz.zhi),
+      fuXing: fuXing.length > 0 ? fuXing : undefined,
     }
   }
 
