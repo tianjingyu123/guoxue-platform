@@ -405,6 +405,17 @@ export class MarketingController {
   }
 
   // ═══════════════════════════════════════
+  // 用户端公开接口
+  // ═══════════════════════════════════════
+
+  @Get("pages/by-route")
+  @ApiOperation({ summary: "根据路由获取已发布的微页面（用户端公开）" })
+  @ApiQuery({ name: "route", required: true, type: String, description: "页面路由路径" })
+  getPublishedPageByRoute(@Query("route") route: string) {
+    return this.marketing.getPublishedPageByRoute(route);
+  }
+
+  // ═══════════════════════════════════════
   // 活动管理
   // ═══════════════════════════════════════
 

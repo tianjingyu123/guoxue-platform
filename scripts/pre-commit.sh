@@ -72,7 +72,15 @@ if [ -n "$STAGED_TS_FILES" ]; then
     run_tsc "@guoxue/server" "server tsc"
   fi
   if echo "$STAGED_TS_FILES" | grep -q 'apps/admin/'; then
-    run_tsc "@guoxue/admin" "admin vue-tsc"
+    # Admin 使用 vue-tsc, 不是 tsc
+    echo -n "  admin vue-tsc ... "
+    if (cd "$ROOT/apps/admin" && npx vue-tsc --noEmit > /dev/null 2>&1); then
+      echo -e "${GREEN}✓${NC}"
+      TSC_PASS=$((TSC_PASS + 1))
+    else
+      echo -e "${RED}✗${NC}"
+      TSC_FAIL=$((TSC_FAIL + 1))
+    fi
   fi
   if [ $TSC_FAIL -eq 0 ] && [ $TSC_PASS -gt 0 ]; then
     PASS=$((PASS + 1))

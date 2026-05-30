@@ -14,6 +14,7 @@ import ChartCard from "@/components/ChartCard.vue"
 import { Plus, Document, Edit, WarningFilled, View, User, Collection, Calendar } from "@element-plus/icons-vue"
 
 const router = useRouter()
+const username = ref('')
 
 const cardRoutes: Record<string, string> = {
   "今日新增用户": "/users",

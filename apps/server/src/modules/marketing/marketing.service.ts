@@ -673,6 +673,25 @@ export class MarketingService {
     return this.getPage(id);
   }
 
+  // 用户端：根据路由获取已发布的微页面
+  async getPublishedPageByRoute(route: string) {
+    const page = await this.prisma.marketingPage.findUnique({
+      where: { route },
+      include: { components: { orderBy: { sortOrder: "asc" } } },
+    });
+    if (!page || page.status !== "PUBLISHED") {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "页面不存在或未发布");
+    }
+    // 过滤掉不在展示时间范围内的组件
+    const now = new Date();
+    page.components = page.components.filter((c) => {
+      if (c.startTime && new Date(c.startTime) > now) return false;
+      if (c.endTime && new Date(c.endTime) < now) return false;
+      return true;
+    });
+    return page;
+  }
+
   // ═══════════════════════════════════════
   // 活动管理
   // ═══════════════════════════════════════

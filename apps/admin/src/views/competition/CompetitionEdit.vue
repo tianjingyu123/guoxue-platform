@@ -124,7 +124,7 @@
                   </el-select>
                   <template v-if="item.prizeType === 'CASH' || !item.prizeType">
                     <el-input-number v-model="item.prize" :min="0" :step="100" size="small" style="width:120px" placeholder="金额(分)" />
-                    <span class="hint">{{ item.prize > 0 ? '¥' + (item.prize / 100).toFixed(0) : '' }}</span>
+                    <span class="hint">{{ (item.prize ?? 0) > 0 ? '¥' + ((item.prize ?? 0) / 100).toFixed(0) : '' }}</span>
                   </template>
                   <template v-else>
                     <el-input v-model="item.prizeItem" placeholder="奖品名称" size="small" style="width:120px" />

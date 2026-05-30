@@ -56,6 +56,12 @@
       }
     },
     {
+      "path": "pages/activity/micropage",
+      "style": {
+        "navigationBarTitleText": "活动详情"
+      }
+    },
+    {
       "path": "pages/admin/batch-coupon-send",
       "style": {
         "navigationBarTitleText": "批量发券"

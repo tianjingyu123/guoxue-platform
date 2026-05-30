@@ -863,8 +863,8 @@ export const marketingApi = {
   myGroupBuys: () => api.get("/marketing/group-buys/my"),
   /** 折扣活动列表 */
   discounts: () => api.get("/marketing/discounts"),
-  /** 营销页面 */
-  pageByRoute: (route: string) => api.get(`/marketing/pages/${encodeURIComponent(route)}`),
+  /** 营销页面（按路由获取已发布页面） */
+  pageByRoute: (route: string) => api.get("/marketing/pages/by-route", { route }),
   getFullReductions: (params?: any) => api.get("/marketing/full-reductions", params),
   activityDetail: (id: string) => api.get(`/marketing/activities/${id}`),
 };

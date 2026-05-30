@@ -1112,7 +1112,7 @@ export const marketingApi = {
   addPageComponent: (pageId: string, data: any) => api.post(`/marketing/pages/${pageId}/components`, data),
   updatePageComponent: (pageId: string, compId: string, data: any) => api.put(`/marketing/pages/${pageId}/components/${compId}`, data),
   deletePageComponent: (pageId: string, compId: string) => api.delete(`/marketing/pages/${pageId}/components/${compId}`),
-  sortPageComponents: (pageId: string, data: { sortedIds: string[] }) => api.put(`/marketing/pages/${pageId}/components/sort`, data),
+  sortPageComponents: (pageId: string, data: { componentIds: string[] }) => api.put(`/marketing/pages/${pageId}/components/sort`, data),
   // 活动
   listActivities: (params?: any) => api.get("/marketing/activities", { params }),
   createActivity: (data: any) => api.post("/marketing/activities", data),
