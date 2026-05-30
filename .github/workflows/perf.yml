@@ -88,13 +88,15 @@ jobs:
           pnpm --filter @guoxue/ziwei-engine build
         timeout-minutes: 5
 
-      - name: 生成 Prisma Client + 迁移
-        run: |
-          pnpm --filter @guoxue/server exec npx prisma generate
-          pnpm --filter @guoxue/server exec npx prisma migrate deploy
-        timeout-minutes: 5
+      - name: 生成 Prisma Client
+        run: pnpm --filter @guoxue/server db:generate
+        timeout-minutes: 2
+
+      - name: 执行数据库迁移
+        run: pnpm --filter @guoxue/server exec prisma migrate deploy
+        timeout-minutes: 3
         env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
+          DATABASE_URL: postgresql://guoxue:guoxue123@localhost:5432/guoxue
 
       - name: 构建服务
         run: pnpm --filter @guoxue/server build
