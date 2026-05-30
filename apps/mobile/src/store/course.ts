@@ -169,9 +169,7 @@ export const useCourseStore = defineStore('course', () => {
     loading.value = true
     error.value = null
     try {
-      // 使用通用 post，后端需实现 /courses/chapters/:chapterId/submit 路由
-      const { api } = await import('@/api')
-      const res: any = await api.post(`/courses/chapters/${chapterId}/submit`, { content })
+      const res: any = await courseApi.submitWork(chapterId, content)
       uni.showToast({ title: '提交成功', icon: 'success' })
       return res
     } catch (e: any) {

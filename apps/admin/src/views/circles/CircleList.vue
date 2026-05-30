@@ -16,6 +16,9 @@
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无圈子" :image-size="80" />
+      </template>
       <el-table-column
         prop="name"
         label="圈子名称"
@@ -71,6 +74,12 @@
         <template #default="{ row }">
           <el-button
             size="small"
+            @click="router.push(`/circles/${row.id}`)"
+          >
+            详情
+          </el-button>
+          <el-button
+            size="small"
             type="primary"
             @click="openEdit(row)"
           >
@@ -110,7 +119,9 @@
       width="500px"
     >
       <el-form
+        ref="dialogFormRef"
         :model="form"
+        :rules="dialogRules"
         label-width="80px"
       >
         <el-form-item label="名称">
@@ -175,8 +186,11 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { circleApi } from "@/api";
+
+const router = useRouter();
 
 const list = ref<any[]>([]);
 const loading = ref(false);
@@ -184,6 +198,11 @@ const dialogVisible = ref(false);
 const saving = ref(false);
 const editingId = ref("");
 const form = reactive({ name: "", cover: "", intro: "", type: "FREE", price: 0 });
+const dialogFormRef = ref<any>(null);
+const dialogRules = {
+  name: [{ required: true, message: "请输入圈子名称", trigger: "blur" }],
+  type: [{ required: true, message: "请选择圈子类型", trigger: "change" }],
+};
 const tagsStr = ref("");
 
 onMounted(() => fetchList());
@@ -193,6 +212,8 @@ async function fetchList() {
   try {
     const { data } = await circleApi.list({ pageSize: 100 });
     list.value = data.circles || data || [];
+  } catch {
+    ElMessage.error("加载圈子列表失败");
   } finally { loading.value = false; }
 }
 

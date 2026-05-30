@@ -1,22 +1,31 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { randomInt } from "crypto";
 import { SystemService } from "../system/system.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
+export type AiProvider = "deepseek" | "anthropic" | "alibaba" | "local";
+
 interface SceneRouting {
   model: string;
+  /** 模型供应商，默认 deepseek */
+  provider?: AiProvider;
   fallbackModel?: string;
+  /** fallback 模型的供应商 */
+  fallbackProvider?: AiProvider;
   temperature?: number;
   maxTokens?: number;
   topP?: number;
   /** 灰度配置 */
   grayRelease?: {
-    newModel: string;      // 新模型名称
-    percentage: number;    // 灰度比例 0-100
+    newModel: string;
+    newModelProvider?: AiProvider;
+    percentage: number;
   };
   /** 成本控制 */
   budgetControl?: {
-    monthlyTokenLimit: number;  // 月度Token上限
-    lightModel: string;        // 超预算降级模型
+    monthlyTokenLimit: number;
+    lightModel: string;
+    lightModelProvider?: AiProvider;
   };
 }
 
@@ -28,7 +37,9 @@ export interface ModelRoutingConfig {
 const DEFAULT_ROUTING: ModelRoutingConfig = {
   default: {
     model: "deepseek-v4-flash",
+    provider: "deepseek",
     fallbackModel: "deepseek-v4-flash",
+    fallbackProvider: "deepseek",
     temperature: 0.3,
     maxTokens: 2048,
     topP: 0.9,
@@ -36,14 +47,18 @@ const DEFAULT_ROUTING: ModelRoutingConfig = {
   scenes: {
     "multi-agent": {
       model: "deepseek-v4-flash",
+      provider: "deepseek",
       fallbackModel: "deepseek-v4-flash",
+      fallbackProvider: "deepseek",
       temperature: 0.5,
       maxTokens: 4096,
       topP: 0.9,
     },
     "knowledge_graph": {
       model: "deepseek-v4-flash",
+      provider: "deepseek",
       fallbackModel: "deepseek-v4-flash",
+      fallbackProvider: "deepseek",
       temperature: 0.2,
       maxTokens: 2048,
       topP: 0.9,
@@ -65,28 +80,35 @@ export class ModelRouterService {
     private readonly prisma: PrismaService,
   ) {}
 
-  /** 根据场景名解析路由配置（含灰度+预算控制） */
+  /** 根据场景名解析路由配置（含灰度+预算控制+供应商） */
   async resolve(scene: string): Promise<{
     model: string;
+    provider: AiProvider;
     fallbackModel?: string;
+    fallbackProvider?: AiProvider;
     options: { temperature: number; maxTokens: number; topP: number };
     grayReleaseModel?: string;
+    grayReleaseProvider?: AiProvider;
     costCapped?: boolean;
   }> {
     const config = await this.getRoutingConfig();
     const sceneConfig = config.scenes[scene] || config.default;
 
     let model = sceneConfig.model;
+    let provider: AiProvider = sceneConfig.provider || "deepseek";
     let fallbackModel = sceneConfig.fallbackModel;
+    let fallbackProvider: AiProvider = sceneConfig.fallbackProvider || "deepseek";
     let grayReleaseModel: string | undefined;
+    let grayReleaseProvider: AiProvider | undefined;
     let costCapped = false;
 
-    // 1. 灰度切换：按百分比随机选择新模型
+    // 1. 灰度切换
     if (sceneConfig.grayRelease && sceneConfig.grayRelease.percentage > 0) {
-      const roll = Math.random() * 100;
+      const roll = randomInt(0, 100);
       if (roll < sceneConfig.grayRelease.percentage) {
         grayReleaseModel = sceneConfig.grayRelease.newModel;
-        this.logger.debug(`场景 [${scene}] 命中灰度，使用: ${grayReleaseModel}`);
+        grayReleaseProvider = sceneConfig.grayRelease.newModelProvider || "deepseek";
+        this.logger.debug(`场景 [${scene}] 命中灰度，使用: ${grayReleaseModel} (${grayReleaseProvider})`);
       }
     }
 
@@ -99,20 +121,25 @@ export class ModelRouterService {
           `场景 [${scene}] 当月Token已达上限 (${monthlyUsage}/${limit})，降级到 ${sceneConfig.budgetControl.lightModel}`,
         );
         model = sceneConfig.budgetControl.lightModel;
+        provider = sceneConfig.budgetControl.lightModelProvider || "deepseek";
         fallbackModel = sceneConfig.budgetControl.lightModel;
+        fallbackProvider = sceneConfig.budgetControl.lightModelProvider || "deepseek";
         costCapped = true;
       }
     }
 
     return {
       model,
+      provider,
       fallbackModel,
+      fallbackProvider,
       options: {
         temperature: sceneConfig.temperature ?? config.default.temperature ?? 0.3,
         maxTokens: sceneConfig.maxTokens ?? config.default.maxTokens ?? 2048,
         topP: sceneConfig.topP ?? config.default.topP ?? 0.9,
       },
       grayReleaseModel,
+      grayReleaseProvider,
       costCapped,
     };
   }

@@ -77,6 +77,10 @@ export class AlertListQueryDto extends PaginationDto {
   @ApiPropertyOptional({ description: "状态" })
   @IsOptional() @IsString()
   status?: string;
+
+  @ApiPropertyOptional({ description: "分站ID" })
+  @IsOptional() @IsString()
+  stationId?: string;
 }
 
 export class HandleAlertDto {
@@ -90,6 +94,10 @@ export class FraudDetectionListQueryDto extends PaginationDto {
   @ApiPropertyOptional({ description: "状态" })
   @IsOptional() @IsString()
   status?: string;
+
+  @ApiPropertyOptional({ description: "分站ID" })
+  @IsOptional() @IsString()
+  stationId?: string;
 }
 
 // ─── 申诉 ───

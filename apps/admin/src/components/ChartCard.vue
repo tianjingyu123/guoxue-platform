@@ -4,15 +4,15 @@
       <span class="chart-card__title">{{ title }}</span>
       <slot name="extra" />
     </div>
-    <div ref="chartRef" class="chart-card__body" />
+    <div ref="chartRef" class="chart-card__body" :style="{ height: height + 'px' }" />
     <el-empty v-if="!hasData" description="暂无数据" :image-size="48" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import * as echarts from 'echarts'
-import type { EChartsType } from 'echarts'
+import echarts from '../utils/echarts'
+import type { EChartsType } from 'echarts/core'
 
 const props = withDefaults(defineProps<{
   title: string
@@ -26,7 +26,7 @@ const hasData = ref(false)
 
 function render() {
   if (!chartRef.value || !props.option) return
-  if (!chart) chart = echarts.init(chartRef.value)
+  if (!chart) chart = echarts.init(chartRef.value, 'guoxue')
   chart.setOption(props.option, true)
   hasData.value = (props.option.series?.[0]?.data?.length > 0) || (props.option.series?.length > 0)
 }

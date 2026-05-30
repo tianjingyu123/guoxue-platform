@@ -42,6 +42,9 @@
       stripe
       size="small"
     >
+      <template #empty>
+        <el-empty description="暂无审计日志" :image-size="80" />
+      </template>
       <el-table-column
         label="时间"
         width="170"
@@ -110,6 +113,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { ElMessage } from "element-plus";
 import { auditApi } from "@/api";
 
 const list = ref<any[]>([]);
@@ -150,6 +154,8 @@ async function fetchList() {
     const { data } = await auditApi.list(params);
     list.value = data.logs || [];
     total.value = data.total || 0;
+  } catch {
+    ElMessage.error("加载审计日志失败");
   } finally {
     loading.value = false;
   }

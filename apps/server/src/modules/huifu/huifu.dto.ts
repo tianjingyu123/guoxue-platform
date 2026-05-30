@@ -48,11 +48,27 @@ export class HuifuSplitDto {
   @IsString()
   orderId: string;
 
-  @ApiProperty({ description: "分账接收方列表", type: [HuifuSplitReceiver] })
+  @ApiPropertyOptional({ description: "接收方ID（单笔分账简写）" })
+  @IsOptional()
+  @IsString()
+  receiverId?: string;
+
+  @ApiPropertyOptional({ description: "接收方名称（单笔分账简写）" })
+  @IsOptional()
+  @IsString()
+  receiverName?: string;
+
+  @ApiProperty({ description: "分账金额（元）" })
+  @IsNumber()
+  @Min(0.01)
+  amount: number;
+
+  @ApiPropertyOptional({ description: "分账接收方列表", type: [HuifuSplitReceiver] })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => HuifuSplitReceiver)
-  receivers: HuifuSplitReceiver[];
+  receivers?: HuifuSplitReceiver[];
 
   @ApiPropertyOptional({ description: "是否解冻剩余金额" })
   @IsOptional()
@@ -67,9 +83,15 @@ export class HuifuQuerySplitDto {
 }
 
 export class HuifuRefundDto {
-  @ApiProperty({ description: "订单ID" })
+  @ApiPropertyOptional({ description: "订单ID" })
+  @IsOptional()
   @IsString()
-  orderId: string;
+  orderId?: string;
+
+  @ApiPropertyOptional({ description: "原交易号" })
+  @IsOptional()
+  @IsString()
+  outTradeNo?: string;
 
   @ApiProperty({ description: "退款金额（元）" })
   @IsNumber()

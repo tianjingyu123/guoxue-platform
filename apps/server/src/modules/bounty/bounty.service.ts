@@ -140,4 +140,41 @@ export class BountyService {
       this.logger.log(`释放超时悬赏: ${expired.length}`);
     }
   }
+
+  /** 每天检查超过30天无人抢答的悬赏，自动退款 */
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async processExpiredBounties() {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400 * 1000);
+    const expired = await this.prisma.bountyQuestion.findMany({
+      where: {
+        status: { in: ["OPEN", "CLAIMED"] },
+        createdAt: { lt: thirtyDaysAgo },
+      },
+      select: { id: true, askerId: true, bountyCoin: true, status: true },
+      take: 50,
+    });
+
+    if (expired.length === 0) return;
+
+    for (const bounty of expired) {
+      try {
+        if (this.coinSvc && bounty.status === "CLAIMED") {
+          await this.coinSvc.unfreeze(bounty.askerId, bounty.bountyCoin);
+        } else if (this.coinSvc) {
+          await this.coinSvc.unfreeze(bounty.askerId, bounty.bountyCoin);
+        }
+        await this.prisma.bountyQuestion.update({
+          where: { id: bounty.id },
+          data: { status: "EXPIRED" },
+        });
+        this.logger.log(`悬赏自动退款: ${bounty.id}, ${bounty.bountyCoin}币`);
+      } catch (err: any) {
+        this.logger.warn(`悬赏退款失败: ${bounty.id}, ${err.message}`);
+      }
+    }
+
+    if (expired.length > 0) {
+      this.logger.log(`悬赏过期处理完成: ${expired.length} 个`);
+    }
+  }
 }

@@ -34,6 +34,7 @@ export class LiveService {
       chargePrice: dto.chargePrice,
       status: "WAITING",
       ...(dto.courseId ? { courseId: dto.courseId } : {}),
+      ...(dto.stationId ? { stationId: dto.stationId } : {}),
       ...(dto.productIds?.length ? { products: { create: dto.productIds.map(productId => ({ productId })) } } : {}),
     };
 
@@ -135,10 +136,11 @@ export class LiveService {
     return result;
   }
 
-  async listRooms(status?: string, page = 1, pageSize = 20, circleId?: string) {
+  async listRooms(status?: string, page = 1, pageSize = 20, circleId?: string, stationId?: string) {
     const where: Prisma.LiveRoomWhereInput = {};
     if (status) where.status = status as LiveStatus;
     if (circleId) where.circleId = circleId;
+    if (stationId) where.stationId = stationId;
 
     const [rooms, total] = await Promise.all([
       this.prisma.liveRoom.findMany({
@@ -184,8 +186,9 @@ export class LiveService {
   // ───────── 预告与预约 ─────────
 
   /** 获取即将开始的直播预告列表（按 startTime 升序） */
-  async listScheduled(page = 1, pageSize = 10) {
-    const where = { status: "WAITING" as LiveStatus, startTime: { gte: new Date() } };
+  async listScheduled(page = 1, pageSize = 10, stationId?: string) {
+    const where: Prisma.LiveRoomWhereInput = { status: "WAITING" as LiveStatus, startTime: { gte: new Date() } };
+    if (stationId) where.stationId = stationId;
     const [rooms, total] = await Promise.all([
       this.prisma.liveRoom.findMany({
         where,
@@ -722,8 +725,9 @@ export class LiveService {
   // ───────── 课程联动 ─────────
 
   /** 获取课程关联的直播间列表 */
-  async listCourseRooms(courseId: string, page = 1, pageSize = 20) {
-    const where = { courseId };
+  async listCourseRooms(courseId: string, page = 1, pageSize = 20, stationId?: string) {
+    const where: Prisma.LiveRoomWhereInput = { courseId };
+    if (stationId) where.stationId = stationId;
     const [rooms, total] = await Promise.all([
       this.prisma.liveRoom.findMany({
         where,

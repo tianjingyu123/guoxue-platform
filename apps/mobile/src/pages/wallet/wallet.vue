@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onShow } from 'vue'
+import { ref } from 'vue'
 import { useCoinStore } from '../../store/coinStore'
 import { storeToRefs } from 'pinia'
 import EmptyState from '../../components/EmptyState.vue'

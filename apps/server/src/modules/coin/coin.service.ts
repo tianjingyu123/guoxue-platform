@@ -6,6 +6,16 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { COIN_TO_RMB } from "../../common/constants";
 import { CommissionService } from "../commission/commission.service";
+import { SystemService } from "../system/system.service";
+
+/** 默认充值档位（ConfigSystem 未配置时的兜底） */
+const DEFAULT_RECHARGE_TIERS = [
+  { amountRmb: 6, amountCoin: 60, bonus: 0 },
+  { amountRmb: 18, amountCoin: 180, bonus: 0 },
+  { amountRmb: 68, amountCoin: 680, bonus: 0 },
+  { amountRmb: 198, amountCoin: 1980, bonus: 0 },
+  { amountRmb: 648, amountCoin: 6480, bonus: 0 },
+];
 
 @Injectable()
 export class CoinService {
@@ -15,6 +25,7 @@ export class CoinService {
     private prisma: PrismaService,
     private redis: RedisService,
     @Optional() private commission?: CommissionService,
+    @Optional() private systemService?: SystemService,
   ) {}
 
   /** 获取或创建虚拟币账户 */
@@ -38,6 +49,8 @@ export class CoinService {
 
     await this.getOrCreateAccount(userId);
 
+    const coinRate = await this.getCoinRate();
+
     // 交互式事务：余额用 atomic increment，避免读-写竞态
     const [updatedAccount, recharge, transaction] = await this.prisma.$transaction(async (tx) => {
       const acc = await tx.virtualCoinAccount.update({
@@ -50,7 +63,7 @@ export class CoinService {
       const rec = await tx.virtualCoinRecharge.create({
         data: {
           userId,
-          amountRmb: dto.amountCoin / COIN_TO_RMB,
+          amountRmb: dto.amountCoin / coinRate,
           amountCoin: dto.amountCoin,
           payMethod: dto.payMethod || "ADMIN",
           orderNo: dto.orderNo || `ADMIN_${Date.now()}`,
@@ -149,6 +162,26 @@ export class CoinService {
     return { transactions, total, page, pageSize };
   }
 
+  /** 管理员查看所有交易流水 */
+  async getAdminTransactions(page = 1, pageSize = 20, userId?: string, type?: string, scene?: string) {
+    const where: Prisma.VirtualCoinTransactionWhereInput = {};
+    if (userId) where.userId = userId;
+    if (type) where.type = type as Prisma.VirtualCoinTransactionWhereInput["type"];
+    if (scene) where.scene = scene as Prisma.VirtualCoinTransactionWhereInput["scene"];
+
+    const [transactions, total] = await Promise.all([
+      this.prisma.virtualCoinTransaction.findMany({
+        where,
+        include: { user: { select: { id: true, nickname: true, phone: true } } },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.virtualCoinTransaction.count({ where }),
+    ]);
+    return { transactions, total, page, pageSize };
+  }
+
   /** 充值记录 */
   async getRecharges(page = 1, pageSize = 20, userId?: string) {
     const where: Prisma.VirtualCoinRechargeWhereInput = {};
@@ -167,15 +200,30 @@ export class CoinService {
     return { recharges, total, page, pageSize };
   }
 
-  /** 充值档位配置 */
-  getRechargeTiers() {
-    return [
-      { amountRmb: 6, amountCoin: 60, bonus: 0 },
-      { amountRmb: 18, amountCoin: 180, bonus: 0 },
-      { amountRmb: 68, amountCoin: 680, bonus: 0 },
-      { amountRmb: 198, amountCoin: 1980, bonus: 0 },
-      { amountRmb: 648, amountCoin: 6480, bonus: 0 },
-    ];
+  /** 充值档位配置（优先从 ConfigSystem 读取，未配置时使用硬编码默认值） */
+  async getRechargeTiers() {
+    if (this.systemService) {
+      const cfg = await this.systemService.getConfig("coin_recharge_tiers");
+      if (cfg?.configValue) {
+        try {
+          const tiers = JSON.parse(cfg.configValue);
+          if (Array.isArray(tiers) && tiers.length > 0) return tiers;
+        } catch { /* 解析失败回退默认值 */ }
+      }
+    }
+    return DEFAULT_RECHARGE_TIERS;
+  }
+
+  /** 获取当前汇率（国学币:人民币），优先从 ConfigSystem 读取 */
+  async getCoinRate(): Promise<number> {
+    if (this.systemService) {
+      const cfg = await this.systemService.getConfig("coin_to_rmb_rate");
+      if (cfg?.configValue) {
+        const rate = Number(cfg.configValue);
+        if (rate > 0) return rate;
+      }
+    }
+    return COIN_TO_RMB;
   }
 
   /** 礼物列表 */
@@ -242,7 +290,8 @@ export class CoinService {
 
     // 平台抽成 + 圈主收益（fire-and-forget）
     if (this.commission) {
-      this.recordGiftCommission(liveRoomId, record.id, gift.priceCoin * quantity * COIN_TO_RMB).catch(
+      const coinRate = await this.getCoinRate();
+      this.recordGiftCommission(liveRoomId, record.id, gift.priceCoin * quantity * coinRate).catch(
         (err) => this.logger.warn("礼物抽成记录失败", err),
       );
     }
@@ -319,7 +368,7 @@ export class CoinService {
       });
       if (existing?.status === "PAID") return;
 
-      const amountRmb = amountCoin / COIN_TO_RMB;
+      const amountRmb = amountCoin / (await this.getCoinRate());
 
       await this.recharge(userId, {
         amountCoin,

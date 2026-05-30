@@ -18,6 +18,12 @@ const mockAiSvc: Record<string, jest.Mock> = {
   getAiUsageStats: jest.fn().mockResolvedValue({ totalCalls: 100, totalTokens: 50000 } as any),
   getAiCallLogs: jest.fn().mockResolvedValue({ items: [], total: 0 } as any),
   getAiAbnormalAlerts: jest.fn().mockResolvedValue([] as any),
+  getCircuitBreakerStatus: jest.fn().mockReturnValue([
+    { service: "asr", state: "CLOSED" },
+    { service: "ocr", state: "CLOSED" },
+    { service: "nlp", state: "CLOSED" },
+    { service: "tmt", state: "CLOSED" },
+  ]),
 };
 
 describe("AiController", () => {
@@ -109,5 +115,12 @@ describe("AiController", () => {
   it("GET /ai/abnormal-alerts — AI异常告警", async () => {
     const result: any = await ctrl.getAiAbnormalAlerts();
     expect(result).toHaveLength(0);
+  });
+
+  it("GET /ai/circuit-breaker — 断路器状态", () => {
+    const result: any = ctrl.getCircuitBreakerStatus();
+    expect(result).toHaveLength(4);
+    expect(result[0].service).toBe("asr");
+    expect(result[0].state).toBe("CLOSED");
   });
 });

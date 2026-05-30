@@ -6,11 +6,15 @@ import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
   commissionConfig: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
-  stationEarning: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), aggregate: jest.fn() },
+  stationEarning: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), aggregate: jest.fn(), findFirst: jest.fn() },
   station: { findUnique: jest.fn(), update: jest.fn() },
-  notification: { create: jest.fn() },
+  operator: { findUnique: jest.fn(), update: jest.fn() },
+  operatorEarning: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), aggregate: jest.fn() },
+  notification: { create: jest.fn().mockReturnValue({ catch: jest.fn() }) },
   withdrawal: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), aggregate: jest.fn() },
   referralLink: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+  platformFeeRecord: { findMany: jest.fn() },
+  $transaction: jest.fn().mockImplementation((cb: any) => cb(mockPrisma)),
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
 

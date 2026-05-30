@@ -1,6 +1,7 @@
 import { IsString, IsOptional, IsBoolean, IsInt, IsEnum, IsArray, Min, Max } from "class-validator";
+import { Type } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { CompetitionType, CompetitionLevel, ScoringModel, QuestionType } from "@prisma/client";
+import { CompetitionType, CompetitionLevel, PrizeType, ScoringModel, QuestionType } from "@prisma/client";
 
 /** 创建赛事 */
 export class CreateCompetitionDto {
@@ -71,6 +72,14 @@ export class CreateCompetitionDto {
   @IsInt()
   @Min(0)
   totalPrize?: number;
+
+  @IsOptional()
+  @IsEnum(PrizeType)
+  prizeType?: PrizeType;
+
+  @IsOptional()
+  @IsArray()
+  prizeConfig?: PrizeConfigItem[];
 
   @IsOptional()
   @IsInt()
@@ -203,6 +212,32 @@ export class GradeAnswerDto {
   comment?: string;
 }
 
+/** 奖品分配规则项 */
+export class PrizeConfigItem {
+  @IsString()
+  rank!: string; // "1", "2", "3", "4-10"
+
+  @IsString()
+  title!: string; // "第一名", "优秀奖"
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  prize?: number; // 奖金金额（分），现金类使用
+
+  @IsOptional()
+  @IsString()
+  prizeItem?: string; // 奖品名称（实物/虚拟类）
+
+  @IsOptional()
+  @IsString()
+  prizeType?: string; // CASH/PHYSICAL/VIRTUAL，覆盖竞赛级设置
+
+  @IsOptional()
+  @IsString()
+  description?: string; // 奖品描述
+}
+
 /** 查询赛事 */
 export class QueryCompetitionDto {
   @IsOptional()
@@ -222,10 +257,16 @@ export class QueryCompetitionDto {
   organizerId?: string;
 
   @IsOptional()
+  @IsString()
+  keyword?: string;
+
+  @IsOptional()
+  @Type(() => Number)
   @IsInt()
   page?: number = 1;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   pageSize?: number = 20;
 }
@@ -280,6 +321,14 @@ export class UpdateCompetitionDto {
   totalPrize?: number;
 
   @IsOptional()
+  @IsEnum(PrizeType)
+  prizeType?: PrizeType;
+
+  @IsOptional()
+  @IsArray()
+  prizeConfig?: PrizeConfigItem[];
+
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
@@ -299,10 +348,12 @@ export class QueryRankingDto {
   roundId?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   page?: number = 1;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   pageSize?: number = 50;
 }

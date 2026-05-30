@@ -133,13 +133,24 @@ export class KnowledgeSyncService {
       take: 20,
     });
 
-    for (const post of recentPosts) {
-      const contentHash = crypto.createHash("md5").update(post.content).digest("hex");
-      const existing = await this.prisma.circleKnowledge.findUnique({
-        where: { contentHash_circleId: { contentHash, circleId } },
-      });
+    // 批量查询已存在的 contentHash，消除 N+1
+    const recentHashes = recentPosts.map((p) =>
+      crypto.createHash("md5").update(p.content).digest("hex"),
+    );
+    const recentExistingSet = new Set(
+      recentHashes.length > 0
+        ? (await this.prisma.circleKnowledge.findMany({
+            where: { circleId, contentHash: { in: recentHashes } },
+            select: { contentHash: true },
+          })).map((e) => e.contentHash)
+        : [],
+    );
 
-      if (!existing) {
+    for (let i = 0; i < recentPosts.length; i++) {
+      const post = recentPosts[i];
+      const contentHash = recentHashes[i];
+
+      if (!recentExistingSet.has(contentHash)) {
         const isDuplicate = await this.checkVectorSimilarity(circleId, post.content);
         if (!isDuplicate) {
           await this.prisma.circleKnowledgeCandidate.upsert({
@@ -181,13 +192,24 @@ export class KnowledgeSyncService {
         orderBy: { createdAt: "desc" },
       });
 
-      for (const post of guestPosts) {
-        const contentHash = crypto.createHash("md5").update(post.content).digest("hex");
-        const existing = await this.prisma.circleKnowledge.findUnique({
-          where: { contentHash_circleId: { contentHash, circleId } },
-        });
+      // 批量查询已存在的 contentHash，消除 N+1
+      const guestHashes = guestPosts.map((p) =>
+        crypto.createHash("md5").update(p.content).digest("hex"),
+      );
+      const guestExistingSet = new Set(
+        guestHashes.length > 0
+          ? (await this.prisma.circleKnowledge.findMany({
+              where: { circleId, contentHash: { in: guestHashes } },
+              select: { contentHash: true },
+            })).map((e) => e.contentHash)
+          : [],
+      );
 
-        if (!existing) {
+      for (let i = 0; i < guestPosts.length; i++) {
+        const post = guestPosts[i];
+        const contentHash = guestHashes[i];
+
+        if (!guestExistingSet.has(contentHash)) {
           const isDuplicate = await this.checkVectorSimilarity(circleId, post.content);
           if (!isDuplicate) {
             await this.prisma.circleKnowledgeCandidate.upsert({

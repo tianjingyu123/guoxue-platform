@@ -53,6 +53,15 @@ export class InstituteController {
     return this.svc.getMember(id);
   }
 
+  @Put("members/:id")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "更新研究院成员信息（管理员）" })
+  @ApiBearerAuth()
+  updateMember(@Param("id") id: string, @Body() dto: { role?: string; status?: string; deposit?: number }) {
+    return this.svc.updateMember(id, dto);
+  }
+
   @Put("members/:id/lecturer-level")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")

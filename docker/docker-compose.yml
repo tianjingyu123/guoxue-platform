@@ -128,6 +128,7 @@ services:
       - uploads_data:/var/www/uploads
       - static_data:/var/www/static
       - certbot_data:/var/www/certbot
+      - admin_dist:/var/www/admin
     depends_on:
       - server
     healthcheck:
@@ -145,17 +146,20 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    volumes:
+      - admin_dist:/app/admin-dist-shared
     environment:
       # ── 基础设施 ──
       DATABASE_URL: postgresql://guoxue:guoxue123@postgres:5432/guoxue?connection_limit=20
       DATABASE_REPLICA_URL: ${DATABASE_REPLICA_URL:-}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-change-me-in-production-32ch}
+      BIGSCREEN_SECRET: ${BIGSCREEN_SECRET:-change-me-in-production}
       PORT: 3000
       NODE_ENV: ${NODE_ENV:-production}
       PRISMA_SLOW_QUERY_MS: ${PRISMA_SLOW_QUERY_MS:-500}
       CORS_ORIGIN: ${CORS_ORIGIN:-}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
 
       # ── 腾讯云基础凭证（AI/OCR/ASR/NLP/SMS/Live/VOD 复用） ──
       TENCENT_SECRET_ID: ${TENCENT_SECRET_ID:-}
@@ -194,6 +198,13 @@ services:
 
       # ── AI ──
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-https://api.anthropic.com}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      LOCAL_MODEL_BASE_URL: ${LOCAL_MODEL_BASE_URL:-http://localhost:11434/v1}
+      LOCAL_MODEL_API_KEY: ${LOCAL_MODEL_API_KEY:-}
 
       # ── 微信开放平台 ──
       WECHAT_APP_ID: ${WECHAT_APP_ID:-}
@@ -251,7 +262,7 @@ services:
       EMAIL_API_KEY: ${EMAIL_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://localhost:3000/api/v1/health || exit 1"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/api/v1/health', r => {process.exit(r.statusCode === 200 ? 0 : 1)})\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -269,3 +280,4 @@ volumes:
   uploads_data:
   static_data:
   certbot_data:
+  admin_dist:

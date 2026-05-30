@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { AiGatewayService } from "./ai-gateway.service";
 import { tc3Sign } from "../../common/tc3.util";
 
@@ -102,7 +104,7 @@ export class PublishAssistService {
 
         const data: any = await resp.json();
         if (data.Response?.Error) {
-          throw new Error(data.Response.Error.Message);
+          throw new BusinessException(ErrorCode.THIRD_AI_FAILED, data.Response.Error.Message);
         }
 
         if (data.Response?.ResultImage) {

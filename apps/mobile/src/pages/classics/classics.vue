@@ -8,6 +8,19 @@
 
     <!-- 分类 + 排序 -->
     <view class="toolbar">
+      <!-- 搜索栏 -->
+      <view class="search-row">
+        <view class="search-input-wrap">
+          <text class="search-icon">🔍</text>
+          <input
+            v-model="searchKeyword"
+            placeholder="搜索古籍名称、作者..."
+            class="search-input"
+            @confirm="doSearch"
+          />
+          <text v-if="searchKeyword" class="search-clear" @click="clearSearch">✕</text>
+        </view>
+      </view>
       <scroll-view scroll-x class="category-scroll" show-scrollbar="false">
         <view class="category-inner">
           <text
@@ -19,6 +32,43 @@
             <text class="cat-label">{{ cat.icon }} {{ cat.label }}</text>
             <text v-if="cat.count != null" class="cat-count">{{ cat.count }}</text>
           </text>
+        </view>
+      </scroll-view>
+      <!-- 排序 -->
+      <view class="sort-row">
+        <text
+          v-for="s in sortOptions"
+          :key="s.key"
+          :class="['sort-tab', { active: curSort === s.key }]"
+          @click="selectSort(s.key)"
+        >{{ s.label }}</text>
+      </view>
+    </view>
+
+    <!-- 继续阅读 -->
+    <view v-if="continueList.length > 0" class="continue-section">
+      <view class="section-header">
+        <text class="section-title">📖 继续阅读</text>
+      </view>
+      <scroll-view scroll-x class="continue-scroll" show-scrollbar="false">
+        <view
+          v-for="item in continueList"
+          :key="item.book.id"
+          class="continue-card"
+          @click="goReader(item.book)"
+        >
+          <view class="cc-cover-wrap">
+            <image v-if="item.book.cover" :src="item.book.cover" class="cc-cover" mode="aspectFill" />
+            <view v-else class="cc-cover-plc" :style="{ background: placeholderBg(item.book.id) }">
+              <text class="cc-plc-text">{{ (item.book.title || '经').charAt(0) }}</text>
+            </view>
+            <view class="cc-progress-bar">
+              <view class="cc-progress-fill" :style="{ width: (item.progress || 0) + '%' }" />
+            </view>
+          </view>
+          <text class="cc-title">{{ item.book.title }}</text>
+          <text class="cc-chapter">{{ item.chapter?.title || '' }}</text>
+          <text class="cc-percent">已读 {{ item.progress || 0 }}%</text>
         </view>
       </scroll-view>
     </view>
@@ -123,6 +173,12 @@ const categories: CategoryItem[] = [
   { key: '道', label: '道部', icon: '☯️' },
 ]
 
+const sortOptions = [
+  { key: 'createdAt', label: '最新' },
+  { key: 'viewCount', label: '最热' },
+  { key: 'title', label: '书名' },
+]
+
 const placeholderGradients = [
   'linear-gradient(135deg, #E8E0D5, #C9A96E)',
   'linear-gradient(135deg, #d8cdc0, #c8bca8)',
@@ -139,7 +195,10 @@ function placeholderBg(id: string): string {
 }
 
 const curCategory = ref('')
+const curSort = ref('createdAt')
+const searchKeyword = ref('')
 const books = ref<any[]>([])
+const continueList = ref<any[]>([])
 const loading = ref(false)
 const errorMsg = ref('')
 
@@ -153,6 +212,23 @@ function selectCategory(key: string) {
   curCategory.value = key
   books.value = []
   errorMsg.value = ''
+  fetchBooks()
+}
+
+function selectSort(sort: string) {
+  curSort.value = sort
+  books.value = []
+  fetchBooks()
+}
+
+function doSearch() {
+  books.value = []
+  fetchBooks()
+}
+
+function clearSearch() {
+  searchKeyword.value = ''
+  books.value = []
   fetchBooks()
 }
 
@@ -170,10 +246,14 @@ function getCategoryShort(cat: string): string {
 
 function extractList(data: any, key: string): any[] {
   if (Array.isArray(data)) return data
-  if (data?.[key] && Array.isArray(data[key])) return data[key]
-  if (data?.data && Array.isArray(data.data)) return data.data
-  if (data?.list && Array.isArray(data.list)) return data.list
-  if (data?.items && Array.isArray(data.items)) return data.items
+  if (!data || typeof data !== "object") return []
+  const knownKeys = [key, "data", "list", "items", "records", "books"]
+  for (const k of knownKeys) {
+    if (Array.isArray(data[k])) return data[k]
+  }
+  for (const v of Object.values(data)) {
+    if (Array.isArray(v)) return v
+  }
   return []
 }
 
@@ -183,6 +263,8 @@ async function fetchBooks() {
   try {
     const params: Record<string, any> = {}
     if (curCategory.value) params.category = curCategory.value
+    if (searchKeyword.value) params.keyword = searchKeyword.value
+    if (curSort.value) params.sortBy = curSort.value
 
     const [booksData, progressData] = await Promise.all([
       classicApi.books(params).catch(() => []),
@@ -244,8 +326,16 @@ function goReader(book: any) {
   })
 }
 
+async function fetchContinueReading() {
+  try {
+    const data = await classicApi.continueReading?.()
+    continueList.value = data?.items || []
+  } catch { /* 未登录或接口不可用 */ }
+}
+
 onMounted(() => {
   fetchBooks()
+  fetchContinueReading()
 })
 
 onPullDownRefresh(() => {
@@ -288,6 +378,60 @@ onPullDownRefresh(() => {
   padding: 0 12px;
   margin-bottom: 12px;
 }
+
+/* 搜索栏 */
+.search-row {
+  margin-bottom: 10px;
+}
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 20px;
+  border: 1px solid #E8E0D5;
+  padding: 0 14px;
+  height: 38px;
+}
+.search-icon {
+  font-size: 14px;
+  margin-right: 8px;
+  opacity: 0.5;
+}
+.search-input {
+  flex: 1;
+  height: 32px;
+  font-size: 13px;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: #2C2C2C;
+}
+.search-clear {
+  font-size: 14px;
+  color: #bbb;
+  padding: 4px;
+}
+
+/* 排序 */
+.sort-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.sort-tab {
+  font-size: 12px;
+  color: #888;
+  padding: 4px 12px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #E8E0D5;
+}
+.sort-tab.active {
+  background: #C41E3A;
+  color: #fff;
+  border-color: #C41E3A;
+}
+
 .category-scroll {
   width: 100%;
 }
@@ -329,6 +473,95 @@ onPullDownRefresh(() => {
   background: rgba(0, 0, 0, 0.05);
   padding: 1px 6px;
   border-radius: 8px;
+}
+
+/* ===== 继续阅读 ===== */
+.continue-section {
+  padding: 0 12px;
+  margin-bottom: 16px;
+}
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.section-title {
+  font-size: 15px;
+  font-weight: bold;
+  color: #2C2C2C;
+}
+.continue-scroll {
+  white-space: nowrap;
+}
+.continue-card {
+  display: inline-block;
+  width: 120px;
+  margin-right: 10px;
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  vertical-align: top;
+}
+.cc-cover-wrap {
+  width: 120px;
+  height: 80px;
+  position: relative;
+  overflow: hidden;
+}
+.cc-cover {
+  width: 100%;
+  height: 100%;
+}
+.cc-cover-plc {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cc-plc-text {
+  font-size: 28px;
+  color: rgba(255,255,255,0.6);
+  font-weight: bold;
+}
+.cc-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(0,0,0,0.2);
+}
+.cc-progress-fill {
+  height: 100%;
+  background: #C41E3A;
+}
+.cc-title {
+  display: block;
+  font-size: 13px;
+  font-weight: bold;
+  color: #2C2C2C;
+  padding: 6px 8px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-chapter {
+  display: block;
+  font-size: 11px;
+  color: #999;
+  padding: 2px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-percent {
+  display: block;
+  font-size: 10px;
+  color: #C9A96E;
+  padding: 2px 8px 8px;
 }
 
 /* ===== 书籍列表 ===== */

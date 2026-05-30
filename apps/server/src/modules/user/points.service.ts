@@ -1,4 +1,6 @@
 import { Injectable } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 
 const GROWTH_LEVELS = [0, 100, 300, 600, 1000, 2000, 5000, 10000, 20000, 50000];
@@ -50,7 +52,7 @@ export class PointsService {
 
   async spendPoints(userId: string, amount: number, source: string, description?: string) {
     const points = await this.getPoints(userId);
-    if (points.balance < amount) throw new Error("积分不足");
+    if (points.balance < amount) throw new BusinessException(ErrorCode.COIN_BALANCE_INSUFFICIENT, "积分不足");
     const updated = await this.prisma.userPoints.update({
       where: { userId },
       data: { balance: { decrement: amount }, totalSpent: { increment: amount } },

@@ -106,7 +106,7 @@ async function fetchAllConfigs() {
   loading.value = true
   try {
     const { data } = await systemApi.listConfigs()
-    const items = data?.data || data || []
+    const items = data?.configs ?? data?.data ?? []
     ;(Array.isArray(items) ? items : []).forEach((item: any) => {
       const key = item.key
       const rawVal = typeof item.value === 'string' ? item.value : JSON.stringify(item.value)

@@ -81,6 +81,51 @@ describe("ScoringService", () => {
     });
   });
 
+  describe("freshnessDecay", () => {
+    it("今天创建的内容衰减接近 1", () => {
+      const decay = ScoringService.freshnessDecay(new Date());
+      expect(decay).toBeGreaterThan(0.95);
+    });
+
+    it("30天前的内容衰减约 0.5", () => {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000);
+      const decay = ScoringService.freshnessDecay(thirtyDaysAgo);
+      expect(decay).toBeCloseTo(0.5, 1);
+    });
+
+    it("无 createdAt 返回 0.9", () => {
+      expect(ScoringService.freshnessDecay()).toBe(0.9);
+    });
+  });
+
+  describe("applyFreshnessBoost", () => {
+    it("新内容分数几乎不变", () => {
+      const items: RecommendItem[] = [
+        { id: "a1", type: "ARTICLE", title: "t1", score: 100, reason: "", strategies: [], createdAt: new Date() },
+      ];
+      const result = svc.applyFreshnessBoost(items);
+      expect(result[0].score).toBeGreaterThan(90);
+    });
+
+    it("旧内容分数衰减", () => {
+      const oldDate = new Date(Date.now() - 90 * 24 * 3600 * 1000);
+      const items: RecommendItem[] = [
+        { id: "a1", type: "ARTICLE", title: "t1", score: 100, reason: "", strategies: [], createdAt: oldDate },
+      ];
+      const result = svc.applyFreshnessBoost(items);
+      expect(result[0].score).toBeLessThan(100);
+      expect(result[0].strategies).toContain("freshness-boost");
+    });
+
+    it("无 createdAt 的内容分数小幅衰减", () => {
+      const items: RecommendItem[] = [
+        { id: "a1", type: "ARTICLE", title: "t1", score: 100, reason: "", strategies: [] },
+      ];
+      const result = svc.applyFreshnessBoost(items);
+      expect(result[0].score).toBe(90);
+    });
+  });
+
   describe("score", () => {
     it("综合评分流水线", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ memberLevel: "GOLD" });

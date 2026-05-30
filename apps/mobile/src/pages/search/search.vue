@@ -158,6 +158,57 @@
           />
         </template>
 
+        <!-- 古籍结果 -->
+        <template v-if="displayClassics.length > 0">
+          <view v-if="tab === 'all'" class="result-group-title">📜 古籍</view>
+          <view
+            v-for="b in displayClassics"
+            :key="'classic-' + b.id"
+            class="book-card"
+            @click="goReader(b)"
+          >
+            <view class="book-cover-wrap">
+              <image v-if="b.cover" :src="b.cover" class="book-cover" mode="aspectFill" />
+              <view v-else class="book-cover-placeholder">
+                <text class="plc-cat">{{ b.category || '典' }}</text>
+              </view>
+            </view>
+            <view class="book-body">
+              <text class="book-title">{{ b.title }}</text>
+              <view class="book-meta">
+                <text class="book-author">{{ b.author || '佚名' }}</text>
+                <text v-if="b.dynasty" class="book-dynasty">{{ b.dynasty }}</text>
+              </view>
+              <text class="book-intro">{{ b.intro || '' }}</text>
+            </view>
+          </view>
+        </template>
+
+        <!-- 电子书结果 -->
+        <template v-if="displayEbooks.length > 0">
+          <view v-if="tab === 'all'" class="result-group-title">📖 电子书</view>
+          <view
+            v-for="b in displayEbooks"
+            :key="'ebook-' + b.id"
+            class="book-card"
+            @click="goEbookDetail(b)"
+          >
+            <view class="book-cover-wrap">
+              <image v-if="b.cover" :src="b.cover" class="book-cover" mode="aspectFill" />
+              <view v-else class="book-cover-placeholder">
+                <text class="plc-cat">📖</text>
+              </view>
+            </view>
+            <view class="book-body">
+              <text class="book-title">{{ b.title }}</text>
+              <view class="book-meta">
+                <text class="book-author">{{ b.author || '佚名' }}</text>
+              </view>
+              <text class="book-intro">{{ b.description || '' }}</text>
+            </view>
+          </view>
+        </template>
+
         <!-- 加载更多 -->
         <view v-if="hasMore && !loading" class="load-more-wrap">
           <text class="load-more-btn" @click="loadMore">加载更多</text>
@@ -205,6 +256,8 @@ const tabs = [
   { key: "content", label: "诗词" },
   { key: "course", label: "课程" },
   { key: "circle", label: "圈子" },
+  { key: "classic", label: "古籍" },
+  { key: "ebook", label: "电子书" },
 ];
 
 let suggestTimer: ReturnType<typeof setTimeout> | null = null;
@@ -215,6 +268,8 @@ const displayArticles = computed(() => results.value?.articles || []);
 const displayContents = computed(() => results.value?.contents || []);
 const displayCourses = computed(() => results.value?.courses || []);
 const displayCircles = computed(() => results.value?.circles || []);
+const displayClassics = computed(() => results.value?.classics || []);
+const displayEbooks = computed(() => results.value?.ebooks || []);
 
 const totalCount = computed(() => {
   if (!results.value) return 0;
@@ -222,7 +277,9 @@ const totalCount = computed(() => {
     (results.value.articles?.length || 0) +
     (results.value.contents?.length || 0) +
     (results.value.courses?.length || 0) +
-    (results.value.circles?.length || 0)
+    (results.value.circles?.length || 0) +
+    (results.value.classics?.length || 0) +
+    (results.value.ebooks?.length || 0)
   );
 });
 
@@ -307,7 +364,7 @@ function onInput() {
   const val = keyword.value.trim();
   if (!val) {
     suggestions.value = [];
-    showSuggest = false;
+    showSuggest.value =false;
     if (searched.value) {
       searched.value = false;
       results.value = null;
@@ -330,33 +387,33 @@ function onInput() {
       } else {
         suggestions.value = [];
       }
-      showSuggest = suggestions.value.length > 0;
+      showSuggest.value =suggestions.value.length > 0;
     } catch {
       suggestions.value = [];
-      showSuggest = false;
+      showSuggest.value =false;
     }
   }, 300);
 }
 
 function onFocus() {
-  if (suggestions.value.length > 0) showSuggest = true;
+  if (suggestions.value.length > 0) showSuggest.value =true;
 }
 
 function onBlur() {
   if (blurTimer) clearTimeout(blurTimer);
-  blurTimer = setTimeout(() => { showSuggest = false; }, 200);
+  blurTimer = setTimeout(() => { showSuggest.value =false; }, 200);
 }
 
 function selectSuggest(word: string) {
   keyword.value = word;
-  showSuggest = false;
+  showSuggest.value =false;
   doSearch();
 }
 
 function clearKeyword() {
   keyword.value = "";
   suggestions.value = [];
-  showSuggest = false;
+  showSuggest.value =false;
   searched.value = false;
   results.value = null;
 }
@@ -375,7 +432,7 @@ async function doSearch() {
   if (searchTimer) clearTimeout(searchTimer);
   searched.value = true;
   loading.value = true;
-  showSuggest = false;
+  showSuggest.value =false;
   searchKeyword.value = keyword.value.trim();
 
   addToHistory(keyword.value.trim());
@@ -412,6 +469,8 @@ async function loadMore() {
       if (res.contents) results.value.contents = [...(results.value.contents || []), ...res.contents];
       if (res.courses) results.value.courses = [...(results.value.courses || []), ...res.courses];
       if (res.circles) results.value.circles = [...(results.value.circles || []), ...res.circles];
+      if (res.classics) results.value.classics = [...(results.value.classics || []), ...res.classics];
+      if (res.ebooks) results.value.ebooks = [...(results.value.ebooks || []), ...res.ebooks];
     }
     hasMore.value = checkHasMore(res);
   } catch {
@@ -428,8 +487,18 @@ function checkHasMore(data: any): boolean {
     (data.articles?.length || 0) >= pageSize.value ||
     (data.contents?.length || 0) >= pageSize.value ||
     (data.courses?.length || 0) >= pageSize.value ||
-    (data.circles?.length || 0) >= pageSize.value
+    (data.circles?.length || 0) >= pageSize.value ||
+    (data.classics?.length || 0) >= pageSize.value ||
+    (data.ebooks?.length || 0) >= pageSize.value
   );
+}
+
+function goReader(book: any) {
+  uni.navigateTo({ url: `/pages/reader/reader?bookId=${book.id}` });
+}
+
+function goEbookDetail(book: any) {
+  uni.navigateTo({ url: `/pages/ebook/ebook-detail?id=${book.id}` });
 }
 
 function formatCount(n: number): string {
@@ -697,5 +766,84 @@ function formatCount(n: number): string {
 .no-more-text {
   font-size: 12px;
   color: #ccc;
+}
+
+/* ===== 古籍卡片 ===== */
+.book-card {
+  display: flex;
+  gap: 12px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+.book-card:active {
+  transform: scale(0.985);
+}
+.book-cover-wrap {
+  width: 56px;
+  height: 74px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.book-cover {
+  width: 100%;
+  height: 100%;
+}
+.book-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #E8E0D5, #C9A96E);
+}
+.plc-cat {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: bold;
+}
+.book-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.book-title {
+  font-size: 15px;
+  font-weight: bold;
+  color: #2C2C2C;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.book-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.book-author {
+  font-size: 12px;
+  color: #888;
+}
+.book-dynasty {
+  font-size: 11px;
+  color: #C41E3A;
+  background: #F5F0E8;
+  padding: 0 6px;
+  border-radius: 3px;
+}
+.book-intro {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.4;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

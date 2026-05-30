@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CreateTaskDto, UpdateTaskDto } from "./task.dto";
@@ -145,7 +146,7 @@ export class TaskService {
     await this.prisma.taskTransferLog.create({
       data: {
         taskId: id,
-        fromType: fromType || existing.executorType,
+        fromType: fromType || existing.executorType || "UNKNOWN",
         fromId: fromId || existing.executorId,
         toType,
         toId,
@@ -171,7 +172,7 @@ export class TaskService {
     await this.prisma.taskTransferLog.create({
       data: {
         taskId: id,
-        fromType: existing.executorType,
+        fromType: existing.executorType || "UNKNOWN",
         fromId: existing.executorId,
         toType: "HUMAN",
         toId: adminId,
@@ -241,5 +242,53 @@ export class TaskService {
 
   private async clearCache(id: string) {
     await this.redis.del(TASK_CACHE_PREFIX + id);
+  }
+
+  /** 每小时清理：过期任务自动标记为 EXPIRED */
+  @Cron(CronExpression.EVERY_HOUR)
+  async cleanExpiredTasks() {
+    const now = new Date();
+    const result = await this.prisma.task.updateMany({
+      where: {
+        status: "PENDING",
+        expiresAt: { lte: now },
+      },
+      data: {
+        status: "EXPIRED",
+        errorLog: `任务过期自动关闭: ${now.toISOString()}`,
+      },
+    });
+    if (result.count > 0) {
+      this.logger.log(`过期任务清理: ${result.count} 个`);
+    }
+  }
+
+  /** 每30分钟：超时 IN_PROGRESS 任务自动重分配 */
+  @Cron("*/30 * * * *")
+  async reassignTimedOutTasks() {
+    const timeoutAt = new Date(Date.now() - 2 * 3600 * 1000); // 2小时超时
+    const timedOutTasks = await this.prisma.task.findMany({
+      where: {
+        status: "IN_PROGRESS",
+        updatedAt: { lte: timeoutAt },
+      },
+      select: { id: true },
+      take: 50,
+    });
+
+    if (timedOutTasks.length === 0) return;
+
+    const ids = timedOutTasks.map((t) => t.id);
+    await this.prisma.task.updateMany({
+      where: { id: { in: ids } },
+      data: {
+        status: "PENDING",
+        executorId: null,
+        executorType: null,
+        errorLog: `任务超时自动重分配: ${new Date().toISOString()}`,
+      },
+    });
+
+    this.logger.log(`超时任务重分配: ${ids.length} 个`);
   }
 }

@@ -4,6 +4,7 @@ import { LiveService } from "./live.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 
 const mockLiveSvc = {
   createRoom: jest.fn().mockResolvedValue({ id: "r1", title: "国学直播" }),
@@ -52,6 +53,7 @@ describe("LiveController", () => {
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .overrideGuard(TencentCallbackGuard).useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(LiveController);
   });
@@ -69,13 +71,13 @@ describe("LiveController", () => {
   it("GET /live/rooms — 直播列表", async () => {
     const result: any = await ctrl.listRooms("LIVE", undefined, undefined, 1 as any, 20 as any);
     expect(result).toHaveLength(1);
-    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith("LIVE", 1, 20, undefined);
+    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith("LIVE", 1, 20, undefined, undefined);
   });
 
   it("GET /live/rooms — 按课程过滤", async () => {
     const result: any = await ctrl.listRooms(undefined, "c1", undefined, 1 as any, 20 as any);
     expect(result).toHaveLength(1);
-    expect(mockLiveSvc.listCourseRooms).toHaveBeenCalledWith("c1", 1, 20);
+    expect(mockLiveSvc.listCourseRooms).toHaveBeenCalledWith("c1", 1, 20, undefined);
   });
 
   it("GET /live/rooms/:id — 直播间详情", async () => {

@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { CircleController } from "./circle.controller";
 import { CircleService } from "./circle.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { StationIsolationGuard } from "../../common/station-isolation.guard";
 
 const mockCircleSvc = {
   create: jest.fn().mockResolvedValue({ id: "c1", name: "国学研究圈" }),
@@ -42,6 +43,7 @@ describe("CircleController", () => {
       providers: [{ provide: CircleService, useValue: mockCircleSvc }],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StationIsolationGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(CircleController);
   });

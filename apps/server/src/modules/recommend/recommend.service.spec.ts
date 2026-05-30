@@ -103,4 +103,35 @@ describe("RecommendService", () => {
       expect(result.byViews).toHaveLength(1);
     });
   });
+
+  describe("applyDiversityInterleave", () => {
+    const mk = (id: string, type: any, score: number): any => ({ id, type, title: id, score, reason: "", strategies: [] });
+
+    it("单类型内容保持原序", () => {
+      const items = [mk("a1", "ARTICLE", 100), mk("a2", "ARTICLE", 80)];
+      const result = svc.applyDiversityInterleave(items, 3);
+      expect(result.map((r) => r.id)).toEqual(["a1", "a2"]);
+    });
+
+    it("多类型交错排布", () => {
+      const items = [
+        mk("a1", "ARTICLE", 500), mk("a2", "ARTICLE", 400), mk("a3", "ARTICLE", 300), mk("a4", "ARTICLE", 200),
+        mk("c1", "COURSE", 450), mk("c2", "COURSE", 350),
+        mk("p1", "PRODUCT", 420), mk("p2", "PRODUCT", 320),
+      ];
+      const result = svc.applyDiversityInterleave(items, 2);
+      // 不应连续出现超过2个同类型
+      for (let i = 2; i < result.length; i++) {
+        const same = result[i].type === result[i - 1].type && result[i].type === result[i - 2].type;
+        expect(same).toBe(false);
+      }
+    });
+
+    it("少量元素不做交错", () => {
+      const items = [mk("a1", "ARTICLE", 100), mk("a2", "ARTICLE", 80)];
+      const result = svc.applyDiversityInterleave(items, 1);
+      // no crash, still returns items
+      expect(result).toHaveLength(2);
+    });
+  });
 });

@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { connect as tlsConnect } from "tls";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { decrypt } from "../../common/crypto.util";
 
 /**
  * 邮件发送服务
@@ -27,11 +28,14 @@ export class EmailService {
     };
 
     if (mode === "smtp") {
+      const rawPass = process.env.SMTP_PASS || "";
+      // 支持加密密码：以 "ENC:" 前缀存储的密码会自动解密
+      const pass = rawPass.startsWith("ENC:") ? decrypt(rawPass.slice(4)) : rawPass;
       this.config.smtp = {
         host: process.env.SMTP_HOST || "",
         port: Number(process.env.SMTP_PORT) || 465,
         user: process.env.SMTP_USER || "",
-        pass: process.env.SMTP_PASS || "",
+        pass,
       };
     } else {
       this.config.api = {

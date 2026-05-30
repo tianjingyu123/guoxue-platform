@@ -5,6 +5,7 @@ import { CoinService } from "./coin.service";
 import { AdminRechargeDto, SpendDto, CreateGiftDto, SendGiftDto } from "./coin.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { ActiveUserGuard } from "../../common/active-user.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 
@@ -48,6 +49,20 @@ export class CoinController {
     return this.coin.recharge(dto.userId, { amountCoin: dto.amountCoin, description: dto.description });
   }
 
+  @Get("admin/transactions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE")
+  @ApiOperation({ summary: "管理员查看所有交易流水" })
+  getAdminTransactions(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("userId") userId?: string,
+    @Query("type") type?: string,
+    @Query("scene") scene?: string,
+  ) {
+    return this.coin.getAdminTransactions(+page, +pageSize, userId, type, scene);
+  }
+
   @Get("admin/recharges")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -57,7 +72,7 @@ export class CoinController {
   }
 
   @Post("spend")
-  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @UseGuards(JwtAuthGuard, ActiveUserGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "消费虚拟币", description: "按场景扣除余额（提问/打赏/入圈等）" })
   spend(@Req() req: Request, @Body() dto: SpendDto) {
     return this.coin.spend(req.user.id, dto);

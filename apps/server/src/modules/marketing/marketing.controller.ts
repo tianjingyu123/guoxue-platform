@@ -395,6 +395,15 @@ export class MarketingController {
     return this.marketing.getPageVersions(id);
   }
 
+  @Post("pages/:id/rollback/:versionId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "回滚微页面到指定版本" })
+  @ApiBearerAuth()
+  rollbackPage(@Param("id") id: string, @Param("versionId") versionId: string) {
+    return this.marketing.rollbackPage(id, versionId);
+  }
+
   // ═══════════════════════════════════════
   // 活动管理
   // ═══════════════════════════════════════

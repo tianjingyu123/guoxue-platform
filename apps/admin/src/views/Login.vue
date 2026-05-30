@@ -8,8 +8,8 @@
       >
         <el-form-item>
           <el-input
-            v-model="form.account"
-            placeholder="手机号/邮箱"
+            v-model="form.phone"
+            placeholder="手机号"
           />
         </el-form-item>
         <el-form-item>
@@ -43,17 +43,25 @@ import { useAuthStore } from "@/store/auth";
 const router = useRouter();
 const auth = useAuthStore();
 const loading = ref(false);
-const form = ref({ account: "", password: "" });
+const form = ref({ phone: "", password: "" });
 
 async function handleLogin() {
+  if (!form.value.phone || !form.value.password) {
+    return;
+  }
   loading.value = true;
   try {
-    await auth.login(form.value.account, form.value.password);
+    await auth.login(form.value.phone, form.value.password);
     // 检查是否需要跳回过期前的页面
     const redirect = localStorage.getItem("redirect_after_login");
     if (redirect) {
       localStorage.removeItem("redirect_after_login");
-      router.push(redirect);
+      window.location.href = redirect;
+      return;
+    }
+    // 商家用户跳转商家后台
+    if (auth.isMerchant) {
+      router.push("/merchant-backend/dashboard");
       return;
     }
     // 按角色跳转不同首页
@@ -86,18 +94,20 @@ async function handleLogin() {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: linear-gradient(135deg, #F5F0E8 0%, #E8E0D5 100%);
+  background: linear-gradient(135deg, var(--color-bg-page) 0%, rgba(201, 169, 110, 0.1) 100%);
 }
 .login-card {
   width: 400px;
-  border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-divider);
 }
 .login-card h2 {
   text-align: center;
-  margin-bottom: 24px;
-  color: #C41E3A;
-  font-size: 22px;
+  margin-bottom: var(--spacing-xl);
+  color: var(--color-primary);
+  font-size: var(--font-size-title-lg);
   letter-spacing: 2px;
+  font-weight: 700;
 }
 </style>

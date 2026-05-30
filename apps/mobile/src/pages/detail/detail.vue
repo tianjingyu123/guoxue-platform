@@ -172,6 +172,10 @@
 
     <!-- ==================== 底部操作栏 ==================== -->
     <view v-if="content" class="action-bar">
+      <view v-if="isOwner && (type === 'ARTICLE')" class="action-item" @click="goEditArticle">
+        <text class="action-icon">✏️</text>
+        <text class="action-label">编辑</text>
+      </view>
       <view class="action-item" @click="toggleLike">
         <text class="action-icon">{{ liked ? '❤️' : '🤍' }}</text>
         <text class="action-label">{{ liked ? '已赞' : '点赞' }}</text>
@@ -231,6 +235,7 @@ import { contentApi, contentsApi, courseApi, circleApi, interactApi } from "../.
 import CommentList from "../../components/CommentList.vue";
 import LoadingSkeleton from "../../components/LoadingSkeleton.vue";
 import EmptyState from "../../components/EmptyState.vue";
+import { useUserStore } from "../../store/user";
 
 const id = ref("");
 const type = ref("ARTICLE");
@@ -241,6 +246,9 @@ const chapters = ref<any[]>([]);
 const joined = ref(false);
 const joinLoading = ref(false);
 const related = ref<any[]>([]);
+const isOwner = ref(false);
+
+const userStore = useUserStore();
 
 const liked = ref(false);
 const collected = ref(false);
@@ -253,6 +261,11 @@ onMounted(() => {
   const opts = page?.$page?.options || page?.options || {};
   id.value = opts.id || "";
   type.value = (opts.type || "ARTICLE").toUpperCase();
+  // 旧的文章创建入口重定向到新编辑器
+  if (opts.mode === "create" && type.value === "ARTICLE") {
+    uni.redirectTo({ url: `/pages/articles/editor?circleId=${opts.circleId || ""}` })
+    return
+  }
   fetchDetail();
 });
 
@@ -269,6 +282,7 @@ async function fetchDetail() {
       content.value = res;
       likeCount.value = res.likeCount || 0;
       commentCount.value = res.commentCount || 0;
+      isOwner.value = !!(res.user && userStore.user?.id && res.user.id === userStore.user.id);
       if (res.interacted) {
         liked.value = !!res.interacted.liked;
         collected.value = !!res.interacted.collected;
@@ -408,6 +422,10 @@ function formatDuration(seconds?: number): string {
 
 function goDetail(detailId: string, detailType: string) {
   uni.navigateTo({ url: `/pages/detail/detail?id=${detailId}&type=${detailType}` });
+}
+
+function goEditArticle() {
+  uni.navigateTo({ url: `/pages/articles/editor?mode=edit&id=${id.value}` });
 }
 
 function goBack() {

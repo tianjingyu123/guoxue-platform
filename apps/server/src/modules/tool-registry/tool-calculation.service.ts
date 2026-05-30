@@ -32,6 +32,21 @@ import {
   calculateQiMenFuZhou,
   calculateQiMenAcupuncture,
   calculateCompanyNaming,
+  calculateChengGu,
+  calculateBaziHehun,
+  calculateLingQian,
+  calculateShengXiaoYunshi,
+  calculateXingZuoYunshi,
+  calculateHuangLi,
+  calculateYiZhangJing,
+  calculateJieMeng,
+  calculateBaziLiuRi,
+  calculateZiweiLiuRi,
+  calculateZeRi,
+  calculateHeLuo,
+  calculateYangGong,
+  calculateJinSuo,
+  calculateZiweiHePan,
 } from "./calculators";
 
 /** 统一排盘/计算请求 */
@@ -111,6 +126,21 @@ export class ToolCalculationService {
       case "qimen-fuzhou":      return calculateQiMenFuZhou(input);
       case "qimen-acupuncture": return calculateQiMenAcupuncture(input);
       case "company-naming":    return calculateCompanyNaming(input);
+      case "chenggu":           return calculateChengGu(input);
+      case "bazi-hehun":        return calculateBaziHehun(input);
+      case "lingqian":          return calculateLingQian(input);
+      case "shengxiao-yunshi":  return calculateShengXiaoYunshi(input);
+      case "xingzuo-yunshi":   return calculateXingZuoYunshi(input);
+      case "huangli":          return calculateHuangLi(input);
+      case "yizhangjing":      return calculateYiZhangJing(input);
+      case "jiemeng":         return calculateJieMeng(input);
+      case "bazi-liuri":       return calculateBaziLiuRi(input);
+      case "ziwei-liuri":      return calculateZiweiLiuRi(input);
+      case "zeri":             return calculateZeRi(input);
+      case "heluo":            return calculateHeLuo(input);
+      case "yanggong":          return calculateYangGong(input);
+      case "jinsuo":            return calculateJinSuo(input);
+      case "ziwei-hepan":       return calculateZiweiHePan(input);
       default:
         throw new BusinessException(
           ErrorCode.NOT_FOUND,

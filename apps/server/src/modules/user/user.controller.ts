@@ -9,7 +9,7 @@ import { Roles } from "../../common/roles.decorator";
 import { RoleType } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
-import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto } from "./user.dto";
+import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto, BatchUpdateUserStatusDto } from "./user.dto";
 
 @ApiTags("用户")
 @ApiBearerAuth()
@@ -104,6 +104,14 @@ export class UserController {
   }
 
   // ───────── 状态管理 ─────────
+
+  @Put("batch/status")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "批量更新用户状态" })
+  batchUpdateStatus(@Body() dto: BatchUpdateUserStatusDto) {
+    return this.user.batchUpdateStatus(dto.ids, dto.status);
+  }
 
   @Put(":id/status")
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -232,5 +240,29 @@ export class UserController {
   @ApiOperation({ summary: "用户兴趣品类统计分析（管理员）" })
   async getInterestStats() {
     return this.user.getInterestStats();
+  }
+
+  // ───────── 账号注销（GDPR合规） ─────────
+
+  @Post("delete-request")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "申请注销账号（进入7天冷静期）" })
+  requestAccountDeletion(@Req() req: Request) {
+    return this.user.requestAccountDeletion(req.user.id);
+  }
+
+  @Post("delete-cancel")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "取消注销申请（冷静期内）" })
+  cancelAccountDeletion(@Req() req: Request) {
+    return this.user.cancelAccountDeletion(req.user.id);
+  }
+
+  @Post(":id/delete-execute")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "管理员执行账号注销" })
+  executeAccountDeletion(@Param("id") id: string) {
+    return this.user.executeAccountDeletion(id);
   }
 }

@@ -125,5 +125,17 @@ function handleReset() {
 </script>
 
 <style scoped>
-.search-filter { margin-bottom: 0; }
+.search-filter {
+  margin-bottom: 0;
+  padding: var(--spacing-lg);
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+}
+:deep(.el-form-item) { margin-bottom: 0; }
+:deep(.el-form-item__label) {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-body);
+  font-weight: 500;
+}
 </style>

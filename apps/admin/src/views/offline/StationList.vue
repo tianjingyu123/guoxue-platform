@@ -73,7 +73,7 @@
       </el-table-column>
       <el-table-column
         label="操作"
-        width="330"
+        width="280"
         fixed="right"
       >
         <template #default="{ row }">
@@ -83,24 +83,6 @@
             @click="openEdit(row)"
           >
             编辑
-          </el-button>
-          <el-button
-            size="small"
-            @click="openBrandEdit(row)"
-          >
-            编辑品牌
-          </el-button>
-          <el-button
-            size="small"
-            @click="openTemplate(row)"
-          >
-            模版
-          </el-button>
-          <el-button
-            size="small"
-            @click="toggleOperators(row)"
-          >
-            运营商
           </el-button>
           <el-button
             v-if="row.status === 'ACTIVE'"
@@ -125,6 +107,16 @@
           >
             删除
           </el-button>
+          <el-dropdown trigger="click">
+            <el-button size="small">更多 ▾</el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="openBrandEdit(row)">编辑品牌</el-dropdown-item>
+                <el-dropdown-item @click="openTemplate(row)">选择模版</el-dropdown-item>
+                <el-dropdown-item @click="toggleOperators(row)">运营商管理</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>

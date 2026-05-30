@@ -1,17 +1,24 @@
-import { Controller, Get, Post, Param, Req, UseGuards, Body, Query } from "@nestjs/common";
+import { Controller, Get, Post, Param, Req, UseGuards, Body, Query, Logger } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Request } from "express";
 import { MemberService } from "./member.service";
+import { SystemService } from "../system/system.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { GrantMemberDto } from "./member.dto";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { RequireFeature } from "../../common/feature-flag.decorator";
 
 @ApiTags("会员")
 @Controller("member")
 export class MemberController {
-  constructor(private readonly memberService: MemberService) {}
+  private readonly logger = new Logger(MemberController.name);
+  constructor(
+    private readonly memberService: MemberService,
+    private readonly systemService: SystemService,
+  ) {}
 
   @Get("plans")
   @ApiOperation({ summary: "获取会员套餐列表" })
@@ -20,7 +27,8 @@ export class MemberController {
   }
 
   @Post("purchase/:planId")
-  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard, StrictRedisThrottleGuard)
+  @RequireFeature("member_purchase")
   @ApiBearerAuth()
   @ApiOperation({ summary: "购买会员" })
   purchase(@Req() req: Request, @Param("planId") planId: string) {
@@ -78,8 +86,17 @@ export class MemberController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "手动授予会员" })
-  grantMember(@Body() dto: GrantMemberDto) {
-    return this.memberService.grantMember(dto.userId, dto.level, dto.durationDays ?? 30);
+  async grantMember(@Body() dto: GrantMemberDto, @Req() req: Request) {
+    const result = await this.memberService.grantMember(dto.userId, dto.level, dto.durationDays ?? 30);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "GRANT_MEMBER",
+      targetType: "MEMBER",
+      targetId: dto.userId,
+      detail: `管理员授予用户 ${dto.userId} 会员 ${dto.level}（${dto.durationDays ?? 30}天）`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志写入失败", err));
+    return result;
   }
 
   @Post("admin/revoke/:userId")
@@ -87,7 +104,16 @@ export class MemberController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "撤销用户会员" })
-  revokeMember(@Param("userId") userId: string) {
-    return this.memberService.revokeMember(userId);
+  async revokeMember(@Param("userId") userId: string, @Req() req: Request) {
+    const result = await this.memberService.revokeMember(userId);
+    this.systemService.logAudit({
+      userId: req.user?.id,
+      action: "REVOKE_MEMBER",
+      targetType: "MEMBER",
+      targetId: userId,
+      detail: `管理员撤销用户 ${userId} 会员`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志写入失败", err));
+    return result;
   }
 }

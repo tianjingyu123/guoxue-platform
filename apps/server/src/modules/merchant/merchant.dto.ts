@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
-  IsString, IsOptional, IsArray, IsBoolean, IsNumber, IsIn, Min, Max, MaxLength, Matches, MinLength,
+  IsString, IsOptional, IsArray, IsBoolean, IsNumber, IsIn, Min, Max, MaxLength, Matches, MinLength, IsDateString,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -252,7 +252,37 @@ export class SetCommissionRateDto {
   rate: number;
 }
 
+// ─── 分页基类 ───
+
+export class PaginationDto {
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional() @IsNumber() @Min(1)
+  @Type(() => Number)
+  page?: number;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 20 })
+  @IsOptional() @IsNumber() @Min(1) @Max(100)
+  @Type(() => Number)
+  pageSize?: number;
+}
+
 // ─── 结算 ───
+
+export class GenerateSettlementDto {
+  @ApiProperty({ description: "结算周期起始" })
+  @IsDateString()
+  periodStart: string;
+
+  @ApiProperty({ description: "结算周期截止" })
+  @IsDateString()
+  periodEnd: string;
+}
+
+export class SettlementListQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ description: "结算状态：PENDING/PAID/CANCELLED" })
+  @IsOptional() @IsString()
+  status?: string;
+}
 
 export class PaySettlementDto {
   @ApiProperty({ description: "结算金额" })
@@ -403,18 +433,6 @@ export class ReplyReviewDto {
   @IsString()
   @MinLength(1)
   reply: string;
-}
-
-export class PaginationDto {
-  @ApiPropertyOptional({ description: "页码", default: 1 })
-  @IsOptional() @IsNumber() @Min(1)
-  @Type(() => Number)
-  page?: number;
-
-  @ApiPropertyOptional({ description: "每页数量", default: 20 })
-  @IsOptional() @IsNumber() @Min(1) @Max(100)
-  @Type(() => Number)
-  pageSize?: number;
 }
 
 export class MerchantProductDto {

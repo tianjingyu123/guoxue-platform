@@ -383,7 +383,11 @@ export class WechatPayService {
   /** 解密支付回调数据 */
   async decryptNotify(ciphertext: string, associatedData: string, nonce: string): Promise<Record<string, unknown>> {
     const decrypted = this.aesGcmDecrypt(associatedData, nonce, ciphertext);
-    return JSON.parse(decrypted);
+    try {
+      return JSON.parse(decrypted);
+    } catch {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "回调数据解析失败");
+    }
   }
 
   /** 一站式验签+解密回调（推荐使用） */

@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 
 interface VectorSearchResult {
@@ -164,7 +166,7 @@ export class VectorService {
 
     if (!resp.ok) {
       const err = await resp.text().catch(() => "");
-      throw new Error(`Embedding API error [${resp.status}]: ${err.slice(0, 200)}`);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `Embedding API error [${resp.status}]: ${err.slice(0, 200)}`);
     }
 
     const json = await resp.json() as { data?: { embedding: number[] }[] };

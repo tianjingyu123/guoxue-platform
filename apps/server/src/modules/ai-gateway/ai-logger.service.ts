@@ -14,6 +14,7 @@ export class AiLoggerService {
     userId?: string;
     scene: string;
     model: string;
+    provider?: string;
     fallbackUsed: boolean;
     fallbackModel?: string;
     grayReleaseModel?: string;

@@ -181,7 +181,10 @@ export class ContentService {
     const today = new Date().toISOString().slice(0, 10);
     const cacheKey = `poem:daily:${today}`;
     const cached = await this.redis.get(cacheKey).catch(() => null);
-    if (cached) return JSON.parse(cached);
+    if (cached) {
+      try { return JSON.parse(cached); }
+      catch { this.logger.warn("每日诗词缓存解析失败，回源数据库"); }
+    }
 
     const count = await this.prisma.content.count({ where: { type: "POEM", status: "PUBLISHED" } });
     if (count === 0) return null;
@@ -196,7 +199,7 @@ export class ContentService {
     });
     const poem = poems[0] ?? null;
     if (poem) {
-      await this.redis.set(cacheKey, JSON.stringify(poem), 86400).catch(() => {});
+      await this.redis.set(cacheKey, JSON.stringify(poem), 86400).catch((err) => this.logger.warn("每日诗词缓存写入失败", err));
     }
     return poem;
   }
@@ -204,7 +207,10 @@ export class ContentService {
   async getPoemAppreciation(id: string) {
     const cacheKey = `poem:appreciation:${id}`;
     const cached = await this.redis.get(cacheKey).catch(() => null);
-    if (cached) return JSON.parse(cached);
+    if (cached) {
+      try { return JSON.parse(cached); }
+      catch { this.logger.warn("诗词鉴赏缓存解析失败，回源数据库"); }
+    }
 
     const poem = await this.prisma.content.findUnique({
       where: { id },
@@ -224,7 +230,7 @@ export class ContentService {
       appreciation: null as string | null,
     };
 
-    await this.redis.set(cacheKey, JSON.stringify(result), 3600).catch(() => {});
+    await this.redis.set(cacheKey, JSON.stringify(result), 3600).catch((err) => this.logger.warn("诗词鉴赏缓存写入失败", err));
     return result;
   }
 }

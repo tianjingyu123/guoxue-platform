@@ -35,8 +35,9 @@ export function decrypt(ciphertext: string): string {
     decipher.setAuthTag(tag);
     return decipher.update(encrypted) + decipher.final("utf8");
   } catch (err) {
-    console.warn(`数据解密失败: ${(err as Error).message}`);
-    throw new BusinessException(ErrorCode.INTERNAL_ERROR, "数据解密失败");
+    // 解密失败时返回原文（兼容明文存储的旧数据）
+    console.warn(`数据解密失败，返回原文: ${(err as Error).message}`);
+    return ciphertext;
   }
 }
 

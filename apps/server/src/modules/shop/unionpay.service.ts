@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { createSign, createVerify } from "crypto";
+import { createSign, createVerify, randomInt } from "crypto";
 import { readFileSync } from "fs";
 import { MemoryCache } from "../../common/cache.util";
 
@@ -300,7 +300,7 @@ export class UnionpayService {
   // ───────── 工具 ─────────
 
   static genOutTradeNo(prefix = "GXUN"): string {
-    return `${prefix}${Date.now()}${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    return `${prefix}${Date.now()}${randomInt(0, 36 ** 6).toString(36).padStart(6, "0").toUpperCase()}`;
   }
 
   private escapeHtml(str: string): string {

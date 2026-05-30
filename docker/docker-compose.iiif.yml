@@ -1,0 +1,48 @@
+version: "3.9"
+
+# IIIF 图像服务 — 古籍原图对照基础设施
+# 独立部署，与主 docker-compose.yml 配合使用
+# 启动：docker compose -f docker-compose.yml -f docker-compose.iiif.yml up -d
+
+services:
+  # ── IIIF 图像服务器 ──
+  cantaloupe:
+    image: ghcr.io/uclalibrary/cantaloupe:5.0.5
+    container_name: guoxue-cantaloupe
+    restart: unless-stopped
+    ports:
+      - "8182:8182"
+    volumes:
+      - ./cantaloupe.properties:/etc/cantaloupe/cantaloupe.properties:ro
+      - iiif_cache:/var/cache/cantaloupe
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8182/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: ["iiif"]
+
+  # ── 对象存储（图像文件） ──
+  minio:
+    image: minio/minio:latest
+    container_name: guoxue-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Web Console
+    environment:
+      MINIO_ROOT_USER: guoxue_admin
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-guoxue_minio_2024}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: ["iiif"]
+
+volumes:
+  iiif_cache:
+  minio_data:

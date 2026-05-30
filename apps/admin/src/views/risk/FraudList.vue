@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { riskApi } from '@/api'
 
 const loading = ref(false)
+const scanning = ref(false)
 const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -14,6 +15,21 @@ const detailDialogVisible = ref(false)
 const detailData = ref<any>(null)
 
 onMounted(() => fetchList())
+
+async function triggerScan() {
+  try {
+    await ElMessageBox.confirm("确认手动触发全量刷单扫描？此操作可能需要一定时间。", "操作确认", { type: "warning" });
+    scanning.value = true;
+    const { api } = await import("@/api");
+    await api.post("/risk-control/fraud-detections/scan");
+    ElMessage.success("扫描已触发，请稍后刷新查看结果");
+    fetchList();
+  } catch {
+    // cancelled
+  } finally {
+    scanning.value = false;
+  }
+}
 
 function formatDate(d: string) {
   return d ? new Date(d).toLocaleString() : '-'
@@ -86,6 +102,7 @@ function getScoreStatus(score: number) {
   <div class="page">
     <div class="toolbar">
       <h3>刷单识别</h3>
+      <el-button type="warning" :loading="scanning" @click="triggerScan">手动触发扫描</el-button>
     </div>
 
     <div class="filters">

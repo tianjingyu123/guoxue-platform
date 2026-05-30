@@ -5,7 +5,10 @@ import {
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { SkipFormat } from "../../common/skip-format.decorator";
+import { ActiveUserGuard } from "../../common/active-user.guard";
+import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { ShopService } from "./shop.service";
+import { ShopCouponService } from "./shop-coupon.service";
 import { LogisticsService } from "./logistics.service";
 import { SystemService } from "../system/system.service";
 import {
@@ -19,6 +22,9 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { RequireFeature } from "../../common/feature-flag.decorator";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
@@ -31,6 +37,7 @@ export class ShopController {
   private readonly logger = new Logger(ShopController.name);
   constructor(
     private shop: ShopService,
+    private couponSvc: ShopCouponService,
     private logistics: LogisticsService,
     private systemService: SystemService,
   ) {}
@@ -52,6 +59,7 @@ export class ShopController {
   }
 
   @Get("products/:id")
+  @UseGuards(JwtAuthGuard, StationIsolationGuard)
   @ApiOperation({ summary: "获取商品详情" })
   getProduct(@Param("id") id: string) {
     return this.shop.getProduct(id);
@@ -106,7 +114,8 @@ export class ShopController {
   // ───────── 订单 ─────────
 
   @Post("orders")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveUserGuard, FeatureFlagGuard)
+  @RequireFeature("shop_checkout")
   @ApiOperation({ summary: "创建订单" })
   @ApiBearerAuth()
   async createOrder(@Req() req: AuthRequest, @Body() dto: CreateOrderDto) {
@@ -348,14 +357,15 @@ export class ShopController {
 
   @Post("coupons")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "创建优惠券" })
   @ApiBearerAuth()
   createCoupon(@Body() dto: CreateCouponV2Dto) {
-    return this.shop.createCoupon(dto);
+    return this.couponSvc.createCoupon(dto);
   }
 
   @Get("coupons")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取优惠券列表" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
@@ -363,38 +373,38 @@ export class ShopController {
   listCoupons(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("admin") admin?: string, @Req() req?: AuthRequest) {
     if (admin === "true") {
       const roles: string[] = (req?.user as any)?.roles ?? [];
-      if (!roles.includes("SUPER_ADMIN") && !roles.includes("OPERATION_ADMIN")) {
+      if (!roles.includes("SUPER_ADMIN") && !roles.includes("OPERATION_ADMIN") && !roles.includes("GOODS_AUDITOR")) {
         throw new ForbiddenException("无权查看管理端优惠券");
       }
     }
-    return this.shop.listCoupons(+page, +pageSize, admin === "true");
+    return this.couponSvc.listCoupons(+page, +pageSize, admin === "true");
   }
 
   @Put("coupons/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "更新优惠券" })
   @ApiBearerAuth()
   updateCoupon(@Param("id") id: string, @Body() dto: CreateCouponV2Dto) {
-    return this.shop.updateCoupon(id, dto);
+    return this.couponSvc.updateCoupon(id, dto);
   }
 
   @Delete("coupons/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "删除优惠券" })
   @ApiBearerAuth()
   deleteCoupon(@Param("id") id: string) {
-    return this.shop.deleteCoupon(id);
+    return this.couponSvc.deleteCoupon(id);
   }
 
   @Put("coupons/:id/status")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "更新优惠券状态" })
   @ApiBearerAuth()
   updateCouponStatus(@Param("id") id: string, @Body("status") status: string) {
-    return this.shop.updateCouponStatus(id, status);
+    return this.couponSvc.updateCouponStatus(id, status);
   }
 
   @Post("coupons/:id/claim")
@@ -402,16 +412,16 @@ export class ShopController {
   @ApiOperation({ summary: "领取优惠券" })
   @ApiBearerAuth()
   claimCoupon(@Req() req: AuthRequest, @Param("id") id: string) {
-    return this.shop.claimCoupon(req.user.id, id);
+    return this.couponSvc.claimCoupon(req.user.id, id);
   }
 
   @Post("coupons/:id/grant")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "发放优惠券给用户" })
   @ApiBearerAuth()
   grantCoupon(@Param("id") id: string, @Body("userId") userId: string) {
-    return this.shop.grantCoupon(id, userId);
+    return this.couponSvc.grantCoupon(id, userId);
   }
 
   @Get("coupons/my")
@@ -419,7 +429,7 @@ export class ShopController {
   @ApiOperation({ summary: "获取我的优惠券" })
   @ApiBearerAuth()
   myCoupons(@Req() req: AuthRequest) {
-    return this.shop.getUserCoupons(req.user.id);
+    return this.couponSvc.getUserCoupons(req.user.id);
   }
 
   // ───────── 运费模板 ─────────
@@ -535,7 +545,7 @@ export class ShopController {
   @ApiOperation({ summary: "申请售后" })
   @ApiBearerAuth()
   applyAfterSale(@Req() req: AuthRequest, @Param("id") orderId: string, @Body() body: { type: string; reason: string; amount?: number }) {
-    return this.shop.applyAfterSale(req.user.id, orderId, body.type, body.reason, body.amount);
+    return this.couponSvc.applyAfterSale(req.user.id, orderId, body.type, body.reason, body.amount);
   }
 
   @Get("after-sales")
@@ -545,7 +555,7 @@ export class ShopController {
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
   myAfterSales(@Req() req: AuthRequest, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.shop.getUserAfterSales(req.user.id, +page, +pageSize);
+    return this.couponSvc.getUserAfterSales(req.user.id, +page, +pageSize);
   }
 
   @Get("after-sales/:id")
@@ -553,7 +563,7 @@ export class ShopController {
   @ApiOperation({ summary: "获取售后详情" })
   @ApiBearerAuth()
   getAfterSale(@Req() req: AuthRequest, @Param("id") id: string) {
-    return this.shop.getAfterSale(id, req.user.id);
+    return this.couponSvc.getAfterSale(id, req.user.id);
   }
 
   @Put("after-sales/:id/cancel")
@@ -561,7 +571,7 @@ export class ShopController {
   @ApiOperation({ summary: "取消售后申请" })
   @ApiBearerAuth()
   cancelAfterSale(@Req() req: AuthRequest, @Param("id") id: string) {
-    return this.shop.cancelAfterSale(id, req.user.id);
+    return this.couponSvc.cancelAfterSale(id, req.user.id);
   }
 
   @Get("admin/after-sales")
@@ -573,7 +583,7 @@ export class ShopController {
   @ApiQuery({ name: "pageSize", required: false })
   @ApiQuery({ name: "status", required: false })
   listAfterSales(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("status") status?: string) {
-    return this.shop.listAfterSales(+page, +pageSize, status);
+    return this.couponSvc.listAfterSales(+page, +pageSize, status);
   }
 
   @Put("admin/after-sales/:id/process")
@@ -582,7 +592,7 @@ export class ShopController {
   @ApiOperation({ summary: "处理售后（管理员）" })
   @ApiBearerAuth()
   processAfterSale(@Param("id") id: string, @Body("action") action: string, @Body("remark") remark?: string) {
-    return this.shop.processAfterSale(id, action, remark);
+    return this.couponSvc.processAfterSale(id, action, remark);
   }
 
   // ───────── 购物车（Redis） ─────────

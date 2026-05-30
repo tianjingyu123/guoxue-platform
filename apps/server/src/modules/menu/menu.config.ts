@@ -65,6 +65,12 @@ export const MENU_CONFIG: MenuItem[] = [
     ],
   },
   {
+    title: "赛事管理",
+    icon: "Trophy",
+    path: "/competitions",
+    roles: ["SUPER_ADMIN", "OPERATION_ADMIN"],
+  },
+  {
     title: "教学管理",
     icon: "Reading",
     roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
@@ -117,6 +123,15 @@ export const MENU_CONFIG: MenuItem[] = [
     children: [
       { title: "商品管理", path: "/products" },
       { title: "优惠券管理", path: "/coupons" },
+    ],
+  },
+  {
+    title: "商家管理",
+    icon: "Shop",
+    roles: ["SUPER_ADMIN", "OPERATION_ADMIN"],
+    children: [
+      { title: "商家列表", path: "/merchants" },
+      { title: "商家协议", path: "/merchants/agreements" },
     ],
   },
   {
@@ -309,6 +324,9 @@ export const MENU_CONFIG: MenuItem[] = [
       { title: "审计日志", path: "/audit-logs" },
       { title: "搜索权重", path: "/system/search-weights" },
       { title: "首页模块配置", path: "/system/homepage-config", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "全站公告", path: "/system/site-notices", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "用户协议", path: "/system/legal-documents", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "APP版本", path: "/system/app-versions", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
     ],
   },
 ];

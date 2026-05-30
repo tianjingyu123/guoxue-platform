@@ -20,7 +20,13 @@ export class LoggingInterceptor implements NestInterceptor {
       "00000000000000000000000000000000";
     (req as any).traceId = traceId;
 
-    const ctx = { traceId, userId: (req as any).user?.id, path: url, method };
+    const ctx = {
+      traceId,
+      userId: (req as any).user?.id,
+      stationId: (req as any).stationId as string | undefined,
+      path: url,
+      method,
+    };
     const pino = PinoLoggerService.getInstance().raw();
 
     return new Observable((subscriber) => {

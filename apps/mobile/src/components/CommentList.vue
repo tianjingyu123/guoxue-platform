@@ -64,7 +64,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { interactApi } from '../../api'
+import { interactApi } from '../api'
 
 const props = defineProps<{
   targetType: string

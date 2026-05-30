@@ -33,12 +33,17 @@ export const useUserStore = defineStore('user', () => {
 
   // ========== Actions ==========
   /** 持久化 token */
-  function saveToken(val: string | null) {
+  function saveToken(val: string | null, refreshVal?: string | null) {
     token.value = val
     if (val) {
       uni.setStorageSync('token', val)
     } else {
       uni.removeStorageSync('token')
+    }
+    if (refreshVal) {
+      uni.setStorageSync('refreshToken', refreshVal)
+    } else if (refreshVal === null) {
+      uni.removeStorageSync('refreshToken')
     }
   }
 
@@ -48,14 +53,15 @@ export const useUserStore = defineStore('user', () => {
     error.value = null
     try {
       const res: any = await authApi.login({ account: phone, password })
-      if (res.token) {
-        saveToken(res.token)
+      const tok = res.accessToken || res.token
+      if (tok) {
+        saveToken(tok, res.refreshToken)
       }
       if (res.user) {
         user.value = res.user as UserInfo
       }
       // 如果登录接口没返回用户信息，额外拉取
-      if (!res.user && res.token) {
+      if (!res.user && tok) {
         await fetchProfile()
       }
       return res
@@ -74,8 +80,9 @@ export const useUserStore = defineStore('user', () => {
     error.value = null
     try {
       const res: any = await authApi.register({ phone, password, nickname })
-      if (res.token) {
-        saveToken(res.token)
+      const tok = res.accessToken || res.token
+      if (tok) {
+        saveToken(tok, res.refreshToken)
       }
       if (res.user) {
         user.value = res.user as UserInfo
@@ -122,10 +129,8 @@ export const useUserStore = defineStore('user', () => {
     loading.value = true
     error.value = null
     try {
-      // 注意：API 中没有专门的更新资料接口，此处使用 authApi 的扩展约定
-      // 若后端有 /auth/profile PUT 接口可调用，否则暂用本地合并
-      const res: any = await authApi.getProfile() // 先获取最新信息
-      user.value = { ...user.value, ...data, ...res } as UserInfo
+      const res: any = await authApi.updateProfile(data)
+      user.value = { ...user.value, ...res } as UserInfo
       uni.showToast({ title: '更新成功', icon: 'success' })
     } catch (e: any) {
       error.value = e.errMsg || e.message || '更新失败'

@@ -1,5 +1,6 @@
 import { Injectable, forwardRef, Inject, Logger, Optional } from "@nestjs/common";
 import { createHash } from "node:crypto";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma, MemberLevel, Order } from "@prisma/client";
@@ -26,7 +27,7 @@ import { WebhookService } from "../webhook/webhook.service";
 import { COIN_TO_RMB, RMB_TO_FEN } from "../../common/constants";
 import {
   CreateProductDto, UpdateProductDto, CreateOrderDto,
-  CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
+  CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto,
   ProductListQueryDto, OrderListQueryDto,
 } from "./shop.dto";
@@ -166,14 +167,23 @@ export class ShopService {
 
   // ═══════════════════ SKU 管理 ═══════════════════
 
-  async addSku(userId: string, productId: string, dto: { specs: Record<string, string>; price: number; stock?: number; skuCode?: string }, isAdmin = false) {
+  async addSku(userId: string, productId: string, dto: { name?: string; specs?: Record<string, string>; price: number; stock?: number; skuCode?: string }, isAdmin = false) {
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
     if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
     if (!isAdmin && product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能给自己的商品添加SKU");
+    let specs = dto.specs || {};
+    if (!dto.specs && dto.name) {
+      const parts = dto.name.split(":");
+      if (parts.length >= 2) {
+        specs = { [parts[0].trim()]: parts.slice(1).join(":").trim() };
+      } else {
+        specs = { name: dto.name };
+      }
+    }
     return this.prisma.productSku.create({
       data: {
         productId,
-        specs: dto.specs,
+        specs,
         price: dto.price,
         stock: dto.stock ?? 0,
         skuCode: dto.skuCode,
@@ -233,6 +243,41 @@ export class ShopService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      // 优惠券校验与折扣计算（服务端计算，防篡改）
+      if (dto.couponId) {
+        const userCoupon = await tx.userCoupon.findFirst({
+          where: { id: dto.couponId, userId, used: false },
+          include: { coupon: true },
+        });
+        if (!userCoupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在或已被使用");
+
+        const coupon = userCoupon.coupon;
+        if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
+        const now = new Date();
+        if (now < coupon.validStart) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券尚未生效");
+        if (now > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
+        if (coupon.scope === "PRODUCT" && coupon.scopeId && coupon.scopeId !== dto.targetId) {
+          throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不适用于该商品");
+        }
+        if (coupon.minAmount && actualAmount < Number(coupon.minAmount)) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, `不满足优惠券最低消费 ¥${Number(coupon.minAmount).toFixed(2)}`);
+        }
+
+        // 服务端计算优惠后金额
+        if (coupon.type === "FULL_REDUCE" || coupon.type === "NO_THRESHOLD") {
+          actualAmount = Math.max(0.01, actualAmount - Number(coupon.discountAmount || coupon.value || 0));
+        } else if (coupon.type === "DISCOUNT") {
+          const rate = Number(coupon.discountRate || (coupon.value ? Number(coupon.value) / 100 : 1));
+          actualAmount = Math.max(0.01, actualAmount * rate);
+        }
+        actualAmount = Math.round(actualAmount * 100) / 100;
+
+        await tx.userCoupon.update({
+          where: { id: dto.couponId },
+          data: { used: true, usedAt: new Date() },
+        });
+      }
+
       const order = await tx.order.create({
         data: {
           userId,
@@ -265,14 +310,6 @@ export class ShopService {
         }
       }
 
-      // 标记优惠券已使用
-      if (dto.couponId) {
-        await tx.userCoupon.update({
-          where: { id: dto.couponId },
-          data: { used: true, usedAt: new Date() },
-        });
-      }
-
       return order;
     });
   }
@@ -298,20 +335,30 @@ export class ShopService {
     return order;
   }
 
+  private readonly VALID_ORDER_STATUSES = new Set(["PENDING", "PAID", "SHIPPED", "COMPLETED", "REFUNDED", "CANCELLED"]);
+
   async listOrders(dto: OrderListQueryDto) {
-    const { page = 1, pageSize = 20, type, status, userId } = dto;
+    const { page = 1, pageSize = 20, orderNo, type, status, userId, startDate, endDate } = dto;
     const filterHash = createHash("sha1")
-      .update(`${type || ""}|${status || ""}|${userId || ""}`)
+      .update(`${orderNo || ""}|${type || ""}|${status || ""}|${userId || ""}|${startDate || ""}|${endDate || ""}`)
       .digest("hex");
     const cacheKey = `${CACHE_PREFIX}orders:${page}:${pageSize}:${filterHash}`;
 
-    const cached = await this.redis.getJson<any>(cacheKey);
+    // 简单查询走缓存
+    const cached = !orderNo && !startDate && !endDate ? await this.redis.getJson<any>(cacheKey) : null;
     if (cached) return cached;
 
     const where: Prisma.OrderWhereInput = {};
+    if (orderNo) where.id = { contains: orderNo };
     if (type) where.type = type as any;
-    if (status) where.status = status as any;
+    if (status && this.VALID_ORDER_STATUSES.has(status)) where.status = status as any;
     if (userId) where.userId = userId;
+    if (startDate && endDate) {
+      where.createdAt = {
+        gte: new Date(startDate + "T00:00:00+08:00"),
+        lte: new Date(endDate + "T23:59:59+08:00"),
+      };
+    }
 
     const [orders, total] = await Promise.all([
       this.prisma.order.findMany({
@@ -497,18 +544,69 @@ export class ShopService {
       }
       if (!order || order.status !== "PENDING") return;
 
-      // 更新订单状态为已支付
-      await this.prisma.order.update({
-        where: { id: orderId },
-        data: {
-          status: "PAID",
-          payMethod: "WECHAT",
-          paidAt: new Date(),
-          payTransactionId: transactionId,
-        },
-      });
+      // 获取 order:lock 互斥锁（与 cancelOrder 共用同一 key）
+      const orderLockKey = `order:lock:${orderId}`;
+      const orderLocked = await this.redis.setNX(orderLockKey, "1", 10);
+      if (!orderLocked) {
+        this.logger.warn(`订单锁冲突(可能正在取消): ${orderId}`);
+        // 短暂等待后重试一次
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const retryLocked = await this.redis.setNX(orderLockKey, "1", 10);
+        if (!retryLocked) {
+          this.logger.error(`订单锁重试失败: ${orderId}`);
+          return;
+        }
+      }
 
-      // 分佣计算
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          // 乐观锁：仅当状态仍为 PENDING 时更新
+          const result = await tx.order.updateMany({
+            where: { id: orderId, status: "PENDING" },
+            data: {
+              status: "PAID",
+              payMethod: "WECHAT",
+              paidAt: new Date(),
+              payTransactionId: transactionId,
+            },
+          });
+          if (result.count === 0) {
+            this.logger.warn(`订单 ${orderId} 状态已变更(可能已被取消)，跳过支付处理`);
+            throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
+          }
+
+          // 会员订单处理（与订单状态更新在同一事务）
+          if (order.type === "MEMBER") {
+            const memberLevel = this.resolveMemberLevel(Number(order.amount));
+            const expiresAt = this.calcMemberExpiry(memberLevel);
+            await tx.user.update({
+              where: { id: order.userId },
+              data: { memberLevel: memberLevel as MemberLevel, memberExpire: expiresAt },
+            });
+            await tx.memberPurchase.create({
+              data: {
+                userId: order.userId,
+                memberType: memberLevel as any,
+                amount: order.amount,
+                referrerId: order.referrerId,
+                paidAt: new Date(),
+                expireAt: expiresAt,
+              },
+            });
+          }
+        });
+      } catch (e: unknown) {
+        if (e instanceof BusinessException && e.message === "订单状态已变更") return;
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          this.logger.warn(`支付回调重复处理(DB约束拦截): ${outTradeNo}, transactionId: ${transactionId}`);
+          return;
+        }
+        throw e;
+      } finally {
+        await this.redis.del(orderLockKey);
+      }
+
+      // 分佣计算（事务外，失败可重试不影响订单状态）
       if (this.commissionSvc) {
         try {
           await this.commissionSvc.calculateAndRecord(
@@ -521,26 +619,6 @@ export class ShopService {
         } catch (e) {
           this.logger.error("分佣计算失败", e);
         }
-      }
-
-      // 会员订单处理
-      if (order.type === "MEMBER") {
-        const memberLevel = this.resolveMemberLevel(Number(order.amount));
-        const expiresAt = this.calcMemberExpiry(memberLevel);
-        await this.prisma.user.update({
-          where: { id: order.userId },
-          data: { memberLevel: memberLevel as MemberLevel, memberExpire: expiresAt },
-        });
-        await this.prisma.memberPurchase.create({
-          data: {
-            userId: order.userId,
-            memberType: memberLevel as any,
-            amount: order.amount,
-            referrerId: order.referrerId,
-            paidAt: new Date(),
-            expireAt: expiresAt,
-          },
-        });
       }
 
       this.logger.log(`订单 ${orderId} 支付成功, 微信交易号: ${transactionId}`);
@@ -579,9 +657,10 @@ export class ShopService {
       return;
     }
 
-    const lockKey = `pay:lock:${outTradeNo}`;
-    const locked = await this.redis.setNX(lockKey, "1", 30);
-    if (!locked) {
+    // 防重入锁（支付渠道侧）
+    const payLockKey = `pay:lock:${outTradeNo}`;
+    const payLocked = await this.redis.setNX(payLockKey, "1", 30);
+    if (!payLocked) {
       this.logger.warn(`支付回调重复处理被拦截: ${outTradeNo}`);
       return;
     }
@@ -596,17 +675,68 @@ export class ShopService {
       }
       if (order.status !== "PENDING") return;
 
-      await this.prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: "PAID",
-          payMethod,
-          paidAt: new Date(),
-          payTransactionId: tradeNo,
-        },
-      });
+      // 获取 order:lock 互斥锁（与 cancelOrder 共用同一 key）
+      const orderLockKey = `order:lock:${order.id}`;
+      const orderLocked = await this.redis.setNX(orderLockKey, "1", 10);
+      if (!orderLocked) {
+        this.logger.warn(`订单锁冲突(可能正在取消): ${order.id}`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const retryLocked = await this.redis.setNX(orderLockKey, "1", 10);
+        if (!retryLocked) {
+          this.logger.error(`订单锁重试失败: ${order.id}`);
+          return;
+        }
+      }
 
-      // 分佣
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          // 乐观锁：仅当状态仍为 PENDING 时更新
+          const result = await tx.order.updateMany({
+            where: { id: order.id, status: "PENDING" },
+            data: {
+              status: "PAID",
+              payMethod,
+              paidAt: new Date(),
+              payTransactionId: tradeNo,
+            },
+          });
+          if (result.count === 0) {
+            this.logger.warn(`订单 ${order.id} 状态已变更(可能已被取消)，跳过支付处理`);
+            throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
+          }
+
+          // 会员订单处理（与订单状态更新在同一事务）
+          if (order.type === "MEMBER") {
+            const memberLevel = this.resolveMemberLevel(Number(order.amount));
+            const expiresAt = this.calcMemberExpiry(memberLevel);
+            await tx.user.update({
+              where: { id: order.userId },
+              data: { memberLevel: memberLevel as MemberLevel, memberExpire: expiresAt },
+            });
+            await tx.memberPurchase.create({
+              data: {
+                userId: order.userId,
+                memberType: memberLevel as any,
+                amount: order.amount,
+                referrerId: order.referrerId,
+                paidAt: new Date(),
+                expireAt: expiresAt,
+              },
+            });
+          }
+        });
+      } catch (e: unknown) {
+        if (e instanceof BusinessException && e.message === "订单状态已变更") return;
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          this.logger.warn(`支付回调重复处理(DB约束拦截): ${outTradeNo}, payMethod: ${payMethod}`);
+          return;
+        }
+        throw e;
+      } finally {
+        await this.redis.del(orderLockKey);
+      }
+
+      // 分佣计算（事务外，失败可重试不影响订单状态）
       if (this.commissionSvc) {
         try {
           await this.commissionSvc.calculateAndRecord(
@@ -618,7 +748,7 @@ export class ShopService {
         }
       }
 
-      // 触发 Webhook
+      // 触发 Webhook（fire-and-forget，不阻塞主流程）
       this.webhook.fire("ORDER_PAID", {
         orderId: order.id,
         outTradeNo,
@@ -630,7 +760,7 @@ export class ShopService {
 
       this.logger.log(`订单 ${order.id} 支付成功, ${payMethod}交易号: ${tradeNo}`);
     } finally {
-      await this.redis.del(lockKey);
+      await this.redis.del(payLockKey);
     }
   }
 
@@ -687,17 +817,68 @@ export class ShopService {
 
       const transactionId = (body.huifu_order_id || body.transaction_id) as string;
 
-      await this.prisma.order.update({
-        where: { id: order.id },
-        data: {
-          status: "PAID",
-          payMethod: "HUIFU",
-          paidAt: new Date(),
-          payTransactionId: outTradeNo,
-        },
-      });
+      // 获取 order:lock 互斥锁
+      const orderLockKey = `order:lock:${order.id}`;
+      const orderLocked = await this.redis.setNX(orderLockKey, "1", 10);
+      if (!orderLocked) {
+        this.logger.warn(`订单锁冲突(可能正在取消): ${order.id}`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const retryLocked = await this.redis.setNX(orderLockKey, "1", 10);
+        if (!retryLocked) {
+          this.logger.error(`订单锁重试失败: ${order.id}`);
+          return;
+        }
+      }
 
-      // 分佣计算
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          // 乐观锁：仅当状态仍为 PENDING 时更新
+          const result = await tx.order.updateMany({
+            where: { id: order.id, status: "PENDING" },
+            data: {
+              status: "PAID",
+              payMethod: "HUIFU",
+              paidAt: new Date(),
+              payTransactionId: outTradeNo,
+            },
+          });
+          if (result.count === 0) {
+            this.logger.warn(`汇付订单 ${order.id} 状态已变更(可能已被取消)，跳过支付处理`);
+            throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
+          }
+
+          // 会员订单处理（与订单状态更新在同一事务）
+          if (order.type === "MEMBER") {
+            const memberLevel = this.resolveMemberLevel(Number(order.amount));
+            const expiresAt = this.calcMemberExpiry(memberLevel);
+            await tx.user.update({
+              where: { id: order.userId },
+              data: { memberLevel: memberLevel as MemberLevel, memberExpire: expiresAt },
+            });
+            await tx.memberPurchase.create({
+              data: {
+                userId: order.userId,
+                memberType: memberLevel as any,
+                amount: order.amount,
+                referrerId: order.referrerId,
+                paidAt: new Date(),
+                expireAt: expiresAt,
+              },
+            });
+          }
+        });
+      } catch (e: unknown) {
+        if (e instanceof BusinessException && e.message === "订单状态已变更") return;
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          this.logger.warn(`汇付支付回调重复处理(DB约束拦截): ${outTradeNo}`);
+          return;
+        }
+        throw e;
+      } finally {
+        await this.redis.del(orderLockKey);
+      }
+
+      // 分佣计算（事务外，失败可重试不影响订单状态）
       if (this.commissionSvc) {
         try {
           await this.commissionSvc.calculateAndRecord(
@@ -709,27 +890,7 @@ export class ShopService {
         }
       }
 
-      // 会员订单处理
-      if (order.type === "MEMBER") {
-        const memberLevel = this.resolveMemberLevel(Number(order.amount));
-        const expiresAt = this.calcMemberExpiry(memberLevel);
-        await this.prisma.user.update({
-          where: { id: order.userId },
-          data: { memberLevel: memberLevel as MemberLevel, memberExpire: expiresAt },
-        });
-        await this.prisma.memberPurchase.create({
-          data: {
-            userId: order.userId,
-            memberType: memberLevel as any,
-            amount: order.amount,
-            referrerId: order.referrerId,
-            paidAt: new Date(),
-            expireAt: expiresAt,
-          },
-        });
-      }
-
-      // 触发 Webhook
+      // 触发 Webhook（fire-and-forget，不阻塞主流程）
       this.webhook.fire("ORDER_PAID", {
         orderId: order.id, outTradeNo, payMethod: "HUIFU", tradeNo: transactionId,
         amount: Number(order.amount), userId: order.userId,
@@ -750,7 +911,7 @@ export class ShopService {
     return { tradeState: result.trade_state, raw: result };
   }
 
-  /** 申请退款 */
+  /** 申请退款（根据支付渠道自动路由，含分佣回收） */
   async refundOrder(orderId: string, reason?: string) {
     // 分布式锁防并发重复退款
     const lockKey = `refund:lock:${orderId}`;
@@ -768,18 +929,46 @@ export class ShopService {
       const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
       const outRefundNo = `RF${Date.now()}${orderId.slice(0, 8)}`;
 
-      const result = await this.wechatPay.refund({
-        outTradeNo: order.payTransactionId || undefined,
-        outRefundNo,
-        amount: { refund: totalFen, total: totalFen },
-        reason: reason || "用户申请退款",
-      });
+      // 根据支付渠道路由退款
+      let result: { status: string };
+      const payMethod = order.payMethod || "WECHAT";
+      const outTradeNo = order.payTransactionId || outRefundNo;
+      if (payMethod === "ALIPAY") {
+        result = await this.alipay.refund({
+          outTradeNo,
+          outRefundNo,
+          refundAmount: Number(order.amount),
+          reason: reason || "用户申请退款",
+        }) as unknown as { status: string };
+      } else if (payMethod === "UNIONPAY") {
+        result = await this.unionpay.refund({
+          outTradeNo,
+          outRefundNo,
+          amount: totalFen,
+        }) as unknown as { status: string };
+        this.logger.log(`银联退款: ${outRefundNo}, 金额: ${totalFen}`);
+      } else {
+        result = await this.wechatPay.refund({
+          outTradeNo,
+          outRefundNo,
+          amount: { refund: totalFen, total: totalFen },
+          reason: reason || "用户申请退款",
+        }) as unknown as { status: string };
+      }
 
       if (result.status === "SUCCESS" || result.status === "PROCESSING") {
         await this.prisma.order.update({
           where: { id: orderId },
           data: { status: "REFUNDED", refundedAt: new Date() },
         });
+
+        // 冲正分佣（异步，失败不影响退款结果）
+        if (this.commissionSvc) {
+          this.commissionSvc.reverseCommission(orderId).catch((e) =>
+            this.logger.error(`分佣冲正失败, 订单: ${orderId}`, e)
+          );
+        }
+
         this.webhook.fire("ORDER_REFUNDED", {
           orderId,
           amount: Number(order.amount),
@@ -809,10 +998,24 @@ export class ShopService {
       const outTradeNo = body.out_trade_no as string;
 
       if (refundStatus === "SUCCESS") {
+        // 查找关联订单用于分佣冲正
+        const refundedOrder = await this.prisma.order.findFirst({
+          where: { payTransactionId: outTradeNo },
+          select: { id: true },
+        });
+
         await this.prisma.order.updateMany({
           where: { payTransactionId: outTradeNo, status: { not: "REFUNDED" } },
           data: { status: "REFUNDED", refundedAt: new Date() },
         });
+
+        // 异步冲正分佣
+        if (refundedOrder && this.commissionSvc) {
+          this.commissionSvc.reverseCommission(refundedOrder.id).catch((e) =>
+            this.logger.error(`退款回调分佣冲正失败, 订单: ${refundedOrder.id}`, e)
+          );
+        }
+
         const refundAmount = (body.amount as Record<string, unknown>)?.refund ?? body.refund_amount;
         this.webhook.fire("ORDER_REFUNDED", {
           outTradeNo,
@@ -871,146 +1074,127 @@ export class ShopService {
   }
 
   async cancelOrder(orderId: string, userId: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
-    if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待付款订单可取消");
-    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权取消");
+    // 分布式锁防并发（与支付回调共享锁 key）
+    const lockKey = `order:lock:${orderId}`;
+    const locked = await this.redis.setNX(lockKey, "1", 30);
+    if (!locked) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单正在处理中，请稍后重试");
 
-    const updated = await this.prisma.order.update({
-      where: { id: orderId },
-      data: { status: "CANCELLED" },
-    });
-    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
-    await this.redis.del(`${CACHE_PREFIX}userOrders:${order.userId}:1:20`);
-    return updated;
+    try {
+      const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权取消");
+      if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待付款订单可取消");
+
+      await this.prisma.$transaction(async (tx) => {
+        // 乐观锁：仅当状态仍为 PENDING 时取消
+        const result = await tx.order.updateMany({
+          where: { id: orderId, status: "PENDING" },
+          data: { status: "CANCELLED" },
+        });
+        if (result.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更，无法取消");
+
+        // 恢复库存
+        if (order.type !== "MEMBER") {
+          if (order.skuId) {
+            await tx.productSku.updateMany({
+              where: { id: order.skuId },
+              data: { stock: { increment: 1 } },
+            });
+          } else if (order.targetId) {
+            await tx.product.updateMany({
+              where: { id: order.targetId },
+              data: { stock: { increment: 1 } },
+            });
+          }
+        }
+
+        // 释放优惠券
+        if (order.couponId) {
+          await tx.userCoupon.updateMany({
+            where: { id: order.couponId, used: true },
+            data: { used: false, usedAt: null },
+          });
+        }
+      });
+
+      return { id: orderId, status: "CANCELLED" };
+    } finally {
+      await this.redis.del(lockKey);
+      await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+      await this.redis.del(`${CACHE_PREFIX}userOrders:${userId}:1:20`);
+    }
   }
 
-  // ═══════════════════ 优惠券管理 ═══════════════════
+  // ───────── 超时未支付自动取消 ─────────
 
-  async createCoupon(dto: CreateCouponV2Dto) {
-    const { type } = dto;
-    // 根据类型自动填充 discountAmount/discountRate
-    let value = dto.value;
-    let discountAmount = dto.discountAmount;
-    let discountRate = dto.discountRate;
+  /**
+   * 每5分钟扫描一次，自动取消超过30分钟的 PENDING 订单。
+   * 恢复库存、释放优惠券。
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async autoCancelExpiredOrders() {
+    const cutoff = new Date(Date.now() - 30 * 60 * 1000); // 30分钟前
 
-    if (type === "FULL_REDUCE" || type === "NO_THRESHOLD") {
-      value = value ?? discountAmount ?? 0;
-      discountAmount = discountAmount ?? value;
-    } else if (type === "DISCOUNT") {
-      discountRate = discountRate ?? (value ? value / 100 : undefined);
-      value = value ?? (discountRate ? discountRate * 100 : 0);
+    const expiredOrders = await this.prisma.order.findMany({
+      where: {
+        status: "PENDING",
+        createdAt: { lt: cutoff },
+      },
+      select: { id: true, type: true, skuId: true, targetId: true, couponId: true },
+      take: 100, // 每次最多处理100单
+    });
+
+    if (expiredOrders.length === 0) return;
+
+    let cancelled = 0;
+    for (const order of expiredOrders) {
+      const lockKey = `order:lock:${order.id}`;
+      const locked = await this.redis.setNX(lockKey, "1", 30);
+      if (!locked) continue; // 正在被支付回调处理，跳过
+
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          const result = await tx.order.updateMany({
+            where: { id: order.id, status: "PENDING" },
+            data: { status: "CANCELLED" },
+          });
+          if (result.count === 0) return; // 状态已变更，跳过
+
+          // 恢复库存
+          if (order.type !== "MEMBER") {
+            if (order.skuId) {
+              await tx.productSku.updateMany({
+                where: { id: order.skuId },
+                data: { stock: { increment: 1 } },
+              });
+            } else if (order.targetId) {
+              await tx.product.updateMany({
+                where: { id: order.targetId },
+                data: { stock: { increment: 1 } },
+              });
+            }
+          }
+
+          // 释放优惠券
+          if (order.couponId) {
+            await tx.userCoupon.updateMany({
+              where: { id: order.couponId, used: true },
+              data: { used: false, usedAt: null },
+            });
+          }
+
+          cancelled += result.count;
+        });
+      } catch (err) {
+        this.logger.warn(`自动取消订单 ${order.id} 失败: ${(err as Error).message}`);
+      } finally {
+        await this.redis.del(lockKey);
+      }
     }
 
-    return this.prisma.coupon.create({
-      data: {
-        type: type as any,
-        name: dto.name,
-        value: value ?? 0,
-        discountAmount,
-        discountRate,
-        minAmount: dto.minAmount,
-        scope: dto.scope || "ALL",
-        scopeId: dto.scopeId,
-        totalCount: dto.totalCount ?? -1,
-        status: dto.status || "ACTIVE",
-        validStart: new Date(dto.validStart),
-        validEnd: new Date(dto.validEnd),
-      },
-    });
-  }
-
-  async listCoupons(page = 1, pageSize = 20, admin = false) {
-    const now = new Date();
-    // 管理员查看全部，普通用户只看有效优惠券
-    const where = admin ? {} : { status: "ACTIVE", validEnd: { gte: now } };
-    const [coupons, total] = await Promise.all([
-      this.prisma.coupon.findMany({
-        where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: "desc" },
-      }),
-      this.prisma.coupon.count({ where }),
-    ]);
-    return { coupons, total, page, pageSize };
-  }
-
-  /** 更新优惠券（管理员） */
-  async updateCoupon(id: string, dto: CreateCouponV2Dto) {
-    const existing = await this.prisma.coupon.findUnique({ where: { id } });
-    if (!existing) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
-
-    const updateData: Prisma.CouponUpdateInput = {};
-    if (dto.name !== undefined) updateData.name = dto.name;
-    if (dto.type !== undefined) updateData.type = dto.type as any;
-    if (dto.discountAmount !== undefined) updateData.discountAmount = dto.discountAmount;
-    if (dto.discountRate !== undefined) updateData.discountRate = dto.discountRate;
-    if (dto.value !== undefined) updateData.value = dto.value;
-    if (dto.minAmount !== undefined) updateData.minAmount = dto.minAmount;
-    if (dto.scope !== undefined) updateData.scope = dto.scope;
-    if (dto.scopeId !== undefined) updateData.scopeId = dto.scopeId;
-    if (dto.totalCount !== undefined) updateData.totalCount = dto.totalCount;
-    if (dto.status !== undefined) updateData.status = dto.status;
-    if (dto.validStart !== undefined) updateData.validStart = new Date(dto.validStart);
-    if (dto.validEnd !== undefined) updateData.validEnd = new Date(dto.validEnd);
-
-    return this.prisma.coupon.update({
-      where: { id },
-      data: updateData,
-    });
-  }
-
-  /** 删除优惠券（管理员） */
-  async deleteCoupon(id: string) {
-    await this.prisma.coupon.delete({ where: { id } });
-    return { success: true };
-  }
-
-  /** 更新优惠券状态 */
-  async updateCouponStatus(id: string, status: string) {
-    await this.prisma.coupon.findUniqueOrThrow({ where: { id } });
-    return this.prisma.coupon.update({ where: { id }, data: { status } });
-  }
-
-  /** 用户领取优惠券 */
-  async claimCoupon(userId: string, couponId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const coupon = await tx.coupon.findUnique({ where: { id: couponId } });
-      if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
-      if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
-      if (new Date() > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
-      if (coupon.totalCount !== -1 && coupon.usedCount >= coupon.totalCount) {
-        throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已被领完");
-      }
-
-      const existing = await tx.userCoupon.findFirst({
-        where: { userId, couponId, used: false },
-      });
-      if (existing) throw new BusinessException(ErrorCode.COUPON_INVALID, "已领取过该优惠券");
-
-      await tx.coupon.update({
-        where: { id: couponId },
-        data: { usedCount: { increment: 1 } },
-      });
-
-      return tx.userCoupon.create({
-        data: { userId, couponId },
-      });
-    });
-  }
-
-  async grantCoupon(couponId: string, userId: string) {
-    return this.prisma.userCoupon.create({
-      data: { userId, couponId },
-    });
-  }
-
-  async getUserCoupons(userId: string) {
-    return this.prisma.userCoupon.findMany({
-      where: { userId, used: false },
-      include: { coupon: true },
-    });
+    if (cancelled > 0) {
+      this.logger.log(`自动取消超时订单: ${cancelled} 单`);
+    }
   }
 
   // ═══════════════════ 商品评价 ═══════════════════
@@ -1170,61 +1354,6 @@ export class ShopService {
     const template = await this.prisma.freightTemplate.findUnique({ where: { id } });
     if (!template) throw new BusinessException(ErrorCode.NOT_FOUND, "运费模板不存在");
     return template;
-  }
-
-  // ═══════════════════ 售后管理 ═══════════════════
-
-  async applyAfterSale(userId: string, orderId: string, type: string, reason: string, amount?: number) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
-    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能对自己的订单申请售后");
-    if (!["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) {
-      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "当前订单状态不可申请售后");
-    }
-    return this.prisma.afterSale.create({
-      data: { orderId, userId, type, reason, amount: amount || Number(order.amount), status: "PENDING" },
-    });
-  }
-
-  async getUserAfterSales(userId: string, page = 1, pageSize = 20) {
-    const where = { userId };
-    const [items, total] = await Promise.all([
-      this.prisma.afterSale.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
-      this.prisma.afterSale.count({ where }),
-    ]);
-    return { items, total, page, pageSize };
-  }
-
-  async getAfterSale(id: string, userId: string) {
-    const record = await this.prisma.afterSale.findUnique({ where: { id } });
-    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "售后记录不存在");
-    if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能查看自己的售后记录");
-    return record;
-  }
-
-  async cancelAfterSale(id: string, userId: string) {
-    const record = await this.prisma.afterSale.findUnique({ where: { id } });
-    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "售后记录不存在");
-    if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能取消自己的售后申请");
-    if (record.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅待处理状态可取消");
-    return this.prisma.afterSale.update({ where: { id }, data: { status: "CANCELLED" } });
-  }
-
-  async listAfterSales(page = 1, pageSize = 20, status?: string) {
-    const where: Prisma.AfterSaleWhereInput = {};
-    if (status) where.status = status;
-    const [items, total] = await Promise.all([
-      this.prisma.afterSale.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { createdAt: "desc" } }),
-      this.prisma.afterSale.count({ where }),
-    ]);
-    return { items, total, page, pageSize };
-  }
-
-  async processAfterSale(id: string, action: string, remark?: string) {
-    const status = action === "approve" ? "APPROVED" : action === "reject" ? "REJECTED" : "PROCESSING";
-    const data: any = { status };
-    if (remark) data.logistics = remark;
-    return this.prisma.afterSale.update({ where: { id }, data });
   }
 
   // ═══════════════════ 购物车（Redis） ═══════════════════

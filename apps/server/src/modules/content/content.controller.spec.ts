@@ -4,6 +4,9 @@ import { ContentService } from "./content.service";
 import { SystemService } from "../system/system.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { ActiveUserGuard } from "../../common/active-user.guard";
+import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { Logger } from "@nestjs/common";
 
 const mockContentSvc = {
@@ -34,6 +37,9 @@ describe("ContentController", () => {
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
+      .overrideGuard(ActiveUserGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StationIsolationGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(ContentController);
   });

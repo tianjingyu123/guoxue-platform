@@ -58,6 +58,14 @@
         <text class="tool-icon">🛍️</text>
         <text class="tool-name">商城</text>
       </view>
+      <view class="tool-item" @click="goPage('/pages/circles/circles')">
+        <text class="tool-icon">👥</text>
+        <text class="tool-name">圈子</text>
+      </view>
+      <view class="tool-item" @click="goPage('/pages/competition/competition')">
+        <text class="tool-icon">🏆</text>
+        <text class="tool-name">赛事</text>
+      </view>
     </view>
 
     <!-- 频道Tab -->
@@ -296,11 +304,14 @@ function placeholderBg(idx: number): string {
 /** 从 API 响应中提取数组 */
 function extractList(data: any, key: string): any[] {
   if (Array.isArray(data)) return data
-  if (data?.[key] && Array.isArray(data[key])) return data[key]
-  if (data?.data && Array.isArray(data.data)) return data.data
-  if (data?.list && Array.isArray(data.list)) return data.list
-  if (data?.items && Array.isArray(data.items)) return data.items
-  if (data?.records && Array.isArray(data.records)) return data.records
+  if (!data || typeof data !== "object") return []
+  const knownKeys = [key, "data", "list", "items", "records", "articles", "courses", "circles", "videos", "products", "rooms", "contents"]
+  for (const k of knownKeys) {
+    if (Array.isArray(data[k])) return data[k]
+  }
+  for (const v of Object.values(data)) {
+    if (Array.isArray(v)) return v
+  }
   return []
 }
 

@@ -204,7 +204,8 @@ export class MultiAgentService {
         output = await this.executePipeline(task, agentResults);
         break;
       case "debate":
-        throw new BusinessException(ErrorCode.BAD_REQUEST, "辩论模式尚未实现。请使用 sequential/router/parallel/pipeline 策略。");
+        output = await this.executeDebate(task, agentResults);
+        break;
       default:
         throw new BusinessException(ErrorCode.BAD_REQUEST, `未知编排策略: ${task.strategy}`);
     }
@@ -311,6 +312,74 @@ export class MultiAgentService {
     }
 
     return results[results.length - 1]?.output ?? "";
+  }
+
+  /** 辩论模式：Agent多轮辩论，每轮互相审阅对方输出，最终汇总共识 */
+  private async executeDebate(
+    task: OrchestrationTask,
+    results: OrchestrationResult["agentResults"],
+  ): Promise<string> {
+    const maxRounds = task.maxRounds || 3;
+    const agents = task.agents.slice(0, 4);
+
+    if (agents.length < 2) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "辩论模式至少需要2个Agent");
+    }
+
+    // 第1轮：所有Agent独立分析
+    const round1Outputs: Array<{ agent: AgentRole; content: string }> = [];
+    for (const agent of agents) {
+      const t0 = Date.now();
+      const messages: AiMessage[] = [
+        { role: "system", content: `${agent.systemPrompt}\n\n这是多Agent辩论的第1轮，请独立给出你的分析和观点。` },
+        { role: "user", content: task.input },
+      ];
+      const resp = await this.callAgent(agent, messages);
+      round1Outputs.push({ agent, content: resp.content });
+      results.push({ agentId: agent.id, agentName: `辩论:${agent.name}`, output: resp.content, latencyMs: Date.now() - t0 });
+    }
+
+    // 第2-N轮：Agent互相审阅并反驳/补充
+    let roundOutputs = round1Outputs;
+    for (let round = 2; round <= maxRounds; round++) {
+      const prevOutputsSummary = roundOutputs
+        .map((o) => `【${o.agent.name}】的观点：\n${o.content.slice(0, 500)}`)
+        .join("\n\n---\n\n");
+
+      const newOutputs: typeof round1Outputs = [];
+      for (const agent of agents) {
+        const t0 = Date.now();
+        const messages: AiMessage[] = [
+          {
+            role: "system",
+            content: `${agent.systemPrompt}\n\n这是多Agent辩论的第${round}轮。以下是上一轮各Agent的观点，请审阅后给出你的反驳、补充或新见解。在分析其他Agent观点的同时，完善自己的论证。`,
+          },
+          { role: "user", content: `原始问题：${task.input}\n\n上一轮观点汇总：\n${prevOutputsSummary}\n\n请以"${agent.name}"的身份，给出第${round}轮观点。` },
+        ];
+        const resp = await this.callAgent(agent, messages);
+        newOutputs.push({ agent, content: resp.content });
+        results.push({ agentId: agent.id, agentName: `辩论R${round}:${agent.name}`, output: resp.content, latencyMs: Date.now() - t0 });
+      }
+      roundOutputs = newOutputs;
+    }
+
+    // 最终汇总：让第一个Agent做总结
+    const finalSummary = roundOutputs
+      .map((o) => `【${o.agent.name}】最终观点：\n${o.content.slice(0, 800)}`)
+      .join("\n\n---\n\n");
+
+    const synthesizer = agents[0];
+    const synthMessages: AiMessage[] = [
+      {
+        role: "system",
+        content: `你是辩论总结官。请基于以下${agents.length}位专家的${maxRounds}轮辩论结果，给出综合结论。需要指出各方共识点、分歧点，以及最终的推荐方案。`,
+      },
+      { role: "user", content: `原始问题：${task.input}\n\n辩论结果：\n${finalSummary}\n\n请给出综合结论（含共识、分歧、推荐方案）。` },
+    ];
+    const synthResp = await this.callAgent(synthesizer, synthMessages);
+    results.push({ agentId: "synthesizer", agentName: "辩论总结", output: synthResp.content, latencyMs: 0 });
+
+    return synthResp.content;
   }
 
   /** 调用Agent（通过Gateway统一出口） */

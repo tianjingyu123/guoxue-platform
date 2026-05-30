@@ -2,12 +2,77 @@
   <div class="classic-page">
     <div class="header">
       <h2>古籍管理</h2>
-      <el-button
-        type="primary"
-        @click="openEdit()"
+      <div class="header-actions">
+        <el-button type="success" @click="seedLibrary">初始化种子数据</el-button>
+        <el-button type="warning" @click="syncKnowledge">同步知识库</el-button>
+        <el-button type="info" @click="vectorize">向量化索引</el-button>
+        <el-button @click="clearCache">清除缓存</el-button>
+        <el-button type="primary" @click="openEdit()">添加古籍</el-button>
+      </div>
+    </div>
+
+    <!-- 统计面板 -->
+    <div v-if="stats" class="stats-panel">
+      <div class="stat-item">
+        <text class="stat-num">{{ stats.totals?.books || 0 }}</text>
+        <text class="stat-label">古籍总数</text>
+      </div>
+      <div class="stat-item">
+        <text class="stat-num">{{ stats.totals?.chapters || 0 }}</text>
+        <text class="stat-label">章节总数</text>
+      </div>
+      <div class="stat-item">
+        <text class="stat-num">{{ stats.totals?.images || 0 }}</text>
+        <text class="stat-label">原图数量</text>
+      </div>
+      <div class="stat-item">
+        <text class="stat-num">{{ stats.totals?.commentaries || 0 }}</text>
+        <text class="stat-label">名家注解</text>
+      </div>
+      <div class="stat-item">
+        <text class="stat-num">{{ stats.totals?.annotations || 0 }}</text>
+        <text class="stat-label">注疏批注</text>
+      </div>
+    </div>
+
+    <!-- 分类分布 -->
+    <div v-if="stats?.byCategory" class="cat-dist">
+      <span v-for="c in stats.byCategory" :key="c.category" class="cat-chip">
+        {{ c.category }}: {{ c.count }}
+      </span>
+    </div>
+
+    <div class="filter-bar">
+      <el-radio-group
+        v-model="categoryFilter"
+        size="small"
+        @change="fetchBooks"
       >
-        添加古籍
-      </el-button>
+        <el-radio-button label="">
+          全部
+        </el-radio-button>
+        <el-radio-button label="经">
+          经部
+        </el-radio-button>
+        <el-radio-button label="史">
+          史部
+        </el-radio-button>
+        <el-radio-button label="子">
+          子部
+        </el-radio-button>
+        <el-radio-button label="集">
+          集部
+        </el-radio-button>
+        <el-radio-button label="释">
+          佛教
+        </el-radio-button>
+        <el-radio-button label="道">
+          道教
+        </el-radio-button>
+        <el-radio-button label="命">
+          命理
+        </el-radio-button>
+      </el-radio-group>
     </div>
 
     <el-table
@@ -16,6 +81,9 @@
       border
       stripe
     >
+      <template #empty>
+        <el-empty description="暂无古籍" :image-size="80" />
+      </template>
       <el-table-column
         prop="title"
         label="书名"
@@ -57,7 +125,7 @@
       />
       <el-table-column
         label="操作"
-        width="180"
+        width="260"
         fixed="right"
       >
         <template #default="{ row }">
@@ -130,6 +198,10 @@
               label="道教"
               value="道"
             />
+            <el-option
+              label="命理"
+              value="命"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="封面">
@@ -172,6 +244,9 @@
         size="small"
         max-height="400"
       >
+        <template #empty>
+          <el-empty description="暂无章节" :image-size="60" />
+        </template>
         <el-table-column
           prop="title"
           label="标题"
@@ -185,7 +260,7 @@
         />
         <el-table-column
           label="操作"
-          width="120"
+          width="160"
         >
           <template #default="{ row }">
             <el-button
@@ -282,16 +357,58 @@ const loading = ref(false);
 const dialogVisible = ref(false);
 const saving = ref(false);
 const editingBook = ref<any>({});
+const categoryFilter = ref("");
+const stats = ref<any>(null);
 
 const form = reactive({ title: "", author: "", dynasty: "", category: "子", cover: "", source: "", intro: "" });
 
-onMounted(() => fetchBooks());
+onMounted(() => { fetchBooks(); fetchStats(); });
+
+async function fetchStats() {
+  try {
+    const { data } = await classicApi.getStats();
+    stats.value = data;
+  } catch { /* skip */ }
+}
+
+async function seedLibrary() {
+  try {
+    await classicApi.seed();
+    ElMessage.success("种子数据初始化完成");
+    fetchBooks(); fetchStats();
+  } catch { ElMessage.error("初始化失败"); }
+}
+
+async function syncKnowledge() {
+  try {
+    const { data } = await classicApi.syncKnowledge();
+    ElMessage.success(`已同步 ${data?.synced || 0} 条`);
+  } catch { ElMessage.error("同步失败"); }
+}
+
+async function vectorize() {
+  try {
+    const { data } = await classicApi.vectorize();
+    ElMessage.success(`已向量化 ${data?.vectorized || 0} 条`);
+  } catch { ElMessage.error("向量化失败"); }
+}
+
+async function clearCache() {
+  try {
+    await classicApi.clearCache();
+    ElMessage.success("缓存已清除");
+  } catch { ElMessage.error("清除失败"); }
+}
 
 async function fetchBooks() {
   loading.value = true;
   try {
-    const { data } = await classicApi.list({ pageSize: 100 });
+    const params: any = { pageSize: 100 };
+    if (categoryFilter.value) params.category = categoryFilter.value;
+    const { data } = await classicApi.list(params);
     books.value = data.books || data || [];
+  } catch {
+    ElMessage.error("加载古籍列表失败");
   } finally {
     loading.value = false;
   }
@@ -394,6 +511,26 @@ async function delChapter(id: string) {
 
 <style scoped>
 .classic-page { padding: 20px; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .header h2 { margin: 0; font-size: 18px; color: #8b4513; }
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* 统计面板 */
+.stats-panel {
+  display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.stat-item {
+  background: #fff; border-radius: 8px; padding: 16px 24px;
+  text-align: center; min-width: 100px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.stat-num { font-size: 24px; font-weight: bold; color: #8b4513; display: block; }
+.stat-label { font-size: 12px; color: #999; margin-top: 4px; display: block; }
+
+.cat-dist { margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.cat-chip {
+  background: #f5ede2; color: #8b4513; padding: 2px 12px;
+  border-radius: 12px; font-size: 12px;
+}
+
+.filter-bar { margin-bottom: 12px; }
 </style>

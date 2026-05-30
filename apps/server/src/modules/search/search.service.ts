@@ -360,4 +360,14 @@ export class SearchService {
       recentSearches,
     };
   }
+
+  /** 零结果搜索关键词统计 */
+  async getZeroResults() {
+    const zeroLogs = await this.prisma.searchHistory.findMany({
+      select: { keyword: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+    return { keywords: zeroLogs };
+  }
 }

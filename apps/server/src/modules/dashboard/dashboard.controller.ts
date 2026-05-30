@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Param, Body, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiParam } from "@nestjs/swagger";
 import { DashboardService } from "./dashboard.service";
+import { EntityDashboardService } from "./entity-dashboard.service";
+import { RoleDashboardService } from "./role-dashboard.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -10,7 +12,11 @@ import { Roles } from "../../common/roles.decorator";
 @Controller("dashboard")
 @UseGuards(JwtAuthGuard)
 export class DashboardController {
-  constructor(private svc: DashboardService) {}
+  constructor(
+    private svc: DashboardService,
+    private entitySvc: EntityDashboardService,
+    private roleSvc: RoleDashboardService,
+  ) {}
 
   @Get("stats")
   @ApiOperation({ summary: "获取统计数据" })
@@ -99,7 +105,7 @@ export class DashboardController {
   @ApiOperation({ summary: "圈子专项看板" })
   @ApiParam({ name: "id", description: "圈子ID" })
   getCircleDashboard(@Param("id") id: string) {
-    return this.svc.getCircleDashboard(id);
+    return this.entitySvc.getCircleDashboard(id);
   }
 
   // ───────── 课程专项看板 ─────────
@@ -110,7 +116,7 @@ export class DashboardController {
   @ApiOperation({ summary: "课程专项看板" })
   @ApiParam({ name: "id", description: "课程ID" })
   getCourseDashboard(@Param("id") id: string) {
-    return this.svc.getCourseDashboard(id);
+    return this.entitySvc.getCourseDashboard(id);
   }
 
   // ───────── 直播专项看板 ─────────
@@ -121,7 +127,7 @@ export class DashboardController {
   @ApiOperation({ summary: "直播专项看板" })
   @ApiParam({ name: "id", description: "直播ID" })
   getLiveDashboard(@Param("id") id: string) {
-    return this.svc.getLiveDashboard(id);
+    return this.entitySvc.getLiveDashboard(id);
   }
 
   // ───────── 站长专项看板 ─────────
@@ -132,7 +138,7 @@ export class DashboardController {
   @ApiOperation({ summary: "站长专项看板" })
   @ApiParam({ name: "id", description: "分站ID" })
   getStationDashboard(@Param("id") id: string) {
-    return this.svc.getStationDashboard(id);
+    return this.entitySvc.getStationDashboard(id);
   }
 
   // ───────── 驿站专项看板 ─────────
@@ -143,7 +149,7 @@ export class DashboardController {
   @ApiOperation({ summary: "驿站专项看板" })
   @ApiParam({ name: "id", description: "驿站ID" })
   getOfflineDashboard(@Param("id") id: string) {
-    return this.svc.getOfflineDashboard(id);
+    return this.entitySvc.getOfflineDashboard(id);
   }
 
   // ───────── 角色专属仪表盘 ─────────
@@ -154,7 +160,7 @@ export class DashboardController {
   @ApiOperation({ summary: "角色专属仪表盘（6种管理角色各返回专属数据）" })
   @ApiParam({ name: "roleType", description: "角色类型：SUPER_ADMIN/OPERATION_ADMIN/FINANCE_ADMIN/CUSTOMER_SERVICE/CONTENT_AUDITOR/GOODS_AUDITOR" })
   getRoleDashboard(@Param("roleType") roleType: string) {
-    return this.svc.getRoleDashboard(roleType);
+    return this.roleSvc.getRoleDashboard(roleType);
   }
 
   // ───────── 平台总览 ─────────

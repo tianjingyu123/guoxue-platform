@@ -264,7 +264,7 @@ function refreshData() {
 
 function goDetail(item: any) {
   uni.navigateTo({
-    url: `/pages/detail/detail?id=${item.id}&type=CONTENT`,
+    url: `/pages/poetry/poem-detail?id=${item.id}`,
   })
 }
 

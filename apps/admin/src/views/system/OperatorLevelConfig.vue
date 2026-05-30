@@ -31,7 +31,7 @@ async function fetchList() {
   try {
     const { data } = await systemApi.listConfigs()
     const items: any[] = []
-    const raw = data?.data || data || []
+    const raw = data?.configs ?? data?.data ?? []
     ;(Array.isArray(raw) ? raw : []).forEach((item: any) => {
       if (item.key?.startsWith('operator.level.')) {
         const val = typeof item.value === 'string' ? JSON.parse(item.value) : item.value

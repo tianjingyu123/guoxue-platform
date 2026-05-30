@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { riskApi } from '@/api'
+import { exportCSV } from '@/utils/export'
 
 const loading = ref(false)
 const list = ref<any[]>([])
@@ -78,7 +79,32 @@ async function searchTimeline() {
 }
 
 function exportTimeline() {
-  ElMessage.info('导出功能开发中')
+  const actionMap: Record<string, string> = {
+    LOGIN: '登录', ORDER: '下单', CONTENT: '内容操作',
+    PAYMENT: '支付', PROFILE: '修改资料', LOGOUT: '登出',
+  }
+  exportCSV(
+    `用户行为轨迹_${searchUserId.value}`,
+    [
+      { label: '时间', key: 'createdAt' },
+      { label: '行为类型', key: 'action' },
+      { label: '描述', key: 'desc' },
+      { label: '目标类型', key: 'targetType' },
+      { label: '目标ID', key: 'targetId' },
+      { label: 'IP', key: 'ip' },
+      { label: '设备ID', key: 'deviceId' },
+    ],
+    list.value.map((item: any) => ({
+      ...item,
+      createdAt: item.createdAt ? new Date(item.createdAt).toLocaleString() : '-',
+      action: actionMap[item.action] || item.action || '-',
+      desc: item.description || item.detail || (item.meta ? JSON.stringify(item.meta) : '') || '-',
+      targetType: item.targetType || '-',
+      targetId: item.targetId || '-',
+      ip: item.ip || '-',
+      deviceId: item.deviceId || '-',
+    })),
+  )
 }
 </script>
 

@@ -5,6 +5,7 @@ import { ColdStartService } from "./services/cold-start.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 
 const mockRecommendSvc = {
   logInteractions: jest.fn().mockResolvedValue({ success: true }),
@@ -35,6 +36,7 @@ describe("RecommendController", () => {
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(RecommendController);
   });

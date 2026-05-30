@@ -161,7 +161,7 @@ export class IdentityService {
   // ───────── 审核管理 ─────────
 
   /** 获取实名认证审核列表 */
-  async getIdentityAuditList(page: number, pageSize: number, _status?: string) {
+  async getIdentityAuditList(page: number, pageSize: number, _status?: string, userId?: string) {
     const where: Record<string, unknown> = {
       OR: [
         { action: "IDENTITY_VERIFY" },
@@ -169,6 +169,7 @@ export class IdentityService {
         { action: "IDENTITY_REJECT" },
       ],
     };
+    if (userId) where.userId = userId;
 
     let items: AuditItem[] = [];
     let total = 0;
@@ -218,6 +219,12 @@ export class IdentityService {
     const log = await this.prisma.auditLog.findUnique({ where: { id } });
     if (!log || !log.userId) throw new BusinessException(ErrorCode.IDENTITY_VERIFY_FAILED, "认证记录不存在");
 
+    // 同步更新 User 表认证状态
+    await this.prisma.user.update({
+      where: { id: log.userId },
+      data: { identityVerified: true, identityVerifiedAt: new Date() },
+    });
+
     await this.prisma.auditLog.create({
       data: {
         userId: log.userId,
@@ -236,6 +243,12 @@ export class IdentityService {
   async rejectIdentity(id: string, remark: string) {
     const log = await this.prisma.auditLog.findUnique({ where: { id } });
     if (!log || !log.userId) throw new BusinessException(ErrorCode.IDENTITY_VERIFY_FAILED, "认证记录不存在");
+
+    // 拒绝后清除认证状态（如之前误批过）
+    await this.prisma.user.update({
+      where: { id: log.userId },
+      data: { identityVerified: false, identityVerifiedAt: null },
+    });
 
     await this.prisma.auditLog.create({
       data: {

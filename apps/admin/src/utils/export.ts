@@ -1,11 +1,12 @@
 /**
  * 将数据导出为 CSV 文件并触发下载
  */
-export function exportCSV(filename: string, columns: { label: string; key: string }[], rows: Record<string, any>[]) {
+export function exportCSV(filename: string, columns: { label: string; prop?: string; key?: string }[], rows: Record<string, any>[]) {
   const header = columns.map((c) => csvEscape(c.label)).join(",");
   const body = rows.map((row) =>
     columns.map((c) => {
-      const val = row[c.key];
+      const field = c.prop || c.key || "";
+      const val = row[field];
       return csvEscape(val != null ? String(val) : "");
     }).join(","),
   ).join("\n");

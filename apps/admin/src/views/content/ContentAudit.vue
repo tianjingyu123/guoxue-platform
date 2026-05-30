@@ -8,8 +8,25 @@
       </div>
     </div>
 
+    <!-- 统计卡片 -->
+    <el-row :gutter="12" style="margin-bottom:12px">
+      <el-col :span="4"><div class="stat-mini"><span class="v">{{ stats.pending }}</span><span class="l">待审核</span></div></el-col>
+      <el-col :span="4"><div class="stat-mini"><span class="v">{{ stats.aiGenerated }}</span><span class="l">AI生成</span></div></el-col>
+      <el-col :span="4"><div class="stat-mini"><span class="v">{{ stats.approvedToday }}</span><span class="l">今日通过</span></div></el-col>
+      <el-col :span="4"><div class="stat-mini"><span class="v">{{ stats.rejectedToday }}</span><span class="l">今日拒绝</span></div></el-col>
+      <el-col :span="8">
+        <div style="display:flex;gap:8px;align-items:center;height:100%">
+          <el-select v-model="filterCategory" placeholder="按品类筛选" size="small" clearable style="width:150px" @change="fetchList">
+            <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+          </el-select>
+          <el-switch v-model="filterAiOnly" size="small" active-text="仅看AI" @change="fetchList" />
+        </div>
+      </el-col>
+    </el-row>
+
     <el-tabs v-model="activeTab" @tab-change="fetchList">
       <el-tab-pane label="待审核" name="PENDING" />
+      <el-tab-pane label="AI生成" name="AI_GENERATED" />
       <el-tab-pane label="已通过" name="APPROVED" />
       <el-tab-pane label="已拒绝" name="REJECTED" />
     </el-tabs>
@@ -21,7 +38,19 @@
           <el-tag size="small" :type="typeTag(row.type)">{{ typeLabel(row.type) }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="AI" width="55">
+        <template #default="{ row }">
+          <el-tag v-if="isAiContent(row)" type="warning" size="small" effect="dark">AI</el-tag>
+          <span v-else style="color:#c0c4cc">-</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
+      <el-table-column label="品类" width="100">
+        <template #default="{ row }">
+          <span v-if="row.categoryLevel1" style="font-size:12px">{{ row.categoryLevel1 }}</span>
+          <span v-else style="color:#c0c4cc">-</span>
+        </template>
+      </el-table-column>
       <el-table-column label="作者" width="120">
         <template #default="{ row }">{{ row.author?.nickname || row.user?.nickname || '-' }}</template>
       </el-table-column>
@@ -62,7 +91,7 @@
       <div v-if="currentItem" class="preview-body">
         <h2>{{ currentItem.title }}</h2>
         <p class="meta">作者：{{ currentItem.author?.nickname || currentItem.user?.nickname || '-' }} | {{ formatDate(currentItem.createdAt) }}</p>
-        <div class="content" v-html="currentItem.content || currentItem.intro || currentItem.detail || '暂无内容'" />
+        <div class="content" v-html="sanitize(currentItem.content || currentItem.intro || currentItem.detail || '暂无内容')" />
       </div>
     </el-drawer>
   </div>
@@ -71,7 +100,10 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { contentApi, courseApi, auditApi } from '@/api'
+import { sanitize } from '@/utils/sanitize'
+import { contentApi, courseApi, auditApi, contentGenerationApi } from '@/api'
+
+const AI_TAGS = ['基础知识库', '经典精华库', '玩法教程库', 'AI生成', 'AI互动'];
 
 const loading = ref(false)
 const activeTab = ref('PENDING')
@@ -79,6 +111,10 @@ const list = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const selected = ref<any[]>([])
+const filterCategory = ref('')
+const filterAiOnly = ref(false)
+const categories = ref<string[]>([])
+const stats = reactive({ pending: 0, aiGenerated: 0, approvedToday: 0, rejectedToday: 0 })
 
 const rejectVisible = ref(false)
 const rejectReason = ref('')
@@ -87,7 +123,25 @@ const pendingItem = ref<any>(null)
 const drawerVisible = ref(false)
 const currentItem = ref<any>(null)
 
-onMounted(() => fetchList())
+function isAiContent(row: any): boolean {
+  const tags: string[] = row.tags || [];
+  const title: string = row.title || '';
+  return tags.some((t) => AI_TAGS.some((at) => t.includes(at))) ||
+    title.includes('入门指南') || title.includes('名句精华') ||
+    title.includes('教程') || title.includes('如何在热卜');
+}
+
+onMounted(() => {
+  fetchList();
+  loadCategories();
+});
+
+async function loadCategories() {
+  try {
+    const { data } = await contentGenerationApi.getCategories();
+    categories.value = Object.keys(data || {});
+  } catch { /* ignore */ }
+}
 
 function typeLabel(t: string) {
   const map: Record<string, string> = { ARTICLE: '文章', POEM: '诗词', CLASSIC: '古籍', COURSE: '课程', VIDEO: '视频', POST: '帖子' }
@@ -106,17 +160,46 @@ function handleSelection(rows: any[]) { selected.value = rows }
 async function fetchList() {
   loading.value = true
   try {
-    // 聚合多种内容类型的待审列表
+    const status = activeTab.value === 'AI_GENERATED' ? undefined : activeTab.value;
+
     const [contents, courses] = await Promise.all([
-      contentApi.list({ page: page.value, pageSize: 10, status: activeTab.value }),
-      courseApi.list({ page: page.value, pageSize: 10, status: activeTab.value }).catch(() => ({ data: { courses: [], total: 0 } })),
+      contentApi.list({ page: page.value, pageSize: 50, status, keyword: filterCategory.value || undefined }),
+      activeTab.value === 'AI_GENERATED' ? Promise.resolve({ data: { courses: [], total: 0 } }) :
+        courseApi.list({ page: page.value, pageSize: 10, status }).catch(() => ({ data: { courses: [], total: 0 } })),
     ])
-    const items = [
+    let items = [
       ...(contents.data.contents || contents.data.data || []).map((c: any) => ({ ...c, type: c.type || 'ARTICLE' })),
       ...((courses.data?.courses || []).map((c: any) => ({ ...c, type: 'COURSE', title: c.title || c.name, content: c.intro }))),
-    ]
-    list.value = items
-    total.value = items.length
+    ];
+
+    // AI生成筛选
+    if (activeTab.value === 'AI_GENERATED' || filterAiOnly.value) {
+      items = items.filter(isAiContent);
+    } else if (filterAiOnly.value) {
+      items = items.filter(isAiContent);
+    }
+
+    // 品类筛选
+    if (filterCategory.value) {
+      items = items.filter((c: any) => c.categoryLevel1 === filterCategory.value);
+    }
+
+    // 统计
+    stats.pending = items.filter((c: any) => c.status === 'PENDING').length;
+    stats.aiGenerated = items.filter(isAiContent).length;
+    stats.approvedToday = items.filter((c: any) => {
+      if (c.status !== 'APPROVED' && c.status !== 'PUBLISHED') return false;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      return new Date(c.updatedAt || c.createdAt) >= today;
+    }).length;
+    stats.rejectedToday = items.filter((c: any) => {
+      if (c.status !== 'REJECTED') return false;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      return new Date(c.updatedAt || c.createdAt) >= today;
+    }).length;
+
+    list.value = items;
+    total.value = items.length;
   } finally { loading.value = false }
 }
 
@@ -183,6 +266,9 @@ function preview(row: any) {
 .audit-page { padding: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.stat-mini { background: #f5f7fa; border-radius: 6px; padding: 8px 12px; text-align: center; }
+.stat-mini .v { display: block; font-size: 22px; font-weight: 700; color: #303133; }
+.stat-mini .l { display: block; font-size: 11px; color: #909399; }
 .preview-body h2 { color: #333; margin-bottom: 8px; }
 .preview-body .meta { color: #999; font-size: 13px; margin-bottom: 16px; }
 .preview-body .content { line-height: 1.8; color: #444; }

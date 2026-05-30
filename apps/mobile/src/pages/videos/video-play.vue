@@ -180,13 +180,12 @@ function togglePlay() {
 function toggleLike() {
   isLiked.value = !isLiked.value
   displayLikeCount.value += isLiked.value ? 1 : -1
-  if (isLiked.value) {
-    videoApi.like(video.value.id).catch(() => {})
-  }
+  videoApi.like(video.value.id).catch(() => {})
 }
 
 function collectVideo() {
   isCollected.value = !isCollected.value
+  videoApi.toggleCollect(video.value.id).catch(() => {})
   uni.showToast({ title: isCollected.value ? '已收藏' : '已取消收藏', icon: 'none' })
 }
 
@@ -196,11 +195,14 @@ function openComments() {
 }
 
 function shareVideo() {
+  if (video.value?.id) videoApi.recordShare(video.value.id).catch(() => {})
   uni.showToast({ title: '已复制分享链接', icon: 'success' })
 }
 
 function followAuthor() {
   isFollowing.value = !isFollowing.value
+  const authorId = video.value?.author?.id || video.value?.userId
+  if (authorId) interactApi.toggleFollow(authorId).catch(() => {})
   uni.showToast({ title: isFollowing.value ? '已关注' : '已取消关注', icon: 'none' })
 }
 

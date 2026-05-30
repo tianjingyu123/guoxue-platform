@@ -113,8 +113,13 @@ export function calcBazi(input: BaziInput): BaziResult {
 }
 
 // 导出公共基础函数，供其他计算器复用
-export { calcRiZhu, calcNianZhu, calcShiShen } from './sizhu'
+export { calcRiZhu, calcNianZhu, calcShiShen, calcShiZhu } from './sizhu'
 export { calcAllJieQi, getJieQiDate, daysToNearestJie, getNianZhuYear } from './jieqi'
+export {
+  GAN, ZHI, NA_YIN,
+  GAN_HE_PAIRS, ZHI_HE_PAIRS, ZHI_CHONG_PAIRS, ZHI_HAI_PAIRS,
+  ZHI_SAN_HE, ZHI_SAN_XING, ZHI_ZI_XING,
+} from './constants'
 
 // 仅导出外部实际使用的类型
-export type { BaziInput, BaziResult, SiZhu, Pillar, DaYunStep, Gan, Zhi } from './types'
+export type { BaziInput, BaziResult, SiZhu, Pillar, DaYunStep, Gan, Zhi, ShiShen } from './types'

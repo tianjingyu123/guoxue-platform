@@ -44,8 +44,12 @@ export class WsAuthService {
       const payloadJson = Buffer.from(payloadB64, "base64url").toString("utf-8");
       const payload = JSON.parse(payloadJson);
 
-      // 检查过期
-      if (payload.exp && payload.exp * 1000 < Date.now()) {
+      // 检查过期 — JWT 必须包含 exp 字段
+      if (!payload.exp) {
+        this.logger.warn("JWT缺少exp字段，拒绝连接");
+        return null;
+      }
+      if (payload.exp * 1000 < Date.now()) {
         this.logger.warn("JWT已过期");
         return null;
       }

@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { MemoryCache } from "../../common/cache.util";
 import { PrismaService } from "../../prisma/prisma.service";
 import { tc3Sign } from "../../common/tc3.util";
+import { CircuitBreaker } from "../../common/circuit-breaker";
 
 /**
  * 腾讯云 AI 能力服务（语音识别/OCR/NLP/翻译）
@@ -14,7 +15,8 @@ export class AiService {
   private readonly logger = new Logger(AiService.name);
   private readonly secretId: string;
   private readonly secretKey: string;
-  private readonly translateCache = new MemoryCache<string>(300); // 翻译缓存30min
+  private readonly translateCache = new MemoryCache<string>(300);
+  private readonly circuitBreaker = new CircuitBreaker({ failureThreshold: 5, resetTimeoutMs: 30_000, halfOpenSuccessThreshold: 2 });
 
   constructor(
     private prisma: PrismaService,
@@ -29,6 +31,11 @@ export class AiService {
   // ───────── TC3 API 调用 ─────────
 
   private async callApi(service: string, action: string, body: Record<string, unknown>, region?: string, retries = 2): Promise<Record<string, unknown> | null> {
+    if (!this.circuitBreaker.isAllowed(service)) {
+      this.logger.warn(`AI断路器开启 [${service}/${action}]，请求被拒绝`);
+      return null;
+    }
+
     const version = this.getVersion(service);
     const region_ = region || "ap-guangzhou";
     const { host, headers, payloadStr } = tc3Sign({
@@ -68,12 +75,14 @@ export class AiService {
             continue;
           }
           this.logger.error(`AI API错误 [${action}]`, errData);
+          this.circuitBreaker.recordFailure(service);
           return null;
         }
         const elapsed = Date.now() - startedAt;
         if (elapsed > 3000) {
           this.logger.warn(`AI API慢请求 [${action}] ${elapsed}ms`);
         }
+        this.circuitBreaker.recordSuccess(service);
         return (response || data) as Record<string, unknown>;
       } catch (err: unknown) {
         clearTimeout(timeoutId);
@@ -84,9 +93,11 @@ export class AiService {
           continue;
         }
         this.logger.error(`AI API请求失败 [${action}]`, errObj.message);
+        this.circuitBreaker.recordFailure(service);
         return null;
       }
     }
+    this.circuitBreaker.recordFailure(service);
     return null;
   }
 
@@ -276,6 +287,11 @@ export class AiService {
   }
 
   // ───────── AI 调用监控 ─────────
+
+  getCircuitBreakerStatus() {
+    const services = ["asr", "ocr", "nlp", "tmt"];
+    return services.map((s) => ({ service: s, state: this.circuitBreaker.getState(s) }));
+  }
 
   /** 获取AI使用统计数据 */
   async getAiUsageStats(period: "day" | "week" | "month") {

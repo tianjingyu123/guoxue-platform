@@ -317,7 +317,7 @@ async function fetchList() {
     const params: any = { page: page.value, pageSize };
     if (statusFilter.value) params.status = statusFilter.value;
     if (roleFilter.value) params.role = roleFilter.value;
-    const { data } = await instituteApi.list(params);
+    const { data } = await instituteApi.listMembers(params);
     list.value = data.members || [];
     total.value = data.total || 0;
   } finally {
@@ -338,7 +338,7 @@ async function saveEdit() {
   if (!editingRow.value) return;
   saving.value = true;
   try {
-    await instituteApi.update(editingRow.value.id, {
+    await instituteApi.updateMember(editingRow.value.id, {
       role: editForm.role,
       status: editForm.status,
       deposit: editForm.deposit,
@@ -355,7 +355,7 @@ async function saveEdit() {
 async function handleUpdate(row: any, status: string) {
   const label = status === "FROZEN" ? "冻结" : status === "ACTIVE" && row.status === "FROZEN" ? "解冻" : "设为已退出";
   await ElMessageBox.confirm(`确定${label}成员「${row.user?.nickname}」？`, "提示", { type: "warning" });
-  await instituteApi.update(row.id, { status });
+  await instituteApi.updateMember(row.id, { status });
   ElMessage.success(`已${label}`);
   fetchList();
 }

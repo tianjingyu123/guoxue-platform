@@ -39,16 +39,37 @@ onMounted(async () => {
 <template>
   <div v-loading="loading" style="min-height:300px">
     <component v-if="dashComp" :is="dashComp" />
-    <div v-else-if="error" style="padding:40px;text-align:center;color:#c41e3a">
+    <div v-else-if="error" class="dashboard-error">
       <p>仪表盘加载失败：{{ error }}</p>
     </div>
-    <div v-else class="dashboard">
-      <h2 style="color:#C41E3A;margin-bottom:8px">🏮 热卜国学管理后台</h2>
-      <p style="color:#999">欢迎使用管理后台，请通过左侧菜单导航。</p>
+    <div v-else class="dashboard-fallback">
+      <div class="fallback-icon">🏮</div>
+      <h2>热卜国学管理后台</h2>
+      <p>欢迎使用管理后台，请通过左侧菜单导航。</p>
     </div>
   </div>
 </template>
 
 <style scoped>
-.dashboard { text-align: center; padding: 80px 20px; }
+.dashboard-error {
+  padding: 40px;
+  text-align: center;
+  color: var(--color-primary);
+}
+.dashboard-fallback {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--color-text-title);
+}
+.dashboard-fallback h2 {
+  color: var(--color-primary);
+  font-size: var(--font-size-title-lg);
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+.dashboard-fallback p {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-body);
+}
+.fallback-icon { font-size: 48px; margin-bottom: var(--spacing-lg); }
 </style>

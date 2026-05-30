@@ -38,6 +38,20 @@ export class InstituteService {
     return member;
   }
 
+  async updateMember(memberId: string, dto: { role?: string; status?: string; deposit?: number }) {
+    const member = await this.prisma.instituteMember.findUnique({ where: { id: memberId } });
+    if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
+    return this.prisma.instituteMember.update({
+      where: { id: memberId },
+      data: {
+        ...(dto.role ? { role: dto.role as InstituteRole } : {}),
+        ...(dto.status ? { status: dto.status } : {}),
+        ...(dto.deposit !== undefined ? { deposit: dto.deposit } : {}),
+      },
+      include: { user: { select: { id: true, nickname: true, avatar: true } } },
+    });
+  }
+
   async getMyMembership(userId: string) {
     return this.prisma.instituteMember.findUnique({
       where: { userId },

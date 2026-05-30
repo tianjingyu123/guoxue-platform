@@ -89,6 +89,14 @@ export class CreateGiftDto {
   @IsOptional() @IsString()
   icon?: string;
 
+  @ApiPropertyOptional({ description: "图标URL（兼容字段）" })
+  @IsOptional() @IsString()
+  iconUrl?: string;
+
+  @ApiPropertyOptional({ description: "动画类型" })
+  @IsOptional() @IsString()
+  animationType?: string;
+
   @ApiProperty({ description: "礼物价格（币）", example: 10, minimum: 1 })
   @IsInt() @Min(1)
   price: number;

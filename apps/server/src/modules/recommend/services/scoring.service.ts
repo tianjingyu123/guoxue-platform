@@ -58,13 +58,37 @@ export class ScoringService {
     }));
   }
 
-  /** 综合评分流水线：会员加权 → 归一化 */
+  /**
+   * 新鲜度衰减系数（牛顿冷却）
+   * @param createdAt 内容创建时间
+   * @param halfLifeDays 半衰期天数，默认 30 天
+   */
+  static freshnessDecay(createdAt?: Date | string, halfLifeDays = 30): number {
+    if (!createdAt) return 0.9; // 无时间信息默认偏中性
+    const ageDays = (Date.now() - new Date(createdAt).getTime()) / (24 * 3600 * 1000);
+    return 1 / (1 + ageDays / halfLifeDays);
+  }
+
+  /** 对推荐列表应用新鲜度加权 */
+  applyFreshnessBoost(items: RecommendItem[]): RecommendItem[] {
+    return items.map((item) => {
+      const freshness = ScoringService.freshnessDecay(item.createdAt);
+      return {
+        ...item,
+        score: Math.round(item.score * freshness * 100) / 100,
+        strategies: freshness < 0.5 ? [...item.strategies, "freshness-boost"] : item.strategies,
+      };
+    });
+  }
+
+  /** 综合评分流水线：新鲜度 → 会员加权 → 归一化 */
   async score(
     items: RecommendItem[],
     userId?: string,
   ): Promise<RecommendItem[]> {
+    let scored = this.applyFreshnessBoost(items);
     const levelBoost = await this.getUserLevelBoost(userId);
-    let scored = this.applyMemberBoost(items, levelBoost);
+    scored = this.applyMemberBoost(scored, levelBoost);
     scored = this.normalize(scored);
     return scored;
   }

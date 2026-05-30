@@ -32,7 +32,14 @@ export class NotificationService {
       },
     });
 
-    // 2. 通过推送通道发送
+    // 2. 检查用户推送偏好，关闭则不推送
+    const prefs = await this.getPreferences(userId);
+    if (prefs.PUSH_ENABLED === false) {
+      this.logger.debug(`用户 ${userId} 已关闭推送，跳过`);
+      return notification;
+    }
+
+    // 3. 通过推送通道发送
     await this.sendPushIfPossible(userId, dto);
 
     return notification;
@@ -51,9 +58,26 @@ export class NotificationService {
 
     await this.prisma.notification.createMany({ data });
 
+    // 批量读取推送偏好，过滤关闭推送的用户
+    const prefsKeys = dto.userIds.map((uid) => `notification:prefs:${uid}`);
+    const prefsResults = await Promise.all(prefsKeys.map((k) => this.redis.getJson<any>(k).catch(() => null)));
+    const pushDisabled = new Set<string>();
+    for (let i = 0; i < dto.userIds.length; i++) {
+      const prefs = prefsResults[i];
+      if (prefs && prefs.PUSH_ENABLED === false) {
+        pushDisabled.add(dto.userIds[i]);
+      }
+    }
+
+    const enabledUsers = dto.userIds.filter((uid) => !pushDisabled.has(uid));
+    if (enabledUsers.length === 0) {
+      this.logger.log("所有目标用户均已关闭推送，跳过");
+      return { success: true, count: data.length, pushSkipped: dto.userIds.length };
+    }
+
     // 批量预取所有用户的 auth 信息，避免 N+1 查询
     const auths = await this.prisma.auth.findMany({
-      where: { userId: { in: dto.userIds } },
+      where: { userId: { in: enabledUsers } },
       select: { userId: true, provider: true, openId: true },
     });
     const authsByUser = new Map<string, { provider: string; openId: string | null }[]>();
@@ -63,13 +87,13 @@ export class NotificationService {
       authsByUser.set(a.userId, list);
     }
 
-    // 批量推送
+    // 批量推送（仅推送给开启推送的用户）
     const pushDto = { type: dto.type, title: dto.title, content: dto.content };
-    for (const userId of dto.userIds) {
+    for (const userId of enabledUsers) {
       this.sendPushWithAuths(userId, pushDto, authsByUser.get(userId) || []).catch((err) => this.logger.warn("通知发送失败", err));
     }
 
-    return { success: true, count: data.length };
+    return { success: true, count: data.length, pushSkipped: pushDisabled.size };
   }
 
   /** 使用预取 auth 数据发送推送（批量场景） */

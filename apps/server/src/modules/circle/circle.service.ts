@@ -3,6 +3,7 @@ import {
   Logger,
   Optional,
 } from "@nestjs/common";
+import { randomInt } from "crypto";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -241,7 +242,7 @@ export class CircleService {
     if (existing) return existing;
 
     const prefix = circleId.replace(/-/g, "").slice(0, 6).toUpperCase();
-    const random = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const random = randomInt(0, 36 ** 6).toString(36).padStart(6, "0").toUpperCase();
     const code = `${prefix}${random}`;
 
     return this.prisma.circleInviteCode.create({
@@ -571,20 +572,31 @@ export class CircleService {
 
       await this.prisma.$transaction(async (tx) => {
         await tx.circleMember.deleteMany({ where: { id: { in: ids } } });
-        // 更新各圈子成员数（归并计数）
+        // 批量获取各圈子成员数
         const circleIds = [...new Set(batch.map((m) => m.circleId))];
-        for (const cid of circleIds) {
-          const count = await tx.circleMember.count({ where: { circleId: cid } });
+        const counts = await tx.circleMember.groupBy({
+          by: ["circleId"],
+          where: { circleId: { in: circleIds } },
+          _count: { id: true },
+        });
+        for (const { circleId, _count } of counts) {
           await tx.circle.update({
-            where: { id: cid },
-            data: { memberCount: count },
+            where: { id: circleId },
+            data: { memberCount: _count.id },
           });
         }
       });
 
-      // 清除缓存 + 发送通知
+      // 清除缓存（pipeline 批量删除）+ 发送通知
+      const redis = this.redis.getClient();
+      if (redis) {
+        const pipeline = redis.pipeline();
+        for (const m of batch) {
+          pipeline.del(`circles:member:${m.circleId}:${m.userId}`);
+        }
+        await pipeline.exec();
+      }
       for (const m of batch) {
-        await this.redis.del(`circles:member:${m.circleId}:${m.userId}`);
         if (this.notificationService) {
           this.notificationService.send(m.userId, {
             type: "CIRCLE_EXPIRED",
@@ -592,7 +604,7 @@ export class CircleService {
             content: "您的圈子会员已过期，可续费重新加入",
             targetType: "CIRCLE",
             targetId: m.circleId,
-          }).catch(() => {});
+          }).catch((err) => this.logger.warn("圈子通知发送失败", err));
         }
       }
     }
@@ -626,7 +638,7 @@ export class CircleService {
             content: `您的圈子会员将于 ${days} 天后到期，请及时续费`,
             targetType: "CIRCLE",
             targetId: m.circleId,
-          }).catch(() => {});
+          }).catch((err) => this.logger.warn("圈子通知发送失败", err));
         }
       }
 

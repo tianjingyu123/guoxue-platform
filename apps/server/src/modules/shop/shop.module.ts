@@ -1,5 +1,6 @@
 import { Module, forwardRef } from "@nestjs/common";
 import { ShopService } from "./shop.service";
+import { ShopCouponService } from "./shop-coupon.service";
 import { WechatPayService } from "./wechat-pay.service";
 import { AlipayService } from "./alipay.service";
 import { UnionpayService } from "./unionpay.service";
@@ -9,6 +10,8 @@ import { AddressController } from "./address.controller";
 import { AddressService } from "./address.service";
 import { ProductCategoryController } from "./category.controller";
 import { ProductCategoryService } from "./product-category.service";
+import { ActiveUserGuard } from "../../common/active-user.guard";
+import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { CommissionModule } from "../commission/commission.module";
 import { SystemModule } from "../system/system.module";
 import { CoinModule } from "../coin/coin.module";
@@ -18,7 +21,7 @@ import { HuifuModule } from "../huifu/huifu.module";
 @Module({
   imports: [CommissionModule, SystemModule, forwardRef(() => CoinModule), WebhookModule, HuifuModule],
   controllers: [ShopController, AddressController, ProductCategoryController],
-  providers: [ShopService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],
-  exports: [ShopService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],
+  providers: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
+  exports: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],
 })
 export class ShopModule {}

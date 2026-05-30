@@ -1,11 +1,17 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { ModelRouterService } from "./model-router.service";
+import { ModelRouterService, AiProvider } from "./model-router.service";
 import { AiLoggerService } from "./ai-logger.service";
 import { SemanticCacheService } from "./semantic-cache.service";
 import { DeepSeekAdapter } from "./adapters/deepseek.adapter";
+import { ClaudeAdapter } from "./adapters/claude.adapter";
+import { QwenAdapter } from "./adapters/qwen.adapter";
+import { LocalModelAdapter } from "./adapters/local.adapter";
 import { MultiAgentService } from "./adapters/multi-agent.service";
+import { MultimodalService } from "./adapters/multimodal.service";
 import { MetricsService } from "../../common/metrics.service";
-import { AiMessage, AiChatOptions, AiChatResponse, AiTimeoutError } from "./adapters/base.adapter";
+import { AiModelAdapter, AiMessage, AiChatOptions, AiChatResponse, AiTimeoutError } from "./adapters/base.adapter";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 export interface GatewayChatRequest {
   scene: string;
@@ -14,29 +20,52 @@ export interface GatewayChatRequest {
   options?: AiChatOptions;
 }
 
-/**
- * AI 网关服务 — 统一入口，编排路由→适配器→日志
- */
 @Injectable()
 export class AiGatewayService {
   private readonly logger = new Logger(AiGatewayService.name);
+  private readonly adapters: Map<AiProvider, AiModelAdapter> = new Map();
 
   constructor(
     private readonly router: ModelRouterService,
     private readonly aiLogger: AiLoggerService,
     private readonly semCache: SemanticCacheService,
     private readonly deepseek: DeepSeekAdapter,
+    private readonly claude: ClaudeAdapter,
+    private readonly qwen: QwenAdapter,
+    private readonly localModel: LocalModelAdapter,
     private readonly metrics: MetricsService,
     multiAgent: MultiAgentService,
+    multimodal: MultimodalService,
   ) {
+    this.adapters.set("deepseek", deepseek);
+    this.adapters.set("anthropic", claude);
+    this.adapters.set("alibaba", qwen);
+    this.adapters.set("local", localModel);
+
     multiAgent.setGateway({
       chat: (scene: string, messages: AiMessage[]) => this.chat({ scene, messages }),
     });
+
+    multimodal.setGateway({
+      chat: (scene: string, messages: Array<{ role: string; content: string }>) =>
+        this.chat({ scene, messages: messages as AiMessage[] }),
+    });
+  }
+
+  private getAdapter(provider: AiProvider): AiModelAdapter {
+    const adapter = this.adapters.get(provider);
+    if (!adapter) {
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, `不支持的AI供应商: ${provider}`);
+    }
+    return adapter;
   }
 
   /** 非流式对话 */
   async chat(req: GatewayChatRequest): Promise<AiChatResponse> {
-    const userQuery = req.messages.filter((m) => m.role === "user").map((m) => m.content).join(" ");
+    const userQuery = req.messages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content)
+      .join(" ");
 
     // 1. 语义缓存查找
     if (userQuery.length > 0) {
@@ -49,25 +78,32 @@ export class AiGatewayService {
       }
     }
 
-    const { model, fallbackModel, options, grayReleaseModel, costCapped } =
+    const { model, provider, fallbackModel, fallbackProvider, options, grayReleaseModel, grayReleaseProvider, costCapped } =
       await this.router.resolve(req.scene);
     const mergedOptions: AiChatOptions = { ...options, ...req.options };
 
     const startedAt = Date.now();
     let fallbackUsed = false;
     let actualModel = grayReleaseModel || model;
+    let actualProvider = grayReleaseProvider || provider;
 
     let result: AiChatResponse;
     try {
-      result = await this.deepseek.chat(model, req.messages, mergedOptions);
+      const adapter = this.getAdapter(actualProvider);
+      result = await adapter.chat(actualModel, req.messages, mergedOptions);
     } catch (err) {
       const reason = err instanceof AiTimeoutError ? "超时" : "失败";
-      this.metrics.recordAiCall(req.scene, model, false, Date.now() - startedAt);
+      this.metrics.recordAiCall(req.scene, actualModel, false, Date.now() - startedAt);
       if (fallbackModel && fallbackModel !== model) {
-        this.logger.warn(`场景 [${req.scene}] 主模型 ${model} ${reason}，降级到 ${fallbackModel}`);
+        const fbProvider = fallbackProvider || "deepseek";
+        this.logger.warn(
+          `场景 [${req.scene}] 主模型 ${actualProvider}:${actualModel} ${reason}，降级到 ${fbProvider}:${fallbackModel}`,
+        );
         fallbackUsed = true;
         actualModel = fallbackModel;
-        result = await this.deepseek.chat(fallbackModel, req.messages, mergedOptions);
+        actualProvider = fbProvider;
+        const adapter = this.getAdapter(actualProvider);
+        result = await adapter.chat(actualModel, req.messages, mergedOptions);
       } else {
         throw err;
       }
@@ -76,28 +112,28 @@ export class AiGatewayService {
     const latency = Date.now() - startedAt;
     const inputText = req.messages.map((m) => m.content).join(" ");
 
-    // 异步写日志，不阻塞响应
-    this.aiLogger.log({
-      userId: req.userId,
-      scene: req.scene,
-      model: actualModel,
-      fallbackUsed,
-      fallbackModel: fallbackUsed ? fallbackModel : undefined,
-      grayReleaseModel,
-      costCapped,
-      latency,
-      promptTokens: result.usage?.promptTokens,
-      completionTokens: result.usage?.completionTokens,
-      inputSummary: inputText,
-      outputSummary: result.content,
-    }).catch(() => {});
+    this.aiLogger
+      .log({
+        userId: req.userId,
+        scene: req.scene,
+        model: actualModel,
+        provider: actualProvider,
+        fallbackUsed,
+        fallbackModel: fallbackUsed ? fallbackModel : undefined,
+        grayReleaseModel,
+        costCapped,
+        latency,
+        promptTokens: result.usage?.promptTokens,
+        completionTokens: result.usage?.completionTokens,
+        inputSummary: inputText,
+        outputSummary: result.content,
+      })
+      .catch((err) => this.logger.warn("AI分析记录写入失败", err));
 
-    // 异步写入语义缓存（不阻塞响应）
     if (userQuery.length > 0 && result.content) {
-      this.semCache.store(req.scene, userQuery, result.content, actualModel).catch(() => {});
+      this.semCache.store(req.scene, userQuery, result.content, actualModel).catch((err) => this.logger.warn("语义缓存存储失败", err));
     }
 
-    // AI 飞轮指标埋点
     this.metrics.recordAiCall(req.scene, actualModel, true, latency);
 
     return result;
@@ -105,9 +141,11 @@ export class AiGatewayService {
 
   /** 流式对话 — 返回 AsyncIterable */
   async *chatStream(req: GatewayChatRequest): AsyncIterable<string> {
-    const userQuery = req.messages.filter((m) => m.role === "user").map((m) => m.content).join(" ");
+    const userQuery = req.messages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content)
+      .join(" ");
 
-    // 语义缓存命中 → 直接返回缓存内容
     if (userQuery.length > 0) {
       const cached = await this.semCache.lookup(req.scene, userQuery);
       if (cached) {
@@ -119,28 +157,37 @@ export class AiGatewayService {
       }
     }
 
-    const { model, fallbackModel, options, grayReleaseModel, costCapped } =
+    const { model, provider, fallbackModel, fallbackProvider, options, grayReleaseModel, grayReleaseProvider, costCapped } =
       await this.router.resolve(req.scene);
     const mergedOptions: AiChatOptions = { ...options, ...req.options };
 
     const startedAt = Date.now();
     let fallbackUsed = false;
     let actualModel = grayReleaseModel || model;
+    let actualProvider = grayReleaseProvider || provider;
     let fullContent = "";
 
     try {
-      for await (const chunk of this.deepseek.chatStream(model, req.messages, mergedOptions)) {
+      const adapter = this.getAdapter(actualProvider);
+      for await (const chunk of adapter.chatStream(actualModel, req.messages, mergedOptions)) {
         fullContent += chunk;
         yield chunk;
       }
     } catch (err) {
       const reason = err instanceof AiTimeoutError ? "超时" : "失败";
-      this.metrics.recordAiCall(req.scene, model, false, Date.now() - startedAt);
+      this.metrics.recordAiCall(req.scene, actualModel, false, Date.now() - startedAt);
       if (fallbackModel && fallbackModel !== model) {
-        this.logger.warn(`流式场景 [${req.scene}] 主模型 ${model} ${reason}，降级到 ${fallbackModel}`);
+        const fbProvider = fallbackProvider || "deepseek";
+        this.logger.warn(
+          `流式场景 [${req.scene}] 主模型 ${actualProvider}:${actualModel} ${reason}，降级到 ${fbProvider}:${fallbackModel}`,
+        );
+        // 先通知客户端内容切换，再输出 fallback 内容
+        yield `\n\n[AI服务切换中，以下内容由备用模型生成]\n\n`;
         fallbackUsed = true;
         actualModel = fallbackModel;
-        for await (const chunk of this.deepseek.chatStream(fallbackModel, req.messages, mergedOptions)) {
+        actualProvider = fbProvider;
+        const adapter = this.getAdapter(actualProvider);
+        for await (const chunk of adapter.chatStream(actualModel, req.messages, mergedOptions)) {
           fullContent += chunk;
           yield chunk;
         }
@@ -152,25 +199,26 @@ export class AiGatewayService {
     const latency = Date.now() - startedAt;
     const inputText = req.messages.map((m) => m.content).join(" ");
 
-    this.aiLogger.log({
-      userId: req.userId,
-      scene: req.scene,
-      model: actualModel,
-      fallbackUsed,
-      fallbackModel: fallbackUsed ? fallbackModel : undefined,
-      grayReleaseModel,
-      costCapped,
-      latency,
-      inputSummary: inputText,
-      outputSummary: fullContent,
-    }).catch(() => {});
+    this.aiLogger
+      .log({
+        userId: req.userId,
+        scene: req.scene,
+        model: actualModel,
+        provider: actualProvider,
+        fallbackUsed,
+        fallbackModel: fallbackUsed ? fallbackModel : undefined,
+        grayReleaseModel,
+        costCapped,
+        latency,
+        inputSummary: inputText,
+        outputSummary: fullContent,
+      })
+      .catch((err) => this.logger.warn("AI分析记录写入失败", err));
 
-    // 异步写入语义缓存
     if (userQuery.length > 0 && fullContent) {
-      this.semCache.store(req.scene, userQuery, fullContent, actualModel).catch(() => {});
+      this.semCache.store(req.scene, userQuery, fullContent, actualModel).catch((err) => this.logger.warn("语义缓存存储失败", err));
     }
 
-    // AI 飞轮指标埋点
     this.metrics.recordAiCall(req.scene, actualModel, true, latency);
   }
 }

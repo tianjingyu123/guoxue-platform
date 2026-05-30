@@ -82,7 +82,7 @@ export class ClassicService {
     });
     if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "书籍不存在");
     // 浏览计数延迟更新，不阻塞响应
-    this.prisma.classicBook.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch(() => {});
+    this.prisma.classicBook.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((err) => this.logger.warn("古籍浏览计数更新失败", err));
     return book;
   }
 

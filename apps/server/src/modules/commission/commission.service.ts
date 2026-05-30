@@ -1,10 +1,19 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
+import { randomInt } from "crypto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { WebhookService } from "../webhook/webhook.service";
+import { SystemService } from "../system/system.service";
 import { MemoryCache } from "../../common/cache.util";
 import { encrypt, decrypt } from "../../common/crypto.util";
+
+const OPERATOR_MGMT_RATES: Record<string, { mgmt: number; upper: number }> = {
+  SILVER: { mgmt: 0.08, upper: 0.02 },
+  GOLD: { mgmt: 0.12, upper: 0.03 },
+  DIAMOND: { mgmt: 0.15, upper: 0.04 },
+  BLACK_GOLD: { mgmt: 0.20, upper: 0.05 },
+};
 
 @Injectable()
 export class CommissionService {
@@ -14,6 +23,7 @@ export class CommissionService {
   constructor(
     private prisma: PrismaService,
     private webhook: WebhookService,
+    @Optional() private systemService?: SystemService,
   ) {}
 
   // ───────── 佣金配置管理 ─────────
@@ -74,22 +84,25 @@ export class CommissionService {
     const rate = Number(config.rateA); // 站长佣金比例
     const earned = amount * rate;
 
-    // 创建收益记录
-    const earning = await this.prisma.stationEarning.create({
-      data: {
-        stationId: station.id,
-        orderId,
-        amount,
-        rate: config.rateA,
-        earned,
-        type,
-      },
-    });
+    // 创建收益记录 + 更新分站总收益（原子操作）
+    const earning = await this.prisma.$transaction(async (tx) => {
+      const e = await tx.stationEarning.create({
+        data: {
+          stationId: station!.id,
+          orderId,
+          amount,
+          rate: config.rateA,
+          earned,
+          type,
+        },
+      });
 
-    // 更新分站总收益
-    await this.prisma.station.update({
-      where: { id: station.id },
-      data: { totalEarning: { increment: earned } },
+      await tx.station.update({
+        where: { id: station!.id },
+        data: { totalEarning: { increment: earned } },
+      });
+
+      return e;
     });
 
     // 发送收益通知（fire-and-forget，不阻塞主流程）
@@ -104,7 +117,80 @@ export class CommissionService {
       },
     }).catch((err) => this.logger.warn("收益通知发送失败", err));
 
+    // ───────── 运营商管理奖 ─────────
+    await this.calculateOperatorBonus(station.id, orderId, earned);
+
     return earning;
+  }
+
+  /** 退款时冲正分佣 — 逆向 station 收益 + operator 管理奖 + 平台抽成，同一事务 */
+  async reverseCommission(orderId: string) {
+    const [stationEarning, operatorEarnings, platformFees] = await Promise.all([
+      this.prisma.stationEarning.findFirst({ where: { orderId, earned: { gt: 0 } } }),
+      this.prisma.operatorEarning.findMany({ where: { orderId, earned: { gt: 0 } } }),
+      this.prisma.platformFeeRecord.findMany({ where: { sourceId: orderId } }),
+    ]);
+
+    if (!stationEarning && operatorEarnings.length === 0) {
+      this.logger.log(`订单 ${orderId} 无分佣记录，跳过冲正`);
+      return null;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      if (stationEarning) {
+        await tx.stationEarning.create({
+          data: {
+            stationId: stationEarning.stationId,
+            orderId,
+            amount: 0,
+            rate: stationEarning.rate,
+            earned: -stationEarning.earned,
+            type: "REFUND",
+          },
+        });
+        await tx.station.update({
+          where: { id: stationEarning.stationId },
+          data: { totalEarning: { decrement: stationEarning.earned } },
+        });
+      }
+
+      if (operatorEarnings.length > 0) {
+        await tx.operatorEarning.createMany({
+          data: operatorEarnings.map((oe) => ({
+            operatorId: oe.operatorId,
+            orderId,
+            source: oe.source,
+            amount: 0,
+            rate: oe.rate,
+            earned: -oe.earned,
+            sourceStationId: oe.sourceStationId ?? undefined,
+            sourceOperatorId: oe.sourceOperatorId ?? undefined,
+          })),
+        });
+        for (const oe of operatorEarnings) {
+          await tx.operator.update({
+            where: { id: oe.operatorId },
+            data: { totalEarning: { decrement: oe.earned } },
+          });
+        }
+      }
+
+      if (platformFees.length > 0) {
+        await tx.platformFeeRecord.createMany({
+          data: platformFees.map((pf) => ({
+            type: "REFUND",
+            sourceId: orderId,
+            sourceAmount: 0,
+            platformRate: pf.platformRate,
+            platformFee: -pf.platformFee,
+            circleId: pf.circleId ?? undefined,
+            circleShare: pf.circleShare ? -pf.circleShare : undefined,
+          })),
+        });
+      }
+
+      return { reversed: true };
+    });
   }
 
   // ───────── 分站收益查询 ─────────
@@ -180,16 +266,19 @@ export class CommissionService {
       stationId = station.id;
     }
 
-    // 并行查询余额和最低提现门槛
-    const [{ balance }, cfg] = await Promise.all([
+    // 并行查询余额和最低提现门槛（优先 CommissionConfig，回退 ConfigSystem）
+    const [{ balance }, cfg, sysCfg] = await Promise.all([
       this.getStationBalance(stationId),
       this.prisma.commissionConfig.findUnique({ where: { configKey: "withdrawal_min" } }),
+      this.systemService?.getConfig("withdrawal_min").catch(() => null),
     ]);
     if (balance < dto.amount) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `余额不足，当前可提现余额 ¥${balance.toFixed(2)}`);
     }
 
-    const minAmount = cfg ? Number(cfg.rateA) : 100;
+    const minAmount = cfg ? Number(cfg.rateA)
+      : sysCfg?.configValue ? Number(sysCfg.configValue)
+      : 100;
     if (dto.amount < minAmount) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, `最低提现金额为 ¥${minAmount}`);
     }
@@ -316,6 +405,148 @@ export class CommissionService {
       data: { clickCount: { increment: 1 } },
     });
     return { referrerId: link.userId, targetType: link.targetType, targetId: link.targetId };
+  }
+
+  // ───────── 运营商管理奖计算 ─────────
+
+  private async calculateOperatorBonus(stationId: string, orderId: string, stationEarned: number) {
+    const station = await this.prisma.station.findUnique({
+      where: { id: stationId },
+      select: { operatorId: true },
+    });
+    if (!station?.operatorId) return;
+
+    const operator = await this.prisma.operator.findUnique({
+      where: { id: station.operatorId },
+      select: { id: true, userId: true, level: true, parentOperatorId: true, status: true },
+    });
+    if (!operator || operator.status !== "ACTIVE") return;
+
+    const rates = await this.lookupMgmtRates(operator.level);
+    if (!rates) return;
+
+    // 一级管理奖：运营商从名下站长佣金中获得管理奖
+    const mgmtEarned = Math.round(stationEarned * rates.mgmt * 100) / 100;
+    if (mgmtEarned > 0) {
+      await this.prisma.operatorEarning.create({
+        data: {
+          operatorId: operator.id,
+          orderId,
+          source: "MGMT_BONUS",
+          amount: stationEarned,
+          rate: rates.mgmt,
+          earned: mgmtEarned,
+          sourceStationId: stationId,
+        },
+      });
+      await this.prisma.operator.update({
+        where: { id: operator.id },
+        data: { totalEarning: { increment: mgmtEarned } },
+      });
+      this.prisma.notification.create({
+        data: {
+          userId: operator.userId,
+          type: "EARNING",
+          title: "运营商管理奖",
+          content: `您获得管理奖 ¥${mgmtEarned.toFixed(2)}（站长佣金 ¥${stationEarned.toFixed(2)}×${(rates.mgmt * 100).toFixed(0)}%）`,
+          targetType: "OPERATOR_EARNING",
+          targetId: orderId,
+        },
+      }).catch((err) => this.logger.warn("管理奖通知发送失败", err));
+    }
+
+    // 二级管理奖：上级运营商从下级运营商的直推佣金中获得管理奖
+    if (!operator.parentOperatorId) return;
+    const parentOp = await this.prisma.operator.findUnique({
+      where: { id: operator.parentOperatorId },
+      select: { id: true, userId: true, level: true, status: true },
+    });
+    if (!parentOp || parentOp.status !== "ACTIVE") return;
+
+    const parentRates = await this.lookupMgmtRates(parentOp.level);
+    if (!parentRates) return;
+
+    const upperEarned = Math.round(stationEarned * parentRates.upper * 100) / 100;
+    if (upperEarned > 0) {
+      await this.prisma.operatorEarning.create({
+        data: {
+          operatorId: parentOp.id,
+          orderId,
+          source: "UPPER_MGMT_BONUS",
+          amount: stationEarned,
+          rate: parentRates.upper,
+          earned: upperEarned,
+          sourceStationId: stationId,
+          sourceOperatorId: operator.id,
+        },
+      });
+      await this.prisma.operator.update({
+        where: { id: parentOp.id },
+        data: { totalEarning: { increment: upperEarned } },
+      });
+      this.prisma.notification.create({
+        data: {
+          userId: parentOp.userId,
+          type: "EARNING",
+          title: "上级管理奖",
+          content: `您获得上级管理奖 ¥${upperEarned.toFixed(2)}（下级站长佣金 ¥${stationEarned.toFixed(2)}×${(parentRates.upper * 100).toFixed(0)}%）`,
+          targetType: "OPERATOR_EARNING",
+          targetId: orderId,
+        },
+      }).catch((err) => this.logger.warn("上级管理奖通知发送失败", err));
+    }
+  }
+
+  /** 优先从 CommissionConfig 读取管理奖比例，未配置时回退到 PRD 硬编码默认值 */
+  private async lookupMgmtRates(level: string): Promise<{ mgmt: number; upper: number } | null> {
+    const [mgmtCfg, upperCfg] = await Promise.all([
+      this.prisma.commissionConfig.findUnique({ where: { configKey: `operator_${level}` } }),
+      this.prisma.commissionConfig.findUnique({ where: { configKey: `operator_upper_${level}` } }),
+    ]);
+
+    const mgmt = mgmtCfg?.rateC ? Number(mgmtCfg.rateC) : OPERATOR_MGMT_RATES[level]?.mgmt;
+    const upper = upperCfg?.rateA ? Number(upperCfg.rateA) : OPERATOR_MGMT_RATES[level]?.upper;
+
+    if (!mgmt && !upper) return null;
+    return { mgmt: mgmt || 0, upper: upper || 0 };
+  }
+
+  // ───────── 运营商收益查询 ─────────
+
+  async getOperatorEarnings(operatorId: string, page = 1, pageSize = 20) {
+    const where = { operatorId };
+    const [earnings, total] = await Promise.all([
+      this.prisma.operatorEarning.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.operatorEarning.count({ where }),
+    ]);
+    const sumResult = await this.prisma.operatorEarning.aggregate({
+      where,
+      _sum: { earned: true },
+    });
+    return {
+      earnings,
+      total,
+      page,
+      pageSize,
+      totalEarned: sumResult._sum.earned || 0,
+    };
+  }
+
+  async getOperatorBalance(operatorId: string) {
+    const operator = await this.prisma.operator.findUnique({
+      where: { id: operatorId },
+      select: { totalEarning: true },
+    });
+    if (!operator) throw new BusinessException(ErrorCode.NOT_FOUND, "运营商不存在");
+    return {
+      totalEarned: Number(operator.totalEarning),
+      balance: Number(operator.totalEarning),
+    };
   }
 
   // ───────── 辅助方法 ─────────
@@ -517,7 +748,7 @@ export class CommissionService {
     const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
     let code = "";
     for (let i = 0; i < 8; i++) {
-      code += chars[Math.floor(Math.random() * chars.length)];
+      code += chars[randomInt(0, chars.length)];
     }
     return code;
   }

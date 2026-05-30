@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Req } from "@nestjs/common";
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, Req } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader } from "@nestjs/swagger";
 import { Request } from "express";
 import { BigScreenService } from "./bigscreen.service";
@@ -87,6 +87,18 @@ export class BigScreenTokenController {
   @ApiOperation({ summary: "大屏令牌列表" })
   list() {
     return this.authSvc.listTokens();
+  }
+
+  @Get("logs")
+  @ApiOperation({ summary: "大屏访问日志" })
+  logs(@Query("pageSize") pageSize?: number) {
+    return this.authSvc.getAccessLogs({ pageSize: pageSize ? Number(pageSize) : 50 });
+  }
+
+  @Delete(":id")
+  @ApiOperation({ summary: "删除大屏令牌" })
+  delete(@Param("id") id: string) {
+    return this.authSvc.deleteToken(id);
   }
 
   @Post("clean-expired")

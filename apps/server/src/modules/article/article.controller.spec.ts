@@ -3,6 +3,8 @@ import { ArticleController } from "./article.controller";
 import { ArticleService } from "./article.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { StationIsolationGuard } from "../../common/station-isolation.guard";
 
 const mockArticleSvc = {
   create: jest.fn().mockResolvedValue({ id: "a1", title: "国学入门" }),
@@ -27,6 +29,8 @@ describe("ArticleController", () => {
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StationIsolationGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(ArticleController);
   });

@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { RiskControlController } from "./risk-control.controller";
 import { RiskControlService } from "./risk-control.service";
 import { RolesGuard } from "../../common/roles.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 
 const mockSvc = {
   createRule: jest.fn().mockResolvedValue({ id: "r1", name: "高频下单检测" }),
@@ -39,6 +40,7 @@ describe("RiskControlController", () => {
       ],
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(RiskControlController);
   });

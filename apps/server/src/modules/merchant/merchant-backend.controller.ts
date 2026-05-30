@@ -122,7 +122,7 @@ export class MerchantBackendController {
   @Post("orders/:id/refund/reject")
   @ApiOperation({ summary: "拒绝退款" })
   rejectRefund(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: RejectRefundDto) {
-    return { orderId: id, status: "REFUND_REJECTED", reason: dto.reason };
+    return this.merchantService.rejectRefund(this.getMerchant(req).id, id, dto.reason);
   }
 
   // ── 评价管理 ──
@@ -165,5 +165,54 @@ export class MerchantBackendController {
   @ApiOperation({ summary: "违规申诉" })
   appealViolation(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: AppealViolationDto) {
     return this.merchantService.appealViolation(this.getMerchant(req).id, id, dto.appeal);
+  }
+
+  // ── 售后管理 ──
+
+  @Get("after-sales")
+  @ApiOperation({ summary: "售后列表" })
+  listAfterSales(
+    @Req() req: AuthRequest,
+    @Query("type") type?: string,
+    @Query("status") status?: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+  ) {
+    return this.merchantService.listAfterSales(this.getMerchant(req).id, {
+      type, status,
+      page: Number(page) || 1,
+      pageSize: Number(pageSize) || 20,
+    });
+  }
+
+  @Get("after-sales/:id")
+  @ApiOperation({ summary: "售后详情" })
+  getAfterSale(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.merchantService.getAfterSale(this.getMerchant(req).id, id);
+  }
+
+  @Put("after-sales/:id/process")
+  @ApiOperation({ summary: "处理售后（approve/reject/complete）" })
+  processAfterSale(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body() dto: { action: string; remark?: string },
+  ) {
+    return this.merchantService.processAfterSale(this.getMerchant(req).id, id, dto);
+  }
+
+  // ── 客户管理 ──
+
+  @Get("customers")
+  @ApiOperation({ summary: "客户列表（在本店下过单的用户）" })
+  listCustomers(
+    @Req() req: AuthRequest,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+  ) {
+    return this.merchantService.listCustomers(this.getMerchant(req).id, {
+      page: Number(page) || 1,
+      pageSize: Number(pageSize) || 20,
+    });
   }
 }

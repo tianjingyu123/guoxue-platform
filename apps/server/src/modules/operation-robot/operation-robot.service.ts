@@ -1,6 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { SystemService } from "../system/system.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Cron, CronExpression } from "@nestjs/schedule";
 
 /** 机器人定义 */
@@ -24,6 +27,7 @@ export interface ExecutionLog {
 }
 
 const MAX_LOG_SIZE = 200;
+const LOG_PERSIST_KEY = "operation_robot_logs";
 
 @Injectable()
 export class OperationRobotService implements OnModuleInit {
@@ -38,6 +42,7 @@ export class OperationRobotService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: AiGatewayService,
+    private readonly systemService: SystemService,
   ) {}
 
   /** 外部调用的初始化入口 */
@@ -46,10 +51,13 @@ export class OperationRobotService implements OnModuleInit {
     await this.onModuleInit();
   }
 
-  /** 模块初始化：从 config_system 加载机器人配置，确保虚拟用户存在 */
+  /** 模块初始化：从 config_system 加载机器人配置，恢复历史日志，确保虚拟用户存在 */
   async onModuleInit() {
     if (this.initialized) return;
     this.initialized = true;
+
+    // 恢复启动前的执行日志
+    await this.restoreLogsFromDb();
 
     try {
       const config = await this.prisma.configSystem.findUnique({
@@ -346,6 +354,42 @@ export class OperationRobotService implements OnModuleInit {
     if (this.executionLogs.length > MAX_LOG_SIZE) {
       this.executionLogs = this.executionLogs.slice(-MAX_LOG_SIZE);
     }
+    // 持久化到 DB，重启不丢失
+    this.persistLogsToDb().catch((err) => this.logger.warn("日志持久化失败", err));
+    this.systemService.logAudit({
+      userId: this.botUserIds.get(role) || `BOT_${role}`,
+      action: `ROBOT_${action.toUpperCase().replace(/\s/g, "_")}`,
+      targetType: "OPERATION_ROBOT",
+      targetId: role,
+      detail: `[${result}] ${detail.slice(0, 200)}`,
+      ip: "127.0.0.1",
+    }).catch((err) => this.logger.warn("机器人审计日志写入失败", err));
+  }
+
+  /** 持久化执行日志到 DB */
+  private async persistLogsToDb() {
+    await this.prisma.configSystem.upsert({
+      where: { configKey: LOG_PERSIST_KEY },
+      create: { configKey: LOG_PERSIST_KEY, configValue: JSON.stringify(this.executionLogs.slice(-MAX_LOG_SIZE)) },
+      update: { configValue: JSON.stringify(this.executionLogs.slice(-MAX_LOG_SIZE)) },
+    });
+  }
+
+  /** 从 DB 恢复执行日志 */
+  private async restoreLogsFromDb() {
+    try {
+      const cfg = await this.prisma.configSystem.findUnique({ where: { configKey: LOG_PERSIST_KEY } });
+      if (cfg?.configValue) {
+        const restored = JSON.parse(cfg.configValue) as ExecutionLog[];
+        this.executionLogs = restored.slice(-MAX_LOG_SIZE);
+        this.logSeq = this.executionLogs.length > 0
+          ? Math.max(...this.executionLogs.map((l) => parseInt(l.id) || 0))
+          : 0;
+        this.logger.log(`从DB恢复了 ${this.executionLogs.length} 条机器人执行日志`);
+      }
+    } catch (err) {
+      this.logger.warn("日志恢复失败，从空开始", err);
+    }
   }
 
   /** 获取执行日志 */
@@ -399,7 +443,7 @@ export class OperationRobotService implements OnModuleInit {
   /** 切换机器人开关 */
   async toggleRobot(role: RobotRole, enabled: boolean) {
     const cfg = this.robotConfigs.get(role);
-    if (!cfg) throw new Error(`未知机器人: ${role}`);
+    if (!cfg) throw new BusinessException(ErrorCode.BAD_REQUEST, `未知机器人: ${role}`);
 
     cfg.enabled = enabled;
     this.robotConfigs.set(role, cfg);

@@ -50,20 +50,34 @@ export class RevenueController {
   @Get("stats")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "用户收入统计（管理员）" })
-  @ApiQuery({ name: "userId", required: true, type: String, description: "用户ID" })
-  @ApiQuery({ name: "period", required: false, type: String, description: "周期（如 2026-05）" })
-  revenueStats(@Query("userId") userId: string, @Query("period") period?: string) {
-    return this.svc.getRevenueStats(userId, period);
+  @ApiOperation({ summary: "收入统计（管理员，可选平台级）" })
+  @ApiQuery({ name: "userId", required: false, type: String, description: "用户ID（不传则平台级）" })
+  @ApiQuery({ name: "startDate", required: false, type: String, description: "开始日期" })
+  @ApiQuery({ name: "endDate", required: false, type: String, description: "结束日期" })
+  @ApiQuery({ name: "days", required: false, type: Number, description: "近N天" })
+  revenueStats(
+    @Query("userId") userId?: string,
+    @Query("period") period?: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+    @Query("days") days?: string,
+  ) {
+    return this.svc.getRevenueStats(userId, period, startDate, endDate, days ? +days : undefined);
   }
 
   @Get("breakdown")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "用户收入分类明细（管理员）" })
-  @ApiQuery({ name: "userId", required: true, type: String, description: "用户ID" })
-  @ApiQuery({ name: "period", required: false, type: String, description: "周期（如 2026-05）" })
-  revenueBreakdown(@Query("userId") userId: string, @Query("period") period?: string) {
-    return this.svc.getRevenueBreakdown(userId, period);
+  @ApiOperation({ summary: "收入分类明细（管理员，可选平台级）" })
+  @ApiQuery({ name: "userId", required: false, type: String, description: "用户ID（不传则平台级）" })
+  @ApiQuery({ name: "startDate", required: false, type: String, description: "开始日期" })
+  @ApiQuery({ name: "endDate", required: false, type: String, description: "结束日期" })
+  revenueBreakdown(
+    @Query("userId") userId?: string,
+    @Query("period") period?: string,
+    @Query("startDate") startDate?: string,
+    @Query("endDate") endDate?: string,
+  ) {
+    return this.svc.getRevenueBreakdown(userId, period, startDate, endDate);
   }
 }

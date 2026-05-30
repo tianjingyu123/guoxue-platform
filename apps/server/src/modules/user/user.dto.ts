@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsInt, Min, MinLength } from "class-validator";
+import { IsString, IsOptional, IsEnum, IsInt, IsArray, ArrayMinSize, Min, MinLength } from "class-validator";
 import { Type } from "class-transformer";
 import { RoleType } from "@prisma/client";
 
@@ -44,6 +44,17 @@ export class UpdateProfileDto {
 }
 
 export class UpdateUserStatusDto {
+  @IsString()
+  @MinLength(1)
+  status: string;
+}
+
+export class BatchUpdateUserStatusDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  ids: string[];
+
   @IsString()
   @MinLength(1)
   status: string;

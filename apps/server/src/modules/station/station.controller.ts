@@ -47,6 +47,18 @@ export class StationController {
     return this.svc.listStations(+page, +pageSize);
   }
 
+  // ───────── 分站发现 ─────────
+
+  @Get("discover")
+  @ApiOperation({ summary: "分站发现（用户端公开搜索）" })
+  discoverStations(
+    @Query("keyword") keyword?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.discoverStations({ keyword, page: +page, pageSize: +pageSize });
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "分站详情" })
   getStation(@Param("id") id: string) {
@@ -91,18 +103,6 @@ export class StationController {
   @ApiOperation({ summary: "运营商列表" })
   listOperators(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.svc.listOperators(+page, +pageSize);
-  }
-
-  // ───────── 分站发现 ─────────
-
-  @Get("discover")
-  @ApiOperation({ summary: "分站发现（用户端公开搜索）" })
-  discoverStations(
-    @Query("keyword") keyword?: string,
-    @Query("page") page = 1,
-    @Query("pageSize") pageSize = 20,
-  ) {
-    return this.svc.discoverStations({ keyword, page: +page, pageSize: +pageSize });
   }
 
   // ───────── 收益看板 ─────────

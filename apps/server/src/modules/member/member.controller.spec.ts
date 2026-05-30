@@ -4,9 +4,12 @@ import { MemberService } from "./member.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RedisService } from "../../redis/redis.service";
+import { SystemService } from "../system/system.service";
 
 const mockRedis = { incrWithTtl: jest.fn().mockResolvedValue(1) };
+const mockSystemSvc = { logAudit: jest.fn().mockResolvedValue(undefined) };
 const mockService = {
   getPlans: jest.fn().mockResolvedValue([{ id: "1", level: "MONTHLY", name: "月度会员", price: 29 }]),
   purchase: jest.fn().mockResolvedValue({ id: "p1", level: "MONTHLY", amount: 29, expireAt: null }),
@@ -28,11 +31,13 @@ describe("MemberController", () => {
       providers: [
         { provide: MemberService, useValue: mockService },
         { provide: RedisService, useValue: mockRedis },
+        { provide: SystemService, useValue: mockSystemSvc },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(MemberController);
     jest.clearAllMocks();
@@ -90,14 +95,16 @@ describe("MemberController", () => {
     });
 
     it("POST admin/grant → 手动授予会员", async () => {
+      const req: any = { user: { id: "admin1" }, ip: "127.0.0.1" };
       const dto = { userId: "u1", level: "MONTHLY" as any, durationDays: 30 };
-      const res = await ctrl.grantMember(dto);
+      const res = await ctrl.grantMember(dto, req);
       expect(res.userId).toBe("u1");
       expect(mockService.grantMember).toHaveBeenCalledWith("u1", "MONTHLY", 30);
     });
 
     it("POST admin/revoke/:userId → 撤销会员", async () => {
-      const res = await ctrl.revokeMember("u1");
+      const req: any = { user: { id: "admin1" }, ip: "127.0.0.1" };
+      const res = await ctrl.revokeMember("u1", req);
       expect(res.revoked).toBe(true);
       expect(mockService.revokeMember).toHaveBeenCalledWith("u1");
     });

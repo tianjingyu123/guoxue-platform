@@ -52,7 +52,11 @@ defineEmits<{
   'update:visible': [value: boolean]
 }>()
 
-const iconColor = computed(() => props.type === 'danger' ? '#f56c6c' : props.type === 'warning' ? '#e6a23c' : '#409eff')
+const iconColor = computed(() => {
+  if (props.type === 'danger') return 'var(--color-error)'
+  if (props.type === 'warning') return 'var(--color-warning)'
+  return 'var(--color-primary)'
+})
 </script>
 
 <style scoped>

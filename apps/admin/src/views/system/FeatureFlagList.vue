@@ -28,8 +28,8 @@ async function fetchList() {
   loading.value = true
   try {
     const { data } = await api.get(BASE, { params: { page: page.value, pageSize: 20 } })
-    list.value = data?.data || data?.featureFlags || []
-    total.value = data?.total || 0
+    list.value = Array.isArray(data) ? data : (data?.items ?? data?.data ?? data?.featureFlags ?? [])
+    total.value = data?.total || (Array.isArray(data) ? data.length : 0)
   } catch { list.value = [] } finally { loading.value = false }
 }
 

@@ -22,6 +22,10 @@ export class CreateProductDto {
   @IsOptional() @IsString()
   categoryId?: string;
 
+  @ApiPropertyOptional({ description: "分类" })
+  @IsOptional() @IsString()
+  category?: string;
+
   @ApiPropertyOptional({ description: "商品简介" })
   @IsOptional() @IsString()
   intro?: string;
@@ -34,6 +38,10 @@ export class CreateProductDto {
   @IsOptional() @IsArray()
   images?: string[];
 
+  @ApiPropertyOptional({ description: "封面图" })
+  @IsOptional() @IsString()
+  cover?: string;
+
   @ApiPropertyOptional({ description: "视频地址" })
   @IsOptional() @IsString()
   videoUrl?: string;
@@ -42,6 +50,10 @@ export class CreateProductDto {
   @IsNumber()
   @Min(0)
   price: number;
+
+  @ApiPropertyOptional({ description: "原价" })
+  @IsOptional() @IsNumber()
+  originalPrice?: number;
 
   @ApiPropertyOptional({ description: "库存数量" })
   @IsOptional() @IsInt()
@@ -87,9 +99,13 @@ export class UpdateProductDto {
 }
 
 export class CreateSkuDto {
-  @ApiProperty({ description: "规格属性（如 {颜色: '红色', 尺寸: 'M'}）" })
-  @IsObject()
-  specs: Record<string, string>;
+  @ApiPropertyOptional({ description: "规格名称（如 颜色:红色）" })
+  @IsOptional() @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ description: "规格属性（如 {颜色: '红色', 尺寸: 'M'}）" })
+  @IsOptional() @IsObject()
+  specs?: Record<string, string>;
 
   @ApiProperty({ description: "SKU价格（元）" })
   @IsNumber()
@@ -228,6 +244,10 @@ export class OrderListQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100)
   pageSize?: number;
 
+  @ApiPropertyOptional({ description: "订单号" })
+  @IsOptional() @IsString()
+  orderNo?: string;
+
   @ApiPropertyOptional({ description: "订单类型" })
   @IsOptional() @IsString()
   type?: string;
@@ -239,6 +259,14 @@ export class OrderListQueryDto {
   @ApiPropertyOptional({ description: "用户ID（管理员可筛选）" })
   @IsOptional() @IsString()
   userId?: string;
+
+  @ApiPropertyOptional({ description: "开始日期（YYYY-MM-DD）" })
+  @IsOptional() @IsString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: "结束日期（YYYY-MM-DD）" })
+  @IsOptional() @IsString()
+  endDate?: string;
 }
 
 // ── 优惠券 DTO ──

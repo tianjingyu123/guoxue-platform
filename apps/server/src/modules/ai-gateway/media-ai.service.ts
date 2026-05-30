@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { AiGatewayService } from "./ai-gateway.service";
 import { TtsService } from "../tts/tts.service";
 import { tc3Sign } from "../../common/tc3.util";
@@ -135,7 +137,7 @@ export class MediaAiService {
     try {
       // 下载音频文件
       const audioResp = await fetch(params.audioUrl);
-      if (!audioResp.ok) throw new Error(`下载音频失败: ${audioResp.status}`);
+      if (!audioResp.ok) throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `下载音频失败: ${audioResp.status}`);
       const { host, headers, payloadStr } = tc3Sign({
         secretId,
         secretKey,
@@ -161,7 +163,7 @@ export class MediaAiService {
 
       const data = await resp.json() as TencentAsrResponse;
       if (data.Response?.Error) {
-        throw new Error(`ASR错误: ${data.Response.Error.Message}`);
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `ASR错误: ${data.Response.Error.Message}`);
       }
 
       return {

@@ -8,6 +8,9 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { RequireFeature } from "../../common/feature-flag.decorator";
+import { StationId } from "../../common/station-id.decorator";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
@@ -42,9 +45,10 @@ export class LiveController {
     @Query("circleId") circleId?: string,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
+    @StationId() stationId?: string,
   ) {
-    if (courseId) return this.svc.listCourseRooms(courseId, +page, +pageSize);
-    return this.svc.listRooms(status, +page, +pageSize, circleId);
+    if (courseId) return this.svc.listCourseRooms(courseId, +page, +pageSize, stationId);
+    return this.svc.listRooms(status, +page, +pageSize, circleId, stationId);
   }
 
   @Get("rooms/:id")
@@ -62,7 +66,8 @@ export class LiveController {
   }
 
   @Put("rooms/:id/start")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard, RolesGuard)
+  @RequireFeature("live_start")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "开始直播（生成推拉流地址）" })
   @ApiBearerAuth()
@@ -152,8 +157,8 @@ export class LiveController {
   @ApiOperation({ summary: "获取即将开始的直播预告列表" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
-  listScheduled(@Query("page") page = 1, @Query("pageSize") pageSize = 10) {
-    return this.svc.listScheduled(+page, +pageSize);
+  listScheduled(@Query("page") page = 1, @Query("pageSize") pageSize = 10, @StationId() stationId?: string) {
+    return this.svc.listScheduled(+page, +pageSize, stationId);
   }
 
   @Post("rooms/:id/book")

@@ -14,6 +14,10 @@
         <text class="quick-icon">🎫</text>
         <text class="quick-label">领券中心</text>
       </view>
+      <view class="quick-item" @click="goCart">
+        <text class="quick-icon">🛒</text>
+        <text class="quick-label">购物车</text>
+      </view>
       <view class="quick-item" @click="goOrders">
         <text class="quick-icon">📦</text>
         <text class="quick-label">我的订单</text>
@@ -25,6 +29,18 @@
       <view class="quick-item" @click="goEarnings">
         <text class="quick-icon">💰</text>
         <text class="quick-label">推广收益</text>
+      </view>
+    </view>
+
+    <!-- 营销活动入口 -->
+    <view class="marketing-row">
+      <view class="marketing-item flash" @click="goFlashSale">
+        <text class="mk-icon">⚡</text>
+        <text class="mk-label">限时秒杀</text>
+      </view>
+      <view class="marketing-item group" @click="goGroupBuy">
+        <text class="mk-icon">👥</text>
+        <text class="mk-label">拼团优惠</text>
       </view>
     </view>
 
@@ -96,32 +112,61 @@ const loadingMore = ref(false);
 const page = ref(1);
 const totalPages = ref(1);
 
-const tags = [
-  { label: "全部", value: "all" },
-  { label: "开运好物", value: "kaiyun" },
-  { label: "文房雅器", value: "wenfang" },
-  { label: "茶道香道", value: "chaxiang" },
-  { label: "国学书籍", value: "books" },
-  { label: "服装饰品", value: "clothing" },
-];
+const tags = ref<{ label: string; value: string }[]>([]);
 
 const banners = [
   { image: "/static/banner-shop-1.png", tag: "限时特惠", productId: "" },
   { image: "/static/banner-shop-2.png", tag: "新品上市", productId: "" },
 ];
 
-onMounted(() => fetchProducts());
+onMounted(() => {
+  fetchProducts();
+  fetchCategories();
+});
+
+async function fetchCategories() {
+  try {
+    const tree = await shopApi.categoryTree();
+    const list: { label: string; value: string }[] = [{ label: "全部", value: "all" }];
+    if (Array.isArray(tree)) {
+      for (const node of tree) {
+        if (node.id) list.push({ label: node.name, value: node.id });
+        if (node.children) {
+          for (const child of node.children) {
+            if (child.id) list.push({ label: child.name, value: child.id });
+          }
+        }
+      }
+    }
+    if (list.length > 1) tags.value = list;
+    else throw new Error("empty");
+  } catch {
+    tags.value = [
+      { label: "全部", value: "all" },
+      { label: "开运好物", value: "kaiyun" },
+      { label: "文房雅器", value: "wenfang" },
+      { label: "茶道香道", value: "chaxiang" },
+      { label: "国学书籍", value: "books" },
+      { label: "服装饰品", value: "clothing" },
+    ];
+  }
+}
 
 async function fetchProducts(append = false) {
   if (!append) loading.value = true;
   else loadingMore.value = true;
   try {
-    const data = await shopApi.products({
-      keyword: keyword.value,
-      tag: activeTag.value !== "all" ? activeTag.value : undefined,
-      page: page.value,
-      limit: 12,
-    });
+    const params: any = { page: page.value, limit: 12 };
+    if (keyword.value) params.keyword = keyword.value;
+    if (activeTag.value !== "all") {
+      // 如果是UUID格式则用categoryId，否则用tag
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(activeTag.value)) {
+        params.categoryId = activeTag.value;
+      } else {
+        params.tag = activeTag.value;
+      }
+    }
+    const data = await shopApi.products(params);
     const list = data.products || data.data || [];
     totalPages.value = data.totalPages || 1;
     if (append) {
@@ -154,6 +199,10 @@ function goCoupons() {
   uni.navigateTo({ url: "/pages/shop/coupons" });
 }
 
+function goCart() {
+  uni.navigateTo({ url: "/pages/shop/cart" });
+}
+
 function goOrders() {
   uni.navigateTo({ url: "/pages/orders/orders" });
 }
@@ -164,6 +213,14 @@ function goVip() {
 
 function goEarnings() {
   uni.navigateTo({ url: "/pages/station/earnings" });
+}
+
+function goFlashSale() {
+  uni.navigateTo({ url: "/pages/shop/flash-sale" });
+}
+
+function goGroupBuy() {
+  uni.navigateTo({ url: "/pages/shop/group-buy" });
 }
 </script>
 
@@ -215,6 +272,19 @@ function goEarnings() {
   font-size: 12px;
   color: #666;
 }
+
+/* 营销活动入口 */
+.marketing-row {
+  display: flex; gap: 8px; padding: 0 12px; margin-bottom: 8px;
+}
+.marketing-item {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 500;
+}
+.marketing-item.flash { background: linear-gradient(135deg, #fff5f5, #ffe8e8); color: #C41E3A; }
+.marketing-item.group { background: linear-gradient(135deg, #fff8f0, #ffeedd); color: #e67e22; }
+.mk-icon { font-size: 18px; }
+.mk-label { font-size: 13px; }
 
 /* 搜索栏 */
 .search-bar {

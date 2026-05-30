@@ -183,8 +183,8 @@ describe("CoinService", () => {
   })
 
   describe("getRechargeTiers", () => {
-    it("返回充值档位", () => {
-      const tiers = svc.getRechargeTiers()
+    it("返回充值档位", async () => {
+      const tiers = await svc.getRechargeTiers()
       expect(tiers).toHaveLength(5)
       expect(tiers[0].amountRmb).toBe(6)
     })

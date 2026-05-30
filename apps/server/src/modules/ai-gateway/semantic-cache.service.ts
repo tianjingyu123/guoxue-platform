@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { createHash } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -62,7 +63,7 @@ export class SemanticCacheService {
     const cached = await this.redis.getJson<CacheEntry>(redisKey);
     if (cached?.response) {
       this.logger.debug(`L0 精确命中: scene=${scene}`);
-      this.bumpHitCount(scene, hash).catch(() => {});
+      this.bumpHitCount(scene, hash).catch((err) => this.logger.warn("命中计数更新失败", err));
       return cached.response;
     }
 
@@ -76,8 +77,8 @@ export class SemanticCacheService {
         this.logger.debug(`L1 语义命中: scene=${scene}, similarity=${result.similarity.toFixed(3)}`);
         await this.redis
           .setJson(redisKey, { response: result.response, model: result.model } as CacheEntry, EXACT_TTL)
-          .catch(() => {});
-        this.bumpHitCount(scene, result.queryHash).catch(() => {});
+          .catch((err) => this.logger.warn("语义缓存写入失败", err));
+        this.bumpHitCount(scene, result.queryHash).catch((err) => this.logger.warn("语义缓存写入失败", err));
         return result.response;
       }
     } catch (err: any) {
@@ -101,7 +102,7 @@ export class SemanticCacheService {
     const redisKey = `${REDIS_PREFIX}${scene}:${hash}`;
     const entry: CacheEntry = { response, model: model || "unknown", tokenUsage };
 
-    await this.redis.setJson(redisKey, entry, EXACT_TTL).catch(() => {});
+    await this.redis.setJson(redisKey, entry, EXACT_TTL).catch((err) => this.logger.warn("语义缓存写入失败", err));
 
     this.persistEntry(scene, hash, normalized, response, model || "unknown", tokenUsage).catch((err) => {
       this.logger.warn(`语义缓存持久化失败: ${err.message}`);
@@ -204,5 +205,35 @@ export class SemanticCacheService {
       where: { scene, queryHash },
       data: { hitCount: { increment: 1 }, lastHitAt: new Date() },
     });
+  }
+
+  /** 每天凌晨清理过期语义缓存 */
+  @Cron(CronExpression.EVERY_DAY_AT_4AM)
+  async cleanExpiredCache() {
+    try {
+      const result = await this.prisma.aiCacheEntry.deleteMany({
+        where: { expiresAt: { lt: new Date() } },
+      });
+      if (result.count > 0) {
+        this.logger.log(`清理过期语义缓存: ${result.count} 条`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`语义缓存清理失败: ${err.message}`);
+    }
+  }
+
+  /** 获取缓存统计（管理接口） */
+  async getStats() {
+    const [total, expired, totalHits] = await Promise.all([
+      this.prisma.aiCacheEntry.count(),
+      this.prisma.aiCacheEntry.count({ where: { expiresAt: { lt: new Date() } } }),
+      this.prisma.aiCacheEntry.aggregate({ _sum: { hitCount: true } }),
+    ]);
+    return {
+      total,
+      expired,
+      totalHits: totalHits._sum.hitCount ?? 0,
+      avgHitRate: total > 0 ? ((totalHits._sum.hitCount ?? 0) / total).toFixed(2) : "0",
+    };
   }
 }

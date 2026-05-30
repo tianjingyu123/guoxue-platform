@@ -4,7 +4,9 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { RiskControlService } from "./risk-control.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RequireFeature } from "../../common/feature-flag.decorator";
 import {
   CreateRuleDto,
   UpdateRuleDto,
@@ -107,8 +109,9 @@ export class RiskControlController {
   }
 
   @Post("fraud-detections/scan")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, FeatureFlagGuard)
   @Roles("SUPER_ADMIN")
+  @RequireFeature("risk_fraud_scan")
   @ApiOperation({ summary: "手动触发刷单扫描" })
   @ApiBearerAuth()
   scanFraud() {
@@ -116,8 +119,9 @@ export class RiskControlController {
   }
 
   @Put("fraud-detections/:id/confirm")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, FeatureFlagGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @RequireFeature("risk_fraud_scan")
   @ApiOperation({ summary: "确认为刷单" })
   @ApiBearerAuth()
   confirmFraudDetection(@Param("id") id: string) {
@@ -125,8 +129,9 @@ export class RiskControlController {
   }
 
   @Put("fraud-detections/:id/dismiss")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, FeatureFlagGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @RequireFeature("risk_fraud_scan")
   @ApiOperation({ summary: "标记为误报" })
   @ApiBearerAuth()
   dismissFraudDetection(@Param("id") id: string) {

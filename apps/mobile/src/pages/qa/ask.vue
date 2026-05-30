@@ -94,10 +94,12 @@ async function submit() {
   if (!canSubmit.value) return
   submitting.value = true
   try {
+    const text = question.value.trim()
     await questionApi.ask({
       circleId: circleId.value,
       answererId: answererId.value,
-      question: question.value.trim(),
+      questionTitle: text.slice(0, 50) + (text.length > 50 ? '...' : ''),
+      question: text,
       priceCoin: priceCoin.value,
       peekPriceCoin: peekPriceCoin.value || 0,
     })

@@ -28,10 +28,38 @@
         </view>
       </view>
 
+      <!-- 物流信息 -->
+      <view v-if="logistics" class="info-card">
+        <view class="section-title">物流信息</view>
+        <view class="info-row">
+          <text class="label">快递公司</text>
+          <text class="value">{{ logistics.company || '--' }}</text>
+        </view>
+        <view class="info-row">
+          <text class="label">快递单号</text>
+          <text class="value">{{ logistics.trackingNo || '--' }}</text>
+        </view>
+        <view v-if="logistics.tracks?.length" class="logistics-timeline">
+          <view v-for="(t, i) in logistics.tracks" :key="i" class="logistics-node">
+            <view class="ln-dot" :class="{ active: i === 0 }" />
+            <view class="ln-content">
+              <text class="ln-text">{{ t.status || t.desc }}</text>
+              <text class="ln-time">{{ t.time || t.datetime }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- 操作 -->
       <view v-if="order.status === 'PENDING'" class="actions">
         <button class="btn-primary" @click="handlePay">去支付</button>
         <button class="btn-cancel" @click="handleCancel">取消订单</button>
+      </view>
+      <view v-else-if="order.status === 'PAID' || order.status === 'SHIPPED'" class="actions">
+        <button class="btn-outline" @click="goAfterSale">申请售后</button>
+      </view>
+      <view v-else-if="order.status === 'COMPLETED'" class="actions">
+        <button class="btn-outline" @click="goAfterSale">申请售后</button>
       </view>
     </view>
 
@@ -47,12 +75,13 @@ import { shopApi } from "../../api";
 
 const loading = ref(true);
 const order = ref<any>(null);
+const logistics = ref<any>(null);
 
 onMounted(() => {
   const pages = getCurrentPages();
   const current = pages[pages.length - 1] as any;
   const id = current?.options?.id;
-  if (id) fetchOrder(id);
+  if (id) { fetchOrder(id); fetchLogistics(id); }
   else loading.value = false;
 });
 
@@ -81,11 +110,59 @@ function formatTime(t: string): string {
 
 async function handlePay() {
   try {
-    await shopApi.payOrder(order.value.id);
-    uni.showToast({ title: "支付成功", icon: "success" });
-    await fetchOrder(order.value.id);
-  } catch {
-    uni.showToast({ title: "支付失败", icon: "none" });
+    uni.showLoading({ title: "拉起支付..." });
+    // 尝试获取 openid（小程序环境）
+    const openid = uni.getStorageSync("wx_openid") || "";
+    if (openid) {
+      // JSAPI 支付（小程序/公众号内）
+      const payParams = await shopApi.jsapiPay(order.value.id, { openid });
+      // 调起微信支付
+      if (payParams && typeof payParams === "object") {
+        uni.requestPayment({
+          provider: "wxpay",
+          timeStamp: payParams.timeStamp || "",
+          nonceStr: payParams.nonceStr || "",
+          package: payParams.package || "",
+          signType: payParams.signType || "RSA",
+          paySign: payParams.paySign || "",
+          success: async () => {
+            uni.hideLoading();
+            uni.showToast({ title: "支付成功", icon: "success" });
+            await fetchOrder(order.value.id);
+          },
+          fail: (err: any) => {
+            uni.hideLoading();
+            console.error("支付失败:", err);
+            uni.showToast({ title: err.errMsg || "支付取消", icon: "none" });
+          },
+        });
+      } else {
+        // JSAPI 返回的不是调起参数，可能是预支付ID
+        uni.hideLoading();
+        await fetchOrder(order.value.id);
+      }
+    } else {
+      // Native/H5 支付 - 生成二维码供扫码
+      const result = await shopApi.nativePay(order.value.id);
+      uni.hideLoading();
+      if (result?.code_url) {
+        uni.showModal({
+          title: "请扫码支付",
+          content: "请使用微信扫描二维码完成支付",
+          confirmText: "已完成支付",
+          success: async (res) => {
+            if (res.confirm) {
+              await fetchOrder(order.value.id);
+            }
+          },
+        });
+      } else {
+        uni.showToast({ title: "支付参数获取失败，请重试", icon: "none" });
+      }
+    }
+  } catch (e: any) {
+    uni.hideLoading();
+    uni.showToast({ title: e?.message || "支付失败，请重试", icon: "none" });
   }
 }
 
@@ -99,6 +176,16 @@ async function handleCancel() {
   } catch {
     // 用户取消操作不作处理
   }
+}
+
+async function fetchLogistics(orderId: string) {
+  try {
+    logistics.value = await shopApi.getLogistics(orderId);
+  } catch { /* skip */ }
+}
+
+function goAfterSale() {
+  uni.navigateTo({ url: `/pages/shop/after-sale?orderId=${order.value.id}` });
 }
 </script>
 
@@ -140,6 +227,20 @@ async function handleCancel() {
   flex: 1; background: #fff; color: #999; border-radius: 8px;
   font-size: 15px; padding: 12px; border: 1px solid #E8E0D5; text-align: center;
 }
+.btn-outline {
+  flex: 1; background: #fff; color: #C41E3A; border-radius: 8px;
+  font-size: 14px; padding: 12px; border: 1px solid #C41E3A; text-align: center;
+}
+
+.section-title { font-size: 15px; font-weight: bold; color: #2C2C2C; margin-bottom: 10px; }
+
+.logistics-timeline { margin-top: 8px; padding-left: 8px; }
+.logistics-node { display: flex; gap: 10px; padding: 4px 0; }
+.ln-dot { width: 8px; height: 8px; border-radius: 50%; background: #E8E0D5; margin-top: 6px; flex-shrink: 0; }
+.ln-dot.active { background: #C41E3A; }
+.ln-content { flex: 1; }
+.ln-text { font-size: 13px; color: #333; display: block; }
+.ln-time { font-size: 11px; color: #bbb; display: block; margin-top: 2px; }
 
 .empty { display: flex; justify-content: center; padding: 80px 0; }
 .empty-text { font-size: 16px; color: #999; }

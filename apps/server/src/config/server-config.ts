@@ -105,6 +105,25 @@ class ServerConfig {
   private required(name: string): never {
     throw new Error(`[ServerConfig] 环境变量 ${name} 未设置，拒绝启动`);
   }
+
+  /** 启动前校验所有必需环境变量，一次性列出所有缺失项 */
+  validateRequiredEnv(): string[] {
+    const required: Array<{ name: string; value: string }> = [
+      { name: "JWT_SECRET", value: process.env.JWT_SECRET || "" },
+      { name: "ENCRYPTION_KEY", value: process.env.ENCRYPTION_KEY || "" },
+      { name: "BIGSCREEN_SECRET", value: process.env.BIGSCREEN_SECRET || "" },
+      { name: "DATABASE_URL", value: process.env.DATABASE_URL || "" },
+    ];
+
+    const missing = required.filter((r) => !r.value).map((r) => r.name);
+
+    if (missing.length > 0) {
+      const msg = `\n╔══════════════════════════════════════════════╗\n║  [ServerConfig] 缺少必需环境变量，服务无法启动 ║\n╠══════════════════════════════════════════════╣\n${missing.map((m) => `║  ✗ ${m.padEnd(40)} ║`).join("\n")}\n╚══════════════════════════════════════════════╝\n`;
+      throw new Error(msg);
+    }
+
+    return [];
+  }
 }
 
 /** 单例配置对象 — 模块装饰器等 DI 不可用场景使用 */

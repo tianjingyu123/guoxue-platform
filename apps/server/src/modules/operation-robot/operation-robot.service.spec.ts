@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { OperationRobotService } from "./operation-robot.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { SystemService } from "../system/system.service";
 
 const mockPrisma = {
   configSystem: { findUnique: jest.fn(), upsert: jest.fn() },
@@ -18,6 +19,10 @@ const mockGateway = {
   chat: jest.fn(),
 };
 
+const mockSystemSvc = {
+  logAudit: jest.fn().mockResolvedValue(undefined),
+};
+
 describe("OperationRobotService", () => {
   let svc: OperationRobotService;
 
@@ -27,6 +32,7 @@ describe("OperationRobotService", () => {
         OperationRobotService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: AiGatewayService, useValue: mockGateway },
+        { provide: SystemService, useValue: mockSystemSvc },
       ],
     }).compile();
     svc = mod.get(OperationRobotService);

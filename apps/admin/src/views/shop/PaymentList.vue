@@ -5,6 +5,28 @@
       <el-button @click="handleExport">导出CSV</el-button>
     </div>
 
+    <!-- 统计卡片 -->
+    <el-row :gutter="16" style="margin-bottom:16px">
+      <el-col :span="4">
+        <div class="stat-card"><span class="value">¥{{ fmt(stats.todayAmount) }}</span><span class="label">今日交易额</span></div>
+      </el-col>
+      <el-col :span="4">
+        <div class="stat-card"><span class="value">{{ stats.todayCount }}</span><span class="label">今日笔数</span></div>
+      </el-col>
+      <el-col :span="4">
+        <div class="stat-card"><span class="value">¥{{ fmt(stats.yesterdayAmount) }}</span><span class="label">昨日交易额</span></div>
+      </el-col>
+      <el-col :span="4">
+        <div class="stat-card"><span class="value">¥{{ fmt(stats.monthAmount) }}</span><span class="label">本月累计</span></div>
+      </el-col>
+      <el-col :span="4">
+        <div class="stat-card"><span class="value">{{ stats.monthCount }}</span><span class="label">本月笔数</span></div>
+      </el-col>
+      <el-col :span="4">
+        <div class="stat-card"><span class="value">¥{{ fmt(stats.totalAmount) }}</span><span class="label">历史累计</span></div>
+      </el-col>
+    </el-row>
+
     <el-row :gutter="12" class="filter-row">
       <el-col :span="6">
         <el-input v-model="filters.orderNo" placeholder="订单号" clearable />
@@ -69,13 +91,65 @@ const total = ref(0)
 const page = ref(1)
 const filters = reactive({ orderNo: '', userId: '', status: '', dateRange: [] as string[] })
 
-onMounted(() => fetchList())
+const stats = reactive({ todayAmount: 0, todayCount: 0, yesterdayAmount: 0, yesterdayCount: 0, monthAmount: 0, monthCount: 0, totalAmount: 0, totalCount: 0 })
+
+function fmt(v: number | string | undefined | null) {
+  if (v === null || v === undefined) return "0.00"
+  return Number(v).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+onMounted(() => { fetchList(); fetchStats(); })
 
 function typeLabel(t: string) {
   const m: Record<string, string> = { MEMBER: '会员', COURSE: '课程', PRODUCT: '商品', CIRCLE_JOIN: '入圈', PAIPAN: '排盘', LIVESTREAM: '直播' }
   return m[t] || t || '-'
 }
-function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
+function formatDate(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : '-' }
+
+async function fetchStats() {
+  try {
+    const today = new Date().toISOString().slice(0, 10)
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
+
+    const [todayRes, yesterdayRes, monthRes, allRes] = await Promise.all([
+      orderApi.list({ page: 1, pageSize: 1, status: 'PAID', startDate: today, endDate: today }),
+      orderApi.list({ page: 1, pageSize: 1, status: 'PAID', startDate: yesterday, endDate: yesterday }),
+      orderApi.list({ page: 1, pageSize: 1, status: 'PAID', startDate: monthStart, endDate: today }),
+      orderApi.list({ page: 1, pageSize: 1, status: 'PAID' }),
+    ])
+    const td = (todayRes.data as any) || {}
+    const yd = (yesterdayRes.data as any) || {}
+    const mo = (monthRes.data as any) || {}
+    const al = (allRes.data as any) || {}
+    stats.todayCount = td.total || 0
+    stats.yesterdayCount = yd.total || 0
+    stats.monthCount = mo.total || 0
+    stats.totalCount = al.total || 0
+
+    // 金额汇总
+    if (td.total > 0) {
+      const items = await orderApi.list({ page: 1, pageSize: Math.min(td.total, 500), status: 'PAID', startDate: today, endDate: today })
+      const data = (items.data as any)
+      stats.todayAmount = (data?.orders || data?.data || []).reduce((s: number, r: any) => s + Number(r.amount || r.totalAmount || 0), 0)
+    }
+    if (yd.total > 0) {
+      const items = await orderApi.list({ page: 1, pageSize: Math.min(yd.total, 500), status: 'PAID', startDate: yesterday, endDate: yesterday })
+      const data = (items.data as any)
+      stats.yesterdayAmount = (data?.orders || data?.data || []).reduce((s: number, r: any) => s + Number(r.amount || r.totalAmount || 0), 0)
+    }
+    if (mo.total > 0) {
+      const items = await orderApi.list({ page: 1, pageSize: Math.min(mo.total, 2000), status: 'PAID', startDate: monthStart, endDate: today })
+      const data = (items.data as any)
+      stats.monthAmount = (data?.orders || data?.data || []).reduce((s: number, r: any) => s + Number(r.amount || r.totalAmount || 0), 0)
+    }
+    if (al.total > 0) {
+      const items = await orderApi.list({ page: 1, pageSize: Math.min(al.total, 5000), status: 'PAID' })
+      const data = (items.data as any)
+      stats.totalAmount = (data?.orders || data?.data || []).reduce((s: number, r: any) => s + Number(r.amount || r.totalAmount || 0), 0)
+    }
+  } catch { /* ignore */ }
+}
 
 async function fetchList() {
   loading.value = true
@@ -114,8 +188,13 @@ function handleExport() {
 </script>
 
 <style scoped>
-.payment-page { padding: 16px; }
+.payment-page { padding: 0; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }
+
+.stat-card { background: #f5f7fa; border-radius: 8px; padding: 16px; text-align: center; }
+.stat-card .value { display: block; font-size: 22px; font-weight: 700; color: #303133; }
+.stat-card .label { display: block; font-size: 13px; color: #909399; margin-top: 4px; }
+
 .filter-row { background: #fafafa; padding: 12px; border-radius: 8px; }
 </style>

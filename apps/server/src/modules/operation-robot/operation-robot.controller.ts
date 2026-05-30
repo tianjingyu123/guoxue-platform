@@ -1,9 +1,11 @@
-import { Controller, Post, Get, Body, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Post, Get, Body, Param, Query, UseGuards, Req, Logger } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { OperationRobotService } from "./operation-robot.service";
+import { SystemService } from "../system/system.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { Request } from "express";
 
 @ApiTags("虚拟运营机器人")
 @ApiBearerAuth()
@@ -11,7 +13,11 @@ import { Roles } from "../../common/roles.decorator";
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 export class OperationRobotController {
-  constructor(private readonly service: OperationRobotService) {}
+  private readonly logger = new Logger(OperationRobotController.name);
+  constructor(
+    private readonly service: OperationRobotService,
+    private readonly systemService: SystemService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: "获取所有机器人状态" })
@@ -38,25 +44,46 @@ export class OperationRobotController {
 
   @Post(":role/trigger")
   @ApiOperation({ summary: "手动触发机器人任务" })
-  async trigger(
-    @Param("role") role: string,
-  ) {
-    return this.service.triggerRobot(role as any);
+  async trigger(@Param("role") role: string, @Req() req: Request) {
+    const result = await this.service.triggerRobot(role as any);
+    this.systemService.logAudit({
+      userId: (req as any).user?.id,
+      action: "TRIGGER_ROBOT",
+      targetType: "OPERATION_ROBOT",
+      targetId: role,
+      detail: `手动触发运营机器人 ${role}，结果: ${result.success ? "成功" : result.error}`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志写入失败", err));
+    return result;
   }
 
   @Post(":role/toggle")
   @ApiOperation({ summary: "切换机器人开关" })
-  async toggle(
-    @Param("role") role: string,
-    @Body("enabled") enabled: boolean,
-  ) {
-    return this.service.toggleRobot(role as any, enabled);
+  async toggle(@Param("role") role: string, @Body("enabled") enabled: boolean, @Req() req: Request) {
+    const result = await this.service.toggleRobot(role as any, enabled);
+    this.systemService.logAudit({
+      userId: (req as any).user?.id,
+      action: "TOGGLE_ROBOT",
+      targetType: "OPERATION_ROBOT",
+      targetId: role,
+      detail: `${enabled ? "启用" : "禁用"}运营机器人 ${role}`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志写入失败", err));
+    return result;
   }
 
   @Post("init")
   @ApiOperation({ summary: "初始化机器人系统" })
-  async init() {
+  async init(@Req() req: Request) {
     await this.service.init();
+    this.systemService.logAudit({
+      userId: (req as any).user?.id,
+      action: "INIT_ROBOTS",
+      targetType: "OPERATION_ROBOT",
+      targetId: "system",
+      detail: "重新初始化运营机器人系统",
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志写入失败", err));
     return { message: "机器人系统已初始化" };
   }
 }

@@ -198,8 +198,9 @@ export class ContentGenerationService {
       const tree = await this.loadCategoryTree();
       for (const [level1, level2List] of Object.entries(tree)) {
         for (const level2 of level2List) {
+          // 包含 DRAFT 状态，避免每天重复生成（DRAFT 也算已有内容）
           const count = await this.prisma.content.count({
-            where: { categoryLevel1: level1, categoryLevel2: level2, status: { not: "DRAFT" } },
+            where: { categoryLevel1: level1, categoryLevel2: level2 },
           });
 
           if (count < 3) {
@@ -268,22 +269,19 @@ export class ContentGenerationService {
     return { ...this.params };
   }
 
-  /** 更新生成参数 */
+  /** 更新生成参数（只修改运行时参数，不修改模块常量模板） */
   updateParams(dto: Partial<GenerationParams>) {
     if (dto.temperature !== undefined) this.params.temperature = Math.max(0.1, Math.min(1.5, dto.temperature));
     if (dto.maxTokens !== undefined) this.params.maxTokens = Math.max(256, Math.min(8192, dto.maxTokens));
     if (dto.delayMs !== undefined) this.params.delayMs = Math.max(500, Math.min(10000, dto.delayMs));
     if (dto.knowledgeCountPerCat !== undefined) {
       this.params.knowledgeCountPerCat = Math.max(1, Math.min(10, dto.knowledgeCountPerCat));
-      CONTENT_TEMPLATES.knowledge_base.countPerCat = this.params.knowledgeCountPerCat;
     }
     if (dto.classicsCountPerCat !== undefined) {
       this.params.classicsCountPerCat = Math.max(1, Math.min(10, dto.classicsCountPerCat));
-      CONTENT_TEMPLATES.classics.countPerCat = this.params.classicsCountPerCat;
     }
     if (dto.tutorialCountPerCat !== undefined) {
       this.params.tutorialCountPerCat = Math.max(1, Math.min(10, dto.tutorialCountPerCat));
-      CONTENT_TEMPLATES.tutorial.countPerCat = this.params.tutorialCountPerCat;
     }
     this.logger.log(`生成参数已更新: ${JSON.stringify(this.params)}`);
     return this.params;

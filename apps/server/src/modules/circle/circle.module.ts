@@ -10,6 +10,7 @@ import { CircleDashboardService } from "./circle-dashboard.service";
 import { CircleKnowledgeTask } from "./circle-knowledge.task";
 import { UgcKnowledgeService } from "./ugc-knowledge.service";
 import { UgcKnowledgeTask } from "./ugc-knowledge.task";
+import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { CoinModule } from "../coin/coin.module";
 import { CommissionModule } from "../commission/commission.module";
@@ -31,6 +32,7 @@ import { NotificationModule } from "../notification/notification.module";
     CircleKnowledgeTask,
     UgcKnowledgeService,
     UgcKnowledgeTask,
+    StationIsolationGuard,
   ],
   exports: [CircleService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService],
 })

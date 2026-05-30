@@ -12,6 +12,19 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
+/** 限流白名单：本地环回 + 内网管理端 */
+const RATE_LIMIT_WHITELIST = new Set([
+  "127.0.0.1",
+  "::1",
+  "::ffff:127.0.0.1",
+]);
+
+function isWhitelisted(ip: string): boolean {
+  if (RATE_LIMIT_WHITELIST.has(ip)) return true;
+  if (ip.startsWith("192.168.")) return true;
+  return false;
+}
+
 /**
  * 简易内存限流守卫
  * 默认：单个 IP 每 60 秒最多 30 次请求
@@ -37,6 +50,10 @@ export class ThrottleGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
     const ip = request.ip || request.connection?.remoteAddress || "unknown";
+
+    // 白名单 IP 不限流
+    if (isWhitelisted(ip)) return true;
+
     const key = `rate:${ip}`;
 
     const now = Date.now();

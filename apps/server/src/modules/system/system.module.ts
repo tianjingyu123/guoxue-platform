@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Global, Module } from "@nestjs/common";
 import { SystemController } from "./system.controller";
 import { ImportController } from "./import.controller";
 import { LegalController } from "./legal.controller";
@@ -9,12 +9,15 @@ import { ImportService } from "./import.service";
 import { SystemTask } from "./system.task";
 import { BackupController } from "./backup.controller";
 import { BackupService } from "./backup.service";
+import { PermissionController } from "./permission.controller";
+import { PermissionService } from "./permission.service";
 import { AuditModule } from "../audit/audit.module";
 
+@Global()
 @Module({
   imports: [AuditModule],
-  controllers: [SystemController, ImportController, LegalController, VersionController, BackupController],
-  providers: [SystemService, ExportService, ImportService, SystemTask, BackupService],
-  exports: [SystemService, ExportService, ImportService],
+  controllers: [SystemController, ImportController, LegalController, VersionController, BackupController, PermissionController],
+  providers: [SystemService, ExportService, ImportService, SystemTask, BackupService, PermissionService],
+  exports: [SystemService, ExportService, ImportService, PermissionService],
 })
 export class SystemModule {}

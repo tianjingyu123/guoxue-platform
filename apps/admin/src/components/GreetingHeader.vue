@@ -59,7 +59,21 @@ const solarTerm = computed(() => {
 </script>
 
 <style scoped>
-.greeting-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.greeting-text { font-size: 22px; font-weight: 600; color: #1A1A1A; margin: 0; }
-.greeting-date { font-size: 13px; color: #999; margin: 4px 0 0; }
+.greeting-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+}
+.greeting-text {
+  font-size: var(--font-size-title-lg);
+  font-weight: 600;
+  color: var(--color-text-title);
+  margin: 0;
+}
+.greeting-date {
+  font-size: var(--font-size-caption);
+  color: var(--color-text-secondary);
+  margin: 4px 0 0;
+}
 </style>

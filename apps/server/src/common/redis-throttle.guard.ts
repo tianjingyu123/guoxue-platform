@@ -9,6 +9,20 @@ import {
 import { serverConfig } from "../config/server-config";
 import { RedisService } from "../redis/redis.service";
 
+/** 限流白名单：本地环回 + 内网管理端 */
+const RATE_LIMIT_WHITELIST = new Set([
+  "127.0.0.1",
+  "::1",
+  "::ffff:127.0.0.1",
+]);
+
+function isWhitelisted(ip: string): boolean {
+  if (RATE_LIMIT_WHITELIST.has(ip)) return true;
+  // 内网 192.168.x.x 段也放行
+  if (ip.startsWith("192.168.")) return true;
+  return false;
+}
+
 /**
  * Redis 分布式限流守卫，多实例部署下共享计数。
  * RedisService.incrWithTtl 内部已处理 Redis→内存降级。
@@ -29,6 +43,10 @@ export class RedisThrottleGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const ip = request.ip || request.connection?.remoteAddress || "unknown";
+
+    // 白名单 IP 不限流
+    if (isWhitelisted(ip)) return true;
+
     const key = `rate:${ip}`;
 
     const { count, ttl: remainingTtl } = await this.redis.incrWithTtl(key, this.ttl);

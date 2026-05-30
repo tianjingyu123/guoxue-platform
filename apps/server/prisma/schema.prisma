@@ -15,6 +15,7 @@ datasource db {
 enum UserStatus {
   ACTIVE
   DISABLED
+  BANNED
 }
 
 enum MemberLevel {
@@ -37,7 +38,11 @@ model User {
   memberExpire        DateTime?
   paymentPasswordHash String?
   interestCategories  String[]    @default([]) // 用户兴趣品类
+  identityVerified    Boolean     @default(false) // 实名认证状态
+  identityVerifiedAt  DateTime?   // 实名认证通过时间
   status              UserStatus  @default(ACTIVE)
+  timezone            String?     @default("Asia/Shanghai") // 时区（国际化预留）
+  preferredCurrency   String?     @default("CNY") // 偏好货币（国际化预留）
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
@@ -98,6 +103,19 @@ model User {
   competitionRegistrations CompetitionRegistration[]
   invitedRegistrations     CompetitionRegistration[] @relation("CompetitionInviter")
   competitionScores        CompetitionScore[]
+
+  // 账号注销
+  deleteRequestedAt        DateTime?
+  deleteScheduledAt        DateTime?
+
+  // 青少年模式
+  teenModeEnabled          Boolean              @default(false)
+  teenModeSettings         Json?
+
+  // 浏览历史 & 签到
+  browseHistories          BrowseHistory[]
+  checkIns                 CheckIn[]
+  dailyTasks               DailyTask[]
   competitionRankings      CompetitionRanking[]
   competitionInvitations   CompetitionInvitation[]   @relation("CompetitionInviterLink")
   competitionInvitedBy     CompetitionInvitation[]   @relation("CompetitionInviteeLink")
@@ -158,6 +176,27 @@ model UserRole {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleType, bindId])
+  @@index([roleType])
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  label     String
+  module    String
+  createdAt DateTime @default(now())
+
+  rolePermissions RolePermission[]
+}
+
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleType     RoleType
+  permissionId String
+
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleType, permissionId])
   @@index([roleType])
 }
 
@@ -445,9 +484,12 @@ model Article {
   circleId       String
   userId         String
   title          String
+  titleEn        String? // 英文标题（国际化预留）
   content        String // 富文本HTML
+  contentEn      String? // 英文正文（国际化预留）
   cover          String?
   excerpt        String?
+  excerptEn      String? // 英文摘要（国际化预留）
   tags           String[]
   isPushHome     Boolean   @default(false)
   auditStatus    String    @default("PENDING") // PENDING, APPROVED, REJECTED
@@ -506,8 +548,10 @@ model Course {
   circleId       String?
   userId         String // 创建者
   title          String
+  titleEn        String? // 英文标题（国际化预留）
   cover          String?
   intro          String?
+  introEn        String? // 英文简介（国际化预留）
   type           CourseType @default(VIDEO)
   price          Decimal    @default(0) @db.Decimal(10, 2)
   originalPrice  Decimal?   @db.Decimal(10, 2)
@@ -634,9 +678,12 @@ model Product {
   circleId       String?
   userId         String? // 供应商
   title          String
+  titleEn        String? // 英文标题（国际化预留）
   categoryId     String?
   intro          String?
+  introEn        String? // 英文简介（国际化预留）
   detail         String // 详情HTML
+  detailEn       String? // 英文详情（国际化预留）
   images         String[]     @default([])
   videoUrl       String?
   tags           String[]     @default([])
@@ -736,7 +783,7 @@ model Order {
   @@index([status, createdAt])
   @@index([referrerId])
   @@index([tempReferrerId])
-  @@index([payTransactionId])
+  @@unique([payTransactionId])
   @@index([type, status])
   @@index([userId, type, targetId, status])
   @@index([userId, status])
@@ -879,6 +926,7 @@ model LiveRoom {
   circleId    String?
   userId      String // 发起人
   title       String
+  titleEn     String? // 英文标题（国际化预留）
   cover       String?
   hostType    LiveHostType @default(CIRCLE_OWNER)
   hostUserId  String // 主播
@@ -895,12 +943,14 @@ model LiveRoom {
   endTime     DateTime?
   replayUrl   String?
   courseId    String? // 关联课程（课程直播联动）
+  stationId   String? // 分站数据隔离（null = 平台级）
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
   circle      Circle?         @relation(fields: [circleId], references: [id])
   user        User            @relation(fields: [userId], references: [id])
   course      Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  station     Station?        @relation(fields: [stationId], references: [id])
   products    LiveProduct[]
   giftRecords GiftRecord[]
   mics        LiveMic[]
@@ -914,6 +964,7 @@ model LiveRoom {
   @@index([circleId])
   @@index([circleId, status])
   @@index([courseId])
+  @@index([stationId])
   @@index([status, startTime])
   @@index([hostUserId, status])
 }
@@ -1382,7 +1433,10 @@ model Station {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  operatorId  String? // 归属运营商ID
+
   user        User                @relation(fields: [userId], references: [id])
+  operator    Operator?           @relation("OperatorStations", fields: [operatorId], references: [id])
   earnings    StationEarning[]
   withdrawals Withdrawal[]
   contents    Content[]
@@ -1391,11 +1445,13 @@ model Station {
   courses     Course[]
   videos      Video[]
   circles     Circle[]
+  liveRooms   LiveRoom[]
   picks       StationPick[]
   toolConfigs StationToolConfig[]
   toolRecords ToolRecord[]
 
   @@index([code])
+  @@index([operatorId])
 }
 
 // ─────────────────────────────────────────────────
@@ -1425,6 +1481,7 @@ model Operator {
   containQuota     Int           @default(0) // 包含的站长名额
   usedQuota        Int           @default(0) // 已使用名额
   parentOperatorId String?
+  totalEarning     Decimal       @default(0) @db.Decimal(12, 2)
   status           String        @default("ACTIVE")
   // 运营商独立小程序
   miniAppId        String? // 独立小程序 AppId
@@ -1437,7 +1494,11 @@ model Operator {
   expireAt         DateTime?
   createdAt        DateTime      @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user           User              @relation(fields: [userId], references: [id])
+  parentOperator Operator?         @relation("OperatorHierarchy", fields: [parentOperatorId], references: [id])
+  childOperators Operator[]        @relation("OperatorHierarchy")
+  stations       Station[]         @relation("OperatorStations")
+  earnings       OperatorEarning[]
 
   @@index([parentOperatorId])
 }
@@ -1455,6 +1516,24 @@ model StationEarning {
   station Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
 
   @@index([stationId, createdAt])
+  @@index([orderId])
+}
+
+model OperatorEarning {
+  id               String   @id @default(uuid())
+  operatorId       String
+  orderId          String
+  source           String // MGMT_BONUS / UPPER_MGMT_BONUS
+  amount           Decimal  @db.Decimal(10, 2) // 订单原始金额
+  rate             Decimal  @db.Decimal(5, 4) // 管理奖比例
+  earned           Decimal  @db.Decimal(10, 2) // 实际所得
+  sourceStationId  String? // 产生佣金的站点
+  sourceOperatorId String? // 产生佣金的下级运营商（仅UPPER_MGMT_BONUS）
+  createdAt        DateTime @default(now())
+
+  operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([operatorId, createdAt])
   @@index([orderId])
 }
 
@@ -1849,11 +1928,13 @@ model SearchWeight {
 model ClassicBook {
   id             String   @id @default(uuid())
   title          String
+  titleEn        String? // 英文标题（国际化预留）
   author         String? // 作者/编者
   dynasty        String? // 朝代
   category       String   @default("子") // 经/史/子/集/释/道/命（命理）
   cover          String?
   intro          String?
+  introEn        String? // 英文简介（国际化预留）
   source         String? // 版本来源
   versionGroupId String? // 同书多版本分组ID（用于关联不同版本）
   chapterCount   Int      @default(0)
@@ -1879,8 +1960,11 @@ model ClassicChapter {
   id          String   @id @default(uuid())
   bookId      String
   title       String // 章/卷标题
+  titleEn     String? // 英文标题（国际化预留）
   content     String // 原文
+  contentEn   String? // 英文原文（国际化预留）
   translation String? // 白话译文
+  translationEn String? // 英文译文（国际化预留）
   annotation  String? // 注释
   tags        Json? // 八字命理标签 ["格局:正官格","十神:伤官","神煞:天乙贵人"]
   sortOrder   Int      @default(0)
@@ -2478,9 +2562,11 @@ model EbookCategory {
 model Ebook {
   id             String      @id @default(uuid())
   title          String
+  titleEn        String? // 英文标题（国际化预留）
   author         String?
   cover          String?
   description    String?
+  descriptionEn  String? // 英文描述（国际化预留）
   categoryId     String?
   price          Decimal     @default(0) @db.Decimal(10, 2)
   originalPrice  Decimal?    @db.Decimal(10, 2)
@@ -2516,7 +2602,9 @@ model EbookChapter {
   id        String   @id @default(uuid())
   ebookId   String
   title     String
+  titleEn   String? // 英文标题（国际化预留）
   content   String? // 纯文本章节内容
+  contentEn String? // 英文内容（国际化预留）
   pageStart Int      @default(0)
   pageEnd   Int      @default(0)
   sortOrder Int      @default(0)
@@ -2860,6 +2948,7 @@ model RiskAlert {
   detail     Json? // 详细信息
   targetType String?
   targetId   String?
+  stationId  String?
   status     String    @default("OPEN") // OPEN/HANDLED/IGNORED
   handledBy  String?
   handledAt  DateTime?
@@ -2867,11 +2956,13 @@ model RiskAlert {
 
   @@index([status, level, createdAt])
   @@index([type, createdAt])
+  @@index([stationId, status])
 }
 
 model FraudDetection {
   id         String   @id @default(uuid())
   userId     String?
+  stationId  String?
   type       String // BRUSH_ORDER/FAKE_ACCOUNT/REFUND_ABUSE
   confidence Decimal  @db.Decimal(3, 2) // AI置信度 0-1
   evidence   Json? // 证据链
@@ -2880,6 +2971,7 @@ model FraudDetection {
 
   @@index([status, createdAt])
   @@index([userId])
+  @@index([stationId, status])
 }
 
 // 【分区候选】P2阶段按天分区或迁入ClickHouse，分片键userId，180天保留
@@ -3174,6 +3266,8 @@ model ChurnAction {
   actionData  Json     @default("{}")
   status      String    @default("PENDING") // PENDING/SENT/SUCCESS/FAILED
   result      String?
+  errorLog    String?
+  executedAt  DateTime?
   triggeredBy String    @default("SYSTEM") // SYSTEM/ADMIN/RULE
   createdAt   DateTime  @default(now())
   sentAt      DateTime?
@@ -3460,6 +3554,7 @@ model Merchant {
   violations     MerchantViolation[]
   depositRecords MerchantDepositRecord[]
   agreements     MerchantAgreement[]
+  settlements    MerchantSettlement[]
 
   @@index([status])
   @@index([status, createdAt])
@@ -3508,6 +3603,29 @@ model MerchantDepositRecord {
   merchant Merchant @relation(fields: [merchantId], references: [id])
 
   @@index([merchantId])
+}
+
+model MerchantSettlement {
+  id               String   @id @default(cuid())
+  merchantId       String
+  merchant         Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  periodStart      DateTime
+  periodEnd        DateTime
+  orderCount       Int      @default(0)
+  totalRevenue     Int      @default(0)
+  commission       Int      @default(0)
+  settlementAmount Int      @default(0)
+  status           String   @default("PENDING")
+  paidAt           DateTime?
+  paidAmount       Int?
+  remark           String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([merchantId])
+  @@index([merchantId, status])
+  @@index([createdAt])
+  @@map("merchant_settlements")
 }
 
 model MerchantAgreement {
@@ -3682,6 +3800,7 @@ enum TaskStatus {
   COMPLETED
   NEEDS_REVIEW
   CANCELLED
+  EXPIRED
 }
 
 enum TaskType {
@@ -3702,7 +3821,7 @@ model Task {
   status        TaskStatus   @default(PENDING)
   title         String
   description   String?
-  executorType  String // "CLAUDE" | "HUMAN"
+  executorType  String? // "CLAUDE" | "HUMAN"
   executorId    String? // Claude实例ID 或 用户ID
   snapshot      Json? // 任务数据快照（切换执行者时恢复现场）
   result        Json? // 执行结果
@@ -3714,6 +3833,7 @@ model Task {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   completedAt   DateTime?
+  expiresAt     DateTime?
 
   transferLogs TaskTransferLog[]
 
@@ -4249,6 +4369,13 @@ enum CompetitionLevel {
   B // 圈子内部赛
 }
 
+enum PrizeType {
+  CASH // 现金奖金
+  PHYSICAL // 实物奖品
+  VIRTUAL // 虚拟商品
+  MIXED // 混合（现金+实物/虚拟）
+}
+
 enum RoundType {
   REGISTRATION // 报名期
   PRELIMINARY // 初赛
@@ -4296,12 +4423,15 @@ enum PromotionStatus {
 model Competition {
   id              String            @id @default(cuid())
   title           String // 赛事标题
+  titleEn         String? // 英文标题（国际化预留）
   type            CompetitionType // 赛事类型
   level           CompetitionLevel  @default(B) // 赛事级别
   status          CompetitionStatus @default(DRAFT)
   description     String?           @db.Text
+  descriptionEn   String?           @db.Text // 英文描述（国际化预留）
   coverImage      String? // 封面图
   rules           String?           @db.Text // 赛事规则（Markdown）
+  rulesEn         String?           @db.Text // 英文规则（国际化预留）
   scoringModel    ScoringModel      @default(A) // 评分模型
   maxParticipants Int               @default(0) // 0=不限
   entryFee        Int               @default(0) // 报名费（分）
@@ -4312,6 +4442,8 @@ model Competition {
   organizerType   String? // circle / platform
   tags            String[]          @default([])
   totalPrize      Int               @default(0) // 总奖金池（分）
+  prizeType       PrizeType         @default(CASH) // 奖品类型
+  prizeConfig     Json? // 奖品分配规则 [{rank, title, prize, prizeItem, prizeType, description}]
   invitationShare Int               @default(0) // 邀请分润比例（千分比，如50=5%）
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -4339,7 +4471,9 @@ model CompetitionRound {
   type          RoundType
   status        RoundStatus @default(PENDING)
   title         String // 轮次名称，如"初赛·问卷答题"
+  titleEn       String? // 英文标题（国际化预留）
   description   String?     @db.Text
+  descriptionEn String?     @db.Text // 英文描述（国际化预留）
   sortOrder     Int         @default(0)
   startAt       DateTime // 开始时间
   endAt         DateTime // 结束时间
@@ -4554,4 +4688,75 @@ model SpecialTeacher {
 
   @@index([level])
   @@index([totalScore])
+}
+
+// ── 浏览历史 ──
+model BrowseHistory {
+  id         String   @id @default(cuid())
+  userId     String
+  targetType String // content/course/circle/classic/ebook/video/live/article/product/poetry
+  targetId   String
+  title      String
+  cover      String?
+  duration   Int      @default(0) // 浏览时长(秒)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, targetType, createdAt])
+}
+
+// ── 每日签到 ──
+model CheckIn {
+  id              String   @id @default(cuid())
+  userId          String
+  checkInDate     DateTime @db.Date // 签到日期（精确到天）
+  consecutiveDays Int      @default(1) // 连续签到天数
+  rewardPoints    Int      @default(0) // 本次获得积分
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, checkInDate])
+  @@index([userId, checkInDate])
+}
+
+// ── 每日任务 ──
+model DailyTask {
+  id          String    @id @default(cuid())
+  userId      String
+  taskType    String // read/comment/share/like/post/watch/course/checkin
+  taskDate    DateTime  @db.Date
+  title       String
+  description String?
+  rewardPoints Int      @default(0)
+  targetCount Int      @default(1) // 目标次数
+  doneCount   Int      @default(0) // 已完成次数
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taskType, taskDate])
+  @@index([userId, taskDate])
+}
+
+// ─────────────────────────────────────────────────
+// 国际化配置（预留）
+// ─────────────────────────────────────────────────
+
+model I18nConfig {
+  id        String   @id @default(uuid())
+  key       String // 文案键名，如 "home.title"、"login.welcome"
+  locale    String   @default("zh-CN") // 语言区域：zh-CN/zh-TW/en/ja/ko
+  value     String   @db.Text // 翻译文案
+  namespace String   @default("common") // 命名空间：common/admin/mobile/course 等
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([key, locale, namespace])
+  @@index([locale])
+  @@index([namespace, locale])
 }

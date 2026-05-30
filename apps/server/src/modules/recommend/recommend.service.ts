@@ -118,8 +118,11 @@ export class RecommendService {
       }
     }
 
-    // P3: 评分流水线（会员加权 + 归一化）
+    // P3: 评分流水线（新鲜度 + 会员加权 + 归一化）
     filtered = await this.scoring.score(filtered, ctx.userId);
+
+    // P3: 多样性交错 — 防止同类型内容连续霸占前排
+    filtered = this.applyDiversityInterleave(filtered, 3);
 
     // P2: 分区强插 — 运营插入指定内容到指定位置
     try {
@@ -361,37 +364,72 @@ export class RecommendService {
       ZIWEI: ["紫微斗数", "紫微", "命盘"],
       FENGSHUI: ["风水", "家居风水", "办公风水"],
       NAME: ["命名", "取名", "姓名学"],
+      LIUYAO: ["六爻", "卦象", "预测"],
+      LIUREN: ["大六壬", "六壬", "天星"],
+      QIMEN: ["奇门遁甲", "奇门", "遁甲"],
     };
     const matchTags = tagMap[ctx.paipanType ?? ""] ?? ["国学", "易学"];
 
     const items: RecommendItem[] = [];
 
-    // 相关课程
-    const courses = await this.prisma.course.findMany({
-      where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED" },
-      select: this.courseSelect(),
-      take: 4,
-      orderBy: { studentCount: "desc" },
-    });
+    // 并行查询：课程 + 圈子 + 文章 + 商品 + 视频 + 古籍
+    const [courses, circles, articles, products, videos] = await Promise.all([
+      this.prisma.course.findMany({
+        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED" },
+        select: this.courseSelect(), take: 4, orderBy: { studentCount: "desc" },
+      }),
+      this.prisma.circle.findMany({
+        where: { tags: { hasSome: matchTags }, status: "ACTIVE" },
+        select: this.circleSelect(), take: 4, orderBy: { memberCount: "desc" },
+      }),
+      this.prisma.article.findMany({
+        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED" },
+        select: this.articleSelect(), take: 4, orderBy: { viewCount: "desc" },
+      }),
+      this.prisma.product.findMany({
+        where: { tags: { hasSome: matchTags }, status: "ON_SALE" },
+        select: this.productSelect(), take: 4, orderBy: { salesCount: "desc" },
+      }),
+      this.prisma.video.findMany({
+        where: { tags: { hasSome: matchTags }, status: "PUBLISHED" },
+        select: this.videoSelect(), take: 4, orderBy: { viewCount: "desc" },
+      }),
+    ]);
+
     items.push(...courses.map((c) => ({
       id: c.id, type: "COURSE" as const, title: c.title, cover: c.cover ?? undefined,
-      excerpt: c.intro ?? undefined, tags: c.tags, score: c.studentCount ?? 0,
-      reason: "根据排盘结果推荐课程", strategies: ["tag-match"],
+      excerpt: c.intro ?? undefined, tags: c.tags, score: (c.studentCount ?? 0) * 2,
+      reason: "排盘结果相关课程", strategies: ["tag-match", "paipan-slot"],
       metadata: { price: Number(c.price), studentCount: c.studentCount },
     })));
 
-    // 相关圈子
-    const circles = await this.prisma.circle.findMany({
-      where: { tags: { hasSome: matchTags }, status: "ACTIVE" },
-      select: this.circleSelect(),
-      take: 4,
-      orderBy: { memberCount: "desc" },
-    });
+    items.push(...articles.map((a) => ({
+      id: a.id, type: "ARTICLE" as const, title: a.title, cover: a.cover ?? undefined,
+      excerpt: a.excerpt ?? undefined, tags: a.tags,
+      score: (a.viewCount ?? 0) * 0.3 + (a.likeCount ?? 0) * 2,
+      reason: "排盘结果相关文章", strategies: ["tag-match", "paipan-slot"],
+      metadata: { viewCount: a.viewCount, likeCount: a.likeCount },
+    })));
+
     items.push(...circles.map((c) => ({
       id: c.id, type: "CIRCLE" as const, title: c.name, cover: c.cover ?? undefined,
       excerpt: c.intro ?? undefined, tags: c.tags, score: c.memberCount ?? 0,
-      reason: "根据排盘结果推荐圈子", strategies: ["tag-match"],
+      reason: "排盘结果相关圈子", strategies: ["tag-match", "paipan-slot"],
       metadata: { memberCount: c.memberCount },
+    })));
+
+    items.push(...products.map((p) => ({
+      id: p.id, type: "PRODUCT" as const, title: p.title, cover: p.images?.[0],
+      excerpt: p.intro ?? undefined, tags: p.tags, score: p.salesCount ?? 0,
+      reason: "排盘结果相关商品", strategies: ["tag-match", "paipan-slot"],
+      metadata: { price: Number(p.price), salesCount: p.salesCount },
+    })));
+
+    items.push(...videos.map((v) => ({
+      id: v.id, type: "VIDEO" as const, title: v.title ?? "", cover: v.coverUrl ?? undefined,
+      tags: v.tags, score: v.viewCount ?? 0,
+      reason: "排盘结果相关视频", strategies: ["tag-match", "paipan-slot"],
+      metadata: { viewCount: v.viewCount, likeCount: v.likeCount },
     })));
 
     // 底部综合推荐
@@ -1290,6 +1328,55 @@ export class RecommendService {
   // ═══════════════════════════════════════════
   // 工具方法
   // ═══════════════════════════════════════════
+
+  /** P3: 多样性交错 — 每类内容最多连续 maxConsecutive 个，保证推荐流类型丰富 */
+  applyDiversityInterleave(items: RecommendItem[], maxConsecutive = 3): RecommendItem[] {
+    if (items.length <= maxConsecutive) return items;
+
+    // 按类型分组保持内部排序
+    const grouped: Record<string, RecommendItem[]> = {};
+    for (const item of items) {
+      (grouped[item.type] ??= []).push(item);
+    }
+
+    const typeKeys = Object.keys(grouped);
+    if (typeKeys.length <= 1) return items;
+
+    const result: RecommendItem[] = [];
+    const counters: Record<string, number> = Object.fromEntries(typeKeys.map((k) => [k, 0]));
+
+    while (result.length < items.length) {
+      let added = false;
+      // 每个类型轮流取一个，直到列表填满
+      for (const type of typeKeys) {
+        if (result.length >= items.length) break;
+        const group = grouped[type];
+        if (counters[type] < group.length) {
+          // 检查该类型是否已连续出现 maxConsecutive 次
+          let consecutive = 0;
+          for (let i = result.length - 1; i >= 0; i--) {
+            if (result[i].type === type) consecutive++;
+            else break;
+          }
+          if (consecutive < maxConsecutive) {
+            result.push(group[counters[type]++]);
+            added = true;
+          }
+        }
+      }
+      // 所有类型都已达上限，放宽约束取剩余
+      if (!added) {
+        for (const type of typeKeys) {
+          const group = grouped[type];
+          while (counters[type] < group.length && result.length < items.length) {
+            result.push(group[counters[type]++]);
+          }
+        }
+      }
+    }
+
+    return result;
+  }
 
   /** 根据 A/B 实验覆写调整策略权重 */
   private applyOverrides(

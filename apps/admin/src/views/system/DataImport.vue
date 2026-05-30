@@ -61,12 +61,48 @@
         <p><strong>商品</strong> — 列：title, intro, detail, price, stock, images(逗号分隔), categoryId</p>
       </div>
       <div v-else-if="importType === 'classic'">
-        <p><strong>古籍</strong> — 列：title, author, dynasty, category(经/史/子/集/释/道), intro</p>
+        <p><strong>古籍</strong> — 列：title, author, dynasty, category(经/史/子/集/释/道/命), intro</p>
       </div>
       <div v-else-if="importType === 'user'">
         <p><strong>用户</strong> — 列：nickname, phone, email, gender(0/1), bio</p>
       </div>
       <p style="color:#999;margin-top:8px">第一行为表头，编码需为 UTF-8</p>
+    </el-card>
+
+    <el-card style="margin-top:16px">
+      <template #header>殆知阁古籍自动导入</template>
+      <p style="color:#666;margin-bottom:12px">
+        从 daizhige.org 自动采集古籍全文，当前索引 <strong>8,860</strong> 部。
+        需先运行 <code>py scripts/daizhige-scraper.py index && download N && generate</code> 生成种子文件。
+      </p>
+      <el-form inline>
+        <el-form-item label="单次导入上限">
+          <el-input-number v-model="daizhigeMax" :min="10" :max="5000" :step="100" />
+        </el-form-item>
+        <el-form-item label="分类筛选">
+          <el-select v-model="daizhigeCategory" clearable placeholder="全部" style="width:120px">
+            <el-option label="经" value="经" />
+            <el-option label="史" value="史" />
+            <el-option label="子" value="子" />
+            <el-option label="集" value="集" />
+            <el-option label="释" value="释" />
+            <el-option label="道" value="道" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="daizhigeStats" :loading="statsLoading">查看统计</el-button>
+          <el-button type="success" @click="daizhigeImport" :loading="importingDaizhige">开始导入</el-button>
+        </el-form-item>
+      </el-form>
+      <div v-if="daizhigeStatsResult" style="margin-top:8px">
+        <p>种子总数: <strong>{{ daizhigeStatsResult.total }}</strong>，章节总数: <strong>{{ daizhigeStatsResult.totalChapters }}</strong></p>
+        <p>分类: <span v-for="(n, cat) in daizhigeStatsResult.byCategory" :key="cat" style="margin-right:12px">{{ cat }}: {{ n }}</span></p>
+      </div>
+      <div v-if="daizhigeResult" style="margin-top:8px">
+        <el-tag type="success">新建 {{ daizhigeResult.created }}</el-tag>
+        <el-tag type="info" style="margin-left:8px">跳过 {{ daizhigeResult.skipped }}</el-tag>
+        <el-tag v-if="daizhigeResult.errors" type="danger" style="margin-left:8px">失败 {{ daizhigeResult.errors }}</el-tag>
+      </div>
     </el-card>
   </div>
 </template>
@@ -75,6 +111,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { importApi } from '@/api'
+import axios from 'axios'
 
 const importType = ref('article')
 const file = ref<File | null>(null)
@@ -92,6 +129,50 @@ async function doImport() {
     ElMessage.success('导入完成')
   } catch (e: any) { }
   finally { importing.value = false }
+}
+
+// ── 殆知阁自动导入 ──
+const daizhigeMax = ref(100)
+const daizhigeCategory = ref('')
+const statsLoading = ref(false)
+const importingDaizhige = ref(false)
+const daizhigeStatsResult = ref<any>(null)
+const daizhigeResult = ref<any>(null)
+
+async function daizhigeStats() {
+  statsLoading.value = true
+  try {
+    const token = localStorage.getItem('token')
+    const res = await axios.get('/api/classic/admin/daizhige-stats', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    daizhigeStatsResult.value = res.data
+    ElMessage.success('统计加载完成')
+  } catch (e: any) {
+    ElMessage.error('加载失败: ' + (e.response?.data?.message || e.message))
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+async function daizhigeImport() {
+  importingDaizhige.value = true
+  daizhigeResult.value = null
+  try {
+    const token = localStorage.getItem('token')
+    const params: any = { max: daizhigeMax.value }
+    if (daizhigeCategory.value) params.category = daizhigeCategory.value
+    const res = await axios.post('/api/classic/admin/daizhige-import', null, {
+      headers: { Authorization: `Bearer ${token}` },
+      params,
+    })
+    daizhigeResult.value = res.data
+    ElMessage.success(`导入完成: 新建 ${res.data.created}, 跳过 ${res.data.skipped}`)
+  } catch (e: any) {
+    ElMessage.error('导入失败: ' + (e.response?.data?.message || e.message))
+  } finally {
+    importingDaizhige.value = false
+  }
 }
 </script>
 

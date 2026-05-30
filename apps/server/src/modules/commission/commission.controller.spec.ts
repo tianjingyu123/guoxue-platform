@@ -5,6 +5,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { ActiveUserGuard } from "../../common/active-user.guard";
 
 const mockCommissionSvc = {
   getAllConfigs: jest.fn().mockResolvedValue([{ key: "course", rate: 0.3 }]),
@@ -20,6 +22,8 @@ const mockCommissionSvc = {
   trackClick: jest.fn().mockResolvedValue({ tracked: true }),
   getCommissionConfig: jest.fn().mockResolvedValue({ course: 0.3, product: 0.1 }),
   updateCommissionConfig: jest.fn().mockResolvedValue({ type: "course", rate: 0.4 }),
+  getOperatorEarnings: jest.fn().mockResolvedValue({ earnings: [], total: 0, page: 1, pageSize: 20, totalEarned: 0 }),
+  getOperatorBalance: jest.fn().mockResolvedValue({ totalEarned: 0, balance: 0 }),
 };
 
 describe("CommissionController", () => {
@@ -30,12 +34,14 @@ describe("CommissionController", () => {
       controllers: [CommissionController],
       providers: [
         { provide: CommissionService, useValue: mockCommissionSvc },
-        { provide: PrismaService, useValue: { station: { findUnique: jest.fn() } } },
+        { provide: PrismaService, useValue: { station: { findUnique: jest.fn() }, operator: { findUnique: jest.fn() }, circle: { findUnique: jest.fn() } } },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
+      .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
+      .overrideGuard(ActiveUserGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(CommissionController);
   });

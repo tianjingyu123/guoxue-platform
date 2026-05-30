@@ -1,17 +1,18 @@
 <template>
   <el-container class="layout">
+    <ConnectionStatus />
     <el-aside :width="isCollapse ? '64px' : '220px'" class="aside">
       <div class="logo">
-        <span v-if="!isCollapse">🏮 热卜国学</span>
-        <span v-else>🏮</span>
+        <span v-if="!isCollapse" class="logo-full">🏮 热卜国学</span>
+        <span v-else class="logo-icon">🏮</span>
       </div>
       <div class="menu-scroll">
         <el-menu
           router
           :default-active="route.path"
           :collapse="isCollapse"
-          background-color="#1a1a1a"
-          text-color="#bfcbd9"
+          background-color="#1A1A2E"
+          text-color="rgba(255,255,255,0.65)"
           active-text-color="#C9A96E"
         >
           <SidebarMenu :items="auth.menus" />
@@ -63,6 +64,7 @@ import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/store/auth";
 import SidebarMenu from "@/components/SidebarMenu.vue";
+import ConnectionStatus from "@/components/ConnectionStatus.vue";
 import { api } from "@/api";
 
 const router = useRouter();
@@ -101,70 +103,82 @@ function logout() {
 </script>
 
 <style scoped>
-.layout { height: 100vh; }
+.layout {
+  height: 100vh;
+  background: var(--color-bg-page);
+}
+
+/* ── 侧边栏 ── */
 .aside {
-  background: #1a1a1a;
-  transition: width 0.2s;
+  background: var(--color-bg-dark);
+  transition: width 0.2s ease;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.08);
 }
+
+.logo {
+  color: var(--color-gold);
+  text-align: center;
+  padding: 18px 12px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  border-bottom: 1px solid rgba(201, 169, 110, 0.12);
+  white-space: nowrap;
+  user-select: none;
+}
+.logo-icon { font-size: 20px; }
+
 .menu-scroll {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: var(--spacing-sm) 0;
 }
 .menu-scroll::-webkit-scrollbar { width: 4px; }
-.menu-scroll::-webkit-scrollbar-thumb { background: rgba(201, 169, 110, 0.3); border-radius: 2px; }
-.logo {
-  color: #C9A96E;
-  text-align: center;
-  padding: 18px 12px;
-  font-size: 18px;
-  font-weight: bold;
-  letter-spacing: 2px;
-  border-bottom: 1px solid rgba(201, 169, 110, 0.15);
-  white-space: nowrap;
+.menu-scroll::-webkit-scrollbar-thumb {
+  background: rgba(201, 169, 110, 0.2);
+  border-radius: var(--radius-full);
 }
+
+/* ── 顶栏 ── */
 .el-header {
-  background: #fff;
+  height: var(--header-height) !important;
+  background: var(--color-bg-card);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #E8E0D5;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  padding: 0 20px;
+  border-bottom: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-sm);
+  padding: 0 var(--spacing-xl);
+  z-index: 10;
 }
 .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-md);
 }
 .header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 .nickname {
-  color: #333;
-  font-size: 14px;
-}
-.el-main { background: #F5F0E8; }
-
-.fade-slide-enter-active,
-.fade-slide-leave-active {
-  transition: all 0.25s ease;
-}
-.fade-slide-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
-.fade-slide-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
+  color: var(--color-text-title);
+  font-size: var(--font-size-body);
+  font-weight: 500;
 }
 
-.el-menu--collapse {
-  width: 64px;
+/* ── 主内容 ── */
+.el-main {
+  background: var(--color-bg-page);
+  padding: var(--spacing-xl);
+  min-height: 0;
 }
+
+.el-menu--collapse { width: var(--sidebar-collapsed-width); }
+
+/* ── 页面过渡已移入 global.css ── */
 </style>

@@ -3,16 +3,34 @@
  * SuperAdminDashboard.vue — 超级管理员总览面板
  * 全站核心指标 + 第三方服务健康监控 + 营收趋势
  */
-import { ref, onMounted } from "vue"
+import { ref, onMounted, onBeforeUnmount } from "vue"
+import { useRouter } from "vue-router"
 import { api } from "@/api"
-import * as echarts from "echarts"
 import GreetingHeader from "@/components/GreetingHeader.vue"
 import AnimatedCounter from "@/components/AnimatedCounter.vue"
 import AnomalyAlert from "@/components/AnomalyAlert.vue"
 import ChartCard from "@/components/ChartCard.vue"
 import { User, Goods, Plus, WarningFilled, ChatDotRound, Reading, DataLine, Money } from "@element-plus/icons-vue"
 
+const router = useRouter()
+
 const username = ref("超级管理员")
+
+const cardRoutes: Record<string, string> = {
+  "总用户数":   "/users",
+  "总订单数":   "/orders",
+  "今日新增用户": "/users",
+  "今日营收":   "/finance/reports",
+  "待处理举报":  "/reports",
+  "圈子总数":   "/circles",
+  "课程总数":   "/courses",
+  "系统健康":   "/system/role-permission",
+}
+
+function onCardClick(card: CardDef) {
+  const route = cardRoutes[card.label]
+  if (route) router.push(route)
+}
 
 // ==================== 报警信息 ====================
 const alerts = ref<any[]>([])
@@ -79,7 +97,9 @@ function statusType(status: string): "success" | "danger" | "warning" {
   return "warning"
 }
 
-onMounted(async () => {
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+async function fetchDashboard() {
   try {
     const [statsRes, trendsRes, healthRes, alertRes] = await Promise.all([
       api.get("/dashboard/stats"),
@@ -110,9 +130,11 @@ onMounted(async () => {
     // 服务健康
     const h = healthRes.data ?? {}
     healthList.value = [
-      { name: "COS", status: h.cos ?? "ok", label: "对象存储" },
-      { name: "SMS", status: h.sms ?? "ok", label: "短信服务" },
-      { name: "AI",  status: h.ai ?? "ok",  label: "AI 服务" },
+      { name: "Redis", status: h.redis?.status ?? "ok", label: "Redis 缓存" },
+      { name: "SMS",   status: h.sms?.status ?? "ok",    label: "短信服务" },
+      { name: "AI",    status: h.deepSeek?.status ?? "ok", label: "AI 服务" },
+      { name: "COS",   status: h.tencentCloud?.status ?? "ok", label: "对象存储" },
+      { name: "支付",   status: h.wechatPay?.status ?? "ok",  label: "微信支付" },
     ]
 
     // 报警取前 3 条
@@ -123,7 +145,16 @@ onMounted(async () => {
   } catch {
     // 静默失败，保留空状态
   }
-})
+}
+
+onMounted(() => {
+  fetchDashboard();
+  refreshTimer = setInterval(fetchDashboard, 30000);
+});
+
+onBeforeUnmount(() => {
+  if (refreshTimer) clearInterval(refreshTimer);
+});
 </script>
 
 <template>
@@ -138,7 +169,7 @@ onMounted(async () => {
     <!-- 统计卡片 4×2 -->
     <el-row :gutter="20" class="stats-row">
       <el-col v-for="card in cards" :key="card.label" :xs="24" :sm="12" :md="6">
-        <div class="stat-card">
+        <div class="stat-card" @click="onCardClick(card)">
           <div class="stat-card__top">
             <span class="stat-card__label">{{ card.label }}</span>
             <div class="stat-card__icon"><el-icon :size="18"><component :is="card.icon" /></el-icon></div>
@@ -186,7 +217,7 @@ onMounted(async () => {
 .stat-card {
   background: #fff; border-radius: 16px; padding: 20px 22px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04); transition: transform 0.2s ease, box-shadow 0.2s ease;
-  cursor: default; margin-bottom: 20px;
+  cursor: pointer; margin-bottom: 20px;
 }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
 .stat-card__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }

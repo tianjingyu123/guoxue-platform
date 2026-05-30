@@ -229,6 +229,11 @@
         <text class="menu-label">我的收藏</text>
         <text class="arrow">›</text>
       </view>
+      <view class="menu-item" @click="goPage('/pages/articles/drafts')">
+        <text class="menu-icon">📝</text>
+        <text class="menu-label">我的草稿</text>
+        <text class="arrow">›</text>
+      </view>
       <view class="menu-item" @click="goPage('/pages/courses/courses')">
         <text class="menu-icon">📚</text>
         <text class="menu-label">学习记录</text>
@@ -237,6 +242,21 @@
       <view class="menu-item" @click="goPage('/pages/orders/orders')">
         <text class="menu-icon">📦</text>
         <text class="menu-label">我的订单</text>
+        <text class="arrow">›</text>
+      </view>
+      <view class="menu-item" @click="goPage('/pages/shop/cart')">
+        <text class="menu-icon">🛒</text>
+        <text class="menu-label">购物车</text>
+        <text class="arrow">›</text>
+      </view>
+      <view class="menu-item" @click="goPage('/pages/shop/address-list')">
+        <text class="menu-icon">📍</text>
+        <text class="menu-label">收货地址</text>
+        <text class="arrow">›</text>
+      </view>
+      <view class="menu-item" @click="goPage('/pages/shop/my-after-sales')">
+        <text class="menu-icon">🔄</text>
+        <text class="menu-label">我的售后</text>
         <text class="arrow">›</text>
       </view>
       <view class="menu-item" @click="goPage('/pages/circles/circles')">
@@ -262,6 +282,11 @@
       <view class="menu-item" @click="goPage('/pages/wallet/wallet')">
         <text class="menu-icon">🪙</text>
         <text class="menu-label">我的钱包</text>
+        <text class="arrow">›</text>
+      </view>
+      <view class="menu-item" @click="goPage('/pages/competition/competition')">
+        <text class="menu-icon">🏆</text>
+        <text class="menu-label">我的赛事</text>
         <text class="arrow">›</text>
       </view>
       <view class="menu-item" @click="goPage('/pages/shop/coupons')">
@@ -336,7 +361,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onShow } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { onPullDownRefresh, onReachBottom } from "@dcloudio/uni-app";
 import { useUserStore } from "../../store/user";
 import { userApi, interactApi, notifyApi } from "../../api";

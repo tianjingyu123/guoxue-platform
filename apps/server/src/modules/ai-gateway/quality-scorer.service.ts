@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { QualityScoreRecord } from "@prisma/client";
 import { AiGatewayService } from "./ai-gateway.service";
@@ -60,7 +62,7 @@ export class QualityScorerService {
 
       const score = this.parseScore(resp.content);
       // 异步持久化
-      this.persistScore(req, score, resp.model).catch(() => {});
+      this.persistScore(req, score, resp.model).catch((err) => this.logger.warn("评分持久化失败", err));
       return score;
     } catch (err: any) {
       this.logger.error(`质量评分失败: ${err.message}`);
@@ -198,7 +200,7 @@ export class QualityScorerService {
     try {
       // 尝试提取 JSON
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("未找到 JSON");
+      if (!jsonMatch) throw new BusinessException(ErrorCode.BAD_REQUEST, "AI 评分返回格式异常，未找到 JSON");
       const parsed = JSON.parse(jsonMatch[0]);
 
       const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));

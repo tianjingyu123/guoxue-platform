@@ -5,6 +5,7 @@ WORKDIR /app
 # 依赖缓存层
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/server/package.json apps/server/
+COPY apps/admin/package.json apps/admin/
 COPY packages/shared/package.json packages/shared/
 COPY packages/bazi-engine/package.json packages/bazi-engine/
 COPY packages/ziwei-engine/package.json packages/ziwei-engine/
@@ -18,6 +19,7 @@ RUN pnpm --filter @guoxue/shared build
 RUN pnpm --filter @guoxue/bazi-engine build
 RUN pnpm --filter @guoxue/ziwei-engine build
 RUN pnpm build:server
+RUN pnpm build:admin
 
 # ── 运行阶段 ──
 FROM node:20.19-alpine
@@ -40,6 +42,10 @@ COPY --from=builder /app/packages/bazi-engine/package.json ./packages/bazi-engin
 COPY --from=builder /app/packages/ziwei-engine/dist ./packages/ziwei-engine/dist
 COPY --from=builder /app/packages/ziwei-engine/package.json ./packages/ziwei-engine/
 COPY --from=builder /app/package.json ./
+
+# 管理后台前端构建产物
+COPY --from=builder /app/apps/admin/dist ./admin-dist
+
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

@@ -1,0 +1,98 @@
+<script setup lang="ts">
+import { ref } from "vue";
+import { ElMessage } from "element-plus";
+
+const exporting = ref("");
+const exportTypes = [
+  { key: "users", label: "用户数据", icon: "👤", desc: "导出用户列表，含昵称、手机号、注册时间等" },
+  { key: "orders", label: "订单数据", icon: "📦", desc: "导出订单列表，含金额、状态、支付时间等" },
+  { key: "contents", label: "内容数据", icon: "📝", desc: "导出内容列表，含标题、类型、发布时间等" },
+  { key: "audit-logs", label: "审计日志", icon: "📋", desc: "导出操作审计日志，含操作人、动作、时间等" },
+  { key: "earnings", label: "佣金收益", icon: "💰", desc: "导出佣金收益记录，含分站、金额、状态等" },
+];
+
+const excelTypes = [
+  { key: "users", label: "用户数据 (Excel)", icon: "📊" },
+  { key: "orders", label: "订单数据 (Excel)", icon: "📊" },
+];
+
+async function exportCsv(type: string) {
+  exporting.value = type;
+  try {
+    const { api } = await import("@/api");
+    const res = await api.get(`/system/export/${type}`, { responseType: "blob" });
+    downloadBlob(res.data, `${type}-${Date.now()}.csv`);
+    ElMessage.success("导出成功");
+  } catch {
+    ElMessage.error("导出失败");
+  } finally {
+    exporting.value = "";
+  }
+}
+
+async function exportExcel(type: string) {
+  exporting.value = type;
+  try {
+    const { api } = await import("@/api");
+    const res = await api.post("/system/export/excel", { type, filters: {} }, { responseType: "blob" });
+    downloadBlob(res.data, `${type}-${Date.now()}.xls`);
+    ElMessage.success("导出成功");
+  } catch {
+    ElMessage.error("导出失败");
+  } finally {
+    exporting.value = "";
+  }
+}
+
+function downloadBlob(data: Blob, filename: string) {
+  const url = URL.createObjectURL(data);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+
+<template>
+  <div class="page">
+    <div class="header">
+      <h2>数据导出中心</h2>
+    </div>
+
+    <el-row :gutter="16">
+      <el-col v-for="t in exportTypes" :key="t.key" :span="8" style="margin-bottom:16px">
+        <el-card shadow="hover">
+          <template #header>
+            <span>{{ t.icon }} {{ t.label }}</span>
+          </template>
+          <p style="color:#909399;font-size:13px;min-height:36px">{{ t.desc }}</p>
+          <el-button type="primary" :loading="exporting === t.key" @click="exportCsv(t.key)" style="width:100%">
+            导出 CSV
+          </el-button>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <el-divider content-position="left">Excel 导出</el-divider>
+
+    <el-row :gutter="16">
+      <el-col v-for="t in excelTypes" :key="t.key" :span="8" style="margin-bottom:16px">
+        <el-card shadow="hover">
+          <template #header>
+            <span>{{ t.icon }} {{ t.label }}</span>
+          </template>
+          <el-button type="success" :loading="exporting === t.key" @click="exportExcel(t.key)" style="width:100%">
+            导出 Excel
+          </el-button>
+        </el-card>
+      </el-col>
+    </el-row>
+  </div>
+</template>
+
+<style scoped>
+.page { padding: 16px; }
+.header { margin-bottom: 16px; }
+.header h2 { margin: 0; }
+</style>

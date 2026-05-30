@@ -6,6 +6,8 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { ThrottleGuard } from "../../common/throttle.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { RequireFeature } from "../../common/feature-flag.decorator";
 import { StationId } from "../../common/station-id.decorator";
 import { RecommendQueryDto, RecommendLogDto, RecommendScene, SaveUserInterestsDto, InsertContentDto } from "./recommend.dto";
 import { ColdStartService } from "./services/cold-start.service";
@@ -39,7 +41,8 @@ export class RecommendController {
   }
 
   @Get("personalized")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
+  @RequireFeature("recommend_algorithm")
   @ApiOperation({ summary: "获取个性化推荐（旧版兼容）" })
   @ApiBearerAuth()
   personalized(@Req() req: Request) {
@@ -65,7 +68,8 @@ export class RecommendController {
   // ───── 分区强插管理 ─────
 
   @Put("insert")
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, FeatureFlagGuard)
+  @RequireFeature("recommend_algorithm")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "设置分区强插" })
   @ApiBearerAuth()
@@ -101,6 +105,8 @@ export class RecommendController {
   // 注意：新增静态路由的控制器必须在本控制器之前注册，否则会被 :scene 通配拦截
 
   @Get(":scene")
+  @UseGuards(FeatureFlagGuard)
+  @RequireFeature("recommend_algorithm")
   @ApiOperation({ summary: "全页面智能推荐" })
   async recommend(
     @Param("scene") scene: RecommendScene,

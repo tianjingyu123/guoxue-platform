@@ -14,6 +14,7 @@
             {{ ttsLoading ? '⏳' : '🔊' }}
           </text>
           <text class="nav-btn" @click="showSettings = !showSettings">Aa</text>
+          <text class="nav-btn" @click="showAiPanel = !showAiPanel">🤖</text>
           <text class="nav-btn" @click="showToc = true">&#9776;</text>
         </view>
       </view>
@@ -48,6 +49,67 @@
         <view :class="['toggle-switch', { on: isDark }]" @click="toggleDark">
           <view class="toggle-knob" />
         </view>
+      </view>
+    </view>
+
+    <!-- ========== AI 工具面板 ========== -->
+    <view v-if="showAiPanel" class="ai-panel" :style="{ top: (statusBarHeight + 44) + 'px' }">
+      <view class="ai-tabs">
+        <text :class="['ai-tab', { active: aiTab === 'dict' }]" @click="aiTab = 'dict'">查字典</text>
+        <text :class="['ai-tab', { active: aiTab === 'translate' }]" @click="aiTab = 'translate'">AI翻译</text>
+        <text :class="['ai-tab', { active: aiTab === 'qa' }]" @click="aiTab = 'qa'">AI问答</text>
+      </view>
+
+      <!-- 查字典 -->
+      <view v-if="aiTab === 'dict'" class="ai-section">
+        <view class="ai-input-row">
+          <input v-model="dictWord" placeholder="输入字词，如：仁" class="ai-input" @confirm="doDictLookup" />
+          <text class="ai-btn" @click="doDictLookup">查询</text>
+        </view>
+        <view v-if="dictResult" class="ai-result">
+          <view v-if="dictResult.pinyin" class="ai-field"><text class="ai-label">拼音：</text>{{ dictResult.pinyin }}</view>
+          <view v-if="dictResult.radicals" class="ai-field"><text class="ai-label">部首：</text>{{ dictResult.radicals }}</view>
+          <view v-if="dictResult.meanings?.length" class="ai-field">
+            <text class="ai-label">释义：</text>
+            <text v-for="(m, i) in dictResult.meanings" :key="i" class="ai-meaning">{{ i + 1 }}. {{ m }}</text>
+          </view>
+          <view v-if="dictResult.explanation" class="ai-field ai-explain">{{ dictResult.explanation }}</view>
+        </view>
+        <view v-if="dictLoading" class="ai-loading">查询中...</view>
+      </view>
+
+      <!-- AI翻译 -->
+      <view v-if="aiTab === 'translate'" class="ai-section">
+        <view class="ai-input-row">
+          <textarea v-model="translateText" placeholder="输入或粘贴文言文段落" class="ai-textarea" :rows="3" />
+        </view>
+        <view class="ai-input-row" style="margin-top:6px">
+          <text class="ai-btn" @click="doTranslate">翻译</text>
+          <text class="ai-btn-sub" @click="translateSelected">翻译选中章节</text>
+        </view>
+        <view v-if="translateResult" class="ai-result">
+          <view class="ai-field"><text class="ai-label">原文：</text>{{ translateResult.original }}</view>
+          <view class="ai-field ai-translation"><text class="ai-label">译文：</text>{{ translateResult.translation }}</view>
+          <view v-if="translateResult.notes?.length" class="ai-field">
+            <text class="ai-label">注释：</text>
+            <text v-for="(n, i) in translateResult.notes" :key="i" class="ai-note">{{ i + 1 }}. {{ n }}</text>
+          </view>
+        </view>
+        <view v-if="translateLoading" class="ai-loading">翻译中...</view>
+      </view>
+
+      <!-- AI问答 -->
+      <view v-if="aiTab === 'qa'" class="ai-section">
+        <view class="ai-input-row">
+          <textarea v-model="qaQuestion" placeholder="输入关于当前内容的问题..." class="ai-textarea" :rows="2" />
+        </view>
+        <view class="ai-input-row" style="margin-top:6px">
+          <text class="ai-btn" @click="doQA">提问</text>
+        </view>
+        <view v-if="qaResult" class="ai-result">
+          <view class="ai-field ai-explain">{{ qaResult }}</view>
+        </view>
+        <view v-if="qaLoading" class="ai-loading">AI思考中...</view>
       </view>
     </view>
 
@@ -197,6 +259,10 @@
           {{ isBookmarked ? '&#128278;' : '&#128205;' }}
           <text class="action-label">{{ isBookmarked ? '已收藏' : '书签' }}</text>
         </text>
+        <text class="action-item" :class="{ active: isCollected }" @click="toggleCollect">
+          {{ isCollected ? '⭐' : '☆' }}
+          <text class="action-label">{{ isCollected ? '已收藏' : '收藏' }}</text>
+        </text>
         <text class="action-item" @click="scrollToTop">
           &#8679; <text class="action-label">回顶部</text>
         </text>
@@ -269,7 +335,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { classicApi, ttsApi } from '../../api'
+import { classicApi, ttsApi, interactApi, aiApi } from '../../api'
 import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
 import EmptyState from '../../components/EmptyState.vue'
 
@@ -287,6 +353,19 @@ const showTranslation = ref(true)
 const isDark = ref(false)
 const showSettings = ref(false)
 
+// AI 工具面板
+const showAiPanel = ref(false)
+const aiTab = ref('dict')
+const dictWord = ref('')
+const dictResult = ref<any>(null)
+const dictLoading = ref(false)
+const translateText = ref('')
+const translateResult = ref<any>(null)
+const translateLoading = ref(false)
+const qaQuestion = ref('')
+const qaResult = ref('')
+const qaLoading = ref(false)
+
 // 目录
 const showToc = ref(false)
 const showBookmarkList = ref(false)
@@ -295,6 +374,9 @@ const showBookmarkList = ref(false)
 const isBookmarked = ref(false)
 const bookmarkedIds = ref<Set<string>>(new Set())
 const bookmarkChapters = ref<Array<{ chapterId: string; title: string }>>([])
+
+// 收藏
+const isCollected = ref(false)
 
 // 笔记
 const showNotesPanel = ref(false)
@@ -596,35 +678,68 @@ async function toggleBookmark() {
   }
 }
 
-// ========== 笔记 ==========
-const notesStorageKey = computed(() => {
-  if (!book.value?.id) return ''
-  return `reader_notes_${book.value.id}`
-})
-
-function loadNotes(bookId: string) {
+// ========== 收藏整本书 ==========
+async function toggleCollect() {
+  if (!book.value?.id) return
   try {
-    const key = `reader_notes_${bookId}`
-    const stored = uni.getStorageSync(key)
-    if (stored) {
-      // 按章节存储笔记
-    }
+    const res = await interactApi.toggleCollect("CLASSIC", book.value.id)
+    isCollected.value = res.collected
+    uni.showToast({ title: isCollected.value ? '已加入收藏' : '已取消收藏', icon: 'none' })
   } catch {
-    // 忽略
+    uni.showToast({ title: '操作失败', icon: 'none' })
   }
 }
 
-function loadNotesForCurrentChapter() {
+// ========== 笔记 ==========
+async function loadNotes(bookId: string) {
+  // 先从服务端加载
+  try {
+    const data = await classicApi.listNotes({ bookId })
+    const serverNotes = data?.items || []
+    // 迁移本地笔记到服务端
+    migrateLocalNotes(bookId, serverNotes)
+  } catch {
+    // 服务端不可用时降级到本地
+  }
+}
+
+async function migrateLocalNotes(bookId: string, serverNotes: any[]) {
+  try {
+    const key = `reader_notes_${bookId}`
+    const stored = uni.getStorageSync(key)
+    if (!stored) return
+    const localNotes = JSON.parse(stored)
+    for (const [chapterId, notes] of Object.entries(localNotes)) {
+      for (const note of (notes as any[])) {
+        const exists = serverNotes.some(
+          (s: any) => s.chapterId === chapterId && s.content === note.content
+        )
+        if (!exists) {
+          await classicApi.createNote(bookId, { chapterId, content: note.content }).catch(() => {})
+        }
+      }
+    }
+    // 迁移完成后清除本地
+    uni.removeStorageSync(key)
+  } catch { /* 忽略 */ }
+}
+
+async function loadNotesForCurrentChapter() {
   const ch = chapters.value[curIdx.value]
-  if (!ch || !notesStorageKey.value) {
+  if (!ch || !book.value?.id) {
     currentNotes.value = []
     noteContent.value = ''
     return
   }
   try {
-    const allNotes = uni.getStorageSync(notesStorageKey.value) || {}
-    currentNotes.value = (allNotes[ch.id] || [])
-      .sort((a: any, b: any) => b.timestamp - a.timestamp)
+    const data = await classicApi.listNotes({ bookId: book.value.id, chapterId: ch.id })
+    const items = data?.items || []
+    currentNotes.value = items.map((n: any) => ({
+      id: n.id,
+      content: n.content,
+      time: n.createdAt ? new Date(n.createdAt).toLocaleString('zh-CN') : '',
+      timestamp: n.createdAt ? new Date(n.createdAt).getTime() : 0,
+    })).sort((a: any, b: any) => b.timestamp - a.timestamp)
     noteContent.value = ''
   } catch {
     currentNotes.value = []
@@ -632,30 +747,21 @@ function loadNotesForCurrentChapter() {
   }
 }
 
-function saveNote() {
+async function saveNote() {
   const content = noteContent.value.trim()
   if (!content) {
     uni.showToast({ title: '请输入笔记内容', icon: 'none' })
     return
   }
   const ch = chapters.value[curIdx.value]
-  if (!ch || !notesStorageKey.value) return
+  if (!ch || !book.value?.id) return
 
   try {
-    const allNotes = uni.getStorageSync(notesStorageKey.value) || {}
-    const chapterNotes = allNotes[ch.id] || []
-    const now = new Date()
-    const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-    chapterNotes.unshift({
-      content,
-      time: timeStr,
-      timestamp: now.getTime(),
-    })
-    allNotes[ch.id] = chapterNotes
-    uni.setStorageSync(notesStorageKey.value, allNotes)
-    currentNotes.value = chapterNotes
+    await classicApi.createNote(book.value.id, { chapterId: ch.id, content })
     noteContent.value = ''
     uni.showToast({ title: '笔记已保存', icon: 'success' })
+    // 重新加载当前章节笔记
+    await loadNotesForCurrentChapter()
   } catch {
     uni.showToast({ title: '保存失败', icon: 'none' })
   }
@@ -817,6 +923,60 @@ function toggleTTS() {
     stopTTS()
   } else {
     startTTS()
+  }
+}
+
+// ========== AI 工具 ==========
+async function doDictLookup() {
+  const word = dictWord.value.trim()
+  if (!word) return
+  dictLoading.value = true
+  dictResult.value = null
+  try {
+    dictResult.value = await classicApi.dictionaryLookup(word)
+  } catch {
+    uni.showToast({ title: '查询失败', icon: 'none' })
+  } finally {
+    dictLoading.value = false
+  }
+}
+
+async function doTranslate() {
+  const text = translateText.value.trim()
+  if (!text) { uni.showToast({ title: '请输入文言文', icon: 'none' }); return }
+  translateLoading.value = true
+  translateResult.value = null
+  try {
+    const ctx = book.value?.title ? `${book.value.title}·${chapter.value?.title || ''}` : ''
+    translateResult.value = await classicApi.translateClassical(text, ctx)
+  } catch {
+    uni.showToast({ title: '翻译失败', icon: 'none' })
+  } finally {
+    translateLoading.value = false
+  }
+}
+
+function translateSelected() {
+  if (chapter.value?.content) {
+    translateText.value = chapter.value.content.slice(0, 1000)
+    aiTab.value = 'translate'
+    doTranslate()
+  }
+}
+
+async function doQA() {
+  const q = qaQuestion.value.trim()
+  if (!q) { uni.showToast({ title: '请输入问题', icon: 'none' }); return }
+  if (!book.value?.id) { uni.showToast({ title: '书籍信息缺失', icon: 'none' }); return }
+  qaLoading.value = true
+  qaResult.value = ''
+  try {
+    const res = await aiApi.classicQA(book.value.id, q)
+    qaResult.value = res?.answer || res?.content || JSON.stringify(res)
+  } catch {
+    uni.showToast({ title: 'AI问答失败', icon: 'none' })
+  } finally {
+    qaLoading.value = false
   }
 }
 
@@ -1037,6 +1197,163 @@ function goBack() {
 
 .nav-btn.active {
   color: #C41E3A;
+}
+
+/* ========== AI 面板 ========== */
+.ai-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  background: #fff;
+  z-index: 49;
+  padding: 8px 16px 14px;
+  border-bottom: 1px solid #eee;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.page.dark-mode .ai-panel {
+  background: #16213e;
+  border-bottom-color: #2a2a4a;
+}
+.ai-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.ai-tab {
+  padding: 6px 16px;
+  font-size: 13px;
+  color: #888;
+  background: #F5F0E8;
+  border-radius: 14px;
+}
+.ai-tab.active {
+  background: #C41E3A;
+  color: #fff;
+}
+.page.dark-mode .ai-tab {
+  background: #1a2744;
+  color: #999;
+}
+.page.dark-mode .ai-tab.active {
+  background: #C41E3A;
+  color: #fff;
+}
+.ai-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ai-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ai-input {
+  flex: 1;
+  height: 36px;
+  border: 1px solid #E8E0D5;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 14px;
+  background: #fff;
+}
+.page.dark-mode .ai-input {
+  background: #1a2744;
+  border-color: #2a2a4a;
+  color: #d4d4d4;
+}
+.ai-textarea {
+  flex: 1;
+  border: 1px solid #E8E0D5;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  background: #fff;
+  min-height: 60px;
+}
+.page.dark-mode .ai-textarea {
+  background: #1a2744;
+  border-color: #2a2a4a;
+  color: #d4d4d4;
+}
+.ai-btn {
+  background: #C41E3A;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.ai-btn-sub {
+  color: #C41E3A;
+  font-size: 12px;
+  padding: 8px 12px;
+  border: 1px solid #C41E3A;
+  border-radius: 8px;
+}
+.ai-result {
+  background: #faf6ef;
+  border-radius: 8px;
+  padding: 12px;
+  border-left: 3px solid #C9A96E;
+}
+.page.dark-mode .ai-result {
+  background: #1a2744;
+}
+.ai-field {
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 6px;
+  line-height: 1.6;
+}
+.page.dark-mode .ai-field {
+  color: #d4d4d4;
+}
+.ai-label {
+  font-weight: bold;
+  color: #C41E3A;
+}
+.page.dark-mode .ai-label {
+  color: #e0c87d;
+}
+.ai-meaning {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-top: 3px;
+  padding-left: 8px;
+}
+.ai-explain {
+  background: #fff;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.page.dark-mode .ai-explain {
+  background: #16213e;
+}
+.ai-note {
+  display: block;
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+  padding-left: 8px;
+}
+.ai-translation {
+  background: #fff;
+  padding: 8px;
+  border-radius: 6px;
+}
+.page.dark-mode .ai-translation {
+  background: #16213e;
+}
+.ai-loading {
+  text-align: center;
+  font-size: 13px;
+  color: #C9A96E;
+  padding: 12px 0;
 }
 
 /* ========== TTS 底部悬浮控制栏 ========== */

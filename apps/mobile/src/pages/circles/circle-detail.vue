@@ -44,82 +44,158 @@
         </button>
       </view>
 
-      <!-- 标签筛选：全部/精华 -->
-      <view class="tab-bar">
+      <!-- 内容Tab：帖子/文章/课程/问答 -->
+      <view class="tab-bar scroll-tabs">
         <view
-          v-for="tab in postTabs"
+          v-for="tab in contentTabs"
           :key="tab.key"
           class="tab-item"
-          :class="{ active: currentPostTab === tab.key }"
-          @click="switchPostTab(tab.key)"
+          :class="{ active: activeContentTab === tab.key }"
+          @click="switchContentTab(tab.key)"
         >
           <text>{{ tab.label }}</text>
         </view>
       </view>
 
-      <!-- 发帖按钮（已加入才显示） -->
-      <view v-if="joined" class="create-post-btn" @click="showCreatePanel">
-        <text class="create-post-icon">✏️</text>
-        <text class="create-post-text">分享你的见解...</text>
-      </view>
-
-      <!-- 帖子列表 -->
-      <view v-if="loadingPosts && posts.length === 0" class="post-loading">
-        <view v-for="i in 3" :key="i" class="skeleton-post" />
-      </view>
-      <view v-else-if="posts.length > 0" class="post-list">
-        <view v-for="post in posts" :key="post.id" class="post-card">
-          <view class="post-header">
-            <view class="post-user-info">
-              <image
-                v-if="post.author?.avatar"
-                :src="post.author.avatar"
-                class="post-avatar"
-                mode="aspectFill"
-              />
-              <view class="post-user-meta">
-                <text class="post-user">{{ post.author?.nickname || '匿名' }}</text>
-                <text class="post-time">{{ formatTime(post.createdAt) }}</text>
-              </view>
-            </view>
-            <view class="post-badges">
-              <text v-if="post.isTop" class="badge top">置顶</text>
-              <text v-if="post.isEssence" class="badge essence">精华</text>
-            </view>
-          </view>
-          <text class="post-title" v-if="post.title">{{ post.title }}</text>
-          <text class="post-body">{{ post.content }}</text>
-          <!-- 帖子图片 -->
-          <view v-if="post.images?.length" class="post-images">
-            <image
-              v-for="(img, idx) in post.images"
-              :key="idx"
-              :src="img"
-              mode="aspectFill"
-              class="post-img"
-              @click="previewImages(post.images, idx)"
-            />
-          </view>
-          <!-- 互动栏 -->
-          <view class="post-footer">
-            <view class="footer-item" @click="toggleLike(post)">
-              <text>{{ post.isLiked ? '❤️' : '🤍' }}</text>
-              <text class="footer-count">{{ post.likeCount || 0 }}</text>
-            </view>
-            <view class="footer-item">
-              <text>💬</text>
-              <text class="footer-count">{{ post.commentCount || 0 }}</text>
-            </view>
-          </view>
+      <!-- 帖子子筛选（仅在帖子Tab下显示） -->
+      <view v-if="activeContentTab === 'posts'" class="sub-tab-bar">
+        <view
+          v-for="st in postSubTabs"
+          :key="st.key"
+          class="sub-tab-item"
+          :class="{ active: currentPostTab === st.key }"
+          @click="switchPostTab(st.key)"
+        >
+          <text>{{ st.label }}</text>
         </view>
       </view>
 
-      <!-- 帖子空状态 -->
-      <EmptyState v-else-if="!loadingPosts && posts.length === 0" icon="📝" text="暂无帖子，快来发表第一条吧" />
+      <!-- 发帖/写文章/发课程按钮（已加入才显示） -->
+      <view v-if="joined" class="create-post-btn" @click="showCreatePanel">
+        <text class="create-post-icon">✏️</text>
+        <text class="create-post-text">{{ createBtnText }}</text>
+      </view>
 
-      <!-- 帖子加载更多 -->
-      <view v-if="loadingMorePosts" class="load-more">加载更多...</view>
-      <view v-if="!hasMorePosts && posts.length > 0" class="no-more">— 已全部加载 —</view>
+      <!-- ====== 帖子列表 ====== -->
+      <template v-if="activeContentTab === 'posts'">
+        <view v-if="loadingPosts && posts.length === 0" class="post-loading">
+          <view v-for="i in 3" :key="i" class="skeleton-post" />
+        </view>
+        <view v-else-if="posts.length > 0" class="post-list">
+          <view v-for="post in posts" :key="post.id" class="post-card" @click="goPostDetail(post)">
+            <view class="post-header">
+              <view class="post-user-info">
+                <image v-if="post.author?.avatar" :src="post.author.avatar" class="post-avatar" mode="aspectFill" />
+                <view class="post-user-meta">
+                  <text class="post-user">{{ post.author?.nickname || '匿名' }}</text>
+                  <text class="post-time">{{ formatTime(post.createdAt) }}</text>
+                </view>
+              </view>
+              <view class="post-badges">
+                <text v-if="post.isTop" class="badge top">置顶</text>
+                <text v-if="post.isEssence" class="badge essence">精华</text>
+              </view>
+            </view>
+            <text class="post-title" v-if="post.title">{{ post.title }}</text>
+            <text class="post-body">{{ post.content }}</text>
+            <view v-if="post.images?.length" class="post-images">
+              <image v-for="(img, idx) in post.images" :key="idx" :src="img" mode="aspectFill" class="post-img" @click="previewImages(post.images, idx)" />
+            </view>
+            <view class="post-footer">
+              <view class="footer-item" @click.stop="toggleLike(post)"><text>{{ post.isLiked ? '❤️' : '🤍' }}</text><text class="footer-count">{{ post.likeCount || 0 }}</text></view>
+              <view class="footer-item"><text>💬</text><text class="footer-count">{{ post.commentCount || 0 }}</text></view>
+            </view>
+          </view>
+        </view>
+        <EmptyState v-else-if="!loadingPosts && posts.length === 0" icon="📝" text="暂无帖子，快来发表第一条吧" />
+        <view v-if="loadingMorePosts" class="load-more">加载更多...</view>
+        <view v-if="!hasMorePosts && posts.length > 0" class="no-more">— 已全部加载 —</view>
+      </template>
+
+      <!-- ====== 文章列表 ====== -->
+      <template v-if="activeContentTab === 'articles'">
+        <view v-if="loadingArticles" class="post-loading"><view v-for="i in 3" :key="i" class="skeleton-post" /></view>
+        <view v-else-if="articles.length > 0" class="post-list">
+          <view v-for="article in articles" :key="article.id" class="article-card" @click="goArticleDetail(article)">
+            <image v-if="article.cover" :src="article.cover" class="article-cover" mode="aspectFill" />
+            <text class="article-title">{{ article.title }}</text>
+            <text class="article-excerpt">{{ article.excerpt || article.content?.replace(/<[^>]+>/g, '').slice(0, 80) }}</text>
+            <view class="article-meta">
+              <text class="article-author">{{ article.user?.nickname || article.author?.nickname || '匿名' }}</text>
+              <text class="article-stats">{{ article.viewCount || 0 }}阅读 {{ article.likeCount || 0 }}赞</text>
+            </view>
+          </view>
+        </view>
+        <EmptyState v-else icon="📄" text="暂无文章" />
+        <view v-if="loadingMoreArticles" class="load-more">加载更多...</view>
+      </template>
+
+      <!-- ====== 课程列表 ====== -->
+      <template v-if="activeContentTab === 'courses'">
+        <view v-if="loadingCourses" class="post-loading"><view v-for="i in 3" :key="i" class="skeleton-post" /></view>
+        <view v-else-if="courses.length > 0" class="post-list">
+          <view v-for="course in courses" :key="course.id" class="course-card" @click="goCourseDetail(course)">
+            <image v-if="course.cover" :src="course.cover" class="course-cover" mode="aspectFill" />
+            <view class="course-info">
+              <text class="course-title">{{ course.title }}</text>
+              <text class="course-intro">{{ course.intro || '' }}</text>
+              <view class="course-meta">
+                <text class="course-type">{{ { VIDEO: '视频', AUDIO: '音频', TEXT: '图文', EBOOK: '电子书' }[course.type] || course.type }}</text>
+                <text class="course-price" v-if="course.price > 0">¥{{ course.price }}</text>
+                <text class="course-price free" v-else>免费</text>
+                <text class="course-students">{{ course.studentCount || 0 }}人学习</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        <EmptyState v-else icon="📚" text="暂无课程" />
+        <view v-if="loadingMoreCourses" class="load-more">加载更多...</view>
+      </template>
+
+      <!-- ====== 问答列表 ====== -->
+      <template v-if="activeContentTab === 'questions'">
+        <view v-if="loadingQuestions" class="post-loading"><view v-for="i in 3" :key="i" class="skeleton-post" /></view>
+        <view v-else-if="questions.length > 0" class="post-list">
+          <view v-for="q in questions" :key="q.id" class="question-card" @click="goQuestionDetail(q)">
+            <view class="q-header">
+              <text class="q-status" :class="q.status">{{ q.status === 'ANSWERED' ? '已回答' : q.status === 'PENDING' ? '待回答' : q.status }}</text>
+              <text class="q-price">{{ q.priceCoin }}币</text>
+            </view>
+            <text class="q-title">{{ q.questionTitle || q.question?.slice(0, 80) }}</text>
+            <view class="q-footer">
+              <text class="q-answerer">{{ q.answerer?.nickname ? '向 ' + q.answerer.nickname + ' 提问' : '公开提问' }}</text>
+              <text class="q-peek" v-if="q.peekCount">{{ q.peekCount }}人围观</text>
+            </view>
+          </view>
+        </view>
+        <EmptyState v-else icon="❓" text="暂无问答" />
+      </template>
+
+      <!-- ====== 直播列表 ====== -->
+      <template v-if="activeContentTab === 'lives'">
+        <view v-if="loadingLives" class="post-loading"><view v-for="i in 3" :key="i" class="skeleton-post" /></view>
+        <view v-else-if="lives.length > 0" class="post-list">
+          <view v-for="live in lives" :key="live.id" class="live-card" @click="goLiveRoom(live)">
+            <view class="live-cover-wrap">
+              <image v-if="live.cover" :src="live.cover" class="live-cover" mode="aspectFill" />
+              <view v-else class="live-cover-placeholder">
+                <text class="live-placeholder-icon">📡</text>
+              </view>
+              <view class="live-status-badge" :class="live.status">
+                <text>{{ { LIVE: '直播中', SCHEDULED: '预告', ENDED: '已结束', REPLAY: '回放' }[live.status] || live.status }}</text>
+              </view>
+            </view>
+            <view class="live-info">
+              <text class="live-title">{{ live.title }}</text>
+              <view class="live-meta">
+                <text class="live-host">{{ live.user?.nickname || '主播' }}</text>
+                <text class="live-time">{{ live.startTime ? formatTime(live.startTime) : '待定' }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        <EmptyState v-else icon="📡" text="暂无直播" />
+      </template>
     </template>
 
     <!-- 异常状态 -->
@@ -159,9 +235,27 @@
             <text class="panel-img-remove" @click="removeImage(idx)">×</text>
           </view>
         </view>
+        <!-- 音频预览 -->
+        <view v-if="postAudioUrl" class="panel-audio">
+          <view class="audio-play-btn" @click="togglePanelAudio">
+            <text>{{ audioPlaying ? '⏸' : '▶' }}</text>
+          </view>
+          <view class="audio-wave">
+            <view v-for="i in 20" :key="i" class="audio-bar" :style="{ height: (8 + Math.sin(i * 0.5) * 6 + Math.random() * 4) + 'px' }" />
+          </view>
+          <text class="audio-duration">{{ postAudioDuration }}s</text>
+          <text class="audio-remove" @click="removeAudio">×</text>
+        </view>
+        <!-- 录音中 -->
+        <view v-if="recording" class="panel-recording">
+          <view class="recording-dot" />
+          <text class="recording-text">录音中... {{ recordingSeconds }}s</text>
+          <text class="recording-stop" @click="stopRecording">⏹ 停止</text>
+        </view>
         <view class="panel-actions">
           <view class="panel-left">
-            <text class="add-img-btn" @click="chooseImage">🖼 添加图片</text>
+            <text class="add-img-btn" @click="chooseImage">🖼 图片</text>
+            <text class="add-img-btn" :class="{ disabled: recording || !!postAudioUrl }" @click="startRecording">🎙️ 语音</text>
           </view>
           <view class="panel-right">
             <text class="char-count">{{ postContent.length }}/500</text>
@@ -180,58 +274,73 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
-import { circleApi, botApi } from '../../api'
+import { circleApi, botApi, contentApi, courseApi, questionApi, liveApi, uploadApi, interactApi } from '../../api'
 import EmptyState from '../../components/EmptyState.vue'
 
-/** 帖子数据类型 */
 interface CirclePost {
-  id: string
-  title?: string
-  content: string
-  images?: string[]
-  author?: {
-    id: string
-    nickname: string
-    avatar: string
-  }
-  likeCount?: number
-  commentCount?: number
-  isLiked?: boolean
-  isTop?: boolean
-  isEssence?: boolean
-  createdAt?: string
+  id: string; title?: string; content: string; images?: string[]
+  author?: { id: string; nickname: string; avatar: string }
+  likeCount?: number; commentCount?: number; isLiked?: boolean
+  isTop?: boolean; isEssence?: boolean; createdAt?: string
 }
 
-/** 帖子筛选标签 */
-const postTabs = [
+// 内容Tab
+const contentTabs = [
+  { key: 'posts', label: '帖子' },
+  { key: 'articles', label: '文章' },
+  { key: 'courses', label: '课程' },
+  { key: 'questions', label: '问答' },
+  { key: 'lives', label: '直播' },
+]
+const activeContentTab = ref('posts')
+const postSubTabs = [
   { key: '', label: '全部' },
   { key: 'essence', label: '精华' },
+  { key: 'top', label: '置顶' },
 ]
+
+const createBtnText = computed(() => {
+  const map: Record<string, string> = { posts: '分享你的见解...', articles: '写一篇文章...', courses: '上传课程...', questions: '向达人提问...', lives: '创建直播...' }
+  return map[activeContentTab.value] || '分享你的见解...'
+})
 
 // 页面参数
 const id = ref('')
-
-// 圈子数据
 const circle = ref<any>(null)
 const joined = ref(false)
 const loading = ref(false)
-
-// 加入/退出状态
 const joining = ref(false)
 const leaving = ref(false)
 
-// 帖子筛选
+// 帖子
 const currentPostTab = ref('')
-
-// 帖子列表
 const posts = ref<CirclePost[]>([])
 const loadingPosts = ref(false)
 const loadingMorePosts = ref(false)
 const hasMorePosts = ref(true)
 const postPage = ref(1)
-const pageSize = 10
+
+// 文章
+const articles = ref<any[]>([])
+const loadingArticles = ref(false)
+const loadingMoreArticles = ref(false)
+const articlePage = ref(1)
+
+// 课程
+const courses = ref<any[]>([])
+const loadingCourses = ref(false)
+const loadingMoreCourses = ref(false)
+const coursePage = ref(1)
+
+// 问答
+const questions = ref<any[]>([])
+const loadingQuestions = ref(false)
+
+// 直播
+const lives = ref<any[]>([])
+const loadingLives = ref(false)
 
 // 智能体助理
 const hasBot = ref(false)
@@ -242,7 +351,17 @@ const showPostPanel = ref(false)
 const postTitle = ref('')
 const postContent = ref('')
 const postImages = ref<string[]>([])
+const postAudioUrl = ref('')
+const postAudioDuration = ref(0)
+const recording = ref(false)
+const recordingSeconds = ref(0)
+const audioPlaying = ref(false)
+let recorderManager: any = null
+let recordTimer: ReturnType<typeof setInterval> | null = null
+let panelAudioCtx: any = null
 const submitting = ref(false)
+
+const pageSize = 10
 
 onMounted(() => {
   const pages = getCurrentPages()
@@ -251,6 +370,17 @@ onMounted(() => {
   id.value = opts.id || ''
   if (id.value) initData()
 })
+
+// 切换内容Tab
+function switchContentTab(key: string) {
+  if (activeContentTab.value === key) return
+  activeContentTab.value = key
+  if (key === 'posts') { postPage.value = 1; hasMorePosts.value = true; fetchPosts(true) }
+  if (key === 'articles') { articlePage.value = 1; fetchArticles(true) }
+  if (key === 'courses') { coursePage.value = 1; fetchCourses(true) }
+  if (key === 'questions') fetchQuestions()
+  if (key === 'lives') fetchLives()
+}
 
 // 切换帖子标签
 function switchPostTab(key: string) {
@@ -272,12 +402,22 @@ onPullDownRefresh(() => {
 
 // 上拉加载更多
 onReachBottom(() => {
-  if (!hasMorePosts.value || loadingMorePosts.value) return
-  loadingMorePosts.value = true
-  postPage.value++
-  fetchPosts(false).finally(() => {
-    loadingMorePosts.value = false
-  })
+  if (activeContentTab.value === 'posts') {
+    if (!hasMorePosts.value || loadingMorePosts.value) return
+    loadingMorePosts.value = true
+    postPage.value++
+    fetchPosts(false).finally(() => { loadingMorePosts.value = false })
+  } else if (activeContentTab.value === 'articles') {
+    if (loadingMoreArticles.value) return
+    loadingMoreArticles.value = true
+    articlePage.value++
+    fetchArticles(false).finally(() => { loadingMoreArticles.value = false })
+  } else if (activeContentTab.value === 'courses') {
+    if (loadingMoreCourses.value) return
+    loadingMoreCourses.value = true
+    coursePage.value++
+    fetchCourses(false).finally(() => { loadingMoreCourses.value = false })
+  }
 })
 
 async function initData() {
@@ -411,11 +551,20 @@ async function leaveCircle() {
   }
 }
 
-// 显示发帖面板
+// 显示发帖面板/跳转创建页面
 function showCreatePanel() {
-  showPostPanel.value = true
+  if (activeContentTab.value === 'questions') {
+    uni.navigateTo({ url: `/pages/qa/ask?circleId=${id.value}&circleName=${encodeURIComponent(circle.value?.name || '')}` })
+  } else if (activeContentTab.value === 'articles') {
+    uni.navigateTo({ url: `/pages/articles/editor?circleId=${id.value}` })
+  } else {
+    showPostPanel.value = true
+  }
 }
 function hideCreatePanel() {
+  if (recording.value) stopRecording()
+  panelAudioCtx?.stop()
+  audioPlaying.value = false
   showPostPanel.value = false
 }
 
@@ -440,18 +589,86 @@ function removeImage(idx: number) {
   postImages.value.splice(idx, 1)
 }
 
+// ─── 语音录制 ───
+function startRecording() {
+  if (recording.value || postAudioUrl.value) return
+  recording.value = true
+  recordingSeconds.value = 0
+  postAudioUrl.value = ''
+  postAudioDuration.value = 0
+
+  recorderManager = uni.getRecorderManager()
+  recorderManager.onStop((res: any) => {
+    recording.value = false
+    if (recordTimer) { clearInterval(recordTimer); recordTimer = null }
+    uploadAudioFile(res.tempFilePath, Math.ceil(res.duration / 1000))
+  })
+  recorderManager.onError(() => {
+    recording.value = false
+    if (recordTimer) { clearInterval(recordTimer); recordTimer = null }
+    uni.showToast({ title: '录音失败', icon: 'none' })
+  })
+  recorderManager.start({ format: 'mp3', duration: 60000 })
+  recordTimer = setInterval(() => { recordingSeconds.value++ }, 1000)
+}
+
+async function uploadAudioFile(filePath: string, duration: number) {
+  try {
+    const res = await uploadApi.audio(filePath) as any
+    const url = res?.data?.url || res?.url || ''
+    if (url) {
+      postAudioUrl.value = url
+      postAudioDuration.value = duration
+    }
+  } catch {
+    uni.showToast({ title: '音频上传失败', icon: 'none' })
+  }
+}
+
+function stopRecording() {
+  if (recorderManager) recorderManager.stop()
+}
+
+function togglePanelAudio() {
+  if (!postAudioUrl.value) return
+  if (audioPlaying.value) {
+    panelAudioCtx?.stop()
+    audioPlaying.value = false
+    return
+  }
+  panelAudioCtx = uni.createInnerAudioContext()
+  panelAudioCtx.src = postAudioUrl.value
+  panelAudioCtx.onEnded(() => { audioPlaying.value = false })
+  panelAudioCtx.onError(() => { audioPlaying.value = false })
+  panelAudioCtx.play()
+  audioPlaying.value = true
+}
+
+function removeAudio() {
+  panelAudioCtx?.stop()
+  audioPlaying.value = false
+  postAudioUrl.value = ''
+  postAudioDuration.value = 0
+}
+
 // 发布帖子
 async function submitPost() {
   const content = postContent.value.trim()
   if (!content || submitting.value) return
   submitting.value = true
   try {
-    const data: Record<string, any> = { content }
+    const data: Record<string, any> = { content, type: 'TEXT' }
     if (postTitle.value.trim()) {
       data.title = postTitle.value.trim()
     }
     if (postImages.value.length > 0) {
       data.images = postImages.value
+      data.type = 'IMAGE'
+    }
+    if (postAudioUrl.value) {
+      data.audioUrl = postAudioUrl.value
+      data.audioDuration = postAudioDuration.value
+      data.type = 'AUDIO'
     }
     await circleApi.createPost(id.value, data)
     uni.showToast({ title: '发布成功', icon: 'success' })
@@ -460,6 +677,8 @@ async function submitPost() {
     postTitle.value = ''
     postContent.value = ''
     postImages.value = []
+    postAudioUrl.value = ''
+    postAudioDuration.value = 0
     showPostPanel.value = false
 
     // 刷新帖子列表
@@ -484,10 +703,86 @@ function openBotChat() {
   uni.navigateTo({ url: `/pages/bots/bot-chat?bot=${encoded}` })
 }
 
-// 点赞
-function toggleLike(post: CirclePost) {
+// 跳转帖子详情
+function goPostDetail(post: CirclePost) {
+  uni.navigateTo({ url: `/pages/circles/post-detail?id=${post.id}&circleId=${id.value}` })
+}
+
+// 跳转文章详情
+function goArticleDetail(article: any) {
+  uni.navigateTo({ url: `/pages/detail/detail?id=${article.id}&type=article` })
+}
+
+// 跳转课程详情
+function goCourseDetail(course: any) {
+  uni.navigateTo({ url: `/pages/courses/course-detail?id=${course.id}` })
+}
+
+// 跳转问答详情
+function goQuestionDetail(q: any) {
+  uni.navigateTo({ url: `/pages/qa/question-detail?id=${q.id}` })
+}
+
+// 跳转直播间
+function goLiveRoom(live: any) {
+  uni.navigateTo({ url: `/pages/live/live-room?id=${live.id}` })
+}
+
+// ─── 文章加载 ───
+async function fetchArticles(reset: boolean) {
+  if (reset) loadingArticles.value = true
+  try {
+    const res = await contentApi.list({ page: articlePage.value, pageSize, circleId: id.value })
+    const list = res?.data?.articles || res?.data?.list || res?.data?.data || res?.data || []
+    if (reset) articles.value = Array.isArray(list) ? list : []
+    else articles.value.push(...(Array.isArray(list) ? list : []))
+  } catch { if (reset) articles.value = [] } finally { if (reset) loadingArticles.value = false }
+}
+
+// ─── 课程加载 ───
+async function fetchCourses(reset: boolean) {
+  if (reset) loadingCourses.value = true
+  try {
+    const res = await courseApi.list({ page: coursePage.value, pageSize, circleId: id.value })
+    const list = res?.data?.courses || res?.data?.list || res?.data?.data || res?.data || []
+    if (reset) courses.value = Array.isArray(list) ? list : []
+    else courses.value.push(...(Array.isArray(list) ? list : []))
+  } catch { if (reset) courses.value = [] } finally { if (reset) loadingCourses.value = false }
+}
+
+// ─── 问答加载 ───
+async function fetchQuestions() {
+  loadingQuestions.value = true
+  try {
+    const res = await questionApi.list({ circleId: id.value, pageSize: 20 })
+    const list = res?.data?.questions || res?.data?.list || res?.data?.data || res?.data || []
+    questions.value = Array.isArray(list) ? list : []
+  } catch { questions.value = [] } finally { loadingQuestions.value = false }
+}
+
+// ─── 直播加载 ───
+async function fetchLives() {
+  loadingLives.value = true
+  try {
+    const res = await liveApi.rooms({ circleId: id.value, pageSize: 20 })
+    const list = res?.rooms || res?.list || res?.data || []
+    lives.value = Array.isArray(list) ? list : []
+  } catch { lives.value = [] } finally { loadingLives.value = false }
+}
+
+// 点赞（乐观更新 + API 调用）
+async function toggleLike(post: CirclePost) {
+  const prevLiked = post.isLiked
+  const prevCount = post.likeCount || 0
   post.isLiked = !post.isLiked
-  post.likeCount = (post.likeCount || 0) + (post.isLiked ? 1 : -1)
+  post.likeCount = prevCount + (post.isLiked ? 1 : -1)
+  try {
+    await interactApi.toggleLike('circle_post', post.id)
+  } catch {
+    // 失败回滚
+    post.isLiked = prevLiked
+    post.likeCount = prevCount
+  }
 }
 
 // 图片预览
@@ -836,6 +1131,55 @@ function formatTime(timeStr?: string): string {
   font-size: 10px;
 }
 
+/* ===== 子Tab ===== */
+.sub-tab-bar { display: flex; gap: 4px; padding: 6px 16px 0; background: #fff; }
+.sub-tab-item { padding: 4px 14px; border-radius: 12px; font-size: 12px; color: #999; background: #F5F0E8; }
+.sub-tab-item.active { color: #C41E3A; background: #fde8e8; }
+
+/* ===== 文章卡片 ===== */
+.article-card { background: #fff; border-radius: 8px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.article-cover { width: 100%; height: 140px; border-radius: 6px; margin-bottom: 10px; }
+.article-title { font-size: 16px; font-weight: bold; color: #333; display: block; margin-bottom: 6px; }
+.article-excerpt { font-size: 13px; color: #888; display: block; margin-bottom: 8px; line-height: 1.5; }
+.article-meta { display: flex; justify-content: space-between; font-size: 12px; color: #bbb; }
+
+/* ===== 课程卡片 ===== */
+.course-card { background: #fff; border-radius: 8px; padding: 12px; margin-bottom: 10px; display: flex; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.course-cover { width: 100px; height: 70px; border-radius: 6px; flex-shrink: 0; }
+.course-info { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
+.course-title { font-size: 14px; font-weight: bold; color: #333; display: block; }
+.course-intro { font-size: 12px; color: #999; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.course-meta { display: flex; gap: 10px; font-size: 11px; color: #bbb; align-items: center; }
+.course-type { color: #C9A96E; }
+.course-price { color: #C41E3A; font-weight: bold; }
+.course-price.free { color: #4caf50; }
+.course-students { color: #bbb; }
+
+/* ===== 问答卡片 ===== */
+.question-card { background: #fff; border-radius: 8px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.q-status { font-size: 11px; padding: 2px 8px; border-radius: 8px; }
+.q-status.ANSWERED { color: #4caf50; background: #e8f5e9; }
+.q-status.PENDING { color: #ff9800; background: #fff3e0; }
+.q-price { font-size: 13px; color: #C41E3A; font-weight: bold; }
+.q-title { font-size: 15px; color: #333; display: block; margin-bottom: 8px; line-height: 1.5; }
+.q-footer { display: flex; justify-content: space-between; font-size: 12px; color: #bbb; }
+
+/* ===== 直播卡片 ===== */
+.live-card { background: #fff; border-radius: 8px; padding: 12px; margin-bottom: 10px; display: flex; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.live-cover-wrap { width: 100px; height: 70px; border-radius: 6px; flex-shrink: 0; position: relative; overflow: hidden; }
+.live-cover { width: 100%; height: 100%; }
+.live-cover-placeholder { width: 100%; height: 100%; background: #f0e8d8; display: flex; align-items: center; justify-content: center; }
+.live-placeholder-icon { font-size: 28px; }
+.live-status-badge { position: absolute; top: 2px; left: 2px; padding: 1px 6px; border-radius: 6px; font-size: 10px; }
+.live-status-badge.LIVE { background: #C41E3A; color: #fff; }
+.live-status-badge.SCHEDULED { background: #ff9800; color: #fff; }
+.live-status-badge.ENDED { background: #999; color: #fff; }
+.live-status-badge.REPLAY { background: #4caf50; color: #fff; }
+.live-info { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
+.live-title { font-size: 14px; font-weight: bold; color: #333; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-meta { display: flex; justify-content: space-between; font-size: 12px; color: #bbb; }
+
 /* ===== 发帖弹窗 ===== */
 .post-mask {
   position: fixed;
@@ -957,5 +1301,84 @@ function formatTime(timeStr?: string): string {
 }
 .submit-btn:disabled {
   background: #d0c8b8;
+}
+
+/* ===== 音频录制 ===== */
+.panel-audio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #faf5f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 8px;
+}
+.audio-play-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #C41E3A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.audio-wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  overflow: hidden;
+}
+.audio-bar {
+  width: 3px;
+  background: #C9A96E;
+  border-radius: 2px;
+}
+.audio-duration {
+  font-size: 12px;
+  color: #999;
+  flex-shrink: 0;
+}
+.audio-remove {
+  font-size: 18px;
+  color: #ccc;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+.panel-recording {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fef0f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 8px;
+}
+.recording-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #C41E3A;
+  animation: pulse 1s infinite;
+}
+.recording-text {
+  flex: 1;
+  font-size: 13px;
+  color: #C41E3A;
+}
+.recording-stop {
+  font-size: 13px;
+  color: #C41E3A;
+  font-weight: bold;
+  padding: 4px 10px;
+  background: #fff;
+  border-radius: 12px;
+}
+.add-img-btn.disabled {
+  opacity: 0.4;
+  pointer-events: none;
 }
 </style>

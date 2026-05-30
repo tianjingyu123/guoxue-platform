@@ -5,8 +5,11 @@ import { CommissionService } from "./commission.service";
 import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, CreateReferralDto } from "./commission.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { ActiveUserGuard } from "../../common/active-user.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { RequireFeature } from "../../common/feature-flag.decorator";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -66,10 +69,38 @@ export class CommissionController {
     return this.svc.getStationBalance(stationId);
   }
 
+  // ───────── 运营商收益 ─────────
+
+  @Get("operator-earnings/:operatorId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取运营商收益明细" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  async getOperatorEarnings(
+    @Req() req: Request,
+    @Param("operatorId") operatorId: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    await this.verifyOperatorAccess(operatorId, req);
+    return this.svc.getOperatorEarnings(operatorId, +page, +pageSize);
+  }
+
+  @Get("operator-balance/:operatorId")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取运营商余额" })
+  @ApiBearerAuth()
+  async getOperatorBalance(@Req() req: Request, @Param("operatorId") operatorId: string) {
+    await this.verifyOperatorAccess(operatorId, req);
+    return this.svc.getOperatorBalance(operatorId);
+  }
+
   // ───────── 提现 ─────────
 
   @Post("withdrawal")
-  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @UseGuards(JwtAuthGuard, ActiveUserGuard, FeatureFlagGuard, StrictRedisThrottleGuard)
+  @RequireFeature("commission_withdrawal")
   @ApiOperation({ summary: "申请提现" })
   @ApiBearerAuth()
   applyWithdrawal(@Req() req: Request, @Body() dto: WithdrawalApplyDto) {
@@ -223,6 +254,18 @@ export class CommissionController {
     });
     if (!circle || circle.ownerId !== req.user?.id) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该圈子数据");
+    }
+  }
+
+  private async verifyOperatorAccess(operatorId: string, req: Request) {
+    const roles: string[] = req.user?.roles ?? [];
+    if (roles.includes("SUPER_ADMIN") || roles.includes("OPERATION_ADMIN")) return;
+    const operator = await this.prisma.operator.findUnique({
+      where: { id: operatorId },
+      select: { userId: true },
+    });
+    if (!operator || operator.userId !== req.user?.id) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该运营商数据");
     }
   }
 }

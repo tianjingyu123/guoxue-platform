@@ -5,7 +5,10 @@ import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.d
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { StationId } from "../../common/station-id.decorator";
+import { RequireFeature } from "../../common/feature-flag.decorator";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { SanitizePipe } from "../../common/sanitize.pipe";
 import { Request } from "express";
 
@@ -17,7 +20,8 @@ export class ArticleController {
   // ───────── 文章 CRUD ─────────
 
   @Post("circles/:circleId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, FeatureFlagGuard)
+  @RequireFeature("content_publish")
   @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "创建文章" })
   @ApiBearerAuth()
@@ -50,6 +54,12 @@ export class ArticleController {
     });
   }
 
+  @Get("stats")
+  @ApiOperation({ summary: "获取文章统计（管理端）" })
+  getStats() {
+    return this.article.getStats();
+  }
+
   @Get("feed")
   @ApiOperation({ summary: "获取首页动态" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
@@ -68,7 +78,20 @@ export class ArticleController {
     return this.article.getRelated(id);
   }
 
+  // ───────── 草稿管理 ─────────
+
+  @Get("drafts")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取我的草稿列表" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  getMyDrafts(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.article.getMyDrafts(req.user.id, +page, +pageSize);
+  }
+
   @Get(":id")
+  @UseGuards(StationIsolationGuard)
   @ApiOperation({ summary: "获取文章详情" })
   detail(@Param("id") id: string) {
     return this.article.getDetail(id);
@@ -118,18 +141,6 @@ export class ArticleController {
   @ApiBearerAuth()
   removeRecommend(@Param("recId") recId: string, @Req() req: Request) {
     return this.article.removeRecommend(recId, req.user.id);
-  }
-
-  // ───────── 草稿管理 ─────────
-
-  @Get("drafts")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "获取我的草稿列表" })
-  @ApiBearerAuth()
-  @ApiQuery({ name: "page", required: false, type: Number })
-  @ApiQuery({ name: "pageSize", required: false, type: Number })
-  getMyDrafts(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.article.getMyDrafts(req.user.id, +page, +pageSize);
   }
 
   @Post("drafts")

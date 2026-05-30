@@ -2,157 +2,1374 @@
   "pages": [
     {
       "path": "pages/index/index",
-      "style": { "navigationBarTitleText": "国学平台", "navigationStyle": "custom" }
+      "style": {
+        "navigationBarTitleText": "国学平台",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/index/welcome",
+      "style": {
+        "navigationBarTitleText": "欢迎页"
+      }
+    },
+    {
+      "path": "pages/index/splash",
+      "style": {
+        "navigationBarTitleText": "启动页"
+      }
+    },
+    {
+      "path": "pages/index/interests-guide",
+      "style": {
+        "navigationBarTitleText": "兴趣选择"
+      }
     },
     {
       "path": "pages/courses/courses",
-      "style": { "navigationBarTitleText": "课程" }
-    },
-    {
-      "path": "pages/courses/course-detail",
-      "style": { "navigationBarTitleText": "课程详情" }
-    },
-    {
-      "path": "pages/circles/circles",
-      "style": { "navigationBarTitleText": "圈子" }
-    },
-    {
-      "path": "pages/circles/circle-detail",
-      "style": { "navigationBarTitleText": "圈子详情" }
+      "style": {
+        "navigationBarTitleText": "课程"
+      }
     },
     {
       "path": "pages/search/search",
-      "style": { "navigationBarTitleText": "搜索" }
+      "style": {
+        "navigationBarTitleText": "搜索"
+      }
     },
     {
-      "path": "pages/detail/detail",
-      "style": { "navigationBarTitleText": "内容详情" }
+      "path": "pages/mine/mine",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/activity/calendar",
+      "style": {
+        "navigationBarTitleText": "活动日历"
+      }
+    },
+    {
+      "path": "pages/activity/landing",
+      "style": {
+        "navigationBarTitleText": "活动落地页"
+      }
+    },
+    {
+      "path": "pages/admin/batch-coupon-send",
+      "style": {
+        "navigationBarTitleText": "批量发券"
+      }
+    },
+    {
+      "path": "pages/admin/user-audit",
+      "style": {
+        "navigationBarTitleText": "用户审核"
+      }
+    },
+    {
+      "path": "pages/ai/cover-generate",
+      "style": {
+        "navigationBarTitleText": "AI封面生成"
+      }
+    },
+    {
+      "path": "pages/articles/article-detail",
+      "style": {
+        "navigationBarTitleText": "文章详情"
+      }
+    },
+    {
+      "path": "pages/articles/drafts",
+      "style": {
+        "navigationBarTitleText": "我的草稿"
+      }
+    },
+    {
+      "path": "pages/articles/editor",
+      "style": {
+        "navigationBarTitleText": "写文章",
+        "navigationStyle": "custom"
+      }
     },
     {
       "path": "pages/bazi/bazi",
-      "style": { "navigationBarTitleText": "八字排盘" }
+      "style": {
+        "navigationBarTitleText": "八字排盘",
+        "navigationStyle": "custom"
+      }
     },
     {
-      "path": "pages/ziwei/ziwei",
-      "style": { "navigationBarTitleText": "紫微斗数" }
+      "path": "pages/bots/bot-chat",
+      "style": {
+        "navigationBarTitleText": "智能体对话",
+        "navigationStyle": "custom"
+      }
     },
     {
-      "path": "pages/favorites/favorites",
-      "style": { "navigationBarTitleText": "我的收藏" }
+      "path": "pages/bots/bots",
+      "style": {
+        "navigationBarTitleText": "智能体广场",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/bounty/answer",
+      "style": {
+        "navigationBarTitleText": "回答悬赏"
+      }
+    },
+    {
+      "path": "pages/bounty/create",
+      "style": {
+        "navigationBarTitleText": "发布悬赏"
+      }
+    },
+    {
+      "path": "pages/bounty/detail",
+      "style": {
+        "navigationBarTitleText": "悬赏详情"
+      }
+    },
+    {
+      "path": "pages/bounty/index",
+      "style": {
+        "navigationBarTitleText": "悬赏广场"
+      }
+    },
+    {
+      "path": "pages/bounty/my-bounties",
+      "style": {
+        "navigationBarTitleText": "我的悬赏"
+      }
+    },
+    {
+      "path": "pages/circles/announcement-detail",
+      "style": {
+        "navigationBarTitleText": "公告详情"
+      }
+    },
+    {
+      "path": "pages/circles/booking",
+      "style": {
+        "navigationBarTitleText": "预约"
+      }
+    },
+    {
+      "path": "pages/circles/circle-bots",
+      "style": {
+        "navigationBarTitleText": "圈内Bot"
+      }
+    },
+    {
+      "path": "pages/circles/circle-detail",
+      "style": {
+        "navigationBarTitleText": "圈子详情"
+      }
+    },
+    {
+      "path": "pages/circles/circle-manage",
+      "style": {
+        "navigationBarTitleText": "圈子管理"
+      }
+    },
+    {
+      "path": "pages/circles/circle-preview",
+      "style": {
+        "navigationBarTitleText": "圈子预览"
+      }
+    },
+    {
+      "path": "pages/circles/circles",
+      "style": {
+        "navigationBarTitleText": "圈子"
+      }
+    },
+    {
+      "path": "pages/circles/invite-codes",
+      "style": {
+        "navigationBarTitleText": "邀请码"
+      }
+    },
+    {
+      "path": "pages/circles/join-requests",
+      "style": {
+        "navigationBarTitleText": "入圈申请"
+      }
+    },
+    {
+      "path": "pages/circles/knowledge",
+      "style": {
+        "navigationBarTitleText": "知识库"
+      }
+    },
+    {
+      "path": "pages/circles/owner-dashboard",
+      "style": {
+        "navigationBarTitleText": "圈主看板"
+      }
+    },
+    {
+      "path": "pages/circles/post-detail",
+      "style": {
+        "navigationBarTitleText": "帖子详情"
+      }
+    },
+    {
+      "path": "pages/classics/ai-assistant",
+      "style": {
+        "navigationBarTitleText": "AI助手"
+      }
+    },
+    {
+      "path": "pages/classics/bookmarks",
+      "style": {
+        "navigationBarTitleText": "书签"
+      }
+    },
+    {
+      "path": "pages/classics/classic-detail",
+      "style": {
+        "navigationBarTitleText": "古籍详情"
+      }
     },
     {
       "path": "pages/classics/classics",
       "style": {
-        "navigationBarTitleText": "古籍阅读",
-        "enablePullDownRefresh": true
+        "navigationBarTitleText": "古籍阅读"
+      }
+    },
+    {
+      "path": "pages/classics/home",
+      "style": {
+        "navigationBarTitleText": "古籍首页"
+      }
+    },
+    {
+      "path": "pages/classics/notes",
+      "style": {
+        "navigationBarTitleText": "笔记"
+      }
+    },
+    {
+      "path": "pages/classics/search",
+      "style": {
+        "navigationBarTitleText": "古籍搜索"
+      }
+    },
+    {
+      "path": "pages/collections/collection",
+      "style": {
+        "navigationBarTitleText": "内容合集"
+      }
+    },
+    {
+      "path": "pages/common/image-viewer",
+      "style": {
+        "navigationBarTitleText": "图片查看"
+      }
+    },
+    {
+      "path": "pages/common/legal-doc",
+      "style": {
+        "navigationBarTitleText": "法律文档"
+      }
+    },
+    {
+      "path": "pages/common/scan",
+      "style": {
+        "navigationBarTitleText": "扫码"
+      }
+    },
+    {
+      "path": "pages/common/share-poster",
+      "style": {
+        "navigationBarTitleText": "分享海报"
+      }
+    },
+    {
+      "path": "pages/competition/archive",
+      "style": {
+        "navigationBarTitleText": "往届赛事"
+      }
+    },
+    {
+      "path": "pages/competition/competition",
+      "style": {
+        "navigationBarTitleText": "赛事中心"
+      }
+    },
+    {
+      "path": "pages/competition/dashboard",
+      "style": {
+        "navigationBarTitleText": "竞赛看板"
+      }
+    },
+    {
+      "path": "pages/competition/judge",
+      "style": {
+        "navigationBarTitleText": "评审打分"
+      }
+    },
+    {
+      "path": "pages/competition/poster",
+      "style": {
+        "navigationBarTitleText": "竞赛海报"
+      }
+    },
+    {
+      "path": "pages/competition/promotion-notice",
+      "style": {
+        "navigationBarTitleText": "晋级通知"
+      }
+    },
+    {
+      "path": "pages/competition/quiz",
+      "style": {
+        "navigationBarTitleText": "答题"
+      }
+    },
+    {
+      "path": "pages/competition/register",
+      "style": {
+        "navigationBarTitleText": "竞赛报名"
+      }
+    },
+    {
+      "path": "pages/competition/result",
+      "style": {
+        "navigationBarTitleText": "竞赛结果"
+      }
+    },
+    {
+      "path": "pages/competition/score-detail",
+      "style": {
+        "navigationBarTitleText": "成绩详情"
+      }
+    },
+    {
+      "path": "pages/courses/certificate",
+      "style": {
+        "navigationBarTitleText": "结课证书"
+      }
+    },
+    {
+      "path": "pages/courses/chapters",
+      "style": {
+        "navigationBarTitleText": "课程目录"
+      }
+    },
+    {
+      "path": "pages/courses/course-detail",
+      "style": {
+        "navigationBarTitleText": "课程详情"
+      }
+    },
+    {
+      "path": "pages/courses/course-home",
+      "style": {
+        "navigationBarTitleText": "课程主页"
+      }
+    },
+    {
+      "path": "pages/courses/course-player",
+      "style": {
+        "navigationBarTitleText": "课程学习",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/courses/purchase-confirm",
+      "style": {
+        "navigationBarTitleText": "确认购买"
+      }
+    },
+    {
+      "path": "pages/courses/study-plan",
+      "style": {
+        "navigationBarTitleText": "学习计划"
+      }
+    },
+    {
+      "path": "pages/courses/work-result",
+      "style": {
+        "navigationBarTitleText": "作业成绩"
+      }
+    },
+    {
+      "path": "pages/courses/work-review",
+      "style": {
+        "navigationBarTitleText": "作业批阅"
+      }
+    },
+    {
+      "path": "pages/courses/work-submit",
+      "style": {
+        "navigationBarTitleText": "提交作业"
+      }
+    },
+    {
+      "path": "pages/creator/index",
+      "style": {
+        "navigationBarTitleText": "创作者中心"
+      }
+    },
+    {
+      "path": "pages/creator/revenue",
+      "style": {
+        "navigationBarTitleText": "创作收益"
+      }
+    },
+    {
+      "path": "pages/customer-service/index",
+      "style": {
+        "navigationBarTitleText": "智能客服"
+      }
+    },
+    {
+      "path": "pages/detail/detail",
+      "style": {
+        "navigationBarTitleText": "内容详情"
+      }
+    },
+    {
+      "path": "pages/discover/index",
+      "style": {
+        "navigationBarTitleText": "发现"
+      }
+    },
+    {
+      "path": "pages/ebook/ebook-detail",
+      "style": {
+        "navigationBarTitleText": "电子书详情"
+      }
+    },
+    {
+      "path": "pages/ebook/ebook-reader",
+      "style": {
+        "navigationBarTitleText": "电子书阅读",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/ebook/ebooks",
+      "style": {
+        "navigationBarTitleText": "电子书"
+      }
+    },
+    {
+      "path": "pages/error/forbidden",
+      "style": {
+        "navigationBarTitleText": "禁止访问"
+      }
+    },
+    {
+      "path": "pages/error/maintenance",
+      "style": {
+        "navigationBarTitleText": "维护中"
+      }
+    },
+    {
+      "path": "pages/error/network-error",
+      "style": {
+        "navigationBarTitleText": "网络错误"
+      }
+    },
+    {
+      "path": "pages/error/not-found",
+      "style": {
+        "navigationBarTitleText": "页面不存在"
+      }
+    },
+    {
+      "path": "pages/favorites/favorites",
+      "style": {
+        "navigationBarTitleText": "我的收藏"
+      }
+    },
+    {
+      "path": "pages/fortune/daily",
+      "style": {
+        "navigationBarTitleText": "今日运势"
+      }
+    },
+    {
+      "path": "pages/fortune/index",
+      "style": {
+        "navigationBarTitleText": "每日运势"
+      }
+    },
+    {
+      "path": "pages/fortune/subscribe",
+      "style": {
+        "navigationBarTitleText": "运势设置"
+      }
+    },
+    {
+      "path": "pages/im/chat",
+      "style": {
+        "navigationBarTitleText": "聊天"
+      }
+    },
+    {
+      "path": "pages/im/contacts",
+      "style": {
+        "navigationBarTitleText": "联系人"
+      }
+    },
+    {
+      "path": "pages/im/conversations",
+      "style": {
+        "navigationBarTitleText": "会话列表"
+      }
+    },
+    {
+      "path": "pages/im/friend-requests",
+      "style": {
+        "navigationBarTitleText": "好友申请"
+      }
+    },
+    {
+      "path": "pages/im/group-chat",
+      "style": {
+        "navigationBarTitleText": "群聊"
+      }
+    },
+    {
+      "path": "pages/im/group-detail",
+      "style": {
+        "navigationBarTitleText": "群详情"
+      }
+    },
+    {
+      "path": "pages/im/group-list",
+      "style": {
+        "navigationBarTitleText": "群组列表"
+      }
+    },
+    {
+      "path": "pages/im/invite",
+      "style": {
+        "navigationBarTitleText": "邀请好友"
+      }
+    },
+    {
+      "path": "pages/im/messages",
+      "style": {
+        "navigationBarTitleText": "消息中心"
+      }
+    },
+    {
+      "path": "pages/institute/apply",
+      "style": {
+        "navigationBarTitleText": "申请加入"
+      }
+    },
+    {
+      "path": "pages/institute/events",
+      "style": {
+        "navigationBarTitleText": "学术活动"
+      }
+    },
+    {
+      "path": "pages/institute/index",
+      "style": {
+        "navigationBarTitleText": "研究院"
+      }
+    },
+    {
+      "path": "pages/institute/member-detail",
+      "style": {
+        "navigationBarTitleText": "成员详情"
+      }
+    },
+    {
+      "path": "pages/institute/my-tasks",
+      "style": {
+        "navigationBarTitleText": "我的任务"
+      }
+    },
+    {
+      "path": "pages/legal/child-privacy",
+      "style": {
+        "navigationBarTitleText": "儿童隐私"
+      }
+    },
+    {
+      "path": "pages/legal/data-collection-list",
+      "style": {
+        "navigationBarTitleText": "数据收集清单"
+      }
+    },
+    {
+      "path": "pages/legal/privacy-policy",
+      "style": {
+        "navigationBarTitleText": "隐私政策"
+      }
+    },
+    {
+      "path": "pages/legal/teen-mode-intro",
+      "style": {
+        "navigationBarTitleText": "青少年模式说明"
+      }
+    },
+    {
+      "path": "pages/legal/third-party-sdk",
+      "style": {
+        "navigationBarTitleText": "第三方SDK"
+      }
+    },
+    {
+      "path": "pages/legal/user-agreement",
+      "style": {
+        "navigationBarTitleText": "用户协议"
+      }
+    },
+    {
+      "path": "pages/live/create",
+      "style": {
+        "navigationBarTitleText": "创建直播"
+      }
+    },
+    {
+      "path": "pages/live/host-data",
+      "style": {
+        "navigationBarTitleText": "主播数据"
+      }
+    },
+    {
+      "path": "pages/live/live",
+      "style": {
+        "navigationBarTitleText": "直播"
+      }
+    },
+    {
+      "path": "pages/live/live-end",
+      "style": {
+        "navigationBarTitleText": "直播结束"
+      }
+    },
+    {
+      "path": "pages/live/live-room",
+      "style": {
+        "navigationBarTitleText": "直播间",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/live/preview",
+      "style": {
+        "navigationBarTitleText": "直播预告"
+      }
+    },
+    {
+      "path": "pages/live/replay-home",
+      "style": {
+        "navigationBarTitleText": "回放首页"
+      }
+    },
+    {
+      "path": "pages/live/replay-player",
+      "style": {
+        "navigationBarTitleText": "回放播放",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/live/replays",
+      "style": {
+        "navigationBarTitleText": "直播回放"
+      }
+    },
+    {
+      "path": "pages/live/stream-config",
+      "style": {
+        "navigationBarTitleText": "推流配置"
+      }
+    },
+    {
+      "path": "pages/login/forgot-password",
+      "style": {
+        "navigationBarTitleText": "忘记密码"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/mine/achievements",
+      "style": {
+        "navigationBarTitleText": "我的成就"
+      }
+    },
+    {
+      "path": "pages/mine/bind-accounts",
+      "style": {
+        "navigationBarTitleText": "绑定账号"
+      }
+    },
+    {
+      "path": "pages/mine/blacklist",
+      "style": {
+        "navigationBarTitleText": "黑名单"
+      }
+    },
+    {
+      "path": "pages/mine/bookings",
+      "style": {
+        "navigationBarTitleText": "我的预约"
+      }
+    },
+    {
+      "path": "pages/mine/bookshelf",
+      "style": {
+        "navigationBarTitleText": "我的书架"
+      }
+    },
+    {
+      "path": "pages/mine/change-password",
+      "style": {
+        "navigationBarTitleText": "修改密码"
+      }
+    },
+    {
+      "path": "pages/mine/change-phone",
+      "style": {
+        "navigationBarTitleText": "更换手机"
+      }
+    },
+    {
+      "path": "pages/mine/data-export",
+      "style": {
+        "navigationBarTitleText": "数据导出"
+      }
+    },
+    {
+      "path": "pages/mine/delete-account",
+      "style": {
+        "navigationBarTitleText": "注销账号"
+      }
+    },
+    {
+      "path": "pages/mine/delete-account-result",
+      "style": {
+        "navigationBarTitleText": "注销结果"
+      }
+    },
+    {
+      "path": "pages/mine/downloads",
+      "style": {
+        "navigationBarTitleText": "下载管理"
+      }
+    },
+    {
+      "path": "pages/mine/edit-profile",
+      "style": {
+        "navigationBarTitleText": "编辑资料"
+      }
+    },
+    {
+      "path": "pages/mine/follows",
+      "style": {
+        "navigationBarTitleText": "关注粉丝"
+      }
+    },
+    {
+      "path": "pages/mine/heritage-verify",
+      "style": {
+        "navigationBarTitleText": "传承人认证"
+      }
+    },
+    {
+      "path": "pages/mine/history",
+      "style": {
+        "navigationBarTitleText": "浏览记录"
+      }
+    },
+    {
+      "path": "pages/mine/identity-switch",
+      "style": {
+        "navigationBarTitleText": "身份切换"
+      }
+    },
+    {
+      "path": "pages/mine/identity-verify",
+      "style": {
+        "navigationBarTitleText": "身份认证"
+      }
+    },
+    {
+      "path": "pages/mine/invite-records",
+      "style": {
+        "navigationBarTitleText": "邀请记录"
+      }
+    },
+    {
+      "path": "pages/mine/learning-dashboard",
+      "style": {
+        "navigationBarTitleText": "学习看板"
+      }
+    },
+    {
+      "path": "pages/mine/my-comments",
+      "style": {
+        "navigationBarTitleText": "我的评论"
+      }
+    },
+    {
+      "path": "pages/mine/my-courses",
+      "style": {
+        "navigationBarTitleText": "我的课程"
+      }
+    },
+    {
+      "path": "pages/mine/my-likes",
+      "style": {
+        "navigationBarTitleText": "我的点赞"
+      }
+    },
+    {
+      "path": "pages/mine/payment-password",
+      "style": {
+        "navigationBarTitleText": "支付密码"
+      }
+    },
+    {
+      "path": "pages/mine/points",
+      "style": {
+        "navigationBarTitleText": "我的积分"
+      }
+    },
+    {
+      "path": "pages/mine/privacy-authorization",
+      "style": {
+        "navigationBarTitleText": "隐私授权"
+      }
+    },
+    {
+      "path": "pages/mine/received-comments",
+      "style": {
+        "navigationBarTitleText": "收到的评论"
+      }
+    },
+    {
+      "path": "pages/mine/role-panels/admin-panel",
+      "style": {
+        "navigationBarTitleText": "管理后台"
+      }
+    },
+    {
+      "path": "pages/mine/role-panels/operator-panel",
+      "style": {
+        "navigationBarTitleText": "运营商中心"
+      }
+    },
+    {
+      "path": "pages/mine/role-panels/station-master-panel",
+      "style": {
+        "navigationBarTitleText": "分站管理"
+      }
+    },
+    {
+      "path": "pages/mine/security",
+      "style": {
+        "navigationBarTitleText": "安全中心"
+      }
+    },
+    {
+      "path": "pages/mine/settings",
+      "style": {
+        "navigationBarTitleText": "设置"
+      }
+    },
+    {
+      "path": "pages/mine/submissions",
+      "style": {
+        "navigationBarTitleText": "我的投稿"
+      }
+    },
+    {
+      "path": "pages/mine/teen-mode",
+      "style": {
+        "navigationBarTitleText": "青少年模式"
+      }
+    },
+    {
+      "path": "pages/notices/detail",
+      "style": {
+        "navigationBarTitleText": "公告详情"
+      }
+    },
+    {
+      "path": "pages/notices/list",
+      "style": {
+        "navigationBarTitleText": "公告列表"
+      }
+    },
+    {
+      "path": "pages/notices/upgrade",
+      "style": {
+        "navigationBarTitleText": "版本升级"
+      }
+    },
+    {
+      "path": "pages/notifications/notifications",
+      "style": {
+        "navigationBarTitleText": "通知"
+      }
+    },
+    {
+      "path": "pages/offline/checkin",
+      "style": {
+        "navigationBarTitleText": "到店签到"
+      }
+    },
+    {
+      "path": "pages/offline/course-detail",
+      "style": {
+        "navigationBarTitleText": "课程详情"
+      }
+    },
+    {
+      "path": "pages/offline/courses",
+      "style": {
+        "navigationBarTitleText": "线下课程"
+      }
+    },
+    {
+      "path": "pages/offline/orders",
+      "style": {
+        "navigationBarTitleText": "线下订单"
+      }
+    },
+    {
+      "path": "pages/offline/products",
+      "style": {
+        "navigationBarTitleText": "线下商品"
+      }
+    },
+    {
+      "path": "pages/offline/settlements",
+      "style": {
+        "navigationBarTitleText": "结算管理"
+      }
+    },
+    {
+      "path": "pages/offline/station-detail",
+      "style": {
+        "navigationBarTitleText": "站点详情"
+      }
+    },
+    {
+      "path": "pages/offline/stations",
+      "style": {
+        "navigationBarTitleText": "线下站点"
+      }
+    },
+    {
+      "path": "pages/offline/teacher-booking",
+      "style": {
+        "navigationBarTitleText": "预约老师"
+      }
+    },
+    {
+      "path": "pages/orders/logistics",
+      "style": {
+        "navigationBarTitleText": "物流详情"
+      }
+    },
+    {
+      "path": "pages/orders/order-detail",
+      "style": {
+        "navigationBarTitleText": "订单详情"
+      }
+    },
+    {
+      "path": "pages/orders/orders",
+      "style": {
+        "navigationBarTitleText": "我的订单"
+      }
+    },
+    {
+      "path": "pages/orders/refund-progress",
+      "style": {
+        "navigationBarTitleText": "退款进度"
+      }
+    },
+    {
+      "path": "pages/poetry/poem-detail",
+      "style": {
+        "navigationBarTitleText": "诗词详情"
       }
     },
     {
       "path": "pages/poetry/poetry",
       "style": {
-        "navigationBarTitleText": "诗词赏析",
-        "enablePullDownRefresh": true,
-        "onReachBottomDistance": 100
+        "navigationBarTitleText": "诗词赏析"
+      }
+    },
+    {
+      "path": "pages/qa/ask",
+      "style": {
+        "navigationBarTitleText": "发起提问"
+      }
+    },
+    {
+      "path": "pages/qa/pending-answers",
+      "style": {
+        "navigationBarTitleText": "待回答"
+      }
+    },
+    {
+      "path": "pages/qa/question-detail",
+      "style": {
+        "navigationBarTitleText": "问答详情"
+      }
+    },
+    {
+      "path": "pages/qa/questions",
+      "style": {
+        "navigationBarTitleText": "付费问答"
       }
     },
     {
       "path": "pages/reader/reader",
-      "style": { "navigationBarTitleText": "阅读", "navigationStyle": "custom" }
+      "style": {
+        "navigationBarTitleText": "阅读",
+        "navigationStyle": "custom"
+      }
     },
     {
-      "path": "pages/mine/mine",
+      "path": "pages/report/index",
       "style": {
-        "navigationBarTitleText": "我的",
-        "enablePullDownRefresh": true,
-        "onReachBottomDistance": 100
+        "navigationBarTitleText": "举报"
+      }
+    },
+    {
+      "path": "pages/report/result",
+      "style": {
+        "navigationBarTitleText": "举报结果"
+      }
+    },
+    {
+      "path": "pages/same-city/feed",
+      "style": {
+        "navigationBarTitleText": "同城动态"
+      }
+    },
+    {
+      "path": "pages/same-city/nearby-users",
+      "style": {
+        "navigationBarTitleText": "附近的人"
+      }
+    },
+    {
+      "path": "pages/search/advanced",
+      "style": {
+        "navigationBarTitleText": "高级搜索"
+      }
+    },
+    {
+      "path": "pages/search/history",
+      "style": {
+        "navigationBarTitleText": "搜索历史"
+      }
+    },
+    {
+      "path": "pages/search/result",
+      "style": {
+        "navigationBarTitleText": "搜索结果"
+      }
+    },
+    {
+      "path": "pages/search/voice-search",
+      "style": {
+        "navigationBarTitleText": "语音搜索"
+      }
+    },
+    {
+      "path": "pages/share/landing",
+      "style": {
+        "navigationBarTitleText": "分享落地页"
+      }
+    },
+    {
+      "path": "pages/shop/address-edit",
+      "style": {
+        "navigationBarTitleText": "编辑地址"
+      }
+    },
+    {
+      "path": "pages/shop/address-list",
+      "style": {
+        "navigationBarTitleText": "收货地址"
+      }
+    },
+    {
+      "path": "pages/shop/after-sale",
+      "style": {
+        "navigationBarTitleText": "售后申请"
+      }
+    },
+    {
+      "path": "pages/shop/after-sale-detail",
+      "style": {
+        "navigationBarTitleText": "售后详情"
+      }
+    },
+    {
+      "path": "pages/shop/after-sale-rejected",
+      "style": {
+        "navigationBarTitleText": "售后驳回"
+      }
+    },
+    {
+      "path": "pages/shop/cart",
+      "style": {
+        "navigationBarTitleText": "购物车"
+      }
+    },
+    {
+      "path": "pages/shop/categories",
+      "style": {
+        "navigationBarTitleText": "商品分类"
+      }
+    },
+    {
+      "path": "pages/shop/checkout",
+      "style": {
+        "navigationBarTitleText": "确认订单"
+      }
+    },
+    {
+      "path": "pages/shop/coupon-detail",
+      "style": {
+        "navigationBarTitleText": "优惠券详情"
+      }
+    },
+    {
+      "path": "pages/shop/coupons",
+      "style": {
+        "navigationBarTitleText": "优惠券"
+      }
+    },
+    {
+      "path": "pages/shop/flash-sale",
+      "style": {
+        "navigationBarTitleText": "秒杀专区"
+      }
+    },
+    {
+      "path": "pages/shop/flash-sale-detail",
+      "style": {
+        "navigationBarTitleText": "秒杀详情"
+      }
+    },
+    {
+      "path": "pages/shop/group-buy",
+      "style": {
+        "navigationBarTitleText": "拼团专区"
+      }
+    },
+    {
+      "path": "pages/shop/group-buy-detail",
+      "style": {
+        "navigationBarTitleText": "拼团详情"
+      }
+    },
+    {
+      "path": "pages/shop/group-buy-fail",
+      "style": {
+        "navigationBarTitleText": "拼团失败"
+      }
+    },
+    {
+      "path": "pages/shop/group-buy-success",
+      "style": {
+        "navigationBarTitleText": "拼团成功"
+      }
+    },
+    {
+      "path": "pages/shop/my-after-sales",
+      "style": {
+        "navigationBarTitleText": "我的售后"
+      }
+    },
+    {
+      "path": "pages/shop/pay-fail",
+      "style": {
+        "navigationBarTitleText": "支付失败",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/shop/pay-success",
+      "style": {
+        "navigationBarTitleText": "支付成功",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/shop/pay-timeout/index",
+      "style": {
+        "navigationBarTitleText": "index"
+      }
+    },
+    {
+      "path": "pages/shop/paying",
+      "style": {
+        "navigationBarTitleText": "支付中",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/shop/product-detail",
+      "style": {
+        "navigationBarTitleText": "商品详情"
+      }
+    },
+    {
+      "path": "pages/shop/reviews",
+      "style": {
+        "navigationBarTitleText": "评价详情"
+      }
+    },
+    {
+      "path": "pages/shop/shop",
+      "style": {
+        "navigationBarTitleText": "商城"
+      }
+    },
+    {
+      "path": "pages/station/assistant",
+      "style": {
+        "navigationBarTitleText": "分站助手"
+      }
+    },
+    {
+      "path": "pages/station/config",
+      "style": {
+        "navigationBarTitleText": "分站配置"
+      }
+    },
+    {
+      "path": "pages/station/earnings",
+      "style": {
+        "navigationBarTitleText": "推广收益"
+      }
+    },
+    {
+      "path": "pages/station/index",
+      "style": {
+        "navigationBarTitleText": "分站首页"
+      }
+    },
+    {
+      "path": "pages/station/live",
+      "style": {
+        "navigationBarTitleText": "分站直播"
+      }
+    },
+    {
+      "path": "pages/station/materials",
+      "style": {
+        "navigationBarTitleText": "分站素材"
+      }
+    },
+    {
+      "path": "pages/station/team",
+      "style": {
+        "navigationBarTitleText": "分站团队"
+      }
+    },
+    {
+      "path": "pages/tasks/daily",
+      "style": {
+        "navigationBarTitleText": "每日任务"
+      }
+    },
+    {
+      "path": "pages/teacher/dashboard",
+      "style": {
+        "navigationBarTitleText": "教师看板"
+      }
+    },
+    {
+      "path": "pages/tools/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具"
+      }
+    },
+    {
+      "path": "pages/topics/topic",
+      "style": {
+        "navigationBarTitleText": "话题页"
       }
     },
     {
       "path": "pages/user/user",
-      "style": { "navigationBarTitleText": "用户主页" }
-    },
-    {
-      "path": "pages/login/login",
-      "style": { "navigationBarTitleText": "登录" }
-    },
-    {
-      "path": "pages/notifications/notifications",
       "style": {
-        "navigationBarTitleText": "通知",
-        "enablePullDownRefresh": true
+        "navigationBarTitleText": "用户主页"
       }
     },
     {
-      "path": "pages/bots/bots",
-      "style": { "navigationBarTitleText": "智能体广场", "navigationStyle": "custom" }
-    },
-    {
-      "path": "pages/bots/bot-chat",
-      "style": { "navigationBarTitleText": "智能体对话", "navigationStyle": "custom" }
-    },
-    {
-      "path": "pages/shop/shop",
-      "style": { "navigationBarTitleText": "商城" }
-    },
-    {
-      "path": "pages/shop/product-detail",
-      "style": { "navigationBarTitleText": "商品详情" }
-    },
-    {
-      "path": "pages/shop/coupons",
-      "style": { "navigationBarTitleText": "优惠券" }
-    },
-    {
-      "path": "pages/videos/videos",
-      "style": { "navigationBarTitleText": "短视频" }
+      "path": "pages/videos/publish",
+      "style": {
+        "navigationBarTitleText": "发布视频"
+      }
     },
     {
       "path": "pages/videos/video-play",
-      "style": { "navigationBarTitleText": "短视频", "navigationStyle": "custom" }
+      "style": {
+        "navigationBarTitleText": "播放视频",
+        "navigationStyle": "custom"
+      }
     },
     {
-      "path": "pages/live/live",
-      "style": { "navigationBarTitleText": "直播" }
-    },
-    {
-      "path": "pages/live/live-room",
-      "style": { "navigationBarTitleText": "直播间", "navigationStyle": "custom" }
-    },
-    {
-      "path": "pages/orders/orders",
-      "style": { "navigationBarTitleText": "我的订单" }
-    },
-    {
-      "path": "pages/orders/order-detail",
-      "style": { "navigationBarTitleText": "订单详情" }
-    },
-    {
-      "path": "pages/qa/questions",
-      "style": { "navigationBarTitleText": "付费问答" }
-    },
-    {
-      "path": "pages/qa/ask",
-      "style": { "navigationBarTitleText": "发起提问" }
-    },
-    {
-      "path": "pages/qa/question-detail",
-      "style": { "navigationBarTitleText": "问答详情" }
-    },
-    {
-      "path": "pages/wallet/wallet",
-      "style": { "navigationBarTitleText": "我的钱包" }
-    },
-    {
-      "path": "pages/wallet/recharge",
-      "style": { "navigationBarTitleText": "充值" }
-    },
-    {
-      "path": "pages/station/earnings",
-      "style": { "navigationBarTitleText": "推广收益" }
+      "path": "pages/videos/videos",
+      "style": {
+        "navigationBarTitleText": "短视频"
+      }
     },
     {
       "path": "pages/vip/vip",
-      "style": { "navigationBarTitleText": "会员中心" }
+      "style": {
+        "navigationBarTitleText": "会员中心"
+      }
+    },
+    {
+      "path": "pages/wallet/recharge",
+      "style": {
+        "navigationBarTitleText": "充值"
+      }
+    },
+    {
+      "path": "pages/wallet/transactions",
+      "style": {
+        "navigationBarTitleText": "交易记录"
+      }
+    },
+    {
+      "path": "pages/wallet/wallet",
+      "style": {
+        "navigationBarTitleText": "我的钱包"
+      }
+    },
+    {
+      "path": "pages/wallet/withdraw",
+      "style": {
+        "navigationBarTitleText": "提现"
+      }
+    },
+    {
+      "path": "pages/ziwei/ziwei",
+      "style": {
+        "navigationBarTitleText": "紫微斗数"
+      }
     }
   ],
   "tabBar": {

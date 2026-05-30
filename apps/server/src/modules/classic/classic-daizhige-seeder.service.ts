@@ -73,7 +73,13 @@ export class ClassicDaizhigeSeeder {
     }
 
     const raw = fs.readFileSync(filePath, "utf-8");
-    const seeds: DaizhigeBookSeed[] = JSON.parse(raw);
+    let seeds: DaizhigeBookSeed[];
+    try {
+      seeds = JSON.parse(raw) as DaizhigeBookSeed[];
+    } catch (err: any) {
+      this.logger.error(`种子文件 JSON 解析失败: ${err.message}`);
+      return { created: 0, skipped: 0, errors: 1 };
+    }
 
     let books = seeds;
     if (categoryFilter) {
@@ -185,7 +191,13 @@ export class ClassicDaizhigeSeeder {
     }
 
     const raw = fs.readFileSync(filePath, "utf-8");
-    const seeds: DaizhigeBookSeed[] = JSON.parse(raw);
+    let seeds: DaizhigeBookSeed[];
+    try {
+      seeds = JSON.parse(raw) as DaizhigeBookSeed[];
+    } catch (err: any) {
+      this.logger.error(`种子文件 JSON 解析失败: ${err.message}`);
+      return null;
+    }
 
     const byCategory: Record<string, number> = {};
     let totalChapters = 0;

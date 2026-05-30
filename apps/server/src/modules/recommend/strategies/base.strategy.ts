@@ -25,6 +25,7 @@ export interface RecommendItem {
   reason: string;
   strategies: string[];
   metadata?: Record<string, any>;
+  createdAt?: Date | string;
 }
 
 export abstract class BaseRecommendStrategy {

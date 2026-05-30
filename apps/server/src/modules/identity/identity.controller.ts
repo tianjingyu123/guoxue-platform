@@ -44,14 +44,16 @@ export class IdentityController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "实名认证审核列表" })
   @ApiQuery({ name: "status", required: false, type: String, description: "审核状态" })
+  @ApiQuery({ name: "userId", required: false, type: String, description: "用户ID筛选" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   getAuditList(
     @Query("status") status?: string,
+    @Query("userId") userId?: string,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
-    return this.svc.getIdentityAuditList(+page, +pageSize, status);
+    return this.svc.getIdentityAuditList(+page, +pageSize, status, userId);
   }
 
   @Post("admin/approve/:id")

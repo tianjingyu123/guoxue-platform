@@ -108,10 +108,18 @@ export class HuifuService {
   /** 生成 RSA-SHA256 签名 */
   private sign(signStr: string): string {
     const rawKey = this.configCache.get("rsaPrivateKey") || "";
+    if (!rawKey) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付天下RSA私钥未配置，请先在支付配置中设置rsaPrivateKey");
+    }
     const privateKey = this.normalizePrivateKey(rawKey);
-    const signer = createSign("sha256WithRSAEncryption");
-    signer.update(signStr, "utf-8");
-    return signer.sign(privateKey, "base64");
+    try {
+      const signer = createSign("sha256WithRSAEncryption");
+      signer.update(signStr, "utf-8");
+      return signer.sign(privateKey, "base64");
+    } catch (err) {
+      this.logger.error("RSA签名失败，请检查私钥格式是否正确", (err as Error).message);
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "RSA签名失败，请检查汇付天下私钥格式");
+    }
   }
 
   /** 验签 */
@@ -332,6 +340,15 @@ export class HuifuService {
 
   /** 发起分账 */
   async createSplit(dto: HuifuSplitDto) {
+    // 支持扁平字段简写：receiverId + receiverName → receivers 数组
+    let receivers = dto.receivers || [];
+    if (receivers.length === 0 && dto.receiverId) {
+      receivers = [{ acctId: dto.receiverId, amount: dto.amount, name: dto.receiverName || dto.receiverId }];
+    }
+    if (receivers.length === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供分账接收方信息");
+    }
+
     const splitRecord = await this.prisma.huifuSplitRecord.findUnique({
       where: { orderId: dto.orderId },
     });
@@ -343,14 +360,14 @@ export class HuifuService {
     }
 
     const merchantId = await this.getConfig("merchantId");
-    const totalSplitAmount = dto.receivers.reduce((sum, r) => sum + r.amount, 0);
+    const totalSplitAmount = receivers.reduce((sum, r) => sum + r.amount, 0);
 
     const body: Record<string, unknown> = {
       merchant_id: merchantId,
       out_trade_no: splitRecord.outTradeNo,
       out_order_no: `SPLIT${Date.now()}`,
       total_amount: Math.round(totalSplitAmount * 100),
-      receivers: dto.receivers.map((r) => ({
+      receivers: receivers.map((r) => ({
         acct_id: r.acctId,
         amount: Math.round(r.amount * 100),
         name: r.name,
@@ -366,7 +383,7 @@ export class HuifuService {
       where: { orderId: dto.orderId },
       data: {
         splitStatus: (result.split_status as string) === "SUCCESS" ? "SUCCESS" : "PROCESSING",
-        receivers: dto.receivers.map((r) => ({
+        receivers: receivers.map((r) => ({
           acctId: r.acctId,
           amount: r.amount,
           name: r.name,
@@ -413,15 +430,18 @@ export class HuifuService {
 
   /** 申请退款 */
   async createRefund(dto: HuifuRefundDto) {
+    const orderId = dto.orderId || dto.outTradeNo;
+    if (!orderId) throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供订单ID或交易号");
+
     const splitRecord = await this.prisma.huifuSplitRecord.findUnique({
-      where: { orderId: dto.orderId },
+      where: { orderId },
     });
     if (!splitRecord) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "找不到支付记录");
     }
 
     const merchantId = await this.getConfig("merchantId");
-    const outRefundNo = `RF${Date.now()}${dto.orderId.slice(0, 8)}`;
+    const outRefundNo = `RF${Date.now()}${orderId.slice(0, 8)}`;
 
     const body: Record<string, unknown> = {
       merchant_id: merchantId,

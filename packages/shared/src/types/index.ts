@@ -152,8 +152,18 @@ export type CompetitionTypeEnum =
 
 export type CompetitionStatusEnum = "DRAFT" | "PUBLISHED" | "IN_PROGRESS" | "FINISHED" | "CANCELLED";
 export type CompetitionLevelEnum = "S" | "A" | "B";
+export type PrizeTypeEnum = "CASH" | "PHYSICAL" | "VIRTUAL" | "MIXED";
 export type QuestionTypeEnum = "SINGLE_CHOICE" | "MULTI_CHOICE" | "FILL_IN" | "SCALE" | "CASE_ANALYSIS" | "ESSAY";
 export type ScoringModelEnum = "A" | "B" | "C" | "D";
+
+export interface PrizeConfigItem {
+  rank: string;
+  title: string;
+  prize?: number;
+  prizeItem?: string;
+  prizeType?: string;
+  description?: string;
+}
 
 export interface CompetitionSummary {
   id: string;
@@ -164,6 +174,8 @@ export interface CompetitionSummary {
   coverImage?: string;
   entryFee: number;
   totalPrize: number;
+  prizeType: PrizeTypeEnum;
+  prizeConfig?: PrizeConfigItem[];
   registrationCount: number;
   createdAt: string;
 }
@@ -176,6 +188,7 @@ export interface CompetitionDetail extends CompetitionSummary {
   isInviteOnly: boolean;
   requireIdentity: boolean;
   invitationShare: number;
+  prizeType: PrizeTypeEnum;
   organizerId?: string;
   organizerType?: string;
   tags: string[];

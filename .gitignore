@@ -38,6 +38,9 @@ docker/nginx/ssl/
 # TypeScript build info
 *.tsbuildinfo
 
+# PM2
+.pm2-logs/
+
 # Claude local config (plans are tracked)
 .claude/mcp.json
 .claude/settings.json

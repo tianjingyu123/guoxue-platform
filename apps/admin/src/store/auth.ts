@@ -44,14 +44,37 @@ export const useAuthStore = defineStore("auth", () => {
   // 是否超级管理员
   const isSuperAdmin = computed(() => roles.value.includes("SUPER_ADMIN"));
 
+  // 是否已入驻商家（状态为 ACTIVE）
+  const isMerchant = computed(() => user.value?.merchant?.status === "ACTIVE");
+
+  // 商家后台菜单（前端注入，不走后端动态菜单）
+  const MERCHANT_MENUS: MenuItem[] = [
+    {
+      title: "商家后台",
+      icon: "Shop",
+      children: [
+        { title: "数据概览", icon: "DataAnalysis", path: "/merchant-backend/dashboard" },
+        { title: "商品管理", icon: "Goods", path: "/merchant-backend/products" },
+        { title: "订单管理", icon: "Document", path: "/merchant-backend/orders" },
+        { title: "发货管理", icon: "Van", path: "/merchant-backend/shipping" },
+        { title: "售后管理", icon: "Service", path: "/merchant-backend/after-sales" },
+        { title: "客户管理", icon: "User", path: "/merchant-backend/customers" },
+        { title: "评价管理", icon: "ChatDotRound", path: "/merchant-backend/reviews" },
+        { title: "收入结算", icon: "Money", path: "/merchant-backend/revenue" },
+        { title: "违规记录", icon: "Warning", path: "/merchant-backend/violations" },
+        { title: "店铺设置", icon: "Setting", path: "/merchant-backend/profile" },
+      ],
+    },
+  ];
+
   // 检查是否拥有指定角色
   function hasRole(...roleTypes: string[]): boolean {
     if (isSuperAdmin.value) return true;
     return roleTypes.some((r) => roles.value.includes(r));
   }
 
-  async function login(account: string, password: string) {
-    const { data } = await authApi.login({ account, password });
+  async function login(phone: string, password: string) {
+    const { data } = await authApi.login({ phone, password });
     token.value = data.accessToken ?? data.access_token;
     localStorage.setItem("token", token.value!);
     await fetchProfile();
@@ -74,7 +97,9 @@ export const useAuthStore = defineStore("auth", () => {
   async function fetchMenus() {
     try {
       const { data } = await authApi.getMenus();
-      menus.value = data || [];
+      const base = data || [];
+      // 商家用户追加商家后台菜单
+      menus.value = isMerchant.value ? [...base, ...MERCHANT_MENUS] : base;
     } catch {
       menus.value = [];
     }
@@ -89,5 +114,5 @@ export const useAuthStore = defineStore("auth", () => {
     ElMessage.success("已退出登录");
   }
 
-  return { user, token, menus, isLogin, roles, roleLabels, isSuperAdmin, hasRole, login, fetchProfile, fetchMenus, logout };
+  return { user, token, menus, isLogin, roles, roleLabels, isSuperAdmin, isMerchant, hasRole, login, fetchProfile, fetchMenus, logout };
 });

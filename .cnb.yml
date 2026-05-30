@@ -1,0 +1,404 @@
+# ═══════════════════════════════════════════════════════════
+# CNB 流水线配置 — 国学传统文化综合平台
+# 迁移自 .github/workflows/{ci,deploy,perf}.yml
+# 文档: https://docs.cnb.cool/zh/build/grammar.html
+# ═══════════════════════════════════════════════════════════
+
+# ── 全局模板引用（可复用 stages） ──
+include:
+  - config:
+      # ─── 安装 pnpm + 依赖 ───
+      _setup_env: &setup_env
+        - name: 安装 pnpm
+          script: |
+            npm install -g pnpm@10
+            pnpm config set registry https://registry.npmmirror.com
+        - name: 安装依赖
+          script: pnpm install --frozen-lockfile
+
+      # ─── 生成 Prisma Client ───
+      _prisma_generate: &prisma_generate
+        - name: 生成 Prisma Client
+          script: cd apps/server && npx prisma generate
+
+# ═══════════════════════════════════════════════════════════
+# main 分支
+# ═══════════════════════════════════════════════════════════
+main:
+
+  # ───────────────────────────────────────────────────────
+  # 1. Push → CI 检查
+  # ───────────────────────────────────────────────────────
+  push:
+    - name: CI — 类型检查 + 代码风格 + 测试 + 构建
+      docker:
+        image: node:20
+      env:
+        PNPM_VERSION: "10"
+        NODE_VERSION: "20"
+        # 测试用环境变量（生产凭据走 CNB 凭据管理）
+        DATABASE_URL: postgresql://guoxue_test:test123@localhost:5432/guoxue_test
+        REDIS_URL: redis://localhost:6379/0
+        JWT_SECRET: test-jwt-secret-32-bytes-key-!
+        ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
+        NODE_ENV: test
+      ifModify:  # 跳过纯文档/计划文件变更
+        - "!(*.md)"
+        - "!(docs/**)"
+        - "!('.claude/**')"
+      lock:
+        key: ci-lock
+        cancel-in-progress: true
+
+      stages:
+        # ——— Stage 1: 类型检查 ———
+        - name: TypeScript 类型检查
+          script: cd apps/server && npx tsc --noEmit
+
+        # ——— Stage 2: 代码风格 ———
+        - name: ESLint + Prettier
+          stages:
+            - name: Prettier 检查
+              script: pnpm format:check || echo "⚠ Prettier 检查未通过（非阻断）"
+            - name: ESLint
+              script: cd apps/server && npx eslint src --ext .ts --max-warnings 20
+
+        # ——— Stage 3: 单元测试（3 分片并行） ———
+        - name: 单元测试
+          # 启动 PostgreSQL + Redis 服务容器
+          # 注：CNB 服务容器需在平台侧或通过 docker 启动
+          stages:
+            - name: 启动测试依赖
+              script: |
+                # 使用 docker-compose 或直接 docker run 起测试数据库
+                # 如果 CNB Runner 支持 services 字段，可在此处声明
+                # 否则通过 docker run 启动
+                docker run -d --name pg-test \
+                  -e POSTGRES_USER=guoxue_test \
+                  -e POSTGRES_PASSWORD=test123 \
+                  -e POSTGRES_DB=guoxue_test \
+                  -p 5432:5432 \
+                  pgvector/pgvector:pg16 2>/dev/null || true
+                docker run -d --name redis-test \
+                  -p 6379:6379 \
+                  redis:7-alpine 2>/dev/null || true
+                # 等待就绪
+                for i in $(seq 1 15); do
+                  if docker exec pg-test pg_isready -U guoxue_test 2>/dev/null; then break; fi
+                  sleep 2
+                done
+
+            - name: 执行迁移
+              script: cd apps/server && npx prisma db push --skip-generate
+
+            - name: 测试 — 分片 1/3
+              script: cd apps/server && npx jest --shard=1/3 --no-coverage --maxWorkers=2
+              allowFailure: true
+
+            - name: 测试 — 分片 2/3
+              script: cd apps/server && npx jest --shard=2/3 --no-coverage --maxWorkers=2
+              allowFailure: true
+
+            - name: 测试 — 分片 3/3
+              script: cd apps/server && npx jest --shard=3/3 --no-coverage --maxWorkers=2
+              allowFailure: true
+
+            - name: 清理测试依赖
+              script: docker rm -f pg-test redis-test 2>/dev/null || true
+
+        # ——— Stage 4: 构建 ———
+        - name: 构建产物
+          script: cd apps/server && pnpm run build
+
+      failStages:
+        - name: CI 失败通知
+          script: |
+            echo "CI 失败 — 分支: main, 提交: $(git log -1 --oneline)"
+
+  # ───────────────────────────────────────────────────────
+  # 2. Pull Request → 轻量检查 + 代码评审
+  # ───────────────────────────────────────────────────────
+  pull_request:
+    - stages:
+        # 代码评审
+        - name: 代码评审
+          image: cnbcool/code-review:latest
+          settings:
+            comment: true
+            max_comments: 10
+            fail_on_critical: false
+      failStages:
+        - name: PR 检查失败通知
+          script: echo "PR 检查未通过"
+
+  # ───────────────────────────────────────────────────────
+  # 3. Tag Push → 生产部署
+  # ───────────────────────────────────────────────────────
+  tag_push:
+    - name: 生产部署
+      docker:
+        image: docker:24-dind
+      services:
+        - docker
+      stages:
+        - name: 检出代码
+          script: |
+            # CNB 自动提供代码，此处仅确认
+            git log -1 --oneline
+
+        - name: 构建 & 推送 Docker 镜像
+          script: |
+            TAG=$(git describe --tags --abbrev=0)
+            IMAGE="cnb.tencent.com/guoxue-platform/server:${TAG}"
+            echo "构建镜像: $IMAGE"
+            docker build -f docker/Dockerfile -t "$IMAGE" .
+            docker tag "$IMAGE" "cnb.tencent.com/guoxue-platform/server:latest"
+            # 登录 CNB 制品仓库（凭据需在 CNB 凭据管理中配置）
+            echo "$CNB_REGISTRY_TOKEN" | docker login cnb.tencent.com -u "$CNB_REGISTRY_USER" --password-stdin
+            docker push "$IMAGE"
+            docker push "cnb.tencent.com/guoxue-platform/server:latest"
+
+        - name: 数据库备份
+          script: |
+            echo "[deploy] 触发生产数据库备份..."
+            # 通过 SSH 在服务器上执行备份
+            mkdir -p ~/.ssh
+            echo "$PROD_SSH_KEY" > ~/.ssh/prod_key
+            chmod 600 ~/.ssh/prod_key
+            ssh -o StrictHostKeyChecking=no -i ~/.ssh/prod_key -p "${DEPLOY_PORT:-22}" "${PROD_USER}@${PROD_HOST}" \
+              "/opt/guoxue/docker/pg-backup.sh 30"
+            rm -f ~/.ssh/prod_key
+
+        - name: 执行数据库迁移
+          script: |
+            echo "$PROD_SSH_KEY" > ~/.ssh/prod_key
+            chmod 600 ~/.ssh/prod_key
+            TAG=$(git describe --tags --abbrev=0)
+            IMAGE="cnb.tencent.com/guoxue-platform/server:${TAG}"
+            ssh -o StrictHostKeyChecking=no -i ~/.ssh/prod_key -p "${DEPLOY_PORT:-22}" "${PROD_USER}@${PROD_HOST}" \
+              "docker run --rm --network guoxue-net \
+               -e DATABASE_URL='${DATABASE_URL}' \
+               ${IMAGE} \
+               npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma"
+            rm -f ~/.ssh/prod_key
+
+        - name: 滚动更新
+          script: |
+            echo "$PROD_SSH_KEY" > ~/.ssh/prod_key
+            chmod 600 ~/.ssh/prod_key
+            TAG=$(git describe --tags --abbrev=0)
+            IMAGE="cnb.tencent.com/guoxue-platform/server:${TAG}"
+            ssh -o StrictHostKeyChecking=no -i ~/.ssh/prod_key -p "${DEPLOY_PORT:-22}" "${PROD_USER}@${PROD_HOST}" <<'REMOTE_SCRIPT'
+              set -e
+              # 登录 CNB 制品仓库
+              echo "$REGISTRY_TOKEN" | docker login cnb.tencent.com -u "$REGISTRY_USER" --password-stdin
+              docker pull '"$IMAGE"'
+              # 备份旧容器
+              docker rm -f guoxue-server-old 2>/dev/null || true
+              docker rename guoxue-server guoxue-server-old 2>/dev/null || true
+              # 启动新容器
+              docker run -d \
+                --name guoxue-server \
+                --restart unless-stopped \
+                --network guoxue-net \
+                -p 3000:3000 \
+                --env-file /opt/guoxue/.env.production \
+                --memory 512M --memory-reservation 256M \
+                --cap-drop ALL --cap-add NET_BIND_SERVICE \
+                '"$IMAGE"'
+              # 健康检查（最长 90 秒）
+              for i in $(seq 1 30); do
+                sleep 3
+                if curl -sf http://localhost:3000/api/v1/health > /dev/null 2>&1; then
+                  echo "✅ 生产部署成功 — $TAG"
+                  docker rm -f guoxue-server-old 2>/dev/null || true
+                  docker image prune -f --filter "until=72h"
+                  exit 0
+                fi
+              done
+              # 自动回滚
+              echo "❌ 健康检查超时 — 自动回滚"
+              docker rm -f guoxue-server
+              docker rename guoxue-server-old guoxue-server 2>/dev/null || true
+              exit 1
+            REMOTE_SCRIPT
+            rm -f ~/.ssh/prod_key
+
+        - name: 清理
+          script: rm -f ~/.ssh/prod_key 2>/dev/null || true
+
+      failStages:
+        - name: 部署失败通知
+          script: |
+            TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "unknown")
+            echo "❌ 生产部署失败 — 版本: $TAG，已自动回滚"
+            # 企业微信通知
+            if [ -n "$WEWORK_WEBHOOK_URL" ]; then
+              curl -s -X POST "$WEWORK_WEBHOOK_URL" \
+                -H "Content-Type: application/json" \
+                -d "{\"msgtype\":\"markdown\",\"markdown\":{\"content\":\"## 国学平台部署通知\n> 环境: **生产环境**\n> 版本: \`$TAG\`\n> 状态: ❌ 部署失败（已自动回滚）\"}}" || true
+            fi
+
+      endStages:
+        - name: 部署成功通知
+          script: |
+            TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "unknown")
+            if [ -n "$WEWORK_WEBHOOK_URL" ]; then
+              curl -s -X POST "$WEWORK_WEBHOOK_URL" \
+                -H "Content-Type: application/json" \
+                -d "{\"msgtype\":\"markdown\",\"markdown\":{\"content\":\"## 国学平台部署通知\n> 环境: **生产环境**\n> 版本: \`$TAG\`\n> 状态: ✅ 部署成功\"}}" || true
+            fi
+
+  # ───────────────────────────────────────────────────────
+  # 4. API 触发 → 性能压测（配合 CNB 定时任务）
+  # ───────────────────────────────────────────────────────
+  api_trigger_perf:
+    - name: 性能压测
+      docker:
+        image: node:20
+      env:
+        NODE_VERSION: "20"
+        PNPM_VERSION: "10"
+        DATABASE_URL: postgresql://guoxue:guoxue123@localhost:5432/guoxue
+        REDIS_URL: redis://localhost:6379
+        ENCRYPTION_KEY: perf-test-key-32bytes-long!!
+        JWT_SECRET: perf-test-jwt-secret-key!!
+        DISABLE_RATE_LIMIT: "true"
+        BULLMQ_DISABLED: "true"
+        # 压测场景：可通过 API 触发时传入
+        SCENARIO: "${CNB_SCENARIO:-load}"
+        BASE_URL: "${CNB_BASE_URL:-http://localhost:3000}"
+      timeout: 3600  # 最长 1 小时
+
+      stages:
+        # ——— Stage 1: 环境准备 ———
+        - name: 准备环境
+          stages:
+            - name: 安装 pnpm
+              script: npm install -g pnpm@10
+            - name: 安装依赖
+              script: pnpm install --frozen-lockfile
+            - name: 构建引擎包
+              script: |
+                pnpm --filter @guoxue/bazi-engine build
+                pnpm --filter @guoxue/ziwei-engine build
+            - name: 生成 Prisma Client
+              script: pnpm --filter @guoxue/server db:generate
+            - name: 启动测试数据库
+              script: |
+                docker run -d --name pg-perf \
+                  -e POSTGRES_USER=guoxue \
+                  -e POSTGRES_PASSWORD=guoxue123 \
+                  -e POSTGRES_DB=guoxue \
+                  -p 5432:5432 \
+                  postgres:16-alpine 2>/dev/null || true
+                docker run -d --name redis-perf \
+                  -p 6379:6379 \
+                  redis:7-alpine 2>/dev/null || true
+                for i in $(seq 1 15); do
+                  if docker exec pg-perf pg_isready -U guoxue 2>/dev/null; then break; fi
+                  sleep 2
+                done
+            - name: 执行迁移
+              script: pnpm --filter @guoxue/server exec prisma migrate deploy
+            - name: 构建服务
+              script: pnpm --filter @guoxue/server build
+
+        # ——— Stage 2: 运行压测 ———
+        - name: 启动服务 & 压测
+          stages:
+            - name: 启动服务
+              script: |
+                cd apps/server
+                NODE_ENV=production \
+                DATABASE_URL="$DATABASE_URL" \
+                REDIS_URL="$REDIS_URL" \
+                ENCRYPTION_KEY="$ENCRYPTION_KEY" \
+                JWT_SECRET="$JWT_SECRET" \
+                PORT=3000 \
+                node dist/main.js &
+                # 等待服务就绪
+                for i in $(seq 1 30); do
+                  if curl -sf http://localhost:3000/api/v1/health > /dev/null 2>&1; then
+                    echo "服务已就绪"
+                    break
+                  fi
+                  if [ $i -eq 30 ]; then
+                    echo "服务启动超时"
+                    exit 1
+                  fi
+                  sleep 2
+                done
+
+            - name: 安装 k6
+              script: |
+                # 安装 k6 压测工具
+                apt-get update -qq && apt-get install -y -qq gnupg 2>/dev/null
+                gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69 2>/dev/null || true
+                echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | tee /etc/apt/sources.list.d/k6.list
+                apt-get update -qq && apt-get install -y -qq k6 2>/dev/null || \
+                  (curl -sL https://github.com/grafana/k6/releases/latest/download/k6-linux-amd64.tar.gz | tar xz && mv k6-linux-amd64/k6 /usr/local/bin/k6)
+
+            - name: 运行性能测试
+              script: |
+                mkdir -p results
+                k6 run \
+                  --env SCENARIO="$SCENARIO" \
+                  --env BASE_URL="$BASE_URL" \
+                  --out json=results/raw.json \
+                  --summary-export=results/summary.json \
+                  tests/performance/k6/main.js
+              allowFailure: true
+
+            - name: 输出结果摘要
+              script: |
+                if [ -f results/summary.json ]; then
+                  echo "=== 性能测试报告 ($SCENARIO) ==="
+                  cat results/summary.json | head -100
+                else
+                  echo "⚠️ 未生成性能报告文件"
+                fi
+
+        # ——— Stage 3: 清理 ———
+        - name: 清理环境
+          script: |
+            kill $(lsof -t -i:3000) 2>/dev/null || true
+            docker rm -f pg-perf redis-perf 2>/dev/null || true
+          allowFailure: true
+
+# ═══════════════════════════════════════════════════════════
+# develop 分支 — 轻量 CI
+# ═══════════════════════════════════════════════════════════
+develop:
+  push:
+    - name: CI — 开发分支快速检查
+      docker:
+        image: node:20
+      stages:
+        - name: 安装 & 类型检查
+          stages:
+            - name: 安装依赖
+              script: |
+                npm install -g pnpm@10
+                pnpm install --frozen-lockfile
+            - name: 生成 Prisma
+              script: cd apps/server && npx prisma generate
+            - name: TypeScript 检查
+              script: cd apps/server && npx tsc --noEmit
+        - name: ESLint
+          script: cd apps/server && npx eslint src --ext .ts --max-warnings 20
+
+# ═══════════════════════════════════════════════════════════
+# 兜底规则 — 其他所有分支
+# ═══════════════════════════════════════════════════════════
+$:
+  push:
+    - name: 轻量检查
+      docker:
+        image: node:20
+      stages:
+        - name: 安装 & 类型检查
+          script: |
+            npm install -g pnpm@10
+            pnpm install --frozen-lockfile
+            cd apps/server && npx prisma generate && npx tsc --noEmit

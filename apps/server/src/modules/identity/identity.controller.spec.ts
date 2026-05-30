@@ -58,9 +58,9 @@ describe("IdentityController", () => {
   });
 
   it("GET /identity/admin/audit-list — 审核列表", async () => {
-    const result: any = await ctrl.getAuditList("PENDING", 1 as any, 20 as any);
+    const result: any = await ctrl.getAuditList("PENDING", undefined, 1 as any, 20 as any);
     expect(result).toHaveLength(1);
-    expect(mockIdentitySvc.getIdentityAuditList).toHaveBeenCalledWith(1, 20, "PENDING");
+    expect(mockIdentitySvc.getIdentityAuditList).toHaveBeenCalledWith(1, 20, "PENDING", undefined);
   });
 
   it("POST /identity/admin/approve/:id — 通过认证", async () => {

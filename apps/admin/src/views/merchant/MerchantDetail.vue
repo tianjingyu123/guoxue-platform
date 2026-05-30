@@ -112,6 +112,14 @@
           <el-table-column label="创建时间" width="160">
             <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
           </el-table-column>
+          <el-table-column label="操作" width="160" v-if="violations.some(v => v.status === 'PENDING')">
+            <template #default="{ row }">
+              <template v-if="row.status === 'PENDING'">
+                <el-button type="success" size="small" @click="handleViolationAction(row.id, 'CONFIRMED')">确认</el-button>
+                <el-button type="info" size="small" @click="handleViolationAction(row.id, 'DISMISSED')">驳回</el-button>
+              </template>
+            </template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -139,6 +147,48 @@
           <el-table-column prop="remark" label="备注" min-width="150" />
           <el-table-column label="时间" width="160">
             <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <!-- 标签5: 结算记录 -->
+      <el-tab-pane label="结算记录" name="settlements">
+        <div style="margin-bottom:12px">
+          <el-button type="primary" size="small" @click="openSettleDialog">生成结算单</el-button>
+        </div>
+        <el-table :data="settlements" stripe>
+          <el-table-column label="结算周期" min-width="200">
+            <template #default="{ row }">{{ formatDate(row.periodStart) }} ~ {{ formatDate(row.periodEnd) }}</template>
+          </el-table-column>
+          <el-table-column label="订单数" width="80">
+            <template #default="{ row }">{{ row.orderCount }}</template>
+          </el-table-column>
+          <el-table-column label="总营收" width="110">
+            <template #default="{ row }">¥{{ (row.totalRevenue / 100).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="平台抽成" width="110">
+            <template #default="{ row }">¥{{ (row.commission / 100).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="结算金额" width="110">
+            <template #default="{ row }">¥{{ (row.settlementAmount / 100).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="90">
+            <template #default="{ row }">
+              <el-tag :type="row.status === 'PAID' ? 'success' : row.status === 'CANCELLED' ? 'info' : 'warning'" size="small">
+                {{ row.status === 'PAID' ? '已支付' : row.status === 'CANCELLED' ? '已取消' : '待支付' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="支付时间" width="160">
+            <template #default="{ row }">{{ formatDate(row.paidAt) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="160">
+            <template #default="{ row }">
+              <template v-if="row.status === 'PENDING'">
+                <el-button type="success" size="small" @click="openPaySettle(row.id)">标记支付</el-button>
+                <el-button type="info" size="small" @click="doCancelSettlement(row.id)">取消</el-button>
+              </template>
+            </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
@@ -237,6 +287,38 @@
       </template>
     </el-dialog>
 
+    <!-- 生成结算单对话框 -->
+    <el-dialog v-model="settleDialog" title="生成结算单" width="450px">
+      <el-form label-width="100px">
+        <el-form-item label="结算周期起始" required>
+          <el-date-picker v-model="settleForm.periodStart" type="date" placeholder="选择起始日期" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="结算周期截止" required>
+          <el-date-picker v-model="settleForm.periodEnd" type="date" placeholder="选择截止日期" style="width:100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="settleDialog = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="doGenerateSettlement">生成</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 标记结算支付对话框 -->
+    <el-dialog v-model="paySettleDialog" title="标记结算已支付" width="400px">
+      <el-form label-width="80px">
+        <el-form-item label="支付金额" required>
+          <el-input-number v-model="paySettleAmount" :min="0" :precision="2" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="paySettleRemark" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="paySettleDialog = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="doPaySettlement">确认</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 分佣比例对话框 -->
     <el-dialog v-model="commissionDialog" title="设置分佣比例" width="400px">
       <el-form label-width="100px">
@@ -254,7 +336,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
@@ -290,6 +372,15 @@ const adjustReason = ref('')
 const commissionDialog = ref(false)
 const commissionRate = ref(0.8)
 
+const settlements = ref<any[]>([])
+const settleDialog = ref(false)
+const settleForm = ref({ periodStart: '', periodEnd: '' })
+
+const paySettleDialog = ref(false)
+const paySettleId = ref('')
+const paySettleAmount = ref(0)
+const paySettleRemark = ref('')
+
 const STATUS_MAP: Record<string, string> = {
   PENDING_REVIEW: '待审核', REVIEW_FAILED: '审核驳回', DEPOSIT_PENDING: '待缴保证金',
   AGREEMENT_PENDING: '待签署协议', ACTIVE: '已开通', SUSPENDED: '已暂停', CLOSED: '已关闭',
@@ -310,6 +401,12 @@ function depositTypeLabel(t: string) { return DEPOSIT_TYPE[t] || t }
 function formatDate(d: string) { return d ? new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-' }
 
 onMounted(() => fetchDetail())
+
+// 切换Tab时懒加载数据
+watch(activeTab, (tab) => {
+  if (tab === 'stats') fetchStats()
+  else if (tab === 'settlements') fetchSettlements()
+})
 
 async function fetchDetail() {
   loading.value = true
@@ -380,6 +477,74 @@ async function doCreateViolation() {
     fetchDetail()
   } catch (e: any) { }
   finally { saving.value = false }
+}
+
+// 违规处理
+async function handleViolationAction(vid: string, status: string) {
+  saving.value = true
+  try {
+    await merchantApi.handleViolation(id, vid, { status })
+    ElMessage.success(status === 'CONFIRMED' ? '违规已确认' : '违规已驳回')
+    fetchDetail()
+  } catch (e: any) { }
+  finally { saving.value = false }
+}
+
+// 结算
+async function fetchSettlements() {
+  try {
+    const res = await merchantApi.getSettlements(id)
+    settlements.value = (res.data as any)?.list || []
+  } catch { /* ignore */ }
+}
+
+function openSettleDialog() {
+  settleForm.value = { periodStart: '', periodEnd: '' }
+  settleDialog.value = true
+}
+
+async function doGenerateSettlement() {
+  const { periodStart, periodEnd } = settleForm.value
+  if (!periodStart || !periodEnd) { ElMessage.warning('请选择结算周期'); return }
+  saving.value = true
+  try {
+    await merchantApi.generateSettlement(id, { periodStart, periodEnd })
+    ElMessage.success('结算单已生成')
+    settleDialog.value = false
+    fetchSettlements()
+  } catch (e: any) { }
+  finally { saving.value = false }
+}
+
+function openPaySettle(sid: string) {
+  paySettleId.value = sid
+  paySettleAmount.value = 0
+  paySettleRemark.value = ''
+  paySettleDialog.value = true
+}
+
+async function doPaySettlement() {
+  if (!paySettleAmount.value) { ElMessage.warning('请输入支付金额'); return }
+  saving.value = true
+  try {
+    await merchantApi.paySettlement(id, paySettleId.value, {
+      amount: paySettleAmount.value,
+      remark: paySettleRemark.value || undefined,
+    })
+    ElMessage.success('已标记为已支付')
+    paySettleDialog.value = false
+    fetchSettlements()
+  } catch (e: any) { }
+  finally { saving.value = false }
+}
+
+async function doCancelSettlement(sid: string) {
+  try {
+    await ElMessageBox.confirm('确定取消该结算单吗？', '提示', { type: 'warning' })
+    await merchantApi.cancelSettlement(id, sid)
+    ElMessage.success('结算单已取消')
+    fetchSettlements()
+  } catch { /* cancelled */ }
 }
 
 // 保证金

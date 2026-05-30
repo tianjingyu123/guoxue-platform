@@ -91,11 +91,12 @@ describe("MultiAgentService", () => {
   });
 
   describe("execute — 编排策略", () => {
-    const task = (strategy: OrchestrationTask["strategy"], agents: AgentRole[]): OrchestrationTask => ({
+    const task = (strategy: OrchestrationTask["strategy"], agents: AgentRole[], overrides?: Partial<OrchestrationTask>): OrchestrationTask => ({
       id: "task-1",
       strategy,
       agents,
       input: "请帮我分析这段古文的意义。",
+      ...overrides,
     });
 
     it("sequential — 顺序执行所有Agent，前一个输出传给下一个", async () => {
@@ -200,10 +201,27 @@ describe("MultiAgentService", () => {
       expect(result.agentResults).toHaveLength(2);
     });
 
-    it("debate — 辩论模式抛异常（尚未实现）", async () => {
-      const agents = [mockAgent({ id: "a" }), mockAgent({ id: "b" })];
+    it("debate — 辩论模式正常执行（已实现，maxRounds=1）", async () => {
+      const agents = [
+        mockAgent({ id: "a", name: "正方" }),
+        mockAgent({ id: "b", name: "反方" }),
+      ];
 
-      await expect(svc.execute(task("debate", agents))).rejects.toThrow("辩论模式尚未实现");
+      // maxRounds=1: 第1轮2次 + 最终总结1次 = 3次
+      gatewayChat
+        .mockResolvedValueOnce({ content: "正方观点" })
+        .mockResolvedValueOnce({ content: "反方观点" })
+        .mockResolvedValueOnce({ content: "辩论总结" });
+
+      const result = await svc.execute(task("debate", agents, { maxRounds: 1 }));
+
+      expect(result.output).toBe("辩论总结");
+      expect(gatewayChat).toHaveBeenCalledTimes(3);
+    });
+
+    it("debate — 单个Agent时抛出错误", async () => {
+      const agents = [mockAgent({ id: "a" })];
+      await expect(svc.execute(task("debate", agents))).rejects.toThrow("至少需要2个Agent");
     });
 
     it("未绑定Gateway时抛出明确错误", async () => {

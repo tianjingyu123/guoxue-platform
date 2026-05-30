@@ -63,39 +63,41 @@
   </view>
 </template>
 
-<script setup>
-import { ref, computed } from "vue";
+<script setup lang="ts">
+import { ref, computed, onMounted } from "vue";
 import { useUserStore } from "@/store/user";
-import { shopApi } from "@/api/index";
+import { shopApi, memberApi } from "@/api/index";
 
 const userStore = useUserStore();
 
-const plans = [
-  {
-    level: "MONTHLY",
-    name: "月会员",
-    price: 39,
-    unit: "月",
-    featured: false,
-    benefits: ["AI排盘分析免费看", "智能体调用额度×5", "专属会员标识"],
-  },
-  {
-    level: "YEARLY",
-    name: "年会员",
-    price: 365,
-    unit: "年",
-    featured: true,
-    benefits: ["月会员全部权益", "部分课程免费学", "商城95折优惠", "圈子入圈8折"],
-  },
-  {
-    level: "LIFETIME",
-    name: "终身会员",
-    price: 9999,
-    unit: "",
-    featured: false,
-    benefits: ["年会员全部权益", "终身有效", "全部课程免费", "专属客服通道"],
-  },
+const unitMap: Record<string, string> = { MONTHLY: "月", YEARLY: "年", LIFETIME: "" };
+
+// 本地默认数据，后端不可用时兜底
+const defaultPlans = [
+  { level: "MONTHLY", name: "月会员", price: 39, unit: "月", featured: false, benefits: ["AI排盘分析免费看", "智能体调用额度×5", "专属会员标识"] },
+  { level: "YEARLY", name: "年会员", price: 365, unit: "年", featured: true, benefits: ["月会员全部权益", "部分课程免费学", "商城95折优惠", "圈子入圈8折"] },
+  { level: "LIFETIME", name: "终身会员", price: 9999, unit: "", featured: false, benefits: ["年会员全部权益", "终身有效", "全部课程免费", "专属客服通道"] },
 ];
+
+const plans = ref<Array<{ level: string; name: string; price: number; unit: string; featured: boolean; benefits: string[] }>>([...defaultPlans]);
+
+onMounted(async () => {
+  try {
+    const res: any = await memberApi.plans();
+    if (res?.length > 0) {
+      plans.value = res.map((p: any) => ({
+        level: p.level,
+        name: p.name,
+        price: p.price,
+        unit: unitMap[p.level] || "",
+        featured: p.level === "YEARLY",
+        benefits: Array.isArray(p.benefits) ? p.benefits : [],
+      }));
+    }
+  } catch {
+    // 后端不可用，保留本地默认数据
+  }
+});
 
 const compareRows = [
   { name: "排盘AI分析", free: "限1次/天", monthly: "无限次", yearly: "无限次", lifetime: "无限次" },

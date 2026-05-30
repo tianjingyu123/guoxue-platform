@@ -8,6 +8,10 @@ import { ContentService } from "./content.service";
 import { SystemService } from "../system/system.service";
 import { CreateContentDto, UpdateContentDto, ContentListQueryDto } from "./content.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { ActiveUserGuard } from "../../common/active-user.guard";
+import { StationIsolationGuard } from "../../common/station-isolation.guard";
+import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { RequireFeature } from "../../common/feature-flag.decorator";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 
@@ -21,7 +25,8 @@ export class ContentController {
   ) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ActiveUserGuard, FeatureFlagGuard)
+  @RequireFeature("content_publish")
   @ApiOperation({ summary: "创建内容" })
   @ApiBearerAuth()
   async create(@Body() dto: CreateContentDto, @Req() req: Request) {
@@ -63,7 +68,14 @@ export class ContentController {
     return this.content.getPoemAppreciation(id);
   }
 
+  @Get("featured")
+  @ApiOperation({ summary: "精选内容（按浏览量排序）" })
+  getFeatured(@Query("type") type?: string) {
+    return this.content.getFeatured(type);
+  }
+
   @Get(":id")
+  @UseGuards(JwtAuthGuard, StationIsolationGuard)
   @ApiOperation({ summary: "获取内容详情" })
   detail(@Param("id") id: string) {
     return this.content.detail(id);
@@ -132,9 +144,4 @@ export class ContentController {
     return this.content.getStats();
   }
 
-  @Get("featured")
-  @ApiOperation({ summary: "精选内容（按浏览量排序）" })
-  getFeatured(@Query("type") type?: string) {
-    return this.content.getFeatured(type);
-  }
 }

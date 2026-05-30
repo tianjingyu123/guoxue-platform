@@ -1,4 +1,5 @@
 import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
+import { randomInt } from "crypto";
 import { RedisService } from "../../redis/redis.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { maskPhone } from "../../common/crypto.util";
@@ -87,8 +88,8 @@ export class SmsService {
       throw new BusinessException(ErrorCode.THIRD_SMS_FAILED, "验证码已发送，请60秒后再试");
     }
 
-    // 生成6位验证码
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    // 生成6位验证码（密码学安全随机数）
+    const code = String(randomInt(100000, 1000000));
 
     const templateParamSet = [code, "5"]; // 验证码, 有效期5分钟
     const phoneNumberSet = [`+86${phone}`];

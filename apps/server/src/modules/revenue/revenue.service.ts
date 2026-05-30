@@ -157,9 +157,22 @@ export class RevenueService {
 
   // ───────── 新增：收入统计（管理员）─────────
 
-  async getRevenueStats(userId: string, period?: string) {
+  async getRevenueStats(
+    userId?: string,
+    period?: string,
+    startDate?: string,
+    endDate?: string,
+    days?: number,
+  ) {
     let dateFilter: Record<string, any> = {};
-    if (period) {
+    if (startDate && endDate) {
+      dateFilter = {
+        createdAt: {
+          gte: new Date(startDate + "T00:00:00+08:00"),
+          lte: new Date(endDate + "T23:59:59+08:00"),
+        },
+      };
+    } else if (period) {
       const [year, month] = period.split("-").map(Number);
       dateFilter = {
         createdAt: {
@@ -167,42 +180,65 @@ export class RevenueService {
           lte: new Date(year, month, 0, 23, 59, 59, 999),
         },
       };
+    } else if (days) {
+      const start = new Date();
+      start.setDate(start.getDate() - days);
+      start.setHours(0, 0, 0, 0);
+      dateFilter = { createdAt: { gte: start } };
     }
 
-    const where = { userId, ...dateFilter };
-    const [totalAgg, settledOrders] = await Promise.all([
+    const where: Record<string, any> = { ...dateFilter };
+    if (userId) where.userId = userId;
+
+    const [totalAgg] = await Promise.all([
       this.prisma.userEarning.aggregate({
         where,
         _sum: { amountRmb: true, amountCoin: true },
         _count: true,
-      }),
-      this.prisma.settlementOrder.findMany({
-        where: {
-          userId,
-          status: { in: ["APPROVED", "PAID"] },
-          ...(period ? { period } : {}),
-        },
-        select: { amount: true },
       }),
     ]);
 
     const totalRmb = Number(totalAgg._sum.amountRmb || 0);
     const totalCoin = Number(totalAgg._sum.amountCoin || 0);
     const totalCount = totalAgg._count;
-    const settled = settledOrders.reduce((sum, s) => sum + Number(s.amount), 0);
+
+    let settled = 0;
+    if (userId) {
+      const settledOrders = await this.prisma.settlementOrder.findMany({
+        where: {
+          userId,
+          status: { in: ["APPROVED", "PAID"] },
+          ...(period ? { period } : {}),
+        },
+        select: { amount: true },
+      });
+      settled = settledOrders.reduce((sum, s) => sum + Number(s.amount), 0);
+    }
 
     return {
       totalRmb,
       totalCoin,
       totalCount,
       settled,
-      pending: Math.max(0, totalRmb - settled),
+      pending: userId ? Math.max(0, totalRmb - settled) : 0,
     };
   }
 
-  async getRevenueBreakdown(userId: string, period?: string) {
+  async getRevenueBreakdown(
+    userId?: string,
+    period?: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
     let dateFilter: Record<string, any> = {};
-    if (period) {
+    if (startDate && endDate) {
+      dateFilter = {
+        createdAt: {
+          gte: new Date(startDate + "T00:00:00+08:00"),
+          lte: new Date(endDate + "T23:59:59+08:00"),
+        },
+      };
+    } else if (period) {
       const [year, month] = period.split("-").map(Number);
       dateFilter = {
         createdAt: {
@@ -212,18 +248,20 @@ export class RevenueService {
       };
     }
 
+    const where: Record<string, any> = { ...dateFilter };
+    if (userId) where.userId = userId;
+
     const byScene = await this.prisma.userEarning.groupBy({
       by: ["scene"],
-      where: { userId, ...dateFilter },
+      where,
       _sum: { amountRmb: true, amountCoin: true },
       _count: true,
     });
 
-    return byScene.map((s) => ({
-      scene: s.scene,
-      rmb: s._sum.amountRmb || 0,
-      coin: s._sum.amountCoin || 0,
-      count: s._count,
-    }));
+    const result: Record<string, number> = {};
+    for (const s of byScene) {
+      result[s.scene] = Number(s._sum.amountRmb || 0);
+    }
+    return result;
   }
 }

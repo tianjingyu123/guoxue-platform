@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards } from "@nestjs/common";
+import { randomInt } from "crypto";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { EmailService } from "./email.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -22,6 +23,7 @@ export class EmailController {
   }
 
   @Post("send-code")
+  @Post("send-verify-code")
   @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "发送邮件验证码" })
   sendVerifyCode(@Body() dto: SendVerifyCodeDto) {
@@ -120,7 +122,7 @@ export class EmailController {
     const chars = "0123456789";
     let code = "";
     for (let i = 0; i < 6; i++) {
-      code += chars[Math.floor(Math.random() * chars.length)];
+      code += chars[randomInt(0, chars.length)];
     }
     return code;
   }

@@ -30,9 +30,9 @@ export class CommentQueryDto {
   @IsOptional()
   targetType?: string;
 
+  @IsOptional()
   @IsString()
-  @MinLength(1)
-  targetId: string;
+  targetId?: string;
 
   @Type(() => Number)
   @IsInt()

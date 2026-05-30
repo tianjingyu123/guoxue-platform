@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -69,12 +70,13 @@ export class RiskControlService {
   //  2. 预警列表
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  async listAlerts(params: { type?: string; level?: string; status?: string; page?: number; pageSize?: number }) {
-    const { type, level, status, page = 1, pageSize = 20 } = params;
+  async listAlerts(params: { type?: string; level?: string; status?: string; stationId?: string; page?: number; pageSize?: number }) {
+    const { type, level, status, stationId, page = 1, pageSize = 20 } = params;
     const where: Prisma.RiskAlertWhereInput = {};
     if (type) where.type = type;
     if (level) where.level = level;
     if (status) where.status = status;
+    if (stationId) where.stationId = stationId;
 
     const [items, total] = await Promise.all([
       this.prisma.riskAlert.findMany({
@@ -121,10 +123,11 @@ export class RiskControlService {
   //  3. 刷单识别
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  async listFraudDetections(params: { status?: string; page?: number; pageSize?: number }) {
-    const { status, page = 1, pageSize = 20 } = params;
+  async listFraudDetections(params: { status?: string; stationId?: string; page?: number; pageSize?: number }) {
+    const { status, stationId, page = 1, pageSize = 20 } = params;
     const where: Prisma.FraudDetectionWhereInput = {};
     if (status) where.status = status;
+    if (stationId) where.stationId = stationId;
 
     const [items, total] = await Promise.all([
       this.prisma.fraudDetection.findMany({
@@ -145,6 +148,7 @@ export class RiskControlService {
    * - 同 IP 高频下单（UserBehaviorLog 中 action="ORDER_CREATE" 按 ip 聚合）
    * - 退款率异常（UserBehaviorLog 中退款订单占比过高）
    */
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async scanFraud() {
     this.logger.log("开始刷单扫描...");
     const results: Array<{ type: string; confidence: number; evidence: Record<string, any>; userId?: string }> = [];

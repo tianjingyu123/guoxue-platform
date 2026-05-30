@@ -1,0 +1,40 @@
+module.exports = {
+  apps: [
+    {
+      name: "guoxue-api",
+      script: "scripts/pm2-api.js",
+      cwd: "C:/Users/Administrator/Desktop/guoxue-platform",
+      env: {
+        NODE_ENV: "development",
+      },
+      watch: false,
+      max_memory_restart: "2G",
+      error_file: "C:/Users/Administrator/Desktop/guoxue-platform/.pm2-logs/api-error.log",
+      out_file: "C:/Users/Administrator/Desktop/guoxue-platform/.pm2-logs/api-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+      merge_logs: true,
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      kill_timeout: 10000,
+    },
+    {
+      name: "guoxue-admin",
+      script: "scripts/pm2-admin.js",
+      cwd: "C:/Users/Administrator/Desktop/guoxue-platform",
+      env: {
+        NODE_ENV: "development",
+      },
+      watch: false,
+      max_memory_restart: "1G",
+      error_file: "C:/Users/Administrator/Desktop/guoxue-platform/.pm2-logs/admin-error.log",
+      out_file: "C:/Users/Administrator/Desktop/guoxue-platform/.pm2-logs/admin-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+      merge_logs: true,
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      kill_timeout: 10000,
+    },
+  ],
+};

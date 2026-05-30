@@ -11,7 +11,8 @@ import { MerchantSettlementService } from "./merchant-settlement.service";
 import {
   MerchantListQueryDto, ApproveMerchantDto, RejectMerchantDto, UpdateMerchantStatusDto,
   CreateViolationDto, HandleViolationDto, RefundDepositDto, AdjustDepositDto,
-  SetCommissionRateDto, PaySettlementDto, CreateAgreementDto, UpdateAgreementDto, PaginationDto,
+  SetCommissionRateDto, PaySettlementDto, GenerateSettlementDto, SettlementListQueryDto,
+  CreateAgreementDto, UpdateAgreementDto, PaginationDto,
 } from "./merchant.dto";
 
 type AuthRequest = Omit<Request, "user"> & { user: { id: string; [key: string]: unknown } };
@@ -147,15 +148,33 @@ export class MerchantAdminController {
 
   // ── 结算 ──
 
+  @Post(":id/settlements/generate")
+  @ApiOperation({ summary: "生成结算单" })
+  generateSettlement(@Param("id") id: string, @Body() dto: GenerateSettlementDto) {
+    return this.settlementService.generateSettlement(id, dto);
+  }
+
   @Get(":id/settlements")
   @ApiOperation({ summary: "结算记录" })
-  listSettlements(@Param("id") id: string, @Query() q: PaginationDto) {
+  listSettlements(@Param("id") id: string, @Query() q: SettlementListQueryDto) {
     return this.settlementService.listSettlements(id, q);
   }
 
-  @Post(":id/settlements/pay")
+  @Get(":id/settlements/:settlementId")
+  @ApiOperation({ summary: "结算详情" })
+  getSettlement(@Param("settlementId") sid: string) {
+    return this.settlementService.getSettlement(sid);
+  }
+
+  @Post(":id/settlements/:settlementId/pay")
   @ApiOperation({ summary: "标记结算已支付" })
-  paySettlement(@Param("id") id: string, @Body() dto: PaySettlementDto) {
-    return { merchantId: id, amount: dto.amount, status: "PAID", remark: dto.remark };
+  paySettlement(@Param("settlementId") sid: string, @Body() dto: PaySettlementDto) {
+    return this.settlementService.paySettlement(sid, dto);
+  }
+
+  @Post(":id/settlements/:settlementId/cancel")
+  @ApiOperation({ summary: "取消结算单" })
+  cancelSettlement(@Param("settlementId") sid: string) {
+    return this.settlementService.cancelSettlement(sid);
   }
 }

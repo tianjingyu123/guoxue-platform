@@ -11,6 +11,7 @@
     <view class="tabs">
       <text :class="{ active: tab === 'login' }" @click="tab = 'login'">登录</text>
       <text :class="{ active: tab === 'register' }" @click="tab = 'register'">注册</text>
+      <text :class="{ active: tab === 'sms' }" @click="tab = 'sms'">短信登录</text>
     </view>
 
     <!-- 登录表单 -->
@@ -60,6 +61,27 @@
       </view>
     </view>
 
+    <!-- 短信登录表单 -->
+    <view v-if="tab === 'sms'" class="form">
+      <view class="input-wrap">
+        <text class="input-icon">📱</text>
+        <input v-model="smsForm.phone" placeholder="请输入手机号" class="input" type="number" maxlength="11" />
+      </view>
+      <view class="input-wrap">
+        <text class="input-icon">✉️</text>
+        <input v-model="smsForm.code" placeholder="请输入验证码" class="input" type="number" maxlength="6" />
+        <text class="sms-btn" :class="{ disabled: countdown > 0 }" @click="sendSmsCode">
+          {{ countdown > 0 ? `${countdown}s` : '发送验证码' }}
+        </text>
+      </view>
+      <button class="submit-btn" @click="doSmsLogin" :disabled="loading" :loading="loading">
+        {{ loading ? '登录中...' : '登 录' }}
+      </button>
+      <view class="form-extra">
+        <text class="extra-link" @click="tab = 'register'">没有账号？注册后自动登录</text>
+      </view>
+    </view>
+
     <!-- 第三方登录 -->
     <view class="third-party">
       <text class="third-label">—— 其他方式登录 ——</text>
@@ -93,6 +115,9 @@ const agreed = ref(false);
 
 const loginForm = ref({ phone: "", password: "" });
 const regForm = ref({ nickname: "", phone: "", password: "" });
+const smsForm = ref({ phone: "", code: "" });
+const countdown = ref(0);
+let smsTimer: any = null;
 
 async function doLogin() {
   if (!loginForm.value.phone || !loginForm.value.password) {
@@ -107,6 +132,7 @@ async function doLogin() {
   try {
     const data = await authApi.login({ account: loginForm.value.phone, password: loginForm.value.password });
     uni.setStorageSync("token", data.accessToken);
+    if (data.refreshToken) uni.setStorageSync("refreshToken", data.refreshToken);
     uni.showToast({ title: "登录成功", icon: "success" });
     setTimeout(() => uni.navigateBack(), 800);
   } catch { /* api层已提示 */ }
@@ -138,6 +164,57 @@ async function doRegister() {
     loginForm.value.phone = regForm.value.phone;
   } catch { /* */ }
   finally { loading.value = false; }
+}
+
+/** 发送短信验证码 */
+async function sendSmsCode() {
+  if (countdown.value > 0) return;
+  if (!smsForm.value.phone || !/^1\d{10}$/.test(smsForm.value.phone)) {
+    uni.showToast({ title: "请输入正确的手机号", icon: "none" });
+    return;
+  }
+  try {
+    await authApi.sendCode(smsForm.value.phone);
+    uni.showToast({ title: "验证码已发送", icon: "success" });
+    countdown.value = 60;
+    smsTimer = setInterval(() => {
+      countdown.value--;
+      if (countdown.value <= 0) {
+        clearInterval(smsTimer);
+        smsTimer = null;
+      }
+    }, 1000);
+  } catch {
+    /* api层已提示 */
+  }
+}
+
+/** 短信验证码登录 */
+async function doSmsLogin() {
+  if (!smsForm.value.phone || !smsForm.value.code) {
+    uni.showToast({ title: "请填写完整", icon: "none" });
+    return;
+  }
+  if (!/^1\d{10}$/.test(smsForm.value.phone)) {
+    uni.showToast({ title: "手机号格式不正确", icon: "none" });
+    return;
+  }
+  if (smsForm.value.code.length < 4) {
+    uni.showToast({ title: "请输入正确的验证码", icon: "none" });
+    return;
+  }
+  loading.value = true;
+  try {
+    const data = await authApi.smsLogin({ phone: smsForm.value.phone, code: smsForm.value.code });
+    uni.setStorageSync("token", data.accessToken);
+    if (data.refreshToken) uni.setStorageSync("refreshToken", data.refreshToken);
+    uni.showToast({ title: "登录成功", icon: "success" });
+    setTimeout(() => uni.navigateBack(), 800);
+  } catch {
+    /* api层已提示 */
+  } finally {
+    loading.value = false;
+  }
 }
 
 function wechatLogin() {
@@ -235,6 +312,16 @@ function visitorLogin() {
 .pwd-toggle {
   font-size: 16px;
   padding: 4px;
+}
+.sms-btn {
+  font-size: 13px;
+  color: #C41E3A;
+  white-space: nowrap;
+  padding: 4px 0 4px 12px;
+  flex-shrink: 0;
+}
+.sms-btn.disabled {
+  color: #bbb;
 }
 
 .agree-row {

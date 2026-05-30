@@ -16,7 +16,7 @@
           />
           <el-option
             label="待开播"
-            value="PENDING"
+            value="WAITING"
           />
           <el-option
             label="直播中"
@@ -129,7 +129,9 @@
       width="500px"
     >
       <el-form
+        ref="dialogFormRef"
         :model="form"
+        :rules="dialogRules"
         label-width="100px"
       >
         <el-form-item label="标题">
@@ -231,6 +233,10 @@ const dialogVisible = ref(false);
 const saving = ref(false);
 const editingId = ref("");
 const form = reactive({ title: "", cover: "", hostUserId: "", chargeType: "FREE", chargePrice: 0 });
+const dialogFormRef = ref<any>(null);
+const dialogRules = {
+  title: [{ required: true, message: "请输入直播标题", trigger: "blur" }],
+};
 
 onMounted(() => fetchList());
 

@@ -1,5 +1,5 @@
 import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
-import { createSign, createVerify } from "crypto";
+import { createSign, createVerify, randomInt } from "crypto";
 import { readFileSync } from "fs";
 import { MemoryCache } from "../../common/cache.util";
 import { MetricsService } from "../../common/metrics.service";
@@ -225,7 +225,7 @@ export class AlipayService {
 
   /** 生成商户订单号 */
   static genOutTradeNo(prefix = "GXALI"): string {
-    return `${prefix}${Date.now()}${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    return `${prefix}${Date.now()}${randomInt(0, 36 ** 6).toString(36).padStart(6, "0").toUpperCase()}`;
   }
 
   /** 验签回调（含重放攻击防护：验签 + 5分钟时间窗口 + notify_id 去重） */

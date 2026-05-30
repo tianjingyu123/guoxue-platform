@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import { Document, Checked, CircleCheck, CircleClose, Files, View, WarningFilled } from '@element-plus/icons-vue'
 import GreetingHeader from '@/components/GreetingHeader.vue'
@@ -12,6 +13,23 @@ interface CardItem { label: string; value: number; icon: any; highlight?: boolea
 interface ChartItem { title: string; option: any }
 
 const username = ref('内容审核员')
+const router = useRouter()
+
+const cardRoutes: Record<string, string> = {
+  "待审核内容":  "/contents/audit",
+  "今日审核量":  "/contents/audit",
+  "通过率":      "/contents/audit",
+  "拒绝率":      "/contents/audit",
+  "总内容数":    "/contents",
+  "今日新增内容": "/contents",
+  "低质内容数":  "/contents",
+  "总浏览量":    "/contents",
+}
+function onCardClick(card: CardItem) {
+  const path = cardRoutes[card.label]
+  if (path) router.push(path)
+}
+
 const alerts = ref<AlertItem[]>([])
 const cards = ref<CardItem[]>([])
 const charts = ref<ChartItem[]>([])
@@ -97,7 +115,7 @@ onMounted(async () => {
     </div>
     <el-row :gutter="20" class="stats-row">
       <el-col v-for="card in cards" :key="card.label" :xs="24" :sm="12" :md="6">
-        <div class="stat-card">
+        <div class="stat-card" @click="onCardClick(card)">
           <div class="stat-card__top">
             <span class="stat-card__label">{{ card.label }}</span>
             <div class="stat-card__icon"><el-icon :size="18"><component :is="card.icon" /></el-icon></div>
@@ -122,7 +140,7 @@ onMounted(async () => {
   background: #FFFFFF; border-radius: 16px; padding: 20px 22px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  cursor: default; margin-bottom: 20px;
+  cursor: pointer; margin-bottom: 20px;
 }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
 .stat-card__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }

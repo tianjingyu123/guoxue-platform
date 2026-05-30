@@ -27,7 +27,7 @@
           <el-switch v-model="row.enabled" size="small" @change="toggleWeight(row)" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120">
+      <el-table-column label="操作" width="170">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="saveWeight(row)">保存</el-button>
           <el-button size="small" type="danger" @click="del(row.id)">删除</el-button>

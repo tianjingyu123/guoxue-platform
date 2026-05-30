@@ -135,6 +135,15 @@ export class AiController {
     return this.ai.getAiAbnormalAlerts();
   }
 
+  @Get("circuit-breaker")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "AI断路器状态" })
+  @ApiBearerAuth()
+  getCircuitBreakerStatus() {
+    return this.ai.getCircuitBreakerStatus();
+  }
+
   // ───────── 圈主助理管理（管理员） ─────────
 
   @Get("circle-assistants")

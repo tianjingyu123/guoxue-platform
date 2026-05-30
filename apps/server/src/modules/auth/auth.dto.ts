@@ -140,3 +140,32 @@ export class ChangePasswordDto {
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, { message: "新密码需包含大小写字母和数字，至少8位" })
   newPassword: string;
 }
+
+export class DeleteAccountDto {
+  @ApiProperty({ description: "当前密码验证" })
+  @IsString()
+  @MinLength(1)
+  password: string;
+
+  @ApiPropertyOptional({ description: "注销原因" })
+  @IsString()
+  @IsOptional()
+  reason?: string;
+}
+
+export class ChangePhoneDto {
+  @ApiProperty({ description: "旧手机号验证码" })
+  @IsString()
+  @MinLength(4)
+  oldCode: string;
+
+  @ApiProperty({ description: "新手机号" })
+  @IsString()
+  @MinLength(1)
+  newPhone: string;
+
+  @ApiProperty({ description: "新手机号验证码" })
+  @IsString()
+  @MinLength(4)
+  newCode: string;
+}

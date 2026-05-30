@@ -36,6 +36,61 @@
         />
       </template>
 
+      <!-- 古籍收藏 -->
+      <template v-if="currentFilter === 'all' || currentFilter === 'CLASSIC'">
+        <view
+          v-for="item in filteredClassics"
+          :key="item.id || item.targetId"
+          class="simple-card"
+          @click="goReader(item)"
+        >
+          <image
+            v-if="item.target?.cover"
+            :src="item.target.cover"
+            class="simple-cover"
+            mode="aspectFill"
+          />
+          <view v-else class="simple-cover-plc">
+            <text>{{ (item.target?.category || '典').charAt(0) }}</text>
+          </view>
+          <view class="simple-body">
+            <text class="simple-title">{{ item.target?.title || '未知古籍' }}</text>
+            <view class="simple-meta">
+              <text class="simple-author">{{ item.target?.author || '佚名' }}</text>
+              <text v-if="item.target?.dynasty" class="simple-dynasty">{{ item.target.dynasty }}</text>
+            </view>
+            <text class="simple-type">{{ typeLabel(item.targetType) }}</text>
+          </view>
+        </view>
+      </template>
+
+      <!-- 电子书收藏 -->
+      <template v-if="currentFilter === 'all' || currentFilter === 'EBOOK'">
+        <view
+          v-for="item in filteredEbooks"
+          :key="item.id || item.targetId"
+          class="simple-card"
+          @click="goEbook(item)"
+        >
+          <image
+            v-if="item.target?.cover"
+            :src="item.target.cover"
+            class="simple-cover"
+            mode="aspectFill"
+          />
+          <view v-else class="simple-cover-plc">
+            <text>📖</text>
+          </view>
+          <view class="simple-body">
+            <text class="simple-title">{{ item.target?.title || '未知电子书' }}</text>
+            <view class="simple-meta">
+              <text class="simple-author">{{ item.target?.author || '佚名' }}</text>
+            </view>
+            <text class="simple-type">电子书</text>
+          </view>
+        </view>
+      </template>
+
       <!-- 未知类型兜底 -->
       <template v-if="currentFilter === 'all'">
         <view
@@ -68,7 +123,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onShow } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { interactApi } from "../../api";
 import ContentCard from "../../components/ContentCard.vue";
 import CourseCard from "../../components/CourseCard.vue";
@@ -92,6 +147,8 @@ const filters = [
   { key: "all", label: "全部" },
   { key: "ARTICLE", label: "文章" },
   { key: "COURSE", label: "课程" },
+  { key: "CLASSIC", label: "古籍" },
+  { key: "EBOOK", label: "电子书" },
   { key: "VIDEO", label: "视频" },
 ];
 
@@ -107,11 +164,25 @@ const filteredCourses = computed(() => {
   );
 });
 
+const filteredClassics = computed(() => {
+  return list.value.filter(
+    (item) => item.targetType === "CLASSIC" && item.target
+  );
+});
+
+const filteredEbooks = computed(() => {
+  return list.value.filter(
+    (item) => item.targetType === "EBOOK" && item.target
+  );
+});
+
 const filteredOthers = computed(() => {
   return list.value.filter(
     (item) =>
       item.targetType !== "ARTICLE" &&
       item.targetType !== "COURSE" &&
+      item.targetType !== "CLASSIC" &&
+      item.targetType !== "EBOOK" &&
       item.target
   );
 });
@@ -189,8 +260,16 @@ function typeLabel(type: string): string {
     VIDEO: "视频",
     CIRCLE: "圈子",
     PRODUCT: "商品",
+    CLASSIC: "古籍",
   };
   return map[type] || type;
+}
+
+function goReader(item: CollectItem) {
+  const id = item.target?.id || item.targetId;
+  if (id) {
+    uni.navigateTo({ url: `/pages/reader/reader?bookId=${id}` });
+  }
 }
 
 function goDetail(item: CollectItem) {
@@ -198,6 +277,13 @@ function goDetail(item: CollectItem) {
   const type = item.targetType;
   if (id && type) {
     uni.navigateTo({ url: `/pages/detail/detail?id=${id}&type=${type}` });
+  }
+}
+
+function goEbook(item: CollectItem) {
+  const id = item.target?.id || item.targetId;
+  if (id) {
+    uni.navigateTo({ url: `/pages/ebook/ebook-detail?id=${id}` });
   }
 }
 </script>
@@ -228,7 +314,16 @@ function goDetail(item: CollectItem) {
   padding: 12px; margin-bottom: 10px; cursor: pointer;
 }
 .simple-cover { width: 64px; height: 64px; border-radius: 6px; flex-shrink: 0; }
+.simple-cover-plc {
+  width: 64px; height: 64px; border-radius: 6px; flex-shrink: 0;
+  background: linear-gradient(135deg, #E8E0D5, #C9A96E);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; color: rgba(255,255,255,0.8); font-weight: bold;
+}
 .simple-body { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
 .simple-title { font-size: 15px; font-weight: bold; color: #333; }
+.simple-meta { display: flex; gap: 8px; margin-top: 2px; }
+.simple-author { font-size: 12px; color: #888; }
+.simple-dynasty { font-size: 11px; color: #C41E3A; background: #F5F0E8; padding: 0 6px; border-radius: 3px; }
 .simple-type { font-size: 12px; color: #C41E3A; }
 </style>

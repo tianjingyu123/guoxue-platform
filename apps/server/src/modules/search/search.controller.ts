@@ -88,6 +88,16 @@ export class SearchController {
     return this.svc.getStats();
   }
 
+  /** 零结果搜索词（管理后台用） */
+  @Get("zero-results")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "获取零结果搜索关键词" })
+  @ApiBearerAuth()
+  getZeroResults() {
+    return this.svc.getZeroResults();
+  }
+
   /** 语义搜索 */
   @Get("semantic")
   @UseGuards(ThrottleGuard)

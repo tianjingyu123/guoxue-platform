@@ -1,6 +1,58 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { createHmac } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+
+/** 内网/私有 IP 段，防 SSRF */
+const BLOCKED_IP_PATTERNS = [
+  /^127\./,
+  /^10\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^0\./,
+  /^169\.254\./,
+  /^fc00:/i,
+  /^fe80:/i,
+  /^::1$/,
+];
+
+/** 验证 Webhook URL 合法性，防 SSRF */
+async function validateWebhookUrl(url: string): Promise<void> {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "URL 格式不合法");
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "仅支持 http/https 协议");
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "0.0.0.0") {
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "不允许使用本地回环地址");
+  }
+
+  try {
+    const lookupResult = await import("dns/promises").then((dns) =>
+      dns.lookup(parsed.hostname!, { family: 4 }),
+    ).catch(() => null);
+
+    if (lookupResult) {
+      const resolved = lookupResult.address;
+      for (const pattern of BLOCKED_IP_PATTERNS) {
+        if (pattern.test(resolved)) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "不允许使用内网地址");
+        }
+      }
+    }
+  } catch (err) {
+    if (err instanceof BusinessException) throw err;
+    // DNS 解析失败不阻断，可能在非标准环境
+  }
+}
 
 export type WebhookEvent =
   | "ORDER_PAID"
@@ -25,6 +77,7 @@ export class WebhookService {
     secret?: string;
     description?: string;
   }) {
+    await validateWebhookUrl(params.url);
     return this.prisma.webhookSubscription.create({
       data: {
         event: params.event,
@@ -51,6 +104,7 @@ export class WebhookService {
 
   /** 编辑订阅配置 */
   async update(id: string, params: { url?: string; secret?: string; description?: string }) {
+    if (params.url) await validateWebhookUrl(params.url);
     const data: Record<string, unknown> = {};
     if (params.url !== undefined) data.url = params.url;
     if (params.secret !== undefined) data.secret = params.secret;

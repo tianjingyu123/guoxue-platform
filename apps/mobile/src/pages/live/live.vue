@@ -1,7 +1,10 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="header-title">直播</text>
+      <view class="header-top">
+        <text class="header-title">直播</text>
+        <text class="header-create" @click="goCreate">✚ 开播</text>
+      </view>
       <text class="header-sub">国学讲堂 · 在线互动</text>
     </view>
 
@@ -140,6 +143,10 @@ function switchTab(tab: string) {
   fetchRooms();
 }
 
+function goCreate() {
+  uni.navigateTo({ url: "/pages/live/create" });
+}
+
 function goRoom(id: string) {
   uni.navigateTo({ url: "/pages/live/live-room?id=" + id });
 }
@@ -185,10 +192,23 @@ function formatDateTime(t: string): string {
 .header {
   padding: 16px 12px 8px;
 }
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 .header-title {
   font-size: 20px;
   font-weight: bold;
   color: #C41E3A;
+}
+.header-create {
+  font-size: 13px;
+  color: #fff;
+  background: #C41E3A;
+  padding: 5px 14px;
+  border-radius: 14px;
+  font-weight: 500;
 }
 .header-sub {
   font-size: 12px;

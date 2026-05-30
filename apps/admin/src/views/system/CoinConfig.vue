@@ -74,7 +74,7 @@ async function fetchTiers() {
   loading.value = true
   try {
     const { data } = await api.get('/system/configs', { params: { keyPrefix: TIER_PREFIX } })
-    const items = data.data || data || []
+    const items = data?.configs ?? data?.data ?? []
     tierList.value = items.map((item: any) => {
       const val = typeof item.value === 'string' ? JSON.parse(item.value) : item.value
       return { ...val, _key: item.key, _id: item.id }

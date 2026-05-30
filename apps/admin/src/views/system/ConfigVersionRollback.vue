@@ -30,7 +30,7 @@ async function fetchList() {
     const params: any = { page: page.value, pageSize: 20 }
     if (filters.configKey) params.configKey = filters.configKey
     const { data } = await api.get(BASE, { params })
-    list.value = data?.data || data?.versions || []
+    list.value = data?.items ?? data?.data ?? data?.versions ?? []
     total.value = data?.total || 0
   } catch { list.value = [] } finally { loading.value = false }
 }

@@ -3,8 +3,12 @@ import { createPinia } from "pinia";
 import ElementPlus from "element-plus";
 import { ElMessage } from "element-plus";
 import "element-plus/dist/index.css";
+import "./styles/tokens.css";
+import "./styles/global.css";
 import App from "./App.vue";
 import router from "./router";
+import permission from "./directives/permission";
+import i18n from "./locales";
 
 const app = createApp(App);
 
@@ -27,5 +31,7 @@ window.addEventListener("unhandledrejection", (event) => {
 
 app.use(createPinia());
 app.use(router);
+app.use(i18n);
 app.use(ElementPlus, { locale: undefined });
+app.directive("permission", permission);
 app.mount("#app");

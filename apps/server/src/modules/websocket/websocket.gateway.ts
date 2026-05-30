@@ -6,6 +6,7 @@ import {
 import { Server, Socket } from "socket.io";
 import { Logger } from "@nestjs/common";
 import { WsAuthService } from "./ws-auth.service";
+import { PrismaService } from "../../prisma/prisma.service";
 
 interface OnlineUser {
   userId: string;
@@ -41,7 +42,10 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly MAX_CONNECTIONS_PER_IP = 10;
   private readonly MAX_GLOBAL_CONNECTIONS = 5000;
 
-  constructor(private wsAuth: WsAuthService) {}
+  constructor(
+    private wsAuth: WsAuthService,
+    private prisma: PrismaService,
+  ) {}
 
   /** 事件级频率检查 */
   private checkEventRate(socketId: string, eventName: string, maxPerWindow = 10, windowMs = 1000): boolean {
@@ -57,7 +61,7 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return true;
   }
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     // 全局连接数限制
     if (this.socketMap.size >= this.MAX_GLOBAL_CONNECTIONS) {
       this.logger.warn(`全局连接数已达上限 ${this.MAX_GLOBAL_CONNECTIONS}`);
@@ -83,6 +87,18 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!user) {
       this.logger.warn(`WebSocket连接被拒绝: ${client.id}`);
       client.emit("auth_error", { message: "认证失败" });
+      client.disconnect(true);
+      return;
+    }
+
+    // 检查用户是否被封禁
+    const dbUser = await this.prisma.user.findUnique({
+      where: { id: user.userId },
+      select: { status: true },
+    });
+    if (dbUser && (dbUser.status === "BANNED" || dbUser.status === "DISABLED")) {
+      this.logger.warn(`被封禁/停用用户尝试连接: ${user.userId}`);
+      client.emit("auth_error", { message: "账户已被限制，如有疑问请联系客服" });
       client.disconnect(true);
       return;
     }

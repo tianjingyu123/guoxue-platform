@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { CircleService } from "./circle.service";
 import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto, ExpertConfigDto } from "./circle.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { StationId } from "../../common/station-id.decorator";
 import { SanitizePipe } from "../../common/sanitize.pipe";
 import { Request } from "express";
@@ -53,7 +54,36 @@ export class CircleController {
     return this.circle.getMyCircles(req.user.id);
   }
 
+  // ───────── 草稿管理 ─────────
+
+  @Get("drafts")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取我的草稿列表" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  getMyDrafts(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.circle.getMyDrafts(req.user.id, +page, +pageSize);
+  }
+
+  // ───────── 排行榜 ─────────
+
+  @Get("ranking")
+  @ApiOperation({ summary: "圈子活跃度排行" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  @ApiQuery({ name: "sortBy", required: false, type: String, description: "排序字段：memberCount/postCount/activityScore" })
+  @ApiResponse({ status: 200, description: "成功返回圈子活跃度排行" })
+  getCircleRanking(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+    @Query("sortBy") sortBy?: string,
+  ) {
+    return this.circle.getCircleRanking(+page, +pageSize, sortBy);
+  }
+
   @Get(":id")
+  @UseGuards(StationIsolationGuard)
   @ApiOperation({ summary: "获取圈子详情" })
   @ApiResponse({ status: 200, description: "成功返回圈子详情" })
   @ApiResponse({ status: 404, description: "圈子不存在" })
@@ -308,18 +338,6 @@ export class CircleController {
     return this.circle.deletePost(postId, req.user.id, circleId);
   }
 
-  // ───────── 草稿管理 ─────────
-
-  @Get("drafts")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "获取我的草稿列表" })
-  @ApiBearerAuth()
-  @ApiQuery({ name: "page", required: false, type: Number })
-  @ApiQuery({ name: "pageSize", required: false, type: Number })
-  getMyDrafts(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.circle.getMyDrafts(req.user.id, +page, +pageSize);
-  }
-
   @Post(":id/posts/:postId/publish")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "发布草稿帖子" })
@@ -376,22 +394,6 @@ export class CircleController {
   @ApiResponse({ status: 200, description: "成功返回达人列表" })
   listExperts(@Param("id") circleId: string) {
     return this.circle.listCircleExperts(circleId);
-  }
-
-  // ───────── 排行榜 ─────────
-
-  @Get("ranking")
-  @ApiOperation({ summary: "圈子活跃度排行" })
-  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
-  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
-  @ApiQuery({ name: "sortBy", required: false, type: String, description: "排序字段：memberCount/postCount/activityScore" })
-  @ApiResponse({ status: 200, description: "成功返回圈子活跃度排行" })
-  getCircleRanking(
-    @Query("page") page = 1,
-    @Query("pageSize") pageSize = 20,
-    @Query("sortBy") sortBy?: string,
-  ) {
-    return this.circle.getCircleRanking(+page, +pageSize, sortBy);
   }
 
   @Get(":id/leaderboard")

@@ -1,7 +1,10 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="header-title">短视频</text>
+      <view class="header-top">
+        <text class="header-title">短视频</text>
+        <text class="header-publish" @click="goPublish">✚ 发布</text>
+      </view>
       <text class="header-sub">国学智慧 · 视听盛宴</text>
     </view>
 
@@ -134,6 +137,10 @@ function switchTab(v: string) {
   fetchVideos();
 }
 
+function goPublish() {
+  uni.navigateTo({ url: "/pages/videos/publish" });
+}
+
 function goPlay(id: string) {
   uni.navigateTo({ url: `/pages/videos/video-play?id=${id}` });
 }
@@ -163,10 +170,23 @@ function formatCount(n: number | undefined): string {
 .header {
   padding: 16px 12px 8px;
 }
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 .header-title {
   font-size: 20px;
   font-weight: bold;
   color: #C41E3A;
+}
+.header-publish {
+  font-size: 13px;
+  color: #fff;
+  background: #C41E3A;
+  padding: 5px 14px;
+  border-radius: 14px;
+  font-weight: 500;
 }
 .header-sub {
   font-size: 12px;

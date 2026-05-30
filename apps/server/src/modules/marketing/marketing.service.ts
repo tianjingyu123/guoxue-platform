@@ -619,6 +619,60 @@ export class MarketingService {
     });
   }
 
+  async rollbackPage(id: string, versionId: string) {
+    const page = await this.prisma.marketingPage.findUnique({ where: { id } });
+    if (!page) throw new BusinessException(ErrorCode.NOT_FOUND, "微页面不存在");
+
+    const versionRecord = await this.prisma.configVersion.findUnique({ where: { id: versionId } });
+    if (!versionRecord || versionRecord.configKey !== `marketing_page_${id}`) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "版本记录不存在");
+    }
+
+    const snapshot = versionRecord.value as any;
+
+    // 删除当前所有组件，从快照重建
+    await this.prisma.marketingPageComponent.deleteMany({ where: { pageId: id } });
+
+    if (snapshot.components?.length) {
+      await this.prisma.marketingPageComponent.createMany({
+        data: snapshot.components.map((c: any) => ({
+          pageId: id,
+          type: c.type,
+          title: c.title,
+          config: c.config ?? {},
+          sortOrder: c.sortOrder ?? 0,
+          startTime: c.startTime ? new Date(c.startTime) : null,
+          endTime: c.endTime ? new Date(c.endTime) : null,
+          audience: c.audience ?? null,
+        })),
+      });
+    }
+
+    const newVersion = page.version + 1;
+    await this.prisma.marketingPage.update({
+      where: { id },
+      data: {
+        name: snapshot.name ?? page.name,
+        route: snapshot.route ?? page.route,
+        version: newVersion,
+        status: snapshot.status ?? page.status,
+      },
+    });
+
+    // 记录回滚操作
+    await this.prisma.configVersion.create({
+      data: {
+        configKey: `marketing_page_${id}`,
+        value: { action: "rollback", fromVersion: versionRecord.version, toVersion: newVersion } as any,
+        version: newVersion,
+        comment: `从版本 ${versionRecord.version} 回滚`,
+      },
+    });
+
+    this.logger.log(`微页面 ${id} 已回滚到版本 ${versionRecord.version}`);
+    return this.getPage(id);
+  }
+
   // ═══════════════════════════════════════
   // 活动管理
   // ═══════════════════════════════════════

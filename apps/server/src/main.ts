@@ -25,6 +25,9 @@ import { join } from "path";
 async function bootstrap() {
   await startTracing();
 
+  // 启动前校验必需环境变量 — 一次性列出所有缺失项，避免逐个模块崩溃
+  serverConfig.validateRequiredEnv();
+
   const logger = PinoLoggerService.getInstance();
   const app = await NestFactory.create<NestExpressApplication>(AppGraphqlModule, { logger });
 
@@ -51,6 +54,15 @@ async function bootstrap() {
   }
 
   app.setGlobalPrefix("api/v1");
+
+  // 根路径欢迎页
+  app.getHttpAdapter().get("/", (_req: any, res: any) => {
+    res.json({
+      code: 200,
+      data: { app: "guoxue-server", version: "1.0", docs: "/api-docs" },
+      message: "国学平台 API 运行中",
+    });
+  });
   app.enableCors({
     origin: serverConfig.corsOrigin,
     credentials: true,

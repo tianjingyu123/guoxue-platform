@@ -4,6 +4,7 @@
  * 营收概况 / 退款监控 / 月度营收柱状图
  */
 import { ref, onMounted } from "vue"
+import { useRouter } from "vue-router"
 import { api } from "@/api"
 import * as echarts from "echarts"
 import GreetingHeader from "@/components/GreetingHeader.vue"
@@ -13,6 +14,22 @@ import ChartCard from "@/components/ChartCard.vue"
 import { Money, Goods, WarningFilled, User, Document, TrendCharts, Download, Sell } from "@element-plus/icons-vue"
 
 const username = ref("财务管理员")
+const router = useRouter()
+
+const cardRoutes: Record<string, string> = {
+  "平台总营收":   "/finance/reports",
+  "本月营收":     "/finance/reports",
+  "待提现笔数":   "/finance/withdrawals",
+  "待审批结算":   "/finance/settlements",
+  "总订单数":     "/orders",
+  "退款率":       "/orders/refund",
+  "付费用户数":   "/users",
+  "客单价":       "/finance/reports",
+}
+function onCardClick(card: CardDef) {
+  const path = cardRoutes[card.label]
+  if (path) router.push(path)
+}
 
 // ==================== 报警信息 ====================
 const alerts = ref<any[]>([])
@@ -133,7 +150,7 @@ onMounted(async () => {
     <!-- 统计卡片 4×2 -->
     <el-row :gutter="20" class="stats-row">
       <el-col v-for="card in cards" :key="card.label" :xs="24" :sm="12" :md="6">
-        <div class="stat-card">
+        <div class="stat-card" @click="onCardClick(card)">
           <div class="stat-card__top">
             <span class="stat-card__label">{{ card.label }}</span>
             <div class="stat-card__icon"><el-icon :size="18"><component :is="card.icon" /></el-icon></div>
@@ -161,7 +178,7 @@ onMounted(async () => {
 .stat-card {
   background: #fff; border-radius: 16px; padding: 20px 22px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04); transition: transform 0.2s ease, box-shadow 0.2s ease;
-  cursor: default; margin-bottom: 20px;
+  cursor: pointer; margin-bottom: 20px;
 }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
 .stat-card__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }

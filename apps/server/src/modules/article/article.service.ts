@@ -77,6 +77,16 @@ export class ArticleService {
     return { success: true };
   }
 
+  async getStats() {
+    const [total, published, pending, pushHome] = await Promise.all([
+      this.prisma.article.count(),
+      this.prisma.article.count({ where: { auditStatus: "APPROVED" } }),
+      this.prisma.article.count({ where: { auditStatus: "PENDING" } }),
+      this.prisma.article.count({ where: { isPushHome: true } }),
+    ]);
+    return { total, published, pending, pushHome };
+  }
+
   async getDetail(articleId: string) {
     const cacheKey = `articles:detail:${articleId}`;
     const cached = await this.redis.getJson<any>(cacheKey);

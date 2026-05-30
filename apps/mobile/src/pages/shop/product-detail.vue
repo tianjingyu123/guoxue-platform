@@ -102,10 +102,10 @@
       <view class="btn-collect" :class="{ collected: isCollected }" @click="onCollect">
         <text>{{ isCollected ? '★ 已收藏' : '☆ 收藏' }}</text>
       </view>
-      <view class="btn-cart" @click="onBuy">
+      <view class="btn-cart" @click="onAddToCart">
         <text>加入购物车</text>
       </view>
-      <view class="btn-buy" @click="onBuy">
+      <view class="btn-buy" @click="onBuyNow">
         <text>立即购买</text>
       </view>
     </view>
@@ -254,30 +254,49 @@ async function onCollect() {
   }
 }
 
-async function onBuy() {
+async function onAddToCart() {
   if (!token.value) {
     uni.showToast({ title: "请先登录", icon: "none" });
     return;
   }
+  if (product.value.skus?.length && !selectedSku.value) {
+    showSkuPanel.value = true;
+    uni.showToast({ title: "请选择规格", icon: "none" });
+    return;
+  }
   try {
-    const orderData: any = {
-      type: "PRODUCT",
-      targetId: product.value.id,
-      amount: selectedSku.value ? Number(selectedSku.value.price) : Number(product.value.price),
-    };
-    if (selectedSku.value?.id) {
-      orderData.skuId = selectedSku.value.id;
-    }
-    const result = await shopApi.createOrder(orderData);
-    const orderId = result?.id || result?.orderId;
-    if (orderId) {
-      uni.showToast({ title: "下单成功", icon: "success" });
-      uni.navigateTo({ url: `/pages/orders/order-detail?id=${orderId}` });
-    } else {
-      uni.showToast({ title: "下单成功", icon: "success" });
-    }
+    await shopApi.addToCart({
+      productId: product.value.id,
+      skuId: selectedSku.value?.id,
+      quantity: 1,
+    });
+    uni.showToast({ title: "已加入购物车", icon: "success" });
+    uni.showTabBarRedDot({ index: 3 }); // "我的"tab红点提示
   } catch (e: any) {
-    uni.showToast({ title: e.message || "下单失败，请重试", icon: "none" });
+    uni.showToast({ title: e.message || "加入购物车失败", icon: "none" });
+  }
+}
+
+async function onBuyNow() {
+  if (!token.value) {
+    uni.showToast({ title: "请先登录", icon: "none" });
+    return;
+  }
+  if (product.value.skus?.length && !selectedSku.value) {
+    showSkuPanel.value = true;
+    uni.showToast({ title: "请选择规格", icon: "none" });
+    return;
+  }
+  // 先加入购物车再跳转结算
+  try {
+    await shopApi.addToCart({
+      productId: product.value.id,
+      skuId: selectedSku.value?.id,
+      quantity: 1,
+    });
+    uni.navigateTo({ url: "/pages/shop/checkout" });
+  } catch (e: any) {
+    uni.showToast({ title: e.message || "操作失败", icon: "none" });
   }
 }
 

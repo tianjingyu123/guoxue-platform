@@ -14,6 +14,7 @@ import { WechatService } from "./wechat.service";
 import { ImService } from "../im/im.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { SmsService } from "../sms/sms.service";
+import { PermissionService } from "../system/permission.service";
 import {
   PhoneRegisterDto,
   PhoneLoginDto,
@@ -37,6 +38,7 @@ export class AuthService {
     private im: ImService,
     private webhook: WebhookService,
     private sms: SmsService,
+    private permSvc: PermissionService,
   ) {}
 
   /** 生成 accessToken（15分钟） + refreshToken（7天，存Redis可撤销） */
@@ -331,16 +333,23 @@ export class AuthService {
   }
 
   async getProfile(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true, nickname: true, avatar: true, phone: true, email: true,
-        gender: true, birthday: true, memberLevel: true, memberExpire: true,
-        createdAt: true,
-        roles: { select: { roleType: true, bindId: true } },
-      },
-    });
-    return user;
+    const [user, permissions, merchant] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true, nickname: true, avatar: true, phone: true, email: true,
+          gender: true, birthday: true, memberLevel: true, memberExpire: true,
+          createdAt: true,
+          roles: { select: { roleType: true, bindId: true } },
+        },
+      }),
+      this.permSvc.getUserPermissions(userId),
+      this.prisma.merchant.findUnique({
+        where: { userId },
+        select: { id: true, status: true, shopName: true, shopLogo: true },
+      }),
+    ]);
+    return { ...user, permissions, merchant };
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {

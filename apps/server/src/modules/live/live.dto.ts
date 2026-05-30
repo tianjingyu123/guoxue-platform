@@ -39,6 +39,10 @@ export class CreateRoomDto {
   @ApiPropertyOptional({ description: "关联课程ID，回放将自动同步为课程章节" })
   @IsOptional() @IsString()
   courseId?: string;
+
+  @ApiPropertyOptional({ description: "分站ID" })
+  @IsOptional() @IsString()
+  stationId?: string;
 }
 
 export class UpdateRoomDto {

@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { EbookController } from "./ebook.controller";
 import { EbookService } from "./ebook.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { MemberGuard } from "../../common/member.guard";
 
 const mockEbookSvc = {
   listCategories: jest.fn().mockResolvedValue([{ id: "cat1", name: "经部" }]),
@@ -39,6 +40,7 @@ describe("EbookController", () => {
       providers: [{ provide: EbookService, useValue: mockEbookSvc }],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
+      .overrideGuard(MemberGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(EbookController);
   });
