@@ -35,6 +35,16 @@ export class MetricsService {
   readonly aiUserFeedback: Counter<string>;       // 用户满意度反馈
   readonly recommendCTR: Gauge<string>;           // 推荐点击率
 
+  // BullMQ 队列指标
+  readonly queueWaitingCount: Gauge<string>;      // 队列等待数
+  readonly queueFailedCount: Gauge<string>;        // 队列失败数
+  readonly queueCompletedTotal: Counter<string>;  // 任务完成总数
+  readonly queueFailedTotal: Counter<string>;     // 任务失败总数
+  readonly queueWorkerCount: Gauge<string>;       // Worker 进程数
+
+  // AI 成本控制
+  readonly aiBudgetUsageRatio: Gauge<string>;     // 月度预算使用率
+
   constructor() {
     this.register = new Registry();
     collectDefaultMetrics({ register: this.register, prefix: "guoxue_" });
@@ -183,6 +193,50 @@ export class MetricsService {
       labelNames: ["scene"],
       registers: [this.register],
     });
+
+    // ── BullMQ ──
+    this.queueWaitingCount = new Gauge({
+      name: "bullmq_queue_waiting_count",
+      help: "队列等待任务数",
+      labelNames: ["queue"],
+      registers: [this.register],
+    });
+
+    this.queueFailedCount = new Gauge({
+      name: "bullmq_queue_failed_count",
+      help: "队列失败任务数",
+      labelNames: ["queue"],
+      registers: [this.register],
+    });
+
+    this.queueCompletedTotal = new Counter({
+      name: "bullmq_queue_completed_total",
+      help: "任务完成总数",
+      labelNames: ["queue"],
+      registers: [this.register],
+    });
+
+    this.queueFailedTotal = new Counter({
+      name: "bullmq_queue_failed_total",
+      help: "任务失败总数",
+      labelNames: ["queue"],
+      registers: [this.register],
+    });
+
+    this.queueWorkerCount = new Gauge({
+      name: "bullmq_worker_count",
+      help: "活跃 Worker 进程数",
+      labelNames: ["queue"],
+      registers: [this.register],
+    });
+
+    // ── AI 成本控制 ──
+    this.aiBudgetUsageRatio = new Gauge({
+      name: "guoxue_ai_budget_usage_ratio",
+      help: "AI 场景月度预算使用率（0-1）",
+      labelNames: ["scene"],
+      registers: [this.register],
+    });
   }
 
   /** 记录第三方 API 调用（含成功/失败和延迟） */
@@ -244,6 +298,32 @@ export class MetricsService {
   /** 更新推荐点击率 */
   setRecommendCTR(scene: string, ctr: number) {
     this.recommendCTR.set({ scene }, ctr);
+  }
+
+  /** 更新队列等待/失败计数 */
+  setQueueMetrics(queue: string, waiting: number, failed: number) {
+    this.queueWaitingCount.set({ queue }, waiting);
+    this.queueFailedCount.set({ queue }, failed);
+  }
+
+  /** 记录任务完成 */
+  recordJobCompleted(queue: string) {
+    this.queueCompletedTotal.inc({ queue });
+  }
+
+  /** 记录任务失败 */
+  recordJobFailed(queue: string) {
+    this.queueFailedTotal.inc({ queue });
+  }
+
+  /** 更新活跃 Worker 数 */
+  setWorkerCount(queue: string, count: number) {
+    this.queueWorkerCount.set({ queue }, count);
+  }
+
+  /** 更新 AI 场景月度预算使用率 */
+  setAiBudgetUsage(scene: string, ratio: number) {
+    this.aiBudgetUsageRatio.set({ scene }, ratio);
   }
 
   async metrics(): Promise<string> {

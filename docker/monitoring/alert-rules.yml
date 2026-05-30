@@ -470,3 +470,214 @@ groups:
     annotations:
       summary: "应用容器频繁重启"
       description: "最近 15 分钟内 Pod {{ $labels.pod }} 重启 {{ $value }} 次"
+
+# ═══════════ 七、AI 服务 ═══════════
+- name: guoxue-ai
+  rules:
+
+  # 7.1 AI 调用错误率 > 5%
+  - alert: AiHighErrorRate
+    expr: |
+      (
+        sum(rate(guoxue_ai_call_total{status="error"}[5m]))
+        /
+        sum(rate(guoxue_ai_call_total[5m]))
+      ) > 0.05
+    for: 3m
+    labels:
+      severity: warning
+      category: ai
+    annotations:
+      summary: "AI 调用错误率 > 5%"
+      description: "当前 AI 错误率 {{ $value | humanizePercentage }}"
+      runbook: "检查 DeepSeek API 状态、API Key 有效性、模型配额"
+
+  # 7.2 AI 调用延迟 P95 > 15s
+  - alert: AiHighLatency
+    expr: |
+      histogram_quantile(0.95,
+        sum(rate(guoxue_ai_call_duration_seconds_bucket[5m])) by (le, scene)
+      ) > 15
+    for: 3m
+    labels:
+      severity: warning
+      category: ai
+    annotations:
+      summary: "{{ $labels.scene }} AI 调用 P95 延迟 > 15s"
+      description: "当前 {{ $labels.scene }} P95 延迟 = {{ $value }}s"
+
+  # 7.3 场景月度预算消耗 > 80%
+  - alert: AiBudgetWarning
+    expr: guoxue_ai_budget_usage_ratio > 0.8
+    for: 5m
+    labels:
+      severity: warning
+      category: ai
+    annotations:
+      summary: "AI 场景月度预算消耗 > 80%"
+      description: "场景 {{ $labels.scene }} 预算使用率 {{ $value | humanizePercentage }}"
+
+  # 7.4 场景月度预算耗尽
+  - alert: AiBudgetExhausted
+    expr: guoxue_ai_budget_usage_ratio >= 1
+    for: 1m
+    labels:
+      severity: critical
+      category: ai
+    annotations:
+      summary: "AI 场景月度预算已耗尽"
+      description: "场景 {{ $labels.scene }} 已触发降级，使用轻量模型"
+
+  # 7.5 语义缓存命中率 < 30%
+  - alert: AiCacheHitRateLow
+    expr: |
+      (
+        sum(rate(guoxue_ai_semantic_cache_hits_total[15m]))
+        /
+        sum(rate(guoxue_ai_call_total[15m]))
+      ) < 0.3
+    for: 10m
+    labels:
+      severity: info
+      category: ai
+    annotations:
+      summary: "AI 语义缓存命中率 < 30%"
+      description: "当前命中率 {{ $value | humanizePercentage }}，建议优化缓存策略"
+
+  # 7.6 AI 内容自动审核通过率异常（>95% 或 <50%）
+  - alert: AiAutoApproveAnomaly
+    expr: |
+      (
+        sum(rate(guoxue_ai_content_auto_approved_total[30m]))
+        /
+        sum(rate(guoxue_ai_content_auto_tagged_total[30m]))
+      ) > 0.95
+      or
+      (
+        sum(rate(guoxue_ai_content_auto_approved_total[30m]))
+        /
+        sum(rate(guoxue_ai_content_auto_tagged_total[30m]))
+      ) < 0.5
+    for: 15m
+    labels:
+      severity: warning
+      category: ai
+    annotations:
+      summary: "AI 自动审核通过率异常"
+      description: "当前通过率 {{ $value | humanizePercentage }}，需人工介入检查"
+
+  # 7.7 用户 AI 满意度负面反馈 > 30%
+  - alert: AiUserDissatisfied
+    expr: |
+      (
+        sum(rate(guoxue_ai_user_feedback_total{rating="negative"}[30m]))
+        /
+        sum(rate(guoxue_ai_user_feedback_total[30m]))
+      ) > 0.3
+    for: 10m
+    labels:
+      severity: warning
+      category: ai
+    annotations:
+      summary: "用户 AI 满意度负面反馈 > 30%"
+      description: "当前负面反馈率 {{ $value | humanizePercentage }}"
+
+# ═══════════ 八、消息队列（BullMQ） ═══════════
+- name: guoxue-queue
+  rules:
+
+  # 8.1 队列等待任务堆积 > 100
+  - alert: QueueBacklog
+    expr: bullmq_queue_waiting_count > 100
+    for: 5m
+    labels:
+      severity: warning
+      category: queue
+    annotations:
+      summary: "{{ $labels.queue }} 队列等待任务堆积 > 100"
+      description: "当前等待数 {{ $value }}，需检查 worker 是否存活"
+
+  # 8.2 队列失败任务堆积 > 20
+  - alert: QueueFailedBuildup
+    expr: bullmq_queue_failed_count > 20
+    for: 5m
+    labels:
+      severity: warning
+      category: queue
+    annotations:
+      summary: "{{ $labels.queue }} 队列失败任务堆积 > 20"
+      description: "当前失败数 {{ $value }}，需排查失败原因并手动处理"
+
+  # 8.3 任务失败率 > 10%
+  - alert: QueueJobFailureRate
+    expr: |
+      (
+        sum(rate(bullmq_queue_failed_total[10m]))
+        /
+        sum(rate(bullmq_queue_completed_total[10m]) + rate(bullmq_queue_failed_total[10m]))
+      ) > 0.1
+    for: 5m
+    labels:
+      severity: warning
+      category: queue
+    annotations:
+      summary: "BullMQ 任务失败率 > 10%"
+      description: "当前失败率 {{ $value | humanizePercentage }}"
+
+  # 8.4 Worker 数量为 0
+  - alert: NoWorkers
+    expr: bullmq_worker_count == 0
+    for: 1m
+    labels:
+      severity: critical
+      category: queue
+    annotations:
+      summary: "无活跃 Worker 进程"
+      description: "所有队列 Worker 已停止，任务将无限堆积"
+
+# ═══════════ 九、业务指标 ═══════════
+- name: guoxue-business
+  rules:
+
+  # 9.1 订单量骤降（对比昨日同时段下降 >50%）
+  - alert: OrderVolumeDrop
+    expr: |
+      (
+        sum(rate(guoxue_http_requests_total{path=~"/api/shop/orders/create.*"}[30m]))
+        /
+        sum(rate(guoxue_http_requests_total{path=~"/api/shop/orders/create.*"}[30m] offset 1d))
+      ) < 0.5
+    for: 15m
+    labels:
+      severity: warning
+      category: business
+    annotations:
+      summary: "订单量骤降 > 50%"
+      description: "当前订单量仅为昨日同时段的 {{ $value | humanizePercentage }}"
+
+  # 9.2 支付转化率 < 60%
+  - alert: PaymentConversionLow
+    expr: |
+      (
+        sum(rate(guoxue_payment_callback_total{status="success"}[30m]))
+        /
+        sum(rate(guoxue_http_requests_total{path=~"/api/shop/orders/create.*"}[30m]))
+      ) < 0.6
+    for: 15m
+    labels:
+      severity: warning
+      category: business
+    annotations:
+      summary: "支付转化率 < 60%"
+      description: "当前支付转化率 {{ $value | humanizePercentage }}"
+
+  # 9.3 推荐系统 CTR < 1%
+  - alert: RecommendCTRLow
+    expr: guoxue_recommend_ctr < 0.01
+    for: 30m
+    labels:
+      severity: info
+      category: business
+    annotations:
+      summary: "推荐系统 CTR < 1%"
+      description: "当前 CTR {{ $value | humanizePercentage }}，建议调整推荐策略"
