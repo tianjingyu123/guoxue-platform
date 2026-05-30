@@ -150,10 +150,12 @@ export {
 } from './constants'
 export { applyDaylightSaving, getDaylightSavingOffset } from './xialingshi'
 export { calcTrueSolarTime } from './taiyangshi'
+export { getLiuYueGanZhi, getLiuShiGanZhi, getLiuShiList, getLiuNianShiShen, getLiuYueShiShen, getLiuRiGanZhi, fillLiuNianLiuYue } from './liunian'
 
 // 仅导出外部实际使用的类型
 export type {
   BaziInput, BaziResult, SiZhu, Pillar, DaYunStep, Gan, Zhi, ShiShen,
   ZiShiMode, ZiZuo, DaylightSaving as DaylightSavingInfo,
   FenXiTiShi, GeJu, ShenShaItem, TaiYangShi, WuXingEnergy,
+  LiuNian, LiuYue, LiuShi,
 } from './types'

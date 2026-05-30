@@ -53,6 +53,27 @@ export interface LiuNian {
   ganZhi: string
   ganShiShen: ShiShen
   zhiShiShen: ShiShen
+  liuYue?: LiuYue[]
+}
+
+/** 流月 */
+export interface LiuYue {
+  month: number
+  ganZhi: string
+  gan: Gan
+  zhi: Zhi
+  ganShiShen: ShiShen
+  zhiShiShen: ShiShen
+}
+
+/** 流时 */
+export interface LiuShi {
+  hour: number
+  ganZhi: string
+  gan: Gan
+  zhi: Zhi
+  ganShiShen: ShiShen
+  zhiShiShen: ShiShen
 }
 
 /** 起运信息 */

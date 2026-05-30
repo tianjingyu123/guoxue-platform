@@ -6,6 +6,7 @@ import type { Gan, Zhi, QiYun, DaYunStep, LiuNian } from './types'
 import { GAN, ZHI } from './constants'
 import { daysToNearestJie } from './jieqi'
 import { calcNianZhu, calcShiShen } from './sizhu'
+import { getLiuYueGanZhi } from './liunian'
 
 /** 判断年柱天干是否为阳年 */
 export function isYangNian(nianGan: Gan): boolean {
@@ -140,18 +141,5 @@ export function fillDaYunShiShen(daYun: DaYunStep[], riGan: Gan): DaYunStep[] {
 
 /** 流月计算：某流年中的12个月干支（寅月=正月起） */
 export function calcLiuYue(nianGan: Gan): { month: number; ganZhi: string }[] {
-  const result = []
-  for (let i = 0; i < 12; i++) {
-    const nianIdx = GAN.indexOf(nianGan)
-    const dunIdx = Math.floor(nianIdx % 5)
-    const WU_HU_DUN: Gan[] = ['丙','戊','庚','壬','甲','丙','戊','庚','壬','甲']
-    const ganIdx = (GAN.indexOf(WU_HU_DUN[dunIdx]) + i) % 10
-    // 正月=寅月(ZHI[2])，二月=卯月(ZHI[3])，...
-    const zhiIdx = (i + 2) % 12
-    result.push({
-      month: i + 1,
-      ganZhi: GAN[ganIdx] + ZHI[zhiIdx],
-    })
-  }
-  return result
+  return getLiuYueGanZhi(nianGan).map(({ month, ganZhi }) => ({ month, ganZhi }))
 }
