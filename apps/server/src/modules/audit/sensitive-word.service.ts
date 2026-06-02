@@ -2,10 +2,18 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { RedisService } from "../../redis/redis.service";
 
 /**
- * 本地敏感词过滤服务
+ * 本地敏感词过滤服务（国学领域专用）
+ *
+ * ## 选型理由
+ * - **为什么自建：** 腾讯云通用审核无法识别国学/中医领域的诈骗话术，
+ *   如 "还阴债""做法化解""包治百病""祖传秘方"，这些是平台高风险内容，
+ *   必须专用词库兜底
+ * - **为什么不送 AI 审核：** 延迟不可接受（>2s），用户发帖/评论需要 <100ms 响应
+ * - **为什么是 Set 而非 Trie/AC 自动机：** 当前词库几百条，Set 查重 O(1) 足够；
+ *   如果词库过万再换 AC 自动机
+ * - **未来演进：** 词库应支持管理后台动态配置 + 定时从运营数据中挖掘新风险词
  *
  * 不依赖腾讯云 API，纯本地运行。
- * 支持敏感词、广告词、涉政词过滤。
  */
 @Injectable()
 export class SensitiveWordService implements OnModuleInit {

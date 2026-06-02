@@ -9,6 +9,23 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
+/**
+ * 智能体管理控制器
+ *
+ * ## 架构选型理由
+ * - **为什么 Coze + 自建混合：** 智能体的创建/配置/审核走自建后台（Prisma 管理），
+ *   运行时对话走 Coze API（CozeService），实现 **"自建管配置，Coze 管运行"** 的壳/核分离
+ * - **为什么不是纯 Coze：** 需要管理后台审核智能体、按分站隔离、用户权限控制，
+ *   这些 Coze 原生不支持
+ * - **为什么不是纯自建：** 对话引擎（上下文管理、流式输出、知识库 RAG）
+ *   自建成本极高，Coze 已成熟，直接借用
+ * - **考虑过的方案：**
+ *   1. 纯 Coze 智能体广场 → 放弃，无法做审核/分站/权限
+ *   2. 完全自建对话引擎 → 放弃，重复造轮子
+ *   3. 自建管理 + Coze 运行时（当前方案）→ ✅ 最佳
+ * - **未来演进：** 如果某些智能体需要本地模型（隐私场景），可在 botConfig 中
+ *   增加 runtime 字段，支持 `coze | local | custom-http` 三种运行时
+ */
 @ApiTags("智能体")
 @Controller("bots")
 export class BotController {

@@ -21,6 +21,30 @@ import { AbTestService } from "./services/ab-test.service";
 import { StrategyWeightOverride } from "./ab-test.dto";
 import { StationPickService } from "../station-pick/station-pick.service";
 
+/**
+ * 推荐服务
+ *
+ * ## ⚠️ 架构评估（2026-06-02）
+ * 当前模块共 50+ 文件、主服务 1500+ 行，包含协同过滤/向量召回/TF-IDF/OpenAI Embedding/
+ * AB测试/冷启动/CTR计算等 10+ 策略。这在 **0 用户验证阶段是过度设计**。
+ *
+ * ## 选型原则对照
+ * - "可演进优于完美" → 当前违反。应该在验证阶段用最简单的方案跑通
+ * - "借力优先于自建" → 部分违反。Embedding 已借力 OpenAI，但协同过滤等是自建
+ *
+ * ## 建议演进路径
+ * 1. **当前阶段（验证期）**：仅保留 tag-match（标签匹配）+ hot（热门）+ 站长精选，
+ *    其余策略标记为 `@deprecated` 或通过 FeatureFlag 关闭
+ * 2. **增长期（1 万 DAU+）**：开启 AB 测试 + 基础 scoring，验证策略效果
+ * 3. **规模化（10 万 DAU+）**：开启协同过滤/向量召回/冷启动，接入推荐系统专用服务
+ *
+ * ## 考虑过的方案
+ * 1. 保持现状 → 维护成本高，大部分策略无数据喂不产生价值
+ * 2. 全部删除重来 → 浪费已有代码
+ * 3. FeatureFlag 分级开启（建议）→ ✅ 保留代码，按需激活
+ *
+ * 当前构造函数中的依赖注入保留完整，但实际调用应由 FeatureFlag 控制。
+ */
 @Injectable()
 export class RecommendService {
   private readonly logger = new Logger(RecommendService.name);
@@ -1025,11 +1049,11 @@ export class RecommendService {
 
     // 并行查询用户已拥有的内容
     const [orders, collects, likes, members, progresses] = await Promise.all([
-      this.prisma.order.findMany({ where: { userId, status: { in: ["PAID", "COMPLETED"] } }, select: { type: true, targetId: true } }),
-      this.prisma.collect.findMany({ where: { userId }, select: { targetType: true, targetId: true } }),
-      this.prisma.like.findMany({ where: { userId }, select: { targetType: true, targetId: true } }),
-      this.prisma.circleMember.findMany({ where: { userId }, select: { circleId: true } }),
-      this.prisma.courseProgress.findMany({ where: { userId, completed: true }, select: { courseId: true } }),
+      this.prisma.order.findMany({ where: { userId, status: { in: ["PAID", "COMPLETED"] } }, select: { type: true, targetId: true }, take: 1000 }),
+      this.prisma.collect.findMany({ where: { userId }, select: { targetType: true, targetId: true }, take: 500 }),
+      this.prisma.like.findMany({ where: { userId }, select: { targetType: true, targetId: true }, take: 500 }),
+      this.prisma.circleMember.findMany({ where: { userId }, select: { circleId: true }, take: 200 }),
+      this.prisma.courseProgress.findMany({ where: { userId, completed: true }, select: { courseId: true }, take: 500 }),
     ]);
 
     const set = new Set<string>();

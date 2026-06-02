@@ -4,7 +4,25 @@ import { createHash } from "node:crypto"
 import { BusinessException } from "../../common/business.exception"
 import { ErrorCode } from "../../common/error-codes"
 
-/** 可选的中文语音 */
+/**
+ * TTS 文字转语音服务
+ *
+ * ## 选型理由
+ * - **为什么用 Microsoft Edge TTS：** 免费、中文语音质量好（Xiaoxiao/Yunxi 等神经网络声）、
+ *   SSML 支持语调控制。适合当前验证阶段零成本跑通
+ * - **为什么不是腾讯云 TTS：** 项目已用腾讯云全家桶（COS/IM/VOD），TTS 也可接；
+ *   但目前调用量低，Edge TTS 免费方案足够，后续量大了切腾讯云
+ * - **为什么缓存 7 天：** 国学内容（经典诵读、课程音频）重复请求率高，
+ *   Redis 缓存大幅降低外部调用
+ * - **⚠️ 生产风险：** Edge TTS URL 是免费 consumer endpoint，非官方 API，
+ *   Microsoft 可能随时限流或封禁。触发切换条件：日调用 >1000 次或被限流 → 切腾讯云 TTS
+ * - **考虑过的方案：**
+ *   1. 腾讯云 TTS → 好但当前浪费钱（调用量低）
+ *   2. Azure Cognitive Services 正式 API → 好但贵
+ *   3. Edge TTS + Redis 缓存（当前方案）→ ✅ 零成本验证，随时可切
+ *
+ * 可选的中文语音：
+ */
 const VOICES: Record<string, string> = {
   xiaoxiao: "zh-CN-XiaoxiaoNeural",   // 女声，温和
   yunxi: "zh-CN-YunxiNeural",         // 男声，叙事

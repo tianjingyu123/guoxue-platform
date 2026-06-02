@@ -10,6 +10,21 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
+/**
+ * AI 网关控制器
+ *
+ * ## 架构选型理由
+ * - **为什么自建而非纯 Coze：** 平台需要多模型路由（DeepSeek/Claude/Qwen/本地），
+ *   Coze 原生不支持自由切换底层模型，且高并发场景下 Coze 延迟不可控
+ * - **为什么用适配器模式：** 每个 AI 厂商 API 格式不同，适配器模式隔离差异，
+ *   新增模型只需新增一个 adapter，不影响已有逻辑
+ * - **考虑过的方案：**
+ *   1. 每个场景直连不同 AI API → 放弃，代码重复、难以统一监控
+ *   2. 全部走 Coze → 放弃，模型选择受限、成本高、离线不可用
+ *   3. 自建网关 + 适配器（当前方案）→ ✅ 最佳，模型无关、统一限流/监控/降级
+ * - **未来演进：** 如果 Coze 开放模型路由 API，可将 Coze 作为一个 adapter 接入，
+ *   保持架构不变
+ */
 @ApiTags("AI网关")
 @Controller("ai")
 export class AiGatewayController {
@@ -27,7 +42,7 @@ export class AiGatewayController {
   @ApiOperation({ summary: "AI非流式对话" })
   @ApiBearerAuth()
   async chat(@Body() dto: ChatDto, @Req() req: Request) {
-    const userId = (req as any).user?.id as string | undefined;
+    const userId = req.user?.id;
     try {
       return await this.gateway.chat({
         scene: dto.scene,
@@ -53,7 +68,7 @@ export class AiGatewayController {
   @ApiOperation({ summary: "AI流式对话 (SSE)" })
   @ApiBearerAuth()
   async chatStream(@Body() dto: ChatDto, @Req() req: Request, @Res() res: Response) {
-    const userId = (req as any).user?.id as string | undefined;
+    const userId = req.user?.id;
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");

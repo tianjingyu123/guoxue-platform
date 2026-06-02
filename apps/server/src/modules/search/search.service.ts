@@ -7,6 +7,20 @@ import { SemanticSearchService } from "./semantic-search.service";
 /** 搜索结果缓存 TTL */
 const SEARCH_CACHE_TTL = 120;
 
+/**
+ * ## 选型理由
+ * - **为什么 PostgreSQL FTS 而非 ElasticSearch：** 当前数据量级下 PG 全文搜索足够，
+ *   不引入额外基础设施。中文分词用 PG 内置的 zhparser 或 simple 分词即可
+ * - **为什么语义搜索是 Optional：** 语义搜索依赖 Embedding API（额外成本+延迟），
+ *   作为可选的增强层注入，主流程始终可用。semantic 未注入时自动回退到 FTS
+ * - **为什么缓存 120s：** 搜索结果实时性要求低，2 分钟缓存大幅降低 DB 压力
+ * - **未来演进：** 当日搜索 QPS >100 或需要拼音/模糊/同义词时 → 考虑 Meilisearch；
+ *   当数据量 >100 万条时 → 考虑 ElasticSearch
+ * - **考虑过的方案：**
+ *   1. ElasticSearch 直接上 → 过度，运维成本高于收益
+ *   2. 纯 PG FTS → 当前最佳
+ *   3. PG FTS + 可选语义（当前方案）→ ✅ 可演进
+ */
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);

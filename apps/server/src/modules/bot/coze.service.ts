@@ -4,7 +4,17 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 
 /**
- * COZE智能体 API 服务（纯原生HTTP，不依赖SDK）
+ * COZE 智能体 API 服务
+ *
+ * ## 选型理由
+ * - **为什么纯原生 HTTP 而非 Coze SDK：** SDK 版本更新滞后于 API，且引入额外依赖。
+ *   Coze v3 API 是标准 RESTful，fetch 直接调用更轻量可控
+ * - **为什么用 Observable 流式：** 兼容 NestJS SSE 管道，前端可统一处理流式/非流式
+ * - **为什么不在 Coze 侧做业务逻辑：** 对话体验归 Coze，业务数据（用户/订单/课程）
+ *   归自建 PostgreSQL，Coze 通过 HTTP 插件回调获取业务上下文
+ * - **未来注意：** 如果 Coze 推出 WebSocket 流式协议，需评估迁移收益；
+ *   当前 HTTP SSE 方案在 95% 场景下足够
+ *
  * Base URL: https://api.coze.cn/v3
  */
 @Injectable()
