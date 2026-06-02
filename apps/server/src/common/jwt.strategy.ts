@@ -41,10 +41,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         try {
           jwt.verify(rawJwtToken, currentSecret);
           return done(null, currentSecret);
-        } catch (err: any) {
+        } catch (err: unknown) {
+          const jwtErr = err as jwt.JsonWebTokenError | null;
           // 当前密钥验证失败，尝试历史密钥
-          if (err.name === "TokenExpiredError") {
-            return done(err); // 过期直接拒绝，不尝试其他密钥
+          if (jwtErr?.name === "TokenExpiredError") {
+            return done(jwtErr); // 过期直接拒绝，不尝试其他密钥
           }
 
           for (const secret of previousSecrets) {
@@ -52,12 +53,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
               jwt.verify(rawJwtToken, secret);
               return done(null, secret);
             } catch (err) {
-              console.warn(`JWT 历史密钥验证失败: ${(err as Error).message}`);
+              this.logger.warn(`JWT 历史密钥验证失败: ${(err as Error).message}`);
               // 继续尝试下一个
             }
           }
 
-          return done(err);
+          return done(jwtErr);
         }
       },
     });

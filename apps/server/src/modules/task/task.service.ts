@@ -81,14 +81,14 @@ export class TaskService {
         transferLogs: { orderBy: { createdAt: "desc" } },
       },
     });
-    if (!task) throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
+    if (!task) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
     return task;
   }
 
   /** 更新任务 */
   async update(id: string, dto: UpdateTaskDto, updater?: string) {
     const existing = await this.prisma.task.findUnique({ where: { id } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
+    if (!existing) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
 
     const data: Prisma.TaskUpdateInput = {};
     if (dto.status !== undefined) {
@@ -114,7 +114,7 @@ export class TaskService {
     });
     if (result.count === 0) {
       const existing = await this.prisma.task.findUnique({ where: { id } });
-      if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
+      if (!existing) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
       throw new BusinessException(ErrorCode.TASK_STATUS_INVALID, "任务非待处理状态，无法认领");
     }
     const task = await this.prisma.task.findUnique({ where: { id } });
@@ -132,7 +132,7 @@ export class TaskService {
     fromId?: string,
   ) {
     const existing = await this.prisma.task.findUnique({ where: { id } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
+    if (!existing) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
 
     // 保存当前状态快照
     const snapshot = {
@@ -167,7 +167,7 @@ export class TaskService {
   /** 强制收回（管理员） */
   async forceReclaim(id: string, adminId: string) {
     const existing = await this.prisma.task.findUnique({ where: { id } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
+    if (!existing) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
 
     await this.prisma.taskTransferLog.create({
       data: {
@@ -192,7 +192,7 @@ export class TaskService {
   /** 审批任务 */
   async approve(id: string, approved: boolean, approverId: string, remark?: string) {
     const existing = await this.prisma.task.findUnique({ where: { id } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
+    if (!existing) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
     if (!existing.needsApproval) {
       throw new BusinessException(ErrorCode.TASK_NOT_NEED_APPROVAL, "该任务无需审批");
     }
@@ -212,7 +212,7 @@ export class TaskService {
   /** 回滚任务操作 */
   async rollback(id: string, operatorId: string) {
     const existing = await this.prisma.task.findUnique({ where: { id } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
+    if (!existing) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
     if (!existing.rollbackData) {
       throw new BusinessException(ErrorCode.ROLLBACK_NOT_AVAILABLE, "该任务无可回滚数据");
     }

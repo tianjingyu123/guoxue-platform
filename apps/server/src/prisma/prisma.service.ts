@@ -54,18 +54,16 @@ export class PrismaService
       this.logger.log("读副本已启用: " + process.env.DATABASE_REPLICA_URL.replace(/\/\/.*@/, "//***@"));
     }
 
-    // 分站数据隔离中间件：自动为查询注入 stationId 过滤
-    this.applyStationIsolation();
-
-    // 慢查询检测 + Prometheus 指标上报
-    if (process.env.NODE_ENV !== "test") {
-      this.setupSlowQueryLogging(this);
-    }
+    // 安装扩展（分站隔离 + 慢查询监控），链式组合
+    this.applyExtensions();
   }
 
-  /** 安装分站数据隔离中间件（Prisma $extends） */
-  private applyStationIsolation() {
-    const extended = this.$extends({
+  /** 链式安装 Prisma $extends：分站隔离 → 慢查询监控，复制回 this 代理 */
+  private applyExtensions() {
+    // $extends 返回类型与 PrismaClient 不完全兼容，用 any 桥接
+    // 直接从 $extends 开始链式调用，避免 this 别名 (no-this-alias)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let extended: any = this.$extends({
       name: "station-isolation",
       query: {
         $allModels: {
@@ -97,7 +95,30 @@ export class PrismaService
       },
     });
 
-    // 将扩展后的客户端代理到当前实例
+    // Layer 2：慢查询监控（非测试环境）
+    if (process.env.NODE_ENV !== "test") {
+      extended = extended.$extends({
+        name: "slow-query-logging",
+        query: {
+          $allModels: {
+            $allOperations: async ({ model, operation, args, query }: {
+              model?: string; operation: string; args: any; query: (args: any) => any;
+            }) => {
+              const start = Date.now();
+              const result = await query(args);
+              const duration = Date.now() - start;
+              if (duration >= this.SLOW_QUERY_MS) {
+                this.logger.warn(`慢查询 (${duration}ms): ${model}.${operation}`);
+                this.metrics?.recordSlowQuery(model || "unknown");
+              }
+              return result;
+            },
+          },
+        },
+      });
+    }
+
+    // 将链式扩展后的客户端代理到当前实例
     for (const key of Object.getOwnPropertyNames(extended)) {
       if (key === "constructor" || key.startsWith("_")) continue;
       try {
@@ -110,7 +131,28 @@ export class PrismaService
     await this.$connect();
     if (this.replicaClient) {
       await this.replicaClient.$connect();
-      this.setupSlowQueryLogging(this.replicaClient);
+      // 为读副本安装慢查询监控
+      if (process.env.NODE_ENV !== "test") {
+        this.replicaClient = (this.replicaClient as any).$extends({
+          name: "replica-slow-query-logging",
+          query: {
+            $allModels: {
+              $allOperations: async ({ model, operation, args, query }: {
+                model?: string; operation: string; args: any; query: (args: any) => any;
+              }) => {
+                const start = Date.now();
+                const result = await query(args);
+                const duration = Date.now() - start;
+                if (duration >= this.SLOW_QUERY_MS) {
+                  this.logger.warn(`读副本慢查询 (${duration}ms): ${model}.${operation}`);
+                  this.metrics?.recordSlowQuery(model || "unknown");
+                }
+                return result;
+              },
+            },
+          },
+        }) as PrismaClient;
+      }
     }
     this.logger.log(`数据库已连接 (慢查询阈值: ${this.SLOW_QUERY_MS}ms, 读副本: ${this.replicaClient ? "已启用" : "未配置"})`);
 
@@ -118,6 +160,10 @@ export class PrismaService
   }
 
   async onModuleDestroy() {
+    if (this.connectionMonitorInterval) {
+      clearInterval(this.connectionMonitorInterval);
+      this.connectionMonitorInterval = null;
+    }
     await this.$disconnect();
     if (this.replicaClient) {
       await this.replicaClient.$disconnect();
@@ -139,37 +185,11 @@ export class PrismaService
     return this.replicaClient || this;
   }
 
-  /** 在主库或读副本上安装慢查询监听（Prisma 5.x: $on 已移除，改用 $extends 计时） */
-  private setupSlowQueryLogging(client: PrismaClient) {
-    try {
-      // Prisma 5.x 不再支持 $on 事件监听，改用 $extends 包装所有查询计时
-      client.$extends({
-        name: "slow-query-logging",
-        query: {
-          $allModels: {
-            $allOperations: async ({ model, operation, args, query }: {
-              model?: string; operation: string; args: any; query: (args: any) => any;
-            }) => {
-              const start = Date.now();
-              const result = await query(args);
-              const duration = Date.now() - start;
-              if (duration >= this.SLOW_QUERY_MS) {
-                this.logger.warn(`慢查询 (${duration}ms): ${model}.${operation}`);
-                this.metrics?.recordSlowQuery(model || "unknown");
-              }
-              return result;
-            },
-          },
-        },
-      });
-    } catch (err: any) {
-      this.logger.warn(`慢查询监控初始化失败（非关键）: ${err.message}`);
-    }
-  }
+  private connectionMonitorInterval: NodeJS.Timeout | null = null;
 
   /** 每 30 秒采集数据库连接池使用率，高水位自动告警 */
   private startConnectionPoolMonitoring() {
-    const interval = setInterval(async () => {
+    this.connectionMonitorInterval = setInterval(async () => {
       try {
         const result = await this.$queryRaw<{ used: number; max: number; idle: number }[]>`
           SELECT
@@ -194,6 +214,6 @@ export class PrismaService
       }
     }, 30_000);
 
-    if (interval.unref) interval.unref();
+    if (this.connectionMonitorInterval.unref) this.connectionMonitorInterval.unref();
   }
 }

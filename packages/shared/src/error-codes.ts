@@ -40,6 +40,24 @@ export enum ErrorCode {
   COURSE_ALREADY_ENROLLED = 204002,
   COURSE_CHAPTER_LOCKED   = 204003,
 
+  // ───── 直播 LIVE (205xxx) ─────
+  LIVE_ROOM_NOT_FOUND     = 205001,
+  LIVE_ROOM_ENDED         = 205002,
+
+  // ───── 短视频 VIDEO (206xxx) ─────
+  VIDEO_NOT_FOUND         = 206001,
+
+  // ───── 电子书 EBOOK (207xxx) ─────
+  EBOOK_NOT_FOUND         = 207001,
+  EBOOK_NOT_PURCHASED     = 207002,
+
+  // ───── 经典文库 CLASSIC (208xxx) ─────
+  CLASSIC_BOOK_NOT_FOUND  = 208001,
+
+  // ───── 竞赛 COMPETITION (209xxx) ─────
+  COMPETITION_NOT_FOUND   = 209001,
+  COMPETITION_CLOSED      = 209002,
+
   // ───── 商城 ORDER (300xxx) ─────
   ORDER_NOT_FOUND         = 300001,
   ORDER_STATUS_INVALID    = 300002,
@@ -48,6 +66,18 @@ export enum ErrorCode {
   PRODUCT_OUT_OF_STOCK    = 300005,
   COUPON_INVALID          = 300006,
   COUPON_EXPIRED          = 300007,
+  COUPON_TEMPLATE_NOT_FOUND = 300008,
+
+  // ───── 营销 MARKETING (310xxx) ─────
+  FLASH_SALE_NOT_FOUND    = 310001,
+  FLASH_SALE_ENDED        = 310002,
+  GROUP_BUY_NOT_FOUND     = 310003,
+  GROUP_BUY_ENDED         = 310004,
+  DISCOUNT_NOT_FOUND      = 310005,
+  DISCOUNT_EXPIRED        = 310006,
+  FULL_REDUCTION_NOT_FOUND = 310007,
+  ACTIVITY_NOT_AVAILABLE  = 310008,
+  MICRO_PAGE_NOT_FOUND    = 310009,
 
   // ───── 支付 PAY (301xxx) ─────
   PAY_FAILED              = 301001,
@@ -92,6 +122,17 @@ export enum ErrorCode {
   // ───── 分站 STATION (800xxx) ─────
   STATION_NOT_FOUND       = 800001,
   STATION_CODE_EXISTS     = 800002,
+
+  // ───── 结算 SETTLEMENT (801xxx) ─────
+  SETTLEMENT_NOT_FOUND    = 801001,
+  SETTLEMENT_STATUS_INVALID = 801002,
+
+  // ───── 分佣 COMMISSION (802xxx) ─────
+  COMMISSION_NOT_FOUND    = 802001,
+  COMMISSION_STATUS_INVALID = 802002,
+
+  // ───── 签到 CHECKIN (803xxx) ─────
+  CHECKIN_ALREADY_DONE    = 803001,
 
   // ───── 站长精选 STATION_PICK (810xxx) ─────
   STATION_PICK_LIMIT_EXCEEDED = 810001,

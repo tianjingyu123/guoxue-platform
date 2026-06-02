@@ -125,7 +125,7 @@ export class CheckinService {
   /** 手动记录任务进度 */
   async completeTask(userId: string, taskId: string) {
     const task = await this.prisma.dailyTask.findFirst({ where: { id: taskId, userId } });
-    if (!task) throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
+    if (!task) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
     if (task.completed) throw new BusinessException(ErrorCode.BAD_REQUEST, "任务已完成");
 
     const updated = await this.prisma.dailyTask.update({

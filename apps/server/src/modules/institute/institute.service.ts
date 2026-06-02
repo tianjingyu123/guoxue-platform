@@ -108,7 +108,7 @@ export class InstituteService {
       where: { id: taskId },
       include: { member: true },
     });
-    if (!task) throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
+    if (!task) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
     if (task.member.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能完成自己的任务");
     if (task.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "任务状态不允许");
 
@@ -131,7 +131,7 @@ export class InstituteService {
       where: { id: taskId },
       include: { member: true },
     });
-    if (!task) throw new BusinessException(ErrorCode.NOT_FOUND, "任务不存在");
+    if (!task) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
     if (task.status !== "COMPLETED") throw new BusinessException(ErrorCode.BAD_REQUEST, "任务尚未完成，无法验证");
 
     const updated = await this.prisma.instituteTask.update({

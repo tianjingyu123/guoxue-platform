@@ -1,6 +1,8 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { Cacheable } from "../../common/cache.decorator";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { LiveStreamService } from "./live-stream.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { CreateRoomDto, UpdateRoomDto } from "./live.dto";
@@ -43,7 +45,7 @@ export class LiveService {
 
   async updateRoom(userId: string, id: string, dto: UpdateRoomDto) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { hostUserId: true } });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的直播间");
     return this.prisma.liveRoom.update({ where: { id }, data: dto as unknown as Prisma.LiveRoomUpdateInput });
   }
@@ -56,7 +58,7 @@ export class LiveService {
 
   async updateStatus(id: string, status: string, extra?: { pushUrl?: string; pullUrl?: string; trtcRoomId?: string; replayUrl?: string }) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { status: true } });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
 
     const allowed = LiveService.STATE_MACHINE[room.status];
     if (!allowed || !allowed.includes(status)) {
@@ -78,7 +80,7 @@ export class LiveService {
   /** 开始直播，自动生成推拉流地址 */
   async startLive(id: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "只能在等待状态开始直播");
 
     const streamKey = `room_${id}`;
@@ -104,7 +106,7 @@ export class LiveService {
   /** 获取指定房间的推/拉流地址（主播用） */
   async getStreamUrls(id: string, userId?: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (userId && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播可获取推流地址");
 
     const streamKey = `room_${id}`;
@@ -117,7 +119,7 @@ export class LiveService {
   /** 获取观众拉流地址（可带鉴权） */
   async getPlayUrl(id: string, userId: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
 
     const streamKey = `room_${id}`;
@@ -136,6 +138,7 @@ export class LiveService {
     return result;
   }
 
+  @Cacheable({ key: (args: any[]) => `live:rooms:${args[0] || "all"}:${args[1]}:${args[2]}:${args[3] || ""}:${args[4] || ""}`, ttl: 15 })
   async listRooms(status?: string, page = 1, pageSize = 20, circleId?: string, stationId?: string) {
     const where: Prisma.LiveRoomWhereInput = {};
     if (status) where.status = status as LiveStatus;
@@ -169,7 +172,7 @@ export class LiveService {
         products: true,
       },
     });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
 
     await this.prisma.liveRoom.update({ where: { id }, data: { viewCount: { increment: 1 } } });
     return room;
@@ -177,7 +180,7 @@ export class LiveService {
 
   async deleteRoom(userId: string, id: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { hostUserId: true } });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (!isAdmin && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的直播间");
     await this.prisma.liveRoom.delete({ where: { id } });
     return { success: true };
@@ -186,6 +189,7 @@ export class LiveService {
   // ───────── 预告与预约 ─────────
 
   /** 获取即将开始的直播预告列表（按 startTime 升序） */
+  @Cacheable({ key: (args: any[]) => `live:scheduled:${args[0]}:${args[1]}:${args[2] || ""}`, ttl: 30 })
   async listScheduled(page = 1, pageSize = 10, stationId?: string) {
     const where: Prisma.LiveRoomWhereInput = { status: "WAITING" as LiveStatus, startTime: { gte: new Date() } };
     if (stationId) where.stationId = stationId;
@@ -210,7 +214,7 @@ export class LiveService {
   /** 预约直播 */
   async bookRoom(roomId: string, userId: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播已开始或已结束，无法预约");
 
     const key = `live:bookings:${roomId}`;
@@ -276,7 +280,7 @@ export class LiveService {
   /** 用户上麦 */
   async joinMic(roomId: string, userId: string, position: number) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
 
     // 检查麦位是否已被占用
     const existing = await this.prisma.liveMic.findUnique({
@@ -289,7 +293,7 @@ export class LiveService {
         data: { liveRoomId: roomId, userId, position, status: "OCCUPIED" },
       });
     } catch (e: unknown) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") throw new BusinessException(ErrorCode.BAD_REQUEST, "该麦位已被占用");
+      if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "该麦位已被占用");
       throw e;
     }
   }
@@ -417,7 +421,7 @@ export class LiveService {
   /** 发送直播评论/弹幕 */
   async sendComment(roomId: string, userId: string, content: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
 
     const muted = await this.isUserMuted(roomId, userId);
@@ -441,7 +445,7 @@ export class LiveService {
   /** 直播点赞 */
   async toggleLike(roomId: string, userId: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
 
     await this.prisma.like.create({
@@ -479,7 +483,7 @@ export class LiveService {
   /** 开始秒杀 */
   async startFlashSale(saleId: string) {
     const sale = await this.prisma.liveFlashSale.findUnique({ where: { id: saleId } });
-    if (!sale) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
+    if (!sale) throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND);
     if (sale.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "秒杀状态不允许开始");
 
     return this.prisma.liveFlashSale.update({
@@ -491,7 +495,7 @@ export class LiveService {
   /** 秒杀下单（原子扣减库存） */
   async flashSaleOrder(saleId: string, userId: string) {
     const sale = await this.prisma.liveFlashSale.findUnique({ where: { id: saleId } });
-    if (!sale) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
+    if (!sale) throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND);
     if (sale.status !== "ACTIVE") throw new BusinessException(ErrorCode.BAD_REQUEST, "秒杀未开始或已结束");
     if (new Date() > sale.endTime) throw new BusinessException(ErrorCode.BAD_REQUEST, "秒杀已结束");
 
@@ -574,7 +578,7 @@ export class LiveService {
   /** 发送礼物 */
   async sendGift(roomId: string, userId: string, giftId: string, quantity: number = 1) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
-    if (!room) throw new BusinessException(ErrorCode.NOT_FOUND, "直播间不存在");
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
 
     const gift = await this.prisma.gift.findUnique({ where: { id: giftId } });

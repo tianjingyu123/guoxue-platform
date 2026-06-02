@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { safePagination } from "../../common/pagination";
 
 export interface MarketplaceAgent {
   id: string;
@@ -25,9 +26,7 @@ export class MarketplaceService {
     page?: number;
     pageSize?: number;
   }): Promise<{ items: MarketplaceAgent[]; total: number }> {
-    const page = params.page ?? 1;
-    const pageSize = Math.min(params.pageSize ?? 20, 50);
-    const skip = (page - 1) * pageSize;
+    const { skip, pageSize } = safePagination(params.page, params.pageSize, 50);
 
     // 1. Coze Bots（已审核通过的）
     const [bots, botsTotal] = await Promise.all([

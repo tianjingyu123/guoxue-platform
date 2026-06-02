@@ -5,6 +5,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma } from "@prisma/client";
+import { Cacheable } from "../../common/cache.decorator";
 import {
   CreateFlashSaleDto, UpdateFlashSaleDto, FlashSaleFilterDto,
   CreateFlashSaleItemDto, UpdateFlashSaleItemDto,
@@ -29,6 +30,7 @@ export class MarketingService {
   // ═══════════════════════════════════════
 
   async createFlashSale(dto: CreateFlashSaleDto) {
+    if (!dto.startTime || !dto.endTime) throw new BusinessException(ErrorCode.BAD_REQUEST, "请填写活动开始和结束时间");
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
     if (start >= end) throw new BusinessException(ErrorCode.BAD_REQUEST, "秒杀开始时间必须早于结束时间");
@@ -39,6 +41,8 @@ export class MarketingService {
         startTime: start,
         endTime: end,
         warmupMinutes: dto.warmupMinutes ?? 0,
+        scope: dto.scope ?? "GLOBAL",
+        scopePageId: dto.scopePageId,
       },
     });
 
@@ -82,13 +86,15 @@ export class MarketingService {
 
   async updateFlashSale(id: string, dto: UpdateFlashSaleDto) {
     const existing = await this.prisma.flashSale.findUnique({ where: { id } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND);
 
     const data: Prisma.FlashSaleUpdateInput = {};
     if (dto.startTime !== undefined) data.startTime = new Date(dto.startTime);
     if (dto.endTime !== undefined) data.endTime = new Date(dto.endTime);
     if (dto.warmupMinutes !== undefined) data.warmupMinutes = dto.warmupMinutes;
     if (dto.status !== undefined) data.status = dto.status;
+    if (dto.scope !== undefined) data.scope = dto.scope;
+    if (dto.scopePageId !== undefined) data.scopePageId = dto.scopePageId;
 
     // 如果同时修改了起止时间，校验
     const start = data.startTime ?? existing.startTime;
@@ -104,7 +110,7 @@ export class MarketingService {
 
   async deleteFlashSale(id: string) {
     const existing = await this.prisma.flashSale.findUnique({ where: { id } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND);
 
     await this.prisma.flashSale.delete({ where: { id } });
     this.logger.log(`秒杀活动已删除: ${id}`);
@@ -113,7 +119,7 @@ export class MarketingService {
 
   async addFlashSaleItem(id: string, dto: CreateFlashSaleItemDto) {
     const flashSale = await this.prisma.flashSale.findUnique({ where: { id } });
-    if (!flashSale) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
+    if (!flashSale) throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND);
 
     return this.prisma.flashSaleItem.create({
       data: {
@@ -153,7 +159,7 @@ export class MarketingService {
 
   async startFlashSale(id: string) {
     const flashSale = await this.prisma.flashSale.findUnique({ where: { id }, include: { items: true } });
-    if (!flashSale) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
+    if (!flashSale) throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND);
 
     if (flashSale.items.length === 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "秒杀活动没有商品，无法启动");
@@ -168,7 +174,7 @@ export class MarketingService {
 
   async endFlashSale(id: string) {
     const flashSale = await this.prisma.flashSale.findUnique({ where: { id } });
-    if (!flashSale) throw new BusinessException(ErrorCode.NOT_FOUND, "秒杀活动不存在");
+    if (!flashSale) throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND);
 
     return this.prisma.flashSale.update({
       where: { id },
@@ -190,6 +196,8 @@ export class MarketingService {
         minMembers: dto.minMembers ?? 2,
         expireMinutes: dto.expireMinutes ?? 1440,
         autoComplete: dto.autoComplete ?? false,
+        scope: dto.scope ?? "GLOBAL",
+        scopePageId: dto.scopePageId,
       },
     });
   }
@@ -214,7 +222,7 @@ export class MarketingService {
 
   async updateGroupBuy(id: string, dto: UpdateGroupBuyDto) {
     const existing = await this.prisma.groupBuy.findUnique({ where: { id } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "拼团活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.GROUP_BUY_NOT_FOUND);
 
     return this.prisma.groupBuy.update({
       where: { id },
@@ -224,7 +232,7 @@ export class MarketingService {
 
   async deleteGroupBuy(id: string) {
     const existing = await this.prisma.groupBuy.findUnique({ where: { id } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "拼团活动不存在");
+    if (!existing) throw new BusinessException(ErrorCode.GROUP_BUY_NOT_FOUND);
     await this.prisma.groupBuy.delete({ where: { id } });
     this.logger.log(`拼团活动已删除: ${id}`);
     return { success: true };
@@ -232,7 +240,7 @@ export class MarketingService {
 
   async getGroupBuyParticipants(id: string) {
     const groupBuy = await this.prisma.groupBuy.findUnique({ where: { id } });
-    if (!groupBuy) throw new BusinessException(ErrorCode.NOT_FOUND, "拼团活动不存在");
+    if (!groupBuy) throw new BusinessException(ErrorCode.GROUP_BUY_NOT_FOUND);
 
     return this.prisma.groupBuyParticipant.findMany({
       where: { groupBuyId: id },
@@ -259,8 +267,10 @@ export class MarketingService {
         startTime: start,
         endTime: end,
         validDays: dto.validDays ?? 7,
-        scope: dto.scope ?? Prisma.DbNull,
+        applicableScope: dto.applicableScope ?? Prisma.DbNull,
         aiPrecision: dto.aiPrecision ?? false,
+        scope: dto.scope ?? "GLOBAL",
+        scopePageId: dto.scopePageId,
       },
     });
   }
@@ -297,9 +307,11 @@ export class MarketingService {
     if (dto.startTime !== undefined) data.startTime = new Date(dto.startTime);
     if (dto.endTime !== undefined) data.endTime = new Date(dto.endTime);
     if (dto.validDays !== undefined) data.validDays = dto.validDays;
-    if (dto.scope !== undefined) data.scope = dto.scope;
+    if (dto.applicableScope !== undefined) data.applicableScope = dto.applicableScope as any;
     if (dto.aiPrecision !== undefined) data.aiPrecision = dto.aiPrecision;
     if (dto.status !== undefined) data.status = dto.status;
+    if (dto.scope !== undefined) data.scope = dto.scope;
+    if (dto.scopePageId !== undefined) data.scopePageId = dto.scopePageId;
 
     return this.prisma.couponTemplate.update({
       where: { id },
@@ -409,6 +421,7 @@ export class MarketingService {
   // ═══════════════════════════════════════
 
   async createDiscount(dto: CreateDiscountDto) {
+    if (!dto.startTime || !dto.endTime) throw new BusinessException(ErrorCode.BAD_REQUEST, "请填写活动开始和结束时间");
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
     if (start >= end) throw new BusinessException(ErrorCode.BAD_REQUEST, "折扣开始时间必须早于结束时间");
@@ -419,7 +432,11 @@ export class MarketingService {
         discountPct: dto.discountPct,
         startTime: start,
         endTime: end,
-        productIds: dto.productIds,
+        productIds: dto.productIds ?? [],
+        courseIds: dto.courseIds ?? [],
+        circleIds: dto.circleIds ?? [],
+        scope: dto.scope ?? "GLOBAL",
+        scopePageId: dto.scopePageId,
       },
     });
   }
@@ -452,7 +469,11 @@ export class MarketingService {
     if (dto.startTime !== undefined) data.startTime = new Date(dto.startTime);
     if (dto.endTime !== undefined) data.endTime = new Date(dto.endTime);
     if (dto.productIds !== undefined) data.productIds = dto.productIds;
+    if (dto.courseIds !== undefined) data.courseIds = dto.courseIds;
+    if (dto.circleIds !== undefined) data.circleIds = dto.circleIds;
     if (dto.status !== undefined) data.status = dto.status;
+    if (dto.scope !== undefined) data.scope = dto.scope;
+    if (dto.scopePageId !== undefined) data.scopePageId = dto.scopePageId;
 
     return this.prisma.discountActivity.update({
       where: { id },
@@ -478,6 +499,7 @@ export class MarketingService {
       data: {
         name: dto.name,
         route: dto.route,
+        description: dto.description || null,
         stationId: dto.stationId || null,
       },
     });
@@ -781,6 +803,7 @@ export class MarketingService {
   // ═══════════════════════════════════════
 
   async createFullReduction(dto: CreateFullReductionDto) {
+    if (!dto.startTime || !dto.endTime) throw new BusinessException(ErrorCode.BAD_REQUEST, "请填写活动开始和结束时间");
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
     if (start >= end) throw new BusinessException(ErrorCode.BAD_REQUEST, "满减送开始时间必须早于结束时间");
@@ -796,6 +819,8 @@ export class MarketingService {
         startTime: start,
         endTime: end,
         productIds: dto.productIds ?? [],
+        scope: dto.scope ?? "GLOBAL",
+        scopePageId: dto.scopePageId,
         status: dto.status ?? "DRAFT",
       },
     });
@@ -815,6 +840,8 @@ export class MarketingService {
     if (dto.endTime !== undefined) data.endTime = new Date(dto.endTime);
     if (dto.productIds !== undefined) data.productIds = dto.productIds;
     if (dto.status !== undefined) data.status = dto.status;
+    if (dto.scope !== undefined) data.scope = dto.scope;
+    if (dto.scopePageId !== undefined) data.scopePageId = dto.scopePageId;
 
     // 校验
     const threshold = dto.threshold ?? Number(existing.threshold);
@@ -875,6 +902,7 @@ export class MarketingService {
   // 用户端公开接口
   // ═══════════════════════════════════════
 
+  @Cacheable({ key: "flash:sales:active", ttl: 30 })
   async getActiveFlashSales() {
     const now = new Date();
     return this.prisma.flashSale.findMany({
@@ -887,6 +915,7 @@ export class MarketingService {
     });
   }
 
+  @Cacheable({ key: "groupbuy:active", ttl: 30 })
   async getActiveGroupBuys() {
     return this.prisma.groupBuy.findMany({
       where: { status: "ACTIVE" },
@@ -897,7 +926,7 @@ export class MarketingService {
 
   async joinGroupBuy(userId: string, groupBuyId: string, groupId?: string) {
     const gb = await this.prisma.groupBuy.findUnique({ where: { id: groupBuyId } });
-    if (!gb) throw new BusinessException(ErrorCode.NOT_FOUND, "拼团活动不存在");
+    if (!gb) throw new BusinessException(ErrorCode.GROUP_BUY_NOT_FOUND);
     if (gb.status !== "ACTIVE") throw new BusinessException(ErrorCode.BAD_REQUEST, "拼团活动已结束");
 
     const existing = await this.prisma.groupBuyParticipant.findFirst({
