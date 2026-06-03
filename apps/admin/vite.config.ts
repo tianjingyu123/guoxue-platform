@@ -9,6 +9,8 @@ export default defineConfig(({ command }) => ({
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),
+      // @guoxue/shared 直指源码，避免 CJS dist 产物导致 Rollup 无法静态分析导出
+      "@guoxue/shared": resolve(__dirname, "../../packages/shared/src/index.ts"),
     },
   },
   server: {
@@ -24,5 +26,17 @@ export default defineConfig(({ command }) => ({
         changeOrigin: true,
       },
     },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["vue", "vue-router", "pinia"],
+          element: ["element-plus"],
+          echarts: ["echarts"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
   },
 }));
