@@ -3,91 +3,232 @@
     <div class="page-header">
       <h3>知识库管理</h3>
       <div>
-        <el-button size="small" type="primary" @click="syncAll" :loading="syncing">全量同步</el-button>
-        <el-button size="small" @click="refresh">刷新</el-button>
+        <el-button
+          size="small"
+          type="primary"
+          :loading="syncing"
+          @click="syncAll"
+        >
+          全量同步
+        </el-button>
+        <el-button
+          size="small"
+          @click="refresh"
+        >
+          刷新
+        </el-button>
       </div>
     </div>
 
     <!-- 圈子选择 -->
-    <div class="toolbar-row" style="margin-bottom:16px">
+    <div
+      class="toolbar-row"
+      style="margin-bottom:16px"
+    >
       <span style="margin-right:8px;color:#606266">选择圈子：</span>
-      <el-select v-model="selectedCircle" placeholder="选择圈子" size="small" style="width:280px" @change="onCircleChange" filterable>
-        <el-option v-for="c in circles" :key="c.id" :label="c.name" :value="c.id" />
+      <el-select
+        v-model="selectedCircle"
+        placeholder="选择圈子"
+        size="small"
+        style="width:280px"
+        filterable
+        @change="onCircleChange"
+      >
+        <el-option
+          v-for="c in circles"
+          :key="c.id"
+          :label="c.name"
+          :value="c.id"
+        />
       </el-select>
     </div>
 
     <template v-if="selectedCircle">
       <!-- 统计 -->
-      <el-row :gutter="16" style="margin-bottom:16px">
+      <el-row
+        :gutter="16"
+        style="margin-bottom:16px"
+      >
         <el-col :span="6">
-          <div class="stat-card"><span class="value">{{ stats.totalEntries }}</span><span class="label">已入库内容</span></div>
+          <div class="stat-card">
+            <span class="value">{{ stats.totalEntries }}</span><span class="label">已入库内容</span>
+          </div>
         </el-col>
         <el-col :span="6">
-          <div class="stat-card warn"><span class="value">{{ stats.pendingCandidates }}</span><span class="label">待确认候选</span></div>
+          <div class="stat-card warn">
+            <span class="value">{{ stats.pendingCandidates }}</span><span class="label">待确认候选</span>
+          </div>
         </el-col>
         <el-col :span="6">
-          <div class="stat-card"><span class="value">{{ stats.confirmedToday }}</span><span class="label">今日确认</span></div>
+          <div class="stat-card">
+            <span class="value">{{ stats.confirmedToday }}</span><span class="label">今日确认</span>
+          </div>
         </el-col>
         <el-col :span="6">
-          <div class="stat-card"><span class="value">{{ stats.lastSync ? fmtDate(stats.lastSync) : '从未' }}</span><span class="label">最近同步</span></div>
+          <div class="stat-card">
+            <span class="value">{{ stats.lastSync ? fmtDate(stats.lastSync) : '从未' }}</span><span class="label">最近同步</span>
+          </div>
         </el-col>
       </el-row>
 
-      <el-tabs v-model="activeTab" @tab-change="onTabChange">
+      <el-tabs
+        v-model="activeTab"
+        @tab-change="onTabChange"
+      >
         <!-- 候选内容审核 -->
-        <el-tab-pane label="候选内容" name="candidates">
-          <el-table :data="candidates" stripe size="small" v-loading="candidateLoading" empty-text="暂无待确认的候选内容">
-            <el-table-column label="内容摘要" min-width="300" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.title || row.content?.substring(0, 100) || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="来源类型" width="100">
-              <template #default="{ row }">{{ row.sourceType || row.targetType || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="来源ID" prop="sourceId" width="200" show-overflow-tooltip />
-            <el-table-column label="提交时间" width="170">
-              <template #default="{ row }">{{ fmtDate(row.createdAt) }}</template>
-            </el-table-column>
-            <el-table-column label="操作" width="200">
+        <el-tab-pane
+          label="候选内容"
+          name="candidates"
+        >
+          <el-table
+            v-loading="candidateLoading"
+            :data="candidates"
+            stripe
+            size="small"
+            empty-text="暂无待确认的候选内容"
+          >
+            <el-table-column
+              label="内容摘要"
+              min-width="300"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
-                <el-button size="small" type="success" @click="confirmCandidate(row)">确认入库</el-button>
-                <el-button size="small" type="danger" @click="rejectCandidate(row)">拒绝</el-button>
+                {{ row.title || row.content?.substring(0, 100) || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="来源类型"
+              width="100"
+            >
+              <template #default="{ row }">
+                {{ row.sourceType || row.targetType || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="来源ID"
+              prop="sourceId"
+              width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="提交时间"
+              width="170"
+            >
+              <template #default="{ row }">
+                {{ fmtDate(row.createdAt) }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="操作"
+              width="200"
+            >
+              <template #default="{ row }">
+                <el-button
+                  size="small"
+                  type="success"
+                  @click="confirmCandidate(row)"
+                >
+                  确认入库
+                </el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  @click="rejectCandidate(row)"
+                >
+                  拒绝
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
         </el-tab-pane>
 
         <!-- 已入库管理 -->
-        <el-tab-pane label="已入库" name="knowledge">
-          <el-table :data="knowledgeEntries" stripe size="small" v-loading="knowledgeLoading" empty-text="暂无已入库内容">
-            <el-table-column label="内容标题" min-width="300" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.title || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="来源类型" width="100">
-              <template #default="{ row }">{{ row.sourceType || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="入库时间" width="170">
-              <template #default="{ row }">{{ fmtDate(row.createdAt) }}</template>
-            </el-table-column>
-            <el-table-column label="操作" width="100">
+        <el-tab-pane
+          label="已入库"
+          name="knowledge"
+        >
+          <el-table
+            v-loading="knowledgeLoading"
+            :data="knowledgeEntries"
+            stripe
+            size="small"
+            empty-text="暂无已入库内容"
+          >
+            <el-table-column
+              label="内容标题"
+              min-width="300"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
-                <el-button size="small" type="danger" @click="removeEntry(row)">移除</el-button>
+                {{ row.title || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="来源类型"
+              width="100"
+            >
+              <template #default="{ row }">
+                {{ row.sourceType || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="入库时间"
+              width="170"
+            >
+              <template #default="{ row }">
+                {{ fmtDate(row.createdAt) }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="操作"
+              width="100"
+            >
+              <template #default="{ row }">
+                <el-button
+                  size="small"
+                  type="danger"
+                  @click="removeEntry(row)"
+                >
+                  移除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
         </el-tab-pane>
 
         <!-- 同步控制 -->
-        <el-tab-pane label="同步控制" name="sync">
+        <el-tab-pane
+          label="同步控制"
+          name="sync"
+        >
           <el-card style="max-width:600px">
-            <el-descriptions :column="1" border size="small" style="margin-bottom:16px">
-              <el-descriptions-item label="圈子名称">{{ selectedCircleName }}</el-descriptions-item>
-              <el-descriptions-item label="已入库数量">{{ stats.totalEntries }}</el-descriptions-item>
-              <el-descriptions-item label="待确认数量">{{ stats.pendingCandidates }}</el-descriptions-item>
+            <el-descriptions
+              :column="1"
+              border
+              size="small"
+              style="margin-bottom:16px"
+            >
+              <el-descriptions-item label="圈子名称">
+                {{ selectedCircleName }}
+              </el-descriptions-item>
+              <el-descriptions-item label="已入库数量">
+                {{ stats.totalEntries }}
+              </el-descriptions-item>
+              <el-descriptions-item label="待确认数量">
+                {{ stats.pendingCandidates }}
+              </el-descriptions-item>
             </el-descriptions>
-            <el-button type="primary" @click="syncCircle" :loading="syncing">
+            <el-button
+              type="primary"
+              :loading="syncing"
+              @click="syncCircle"
+            >
               立即同步该圈子知识库
             </el-button>
-            <span class="text-muted" style="margin-left:12px;font-size:13px">
+            <span
+              class="text-muted"
+              style="margin-left:12px;font-size:13px"
+            >
               将从已发布的文章、精华帖、热门帖子中提取内容加入候选
             </span>
           </el-card>
@@ -95,7 +236,10 @@
       </el-tabs>
     </template>
 
-    <el-empty v-else description="请选择一个圈子查看其知识库" />
+    <el-empty
+      v-else
+      description="请选择一个圈子查看其知识库"
+    />
   </div>
 </template>
 

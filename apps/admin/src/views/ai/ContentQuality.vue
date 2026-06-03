@@ -3,72 +3,200 @@
     <div class="page-header">
       <h3>AI内容质量评估</h3>
       <div style="display:flex;gap:8px">
-        <el-button type="primary" size="small" @click="refresh">刷新</el-button>
+        <el-button
+          type="primary"
+          size="small"
+          @click="refresh"
+        >
+          刷新
+        </el-button>
       </div>
     </div>
 
     <!-- 质量概览 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.totalAiContent }}</span><span class="label">AI生成内容</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.totalAiContent }}</span><span class="label">AI生成内容</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card info"><span class="value">{{ stats.publishedCount }}</span><span class="label">已发布</span></div>
+        <div class="stat-card info">
+          <span class="value">{{ stats.publishedCount }}</span><span class="label">已发布</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.draftCount }}</span><span class="label">草稿中</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.draftCount }}</span><span class="label">草稿中</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.acceptanceRate || 0 }}%</span><span class="label">采纳率</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.acceptanceRate || 0 }}%</span><span class="label">采纳率</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card warn"><span class="value">{{ stats.rejectedCount || 0 }}</span><span class="label">已驳回</span></div>
+        <div class="stat-card warn">
+          <span class="value">{{ stats.rejectedCount || 0 }}</span><span class="label">已驳回</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ avgQualityScore }}</span><span class="label">平均质量分</span></div>
+        <div class="stat-card">
+          <span class="value">{{ avgQualityScore }}</span><span class="label">平均质量分</span>
+        </div>
       </el-col>
     </el-row>
 
-    <el-tabs v-model="activeTab" @tab-change="onTabChange">
+    <el-tabs
+      v-model="activeTab"
+      @tab-change="onTabChange"
+    >
       <!-- 待评估内容 -->
-      <el-tab-pane label="待评估" name="pending">
+      <el-tab-pane
+        label="待评估"
+        name="pending"
+      >
         <el-card>
           <div style="margin-bottom:12px;display:flex;gap:10px;align-items:center">
-            <el-select v-model="filter.category" placeholder="品类筛选" size="small" clearable style="width:150px">
-              <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+            <el-select
+              v-model="filter.category"
+              placeholder="品类筛选"
+              size="small"
+              clearable
+              style="width:150px"
+            >
+              <el-option
+                v-for="c in categories"
+                :key="c"
+                :label="c"
+                :value="c"
+              />
             </el-select>
-            <el-select v-model="filter.type" placeholder="内容类型" size="small" clearable style="width:130px">
-              <el-option label="基础知识" value="基础知识库" />
-              <el-option label="经典精华" value="经典精华库" />
-              <el-option label="玩法教程" value="玩法教程库" />
+            <el-select
+              v-model="filter.type"
+              placeholder="内容类型"
+              size="small"
+              clearable
+              style="width:130px"
+            >
+              <el-option
+                label="基础知识"
+                value="基础知识库"
+              />
+              <el-option
+                label="经典精华"
+                value="经典精华库"
+              />
+              <el-option
+                label="玩法教程"
+                value="玩法教程库"
+              />
             </el-select>
-            <el-button size="small" @click="fetchPending">搜索</el-button>
+            <el-button
+              size="small"
+              @click="fetchPending"
+            >
+              搜索
+            </el-button>
           </div>
 
-          <el-table :data="pendingList" stripe size="small" v-loading="loading" max-height="500">
-            <el-table-column label="标题" min-width="200" show-overflow-tooltip prop="title" />
-            <el-table-column label="品类" width="120">
-              <template #default="{ row }">{{ row.categoryLevel1 }}{{ row.categoryLevel2 ? '/' + row.categoryLevel2 : '' }}</template>
-            </el-table-column>
-            <el-table-column label="类型" width="100">
+          <el-table
+            v-loading="loading"
+            :data="pendingList"
+            stripe
+            size="small"
+            max-height="500"
+          >
+            <el-table-column
+              label="标题"
+              min-width="200"
+              show-overflow-tooltip
+              prop="title"
+            />
+            <el-table-column
+              label="品类"
+              width="120"
+            >
               <template #default="{ row }">
-                <el-tag v-for="t in getAiTags(row)" :key="t" size="small" style="margin-right:4px">{{ t }}</el-tag>
+                {{ row.categoryLevel1 }}{{ row.categoryLevel2 ? '/' + row.categoryLevel2 : '' }}
               </template>
             </el-table-column>
-            <el-table-column label="字数" width="70" align="center">
-              <template #default="{ row }">{{ (row.body || row.content || '').length }}</template>
-            </el-table-column>
-            <el-table-column label="质量分" width="100" align="center">
+            <el-table-column
+              label="类型"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-rate v-model="row._score" :max="5" size="small" disabled show-score text-color="#ff9900" />
+                <el-tag
+                  v-for="t in getAiTags(row)"
+                  :key="t"
+                  size="small"
+                  style="margin-right:4px"
+                >
+                  {{ t }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="280" fixed="right">
+            <el-table-column
+              label="字数"
+              width="70"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-button size="small" type="success" @click="approveContent(row)">采纳</el-button>
-                <el-button size="small" type="warning" @click="rateContent(row)">评分</el-button>
-                <el-button size="small" @click="previewContent(row)">预览</el-button>
-                <el-button size="small" type="danger" @click="rejectContent(row)">驳回</el-button>
+                {{ (row.body || row.content || '').length }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="质量分"
+              width="100"
+              align="center"
+            >
+              <template #default="{ row }">
+                <el-rate
+                  v-model="row._score"
+                  :max="5"
+                  size="small"
+                  disabled
+                  show-score
+                  text-color="#ff9900"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="操作"
+              width="280"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <el-button
+                  size="small"
+                  type="success"
+                  @click="approveContent(row)"
+                >
+                  采纳
+                </el-button>
+                <el-button
+                  size="small"
+                  type="warning"
+                  @click="rateContent(row)"
+                >
+                  评分
+                </el-button>
+                <el-button
+                  size="small"
+                  @click="previewContent(row)"
+                >
+                  预览
+                </el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  @click="rejectContent(row)"
+                >
+                  驳回
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -85,39 +213,89 @@
       </el-tab-pane>
 
       <!-- 质量趋势 -->
-      <el-tab-pane label="质量趋势" name="trend">
+      <el-tab-pane
+        label="质量趋势"
+        name="trend"
+      >
         <el-row :gutter="16">
           <el-col :span="12">
             <el-card>
-              <template #header><span>采纳率趋势（近30天）</span></template>
-              <div ref="acceptTrendRef" style="height:300px" />
+              <template #header>
+                <span>采纳率趋势（近30天）</span>
+              </template>
+              <div
+                ref="acceptTrendRef"
+                style="height:300px"
+              />
             </el-card>
           </el-col>
           <el-col :span="12">
             <el-card>
-              <template #header><span>各品类质量分</span></template>
-              <div ref="categoryQualityRef" style="height:300px" />
+              <template #header>
+                <span>各品类质量分</span>
+              </template>
+              <div
+                ref="categoryQualityRef"
+                style="height:300px"
+              />
             </el-card>
           </el-col>
         </el-row>
       </el-tab-pane>
 
       <!-- 反馈记录 -->
-      <el-tab-pane label="反馈记录" name="feedback">
+      <el-tab-pane
+        label="反馈记录"
+        name="feedback"
+      >
         <el-card>
-          <el-table :data="feedbackList" stripe size="small" max-height="480">
-            <el-table-column label="内容标题" min-width="180" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.title || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="评分" width="150">
+          <el-table
+            :data="feedbackList"
+            stripe
+            size="small"
+            max-height="480"
+          >
+            <el-table-column
+              label="内容标题"
+              min-width="180"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
-                <el-rate v-model="row.score" :max="5" size="small" disabled show-score />
+                {{ row.title || '-' }}
               </template>
             </el-table-column>
-            <el-table-column label="反馈" min-width="200" show-overflow-tooltip prop="feedback" />
-            <el-table-column label="操作人" width="100" prop="reviewer" />
-            <el-table-column label="时间" width="170">
-              <template #default="{ row }">{{ fmt(row.createdAt) }}</template>
+            <el-table-column
+              label="评分"
+              width="150"
+            >
+              <template #default="{ row }">
+                <el-rate
+                  v-model="row.score"
+                  :max="5"
+                  size="small"
+                  disabled
+                  show-score
+                />
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="反馈"
+              min-width="200"
+              show-overflow-tooltip
+              prop="feedback"
+            />
+            <el-table-column
+              label="操作人"
+              width="100"
+              prop="reviewer"
+            />
+            <el-table-column
+              label="时间"
+              width="170"
+            >
+              <template #default="{ row }">
+                {{ fmt(row.createdAt) }}
+              </template>
             </el-table-column>
           </el-table>
         </el-card>
@@ -125,40 +303,90 @@
     </el-tabs>
 
     <!-- 评分对话框 -->
-    <el-dialog v-model="rateVisible" title="内容质量评分" width="500px">
-      <el-form v-if="ratingTarget" label-width="80px">
-        <el-form-item label="标题">{{ ratingTarget.title }}</el-form-item>
+    <el-dialog
+      v-model="rateVisible"
+      title="内容质量评分"
+      width="500px"
+    >
+      <el-form
+        v-if="ratingTarget"
+        label-width="80px"
+      >
+        <el-form-item label="标题">
+          {{ ratingTarget.title }}
+        </el-form-item>
         <el-form-item label="综合评分">
-          <el-rate v-model="rateForm.score" :max="5" show-score size="large" />
+          <el-rate
+            v-model="rateForm.score"
+            :max="5"
+            show-score
+            size="large"
+          />
         </el-form-item>
         <el-form-item label="内容准确性">
-          <el-rate v-model="rateForm.accuracy" :max="5" size="small" />
+          <el-rate
+            v-model="rateForm.accuracy"
+            :max="5"
+            size="small"
+          />
         </el-form-item>
         <el-form-item label="语言流畅度">
-          <el-rate v-model="rateForm.fluency" :max="5" size="small" />
+          <el-rate
+            v-model="rateForm.fluency"
+            :max="5"
+            size="small"
+          />
         </el-form-item>
         <el-form-item label="知识丰富度">
-          <el-rate v-model="rateForm.richness" :max="5" size="small" />
+          <el-rate
+            v-model="rateForm.richness"
+            :max="5"
+            size="small"
+          />
         </el-form-item>
         <el-form-item label="反馈意见">
-          <el-input v-model="rateForm.feedback" type="textarea" :rows="3" placeholder="对AI生成内容的改进建议" />
+          <el-input
+            v-model="rateForm.feedback"
+            type="textarea"
+            :rows="3"
+            placeholder="对AI生成内容的改进建议"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rateVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitRating">提交评分</el-button>
+        <el-button @click="rateVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitRating"
+        >
+          提交评分
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 预览对话框 -->
-    <el-dialog v-model="previewVisible" title="内容预览" width="700px">
-      <div v-if="previewTarget" style="max-height:500px;overflow-y:auto">
-        <h2 style="margin-bottom:8px">{{ previewTarget.title }}</h2>
+    <el-dialog
+      v-model="previewVisible"
+      title="内容预览"
+      width="700px"
+    >
+      <div
+        v-if="previewTarget"
+        style="max-height:500px;overflow-y:auto"
+      >
+        <h2 style="margin-bottom:8px">
+          {{ previewTarget.title }}
+        </h2>
         <p style="color:#909399;font-size:13px;margin-bottom:16px">
           {{ previewTarget.categoryLevel1 }}{{ previewTarget.categoryLevel2 ? ' / ' + previewTarget.categoryLevel2 : '' }}
           · {{ (previewTarget.body || previewTarget.content || '').length }}字
         </p>
-        <div class="content-body" v-html="sanitize(previewTarget.body || previewTarget.content)" />
+        <div
+          class="content-body"
+          v-html="sanitize(previewTarget.body || previewTarget.content)"
+        />
       </div>
     </el-dialog>
   </div>

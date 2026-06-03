@@ -2,38 +2,67 @@
   <div class="aio-page">
     <div class="page-header">
       <h3>AI运营效果追踪</h3>
-      <el-button @click="refreshAll">刷新全部</el-button>
+      <el-button @click="refreshAll">
+        刷新全部
+      </el-button>
     </div>
 
     <!-- AI调用概览 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ aiStats.totalCalls?.toLocaleString() || 0 }}</span><span class="label">总AI调用次数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ aiStats.totalCalls?.toLocaleString() || 0 }}</span><span class="label">总AI调用次数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ aiStats.todayCalls?.toLocaleString() || 0 }}</span><span class="label">今日调用</span></div>
+        <div class="stat-card">
+          <span class="value">{{ aiStats.todayCalls?.toLocaleString() || 0 }}</span><span class="label">今日调用</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card info"><span class="value">{{ aiStats.activeBots || 0 }}</span><span class="label">活跃Bot数</span></div>
+        <div class="stat-card info">
+          <span class="value">{{ aiStats.activeBots || 0 }}</span><span class="label">活跃Bot数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ genStats.totalGenerated || 0 }}</span><span class="label">AI生成内容</span></div>
+        <div class="stat-card">
+          <span class="value">{{ genStats.totalGenerated || 0 }}</span><span class="label">AI生成内容</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ genStats.draftPending || 0 }}</span><span class="label">待审核草稿</span></div>
+        <div class="stat-card">
+          <span class="value">{{ genStats.draftPending || 0 }}</span><span class="label">待审核草稿</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card warn"><span class="value">{{ aiStats.abnormalAlerts || 0 }}</span><span class="label">异常告警</span></div>
+        <div class="stat-card warn">
+          <span class="value">{{ aiStats.abnormalAlerts || 0 }}</span><span class="label">异常告警</span>
+        </div>
       </el-col>
     </el-row>
 
     <!-- 品类生成分布 + 机器人活动 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="14">
         <el-card>
-          <template #header><span>品类内容健康度</span></template>
-          <div v-if="catStats.length" style="max-height:360px;overflow-y:auto">
-            <div v-for="cat in catStats" :key="cat.level1" style="margin-bottom:8px">
+          <template #header>
+            <span>品类内容健康度</span>
+          </template>
+          <div
+            v-if="catStats.length"
+            style="max-height:360px;overflow-y:auto"
+          >
+            <div
+              v-for="cat in catStats"
+              :key="cat.level1"
+              style="margin-bottom:8px"
+            >
               <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:2px">
                 <span style="font-weight:600">{{ cat.level1 }}</span>
                 <span :style="{ color: cat.emptySubs > 0 ? '#f56c6c' : '#67c23a' }">
@@ -47,14 +76,24 @@
               />
             </div>
           </div>
-          <el-empty v-else description="暂无品类数据" :image-size="60" />
+          <el-empty
+            v-else
+            description="暂无品类数据"
+            :image-size="60"
+          />
         </el-card>
       </el-col>
       <el-col :span="10">
         <el-card>
-          <template #header><span>虚拟运营机器人</span></template>
+          <template #header>
+            <span>虚拟运营机器人</span>
+          </template>
           <div v-if="robots.length">
-            <div v-for="bot in robots" :key="bot.role" class="robot-row">
+            <div
+              v-for="bot in robots"
+              :key="bot.role"
+              class="robot-row"
+            >
               <span class="bot-icon">{{ botIcons[bot.role] || '🤖' }}</span>
               <span class="bot-name">{{ bot.name || bot.role }}</span>
               <el-switch
@@ -63,49 +102,107 @@
                 :loading="botToggling === bot.role"
                 @change="(v: boolean) => toggleBot(bot, v)"
               />
-              <el-tag :type="bot.enabled ? 'success' : 'info'" size="small">{{ bot.enabled ? '运行中' : '已停' }}</el-tag>
+              <el-tag
+                :type="bot.enabled ? 'success' : 'info'"
+                size="small"
+              >
+                {{ bot.enabled ? '运行中' : '已停' }}
+              </el-tag>
             </div>
           </div>
-          <el-empty v-else description="暂无机器人数据" :image-size="60" />
+          <el-empty
+            v-else
+            description="暂无机器人数据"
+            :image-size="60"
+          />
         </el-card>
       </el-col>
     </el-row>
 
     <!-- Token用量趋势 + 最新调用 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="12">
         <el-card>
           <template #header>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span>Token用量趋势（近7天）</span>
-              <el-radio-group v-model="tokenPeriod" size="small" @change="fetchTokenTrend">
-                <el-radio-button value="day">日</el-radio-button>
-                <el-radio-button value="week">周</el-radio-button>
-                <el-radio-button value="month">月</el-radio-button>
+              <el-radio-group
+                v-model="tokenPeriod"
+                size="small"
+                @change="fetchTokenTrend"
+              >
+                <el-radio-button value="day">
+                  日
+                </el-radio-button>
+                <el-radio-button value="week">
+                  周
+                </el-radio-button>
+                <el-radio-button value="month">
+                  月
+                </el-radio-button>
               </el-radio-group>
             </div>
           </template>
-          <div v-if="tokenTrend.length" :style="{ height: '240px' }" ref="chartRef" />
-          <el-empty v-else description="暂无用量数据" :image-size="60" />
+          <div
+            v-if="tokenTrend.length"
+            ref="chartRef"
+            :style="{ height: '240px' }"
+          />
+          <el-empty
+            v-else
+            description="暂无用量数据"
+            :image-size="60"
+          />
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card>
-          <template #header><span>最新AI调用日志</span></template>
-          <el-table :data="recentLogs" size="small" max-height="240">
-            <el-table-column label="场景" width="140" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.scene || row.service || '-' }}</template>
+          <template #header>
+            <span>最新AI调用日志</span>
+          </template>
+          <el-table
+            :data="recentLogs"
+            size="small"
+            max-height="240"
+          >
+            <el-table-column
+              label="场景"
+              width="140"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ row.scene || row.service || '-' }}
+              </template>
             </el-table-column>
-            <el-table-column label="模型" width="120" prop="modelName" show-overflow-tooltip />
-            <el-table-column label="Token" width="100">
+            <el-table-column
+              label="模型"
+              width="120"
+              prop="modelName"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="Token"
+              width="100"
+            >
               <template #default="{ row }">
                 <span v-if="row.tokenUsage">{{ (row.tokenUsage.promptTokens || 0) + (row.tokenUsage.completionTokens || 0) }}</span>
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column label="状态" width="70">
+            <el-table-column
+              label="状态"
+              width="70"
+            >
               <template #default="{ row }">
-                <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small">{{ row.status || 'ok' }}</el-tag>
+                <el-tag
+                  :type="row.status === 'success' ? 'success' : 'danger'"
+                  size="small"
+                >
+                  {{ row.status || 'ok' }}
+                </el-tag>
               </template>
             </el-table-column>
           </el-table>
@@ -120,40 +217,124 @@
           <template #header>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span>内容生成任务</span>
-              <el-button size="small" @click="showGenPanel = !showGenPanel">手动生成</el-button>
+              <el-button
+                size="small"
+                @click="showGenPanel = !showGenPanel"
+              >
+                手动生成
+              </el-button>
             </div>
           </template>
-          <div v-if="showGenPanel" style="margin-bottom:12px;display:flex;gap:8px">
-            <el-select v-model="genL1" placeholder="一级品类" size="small" style="width:150px" filterable>
-              <el-option v-for="cat in catStats" :key="cat.level1" :label="cat.level1" :value="cat.level1" />
+          <div
+            v-if="showGenPanel"
+            style="margin-bottom:12px;display:flex;gap:8px"
+          >
+            <el-select
+              v-model="genL1"
+              placeholder="一级品类"
+              size="small"
+              style="width:150px"
+              filterable
+            >
+              <el-option
+                v-for="cat in catStats"
+                :key="cat.level1"
+                :label="cat.level1"
+                :value="cat.level1"
+              />
             </el-select>
-            <el-select v-model="genL2" placeholder="二级品类" size="small" style="width:150px" filterable>
-              <el-option v-for="sub in genL2Options" :key="sub" :label="sub" :value="sub" />
+            <el-select
+              v-model="genL2"
+              placeholder="二级品类"
+              size="small"
+              style="width:150px"
+              filterable
+            >
+              <el-option
+                v-for="sub in genL2Options"
+                :key="sub"
+                :label="sub"
+                :value="sub"
+              />
             </el-select>
-            <el-button size="small" type="primary" :loading="generating" @click="triggerGen">生成</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              :loading="generating"
+              @click="triggerGen"
+            >
+              生成
+            </el-button>
           </div>
           <div style="font-size:13px">
             <div v-if="emptyCats.length">
               <span style="color:#f56c6c">⚠ 空品类（{{ emptyCats.length }}个）：</span>
-              <el-tag v-for="cat in emptyCats.slice(0, 8)" :key="cat.level1 + cat.level2" size="small" type="danger" style="margin:2px">
+              <el-tag
+                v-for="cat in emptyCats.slice(0, 8)"
+                :key="cat.level1 + cat.level2"
+                size="small"
+                type="danger"
+                style="margin:2px"
+              >
                 {{ cat.level1 }}/{{ cat.level2 }}
               </el-tag>
-              <span v-if="emptyCats.length > 8" style="color:#909399">...还有{{ emptyCats.length - 8 }}个</span>
+              <span
+                v-if="emptyCats.length > 8"
+                style="color:#909399"
+              >...还有{{ emptyCats.length - 8 }}个</span>
             </div>
-            <div v-else style="color:#67c23a">所有品类均有内容填充 ✓</div>
+            <div
+              v-else
+              style="color:#67c23a"
+            >
+              所有品类均有内容填充 ✓
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card>
-          <template #header><span>快捷入口</span></template>
+          <template #header>
+            <span>快捷入口</span>
+          </template>
           <div style="display:flex;flex-wrap:wrap;gap:8px">
-            <el-button size="small" @click="$router.push('/content-generation')">AI内容生成</el-button>
-            <el-button size="small" @click="$router.push('/ai/chat-logs')">对话日志</el-button>
-            <el-button size="small" @click="$router.push('/ai/call-monitor')">调用监控</el-button>
-            <el-button size="small" @click="$router.push('/operation/engine')">运营引擎</el-button>
-            <el-button size="small" @click="$router.push('/operation/robots')">运营机器人</el-button>
-            <el-button size="small" type="primary" @click="$router.push('/knowledge')">知识库管理</el-button>
+            <el-button
+              size="small"
+              @click="$router.push('/content-generation')"
+            >
+              AI内容生成
+            </el-button>
+            <el-button
+              size="small"
+              @click="$router.push('/ai/chat-logs')"
+            >
+              对话日志
+            </el-button>
+            <el-button
+              size="small"
+              @click="$router.push('/ai/call-monitor')"
+            >
+              调用监控
+            </el-button>
+            <el-button
+              size="small"
+              @click="$router.push('/operation/engine')"
+            >
+              运营引擎
+            </el-button>
+            <el-button
+              size="small"
+              @click="$router.push('/operation/robots')"
+            >
+              运营机器人
+            </el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="$router.push('/knowledge')"
+            >
+              知识库管理
+            </el-button>
           </div>
         </el-card>
       </el-col>
@@ -162,6 +343,7 @@
 </template>
 
 <script setup lang="ts">
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { ref, reactive, computed, onMounted, nextTick, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { aiAdminApi, contentGenerationApi } from "@/api";

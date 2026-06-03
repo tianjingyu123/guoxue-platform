@@ -3,80 +3,185 @@
     <div class="page-header">
       <h3>AI 内容生成</h3>
       <div style="display:flex;gap:8px">
-        <el-button type="primary" @click="autoFill" :loading="autoFilling">一键填充空品类</el-button>
-        <el-button @click="refreshStats">刷新</el-button>
+        <el-button
+          type="primary"
+          :loading="autoFilling"
+          @click="autoFill"
+        >
+          一键填充空品类
+        </el-button>
+        <el-button @click="refreshStats">
+          刷新
+        </el-button>
       </div>
     </div>
 
     <!-- 概述卡片 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.totalCategories || 0 }}</span><span class="label">一级品类</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.totalCategories || 0 }}</span><span class="label">一级品类</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.totalContent || 0 }}</span><span class="label">生成内容总数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.totalContent || 0 }}</span><span class="label">生成内容总数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card warn"><span class="value">{{ stats.emptyCategories || 0 }}</span><span class="label">空品类数</span></div>
+        <div class="stat-card warn">
+          <span class="value">{{ stats.emptyCategories || 0 }}</span><span class="label">空品类数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.totalGeneratedToday || 0 }}</span><span class="label">今日生成</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.totalGeneratedToday || 0 }}</span><span class="label">今日生成</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card info"><span class="value">{{ genStats.totalTasks || 0 }}</span><span class="label">总任务数</span></div>
+        <div class="stat-card info">
+          <span class="value">{{ genStats.totalTasks || 0 }}</span><span class="label">总任务数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ genStats.successRate || 0 }}%</span><span class="label">任务成功率</span></div>
+        <div class="stat-card">
+          <span class="value">{{ genStats.successRate || 0 }}%</span><span class="label">任务成功率</span>
+        </div>
       </el-col>
     </el-row>
 
-    <el-tabs v-model="activeTab" @tab-change="onTabChange">
+    <el-tabs
+      v-model="activeTab"
+      @tab-change="onTabChange"
+    >
       <!-- 品类健康度 -->
-      <el-tab-pane label="品类健康度" name="health">
+      <el-tab-pane
+        label="品类健康度"
+        name="health"
+      >
         <el-card>
           <template #header>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span>品类健康度仪表盘</span>
               <div style="display:flex;gap:8px">
-                <el-input v-model="healthKeyword" placeholder="搜索品类" size="small" style="width:180px" clearable />
-                <el-switch v-model="showEmptyOnly" size="small" active-text="仅看空品类" />
+                <el-input
+                  v-model="healthKeyword"
+                  placeholder="搜索品类"
+                  size="small"
+                  style="width:180px"
+                  clearable
+                />
+                <el-switch
+                  v-model="showEmptyOnly"
+                  size="small"
+                  active-text="仅看空品类"
+                />
               </div>
             </div>
           </template>
-          <el-table :data="filteredCategoryStats" stripe size="small" max-height="450">
-            <el-table-column label="一级品类" prop="level1" width="130" />
-            <el-table-column label="二级品类" prop="level2" width="130">
-              <template #default="{ row }">{{ row.level2 || '—' }}</template>
-            </el-table-column>
-            <el-table-column label="基础知识" width="90" align="center">
+          <el-table
+            :data="filteredCategoryStats"
+            stripe
+            size="small"
+            max-height="450"
+          >
+            <el-table-column
+              label="一级品类"
+              prop="level1"
+              width="130"
+            />
+            <el-table-column
+              label="二级品类"
+              prop="level2"
+              width="130"
+            >
               <template #default="{ row }">
-                <el-tag :type="row.knowledgeCount > 0 ? 'success' : 'danger'" size="small">{{ row.knowledgeCount || 0 }}</el-tag>
+                {{ row.level2 || '—' }}
               </template>
             </el-table-column>
-            <el-table-column label="经典精华" width="90" align="center">
+            <el-table-column
+              label="基础知识"
+              width="90"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-tag :type="row.classicsCount > 0 ? 'success' : 'danger'" size="small">{{ row.classicsCount || 0 }}</el-tag>
+                <el-tag
+                  :type="row.knowledgeCount > 0 ? 'success' : 'danger'"
+                  size="small"
+                >
+                  {{ row.knowledgeCount || 0 }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="玩法教程" width="90" align="center">
+            <el-table-column
+              label="经典精华"
+              width="90"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-tag :type="row.tutorialCount > 0 ? 'success' : 'danger'" size="small">{{ row.tutorialCount || 0 }}</el-tag>
+                <el-tag
+                  :type="row.classicsCount > 0 ? 'success' : 'danger'"
+                  size="small"
+                >
+                  {{ row.classicsCount || 0 }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="总计" width="70" align="center" prop="totalCount" />
-            <el-table-column label="健康度" width="140">
+            <el-table-column
+              label="玩法教程"
+              width="90"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-progress :percentage="row.healthScore || 0"
+                <el-tag
+                  :type="row.tutorialCount > 0 ? 'success' : 'danger'"
+                  size="small"
+                >
+                  {{ row.tutorialCount || 0 }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="总计"
+              width="70"
+              align="center"
+              prop="totalCount"
+            />
+            <el-table-column
+              label="健康度"
+              width="140"
+            >
+              <template #default="{ row }">
+                <el-progress
+                  :percentage="row.healthScore || 0"
                   :color="row.healthScore >= 80 ? '#67c23a' : row.healthScore >= 40 ? '#e6a23c' : '#f56c6c'"
-                  :stroke-width="14" />
+                  :stroke-width="14"
+                />
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="200" fixed="right">
+            <el-table-column
+              label="操作"
+              width="200"
+              fixed="right"
+            >
               <template #default="{ row }">
-                <el-button size="small" @click="generateFor(row)" :disabled="row.healthScore >= 80">
+                <el-button
+                  size="small"
+                  :disabled="row.healthScore >= 80"
+                  @click="generateFor(row)"
+                >
                   {{ row.healthScore >= 80 ? '已充足' : '补充' }}
                 </el-button>
-                <el-button size="small" type="warning" @click="fillSpecific(row)">指定</el-button>
+                <el-button
+                  size="small"
+                  type="warning"
+                  @click="fillSpecific(row)"
+                >
+                  指定
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -84,110 +189,291 @@
       </el-tab-pane>
 
       <!-- 手动生成 -->
-      <el-tab-pane label="手动生成" name="generate">
+      <el-tab-pane
+        label="手动生成"
+        name="generate"
+      >
         <el-card>
-          <template #header><span>手动触发生成</span></template>
+          <template #header>
+            <span>手动触发生成</span>
+          </template>
           <el-form :inline="true">
             <el-form-item label="一级品类">
-              <el-select v-model="genForm.level1" placeholder="选择品类" size="small" style="width:180px">
-                <el-option v-for="c in categories" :key="c.label" :label="c.label" :value="c.label" />
+              <el-select
+                v-model="genForm.level1"
+                placeholder="选择品类"
+                size="small"
+                style="width:180px"
+              >
+                <el-option
+                  v-for="c in categories"
+                  :key="c.label"
+                  :label="c.label"
+                  :value="c.label"
+                />
               </el-select>
             </el-form-item>
             <el-form-item label="二级品类">
-              <el-select v-model="genForm.level2" placeholder="可选" clearable size="small" style="width:180px">
-                <el-option v-for="s in currentSubs" :key="s" :label="s" :value="s" />
+              <el-select
+                v-model="genForm.level2"
+                placeholder="可选"
+                clearable
+                size="small"
+                style="width:180px"
+              >
+                <el-option
+                  v-for="s in currentSubs"
+                  :key="s"
+                  :label="s"
+                  :value="s"
+                />
               </el-select>
             </el-form-item>
             <el-form-item label="生成类型">
               <el-checkbox-group v-model="genForm.types">
-                <el-checkbox label="knowledge">基础知识</el-checkbox>
-                <el-checkbox label="classics">经典精华</el-checkbox>
-                <el-checkbox label="tutorial">玩法教程</el-checkbox>
+                <el-checkbox label="knowledge">
+                  基础知识
+                </el-checkbox>
+                <el-checkbox label="classics">
+                  经典精华
+                </el-checkbox>
+                <el-checkbox label="tutorial">
+                  玩法教程
+                </el-checkbox>
               </el-checkbox-group>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" size="small" :loading="generating" @click="triggerGenerate">开始生成</el-button>
+              <el-button
+                type="primary"
+                size="small"
+                :loading="generating"
+                @click="triggerGenerate"
+              >
+                开始生成
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>
 
         <!-- 最近触发的任务 -->
         <el-card style="margin-top:16px">
-          <template #header><span>最近生成任务</span></template>
-          <el-table :data="recentTasks" stripe size="small" max-height="300">
-            <el-table-column label="品类" width="120">
-              <template #default="{ row }">{{ row.categoryLevel1 }}{{ row.categoryLevel2 ? ' / ' + row.categoryLevel2 : '' }}</template>
-            </el-table-column>
-            <el-table-column label="类型" width="150">
+          <template #header>
+            <span>最近生成任务</span>
+          </template>
+          <el-table
+            :data="recentTasks"
+            stripe
+            size="small"
+            max-height="300"
+          >
+            <el-table-column
+              label="品类"
+              width="120"
+            >
               <template #default="{ row }">
-                <el-tag v-for="t in row.types" :key="t" size="small" style="margin-right:4px">
+                {{ row.categoryLevel1 }}{{ row.categoryLevel2 ? ' / ' + row.categoryLevel2 : '' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="类型"
+              width="150"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  v-for="t in row.types"
+                  :key="t"
+                  size="small"
+                  style="margin-right:4px"
+                >
                   {{ t === 'knowledge' ? '基础知识' : t === 'classics' ? '经典精华' : '玩法教程' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="状态" width="90">
+            <el-table-column
+              label="状态"
+              width="90"
+            >
               <template #default="{ row }">
-                <el-tag :type="row.status === 'success' ? 'success' : row.status === 'error' ? 'danger' : 'info'" size="small">
+                <el-tag
+                  :type="row.status === 'success' ? 'success' : row.status === 'error' ? 'danger' : 'info'"
+                  size="small"
+                >
                   {{ row.status === 'success' ? '成功' : row.status === 'error' ? '失败' : '执行中' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="Token" width="100">
-              <template #default="{ row }">{{ row.tokenUsage ? 'P:' + row.tokenUsage.promptTokens + ' C:' + row.tokenUsage.completionTokens : '-' }}</template>
+            <el-table-column
+              label="Token"
+              width="100"
+            >
+              <template #default="{ row }">
+                {{ row.tokenUsage ? 'P:' + row.tokenUsage.promptTokens + ' C:' + row.tokenUsage.completionTokens : '-' }}
+              </template>
             </el-table-column>
-            <el-table-column label="时间" width="170">
-              <template #default="{ row }">{{ fmt(row.createdAt) }}</template>
+            <el-table-column
+              label="时间"
+              width="170"
+            >
+              <template #default="{ row }">
+                {{ fmt(row.createdAt) }}
+              </template>
             </el-table-column>
           </el-table>
         </el-card>
       </el-tab-pane>
 
       <!-- 生成历史 -->
-      <el-tab-pane label="生成历史" name="history">
+      <el-tab-pane
+        label="生成历史"
+        name="history"
+      >
         <el-card>
           <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
-            <el-select v-model="historyFilter.category" placeholder="品类筛选" size="small" clearable style="width:160px" @change="fetchHistory">
-              <el-option v-for="c in allCategoryNames" :key="c" :label="c" :value="c" />
+            <el-select
+              v-model="historyFilter.category"
+              placeholder="品类筛选"
+              size="small"
+              clearable
+              style="width:160px"
+              @change="fetchHistory"
+            >
+              <el-option
+                v-for="c in allCategoryNames"
+                :key="c"
+                :label="c"
+                :value="c"
+              />
             </el-select>
-            <el-select v-model="historyFilter.type" placeholder="生成类型" size="small" clearable style="width:130px" @change="fetchHistory">
-              <el-option label="基础知识" value="knowledge" />
-              <el-option label="经典精华" value="classics" />
-              <el-option label="玩法教程" value="tutorial" />
+            <el-select
+              v-model="historyFilter.type"
+              placeholder="生成类型"
+              size="small"
+              clearable
+              style="width:130px"
+              @change="fetchHistory"
+            >
+              <el-option
+                label="基础知识"
+                value="knowledge"
+              />
+              <el-option
+                label="经典精华"
+                value="classics"
+              />
+              <el-option
+                label="玩法教程"
+                value="tutorial"
+              />
             </el-select>
-            <el-select v-model="historyFilter.status" placeholder="状态" size="small" clearable style="width:100px" @change="fetchHistory">
-              <el-option label="成功" value="success" />
-              <el-option label="失败" value="error" />
+            <el-select
+              v-model="historyFilter.status"
+              placeholder="状态"
+              size="small"
+              clearable
+              style="width:100px"
+              @change="fetchHistory"
+            >
+              <el-option
+                label="成功"
+                value="success"
+              />
+              <el-option
+                label="失败"
+                value="error"
+              />
             </el-select>
-            <el-date-picker v-model="historyFilter.dateRange" type="daterange" range-separator="至"
-              start-placeholder="开始" end-placeholder="结束" size="small" style="width:260px" />
-            <el-button size="small" type="primary" @click="fetchHistory">搜索</el-button>
+            <el-date-picker
+              v-model="historyFilter.dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始"
+              end-placeholder="结束"
+              size="small"
+              style="width:260px"
+            />
+            <el-button
+              size="small"
+              type="primary"
+              @click="fetchHistory"
+            >
+              搜索
+            </el-button>
           </div>
 
-          <el-table :data="historyLogs" stripe size="small" v-loading="historyLoading" max-height="450">
-            <el-table-column label="场景" width="160" show-overflow-tooltip prop="scene" />
-            <el-table-column label="模型" width="160" prop="modelName" show-overflow-tooltip />
-            <el-table-column label="输入" min-width="200" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.prompt?.substring(0, 100) || row.query?.substring(0, 100) || '-' }}</template>
+          <el-table
+            v-loading="historyLoading"
+            :data="historyLogs"
+            stripe
+            size="small"
+            max-height="450"
+          >
+            <el-table-column
+              label="场景"
+              width="160"
+              show-overflow-tooltip
+              prop="scene"
+            />
+            <el-table-column
+              label="模型"
+              width="160"
+              prop="modelName"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="输入"
+              min-width="200"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ row.prompt?.substring(0, 100) || row.query?.substring(0, 100) || '-' }}
+              </template>
             </el-table-column>
-            <el-table-column label="输出预览" min-width="200" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.response?.substring(0, 100) || '-' }}</template>
+            <el-table-column
+              label="输出预览"
+              min-width="200"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ row.response?.substring(0, 100) || '-' }}
+              </template>
             </el-table-column>
-            <el-table-column label="Token" width="110">
+            <el-table-column
+              label="Token"
+              width="110"
+            >
               <template #default="{ row }">
                 <span v-if="row.tokenUsage">P:{{ row.tokenUsage.promptTokens }} C:{{ row.tokenUsage.completionTokens }}</span>
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column label="延迟" width="75">
-              <template #default="{ row }">{{ row.latencyMs ? row.latencyMs + 'ms' : '-' }}</template>
-            </el-table-column>
-            <el-table-column label="状态" width="75">
+            <el-table-column
+              label="延迟"
+              width="75"
+            >
               <template #default="{ row }">
-                <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small">{{ row.status || 'ok' }}</el-tag>
+                {{ row.latencyMs ? row.latencyMs + 'ms' : '-' }}
               </template>
             </el-table-column>
-            <el-table-column label="时间" width="170">
-              <template #default="{ row }">{{ fmt(row.createdAt) }}</template>
+            <el-table-column
+              label="状态"
+              width="75"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.status === 'success' ? 'success' : 'danger'"
+                  size="small"
+                >
+                  {{ row.status || 'ok' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="时间"
+              width="170"
+            >
+              <template #default="{ row }">
+                {{ fmt(row.createdAt) }}
+              </template>
             </el-table-column>
           </el-table>
           <el-pagination

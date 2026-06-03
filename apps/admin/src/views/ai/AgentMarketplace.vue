@@ -3,69 +3,143 @@
     <div class="page-header">
       <h3>AI智能体广场</h3>
       <div style="display:flex;gap:8px">
-        <el-button type="primary" @click="refresh" :loading="loading">刷新</el-button>
-        <el-button @click="goToBotManage">排盘Bot管理</el-button>
-        <el-button @click="goToOpRobot">运营机器人</el-button>
+        <el-button
+          type="primary"
+          :loading="loading"
+          @click="refresh"
+        >
+          刷新
+        </el-button>
+        <el-button @click="goToBotManage">
+          排盘Bot管理
+        </el-button>
+        <el-button @click="goToOpRobot">
+          运营机器人
+        </el-button>
       </div>
     </div>
 
     <!-- 概览统计 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.totalAgents }}</span><span class="label">智能体总数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.totalAgents }}</span><span class="label">智能体总数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card info"><span class="value">{{ stats.activeAgents }}</span><span class="label">活跃智能体</span></div>
+        <div class="stat-card info">
+          <span class="value">{{ stats.activeAgents }}</span><span class="label">活跃智能体</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.totalCalls?.toLocaleString() || 0 }}</span><span class="label">总调用次数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.totalCalls?.toLocaleString() || 0 }}</span><span class="label">总调用次数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.todayCalls?.toLocaleString() || 0 }}</span><span class="label">今日调用</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.todayCalls?.toLocaleString() || 0 }}</span><span class="label">今日调用</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card warn"><span class="value">{{ stats.errorCount || 0 }}</span><span class="label">异常智能体</span></div>
+        <div class="stat-card warn">
+          <span class="value">{{ stats.errorCount || 0 }}</span><span class="label">异常智能体</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ categoryList.length }}</span><span class="label">类别数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ categoryList.length }}</span><span class="label">类别数</span>
+        </div>
       </el-col>
     </el-row>
 
     <!-- 类别筛选 -->
     <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
-      <el-radio-group v-model="filterCategory" size="small" @change="applyFilter">
-        <el-radio-button label="">全部</el-radio-button>
-        <el-radio-button v-for="cat in categoryList" :key="cat.value" :label="cat.value">{{ cat.label }}</el-radio-button>
+      <el-radio-group
+        v-model="filterCategory"
+        size="small"
+        @change="applyFilter"
+      >
+        <el-radio-button label="">
+          全部
+        </el-radio-button>
+        <el-radio-button
+          v-for="cat in categoryList"
+          :key="cat.value"
+          :label="cat.value"
+        >
+          {{ cat.label }}
+        </el-radio-button>
       </el-radio-group>
-      <el-input v-model="searchKeyword" placeholder="搜索智能体名称" size="small" style="width:220px" clearable @input="applyFilter" />
+      <el-input
+        v-model="searchKeyword"
+        placeholder="搜索智能体名称"
+        size="small"
+        style="width:220px"
+        clearable
+        @input="applyFilter"
+      />
     </div>
 
     <!-- 智能体卡片网格 -->
-    <div v-if="filteredAgents.length === 0 && !loading" style="text-align:center;padding:60px 0">
-      <el-empty description="暂无智能体数据" :image-size="80" />
+    <div
+      v-if="filteredAgents.length === 0 && !loading"
+      style="text-align:center;padding:60px 0"
+    >
+      <el-empty
+        description="暂无智能体数据"
+        :image-size="80"
+      />
     </div>
 
     <el-row :gutter="16">
-      <el-col v-for="agent in filteredAgents" :key="agent.id" :span="6" style="margin-bottom:16px">
-        <el-card class="agent-card" :class="{ disabled: !agent.enabled }" shadow="hover">
+      <el-col
+        v-for="agent in filteredAgents"
+        :key="agent.id"
+        :span="6"
+        style="margin-bottom:16px"
+      >
+        <el-card
+          class="agent-card"
+          :class="{ disabled: !agent.enabled }"
+          shadow="hover"
+        >
           <template #header>
             <div class="agent-header">
               <span class="agent-icon">{{ CAT_ICONS[agent.category] || '🤖' }}</span>
               <div style="flex:1;min-width:0">
-                <div class="agent-name">{{ agent.name }}</div>
-                <div class="agent-cat">{{ CAT_LABELS[agent.category] || agent.category }}</div>
+                <div class="agent-name">
+                  {{ agent.name }}
+                </div>
+                <div class="agent-cat">
+                  {{ CAT_LABELS[agent.category] || agent.category }}
+                </div>
               </div>
-              <el-switch v-model="agent.enabled" size="small" @change="(v: boolean) => toggleAgent(agent, v)" />
+              <el-switch
+                v-model="agent.enabled"
+                size="small"
+                @change="(v: boolean) => toggleAgent(agent, v)"
+              />
             </div>
           </template>
 
           <div class="agent-body">
-            <div class="agent-desc">{{ agent.description || '暂无描述' }}</div>
+            <div class="agent-desc">
+              {{ agent.description || '暂无描述' }}
+            </div>
             <el-divider style="margin:8px 0" />
             <div class="agent-stats">
               <div class="agent-stat-item">
                 <span class="stat-label">模型</span>
-                <el-tag size="small" type="info">{{ agent.model || '默认' }}</el-tag>
+                <el-tag
+                  size="small"
+                  type="info"
+                >
+                  {{ agent.model || '默认' }}
+                </el-tag>
               </div>
               <div class="agent-stat-item">
                 <span class="stat-label">调用</span>
@@ -79,69 +153,207 @@
               </div>
             </div>
             <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-              <el-tag v-if="agent.isFree" size="small" type="success">免费</el-tag>
-              <el-tag v-else size="small" type="warning">¥{{ agent.price }}</el-tag>
-              <el-tag v-if="agent.type" size="small">{{ agent.type }}</el-tag>
-              <el-tag v-if="agent.scene" size="small" type="info">{{ agent.scene }}</el-tag>
+              <el-tag
+                v-if="agent.isFree"
+                size="small"
+                type="success"
+              >
+                免费
+              </el-tag>
+              <el-tag
+                v-else
+                size="small"
+                type="warning"
+              >
+                ¥{{ agent.price }}
+              </el-tag>
+              <el-tag
+                v-if="agent.type"
+                size="small"
+              >
+                {{ agent.type }}
+              </el-tag>
+              <el-tag
+                v-if="agent.scene"
+                size="small"
+                type="info"
+              >
+                {{ agent.scene }}
+              </el-tag>
             </div>
           </div>
 
           <div style="margin-top:10px;display:flex;gap:6px">
-            <el-button size="small" type="primary" @click="viewDetail(agent)">详情</el-button>
-            <el-button size="small" @click="viewLogs(agent)">日志</el-button>
-            <el-button v-if="agent.configurable" size="small" @click="configAgent(agent)">配置</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="viewDetail(agent)"
+            >
+              详情
+            </el-button>
+            <el-button
+              size="small"
+              @click="viewLogs(agent)"
+            >
+              日志
+            </el-button>
+            <el-button
+              v-if="agent.configurable"
+              size="small"
+              @click="configAgent(agent)"
+            >
+              配置
+            </el-button>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 智能体详情对话框 -->
-    <el-dialog v-model="detailVisible" title="智能体详情" width="650px">
+    <el-dialog
+      v-model="detailVisible"
+      title="智能体详情"
+      width="650px"
+    >
       <template v-if="detailAgent">
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="名称" :span="2">{{ detailAgent.name }}</el-descriptions-item>
-          <el-descriptions-item label="类别">{{ CAT_LABELS[detailAgent.category] || detailAgent.category }}</el-descriptions-item>
+        <el-descriptions
+          :column="2"
+          border
+          size="small"
+        >
+          <el-descriptions-item
+            label="名称"
+            :span="2"
+          >
+            {{ detailAgent.name }}
+          </el-descriptions-item>
+          <el-descriptions-item label="类别">
+            {{ CAT_LABELS[detailAgent.category] || detailAgent.category }}
+          </el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="detailAgent.enabled ? 'success' : 'info'">{{ detailAgent.enabled ? '运行中' : '已停用' }}</el-tag>
+            <el-tag :type="detailAgent.enabled ? 'success' : 'info'">
+              {{ detailAgent.enabled ? '运行中' : '已停用' }}
+            </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="模型">{{ detailAgent.model || '默认路由' }}</el-descriptions-item>
-          <el-descriptions-item label="调用次数">{{ (detailAgent.callCount || 0).toLocaleString() }}</el-descriptions-item>
-          <el-descriptions-item label="成功率">{{ detailAgent.successRate || 0 }}%</el-descriptions-item>
-          <el-descriptions-item label="今日调用">{{ (detailAgent.todayCalls || 0).toLocaleString() }}</el-descriptions-item>
-          <el-descriptions-item label="类型">{{ detailAgent.type || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="模型">
+            {{ detailAgent.model || '默认路由' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="调用次数">
+            {{ (detailAgent.callCount || 0).toLocaleString() }}
+          </el-descriptions-item>
+          <el-descriptions-item label="成功率">
+            {{ detailAgent.successRate || 0 }}%
+          </el-descriptions-item>
+          <el-descriptions-item label="今日调用">
+            {{ (detailAgent.todayCalls || 0).toLocaleString() }}
+          </el-descriptions-item>
+          <el-descriptions-item label="类型">
+            {{ detailAgent.type || '-' }}
+          </el-descriptions-item>
           <el-descriptions-item label="免费/付费">
-            <el-tag :type="detailAgent.isFree ? 'success' : 'warning'" size="small">{{ detailAgent.isFree ? '免费' : '付费' }}</el-tag>
+            <el-tag
+              :type="detailAgent.isFree ? 'success' : 'warning'"
+              size="small"
+            >
+              {{ detailAgent.isFree ? '免费' : '付费' }}
+            </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item v-if="!detailAgent.isFree" label="价格">¥{{ detailAgent.price }}</el-descriptions-item>
-          <el-descriptions-item label="描述" :span="2">{{ detailAgent.description || '暂无描述' }}</el-descriptions-item>
-          <el-descriptions-item v-if="detailAgent.scene" label="AI场景">{{ detailAgent.scene }}</el-descriptions-item>
-          <el-descriptions-item v-if="detailAgent.frequency" label="执行频率">{{ detailAgent.frequency }}</el-descriptions-item>
+          <el-descriptions-item
+            v-if="!detailAgent.isFree"
+            label="价格"
+          >
+            ¥{{ detailAgent.price }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            label="描述"
+            :span="2"
+          >
+            {{ detailAgent.description || '暂无描述' }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailAgent.scene"
+            label="AI场景"
+          >
+            {{ detailAgent.scene }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailAgent.frequency"
+            label="执行频率"
+          >
+            {{ detailAgent.frequency }}
+          </el-descriptions-item>
         </el-descriptions>
       </template>
     </el-dialog>
 
     <!-- 调用日志 -->
-    <el-dialog v-model="logsVisible" title="智能体调用日志" width="900px">
-      <el-table :data="agentLogs" stripe size="small" v-loading="logsLoading" max-height="400">
-        <el-table-column label="用户" width="120" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.userId || '匿名' }}</template>
-        </el-table-column>
-        <el-table-column label="输入" min-width="180" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.query?.substring(0, 80) || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="输出" min-width="180" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.response?.substring(0, 80) || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="延迟" width="75">
-          <template #default="{ row }">{{ row.latencyMs ? row.latencyMs + 'ms' : '-' }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="70">
+    <el-dialog
+      v-model="logsVisible"
+      title="智能体调用日志"
+      width="900px"
+    >
+      <el-table
+        v-loading="logsLoading"
+        :data="agentLogs"
+        stripe
+        size="small"
+        max-height="400"
+      >
+        <el-table-column
+          label="用户"
+          width="120"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small">{{ row.status || 'ok' }}</el-tag>
+            {{ row.userId || '匿名' }}
           </template>
         </el-table-column>
-        <el-table-column label="时间" width="160">
-          <template #default="{ row }">{{ fmt(row.createdAt) }}</template>
+        <el-table-column
+          label="输入"
+          min-width="180"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.query?.substring(0, 80) || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="输出"
+          min-width="180"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.response?.substring(0, 80) || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="延迟"
+          width="75"
+        >
+          <template #default="{ row }">
+            {{ row.latencyMs ? row.latencyMs + 'ms' : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="状态"
+          width="70"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="row.status === 'success' ? 'success' : 'danger'"
+              size="small"
+            >
+              {{ row.status || 'ok' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="时间"
+          width="160"
+        >
+          <template #default="{ row }">
+            {{ fmt(row.createdAt) }}
+          </template>
         </el-table-column>
       </el-table>
     </el-dialog>

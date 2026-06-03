@@ -2,44 +2,101 @@
   <div class="page">
     <div class="page-header">
       <h3>AI调用日志与成本追踪</h3>
-      <el-button @click="refresh">刷新</el-button>
+      <el-button @click="refresh">
+        刷新
+      </el-button>
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.totalCalls?.toLocaleString() || 0 }}</span><span class="label">总调用次数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.totalCalls?.toLocaleString() || 0 }}</span><span class="label">总调用次数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.todayCalls?.toLocaleString() || 0 }}</span><span class="label">今日调用</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.todayCalls?.toLocaleString() || 0 }}</span><span class="label">今日调用</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ formatTokens(stats.todayTokens) }}</span><span class="label">今日Token</span></div>
+        <div class="stat-card">
+          <span class="value">{{ formatTokens(stats.todayTokens) }}</span><span class="label">今日Token</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">¥{{ estimatedCost.toFixed(2) }}</span><span class="label">今日估算费用</span></div>
+        <div class="stat-card">
+          <span class="value">¥{{ estimatedCost.toFixed(2) }}</span><span class="label">今日估算费用</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card info"><span class="value">{{ stats.successRate || 0 }}%</span><span class="label">成功率</span></div>
+        <div class="stat-card info">
+          <span class="value">{{ stats.successRate || 0 }}%</span><span class="label">成功率</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card warn"><span class="value">{{ alerts.length }}</span><span class="label">异常告警</span></div>
+        <div class="stat-card warn">
+          <span class="value">{{ alerts.length }}</span><span class="label">异常告警</span>
+        </div>
       </el-col>
     </el-row>
 
     <!-- 筛选栏 -->
     <el-card style="margin-bottom:16px">
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <el-select v-model="filters.scene" placeholder="场景" size="small" clearable style="width:160px" @change="fetchLogs">
-          <el-option v-for="s in sceneOptions" :key="s" :label="s" :value="s" />
+        <el-select
+          v-model="filters.scene"
+          placeholder="场景"
+          size="small"
+          clearable
+          style="width:160px"
+          @change="fetchLogs"
+        >
+          <el-option
+            v-for="s in sceneOptions"
+            :key="s"
+            :label="s"
+            :value="s"
+          />
         </el-select>
-        <el-select v-model="filters.model" placeholder="模型" size="small" clearable style="width:180px" @change="fetchLogs">
-          <el-option v-for="m in modelOptions" :key="m.value" :label="m.label" :value="m.value" />
+        <el-select
+          v-model="filters.model"
+          placeholder="模型"
+          size="small"
+          clearable
+          style="width:180px"
+          @change="fetchLogs"
+        >
+          <el-option
+            v-for="m in modelOptions"
+            :key="m.value"
+            :label="m.label"
+            :value="m.value"
+          />
         </el-select>
-        <el-select v-model="filters.status" placeholder="状态" size="small" clearable style="width:110px" @change="fetchLogs">
-          <el-option label="成功" value="success" />
-          <el-option label="失败" value="error" />
-          <el-option label="超时" value="timeout" />
+        <el-select
+          v-model="filters.status"
+          placeholder="状态"
+          size="small"
+          clearable
+          style="width:110px"
+          @change="fetchLogs"
+        >
+          <el-option
+            label="成功"
+            value="success"
+          />
+          <el-option
+            label="失败"
+            value="error"
+          />
+          <el-option
+            label="超时"
+            value="timeout"
+          />
         </el-select>
         <el-date-picker
           v-model="filters.dateRange"
@@ -51,57 +108,123 @@
           style="width:260px"
           @change="fetchLogs"
         />
-        <el-button size="small" @click="fetchLogs">搜索</el-button>
-        <el-button size="small" @click="exportCSV">导出CSV</el-button>
+        <el-button
+          size="small"
+          @click="fetchLogs"
+        >
+          搜索
+        </el-button>
+        <el-button
+          size="small"
+          @click="exportCSV"
+        >
+          导出CSV
+        </el-button>
       </div>
     </el-card>
 
     <!-- Token用量趋势 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="14">
         <el-card>
-          <template #header><span>Token用量趋势（近7天）</span></template>
-          <div ref="trendChartRef" style="height:280px" />
+          <template #header>
+            <span>Token用量趋势（近7天）</span>
+          </template>
+          <div
+            ref="trendChartRef"
+            style="height:280px"
+          />
         </el-card>
       </el-col>
       <el-col :span="10">
         <el-card>
-          <template #header><span>场景分布（今日）</span></template>
-          <div ref="sceneChartRef" style="height:280px" />
+          <template #header>
+            <span>场景分布（今日）</span>
+          </template>
+          <div
+            ref="sceneChartRef"
+            style="height:280px"
+          />
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 调用日志表 -->
     <el-card>
-      <template #header><span>调用日志</span></template>
-      <el-table :data="logs" stripe size="small" v-loading="loading" max-height="500">
-        <el-table-column label="场景" width="160" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.scene || '-' }}</template>
+      <template #header>
+        <span>调用日志</span>
+      </template>
+      <el-table
+        v-loading="loading"
+        :data="logs"
+        stripe
+        size="small"
+        max-height="500"
+      >
+        <el-table-column
+          label="场景"
+          width="160"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.scene || '-' }}
+          </template>
         </el-table-column>
-        <el-table-column label="模型" width="180" prop="modelName" show-overflow-tooltip />
-        <el-table-column label="Token" width="110">
+        <el-table-column
+          label="模型"
+          width="180"
+          prop="modelName"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="Token"
+          width="110"
+        >
           <template #default="{ row }">
             <span v-if="row.tokenUsage">P:{{ row.tokenUsage.promptTokens }} C:{{ row.tokenUsage.completionTokens }}</span>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="估算费用" width="90">
+        <el-table-column
+          label="估算费用"
+          width="90"
+        >
           <template #default="{ row }">
             <span v-if="row.tokenUsage">¥{{ calcCost(row.modelName, row.tokenUsage).toFixed(4) }}</span>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="延迟" width="70">
-          <template #default="{ row }">{{ row.latencyMs ? row.latencyMs + 'ms' : '-' }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="70">
+        <el-table-column
+          label="延迟"
+          width="70"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small">{{ row.status || 'ok' }}</el-tag>
+            {{ row.latencyMs ? row.latencyMs + 'ms' : '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="时间" width="160">
-          <template #default="{ row }">{{ fmt(row.createdAt) }}</template>
+        <el-table-column
+          label="状态"
+          width="70"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="row.status === 'success' ? 'success' : 'danger'"
+              size="small"
+            >
+              {{ row.status || 'ok' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="时间"
+          width="160"
+        >
+          <template #default="{ row }">
+            {{ fmt(row.createdAt) }}
+          </template>
         </el-table-column>
       </el-table>
       <el-pagination
@@ -115,20 +238,48 @@
     </el-card>
 
     <!-- 异常告警 -->
-    <el-card v-if="alerts.length" style="margin-top:16px">
-      <template #header><span>异常告警 ({{ alerts.length }})</span></template>
-      <el-table :data="alerts" stripe size="small">
-        <el-table-column prop="type" label="类型" width="100" />
-        <el-table-column prop="title" label="标题" min-width="200" />
-        <el-table-column label="级别" width="80">
+    <el-card
+      v-if="alerts.length"
+      style="margin-top:16px"
+    >
+      <template #header>
+        <span>异常告警 ({{ alerts.length }})</span>
+      </template>
+      <el-table
+        :data="alerts"
+        stripe
+        size="small"
+      >
+        <el-table-column
+          prop="type"
+          label="类型"
+          width="100"
+        />
+        <el-table-column
+          prop="title"
+          label="标题"
+          min-width="200"
+        />
+        <el-table-column
+          label="级别"
+          width="80"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.level === 'CRITICAL' ? 'danger' : row.level === 'WARN' ? 'warning' : 'info'" size="small">
+            <el-tag
+              :type="row.level === 'CRITICAL' ? 'danger' : row.level === 'WARN' ? 'warning' : 'info'"
+              size="small"
+            >
               {{ row.level }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="时间" width="160">
-          <template #default="{ row }">{{ fmt(row.createdAt) }}</template>
+        <el-table-column
+          label="时间"
+          width="160"
+        >
+          <template #default="{ row }">
+            {{ fmt(row.createdAt) }}
+          </template>
         </el-table-column>
       </el-table>
     </el-card>

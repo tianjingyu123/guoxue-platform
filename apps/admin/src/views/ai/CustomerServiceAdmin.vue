@@ -3,51 +3,105 @@
     <div class="page-header">
       <h3>智能客服管理</h3>
       <div>
-        <el-button type="primary" :loading="savingFaq" @click="saveFaq">保存FAQ</el-button>
-        <el-button @click="refresh">刷新</el-button>
+        <el-button
+          type="primary"
+          :loading="savingFaq"
+          @click="saveFaq"
+        >
+          保存FAQ
+        </el-button>
+        <el-button @click="refresh">
+          刷新
+        </el-button>
       </div>
     </div>
 
     <!-- 统计 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.totalConversations?.toLocaleString() || 0 }}</span><span class="label">总对话数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.totalConversations?.toLocaleString() || 0 }}</span><span class="label">总对话数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.todayConversations?.toLocaleString() || 0 }}</span><span class="label">今日对话</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.todayConversations?.toLocaleString() || 0 }}</span><span class="label">今日对话</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card info"><span class="value">{{ stats.faqCount }}</span><span class="label">FAQ条目</span></div>
+        <div class="stat-card info">
+          <span class="value">{{ stats.faqCount }}</span><span class="label">FAQ条目</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.autoResolveRate || 0 }}%</span><span class="label">自动解决率</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.autoResolveRate || 0 }}%</span><span class="label">自动解决率</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card warn"><span class="value">{{ stats.humanTransferCount || 0 }}</span><span class="label">转人工次数</span></div>
+        <div class="stat-card warn">
+          <span class="value">{{ stats.humanTransferCount || 0 }}</span><span class="label">转人工次数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.avgResponseMs || 0 }}ms</span><span class="label">平均响应</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.avgResponseMs || 0 }}ms</span><span class="label">平均响应</span>
+        </div>
       </el-col>
     </el-row>
 
     <el-tabs v-model="activeTab">
       <!-- FAQ 管理 -->
-      <el-tab-pane label="FAQ管理" name="faq">
+      <el-tab-pane
+        label="FAQ管理"
+        name="faq"
+      >
         <el-row :gutter="16">
           <el-col :span="10">
             <el-card>
               <template #header>
                 <div style="display:flex;justify-content:space-between;align-items:center">
                   <span>FAQ分类列表</span>
-                  <el-button size="small" @click="addCategory">+ 添加分类</el-button>
+                  <el-button
+                    size="small"
+                    @click="addCategory"
+                  >
+                    + 添加分类
+                  </el-button>
                 </div>
               </template>
-              <div v-for="(entries, cat) in faqData" :key="cat" class="faq-cat-item">
+              <div
+                v-for="(entries, cat) in faqData"
+                :key="cat"
+                class="faq-cat-item"
+              >
                 <div class="faq-cat-header">
-                  <el-input v-model="faqCatNames[cat]" size="small" style="width:140px;font-weight:600" />
-                  <el-tag size="small">{{ entries.length }}条</el-tag>
-                  <el-button size="small" type="primary" @click="addFaqEntry(cat)">+ 条目</el-button>
-                  <el-button size="small" type="danger" circle @click="deleteCategory(cat)">✕</el-button>
+                  <el-input
+                    v-model="faqCatNames[cat]"
+                    size="small"
+                    style="width:140px;font-weight:600"
+                  />
+                  <el-tag size="small">
+                    {{ entries.length }}条
+                  </el-tag>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    @click="addFaqEntry(cat)"
+                  >
+                    + 条目
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="danger"
+                    circle
+                    @click="deleteCategory(cat)"
+                  >
+                    ✕
+                  </el-button>
                 </div>
               </div>
             </el-card>
@@ -57,86 +111,222 @@
               <template #header>
                 <span>{{ faqCatNames[editingCat] || editingCat }} — 条目编辑</span>
               </template>
-              <div v-for="(entry, idx) in (faqData[editingCat] || [])" :key="idx" class="faq-entry">
+              <div
+                v-for="(entry, idx) in (faqData[editingCat] || [])"
+                :key="idx"
+                class="faq-entry"
+              >
                 <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px">
                   <div style="flex:1">
-                    <el-input v-model="entry.q" placeholder="问题" size="small" style="margin-bottom:4px" />
-                    <el-input v-model="entry.a" placeholder="答案" type="textarea" :rows="2" size="small" />
+                    <el-input
+                      v-model="entry.q"
+                      placeholder="问题"
+                      size="small"
+                      style="margin-bottom:4px"
+                    />
+                    <el-input
+                      v-model="entry.a"
+                      placeholder="答案"
+                      type="textarea"
+                      :rows="2"
+                      size="small"
+                    />
                   </div>
-                  <el-button size="small" type="danger" circle @click="removeFaqEntry(editingCat!, idx)">✕</el-button>
+                  <el-button
+                    size="small"
+                    type="danger"
+                    circle
+                    @click="removeFaqEntry(editingCat!, idx)"
+                  >
+                    ✕
+                  </el-button>
                 </div>
               </div>
-              <el-button size="small" @click="addFaqEntry(editingCat!)" v-if="(faqData[editingCat!] || []).length === 0">
+              <el-button
+                v-if="(faqData[editingCat!] || []).length === 0"
+                size="small"
+                @click="addFaqEntry(editingCat!)"
+              >
                 添加第一条FAQ
               </el-button>
             </el-card>
-            <el-empty v-else description="选择左侧分类进行编辑" :image-size="60" />
+            <el-empty
+              v-else
+              description="选择左侧分类进行编辑"
+              :image-size="60"
+            />
           </el-col>
         </el-row>
       </el-tab-pane>
 
       <!-- 转人工规则 -->
-      <el-tab-pane label="转人工规则" name="rules">
+      <el-tab-pane
+        label="转人工规则"
+        name="rules"
+      >
         <el-card>
-          <template #header><span>转人工触发条件</span></template>
-          <el-form :model="transferRules" label-width="160px" size="small">
+          <template #header>
+            <span>转人工触发条件</span>
+          </template>
+          <el-form
+            :model="transferRules"
+            label-width="160px"
+            size="small"
+          >
             <el-form-item label="关键词触发">
-              <el-input v-model="transferRules.keywordsStr" placeholder="逗号分隔，如：退款,投诉,举报,人工" />
+              <el-input
+                v-model="transferRules.keywordsStr"
+                placeholder="逗号分隔，如：退款,投诉,举报,人工"
+              />
               <span style="font-size:11px;color:#909399">用户消息包含这些关键词时自动转人工</span>
             </el-form-item>
             <el-form-item label="AI置信度低于阈值">
-              <el-input-number v-model="transferRules.lowConfidenceThreshold" :min="0" :max="1" :step="0.1" :precision="2" />
+              <el-input-number
+                v-model="transferRules.lowConfidenceThreshold"
+                :min="0"
+                :max="1"
+                :step="0.1"
+                :precision="2"
+              />
               <span style="margin-left:8px;font-size:11px;color:#909399">当AI无法从知识库找到相关内容时</span>
             </el-form-item>
             <el-form-item label="连续无效回答次数">
-              <el-input-number v-model="transferRules.maxEmptyResponses" :min="1" :max="10" />
+              <el-input-number
+                v-model="transferRules.maxEmptyResponses"
+                :min="1"
+                :max="10"
+              />
               <span style="margin-left:8px;font-size:11px;color:#909399">同一会话中AI连续N次无有效回答时自动转人工</span>
             </el-form-item>
             <el-form-item label="人工客服工作时间">
-              <el-time-picker v-model="transferRules.workHours" is-range range-separator="-" start-placeholder="开始" end-placeholder="结束" />
+              <el-time-picker
+                v-model="transferRules.workHours"
+                is-range
+                range-separator="-"
+                start-placeholder="开始"
+                end-placeholder="结束"
+              />
             </el-form-item>
             <el-form-item label="非工作时间提示语">
-              <el-input v-model="transferRules.offHoursMessage" type="textarea" :rows="2" />
+              <el-input
+                v-model="transferRules.offHoursMessage"
+                type="textarea"
+                :rows="2"
+              />
             </el-form-item>
             <el-form-item label="转人工后推送卡片">
-              <el-switch v-model="transferRules.pushCard" active-text="推送内容推荐卡片" />
+              <el-switch
+                v-model="transferRules.pushCard"
+                active-text="推送内容推荐卡片"
+              />
             </el-form-item>
           </el-form>
-          <el-button type="primary" size="small" @click="saveRules" style="margin-top:12px">保存规则</el-button>
+          <el-button
+            type="primary"
+            size="small"
+            style="margin-top:12px"
+            @click="saveRules"
+          >
+            保存规则
+          </el-button>
         </el-card>
       </el-tab-pane>
 
       <!-- 对话监控 -->
-      <el-tab-pane label="对话监控" name="monitor">
+      <el-tab-pane
+        label="对话监控"
+        name="monitor"
+      >
         <el-card>
           <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
-            <el-input v-model="monitorKeyword" placeholder="搜索对话内容" size="small" style="width:240px" clearable />
-            <el-select v-model="monitorStatus" placeholder="状态" size="small" clearable style="width:130px">
-              <el-option label="已解决" value="resolved" />
-              <el-option label="转人工" value="transferred" />
-              <el-option label="未解决" value="unresolved" />
+            <el-input
+              v-model="monitorKeyword"
+              placeholder="搜索对话内容"
+              size="small"
+              style="width:240px"
+              clearable
+            />
+            <el-select
+              v-model="monitorStatus"
+              placeholder="状态"
+              size="small"
+              clearable
+              style="width:130px"
+            >
+              <el-option
+                label="已解决"
+                value="resolved"
+              />
+              <el-option
+                label="转人工"
+                value="transferred"
+              />
+              <el-option
+                label="未解决"
+                value="unresolved"
+              />
             </el-select>
-            <el-button size="small" @click="fetchConversations">搜索</el-button>
+            <el-button
+              size="small"
+              @click="fetchConversations"
+            >
+              搜索
+            </el-button>
           </div>
-          <el-table :data="conversations" stripe size="small" v-loading="convLoading" max-height="400">
-            <el-table-column label="用户" width="150" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.userId || '匿名' }}</template>
-            </el-table-column>
-            <el-table-column label="问题" min-width="200" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.question?.substring(0, 80) || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="回答" min-width="200" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.answer?.substring(0, 80) || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="状态" width="90">
+          <el-table
+            v-loading="convLoading"
+            :data="conversations"
+            stripe
+            size="small"
+            max-height="400"
+          >
+            <el-table-column
+              label="用户"
+              width="150"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
-                <el-tag :type="row.resolved ? 'success' : row.transferred ? 'warning' : 'info'" size="small">
+                {{ row.userId || '匿名' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="问题"
+              min-width="200"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ row.question?.substring(0, 80) || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="回答"
+              min-width="200"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ row.answer?.substring(0, 80) || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="状态"
+              width="90"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.resolved ? 'success' : row.transferred ? 'warning' : 'info'"
+                  size="small"
+                >
                   {{ row.resolved ? '已解决' : row.transferred ? '转人工' : '未解决' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="时间" width="160">
-              <template #default="{ row }">{{ fmt(row.createdAt) }}</template>
+            <el-table-column
+              label="时间"
+              width="160"
+            >
+              <template #default="{ row }">
+                {{ fmt(row.createdAt) }}
+              </template>
             </el-table-column>
           </el-table>
         </el-card>
@@ -238,7 +428,7 @@ async function saveFaq() {
 }
 
 function addCategory() {
-  let name = "新分类"; let n = 1;
+  const name = "新分类"; let n = 1;
   while (faqData.value[name + n]) n++;
   const key = name + n;
   faqData.value[key] = [];
