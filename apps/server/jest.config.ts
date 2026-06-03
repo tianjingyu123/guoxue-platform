@@ -18,7 +18,7 @@ const config: Config = {
       lines: 55,
     },
   },
-  maxWorkers: 1,
+  maxWorkers: "50%",
   coverageProvider: "v8",
   testPathIgnorePatterns: ["<rootDir>/.backup/", ".backup/"],
   testEnvironment: "node",
@@ -34,11 +34,13 @@ const config: Config = {
     }],
   ],
   transformIgnorePatterns: [
-    "node_modules/(?!.*(bullmq|msgpackr)/)",
+    "node_modules/(?!.*(bullmq|msgpackr|@guoxue/shared)/)",
   ],
   moduleNameMapper: {
-    "^@prisma/client$": "<rootDir>/../../node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client",
+    // 用 require.resolve 动态查找，避免硬编码 pnpm 版本号
+    "^@prisma/client$": require.resolve("@prisma/client"),
     "^bcryptjs$": "<rootDir>/../../node_modules/.pnpm/bcryptjs@2.4.3/node_modules/bcryptjs",
+    "^@guoxue/shared$": "<rootDir>/../../packages/shared/src/index.ts",
   },
 };
 

@@ -330,6 +330,30 @@ groups:
       summary: "数据库慢查询激增 > 50/h"
       description: "最近 1 小时慢查询速率 {{ $value }}/s"
 
+  # 4.7 Prisma 连接池使用率 >80%（应用层指标）
+  - alert: PrismaPoolHigh
+    expr: guoxue_db_connection_pool_usage > 0.8
+    for: 5m
+    labels:
+      severity: warning
+      category: database
+    annotations:
+      summary: "Prisma 连接池使用率 > 80%"
+      description: "Prisma 连接池 {{ $value | humanizePercentage }} 已使用，接近连接数上限"
+      runbook: "检查连接泄露（未关闭的事务/长查询），调整 connection_limit 或扩容 DB"
+
+  # 4.8 Prisma 连接池耗尽 >95%
+  - alert: PrismaPoolExhausted
+    expr: guoxue_db_connection_pool_usage > 0.95
+    for: 1m
+    labels:
+      severity: critical
+      category: database
+    annotations:
+      summary: "Prisma 连接池即将耗尽 > 95%"
+      description: "Prisma 连接池 {{ $value | humanizePercentage }}，新请求将阻塞"
+      runbook: "紧急扩容连接池或重启服务；排查是否有未释放的长事务"
+
 # ═══════════ 五、Redis ═══════════
 - name: guoxue-redis
   rules:

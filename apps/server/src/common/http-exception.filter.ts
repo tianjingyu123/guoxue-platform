@@ -40,13 +40,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof BusinessException) {
       status = exception.getStatus();
-      const body = exception.getResponse() as any;
+      const body = exception.getResponse() as { message: string | string[]; errorCode?: number };
       message = body.message;
       errorCode = body.errorCode;
     } else if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exRes = exception.getResponse();
-      const raw = typeof exRes === "string" ? exRes : (exRes as any).message || exception.message;
+      const raw =
+        typeof exRes === "string"
+          ? exRes
+          : (exRes as { message?: string | string[]; statusCode?: number }).message || exception.message;
 
       if (Array.isArray(raw)) {
         message = raw;
@@ -60,11 +63,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      // 第三方库/未知错误
-      message = exception.message || "服务器内部错误";
+      // 第三方库/未知错误 — 不泄露内部错误详情
+      message = "服务器内部错误，请稍后重试";
     }
 
     if (status >= 500) {
+      // 生产环境只记错误类型，不泄露内部堆栈
+      const stack = process.env.NODE_ENV === "production"
+        ? (exception instanceof Error ? exception.name : undefined)
+        : (exception instanceof Error ? exception.stack : undefined);
       this.logger.error(
         {
           method: request.method,
@@ -72,18 +79,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
           status,
           errorCode,
           traceId: RequestContext.traceId(),
-          stack: exception instanceof Error ? exception.stack : undefined,
+          stack,
         },
         `${request.method} ${request.url} → ${status}`,
       );
     }
 
+    const traceId = RequestContext.traceId();
     response.status(status).json({
       code: status,
       errorCode: errorCode ?? status,
       message,
+      traceId,
       timestamp: Date.now(),
       path: request.url,
     });
+    response.setHeader("X-Trace-Id", traceId || "N/A");
   }
 }

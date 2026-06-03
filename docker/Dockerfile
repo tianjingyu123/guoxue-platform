@@ -49,5 +49,8 @@ COPY --from=builder /app/apps/admin/dist ./admin-dist
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- http://localhost:3000/api/v1/health/live || exit 1
+
 EXPOSE 3000
 ENTRYPOINT ["/entrypoint.sh"]
