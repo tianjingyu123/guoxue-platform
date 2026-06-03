@@ -38,7 +38,10 @@
       "multer": "2.1.1",
       "picomatch": "4.0.4",
       "protobufjs": "8.0.2",
-      "glob": "10.5.0"
+      "glob": "10.5.0",
+      "@intlify/core-base": "9.14.5",
+      "@intlify/message-compiler": "9.14.5",
+      "@intlify/shared": "9.14.5"
     }
   },
   "devDependencies": {
