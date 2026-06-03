@@ -1,7 +1,10 @@
 <template>
   <div :class="['chat-bubble', message.role]">
     <!-- AI 水印 -->
-    <div v-if="message.role === 'assistant'" class="bubble-ai-badge">
+    <div
+      v-if="message.role === 'assistant'"
+      class="bubble-ai-badge"
+    >
       <el-icon><Cpu /></el-icon>
       <span>AI</span>
     </div>
@@ -9,17 +12,29 @@
     <!-- 消息内容 -->
     <div class="bubble-body">
       <!-- 流式输出中：显示原始文本 + 光标动画 -->
-      <div v-if="message.isStreaming" class="bubble-text streaming">
-        <span v-html="renderedContent"></span>
+      <div
+        v-if="message.isStreaming"
+        class="bubble-text streaming"
+      >
+        <span v-html="renderedContent" />
         <span class="cursor-blink">|</span>
       </div>
 
       <!-- 完整消息：Markdown 渲染 -->
-      <div v-else class="bubble-text" v-html="renderedContent"></div>
+      <div
+        v-else
+        class="bubble-text"
+        v-html="renderedContent"
+      />
 
       <!-- 参考来源 -->
-      <div v-if="showSources && message.sources?.length" class="bubble-sources">
-        <div class="sources-title">参考来源</div>
+      <div
+        v-if="showSources && message.sources?.length"
+        class="bubble-sources"
+      >
+        <div class="sources-title">
+          参考来源
+        </div>
         <div
           v-for="s in message.sources"
           :key="s.index"
@@ -28,23 +43,35 @@
         >
           <sup>[{{ s.index + 1 }}]</sup>
           <span class="source-title">{{ s.title }}</span>
-          <span v-if="s.excerpt" class="source-excerpt"> — {{ s.excerpt.slice(0, 80) }}{{ s.excerpt.length > 80 ? '...' : '' }}</span>
+          <span
+            v-if="s.excerpt"
+            class="source-excerpt"
+          > — {{ s.excerpt.slice(0, 80) }}{{ s.excerpt.length > 80 ? '...' : '' }}</span>
         </div>
       </div>
 
       <!-- Token 用量 -->
-      <div v-if="message.usage" class="bubble-usage">
+      <div
+        v-if="message.usage"
+        class="bubble-usage"
+      >
         {{ message.usage.promptTokens ?? '?' }} ↑ / {{ message.usage.completionTokens ?? '?' }} ↓ tokens
       </div>
 
       <!-- 时间 -->
-      <div v-if="message.createdAt && !message.isStreaming" class="bubble-time">
+      <div
+        v-if="message.createdAt && !message.isStreaming"
+        class="bubble-time"
+      >
         {{ formatTime(message.createdAt) }}
       </div>
     </div>
 
     <!-- 操作按钮 -->
-    <div v-if="showFeedback && message.role === 'assistant' && !message.isStreaming" class="bubble-actions">
+    <div
+      v-if="showFeedback && message.role === 'assistant' && !message.isStreaming"
+      class="bubble-actions"
+    >
       <el-button
         size="small"
         text
