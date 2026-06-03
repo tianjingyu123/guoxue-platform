@@ -15,15 +15,15 @@ export class LoggingInterceptor implements NestInterceptor {
     const activeSpan = trace.getActiveSpan();
     const traceId =
       req.headers["x-trace-id"] as string ||
-      (req as any).traceId ||
+      req.traceId ||
       activeSpan?.spanContext().traceId ||
       "00000000000000000000000000000000";
-    (req as any).traceId = traceId;
+    req.traceId = traceId;
 
     const ctx = {
       traceId,
-      userId: (req as any).user?.id,
-      stationId: (req as any).stationId as string | undefined,
+      userId: req.user?.id,
+      stationId: req.stationId,
       path: url,
       method,
     };

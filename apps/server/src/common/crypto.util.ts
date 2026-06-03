@@ -36,7 +36,7 @@ export function decrypt(ciphertext: string): string {
     return decipher.update(encrypted) + decipher.final("utf8");
   } catch (err) {
     // 解密失败时返回原文（兼容明文存储的旧数据）
-    console.warn(`数据解密失败，返回原文: ${(err as Error).message}`);
+    process.stderr.write(`[Crypto] 数据解密失败: ${(err as Error).message}\n`);
     return ciphertext;
   }
 }

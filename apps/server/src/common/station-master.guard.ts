@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext } from "@nestjs/common";
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 
 /**
@@ -13,13 +13,13 @@ export class StationMasterGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-    if (!user) return false;
+    if (!user) throw new ForbiddenException("请先登录");
 
     const stationId =
       request.params.stationId ||
       request.query.stationId ||
       request.headers["x-station-id"];
-    if (!stationId) return false;
+    if (!stationId) throw new ForbiddenException("缺少分站信息");
 
     if (user.roles?.includes("SUPER_ADMIN")) return true;
 
@@ -31,6 +31,7 @@ export class StationMasterGuard implements CanActivate {
       },
     });
 
-    return !!role;
+    if (!role) throw new ForbiddenException("无分站管理权限");
+    return true;
   }
 }

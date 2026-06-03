@@ -13,6 +13,10 @@ export function generateCsv<T>(rows: T[], columns: CsvColumn<T>[]): string {
 }
 
 function escapeCsvField(value: string): string {
+  // 防止 CSV 公式注入：以 = + - @ 开头的值加单引号前缀
+  if (/^[=+\-@]/.test(value)) {
+    value = `'${value}`;
+  }
   if (value.includes(",") || value.includes('"') || value.includes("\n") || value.includes("\r")) {
     return `"${value.replace(/"/g, '""')}"`;
   }

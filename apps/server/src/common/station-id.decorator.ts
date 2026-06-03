@@ -16,6 +16,6 @@ export const StationId = createParamDecorator(
     // 兼容旧版：Header/Query 作为 fallback（管理员或未启用隔离的端点）
     const headerId = request.headers["x-station-id"] as string | undefined;
     if (headerId) return headerId;
-    return (request.query as any)?.stationId || undefined;
+    return request.query?.stationId as string | undefined;
   },
 );

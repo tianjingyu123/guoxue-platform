@@ -5,24 +5,13 @@ import {
   ExecutionContext,
   HttpException,
   HttpStatus,
+  OnModuleDestroy,
 } from "@nestjs/common";
+import { isWhitelisted } from "./rate-limit-whitelist";
 
 interface RateLimitEntry {
   count: number;
   resetAt: number;
-}
-
-/** 限流白名单：本地环回 + 内网管理端 */
-const RATE_LIMIT_WHITELIST = new Set([
-  "127.0.0.1",
-  "::1",
-  "::ffff:127.0.0.1",
-]);
-
-function isWhitelisted(ip: string): boolean {
-  if (RATE_LIMIT_WHITELIST.has(ip)) return true;
-  if (ip.startsWith("192.168.")) return true;
-  return false;
 }
 
 /**
@@ -30,7 +19,7 @@ function isWhitelisted(ip: string): boolean {
  * 默认：单个 IP 每 60 秒最多 30 次请求
  */
 @Injectable()
-export class ThrottleGuard implements CanActivate {
+export class ThrottleGuard implements CanActivate, OnModuleDestroy {
   private readonly store = new Map<string, RateLimitEntry>();
 
   // 每 60 秒清理一次过期记录
@@ -79,6 +68,13 @@ export class ThrottleGuard implements CanActivate {
     }
 
     return true;
+  }
+
+  onModuleDestroy() {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null!;
+    }
   }
 
   private cleanup() {

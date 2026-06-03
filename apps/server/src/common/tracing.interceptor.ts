@@ -11,7 +11,7 @@ export class TracingInterceptor implements NestInterceptor {
 
     if (activeSpan) {
       const { method, url, route } = req;
-      const userId = (req as any).user?.id;
+      const userId = req.user?.id;
 
       activeSpan.setAttribute("http.method", method);
       activeSpan.setAttribute("http.url", url);

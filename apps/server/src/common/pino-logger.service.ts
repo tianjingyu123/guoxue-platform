@@ -51,7 +51,7 @@ export class PinoLoggerService implements LoggerService {
         log(obj) {
           // 注入当前请求的 traceId
           const traceId = RequestContext.traceId();
-          if (traceId) (obj as any).traceId = traceId;
+          if (traceId) (obj as Record<string, unknown>).traceId = traceId;
           return obj;
         },
       },

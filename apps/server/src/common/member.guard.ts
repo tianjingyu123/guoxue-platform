@@ -37,13 +37,13 @@ export class MemberGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
-    if (!user) return false;
+    if (!user) throw new ForbiddenException("会员专享功能");
 
     const dbUser = await this.prisma.user.findUnique({
       where: { id: user.id },
       select: { memberLevel: true, memberExpire: true },
     });
-    if (!dbUser) return false;
+    if (!dbUser) throw new ForbiddenException("会员专享功能");
 
     const now = new Date();
     const isActive =

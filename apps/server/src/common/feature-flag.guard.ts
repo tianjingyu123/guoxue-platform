@@ -19,8 +19,8 @@ export class FeatureFlagGuard implements CanActivate {
 
     if (!key) return true; // 没有装饰器标注则放行
 
-    const request = context.switchToHttp().getRequest();
-    const userId = (request as any).user?.id;
+    const request = context.switchToHttp().getRequest<import("express").Request>();
+    const userId = request.user?.id;
 
     const enabled = await this.featureFlag.isEnabled(key, userId);
     if (!enabled) {
