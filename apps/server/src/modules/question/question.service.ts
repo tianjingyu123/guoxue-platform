@@ -50,6 +50,7 @@ export class QuestionService {
     return this.prisma.paidQuestion.create({
       data: {
         circleId: dto.circleId,
+        stationId: (dto as any).stationId || circle.stationId || null,
         askerId: userId,
         answererId: dto.answererId,
         question: questionText,
@@ -193,6 +194,7 @@ export class QuestionService {
     const where: Prisma.PaidQuestionWhereInput = {};
     if (dto.circleId) where.circleId = dto.circleId;
     if (dto.status) where.status = dto.status;
+    if ((dto as any).stationId !== undefined) where.stationId = (dto as any).stationId || null;
 
     const [questions, total] = await Promise.all([
       this.prisma.paidQuestion.findMany({

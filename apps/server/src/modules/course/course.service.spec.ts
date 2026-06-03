@@ -3,6 +3,7 @@ import { CourseService } from "./course.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -64,6 +65,17 @@ describe("CourseService", () => {
 
   beforeAll(async () => {
     const mockAiGateway = { chat: jest.fn(), chatStream: jest.fn(), embed: jest.fn() };
+    const mockUnifiedPricing = {
+      calculateTargetPrice: jest.fn().mockResolvedValue({
+        targetId: "co1",
+        targetType: "COURSE",
+        effectivePrice: 50,
+        originalPrice: 50,
+        hasPromotion: false,
+        appliedPromotion: null,
+        activePromotions: [],
+      }),
+    };
 
     const mod = await Test.createTestingModule({
       providers: [
@@ -71,6 +83,7 @@ describe("CourseService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: AiGatewayService, useValue: mockAiGateway },
+        { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
       ],
     }).compile();
     svc = mod.get(CourseService);

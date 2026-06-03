@@ -1,10 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject } from "@nestjs/common";
 import * as fs from "fs";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
-import { StorageProvider, UploadResult } from "./storage.interface";
-import { LocalStorageProvider } from "./local-storage.provider";
-import { CosStorageProvider } from "./cos-storage.provider";
+import { StorageProvider, UploadResult, STORAGE_PROVIDER } from "./storage.interface";
 import { validateImageMagic, validateAudioMagic, validateVideoMagic } from "../../common/file-magic.util";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
@@ -17,12 +15,8 @@ const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200MB
 @Injectable()
 export class UploadService {
   private readonly logger = new Logger(UploadService.name);
-  private provider: StorageProvider;
 
-  constructor() {
-    const useCos = process.env.COS_SECRET_ID && process.env.COS_SECRET_KEY && process.env.COS_BUCKET;
-    this.provider = useCos ? new CosStorageProvider() : new LocalStorageProvider();
-  }
+  constructor(@Inject(STORAGE_PROVIDER) private readonly provider: StorageProvider) {}
 
   async upload(file: Express.Multer.File): Promise<UploadResult> {
     return this.provider.upload(file);

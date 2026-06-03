@@ -87,6 +87,7 @@ export class UpdateProductDto {
 
   @ApiPropertyOptional({ description: "价格（元）" })
   @IsOptional() @IsNumber()
+  @Min(0)
   price?: number;
 
   @ApiPropertyOptional({ description: "库存数量" })
@@ -161,10 +162,12 @@ export class CreateCouponDto {
 
   @ApiProperty({ description: "优惠面值（固定减或折扣率如0.8）" })
   @IsNumber()
+  @Min(0)
   value: number;
 
   @ApiPropertyOptional({ description: "最低消费金额" })
   @IsOptional() @IsNumber()
+  @Min(0)
   minAmount?: number;
 
   @ApiPropertyOptional({ description: "适用范围" })
@@ -210,6 +213,10 @@ export class ProductListQueryDto {
   @ApiPropertyOptional({ description: "驿站ID" })
   @IsOptional() @IsString()
   stationId?: string;
+
+  @ApiPropertyOptional({ description: "商品名称关键词搜索" })
+  @IsOptional() @IsString()
+  keyword?: string;
 }
 
 export class JsapiPayDto {
@@ -283,18 +290,23 @@ export class CreateCouponV2Dto {
 
   @ApiPropertyOptional({ description: "优惠面值" })
   @IsOptional() @IsNumber()
+  @Min(0)
   value?: number;
 
   @ApiPropertyOptional({ description: "固定减免金额" })
   @IsOptional() @IsNumber()
+  @Min(0.01)
   discountAmount?: number;
 
   @ApiPropertyOptional({ description: "折扣率（0-1）" })
   @IsOptional() @IsNumber()
+  @Min(0)
+  @Max(1)
   discountRate?: number;
 
   @ApiPropertyOptional({ description: "最低消费金额" })
   @IsOptional() @IsNumber()
+  @Min(0)
   minAmount?: number;
 
   @ApiPropertyOptional({ description: "适用范围" })

@@ -126,10 +126,6 @@ describe("CourseController", () => {
     expect(result.success).toBe(true);
   });
 
-  it.skip("PUT /courses/:id/audit — 审核课程", () => {
-    // 审核方法已从控制器移除，测试跳过
-  });
-
   // ─── 购买 ───
   it("POST /courses/:id/purchase — 购买课程", async () => {
     const req: any = { user: { id: "u1" } };
@@ -200,10 +196,6 @@ describe("CourseController", () => {
   it("GET /courses/:id/works — 作业列表", async () => {
     const result: any = await ctrl.getWorks("c1", "ch1");
     expect(result).toHaveLength(1);
-  });
-
-  it.skip("PUT /courses/works/:workId/score — 批改作业", () => {
-    // 批改作业方法已从控制器移除，测试跳过
   });
 
   // ─── 评价 ───

@@ -20,7 +20,7 @@ import { serverConfig } from "../../config/server-config";
     PassportModule,
     JwtModule.register({
       secret: serverConfig.jwtSecret,
-      signOptions: { expiresIn: "24h" },
+      signOptions: { expiresIn: "15m" },
     }),
     SystemModule,
     ImModule,

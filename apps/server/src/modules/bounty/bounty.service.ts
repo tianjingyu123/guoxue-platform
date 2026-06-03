@@ -1,6 +1,7 @@
 import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { Prisma } from "@prisma/client";
 import { RedisService } from "../../redis/redis.service";
 import { CoinService } from "../coin/coin.service";
 import { BusinessException } from "../../common/business.exception";
@@ -106,7 +107,7 @@ export class BountyService {
   // ───────── 列表/详情 ─────────
 
   list(page = 1, pageSize = 20, category?: string, status?: string, stationId?: string) {
-    const where: any = {};
+    const where: Prisma.BountyQuestionWhereInput = {};
     if (category) where.category = category;
     if (status) where.status = status;
     if (stationId !== undefined) where.stationId = stationId;

@@ -148,7 +148,7 @@ export class CategoryService implements OnModuleInit {
     }> = [];
 
     for (const level1 of tree) {
-      for (const level2 of (level1 as any).children || []) {
+      for (const level2 of (level1 as { children?: Array<{ id: string; name: string }> }).children || []) {
         const draft = countMap.get(keyFor(level1.name, level2.name, "DRAFT")) ?? 0;
         const published = countMap.get(keyFor(level1.name, level2.name, "PUBLISHED")) ?? 0;
         const total = published + draft;

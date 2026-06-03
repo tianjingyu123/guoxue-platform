@@ -4,6 +4,7 @@ import { ShopCouponService } from "./shop-coupon.service";
 import { WechatPayService } from "./wechat-pay.service";
 import { AlipayService } from "./alipay.service";
 import { UnionpayService } from "./unionpay.service";
+import { PaymentProviderFactory } from "./payment-factory";
 import { LogisticsService } from "./logistics.service";
 import { ShopController } from "./shop.controller";
 import { AddressController } from "./address.controller";
@@ -17,11 +18,12 @@ import { SystemModule } from "../system/system.module";
 import { CoinModule } from "../coin/coin.module";
 import { WebhookModule } from "../webhook/webhook.module";
 import { HuifuModule } from "../huifu/huifu.module";
+import { PricingModule } from "../pricing/pricing.module";
 
 @Module({
-  imports: [CommissionModule, SystemModule, forwardRef(() => CoinModule), WebhookModule, HuifuModule],
+  imports: [CommissionModule, SystemModule, forwardRef(() => CoinModule), WebhookModule, HuifuModule, PricingModule],
   controllers: [ShopController, AddressController, ProductCategoryController],
-  providers: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
+  providers: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, PaymentProviderFactory, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
   exports: [ShopService, ShopCouponService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],
 })
 export class ShopModule {}

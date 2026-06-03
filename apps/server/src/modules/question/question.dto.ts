@@ -44,6 +44,11 @@ export class AskQuestionDto {
   @IsOptional()
   @IsBoolean()
   isPublic?: boolean;
+
+  @ApiPropertyOptional({ description: "分站ID（自动从圈子继承，通常无需手动指定）" })
+  @IsOptional()
+  @IsString()
+  stationId?: string;
 }
 
 export class AnswerQuestionDto {
@@ -91,6 +96,11 @@ export class QuestionQueryDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiPropertyOptional({ description: "分站ID筛选（管理后台分站隔离）" })
+  @IsOptional()
+  @IsString()
+  stationId?: string;
 
   @ApiPropertyOptional({ description: "是否仅公开", default: false })
   @IsOptional()

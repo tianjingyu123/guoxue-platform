@@ -202,6 +202,9 @@ export const MENU_CONFIG: MenuItem[] = [
       { title: "智能客服", path: "/ai/customer-service", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
       { title: "AI内容质量", path: "/ai/content-quality", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       { title: "AI模型路由", path: "/system/ai-gateway", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "AI数据探索", path: "/ai/data-explorer", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "AI异常检测", path: "/ai/anomaly-detector", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      { title: "AI协作审核", path: "/ai/collaborations", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
     ],
   },
   {

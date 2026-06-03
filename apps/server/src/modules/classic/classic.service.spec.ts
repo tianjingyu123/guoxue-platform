@@ -11,7 +11,7 @@ const mockPrisma = {
   classicBook: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn(), delete: jest.fn(), groupBy: jest.fn() },
   classicChapter: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
   readingProgress: { findUnique: jest.fn(), upsert: jest.fn(), findMany: jest.fn(), count: jest.fn() },
-  bookmark: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
+  bookmark: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn(), findFirst: jest.fn() },
   classicAnnotation: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
   $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
 };
@@ -197,13 +197,13 @@ describe("ClassicService", () => {
 
   describe("deleteBookmark", () => {
     it("删除书签成功", async () => {
-      mockPrisma.bookmark.findUnique.mockResolvedValue({ id: "bm-1", userId: "u1" });
+      mockPrisma.bookmark.findFirst.mockResolvedValue({ id: "bm-1", userId: "u1" });
       mockPrisma.bookmark.delete.mockResolvedValue({ id: "bm-1" });
       const result = await svc.deleteBookmark("bm-1", "u1");
       expect(result.id).toBe("bm-1");
     });
     it("书签不存在抛出异常", async () => {
-      mockPrisma.bookmark.findUnique.mockResolvedValue(null);
+      mockPrisma.bookmark.findFirst.mockResolvedValue(null);
       await expect(svc.deleteBookmark("bm-1")).rejects.toThrow("书签不存在");
     });
   });

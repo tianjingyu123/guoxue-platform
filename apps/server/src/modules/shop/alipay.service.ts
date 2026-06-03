@@ -181,6 +181,7 @@ export class AlipayService {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: this.buildParamStr(params) + `&sign=${encodeURIComponent(params.sign)}`,
+        signal: AbortSignal.timeout(15000),
       });
       const duration = Date.now() - start;
       const result = await resp.json() as Record<string, unknown>;

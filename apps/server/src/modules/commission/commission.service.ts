@@ -3,6 +3,7 @@ import { randomInt } from "crypto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { Prisma } from "@prisma/client";
 import { WebhookService } from "../webhook/webhook.service";
 import { SystemService } from "../system/system.service";
 import { MemoryCache } from "../../common/cache.util";
@@ -599,7 +600,7 @@ export class CommissionService {
 
   /** 获取平台抽成汇总 */
   async getPlatformFeeSummary(startDate?: Date, endDate?: Date) {
-    const where: any = {};
+    const where: Prisma.PlatformFeeRecordWhereInput = {};
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) where.createdAt.gte = startDate;

@@ -5,6 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { VodService } from "./vod.service";
 import { Cacheable, CacheEvict } from "../../common/cache.decorator";
 import { Prisma } from "@prisma/client";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 
 @Injectable()
 export class VideoService {
@@ -123,7 +124,7 @@ export class VideoService {
     try {
       await this.prisma.collect.create({ data: { userId, targetType: "VIDEO", targetId: videoId } });
     } catch (e: unknown) {
-      if ((e as any)?.code === "P2002") return { collected: true };
+      if (isUniqueConstraintError(e)) return { collected: true };
       throw e;
     }
     await this.prisma.video.update({ where: { id: videoId }, data: { collectCount: { increment: 1 } } });

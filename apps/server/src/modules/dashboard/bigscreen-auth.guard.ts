@@ -1,10 +1,12 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
+import { CanActivate, ExecutionContext, Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Request } from "express";
 
 @Injectable()
 export class BigScreenAuthGuard implements CanActivate {
+  private readonly logger = new Logger(BigScreenAuthGuard.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -48,7 +50,7 @@ export class BigScreenAuthGuard implements CanActivate {
           return true;
         }
       } catch (err) {
-        console.warn(`大屏 JWT 验证失败: ${(err as Error).message}`);
+        this.logger.warn(`大屏 JWT 验证失败: ${(err as Error).message}`);
       }
     }
 

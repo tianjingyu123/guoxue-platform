@@ -159,6 +159,7 @@ export class HuifuService {
           "X-HF-Signature": signature,
         },
         body: bodyStr || undefined,
+        signal: AbortSignal.timeout(15000),
       });
 
       const raw = await resp.text();

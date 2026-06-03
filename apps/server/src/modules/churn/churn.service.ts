@@ -1,6 +1,7 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { Prisma } from "@prisma/client";
 import { SmsService } from "../sms/sms.service";
 import { NotificationService } from "../notification/notification.service";
 
@@ -94,9 +95,9 @@ export class ChurnService {
     const scoreMap: Record<string, number> = {};
     for (const id of userIds) scoreMap[id] = 0;
 
-    const addScores = (records: Array<{ userId: string; _count: number }>, weight: number) => {
+    const addScores = (records: Array<{ userId: string | null; _count: number }>, weight: number) => {
       for (const r of records) {
-        scoreMap[r.userId] = (scoreMap[r.userId] || 0) + r._count * weight;
+        if (r.userId) scoreMap[r.userId] = (scoreMap[r.userId] || 0) + r._count * weight;
       }
     };
 
@@ -134,12 +135,12 @@ export class ChurnService {
         }),
       ]);
 
-    addScores(viewCounts as any, 1);
-    addScores(likeCounts as any, 3);
-    addScores(collectCounts as any, 5);
-    addScores(purchaseCounts as any, 20);
-    addScores(commentCounts as any, 10);
-    addScores(logCounts as any, 2);
+    addScores(viewCounts, 1);
+    addScores(likeCounts, 3);
+    addScores(collectCounts, 5);
+    addScores(purchaseCounts, 20);
+    addScores(commentCounts, 10);
+    addScores(logCounts, 2);
 
     for (const id of userIds) {
       scoreMap[id] = Math.min(100, scoreMap[id]);
@@ -232,7 +233,7 @@ export class ChurnService {
   // ───────── 管理接口 ─────────
 
   async getPredictions(page = 1, pageSize = 20, riskLevel?: string) {
-    const where: any = {};
+    const where: Prisma.ChurnPredictionWhereInput = {};
     if (riskLevel) where.riskLevel = riskLevel;
     const [predictions, total] = await Promise.all([
       this.prisma.churnPrediction.findMany({ where, skip: (page - 1) * pageSize, take: pageSize, orderBy: { activityScore: "asc" } }),

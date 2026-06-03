@@ -77,8 +77,10 @@ export class WechatPayService {
           "Content-Type": "application/json",
           "Accept": "application/json",
           "User-Agent": "guoxue-platform/1.0",
+          ...(method === "POST" ? { "Idempotency-Key": `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` } : {}),
         },
         body: bodyStr || undefined,
+        signal: AbortSignal.timeout(15000),
       });
 
       const duration = Date.now() - start;

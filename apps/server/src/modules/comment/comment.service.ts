@@ -4,6 +4,8 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from "./comment.dto";
 import { Prisma } from "@prisma/client";
+import { safePagination } from "../../common/pagination";
+import { Cacheable } from "../../common/cache.decorator";
 
 export interface ReplyNode {
   id: string;
@@ -47,9 +49,10 @@ export class CommentService {
     return comment;
   }
 
+  @Cacheable({ key: (args: any[]) => `comment:target:${args[0]?.targetType || ""}:${args[0]?.targetId || ""}:${args[0]?.page || 1}:${args[0]?.pageSize || 20}`, ttl: 15 })
   async findByTarget(dto: CommentQueryDto) {
-    const { targetType, targetId, page = 1, pageSize = 20 } = dto;
-    const skip = (page - 1) * pageSize;
+    const { targetType, targetId } = dto;
+    const { skip, page, pageSize } = safePagination(dto.page, dto.pageSize);
 
     const [items, total] = await Promise.all([
       this.prisma.comment.findMany({
@@ -67,7 +70,8 @@ export class CommentService {
     ]);
 
     const topIds = items.map((c) => c.id);
-    const nestedComments = topIds.length > 0 ? await this.fetchNestedReplies(topIds) : [];
+    const nestedComments = topIds.length > 0 && targetType && targetId
+      ? await this.fetchNestedReplies(targetType, targetId) : [];
 
     const replyMap = new Map<string, ReplyNode[]>();
     for (const reply of nestedComments) {
@@ -93,32 +97,13 @@ export class CommentService {
     return { data, total, page, pageSize };
   }
 
-  private async fetchNestedReplies(parentIds: string[]) {
-    const level1 = await this.prisma.comment.findMany({
-      where: { parentId: { in: parentIds }, status: "PUBLISHED" },
+  /** 单次查询拉取该目标下所有非顶级回复，利用 (targetType, targetId, parentId, status) 复合索引 */
+  private async fetchNestedReplies(targetType: string, targetId: string) {
+    return this.prisma.comment.findMany({
+      where: { targetType, targetId, parentId: { not: null }, status: "PUBLISHED" },
       orderBy: { createdAt: "asc" },
       include: { user: { select: { id: true, nickname: true, avatar: true } } },
     });
-
-    const level1Ids = level1.map((c) => c.id);
-    if (level1Ids.length === 0) return level1;
-
-    const level2 = await this.prisma.comment.findMany({
-      where: { parentId: { in: level1Ids }, status: "PUBLISHED" },
-      orderBy: { createdAt: "asc" },
-      include: { user: { select: { id: true, nickname: true, avatar: true } } },
-    });
-
-    const level2Ids = level2.map((c) => c.id);
-    if (level2Ids.length === 0) return [...level1, ...level2];
-
-    const level3 = await this.prisma.comment.findMany({
-      where: { parentId: { in: level2Ids }, status: "PUBLISHED" },
-      orderBy: { createdAt: "asc" },
-      include: { user: { select: { id: true, nickname: true, avatar: true } } },
-    });
-
-    return [...level1, ...level2, ...level3];
   }
 
   async findReplies(parentId: string) {
@@ -184,7 +169,8 @@ export class CommentService {
   // ───────── 管理员审核 ─────────
 
   async getModerationList(params: { status?: string; targetType?: string; page?: number; pageSize?: number }) {
-    const { status = "PUBLISHED", targetType, page = 1, pageSize = 20 } = params;
+    const { status = "PUBLISHED", targetType } = params;
+    const { skip, page, pageSize } = safePagination(params.page, params.pageSize);
     const where: Prisma.CommentWhereInput = { status };
     if (targetType) where.targetType = targetType;
 
@@ -192,7 +178,8 @@ export class CommentService {
       this.prisma.comment.findMany({
         where,
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip,
+        take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.comment.count({ where }),
@@ -211,15 +198,17 @@ export class CommentService {
   // ───────── 用户评论历史 ─────────
 
   async getUserComments(userId: string, page = 1, pageSize = 20) {
+    const { skip, page: p, pageSize: ps } = safePagination(page, pageSize);
     const where = { userId, status: "PUBLISHED" };
     const [items, total] = await Promise.all([
       this.prisma.comment.findMany({
         where,
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip,
+        take: ps,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.comment.count({ where }),
     ]);
-    return { items, total, page, pageSize };
+    return { items, total, page: p, pageSize: ps };
   }
 }

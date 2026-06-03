@@ -109,88 +109,33 @@ export class ClassicBaziSeeder implements OnModuleInit {
     return { created, skipped };
   }
 
+  private static readonly BAZI_BOOKS: Array<[string, string]> = [
+    ["yuanhaiziping", "渊海子平"],
+    ["sanmingtonghui", "三命通会"],
+    ["ditianshui", "滴天髓"],
+    ["qiongtongbaojian", "穷通宝鉴"],
+    ["zipingzhenquan", "子平真诠"],
+    ["shenfengtongkao", "神峰通考"],
+    ["qianliminggao", "千里命稿"],
+    ["bazitiyao", "八字提要"],
+    ["jinxiangmishu", "巾箱秘术"],
+    ["lixuzhongmingshu", "李虚中命书"],
+    ["tianyuanwuxian", "天元巫咸经"],
+    ["yuantianangchenggu", "袁天罡称骨"],
+    ["mangpai-mizhuan", "盲派秘传"],
+  ];
+
   /** 加载所有14部八字古籍数据 */
   private async loadAllBooks(): Promise<BaziBookSeed[]> {
     const books: BaziBookSeed[] = [];
 
-    // 动态导入各书籍数据模块
-    try {
-      const yuanhai = await import("./bazi-books/yuanhaiziping");
-      books.push(yuanhai.default);
-    } catch (e) {
-      this.logger.warn(`渊海子平数据加载失败: ${e}`);
-    }
-    try {
-      const sanming = await import("./bazi-books/sanmingtonghui");
-      books.push(sanming.default);
-    } catch (e) {
-      this.logger.warn(`三命通会数据加载失败: ${e}`);
-    }
-    try {
-      const di = await import("./bazi-books/ditianshui");
-      books.push(di.default);
-    } catch (e) {
-      this.logger.warn(`滴天髓数据加载失败: ${e}`);
-    }
-    try {
-      const qiongtong = await import("./bazi-books/qiongtongbaojian");
-      books.push(qiongtong.default);
-    } catch (e) {
-      this.logger.warn(`穷通宝鉴数据加载失败: ${e}`);
-    }
-    try {
-      const ziping = await import("./bazi-books/zipingzhenquan");
-      books.push(ziping.default);
-    } catch (e) {
-      this.logger.warn(`子平真诠数据加载失败: ${e}`);
-    }
-    try {
-      const shenfeng = await import("./bazi-books/shenfengtongkao");
-      books.push(shenfeng.default);
-    } catch (e) {
-      this.logger.warn(`神峰通考数据加载失败: ${e}`);
-    }
-    try {
-      const qianli = await import("./bazi-books/qianliminggao");
-      books.push(qianli.default);
-    } catch (e) {
-      this.logger.warn(`千里命稿数据加载失败: ${e}`);
-    }
-    try {
-      const bazi = await import("./bazi-books/bazitiyao");
-      books.push(bazi.default);
-    } catch (e) {
-      this.logger.warn(`八字提要数据加载失败: ${e}`);
-    }
-    try {
-      const jinxiang = await import("./bazi-books/jinxiangmishu");
-      books.push(jinxiang.default);
-    } catch (e) {
-      this.logger.warn(`巾箱秘术数据加载失败: ${e}`);
-    }
-    try {
-      const lixuzhong = await import("./bazi-books/lixuzhongmingshu");
-      books.push(lixuzhong.default);
-    } catch (e) {
-      this.logger.warn(`李虚中命书数据加载失败: ${e}`);
-    }
-    try {
-      const wuxian = await import("./bazi-books/tianyuanwuxian");
-      books.push(wuxian.default);
-    } catch (e) {
-      this.logger.warn(`天元巫咸经数据加载失败: ${e}`);
-    }
-    try {
-      const chenggu = await import("./bazi-books/yuantianangchenggu");
-      books.push(chenggu.default);
-    } catch (e) {
-      this.logger.warn(`袁天罡称骨数据加载失败: ${e}`);
-    }
-    try {
-      const mangpai = await import("./bazi-books/mangpai-mizhuan");
-      books.push(mangpai.default);
-    } catch (e) {
-      this.logger.warn(`盲派秘传数据加载失败: ${e}`);
+    for (const [moduleName, displayName] of ClassicBaziSeeder.BAZI_BOOKS) {
+      try {
+        const mod = await import(`./bazi-books/${moduleName}`);
+        books.push(mod.default);
+      } catch (e) {
+        this.logger.warn(`${displayName}数据加载失败: ${e}`);
+      }
     }
 
     return books;

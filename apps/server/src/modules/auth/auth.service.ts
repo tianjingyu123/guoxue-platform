@@ -11,6 +11,7 @@ import { User } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { WechatService } from "./wechat.service";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { ImService } from "../im/im.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { SmsService } from "../sms/sms.service";
@@ -85,7 +86,7 @@ export class AuthService {
         },
       });
     } catch (e: unknown) {
-      if ((e as { code?: string })?.code === "P2002") throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已注册");
+      if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已注册");
       throw e;
     }
 
@@ -132,7 +133,7 @@ export class AuthService {
           },
         });
       } catch (e: unknown) {
-        if ((e as { code?: string })?.code === "P2002") {
+        if (isUniqueConstraintError(e)) {
           user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
         } else {
           throw e;
@@ -230,7 +231,7 @@ export class AuthService {
         },
       });
     } catch (e: unknown) {
-      if ((e as { code?: string })?.code === "P2002") {
+      if (isUniqueConstraintError(e)) {
         // 并发注册：重新查询已创建的记录
         const reAuth = await this.prisma.auth.findUnique({
           where: { openId },
@@ -315,7 +316,7 @@ export class AuthService {
           },
         });
       } catch (e: unknown) {
-        if ((e as { code?: string })?.code === "P2002") {
+        if (isUniqueConstraintError(e)) {
           user = await this.prisma.user.findUnique({ where: { phone } });
           if (!user) throw e;
         } else {

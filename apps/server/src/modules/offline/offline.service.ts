@@ -3,6 +3,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 
 @Injectable()
 export class OfflineService {
@@ -143,7 +144,7 @@ export class OfflineService {
         data: { courseId, userId, qrCode },
       });
     } catch (e: unknown) {
-      if ((e as Record<string, unknown>)?.code === "P2002") throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
+      if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
       throw e;
     }
   }
@@ -286,8 +287,14 @@ export class OfflineService {
       const product = await this.prisma.stationProduct.findUnique({ where: { id: dto.targetId } });
       if (!product) throw new BusinessException(ErrorCode.NOT_FOUND, "商品不存在");
       actualAmount = Number(product.price);
+    } else if (dto.orderType === "TEACHER_BOOKING") {
+      // 教师预约：从预约记录查询价格
+      const booking = await this.prisma.stationTeacherBooking.findUnique({ where: { id: dto.targetId }, select: { price: true } });
+      if (!booking) throw new BusinessException(ErrorCode.NOT_FOUND, "预约记录不存在");
+      actualAmount = Number(booking.price || 0);
+      if (actualAmount <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "预约金额异常");
     } else {
-      actualAmount = dto.amount; // 其他类型（如 TEACHER_BOOKING）保留前端传入金额
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `不支持的订单类型: ${dto.orderType}`);
     }
 
     const stationIncome = actualAmount * 0.7;
@@ -489,7 +496,7 @@ export class OfflineService {
   }
 
   async listTeachers(stationId?: string, page = 1, pageSize = 20) {
-    const where: any = {};
+    const where: Prisma.StationTeacherWhereInput = {};
     if (stationId) where.stationId = stationId;
     const [teachers, total] = await Promise.all([
       this.prisma.stationTeacher.findMany({

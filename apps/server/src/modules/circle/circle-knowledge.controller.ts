@@ -25,7 +25,7 @@ export class CircleKnowledgeController {
       sourceType: body.sourceType,
       sourceId: body.sourceId,
       content: body.content,
-      addedBy: (req as any).user.id,
+      addedBy: req.user.id,
     });
   }
 
@@ -66,7 +66,7 @@ export class CircleKnowledgeController {
     @Param("id") id: string,
     @Req() req: Request,
   ) {
-    return this.knowledge.remove(circleId, id, (req as any).user.id);
+    return this.knowledge.remove(circleId, id, req.user.id);
   }
 
   // ───────── 候选内容审核 ─────────
@@ -94,7 +94,7 @@ export class CircleKnowledgeController {
     @Param("candidateId") candidateId: string,
     @Req() req: Request,
   ) {
-    return this.knowledge.confirmCandidate(circleId, candidateId, (req as any).user.id);
+    return this.knowledge.confirmCandidate(circleId, candidateId, req.user.id);
   }
 
   @Post(":circleId/knowledge/candidates/:candidateId/reject")

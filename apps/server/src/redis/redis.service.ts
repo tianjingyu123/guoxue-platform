@@ -8,7 +8,7 @@ function maskRedisUrl(url: string): string {
     if (u.password) u.password = "***";
     return u.toString();
   } catch (err) {
-    console.warn(`Redis URL 解析失败: ${(err as Error).message}`);
+    process.stderr.write(`[Redis] URL 解析失败: ${(err as Error).message}\n`);
     return url.replace(/\/\/.*?@/, "//***:***@");
   }
 }
@@ -131,6 +131,13 @@ export class RedisService implements OnModuleDestroy {
       return;
     }
     this.memory.delete(key);
+  }
+
+  /** Redis Pub/Sub 发布（仅真实连接可用，内存模式静默忽略） */
+  async publish(channel: string, message: string): Promise<number> {
+    const conn = await this.getConn();
+    if (conn) return conn.publish(channel, message);
+    return 0; // 内存模式不支持 Pub/Sub
   }
 
   async ttl(key: string): Promise<number> {

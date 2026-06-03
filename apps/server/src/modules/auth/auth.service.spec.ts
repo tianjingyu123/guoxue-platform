@@ -214,4 +214,51 @@ describe("AuthService", () => {
       await expect(svc.changePassword("user-1", { oldPassword: "wrong", newPassword: "654321" })).rejects.toThrow(BusinessException);
     });
   });
+
+  describe("refreshToken", () => {
+    it("有效 refreshToken 返回新 token 对", async () => {
+      mockRedis.get.mockResolvedValue("user-1");
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", nickname: "张三", avatar: null, phone: "13800138000", memberLevel: "NORMAL", memberExpire: null });
+      mockPrisma.userRole.findMany.mockResolvedValue([]);
+      mockJwt.sign.mockReturnValue("new-access-token");
+
+      const result = await svc.refreshToken("valid-refresh");
+
+      expect(result.accessToken).toBe("new-access-token");
+      expect(result.refreshToken).toBeTruthy();
+      // 旧 token 被删除（防重放攻击）
+      expect(mockRedis.del).toHaveBeenCalledWith("refresh:valid-refresh");
+    });
+
+    it("无效 refreshToken 抛出异常", async () => {
+      mockRedis.get.mockResolvedValue(null);
+      await expect(svc.refreshToken("invalid")).rejects.toThrow(BusinessException);
+    });
+  });
+
+  describe("revokeAllRefreshTokens", () => {
+    it("设置用户刷新令牌黑名单", async () => {
+      await svc.revokeAllRefreshTokens("user-1");
+      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:user-1", "1", 15 * 60);
+    });
+  });
+
+  describe("smsLogin with referral", () => {
+    it("新用户短信登录自动注册并绑定推荐关系", async () => {
+      mockSms.verifyCode.mockResolvedValue(true);
+      mockPrisma.user.findUnique.mockResolvedValue(null); // 用户不存在
+      mockPrisma.user.create.mockResolvedValue({ id: "user-3", nickname: "用户8000", phone: "13800008000" });
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "s1", userId: "ref-1", code: "INVITE" });
+      mockPrisma.referralRelation.create.mockResolvedValue({});
+      mockPrisma.userRole.findMany.mockResolvedValue([]);
+      mockJwt.sign.mockReturnValue("token");
+
+      const result = await svc.smsLogin({ phone: "13800008000", code: "123456", referrerCode: "INVITE" });
+
+      expect(result.accessToken).toBe("token");
+      expect(mockPrisma.referralRelation.create).toHaveBeenCalledWith({
+        data: { userId: "user-3", referrerId: "ref-1", referrerType: "STATION_MASTER", sourceChannel: "INVITE_CODE" },
+      });
+    });
+  });
 });

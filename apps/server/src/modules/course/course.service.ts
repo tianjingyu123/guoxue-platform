@@ -3,8 +3,10 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Prisma, OrderStatus } from "@prisma/client";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import {
   CreateCourseDto, UpdateCourseDto,
   CreateChapterDto, UpdateChapterDto,
@@ -21,6 +23,7 @@ export class CourseService {
     private prisma: PrismaService,
     private redis: RedisService,
     private aiGateway: AiGatewayService,
+    private unifiedPricing: UnifiedPricingService,
   ) {}
 
   // ═══════════════════ 课程 CRUD ═══════════════════
@@ -393,40 +396,116 @@ ${chapterCtx}
     }
   }
 
-  /** AI 批量批改作业 */
+  /** AI 批量批改作业（并发限流 + 批量写入） */
   async aiBatchScoreWorks(courseId: string, chapterId?: string) {
     const where: Prisma.CourseWorkWhereInput = { courseId, score: null };
     if (chapterId) where.chapterId = chapterId;
 
     const works = await this.prisma.courseWork.findMany({
       where,
-      select: { id: true },
+      select: { id: true, content: true, userId: true },
       take: 50,
     });
 
     if (works.length === 0) return { processed: 0, message: "没有待批改的作业" };
 
-    let successCount = 0;
-    let failCount = 0;
-    const results: any[] = [];
+    // 批量获取课程信息（所有作业属于同一课程，只需查询一次）
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { title: true, type: true },
+    });
 
-    for (const w of works) {
-      try {
-        const result = await this.aiScoreWork(w.id);
-        // 自动填入 AI 评分
-        await this.prisma.courseWork.update({
-          where: { id: w.id },
-          data: { score: result.suggestedScore, feedback: result.feedback },
-        });
-        successCount++;
-        results.push({ workId: w.id, score: result.suggestedScore, status: 'success' });
-      } catch {
-        failCount++;
-        results.push({ workId: w.id, status: 'failed' });
+    // 并发 AI 批改，限制最大并行数 5
+    const CONCURRENCY = 5;
+    const results: { workId: string; score?: number; feedback?: string; status: string }[] = [];
+    const updates: { id: string; score: number; feedback: string }[] = [];
+
+    for (let i = 0; i < works.length; i += CONCURRENCY) {
+      const batch = works.slice(i, i + CONCURRENCY);
+      const batchResults = await Promise.allSettled(
+        batch.map(w => this.scoreWorkViaAi(w, course?.title || "", course?.type || "")),
+      );
+
+      for (let j = 0; j < batch.length; j++) {
+        const w = batch[j];
+        const r = batchResults[j];
+        if (r.status === "fulfilled") {
+          updates.push({ id: w.id, score: r.value.suggestedScore, feedback: r.value.feedback });
+          results.push({ workId: w.id, score: r.value.suggestedScore, status: "success" });
+        } else {
+          results.push({ workId: w.id, status: "failed" });
+        }
       }
     }
 
-    return { processed: works.length, successCount, failCount, results };
+    // 批量写入评分
+    if (updates.length > 0) {
+      await this.prisma.$transaction(
+        updates.map(u =>
+          this.prisma.courseWork.update({
+            where: { id: u.id },
+            data: { score: u.score, feedback: u.feedback },
+          }),
+        ),
+      );
+    }
+
+    return {
+      processed: works.length,
+      successCount: updates.length,
+      failCount: works.length - updates.length,
+      results,
+    };
+  }
+
+  /** 单份作业 AI 评分（不含数据库读写，仅 AI 调用） */
+  private async scoreWorkViaAi(
+    work: { id: string; content: string; userId: string },
+    courseTitle: string,
+    courseType: string,
+  ) {
+    // 获取作业所属用户的昵称和章节信息（用于构建 prompt）
+    const [user, chapterInfo] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: work.userId }, select: { nickname: true } }),
+      this.prisma.courseChapter.findFirst({
+        where: { works: { some: { id: work.id } } },
+        select: { title: true, content: true },
+      }),
+    ]);
+
+    const chapterCtx = chapterInfo
+      ? `关联章节：${chapterInfo.title}。章节内容参考：${(chapterInfo.content || "").slice(0, 600)}`
+      : "";
+
+    const systemPrompt = `你是热卜国学平台的课程助教，负责批改学员作业。
+课程：${courseTitle}
+类型：${courseType}
+${chapterCtx}
+
+请根据作业内容给出：
+1. 评分（0-100分）
+2. 简短点评（50-150字）
+3. 改进建议（1-2条）
+
+请严格按以下 JSON 格式回复（不要包含其他内容）：
+{"score": 85, "feedback": "点评内容", "suggestions": ["建议1", "建议2"]}`;
+
+    const result = await this.aiGateway.chat({
+      scene: "course-work-grading",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `学员${user?.nickname || ""}的作业：\n${work.content}` },
+      ],
+      options: { temperature: 0.3, maxTokens: 500 },
+    });
+
+    const parsed = JSON.parse(result.content.match(/\{[\s\S]*\}/)?.[0] || result.content);
+    return {
+      suggestedScore: Number(parsed.score) || 70,
+      feedback: parsed.feedback || "",
+      suggestions: parsed.suggestions || [],
+      model: result.model,
+    };
   }
 
   // ═══════════════════ 课程购买 ═══════════════════
@@ -438,6 +517,9 @@ ${chapterCtx}
       select: { id: true, price: true, title: true, validityDays: true },
     });
     if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+
+    // 通过统一价格引擎计算实付价格（检查限时折扣）
+    const pricing = await this.unifiedPricing.calculateTargetPrice(courseId, "COURSE", userId);
 
     // 检查是否已购买（含有效期判断）
     const existingOrder = await this.prisma.order.findFirst({
@@ -464,20 +546,24 @@ ${chapterCtx}
     if (pendingOrder) return pendingOrder;
 
     try {
-      const order = await this.prisma.order.create({
-        data: {
-          userId,
-          type: "COURSE",
-          targetId: courseId,
-          amount: course.price,
-          couponId: dto?.couponId,
-          referrerId: dto?.referrerId,
-          status: "PENDING",
-        },
-      });
+      const orderData: any = {
+        userId,
+        type: "COURSE",
+        targetId: courseId,
+        amount: pricing.effectivePrice,
+        originalAmount: pricing.originalPrice > pricing.effectivePrice ? pricing.originalPrice : undefined,
+        couponId: dto?.couponId,
+        referrerId: dto?.referrerId,
+        status: "PENDING",
+      };
+      if (pricing.appliedPromotion) {
+        orderData.promotionType = pricing.appliedPromotion.type;
+        orderData.promotionId = pricing.appliedPromotion.id;
+      }
+      const order = await this.prisma.order.create({ data: orderData });
       return order;
     } catch (e: unknown) {
-      if ((e as Record<string, unknown>)?.code === "P2002") {
+      if (isUniqueConstraintError(e)) {
         const existing = await this.prisma.order.findFirst({
           where: { userId, type: "COURSE", targetId: courseId, status: { in: ["PENDING", "PAID", "COMPLETED"] } },
         });

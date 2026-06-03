@@ -56,6 +56,6 @@ export async function stopTracing() {
     await sdk.shutdown();
     tracingLog("链路追踪已关闭");
   } catch (err) {
-    console.warn(`链路追踪关闭失败: ${(err as Error).message}`);
+    tracingLog(`链路追踪关闭失败: ${(err as Error).message}`);
   }
 }

@@ -39,7 +39,7 @@ export class TagController {
   async tagPosts(@Param("name") name: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     const where = { tags: { has: name }, status: "PUBLISHED" };
     const [items, total] = await Promise.all([
-      (this.prisma as any).content.findMany({
+      this.prisma.content.findMany({
         where: { ...where, status: { not: "DRAFT" } },
         skip: (page - 1) * pageSize,
         take: pageSize,

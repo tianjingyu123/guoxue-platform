@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class ClassicImageService {
@@ -15,7 +16,7 @@ export class ClassicImageService {
 
   /** 获取书籍页面图像（分页） */
   async listBookImages(bookId: string, page = 1, pageSize = 100) {
-    const skip = (page - 1) * pageSize;
+    const { skip, page: p, pageSize: ps } = safePagination(page, pageSize, 100);
     const [data, total] = await Promise.all([
       this.prisma.classicImage.findMany({
         where: { bookId },
@@ -25,11 +26,11 @@ export class ClassicImageService {
           iiifUrl: true, width: true, height: true, source: true,
         },
         skip,
-        take: pageSize,
+        take: ps,
       }),
       this.prisma.classicImage.count({ where: { bookId } }),
     ]);
-    return { items: data, total, page, pageSize };
+    return { items: data, total, page: p, pageSize: ps };
   }
 
   /** 获取单页图像 + OCR 坐标数据 */

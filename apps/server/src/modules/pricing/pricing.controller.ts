@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { PricingService } from "./pricing.service";
+import { UnifiedPricingService } from "./unified-pricing.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -8,7 +9,42 @@ import { Roles } from "../../common/roles.decorator";
 @ApiTags("智能定价")
 @Controller("pricing")
 export class PricingController {
-  constructor(private svc: PricingService) {}
+  constructor(
+    private svc: PricingService,
+    private unified: UnifiedPricingService,
+  ) {}
+
+  // ───────── 统一价格（公开接口） ─────────
+
+  @Get("unified-price")
+  @ApiOperation({ summary: "计算商品统一有效价格" })
+  @ApiQuery({ name: "productId", required: true })
+  @ApiQuery({ name: "skuId", required: false })
+  @ApiQuery({ name: "pageId", required: false })
+  @ApiQuery({ name: "scene", required: false })
+  async getUnifiedPrice(
+    @Query("productId") productId: string,
+    @Query("skuId") skuId?: string,
+    @Query("pageId") pageId?: string,
+    @Query("scene") scene?: string,
+  ) {
+    return this.unified.calculateEffectivePrice(productId, skuId, undefined, { pageId, scene });
+  }
+
+  @Post("unified-price/batch")
+  @ApiOperation({ summary: "批量计算商品统一价格" })
+  async batchUnifiedPrice(
+    @Body() body: { items: { productId: string; skuId?: string }[]; pageId?: string; scene?: string },
+  ) {
+    const results = await this.unified.batchCalculateEffectivePrice(
+      body.items,
+      undefined,
+      { pageId: body.pageId, scene: body.scene },
+    );
+    return { items: results };
+  }
+
+  // ───────── 动态价格计算（旧接口兼容） ─────────
 
   @Get("calc-price")
   @ApiOperation({ summary: "计算动态价格" })

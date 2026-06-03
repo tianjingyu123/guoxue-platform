@@ -5,6 +5,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { MemberLevel, Prisma, RoleType, UserStatus } from "@prisma/client";
 import { maskPhone } from "../../common/crypto.util";
+import { safePagination } from "../../common/pagination";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 
 @Injectable()
 export class UserService {
@@ -41,7 +43,8 @@ export class UserService {
     dateFrom?: string;
     dateTo?: string;
   }) {
-    const { page, pageSize, keyword, roleType, memberLevel, status, dateFrom, dateTo } = params;
+    const { skip, page, pageSize } = safePagination(params.page, params.pageSize);
+    const { keyword, roleType, memberLevel, status, dateFrom, dateTo } = params;
     const where: Prisma.UserWhereInput = {};
 
     if (keyword) {
@@ -76,7 +79,7 @@ export class UserService {
           _count: { select: { orders: true, collects: true, comments: true } },
           coinAccount: { select: { balance: true } },
         },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
@@ -208,7 +211,7 @@ export class UserService {
         data: { userId: followerId, followedUserId },
       });
     } catch (e: unknown) {
-      if ((e as Error)?.message?.includes("P2002") || (e as Record<string, unknown>)?.code === "P2002") throw new BusinessException(ErrorCode.BAD_REQUEST, "已关注该用户");
+      if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "已关注该用户");
       throw e;
     }
   }
@@ -226,31 +229,33 @@ export class UserService {
   }
 
   async getFollowers(userId: string, page = 1, pageSize = 20) {
+    const { skip, page: p, pageSize: ps } = safePagination(page, pageSize);
     const where = { followedUserId: userId };
     const [follows, total] = await Promise.all([
       this.prisma.follow.findMany({
         where,
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip, take: ps,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.follow.count({ where }),
     ]);
-    return { followers: follows.map(f => f.user), total, page, pageSize };
+    return { followers: follows.map(f => f.user), total, page: p, pageSize: ps };
   }
 
   async getFollowing(userId: string, page = 1, pageSize = 20) {
+    const { skip, page: p, pageSize: ps } = safePagination(page, pageSize);
     const where = { userId };
     const [follows, total] = await Promise.all([
       this.prisma.follow.findMany({
         where,
         include: { followedUser: { select: { id: true, nickname: true, avatar: true } } },
-        skip: (page - 1) * pageSize, take: pageSize,
+        skip, take: ps,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.follow.count({ where }),
     ]);
-    return { following: follows.map(f => f.followedUser), total, page, pageSize };
+    return { following: follows.map(f => f.followedUser), total, page: p, pageSize: ps };
   }
 
   async isFollowing(followerId: string, followedUserId: string) {

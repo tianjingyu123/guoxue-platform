@@ -7,6 +7,7 @@ import { CozeService } from "./coze.service";
 import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDto } from "./bot.dto";
 import { encrypt, decrypt } from "../../common/crypto.util";
 import { Cacheable } from "../../common/cache.decorator";
+import { safePagination } from "../../common/pagination";
 
 @Injectable()
 export class BotService {
@@ -218,14 +219,15 @@ export class BotService {
 
   /** 获取待审批的圈主助理开通申请列表 */
   async getBotApprovalList(page: number, pageSize: number) {
-    this.logger.log(`查询圈主助理审批列表: page=${page}, pageSize=${pageSize}`);
+    const { skip, page: p, pageSize: ps } = safePagination(page, pageSize);
+    this.logger.log(`查询圈主助理审批列表: page=${p}, pageSize=${ps}`);
 
     const where = { status: { not: "ACTIVE" } };
     const [records, total] = await Promise.all([
       this.prisma.circleBot.findMany({
         where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        skip,
+        take: ps,
         include: {
           circle: { select: { id: true, name: true, intro: true, cover: true, ownerId: true, memberCount: true, createdAt: true } },
           botConfig: { select: { id: true, name: true, type: true } },
@@ -250,9 +252,9 @@ export class BotService {
         appliedAt: r.createdAt,
       })),
       total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      page: p,
+      pageSize: ps,
+      totalPages: Math.ceil(total / ps),
     };
   }
 
@@ -273,21 +275,22 @@ export class BotService {
 
   /** 获取圈主助理知识库列表 */
   async getBotKnowledgeList(circleId: string, page: number, pageSize: number) {
+    const { skip, page: p, pageSize: ps } = safePagination(page, pageSize);
     this.logger.log(`查询圈主助理知识库: circleId=${circleId}`);
 
     const circleBot = await this.prisma.circleBot.findUnique({
       where: { circleId },
     });
     if (!circleBot) {
-      return { items: [], total: 0, page, pageSize, totalPages: 0 };
+      return { items: [], total: 0, page: p, pageSize: ps, totalPages: 0 };
     }
 
     const where = { botConfigId: circleBot.botConfigId };
     const [records, total] = await Promise.all([
       this.prisma.botKnowledgeBase.findMany({
         where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        skip,
+        take: ps,
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.botKnowledgeBase.count({ where }),
@@ -296,9 +299,9 @@ export class BotService {
     return {
       items: records,
       total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      page: p,
+      pageSize: ps,
+      totalPages: Math.ceil(total / ps),
     };
   }
 

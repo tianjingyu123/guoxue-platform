@@ -231,9 +231,9 @@ export class ClassicService {
   }
 
   async deleteBookmark(id: string, userId?: string) {
-    const where: any = { id };
-    if (userId) where.userId = userId; // 所有权检查：防止水平权限提升
-    const existing = await this.prisma.bookmark.findUnique({ where });
+    const where: Prisma.BookmarkWhereInput = { id };
+    if (userId) where.userId = userId;
+    const existing = await this.prisma.bookmark.findFirst({ where });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "书签不存在");
     return this.prisma.bookmark.delete({ where: { id } });
   }

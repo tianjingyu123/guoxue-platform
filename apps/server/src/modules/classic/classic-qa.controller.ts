@@ -17,7 +17,7 @@ export class ClassicQaController {
   @ApiOperation({ summary: "古籍智能问答（非流式）" })
   @ApiBearerAuth()
   async ask(@Param("classicId") classicId: string, @Body() body: ClassicQaDto, @Req() req: Request) {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     try {
       return await this.qa.ask(body.question, userId, body.history, classicId);
     } catch (err: any) {
@@ -33,7 +33,7 @@ export class ClassicQaController {
   @ApiOperation({ summary: "古籍问答历史" })
   @ApiBearerAuth()
   async getHistory(@Param("classicId") classicId: string, @Req() req: Request) {
-    return this.qa.getHistory(classicId, (req as any).user?.id);
+    return this.qa.getHistory(classicId, req.user?.id);
   }
 
   @Post(":classicId/qa/stream")
@@ -41,7 +41,7 @@ export class ClassicQaController {
   @ApiOperation({ summary: "古籍智能问答（SSE流式）" })
   @ApiBearerAuth()
   async askStream(@Param("classicId") classicId: string, @Body() body: ClassicQaDto, @Req() req: Request, @Res() res: Response) {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");

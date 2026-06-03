@@ -7,10 +7,13 @@ import { randomInt } from "crypto";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { Cacheable } from "../../common/cache.decorator";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CoinService } from "../coin/coin.service";
 import { CommissionService } from "../commission/commission.service";
+import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { NotificationService } from "../notification/notification.service";
 import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto } from "./circle.dto";
 import { Prisma, CircleMemberRole, CircleType, PostType } from "@prisma/client";
@@ -21,6 +24,7 @@ export class CircleService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
+    private unifiedPricing: UnifiedPricingService,
     @Optional() private coinService?: CoinService,
     @Optional() private commissionService?: CommissionService,
     @Optional() private notificationService?: NotificationService,
@@ -91,21 +95,23 @@ export class CircleService {
       return cached;
     }
 
-    const circle = await this.prisma.circle.findUnique({
-      where: { id: circleId },
-      include: {
-        owner: { select: { id: true, nickname: true, avatar: true } },
-        _count: { select: { posts: true, articles: true, courses: true } },
-      },
-    });
+    const [circle, membership] = await Promise.all([
+      this.prisma.circle.findUnique({
+        where: { id: circleId },
+        include: {
+          owner: { select: { id: true, nickname: true, avatar: true } },
+          _count: { select: { posts: true, articles: true, courses: true } },
+        },
+      }),
+      userId
+        ? this.prisma.circleMember.findUnique({
+            where: { circleId_userId: { circleId, userId } },
+          })
+        : Promise.resolve(null),
+    ]);
     if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
 
-    // 检查当前用户是否已加入
-    let membership = null;
-    if (userId) {
-      membership = await this.prisma.circleMember.findUnique({
-        where: { circleId_userId: { circleId, userId } },
-      });
+    if (membership) {
       const memKey = `circles:member:${circleId}:${userId}`;
       await this.redis.setJson(memKey, membership, 60);
     }
@@ -179,6 +185,7 @@ export class CircleService {
 
   // ───────── 圈子公告 ─────────
 
+  @Cacheable({ key: (args: any[]) => `circle:announcement:${args[0]}`, ttl: 30 })
   async getAnnouncement(circleId: string) {
     const latest = await this.prisma.circleAnnouncement.findFirst({
       where: { circleId, isTop: true },
@@ -360,11 +367,15 @@ export class CircleService {
     const priceYuan = Number(circle.price);
     if (priceYuan <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "圈子价格配置异常");
 
+    // 通过统一价格引擎计算实付价格（检查限时折扣）
+    const pricing = await this.unifiedPricing.calculateTargetPrice(circleId, "CIRCLE", userId);
+    const effectivePriceYuan = pricing.effectivePrice;
+
     // 尝试虚拟币支付
     if (!dto?.payMethod || dto.payMethod === "COIN") {
       if (!this.coinService) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付服务暂不可用");
       const balance = await this.coinService.getBalance(userId);
-      const coinNeeded = Math.ceil(priceYuan * 10); // 1元=10币
+      const coinNeeded = Math.ceil(effectivePriceYuan * 10); // 1元=10币
       if (balance.balance >= coinNeeded) {
         // 币够直接扣
         return this.confirmJoin(circleId, userId, { payMethod: "COIN", referrerId: dto?.referrerId });
@@ -373,7 +384,7 @@ export class CircleService {
       return {
         needPayment: true,
         payMethod: "COIN",
-        priceYuan,
+        priceYuan: effectivePriceYuan,
         coinNeeded,
         currentBalance: balance.balance,
         shortage: coinNeeded - balance.balance,
@@ -384,23 +395,27 @@ export class CircleService {
 
     // 微信/支付宝支付 — 创建待支付订单
     const orderNo = `CIRCLE_JOIN_${circleId.slice(0, 8)}_${Date.now()}`;
-    const order = await this.prisma.order.create({
-      data: {
-        userId,
-        type: "CIRCLE_JOIN",
-        targetId: circleId,
-        amount: circle.price,
-        payAmount: circle.price,
-        status: "PENDING",
-        payMethod: dto.payMethod,
-        referrerId: dto.referrerId || undefined,
-      },
-    });
+    const orderData: any = {
+      userId,
+      type: "CIRCLE_JOIN",
+      targetId: circleId,
+      amount: effectivePriceYuan,
+      payAmount: effectivePriceYuan,
+      originalAmount: pricing.originalPrice > effectivePriceYuan ? pricing.originalPrice : undefined,
+      status: "PENDING",
+      payMethod: dto.payMethod,
+      referrerId: dto.referrerId || undefined,
+    };
+    if (pricing.appliedPromotion) {
+      orderData.promotionType = pricing.appliedPromotion.type;
+      orderData.promotionId = pricing.appliedPromotion.id;
+    }
+    const order = await this.prisma.order.create({ data: orderData });
 
     return {
       needPayment: true,
       payMethod: dto.payMethod,
-      priceYuan,
+      priceYuan: effectivePriceYuan,
       coinNeeded: 0,
       orderNo,
       orderId: order.id,
@@ -421,9 +436,10 @@ export class CircleService {
       throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已是圈子成员");
     }
 
-    // 虚拟币支付：扣币
+    // 虚拟币支付：扣币（使用统一价格）
     if (dto.payMethod === "COIN") {
-      const priceYuan = Number(circle.price);
+      const coinPricing = await this.unifiedPricing.calculateTargetPrice(circleId, "CIRCLE", userId);
+      const priceYuan = coinPricing.effectivePrice;
       const coinNeeded = Math.ceil(priceYuan * 10);
       if (this.coinService) {
         await this.coinService.spend(userId, {
@@ -656,7 +672,7 @@ export class CircleService {
         data: { circleId, userId, role: "MEMBER", expireAt },
       });
     } catch (e: unknown) {
-      if ((e as { code?: string })?.code === "P2002") throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
+      if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.CIRCLE_MEMBER_EXISTS, "已加入该圈子");
       throw e;
     }
 
@@ -863,6 +879,7 @@ export class CircleService {
     return { success: true };
   }
 
+  @Cacheable({ key: (args: any[]) => `circle:posts:${args[0]}:${args[1]?.type || ""}:${args[1]?.isEssence || ""}:${args[1]?.page || 1}:${args[1]?.pageSize || 20}`, ttl: 15 })
   async getPosts(circleId: string, query: { type?: string; isEssence?: string; page?: number; pageSize?: number }) {
     const { type, isEssence, page = 1, pageSize = 20 } = query;
     const where: Prisma.PostWhereInput = { circleId, status: "PUBLISHED" };
@@ -993,6 +1010,7 @@ export class CircleService {
 
   // ───────── 排行榜 ─────────
 
+  @Cacheable({ key: (args: any[]) => `circle:ranking:${args[0]}:${args[1]}:${args[2] || "memberCount"}`, ttl: 30 })
   async getCircleRanking(page = 1, pageSize = 20, sortBy?: string) {
     const validSortBy = ["memberCount", "postCount", "activityScore"] as const;
     const sortField = validSortBy.includes(sortBy as any) ? sortBy! : "memberCount";

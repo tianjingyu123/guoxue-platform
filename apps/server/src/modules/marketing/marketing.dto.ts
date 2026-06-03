@@ -33,11 +33,13 @@ export class CreateFlashSaleDto {
   @MaxLength(100)
   name: string;
 
+  @IsOptional()
   @IsDateString()
-  startTime: string;
+  startTime?: string;
 
+  @IsOptional()
   @IsDateString()
-  endTime: string;
+  endTime?: string;
 
   @IsOptional()
   @IsInt()
@@ -57,6 +59,14 @@ export class CreateFlashSaleDto {
   @IsInt()
   @Min(1)
   limitPerUser?: number;
+
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @IsOptional()
+  @IsString()
+  scopePageId?: string;
 }
 
 export class UpdateFlashSaleDto {
@@ -76,6 +86,14 @@ export class UpdateFlashSaleDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @IsOptional()
+  @IsString()
+  scopePageId?: string;
 }
 
 export class FlashSaleFilterDto extends PaginationDto {
@@ -137,6 +155,11 @@ export class UpdateFlashSaleItemDto {
 // ════════════════════════════════════════
 
 export class CreateGroupBuyDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  name?: string;
+
   @IsString()
   @MinLength(1)
   productId: string;
@@ -162,6 +185,14 @@ export class CreateGroupBuyDto {
   @IsOptional()
   @IsBoolean()
   autoComplete?: boolean;
+
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @IsOptional()
+  @IsString()
+  scopePageId?: string;
 }
 
 export class UpdateGroupBuyDto {
@@ -187,6 +218,14 @@ export class UpdateGroupBuyDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @IsOptional()
+  @IsString()
+  scopePageId?: string;
 }
 
 export class GroupBuyFilterDto extends PaginationDto {
@@ -235,11 +274,19 @@ export class CreateCouponTemplateDto {
   validDays?: number;
 
   @IsOptional()
-  scope?: Record<string, any>;
+  applicableScope?: Record<string, any>;
 
   @IsOptional()
   @IsBoolean()
   aiPrecision?: boolean;
+
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @IsOptional()
+  @IsString()
+  scopePageId?: string;
 }
 
 export class UpdateCouponTemplateDto {
@@ -280,7 +327,7 @@ export class UpdateCouponTemplateDto {
   validDays?: number;
 
   @IsOptional()
-  scope?: Record<string, any>;
+  applicableScope?: Record<string, any>;
 
   @IsOptional()
   @IsBoolean()
@@ -289,6 +336,14 @@ export class UpdateCouponTemplateDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @IsOptional()
+  @IsString()
+  scopePageId?: string;
 }
 
 export class CouponFilterDto extends PaginationDto {
@@ -335,16 +390,36 @@ export class CreateDiscountDto {
   @Max(99)
   discountPct: number;
 
+  @IsOptional()
   @IsDateString()
-  startTime: string;
+  startTime?: string;
 
+  @IsOptional()
   @IsDateString()
-  endTime: string;
+  endTime?: string;
 
+  @IsOptional()
   @IsArray()
-  @ArrayNotEmpty()
   @IsString({ each: true })
-  productIds: string[];
+  productIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  courseIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  circleIds?: string[];
+
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @IsOptional()
+  @IsString()
+  scopePageId?: string;
 }
 
 export class UpdateDiscountDto {
@@ -372,8 +447,26 @@ export class UpdateDiscountDto {
   productIds?: string[];
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  courseIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  circleIds?: string[];
+
+  @IsOptional()
   @IsString()
   status?: string;
+
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @IsOptional()
+  @IsString()
+  scopePageId?: string;
 }
 
 export class DiscountFilterDto extends PaginationDto {
@@ -398,7 +491,19 @@ export class CreateMarketingPageDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @IsOptional()
+  @IsString()
   stationId?: string;
+
+  @IsOptional()
+  entryConfig?: Record<string, any>;
+
+  @IsOptional()
+  @IsBoolean()
+  entryVisible?: boolean;
 }
 
 export class UpdateMarketingPageDto {
@@ -409,6 +514,18 @@ export class UpdateMarketingPageDto {
   @IsOptional()
   @IsString()
   route?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @IsOptional()
+  entryConfig?: Record<string, any>;
+
+  @IsOptional()
+  @IsBoolean()
+  entryVisible?: boolean;
 }
 
 export class CreatePageComponentDto {
@@ -486,6 +603,11 @@ export class CreateActivityDto {
 
   @IsOptional()
   @IsString()
+  type?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
   description?: string;
 
   @IsDateString()
@@ -503,6 +625,10 @@ export class UpdateActivityDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsString()
+  type?: string;
 
   @IsOptional()
   @IsString()
@@ -563,13 +689,15 @@ export class CreateFullReductionDto {
   @Min(1)
   giftCount?: number;
 
-  @ApiProperty({ description: "开始时间" })
+  @ApiPropertyOptional({ description: "开始时间" })
+  @IsOptional()
   @IsDateString()
-  startTime: string;
+  startTime?: string;
 
-  @ApiProperty({ description: "结束时间" })
+  @ApiPropertyOptional({ description: "结束时间" })
+  @IsOptional()
   @IsDateString()
-  endTime: string;
+  endTime?: string;
 
   @ApiPropertyOptional({ description: "适用商品ID列表（空=全场）" })
   @IsOptional()
@@ -581,6 +709,16 @@ export class CreateFullReductionDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiPropertyOptional({ description: "展示范围", enum: ["GLOBAL", "PAGE_ONLY"] })
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @ApiPropertyOptional({ description: "关联微页面ID" })
+  @IsOptional()
+  @IsString()
+  scopePageId?: string;
 }
 
 export class UpdateFullReductionDto {
@@ -632,4 +770,14 @@ export class UpdateFullReductionDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  @ApiPropertyOptional({ description: "展示范围", enum: ["GLOBAL", "PAGE_ONLY"] })
+  @IsOptional()
+  @IsString()
+  scope?: string;
+
+  @ApiPropertyOptional({ description: "关联微页面ID" })
+  @IsOptional()
+  @IsString()
+  scopePageId?: string;
 }

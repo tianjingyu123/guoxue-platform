@@ -21,7 +21,7 @@ export class CircleAssistantController {
     @Body() body: { question: string },
     @Req() req: Request,
   ) {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     return this.assistant.ask(body.question, circleId, userId);
   }
 
@@ -35,7 +35,7 @@ export class CircleAssistantController {
     @Body() body: { question: string; history?: Array<{ role: "system" | "user" | "assistant"; content: string }> },
     @Req() req: Request,
   ) {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     return this.assistant.ask(body.question, circleId, userId, body.history);
   }
 
@@ -50,7 +50,7 @@ export class CircleAssistantController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");

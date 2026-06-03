@@ -10,3 +10,6 @@ export const PAGE_SIZE_DEFAULT = 10;
 
 // ── 工具注册表 ──
 export * from "./tools-catalog";
+
+// ── 排盘颜色令牌 + 设计约束 ──
+export * from "./paipan-tokens";

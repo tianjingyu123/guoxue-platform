@@ -33,15 +33,15 @@ export class HealthService {
     await Promise.allSettled([
       this.checkDb().then((r) => (checks.db = r)),
       this.checkRedis().then((r) => (checks.redis = r)),
-      this.checkDeepSeek().then((r) => (checks.deepseek = r)),
-      this.checkTencentCloud().then((r) => (checks.tencentCloud = r)),
-      this.checkSms().then((r) => (checks.sms = r)),
-      this.checkCos().then((r) => (checks.cos = r)),
-      this.checkWechatPay().then((r) => (checks.wechatPay = r)),
-      this.checkWechatOpen().then((r) => (checks.wechatOpen = r)),
-      this.checkLiveService().then((r) => (checks.liveStream = r)),
-      this.checkIm().then((r) => (checks.im = r)),
-      this.checkVod().then((r) => (checks.vod = r)),
+      this.checkDeepSeek().then((r) => { if (r.status !== "unconfigured") checks.ai = r; }),
+      this.checkTencentCloud().then((r) => { if (r.status !== "unconfigured") checks.cloud = r; }),
+      this.checkSms().then((r) => { if (r.status !== "unconfigured") checks.sms = r; }),
+      this.checkCos().then((r) => { if (r.status !== "unconfigured") checks.storage = r; }),
+      this.checkWechatPay().then((r) => { if (r.status !== "unconfigured") checks.payment = r; }),
+      this.checkWechatOpen().then((r) => { if (r.status !== "unconfigured") checks.wechat = r; }),
+      this.checkLiveService().then((r) => { if (r.status !== "unconfigured") checks.live = r; }),
+      this.checkIm().then((r) => { if (r.status !== "unconfigured") checks.im = r; }),
+      this.checkVod().then((r) => { if (r.status !== "unconfigured") checks.vod = r; }),
     ]);
 
     // 汇总状态
@@ -55,7 +55,7 @@ export class HealthService {
       status,
       uptime: process.uptime(),
       timestamp: Date.now(),
-      version: process.version,
+      version: "1.0",
       memory: {
         rss: this.fmt(mem.rss),
         heapUsed: this.fmt(mem.heapUsed),

@@ -1,8 +1,21 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+
+interface FortuneContent {
+  direction: string;
+  color: string;
+  number: number;
+  advice: string;
+  overall: number;
+  career: number;
+  love: number;
+  wealth: number;
+  health: number;
+}
 
 function formatDate(d: Date, fmt: string): string {
   const o: Record<string, number> = {
@@ -56,7 +69,7 @@ export class FortuneService {
           userId: sub.userId,
           fortuneType: "DAILY" as const,
           period: today,
-          fortuneContent: content as any,
+          fortuneContent: content as unknown as Prisma.InputJsonValue,
           luckyDirection: content.direction,
           luckyColor: content.color,
           luckyNumber: content.number,
@@ -95,7 +108,7 @@ export class FortuneService {
           userId: sub.userId,
           fortuneType: "WEEKLY" as const,
           period,
-          fortuneContent: content as any,
+          fortuneContent: content as unknown as Prisma.InputJsonValue,
           luckyDirection: content.direction,
           luckyColor: content.color,
           luckyNumber: content.number,
@@ -108,7 +121,7 @@ export class FortuneService {
     this.logger.log(`每周运势生成完成: ${newData.length}`);
   }
 
-  private generateTemplateFortune() {
+  private generateTemplateFortune(): FortuneContent {
     const directions = ["东", "南", "西", "北", "东南", "西南", "东北", "西北"];
     const colors = ["红", "黄", "蓝", "绿", "白", "黑", "紫", "金"];
     const advises = [
@@ -185,7 +198,7 @@ export class FortuneService {
           userId,
           fortuneType: "DAILY",
           period: today,
-          fortuneContent: content as any,
+          fortuneContent: content as unknown as Prisma.InputJsonValue,
           luckyDirection: content.direction,
           luckyColor: content.color,
           luckyNumber: content.number,
@@ -286,11 +299,11 @@ export class FortuneService {
 
     return {
       fortune: {
-        overall: (fortune.fortuneContent as any)?.overall,
-        career: (fortune.fortuneContent as any)?.career,
-        love: (fortune.fortuneContent as any)?.love,
-        wealth: (fortune.fortuneContent as any)?.wealth,
-        health: (fortune.fortuneContent as any)?.health,
+        overall: (fortune.fortuneContent as unknown as FortuneContent)?.overall,
+        career: (fortune.fortuneContent as unknown as FortuneContent)?.career,
+        love: (fortune.fortuneContent as unknown as FortuneContent)?.love,
+        wealth: (fortune.fortuneContent as unknown as FortuneContent)?.wealth,
+        health: (fortune.fortuneContent as unknown as FortuneContent)?.health,
         direction: fortune.luckyDirection,
         color: fortune.luckyColor,
         number: fortune.luckyNumber,

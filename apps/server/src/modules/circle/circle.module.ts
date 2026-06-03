@@ -15,9 +15,10 @@ import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { CoinModule } from "../coin/coin.module";
 import { CommissionModule } from "../commission/commission.module";
 import { NotificationModule } from "../notification/notification.module";
+import { PricingModule } from "../pricing/pricing.module";
 
 @Module({
-  imports: [AiGatewayModule, CoinModule, CommissionModule, NotificationModule],
+  imports: [AiGatewayModule, CoinModule, CommissionModule, NotificationModule, PricingModule],
   controllers: [
     CircleController,
     CircleKnowledgeController,

@@ -8,6 +8,7 @@ const mockUploadSvc = {
   upload: jest.fn().mockResolvedValue({ url: "https://cdn.example.com/img.jpg", key: "uploads/img.jpg" }),
   uploadMany: jest.fn().mockResolvedValue([{ url: "https://cdn.example.com/1.jpg" }, { url: "https://cdn.example.com/2.jpg" }]),
   validateAudio: jest.fn(),
+  validateVideo: jest.fn(),
   delete: jest.fn().mockResolvedValue(undefined),
 };
 
@@ -53,6 +54,14 @@ describe("UploadController", () => {
     const result: any = await ctrl.uploadAudio(file);
     expect(result.url).toContain("cdn");
     expect(mockUploadSvc.validateAudio).toHaveBeenCalledWith(file);
+    expect(mockUploadSvc.upload).toHaveBeenCalledWith(file);
+  });
+
+  it("POST /upload/video — 上传视频", async () => {
+    const file = { originalname: "test.mp4", mimetype: "video/mp4", buffer: Buffer.from(""), size: 1024000 } as any;
+    const result: any = await ctrl.uploadVideo(file);
+    expect(result.url).toContain("cdn");
+    expect(mockUploadSvc.validateVideo).toHaveBeenCalledWith(file);
     expect(mockUploadSvc.upload).toHaveBeenCalledWith(file);
   });
 

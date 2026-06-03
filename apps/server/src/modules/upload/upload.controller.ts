@@ -4,6 +4,7 @@ import {
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -20,7 +21,7 @@ export class UploadController {
   @ApiOperation({ summary: "上传图片（单文件，最大10MB）" })
   @UseInterceptors(
     FileInterceptor("file", {
-      storage: undefined as any,
+      storage: memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith("image/")) {
@@ -41,7 +42,7 @@ export class UploadController {
   @ApiOperation({ summary: "批量上传图片（最多9张）" })
   @UseInterceptors(
     FilesInterceptor("files", 9, {
-      storage: undefined as any,
+      storage: memoryStorage(),
       limits: { fileSize: 10 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith("image/")) {
@@ -62,7 +63,7 @@ export class UploadController {
   @ApiOperation({ summary: "上传音频（最大50MB）" })
   @UseInterceptors(
     FileInterceptor("file", {
-      storage: undefined as any,
+      storage: memoryStorage(),
       limits: { fileSize: 50 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith("audio/")) {
@@ -83,7 +84,7 @@ export class UploadController {
   @ApiOperation({ summary: "上传视频（最大200MB）" })
   @UseInterceptors(
     FileInterceptor("file", {
-      storage: undefined as any,
+      storage: memoryStorage(),
       limits: { fileSize: 200 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
         if (!file.mimetype.startsWith("video/")) {

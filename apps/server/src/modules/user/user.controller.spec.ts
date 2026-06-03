@@ -11,6 +11,7 @@ const mockUserSvc: Record<string, jest.Mock> = {
   listUsers: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 } as any),
   assignRole: jest.fn().mockResolvedValue({ id: "u1", roles: ["EDITOR"] } as any),
   removeRole: jest.fn().mockResolvedValue({ id: "u1", roles: [] } as any),
+  batchUpdateStatus: jest.fn().mockResolvedValue({ updated: 3 } as any),
   updateUserStatus: jest.fn().mockResolvedValue({ id: "u1", status: "BANNED" } as any),
   getMemberPurchases: jest.fn().mockResolvedValue([] as any),
   follow: jest.fn().mockResolvedValue({ success: true } as any),
@@ -23,6 +24,10 @@ const mockUserSvc: Record<string, jest.Mock> = {
   addWhitelist: jest.fn().mockResolvedValue({ userId: "u1" } as any),
   removeWhitelist: jest.fn().mockResolvedValue({ success: true } as any),
   getUserProfile: jest.fn().mockResolvedValue({ id: "u1" } as any),
+  getInterestStats: jest.fn().mockResolvedValue({ totalUsers: 100 } as any),
+  requestAccountDeletion: jest.fn().mockResolvedValue({ message: "已提交" } as any),
+  cancelAccountDeletion: jest.fn().mockResolvedValue({ message: "已取消" } as any),
+  executeAccountDeletion: jest.fn().mockResolvedValue({ message: "已注销" } as any),
 };
 
 const mockSystemSvc = {
@@ -137,5 +142,41 @@ describe("UserController", () => {
   it("GET /users/:id/profile — 用户画像", async () => {
     const result: any = await ctrl.getUserProfile("u1");
     expect(result.id).toBe("u1");
+  });
+
+  it("PUT /users/batch/status — 批量更新用户状态", async () => {
+    const result: any = await ctrl.batchUpdateStatus({ ids: ["u1", "u2"], status: "DISABLED" });
+    expect(result.updated).toBe(3);
+  });
+
+  it("GET /users/:id/purchases — 非本人非管理员无权查看", () => {
+    const req = { user: { id: "u1", roles: ["USER"] }, ip: "127.0.0.1" } as any;
+    expect(() => ctrl.getMemberPurchases("u2", req)).toThrow("无权查看");
+  });
+
+  it("GET /users/:id/purchases — 管理员可查看他人购买记录", async () => {
+    const req = { user: { id: "admin1", roles: ["SUPER_ADMIN"] }, ip: "127.0.0.1" } as any;
+    const result: any = await ctrl.getMemberPurchases("u2", req);
+    expect(result).toHaveLength(0);
+  });
+
+  it("GET /users/stats/interests — 用户兴趣品类统计", async () => {
+    const result: any = await ctrl.getInterestStats();
+    expect(result.totalUsers).toBe(100);
+  });
+
+  it("POST /users/delete-request — 申请注销账号", async () => {
+    const result: any = await ctrl.requestAccountDeletion(mockReq());
+    expect(result.message).toBe("已提交");
+  });
+
+  it("POST /users/delete-cancel — 取消注销申请", async () => {
+    const result: any = await ctrl.cancelAccountDeletion(mockReq());
+    expect(result.message).toBe("已取消");
+  });
+
+  it("POST /users/:id/delete-execute — 管理员执行注销", async () => {
+    const result: any = await ctrl.executeAccountDeletion("u1");
+    expect(result.message).toBe("已注销");
   });
 });

@@ -65,21 +65,21 @@ export class BigScreenTokenController {
   @Post()
   @ApiOperation({ summary: "创建大屏访问令牌" })
   create(@Body() body: { type: string; validHours: number; ipWhitelist?: string }, @Req() req: Request) {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
     return this.authSvc.createToken({ ...body, createdBy: userId });
   }
 
   @Post(":id/approve")
   @ApiOperation({ summary: "审批大屏令牌" })
   approve(@Param("id") id: string, @Req() req: Request) {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
     return this.authSvc.approveToken(id, userId);
   }
 
   @Post(":id/revoke")
   @ApiOperation({ summary: "撤销大屏令牌" })
   revoke(@Param("id") id: string, @Req() req: Request) {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
     return this.authSvc.revokeToken(id, userId);
   }
 

@@ -60,9 +60,11 @@ export class ShopController {
 
   @Get("products/:id")
   @UseGuards(OptionalAuthGuard, StationIsolationGuard)
-  @ApiOperation({ summary: "获取商品详情" })
-  getProduct(@Param("id") id: string) {
-    return this.shop.getProduct(id);
+  @ApiOperation({ summary: "获取商品详情（含统一活动价格）" })
+  @ApiQuery({ name: "scene", required: false, description: "场景: detail/cart/checkout" })
+  @ApiQuery({ name: "pageId", required: false, description: "当前微页面ID" })
+  getProduct(@Param("id") id: string, @Query("scene") scene?: string, @Query("pageId") pageId?: string) {
+    return this.shop.getProduct(id, scene, pageId);
   }
 
   @Put("products/:id")

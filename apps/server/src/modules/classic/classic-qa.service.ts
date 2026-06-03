@@ -9,6 +9,13 @@ export interface ClassicQAReply {
   citations: Array<{ bookName: string; chapterName: string; excerpt: string; similarity: number }>;
 }
 
+interface RagChunk {
+  content: string;
+  similarity: number;
+  bookName?: string;
+  chapterName?: string;
+}
+
 const CLASSIC_QA_PROMPT = `你是一位资深的国学经典研究学者。请根据提供的古籍原文回答用户的问题。
 
 规则：
@@ -62,9 +69,9 @@ export class ClassicQaService {
 
     return {
       answer: result.content,
-      citations: chunks.map((c) => ({
-        bookName: (c as any).bookName || "未知",
-        chapterName: (c as any).chapterName || "未知章节",
+      citations: chunks.map((c: RagChunk) => ({
+        bookName: c.bookName || "未知",
+        chapterName: c.chapterName || "未知章节",
         excerpt: c.content.slice(0, 200),
         similarity: c.similarity,
       })),

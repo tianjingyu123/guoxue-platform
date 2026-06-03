@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { CircleService } from "./circle.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -43,11 +44,25 @@ describe("CircleService", () => {
   let svc: CircleService;
 
   beforeAll(async () => {
+    const mockUnifiedPricing = {
+      calculateTargetPrice: jest.fn().mockResolvedValue({
+        targetId: "c1",
+        targetType: "CIRCLE",
+        effectivePrice: 99,
+        originalPrice: 99,
+        hasPromotion: false,
+        appliedPromotion: null,
+        activePromotions: [],
+      }),
+      invalidateTargetCache: jest.fn().mockResolvedValue(undefined),
+    };
+
     const mod = await Test.createTestingModule({
       providers: [
         CircleService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
+        { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
       ],
     }).compile();
     svc = mod.get(CircleService);

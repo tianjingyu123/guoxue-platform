@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { PricingController } from "./pricing.controller";
 import { PricingService } from "./pricing.service";
+import { UnifiedPricingService } from "./unified-pricing.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 
@@ -13,6 +14,11 @@ const mockPricingSvc = {
   getDemandHeatmap: jest.fn().mockResolvedValue({ data: [], total: 0 }),
 };
 
+const mockUnifiedPricingSvc = {
+  calculateEffectivePrice: jest.fn().mockResolvedValue({ effectivePrice: 99 }),
+  batchCalculateEffectivePrice: jest.fn().mockResolvedValue([]),
+};
+
 describe("PricingController", () => {
   let ctrl: PricingController;
 
@@ -21,6 +27,7 @@ describe("PricingController", () => {
       controllers: [PricingController],
       providers: [
         { provide: PricingService, useValue: mockPricingSvc },
+        { provide: UnifiedPricingService, useValue: mockUnifiedPricingSvc },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })

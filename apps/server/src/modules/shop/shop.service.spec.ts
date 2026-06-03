@@ -2,6 +2,8 @@ import { Test } from "@nestjs/testing"
 import { ShopService } from "./shop.service"
 import { PrismaService } from "../../prisma/prisma.service"
 import { CommissionService } from "../commission/commission.service"
+import { UnifiedPricingService } from "../pricing/unified-pricing.service"
+import { PaymentProviderFactory } from "./payment-factory"
 import { WechatPayService } from "./wechat-pay.service"
 import { AlipayService } from "./alipay.service"
 import { UnionpayService } from "./unionpay.service"
@@ -112,6 +114,27 @@ const mockCommission = {
   reverseCommission: jest.fn().mockResolvedValue({ reversed: true }),
 }
 
+const mockUnifiedPricing = {
+  calculateEffectivePrice: jest.fn().mockResolvedValue({
+    productId: "p1", effectivePrice: 99, originalPrice: 99,
+    appliedPromotion: null, activePromotions: [], hasPromotion: false,
+  }),
+  batchCalculateEffectivePrice: jest.fn().mockResolvedValue([]),
+  calculateFullReduction: jest.fn().mockResolvedValue({ reducedAmount: 99, reduction: 0 }),
+  invalidateCache: jest.fn().mockResolvedValue(undefined),
+  invalidateCacheByProduct: jest.fn().mockResolvedValue(undefined),
+}
+
+const mockPaymentFactory = {
+  getProvider: jest.fn().mockReturnValue(mockWechatPay),
+  refund: jest.fn().mockResolvedValue({ status: "SUCCESS" }),
+  queryOrder: jest.fn().mockResolvedValue({ trade_state: "SUCCESS" }),
+}
+
+const mockHuifu = {
+  createOrder: jest.fn().mockResolvedValue({ huifuId: "h1" }),
+}
+
 describe("ShopService", () => {
   let svc: ShopService
 
@@ -121,10 +144,13 @@ describe("ShopService", () => {
         ShopService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CommissionService, useValue: mockCommission },
+        { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
         { provide: WechatPayService, useValue: mockWechatPay },
         { provide: AlipayService, useValue: mockAlipay },
         { provide: UnionpayService, useValue: mockUnionpay },
         { provide: RedisService, useValue: mockRedis },
+        { provide: PaymentProviderFactory, useValue: mockPaymentFactory },
+        { provide: "HuifuService", useValue: mockHuifu },
         { provide: CoinService, useValue: mockCoin },
         { provide: WebhookService, useValue: mockWebhook },
       ],
@@ -307,51 +333,6 @@ describe("ShopService", () => {
       mockPrisma.order.count.mockResolvedValue(1)
       const result = await svc.getUserOrders("u1")
       expect(result.total).toBe(1)
-    })
-  })
-
-  // ═══════════════════ 优惠券管理 ═══════════════════
-
-  describe.skip("createCoupon", () => {
-    it.skip("创建满减优惠券", async () => {
-      mockPrisma.coupon.create.mockResolvedValue({ id: "c1", type: "FULL_REDUCE", value: "10" })
-      const result = await (svc as any).createCoupon({
-        type: "FULL_REDUCE", name: "满100减10", value: 10, minAmount: 100,
-        validStart: "2026-01-01", validEnd: "2026-12-31",
-      })
-      expect(result.type).toBe("FULL_REDUCE")
-    })
-  })
-
-  describe.skip("claimCoupon", () => {
-    const mockCoupon = { id: "c1", status: "ACTIVE", validEnd: new Date("2027-01-01"), totalCount: 100, usedCount: 0 }
-
-    it.skip("领取成功", async () => {
-      mockPrisma.coupon.findUnique.mockResolvedValue(mockCoupon)
-      mockPrisma.userCoupon.findFirst.mockResolvedValue(null)
-      mockPrisma.coupon.update.mockResolvedValue({})
-      mockPrisma.userCoupon.create.mockResolvedValue({ id: "uc1" })
-      const result = await (svc as any).claimCoupon("u1", "c1")
-      expect(result.id).toBe("uc1")
-    })
-
-    it.skip("优惠券已领完", async () => {
-      mockPrisma.coupon.findUnique.mockResolvedValue({ ...mockCoupon, totalCount: 1, usedCount: 1 })
-      await expect((svc as any).claimCoupon("u1", "c1")).rejects.toThrow(BusinessException)
-    })
-
-    it.skip("已领过不可重复领", async () => {
-      mockPrisma.coupon.findUnique.mockResolvedValue(mockCoupon)
-      mockPrisma.userCoupon.findFirst.mockResolvedValue({ id: "existing" })
-      await expect((svc as any).claimCoupon("u1", "c1")).rejects.toThrow(BusinessException)
-    })
-  })
-
-  describe.skip("getUserCoupons", () => {
-    it.skip("返回用户未使用的优惠券", async () => {
-      mockPrisma.userCoupon.findMany.mockResolvedValue([{ id: "uc1", coupon: { id: "c1", type: "FULL_REDUCE" } }])
-      const result = await (svc as any).getUserCoupons("u1")
-      expect(result).toHaveLength(1)
     })
   })
 

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import {
   BaseRecommendStrategy,
   RecommendContext,
@@ -14,6 +14,7 @@ interface StrategyWeight {
 @Injectable()
 export class MixedStrategy extends BaseRecommendStrategy {
   name = "mixed";
+  private readonly logger = new Logger(MixedStrategy.name);
   private strategies: StrategyWeight[] = [];
 
   supports(_scene: RecommendScene): boolean {
@@ -43,7 +44,7 @@ export class MixedStrategy extends BaseRecommendStrategy {
             strategies: [...item.strategies, "mixed"],
           }));
         } catch (err) {
-          console.warn(`推荐策略执行失败`, err);
+          this.logger.warn(`推荐策略 ${strategy.name} 执行失败`, (err as Error).message);
           return [];
         }
       }),

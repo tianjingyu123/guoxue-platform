@@ -8,6 +8,7 @@ import {
   FollowDto, ReportDto, CommentListQueryDto, ReportListQueryDto,
 } from "./interaction.dto";
 import { Prisma } from "@prisma/client";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
 
 @Injectable()
 export class InteractionService {
@@ -29,7 +30,7 @@ export class InteractionService {
     try {
       await this.prisma.like.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId } });
     } catch (e: unknown) {
-      if ((e as { code?: string })?.code === "P2002") return { liked: true };
+      if (isUniqueConstraintError(e)) return { liked: true };
       throw e;
     }
     // 异步记录行为
@@ -153,7 +154,7 @@ export class InteractionService {
     try {
       await this.prisma.collect.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId } });
     } catch (e: unknown) {
-      if ((e as { code?: string })?.code === "P2002") return { collected: true };
+      if (isUniqueConstraintError(e)) return { collected: true };
       throw e;
     }
     // 异步记录行为
@@ -194,7 +195,7 @@ export class InteractionService {
     try {
       await this.prisma.follow.create({ data: { userId, followedUserId: dto.followedUserId } });
     } catch (e: unknown) {
-      if ((e as { code?: string })?.code === "P2002") return { followed: true };
+      if (isUniqueConstraintError(e)) return { followed: true };
       throw e;
     }
     // 异步记录行为
