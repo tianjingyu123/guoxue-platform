@@ -23,7 +23,13 @@
             <text class="item-title" @click="goProduct(item.productId)">{{ item.product?.title || '商品已下架' }}</text>
             <text v-if="item.sku" class="item-sku">{{ skuText(item.sku.specs) }}</text>
             <view class="item-bottom">
-              <text class="item-price">¥{{ item.unitPrice }}</text>
+              <view class="price-col">
+                <view class="price-row">
+                  <text class="item-price">¥{{ item.unitPrice }}</text>
+                  <text v-if="item.hasPromotion && item.originalPrice && item.originalPrice > item.unitPrice" class="item-original">¥{{ item.originalPrice }}</text>
+                  <text v-if="item.promotionTag" class="item-promo-tag">{{ item.promotionTag }}</text>
+                </view>
+              </view>
               <view class="qty-ctrl">
                 <text class="qty-btn" @click="decrease(item)">−</text>
                 <text class="qty-val">{{ item.quantity }}</text>
@@ -177,7 +183,11 @@ function goShop() {
 .item-title { font-size: 14px; color: #2C2C2C; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; line-height: 1.4; }
 .item-sku { font-size: 11px; color: #999; }
 .item-bottom { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+.price-col { display: flex; flex-direction: column; }
+.price-row { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
 .item-price { font-size: 16px; font-weight: bold; color: #C41E3A; }
+.item-original { font-size: 11px; color: #999; text-decoration: line-through; }
+.item-promo-tag { font-size: 10px; color: #fff; background: #C41E3A; padding: 0 5px; border-radius: 3px; }
 .qty-ctrl { display: flex; align-items: center; gap: 0; border: 1px solid #E8E0D5; border-radius: 16px; overflow: hidden; }
 .qty-btn { width: 30px; height: 28px; text-align: center; line-height: 28px; font-size: 16px; color: #666; background: #F5F0E8; }
 .qty-val { width: 36px; text-align: center; font-size: 14px; color: #333; }

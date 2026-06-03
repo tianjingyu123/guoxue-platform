@@ -107,6 +107,7 @@
           >
             删除
           </el-button>
+          <el-button size="small" type="info" @click="viewStationData(row)">运营数据</el-button>
           <el-dropdown trigger="click">
             <el-button size="small">更多 ▾</el-button>
             <template #dropdown>
@@ -404,44 +405,50 @@
     <el-dialog
       v-model="templateDialogVisible"
       title="选择分站模版"
-      width="640px"
+      width="680px"
     >
-      <el-radio-group
-        v-model="templateForm.templateId"
-        class="template-list"
-      >
-        <el-radio
+      <div v-loading="templateLoading" class="template-grid">
+        <div
           v-for="tpl in templates"
           :key="tpl.id"
-          :value="tpl.id"
-          class="template-card"
-          border
+          class="tpl-card"
+          :class="{ 'tpl-card--active': templateForm.templateId === tpl.id }"
+          @click="templateForm.templateId = tpl.id"
         >
-          <div class="tpl-name">{{ tpl.name }}</div>
-          <div class="tpl-desc">{{ tpl.desc }}</div>
-          <div class="tpl-tags">
+          <div class="tpl-card__header">
+            <el-radio
+              :model-value="templateForm.templateId"
+              :value="tpl.id"
+              @click.stop="templateForm.templateId = tpl.id"
+            >
+              <span class="tpl-card__name">{{ tpl.name }}</span>
+            </el-radio>
+          </div>
+          <div class="tpl-card__desc">{{ tpl.desc }}</div>
+          <div class="tpl-card__tags">
             <el-tag
-              v-for="tab in tpl.preview.tabs"
+              v-for="tab in (tpl.preview?.tabs || [])"
               :key="tab"
               size="small"
               type="info"
-            >
-              {{ tab }}
-            </el-tag>
+            >{{ tab }}</el-tag>
           </div>
-        </el-radio>
-      </el-radio-group>
+          <div class="tpl-card__modules">
+            <span class="tpl-card__modules-label">模块：</span>
+            <el-tag
+              v-for="mod in (tpl.preview?.modules || [])"
+              :key="mod"
+              size="small"
+              type=""
+              effect="plain"
+            >{{ mod }}</el-tag>
+          </div>
+        </div>
+        <el-empty v-if="!templateLoading && templates.length === 0" description="暂无可选模版" :image-size="48" />
+      </div>
       <template #footer>
-        <el-button @click="templateDialogVisible = false">
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          :loading="templateSaving"
-          @click="saveTemplate"
-        >
-          应用模版
-        </el-button>
+        <el-button @click="templateDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="templateSaving" @click="saveTemplate">应用模版</el-button>
       </template>
     </el-dialog>
   </div>
@@ -449,10 +456,13 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { stationApi } from "@/api";
 import ImageUpload from "@/components/ImageUpload.vue";
 import { exportCSV } from "@/utils/export";
+
+const router = useRouter();
 
 const stations = ref<any[]>([]);
 const loading = ref(false);
@@ -495,6 +505,7 @@ const brandForm = reactive({ name: "", logo: "", themeColor: "" });
 
 // 模版选择
 const templateDialogVisible = ref(false);
+const templateLoading = ref(false);
 const templateSaving = ref(false);
 const templateStationId = ref("");
 const templates = ref<any[]>([]);
@@ -585,6 +596,10 @@ function exportData() {
   );
 }
 
+function viewStationData(row: any) {
+  router.push({ name: "StationData", query: { stationId: row.id } });
+}
+
 // ── 品牌编辑 ──
 
 function openBrandEdit(row: any) {
@@ -617,14 +632,16 @@ async function openTemplate(row: any) {
   templateStationId.value = row.id;
   templateForm.templateId = row.templateId || "default";
   templateForm.templateConfig = {};
-  // 加载可用模版列表
+  templateLoading.value = true;
+  templateDialogVisible.value = true;
   try {
     const { data } = await stationApi.getTemplates();
     templates.value = data || [];
   } catch {
     templates.value = [];
+  } finally {
+    templateLoading.value = false;
   }
-  templateDialogVisible.value = true;
 }
 
 async function saveTemplate() {
@@ -700,9 +717,20 @@ async function saveOperator() {
 .header h2 { margin: 0; font-size: 18px; color: #8b4513; }
 .pagination-wrap { margin-top: 16px; display: flex; justify-content: center; }
 .operator-header { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
-.template-list { display: flex; flex-direction: column; gap: 12px; width: 100%; }
-.template-card { width: 100%; padding: 12px; }
-.tpl-name { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
-.tpl-desc { color: #666; font-size: 13px; margin-bottom: 8px; }
-.tpl-tags { display: flex; gap: 6px; }
+.operator-header { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+
+/* 模版选择 */
+.template-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tpl-card {
+  border: 2px solid #e4e7ed; border-radius: 10px; padding: 16px;
+  cursor: pointer; transition: border-color .2s, box-shadow .2s;
+}
+.tpl-card:hover { border-color: #b8a088; box-shadow: 0 2px 10px rgba(139,69,19,0.08); }
+.tpl-card--active { border-color: #8b4513; background: rgba(139,69,19,0.03); }
+.tpl-card__header { margin-bottom: 8px; }
+.tpl-card__name { font-size: 15px; font-weight: 600; color: #303133; }
+.tpl-card__desc { font-size: 13px; color: #909399; margin-bottom: 10px; line-height: 1.5; }
+.tpl-card__tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.tpl-card__modules { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.tpl-card__modules-label { font-size: 12px; color: #c0c4cc; }
 </style>

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
  * 八字排盘主页面
- * 包含：输入表单 + 三种展示模式切换（传统/报告/分析）
+ * 使用 PageTool 模板 + 业务组件
  */
 import { ref, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
 import { paipanApi } from '@/api'
+import { UI_COLORS, FONT_SIZE } from '@guoxue/shared'
+import { PageTool } from '@/components/paipan'
 import BaziTraditional from './components/BaziTraditional.vue'
 import BaziReport from './components/BaziReport.vue'
 import BaziAnalysis from './components/BaziAnalysis.vue'
@@ -24,12 +25,14 @@ const form = reactive({
 const result = ref<any>(null)
 const mode = ref<'traditional' | 'report' | 'analysis'>('traditional')
 const loading = ref(false)
+const inputCollapsed = ref(false)
 
 async function doCalc() {
   loading.value = true
   try {
     result.value = await paipanApi.preview({ ...form })
-  } catch (e: any) {
+  } catch {
+    // handled by interceptor
   } finally {
     loading.value = false
   }
@@ -40,22 +43,24 @@ doCalc()
 </script>
 
 <template>
-  <div class="bazi-pan-page">
+  <PageTool
+    tool-title="八字排盘"
+    :input-collapsed="inputCollapsed"
+    @toggle-input="inputCollapsed = $event"
+  >
     <!-- 输入面板 -->
-    <div class="input-panel">
-      <h2>八字排盘</h2>
-      <el-form
-        :model="form"
-        inline
-      >
-        <el-form-item label="姓名">
+    <template #input>
+      <div class="input-form">
+        <div class="form-section">
+          <label class="form-label">姓名</label>
           <el-input
             v-model="form.name"
             placeholder="请输入姓名"
             size="small"
           />
-        </el-form-item>
-        <el-form-item label="性别">
+        </div>
+        <div class="form-section">
+          <label class="form-label">性别</label>
           <el-radio-group
             v-model="form.gender"
             size="small"
@@ -67,128 +72,167 @@ doCalc()
               女
             </el-radio-button>
           </el-radio-group>
-        </el-form-item>
-        <el-form-item label="出生日期">
-          <el-input-number
-            v-model="form.year"
-            :min="1900"
-            :max="2100"
-            size="small"
-          />年
-          <el-input-number
-            v-model="form.month"
-            :min="1"
-            :max="12"
-            size="small"
-          />月
-          <el-input-number
-            v-model="form.day"
-            :min="1"
-            :max="31"
-            size="small"
-          />日
-        </el-form-item>
-        <el-form-item label="时辰">
-          <el-input-number
-            v-model="form.hour"
-            :min="0"
-            :max="23"
-            size="small"
-          />时
-          <el-input-number
-            v-model="form.minute"
-            :min="0"
-            :max="59"
-            size="small"
-          />分
-        </el-form-item>
-        <el-form-item label="城市">
+        </div>
+        <div class="form-section">
+          <label class="form-label">出生日期</label>
+          <div class="date-row">
+            <el-input-number
+              v-model="form.year"
+              :min="1900"
+              :max="2100"
+              size="small"
+            /><span class="date-unit">年</span>
+            <el-input-number
+              v-model="form.month"
+              :min="1"
+              :max="12"
+              size="small"
+            /><span class="date-unit">月</span>
+            <el-input-number
+              v-model="form.day"
+              :min="1"
+              :max="31"
+              size="small"
+            /><span class="date-unit">日</span>
+          </div>
+        </div>
+        <div class="form-section">
+          <label class="form-label">时辰</label>
+          <div class="date-row">
+            <el-input-number
+              v-model="form.hour"
+              :min="0"
+              :max="23"
+              size="small"
+            /><span class="date-unit">时</span>
+            <el-input-number
+              v-model="form.minute"
+              :min="0"
+              :max="59"
+              size="small"
+            /><span class="date-unit">分</span>
+          </div>
+        </div>
+        <div class="form-section">
+          <label class="form-label">城市</label>
           <el-input
             v-model="form.city"
             placeholder="用于真太阳时（可选）"
             size="small"
           />
-        </el-form-item>
-        <el-form-item>
-          <el-button
-            type="primary"
-            :loading="loading"
-            @click="doCalc"
-          >
-            排盘
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </div>
+        </div>
+        <el-button
+          type="primary"
+          :loading="loading"
+          class="calc-btn"
+          @click="doCalc"
+        >
+          {{ loading ? '推演中...' : '开始排盘' }}
+        </el-button>
+      </div>
+    </template>
 
-    <!-- 展示模式切换 -->
-    <div
-      v-if="result"
-      class="mode-tabs"
-    >
-      <el-tabs v-model="mode">
-        <el-tab-pane
-          label="传统模式"
-          name="traditional"
-        />
-        <el-tab-pane
-          label="报告模式"
-          name="report"
-        />
-        <el-tab-pane
-          label="分析模式"
-          name="analysis"
-        />
-      </el-tabs>
-    </div>
+    <!-- 结果区 -->
+    <template #result>
+      <div v-if="result">
+        <!-- 展示模式切换 -->
+        <el-tabs
+          v-model="mode"
+          class="mode-tabs"
+        >
+          <el-tab-pane
+            label="传统模式"
+            name="traditional"
+          />
+          <el-tab-pane
+            label="报告模式"
+            name="report"
+          />
+          <el-tab-pane
+            label="分析模式"
+            name="analysis"
+          />
+        </el-tabs>
 
-    <!-- 结果展示 -->
-    <div
-      v-if="result"
-      class="result-area"
-    >
-      <BaziTraditional
-        v-if="mode === 'traditional'"
-        :result="result"
-      />
-      <BaziReport
-        v-if="mode === 'report'"
-        :result="result"
-      />
-      <BaziAnalysis
-        v-if="mode === 'analysis'"
-        :result="result"
-      />
-    </div>
-  </div>
+        <!-- 结果内容 -->
+        <div class="result-content">
+          <BaziTraditional
+            v-if="mode === 'traditional'"
+            :result="result"
+          />
+          <BaziReport
+            v-if="mode === 'report'"
+            :result="result"
+          />
+          <BaziAnalysis
+            v-if="mode === 'analysis'"
+            :result="result"
+          />
+        </div>
+      </div>
+
+      <!-- 空状态 -->
+      <div
+        v-else
+        class="empty-state"
+      >
+        <p>请输入出生信息，点击"开始排盘"</p>
+      </div>
+    </template>
+  </PageTool>
 </template>
 
 <style scoped>
-.bazi-pan-page {
-  min-height: 100vh;
-  background: #f5f0e6;
+.input-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.input-panel {
-  background: #fff;
-  padding: 16px 24px;
-  border-bottom: 1px solid #E8E0D5;
-  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.input-panel h2 {
-  margin: 0 0 12px;
-  font-size: 18px;
-  color: #8b4513;
+.form-label {
+  font-size: v-bind('FONT_SIZE.sm');
+  color: v-bind('UI_COLORS.textSecondary');
+  font-weight: 500;
+}
+
+.date-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.date-unit {
+  font-size: v-bind('FONT_SIZE.xs');
+  color: v-bind('UI_COLORS.textHint');
+  margin-right: 6px;
+}
+
+.calc-btn {
+  width: 100%;
+  margin-top: 8px;
+  background: v-bind('UI_COLORS.brand') !important;
+  border-color: v-bind('UI_COLORS.brand') !important;
 }
 
 .mode-tabs {
-  background: #fff;
-  padding: 0 24px;
-  border-bottom: 1px solid #E8E0D5;
+  margin-bottom: 16px;
 }
 
-.result-area {
-  background: #fff;
+.result-content {
   min-height: 400px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: v-bind('UI_COLORS.textHint');
+  font-size: v-bind('FONT_SIZE.base');
 }
 </style>

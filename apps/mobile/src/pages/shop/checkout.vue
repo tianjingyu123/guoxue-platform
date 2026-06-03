@@ -33,7 +33,11 @@
             <text class="goods-title">{{ item.product?.title }}</text>
             <text v-if="item.sku" class="goods-sku">{{ skuText(item.sku.specs) }}</text>
             <view class="goods-bottom">
-              <text class="goods-price">¥{{ item.unitPrice }}</text>
+              <view class="goods-price-col">
+                <text class="goods-price">¥{{ item.unitPrice }}</text>
+                <text v-if="item.hasPromotion && item.originalPrice && item.originalPrice > item.unitPrice" class="goods-original">¥{{ item.originalPrice }}</text>
+                <text v-if="item.promotionTag" class="goods-promo-tag">{{ item.promotionTag }}</text>
+              </view>
               <text class="goods-qty">×{{ item.quantity }}</text>
             </view>
           </view>
@@ -295,8 +299,11 @@ async function submitOrder() {
 .goods-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .goods-title { font-size: 13px; color: #2C2C2C; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .goods-sku { font-size: 11px; color: #999; }
-.goods-bottom { display: flex; justify-content: space-between; align-items: center; }
+.goods-bottom { display: flex; justify-content: space-between; align-items: flex-end; }
+.goods-price-col { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
 .goods-price { font-size: 15px; font-weight: bold; color: #C41E3A; }
+.goods-original { font-size: 11px; color: #999; text-decoration: line-through; }
+.goods-promo-tag { font-size: 10px; color: #fff; background: #C41E3A; padding: 0 5px; border-radius: 3px; }
 .goods-qty { font-size: 12px; color: #999; }
 
 /* 优惠券/支付方式 */

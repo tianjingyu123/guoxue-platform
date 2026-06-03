@@ -1,6 +1,11 @@
 <template>
   <div class="page">
     <div class="toolbar"><h3>满减送活动</h3><el-button type="primary" @click="openCreate">创建活动</el-button></div>
+    <el-alert type="info" :closable="false" show-icon style="margin-bottom:12px">
+      <template #title>
+        <span style="font-size:13px">展示位置：<b>购物车页</b>自动匹配最优满减、<b>结算页</b>显示减免金额。创建后即生效。</span>
+      </template>
+    </el-alert>
     <el-table v-loading="loading" :data="list" stripe>
       <el-table-column prop="name" label="活动名称" min-width="150" />
       <el-table-column label="满减规则" min-width="200">
@@ -34,11 +39,13 @@
           <el-col :span="12"><el-form-item label="减金额(¥)"><el-input-number v-model="form.reduction" :min="0" :precision="2" style="width:100%" /></el-form-item></el-col>
         </el-row>
         <el-form-item label="赠品商品ID"><el-input v-model="form.giftProductId" placeholder="可选" /></el-form-item>
-        <el-form-item label="适用商品ID"><el-input v-model="form.productIdsStr" placeholder="逗号分隔，留空=全场" /></el-form-item>
+        <el-form-item label="适用商品"><ProductPicker v-model="form.productIds" multiple placeholder="留空则全场商品参与" /></el-form-item>
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="开始时间"><el-date-picker v-model="form.startTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="结束时间"><el-date-picker v-model="form.endTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col>
         </el-row>
+        <el-form-item label="展示范围"><el-radio-group v-model="form.scope"><el-radio value="GLOBAL">全平台</el-radio><el-radio value="PAGE_ONLY">仅指定微页面</el-radio></el-radio-group></el-form-item>
+        <el-form-item v-if="form.scope === 'PAGE_ONLY'" label="关联微页面"><el-select v-model="form.scopePageId" placeholder="选择微页面" clearable style="width:100%"><el-option v-for="p in pages" :key="p.id" :label="p.name" :value="p.id" /></el-select></el-form-item>
       </el-form>
       <template #footer><el-button @click="vis = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
     </el-dialog>
@@ -49,30 +56,32 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
+import ProductPicker from '@/components/ProductPicker.vue'
 
-const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
 const vis = ref(false); const editingId = ref('')
-const form = reactive({ name: '', threshold: 100, reduction: 10, giftProductId: '', productIdsStr: '', startTime: '', endTime: '' })
+const form = reactive<{ name: string; threshold: number; reduction: number; giftProductId: string; productIds: string[]; startTime: string; endTime: string; scope: string; scopePageId: string }>({ name: '', threshold: 100, reduction: 10, giftProductId: '', productIds: [], startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
 
 function statusLabel(s: string) {
   const m: Record<string, string> = { ACTIVE: '进行中', ENDED: '已结束', DRAFT: '草稿' }
   return m[s] || s || '草稿'
 }
 
-onMounted(() => fetchList())
+onMounted(() => { fetchList(); loadPages() })
+async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.pages || data.items || data.data || [] } catch { /* 忽略 */ } }
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
   try {
     const { data } = await marketingApi.listFullReductions({ page: page.value, pageSize: 20 })
-    list.value = data.fullReductions || data.list || data.data || []; total.value = data.total || 0
+    list.value = data.items || data.fullReductions || data.list || data.data || []; total.value = data.total || 0
   } catch { list.value = [] } finally { loading.value = false }
 }
 
 function openCreate() {
   editingId.value = ''
-  Object.assign(form, { name: '', threshold: 100, reduction: 10, giftProductId: '', productIdsStr: '', startTime: '', endTime: '' })
+  Object.assign(form, { name: '', threshold: 100, reduction: 10, giftProductId: '', productIds: [], startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
   vis.value = true
 }
 
@@ -81,8 +90,9 @@ function openEdit(row: any) {
   Object.assign(form, {
     name: row.name, threshold: Number(row.threshold), reduction: Number(row.reduction),
     giftProductId: row.giftProductId || '',
-    productIdsStr: (row.productIds || []).join(','),
+    productIds: [...(row.productIds || [])],
     startTime: row.startTime || '', endTime: row.endTime || '',
+    scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '',
   })
   vis.value = true
 }
@@ -90,21 +100,22 @@ function openEdit(row: any) {
 async function save() {
   saving.value = true
   try {
-    const payload = {
+    const payload: any = {
       name: form.name, threshold: form.threshold, reduction: form.reduction,
       giftProductId: form.giftProductId || undefined,
-      productIds: form.productIdsStr ? form.productIdsStr.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-      startTime: form.startTime ? new Date(form.startTime).toISOString() : undefined,
-      endTime: form.endTime ? new Date(form.endTime).toISOString() : undefined,
+      productIds: form.productIds.length ? form.productIds : undefined,
+      scope: form.scope, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined,
     }
+    if (form.startTime) payload.startTime = new Date(form.startTime).toISOString()
+    if (form.endTime) payload.endTime = new Date(form.endTime).toISOString()
     if (editingId.value) { await marketingApi.updateFullReduction(editingId.value, payload) }
     else { await marketingApi.createFullReduction(payload) }
-    ElMessage.success('已保存'); vis.value = false; fetchList()
-  } catch { } finally { saving.value = false }
+    ElMessage.success(editingId.value ? '已更新' : '满减活动创建成功'); vis.value = false; fetchList()
+  } catch (e: any) { ElMessage.error(e?.response?.data?.message || '操作失败') } finally { saving.value = false }
 }
 
 async function del(id: string) {
-  try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteFullReduction(id); ElMessage.success('已删除'); fetchList() } catch { }
+  try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteFullReduction(id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ }
 }
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }</style>

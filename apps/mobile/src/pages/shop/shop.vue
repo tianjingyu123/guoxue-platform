@@ -74,8 +74,9 @@
             <text v-for="lb in p.labels" :key="lb" class="p-label">{{ lb }}</text>
           </view>
           <view class="p-price-row">
-            <text class="p-price">¥{{ p.price }}</text>
-            <text v-if="p.originalPrice && p.originalPrice > p.price" class="p-original">¥{{ p.originalPrice }}</text>
+            <text class="p-price">¥{{ p.effectivePrice ?? p.price }}</text>
+            <text v-if="p.effectivePrice && p.originalPrice && p.originalPrice > p.effectivePrice" class="p-original">¥{{ p.originalPrice }}</text>
+            <text v-if="p.promotionTag" class="p-promo-tag">{{ p.promotionTag }}</text>
           </view>
           <view class="p-meta">
             <text class="p-sales">{{ p.soldCount || 0 }}人已购</text>
@@ -403,6 +404,13 @@ function goGroupBuy() {
   font-size: 12px;
   color: #999;
   text-decoration: line-through;
+}
+.p-promo-tag {
+  font-size: 10px;
+  color: #fff;
+  background: #C41E3A;
+  padding: 1px 6px;
+  border-radius: 3px;
 }
 .p-meta {
   display: flex;

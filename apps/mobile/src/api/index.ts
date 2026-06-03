@@ -421,7 +421,9 @@ export const classicApi = {
 // 商城
 export const shopApi = {
   products: (params?: any) => api.get("/shop/products", params),
-  productDetail: (id: string) => api.get(`/shop/products/${id}`),
+  productDetail: (id: string, scene?: string, pageId?: string) => api.get(`/shop/products/${id}`, { scene, pageId }),
+  getUnifiedPrice: (productId: string, skuId?: string, pageId?: string, scene?: string) => api.get("/pricing/unified-price", { productId, skuId, pageId, scene }),
+  batchUnifiedPrice: (items: { productId: string; skuId?: string }[], pageId?: string, scene?: string) => api.post("/pricing/unified-price/batch", { items, pageId, scene }),
   createOrder: (data: any) => api.post("/shop/orders", data),
   /** JSAPI支付（小程序/公众号内支付，需传 openid） */
   jsapiPay: (id: string, data: { openid: string; notifyUrl?: string }) => api.post(`/shop/orders/${id}/pay/jsapi`, data),

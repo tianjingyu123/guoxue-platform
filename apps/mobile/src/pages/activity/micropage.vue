@@ -61,6 +61,40 @@
           </scroll-view>
         </view>
 
+        <!-- 独立秒杀（页面内嵌） -->
+        <view v-else-if="comp.type === 'FLASHSALE_INDEPENDENT'" class="comp-section">
+          <view class="section-hd"><text class="section-title">⚡ {{ comp.title || '限时秒杀' }}</text></view>
+          <view class="indie-product-card" @click="goProduct({ id: comp.config?.productId })">
+            <image :src="comp.config?.cover || ''" class="indie-img" mode="aspectFill" />
+            <view class="indie-info">
+              <text class="indie-name">商品ID: {{ comp.config?.productId || '' }}</text>
+              <view class="indie-price-row">
+                <text class="indie-price">¥{{ comp.config?.flashPrice || 0 }}</text>
+                <text class="indie-original" v-if="comp.config?.originalPrice">¥{{ comp.config.originalPrice }}</text>
+              </view>
+              <text class="indie-stock">库存 {{ comp.config?.stock || 0 }} | 限购 {{ comp.config?.limitPerUser || 1 }}</text>
+            </view>
+            <view class="indie-btn flash-btn">立即抢购</view>
+          </view>
+        </view>
+
+        <!-- 独立拼团（页面内嵌） -->
+        <view v-else-if="comp.type === 'GROUPBUY_INDEPENDENT'" class="comp-section">
+          <view class="section-hd"><text class="section-title">👥 {{ comp.title || '超值拼团' }}</text></view>
+          <view class="indie-product-card" @click="goProduct({ id: comp.config?.productId })">
+            <image :src="comp.config?.cover || ''" class="indie-img" mode="aspectFill" />
+            <view class="indie-info">
+              <text class="indie-name">商品ID: {{ comp.config?.productId || '' }}</text>
+              <view class="indie-price-row">
+                <text class="indie-price">¥{{ comp.config?.groupPrice || 0 }}</text>
+                <text class="indie-original" v-if="comp.config?.originalPrice">¥{{ comp.config.originalPrice }}</text>
+              </view>
+              <text class="indie-stock">{{ comp.config?.minMembers || 2 }}人成团 | 库存 {{ comp.config?.stock || 0 }}</text>
+            </view>
+            <view class="indie-btn group-btn">去开团</view>
+          </view>
+        </view>
+
         <!-- 优惠券 -->
         <view v-else-if="comp.type === 'COUPON'" class="comp-section">
           <view class="section-hd"><text class="section-title">🎫 领券中心</text></view>
@@ -290,4 +324,17 @@ function claimCoupon(c: any) {
 /* 未知 */
 .comp-unknown { padding: 20px; background: #fff; text-align: center; }
 .unknown-label { font-size: 14px; color: #999; }
+
+/* 独立活动卡片 */
+.indie-product-card { display: flex; align-items: center; padding: 12px 14px; gap: 10px; background: #fff; margin: 0 14px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.indie-img { width: 80px; height: 80px; border-radius: 8px; flex-shrink: 0; background: #f5f5f5; }
+.indie-info { flex: 1; overflow: hidden; }
+.indie-name { font-size: 13px; font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.indie-price-row { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; }
+.indie-price { font-size: 18px; font-weight: bold; color: #C41E3A; }
+.indie-original { font-size: 12px; color: #999; text-decoration: line-through; }
+.indie-stock { font-size: 11px; color: #999; margin-top: 2px; display: block; }
+.indie-btn { padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+.indie-btn.flash-btn { background: linear-gradient(135deg, #C41E3A, #E85D75); color: #fff; }
+.indie-btn.group-btn { background: linear-gradient(135deg, #e67e22, #f0a04b); color: #fff; }
 </style>

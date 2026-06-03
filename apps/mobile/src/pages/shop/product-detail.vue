@@ -16,8 +16,9 @@
     <view class="info-section">
       <view class="price-row">
         <view class="price-group">
-          <text class="price">¥{{ selectedSku ? selectedSku.price : product.price }}</text>
-          <text v-if="product.originalPrice && product.originalPrice > (selectedSku ? selectedSku.price : product.price)" class="origin">¥{{ product.originalPrice }}</text>
+          <text class="price">¥{{ product.effectivePrice ?? (selectedSku ? selectedSku.price : product.price) }}</text>
+          <text v-if="product.effectivePrice && product.originalPrice && product.originalPrice > product.effectivePrice" class="origin">¥{{ product.originalPrice }}</text>
+          <text v-if="product.promotionTag" class="promo-tag">{{ product.promotionTag }}</text>
         </view>
         <view class="share-btn" @click="onShare">
           <text>📤 分享</text>
@@ -116,7 +117,7 @@
         <view class="panel-header">
           <image :src="images[0]" class="panel-thumb" mode="aspectFill" />
           <view class="panel-header-info">
-            <text class="panel-price">¥{{ selectedSku ? selectedSku.price : product.price }}</text>
+            <text class="panel-price">¥{{ product.effectivePrice ?? (selectedSku ? selectedSku.price : product.price) }}</text>
             <text class="panel-stock">库存: {{ selectedSku ? selectedSku.stock : (product.stock || 0) }}</text>
             <text class="panel-selected" v-if="selectedSku">已选: {{ selectedSku.specText }}</text>
           </view>
@@ -378,7 +379,7 @@ function goCoupons() {
 function onShare() {
   if (!product.value) return;
   uni.setClipboardData({
-    data: `【热卜国学】${product.value.title} — ¥${product.value.price}，快来看看！`,
+    data: `【热卜国学】${product.value.title} — ¥${product.value.effectivePrice ?? product.value.price}，快来看看！`,
     success: () => uni.showToast({ title: "链接已复制", icon: "success" }),
   });
 }
@@ -456,6 +457,14 @@ function goBack() {
   font-size: 14px;
   color: #bbb;
   text-decoration: line-through;
+}
+.promo-tag {
+  font-size: 11px;
+  color: #fff;
+  background: #C41E3A;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
 }
 .share-btn {
   font-size: 12px;

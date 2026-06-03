@@ -1,312 +1,249 @@
 <script setup lang="ts">
 /**
  * 八字传统模式展示
- * 参考热卜旧系统传统排盘样式
+ * 使用 SiZhuDisplay + DaYunTimeline + ShenShaList 业务组件
+ * 布局对标热卜
  */
-import type { BaziResult, SiZhu, Pillar, DaYunStep } from '@guoxue/bazi-engine'
+import type { BaziResult } from '@guoxue/shared'
+import { UI_COLORS, FONT_SIZE, JIXIONG } from '@guoxue/shared'
+import { SiZhuDisplay, DaYunTimeline, ShenShaList } from '@/components/paipan'
 
 const props = defineProps<{
   result: BaziResult
 }>()
 
-const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXiang } = props.result
-
-// 颜色映射
-const ganColor: Record<string, string> = {
-  '甲': '#43ab18', '乙': '#43ab18',
-  '丙': '#e40b06', '丁': '#e40b06',
-  '戊': '#964607', '己': '#964607',
-  '庚': '#f4a600', '辛': '#f4a600',
-  '壬': '#006aff', '癸': '#006aff',
-}
-const zhiColor: Record<string, string> = {
-  '子': '#006aff', '丑': '#964607',
-  '寅': '#43ab18', '卯': '#43ab18',
-  '辰': '#964607', '巳': '#e40b06',
-  '午': '#e40b06', '未': '#964607',
-  '申': '#f4a600', '酉': '#f4a600',
-  '戌': '#964607', '亥': '#006aff',
-}
-
-const pillars = [
-  { key: 'nian' as const, label: '年柱', p: siZhu.nian },
-  { key: 'yue' as const, label: '月柱', p: siZhu.yue },
-  { key: 'ri' as const, label: '日柱', p: siZhu.ri },
-  { key: 'shi' as const, label: '时柱', p: siZhu.shi },
-]
-
-const extraCols = [
-  { label: '胎元', p: taiYuan },
-  { label: '命宫', p: mingGong },
-  { label: '身宫', p: shenGong },
-]
-
-function ganStyle(g: string) {
-  return { color: ganColor[g] || '#333', fontWeight: 'bold' as const }
-}
-function zhiStyle(z: string) {
-  return { color: zhiColor[z] || '#333', fontWeight: 'bold' as const }
-}
+const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXiang, fenXiTiShi, shenSha, geJu } = props.result
 </script>
 
 <template>
   <div class="traditional-bazi">
-    <!-- 基本信息 -->
-    <div class="bazi-header">
-      <span class="header-item">生肖：<strong>{{ shengXiao }}</strong></span>
-      <span class="header-item">空亡：<strong>{{ kongWang }}</strong></span>
-      <span class="header-item">日主旺衰：<strong>{{ wangXiang }}</strong></span>
+    <!-- 基本信息条 -->
+    <div class="info-bar">
+      <span class="info-item">生肖：<strong>{{ shengXiao }}</strong></span>
+      <span class="info-item">空亡：<strong>{{ kongWang }}</strong></span>
+      <span class="info-item">旺衰：<strong>{{ wangXiang }}</strong></span>
+      <span class="info-item">胎元：<strong>{{ taiYuan.gan }}{{ taiYuan.zhi }}</strong></span>
+      <span class="info-item">命宫：<strong>{{ mingGong.gan }}{{ mingGong.zhi }}</strong></span>
+      <span class="info-item">身宫：<strong>{{ shenGong.gan }}{{ shenGong.zhi }}</strong></span>
     </div>
 
     <!-- 四柱主表 -->
-    <table class="bazi-table">
-      <thead>
-        <tr>
-          <th />
-          <th
-            v-for="col in pillars"
-            :key="col.key"
-          >
-            {{ col.label }}
-          </th>
-          <th
-            v-for="col in extraCols"
-            :key="col.label"
-          >
-            {{ col.label }}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- 天干行 -->
-        <tr>
-          <td class="label">
-            天干
-          </td>
-          <td
-            v-for="col in pillars"
-            :key="'gan-'+col.key"
-          >
-            <span :style="ganStyle(col.p.gan)">{{ col.p.gan }}</span>
-          </td>
-          <td
-            v-for="col in extraCols"
-            :key="'gan-'+col.label"
-          >
-            <span :style="ganStyle(col.p.gan)">{{ col.p.gan }}</span>
-          </td>
-        </tr>
-        <!-- 十神行 -->
-        <tr>
-          <td class="label">
-            十神
-          </td>
-          <td
-            v-for="col in pillars"
-            :key="'gs-'+col.key"
-          >
-            {{ col.p.ganShiShen }}
-          </td>
-          <td
-            v-for="col in extraCols"
-            :key="'gs-'+col.label"
-          >
-            {{ col.p.ganShiShen }}
-          </td>
-        </tr>
-        <!-- 地支行 -->
-        <tr>
-          <td class="label">
-            地支
-          </td>
-          <td
-            v-for="col in pillars"
-            :key="'zhi-'+col.key"
-          >
-            <span :style="zhiStyle(col.p.zhi)">{{ col.p.zhi }}</span>
-          </td>
-          <td
-            v-for="col in extraCols"
-            :key="'zhi-'+col.label"
-          >
-            <span :style="zhiStyle(col.p.zhi)">{{ col.p.zhi }}</span>
-          </td>
-        </tr>
-        <!-- 藏干行 -->
-        <tr>
-          <td class="label">
-            藏干
-          </td>
-          <td
-            v-for="col in pillars"
-            :key="'cg-'+col.key"
-            class="canggan-cell"
-          >
-            <span
-              v-for="cg in col.p.cangGan"
-              :key="cg.gan"
-              class="canggan-item"
-            >
-              <span :style="ganStyle(cg.gan)">{{ cg.gan }}</span>
-              <sub>{{ cg.shiShen }}</sub>
-            </span>
-          </td>
-          <td
-            v-for="col in extraCols"
-            :key="'cg-'+col.label"
-          >
-            —
-          </td>
-        </tr>
-        <!-- 纳音行 -->
-        <tr>
-          <td class="label">
-            纳音
-          </td>
-          <td
-            v-for="col in pillars"
-            :key="'ny-'+col.key"
-          >
-            {{ col.p.nayin }}
-          </td>
-          <td
-            v-for="col in extraCols"
-            :key="'ny-'+col.label"
-          >
-            {{ col.p.nayin }}
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <SiZhuDisplay
+      :si-zhu="siZhu"
+      :show-shi-shen="true"
+      :show-cang-gan="true"
+      :show-nayin="true"
+      :show-di-shi="true"
+    />
 
-    <!-- 起运信息 -->
-    <div class="qiyun-info">
-      <p>起运：{{ qiYun.startYear }}年{{ qiYun.jiaoYunMonth }}月 {{ qiYun.startAge }}岁起运</p>
-      <p>{{ qiYun.desc }}</p>
+    <!-- 格局（如果有） -->
+    <div v-if="geJu" class="geju-card">
+      <div class="geju-header">
+        <span class="geju-name">{{ geJu.name }}</span>
+        <span :class="['geju-badge', geJu.type === 'zheng' ? 'badge-zheng' : 'badge-bian']">
+          {{ geJu.type === 'zheng' ? '正格' : '变格' }}
+        </span>
+      </div>
+      <p class="geju-desc">{{ geJu.desc }}</p>
+      <div class="yongji-row">
+        <span class="yongji-tag tag-yong">用神：{{ geJu.yongShen }}</span>
+        <span v-if="geJu.xiShen" class="yongji-tag tag-xi">喜神：{{ geJu.xiShen }}</span>
+        <span v-if="geJu.jiShen" class="yongji-tag tag-ji">忌神：{{ geJu.jiShen }}</span>
+      </div>
     </div>
 
-    <!-- 大运表 -->
-    <table class="dayun-table">
-      <thead>
-        <tr>
-          <th>大运</th>
-          <th
-            v-for="(step, idx) in qiYun.daYun"
-            :key="idx"
-          >
-            {{ step.ganZhi }}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="label">
-            十神
-          </td>
-          <td
-            v-for="(step, idx) in qiYun.daYun"
-            :key="'ss-'+idx"
-          >
-            {{ step.ganShiShen }}{{ step.zhiShiShen !== step.ganShiShen ? '/' + step.zhiShiShen : '' }}
-          </td>
-        </tr>
-        <tr>
-          <td class="label">
-            年龄
-          </td>
-          <td
-            v-for="(step, idx) in qiYun.daYun"
-            :key="'age-'+idx"
-          >
-            {{ step.startAge }}-{{ step.endAge }}
-          </td>
-        </tr>
-        <tr>
-          <td class="label">
-            年份
-          </td>
-          <td
-            v-for="(step, idx) in qiYun.daYun"
-            :key="'yr-'+idx"
-          >
-            {{ step.startYear }}-{{ step.endYear }}
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <!-- 神煞 -->
+    <div v-if="shenSha?.length" class="section">
+      <h3 class="section-title">神煞</h3>
+      <ShenShaList
+        :shen-sha="shenSha"
+        mode="compact"
+        :max-visible="12"
+      />
+    </div>
+
+    <!-- 大运时间轴 -->
+    <div class="section">
+      <h3 class="section-title">大运</h3>
+      <DaYunTimeline
+        :da-yun="qiYun.daYun"
+        :start-age="qiYun.startAge"
+        :current-age="undefined"
+      />
+    </div>
+
+    <!-- 合冲刑害 -->
+    <div v-if="fenXiTiShi" class="section">
+      <h3 class="section-title">合冲刑害</h3>
+      <div class="fenxi-grid">
+        <template v-if="fenXiTiShi.ganHe?.length">
+          <span class="fx-label">天干合</span>
+          <div class="fx-tags">
+            <span v-for="h in fenXiTiShi.ganHe" :key="h" class="fx-tag tag-he">{{ h }}</span>
+          </div>
+        </template>
+        <template v-if="fenXiTiShi.liuHe?.length">
+          <span class="fx-label">地支合</span>
+          <div class="fx-tags">
+            <span v-for="h in fenXiTiShi.liuHe" :key="h" class="fx-tag tag-he">{{ h }}</span>
+          </div>
+        </template>
+        <template v-if="fenXiTiShi.sanHe?.length">
+          <span class="fx-label">三合</span>
+          <div class="fx-tags">
+            <span v-for="h in fenXiTiShi.sanHe" :key="h" class="fx-tag tag-sanhe">{{ h }}</span>
+          </div>
+        </template>
+        <template v-if="fenXiTiShi.sanHui?.length">
+          <span class="fx-label">三会</span>
+          <div class="fx-tags">
+            <span v-for="h in fenXiTiShi.sanHui" :key="h" class="fx-tag tag-sanhui">{{ h }}</span>
+          </div>
+        </template>
+        <template v-if="fenXiTiShi.liuChong?.length">
+          <span class="fx-label">六冲</span>
+          <div class="fx-tags">
+            <span v-for="h in fenXiTiShi.liuChong" :key="h" class="fx-tag tag-chong">{{ h }}</span>
+          </div>
+        </template>
+        <template v-if="fenXiTiShi.liuHai?.length">
+          <span class="fx-label">六害</span>
+          <div class="fx-tags">
+            <span v-for="h in fenXiTiShi.liuHai" :key="h" class="fx-tag tag-hai">{{ h }}</span>
+          </div>
+        </template>
+        <template v-if="fenXiTiShi.sanXing?.length">
+          <span class="fx-label">三刑</span>
+          <div class="fx-tags">
+            <span v-for="h in fenXiTiShi.sanXing" :key="h" class="fx-tag tag-xing">{{ h }}</span>
+          </div>
+        </template>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .traditional-bazi {
-  font-family: "Microsoft YaHei", "SimSun", sans-serif;
-  padding: 16px;
-  max-width: 900px;
+  padding: 24px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
-.bazi-header {
+/* 基本信息条 */
+.info-bar {
   display: flex;
-  gap: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 10px 16px;
+  background: v-bind('UI_COLORS.headerBg');
+  border-radius: 8px;
+  border: 1px solid v-bind('UI_COLORS.border');
   margin-bottom: 16px;
-  font-size: 14px;
-  color: #666;
+  font-size: v-bind('FONT_SIZE.sm');
 }
-.header-item strong {
-  color: #333;
+.info-item {
+  color: v-bind('UI_COLORS.textSecondary');
 }
-
-.bazi-table, .dayun-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 16px;
-}
-.bazi-table th, .bazi-table td,
-.dayun-table th, .dayun-table td {
-  border: 1px solid #E8E0D5;
-  padding: 8px 12px;
-  text-align: center;
-  font-size: 14px;
-}
-.bazi-table thead th {
-  background: #8b4513;
-  color: #fff;
-  font-weight: normal;
-}
-.bazi-table .label, .dayun-table .label {
-  background: #f5f0e6;
-  color: #8b4513;
-  font-weight: bold;
-  width: 60px;
+.info-item strong {
+  color: v-bind('UI_COLORS.textPrimary');
+  font-weight: 600;
 }
 
-.canggan-cell {
-  padding: 4px 8px;
+/* 通用分区 */
+.section {
+  margin-top: 20px;
+  background: v-bind('UI_COLORS.cardBg');
+  border: 1px solid v-bind('UI_COLORS.border');
+  border-radius: 8px;
+  padding: 16px;
 }
-.canggan-item {
-  display: inline-block;
-  margin: 0 4px;
-}
-.canggan-item sub {
-  font-size: 10px;
-  color: #999;
+.section-title {
+  font-size: v-bind('FONT_SIZE.base');
+  font-weight: 600;
+  color: v-bind('UI_COLORS.brand');
+  margin: 0 0 12px;
+  padding-left: 8px;
+  border-left: 3px solid v-bind('UI_COLORS.brand');
 }
 
-.dayun-table thead th {
-  background: #8b4513;
-  color: #fff;
-  font-weight: normal;
+/* 格局 */
+.geju-card {
+  margin-top: 16px;
+  padding: 16px;
+  background: v-bind('UI_COLORS.cardBg');
+  border: 1px solid v-bind('UI_COLORS.border');
+  border-radius: 8px;
 }
+.geju-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.geju-name {
+  font-size: v-bind('FONT_SIZE.xl');
+  font-weight: 700;
+  color: v-bind('UI_COLORS.brand');
+}
+.geju-badge {
+  font-size: v-bind('FONT_SIZE.xs');
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+.badge-zheng {
+  background: #e8f5e9;
+  color: v-bind('JIXIONG.ji');
+}
+.badge-bian {
+  background: #fff3e0;
+  color: #e65100;
+}
+.geju-desc {
+  font-size: v-bind('FONT_SIZE.sm');
+  color: v-bind('UI_COLORS.textSecondary');
+  line-height: 1.7;
+  margin: 0 0 10px;
+}
+.yongji-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.yongji-tag {
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: v-bind('FONT_SIZE.xs');
+}
+.tag-yong { background: #e3f2fd; color: #1565c0; }
+.tag-xi { background: #e8f5e9; color: #2e7d32; }
+.tag-ji { background: #fce4ec; color: #c62828; }
 
-.qiyun-info {
-  background: #f5f0e6;
-  padding: 12px 16px;
-  border-radius: 4px;
-  margin-bottom: 16px;
-  font-size: 14px;
-  line-height: 1.8;
+/* 合冲刑害 */
+.fenxi-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  align-items: center;
 }
-.qiyun-info p {
-  margin: 0;
+.fx-label {
+  font-size: v-bind('FONT_SIZE.xs');
+  color: v-bind('UI_COLORS.textHint');
 }
+.fx-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.fx-tag {
+  font-size: v-bind('FONT_SIZE.xs');
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+.tag-he { background: #e8f5e9; color: #2e7d32; }
+.tag-sanhe { background: #e3f2fd; color: #1565c0; }
+.tag-sanhui { background: #f3e5f5; color: #7b1fa2; }
+.tag-chong { background: #fce4ec; color: #c62828; }
+.tag-hai { background: #fff3e0; color: #e65100; }
+.tag-xing { background: #fbe9e7; color: #bf360c; }
 </style>

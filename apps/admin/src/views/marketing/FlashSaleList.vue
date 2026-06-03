@@ -1,6 +1,11 @@
 <template>
   <div class="page">
     <div class="toolbar"><h3>秒杀活动</h3><el-button type="primary" @click="openCreate">创建活动</el-button></div>
+    <el-alert type="info" :closable="false" show-icon style="margin-bottom:12px">
+      <template #title>
+        <span style="font-size:13px">展示位置：<b>商城首页秒杀专区</b>、<b>微页面秒杀组件</b>。创建后需点击"开始"才在用户端生效。</span>
+      </template>
+    </el-alert>
     <el-table v-loading="loading" :data="list" stripe>
       <el-table-column prop="name" label="活动名称" min-width="150" />
       <el-table-column label="商品" min-width="140" show-overflow-tooltip>
@@ -32,10 +37,12 @@
     <el-dialog v-model="vis" :title="editingId ? '编辑秒杀' : '创建秒杀'" width="550px">
       <el-form :model="form" label-width="80px">
         <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="商品ID"><el-input v-model="form.productId" placeholder="商品ID" /></el-form-item>
+        <el-form-item label="选择商品"><ProductPicker v-model="form.productId" /></el-form-item>
         <el-form-item label="秒杀价"><el-input-number v-model="form.flashPrice" :min="0.01" :precision="2" style="width:100%" /></el-form-item>
         <el-form-item label="限购数"><el-input-number v-model="form.limitPerUser" :min="1" style="width:100%" /></el-form-item>
         <el-row :gutter="16"><el-col :span="12"><el-form-item label="开始时间"><el-date-picker v-model="form.startTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col><el-col :span="12"><el-form-item label="结束时间"><el-date-picker v-model="form.endTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col></el-row>
+        <el-form-item label="展示范围"><el-radio-group v-model="form.scope"><el-radio value="GLOBAL">全平台</el-radio><el-radio value="PAGE_ONLY">仅指定微页面</el-radio></el-radio-group></el-form-item>
+        <el-form-item v-if="form.scope === 'PAGE_ONLY'" label="关联微页面"><el-select v-model="form.scopePageId" placeholder="选择微页面" clearable style="width:100%"><el-option v-for="p in pages" :key="p.id" :label="p.name" :value="p.id" /></el-select></el-form-item>
       </el-form>
       <template #footer><el-button @click="vis = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
     </el-dialog>
@@ -46,33 +53,38 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
+import ProductPicker from '@/components/ProductPicker.vue'
 
-const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
 const vis = ref(false); const editingId = ref('')
-const form = reactive({ name: '', productId: '', flashPrice: 0, limitPerUser: 1, startTime: '', endTime: '' })
+const form = reactive<{ name: string; productId: string; flashPrice: number; limitPerUser: number; startTime: string; endTime: string; scope: string; scopePageId: string }>({ name: '', productId: '', flashPrice: 0, limitPerUser: 1, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
 
-onMounted(() => fetchList())
+onMounted(() => { fetchList(); loadPages() })
+async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.pages || data.items || data.data || [] } catch { /* 忽略 */ } }
 
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
-  try { const { data } = await marketingApi.listFlashSales({ page: page.value, pageSize: 20 }); list.value = data.flashSales || data.data || []; total.value = data.total || 0 } catch { list.value = [] } finally { loading.value = false }
+  try { const { data } = await marketingApi.listFlashSales({ page: page.value, pageSize: 20 }); list.value = data.items || data.flashSales || data.data || []; total.value = data.total || 0 } catch { list.value = [] } finally { loading.value = false }
 }
-function openCreate() { editingId.value = ''; Object.assign(form, { name: '', productId: '', flashPrice: 0, limitPerUser: 1, startTime: '', endTime: '' }); vis.value = true }
-function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name, productId: row.items?.[0]?.productId || '', flashPrice: Number(row.items?.[0]?.flashPrice) || 0, limitPerUser: row.limitPerUser || 1, startTime: row.startTime || '', endTime: row.endTime || '' }); vis.value = true }
+function openCreate() { editingId.value = ''; Object.assign(form, { name: '', productId: '', flashPrice: 0, limitPerUser: 1, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
+function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name, productId: row.items?.[0]?.productId || '', flashPrice: Number(row.items?.[0]?.flashPrice) || 0, limitPerUser: row.limitPerUser || 1, startTime: row.startTime || '', endTime: row.endTime || '', scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '' }); vis.value = true }
 async function save() {
+  if (!form.name) { ElMessage.warning('请输入活动名称'); return }
   saving.value = true
   try {
-    const payload = { ...form }
+    const payload: any = { name: form.name, productId: form.productId || undefined, flashPrice: form.flashPrice || undefined, limitPerUser: form.limitPerUser || undefined, scope: form.scope, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined }
+    if (form.startTime) payload.startTime = form.startTime
+    if (form.endTime) payload.endTime = form.endTime
     if (editingId.value) { await marketingApi.updateFlashSale(editingId.value, payload); ElMessage.success('已更新') }
-    else { await marketingApi.createFlashSale(payload); ElMessage.success('已创建') }
+    else { await marketingApi.createFlashSale(payload); ElMessage.success('秒杀活动创建成功，请点击"开始"按钮启用以生效') }
     vis.value = false; fetchList()
-  } catch { } finally { saving.value = false }
+  } catch (e: any) { ElMessage.error(e?.response?.data?.message || '操作失败') } finally { saving.value = false }
 }
-async function startActivity(row: any) { await marketingApi.startFlashSale(row.id); ElMessage.success('已开始'); fetchList() }
-async function endActivity(row: any) { await marketingApi.endFlashSale(row.id); ElMessage.success('已结束'); fetchList() }
-async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteFlashSale(id); ElMessage.success('已删除'); fetchList() } catch {} }
+async function startActivity(row: any) { try { await marketingApi.startFlashSale(row.id); ElMessage.success('秒杀活动已开始'); fetchList() } catch { ElMessage.error('启动失败') } }
+async function endActivity(row: any) { try { await marketingApi.endFlashSale(row.id); ElMessage.success('秒杀活动已结束'); fetchList() } catch { ElMessage.error('结束失败') } }
+async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteFlashSale(id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ } }
 </script>
 
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }</style>

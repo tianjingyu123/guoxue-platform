@@ -591,6 +591,24 @@ const routes = [
         component: () => import("@/views/ai/RagTemplateManage.vue"),
         meta: { title: "RAG模板管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      {
+        path: "ai/data-explorer",
+        name: "DataExplorer",
+        component: () => import("@/views/ai/DataExplorer.vue"),
+        meta: { title: "AI数据探索", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "ai/anomaly-detector",
+        name: "AnomalyDetector",
+        component: () => import("@/views/ai/AnomalyDetector.vue"),
+        meta: { title: "AI异常检测", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "ai/collaborations",
+        name: "CollaborationList",
+        component: () => import("@/views/ai/CollaborationList.vue"),
+        meta: { title: "AI协作审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       // === 推荐管理 ===
       {
         path: "recommend/ab-tests",

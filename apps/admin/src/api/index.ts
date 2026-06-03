@@ -772,7 +772,7 @@ export const reportApi = {
 
 // 商品管理（管理后台）
 export const productApi = {
-  list: (params?: { page?: number; pageSize?: number; status?: string; category?: string }) =>
+  list: (params?: { page?: number; pageSize?: number; status?: string; categoryId?: string; keyword?: string }) =>
     api.get("/shop/products", { params }),
   detail: (id: string) => api.get(`/shop/products/${id}`),
   create: (data: any) => api.post("/shop/products", data),
@@ -783,6 +783,8 @@ export const productApi = {
   addSku: (productId: string, data: { name: string; price: number; stock: number; image?: string; attrs?: Record<string, string> }) =>
     api.post(`/shop/products/${productId}/skus`, data),
   deleteSku: (skuId: string) => api.delete(`/shop/skus/${skuId}`),
+  // 分类树
+  getCategoryTree: () => api.get("/shop/categories/tree"),
 };
 
 // 订单管理（管理后台）
@@ -1511,6 +1513,73 @@ export const backupApi = {
   list: () => api.get("/system/backup/list"),
   latest: () => api.get("/system/backup/latest"),
   uploadCos: () => api.post("/system/backup/upload-cos"),
+};
+
+// ───────── AI事件总线 ─────────
+export const aiEventApi = {
+  publish: (data: { type: string; source: string; severity?: string; payload?: any; context?: any }) =>
+    api.post("/ai/events/publish", data),
+  list: (params?: { page?: number; pageSize?: number; type?: string; source?: string; severity?: string; status?: string }) =>
+    api.get("/ai/events", { params }),
+  stats: () => api.get("/ai/events/stats"),
+  process: (id: string) => api.post(`/ai/events/${id}/process`),
+};
+
+// ───────── AI能力注册中心 ─────────
+export const aiCapabilityApi = {
+  list: (params?: { scene?: string; type?: string; status?: string }) =>
+    api.get("/ai/capabilities", { params }),
+  byScene: (scene: string) => api.get("/ai/capabilities/by-scene", { params: { scene } }),
+  health: () => api.get("/ai/capabilities/health"),
+  getByName: (name: string) => api.get(`/ai/capabilities/${name}`),
+  updateStatus: (name: string, status: string) => api.put(`/ai/capabilities/${name}/status`, { status }),
+};
+
+// ───────── AI决策账本 ─────────
+export const aiDecisionApi = {
+  list: (params?: { page?: number; pageSize?: number; agentId?: string; riskLevel?: string; humanAction?: string }) =>
+    api.get("/ai/decisions", { params }),
+  overview: () => api.get("/ai/decisions/overview"),
+  trace: (id: string) => api.get(`/ai/decisions/trace/${id}`),
+  retrospective: (id: string) => api.get(`/ai/decisions/retrospective/${id}`),
+  review: (id: string, data: { humanAction: string; humanReviewer?: string; humanNote?: string }) =>
+    api.post(`/ai/decisions/${id}/review`, data),
+  outcome: (id: string, data: { outcomeMetric: string; outcomeActual: number }) =>
+    api.post(`/ai/decisions/${id}/outcome`, data),
+  compare: (params?: { agentId1?: string; agentId2?: string; days?: number }) =>
+    api.get("/ai/decisions/compare", { params }),
+};
+
+// ───────── 人机协作审核 ─────────
+export const aiCollaborationApi = {
+  list: (params?: { limit?: number; offset?: number; status?: string; type?: string; riskLevel?: string }) =>
+    api.get("/ai/collaborations", { params }),
+  pending: () => api.get("/ai/collaborations/pending"),
+  overview: () => api.get("/ai/collaborations/overview"),
+  detail: (id: string) => api.get(`/ai/collaborations/${id}`),
+  review: (id: string, data: { action: string; reviewer?: string; note?: string; modifications?: any }) =>
+    api.post(`/ai/collaborations/${id}/review`, data),
+  execute: (id: string) => api.post(`/ai/collaborations/${id}/execute`),
+  rollback: (id: string, reason?: string) => api.post(`/ai/collaborations/${id}/rollback`, { reason }),
+  feedback: (id: string, data: { rating: number; comment?: string }) =>
+    api.post(`/ai/collaborations/${id}/feedback`, data),
+};
+
+// ───────── AI异常检测 ─────────
+export const aiAnomalyApi = {
+  checkAll: () => api.post("/ai/anomalies/check"),
+  checkRule: (ruleId: string) => api.post(`/ai/anomalies/check/${ruleId}`),
+  getRules: () => api.get("/ai/anomalies/rules"),
+  addRule: (data: {
+    id: string; metric: string; dimension: string; baselineWindow: number;
+    deviationThreshold: number; severity: string; enabled: boolean;
+  }) => api.post("/ai/anomalies/rules", data),
+};
+
+// ───────── AI数据探索 ─────────
+export const aiDataExplorerApi = {
+  ask: (question: string) => api.post("/ai/data-explorer/ask", { question }),
+  getSchema: () => api.get("/ai/data-explorer/schema"),
 };
 
 export default api;

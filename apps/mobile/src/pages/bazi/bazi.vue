@@ -415,43 +415,26 @@
 import { ref, reactive, computed } from 'vue'
 import { paipanApi } from '../../api'
 import { useUserStore } from '../../store/user'
+import {
+  TIANGAN_COLOR, DIZHI_COLOR, TIANGAN_WUXING, DIZHI_WUXING,
+  WUXING, WUXING_LABEL, UI_COLORS,
+} from '@guoxue/shared'
 
 const userStore = useUserStore()
 
-// ========== 干支五行颜色映射 ==========
-const tianGanWuXingMap: Record<string, string> = {
-  '甲': '木', '乙': '木',
-  '丙': '火', '丁': '火',
-  '戊': '土', '己': '土',
-  '庚': '金', '辛': '金',
-  '壬': '水', '癸': '水',
-}
-const diZhiWuXingMap: Record<string, string> = {
-  '寅': '木', '卯': '木',
-  '巳': '火', '午': '火',
-  '辰': '土', '戌': '土', '丑': '土', '未': '土',
-  '申': '金', '酉': '金',
-  '亥': '水', '子': '水',
-}
-const wuXingColorMap: Record<string, string> = {
-  '木': '#4CAF50',
-  '火': '#F44336',
-  '土': '#8B4513',
-  '金': '#FF8F00',
-  '水': '#2196F3',
-}
-
 function getGanWuXing(gan: string): string {
-  return tianGanWuXingMap[gan] || ''
+  const key = TIANGAN_WUXING[gan]
+  return key ? WUXING_LABEL[key] : ''
 }
 function getZhiWuXing(zhi: string): string {
-  return diZhiWuXingMap[zhi] || ''
+  const key = DIZHI_WUXING[zhi]
+  return key ? WUXING_LABEL[key] : ''
 }
 function getGanColor(gan: string): string {
-  return wuXingColorMap[getGanWuXing(gan)] || '#333'
+  return TIANGAN_COLOR[gan] || UI_COLORS.textPrimary
 }
 function getZhiColor(zhi: string): string {
-  return wuXingColorMap[getZhiWuXing(zhi)] || '#333'
+  return DIZHI_COLOR[zhi] || UI_COLORS.textPrimary
 }
 
 // ========== 时辰选项 ==========
@@ -572,7 +555,7 @@ const wuXingStats = computed(() => {
 function toStatArray(counts: Record<string, number>) {
   const max = Math.max(...Object.values(counts), 1)
   const labels = ['木', '火', '土', '金', '水']
-  const colors = ['#4CAF50', '#F44336', '#8B4513', '#FF8F00', '#2196F3']
+  const colors = [WUXING.mu, WUXING.huo, WUXING.tu, WUXING.jin, WUXING.shui]
   return labels.map((label, i) => ({
     key: label,
     label,

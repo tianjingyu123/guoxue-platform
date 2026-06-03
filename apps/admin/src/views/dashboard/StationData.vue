@@ -3,7 +3,8 @@
  * StationData.vue — 分站数据看板
  * 按分站 ID 查询推广分站的营收与运营指标
  */
-import { ref } from "vue"
+import { ref, onMounted } from "vue"
+import { useRoute } from "vue-router"
 import { api } from "@/api"
 import * as echarts from "echarts"
 import ChartCard from "@/components/ChartCard.vue"
@@ -12,10 +13,21 @@ import {
   View, DataLine, Goods, Coin,
 } from "@element-plus/icons-vue"
 
+const route = useRoute()
+
 // ==================== 状态 ====================
 const entityId = ref("")
 const loading = ref(false)
 const data = ref<any>(null)
+
+// 支持从分站管理页面跳转过来时自动查询
+onMounted(() => {
+  const q = route.query.stationId
+  if (q && typeof q === "string") {
+    entityId.value = q
+    fetchData()
+  }
+})
 
 // ==================== 统计卡片 ====================
 interface CardDef { label: string; value: string | number; icon: any }

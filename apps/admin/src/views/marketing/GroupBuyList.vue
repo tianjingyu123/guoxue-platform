@@ -1,6 +1,11 @@
 <template>
   <div class="page">
     <div class="toolbar"><h3>拼团活动</h3><el-button type="primary" @click="openCreate">创建拼团</el-button></div>
+    <el-alert type="info" :closable="false" show-icon style="margin-bottom:12px">
+      <template #title>
+        <span style="font-size:13px">展示位置：<b>商城拼团专区</b>、<b>微页面拼团组件</b>。创建后即生效，用户可发起或参与拼团。</span>
+      </template>
+    </el-alert>
     <el-table v-loading="loading" :data="list" stripe>
       <el-table-column prop="name" label="活动名称" min-width="150" />
       <el-table-column prop="productTitle" label="商品" min-width="120" />
@@ -23,12 +28,14 @@
     </div>
 
     <el-dialog v-model="vis" :title="editingId ? '编辑拼团' : '创建拼团'" width="500px">
-      <el-form :model="form" label-width="90px">
-        <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="商品ID"><el-input v-model="form.productId" /></el-form-item>
-        <el-form-item label="成团人数"><el-input-number v-model="form.groupSize" :min="2" :max="100" style="width:100%" /></el-form-item>
+      <el-form :model="form" label-width="100px">
+        <el-form-item label="活动名称"><el-input v-model="form.name" placeholder="如：新春拼团" /></el-form-item>
+        <el-form-item label="选择商品"><ProductPicker v-model="form.productId" /></el-form-item>
+        <el-form-item label="成团人数"><el-input-number v-model="form.minMembers" :min="2" :max="100" style="width:100%" /></el-form-item>
         <el-form-item label="拼团价"><el-input-number v-model="form.groupPrice" :min="0.01" :precision="2" style="width:100%" /></el-form-item>
-        <el-form-item label="有效时长(时)"><el-input-number v-model="form.durationHours" :min="1" :max="720" style="width:100%" /></el-form-item>
+        <el-form-item label="有效时长(分)"><el-input-number v-model="form.expireMinutes" :min="10" :max="43200" style="width:100%" /></el-form-item>
+        <el-form-item label="展示范围"><el-radio-group v-model="form.scope"><el-radio value="GLOBAL">全平台</el-radio><el-radio value="PAGE_ONLY">仅指定微页面</el-radio></el-radio-group></el-form-item>
+        <el-form-item v-if="form.scope === 'PAGE_ONLY'" label="关联微页面"><el-select v-model="form.scopePageId" placeholder="选择微页面" clearable style="width:100%"><el-option v-for="p in pages" :key="p.id" :label="p.name" :value="p.id" /></el-select></el-form-item>
       </el-form>
       <template #footer><el-button @click="vis = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
     </el-dialog>
@@ -49,27 +56,35 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
+import ProductPicker from '@/components/ProductPicker.vue'
 
-const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
 const vis = ref(false); const editingId = ref('')
-const form = reactive({ name: '', productId: '', groupSize: 2, groupPrice: 0, durationHours: 24 })
+const form = reactive({ name: '', productId: '', minMembers: 2, groupPrice: 0, expireMinutes: 1440, scope: 'GLOBAL', scopePageId: '' })
 
 const participantsVis = ref(false); const participantsLoading = ref(false); const participants = ref<any[]>([])
 
-onMounted(() => fetchList())
+onMounted(() => { fetchList(); loadPages() })
+async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.pages || data.items || data.data || [] } catch { /* 忽略 */ } }
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
-  try { const { data } = await marketingApi.listGroupBuys({ page: page.value, pageSize: 20 }); list.value = data.groupBuys || data.data || []; total.value = data.total || 0 } catch { list.value = [] } finally { loading.value = false }
+  try { const { data } = await marketingApi.listGroupBuys({ page: page.value, pageSize: 20 }); list.value = data.items || data.groupBuys || data.data || []; total.value = data.total || 0 } catch { list.value = [] } finally { loading.value = false }
 }
-function openCreate() { editingId.value = ''; Object.assign(form, { name: '', productId: '', groupSize: 2, groupPrice: 0, durationHours: 24 }); vis.value = true }
-function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name, productId: row.productId, groupSize: row.groupSize, groupPrice: Number(row.groupPrice), durationHours: row.durationHours }); vis.value = true }
+function openCreate() { editingId.value = ''; Object.assign(form, { name: '', productId: '', minMembers: 2, groupPrice: 0, expireMinutes: 1440, scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
+function openEdit(row: any) { editingId.value = row.id; Object.assign(form, { name: row.name || '', productId: row.productId, minMembers: row.minMembers || row.groupSize || 2, groupPrice: Number(row.groupPrice), expireMinutes: row.expireMinutes || row.durationHours || 1440, scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '' }); vis.value = true }
 async function save() {
+  if (!form.name) { ElMessage.warning('请输入活动名称'); return }
   saving.value = true
-  try { if (editingId.value) { await marketingApi.updateGroupBuy(editingId.value, form); ElMessage.success('已更新') } else { await marketingApi.createGroupBuy(form); ElMessage.success('已创建') }; vis.value = false; fetchList() } catch { } finally { saving.value = false }
+  try {
+    const payload: any = { ...form, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined }
+    if (editingId.value) { await marketingApi.updateGroupBuy(editingId.value, payload); ElMessage.success('已更新') }
+    else { await marketingApi.createGroupBuy(payload); ElMessage.success('拼团活动创建成功，用户即可参与拼团') }
+    vis.value = false; fetchList()
+  } catch (e: any) { ElMessage.error(e?.response?.data?.message || '操作失败') } finally { saving.value = false }
 }
-async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteGroupBuy(id); ElMessage.success('已删除'); fetchList() } catch {} }
+async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteGroupBuy(id); ElMessage.success('已删除'); fetchList() } catch { /* 用户取消 */ } }
 
 async function openParticipants(row: any) {
   participantsVis.value = true; participantsLoading.value = true

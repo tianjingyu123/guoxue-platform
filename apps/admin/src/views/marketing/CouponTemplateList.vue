@@ -64,6 +64,8 @@
           <el-col :span="12"><el-form-item label="开始时间"><el-date-picker v-model="form.startTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="结束时间"><el-date-picker v-model="form.endTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col>
         </el-row>
+        <el-form-item label="展示范围"><el-radio-group v-model="form.scope"><el-radio value="GLOBAL">全平台</el-radio><el-radio value="PAGE_ONLY">仅指定微页面</el-radio></el-radio-group></el-form-item>
+        <el-form-item v-if="form.scope === 'PAGE_ONLY'" label="关联微页面"><el-select v-model="form.scopePageId" placeholder="选择微页面" clearable style="width:100%"><el-option v-for="p in pages" :key="p.id" :label="p.name" :value="p.id" /></el-select></el-form-item>
       </el-form>
       <template #footer><el-button @click="vis = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
     </el-dialog>
@@ -116,9 +118,9 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { marketingApi } from '@/api'
 
-const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1)
+const loading = ref(false); const saving = ref(false); const list = ref<any[]>([]); const total = ref(0); const page = ref(1); const pages = ref<any[]>([])
 const vis = ref(false); const editingId = ref('')
-const form = reactive({ name: '', type: 'FIXED', faceValue: 10, threshold: 100, totalCount: 0, startTime: '', endTime: '' })
+const form = reactive({ name: '', type: 'FIXED', faceValue: 10, threshold: 100, totalCount: 0, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' })
 
 const grantVis = ref(false); const granting = ref(false); const grantTarget = ref<any>(null)
 const grantMode = ref('single'); const grantUserId = ref(''); const grantUserIds = ref('')
@@ -131,7 +133,8 @@ function typeLabel(t: string) {
   return m[t] || t
 }
 
-onMounted(() => fetchList())
+onMounted(() => { fetchList(); loadPages() })
+async function loadPages() { try { const { data } = await marketingApi.listPages(); pages.value = data.pages || data.items || data.data || [] } catch { /* 忽略 */ } }
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
@@ -139,7 +142,7 @@ async function fetchList() {
   try { const { data } = await marketingApi.listCoupons({ page: page.value, pageSize: 20 }); list.value = data.coupons || data.data || []; total.value = data.total || 0 } catch { list.value = [] } finally { loading.value = false }
 }
 
-function openCreate() { editingId.value = ''; Object.assign(form, { name: '', type: 'FIXED', faceValue: 10, threshold: 100, totalCount: 0, startTime: '', endTime: '' }); vis.value = true }
+function openCreate() { editingId.value = ''; Object.assign(form, { name: '', type: 'FIXED', faceValue: 10, threshold: 100, totalCount: 0, startTime: '', endTime: '', scope: 'GLOBAL', scopePageId: '' }); vis.value = true }
 
 function openEdit(row: any) {
   editingId.value = row.id
@@ -149,6 +152,7 @@ function openEdit(row: any) {
     threshold: Number(row.threshold || 0),
     totalCount: row.totalCount ?? 0,
     startTime: row.startTime || '', endTime: row.endTime || '',
+    scope: row.scope || 'GLOBAL', scopePageId: row.scopePageId || '',
   })
   vis.value = true
 }
@@ -162,6 +166,7 @@ async function save() {
       totalCount: form.totalCount,
       startTime: form.startTime ? new Date(form.startTime).toISOString() : undefined,
       endTime: form.endTime ? new Date(form.endTime).toISOString() : undefined,
+      scope: form.scope, scopePageId: form.scope === 'PAGE_ONLY' ? form.scopePageId : undefined,
     }
     if (editingId.value) { await marketingApi.updateCoupon(editingId.value, payload) }
     else { await marketingApi.createCoupon(payload) }
