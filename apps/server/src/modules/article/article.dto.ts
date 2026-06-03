@@ -29,6 +29,10 @@ export class CreateArticleDto {
   @IsString()
   @IsOptional()
   stationId?: string;
+
+  @IsString()
+  @IsOptional()
+  circleId?: string;
 }
 
 export class UpdateArticleDto {

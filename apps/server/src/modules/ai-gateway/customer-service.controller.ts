@@ -17,7 +17,7 @@ export class CustomerServiceController {
   @ApiOperation({ summary: "智能客服对话（非流式）" })
   @ApiBearerAuth()
   async ask(@Body() body: AskDto, @Req() req: Request) {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     try {
       return await this.cs.ask(body.question, userId, body.history);
     } catch (err: any) {
@@ -33,7 +33,7 @@ export class CustomerServiceController {
   @ApiOperation({ summary: "智能客服流式对话 (SSE)" })
   @ApiBearerAuth()
   async askStream(@Body() body: AskDto, @Req() req: Request, @Res() res: Response) {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");

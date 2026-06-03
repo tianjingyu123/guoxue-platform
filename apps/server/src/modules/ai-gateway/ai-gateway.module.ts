@@ -35,6 +35,18 @@ import { MultimodalService } from "./adapters/multimodal.service";
 import { EdgeAiService } from "./adapters/edge-ai.service";
 import { PlatformKnowledgeService } from "./platform-knowledge.service";
 import { PlatformKnowledgeController } from "./platform-knowledge.controller";
+import { AiEventBusService } from "./ai-event-bus.service";
+import { AiEventBusController } from "./ai-event-bus.controller";
+import { CapabilityRegistryService } from "./capability-registry.service";
+import { CapabilityRegistryController } from "./capability-registry.controller";
+import { DecisionLedgerService } from "./decision-ledger.service";
+import { DecisionLedgerController } from "./decision-ledger.controller";
+import { CollaborationService } from "./collaboration.service";
+import { CollaborationController } from "./collaboration.controller";
+import { AnomalyDetectorService } from "./anomaly-detector.service";
+import { AnomalyDetectorController } from "./anomaly-detector.controller";
+import { DataExplorerService } from "./data-explorer.service";
+import { DataExplorerController } from "./data-explorer.controller";
 import { SystemModule } from "../system/system.module";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { RedisModule } from "../../redis/redis.module";
@@ -42,7 +54,7 @@ import { TtsModule } from "../tts/tts.module";
 
 @Module({
   imports: [SystemModule, PrismaModule, RedisModule, TtsModule],
-  controllers: [AiGatewayController, CustomerServiceController, KnowledgeSyncController, AdminDedupController, AdminModelRoutingController, PublishAssistController, MediaAiController, AdminRagController, MarketplaceController, QualityScorerController, PlatformKnowledgeController],
+  controllers: [AiGatewayController, CustomerServiceController, KnowledgeSyncController, AdminDedupController, AdminModelRoutingController, PublishAssistController, MediaAiController, AdminRagController, MarketplaceController, QualityScorerController, PlatformKnowledgeController, AiEventBusController, CapabilityRegistryController, DecisionLedgerController, CollaborationController, AnomalyDetectorController, DataExplorerController],
   providers: [
     AiGatewayService,
     ModelRouterService,
@@ -69,7 +81,13 @@ import { TtsModule } from "../tts/tts.module";
     KnowledgeGraphService,
     UserKnowledgeService,
     PlatformKnowledgeService,
+    AiEventBusService,
+    CapabilityRegistryService,
+    DecisionLedgerService,
+    CollaborationService,
+    AnomalyDetectorService,
+    DataExplorerService,
   ],
-  exports: [AiGatewayService, ModelRouterService, AiLoggerService, VectorService, RagService, KnowledgeSyncService, SemanticCacheService, StreamUnifierService, MultiAgentService, MultimodalService, EdgeAiService, KnowledgeGraphService, UserKnowledgeService, PlatformKnowledgeService],
+  exports: [AiGatewayService, ModelRouterService, AiLoggerService, VectorService, RagService, KnowledgeSyncService, SemanticCacheService, StreamUnifierService, MultiAgentService, MultimodalService, EdgeAiService, KnowledgeGraphService, UserKnowledgeService, PlatformKnowledgeService, AiEventBusService, CapabilityRegistryService, DecisionLedgerService, CollaborationService, AnomalyDetectorService, DataExplorerService],
 })
 export class AiGatewayModule {}

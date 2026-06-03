@@ -23,7 +23,7 @@ export class MediaAiController {
   @ApiOperation({ summary: "AI图像内容审核 — 检测违规内容" })
   @ApiBearerAuth()
   async auditImage(@Body() dto: ImageAuditDto, @Req() req: Request) {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     if (!dto.imageUrl) {
       throw new HttpException("imageUrl 不能为空", HttpStatus.BAD_REQUEST);
     }
@@ -36,7 +36,7 @@ export class MediaAiController {
   @ApiOperation({ summary: "AI文字转语音 — 生成SSML标注" })
   @ApiBearerAuth()
   async textToSpeech(@Body() dto: TtsDto, @Req() req: Request) {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     return this.mediaAi.textToSpeech({ text: dto.text, voice: dto.voice, speed: dto.speed, userId });
   }
 
@@ -46,7 +46,7 @@ export class MediaAiController {
   @ApiOperation({ summary: "AI语音转文字 — 音频转写" })
   @ApiBearerAuth()
   async transcribeAudio(@Body() dto: TranscribeDto, @Req() req: Request) {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     return this.mediaAi.transcribeAudio({ audioUrl: dto.audioUrl, language: dto.language, userId });
   }
 
