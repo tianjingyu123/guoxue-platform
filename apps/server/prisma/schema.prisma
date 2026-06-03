@@ -290,6 +290,7 @@ model Circle {
   tags           String[]
   type           CircleType   @default(FREE)
   price          Decimal      @default(0) @db.Decimal(10, 2)
+  originalPrice  Decimal?     @db.Decimal(10, 2)
   depositAmount  Decimal      @default(0) @db.Decimal(10, 2)
   ownerId        String
   memberCount    Int          @default(0)
@@ -470,6 +471,7 @@ model Content {
   @@index([type, createdAt])
   @@index([status])
   @@index([status, viewCount])
+  @@index([status, likeCount, viewCount])
   @@index([stationId])
   @@index([categoryLevel1, status])
   @@index([categoryLevel2, status])
@@ -578,6 +580,7 @@ model Course {
 
   @@index([circleId])
   @@index([auditStatus])
+  @@index([auditStatus, studentCount])
   @@index([userId, createdAt])
   @@index([stationId])
   @@index([type, auditStatus])
@@ -688,6 +691,7 @@ model Product {
   videoUrl       String?
   tags           String[]     @default([])
   price          Decimal      @db.Decimal(10, 2)
+  originalPrice  Decimal?     @db.Decimal(10, 2) // 原始标价，永不随活动变化
   stock          Int          @default(0)
   salesCount     Int          @default(0)
   isPlatform     Boolean      @default(true)
@@ -706,6 +710,7 @@ model Product {
 
   @@index([categoryId])
   @@index([status])
+  @@index([status, salesCount])
   @@index([stationId])
   @@index([status, createdAt])
   @@index([circleId])
@@ -761,7 +766,10 @@ model Order {
   skuId            String?
   amount           Decimal     @db.Decimal(10, 2)
   payAmount        Decimal?    @db.Decimal(10, 2) // 实付金额
+  originalAmount   Decimal?    @db.Decimal(10, 2) // 原始标价
   couponId         String?
+  promotionType    String?  // 活动来源类型：FLASH_SALE/GROUP_BUY/DISCOUNT
+  promotionId      String?  // 关联的活动ID
   merchantId       String? // 商家ID（商家商品订单，用于分佣和数据隔离）
   status           OrderStatus @default(PENDING)
   referrerId       String? // 永久推荐人
@@ -978,7 +986,6 @@ model LiveProduct {
   liveRoom LiveRoom @relation(fields: [liveId], references: [id], onDelete: Cascade)
 
   @@unique([liveId, productId])
-  @@index([liveId])
   @@index([productId])
 }
 
@@ -1135,6 +1142,7 @@ model BotConfig {
   knowledgeBases BotKnowledgeBase[]
 
   @@index([status, type])
+  @@index([sortOrder])
 }
 
 model CircleBot {
@@ -1278,6 +1286,121 @@ model AiCacheEntry {
   @@index([scene, queryHash])
   @@index([scene, expiresAt])
   @@index([hitCount])
+}
+
+// ─────────────────────────────────────────────────
+// 全维度AI基础设施（P11）
+// ─────────────────────────────────────────────────
+
+// AI事件总线 — 系统事件发布/订阅
+model AiEvent {
+  id            String   @id @default(uuid())
+  type          String // 事件类型: user.registered / order.paid / system.error_burst
+  source        String // 来源维度: user / admin / marketing / ops / dev
+  severity      String   @default("info") // info / warning / critical
+  payload       Json // 事件载荷
+  context       Json? // 上下文: userId / stationId / traceId / metrics
+  status        String   @default("published") // published / processing / processed / failed
+  processedBy   String[] @default([]) // 处理了此事件的Agent列表
+  processResult Json? // 处理结果汇总
+  createdAt     DateTime @default(now())
+  processedAt   DateTime?
+
+  @@index([type, createdAt])
+  @@index([source, createdAt])
+  @@index([severity, createdAt])
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+// AI能力注册中心 — 统一的AI能力目录
+model AiCapability {
+  id              String   @id @default(uuid())
+  name            String   @unique // 能力名称: admin-data-explorer / churn-predictor
+  description     String // 中文描述
+  scene           String[] // 适用场景: 管理端 / 营销端 / 运维端 / 用户端
+  modality        String[] // 模态: text / image / audio
+  capabilityType  String // 能力类型: generation / analysis / detection / recommendation
+  provider        String // 提供者: deepseek / openai / coze / internal
+  model           String // 模型: deepseek-v4-pro / gpt-4o
+  inputSchema     Json // 输入JSON Schema
+  outputSchema    Json // 输出JSON Schema
+  costPerCall     Float    @default(0) // 单次调用成本（元）
+  avgLatency      Int      @default(0) // 平均延迟（ms）
+  qualityScore    Float    @default(0) // 质量评分 0-100
+  totalCalls      Int      @default(0) // 总调用次数
+  successRate     Float    @default(100) // 成功率 %
+  status          String   @default("active") // active / degraded / offline
+  lastHealthCheck DateTime?
+  registeredAt    DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([scene])
+  @@index([capabilityType])
+  @@index([status])
+  @@index([provider])
+}
+
+// AI决策记录与回溯 — 每个AI决策可追溯可复盘
+model AiDecision {
+  id              String   @id @default(uuid())
+  agentId         String // 做出决策的Agent标识
+  capabilityId    String? // 关联的AI能力ID
+  modelId         String // 使用的模型
+  modelVersion    String // 模型版本
+  inputSummary    String // 输入摘要（脱敏）
+  contextKeys     String[] // 使用的上下文字段
+  reasoning       Json? // 推理链: { chainOfThought, confidence, alternatives }
+  output          Json // 决策输出
+  confidence      Float // 0-1 置信度
+  riskLevel       String   @default("low") // low / medium / high
+  humanAction     String? // approved / rejected / modified
+  humanReviewer   String? // 审核人
+  humanNote       String? // 审核备注
+  humanReviewedAt DateTime?
+  outcomeMetric   String? // 效果评估指标名
+  outcomeExpected Float? // 预期值
+  outcomeActual   Float? // 实际值
+  outcomeMeasuredAt DateTime? // 效果测量时间
+  createdAt       DateTime @default(now())
+
+  @@index([agentId, createdAt])
+  @@index([capabilityId, createdAt])
+  @@index([riskLevel, createdAt])
+  @@index([humanAction, createdAt])
+  @@index([createdAt])
+}
+
+// 人机协作协议 — AI建议→审核→执行→反馈闭环
+model AiCollaboration {
+  id              String   @id @default(uuid())
+  type            String // 建议类型: config_change / content_publish / user_action / marketing_campaign
+  title           String // 人类可读的建议标题
+  description     String @db.Text // AI对建议的详细解释
+  proposedBy      String // 提议Agent: ai-agent:admin-advisor
+  confidence      Float // 0-1 置信度
+  impactScope     Json // 影响范围评估
+  alternatives    Json   @default("[]") // 替代方案列表
+  riskLevel       String   @default("medium") // low / medium / high
+  executionPlan   Json // 执行步骤
+  rollbackPlan    Json? // 回滚方案
+  status          String   @default("pending_review") // pending_review / approved / rejected / modified / executing / executed / rolled_back / failed
+  decisionId      String? // 关联的决策记录ID
+  reviewedBy      String? // 审核人
+  reviewedAt      DateTime?
+  executedAt      DateTime?
+  executionResult Json? // 执行结果
+  rolledBackAt    DateTime?
+  feedbackRating  Int? // 1-5 反馈评分
+  feedbackComment String? // 反馈备注
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([riskLevel, status])
+  @@index([type, createdAt])
+  @@index([proposedBy, createdAt])
+  @@index([createdAt])
 }
 
 // ─────────────────────────────────────────────────
@@ -1450,6 +1573,7 @@ model Station {
   toolConfigs    StationToolConfig[]
   toolRecords    ToolRecord[]
   bountyQuestions BountyQuestion[]
+  paidQuestions  PaidQuestion[]
   audioCalls     AudioCallRecord[]
   marketingPages MarketingPage[]
 
@@ -1664,6 +1788,7 @@ model StationTeacherBooking {
   courseId    String?
   bookingDate DateTime
   status      String   @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  price       Float    @default(0)
   remark      String?
   createdAt   DateTime @default(now())
 
@@ -1790,6 +1915,7 @@ model Comment {
   replies Comment[] @relation("CommentReplies")
 
   @@index([targetType, targetId, createdAt])
+  @@index([targetType, targetId, parentId, status, createdAt])
   @@index([parentId, createdAt])
   @@index([userId, createdAt])
   @@index([status])
@@ -1956,6 +2082,7 @@ model ClassicBook {
 
   @@index([category])
   @@index([status])
+  @@index([status, viewCount])
   @@index([title])
 }
 
@@ -2195,8 +2322,6 @@ model VirtualCoinAccount {
   updatedAt      DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
 }
 
 model VirtualCoinFrozen {
@@ -2289,16 +2414,19 @@ model PaidQuestion {
   isPublic       Boolean   @default(true) // 是否公开（公开后可被围观）
   timeoutHours   Int       @default(72) // 超时时间（小时）
   status         String    @default("PENDING") // PENDING, ANSWERED, REJECTED, REFUNDED, EXPIRED, CLOSED
+  stationId      String?   // 分站数据隔离（null = 平台级）
   answeredAt     DateTime?
   createdAt      DateTime  @default(now())
 
-  circle   Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
-  asker    User   @relation("QuestionAsker", fields: [askerId], references: [id], onDelete: Cascade)
-  answerer User   @relation("QuestionAnswerer", fields: [answererId], references: [id], onDelete: Cascade)
+  circle   Circle   @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  station  Station? @relation(fields: [stationId], references: [id])
+  asker    User     @relation("QuestionAsker", fields: [askerId], references: [id], onDelete: Cascade)
+  answerer User     @relation("QuestionAnswerer", fields: [answererId], references: [id], onDelete: Cascade)
 
   @@index([circleId, status])
   @@index([askerId])
   @@index([answererId])
+  @@index([stationId])
 }
 
 // ─────────────────────────────────────────────────
@@ -2760,11 +2888,14 @@ model FlashSale {
   endTime       DateTime // 秒杀结束时间
   warmupMinutes Int             @default(0) // 预热提前分钟数
   status        String          @default("DRAFT") // DRAFT/UPCOMING/ACTIVE/ENDED/CANCELLED
+  scope         String          @default("GLOBAL") // GLOBAL=全平台可见, PAGE_ONLY=仅微页面可见
+  scopePageId   String?         // 关联的微页面ID
   items         FlashSaleItem[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
   @@index([status, startTime])
+  @@index([scope, scopePageId])
 }
 
 model FlashSaleItem {
@@ -2794,6 +2925,8 @@ model GroupBuy {
   minMembers    Int      @default(2) // 成团人数
   expireMinutes Int      @default(1440) // 拼团有效期（分钟）
   status        String   @default("DRAFT") // DRAFT/ACTIVE/ENDED
+  scope         String   @default("GLOBAL") // GLOBAL=全平台可见, PAGE_ONLY=仅微页面可见
+  scopePageId   String?  // 关联的微页面ID
   autoComplete  Boolean  @default(false) // AI模拟成团
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -2801,6 +2934,7 @@ model GroupBuy {
   participants GroupBuyParticipant[]
 
   @@index([status])
+  @@index([scope, scopePageId])
 }
 
 model GroupBuyParticipant {
@@ -2831,8 +2965,10 @@ model CouponTemplate {
   startTime    DateTime // 领取开始时间
   endTime      DateTime // 领取结束时间
   validDays    Int      @default(7) // 领取后有效期（天）
-  scope        Json? // 适用范围：{ productIds, categoryIds, circles }
-  aiPrecision  Boolean  @default(false) // AI精准发券
+  applicableScope Json? // 适用范围：{ productIds, categoryIds, circles }
+  aiPrecision     Boolean  @default(false) // AI精准发券
+  scope           String   @default("GLOBAL") // GLOBAL=全平台可见, PAGE_ONLY=仅微页面可见
+  scopePageId     String?  // 关联的微页面ID
   status       String   @default("DRAFT") // DRAFT/ACTIVE/ENDED
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -2863,6 +2999,10 @@ model DiscountActivity {
   startTime   DateTime
   endTime     DateTime
   productIds  String[] // 适用商品ID列表
+  courseIds   String[] @default([]) // 适用课程ID列表
+  circleIds   String[] @default([]) // 适用圈子ID列表
+  scope       String   @default("GLOBAL") // GLOBAL=全平台可见, PAGE_ONLY=仅微页面可见
+  scopePageId String?  // 关联的微页面ID
   status      String   @default("DRAFT") // DRAFT/ACTIVE/ENDED
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -2874,10 +3014,13 @@ model MarketingPage {
   id          String    @id @default(uuid())
   stationId   String?   // 分站数据隔离（null = 平台级）
   name        String // 页面名称
+  description String?  @db.Text // 内部备注
   route       String    @unique // 路由路径
   status      String    @default("DRAFT") // DRAFT/PUBLISHED/OFFLINE
   version     Int       @default(1) // 当前版本号
   publishedAt DateTime?
+  entryConfig  Json?     // 入口配置：{ type:"icon"|"banner"|"tab", icon:String?, title:String?, sortOrder:Int }
+  entryVisible Boolean   @default(false) // 是否在首页显示入口
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -3502,6 +3645,8 @@ model FullReductionRule {
   startTime     DateTime
   endTime       DateTime
   productIds    String[] @default([]) // 适用商品（空=全场）
+  scope         String   @default("GLOBAL") // GLOBAL=全平台可见, PAGE_ONLY=仅微页面可见
+  scopePageId   String?  // 关联的微页面ID
   status        String   @default("DRAFT") // DRAFT/ACTIVE/ENDED
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
