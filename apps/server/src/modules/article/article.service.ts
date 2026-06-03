@@ -7,6 +7,8 @@ import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { RecommendService } from "../recommend/recommend.service";
+import { paginated } from "../../common/pagination";
+
 import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.dto";
 import { Prisma } from "@prisma/client";
 
@@ -165,7 +167,7 @@ export class ArticleService {
       this.prisma.article.count({ where }),
     ]);
 
-    const data = { articles, total, page, pageSize };
+    const data = paginated(articles, total, page, pageSize);
     await this.redis.setJson(cacheKey, data, 300);
     return data;
   }
@@ -194,7 +196,7 @@ export class ArticleService {
       this.prisma.article.count({ where }),
     ]);
 
-    return { articles, total, page, pageSize };
+    return paginated(articles, total, page, pageSize);
   }
 
   async getRelated(articleId: string) {
@@ -291,7 +293,7 @@ export class ArticleService {
     return this.prisma.article.create({
       data: {
         userId,
-        circleId: (dto as any).circleId || "",
+        circleId: dto.circleId || "",
         title: dto.title || "未命名草稿",
         content: dto.content,
         cover: dto.cover,

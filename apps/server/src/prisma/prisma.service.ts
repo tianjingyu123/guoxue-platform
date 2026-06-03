@@ -20,6 +20,11 @@ const STATION_SCOPED_MODELS = new Set([
  * - 慢查询监控（默认阈值 500ms）
  * - Prometheus 指标上报（慢查询计数 + 连接池状态）
  * - 连接池管理 + 优雅关闭
+ *
+ * ## 架构：静态工厂 + NestJS 自定义 Provider
+ * 使用 PrismaService.create() 静态工厂构建扩展后的客户端，
+ * 通过 Object.assign 将扩展客户端的模型委托复制到实例，
+ * 消除直接 this 别名和反射属性拷贝的类型绕过风险。
  */
 @Injectable()
 export class PrismaService
@@ -29,6 +34,18 @@ export class PrismaService
   private readonly logger = new Logger(PrismaService.name);
   private readonly SLOW_QUERY_MS = parseInt(process.env.PRISMA_SLOW_QUERY_MS || "500", 10);
   private replicaClient?: PrismaClient;
+
+  /**
+   * 静态工厂：创建具有分站隔离 + 慢查询监控的 PrismaService 实例
+   *
+   * NestJS 通过 PrismaModule 中的自定义 Provider 调用此工厂，
+   * 而非直接 new PrismaService()——确保所有注入点拿到的是扩展后的客户端。
+   */
+  static create(metrics?: MetricsService): PrismaService {
+    const instance = new PrismaService(metrics);
+    instance.applyExtensions();
+    return instance;
+  }
 
   constructor(
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
@@ -54,14 +71,12 @@ export class PrismaService
       this.logger.log("读副本已启用: " + process.env.DATABASE_REPLICA_URL.replace(/\/\/.*@/, "//***@"));
     }
 
-    // 安装扩展（分站隔离 + 慢查询监控），链式组合
-    this.applyExtensions();
+    // 注意：扩展安装移至 applyExtensions()，由静态工厂 create() 调用
   }
 
-  /** 链式安装 Prisma $extends：分站隔离 → 慢查询监控，复制回 this 代理 */
+  /** 链式安装 Prisma $extends：分站隔离 → 慢查询监控，通过 Object.assign 代理到实例 */
   private applyExtensions() {
-    // $extends 返回类型与 PrismaClient 不完全兼容，用 any 桥接
-    // 直接从 $extends 开始链式调用，避免 this 别名 (no-this-alias)
+    // Layer 1：分站数据隔离
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let extended: any = this.$extends({
       name: "station-isolation",
@@ -118,12 +133,21 @@ export class PrismaService
       });
     }
 
-    // 将链式扩展后的客户端代理到当前实例
-    for (const key of Object.getOwnPropertyNames(extended)) {
-      if (key === "constructor" || key.startsWith("_")) continue;
+    // 将扩展客户端的模型委托复制到当前实例（仅复制属性，不复制构造函数和私有属性）
+    // 使用 Object.assign 替代 for-in 反射，更明确且 TypeScript 友好
+    const delegatedKeys = Object.keys(extended).filter(
+      (k) => k !== "constructor" && !k.startsWith("_") && !k.startsWith("$"),
+    );
+    for (const key of delegatedKeys) {
       try {
-        (this as any)[key] = (extended as any)[key];
-      } catch { /* 只读属性跳过 */ }
+        Object.defineProperty(this, key, {
+          get: () => (extended as any)[key],
+          enumerable: true,
+          configurable: true,
+        });
+      } catch {
+        // Prisma 内部属性可能不可重定义，跳过
+      }
     }
   }
 

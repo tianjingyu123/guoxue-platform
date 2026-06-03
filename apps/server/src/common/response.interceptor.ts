@@ -9,6 +9,7 @@ import { Reflector } from "@nestjs/core";
 import { Observable } from "rxjs";
 import { map } from "rxjs/operators";
 import { Request } from "express";
+import { Readable } from "stream";
 import { SKIP_FORMAT_KEY } from "./skip-format.decorator";
 
 /** 统一成功响应格式 */
@@ -56,6 +57,17 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T>
         if (this.isAlreadyWrapped(data)) {
           return data;
         }
+        // 分页响应：提取 rows 到 data，分页信息到顶层 pagination
+        if (this.isPaginatedResult(data)) {
+          // _paginated 已通过 isPaginatedResult 确认存在，直接提取分页字段
+          const { rows, total, page, pageSize } = data as Record<string, unknown>;
+          return {
+            code: 200,
+            data: rows,
+            pagination: { total, page, pageSize },
+            message: "ok",
+          };
+        }
         return {
           code: 200,
           data,
@@ -73,8 +85,15 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T>
     if (data === null || data === undefined) return false;
     if (typeof data !== "object") return false;
     // Buffer / Stream / 文件响应跳过
-    if (Buffer.isBuffer(data) || (data as any).pipe) return false;
+    if (Buffer.isBuffer(data) || data instanceof Readable) return false;
     // 已包含 code + data 字段视为已包装
     return "code" in data && "data" in data;
+  }
+
+  /** 检测是否为 paginated() 返回的标准分页响应 */
+  private isPaginatedResult(data: unknown): boolean {
+    if (data === null || data === undefined) return false;
+    if (typeof data !== "object") return false;
+    return "_paginated" in data && (data as any)._paginated === true;
   }
 }

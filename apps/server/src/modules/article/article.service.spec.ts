@@ -151,14 +151,14 @@ describe("ArticleService", () => {
       mockRedis.setJson.mockResolvedValue(undefined);
 
       const result = await svc.listArticles({ page: 1, pageSize: 20 });
-      expect(result).toHaveProperty("articles");
+      expect(result).toHaveProperty("rows");
       expect(result).toHaveProperty("total");
       expect(result.total).toBe(0);
       expect(mockRedis.setJson).toHaveBeenCalled();
     });
 
     it("有缓存时直接返回", async () => {
-      const cached = { articles: [], total: 0, page: 1, pageSize: 20 };
+      const cached = { rows: [], total: 0, page: 1, pageSize: 20, _paginated: true };
       mockRedis.getJson.mockResolvedValue(cached);
       const result = await svc.listArticles({ page: 1, pageSize: 20 });
       expect(result).toEqual(cached);
@@ -185,7 +185,7 @@ describe("ArticleService", () => {
       mockPrisma.article.findMany.mockResolvedValue([{ id: "a1", title: "首页文章" }]);
       mockPrisma.article.count.mockResolvedValue(1);
       const result = await svc.getHomeFeed({ page: 1, pageSize: 20 });
-      expect(result.articles).toHaveLength(1);
+      expect(result.rows).toHaveLength(1);
       expect(result.total).toBe(1);
     });
   });
