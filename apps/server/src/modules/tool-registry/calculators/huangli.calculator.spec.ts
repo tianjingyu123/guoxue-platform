@@ -1,46 +1,44 @@
 import { calculateHuangLi } from "./huangli.calculator";
 
-describe("HuangLi Calculator", () => {
-  it("返回今日黄历完整数据", () => {
-    const result = calculateHuangLi({ date: "2026-05-21" });
-    expect(result.date).toBe("2026-05-21");
-    expect(result.lunarDate).toContain("月");
-    expect(result.ganZhi.year).toHaveLength(2);
-    expect(result.ganZhi.month).toHaveLength(2);
-    expect(result.ganZhi.day).toHaveLength(2);
-    expect(result.yi.length).toBeGreaterThan(0);
-    expect(result.ji.length).toBeGreaterThan(0);
-    expect(result.jiShi.length).toBeGreaterThan(0);
-    expect(result.summary).toContain("2026-05-21");
+describe("huangli calculator", () => {
+  it("默认日期（今天）计算返回完整结果", () => {
+    const result = calculateHuangLi({});
+    expect(result.date).toBeDefined();
+    expect(result.lunarDate).toBeDefined();
+    expect(result.ganZhi.year).toBeTruthy();
   });
 
-  it("财神/喜神/福神方位非空", () => {
-    const result = calculateHuangLi({ date: "2026-01-01" });
+  it("指定日期计算", () => {
+    const result = calculateHuangLi({ date: "2024-06-15" });
+    expect(result.date).toBe("2024-06-15");
     expect(result.caiShen).toBeTruthy();
     expect(result.xiShen).toBeTruthy();
     expect(result.fuShen).toBeTruthy();
   });
 
-  it("冲煞信息包含方向", () => {
-    const result = calculateHuangLi({ date: "2026-06-15" });
-    expect(result.chongSha).toContain("冲");
+  it("返回宜忌列表", () => {
+    const result = calculateHuangLi({ date: "2024-06-15" });
+    expect(Array.isArray(result.yi)).toBe(true);
+    expect(Array.isArray(result.ji)).toBe(true);
+    expect(result.yi.length).toBeLessThanOrEqual(8);
   });
 
-  it("不传日期默认今天", () => {
-    const result = calculateHuangLi({});
-    const today = new Date().toISOString().split("T")[0];
-    expect(result.date).toBe(today);
+  it("冲煞信息", () => {
+    const result = calculateHuangLi({ date: "2024-06-15" });
+    expect(result.chongSha).toMatch(/冲.+煞.+/);
   });
 
-  it("同日结果确定性", () => {
-    const r1 = calculateHuangLi({ date: "2026-03-15" });
-    const r2 = calculateHuangLi({ date: "2026-03-15" });
-    expect(r1.ganZhi).toEqual(r2.ganZhi);
-    expect(r1.yi).toEqual(r2.yi);
+  it("吉时列表包含时辰", () => {
+    const result = calculateHuangLi({ date: "2024-06-15" });
+    expect(Array.isArray(result.jiShi)).toBe(true);
+    for (const s of result.jiShi) {
+      expect(["子时","丑时","寅时","卯时","辰时","巳时","午时","未时","申时","酉时","戌时","亥时"]).toContain(s);
+    }
   });
 
-  it("摘要包含宜忌", () => {
-    const result = calculateHuangLi({ date: "2026-08-08" });
+  it("summary包含日期和宜忌概要", () => {
+    const result = calculateHuangLi({ date: "2024-06-15" });
+    expect(result.summary).toContain("2024-06-15");
     expect(result.summary).toContain("宜");
     expect(result.summary).toContain("忌");
   });

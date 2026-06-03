@@ -20,12 +20,13 @@ const modelMethods = [
 function createModelMock() {
   const mock: Record<string, jest.Mock> = {}
   for (const m of modelMethods) {
-    // updateMany/deleteMany/createMany 默认返回 { count: N }，避免 .count 访问报错
+    // findMany 返回空数组（避免 UnifiedPricingService 等遍历报错）
+    // createMany/updateMany/deleteMany 返回 { count: N }
     mock[m] = jest.fn().mockResolvedValue(
+      m === "findMany" || m === "aggregate" || m === "groupBy" ? [] :
       m === "create" || m === "upsert" ? { id: "mock-id" } :
-      m.endsWith("Many") ? { count: 1 } :
+      m === "createMany" || m === "updateMany" || m === "deleteMany" ? { count: 1 } :
       m === "count" ? 0 :
-      m === "aggregate" || m === "groupBy" ? [] :
       undefined,
     )
   }

@@ -248,7 +248,7 @@ describe("Classic E2E", () => {
   describe("DELETE /api/v1/classic/bookmarks/:id", () => {
     it("删除书签", async () => {
       stubUser("u1")
-      prisma.bookmark.findUnique.mockResolvedValue({ id: "bm1", userId: "u1" })
+      prisma.bookmark.findFirst.mockResolvedValue({ id: "bm1", userId: "u1" })
       prisma.bookmark.delete.mockResolvedValue({ id: "bm1" })
 
       await request(app.getHttpServer())
