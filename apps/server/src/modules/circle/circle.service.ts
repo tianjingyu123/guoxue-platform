@@ -1232,6 +1232,106 @@ export class CircleService {
     return { members, total, page, pageSize };
   }
 
+  // ───────── 公告已读 ─────────
+
+  async markAnnouncementRead(circleId: string, announcementId: string, userId: string) {
+    await this.ensureMember(circleId, userId);
+    const ann = await this.prisma.circleAnnouncement.findFirst({
+      where: { id: announcementId, circleId },
+    });
+    if (!ann) throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
+
+    await this.prisma.circleAnnouncementRead.upsert({
+      where: { announcementId_userId: { announcementId, userId } },
+      create: { announcementId, userId },
+      update: { readAt: new Date() },
+    });
+    return { success: true };
+  }
+
+  // ───────── 达人预约 ─────────
+
+  async getExpertSlots(expertId: string, date?: string) {
+    const member = await this.prisma.circleMember.findFirst({
+      where: { userId: expertId, role: { not: "MEMBER" } },
+      include: { circle: true },
+    });
+    if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "达人不存在或未开通咨询");
+
+    const targetDate = date || new Date().toISOString().slice(0, 10);
+    const availableHours = (member.callAvailableHours as any[]) || [];
+
+    // 查询当天已有预约，过滤已占用的时段
+    const bookings = await this.prisma.circleExpertBooking.findMany({
+      where: {
+        expertUserId: expertId,
+        slotDate: targetDate,
+        status: { in: ["PENDING", "CONFIRMED"] },
+      },
+    });
+
+    const bookedSlots = bookings.map((b) => ({ start: b.slotStart, end: b.slotEnd }));
+
+    // 从 callAvailableHours 生成时段并标记是否已被预约
+    const slots = availableHours
+      .filter((h: any) => {
+        const days = h.days || [0, 1, 2, 3, 4, 5, 6];
+        const dayOfWeek = new Date(targetDate).getDay();
+        return days.includes(dayOfWeek);
+      })
+      .flatMap((h: any) => {
+        const startH = parseInt(h.start?.split(":")[0] || "9");
+        const endH = parseInt(h.end?.split(":")[0] || "18");
+        const interval = h.interval || 60;
+        const result = [];
+        for (let hour = startH; hour < endH; hour += interval / 60) {
+          const start = `${String(hour).padStart(2, "0")}:${String((hour % 1) * 60).padStart(2, "0")}`;
+          const endHr = hour + interval / 60;
+          const end = `${String(Math.floor(endHr)).padStart(2, "0")}:${String((endHr % 1) * 60).padStart(2, "0")}`;
+          const isBooked = bookedSlots.some((b) => b.start <= start && b.end >= end);
+          result.push({ start, end, available: !isBooked });
+        }
+        return result;
+      });
+
+    return { date: targetDate, expertId, slots };
+  }
+
+  async createExpertBooking(
+    expertId: string,
+    bookerUserId: string,
+    body: { slotDate: string; slotStart: string; slotEnd: string; topic?: string; notes?: string },
+  ) {
+    const member = await this.prisma.circleMember.findFirst({
+      where: { userId: expertId, role: { not: "MEMBER" } },
+    });
+    if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "达人不存在或未开通咨询");
+
+    // 检查冲突
+    const conflict = await this.prisma.circleExpertBooking.findFirst({
+      where: {
+        expertUserId: expertId,
+        slotDate: body.slotDate,
+        slotStart: body.slotStart,
+        status: { in: ["PENDING", "CONFIRMED"] },
+      },
+    });
+    if (conflict) throw new BusinessException(ErrorCode.CONFLICT, "该时段已被预约");
+
+    return this.prisma.circleExpertBooking.create({
+      data: {
+        circleId: member.circleId,
+        expertUserId: expertId,
+        bookerUserId,
+        slotDate: body.slotDate,
+        slotStart: body.slotStart,
+        slotEnd: body.slotEnd,
+        topic: body.topic,
+        notes: body.notes,
+      },
+    });
+  }
+
   // ───────── 私有辅助 ─────────
 
   private async checkOwnership(circleId: string, userId: string) {

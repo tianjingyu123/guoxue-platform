@@ -310,6 +310,80 @@ export class CompetitionService {
     });
   }
 
+  /** 获取待评审作品列表（评委视角） */
+  async getJudgeSubmissions(_graderId: string, competitionId?: string) {
+    const where: Record<string, unknown> = { score: null };
+    if (competitionId) {
+      where.registration = { competitionId };
+    }
+
+    const answers = await this.prisma.competitionAnswer.findMany({
+      where,
+      include: {
+        registration: {
+          include: {
+            user: { select: { id: true, nickname: true } },
+            competition: { select: { id: true, title: true, scoringModel: true } },
+          },
+        },
+        question: { select: { id: true, stem: true, score: true } },
+      },
+      orderBy: { submittedAt: "asc" },
+      take: 100,
+    });
+
+    const list = answers.map((a) => ({
+      id: a.id,
+      participantName: (a.registration as any).user?.nickname || "匿名",
+      competitionTitle: (a.registration as any).competition?.title,
+      questionStem: (a.question as any)?.stem?.slice(0, 200),
+      content: typeof (a.answer as any)?.content === "string"
+        ? (a.answer as any).content?.slice(0, 500)
+        : JSON.stringify(a.answer).slice(0, 500),
+      scoreValue: a.score || 0,
+      comment: a.comment || "",
+      graded: a.score != null,
+      dimScores: ((a.answer as any)?.dimScores as number[]) || [],
+      submittedAt: a.submittedAt,
+    }));
+
+    const graded = list.filter((s) => s.graded).length;
+    const scores = list.filter((s) => s.graded).map((s) => s.scoreValue as number);
+    const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : "--";
+
+    return {
+      list,
+      stats: { total: list.length, graded, avg },
+      dimensions: [
+        { name: "准确性", max: 40 },
+        { name: "完整性", max: 30 },
+        { name: "创新性", max: 20 },
+        { name: "表达力", max: 10 },
+      ],
+    };
+  }
+
+  /** 评委提交评分（按作品/答案ID） */
+  async submitScore(submissionId: string, score: number, graderId: string, comment?: string, dimScores?: number[]) {
+    const answer = await this.prisma.competitionAnswer.findUnique({ where: { id: submissionId } });
+    if (!answer) throw new NotFoundException("作品不存在");
+
+    const answerData: any = { ...(answer.answer as object) };
+    if (dimScores) answerData.dimScores = dimScores;
+    if (comment) answerData.comment = comment;
+
+    return this.prisma.competitionAnswer.update({
+      where: { id: submissionId },
+      data: {
+        score,
+        graderId,
+        comment,
+        answer: answerData,
+        gradedAt: new Date(),
+      },
+    });
+  }
+
   /** 根据答题记录ID获取详情（评委评分前需要查询registrationId+questionId） */
   async getAnswerById(answerId: string) {
     const answer = await this.prisma.competitionAnswer.findUnique({ where: { id: answerId } });

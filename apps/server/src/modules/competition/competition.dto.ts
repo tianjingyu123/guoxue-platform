@@ -202,6 +202,20 @@ export class SubmitAnswerDto {
   duration?: number;
 }
 
+/** 评分 DTO (评委用·按作品) */
+export class SubmitScoreDto {
+  @IsInt()
+  score!: number;
+
+  @IsOptional()
+  @IsString()
+  comment?: string;
+
+  @IsOptional()
+  @IsArray()
+  dimScores?: number[];
+}
+
 /** 评分 DTO (评委用) */
 export class GradeAnswerDto {
   @IsInt()

@@ -10,7 +10,8 @@ export enum ErrorCode {
   NOT_FOUND         = 100003,
   INTERNAL_ERROR    = 100004,
   FORBIDDEN         = 100005,
-  RATE_LIMITED      = 100006,
+  CONFLICT          = 100006,
+  RATE_LIMITED      = 100007,
 
   // ───── 认证 AUTH (200xxx) ─────
   AUTH_PHONE_EXISTS       = 200001,

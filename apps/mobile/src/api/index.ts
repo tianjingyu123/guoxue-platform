@@ -1030,6 +1030,11 @@ export const competitionApi = {
   myRegistration: (id: string) => api.get(`/competitions/${id}/my-registration`),
   submit: (roundId: string, data: any) => api.post(`/competitions/rounds/${roundId}/submit`, data),
   getPaper: (roundId: string) => api.get(`/competitions/rounds/${roundId}/paper`),
+  /** 获取待评审作品列表（评委） */
+  getJudgeSubmissions: (competitionId?: string) => api.get("/competitions/judge/submissions", competitionId ? { competitionId } : {}),
+  /** 提交评分（评委） */
+  submitScore: (data: { submissionId: string; score: number; comment?: string; dimScores?: number[] }) =>
+    api.post(`/competitions/judge/submissions/${data.submissionId}/score`, { score: data.score, comment: data.comment, dimScores: data.dimScores }),
 };
 
 // ==================== 小程序首页 ====================

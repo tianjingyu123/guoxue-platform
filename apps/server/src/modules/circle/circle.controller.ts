@@ -477,4 +477,43 @@ export class CircleController {
   getGroupMembers(@Param("id") circleId: string, @Param("groupId") groupId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.circle.getGroupMembers(circleId, groupId, +page, +pageSize);
   }
+
+  // ───────── 公告已读 ─────────
+
+  @Post(":id/announcements/:announcementId/read")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "标记公告已读" })
+  @ApiBearerAuth()
+  markAnnouncementRead(
+    @Param("id") circleId: string,
+    @Param("announcementId") announcementId: string,
+    @Req() req: Request,
+  ) {
+    return this.circle.markAnnouncementRead(circleId, announcementId, req.user.id);
+  }
+
+  // ───────── 达人预约 ─────────
+
+  @Get("expert/:expertId/slots")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取达人可预约时段", description: "返回达人某日可用的时间段" })
+  @ApiBearerAuth()
+  getExpertSlots(
+    @Param("expertId") expertId: string,
+    @Query("date") date?: string,
+  ) {
+    return this.circle.getExpertSlots(expertId, date);
+  }
+
+  @Post("expert/:expertId/bookings")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "创建达人预约" })
+  @ApiBearerAuth()
+  createExpertBooking(
+    @Param("expertId") expertId: string,
+    @Req() req: Request,
+    @Body() body: { slotDate: string; slotStart: string; slotEnd: string; topic?: string; notes?: string },
+  ) {
+    return this.circle.createExpertBooking(expertId, req.user.id, body);
+  }
 }

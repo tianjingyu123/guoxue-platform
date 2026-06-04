@@ -6,7 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { CompetitionService } from "./competition.service";
 import {
   CreateCompetitionDto, UpdateCompetitionDto, CreateRoundDto, CreateQuestionDto,
-  BatchCreateQuestionDto, SubmitAnswerDto, GradeAnswerDto,
+  BatchCreateQuestionDto, SubmitAnswerDto, GradeAnswerDto, SubmitScoreDto,
   QueryCompetitionDto, QueryRankingDto,
 } from "./competition.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -293,8 +293,24 @@ export class CompetitionPublicController {
 export class CompetitionJudgeController {
   constructor(private readonly service: CompetitionService) {}
 
+  @Get("submissions")
+  @ApiOperation({ summary: "获取待评审作品列表", description: "返回评委当前需要评分的作品" })
+  async getJudgeSubmissions(@Req() req: any, @Query("competitionId") competitionId?: string) {
+    return this.service.getJudgeSubmissions(req.user.id, competitionId);
+  }
+
+  @Post("submissions/:id/score")
+  @ApiOperation({ summary: "提交评分", description: "对作品进行打分" })
+  async submitScore(
+    @Param("id") submissionId: string,
+    @Body() dto: SubmitScoreDto,
+    @Req() req: any,
+  ) {
+    return this.service.submitScore(submissionId, dto.score, req.user.id, dto.comment, dto.dimScores);
+  }
+
   @Post("answers/:answerId/grade")
-  @ApiOperation({ summary: "评委评分" })
+  @ApiOperation({ summary: "评委评分（按答案ID）" })
   async gradeAnswer(
     @Param("answerId") answerId: string,
     @Body() dto: GradeAnswerDto,
