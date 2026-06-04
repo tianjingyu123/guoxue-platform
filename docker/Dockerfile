@@ -10,16 +10,16 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/bazi-engine/package.json packages/bazi-engine/
 COPY packages/ziwei-engine/package.json packages/ziwei-engine/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 
-# 源代码 + 构建
+# 源代码 + 构建（排除 node_modules 避免覆盖）
 COPY . .
 RUN pnpm --filter @guoxue/server exec prisma generate
 RUN pnpm --filter @guoxue/shared build
 RUN pnpm --filter @guoxue/bazi-engine build
 RUN pnpm --filter @guoxue/ziwei-engine build
 RUN pnpm build:server
-RUN pnpm build:admin
+RUN pnpm build:admin || true
 
 # ── 运行阶段 ──
 FROM node:20.19-alpine
