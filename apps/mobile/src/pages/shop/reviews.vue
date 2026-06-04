@@ -19,25 +19,25 @@
     <view class="rating-overview">
       <view class="rating-left">
         <text class="rating-score">
-          {{ mockStats.average }}
+          {{ reviewStats.average }}
         </text>
         <view class="rating-stars">
           <text
             v-for="i in 5"
             :key="i"
             class="star"
-            :class="{ filled: i <= Math.round(mockStats.average) }"
+            :class="{ filled: i <= Math.round(reviewStats.average) }"
           >
             ⭐
           </text>
         </view>
         <text class="rating-total">
-          {{ mockStats.total }}条评价
+          {{ reviewStats.total }}条评价
         </text>
       </view>
       <view class="rating-distribution">
         <view
-          v-for="d in mockStats.distribution"
+          v-for="d in reviewStats.distribution"
           :key="d.stars"
           class="dist-row"
         >
@@ -201,12 +201,6 @@ interface ProductReview {
   likes: number
 }
 
-const mockReviews: ProductReview[] = [
-  { id:'1', user:{id:'u1',name:'张**',avatar:''}, rating:5, content:'这本书讲解非常详细，从基础到进阶都有涉及，特别适合入门学习。', images:[], skuName:'精装典藏版', createdAt:'2025-06-01', likes:128 },
-  { id:'2', user:{id:'u2',name:'李**',avatar:''}, rating:5, content:'内容很好，讲解清晰易懂，推荐购买！', skuName:'平装版', createdAt:'2025-05-28', likes:56 },
-  { id:'3', user:{id:'u3',name:'王**',avatar:''}, rating:4, content:'整体还不错，就是有些章节感觉可以再详细一点。', images:[], skuName:'精装典藏版', createdAt:'2025-05-20', likes:23 },
-  { id:'4', user:{id:'u4',name:'赵**',avatar:''}, rating:3, content:'内容一般，和预期有差距。', skuName:'平装版', createdAt:'2025-05-15', likes:5 },
-]
 
 type FilterType = 'all' | 'good' | 'medium' | 'bad' | 'images'
 
@@ -215,7 +209,7 @@ const reviews = ref<ProductReview[]>([])
 const filter = ref<FilterType>('all')
 const productId = ref('')
 
-const mockStats = computed(() => {
+const reviewStats = computed(() => {
   const list = reviews.value
   const total = list.length
   if (total === 0) return { average: 0, total: 0, distribution: [5,4,3,2,1].map(s => ({ stars: s, count: 0, percent: 0 })), withImages: 0 }
@@ -233,13 +227,13 @@ const mockStats = computed(() => {
 })
 
 const filterTabs = computed(() => {
-  const d = mockStats.value.distribution
+  const d = reviewStats.value.distribution
   return [
-    { key: 'all' as FilterType, label: '全部', count: mockStats.value.total },
+    { key: 'all' as FilterType, label: '全部', count: reviewStats.value.total },
     { key: 'good' as FilterType, label: '好评', count: d[0].count + d[1].count },
     { key: 'medium' as FilterType, label: '中评', count: d[2].count },
     { key: 'bad' as FilterType, label: '差评', count: d[3].count + d[4].count },
-    { key: 'images' as FilterType, label: '有图', count: mockStats.value.withImages },
+    { key: 'images' as FilterType, label: '有图', count: reviewStats.value.withImages },
   ]
 })
 
@@ -262,12 +256,12 @@ onMounted(async () => {
   try {
     if (productId.value) {
       const res = await shopApi.listReviews(productId.value)
-      reviews.value = res?.data || res || mockReviews
+      reviews.value = res?.data || res || []
     } else {
-      reviews.value = mockReviews
+      reviews.value = []
     }
   } catch {
-    reviews.value = mockReviews
+    reviews.value = []
   } finally {
     loading.value = false
   }

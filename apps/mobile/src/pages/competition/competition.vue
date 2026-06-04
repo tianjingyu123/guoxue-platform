@@ -74,25 +74,49 @@
 </template>
 
 <script setup lang="ts">
-// 赛事类型
-const competitionTypes = [
-  { type: "bazi", icon: "🔮", name: "八字预测", count: 0 },
-  { type: "poetry", icon: "📜", name: "诗词创作", count: 0 },
-  { type: "gewu", icon: "🔍", name: "格物感知", count: 0 },
-  { type: "calligraphy", icon: "🖌️", name: "书法绘画", count: 0 },
-  { type: "weiqi", icon: "⚫", name: "棋艺对弈", count: 0 },
-  { type: "tcm", icon: "🌿", name: "中医辨证", count: 0 },
-];
+import { ref, computed, onMounted } from 'vue'
+import { competitionApi } from '../../api'
 
-// 预告（占位数据）
-const upcomingList: any[] = [];
+interface Competition { id: string; type: string; name: string; status: string; startDate?: string; endDate?: string }
 
-// 功能开关（从全局配置获取）
-const features = { competition: false };
+const TYPE_CONFIG: Record<string, { icon: string; name: string }> = {
+  bazi: { icon: '🔮', name: '八字预测' },
+  poetry: { icon: '📜', name: '诗词创作' },
+  gewu: { icon: '🔍', name: '格物感知' },
+  calligraphy: { icon: '🖌️', name: '书法绘画' },
+  weiqi: { icon: '⚫', name: '棋艺对弈' },
+  tcm: { icon: '🌿', name: '中医辨证' },
+}
 
-// 赛事上线后会改为从 API 拉取真实数据：
-// import { api } from '@/api';
-// const { data } = await api.get('/competitions');
+const loading = ref(true)
+const error = ref<string | null>(null)
+const competitions = ref<Competition[]>([])
+
+const competitionTypes = computed(() => {
+  const typeCount: Record<string, number> = {}
+  competitions.value.forEach(c => { typeCount[c.type] = (typeCount[c.type] || 0) + 1 })
+  return Object.entries(TYPE_CONFIG).map(([type, cfg]) => ({
+    type, icon: cfg.icon, name: cfg.name,
+    count: typeCount[type] || 0,
+  }))
+})
+
+const upcomingList = computed(() =>
+  competitions.value
+    .filter(c => c.status === 'UPCOMING')
+    .map(c => ({ id: c.id, date: c.startDate?.slice(0, 10) || '', title: c.name, tag: '预告' }))
+)
+
+const features = computed(() => ({ competition: competitions.value.length > 0 }))
+
+onMounted(async () => {
+  try {
+    const res = await competitionApi.list({ status: 'ACTIVE' })
+    competitions.value = Array.isArray(res) ? res : (res?.data || res?.list || [])
+  } catch {
+    error.value = '加载失败'
+  } finally { loading.value = false }
+})
 </script>
 
 <style scoped>

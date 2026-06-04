@@ -267,6 +267,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { authApi } from '../../api'
 
 const status = ref<'pending' | 'completed'>('pending')
 const showCancelDialog = ref(false)
@@ -289,22 +290,21 @@ const completedItems = [
   '原账号数据无法恢复',
 ]
 
-onMounted(() => {
-  // Parse query parameters using mini-program API
-  const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
-  if (currentPage && (currentPage as any).options) {
-    const opts = (currentPage as any).options
-    status.value = opts.status || 'pending'
-    if (opts.expire) {
-      startCountdown(opts.expire)
+onMounted(async () => {
+  try {
+    const res = await authApi.getDeleteAccountStatus()
+    const data = res?.data || res
+    status.value = data?.status || 'pending'
+    if (data?.expireTime) {
+      startCountdown(data.expireTime)
+    } else if (status.value === 'pending') {
+      const fallback = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      startCountdown(fallback)
     }
-  }
-
-  // Fallback: start a mock 7-day countdown if no expire param
-  if (status.value === 'pending' && !countdownTimer) {
-    const mockExpire = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-    startCountdown(mockExpire)
+  } catch {
+    status.value = 'pending'
+    const fallback = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    startCountdown(fallback)
   }
 })
 
@@ -346,10 +346,15 @@ function padZero(n: number): string {
 
 async function handleCancel() {
   cancelling.value = true
-  await new Promise((r) => setTimeout(r, 1500))
-  cancelling.value = false
-  uni.showToast({ title: '已撤销注销申请', icon: 'success' })
-  setTimeout(() => uni.navigateBack(), 1000)
+  try {
+    await authApi.cancelDeleteAccount()
+    uni.showToast({ title: '已撤销注销申请', icon: 'success' })
+    setTimeout(() => uni.navigateBack(), 1000)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '撤销失败', icon: 'none' })
+  } finally {
+    cancelling.value = false
+  }
 }
 
 function fillFeedback() {

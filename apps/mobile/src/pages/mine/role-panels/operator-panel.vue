@@ -268,7 +268,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import DataState from '../../components/DataState.vue'
+import DataState from '../../../components/DataState.vue'
 
 interface OperatorInfo {
   name: string

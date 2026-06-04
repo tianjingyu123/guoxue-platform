@@ -182,24 +182,6 @@ import { shopApi } from '../../api'
 interface ProductCategory { id: string; name: string; icon: string; children?: ProductCategory[] }
 interface Product { id: string; name: string; cover: string; price: number; originalPrice: number; sales: number; rating: number; category: string }
 
-const mockCategories: ProductCategory[] = [
-  { id: '1', name: '国学书籍', icon: '📚', children: [{ id: '1-1', name: '经典原著', icon: '' }, { id: '1-2', name: '注解版本', icon: '' }, { id: '1-3', name: '入门读物', icon: '' }] },
-  { id: '2', name: '文房用品', icon: '✒️', children: [{ id: '2-1', name: '毛笔', icon: '' }, { id: '2-2', name: '宣纸', icon: '' }, { id: '2-3', name: '墨砚', icon: '' }] },
-  { id: '3', name: '香道用品', icon: '🪔', children: [{ id: '3-1', name: '线香', icon: '' }, { id: '3-2', name: '香炉', icon: '' }, { id: '3-3', name: '沉香', icon: '' }] },
-  { id: '4', name: '茶道用品', icon: '🍵', children: [{ id: '4-1', name: '茶具套装', icon: '' }, { id: '4-2', name: '茶叶', icon: '' }, { id: '4-3', name: '茶盘', icon: '' }] },
-  { id: '5', name: '养生保健', icon: '🏥', children: [{ id: '5-1', name: '艾灸用品', icon: '' }, { id: '5-2', name: '按摩器具', icon: '' }, { id: '5-3', name: '养生食材', icon: '' }] },
-  { id: '6', name: '风水摆件', icon: '🏺', children: [{ id: '6-1', name: '招财摆件', icon: '' }, { id: '6-2', name: '化煞物品', icon: '' }, { id: '6-3', name: '水晶', icon: '' }] },
-  { id: '7', name: '佛道用品', icon: '🙏', children: [{ id: '7-1', name: '佛像', icon: '' }, { id: '7-2', name: '念珠', icon: '' }, { id: '7-3', name: '供品', icon: '' }] },
-  { id: '8', name: '乐器', icon: '🎸', children: [{ id: '8-1', name: '古琴', icon: '' }, { id: '8-2', name: '箫笛', icon: '' }, { id: '8-3', name: '古筝', icon: '' }] },
-]
-
-const mockProducts: Product[] = Array.from({ length: 12 }, (_, i) => ({
-  id: `p${i+1}`, name: ['易经全解','毛笔套装','沉香线香','紫砂茶壶','艾灸盒','招财貔貅','小叶紫檀念珠','古琴入门'][i%8],
-  cover: '', price: [128,89,168,299,68,388,258,1999][i%8],
-  originalPrice: [168,128,218,399,98,488,328,2599][i%8],
-  sales: Math.floor(Math.random()*1000)+100, rating: 4.5+Math.random()*0.5,
-  category: ['1-1','2-1','3-1','4-1','5-1','6-1','7-2','8-1'][i%8],
-}))
 
 const categories = ref<ProductCategory[]>([])
 const products = ref<Product[]>([])
@@ -207,6 +189,7 @@ const selectedCategory = ref('')
 const selectedSubCategory = ref('')
 const loading = ref(true)
 const productsLoading = ref(false)
+const error = ref<string | null>(null)
 
 onMounted(() => { loadCategories() })
 
@@ -221,8 +204,8 @@ async function loadCategories() {
       if (data[0].children?.length) selectedSubCategory.value = data[0].children[0].id
     }
   } catch {
-    categories.value = mockCategories; selectedCategory.value = mockCategories[0].id
-    if (mockCategories[0].children?.length) selectedSubCategory.value = mockCategories[0].children[0].id
+    categories.value = []
+    error.value = '加载分类失败'
   } finally { loading.value = false }
 }
 
@@ -232,7 +215,7 @@ async function loadProducts(categoryId: string) {
     const res = await shopApi.categoryProducts(categoryId)
     products.value = res?.data || res || []
   } catch {
-    products.value = mockProducts.filter(p => p.category === categoryId).slice(0, 6)
+    products.value = []
   } finally { productsLoading.value = false }
 }
 

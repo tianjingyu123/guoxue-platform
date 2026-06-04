@@ -383,7 +383,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import DataState from '../../components/DataState.vue'
+import DataState from '../../../components/DataState.vue'
 
 interface TrendPoint {
   date: string

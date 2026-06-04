@@ -262,7 +262,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import DataState from '../../components/DataState.vue'
+import DataState from '../../../components/DataState.vue'
 
 interface TrendInfo {
   type: 'up' | 'down' | 'flat'
