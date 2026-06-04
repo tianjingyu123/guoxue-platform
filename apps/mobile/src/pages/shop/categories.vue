@@ -228,7 +228,7 @@ function handleCategoryClick(categoryId: string) {
 }
 
 function goBack() { uni.navigateBack() }
-function goSearch() { uni.navigateTo({ url: '/pages/shop/search' }) }
+function goSearch() { uni.navigateTo({ url: '/pages/search/search' }) }
 function goProduct(id: string) { uni.navigateTo({ url: `/pages/shop/product-detail?id=${id}` }) }
 </script>
 

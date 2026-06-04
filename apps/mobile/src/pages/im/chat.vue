@@ -600,7 +600,7 @@ function goBack() {
 
 function goUserProfile() {
   if (target.value) {
-    uni.navigateTo({ url: `/pages/user/profile?userId=${target.value.id}` })
+    uni.navigateTo({ url: `/pages/user/user?userId=${target.value.id}` })
   }
 }
 
@@ -756,7 +756,7 @@ async function sendProductCard(product: any) {
 
 function goProduct(product: any) {
   if (product?.id) {
-    uni.navigateTo({ url: `/pages/shop/product?id=${product.id}` })
+    uni.navigateTo({ url: `/pages/shop/product-detail?id=${product.id}` })
   }
 }
 

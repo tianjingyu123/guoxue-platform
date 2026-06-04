@@ -434,7 +434,7 @@ function getTypeLabel(type: string): string {
 }
 
 function goResult(item: SearchResult) {
-  const routes: Record<string, string> = { article: '/pages/article/detail', course: '/pages/course/detail', product: '/pages/mall/product', user: '/pages/user/profile', post: '/pages/circle/post', video: '/pages/video/detail' }
+  const routes: Record<string, string> = { article: '/pages/article/detail', course: '/pages/courses/course-detail', product: '/pages/shop/product-detail', user: '/pages/user/user', post: '/pages/circle/post', video: '/pages/video/detail' }
   const base = routes[item.type] || '/pages/article/detail'
   uni.navigateTo({ url: `${base}?id=${item.id}` })
 }

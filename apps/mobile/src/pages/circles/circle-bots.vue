@@ -299,11 +299,11 @@ function goBack() {
 }
 
 function goManage() {
-  uni.navigateTo({ url: `/pages/circles/bot-manage?circleId=${circleId.value}` })
+  uni.navigateTo({ url: `/pages/circles/circle-bots?circleId=${circleId.value}` })
 }
 
 function goCreate() {
-  uni.navigateTo({ url: `/pages/circles/bot-create?circleId=${circleId.value}` })
+  uni.navigateTo({ url: `/pages/circles/circle-bots?circleId=${circleId.value}` })
 }
 
 function goChat(bot: CircleBot) {

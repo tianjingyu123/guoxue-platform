@@ -968,7 +968,7 @@ function goProductDetail(p: any) {
 function goHostProfile() {
   if (room.value?.user?.id || room.value?.hostId) {
     uni.navigateTo({
-      url: `/pages/user/profile?id=${room.value.user?.id || room.value.hostId}`,
+      url: `/pages/user/user?id=${room.value.user?.id || room.value.hostId}`,
     })
   }
 }

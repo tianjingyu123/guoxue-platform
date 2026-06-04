@@ -874,9 +874,9 @@ function formatSeconds(sec: number): string {
 }
 
 function goBack() { uni.navigateBack() }
-function goExpert(id: number) { uni.navigateTo({ url: `/pages/user/profile?id=${id}` }) }
-function goProduct(id: number) { uni.navigateTo({ url: `/pages/mall/product?id=${id}` }) }
-function goCircle(id: number) { uni.navigateTo({ url: `/pages/circle/detail?id=${id}` }) }
+function goExpert(id: number) { uni.navigateTo({ url: `/pages/user/user?id=${id}` }) }
+function goProduct(id: number) { uni.navigateTo({ url: `/pages/shop/product-detail?id=${id}` }) }
+function goCircle(id: number) { uni.navigateTo({ url: `/pages/circles/circle-detail?id=${id}` }) }
 function buyReplay() { uni.showToast({ title: '购买功能开发中', icon: 'none' }) }
 </script>
 

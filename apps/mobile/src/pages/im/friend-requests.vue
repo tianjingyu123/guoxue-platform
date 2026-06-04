@@ -263,7 +263,7 @@ function goBack() {
 }
 
 function goUser(userId?: string) {
-  if (userId) uni.navigateTo({ url: `/pages/user/profile?userId=${userId}` })
+  if (userId) uni.navigateTo({ url: `/pages/user/user?userId=${userId}` })
 }
 
 async function loadData() {

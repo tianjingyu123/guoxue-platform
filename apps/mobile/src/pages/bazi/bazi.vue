@@ -1086,7 +1086,7 @@ function goLogin() {
 
 function goHistory() {
   if (!requireLogin('查看历史记录')) return
-  uni.navigateTo({ url: '/pages/bazi/bazi-history' })
+  uni.navigateTo({ url: '/pages/bazi/bazi' })
 }
 </script>
 

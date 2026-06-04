@@ -370,7 +370,7 @@ function closeApp() {
 }
 
 function goHome() {
-  uni.switchTab({ url: '/pages/home/index' })
+  uni.switchTab({ url: '/pages/index/index' })
 }
 
 function showHelp() {

@@ -719,7 +719,7 @@ function goDetail(item: DiscoverItem) {
   const routes: Record<string, string> = {
     product: `/pages/shop/product-detail?id=${item.id}`,
     course: `/pages/courses/course-detail?id=${item.id}`,
-    ebook: `/pages/ebook/detail?id=${item.id}`,
+    ebook: `/pages/ebook/ebook-detail?id=${item.id}`,
     agent: `/pages/agent/agent?id=${item.id}`,
     live: `/pages/live/live-room?id=${item.id}`,
     video: `/pages/videos/video-play?id=${item.id}`,

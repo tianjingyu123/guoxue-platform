@@ -276,7 +276,7 @@ function handleItemClick(item: HistoryItem) {
 }
 
 function goHome() {
-  uni.switchTab({ url: '/pages/home/index' })
+  uni.switchTab({ url: '/pages/index/index' })
 }
 
 function goBack() {

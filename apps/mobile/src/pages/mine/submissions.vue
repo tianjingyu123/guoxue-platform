@@ -176,7 +176,7 @@ function formatTime(t?: string) {
   const d = new Date(t)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-function goDetail(item: any) { uni.navigateTo({ url: `/pages/mine/submission-detail?id=${item.id}` }) }
+function goDetail(item: any) { uni.navigateTo({ url: `/pages/mine/submissions?id=${item.id}` }) }
 function goCreate() { uni.showToast({ title: '创建投稿', icon: 'none' }) }
 function goBack() { uni.navigateBack() }
 </script>

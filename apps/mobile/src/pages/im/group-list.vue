@@ -305,7 +305,7 @@ function goGroupChat(g: GroupItem) {
 }
 
 function goCreateGroup() {
-  uni.navigateTo({ url: '/pages/im/create-group' })
+  uni.navigateTo({ url: '/pages/im/group-detail' })
 }
 
 function showGroupMenu(g: GroupItem) {

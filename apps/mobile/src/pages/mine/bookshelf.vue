@@ -171,7 +171,7 @@ function toggleSelect(id: number) {
 function batchDelete() {
   uni.showModal({ title: '提示', content: `确定移除选中的 ${selectedIds.value.size} 本书吗？`, success: (r) => { if (r.confirm) { books.value = books.value.filter(b => !selectedIds.value.has(b.id)); selectedIds.value = new Set(); uni.showToast({ title: '移除成功' }) } } })
 }
-function goRead(b: any) { uni.navigateTo({ url: `/pages/reader/index?id=${b.id}` }) }
+function goRead(b: any) { uni.navigateTo({ url: `/pages/reader/reader?id=${b.id}` }) }
 function goBack() { uni.navigateBack() }
 </script>
 

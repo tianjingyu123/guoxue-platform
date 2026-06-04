@@ -378,7 +378,7 @@ async function handleToggleFollow(userId: number) {
 }
 
 function goUser(user: NearbyUser) {
-  uni.navigateTo({ url: `/pages/user/profile?id=${user.id}` })
+  uni.navigateTo({ url: `/pages/user/user?id=${user.id}` })
 }
 
 function goChat(user: NearbyUser) {

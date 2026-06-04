@@ -457,7 +457,7 @@ function friendAction(action: string) {
   if (action === 'chat') {
     uni.navigateTo({ url: `/pages/im/chat?userId=${uid}` })
   } else {
-    uni.navigateTo({ url: `/pages/user/profile?userId=${uid}` })
+    uni.navigateTo({ url: `/pages/user/user?userId=${uid}` })
   }
   selectedFriend.value = null
 }
@@ -474,7 +474,7 @@ function onScroll(e: any) {
 }
 
 function goAddFriend() {
-  uni.navigateTo({ url: '/pages/im/add-friend' })
+  uni.navigateTo({ url: '/pages/search/search' })
 }
 </script>
 

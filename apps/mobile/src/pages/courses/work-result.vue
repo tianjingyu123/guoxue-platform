@@ -334,7 +334,7 @@ async function fetchData() {
 }
 
 function handleResubmit() {
-  uni.navigateTo({ url: `/pages/courses/editor?chapterId=${work.value?.chapterId || ''}` })
+  uni.navigateTo({ url: `/pages/articles/editor?chapterId=${work.value?.chapterId || ''}` })
 }
 
 function prevImage() {

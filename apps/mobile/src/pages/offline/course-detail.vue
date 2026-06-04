@@ -648,7 +648,7 @@ function navigateToCourse() {
 
 function goInstructorPage(instructorId?: number) {
   if (instructorId) {
-    uni.navigateTo({ url: `/pages/teacher/detail?id=${instructorId}` })
+    uni.navigateTo({ url: `/pages/teacher/dashboard?id=${instructorId}` })
   }
 }
 

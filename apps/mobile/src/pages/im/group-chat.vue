@@ -516,7 +516,7 @@ const onlineCount = ref(0)
 function goBack() { uni.navigateBack() }
 
 function goUser(uid?: string) {
-  if (uid) uni.navigateTo({ url: `/pages/user/profile?userId=${uid}` })
+  if (uid) uni.navigateTo({ url: `/pages/user/user?userId=${uid}` })
 }
 
 onMounted(() => {

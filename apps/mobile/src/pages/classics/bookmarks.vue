@@ -327,12 +327,12 @@ function goBack() { uni.navigateBack() }
 function goDiscover() { uni.navigateTo({ url: '/pages/discover/index' }) }
 function goDetail(item: FavoriteItem) {
   const urlMap: Record<string, string> = {
-    course: '/pages/course/detail',
+    course: '/pages/courses/course-detail',
     article: '/pages/article/detail',
     live: '/pages/live/live-room',
-    product: '/pages/mall/product',
-    circle: '/pages/circle/detail',
-    teacher: '/pages/user/profile',
+    product: '/pages/shop/product-detail',
+    circle: '/pages/circles/circle-detail',
+    teacher: '/pages/user/user',
   }
   const base = urlMap[item.type] || '/pages/article/detail'
   uni.navigateTo({ url: `${base}?id=${item.id}` })

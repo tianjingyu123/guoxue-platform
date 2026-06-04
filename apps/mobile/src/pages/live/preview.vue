@@ -471,7 +471,7 @@ function formatTime(dateStr: string) {
 }
 
 function goBack() { uni.navigateBack() }
-function goProfile(id: string) { uni.navigateTo({ url: `/pages/user/profile?id=${id}` }) }
+function goProfile(id: string) { uni.navigateTo({ url: `/pages/user/user?id=${id}` }) }
 </script>
 
 <style scoped>

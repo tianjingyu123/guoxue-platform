@@ -302,7 +302,7 @@ async function fetchData() {
     // Mock data
     station.value = { name: '翰林书院', logo: '', theme: { primaryColor: '#C41E3A' }, master: { avatar: '' } }
     features.value = [
-      { id: '1', icon: '📚', label: '课程', path: '/pages/courses/index', color: '#C41E3A' },
+      { id: '1', icon: '📚', label: '课程', path: '/pages/courses/courses', color: '#C41E3A' },
       { id: '2', icon: '🎤', label: '直播', path: '/pages/live/index', color: '#C9A96E' },
       { id: '3', icon: '👥', label: '圈子', path: '/pages/circles/index', color: '#4A90D9' },
       { id: '4', icon: '🛒', label: '商城', path: '/pages/shop/index', color: '#52C41A' },
@@ -366,7 +366,7 @@ function goFeature(feature: any) {
 
 function goDetail(type: string, id: string) {
   const map: Record<string, string> = {
-    course: '/pages/courses/index?id=',
+    course: '/pages/courses/courses?id=',
     live: '/pages/live/live-room?id=',
     article: '/pages/articles/index?id=',
     video: '/pages/videos/index?id=',
@@ -377,7 +377,7 @@ function goDetail(type: string, id: string) {
 }
 
 function goMore() {
-  uni.navigateTo({ url: '/pages/courses/index' })
+  uni.navigateTo({ url: '/pages/courses/courses' })
 }
 
 function handleShare() {

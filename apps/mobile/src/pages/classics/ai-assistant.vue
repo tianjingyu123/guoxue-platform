@@ -389,9 +389,9 @@ function toggleMainCat(id: string) {
 function handleSearch() { /* 搜索已实时绑定 */ }
 function goBack() { uni.navigateBack() }
 function goSearch() { uni.navigateTo({ url: '/pages/classics/search' }) }
-function goReader(id: number) { uni.navigateTo({ url: `/pages/classics/reader?id=${id}` }) }
-function goBookLists() { uni.navigateTo({ url: '/pages/classics/lists' }) }
-function goBookList(id: number) { uni.navigateTo({ url: `/pages/classics/list/${id}` }) }
+function goReader(id: number) { uni.navigateTo({ url: `/pages/reader/reader?id=${id}` }) }
+function goBookLists() { uni.navigateTo({ url: '/pages/classics/classics' }) }
+function goBookList(id: number) { uni.navigateTo({ url: `/pages/classics/classic-detail?id=${id}` }) }
 </script>
 
 <style scoped>

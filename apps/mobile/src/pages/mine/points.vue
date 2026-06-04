@@ -550,7 +550,7 @@ async function doTask(task: DailyTask) {
 }
 
 function goHistory() {
-  uni.navigateTo({ url: '/pages/mine/points-history' })
+  uni.navigateTo({ url: '/pages/mine/points' })
 }
 function goGrowth() {
   uni.showToast({ title: '成长值详情', icon: 'none' })

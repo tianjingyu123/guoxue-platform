@@ -362,9 +362,9 @@ function getLevelLabel(level: string): string {
 }
 
 function goBack() { uni.navigateBack() }
-function goChat() { uni.navigateTo({ url: `/pages/message/chat?userId=${instructor.value?.id}` }) }
+function goChat() { uni.navigateTo({ url: `/pages/im/chat?userId=${instructor.value?.id}` }) }
 function goBooking() { uni.navigateTo({ url: `/pages/offline/teacher-booking?teacherId=${instructor.value?.id}` }) }
-function goCourse(id: number) { uni.navigateTo({ url: `/pages/course/detail?id=${id}` }) }
+function goCourse(id: number) { uni.navigateTo({ url: `/pages/courses/course-detail?id=${id}` }) }
 </script>
 
 <style scoped>

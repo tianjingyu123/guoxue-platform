@@ -513,7 +513,7 @@ function goBooking(t: any) {
 }
 
 function goEvents() {
-  uni.navigateTo({ url: '/pages/offline/events' })
+  uni.navigateTo({ url: '/pages/offline/courses' })
 }
 
 function goBack() {

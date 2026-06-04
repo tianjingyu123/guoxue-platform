@@ -270,7 +270,7 @@ function getReasonText(reason: string) { switch(reason) { case 'timeout': return
 function getRefundProgress() { if (!info.value) return 0; switch(info.value.refundStatus) { case 'pending': return 33; case 'processing': return 66; case 'completed': return 100; default: return 0 } }
 function copyOrderId() { if (!info.value) return; uni.setClipboardData({ data: info.value.orderId, success: () => { copied.value = true; setTimeout(() => { copied.value = false }, 2000) } }) }
 function goBack() { uni.navigateBack() }
-function goRefund() { if (info.value) uni.navigateTo({ url: `/pages/mine/refunds?orderId=${info.value.orderId}` }) }
+function goRefund() { if (info.value) uni.navigateTo({ url: `/pages/orders/refund-progress?orderId=${info.value.orderId}` }) }
 function recreate() { if (info.value) uni.navigateTo({ url: `/pages/shop/group-buy-detail?id=${info.value.groupId}&action=create` }) }
 function goGroupBuy() { uni.navigateTo({ url: '/pages/shop/group-buy' }) }
 </script>

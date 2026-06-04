@@ -333,9 +333,9 @@ function handleCopy(text: string) {
 
 function goBack() { uni.navigateBack() }
 function reapply() { if (detail.value) uni.navigateTo({ url: `/pages/shop/after-sale?orderId=${detail.value.orderId}&prefill=true` }) }
-function goDispute() { if (detail.value) uni.navigateTo({ url: `/pages/shop/dispute?afterSaleId=${detail.value.id}` }) }
+function goDispute() { if (detail.value) uni.navigateTo({ url: `/pages/shop/my-after-sales?afterSaleId=${detail.value.id}` }) }
 function goOrder() { if (detail.value) uni.navigateTo({ url: `/pages/orders/order-detail?id=${detail.value.orderId}` }) }
-function goContact() { uni.navigateTo({ url: '/pages/customer-service/chat' }) }
+function goContact() { uni.navigateTo({ url: '/pages/customer-service/index' }) }
 </script>
 
 <style scoped>

@@ -335,10 +335,10 @@ const incomeTrend = ref([
 ])
 
 const quickActions = [
-  { icon: '📝', label: '发布课程', path: '/teacher/courses/create' },
-  { icon: '🎤', label: '开始直播', path: '/live/create' },
-  { icon: '📄', label: '发布文章', path: '/teacher/articles/create' },
-  { icon: '📅', label: '预约管理', path: '/teacher/bookings' },
+  { icon: '📝', label: '发布课程', path: '/pages/teacher/dashboard?tab=courses' },
+  { icon: '🎤', label: '开始直播', path: '/pages/live/live-list' },
+  { icon: '📄', label: '发布文章', path: '/pages/teacher/dashboard?tab=articles' },
+  { icon: '📅', label: '预约管理', path: '/pages/teacher/dashboard?tab=bookings' },
 ]
 
 const pendingTotal = computed(() => pendingItems.value.reduce((s, i) => s + i.count, 0))
@@ -384,24 +384,24 @@ function formatMoney(n?: number): string {
 
 function goPending(type: string) {
   const paths: Record<string, string> = {
-    homework: '/teacher/homework',
-    question: '/teacher/questions',
-    booking: '/teacher/bookings',
-    review: '/teacher/reviews',
+    homework: '/pages/teacher/dashboard?tab=homework',
+    question: '/pages/teacher/dashboard?tab=questions',
+    booking: '/pages/teacher/dashboard?tab=bookings',
+    review: '/pages/teacher/dashboard?tab=reviews',
   }
   uni.navigateTo({ url: paths[type] || '/teacher/dashboard' })
 }
 
 function goIncomeDetail() {
-  uni.navigateTo({ url: '/teacher/income' })
+  uni.navigateTo({ url: '/pages/teacher/dashboard?tab=income' })
 }
 
 function goAllCourses() {
-  uni.navigateTo({ url: '/teacher/courses' })
+  uni.navigateTo({ url: '/pages/teacher/dashboard?tab=courses' })
 }
 
 function goCourseDetail(id: string) {
-  uni.navigateTo({ url: `/teacher/courses/${id}` })
+  uni.navigateTo({ url: `/pages/teacher/dashboard?courseId=${id}` })
 }
 
 function goQuick(path: string) {

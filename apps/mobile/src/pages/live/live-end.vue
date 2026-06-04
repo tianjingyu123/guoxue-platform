@@ -381,15 +381,15 @@ function formatNumber(num: number) {
 
 function handleFollow() { isFollowing.value = !isFollowing.value }
 function goBack() { uni.navigateBack() }
-function goProfile(id: string) { uni.navigateTo({ url: `/pages/user/profile?id=${id}` }) }
-function goProfileLives(id: string) { uni.navigateTo({ url: `/pages/user/profile?id=${id}&tab=lives` }) }
+function goProfile(id: string) { uni.navigateTo({ url: `/pages/user/user?id=${id}` }) }
+function goProfileLives(id: string) { uni.navigateTo({ url: `/pages/user/user?id=${id}&tab=lives` }) }
 function goRecommendLive(live: any) {
   if (live.status === 'live') uni.navigateTo({ url: `/pages/live/live-room?id=${live.id}` })
   else if (live.status === 'preview') uni.navigateTo({ url: `/pages/live/preview?id=${live.id}` })
 }
-function goCourse(id: string) { uni.navigateTo({ url: `/pages/course/detail?id=${id}` }) }
-function goCourses() { uni.navigateTo({ url: '/pages/course/list' }) }
-function goCircle(hostId: string) { uni.navigateTo({ url: `/pages/circle/detail?hostId=${hostId}` }) }
+function goCourse(id: string) { uni.navigateTo({ url: `/pages/courses/course-detail?id=${id}` }) }
+function goCourses() { uni.navigateTo({ url: '/pages/courses/courses' }) }
+function goCircle(hostId: string) { uni.navigateTo({ url: `/pages/circles/circle-detail?hostId=${hostId}` }) }
 function goReplay(roomId: string) { uni.navigateTo({ url: `/pages/live/replay-player?id=${roomId}` }) }
 </script>
 

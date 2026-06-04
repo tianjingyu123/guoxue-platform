@@ -373,7 +373,7 @@ function handleSearch() {
 }
 
 function goProduct(p: Product) {
-  uni.navigateTo({ url: `/pages/shop/detail?id=${p.id}` })
+  uni.navigateTo({ url: `/pages/shop/product-detail?id=${p.id}` })
 }
 
 function goCart() {

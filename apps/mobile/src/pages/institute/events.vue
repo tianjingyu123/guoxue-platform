@@ -341,7 +341,7 @@ function nextMonth() {
   else currentMonth.value++
 }
 function goBack() { uni.navigateBack() }
-function goDetail(id: number) { uni.navigateTo({ url: `/pages/institute/event-detail?id=${id}` }) }
+function goDetail(id: number) { uni.navigateTo({ url: `/pages/institute/events?id=${id}` }) }
 
 function getEventTypeLabel(t: string): string {
   return { lecture: '学术讲座', seminar: '研讨会', workshop: '工作坊', conference: '学术会议', online: '线上活动' }[t] || t

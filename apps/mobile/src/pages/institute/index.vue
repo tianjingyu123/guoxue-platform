@@ -317,14 +317,14 @@ async function loadData() {
 
 function handleSearch() {
   if (searchKeyword.value.trim()) {
-    uni.navigateTo({ url: `/pages/institute/instructors?keyword=${encodeURIComponent(searchKeyword.value)}` })
+    uni.navigateTo({ url: `/pages/institute/member-detail?keyword=${encodeURIComponent(searchKeyword.value)}` })
   }
 }
 function goBack() { uni.navigateBack() }
-function goInstructors() { uni.navigateTo({ url: '/pages/institute/instructors' }) }
+function goInstructors() { uni.navigateTo({ url: '/pages/institute/member-detail' }) }
 function goInstructorDetail(id: number) { uni.navigateTo({ url: `/pages/institute/member-detail?id=${id}` }) }
 function goEvents() { uni.navigateTo({ url: '/pages/institute/events' }) }
-function goEventDetail(id: number) { uni.navigateTo({ url: `/pages/institute/event-detail?id=${id}` }) }
+function goEventDetail(id: number) { uni.navigateTo({ url: `/pages/institute/events?id=${id}` }) }
 function goApply() { uni.navigateTo({ url: '/pages/institute/apply' }) }
 
 function getEventStatusLabel(s: string): string {

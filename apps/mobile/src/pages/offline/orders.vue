@@ -247,16 +247,16 @@ function handleOrderAction(orderId: number, action: string) {
       uni.showToast({ title: '已提交退款申请', icon: 'none' })
       break
     case 'review':
-      uni.navigateTo({ url: `/pages/offline/review?orderId=${orderId}` })
+      uni.navigateTo({ url: `/pages/offline/course-detail?orderId=${orderId}` })
       break
     case 'rebuy':
-      uni.navigateTo({ url: `/pages/offline/orders/detail?orderId=${orderId}&rebuy=1` })
+      uni.navigateTo({ url: `/pages/orders/order-detail?orderId=${orderId}&rebuy=1` })
       break
   }
 }
 
 function goOrderDetail(order: OfflineOrder) {
-  uni.navigateTo({ url: `/pages/offline/orders/detail?id=${order.id}` })
+  uni.navigateTo({ url: `/pages/orders/order-detail?id=${order.id}` })
 }
 
 function goStations() {

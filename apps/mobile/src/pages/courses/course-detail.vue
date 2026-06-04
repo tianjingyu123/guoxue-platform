@@ -586,7 +586,7 @@ function goCourse(courseId: string) {
 
 function goTeacher() {
   if (course.value?.instructorId) {
-    uni.navigateTo({ url: `/pages/teacher/detail?id=${course.value.instructorId}` })
+    uni.navigateTo({ url: `/pages/teacher/dashboard?id=${course.value.instructorId}` })
   }
 }
 

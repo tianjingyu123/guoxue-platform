@@ -770,7 +770,7 @@ function goItem(item: FeedItem) {
       uni.navigateTo({ url: `/pages/courses/course-detail?id=${item.id}` })
       break
     case 'ebook':
-      uni.navigateTo({ url: `/pages/ebook/detail?id=${item.id}` })
+      uni.navigateTo({ url: `/pages/ebook/ebook-detail?id=${item.id}` })
       break
     default:
       uni.navigateTo({ url: `/pages/detail/detail?id=${item.id}&type=${item._type === 'editorial' ? 'CONTENT' : 'ARTICLE'}` })

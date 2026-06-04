@@ -357,7 +357,7 @@ function formatViewCount(n?: number): string {
 }
 
 function goLive(room: any) {
-  uni.navigateTo({ url: `/pages/live/room?id=${room.id}` })
+  uni.navigateTo({ url: `/pages/live/live-room?id=${room.id}` })
 }
 </script>
 
