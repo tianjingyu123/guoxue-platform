@@ -1,8 +1,12 @@
 <template>
   <view class="page">
     <view class="page-header">
-      <text class="page-title">电子书</text>
-      <text class="page-sub">国学经典 · 随时阅读</text>
+      <text class="page-title">
+        电子书
+      </text>
+      <text class="page-sub">
+        国学经典 · 随时阅读
+      </text>
     </view>
 
     <!-- 搜索 -->
@@ -13,43 +17,74 @@
         placeholder="搜索书名/作者"
         confirm-type="search"
         @confirm="doSearch"
-      />
-      <text v-if="keyword" class="clear-btn" @click="clearSearch">✕</text>
+      >
+      <text
+        v-if="keyword"
+        class="clear-btn"
+        @click="clearSearch"
+      >
+        ✕
+      </text>
     </view>
 
     <!-- 继续阅读 -->
-    <view v-if="!keyword && continueList.length" class="section">
+    <view
+      v-if="!keyword && continueList.length"
+      class="section"
+    >
       <view class="section-hdr">
-        <text class="section-title">继续阅读</text>
+        <text class="section-title">
+          继续阅读
+        </text>
       </view>
-      <scroll-view scroll-x class="continue-scroll">
+      <scroll-view
+        scroll-x
+        class="continue-scroll"
+      >
         <view
           v-for="item in continueList"
           :key="item.ebookId"
           class="continue-card"
           @click="goReader(item.ebookId, item.chapterId)"
         >
-          <image :src="item.ebook?.cover" class="continue-cover" mode="aspectFill" />
-          <text class="continue-title">{{ item.ebook?.title }}</text>
+          <image
+            :src="item.ebook?.cover"
+            class="continue-cover"
+            mode="aspectFill"
+          />
+          <text class="continue-title">
+            {{ item.ebook?.title }}
+          </text>
           <view class="continue-progress">
             <view class="progress-bar">
-              <view class="progress-fill" :style="{ width: (item.progress || 0) + '%' }" />
+              <view
+                class="progress-fill"
+                :style="{ width: (item.progress || 0) + '%' }"
+              />
             </view>
-            <text class="progress-text">{{ item.progress || 0 }}%</text>
+            <text class="progress-text">
+              {{ item.progress || 0 }}%
+            </text>
           </view>
         </view>
       </scroll-view>
     </view>
 
     <!-- 分类标签 -->
-    <scroll-view scroll-x class="tabs-scroll" show-scrollbar="false">
+    <scroll-view
+      scroll-x
+      class="tabs-scroll"
+      show-scrollbar="false"
+    >
       <text
         v-for="cat in categories"
         :key="cat.id"
         class="tab"
         :class="{ active: activeCategory === cat.id }"
         @click="switchCategory(cat.id)"
-      >{{ cat.name }}</text>
+      >
+        {{ cat.name }}
+      </text>
     </scroll-view>
 
     <!-- 排序 -->
@@ -60,34 +95,81 @@
         class="sort-item"
         :class="{ active: sortBy === s.value }"
         @click="switchSort(s.value)"
-      >{{ s.label }}</text>
+      >
+        {{ s.label }}
+      </text>
     </view>
 
     <!-- 书籍列表 -->
-    <view v-if="books.length" class="book-grid">
-      <view v-for="b in books" :key="b.id" class="book-card" @click="goDetail(b.id)">
-        <image :src="b.cover || '/static/default-book.png'" class="book-cover" mode="aspectFill" />
+    <view
+      v-if="books.length"
+      class="book-grid"
+    >
+      <view
+        v-for="b in books"
+        :key="b.id"
+        class="book-card"
+        @click="goDetail(b.id)"
+      >
+        <image
+          :src="b.cover || '/static/default-book.png'"
+          class="book-cover"
+          mode="aspectFill"
+        />
         <view class="book-info">
-          <text class="book-title">{{ b.title }}</text>
-          <text class="book-author">{{ b.author }}</text>
+          <text class="book-title">
+            {{ b.title }}
+          </text>
+          <text class="book-author">
+            {{ b.author }}
+          </text>
           <view class="book-bottom">
-            <text v-if="Number(b.price) > 0" class="book-price">¥{{ b.price }}</text>
-            <text v-else class="book-free">免费</text>
-            <text class="book-views">{{ formatCount(b.viewCount) }}人读过</text>
+            <text
+              v-if="Number(b.price) > 0"
+              class="book-price"
+            >
+              ¥{{ b.price }}
+            </text>
+            <text
+              v-else
+              class="book-free"
+            >
+              免费
+            </text>
+            <text class="book-views">
+              {{ formatCount(b.viewCount) }}人读过
+            </text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 空状态 -->
-    <view v-if="!loading && books.length === 0" class="empty">
-      <text class="empty-icon">📚</text>
-      <text class="empty-text">暂无电子书</text>
+    <view
+      v-if="!loading && books.length === 0"
+      class="empty"
+    >
+      <text class="empty-icon">
+        📚
+      </text>
+      <text class="empty-text">
+        暂无电子书
+      </text>
     </view>
 
     <!-- 加载状态 -->
-    <view v-if="loading" class="loading-state">加载中...</view>
-    <view v-if="!loading && !hasMore && books.length > 0" class="no-more">没有更多了</view>
+    <view
+      v-if="loading"
+      class="loading-state"
+    >
+      加载中...
+    </view>
+    <view
+      v-if="!loading && !hasMore && books.length > 0"
+      class="no-more"
+    >
+      没有更多了
+    </view>
   </view>
 </template>
 

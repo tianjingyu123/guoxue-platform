@@ -4,20 +4,42 @@
     <view class="header">
       <view class="header-inner">
         <view class="header-top">
-          <text class="logo">热卜国学</text>
+          <text class="logo">
+            热卜国学
+          </text>
           <view class="header-actions">
-            <view class="header-icon-wrap" @click="goPage('/pages/notifications/notifications')">
-              <text class="header-icon">🔔</text>
-              <view v-if="hasUnread" class="unread-dot" />
+            <view
+              class="header-icon-wrap"
+              @click="goPage('/pages/notifications/notifications')"
+            >
+              <text class="header-icon">
+                🔔
+              </text>
+              <view
+                v-if="hasUnread"
+                class="unread-dot"
+              />
             </view>
-            <view class="header-icon-wrap" @click="goPage('/pages/bots/bots')">
-              <text class="header-icon">🤖</text>
+            <view
+              class="header-icon-wrap"
+              @click="goPage('/pages/bots/bots')"
+            >
+              <text class="header-icon">
+                🤖
+              </text>
             </view>
           </view>
         </view>
-        <view class="search-bar" @click="goSearch">
-          <text class="search-ai-badge">AI</text>
-          <text class="search-placeholder">搜索课程、命理工具、古籍...</text>
+        <view
+          class="search-bar"
+          @click="goSearch"
+        >
+          <text class="search-ai-badge">
+            AI
+          </text>
+          <text class="search-placeholder">
+            搜索课程、命理工具、古籍...
+          </text>
         </view>
       </view>
     </view>
@@ -28,27 +50,43 @@
       scroll-y
       refresher-enabled
       :refresher-triggered="refreshing"
+      lower-threshold="100"
       @refresherrefresh="onRefresh"
       @scrolltolower="onLoadMore"
-      lower-threshold="100"
     >
       <!-- 会员/VIP 入口卡片 -->
-      <view class="vip-card" @click="goPage(memberInfo.isMember ? '/pages/vip/vip' : '/pages/vip/plans')">
+      <view
+        class="vip-card"
+        @click="goPage(memberInfo.isMember ? '/pages/vip/vip' : '/pages/vip/plans')"
+      >
         <view class="vip-left">
           <view class="vip-avatar">
-            <text class="vip-avatar-text">{{ userInitial }}</text>
+            <text class="vip-avatar-text">
+              {{ userInitial }}
+            </text>
           </view>
           <view class="vip-info">
-            <text class="vip-greeting">{{ memberInfo.isMember ? '尊贵的VIP会员' : '你好，国学爱好者' }}</text>
-            <text class="vip-sub">{{ memberInfo.isMember ? '会员到期: ' + memberInfo.expireText : '开通会员享专属权益' }}</text>
+            <text class="vip-greeting">
+              {{ memberInfo.isMember ? '尊贵的VIP会员' : '你好，国学爱好者' }}
+            </text>
+            <text class="vip-sub">
+              {{ memberInfo.isMember ? '会员到期: ' + memberInfo.expireText : '开通会员享专属权益' }}
+            </text>
           </view>
         </view>
         <view class="vip-right">
           <view class="vip-balance">
-            <text class="vip-balance-label">国学币</text>
-            <text class="vip-balance-num">{{ coinBalance }}</text>
+            <text class="vip-balance-label">
+              国学币
+            </text>
+            <text class="vip-balance-num">
+              {{ coinBalance }}
+            </text>
           </view>
-          <view class="vip-badge" :class="{ 'is-member': memberInfo.isMember }">
+          <view
+            class="vip-badge"
+            :class="{ 'is-member': memberInfo.isMember }"
+          >
             <text>{{ memberInfo.isMember ? '会员' : '开通' }}</text>
           </view>
         </view>
@@ -64,12 +102,23 @@
         indicator-color="rgba(255,255,255,0.4)"
         indicator-active-color="#C9A96E"
       >
-        <swiper-item v-for="(banner, idx) in banners" :key="idx">
-          <view class="banner-slide" :style="{ backgroundImage: 'url(' + banner.imageUrl + ')' }" @click="goBanner(banner)">
+        <swiper-item
+          v-for="(banner, idx) in banners"
+          :key="idx"
+        >
+          <view
+            class="banner-slide"
+            :style="{ backgroundImage: 'url(' + banner.imageUrl + ')' }"
+            @click="goBanner(banner)"
+          >
             <view class="banner-overlay" />
             <view class="banner-text">
-              <text class="banner-title">{{ banner.title || '' }}</text>
-              <text class="banner-sub">{{ banner.subtitle || '' }}</text>
+              <text class="banner-title">
+                {{ banner.title || '' }}
+              </text>
+              <text class="banner-sub">
+                {{ banner.subtitle || '' }}
+              </text>
             </view>
           </view>
         </swiper-item>
@@ -83,29 +132,54 @@
           class="quick-item"
           @click="goPage(item.link)"
         >
-          <view class="quick-icon" :style="{ background: item.bgColor }">
-            <text :style="{ color: item.color }" class="quick-icon-text">{{ item.icon }}</text>
-            <view v-if="item.badge" class="quick-badge" :class="item.badgeClass">
+          <view
+            class="quick-icon"
+            :style="{ background: item.bgColor }"
+          >
+            <text
+              :style="{ color: item.color }"
+              class="quick-icon-text"
+            >
+              {{ item.icon }}
+            </text>
+            <view
+              v-if="item.badge"
+              class="quick-badge"
+              :class="item.badgeClass"
+            >
               <text>{{ item.badge }}</text>
             </view>
           </view>
-          <text class="quick-name">{{ item.name }}</text>
+          <text class="quick-name">
+            {{ item.name }}
+          </text>
         </view>
       </view>
 
       <!-- 运势卡片 -->
-      <view class="fortune-card" @click="goPage('/pages/fortune/fortune')">
+      <view
+        class="fortune-card"
+        @click="goPage('/pages/fortune/fortune')"
+      >
         <view class="fortune-left">
           <view class="fortune-icon-wrap">
-            <text class="fortune-emoji">☯</text>
+            <text class="fortune-emoji">
+              ☯
+            </text>
           </view>
           <view class="fortune-text">
-            <text class="fortune-title">{{ fortuneText }}</text>
-            <text class="fortune-sub">{{ fortuneSub }}</text>
+            <text class="fortune-title">
+              {{ fortuneText }}
+            </text>
+            <text class="fortune-sub">
+              {{ fortuneSub }}
+            </text>
           </view>
         </view>
         <view class="fortune-right">
-          <text class="fortune-cta">查看详情 ›</text>
+          <text class="fortune-cta">
+            查看详情 ›
+          </text>
         </view>
       </view>
 
@@ -113,34 +187,61 @@
       <view class="section-header">
         <view class="section-title-wrap">
           <view class="section-bar" />
-          <text class="section-title">AI 智能体</text>
+          <text class="section-title">
+            AI 智能体
+          </text>
         </view>
-        <text class="section-more" @click="goPage('/pages/agents/agents')">全部 ›</text>
+        <text
+          class="section-more"
+          @click="goPage('/pages/agents/agents')"
+        >
+          全部 ›
+        </text>
       </view>
-      <scroll-view class="agent-scroll" scroll-x show-scrollbar="false">
+      <scroll-view
+        class="agent-scroll"
+        scroll-x
+        show-scrollbar="false"
+      >
         <view
           v-for="agent in agents"
           :key="agent.id"
           class="agent-card"
           @click="goPage('/pages/agent/agent?id=' + agent.id)"
         >
-          <view class="agent-cover" :style="{ background: agent.gradient }">
+          <view
+            class="agent-cover"
+            :style="{ background: agent.gradient }"
+          >
             <view class="agent-icon-wrap">
-              <text class="agent-icon-text">{{ agent.icon }}</text>
+              <text class="agent-icon-text">
+                {{ agent.icon }}
+              </text>
             </view>
             <view class="agent-ai-badge">
               <text>AI</text>
             </view>
-            <view v-if="agent.isHot" class="agent-hot-badge">
+            <view
+              v-if="agent.isHot"
+              class="agent-hot-badge"
+            >
               <text>HOT</text>
             </view>
           </view>
           <view class="agent-body">
-            <text class="agent-name">{{ agent.name }}</text>
-            <text class="agent-desc">{{ agent.desc }}</text>
+            <text class="agent-name">
+              {{ agent.name }}
+            </text>
+            <text class="agent-desc">
+              {{ agent.desc }}
+            </text>
             <view class="agent-footer">
-              <text class="agent-users">{{ agent.users }}人使用</text>
-              <text class="agent-chat-btn">对话</text>
+              <text class="agent-users">
+                {{ agent.users }}人使用
+              </text>
+              <text class="agent-chat-btn">
+                对话
+              </text>
             </view>
           </view>
         </view>
@@ -185,38 +286,80 @@
                   class="wf-img"
                   mode="widthFix"
                 />
-                <view v-else class="wf-placeholder" :style="{ background: placeholderBg(idx) }">
-                  <text class="wf-placeholder-icon">{{ typeIcon(item._type) }}</text>
+                <view
+                  v-else
+                  class="wf-placeholder"
+                  :style="{ background: placeholderBg(idx) }"
+                >
+                  <text class="wf-placeholder-icon">
+                    {{ typeIcon(item._type) }}
+                  </text>
                 </view>
                 <!-- 角标 -->
-                <view v-if="item._type === 'live'" class="wf-badge wf-badge-live">
+                <view
+                  v-if="item._type === 'live'"
+                  class="wf-badge wf-badge-live"
+                >
                   <view class="live-dot" /><text>直播</text>
                 </view>
-                <view v-if="item._type === 'video' && item.duration" class="wf-badge wf-badge-dur">
+                <view
+                  v-if="item._type === 'video' && item.duration"
+                  class="wf-badge wf-badge-dur"
+                >
                   <text>{{ formatDuration(item.duration) }}</text>
                 </view>
-                <view v-if="item._type === 'product' && item.tag" class="wf-badge" :class="tagBadgeColor(item.tag)">
+                <view
+                  v-if="item._type === 'product' && item.tag"
+                  class="wf-badge"
+                  :class="tagBadgeColor(item.tag)"
+                >
                   <text>{{ item.tag }}</text>
                 </view>
               </view>
               <!-- 信息 -->
               <view class="wf-body">
-                <text class="wf-title">{{ item.title || item.name }}</text>
+                <text class="wf-title">
+                  {{ item.title || item.name }}
+                </text>
                 <!-- 价格 -->
-                <view v-if="item._type === 'product' || item._type === 'course'" class="wf-price-row">
-                  <text class="wf-price">¥{{ item.price }}</text>
-                  <text v-if="item.originalPrice" class="wf-price-original">¥{{ item.originalPrice }}</text>
+                <view
+                  v-if="item._type === 'product' || item._type === 'course'"
+                  class="wf-price-row"
+                >
+                  <text class="wf-price">
+                    ¥{{ item.price }}
+                  </text>
+                  <text
+                    v-if="item.originalPrice"
+                    class="wf-price-original"
+                  >
+                    ¥{{ item.originalPrice }}
+                  </text>
                 </view>
                 <!-- 互动 -->
                 <view class="wf-meta">
                   <view class="wf-author">
                     <view class="wf-avatar-wrap">
-                      <image v-if="item.authorAvatar" :src="item.authorAvatar" class="wf-avatar" />
-                      <text v-else class="wf-avatar-placeholder">{{ (item.author || '国').charAt(0) }}</text>
+                      <image
+                        v-if="item.authorAvatar"
+                        :src="item.authorAvatar"
+                        class="wf-avatar"
+                      />
+                      <text
+                        v-else
+                        class="wf-avatar-placeholder"
+                      >
+                        {{ (item.author || '国').charAt(0) }}
+                      </text>
                     </view>
-                    <text class="wf-author-name">{{ item.author || item.anchorName || '国学平台' }}</text>
+                    <text class="wf-author-name">
+                      {{ item.author || item.anchorName || '国学平台' }}
+                    </text>
                   </view>
-                  <view v-if="item.likeCount > 0" class="wf-like">
+                  <view
+                    v-if="item.likeCount > 0"
+                    class="wf-like"
+                  >
                     <text>♥ {{ formatCount(item.likeCount) }}</text>
                   </view>
                 </view>
@@ -237,34 +380,76 @@
                   class="wf-img"
                   mode="widthFix"
                 />
-                <view v-else class="wf-placeholder" :style="{ background: placeholderBg(idx + 100) }">
-                  <text class="wf-placeholder-icon">{{ typeIcon(item._type) }}</text>
+                <view
+                  v-else
+                  class="wf-placeholder"
+                  :style="{ background: placeholderBg(idx + 100) }"
+                >
+                  <text class="wf-placeholder-icon">
+                    {{ typeIcon(item._type) }}
+                  </text>
                 </view>
-                <view v-if="item._type === 'live'" class="wf-badge wf-badge-live">
+                <view
+                  v-if="item._type === 'live'"
+                  class="wf-badge wf-badge-live"
+                >
                   <view class="live-dot" /><text>直播</text>
                 </view>
-                <view v-if="item._type === 'video' && item.duration" class="wf-badge wf-badge-dur">
+                <view
+                  v-if="item._type === 'video' && item.duration"
+                  class="wf-badge wf-badge-dur"
+                >
                   <text>{{ formatDuration(item.duration) }}</text>
                 </view>
-                <view v-if="item._type === 'product' && item.tag" class="wf-badge" :class="tagBadgeColor(item.tag)">
+                <view
+                  v-if="item._type === 'product' && item.tag"
+                  class="wf-badge"
+                  :class="tagBadgeColor(item.tag)"
+                >
                   <text>{{ item.tag }}</text>
                 </view>
               </view>
               <view class="wf-body">
-                <text class="wf-title">{{ item.title || item.name }}</text>
-                <view v-if="item._type === 'product' || item._type === 'course'" class="wf-price-row">
-                  <text class="wf-price">¥{{ item.price }}</text>
-                  <text v-if="item.originalPrice" class="wf-price-original">¥{{ item.originalPrice }}</text>
+                <text class="wf-title">
+                  {{ item.title || item.name }}
+                </text>
+                <view
+                  v-if="item._type === 'product' || item._type === 'course'"
+                  class="wf-price-row"
+                >
+                  <text class="wf-price">
+                    ¥{{ item.price }}
+                  </text>
+                  <text
+                    v-if="item.originalPrice"
+                    class="wf-price-original"
+                  >
+                    ¥{{ item.originalPrice }}
+                  </text>
                 </view>
                 <view class="wf-meta">
                   <view class="wf-author">
                     <view class="wf-avatar-wrap">
-                      <image v-if="item.authorAvatar" :src="item.authorAvatar" class="wf-avatar" />
-                      <text v-else class="wf-avatar-placeholder">{{ (item.author || '国').charAt(0) }}</text>
+                      <image
+                        v-if="item.authorAvatar"
+                        :src="item.authorAvatar"
+                        class="wf-avatar"
+                      />
+                      <text
+                        v-else
+                        class="wf-avatar-placeholder"
+                      >
+                        {{ (item.author || '国').charAt(0) }}
+                      </text>
                     </view>
-                    <text class="wf-author-name">{{ item.author || item.anchorName || '国学平台' }}</text>
+                    <text class="wf-author-name">
+                      {{ item.author || item.anchorName || '国学平台' }}
+                    </text>
                   </view>
-                  <view v-if="item.likeCount > 0" class="wf-like">
+                  <view
+                    v-if="item.likeCount > 0"
+                    class="wf-like"
+                  >
                     <text>♥ {{ formatCount(item.likeCount) }}</text>
                   </view>
                 </view>
@@ -275,12 +460,22 @@
 
         <!-- 加载更多 -->
         <view class="load-more-wrap">
-          <view v-if="loadingMore" class="load-more-indicator">
+          <view
+            v-if="loadingMore"
+            class="load-more-indicator"
+          >
             <view class="load-more-dot" />
-            <text class="load-more-text">加载中...</text>
+            <text class="load-more-text">
+              加载中...
+            </text>
           </view>
-          <view v-else-if="!hasMore && feedList.length > 0" class="no-more">
-            <text class="no-more-line" /><text class="no-more-text">已经到底了</text><text class="no-more-line" />
+          <view
+            v-else-if="!hasMore && feedList.length > 0"
+            class="no-more"
+          >
+            <text class="no-more-line" /><text class="no-more-text">
+              已经到底了
+            </text><text class="no-more-line" />
           </view>
         </view>
       </DataState>

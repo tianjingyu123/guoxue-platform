@@ -16,8 +16,14 @@
     />
 
     <!-- 暂停遮罩 -->
-    <view v-if="paused && video?.videoUrl" class="pause-overlay" @click="togglePlay">
-      <text class="play-icon">▶</text>
+    <view
+      v-if="paused && video?.videoUrl"
+      class="pause-overlay"
+      @click="togglePlay"
+    >
+      <text class="play-icon">
+        ▶
+      </text>
     </view>
 
     <!-- 无视频时显示封面 -->
@@ -30,24 +36,58 @@
 
     <!-- 右侧操作栏 -->
     <view class="right-bar">
-      <view class="r-action" @click="toggleLike">
-        <text class="r-icon" :class="{ liked: isLiked }">{{ isLiked ? '❤️' : '🤍' }}</text>
-        <text class="r-count">{{ formatCount(displayLikeCount) }}</text>
+      <view
+        class="r-action"
+        @click="toggleLike"
+      >
+        <text
+          class="r-icon"
+          :class="{ liked: isLiked }"
+        >
+          {{ isLiked ? '❤️' : '🤍' }}
+        </text>
+        <text class="r-count">
+          {{ formatCount(displayLikeCount) }}
+        </text>
       </view>
-      <view class="r-action" @click="openComments">
-        <text class="r-icon">💬</text>
-        <text class="r-count">{{ formatCount(video?.commentCount || 0) }}</text>
+      <view
+        class="r-action"
+        @click="openComments"
+      >
+        <text class="r-icon">
+          💬
+        </text>
+        <text class="r-count">
+          {{ formatCount(video?.commentCount || 0) }}
+        </text>
       </view>
-      <view class="r-action" @click="collectVideo">
-        <text class="r-icon">{{ isCollected ? '⭐' : '☆' }}</text>
-        <text class="r-count">收藏</text>
+      <view
+        class="r-action"
+        @click="collectVideo"
+      >
+        <text class="r-icon">
+          {{ isCollected ? '⭐' : '☆' }}
+        </text>
+        <text class="r-count">
+          收藏
+        </text>
       </view>
-      <view class="r-action" @click="shareVideo">
-        <text class="r-icon">↗</text>
-        <text class="r-count">分享</text>
+      <view
+        class="r-action"
+        @click="shareVideo"
+      >
+        <text class="r-icon">
+          ↗
+        </text>
+        <text class="r-count">
+          分享
+        </text>
       </view>
       <!-- 作者头像+关注 -->
-      <view class="r-action" @click="followAuthor">
+      <view
+        class="r-action"
+        @click="followAuthor"
+      >
         <image
           v-if="video?.author?.avatar"
           :src="video.author.avatar"
@@ -55,12 +95,23 @@
           :class="{ following: isFollowing }"
           mode="aspectFill"
         />
-        <view v-else class="r-avatar-placeholder" />
-        <view class="follow-badge" v-if="!isFollowing">+</view>
+        <view
+          v-else
+          class="r-avatar-placeholder"
+        />
+        <view
+          v-if="!isFollowing"
+          class="follow-badge"
+        >
+          +
+        </view>
       </view>
 
       <!-- 音乐碟片 -->
-      <view class="music-disc" v-if="video?.title">
+      <view
+        v-if="video?.title"
+        class="music-disc"
+      >
         <image
           v-if="video.author?.avatar"
           :src="video.author.avatar"
@@ -74,37 +125,105 @@
     <!-- 底部信息区 -->
     <view class="bottom-info">
       <view class="author-row">
-        <text class="author-name">@{{ video?.author?.nickname || '国学创作者' }}</text>
-        <text class="follow-text" v-if="!isFollowing" @click="followAuthor">关注</text>
+        <text class="author-name">
+          @{{ video?.author?.nickname || '国学创作者' }}
+        </text>
+        <text
+          v-if="!isFollowing"
+          class="follow-text"
+          @click="followAuthor"
+        >
+          关注
+        </text>
       </view>
-      <text class="desc-text">{{ video?.title }}</text>
-      <text v-if="video?.description" class="desc-sub">{{ video.description }}</text>
+      <text class="desc-text">
+        {{ video?.title }}
+      </text>
+      <text
+        v-if="video?.description"
+        class="desc-sub"
+      >
+        {{ video.description }}
+      </text>
 
       <!-- 关联商品 -->
-      <view v-if="video?.products?.length" class="product-entry" @click="showProducts = true">
-        <text class="pe-text">🛒 相关好物 · 点击查看</text>
+      <view
+        v-if="video?.products?.length"
+        class="product-entry"
+        @click="showProducts = true"
+      >
+        <text class="pe-text">
+          🛒 相关好物 · 点击查看
+        </text>
       </view>
     </view>
 
     <!-- 进度条 -->
-    <view class="progress-bar" v-if="video?.videoUrl">
-      <view class="progress-fill" :style="{ width: progress + '%' }" />
+    <view
+      v-if="video?.videoUrl"
+      class="progress-bar"
+    >
+      <view
+        class="progress-fill"
+        :style="{ width: progress + '%' }"
+      />
     </view>
 
     <!-- 评论面板 -->
-    <view v-if="showComments" class="comment-mask" @click="showComments = false">
-      <view class="comment-panel" @click.stop="">
+    <view
+      v-if="showComments"
+      class="comment-mask"
+      @click="showComments = false"
+    >
+      <view
+        class="comment-panel"
+        @click.stop=""
+      >
         <view class="cp-header">
-          <text class="cp-title">评论 ({{ comments.length }})</text>
-          <text class="cp-close" @click="showComments = false">✕</text>
+          <text class="cp-title">
+            评论 ({{ comments.length }})
+          </text>
+          <text
+            class="cp-close"
+            @click="showComments = false"
+          >
+            ✕
+          </text>
         </view>
-        <scroll-view scroll-y class="cp-list">
-          <view v-if="commentLoading" class="cp-empty"><text class="cp-empty-text">加载中...</text></view>
-          <view v-else-if="!comments.length" class="cp-empty"><text class="cp-empty-text">暂无评论，来说两句吧</text></view>
-          <view v-for="(c, i) in comments" :key="c.id || i" class="cp-item">
-            <text class="cp-user">{{ c.user?.nickname || '用户' }}：</text>
-            <text class="cp-text">{{ c.content }}</text>
-            <text class="cp-time">{{ c.createdAt ? formatTime(c.createdAt) : '' }}</text>
+        <scroll-view
+          scroll-y
+          class="cp-list"
+        >
+          <view
+            v-if="commentLoading"
+            class="cp-empty"
+          >
+            <text class="cp-empty-text">
+              加载中...
+            </text>
+          </view>
+          <view
+            v-else-if="!comments.length"
+            class="cp-empty"
+          >
+            <text class="cp-empty-text">
+              暂无评论，来说两句吧
+            </text>
+          </view>
+          <view
+            v-for="(c, i) in comments"
+            :key="c.id || i"
+            class="cp-item"
+          >
+            <text class="cp-user">
+              {{ c.user?.nickname || '用户' }}：
+            </text>
+            <text class="cp-text">
+              {{ c.content }}
+            </text>
+            <text class="cp-time">
+              {{ c.createdAt ? formatTime(c.createdAt) : '' }}
+            </text>
           </view>
         </scroll-view>
         <view class="cp-input-row">
@@ -113,15 +232,25 @@
             class="cp-input"
             placeholder="发条评论..."
             @confirm="submitComment"
-          />
-          <text class="cp-send" @click="submitComment">发送</text>
+          >
+          <text
+            class="cp-send"
+            @click="submitComment"
+          >
+            发送
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 加载状态 -->
-    <view v-if="!video" class="loading-wrap">
-      <text class="loading-text">加载中...</text>
+    <view
+      v-if="!video"
+      class="loading-wrap"
+    >
+      <text class="loading-text">
+        加载中...
+      </text>
     </view>
   </view>
 </template>

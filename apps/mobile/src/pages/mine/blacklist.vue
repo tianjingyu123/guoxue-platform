@@ -4,10 +4,22 @@
     <view class="header">
       <view class="header-inner">
         <view class="header-left">
-          <text class="back-btn" @click="goBack">←</text>
-          <text class="header-title">黑名单管理</text>
+          <text
+            class="back-btn"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <text class="header-title">
+            黑名单管理
+          </text>
         </view>
-        <text class="header-add" @click="openAddSheet">＋ 添加</text>
+        <text
+          class="header-add"
+          @click="openAddSheet"
+        >
+          ＋ 添加
+        </text>
       </view>
     </view>
 
@@ -37,33 +49,75 @@
               class="user-avatar"
               mode="aspectFill"
             />
-            <view v-else class="user-avatar-placeholder">
-              <text class="user-avatar-text">{{ (user.nickname || '?').slice(0, 1) }}</text>
+            <view
+              v-else
+              class="user-avatar-placeholder"
+            >
+              <text class="user-avatar-text">
+                {{ (user.nickname || '?').slice(0, 1) }}
+              </text>
             </view>
             <view class="user-info">
-              <text class="user-name">{{ user.nickname }}</text>
-              <text class="user-date">{{ user.blockedAt }} 加入黑名单</text>
-              <text v-if="user.reason" class="user-reason">原因：{{ user.reason }}</text>
+              <text class="user-name">
+                {{ user.nickname }}
+              </text>
+              <text class="user-date">
+                {{ user.blockedAt }} 加入黑名单
+              </text>
+              <text
+                v-if="user.reason"
+                class="user-reason"
+              >
+                原因：{{ user.reason }}
+              </text>
             </view>
           </view>
-          <view class="btn-remove" @click="confirmRemove(user)">移出</view>
+          <view
+            class="btn-remove"
+            @click="confirmRemove(user)"
+          >
+            移出
+          </view>
         </view>
 
         <!-- 底部提示 -->
-        <view v-if="blacklist.length > 0" class="bottom-tip">
-          <text class="bottom-tip-text">共 {{ blacklist.length }} 人在黑名单中</text>
-          <text class="bottom-tip-sub">黑名单用户无法与您互动</text>
+        <view
+          v-if="blacklist.length > 0"
+          class="bottom-tip"
+        >
+          <text class="bottom-tip-text">
+            共 {{ blacklist.length }} 人在黑名单中
+          </text>
+          <text class="bottom-tip-sub">
+            黑名单用户无法与您互动
+          </text>
         </view>
       </view>
     </DataState>
 
     <!-- 移除确认弹窗 -->
-    <view v-if="removeDialogOpen" class="dialog-overlay" @click="closeRemoveDialog">
-      <view class="dialog-content" @click.stop>
-        <text class="dialog-title">移出黑名单</text>
-        <text class="dialog-desc">确定要将「{{ selectedUser?.nickname }}」移出黑名单吗？移出后对方可以与您互动。</text>
+    <view
+      v-if="removeDialogOpen"
+      class="dialog-overlay"
+      @click="closeRemoveDialog"
+    >
+      <view
+        class="dialog-content"
+        @click.stop
+      >
+        <text class="dialog-title">
+          移出黑名单
+        </text>
+        <text class="dialog-desc">
+          确定要将「{{ selectedUser?.nickname }}」移出黑名单吗？移出后对方可以与您互动。
+        </text>
         <view class="dialog-actions">
-          <view class="dialog-btn dialog-btn-cancel" @click="closeRemoveDialog">取消</view>
+          <view
+            class="dialog-btn dialog-btn-cancel"
+            @click="closeRemoveDialog"
+          >
+            取消
+          </view>
           <view
             class="dialog-btn dialog-btn-confirm"
             :class="{ disabled: removing }"
@@ -76,32 +130,72 @@
     </view>
 
     <!-- 添加黑名单底部弹窗 -->
-    <view v-if="addSheetOpen" class="sheet-overlay" @click="closeAddSheet">
-      <view class="sheet-content" @click.stop>
+    <view
+      v-if="addSheetOpen"
+      class="sheet-overlay"
+      @click="closeAddSheet"
+    >
+      <view
+        class="sheet-content"
+        @click.stop
+      >
         <view class="sheet-header">
-          <text class="sheet-title">添加黑名单</text>
-          <text class="sheet-close" @click="closeAddSheet">✕</text>
+          <text class="sheet-title">
+            添加黑名单
+          </text>
+          <text
+            class="sheet-close"
+            @click="closeAddSheet"
+          >
+            ✕
+          </text>
         </view>
 
         <!-- 搜索框 -->
         <view class="search-box">
-          <text class="search-icon">🔍</text>
+          <text class="search-icon">
+            🔍
+          </text>
           <input
             v-model="searchKeyword"
             class="search-input"
             placeholder="搜索用户昵称"
             confirm-type="search"
             @confirm="handleSearch"
-          />
-          <text v-if="searchKeyword" class="search-clear" @click="clearSearch">✕</text>
+          >
+          <text
+            v-if="searchKeyword"
+            class="search-clear"
+            @click="clearSearch"
+          >
+            ✕
+          </text>
         </view>
 
         <!-- 搜索结果 -->
-        <scroll-view scroll-y class="search-results">
-          <view v-if="searching" class="search-state">搜索中...</view>
-          <view v-else-if="searchKeyword && searchResults.length === 0" class="search-state">未找到相关用户</view>
-          <view v-else-if="!searchKeyword" class="search-state search-hint">
-            <text class="search-hint-icon">🔍</text>
+        <scroll-view
+          scroll-y
+          class="search-results"
+        >
+          <view
+            v-if="searching"
+            class="search-state"
+          >
+            搜索中...
+          </view>
+          <view
+            v-else-if="searchKeyword && searchResults.length === 0"
+            class="search-state"
+          >
+            未找到相关用户
+          </view>
+          <view
+            v-else-if="!searchKeyword"
+            class="search-state search-hint"
+          >
+            <text class="search-hint-icon">
+              🔍
+            </text>
             <text>输入用户昵称进行搜索</text>
           </view>
           <view
@@ -115,11 +209,23 @@
               class="search-user-avatar"
               mode="aspectFill"
             />
-            <view v-else class="search-user-avatar-placeholder">
-              <text class="user-avatar-text">{{ (user.nickname || '?').slice(0, 1) }}</text>
+            <view
+              v-else
+              class="search-user-avatar-placeholder"
+            >
+              <text class="user-avatar-text">
+                {{ (user.nickname || '?').slice(0, 1) }}
+              </text>
             </view>
-            <text class="search-user-name">{{ user.nickname }}</text>
-            <text v-if="user.isBlocked" class="search-user-blocked">已拉黑</text>
+            <text class="search-user-name">
+              {{ user.nickname }}
+            </text>
+            <text
+              v-if="user.isBlocked"
+              class="search-user-blocked"
+            >
+              已拉黑
+            </text>
             <view
               v-else
               class="btn-block"

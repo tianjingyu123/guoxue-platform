@@ -4,10 +4,23 @@
     <view class="header">
       <view class="header-row">
         <view class="header-left">
-          <text class="back-btn" @click="goBack">←</text>
-          <text class="header-title">驿站订单</text>
+          <text
+            class="back-btn"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <text class="header-title">
+            驿站订单
+          </text>
         </view>
-        <text class="refresh-btn" :class="{ spinning: refreshing }" @click="handleRefresh">🔄</text>
+        <text
+          class="refresh-btn"
+          :class="{ spinning: refreshing }"
+          @click="handleRefresh"
+        >
+          🔄
+        </text>
       </view>
       <!-- Tab 栏 -->
       <view class="tabs-bar">
@@ -27,7 +40,7 @@
     <!-- 订单列表 -->
     <DataState
       :is-loading="loading && orders.length === 0"
-      :isEmpty="!loading && orders.length === 0"
+      :is-empty="!loading && orders.length === 0"
       empty-icon="📦"
       :empty-title="emptyTitle"
       empty-action-text="去逛逛驿站"
@@ -37,45 +50,90 @@
       @empty-action="goStations"
     >
       <view class="order-list">
-        <view v-for="order in orders" :key="order.id" class="order-card" @click="goOrderDetail(order)">
+        <view
+          v-for="order in orders"
+          :key="order.id"
+          class="order-card"
+          @click="goOrderDetail(order)"
+        >
           <!-- 订单头部 -->
           <view class="order-header">
             <view class="order-header-left">
-              <text class="order-type-icon">{{ getTypeIcon(order.type) }}</text>
-              <text class="order-station">{{ order.stationName }}</text>
+              <text class="order-type-icon">
+                {{ getTypeIcon(order.type) }}
+              </text>
+              <text class="order-station">
+                {{ order.stationName }}
+              </text>
             </view>
-            <text class="order-status" :class="'status-' + order.status">
+            <text
+              class="order-status"
+              :class="'status-' + order.status"
+            >
               {{ getOrderStatusLabel(order.status) }}
             </text>
           </view>
           <!-- 订单内容 -->
           <view class="order-body">
-            <view v-for="(item, idx) in order.items" :key="item.id" class="order-item" :class="{ 'has-border': idx > 0 }">
-              <image :src="item.cover" class="order-item-img" mode="aspectFill" />
+            <view
+              v-for="(item, idx) in order.items"
+              :key="item.id"
+              class="order-item"
+              :class="{ 'has-border': idx > 0 }"
+            >
+              <image
+                :src="item.cover"
+                class="order-item-img"
+                mode="aspectFill"
+              />
               <view class="order-item-info">
-                <text class="order-item-title">{{ item.title }}</text>
-                <text v-if="item.spec" class="order-item-spec">{{ item.spec }}</text>
+                <text class="order-item-title">
+                  {{ item.title }}
+                </text>
+                <text
+                  v-if="item.spec"
+                  class="order-item-spec"
+                >
+                  {{ item.spec }}
+                </text>
                 <view class="order-item-price-row">
-                  <text class="order-item-price">¥{{ item.price }}</text>
-                  <text class="order-item-qty">x{{ item.quantity }}</text>
+                  <text class="order-item-price">
+                    ¥{{ item.price }}
+                  </text>
+                  <text class="order-item-qty">
+                    x{{ item.quantity }}
+                  </text>
                 </view>
               </view>
             </view>
-            <view v-if="order.scheduleTime" class="order-schedule">
+            <view
+              v-if="order.scheduleTime"
+              class="order-schedule"
+            >
               <text>🕐 预约时间：{{ order.scheduleTime }}</text>
             </view>
           </view>
           <!-- 订单底部 -->
           <view class="order-footer">
-            <text class="order-summary">共{{ totalQty(order) }}件 | 实付 <text class="order-pay-amount">¥{{ order.payAmount }}</text></text>
-            <view v-if="getActions(order).length" class="order-actions" @click.stop>
+            <text class="order-summary">
+              共{{ totalQty(order) }}件 | 实付 <text class="order-pay-amount">
+                ¥{{ order.payAmount }}
+              </text>
+            </text>
+            <view
+              v-if="getActions(order).length"
+              class="order-actions"
+              @click.stop
+            >
               <text
                 v-for="act in getActions(order).slice(0, 2)"
                 :key="act.key"
                 class="order-action-btn"
                 :class="'action-' + act.variant"
                 @click="handleOrderAction(order.id, act.key)"
-              >{{ act.label }}</text>
+              >
+                {{ act.label }}
+              </text>
             </view>
           </view>
         </view>

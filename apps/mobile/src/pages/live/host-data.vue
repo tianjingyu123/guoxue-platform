@@ -1,28 +1,51 @@
 <template>
   <view class="page">
     <!-- 加载态 -->
-    <view v-if="loading" class="loading-wrap">
+    <view
+      v-if="loading"
+      class="loading-wrap"
+    >
       <view class="skeleton-header">
         <view class="skeleton-circle" />
         <view class="skeleton-line w-40" />
       </view>
       <view class="skeleton-body">
         <view class="skeleton-grid">
-          <view v-for="i in 4" :key="i" class="skeleton-card" />
+          <view
+            v-for="i in 4"
+            :key="i"
+            class="skeleton-card"
+          />
         </view>
         <view class="skeleton-card h-48" />
         <view class="skeleton-card-list">
-          <view v-for="i in 3" :key="i" class="skeleton-card h-24" />
+          <view
+            v-for="i in 3"
+            :key="i"
+            class="skeleton-card h-24"
+          />
         </view>
       </view>
     </view>
 
     <!-- 错误态 -->
-    <view v-else-if="loadError" class="error-wrap">
+    <view
+      v-else-if="loadError"
+      class="error-wrap"
+    >
       <view class="error-inner">
-        <text class="error-icon">⚠️</text>
-        <text class="error-text">{{ loadError }}</text>
-        <view class="error-retry" @click="handleRefresh">重新加载</view>
+        <text class="error-icon">
+          ⚠️
+        </text>
+        <text class="error-text">
+          {{ loadError }}
+        </text>
+        <view
+          class="error-retry"
+          @click="handleRefresh"
+        >
+          重新加载
+        </view>
       </view>
     </view>
 
@@ -32,10 +55,22 @@
       <view class="nav-header">
         <view class="nav-inner">
           <view class="nav-left">
-            <text class="nav-back" @click="goBack">←</text>
-            <text class="nav-title">数据中心</text>
+            <text
+              class="nav-back"
+              @click="goBack"
+            >
+              ←
+            </text>
+            <text class="nav-title">
+              数据中心
+            </text>
           </view>
-          <text :class="['nav-refresh', refreshing ? 'spinning' : '']" @click="handleRefresh">🔄</text>
+          <text
+            :class="['nav-refresh', refreshing ? 'spinning' : '']"
+            @click="handleRefresh"
+          >
+            🔄
+          </text>
         </view>
       </view>
 
@@ -43,10 +78,16 @@
       <view class="stats-grid">
         <view class="stat-card">
           <view class="stat-header">
-            <text class="stat-icon">👁️</text>
-            <text class="stat-label">总观看</text>
+            <text class="stat-icon">
+              👁️
+            </text>
+            <text class="stat-label">
+              总观看
+            </text>
           </view>
-          <text class="stat-value">{{ formatNumber(stats?.totalViews || 0) }}</text>
+          <text class="stat-value">
+            {{ formatNumber(stats?.totalViews || 0) }}
+          </text>
           <view class="stat-trend">
             <text :class="['trend-icon', (stats?.viewsGrowthRate || 0) >= 0 ? 'trend-up' : 'trend-down']">
               {{ (stats?.viewsGrowthRate || 0) >= 0 ? '↑' : '↓' }}
@@ -54,15 +95,23 @@
             <text :class="['trend-value', (stats?.viewsGrowthRate || 0) >= 0 ? 'trend-up' : 'trend-down']">
               {{ Math.abs(stats?.viewsGrowthRate || 0) }}%
             </text>
-            <text class="trend-label">较上月</text>
+            <text class="trend-label">
+              较上月
+            </text>
           </view>
         </view>
         <view class="stat-card">
           <view class="stat-header">
-            <text class="stat-icon gold">🪙</text>
-            <text class="stat-label">总收益</text>
+            <text class="stat-icon gold">
+              🪙
+            </text>
+            <text class="stat-label">
+              总收益
+            </text>
           </view>
-          <text class="stat-value gold">¥{{ formatNumber(stats?.totalRevenue || 0) }}</text>
+          <text class="stat-value gold">
+            ¥{{ formatNumber(stats?.totalRevenue || 0) }}
+          </text>
           <view class="stat-trend">
             <text :class="['trend-icon', (stats?.revenueGrowthRate || 0) >= 0 ? 'trend-up' : 'trend-down']">
               {{ (stats?.revenueGrowthRate || 0) >= 0 ? '↑' : '↓' }}
@@ -70,34 +119,66 @@
             <text :class="['trend-value', (stats?.revenueGrowthRate || 0) >= 0 ? 'trend-up' : 'trend-down']">
               {{ Math.abs(stats?.revenueGrowthRate || 0) }}%
             </text>
-            <text class="trend-label">较上月</text>
+            <text class="trend-label">
+              较上月
+            </text>
           </view>
         </view>
         <view class="stat-card">
           <view class="stat-header">
-            <text class="stat-icon">⏱️</text>
-            <text class="stat-label">场均时长</text>
+            <text class="stat-icon">
+              ⏱️
+            </text>
+            <text class="stat-label">
+              场均时长
+            </text>
           </view>
-          <text class="stat-value">{{ stats?.avgDuration || 0 }}<text class="stat-unit">分钟</text></text>
-          <text class="stat-sub">共{{ stats?.totalRooms || 0 }}场直播</text>
+          <text class="stat-value">
+            {{ stats?.avgDuration || 0 }}<text class="stat-unit">
+              分钟
+            </text>
+          </text>
+          <text class="stat-sub">
+            共{{ stats?.totalRooms || 0 }}场直播
+          </text>
         </view>
         <view class="stat-card">
           <view class="stat-header">
-            <text class="stat-icon">👥</text>
-            <text class="stat-label">粉丝增长</text>
+            <text class="stat-icon">
+              👥
+            </text>
+            <text class="stat-label">
+              粉丝增长
+            </text>
           </view>
-          <text class="stat-value accent">+{{ formatNumber(stats?.fansGrowth || 0) }}</text>
-          <text class="stat-sub">本月新增</text>
+          <text class="stat-value accent">
+            +{{ formatNumber(stats?.fansGrowth || 0) }}
+          </text>
+          <text class="stat-sub">
+            本月新增
+          </text>
         </view>
       </view>
 
       <!-- 趋势图 -->
       <view class="chart-section">
         <view class="chart-header">
-          <text class="chart-title">近30天趋势</text>
+          <text class="chart-title">
+            近30天趋势
+          </text>
           <view class="chart-tabs">
-            <text :class="['chart-tab', trendType === 'views' ? 'chart-tab-active' : '']" @click="trendType = 'views'">观看</text>
-            <text :class="['chart-tab', trendType === 'revenue' ? 'chart-tab-active' : '']" @click="trendType = 'revenue'">收益</text>
+            <text
+              :class="['chart-tab', trendType === 'views' ? 'chart-tab-active' : '']"
+              @click="trendType = 'views'"
+            >
+              观看
+            </text>
+            <text
+              :class="['chart-tab', trendType === 'revenue' ? 'chart-tab-active' : '']"
+              @click="trendType = 'revenue'"
+            >
+              收益
+            </text>
           </view>
         </view>
         <!-- 柱状图 -->
@@ -110,40 +191,97 @@
           />
         </view>
         <view class="chart-labels">
-          <text class="chart-label">{{ trend[0]?.date?.slice(5) }}</text>
-          <text class="chart-label">{{ trend[14]?.date?.slice(5) }}</text>
-          <text class="chart-label">{{ trend[29]?.date?.slice(5) }}</text>
+          <text class="chart-label">
+            {{ trend[0]?.date?.slice(5) }}
+          </text>
+          <text class="chart-label">
+            {{ trend[14]?.date?.slice(5) }}
+          </text>
+          <text class="chart-label">
+            {{ trend[29]?.date?.slice(5) }}
+          </text>
         </view>
       </view>
 
       <!-- 直播场次列表 -->
       <view class="room-section">
         <view class="room-section-header">
-          <text class="room-section-title">直播记录</text>
-          <text class="room-section-count">共{{ rooms.length }}场</text>
+          <text class="room-section-title">
+            直播记录
+          </text>
+          <text class="room-section-count">
+            共{{ rooms.length }}场
+          </text>
         </view>
-        <view v-if="rooms.length > 0" class="room-list">
-          <view v-for="room in rooms" :key="room.id" class="room-card" @click="goRoom(room)">
+        <view
+          v-if="rooms.length > 0"
+          class="room-list"
+        >
+          <view
+            v-for="room in rooms"
+            :key="room.id"
+            class="room-card"
+            @click="goRoom(room)"
+          >
             <view class="room-cover-wrap">
-              <image :src="room.cover || '/placeholder.svg'" mode="aspectFill" class="room-cover" />
-              <text v-if="room.status === 'preview'" class="room-badge preview">预告</text>
-              <text v-else class="room-badge duration">{{ formatDuration(room.duration) }}</text>
+              <image
+                :src="room.cover || '/placeholder.svg'"
+                mode="aspectFill"
+                class="room-cover"
+              />
+              <text
+                v-if="room.status === 'preview'"
+                class="room-badge preview"
+              >
+                预告
+              </text>
+              <text
+                v-else
+                class="room-badge duration"
+              >
+                {{ formatDuration(room.duration) }}
+              </text>
             </view>
             <view class="room-info">
-              <text class="room-title">{{ room.title }}</text>
-              <text class="room-time">{{ formatTime(room.startTime) }}</text>
-              <view v-if="room.status === 'ended'" class="room-stats-row">
-                <text class="room-stat">👁️ {{ formatNumber(room.views) }}</text>
-                <text class="room-stat gold">🎁 {{ room.gifts }}</text>
-                <text class="room-stat gold">¥{{ room.revenue }}</text>
+              <text class="room-title">
+                {{ room.title }}
+              </text>
+              <text class="room-time">
+                {{ formatTime(room.startTime) }}
+              </text>
+              <view
+                v-if="room.status === 'ended'"
+                class="room-stats-row"
+              >
+                <text class="room-stat">
+                  👁️ {{ formatNumber(room.views) }}
+                </text>
+                <text class="room-stat gold">
+                  🎁 {{ room.gifts }}
+                </text>
+                <text class="room-stat gold">
+                  ¥{{ room.revenue }}
+                </text>
               </view>
             </view>
           </view>
         </view>
-        <view v-else class="room-empty">
-          <text class="room-empty-icon">🎬</text>
-          <text class="room-empty-text">暂无直播记录</text>
-          <text class="room-empty-btn" @click="createLive">创建直播</text>
+        <view
+          v-else
+          class="room-empty"
+        >
+          <text class="room-empty-icon">
+            🎬
+          </text>
+          <text class="room-empty-text">
+            暂无直播记录
+          </text>
+          <text
+            class="room-empty-btn"
+            @click="createLive"
+          >
+            创建直播
+          </text>
         </view>
       </view>
     </template>

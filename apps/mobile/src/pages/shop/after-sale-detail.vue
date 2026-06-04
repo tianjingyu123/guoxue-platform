@@ -3,19 +3,55 @@
     <LoadingSkeleton v-if="loading" />
     <view v-else-if="detail">
       <view class="status-timeline">
-        <view v-for="(step, i) in steps" :key="i" class="step" :class="{ done: i <= currentStep, active: i === currentStep }">
-          <view class="step-dot" :class="{ done: i <= currentStep }"><text v-if="i <= currentStep">✓</text></view>
+        <view
+          v-for="(step, i) in steps"
+          :key="i"
+          class="step"
+          :class="{ done: i <= currentStep, active: i === currentStep }"
+        >
+          <view
+            class="step-dot"
+            :class="{ done: i <= currentStep }"
+          >
+            <text v-if="i <= currentStep">
+              ✓
+            </text>
+          </view>
           <view class="step-info">
-            <text class="step-title">{{ step.title }}</text>
-            <text class="step-time">{{ step.time }}</text>
-            <text v-if="step.desc" class="step-desc">{{ step.desc }}</text>
+            <text class="step-title">
+              {{ step.title }}
+            </text>
+            <text class="step-time">
+              {{ step.time }}
+            </text>
+            <text
+              v-if="step.desc"
+              class="step-desc"
+            >
+              {{ step.desc }}
+            </text>
           </view>
         </view>
       </view>
       <view class="info-card">
-        <text class="info-label">售后类型</text><text class="info-value">{{ detail.type || '退货退款' }}</text>
-        <text class="info-label">申请金额</text><text class="info-value" style="color:#C41E3A">¥{{ detail.amount }}</text>
-        <text class="info-label">申请原因</text><text class="info-value">{{ detail.reason }}</text>
+        <text class="info-label">
+          售后类型
+        </text><text class="info-value">
+          {{ detail.type || '退货退款' }}
+        </text>
+        <text class="info-label">
+          申请金额
+        </text><text
+          class="info-value"
+          style="color:#C41E3A"
+        >
+          ¥{{ detail.amount }}
+        </text>
+        <text class="info-label">
+          申请原因
+        </text><text class="info-value">
+          {{ detail.reason }}
+        </text>
       </view>
     </view>
   </view>

@@ -1,31 +1,71 @@
 <template>
   <view class="page">
-    <view v-if="loading" class="loading-state"><text class="loading-text">加载中...</text></view>
+    <view
+      v-if="loading"
+      class="loading-state"
+    >
+      <text class="loading-text">
+        加载中...
+      </text>
+    </view>
 
     <template v-else>
       <!-- 进行中的秒杀 -->
-      <view v-if="activeSales.length" class="section">
+      <view
+        v-if="activeSales.length"
+        class="section"
+      >
         <view class="section-header">
-          <text class="section-title">⚡ 限时秒杀</text>
-          <text class="section-sub">手慢无</text>
+          <text class="section-title">
+            ⚡ 限时秒杀
+          </text>
+          <text class="section-sub">
+            手慢无
+          </text>
         </view>
-        <scroll-view scroll-x class="flash-scroll" show-scrollbar="false">
-          <view v-for="sale in activeSales" :key="sale.id" class="flash-card" @click="goDetail(sale)">
+        <scroll-view
+          scroll-x
+          class="flash-scroll"
+          show-scrollbar="false"
+        >
+          <view
+            v-for="sale in activeSales"
+            :key="sale.id"
+            class="flash-card"
+            @click="goDetail(sale)"
+          >
             <view class="flash-img-wrap">
-              <image :src="sale.cover || sale.images?.[0]" class="flash-img" mode="aspectFill" />
-              <view class="flash-countdown">{{ formatCountdown(sale.endTime) }}</view>
+              <image
+                :src="sale.cover || sale.images?.[0]"
+                class="flash-img"
+                mode="aspectFill"
+              />
+              <view class="flash-countdown">
+                {{ formatCountdown(sale.endTime) }}
+              </view>
             </view>
             <view class="flash-info">
-              <text class="flash-name">{{ sale.title || sale.name }}</text>
+              <text class="flash-name">
+                {{ sale.title || sale.name }}
+              </text>
               <view class="flash-price-row">
-                <text class="flash-price">¥{{ sale.flashPrice }}</text>
-                <text class="flash-original">¥{{ sale.originalPrice }}</text>
+                <text class="flash-price">
+                  ¥{{ sale.flashPrice }}
+                </text>
+                <text class="flash-original">
+                  ¥{{ sale.originalPrice }}
+                </text>
               </view>
               <view class="flash-progress">
                 <view class="progress-bar">
-                  <view class="progress-fill" :style="{ width: progressPct(sale) + '%' }" />
+                  <view
+                    class="progress-fill"
+                    :style="{ width: progressPct(sale) + '%' }"
+                  />
                 </view>
-                <text class="progress-text">{{ sale.soldCount || 0 }}/{{ sale.stock || 0 }}</text>
+                <text class="progress-text">
+                  {{ sale.soldCount || 0 }}/{{ sale.stock || 0 }}
+                </text>
               </view>
             </view>
           </view>
@@ -33,21 +73,43 @@
       </view>
 
       <!-- 即将开始 -->
-      <view v-if="upcomingSales.length" class="section">
+      <view
+        v-if="upcomingSales.length"
+        class="section"
+      >
         <view class="section-header">
-          <text class="section-title">即将开始</text>
+          <text class="section-title">
+            即将开始
+          </text>
         </view>
-        <view v-for="sale in upcomingSales" :key="sale.id" class="upcoming-item">
-          <image :src="sale.cover || sale.images?.[0]" class="upcoming-img" mode="aspectFill" />
+        <view
+          v-for="sale in upcomingSales"
+          :key="sale.id"
+          class="upcoming-item"
+        >
+          <image
+            :src="sale.cover || sale.images?.[0]"
+            class="upcoming-img"
+            mode="aspectFill"
+          />
           <view class="upcoming-info">
-            <text class="upcoming-name">{{ sale.title || sale.name }}</text>
-            <text class="upcoming-time">{{ formatTime(sale.startTime) }} 开始</text>
+            <text class="upcoming-name">
+              {{ sale.title || sale.name }}
+            </text>
+            <text class="upcoming-time">
+              {{ formatTime(sale.startTime) }} 开始
+            </text>
           </view>
         </view>
       </view>
 
-      <view v-if="!loading && !activeSales.length && !upcomingSales.length" class="empty">
-        <text class="empty-icon">⚡</text>
+      <view
+        v-if="!loading && !activeSales.length && !upcomingSales.length"
+        class="empty"
+      >
+        <text class="empty-icon">
+          ⚡
+        </text>
         <text>暂无秒杀活动</text>
       </view>
     </template>

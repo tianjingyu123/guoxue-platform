@@ -1,87 +1,189 @@
 <template>
   <view class="page">
-    <LoadingSkeleton v-if="loading" type="detail" />
-    <EmptyState v-else-if="errorMsg" icon="⚠️" :text="errorMsg" />
+    <LoadingSkeleton
+      v-if="loading"
+      type="detail"
+    />
+    <EmptyState
+      v-else-if="errorMsg"
+      icon="⚠️"
+      :text="errorMsg"
+    />
 
     <template v-if="!loading && item">
       <view class="question-card">
         <view class="q-header">
-          <image class="q-avatar" :src="item.asker?.avatar || '/static/default-avatar.png'" mode="aspectFill" />
+          <image
+            class="q-avatar"
+            :src="item.asker?.avatar || '/static/default-avatar.png'"
+            mode="aspectFill"
+          />
           <view class="q-user">
-            <text class="q-nick">{{ item.asker?.nickname || '匿名' }}</text>
-            <text class="q-time">{{ formatTime(item.createdAt) }}</text>
+            <text class="q-nick">
+              {{ item.asker?.nickname || '匿名' }}
+            </text>
+            <text class="q-time">
+              {{ formatTime(item.createdAt) }}
+            </text>
           </view>
-          <view class="status-badge" :class="'status-' + item.status">
+          <view
+            class="status-badge"
+            :class="'status-' + item.status"
+          >
             <text>{{ statusMap[item.status] || item.status }}</text>
           </view>
         </view>
-        <text class="q-title">{{ item.title }}</text>
-        <text class="q-body">{{ item.description }}</text>
-        <view v-if="item.images?.length" class="q-images">
-          <image v-for="(img, idx) in item.images" :key="idx" :src="img" mode="aspectFill" class="q-img" @click="previewImages(item.images, idx)" />
+        <text class="q-title">
+          {{ item.title }}
+        </text>
+        <text class="q-body">
+          {{ item.description }}
+        </text>
+        <view
+          v-if="item.images?.length"
+          class="q-images"
+        >
+          <image
+            v-for="(img, idx) in item.images"
+            :key="idx"
+            :src="img"
+            mode="aspectFill"
+            class="q-img"
+            @click="previewImages(item.images, idx)"
+          />
         </view>
         <view class="q-footer">
-          <text class="bounty-amount">💰 {{ item.bountyCoin }} 币</text>
-          <text class="q-category">{{ categoryLabel(item.category) }}</text>
+          <text class="bounty-amount">
+            💰 {{ item.bountyCoin }} 币
+          </text>
+          <text class="q-category">
+            {{ categoryLabel(item.category) }}
+          </text>
         </view>
       </view>
 
       <!-- 状态时间线 -->
       <view class="timeline-section">
-        <text class="section-title">状态进度</text>
+        <text class="section-title">
+          状态进度
+        </text>
         <view class="timeline">
-          <view class="tl-item" :class="{ active: true }">
+          <view
+            class="tl-item"
+            :class="{ active: true }"
+          >
             <view class="tl-dot" />
             <view class="tl-content">
-              <text class="tl-label">已发布</text>
-              <text class="tl-time">{{ formatTime(item.createdAt) }}</text>
+              <text class="tl-label">
+                已发布
+              </text>
+              <text class="tl-time">
+                {{ formatTime(item.createdAt) }}
+              </text>
             </view>
           </view>
-          <view v-if="item.status !== 'OPEN'" class="tl-item" :class="{ active: true }">
+          <view
+            v-if="item.status !== 'OPEN'"
+            class="tl-item"
+            :class="{ active: true }"
+          >
             <view class="tl-dot" />
             <view class="tl-content">
-              <text class="tl-label">已有回答</text>
-              <text class="tl-time">{{ formatTime(item.answeredAt) }}</text>
+              <text class="tl-label">
+                已有回答
+              </text>
+              <text class="tl-time">
+                {{ formatTime(item.answeredAt) }}
+              </text>
             </view>
           </view>
-          <view v-if="item.status === 'SATISFIED'" class="tl-item" :class="{ active: true }">
+          <view
+            v-if="item.status === 'SATISFIED'"
+            class="tl-item"
+            :class="{ active: true }"
+          >
             <view class="tl-dot" />
             <view class="tl-content">
-              <text class="tl-label">已采纳满意答案</text>
-              <text class="tl-time">{{ formatTime(item.satisfiedAt) }}</text>
+              <text class="tl-label">
+                已采纳满意答案
+              </text>
+              <text class="tl-time">
+                {{ formatTime(item.satisfiedAt) }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 回答内容 -->
-      <view v-if="item.answer" class="answer-card">
+      <view
+        v-if="item.answer"
+        class="answer-card"
+      >
         <view class="a-header">
-          <image class="a-avatar" :src="item.answerer?.avatar || '/static/default-avatar.png'" mode="aspectFill" />
-          <text class="a-nick">{{ item.answerer?.nickname || '匿名' }}</text>
-          <text class="a-label">回答</text>
+          <image
+            class="a-avatar"
+            :src="item.answerer?.avatar || '/static/default-avatar.png'"
+            mode="aspectFill"
+          />
+          <text class="a-nick">
+            {{ item.answerer?.nickname || '匿名' }}
+          </text>
+          <text class="a-label">
+            回答
+          </text>
         </view>
-        <text class="a-body">{{ item.answer }}</text>
-        <view v-if="item.answerImages?.length" class="a-images">
-          <image v-for="(img, idx) in item.answerImages" :key="idx" :src="img" mode="aspectFill" class="a-img" @click="previewImages(item.answerImages, idx)" />
+        <text class="a-body">
+          {{ item.answer }}
+        </text>
+        <view
+          v-if="item.answerImages?.length"
+          class="a-images"
+        >
+          <image
+            v-for="(img, idx) in item.answerImages"
+            :key="idx"
+            :src="img"
+            mode="aspectFill"
+            class="a-img"
+            @click="previewImages(item.answerImages, idx)"
+          />
         </view>
       </view>
 
       <!-- 操作按钮 -->
       <view class="actions">
         <!-- 自己提问且已回答：确认满意 -->
-        <button v-if="isOwner && item.status === 'ANSWERED'" class="action-btn confirm-btn" @click="confirmSatisfied" :loading="confirming">
+        <button
+          v-if="isOwner && item.status === 'ANSWERED'"
+          class="action-btn confirm-btn"
+          :loading="confirming"
+          @click="confirmSatisfied"
+        >
           确认满意
         </button>
 
         <!-- 分享 -->
-        <button class="action-btn share-btn" @click="handleShare">分享</button>
+        <button
+          class="action-btn share-btn"
+          @click="handleShare"
+        >
+          分享
+        </button>
       </view>
 
       <!-- 抢答按钮 -->
-      <view v-if="item.status === 'OPEN'" class="answer-fab" @click="goAnswer">
-        <text class="fab-icon">⚡</text>
-        <text class="fab-label">抢答</text>
+      <view
+        v-if="item.status === 'OPEN'"
+        class="answer-fab"
+        @click="goAnswer"
+      >
+        <text class="fab-icon">
+          ⚡
+        </text>
+        <text class="fab-label">
+          抢答
+        </text>
       </view>
     </template>
   </view>

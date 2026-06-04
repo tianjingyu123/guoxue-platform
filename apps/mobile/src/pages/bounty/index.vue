@@ -1,46 +1,104 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="title">悬赏问答</text>
-      <text class="subtitle">帮人解答，赚取赏金</text>
+      <text class="title">
+        悬赏问答
+      </text>
+      <text class="subtitle">
+        帮人解答，赚取赏金
+      </text>
     </view>
 
     <view class="filter-tabs">
-      <text v-for="t in tabs" :key="t.value" :class="['tab', { active: activeTab === t.value }]" @click="switchTab(t.value)">{{ t.label }}</text>
+      <text
+        v-for="t in tabs"
+        :key="t.value"
+        :class="['tab', { active: activeTab === t.value }]"
+        @click="switchTab(t.value)"
+      >
+        {{ t.label }}
+      </text>
     </view>
 
-    <LoadingSkeleton v-if="loading && list.length === 0" type="list" />
-    <EmptyState v-else-if="!loading && list.length === 0" icon="💰" text="暂无悬赏" />
+    <LoadingSkeleton
+      v-if="loading && list.length === 0"
+      type="list"
+    />
+    <EmptyState
+      v-else-if="!loading && list.length === 0"
+      icon="💰"
+      text="暂无悬赏"
+    />
 
-    <view v-else class="bounty-list">
-      <view v-for="item in list" :key="item.id" class="bounty-card" @click="goDetail(item.id)">
+    <view
+      v-else
+      class="bounty-list"
+    >
+      <view
+        v-for="item in list"
+        :key="item.id"
+        class="bounty-card"
+        @click="goDetail(item.id)"
+      >
         <view class="card-top">
           <view class="user-info">
-            <image class="avatar" :src="item.asker?.avatar || '/static/default-avatar.png'" mode="aspectFill" />
-            <text class="nickname">{{ item.asker?.nickname || '匿名' }}</text>
+            <image
+              class="avatar"
+              :src="item.asker?.avatar || '/static/default-avatar.png'"
+              mode="aspectFill"
+            />
+            <text class="nickname">
+              {{ item.asker?.nickname || '匿名' }}
+            </text>
           </view>
-          <view class="status-badge" :class="'status-' + item.status">
+          <view
+            class="status-badge"
+            :class="'status-' + item.status"
+          >
             <text>{{ statusMap[item.status] || item.status }}</text>
           </view>
         </view>
-        <text class="card-title">{{ item.title }}</text>
+        <text class="card-title">
+          {{ item.title }}
+        </text>
         <view class="card-tags">
-          <text class="tag">{{ categoryLabel(item.category) }}</text>
+          <text class="tag">
+            {{ categoryLabel(item.category) }}
+          </text>
         </view>
         <view class="card-footer">
-          <text class="bounty-amount">💰 {{ item.bountyCoin }} 币</text>
-          <text class="answer-count">{{ item.answerCount || 0 }} 个回答</text>
+          <text class="bounty-amount">
+            💰 {{ item.bountyCoin }} 币
+          </text>
+          <text class="answer-count">
+            {{ item.answerCount || 0 }} 个回答
+          </text>
         </view>
       </view>
     </view>
 
-    <view class="pagination" v-if="total > pageSize">
-      <text class="load-more" @click="loadMore">{{ list.length >= total ? '没有更多了' : '加载更多' }}</text>
+    <view
+      v-if="total > pageSize"
+      class="pagination"
+    >
+      <text
+        class="load-more"
+        @click="loadMore"
+      >
+        {{ list.length >= total ? '没有更多了' : '加载更多' }}
+      </text>
     </view>
 
-    <view class="fab" @click="goCreate">
-      <text class="fab-icon">+</text>
-      <text class="fab-label">发布悬赏</text>
+    <view
+      class="fab"
+      @click="goCreate"
+    >
+      <text class="fab-icon">
+        +
+      </text>
+      <text class="fab-label">
+        发布悬赏
+      </text>
     </view>
   </view>
 </template>

@@ -1,23 +1,41 @@
 <template>
   <view class="page">
     <!-- 加载中 -->
-    <view v-if="loading" class="loading-state">
-      <text class="loading-icon">⏳</text>
+    <view
+      v-if="loading"
+      class="loading-state"
+    >
+      <text class="loading-icon">
+        ⏳
+      </text>
       <text>加载章节内容...</text>
     </view>
 
     <template v-else-if="chapter">
       <!-- 导航栏 -->
-      <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view
+        class="nav-bar"
+        :style="{ paddingTop: statusBarHeight + 'px' }"
+      >
         <view class="nav-inner">
-          <text class="nav-back" @click="goBack">‹ 返回</text>
-          <text class="nav-title">{{ chapter.title }}</text>
+          <text
+            class="nav-back"
+            @click="goBack"
+          >
+            ‹ 返回
+          </text>
+          <text class="nav-title">
+            {{ chapter.title }}
+          </text>
           <text class="nav-placeholder" />
         </view>
       </view>
 
       <!-- 视频播放器 -->
-      <view v-if="isVideo" class="video-area">
+      <view
+        v-if="isVideo"
+        class="video-area"
+      >
         <video
           :src="chapter.mediaUrl"
           :controls="true"
@@ -30,29 +48,53 @@
       </view>
 
       <!-- 音频播放器 -->
-      <view v-else-if="isAudio" class="audio-area">
+      <view
+        v-else-if="isAudio"
+        class="audio-area"
+      >
         <view class="audio-card">
-          <view class="audio-cover" @click="toggleAudio">
-            <text class="audio-cover-icon">{{ audioPlaying ? '🔊' : '🎧' }}</text>
+          <view
+            class="audio-cover"
+            @click="toggleAudio"
+          >
+            <text class="audio-cover-icon">
+              {{ audioPlaying ? '🔊' : '🎧' }}
+            </text>
           </view>
-          <text class="audio-title">{{ chapter.title }}</text>
-          <text class="audio-hint">{{ audioPlaying ? '正在播放...' : '点击图标播放' }}</text>
+          <text class="audio-title">
+            {{ chapter.title }}
+          </text>
+          <text class="audio-hint">
+            {{ audioPlaying ? '正在播放...' : '点击图标播放' }}
+          </text>
           <view class="audio-progress-bar">
-            <view class="audio-progress-fill" :style="{ width: audioProgress + '%' }" />
+            <view
+              class="audio-progress-fill"
+              :style="{ width: audioProgress + '%' }"
+            />
           </view>
         </view>
       </view>
 
       <!-- 文本/Markdown 内容区 -->
-      <scroll-view v-if="chapter.content" class="content-scroll" scroll-y>
+      <scroll-view
+        v-if="chapter.content"
+        class="content-scroll"
+        scroll-y
+      >
         <view class="content-body">
           <rich-text :nodes="chapter.content" />
         </view>
       </scroll-view>
 
       <!-- 空内容提示 -->
-      <view v-if="!chapter.content && !isVideo && !isAudio" class="empty-content">
-        <text class="empty-icon">📄</text>
+      <view
+        v-if="!chapter.content && !isVideo && !isAudio"
+        class="empty-content"
+      >
+        <text class="empty-icon">
+          📄
+        </text>
         <text>本章暂无内容</text>
       </view>
 
@@ -60,13 +102,21 @@
       <view class="bottom-bar">
         <!-- 章节导航 -->
         <view class="chapter-nav">
-          <view class="nav-btn" :class="{ disabled: !hasPrev }" @click="prevChapter">
+          <view
+            class="nav-btn"
+            :class="{ disabled: !hasPrev }"
+            @click="prevChapter"
+          >
             <text>‹ 上一章</text>
           </view>
           <view class="chapter-indicator">
             <text>{{ currentIdx + 1 }} / {{ totalChapters }}</text>
           </view>
-          <view class="nav-btn" :class="{ disabled: !hasNext }" @click="nextChapter">
+          <view
+            class="nav-btn"
+            :class="{ disabled: !hasNext }"
+            @click="nextChapter"
+          >
             <text>下一章 ›</text>
           </view>
         </view>
@@ -76,26 +126,51 @@
           <view class="progress-info">
             <text>学习进度</text>
             <view class="mini-progress">
-              <view class="mini-progress-fill" :style="{ width: localProgress + '%' }" />
+              <view
+                class="mini-progress-fill"
+                :style="{ width: localProgress + '%' }"
+              />
             </view>
-            <text class="progress-text">{{ localProgress }}%</text>
+            <text class="progress-text">
+              {{ localProgress }}%
+            </text>
           </view>
 
           <view class="action-btns">
-            <button v-if="isVideo || isAudio" class="mark-btn" @click="markComplete">
+            <button
+              v-if="isVideo || isAudio"
+              class="mark-btn"
+              @click="markComplete"
+            >
               {{ localProgress >= 90 ? '✓ 已完成' : '标记完成' }}
             </button>
-            <button v-if="chapter.hasWork" class="work-btn" @click="goSubmitWork">提交作业</button>
+            <button
+              v-if="chapter.hasWork"
+              class="work-btn"
+              @click="goSubmitWork"
+            >
+              提交作业
+            </button>
           </view>
         </view>
       </view>
     </template>
 
     <!-- 异常状态 -->
-    <view v-else class="error-state">
-      <text class="error-icon">⚠️</text>
+    <view
+      v-else
+      class="error-state"
+    >
+      <text class="error-icon">
+        ⚠️
+      </text>
       <text>内容加载失败</text>
-      <button class="retry-btn" @click="fetchChapter">重试</button>
+      <button
+        class="retry-btn"
+        @click="fetchChapter"
+      >
+        重试
+      </button>
     </view>
   </view>
 </template>

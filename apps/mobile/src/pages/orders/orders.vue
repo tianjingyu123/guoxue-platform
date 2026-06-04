@@ -1,7 +1,12 @@
 <template>
   <view class="page">
     <!-- 订单状态 Tab -->
-    <scroll-view scroll-x class="tab-scroll" show-scrollbar="false" enhanced>
+    <scroll-view
+      scroll-x
+      class="tab-scroll"
+      show-scrollbar="false"
+      enhanced
+    >
       <view class="tab-list">
         <view
           v-for="tab in tabs"
@@ -10,7 +15,9 @@
           :class="{ active: activeTab === tab.key }"
           @click="switchTab(tab.key)"
         >
-          <text class="tab-text">{{ tab.label }}</text>
+          <text class="tab-text">
+            {{ tab.label }}
+          </text>
         </view>
       </view>
     </scroll-view>
@@ -28,26 +35,59 @@
       @empty-action="goShop"
     >
       <view class="order-list">
-        <view v-for="order in orders" :key="order.id" class="order-card">
+        <view
+          v-for="order in orders"
+          :key="order.id"
+          class="order-card"
+        >
           <!-- 订单头 -->
-          <view class="order-header" @click="viewDetail(order.id)">
-            <text class="order-no">订单号：{{ order.orderNo || order.id.slice(0, 16) }}</text>
+          <view
+            class="order-header"
+            @click="viewDetail(order.id)"
+          >
+            <text class="order-no">
+              订单号：{{ order.orderNo || order.id.slice(0, 16) }}
+            </text>
             <view :class="['status-badge', statusClass(order.status)]">
-              <text class="status-text">{{ order.statusText || statusLabel(order.status) }}</text>
+              <text class="status-text">
+                {{ order.statusText || statusLabel(order.status) }}
+              </text>
             </view>
           </view>
 
           <!-- 订单商品 -->
-          <view class="order-items" @click="viewDetail(order.id)">
-            <view v-for="item in order.items" :key="item.id" class="order-item">
-              <image :src="item.cover" class="item-img" mode="aspectFill" />
+          <view
+            class="order-items"
+            @click="viewDetail(order.id)"
+          >
+            <view
+              v-for="item in order.items"
+              :key="item.id"
+              class="order-item"
+            >
+              <image
+                :src="item.cover"
+                class="item-img"
+                mode="aspectFill"
+              />
               <view class="item-info">
-                <text class="item-title">{{ item.title }}</text>
-                <text v-if="item.skuAttrs" class="item-sku">{{ item.skuAttrs }}</text>
+                <text class="item-title">
+                  {{ item.title }}
+                </text>
+                <text
+                  v-if="item.skuAttrs"
+                  class="item-sku"
+                >
+                  {{ item.skuAttrs }}
+                </text>
               </view>
               <view class="item-right">
-                <text class="item-price">¥{{ toYuan(item.price) }}</text>
-                <text class="item-qty">×{{ item.quantity }}</text>
+                <text class="item-price">
+                  ¥{{ toYuan(item.price) }}
+                </text>
+                <text class="item-qty">
+                  ×{{ item.quantity }}
+                </text>
               </view>
             </view>
           </view>
@@ -55,47 +95,106 @@
           <!-- 订单底部 -->
           <view class="order-footer">
             <view class="footer-left">
-              <text class="order-time">{{ formatTime(order.createdAt) }}</text>
+              <text class="order-time">
+                {{ formatTime(order.createdAt) }}
+              </text>
             </view>
             <view class="footer-right">
-              <text class="amount-label">合计</text>
-              <text class="order-amount">¥{{ toYuan(order.payAmount || order.totalAmount) }}</text>
+              <text class="amount-label">
+                合计
+              </text>
+              <text class="order-amount">
+                ¥{{ toYuan(order.payAmount || order.totalAmount) }}
+              </text>
             </view>
           </view>
 
           <!-- 操作按钮 -->
           <view class="order-actions">
             <template v-if="order.status === 'pending_pay'">
-              <view class="action-btn outline" @click="cancelOrder(order)">取消订单</view>
-              <view class="action-btn primary" @click="payOrder(order)">去支付</view>
+              <view
+                class="action-btn outline"
+                @click="cancelOrder(order)"
+              >
+                取消订单
+              </view>
+              <view
+                class="action-btn primary"
+                @click="payOrder(order)"
+              >
+                去支付
+              </view>
             </template>
             <template v-else-if="order.status === 'shipped' || order.status === 'pending_receive'">
-              <view class="action-btn outline" @click="viewLogistics(order)">查看物流</view>
-              <view class="action-btn primary" @click="confirmReceive(order)">确认收货</view>
+              <view
+                class="action-btn outline"
+                @click="viewLogistics(order)"
+              >
+                查看物流
+              </view>
+              <view
+                class="action-btn primary"
+                @click="confirmReceive(order)"
+              >
+                确认收货
+              </view>
             </template>
             <template v-else-if="order.status === 'completed'">
-              <view class="action-btn outline" @click="viewDetail(order.id)">查看详情</view>
-              <view class="action-btn primary" @click="buyAgain(order)">再次购买</view>
+              <view
+                class="action-btn outline"
+                @click="viewDetail(order.id)"
+              >
+                查看详情
+              </view>
+              <view
+                class="action-btn primary"
+                @click="buyAgain(order)"
+              >
+                再次购买
+              </view>
             </template>
             <template v-else-if="order.status === 'cancelled'">
-              <view class="action-btn outline" @click="deleteOrder(order)">删除订单</view>
+              <view
+                class="action-btn outline"
+                @click="deleteOrder(order)"
+              >
+                删除订单
+              </view>
             </template>
             <template v-else-if="order.status === 'refunding' || order.status === 'refunded'">
-              <view class="action-btn outline" @click="viewRefund(order)">查看售后</view>
+              <view
+                class="action-btn outline"
+                @click="viewRefund(order)"
+              >
+                查看售后
+              </view>
             </template>
             <template v-else>
-              <view class="action-btn outline" @click="viewDetail(order.id)">查看详情</view>
+              <view
+                class="action-btn outline"
+                @click="viewDetail(order.id)"
+              >
+                查看详情
+              </view>
             </template>
           </view>
         </view>
       </view>
 
       <!-- 加载更多 -->
-      <view v-if="loadingMore" class="load-more-bar">
+      <view
+        v-if="loadingMore"
+        class="load-more-bar"
+      >
         <text>加载中...</text>
       </view>
-      <view v-if="!hasMore && orders.length > 0" class="load-more-bar">
-        <text class="no-more">— 已经到底了 —</text>
+      <view
+        v-if="!hasMore && orders.length > 0"
+        class="load-more-bar"
+      >
+        <text class="no-more">
+          — 已经到底了 —
+        </text>
       </view>
     </DataState>
   </view>

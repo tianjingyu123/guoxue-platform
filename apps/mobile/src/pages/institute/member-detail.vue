@@ -3,108 +3,264 @@
     <!-- 头部背景 -->
     <view class="profile-header-bg">
       <view class="profile-header-actions">
-        <text class="action-btn" @click="goBack">←</text>
-        <text class="action-btn" @click="handleShare">↗</text>
+        <text
+          class="action-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text
+          class="action-btn"
+          @click="handleShare"
+        >
+          ↗
+        </text>
       </view>
       <view class="profile-avatar-wrap">
-        <image :src="instructor?.avatar" mode="aspectFill" class="profile-avatar" />
-        <text v-if="instructor?.verified" class="profile-verified">✓</text>
+        <image
+          :src="instructor?.avatar"
+          mode="aspectFill"
+          class="profile-avatar"
+        />
+        <text
+          v-if="instructor?.verified"
+          class="profile-verified"
+        >
+          ✓
+        </text>
       </view>
     </view>
 
     <!-- 基本信息 -->
     <view class="profile-info">
-      <text class="profile-name">{{ instructor?.name }}</text>
-      <text class="profile-title">{{ instructor?.title }}</text>
-      <text v-if="instructor?.level" class="profile-level">{{ getLevelLabel(instructor.level) }}</text>
+      <text class="profile-name">
+        {{ instructor?.name }}
+      </text>
+      <text class="profile-title">
+        {{ instructor?.title }}
+      </text>
+      <text
+        v-if="instructor?.level"
+        class="profile-level"
+      >
+        {{ getLevelLabel(instructor.level) }}
+      </text>
       <view class="tag-group-center">
-        <text v-for="(s, i) in instructor?.specialties" :key="i" class="tag">{{ s }}</text>
+        <text
+          v-for="(s, i) in instructor?.specialties"
+          :key="i"
+          class="tag"
+        >
+          {{ s }}
+        </text>
       </view>
       <view class="profile-stats">
-        <view class="profile-stat"><text class="stat-num">{{ instructor?.studentCount }}</text><text class="stat-label">学员</text></view>
+        <view class="profile-stat">
+          <text class="stat-num">
+            {{ instructor?.studentCount }}
+          </text><text class="stat-label">
+            学员
+          </text>
+        </view>
         <view class="stat-divider" />
-        <view class="profile-stat"><text class="stat-num">{{ instructor?.courseCount }}</text><text class="stat-label">课程</text></view>
+        <view class="profile-stat">
+          <text class="stat-num">
+            {{ instructor?.courseCount }}
+          </text><text class="stat-label">
+            课程
+          </text>
+        </view>
         <view class="stat-divider" />
-        <view class="profile-stat"><text class="stat-num">⭐ {{ instructor?.rating?.toFixed(1) }}</text></view>
+        <view class="profile-stat">
+          <text class="stat-num">
+            ⭐ {{ instructor?.rating?.toFixed(1) }}
+          </text>
+        </view>
       </view>
     </view>
 
     <!-- Tabs -->
     <view class="tabs-bar">
-      <view v-for="tab in tabs" :key="tab.key" class="tab" :class="{ 'tab-active': activeTab === tab.key }" @click="activeTab = tab.key">
+      <view
+        v-for="tab in tabs"
+        :key="tab.key"
+        class="tab"
+        :class="{ 'tab-active': activeTab === tab.key }"
+        @click="activeTab = tab.key"
+      >
         <text>{{ tab.label }}</text>
-        <view v-if="activeTab === tab.key" class="tab-indicator" />
+        <view
+          v-if="activeTab === tab.key"
+          class="tab-indicator"
+        />
       </view>
     </view>
 
     <!-- Tab内容 -->
     <view class="tab-content">
       <!-- 简介 -->
-      <view v-if="activeTab === 'intro'" class="intro-section">
+      <view
+        v-if="activeTab === 'intro'"
+        class="intro-section"
+      >
         <view class="intro-block">
-          <text class="block-title">👥 个人简介</text>
-          <text class="block-text">{{ instructor?.introduction }}</text>
+          <text class="block-title">
+            👥 个人简介
+          </text>
+          <text class="block-text">
+            {{ instructor?.introduction }}
+          </text>
         </view>
-        <view v-if="instructor?.education?.length" class="intro-block">
-          <text class="block-title">🎓 教育背景</text>
-          <view v-for="(edu, i) in instructor.education" :key="i" class="timeline-item">{{ edu }}</view>
+        <view
+          v-if="instructor?.education?.length"
+          class="intro-block"
+        >
+          <text class="block-title">
+            🎓 教育背景
+          </text>
+          <view
+            v-for="(edu, i) in instructor.education"
+            :key="i"
+            class="timeline-item"
+          >
+            {{ edu }}
+          </view>
         </view>
-        <view v-if="instructor?.experience?.length" class="intro-block">
-          <text class="block-title">💼 从业经历</text>
-          <view v-for="(exp, i) in instructor.experience" :key="i" class="timeline-item">{{ exp }}</view>
+        <view
+          v-if="instructor?.experience?.length"
+          class="intro-block"
+        >
+          <text class="block-title">
+            💼 从业经历
+          </text>
+          <view
+            v-for="(exp, i) in instructor.experience"
+            :key="i"
+            class="timeline-item"
+          >
+            {{ exp }}
+          </view>
         </view>
-        <view v-if="instructor?.certificates?.length" class="intro-block">
-          <text class="block-title">🏆 资质证书</text>
+        <view
+          v-if="instructor?.certificates?.length"
+          class="intro-block"
+        >
+          <text class="block-title">
+            🏆 资质证书
+          </text>
           <view class="cert-list">
-            <view v-for="(cert, i) in instructor.certificates" :key="i" class="cert-card">
-              <text class="cert-name">{{ cert.name }}</text>
-              <text class="cert-meta">{{ cert.issuer }} · {{ cert.year }}</text>
+            <view
+              v-for="(cert, i) in instructor.certificates"
+              :key="i"
+              class="cert-card"
+            >
+              <text class="cert-name">
+                {{ cert.name }}
+              </text>
+              <text class="cert-meta">
+                {{ cert.issuer }} · {{ cert.year }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 课程 -->
-      <view v-if="activeTab === 'courses'" class="courses-section">
-        <view v-if="instructor?.featuredCourses?.length" class="course-list">
-          <view v-for="course in instructor.featuredCourses" :key="course.id" class="course-card" @click="goCourse(course.id)">
-            <image :src="course.cover" mode="aspectFill" class="course-cover" />
+      <view
+        v-if="activeTab === 'courses'"
+        class="courses-section"
+      >
+        <view
+          v-if="instructor?.featuredCourses?.length"
+          class="course-list"
+        >
+          <view
+            v-for="course in instructor.featuredCourses"
+            :key="course.id"
+            class="course-card"
+            @click="goCourse(course.id)"
+          >
+            <image
+              :src="course.cover"
+              mode="aspectFill"
+              class="course-cover"
+            />
             <view class="course-info">
-              <text class="course-title">{{ course.title }}</text>
+              <text class="course-title">
+                {{ course.title }}
+              </text>
               <view class="course-meta">
                 <text>👥 {{ course.studentCount }}人学习</text>
                 <text>⭐ {{ course.rating?.toFixed(1) }}</text>
               </view>
             </view>
-            <text class="course-arrow">›</text>
+            <text class="course-arrow">
+              ›
+            </text>
           </view>
         </view>
-        <view v-else class="empty-state">
+        <view
+          v-else
+          class="empty-state"
+        >
           <text>📖</text>
-          <text class="empty-text">暂无课程</text>
+          <text class="empty-text">
+            暂无课程
+          </text>
         </view>
       </view>
 
       <!-- 评价 -->
-      <view v-if="activeTab === 'reviews'" class="reviews-section">
-        <view v-if="instructor?.reviews?.length" class="reviews-list">
-          <view v-for="review in instructor.reviews" :key="review.id" class="review-card">
-            <image :src="review.user.avatar" mode="aspectFill" class="review-avatar" />
+      <view
+        v-if="activeTab === 'reviews'"
+        class="reviews-section"
+      >
+        <view
+          v-if="instructor?.reviews?.length"
+          class="reviews-list"
+        >
+          <view
+            v-for="review in instructor.reviews"
+            :key="review.id"
+            class="review-card"
+          >
+            <image
+              :src="review.user.avatar"
+              mode="aspectFill"
+              class="review-avatar"
+            />
             <view class="review-body">
               <view class="review-header">
-                <text class="review-user">{{ review.user.name }}</text>
+                <text class="review-user">
+                  {{ review.user.name }}
+                </text>
                 <view class="review-stars">
-                  <text v-for="n in 5" :key="n" :class="n <= review.rating ? 'star-active' : 'star-inactive'">⭐</text>
+                  <text
+                    v-for="n in 5"
+                    :key="n"
+                    :class="n <= review.rating ? 'star-active' : 'star-inactive'"
+                  >
+                    ⭐
+                  </text>
                 </view>
               </view>
-              <text class="review-content">{{ review.content }}</text>
-              <text class="review-time">{{ review.time }}</text>
+              <text class="review-content">
+                {{ review.content }}
+              </text>
+              <text class="review-time">
+                {{ review.time }}
+              </text>
             </view>
           </view>
         </view>
-        <view v-else class="empty-state">
+        <view
+          v-else
+          class="empty-state"
+        >
           <text>💬</text>
-          <text class="empty-text">暂无评价</text>
+          <text class="empty-text">
+            暂无评价
+          </text>
         </view>
       </view>
     </view>
@@ -112,12 +268,30 @@
     <!-- 底部操作栏 -->
     <view class="bottom-bar">
       <view class="bottom-bar-inner">
-        <view class="bottom-action" :class="{ 'bottom-action-active': following }" @click="handleFollow">
-          <text class="bottom-action-icon">{{ following ? '❤️' : '🤍' }}</text>
-          <text class="bottom-action-label">{{ following ? '已关注' : '关注' }}</text>
+        <view
+          class="bottom-action"
+          :class="{ 'bottom-action-active': following }"
+          @click="handleFollow"
+        >
+          <text class="bottom-action-icon">
+            {{ following ? '❤️' : '🤍' }}
+          </text>
+          <text class="bottom-action-label">
+            {{ following ? '已关注' : '关注' }}
+          </text>
         </view>
-        <view class="btn btn-outline flex-1" @click="goChat">💬 发起提问</view>
-        <view class="btn btn-primary flex-1" @click="goBooking">📅 预约授课</view>
+        <view
+          class="btn btn-outline flex-1"
+          @click="goChat"
+        >
+          💬 发起提问
+        </view>
+        <view
+          class="btn btn-primary flex-1"
+          @click="goBooking"
+        >
+          📅 预约授课
+        </view>
       </view>
     </view>
   </view>

@@ -2,16 +2,33 @@
   <view class="page">
     <view class="brand-bg">
       <view class="logo-area">
-        <text class="logo-text">热卜国学</text>
-        <text class="slogan">传承千年智慧，启迪现代人生</text>
+        <text class="logo-text">
+          热卜国学
+        </text>
+        <text class="slogan">
+          传承千年智慧，启迪现代人生
+        </text>
       </view>
-      <view class="skip-btn" @click="skip">
-        <text>跳过 {{countdown}}s</text>
+      <view
+        class="skip-btn"
+        @click="skip"
+      >
+        <text>跳过 {{ countdown }}s</text>
       </view>
     </view>
-    <view v-if="ad" class="ad-overlay" @click="goAd">
-      <image :src="ad.image" class="ad-img" mode="aspectFill" />
-      <view class="ad-countdown">广告 {{adCountdown}}s</view>
+    <view
+      v-if="ad"
+      class="ad-overlay"
+      @click="goAd"
+    >
+      <image
+        :src="ad.image"
+        class="ad-img"
+        mode="aspectFill"
+      />
+      <view class="ad-countdown">
+        广告 {{ adCountdown }}s
+      </view>
     </view>
   </view>
 </template>

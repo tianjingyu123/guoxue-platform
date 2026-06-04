@@ -3,11 +3,22 @@
     <!-- 导航栏 -->
     <view class="nav-bar">
       <view class="nav-content">
-        <text class="back-btn" @click="uni.navigateBack">‹</text>
-        <text class="nav-title">学习计划</text>
+        <text
+          class="back-btn"
+          @click="uni.navigateBack"
+        >
+          ‹
+        </text>
+        <text class="nav-title">
+          学习计划
+        </text>
         <view class="nav-streak">
-          <text class="streak-icon">🔥</text>
-          <text class="streak-val">{{ streak }}天连续</text>
+          <text class="streak-icon">
+            🔥
+          </text>
+          <text class="streak-val">
+            {{ streak }}天连续
+          </text>
         </view>
       </view>
     </view>
@@ -16,41 +27,85 @@
     <view class="progress-bar">
       <view class="progress-left">
         <view class="progress-header">
-          <text class="progress-label">今日完成</text>
-          <text class="progress-fraction">{{ doneCount }}/{{ tasks.length }} 项</text>
+          <text class="progress-label">
+            今日完成
+          </text>
+          <text class="progress-fraction">
+            {{ doneCount }}/{{ tasks.length }} 项
+          </text>
         </view>
         <view class="progress-track">
-          <view class="progress-fill" :style="{ width: progressPct + '%' }" />
+          <view
+            class="progress-fill"
+            :style="{ width: progressPct + '%' }"
+          />
         </view>
       </view>
       <view class="progress-right">
-        <text class="progress-pct">{{ progressPct }}%</text>
-        <text class="progress-pct-label">完成率</text>
+        <text class="progress-pct">
+          {{ progressPct }}%
+        </text>
+        <text class="progress-pct-label">
+          完成率
+        </text>
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll-area">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
       <!-- 学习目标卡片 -->
       <view class="goal-card">
         <view class="goal-header">
           <view class="goal-title-row">
-            <text class="goal-icon">🎯</text>
-            <text class="goal-title">学习目标</text>
+            <text class="goal-icon">
+              🎯
+            </text>
+            <text class="goal-title">
+              学习目标
+            </text>
           </view>
-          <text class="goal-edit" @click="showGoalEditor = true">✏️ 编辑</text>
+          <text
+            class="goal-edit"
+            @click="showGoalEditor = true"
+          >
+            ✏️ 编辑
+          </text>
         </view>
         <view class="goal-stats">
           <view class="goal-stat">
-            <text class="goal-val" style="color:#C41E3A">{{ goal.daysPerWeek }}</text>
-            <text class="goal-label">天 / 周</text>
+            <text
+              class="goal-val"
+              style="color:#C41E3A"
+            >
+              {{ goal.daysPerWeek }}
+            </text>
+            <text class="goal-label">
+              天 / 周
+            </text>
           </view>
           <view class="goal-stat">
-            <text class="goal-val" style="color:#C9A96E">{{ goal.minutesPerDay }}</text>
-            <text class="goal-label">分钟 / 天</text>
+            <text
+              class="goal-val"
+              style="color:#C9A96E"
+            >
+              {{ goal.minutesPerDay }}
+            </text>
+            <text class="goal-label">
+              分钟 / 天
+            </text>
           </view>
           <view class="goal-stat">
-            <text class="goal-val" style="color:#4A90D9">{{ goal.daysPerWeek * goal.minutesPerDay }}</text>
-            <text class="goal-label">分钟 / 周</text>
+            <text
+              class="goal-val"
+              style="color:#4A90D9"
+            >
+              {{ goal.daysPerWeek * goal.minutesPerDay }}
+            </text>
+            <text class="goal-label">
+              分钟 / 周
+            </text>
           </view>
         </view>
         <!-- 周计划指示格 -->
@@ -61,7 +116,9 @@
             class="week-cell"
             :class="{ 'week-today': i === todayDay, 'week-planned': i > 0 && i <= goal.daysPerWeek }"
           >
-            <text class="week-label">{{ label }}</text>
+            <text class="week-label">
+              {{ label }}
+            </text>
           </view>
         </view>
       </view>
@@ -70,41 +127,76 @@
       <view class="task-card">
         <view class="task-header">
           <view class="task-title-row">
-            <text class="task-icon">🔥</text>
+            <text class="task-icon">
+              🔥
+            </text>
             <view class="task-title-group">
-              <text class="task-card-title">今日任务</text>
-              <text class="task-date">{{ todayDateStr }}</text>
+              <text class="task-card-title">
+                今日任务
+              </text>
+              <text class="task-date">
+                {{ todayDateStr }}
+              </text>
             </view>
           </view>
-          <text class="task-count">{{ doneCount }}/{{ tasks.length }}</text>
+          <text class="task-count">
+            {{ doneCount }}/{{ tasks.length }}
+          </text>
         </view>
         <view class="task-progress">
           <view class="task-progress-track">
-            <view class="task-progress-fill" :style="{ width: progressPct + '%' }" />
+            <view
+              class="task-progress-fill"
+              :style="{ width: progressPct + '%' }"
+            />
           </view>
           <view class="task-progress-info">
-            <text class="task-plan-time">计划 {{ totalMinutes }} 分钟</text>
-            <text class="task-done-time">已完成 {{ doneMinutes }} 分钟</text>
+            <text class="task-plan-time">
+              计划 {{ totalMinutes }} 分钟
+            </text>
+            <text class="task-done-time">
+              已完成 {{ doneMinutes }} 分钟
+            </text>
           </view>
         </view>
-        <view v-if="tasks.length === 0" class="task-empty">
+        <view
+          v-if="tasks.length === 0"
+          class="task-empty"
+        >
           <text>今日没有安排学习任务</text>
         </view>
-        <view v-else class="task-list">
+        <view
+          v-else
+          class="task-list"
+        >
           <view
             v-for="t in tasks"
             :key="t.id"
             class="task-item"
             @click="toggleTask(t.id)"
           >
-            <view class="task-check" :class="{ 'task-checked': t.isDone }">
-              <text v-if="t.isDone">✓</text>
+            <view
+              class="task-check"
+              :class="{ 'task-checked': t.isDone }"
+            >
+              <text v-if="t.isDone">
+                ✓
+              </text>
             </view>
             <view class="task-info">
-              <text class="task-name" :class="{ 'task-name-done': t.isDone }">{{ t.title }}</text>
-              <text class="task-lesson">{{ t.lessonTitle }}</text>
+              <text
+                class="task-name"
+                :class="{ 'task-name-done': t.isDone }"
+              >
+                {{ t.title }}
+              </text>
+              <text class="task-lesson">
+                {{ t.lessonTitle }}
+              </text>
             </view>
-            <text class="task-duration">🕐 {{ t.duration }}分钟</text>
+            <text class="task-duration">
+              🕐 {{ t.duration }}分钟
+            </text>
           </view>
         </view>
       </view>
@@ -113,31 +205,64 @@
       <view class="course-card">
         <view class="course-card-header">
           <view class="course-card-title-row">
-            <text class="course-card-icon">📅</text>
-            <text class="course-card-title">课程安排</text>
+            <text class="course-card-icon">
+              📅
+            </text>
+            <text class="course-card-title">
+              课程安排
+            </text>
           </view>
-          <text class="course-add" @click="goAddCourse">＋</text>
+          <text
+            class="course-add"
+            @click="goAddCourse"
+          >
+            ＋
+          </text>
         </view>
-        <view v-if="courses.length === 0" class="course-empty" @click="goAddCourse">
-          <text class="course-empty-icon">📚</text>
-          <text class="course-empty-text">还没有安排课程，点击添加</text>
+        <view
+          v-if="courses.length === 0"
+          class="course-empty"
+          @click="goAddCourse"
+        >
+          <text class="course-empty-icon">
+            📚
+          </text>
+          <text class="course-empty-text">
+            还没有安排课程，点击添加
+          </text>
         </view>
-        <view v-else class="course-list">
+        <view
+          v-else
+          class="course-list"
+        >
           <view
             v-for="(c, idx) in courses"
             :key="c.id"
             class="course-item"
             :class="{ 'course-dragging': draggingId === c.id }"
           >
-            <text class="course-drag">⠿</text>
-            <image :src="c.cover" class="course-cover" mode="aspectFill" />
+            <text class="course-drag">
+              ⠿
+            </text>
+            <image
+              :src="c.cover"
+              class="course-cover"
+              mode="aspectFill"
+            />
             <view class="course-info">
-              <text class="course-name">{{ c.title }}</text>
+              <text class="course-name">
+                {{ c.title }}
+              </text>
               <view class="course-progress">
                 <view class="course-progress-track">
-                  <view class="course-progress-fill" :style="{ width: (c.completedLessons / c.totalLessons * 100) + '%' }" />
+                  <view
+                    class="course-progress-fill"
+                    :style="{ width: (c.completedLessons / c.totalLessons * 100) + '%' }"
+                  />
                 </view>
-                <text class="course-progress-pct">{{ Math.round(c.completedLessons / c.totalLessons * 100) }}%</text>
+                <text class="course-progress-pct">
+                  {{ Math.round(c.completedLessons / c.totalLessons * 100) }}%
+                </text>
               </view>
               <view class="course-days">
                 <text
@@ -145,33 +270,65 @@
                   :key="i"
                   class="course-day"
                   :class="{ 'course-day-active': c.scheduledDays?.includes(i) }"
-                >{{ l }}</text>
+                >
+                  {{ l }}
+                </text>
               </view>
             </view>
-            <text class="course-remove" @click="removeCourse(c.id)">🗑️</text>
+            <text
+              class="course-remove"
+              @click="removeCourse(c.id)"
+            >
+              🗑️
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 底部提示 -->
       <view class="bottom-tip">
-        <text class="tip-text">从</text>
-        <text class="tip-link" @click="goAddCourse">课程广场</text>
-        <text class="tip-text">添加更多课程到学习计划</text>
+        <text class="tip-text">
+          从
+        </text>
+        <text
+          class="tip-link"
+          @click="goAddCourse"
+        >
+          课程广场
+        </text>
+        <text class="tip-text">
+          添加更多课程到学习计划
+        </text>
       </view>
 
       <view class="bottom-spacer" />
     </scroll-view>
 
     <!-- 目标编辑弹窗 -->
-    <view v-if="showGoalEditor" class="dialog-overlay" @click="showGoalEditor = false">
-      <view class="dialog-content" @click.stop>
+    <view
+      v-if="showGoalEditor"
+      class="dialog-overlay"
+      @click="showGoalEditor = false"
+    >
+      <view
+        class="dialog-content"
+        @click.stop
+      >
         <view class="dialog-header">
-          <text class="dialog-title">设置学习目标</text>
-          <text class="dialog-close" @click="showGoalEditor = false">✕</text>
+          <text class="dialog-title">
+            设置学习目标
+          </text>
+          <text
+            class="dialog-close"
+            @click="showGoalEditor = false"
+          >
+            ✕
+          </text>
         </view>
         <view class="editor-section">
-          <text class="editor-label">每周学习天数</text>
+          <text class="editor-label">
+            每周学习天数
+          </text>
           <view class="days-selector">
             <text
               v-for="d in 7"
@@ -179,11 +336,15 @@
               class="day-btn"
               :class="{ 'day-active': editDays === d }"
               @click="editDays = d"
-            >{{ d }}</text>
+            >
+              {{ d }}
+            </text>
           </view>
         </view>
         <view class="editor-section">
-          <text class="editor-label">每日学习时长</text>
+          <text class="editor-label">
+            每日学习时长
+          </text>
           <view class="minutes-selector">
             <text
               v-for="m in minuteOptions"
@@ -191,10 +352,17 @@
               class="minute-btn"
               :class="{ 'minute-active': editMinutes === m }"
               @click="editMinutes = m"
-            >{{ m >= 60 ? (m / 60) + '小时' : m + '分钟' }}</text>
+            >
+              {{ m >= 60 ? (m / 60) + '小时' : m + '分钟' }}
+            </text>
           </view>
         </view>
-        <text class="save-goal-btn" @click="saveGoal">保存目标</text>
+        <text
+          class="save-goal-btn"
+          @click="saveGoal"
+        >
+          保存目标
+        </text>
       </view>
     </view>
   </view>

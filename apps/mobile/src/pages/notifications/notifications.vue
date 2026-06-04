@@ -2,21 +2,39 @@
   <view class="page">
     <!-- 顶部栏 -->
     <view class="header">
-      <text class="header-title">通知</text>
-      <text v-if="unreadCount > 0" class="read-all-btn" @click="handleReadAll">全部已读</text>
+      <text class="header-title">
+        通知
+      </text>
+      <text
+        v-if="unreadCount > 0"
+        class="read-all-btn"
+        @click="handleReadAll"
+      >
+        全部已读
+      </text>
     </view>
 
     <!-- 未读计数提示 -->
-    <view v-if="unreadCount > 0" class="unread-bar">
+    <view
+      v-if="unreadCount > 0"
+      class="unread-bar"
+    >
       你有 {{ unreadCount }} 条未读通知
     </view>
 
     <!-- 通知列表 -->
     <view class="list">
       <!-- 空状态 -->
-      <view v-if="list.length === 0 && !loading" class="empty">
-        <text class="empty-icon">📬</text>
-        <text class="empty-text">暂无通知</text>
+      <view
+        v-if="list.length === 0 && !loading"
+        class="empty"
+      >
+        <text class="empty-icon">
+          📬
+        </text>
+        <text class="empty-text">
+          暂无通知
+        </text>
       </view>
 
       <!-- 通知项 -->
@@ -28,24 +46,46 @@
         @click="handleClick(item)"
       >
         <view class="left-col">
-          <view v-if="!item.isRead" class="red-dot" />
-          <view class="icon-wrap" :class="'icon-' + item.type">
+          <view
+            v-if="!item.isRead"
+            class="red-dot"
+          />
+          <view
+            class="icon-wrap"
+            :class="'icon-' + item.type"
+          >
             <text>{{ iconMap[item.type] }}</text>
           </view>
         </view>
 
         <view class="content-col">
           <view class="title-line">
-            <text class="notify-title">{{ item.title }}</text>
-            <text class="notify-time">{{ timeAgo(item.createdAt) }}</text>
+            <text class="notify-title">
+              {{ item.title }}
+            </text>
+            <text class="notify-time">
+              {{ timeAgo(item.createdAt) }}
+            </text>
           </view>
-          <text class="notify-summary">{{ item.content }}</text>
+          <text class="notify-summary">
+            {{ item.content }}
+          </text>
         </view>
       </view>
 
       <!-- 加载/结束指示 -->
-      <view v-if="loadingMore" class="load-hint">加载中...</view>
-      <view v-if="noMore && list.length > 0" class="load-hint">没有更多了</view>
+      <view
+        v-if="loadingMore"
+        class="load-hint"
+      >
+        加载中...
+      </view>
+      <view
+        v-if="noMore && list.length > 0"
+        class="load-hint"
+      >
+        没有更多了
+      </view>
     </view>
   </view>
 </template>

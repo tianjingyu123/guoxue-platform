@@ -1,15 +1,32 @@
 <template>
   <view class="page">
     <view class="hero">
-      <text class="hero-title">国学排盘工具</text>
-      <text class="hero-sub">传统智慧，现代计算</text>
+      <text class="hero-title">
+        国学排盘工具
+      </text>
+      <text class="hero-sub">
+        传统智慧，现代计算
+      </text>
     </view>
     <view class="tool-grid">
-      <view v-for="tool in tools" :key="tool.id" class="tool-card" @click="goTool(tool)">
-        <text class="tool-icon">{{ tool.icon }}</text>
-        <text class="tool-name">{{ tool.name }}</text>
-        <text class="tool-desc">{{ tool.desc }}</text>
-        <text class="tool-tag">热门</text>
+      <view
+        v-for="tool in tools"
+        :key="tool.id"
+        class="tool-card"
+        @click="goTool(tool)"
+      >
+        <text class="tool-icon">
+          {{ tool.icon }}
+        </text>
+        <text class="tool-name">
+          {{ tool.name }}
+        </text>
+        <text class="tool-desc">
+          {{ tool.desc }}
+        </text>
+        <text class="tool-tag">
+          热门
+        </text>
       </view>
     </view>
   </view>

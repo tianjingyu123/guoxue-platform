@@ -1,70 +1,179 @@
 <template>
   <view class="page">
-    <template v-if="!result"><view class="loading-wrap"><view class="loading-spinner" /></view></template>
+    <template v-if="!result">
+      <view class="loading-wrap">
+        <view class="loading-spinner" />
+      </view>
+    </template>
     <template v-else>
       <view class="success-header">
         <view class="header-decorations">
-          <view v-for="i in 6" :key="i" class="header-circle" :style="{ left: (20+i*15)+'%', top: (10+(i%3)*30)+'%', transform: 'scale('+(0.5+i*0.2)+')' }" />
+          <view
+            v-for="i in 6"
+            :key="i"
+            class="header-circle"
+            :style="{ left: (20+i*15)+'%', top: (10+(i%3)*30)+'%', transform: 'scale('+(0.5+i*0.2)+')' }"
+          />
         </view>
-        <view class="header-content" :class="{ visible: showAnimation }">
+        <view
+          class="header-content"
+          :class="{ visible: showAnimation }"
+        >
           <view class="success-icon-wrap">
-            <text class="success-icon">✓</text>
-            <view class="success-ring" :class="{ ping: showAnimation }" />
+            <text class="success-icon">
+              ✓
+            </text>
+            <view
+              class="success-ring"
+              :class="{ ping: showAnimation }"
+            />
           </view>
-          <text class="success-title">拼团成功</text>
-          <text class="success-desc">恭喜您，已成功拼团！</text>
+          <text class="success-title">
+            拼团成功
+          </text>
+          <text class="success-desc">
+            恭喜您，已成功拼团！
+          </text>
         </view>
       </view>
 
       <view class="content-area">
-        <view class="card product-card" :class="{ visible: showAnimation }">
+        <view
+          class="card product-card"
+          :class="{ visible: showAnimation }"
+        >
           <view class="card-body">
-            <image :src="result.productCover || ''" class="card-img" mode="aspectFill" />
+            <image
+              :src="result.productCover || ''"
+              class="card-img"
+              mode="aspectFill"
+            />
             <view class="card-info">
-              <text class="card-name">{{ result.productName }}</text>
+              <text class="card-name">
+                {{ result.productName }}
+              </text>
               <view class="card-price-row">
-                <text class="card-price">¥{{ result.price }}</text>
-                <text class="card-original">¥{{ result.originalPrice }}</text>
-                <text class="card-save">省¥{{ result.originalPrice - result.price }}</text>
+                <text class="card-price">
+                  ¥{{ result.price }}
+                </text>
+                <text class="card-original">
+                  ¥{{ result.originalPrice }}
+                </text>
+                <text class="card-save">
+                  省¥{{ result.originalPrice - result.price }}
+                </text>
               </view>
             </view>
           </view>
           <view class="card-members">
-            <text class="members-label">成团成员</text>
+            <text class="members-label">
+              成团成员
+            </text>
             <view class="members-row">
-              <view class="members-avatars"><image v-for="member in result.members" :key="member.id" :src="member.avatar || ''" class="member-avatar" mode="aspectFill" /></view>
-              <text class="members-count">共{{ result.members.length }}人</text>
+              <view class="members-avatars">
+                <image
+                  v-for="member in result.members"
+                  :key="member.id"
+                  :src="member.avatar || ''"
+                  class="member-avatar"
+                  mode="aspectFill"
+                />
+              </view>
+              <text class="members-count">
+                共{{ result.members.length }}人
+              </text>
             </view>
           </view>
           <view class="card-time">
-            <view class="time-row"><text class="time-label">成团时间</text><text class="time-value">{{ result.completedAt }}</text></view>
             <view class="time-row">
-              <text class="time-label">订单编号</text>
-              <view class="time-value-row"><text class="time-value">{{ result.orderId }}</text><text class="copy-btn" @click="handleCopy(result.orderId)">{{ copied ? '✓' : '📋' }}</text></view>
+              <text class="time-label">
+                成团时间
+              </text><text class="time-value">
+                {{ result.completedAt }}
+              </text>
+            </view>
+            <view class="time-row">
+              <text class="time-label">
+                订单编号
+              </text>
+              <view class="time-value-row">
+                <text class="time-value">
+                  {{ result.orderId }}
+                </text><text
+                  class="copy-btn"
+                  @click="handleCopy(result.orderId)"
+                >
+                  {{ copied ? '✓' : '📋' }}
+                </text>
+              </view>
             </view>
           </view>
         </view>
 
-        <view class="card shipping-card" :class="{ visible: showAnimation }">
+        <view
+          class="card shipping-card"
+          :class="{ visible: showAnimation }"
+        >
           <view class="shipping-content">
-            <view class="shipping-icon-wrap"><text class="shipping-icon">📦</text></view>
-            <view class="shipping-info"><text class="shipping-title">预计发货时间</text><text class="shipping-desc">{{ result.estimatedShipDate }}（工作日）</text></view>
+            <view class="shipping-icon-wrap">
+              <text class="shipping-icon">
+                📦
+              </text>
+            </view>
+            <view class="shipping-info">
+              <text class="shipping-title">
+                预计发货时间
+              </text><text class="shipping-desc">
+                {{ result.estimatedShipDate }}（工作日）
+              </text>
+            </view>
           </view>
         </view>
 
-        <view class="card coupon-card" :class="{ visible: showAnimation }" @click="handleShare">
+        <view
+          class="card coupon-card"
+          :class="{ visible: showAnimation }"
+          @click="handleShare"
+        >
           <view class="coupon-content">
             <view class="coupon-left">
-              <view class="coupon-icon-wrap"><text class="coupon-icon">🎁</text></view>
-              <view class="coupon-text"><text class="coupon-title">分享得优惠券</text><text class="coupon-desc">邀请好友拼团，获10元优惠券</text></view>
+              <view class="coupon-icon-wrap">
+                <text class="coupon-icon">
+                  🎁
+                </text>
+              </view>
+              <view class="coupon-text">
+                <text class="coupon-title">
+                  分享得优惠券
+                </text><text class="coupon-desc">
+                  邀请好友拼团，获10元优惠券
+                </text>
+              </view>
             </view>
-            <view class="coupon-btn"><text>↗</text><text>分享</text></view>
+            <view class="coupon-btn">
+              <text>↗</text><text>分享</text>
+            </view>
           </view>
         </view>
 
-        <view class="actions" :class="{ visible: showAnimation }">
-          <view class="btn-primary" @click="goOrder"><text>查看订单</text><text class="btn-arrow">›</text></view>
-          <view class="btn-secondary" @click="goShop">继续逛逛</view>
+        <view
+          class="actions"
+          :class="{ visible: showAnimation }"
+        >
+          <view
+            class="btn-primary"
+            @click="goOrder"
+          >
+            <text>查看订单</text><text class="btn-arrow">
+              ›
+            </text>
+          </view>
+          <view
+            class="btn-secondary"
+            @click="goShop"
+          >
+            继续逛逛
+          </view>
         </view>
       </view>
     </template>

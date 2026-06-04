@@ -3,47 +3,112 @@
     <!-- Header -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
         <view class="search-input-wrap">
-          <text class="search-icon">🔍</text>
-          <input v-model="keyword" class="search-input" placeholder="搜索内容..." @confirm="doSearch" />
-          <text v-if="keyword" class="clear-btn" @click="keyword = ''">✕</text>
+          <text class="search-icon">
+            🔍
+          </text>
+          <input
+            v-model="keyword"
+            class="search-input"
+            placeholder="搜索内容..."
+            @confirm="doSearch"
+          >
+          <text
+            v-if="keyword"
+            class="clear-btn"
+            @click="keyword = ''"
+          >
+            ✕
+          </text>
         </view>
-        <text class="search-action" @click="doSearch">搜索</text>
+        <text
+          class="search-action"
+          @click="doSearch"
+        >
+          搜索
+        </text>
       </view>
     </view>
 
     <!-- 筛选栏 -->
     <view class="filter-bar">
-      <scroll-view scroll-x class="filter-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="filter-scroll"
+        show-scrollbar="false"
+      >
         <view class="filter-tag-row">
-          <text class="filter-section-label">筛选</text>
+          <text class="filter-section-label">
+            筛选
+          </text>
           <!-- 时间 -->
           <view class="filter-tag-wrap">
-            <text class="filter-tag" :class="{ active: filters.timeRange !== 'all' }" @click="toggleFilter('time')">
+            <text
+              class="filter-tag"
+              :class="{ active: filters.timeRange !== 'all' }"
+              @click="toggleFilter('time')"
+            >
               🕐 {{ timeLabel }}
-              <text class="filter-arrow" :class="{ open: activeFilter === 'time' }">▼</text>
+              <text
+                class="filter-arrow"
+                :class="{ open: activeFilter === 'time' }"
+              >
+                ▼
+              </text>
             </text>
           </view>
           <!-- 类型 -->
           <view class="filter-tag-wrap">
-            <text class="filter-tag" :class="{ active: filters.contentType.length > 0 }" @click="toggleFilter('type')">
+            <text
+              class="filter-tag"
+              :class="{ active: filters.contentType.length > 0 }"
+              @click="toggleFilter('type')"
+            >
               📄 类型{{ filters.contentType.length ? `(${filters.contentType.length})` : '' }}
-              <text class="filter-arrow" :class="{ open: activeFilter === 'type' }">▼</text>
+              <text
+                class="filter-arrow"
+                :class="{ open: activeFilter === 'type' }"
+              >
+                ▼
+              </text>
             </text>
           </view>
           <!-- 分类 -->
           <view class="filter-tag-wrap">
-            <text class="filter-tag" :class="{ active: filters.category }" @click="toggleFilter('category')">
+            <text
+              class="filter-tag"
+              :class="{ active: filters.category }"
+              @click="toggleFilter('category')"
+            >
               {{ filters.category ? categoryLabel : '分类' }}
-              <text class="filter-arrow" :class="{ open: activeFilter === 'category' }">▼</text>
+              <text
+                class="filter-arrow"
+                :class="{ open: activeFilter === 'category' }"
+              >
+                ▼
+              </text>
             </text>
           </view>
           <!-- 排序 -->
           <view class="filter-tag-wrap">
-            <text class="filter-tag" :class="{ active: filters.sortBy !== 'relevance' }" @click="toggleFilter('sort')">
+            <text
+              class="filter-tag"
+              :class="{ active: filters.sortBy !== 'relevance' }"
+              @click="toggleFilter('sort')"
+            >
               {{ sortLabel }}
-              <text class="filter-arrow" :class="{ open: activeFilter === 'sort' }">▼</text>
+              <text
+                class="filter-arrow"
+                :class="{ open: activeFilter === 'sort' }"
+              >
+                ▼
+              </text>
             </text>
           </view>
         </view>
@@ -51,74 +116,201 @@
     </view>
 
     <!-- 筛选下拉 -->
-    <view v-if="activeFilter" class="filter-dropdown">
+    <view
+      v-if="activeFilter"
+      class="filter-dropdown"
+    >
       <!-- 时间 -->
-      <view v-if="activeFilter === 'time'" class="fd-options">
-        <text v-for="opt in timeOptions" :key="opt.value" class="fd-option" :class="{ active: filters.timeRange === opt.value }" @click="selectFilter('timeRange', opt.value)">{{ opt.label }}</text>
+      <view
+        v-if="activeFilter === 'time'"
+        class="fd-options"
+      >
+        <text
+          v-for="opt in timeOptions"
+          :key="opt.value"
+          class="fd-option"
+          :class="{ active: filters.timeRange === opt.value }"
+          @click="selectFilter('timeRange', opt.value)"
+        >
+          {{ opt.label }}
+        </text>
       </view>
       <!-- 类型 -->
-      <view v-if="activeFilter === 'type'" class="fd-grid">
-        <text v-for="opt in typeOptions" :key="opt.value" class="fd-grid-item" :class="{ active: filters.contentType.includes(opt.value) }" @click="toggleContentType(opt.value)">{{ opt.icon }} {{ opt.label }}</text>
+      <view
+        v-if="activeFilter === 'type'"
+        class="fd-grid"
+      >
+        <text
+          v-for="opt in typeOptions"
+          :key="opt.value"
+          class="fd-grid-item"
+          :class="{ active: filters.contentType.includes(opt.value) }"
+          @click="toggleContentType(opt.value)"
+        >
+          {{ opt.icon }} {{ opt.label }}
+        </text>
       </view>
       <!-- 分类 -->
-      <view v-if="activeFilter === 'category'" class="fd-options">
-        <text v-for="opt in categoryOptions" :key="opt.value" class="fd-option" :class="{ active: filters.category === opt.value }" @click="selectFilter('category', opt.value)">{{ opt.label }}</text>
+      <view
+        v-if="activeFilter === 'category'"
+        class="fd-options"
+      >
+        <text
+          v-for="opt in categoryOptions"
+          :key="opt.value"
+          class="fd-option"
+          :class="{ active: filters.category === opt.value }"
+          @click="selectFilter('category', opt.value)"
+        >
+          {{ opt.label }}
+        </text>
       </view>
       <!-- 排序 -->
-      <view v-if="activeFilter === 'sort'" class="fd-options">
-        <text v-for="opt in sortOptions" :key="opt.value" class="fd-option" :class="{ active: filters.sortBy === opt.value }" @click="selectFilter('sortBy', opt.value)">{{ opt.label }}</text>
+      <view
+        v-if="activeFilter === 'sort'"
+        class="fd-options"
+      >
+        <text
+          v-for="opt in sortOptions"
+          :key="opt.value"
+          class="fd-option"
+          :class="{ active: filters.sortBy === opt.value }"
+          @click="selectFilter('sortBy', opt.value)"
+        >
+          {{ opt.label }}
+        </text>
       </view>
     </view>
 
     <!-- 已选标签 -->
-    <view v-if="activeFilterTags.length" class="active-tags">
-      <text class="at-label">已选:</text>
-      <view v-for="(tag, idx) in activeFilterTags" :key="idx" class="at-tag">
+    <view
+      v-if="activeFilterTags.length"
+      class="active-tags"
+    >
+      <text class="at-label">
+        已选:
+      </text>
+      <view
+        v-for="(tag, idx) in activeFilterTags"
+        :key="idx"
+        class="at-tag"
+      >
         <text>{{ tag.label }}</text>
-        <text class="at-remove" @click="removeFilter(tag)">✕</text>
+        <text
+          class="at-remove"
+          @click="removeFilter(tag)"
+        >
+          ✕
+        </text>
       </view>
-      <text class="at-reset" @click="resetFilters">↺ 重置</text>
+      <text
+        class="at-reset"
+        @click="resetFilters"
+      >
+        ↺ 重置
+      </text>
     </view>
 
     <!-- 搜索结果 -->
     <view class="results-wrap">
-      <view v-if="loading" class="loading-state">
-        <view v-for="i in 3" :key="i" class="skeleton-card" />
+      <view
+        v-if="loading"
+        class="loading-state"
+      >
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="skeleton-card"
+        />
       </view>
 
-      <view v-else-if="results.length" class="results-list">
-        <view class="result-count">共找到 <text class="count-num">{{ total }}</text> 条结果</view>
-        <view v-for="item in results" :key="item.id" class="result-card" @click="goResult(item)">
-          <view v-if="item.cover" class="rc-thumb">
-            <image :src="item.cover" mode="aspectFill" class="rc-thumb-img" />
+      <view
+        v-else-if="results.length"
+        class="results-list"
+      >
+        <view class="result-count">
+          共找到 <text class="count-num">
+            {{ total }}
+          </text> 条结果
+        </view>
+        <view
+          v-for="item in results"
+          :key="item.id"
+          class="result-card"
+          @click="goResult(item)"
+        >
+          <view
+            v-if="item.cover"
+            class="rc-thumb"
+          >
+            <image
+              :src="item.cover"
+              mode="aspectFill"
+              class="rc-thumb-img"
+            />
           </view>
           <view class="rc-info">
-            <view class="rc-type-tag"><text>{{ typeIcon(item.type) }} {{ typeLabel(item.type) }}</text></view>
-            <text class="rc-title">{{ item.title }}</text>
-            <text class="rc-summary">{{ item.summary }}</text>
-            <view v-if="item.author" class="rc-meta">
-              <text class="rc-author">{{ item.author }}</text>
-              <text class="rc-date">{{ item.createdAt }}</text>
+            <view class="rc-type-tag">
+              <text>{{ typeIcon(item.type) }} {{ typeLabel(item.type) }}</text>
+            </view>
+            <text class="rc-title">
+              {{ item.title }}
+            </text>
+            <text class="rc-summary">
+              {{ item.summary }}
+            </text>
+            <view
+              v-if="item.author"
+              class="rc-meta"
+            >
+              <text class="rc-author">
+                {{ item.author }}
+              </text>
+              <text class="rc-date">
+                {{ item.createdAt }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
-      <view v-else-if="keyword" class="empty-result">
-        <text class="er-icon">🔍</text>
-        <text class="er-text">未找到相关结果</text>
-        <text class="er-sub">试试调整筛选条件或更换关键词</text>
+      <view
+        v-else-if="keyword"
+        class="empty-result"
+      >
+        <text class="er-icon">
+          🔍
+        </text>
+        <text class="er-text">
+          未找到相关结果
+        </text>
+        <text class="er-sub">
+          试试调整筛选条件或更换关键词
+        </text>
       </view>
 
-      <view v-else class="empty-result">
-        <text class="er-icon">🔎</text>
-        <text class="er-text">输入关键词开始搜索</text>
-        <text class="er-sub">使用筛选条件精确查找内容</text>
+      <view
+        v-else
+        class="empty-result"
+      >
+        <text class="er-icon">
+          🔎
+        </text>
+        <text class="er-text">
+          输入关键词开始搜索
+        </text>
+        <text class="er-sub">
+          使用筛选条件精确查找内容
+        </text>
       </view>
     </view>
 
     <!-- 遮罩 -->
-    <view v-if="activeFilter" class="filter-mask" @click="activeFilter = null" />
+    <view
+      v-if="activeFilter"
+      class="filter-mask"
+      @click="activeFilter = null"
+    />
   </view>
 </template>
 

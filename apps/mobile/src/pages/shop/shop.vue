@@ -2,15 +2,32 @@
   <view class="page">
     <!-- 搜索栏 -->
     <view class="search-bar">
-      <view class="search-inner" @click="goSearch">
-        <text class="search-icon">🔍</text>
-        <text class="search-placeholder">搜索国学好物...</text>
+      <view
+        class="search-inner"
+        @click="goSearch"
+      >
+        <text class="search-icon">
+          🔍
+        </text>
+        <text class="search-placeholder">
+          搜索国学好物...
+        </text>
       </view>
-      <text class="search-btn" @click="goSearch">搜索</text>
+      <text
+        class="search-btn"
+        @click="goSearch"
+      >
+        搜索
+      </text>
     </view>
 
     <!-- 分类 Tab（水平滚动） -->
-    <scroll-view scroll-x class="category-scroll" show-scrollbar="false" enhanced>
+    <scroll-view
+      scroll-x
+      class="category-scroll"
+      show-scrollbar="false"
+      enhanced
+    >
       <view class="category-list">
         <view
           v-for="cat in categories"
@@ -19,7 +36,9 @@
           :class="{ active: activeCategory === cat.id }"
           @click="switchCategory(cat.id)"
         >
-          <text class="category-name">{{ cat.name }}</text>
+          <text class="category-name">
+            {{ cat.name }}
+          </text>
         </view>
       </view>
     </scroll-view>
@@ -48,28 +67,59 @@
               mode="aspectFill"
               lazy-load
             />
-            <view v-if="p.tag" class="p-tag">{{ p.tag }}</view>
-            <view v-if="p.isPresale" class="p-tag presale">预售</view>
+            <view
+              v-if="p.tag"
+              class="p-tag"
+            >
+              {{ p.tag }}
+            </view>
+            <view
+              v-if="p.isPresale"
+              class="p-tag presale"
+            >
+              预售
+            </view>
           </view>
           <view class="p-info">
-            <text class="p-title">{{ p.title }}</text>
+            <text class="p-title">
+              {{ p.title }}
+            </text>
             <view class="p-price-row">
-              <text class="p-price">¥{{ toYuan(p.price) }}</text>
-              <text v-if="p.originalPrice && p.originalPrice > p.price" class="p-original">¥{{ toYuan(p.originalPrice) }}</text>
+              <text class="p-price">
+                ¥{{ toYuan(p.price) }}
+              </text>
+              <text
+                v-if="p.originalPrice && p.originalPrice > p.price"
+                class="p-original"
+              >
+                ¥{{ toYuan(p.originalPrice) }}
+              </text>
             </view>
             <view class="p-meta">
-              <text class="p-sales">已售 {{ formatSales(p.sales || 0) }}</text>
+              <text class="p-sales">
+                已售 {{ formatSales(p.sales || 0) }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 加载更多 -->
-      <view v-if="loadingMore" class="load-more-bar">
-        <text class="load-more-text">加载中...</text>
+      <view
+        v-if="loadingMore"
+        class="load-more-bar"
+      >
+        <text class="load-more-text">
+          加载中...
+        </text>
       </view>
-      <view v-if="!hasMore && products.length > 0" class="load-more-bar">
-        <text class="load-more-text no-more">— 已经到底了 —</text>
+      <view
+        v-if="!hasMore && products.length > 0"
+        class="load-more-bar"
+      >
+        <text class="load-more-text no-more">
+          — 已经到底了 —
+        </text>
       </view>
     </DataState>
   </view>

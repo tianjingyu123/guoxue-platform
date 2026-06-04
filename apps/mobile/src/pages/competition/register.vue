@@ -3,55 +3,121 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-left">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">竞赛报名</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          竞赛报名
+        </text>
       </view>
     </view>
 
-    <view class="content" v-if="comp.id">
+    <view
+      v-if="comp.id"
+      class="content"
+    >
       <!-- 竞赛信息卡片 -->
       <view class="comp-card">
-        <image v-if="comp.cover" :src="comp.cover" class="comp-cover" mode="aspectFill" />
+        <image
+          v-if="comp.cover"
+          :src="comp.cover"
+          class="comp-cover"
+          mode="aspectFill"
+        />
         <view class="comp-info">
-          <text class="comp-name">{{ comp.name || comp.title }}</text>
+          <text class="comp-name">
+            {{ comp.name || comp.title }}
+          </text>
           <view class="comp-meta">
-            <text class="meta-item">🕐 {{ formatDate(comp.startDate) }} - {{ formatDate(comp.endDate) }}</text>
-            <text class="meta-item">👥 {{ comp.enrolledCount || 0 }}人已报名</text>
+            <text class="meta-item">
+              🕐 {{ formatDate(comp.startDate) }} - {{ formatDate(comp.endDate) }}
+            </text>
+            <text class="meta-item">
+              👥 {{ comp.enrolledCount || 0 }}人已报名
+            </text>
           </view>
-          <view v-if="comp.fee > 0" class="comp-fee">
-            <text class="fee-label">报名费</text>
-            <text class="fee-amount">¥{{ comp.fee }}</text>
+          <view
+            v-if="comp.fee > 0"
+            class="comp-fee"
+          >
+            <text class="fee-label">
+              报名费
+            </text>
+            <text class="fee-amount">
+              ¥{{ comp.fee }}
+            </text>
           </view>
-          <text v-else class="free-tag">免费报名</text>
+          <text
+            v-else
+            class="free-tag"
+          >
+            免费报名
+          </text>
         </view>
       </view>
 
       <!-- 报名表单 -->
       <view class="form-section">
-        <text class="section-title">报名信息</text>
+        <text class="section-title">
+          报名信息
+        </text>
 
         <view class="form-group">
-          <text class="form-label">参赛者姓名 *</text>
-          <input v-model="form.name" placeholder="请输入姓名" class="form-input" maxlength="20" />
+          <text class="form-label">
+            参赛者姓名 *
+          </text>
+          <input
+            v-model="form.name"
+            placeholder="请输入姓名"
+            class="form-input"
+            maxlength="20"
+          >
         </view>
 
         <view class="form-group">
-          <text class="form-label">联系电话 *</text>
-          <input v-model="form.phone" placeholder="请输入手机号" class="form-input" type="number" maxlength="11" />
+          <text class="form-label">
+            联系电话 *
+          </text>
+          <input
+            v-model="form.phone"
+            placeholder="请输入手机号"
+            class="form-input"
+            type="number"
+            maxlength="11"
+          >
         </view>
 
         <view class="form-group">
-          <text class="form-label">身份证号</text>
-          <input v-model="form.idCard" placeholder="选填，用于身份核验" class="form-input" maxlength="18" />
+          <text class="form-label">
+            身份证号
+          </text>
+          <input
+            v-model="form.idCard"
+            placeholder="选填，用于身份核验"
+            class="form-input"
+            maxlength="18"
+          >
         </view>
 
         <view class="form-group">
-          <text class="form-label">学校/机构</text>
-          <input v-model="form.organization" placeholder="选填" class="form-input" maxlength="50" />
+          <text class="form-label">
+            学校/机构
+          </text>
+          <input
+            v-model="form.organization"
+            placeholder="选填"
+            class="form-input"
+            maxlength="50"
+          >
         </view>
 
         <view class="form-group">
-          <text class="form-label">参赛组别</text>
+          <text class="form-label">
+            参赛组别
+          </text>
           <view class="group-select">
             <text
               v-for="g in groups"
@@ -59,28 +125,58 @@
               class="group-option"
               :class="{ active: form.group === g.value }"
               @click="form.group = g.value"
-            >{{ g.label }}</text>
+            >
+              {{ g.label }}
+            </text>
           </view>
         </view>
 
         <view class="form-group">
-          <text class="form-label">备注</text>
-          <textarea v-model="form.remark" placeholder="选填，特殊需求说明" class="form-textarea" maxlength="200" />
+          <text class="form-label">
+            备注
+          </text>
+          <textarea
+            v-model="form.remark"
+            placeholder="选填，特殊需求说明"
+            class="form-textarea"
+            maxlength="200"
+          />
         </view>
       </view>
 
       <!-- 协议 -->
       <view class="agreement">
-        <view class="agree-check" :class="{ checked: agreed }" @click="agreed = !agreed">
-          <text v-if="agreed">✓</text>
+        <view
+          class="agree-check"
+          :class="{ checked: agreed }"
+          @click="agreed = !agreed"
+        >
+          <text v-if="agreed">
+            ✓
+          </text>
         </view>
-        <text class="agree-text">我已阅读并同意<text class="agree-link" @click="showRules">《竞赛参赛协议》</text></text>
+        <text class="agree-text">
+          我已阅读并同意<text
+            class="agree-link"
+            @click="showRules"
+          >
+            《竞赛参赛协议》
+          </text>
+        </text>
       </view>
 
       <!-- 提交按钮 -->
-      <button class="submit-btn" :disabled="submitting" @click="handleSubmit">
-        <text v-if="submitting">提交中...</text>
-        <text v-else>{{ comp.fee > 0 ? '确认报名并支付' : '确认报名' }}</text>
+      <button
+        class="submit-btn"
+        :disabled="submitting"
+        @click="handleSubmit"
+      >
+        <text v-if="submitting">
+          提交中...
+        </text>
+        <text v-else>
+          {{ comp.fee > 0 ? '确认报名并支付' : '确认报名' }}
+        </text>
       </button>
     </view>
 

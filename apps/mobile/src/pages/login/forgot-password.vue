@@ -1,29 +1,91 @@
 <template>
   <view class="page">
     <view class="form">
-      <view class="step" v-if="step === 1">
-        <text class="step-title">验证手机号</text>
+      <view
+        v-if="step === 1"
+        class="step"
+      >
+        <text class="step-title">
+          验证手机号
+        </text>
         <view class="input-row">
-          <input v-model="phone" placeholder="请输入手机号" class="input" type="number" maxlength="11" />
+          <input
+            v-model="phone"
+            placeholder="请输入手机号"
+            class="input"
+            type="number"
+            maxlength="11"
+          >
         </view>
         <view class="input-row">
-          <input v-model="code" placeholder="验证码" class="input short" type="number" maxlength="6" />
-          <button class="btn-code" :disabled="countdown > 0" @click="sendCode">
+          <input
+            v-model="code"
+            placeholder="验证码"
+            class="input short"
+            type="number"
+            maxlength="6"
+          >
+          <button
+            class="btn-code"
+            :disabled="countdown > 0"
+            @click="sendCode"
+          >
             {{ countdown > 0 ? countdown + 's' : '获取验证码' }}
           </button>
         </view>
-        <button class="btn" @click="verifyCode">下一步</button>
+        <button
+          class="btn"
+          @click="verifyCode"
+        >
+          下一步
+        </button>
       </view>
-      <view class="step" v-if="step === 2">
-        <text class="step-title">设置新密码</text>
-        <view class="input-row"><input v-model="password" placeholder="新密码（6-20位）" class="input" type="password" /></view>
-        <view class="input-row"><input v-model="confirmPwd" placeholder="确认新密码" class="input" type="password" /></view>
-        <button class="btn" @click="resetPassword">重置密码</button>
+      <view
+        v-if="step === 2"
+        class="step"
+      >
+        <text class="step-title">
+          设置新密码
+        </text>
+        <view class="input-row">
+          <input
+            v-model="password"
+            placeholder="新密码（6-20位）"
+            class="input"
+            type="password"
+          >
+        </view>
+        <view class="input-row">
+          <input
+            v-model="confirmPwd"
+            placeholder="确认新密码"
+            class="input"
+            type="password"
+          >
+        </view>
+        <button
+          class="btn"
+          @click="resetPassword"
+        >
+          重置密码
+        </button>
       </view>
-      <view class="step" v-if="step === 3">
-        <text class="step-icon">✓</text>
-        <text class="step-title">密码重置成功</text>
-        <button class="btn" @click="goLogin">返回登录</button>
+      <view
+        v-if="step === 3"
+        class="step"
+      >
+        <text class="step-icon">
+          ✓
+        </text>
+        <text class="step-title">
+          密码重置成功
+        </text>
+        <button
+          class="btn"
+          @click="goLogin"
+        >
+          返回登录
+        </button>
       </view>
     </view>
   </view>

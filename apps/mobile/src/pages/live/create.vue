@@ -2,10 +2,17 @@
   <view class="page">
     <!-- 顶栏 -->
     <view class="nav-bar">
-      <view class="nav-left" @click="goBack">
-        <text class="nav-back">‹</text>
+      <view
+        class="nav-left"
+        @click="goBack"
+      >
+        <text class="nav-back">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">{{ editMode ? '编辑直播间' : '创建直播间' }}</text>
+      <text class="nav-title">
+        {{ editMode ? '编辑直播间' : '创建直播间' }}
+      </text>
       <view class="nav-right">
         <text
           class="submit-btn"
@@ -18,20 +25,43 @@
     </view>
 
     <!-- 表单内容 -->
-    <scroll-view scroll-y class="form-scroll">
+    <scroll-view
+      scroll-y
+      class="form-scroll"
+    >
       <!-- 封面 -->
       <view class="form-section">
         <view class="cover-row">
-          <view v-if="cover" class="cover-preview-wrap" @click="chooseCover">
-            <image :src="cover" class="cover-preview" mode="aspectFill" />
+          <view
+            v-if="cover"
+            class="cover-preview-wrap"
+            @click="chooseCover"
+          >
+            <image
+              :src="cover"
+              class="cover-preview"
+              mode="aspectFill"
+            />
             <view class="cover-overlay">
-              <text class="cover-change">更换</text>
+              <text class="cover-change">
+                更换
+              </text>
             </view>
           </view>
-          <view v-else class="cover-upload" @click="chooseCover">
-            <text class="cover-upload-icon">📷</text>
-            <text class="cover-upload-text">上传封面</text>
-            <text class="cover-upload-hint">建议比例 16:9</text>
+          <view
+            v-else
+            class="cover-upload"
+            @click="chooseCover"
+          >
+            <text class="cover-upload-icon">
+              📷
+            </text>
+            <text class="cover-upload-text">
+              上传封面
+            </text>
+            <text class="cover-upload-hint">
+              建议比例 16:9
+            </text>
           </view>
         </view>
       </view>
@@ -40,41 +70,67 @@
       <view class="form-body">
         <!-- 标题 -->
         <view class="form-row">
-          <text class="form-label">直播标题 <text class="required">*</text></text>
+          <text class="form-label">
+            直播标题 <text class="required">
+              *
+            </text>
+          </text>
           <input
             v-model="title"
             class="form-input"
             placeholder="输入直播标题，如：周易六十四卦精讲"
             maxlength="50"
-          />
-          <text class="char-count">{{ title.length }}/50</text>
+          >
+          <text class="char-count">
+            {{ title.length }}/50
+          </text>
         </view>
 
         <!-- 分类 -->
-        <view class="form-row" @click="showCategoryPicker = true">
-          <text class="form-label">直播分类 <text class="required">*</text></text>
+        <view
+          class="form-row"
+          @click="showCategoryPicker = true"
+        >
+          <text class="form-label">
+            直播分类 <text class="required">
+              *
+            </text>
+          </text>
           <view class="form-select">
             <text :class="{ placeholder: !selectedCategory }">
               {{ selectedCategory || '请选择分类' }}
             </text>
-            <text class="select-arrow">›</text>
+            <text class="select-arrow">
+              ›
+            </text>
           </view>
         </view>
 
         <!-- 开始时间 -->
-        <view class="form-row" @click="showDatePicker = true">
-          <text class="form-label">开播时间 <text class="required">*</text></text>
+        <view
+          class="form-row"
+          @click="showDatePicker = true"
+        >
+          <text class="form-label">
+            开播时间 <text class="required">
+              *
+            </text>
+          </text>
           <view class="form-select">
             <text :class="{ placeholder: !startTime }">
               {{ startTime ? formatPickerDate(startTime) : '请选择开播时间' }}
             </text>
-            <text class="select-arrow">›</text>
+            <text class="select-arrow">
+              ›
+            </text>
           </view>
         </view>
 
         <!-- 直播类型 -->
         <view class="form-row">
-          <text class="form-label">直播类型</text>
+          <text class="form-label">
+            直播类型
+          </text>
           <view class="type-grid">
             <text
               v-for="t in liveTypes"
@@ -83,38 +139,55 @@
               :class="{ active: liveType === t.value }"
               @click="liveType = t.value"
             >
-              <text class="type-icon">{{ t.icon }}</text>
-              <text class="type-name">{{ t.label }}</text>
+              <text class="type-icon">
+                {{ t.icon }}
+              </text>
+              <text class="type-name">
+                {{ t.label }}
+              </text>
             </text>
           </view>
         </view>
 
         <!-- 发布到圈子 -->
         <view class="form-row">
-          <text class="form-label">同步到圈子</text>
-          <view class="form-select" @click="showCirclePicker = true">
+          <text class="form-label">
+            同步到圈子
+          </text>
+          <view
+            class="form-select"
+            @click="showCirclePicker = true"
+          >
             <text :class="{ placeholder: !selectedCircle }">
               {{ selectedCircle || '选择圈子（可选）' }}
             </text>
-            <text class="select-arrow">›</text>
+            <text class="select-arrow">
+              ›
+            </text>
           </view>
         </view>
 
         <!-- 简介 -->
         <view class="form-row">
-          <text class="form-label">直播简介</text>
+          <text class="form-label">
+            直播简介
+          </text>
           <textarea
             v-model="description"
             class="form-textarea"
             placeholder="介绍一下直播内容..."
             maxlength="500"
           />
-          <text class="char-count">{{ description.length }}/500</text>
+          <text class="char-count">
+            {{ description.length }}/500
+          </text>
         </view>
 
         <!-- 收费 -->
         <view class="form-row">
-          <text class="form-label">收费设置</text>
+          <text class="form-label">
+            收费设置
+          </text>
           <view class="charge-row">
             <text
               v-for="ch in chargeOptions"
@@ -122,16 +195,23 @@
               class="charge-item"
               :class="{ active: chargeType === ch.value }"
               @click="chargeType = ch.value"
-            >{{ ch.label }}</text>
+            >
+              {{ ch.label }}
+            </text>
           </view>
-          <view v-if="chargeType === 'PAID'" class="price-row">
-            <text class="price-symbol">¥</text>
+          <view
+            v-if="chargeType === 'PAID'"
+            class="price-row"
+          >
+            <text class="price-symbol">
+              ¥
+            </text>
             <input
               v-model.number="chargePrice"
               class="price-input"
               type="digit"
               placeholder="输入价格"
-            />
+            >
           </view>
         </view>
       </view>
@@ -140,49 +220,92 @@
     </scroll-view>
 
     <!-- 分类选择弹窗 -->
-    <view v-if="showCategoryPicker" class="picker-mask" @click="showCategoryPicker = false">
-      <view class="picker-panel" @click.stop>
+    <view
+      v-if="showCategoryPicker"
+      class="picker-mask"
+      @click="showCategoryPicker = false"
+    >
+      <view
+        class="picker-panel"
+        @click.stop
+      >
         <view class="picker-header">
-          <text class="picker-title">选择分类</text>
-          <text class="picker-close" @click="showCategoryPicker = false">✕</text>
+          <text class="picker-title">
+            选择分类
+          </text>
+          <text
+            class="picker-close"
+            @click="showCategoryPicker = false"
+          >
+            ✕
+          </text>
         </view>
-        <scroll-view scroll-y class="picker-list">
+        <scroll-view
+          scroll-y
+          class="picker-list"
+        >
           <text
             v-for="cat in categories"
             :key="cat.id"
             class="picker-item"
             :class="{ active: categoryId === cat.id }"
             @click="selectCategory(cat)"
-          >{{ cat.name }}</text>
+          >
+            {{ cat.name }}
+          </text>
         </scroll-view>
       </view>
     </view>
 
     <!-- 时间选择 -->
-    <view v-if="showDatePicker" class="picker-mask" @click="showDatePicker = false">
-      <view class="picker-panel" @click.stop>
+    <view
+      v-if="showDatePicker"
+      class="picker-mask"
+      @click="showDatePicker = false"
+    >
+      <view
+        class="picker-panel"
+        @click.stop
+      >
         <view class="picker-header">
-          <text class="picker-title">选择开播时间</text>
-          <text class="picker-close" @click="showDatePicker = false">✕</text>
+          <text class="picker-title">
+            选择开播时间
+          </text>
+          <text
+            class="picker-close"
+            @click="showDatePicker = false"
+          >
+            ✕
+          </text>
         </view>
         <picker
+          ref="datePickerRef"
           mode="date"
           :value="datePickerValue"
           :start="todayStr"
-          @change="onDateChange"
           style="display:none;"
-          ref="datePickerRef"
+          @change="onDateChange"
         />
         <picker
+          ref="timePickerRef"
           mode="time"
           :value="timePickerValue"
-          @change="onTimeChange"
           style="display:none;"
-          ref="timePickerRef"
+          @change="onTimeChange"
         />
         <view class="datetime-row">
-          <text class="datetime-btn" @click="openDatePicker">📅 {{ datePickerValue }}</text>
-          <text class="datetime-btn" @click="openTimePicker">🕐 {{ timePickerValue }}</text>
+          <text
+            class="datetime-btn"
+            @click="openDatePicker"
+          >
+            📅 {{ datePickerValue }}
+          </text>
+          <text
+            class="datetime-btn"
+            @click="openTimePicker"
+          >
+            🕐 {{ timePickerValue }}
+          </text>
         </view>
         <view class="quick-times">
           <text
@@ -190,34 +313,62 @@
             :key="qt.label"
             class="quick-time-item"
             @click="selectQuickTime(qt)"
-          >{{ qt.label }}</text>
+          >
+            {{ qt.label }}
+          </text>
         </view>
         <view class="picker-confirm">
-          <text class="confirm-btn" @click="confirmDateTime">确定</text>
+          <text
+            class="confirm-btn"
+            @click="confirmDateTime"
+          >
+            确定
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 圈子选择弹窗 -->
-    <view v-if="showCirclePicker" class="picker-mask" @click="showCirclePicker = false">
-      <view class="picker-panel" @click.stop>
+    <view
+      v-if="showCirclePicker"
+      class="picker-mask"
+      @click="showCirclePicker = false"
+    >
+      <view
+        class="picker-panel"
+        @click.stop
+      >
         <view class="picker-header">
-          <text class="picker-title">选择圈子</text>
-          <text class="picker-close" @click="showCirclePicker = false">✕</text>
+          <text class="picker-title">
+            选择圈子
+          </text>
+          <text
+            class="picker-close"
+            @click="showCirclePicker = false"
+          >
+            ✕
+          </text>
         </view>
-        <scroll-view scroll-y class="picker-list">
+        <scroll-view
+          scroll-y
+          class="picker-list"
+        >
           <text
             class="picker-item"
             :class="{ active: circleId === '' }"
             @click="circleId = ''; selectedCircle = '不限于圈子'; showCirclePicker = false"
-          >不限于圈子</text>
+          >
+            不限于圈子
+          </text>
           <text
             v-for="c in circleList"
             :key="c.id"
             class="picker-item"
             :class="{ active: circleId === (c.circle?.id || c.id) }"
             @click="selectCircle(c)"
-          >{{ c.circle?.name || c.name }}</text>
+          >
+            {{ c.circle?.name || c.name }}
+          </text>
         </scroll-view>
       </view>
     </view>

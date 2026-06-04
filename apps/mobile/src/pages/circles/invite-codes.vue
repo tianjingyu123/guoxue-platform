@@ -3,17 +3,43 @@
     <LoadingSkeleton v-if="loading" />
     <view v-else>
       <view class="create-area">
-        <input v-model="maxUses" type="number" placeholder="最大使用次数（留空不限）" class="input" />
-        <button class="btn-create" @click="generateCode">生成邀请码</button>
+        <input
+          v-model="maxUses"
+          type="number"
+          placeholder="最大使用次数（留空不限）"
+          class="input"
+        >
+        <button
+          class="btn-create"
+          @click="generateCode"
+        >
+          生成邀请码
+        </button>
       </view>
-      <view v-for="code in codes" :key="code.id" class="code-item">
+      <view
+        v-for="code in codes"
+        :key="code.id"
+        class="code-item"
+      >
         <view class="code-info">
-          <text class="code-text">{{ code.code }}</text>
-          <text class="code-meta">已用 {{ code.usedCount || 0 }}/{{ code.maxUses || '∞' }} 次</text>
+          <text class="code-text">
+            {{ code.code }}
+          </text>
+          <text class="code-meta">
+            已用 {{ code.usedCount || 0 }}/{{ code.maxUses || '∞' }} 次
+          </text>
         </view>
-        <button class="btn-copy" @click="copyCode(code.code)">复制</button>
+        <button
+          class="btn-copy"
+          @click="copyCode(code.code)"
+        >
+          复制
+        </button>
       </view>
-      <EmptyState v-if="!codes.length" text="暂无邀请码" />
+      <EmptyState
+        v-if="!codes.length"
+        text="暂无邀请码"
+      />
     </view>
   </view>
 </template>

@@ -2,22 +2,42 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <text class="nav-back" @click="goBack">←</text>
-      <text class="nav-title">群聊</text>
-      <text class="nav-create" @click="goCreateGroup">＋</text>
+      <text
+        class="nav-back"
+        @click="goBack"
+      >
+        ←
+      </text>
+      <text class="nav-title">
+        群聊
+      </text>
+      <text
+        class="nav-create"
+        @click="goCreateGroup"
+      >
+        ＋
+      </text>
     </view>
 
     <!-- 搜索框 -->
     <view class="search-wrap">
       <view class="search-input-wrap">
-        <text class="search-icon">🔍</text>
+        <text class="search-icon">
+          🔍
+        </text>
         <input
           v-model="searchKeyword"
           class="search-input"
           placeholder="搜索群聊"
           @input="handleSearch"
-        />
-        <text v-if="searchKeyword" class="search-clear" @click="clearSearch">✕</text>
+        >
+        <text
+          v-if="searchKeyword"
+          class="search-clear"
+          @click="clearSearch"
+        >
+          ✕
+        </text>
       </view>
     </view>
 
@@ -33,8 +53,15 @@
     >
       <view>
         <!-- 搜索中 -->
-        <view v-if="isSearching" class="searching-list">
-          <view v-for="i in 3" :key="i" class="searching-item">
+        <view
+          v-if="isSearching"
+          class="searching-list"
+        >
+          <view
+            v-for="i in 3"
+            :key="i"
+            class="searching-item"
+          >
             <view class="sk-avatar" />
             <view class="sk-lines">
               <view class="sk-line w-40" />
@@ -44,7 +71,10 @@
         </view>
 
         <!-- 群聊列表 -->
-        <view v-else class="group-list">
+        <view
+          v-else
+          class="group-list"
+        >
           <view
             v-for="g in displayList"
             :key="g.id"
@@ -55,48 +85,113 @@
           >
             <!-- 群头像 -->
             <view class="group-avatar-wrap">
-              <image v-if="g.avatar" :src="g.avatar" class="group-avatar" mode="aspectFill" />
-              <view v-else class="group-avatar-placeholder">👥</view>
-              <view v-if="g.isMuted" class="group-mute-badge">🔕</view>
+              <image
+                v-if="g.avatar"
+                :src="g.avatar"
+                class="group-avatar"
+                mode="aspectFill"
+              />
+              <view
+                v-else
+                class="group-avatar-placeholder"
+              >
+                👥
+              </view>
+              <view
+                v-if="g.isMuted"
+                class="group-mute-badge"
+              >
+                🔕
+              </view>
             </view>
             <!-- 群信息 -->
             <view class="group-info">
               <view class="group-top">
                 <view class="group-name-row">
-                  <text class="group-name" :class="{ unread: g.unreadCount > 0 && !g.isMuted }">{{ g.name }}</text>
-                  <text v-if="g.myRole === 'owner'" class="group-role">👑</text>
-                  <text v-if="g.myRole === 'admin'" class="group-role">🛡</text>
-                  <text class="group-member-count">({{ g.memberCount }})</text>
-                  <text v-if="g.isPinned" class="group-pin">📌</text>
+                  <text
+                    class="group-name"
+                    :class="{ unread: g.unreadCount > 0 && !g.isMuted }"
+                  >
+                    {{ g.name }}
+                  </text>
+                  <text
+                    v-if="g.myRole === 'owner'"
+                    class="group-role"
+                  >
+                    👑
+                  </text>
+                  <text
+                    v-if="g.myRole === 'admin'"
+                    class="group-role"
+                  >
+                    🛡
+                  </text>
+                  <text class="group-member-count">
+                    ({{ g.memberCount }})
+                  </text>
+                  <text
+                    v-if="g.isPinned"
+                    class="group-pin"
+                  >
+                    📌
+                  </text>
                 </view>
-                <text v-if="g.lastMessage" class="group-last-msg">
+                <text
+                  v-if="g.lastMessage"
+                  class="group-last-msg"
+                >
                   {{ g.lastMessage.senderName || '' }}: {{ g.lastMessage.content || '' }}
                 </text>
               </view>
             </view>
             <!-- 右侧 -->
             <view class="group-right">
-              <text class="group-time">{{ g.lastMessage?.time || '' }}</text>
-              <text v-if="g.unreadCount > 0" class="group-badge" :class="{ muted: g.isMuted }">
+              <text class="group-time">
+                {{ g.lastMessage?.time || '' }}
+              </text>
+              <text
+                v-if="g.unreadCount > 0"
+                class="group-badge"
+                :class="{ muted: g.isMuted }"
+              >
                 {{ g.unreadCount > 99 ? '99+' : g.unreadCount }}
               </text>
             </view>
             <!-- 操作按钮 -->
-            <text class="group-more" @click.stop="showGroupMenu(g)">⋮</text>
+            <text
+              class="group-more"
+              @click.stop="showGroupMenu(g)"
+            >
+              ⋮
+            </text>
           </view>
         </view>
       </view>
     </DataState>
 
     <!-- 创建群聊浮动按钮 -->
-    <view class="fab" @click="goCreateGroup">
-      <text class="fab-icon">＋</text>
+    <view
+      class="fab"
+      @click="goCreateGroup"
+    >
+      <text class="fab-icon">
+        ＋
+      </text>
     </view>
 
     <!-- 退群确认 -->
-    <view v-if="quitConfirm" class="dialog-mask" @click="quitConfirm = null">
-      <view class="dialog-box" @click.stop>
-        <text class="dialog-title">{{ quitConfirm.myRole === 'owner' ? '解散群聊' : '退出群聊' }}</text>
+    <view
+      v-if="quitConfirm"
+      class="dialog-mask"
+      @click="quitConfirm = null"
+    >
+      <view
+        class="dialog-box"
+        @click.stop
+      >
+        <text class="dialog-title">
+          {{ quitConfirm.myRole === 'owner' ? '解散群聊' : '退出群聊' }}
+        </text>
         <text class="dialog-desc">
           {{ quitConfirm.myRole === 'owner'
             ? `确定要解散「${quitConfirm.name}」吗？解散后所有成员将被移出，且无法恢复。`
@@ -104,8 +199,18 @@
           }}
         </text>
         <view class="dialog-btns">
-          <text class="dialog-btn dialog-btn-cancel" @click="quitConfirm = null">取消</text>
-          <text class="dialog-btn dialog-btn-danger" @click="doQuit">{{ quitConfirm.myRole === 'owner' ? '解散' : '退出' }}</text>
+          <text
+            class="dialog-btn dialog-btn-cancel"
+            @click="quitConfirm = null"
+          >
+            取消
+          </text>
+          <text
+            class="dialog-btn dialog-btn-danger"
+            @click="doQuit"
+          >
+            {{ quitConfirm.myRole === 'owner' ? '解散' : '退出' }}
+          </text>
         </view>
       </view>
     </view>

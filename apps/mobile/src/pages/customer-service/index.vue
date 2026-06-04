@@ -4,57 +4,149 @@
     <view class="header">
       <view class="header-inner">
         <view class="hi-left">
-          <text class="back-btn" @click="goBack">‹</text>
-          <view class="hi-avatar"><text>💬</text></view>
+          <text
+            class="back-btn"
+            @click="goBack"
+          >
+            ‹
+          </text>
+          <view class="hi-avatar">
+            <text>💬</text>
+          </view>
           <view>
             <view class="hi-name-row">
-              <text class="hi-name">智能客服</text>
-              <text v-if="sessionStatus === 'waiting'" class="hi-badge">排队中</text>
-              <text v-if="sessionStatus === 'human'" class="hi-badge green">人工服务</text>
+              <text class="hi-name">
+                智能客服
+              </text>
+              <text
+                v-if="sessionStatus === 'waiting'"
+                class="hi-badge"
+              >
+                排队中
+              </text>
+              <text
+                v-if="sessionStatus === 'human'"
+                class="hi-badge green"
+              >
+                人工服务
+              </text>
             </view>
-            <text class="hi-working">在线服务 09:00-22:00</text>
+            <text class="hi-working">
+              在线服务 09:00-22:00
+            </text>
           </view>
         </view>
-        <view v-if="sessionStatus === 'ai'" class="hi-transfer" @click="showTransferDialog = true">📞 转人工</view>
-        <view v-if="sessionStatus === 'waiting'" class="hi-transfer" @click="cancelTransfer">取消排队</view>
+        <view
+          v-if="sessionStatus === 'ai'"
+          class="hi-transfer"
+          @click="showTransferDialog = true"
+        >
+          📞 转人工
+        </view>
+        <view
+          v-if="sessionStatus === 'waiting'"
+          class="hi-transfer"
+          @click="cancelTransfer"
+        >
+          取消排队
+        </view>
       </view>
     </view>
 
     <!-- 对话区域 -->
-    <scroll-view ref="chatScroll" scroll-y class="chat-area" :scroll-into-view="scrollToId">
-      <view v-for="msg in messages" :key="msg.id" :id="'msg-' + msg.id">
+    <scroll-view
+      ref="chatScroll"
+      scroll-y
+      class="chat-area"
+      :scroll-into-view="scrollToId"
+    >
+      <view
+        v-for="msg in messages"
+        :id="'msg-' + msg.id"
+        :key="msg.id"
+      >
         <!-- 系统消息 -->
-        <view v-if="msg.role === 'system'" class="sys-msg">
+        <view
+          v-if="msg.role === 'system'"
+          class="sys-msg"
+        >
           <view class="sys-bubble">
-            <text v-if="msg.type === 'transfer' && msg.transfer">⏳ 排队中 第{{ msg.transfer.queuePosition }}位 预计{{ msg.transfer.estimatedWait }}</text>
-            <text v-else>{{ msg.content }}</text>
+            <text v-if="msg.type === 'transfer' && msg.transfer">
+              ⏳ 排队中 第{{ msg.transfer.queuePosition }}位 预计{{ msg.transfer.estimatedWait }}
+            </text>
+            <text v-else>
+              {{ msg.content }}
+            </text>
           </view>
         </view>
 
         <!-- 用户消息 -->
-        <view v-if="msg.role === 'user'" class="msg-row mine">
-          <view class="bubble mine"><text>{{ msg.content }}</text></view>
+        <view
+          v-if="msg.role === 'user'"
+          class="msg-row mine"
+        >
+          <view class="bubble mine">
+            <text>{{ msg.content }}</text>
+          </view>
         </view>
 
         <!-- AI/人工消息 -->
-        <view v-if="msg.role === 'assistant' || msg.role === 'human'" class="msg-row">
-          <view class="cs-avatar">{{ msg.role === 'human' ? '👤' : '🤖' }}</view>
+        <view
+          v-if="msg.role === 'assistant' || msg.role === 'human'"
+          class="msg-row"
+        >
+          <view class="cs-avatar">
+            {{ msg.role === 'human' ? '👤' : '🤖' }}
+          </view>
           <view class="bubble-wrap">
             <view class="bubble">
               <text>{{ msg.content }}</text>
-              <text v-if="msg.isStreaming" class="stream-cursor">|</text>
+              <text
+                v-if="msg.isStreaming"
+                class="stream-cursor"
+              >
+                |
+              </text>
             </view>
             <!-- 推荐问题 -->
-            <view v-if="msg.suggestions && msg.suggestions.length" class="suggestions">
-              <text v-for="(s, idx) in msg.suggestions" :key="idx" class="suggest-tag" @click="sendQuick(s)">{{ s }}</text>
+            <view
+              v-if="msg.suggestions && msg.suggestions.length"
+              class="suggestions"
+            >
+              <text
+                v-for="(s, idx) in msg.suggestions"
+                :key="idx"
+                class="suggest-tag"
+                @click="sendQuick(s)"
+              >
+                {{ s }}
+              </text>
             </view>
             <!-- 满意度 -->
-            <view v-if="!msg.isStreaming && !msg.rating && msg.type === 'text'" class="rating-row">
-              <text class="rating-label">这条回复有帮助吗？</text>
-              <text class="rating-btn" @click="rateMsg(msg.id, 'positive')">👍</text>
-              <text class="rating-btn" @click="rateMsg(msg.id, 'negative')">👎</text>
+            <view
+              v-if="!msg.isStreaming && !msg.rating && msg.type === 'text'"
+              class="rating-row"
+            >
+              <text class="rating-label">
+                这条回复有帮助吗？
+              </text>
+              <text
+                class="rating-btn"
+                @click="rateMsg(msg.id, 'positive')"
+              >
+                👍
+              </text>
+              <text
+                class="rating-btn"
+                @click="rateMsg(msg.id, 'negative')"
+              >
+                👎
+              </text>
             </view>
-            <view v-if="msg.rating" class="rated-row">
+            <view
+              v-if="msg.rating"
+              class="rated-row"
+            >
               <text>{{ msg.rating.value === 'positive' ? '👍 已反馈有帮助' : '👎 已反馈' }}</text>
             </view>
           </view>
@@ -64,27 +156,75 @@
     </scroll-view>
 
     <!-- 快捷回复 -->
-    <view v-if="quickReplies.length" class="quick-replies">
-      <text v-for="q in quickReplies" :key="q" class="quick-tag" @click="sendQuick(q)">{{ q }}</text>
+    <view
+      v-if="quickReplies.length"
+      class="quick-replies"
+    >
+      <text
+        v-for="q in quickReplies"
+        :key="q"
+        class="quick-tag"
+        @click="sendQuick(q)"
+      >
+        {{ q }}
+      </text>
     </view>
 
     <!-- 底部输入 -->
     <view class="input-bar">
       <view class="input-inner">
-        <text class="upload-btn" @click="chooseImage">📷</text>
-        <input v-model="inputText" class="chat-input" placeholder="请输入您的问题..." @confirm="send" :disabled="isSending" />
-        <text class="send-btn" :class="{ disabled: !inputText.trim() || isSending }" @click="send">{{ isSending ? '⏳' : '📤' }}</text>
+        <text
+          class="upload-btn"
+          @click="chooseImage"
+        >
+          📷
+        </text>
+        <input
+          v-model="inputText"
+          class="chat-input"
+          placeholder="请输入您的问题..."
+          :disabled="isSending"
+          @confirm="send"
+        >
+        <text
+          class="send-btn"
+          :class="{ disabled: !inputText.trim() || isSending }"
+          @click="send"
+        >
+          {{ isSending ? '⏳' : '📤' }}
+        </text>
       </view>
     </view>
 
     <!-- 转人工对话框 -->
-    <view v-if="showTransferDialog" class="dialog-overlay" @click="showTransferDialog = false">
-      <view class="dialog-box" @click.stop>
-        <text class="dialog-title">转接人工客服</text>
-        <text class="dialog-desc">当前非服务时间（09:00-22:00），暂无人工客服在线。您可以留言，我们会尽快回复。</text>
+    <view
+      v-if="showTransferDialog"
+      class="dialog-overlay"
+      @click="showTransferDialog = false"
+    >
+      <view
+        class="dialog-box"
+        @click.stop
+      >
+        <text class="dialog-title">
+          转接人工客服
+        </text>
+        <text class="dialog-desc">
+          当前非服务时间（09:00-22:00），暂无人工客服在线。您可以留言，我们会尽快回复。
+        </text>
         <view class="dialog-actions">
-          <text class="dialog-btn" @click="showTransferDialog = false">取消</text>
-          <text class="dialog-btn primary" @click="handleTransfer">确认转接</text>
+          <text
+            class="dialog-btn"
+            @click="showTransferDialog = false"
+          >
+            取消
+          </text>
+          <text
+            class="dialog-btn primary"
+            @click="handleTransfer"
+          >
+            确认转接
+          </text>
         </view>
       </view>
     </view>

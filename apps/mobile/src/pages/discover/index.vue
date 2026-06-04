@@ -2,15 +2,29 @@
   <view class="page">
     <!-- 顶部搜索栏 -->
     <view class="header">
-      <view class="search-bar" @click="goSearch">
-        <text class="search-icon">🔍</text>
-        <text class="search-placeholder">搜索课程、商品、古籍...</text>
+      <view
+        class="search-bar"
+        @click="goSearch"
+      >
+        <text class="search-icon">
+          🔍
+        </text>
+        <text class="search-placeholder">
+          搜索课程、商品、古籍...
+        </text>
         <view class="search-ai-tag">
-          <text class="search-ai-text">AI</text>
+          <text class="search-ai-text">
+            AI
+          </text>
         </view>
       </view>
-      <view class="ai-search-btn" @click="openAISearch">
-        <text class="ai-search-icon">✨</text>
+      <view
+        class="ai-search-btn"
+        @click="openAISearch"
+      >
+        <text class="ai-search-icon">
+          ✨
+        </text>
       </view>
     </view>
 
@@ -20,9 +34,9 @@
       scroll-y
       refresher-enabled
       :refresher-triggered="refreshing"
+      lower-threshold="100"
       @refresherrefresh="onRefresh"
       @scrolltolower="onLoadMore"
-      lower-threshold="100"
     >
       <!-- 快捷分类入口 -->
       <view class="cat-grid">
@@ -32,19 +46,41 @@
           class="cat-item"
           @click="goCategory(cat)"
         >
-          <view class="cat-icon" :style="{ background: cat.bgColor }">
-            <text :style="{ color: cat.color }" class="cat-icon-text">{{ cat.icon }}</text>
+          <view
+            class="cat-icon"
+            :style="{ background: cat.bgColor }"
+          >
+            <text
+              :style="{ color: cat.color }"
+              class="cat-icon-text"
+            >
+              {{ cat.icon }}
+            </text>
           </view>
-          <text class="cat-name">{{ cat.name }}</text>
+          <text class="cat-name">
+            {{ cat.name }}
+          </text>
         </view>
       </view>
 
       <!-- AI 搜索弹窗 -->
-      <view v-if="showAISearch" class="ai-modal-overlay" @click="closeAISearch">
-        <view class="ai-modal" @click.stop>
+      <view
+        v-if="showAISearch"
+        class="ai-modal-overlay"
+        @click="closeAISearch"
+      >
+        <view
+          class="ai-modal"
+          @click.stop
+        >
           <view class="ai-modal-header">
-            <text class="ai-modal-title">AI 智能搜索</text>
-            <view class="ai-modal-close" @click="closeAISearch">
+            <text class="ai-modal-title">
+              AI 智能搜索
+            </text>
+            <view
+              class="ai-modal-close"
+              @click="closeAISearch"
+            >
               <text>✕</text>
             </view>
           </view>
@@ -56,18 +92,36 @@
                 placeholder="输入你的问题，AI 帮你找..."
                 confirm-type="search"
                 @confirm="doAISearch"
-              />
-              <view class="ai-input-btn" @click="doAISearch">
+              >
+              <view
+                class="ai-input-btn"
+                @click="doAISearch"
+              >
                 <text>搜索</text>
               </view>
             </view>
-            <view v-if="aiResult" class="ai-result">
-              <text class="ai-result-text">{{ aiResult }}</text>
+            <view
+              v-if="aiResult"
+              class="ai-result"
+            >
+              <text class="ai-result-text">
+                {{ aiResult }}
+              </text>
             </view>
-            <view v-else class="ai-suggestions">
-              <text class="ai-suggest-title">试试这样问：</text>
+            <view
+              v-else
+              class="ai-suggestions"
+            >
+              <text class="ai-suggest-title">
+                试试这样问：
+              </text>
               <view class="ai-suggest-tags">
-                <view v-for="(q, i) in suggestQuestions" :key="i" class="ai-suggest-tag" @click="aiQuery = q">
+                <view
+                  v-for="(q, i) in suggestQuestions"
+                  :key="i"
+                  class="ai-suggest-tag"
+                  @click="aiQuery = q"
+                >
                   <text>{{ q }}</text>
                 </view>
               </view>
@@ -80,14 +134,22 @@
       <view class="section-header">
         <view class="section-title-wrap">
           <view class="section-bar" />
-          <text class="section-title">为你推荐</text>
+          <text class="section-title">
+            为你推荐
+          </text>
         </view>
         <view class="section-tag">
-          <text class="section-tag-text">智能推荐</text>
+          <text class="section-tag-text">
+            智能推荐
+          </text>
         </view>
       </view>
 
-      <scroll-view class="cat-tab-scroll" scroll-x show-scrollbar="false">
+      <scroll-view
+        class="cat-tab-scroll"
+        scroll-x
+        show-scrollbar="false"
+      >
         <view
           v-for="cat in categories"
           :key="cat.id"
@@ -118,81 +180,170 @@
               @click="goDetail(item)"
             >
               <!-- 封面 -->
-              <view v-if="item.type === 'ebook'" class="wf-cover wf-cover-ebook" @click="goDetail(item)">
+              <view
+                v-if="item.type === 'ebook'"
+                class="wf-cover wf-cover-ebook"
+                @click="goDetail(item)"
+              >
                 <view class="ebook-deco-left" />
                 <view class="ebook-text-wrap">
-                  <text class="ebook-text-title">{{ item.title }}</text>
+                  <text class="ebook-text-title">
+                    {{ item.title }}
+                  </text>
                 </view>
                 <view class="wf-badge wf-badge-ebook">
                   <text>免费阅读</text>
                 </view>
               </view>
-              <view v-else class="wf-cover">
+              <view
+                v-else
+                class="wf-cover"
+              >
                 <image
                   v-if="item.cover || item.image"
                   :src="item.cover || item.image"
                   class="wf-img"
                   mode="widthFix"
                 />
-                <view v-else class="wf-placeholder" :style="{ background: placeholderBg(idx) }">
-                  <text class="wf-placeholder-icon">{{ typeIcon(item.type) }}</text>
+                <view
+                  v-else
+                  class="wf-placeholder"
+                  :style="{ background: placeholderBg(idx) }"
+                >
+                  <text class="wf-placeholder-icon">
+                    {{ typeIcon(item.type) }}
+                  </text>
                 </view>
                 <!-- 类型角标 -->
-                <view v-if="item.type === 'live'" class="wf-badge wf-badge-live">
+                <view
+                  v-if="item.type === 'live'"
+                  class="wf-badge wf-badge-live"
+                >
                   <view class="live-dot" /><text>{{ item.isLive ? '直播' : '预约' }}</text>
                 </view>
-                <view v-if="item.tag" class="wf-badge" :class="tagBadgeClass(item.tag)">
+                <view
+                  v-if="item.tag"
+                  class="wf-badge"
+                  :class="tagBadgeClass(item.tag)"
+                >
                   <text>{{ item.tag }}</text>
                 </view>
-                <view v-if="item.type === 'video' && item.duration" class="wf-badge wf-badge-dur">
+                <view
+                  v-if="item.type === 'video' && item.duration"
+                  class="wf-badge wf-badge-dur"
+                >
                   <text>{{ item.duration }}</text>
                 </view>
                 <!-- 评分 -->
-                <view v-if="item.rating" class="wf-rating">
-                  <text class="wf-rating-star">★</text>
-                  <text class="wf-rating-num">{{ item.rating }}</text>
+                <view
+                  v-if="item.rating"
+                  class="wf-rating"
+                >
+                  <text class="wf-rating-star">
+                    ★
+                  </text>
+                  <text class="wf-rating-num">
+                    {{ item.rating }}
+                  </text>
                 </view>
               </view>
               <!-- 信息 -->
               <view class="wf-body">
-                <text class="wf-title">{{ item.title || item.name }}</text>
+                <text class="wf-title">
+                  {{ item.title || item.name }}
+                </text>
                 <!-- 价格 -->
-                <view v-if="item.type === 'product' || item.type === 'course'" class="wf-price-row">
-                  <text class="wf-price">¥{{ item.price }}</text>
-                  <text v-if="item.originalPrice" class="wf-price-original">¥{{ item.originalPrice }}</text>
+                <view
+                  v-if="item.type === 'product' || item.type === 'course'"
+                  class="wf-price-row"
+                >
+                  <text class="wf-price">
+                    ¥{{ item.price }}
+                  </text>
+                  <text
+                    v-if="item.originalPrice"
+                    class="wf-price-original"
+                  >
+                    ¥{{ item.originalPrice }}
+                  </text>
                 </view>
                 <!-- 作者/信息 -->
-                <view v-if="item.type === 'course'" class="wf-meta">
+                <view
+                  v-if="item.type === 'course'"
+                  class="wf-meta"
+                >
                   <view class="wf-author">
                     <view class="wf-avatar-wrap">
-                      <text class="wf-avatar-placeholder">{{ (item.author || '').charAt(0) || '师' }}</text>
+                      <text class="wf-avatar-placeholder">
+                        {{ (item.author || '').charAt(0) || '师' }}
+                      </text>
                     </view>
-                    <text class="wf-author-name">{{ item.author || '讲师' }}</text>
+                    <text class="wf-author-name">
+                      {{ item.author || '讲师' }}
+                    </text>
                   </view>
                 </view>
-                <view v-else-if="item.type === 'ebook'" class="wf-meta">
-                  <text class="wf-ebook-author">{{ item.author }}</text>
+                <view
+                  v-else-if="item.type === 'ebook'"
+                  class="wf-meta"
+                >
+                  <text class="wf-ebook-author">
+                    {{ item.author }}
+                  </text>
                   <view class="wf-ebook-stats">
-                    <text class="wf-ebook-stat">{{ formatCount(item.readers) }}人读过</text>
-                    <text class="wf-ebook-stat">{{ item.chapters }}章</text>
+                    <text class="wf-ebook-stat">
+                      {{ formatCount(item.readers) }}人读过
+                    </text>
+                    <text class="wf-ebook-stat">
+                      {{ item.chapters }}章
+                    </text>
                   </view>
                 </view>
-                <view v-else-if="item.type === 'product'" class="wf-meta">
-                  <text class="wf-sales">已售{{ formatCount(item.sales) }}</text>
+                <view
+                  v-else-if="item.type === 'product'"
+                  class="wf-meta"
+                >
+                  <text class="wf-sales">
+                    已售{{ formatCount(item.sales) }}
+                  </text>
                 </view>
-                <view v-else-if="item.type === 'live'" class="wf-meta">
+                <view
+                  v-else-if="item.type === 'live'"
+                  class="wf-meta"
+                >
                   <view class="wf-author">
                     <view class="wf-avatar-wrap">
-                      <text class="wf-avatar-placeholder">{{ (item.author || '').charAt(0) || '主' }}</text>
+                      <text class="wf-avatar-placeholder">
+                        {{ (item.author || '').charAt(0) || '主' }}
+                      </text>
                     </view>
-                    <text class="wf-author-name">{{ item.author || '主播' }}</text>
+                    <text class="wf-author-name">
+                      {{ item.author || '主播' }}
+                    </text>
                   </view>
-                  <text v-if="item.viewers" class="wf-viewers">♥ {{ item.viewers }}</text>
-                  <text v-else-if="item.reservations" class="wf-viewers">🔔 {{ item.reservations }}</text>
+                  <text
+                    v-if="item.viewers"
+                    class="wf-viewers"
+                  >
+                    ♥ {{ item.viewers }}
+                  </text>
+                  <text
+                    v-else-if="item.reservations"
+                    class="wf-viewers"
+                  >
+                    🔔 {{ item.reservations }}
+                  </text>
                 </view>
-                <view v-else-if="item.type === 'agent'" class="wf-meta">
-                  <text class="wf-agent-users">{{ item.users }}人使用</text>
-                  <text class="wf-agent-btn">对话</text>
+                <view
+                  v-else-if="item.type === 'agent'"
+                  class="wf-meta"
+                >
+                  <text class="wf-agent-users">
+                    {{ item.users }}人使用
+                  </text>
+                  <text class="wf-agent-btn">
+                    对话
+                  </text>
                 </view>
               </view>
             </view>
@@ -204,76 +355,164 @@
               class="wf-card"
               @click="goDetail(item)"
             >
-              <view v-if="item.type === 'ebook'" class="wf-cover wf-cover-ebook">
+              <view
+                v-if="item.type === 'ebook'"
+                class="wf-cover wf-cover-ebook"
+              >
                 <view class="ebook-deco-left" />
                 <view class="ebook-text-wrap">
-                  <text class="ebook-text-title">{{ item.title }}</text>
+                  <text class="ebook-text-title">
+                    {{ item.title }}
+                  </text>
                 </view>
                 <view class="wf-badge wf-badge-ebook">
                   <text>免费阅读</text>
                 </view>
               </view>
-              <view v-else class="wf-cover">
+              <view
+                v-else
+                class="wf-cover"
+              >
                 <image
                   v-if="item.cover || item.image"
                   :src="item.cover || item.image"
                   class="wf-img"
                   mode="widthFix"
                 />
-                <view v-else class="wf-placeholder" :style="{ background: placeholderBg(idx + 100) }">
-                  <text class="wf-placeholder-icon">{{ typeIcon(item.type) }}</text>
+                <view
+                  v-else
+                  class="wf-placeholder"
+                  :style="{ background: placeholderBg(idx + 100) }"
+                >
+                  <text class="wf-placeholder-icon">
+                    {{ typeIcon(item.type) }}
+                  </text>
                 </view>
-                <view v-if="item.type === 'live'" class="wf-badge wf-badge-live">
+                <view
+                  v-if="item.type === 'live'"
+                  class="wf-badge wf-badge-live"
+                >
                   <view class="live-dot" /><text>{{ item.isLive ? '直播' : '预约' }}</text>
                 </view>
-                <view v-if="item.tag" class="wf-badge" :class="tagBadgeClass(item.tag)">
+                <view
+                  v-if="item.tag"
+                  class="wf-badge"
+                  :class="tagBadgeClass(item.tag)"
+                >
                   <text>{{ item.tag }}</text>
                 </view>
-                <view v-if="item.type === 'video' && item.duration" class="wf-badge wf-badge-dur">
+                <view
+                  v-if="item.type === 'video' && item.duration"
+                  class="wf-badge wf-badge-dur"
+                >
                   <text>{{ item.duration }}</text>
                 </view>
-                <view v-if="item.rating" class="wf-rating">
-                  <text class="wf-rating-star">★</text>
-                  <text class="wf-rating-num">{{ item.rating }}</text>
+                <view
+                  v-if="item.rating"
+                  class="wf-rating"
+                >
+                  <text class="wf-rating-star">
+                    ★
+                  </text>
+                  <text class="wf-rating-num">
+                    {{ item.rating }}
+                  </text>
                 </view>
               </view>
               <view class="wf-body">
-                <text class="wf-title">{{ item.title || item.name }}</text>
-                <view v-if="item.type === 'product' || item.type === 'course'" class="wf-price-row">
-                  <text class="wf-price">¥{{ item.price }}</text>
-                  <text v-if="item.originalPrice" class="wf-price-original">¥{{ item.originalPrice }}</text>
+                <text class="wf-title">
+                  {{ item.title || item.name }}
+                </text>
+                <view
+                  v-if="item.type === 'product' || item.type === 'course'"
+                  class="wf-price-row"
+                >
+                  <text class="wf-price">
+                    ¥{{ item.price }}
+                  </text>
+                  <text
+                    v-if="item.originalPrice"
+                    class="wf-price-original"
+                  >
+                    ¥{{ item.originalPrice }}
+                  </text>
                 </view>
-                <view v-if="item.type === 'course'" class="wf-meta">
+                <view
+                  v-if="item.type === 'course'"
+                  class="wf-meta"
+                >
                   <view class="wf-author">
                     <view class="wf-avatar-wrap">
-                      <text class="wf-avatar-placeholder">{{ (item.author || '').charAt(0) || '师' }}</text>
+                      <text class="wf-avatar-placeholder">
+                        {{ (item.author || '').charAt(0) || '师' }}
+                      </text>
                     </view>
-                    <text class="wf-author-name">{{ item.author || '讲师' }}</text>
+                    <text class="wf-author-name">
+                      {{ item.author || '讲师' }}
+                    </text>
                   </view>
                 </view>
-                <view v-else-if="item.type === 'ebook'" class="wf-meta">
-                  <text class="wf-ebook-author">{{ item.author }}</text>
+                <view
+                  v-else-if="item.type === 'ebook'"
+                  class="wf-meta"
+                >
+                  <text class="wf-ebook-author">
+                    {{ item.author }}
+                  </text>
                   <view class="wf-ebook-stats">
-                    <text class="wf-ebook-stat">{{ formatCount(item.readers) }}人读过</text>
-                    <text class="wf-ebook-stat">{{ item.chapters }}章</text>
+                    <text class="wf-ebook-stat">
+                      {{ formatCount(item.readers) }}人读过
+                    </text>
+                    <text class="wf-ebook-stat">
+                      {{ item.chapters }}章
+                    </text>
                   </view>
                 </view>
-                <view v-else-if="item.type === 'product'" class="wf-meta">
-                  <text class="wf-sales">已售{{ formatCount(item.sales) }}</text>
+                <view
+                  v-else-if="item.type === 'product'"
+                  class="wf-meta"
+                >
+                  <text class="wf-sales">
+                    已售{{ formatCount(item.sales) }}
+                  </text>
                 </view>
-                <view v-else-if="item.type === 'live'" class="wf-meta">
+                <view
+                  v-else-if="item.type === 'live'"
+                  class="wf-meta"
+                >
                   <view class="wf-author">
                     <view class="wf-avatar-wrap">
-                      <text class="wf-avatar-placeholder">{{ (item.author || '').charAt(0) || '主' }}</text>
+                      <text class="wf-avatar-placeholder">
+                        {{ (item.author || '').charAt(0) || '主' }}
+                      </text>
                     </view>
-                    <text class="wf-author-name">{{ item.author || '主播' }}</text>
+                    <text class="wf-author-name">
+                      {{ item.author || '主播' }}
+                    </text>
                   </view>
-                  <text v-if="item.viewers" class="wf-viewers">♥ {{ item.viewers }}</text>
-                  <text v-else-if="item.reservations" class="wf-viewers">🔔 {{ item.reservations }}</text>
+                  <text
+                    v-if="item.viewers"
+                    class="wf-viewers"
+                  >
+                    ♥ {{ item.viewers }}
+                  </text>
+                  <text
+                    v-else-if="item.reservations"
+                    class="wf-viewers"
+                  >
+                    🔔 {{ item.reservations }}
+                  </text>
                 </view>
-                <view v-else-if="item.type === 'agent'" class="wf-meta">
-                  <text class="wf-agent-users">{{ item.users }}人使用</text>
-                  <text class="wf-agent-btn">对话</text>
+                <view
+                  v-else-if="item.type === 'agent'"
+                  class="wf-meta"
+                >
+                  <text class="wf-agent-users">
+                    {{ item.users }}人使用
+                  </text>
+                  <text class="wf-agent-btn">
+                    对话
+                  </text>
                 </view>
               </view>
             </view>
@@ -282,12 +521,22 @@
 
         <!-- 加载更多 -->
         <view class="load-more-wrap">
-          <view v-if="loadingMore" class="load-more-indicator">
+          <view
+            v-if="loadingMore"
+            class="load-more-indicator"
+          >
             <view class="load-more-dot" />
-            <text class="load-more-text">加载中...</text>
+            <text class="load-more-text">
+              加载中...
+            </text>
           </view>
-          <view v-else-if="!hasMore && items.length > 0" class="no-more">
-            <text class="no-more-line" /><text class="no-more-text">已经到底了</text><text class="no-more-line" />
+          <view
+            v-else-if="!hasMore && items.length > 0"
+            class="no-more"
+          >
+            <text class="no-more-line" /><text class="no-more-text">
+              已经到底了
+            </text><text class="no-more-line" />
           </view>
         </view>
       </DataState>

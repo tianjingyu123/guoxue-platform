@@ -3,17 +3,43 @@
     <LoadingSkeleton v-if="loading" />
     <view v-else>
       <view class="detail-header">
-        <image :src="book.cover || ''" class="cover" mode="aspectFill" />
-        <text class="title">{{ book.title || book.name }}</text>
-        <text class="author">{{ book.author || book.dynasty }}</text>
-        <text class="desc">{{ book.description || book.intro }}</text>
-        <button class="btn-read" @click="startRead">开始阅读</button>
+        <image
+          :src="book.cover || ''"
+          class="cover"
+          mode="aspectFill"
+        />
+        <text class="title">
+          {{ book.title || book.name }}
+        </text>
+        <text class="author">
+          {{ book.author || book.dynasty }}
+        </text>
+        <text class="desc">
+          {{ book.description || book.intro }}
+        </text>
+        <button
+          class="btn-read"
+          @click="startRead"
+        >
+          开始阅读
+        </button>
       </view>
       <view class="chapters">
-        <text class="section-title">目录（共{{ chapters.length }}章）</text>
-        <view v-for="(ch, i) in chapters" :key="ch.id" class="ch-item" @click="goChapter(ch)">
-          <text class="ch-num">第{{ i + 1 }}章</text>
-          <text class="ch-title">{{ ch.title }}</text>
+        <text class="section-title">
+          目录（共{{ chapters.length }}章）
+        </text>
+        <view
+          v-for="(ch, i) in chapters"
+          :key="ch.id"
+          class="ch-item"
+          @click="goChapter(ch)"
+        >
+          <text class="ch-num">
+            第{{ i + 1 }}章
+          </text>
+          <text class="ch-title">
+            {{ ch.title }}
+          </text>
         </view>
       </view>
     </view>

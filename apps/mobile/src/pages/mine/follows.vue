@@ -3,22 +3,47 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">关注与粉丝</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          关注与粉丝
+        </text>
         <view class="header-right" />
       </view>
 
       <!-- Tabs -->
       <view class="tabs">
-        <view class="tab" :class="{ active: activeTab === 'following' }" @click="switchTab('following')">
+        <view
+          class="tab"
+          :class="{ active: activeTab === 'following' }"
+          @click="switchTab('following')"
+        >
           <text>关注</text>
-          <text class="tab-count">{{ followingCount }}</text>
-          <view v-if="activeTab === 'following'" class="tab-indicator" />
+          <text class="tab-count">
+            {{ followingCount }}
+          </text>
+          <view
+            v-if="activeTab === 'following'"
+            class="tab-indicator"
+          />
         </view>
-        <view class="tab" :class="{ active: activeTab === 'followers' }" @click="switchTab('followers')">
+        <view
+          class="tab"
+          :class="{ active: activeTab === 'followers' }"
+          @click="switchTab('followers')"
+        >
           <text>粉丝</text>
-          <text class="tab-count">{{ followersCount }}</text>
-          <view v-if="activeTab === 'followers'" class="tab-indicator" />
+          <text class="tab-count">
+            {{ followersCount }}
+          </text>
+          <view
+            v-if="activeTab === 'followers'"
+            class="tab-indicator"
+          />
         </view>
       </view>
     </view>
@@ -34,23 +59,47 @@
       @retry="loadData"
     >
       <view class="user-list">
-        <view v-for="user in currentList" :key="user.id" class="user-item">
-          <image v-if="user.avatar" :src="user.avatar" class="user-avatar" mode="aspectFill" />
-          <view v-else class="user-avatar-placeholder">
-            <text class="user-avatar-text">{{ (user.name || '?').slice(0, 1) }}</text>
+        <view
+          v-for="user in currentList"
+          :key="user.id"
+          class="user-item"
+        >
+          <image
+            v-if="user.avatar"
+            :src="user.avatar"
+            class="user-avatar"
+            mode="aspectFill"
+          />
+          <view
+            v-else
+            class="user-avatar-placeholder"
+          >
+            <text class="user-avatar-text">
+              {{ (user.name || '?').slice(0, 1) }}
+            </text>
           </view>
           <view class="user-info">
-            <text class="user-name">{{ user.name }}</text>
-            <text class="user-bio">{{ user.bio || user.followers + ' 粉丝' }}</text>
+            <text class="user-name">
+              {{ user.name }}
+            </text>
+            <text class="user-bio">
+              {{ user.bio || user.followers + ' 粉丝' }}
+            </text>
           </view>
           <view
             class="follow-btn"
             :class="followBtnClass(user)"
             @click="handleToggleFollow(user)"
           >
-            <text v-if="user.isFollowing && user.isFollowedBy">👥 互相关注</text>
-            <text v-else-if="user.isFollowing">👤 已关注</text>
-            <text v-else>＋ 关注</text>
+            <text v-if="user.isFollowing && user.isFollowedBy">
+              👥 互相关注
+            </text>
+            <text v-else-if="user.isFollowing">
+              👤 已关注
+            </text>
+            <text v-else>
+              ＋ 关注
+            </text>
           </view>
         </view>
       </view>

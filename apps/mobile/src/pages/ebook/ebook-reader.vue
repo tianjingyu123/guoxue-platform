@@ -1,10 +1,28 @@
 <template>
-  <view class="reader-page" :class="themeClass">
+  <view
+    class="reader-page"
+    :class="themeClass"
+  >
     <!-- 顶部工具栏 -->
-    <view v-if="showToolbar" class="toolbar-top">
-      <text class="back-btn" @click="goBack">← 返回</text>
-      <text class="toolbar-title">{{ currentChapter?.title || '阅读中' }}</text>
-      <text class="more-btn" @click="showMenu = true">⋯</text>
+    <view
+      v-if="showToolbar"
+      class="toolbar-top"
+    >
+      <text
+        class="back-btn"
+        @click="goBack"
+      >
+        ← 返回
+      </text>
+      <text class="toolbar-title">
+        {{ currentChapter?.title || '阅读中' }}
+      </text>
+      <text
+        class="more-btn"
+        @click="showMenu = true"
+      >
+        ⋯
+      </text>
     </view>
 
     <!-- 阅读内容区域 -->
@@ -16,50 +34,113 @@
       @click="toggleToolbar"
     >
       <view class="content-wrap">
-        <text class="chapter-heading">{{ currentChapter?.title }}</text>
-        <rich-text :nodes="formattedContent" class="chapter-content" />
+        <text class="chapter-heading">
+          {{ currentChapter?.title }}
+        </text>
+        <rich-text
+          :nodes="formattedContent"
+          class="chapter-content"
+        />
       </view>
 
       <!-- 章节导航 -->
       <view class="chapter-nav">
-        <view class="nav-btn" :class="{ disabled: !hasPrev }" @click="prevChapter">
+        <view
+          class="nav-btn"
+          :class="{ disabled: !hasPrev }"
+          @click="prevChapter"
+        >
           <text>上一章</text>
         </view>
-        <view class="nav-btn" :class="{ disabled: !hasNext }" @click="nextChapter">
+        <view
+          class="nav-btn"
+          :class="{ disabled: !hasNext }"
+          @click="nextChapter"
+        >
           <text>下一章</text>
         </view>
       </view>
     </scroll-view>
 
     <!-- 底部工具栏 -->
-    <view v-if="showToolbar" class="toolbar-bottom">
-      <view class="tool-item" @click="showToc = true">
-        <text class="tool-icon">📑</text>
-        <text class="tool-label">目录</text>
+    <view
+      v-if="showToolbar"
+      class="toolbar-bottom"
+    >
+      <view
+        class="tool-item"
+        @click="showToc = true"
+      >
+        <text class="tool-icon">
+          📑
+        </text>
+        <text class="tool-label">
+          目录
+        </text>
       </view>
-      <view class="tool-item" @click="addBookmark">
-        <text class="tool-icon">🔖</text>
-        <text class="tool-label">书签</text>
+      <view
+        class="tool-item"
+        @click="addBookmark"
+      >
+        <text class="tool-icon">
+          🔖
+        </text>
+        <text class="tool-label">
+          书签
+        </text>
       </view>
-      <view class="tool-item" @click="showNotePanel = true">
-        <text class="tool-icon">📝</text>
-        <text class="tool-label">笔记</text>
+      <view
+        class="tool-item"
+        @click="showNotePanel = true"
+      >
+        <text class="tool-icon">
+          📝
+        </text>
+        <text class="tool-label">
+          笔记
+        </text>
       </view>
-      <view class="tool-item" @click="showAiPanel = true">
-        <text class="tool-icon">🤖</text>
-        <text class="tool-label">AI</text>
+      <view
+        class="tool-item"
+        @click="showAiPanel = true"
+      >
+        <text class="tool-icon">
+          🤖
+        </text>
+        <text class="tool-label">
+          AI
+        </text>
       </view>
-      <view class="tool-item" @click="showSettings = true">
-        <text class="tool-icon">⚙️</text>
-        <text class="tool-label">设置</text>
+      <view
+        class="tool-item"
+        @click="showSettings = true"
+      >
+        <text class="tool-icon">
+          ⚙️
+        </text>
+        <text class="tool-label">
+          设置
+        </text>
       </view>
     </view>
 
     <!-- 目录面板 -->
-    <view v-if="showToc" class="panel-overlay" @click="showToc = false">
-      <view class="panel-left" @click.stop>
-        <text class="panel-title">目录</text>
-        <scroll-view scroll-y class="toc-scroll">
+    <view
+      v-if="showToc"
+      class="panel-overlay"
+      @click="showToc = false"
+    >
+      <view
+        class="panel-left"
+        @click.stop
+      >
+        <text class="panel-title">
+          目录
+        </text>
+        <scroll-view
+          scroll-y
+          class="toc-scroll"
+        >
           <view
             v-for="ch in chapters"
             :key="ch.id"
@@ -68,51 +149,142 @@
             @click="switchChapter(ch.id)"
           >
             <text>{{ ch.title }}</text>
-            <text v-if="ch.freeTrial" class="toc-free">试读</text>
+            <text
+              v-if="ch.freeTrial"
+              class="toc-free"
+            >
+              试读
+            </text>
           </view>
         </scroll-view>
       </view>
     </view>
 
     <!-- 笔记面板 -->
-    <view v-if="showNotePanel" class="panel-overlay" @click="showNotePanel = false">
-      <view class="panel-bottom" @click.stop>
-        <text class="panel-title">笔记</text>
+    <view
+      v-if="showNotePanel"
+      class="panel-overlay"
+      @click="showNotePanel = false"
+    >
+      <view
+        class="panel-bottom"
+        @click.stop
+      >
+        <text class="panel-title">
+          笔记
+        </text>
         <view class="note-list">
-          <view v-for="n in notes" :key="n.id" class="note-item">
-            <text class="note-content">{{ n.content }}</text>
-            <text class="note-time">{{ formatTime(n.createdAt) }}</text>
+          <view
+            v-for="n in notes"
+            :key="n.id"
+            class="note-item"
+          >
+            <text class="note-content">
+              {{ n.content }}
+            </text>
+            <text class="note-time">
+              {{ formatTime(n.createdAt) }}
+            </text>
           </view>
         </view>
         <view class="note-input-row">
-          <input v-model="newNote" class="note-input" placeholder="写下你的笔记..." />
-          <text class="note-submit" @click="submitNote">保存</text>
+          <input
+            v-model="newNote"
+            class="note-input"
+            placeholder="写下你的笔记..."
+          >
+          <text
+            class="note-submit"
+            @click="submitNote"
+          >
+            保存
+          </text>
         </view>
       </view>
     </view>
 
     <!-- AI工具面板 -->
-    <view v-if="showAiPanel" class="panel-overlay" @click="showAiPanel = false">
-      <view class="panel-bottom ai-panel" @click.stop>
+    <view
+      v-if="showAiPanel"
+      class="panel-overlay"
+      @click="showAiPanel = false"
+    >
+      <view
+        class="panel-bottom ai-panel"
+        @click.stop
+      >
         <view class="ai-tabs">
-          <text :class="{ active: aiTab === 'translate' }" @click="aiTab = 'translate'">AI翻译</text>
-          <text :class="{ active: aiTab === 'lookup' }" @click="aiTab = 'lookup'">查词释义</text>
+          <text
+            :class="{ active: aiTab === 'translate' }"
+            @click="aiTab = 'translate'"
+          >
+            AI翻译
+          </text>
+          <text
+            :class="{ active: aiTab === 'lookup' }"
+            @click="aiTab = 'lookup'"
+          >
+            查词释义
+          </text>
         </view>
-        <view v-if="aiTab === 'translate'" class="ai-content">
-          <textarea v-model="aiText" class="ai-textarea" placeholder="输入古文段落进行翻译..." />
-          <view class="ai-btn" @click="doTranslate">翻译</view>
-          <view v-if="aiResult" class="ai-result">
+        <view
+          v-if="aiTab === 'translate'"
+          class="ai-content"
+        >
+          <textarea
+            v-model="aiText"
+            class="ai-textarea"
+            placeholder="输入古文段落进行翻译..."
+          />
+          <view
+            class="ai-btn"
+            @click="doTranslate"
+          >
+            翻译
+          </view>
+          <view
+            v-if="aiResult"
+            class="ai-result"
+          >
             <text>{{ aiResult }}</text>
           </view>
         </view>
-        <view v-if="aiTab === 'lookup'" class="ai-content">
-          <input v-model="lookupText" class="ai-input" placeholder="输入要查询的词..." />
-          <view class="ai-btn" @click="doLookup">查询</view>
-          <view v-if="lookupResult" class="ai-result">
-            <text class="lookup-word">{{ lookupResult.word }}</text>
-            <text class="lookup-english">{{ lookupResult.english }}</text>
-            <view v-if="lookupResult.relatedKeywords?.length" class="lookup-keywords">
-              <text v-for="kw in lookupResult.relatedKeywords" :key="kw" class="kw-tag">{{ kw }}</text>
+        <view
+          v-if="aiTab === 'lookup'"
+          class="ai-content"
+        >
+          <input
+            v-model="lookupText"
+            class="ai-input"
+            placeholder="输入要查询的词..."
+          >
+          <view
+            class="ai-btn"
+            @click="doLookup"
+          >
+            查询
+          </view>
+          <view
+            v-if="lookupResult"
+            class="ai-result"
+          >
+            <text class="lookup-word">
+              {{ lookupResult.word }}
+            </text>
+            <text class="lookup-english">
+              {{ lookupResult.english }}
+            </text>
+            <view
+              v-if="lookupResult.relatedKeywords?.length"
+              class="lookup-keywords"
+            >
+              <text
+                v-for="kw in lookupResult.relatedKeywords"
+                :key="kw"
+                class="kw-tag"
+              >
+                {{ kw }}
+              </text>
             </view>
           </view>
         </view>
@@ -120,33 +292,87 @@
     </view>
 
     <!-- 设置面板 -->
-    <view v-if="showSettings" class="panel-overlay" @click="showSettings = false">
-      <view class="panel-bottom settings-panel" @click.stop>
-        <text class="panel-title">阅读设置</text>
+    <view
+      v-if="showSettings"
+      class="panel-overlay"
+      @click="showSettings = false"
+    >
+      <view
+        class="panel-bottom settings-panel"
+        @click.stop
+      >
+        <text class="panel-title">
+          阅读设置
+        </text>
         <view class="setting-row">
-          <text class="setting-label">字号</text>
+          <text class="setting-label">
+            字号
+          </text>
           <view class="font-size-ctrl">
-            <text class="fs-btn" @click="changeFontSize(-2)">A-</text>
-            <text class="fs-value">{{ fontSize }}px</text>
-            <text class="fs-btn" @click="changeFontSize(2)">A+</text>
+            <text
+              class="fs-btn"
+              @click="changeFontSize(-2)"
+            >
+              A-
+            </text>
+            <text class="fs-value">
+              {{ fontSize }}px
+            </text>
+            <text
+              class="fs-btn"
+              @click="changeFontSize(2)"
+            >
+              A+
+            </text>
           </view>
         </view>
         <view class="setting-row">
-          <text class="setting-label">主题</text>
+          <text class="setting-label">
+            主题
+          </text>
           <view class="theme-options">
-            <view class="theme-dot light" :class="{ active: theme === 'light' }" @click="theme = 'light'" />
-            <view class="theme-dot sepia" :class="{ active: theme === 'sepia' }" @click="theme = 'sepia'" />
-            <view class="theme-dot dark" :class="{ active: theme === 'dark' }" @click="theme = 'dark'" />
+            <view
+              class="theme-dot light"
+              :class="{ active: theme === 'light' }"
+              @click="theme = 'light'"
+            />
+            <view
+              class="theme-dot sepia"
+              :class="{ active: theme === 'sepia' }"
+              @click="theme = 'sepia'"
+            />
+            <view
+              class="theme-dot dark"
+              :class="{ active: theme === 'dark' }"
+              @click="theme = 'dark'"
+            />
           </view>
         </view>
       </view>
     </view>
 
     <!-- 菜单 -->
-    <view v-if="showMenu" class="panel-overlay" @click="showMenu = false">
-      <view class="menu-panel" @click.stop>
-        <view class="menu-item" @click="downloadBook">下载离线</view>
-        <view class="menu-item" @click="shareBook">分享</view>
+    <view
+      v-if="showMenu"
+      class="panel-overlay"
+      @click="showMenu = false"
+    >
+      <view
+        class="menu-panel"
+        @click.stop
+      >
+        <view
+          class="menu-item"
+          @click="downloadBook"
+        >
+          下载离线
+        </view>
+        <view
+          class="menu-item"
+          @click="shareBook"
+        >
+          分享
+        </view>
       </view>
     </view>
   </view>

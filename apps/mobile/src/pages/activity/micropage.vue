@@ -1,152 +1,372 @@
 <template>
   <view class="page">
     <!-- 加载中 -->
-    <view v-if="loading" class="loading-state">
-      <text class="loading-text">加载中...</text>
+    <view
+      v-if="loading"
+      class="loading-state"
+    >
+      <text class="loading-text">
+        加载中...
+      </text>
     </view>
 
     <!-- 页面内容 -->
     <template v-else-if="pageData">
-      <view class="page-header" v-if="pageData.name">
-        <text class="page-title">{{ pageData.name }}</text>
+      <view
+        v-if="pageData.name"
+        class="page-header"
+      >
+        <text class="page-title">
+          {{ pageData.name }}
+        </text>
       </view>
 
-      <view v-for="(comp, idx) in visibleComponents" :key="comp.id || idx" class="comp-wrapper">
+      <view
+        v-for="(comp, idx) in visibleComponents"
+        :key="comp.id || idx"
+        class="comp-wrapper"
+      >
         <!-- 轮播图 -->
-        <view v-if="comp.type === 'CAROUSEL'" class="comp-carousel">
-          <swiper :autoplay="true" :circular="true" :interval="3000" class="carousel-swiper">
-            <swiper-item v-for="(img, i) in (comp.config.images || comp.config.banners || [])" :key="i">
-              <image :src="img" class="carousel-img" mode="aspectFill" @click="onBannerClick(comp.config, i)" />
+        <view
+          v-if="comp.type === 'CAROUSEL'"
+          class="comp-carousel"
+        >
+          <swiper
+            :autoplay="true"
+            :circular="true"
+            :interval="3000"
+            class="carousel-swiper"
+          >
+            <swiper-item
+              v-for="(img, i) in (comp.config.images || comp.config.banners || [])"
+              :key="i"
+            >
+              <image
+                :src="img"
+                class="carousel-img"
+                mode="aspectFill"
+                @click="onBannerClick(comp.config, i)"
+              />
             </swiper-item>
           </swiper>
         </view>
 
         <!-- 倒计时 -->
-        <view v-else-if="comp.type === 'COUNTDOWN'" class="comp-countdown">
-          <text class="cd-label">{{ comp.config.label || comp.title || '倒计时' }}</text>
-          <text class="cd-time">{{ countdownText(comp.config.targetTime) }}</text>
+        <view
+          v-else-if="comp.type === 'COUNTDOWN'"
+          class="comp-countdown"
+        >
+          <text class="cd-label">
+            {{ comp.config.label || comp.title || '倒计时' }}
+          </text>
+          <text class="cd-time">
+            {{ countdownText(comp.config.targetTime) }}
+          </text>
         </view>
 
         <!-- 图片 -->
-        <view v-else-if="comp.type === 'IMAGE'" class="comp-image">
-          <image :src="comp.config.src || comp.config.url" class="single-img" mode="widthFix" @click="onImageClick(comp.config)" />
+        <view
+          v-else-if="comp.type === 'IMAGE'"
+          class="comp-image"
+        >
+          <image
+            :src="comp.config.src || comp.config.url"
+            class="single-img"
+            mode="widthFix"
+            @click="onImageClick(comp.config)"
+          />
         </view>
 
         <!-- 文本 -->
-        <view v-else-if="comp.type === 'TEXT'" class="comp-text">
+        <view
+          v-else-if="comp.type === 'TEXT'"
+          class="comp-text"
+        >
           <rich-text :nodes="comp.config.content || comp.config.text || comp.title || ''" />
         </view>
 
         <!-- 秒杀专区 -->
-        <view v-else-if="comp.type === 'FLASHSALE'" class="comp-section">
-          <view class="section-hd"><text class="section-title">⚡ 限时秒杀</text></view>
-          <scroll-view scroll-x class="product-scroll">
-            <view v-for="item in (flashItems || [])" :key="item.id" class="product-card-sm" @click="goProduct(item)">
-              <image :src="item.cover || item.image" class="pcard-img" mode="aspectFill" />
-              <text class="pcard-name">{{ item.name || item.title }}</text>
-              <text class="pcard-price">¥{{ item.flashPrice || item.price }}</text>
+        <view
+          v-else-if="comp.type === 'FLASHSALE'"
+          class="comp-section"
+        >
+          <view class="section-hd">
+            <text class="section-title">
+              ⚡ 限时秒杀
+            </text>
+          </view>
+          <scroll-view
+            scroll-x
+            class="product-scroll"
+          >
+            <view
+              v-for="item in (flashItems || [])"
+              :key="item.id"
+              class="product-card-sm"
+              @click="goProduct(item)"
+            >
+              <image
+                :src="item.cover || item.image"
+                class="pcard-img"
+                mode="aspectFill"
+              />
+              <text class="pcard-name">
+                {{ item.name || item.title }}
+              </text>
+              <text class="pcard-price">
+                ¥{{ item.flashPrice || item.price }}
+              </text>
             </view>
           </scroll-view>
         </view>
 
         <!-- 拼团专区 -->
-        <view v-else-if="comp.type === 'GROUPBUY'" class="comp-section">
-          <view class="section-hd"><text class="section-title">👥 超值拼团</text></view>
-          <scroll-view scroll-x class="product-scroll">
-            <view v-for="item in (groupBuyItems || [])" :key="item.id" class="product-card-sm" @click="goProduct(item)">
-              <image :src="item.cover || item.image" class="pcard-img" mode="aspectFill" />
-              <text class="pcard-name">{{ item.name || item.title }}</text>
-              <text class="pcard-price">¥{{ item.groupPrice || item.price }} / {{ item.minMembers || 2 }}人团</text>
+        <view
+          v-else-if="comp.type === 'GROUPBUY'"
+          class="comp-section"
+        >
+          <view class="section-hd">
+            <text class="section-title">
+              👥 超值拼团
+            </text>
+          </view>
+          <scroll-view
+            scroll-x
+            class="product-scroll"
+          >
+            <view
+              v-for="item in (groupBuyItems || [])"
+              :key="item.id"
+              class="product-card-sm"
+              @click="goProduct(item)"
+            >
+              <image
+                :src="item.cover || item.image"
+                class="pcard-img"
+                mode="aspectFill"
+              />
+              <text class="pcard-name">
+                {{ item.name || item.title }}
+              </text>
+              <text class="pcard-price">
+                ¥{{ item.groupPrice || item.price }} / {{ item.minMembers || 2 }}人团
+              </text>
             </view>
           </scroll-view>
         </view>
 
         <!-- 独立秒杀（页面内嵌） -->
-        <view v-else-if="comp.type === 'FLASHSALE_INDEPENDENT'" class="comp-section">
-          <view class="section-hd"><text class="section-title">⚡ {{ comp.title || '限时秒杀' }}</text></view>
-          <view class="indie-product-card" @click="goProduct({ id: comp.config?.productId })">
-            <image :src="comp.config?.cover || ''" class="indie-img" mode="aspectFill" />
+        <view
+          v-else-if="comp.type === 'FLASHSALE_INDEPENDENT'"
+          class="comp-section"
+        >
+          <view class="section-hd">
+            <text class="section-title">
+              ⚡ {{ comp.title || '限时秒杀' }}
+            </text>
+          </view>
+          <view
+            class="indie-product-card"
+            @click="goProduct({ id: comp.config?.productId })"
+          >
+            <image
+              :src="comp.config?.cover || ''"
+              class="indie-img"
+              mode="aspectFill"
+            />
             <view class="indie-info">
-              <text class="indie-name">商品ID: {{ comp.config?.productId || '' }}</text>
+              <text class="indie-name">
+                商品ID: {{ comp.config?.productId || '' }}
+              </text>
               <view class="indie-price-row">
-                <text class="indie-price">¥{{ comp.config?.flashPrice || 0 }}</text>
-                <text class="indie-original" v-if="comp.config?.originalPrice">¥{{ comp.config.originalPrice }}</text>
+                <text class="indie-price">
+                  ¥{{ comp.config?.flashPrice || 0 }}
+                </text>
+                <text
+                  v-if="comp.config?.originalPrice"
+                  class="indie-original"
+                >
+                  ¥{{ comp.config.originalPrice }}
+                </text>
               </view>
-              <text class="indie-stock">库存 {{ comp.config?.stock || 0 }} | 限购 {{ comp.config?.limitPerUser || 1 }}</text>
+              <text class="indie-stock">
+                库存 {{ comp.config?.stock || 0 }} | 限购 {{ comp.config?.limitPerUser || 1 }}
+              </text>
             </view>
-            <view class="indie-btn flash-btn">立即抢购</view>
+            <view class="indie-btn flash-btn">
+              立即抢购
+            </view>
           </view>
         </view>
 
         <!-- 独立拼团（页面内嵌） -->
-        <view v-else-if="comp.type === 'GROUPBUY_INDEPENDENT'" class="comp-section">
-          <view class="section-hd"><text class="section-title">👥 {{ comp.title || '超值拼团' }}</text></view>
-          <view class="indie-product-card" @click="goProduct({ id: comp.config?.productId })">
-            <image :src="comp.config?.cover || ''" class="indie-img" mode="aspectFill" />
+        <view
+          v-else-if="comp.type === 'GROUPBUY_INDEPENDENT'"
+          class="comp-section"
+        >
+          <view class="section-hd">
+            <text class="section-title">
+              👥 {{ comp.title || '超值拼团' }}
+            </text>
+          </view>
+          <view
+            class="indie-product-card"
+            @click="goProduct({ id: comp.config?.productId })"
+          >
+            <image
+              :src="comp.config?.cover || ''"
+              class="indie-img"
+              mode="aspectFill"
+            />
             <view class="indie-info">
-              <text class="indie-name">商品ID: {{ comp.config?.productId || '' }}</text>
+              <text class="indie-name">
+                商品ID: {{ comp.config?.productId || '' }}
+              </text>
               <view class="indie-price-row">
-                <text class="indie-price">¥{{ comp.config?.groupPrice || 0 }}</text>
-                <text class="indie-original" v-if="comp.config?.originalPrice">¥{{ comp.config.originalPrice }}</text>
+                <text class="indie-price">
+                  ¥{{ comp.config?.groupPrice || 0 }}
+                </text>
+                <text
+                  v-if="comp.config?.originalPrice"
+                  class="indie-original"
+                >
+                  ¥{{ comp.config.originalPrice }}
+                </text>
               </view>
-              <text class="indie-stock">{{ comp.config?.minMembers || 2 }}人成团 | 库存 {{ comp.config?.stock || 0 }}</text>
+              <text class="indie-stock">
+                {{ comp.config?.minMembers || 2 }}人成团 | 库存 {{ comp.config?.stock || 0 }}
+              </text>
             </view>
-            <view class="indie-btn group-btn">去开团</view>
+            <view class="indie-btn group-btn">
+              去开团
+            </view>
           </view>
         </view>
 
         <!-- 优惠券 -->
-        <view v-else-if="comp.type === 'COUPON'" class="comp-section">
-          <view class="section-hd"><text class="section-title">🎫 领券中心</text></view>
-          <scroll-view scroll-x class="coupon-scroll">
-            <view v-for="c in (coupons || [])" :key="c.id" class="coupon-card" @click="claimCoupon(c)">
-              <text class="coupon-value">{{ c.type === 'PERCENT' ? c.faceValue + '%' : '¥' + c.faceValue }}</text>
-              <text class="coupon-cond">满{{ c.threshold || 0 }}可用</text>
-              <text class="coupon-btn">领取</text>
+        <view
+          v-else-if="comp.type === 'COUPON'"
+          class="comp-section"
+        >
+          <view class="section-hd">
+            <text class="section-title">
+              🎫 领券中心
+            </text>
+          </view>
+          <scroll-view
+            scroll-x
+            class="coupon-scroll"
+          >
+            <view
+              v-for="c in (coupons || [])"
+              :key="c.id"
+              class="coupon-card"
+              @click="claimCoupon(c)"
+            >
+              <text class="coupon-value">
+                {{ c.type === 'PERCENT' ? c.faceValue + '%' : '¥' + c.faceValue }}
+              </text>
+              <text class="coupon-cond">
+                满{{ c.threshold || 0 }}可用
+              </text>
+              <text class="coupon-btn">
+                领取
+              </text>
             </view>
           </scroll-view>
         </view>
 
         <!-- 商品列表 -->
-        <view v-else-if="comp.type === 'PRODUCT_LIST'" class="comp-section">
-          <view class="section-hd"><text class="section-title">{{ comp.title || '精选商品' }}</text></view>
+        <view
+          v-else-if="comp.type === 'PRODUCT_LIST'"
+          class="comp-section"
+        >
+          <view class="section-hd">
+            <text class="section-title">
+              {{ comp.title || '精选商品' }}
+            </text>
+          </view>
           <view class="product-grid">
-            <view v-for="item in (productListItems || [])" :key="item.id" class="product-grid-item" @click="goProduct(item)">
-              <image :src="item.cover || item.image" class="grid-img" mode="aspectFill" />
-              <text class="grid-name">{{ item.name || item.title }}</text>
+            <view
+              v-for="item in (productListItems || [])"
+              :key="item.id"
+              class="product-grid-item"
+              @click="goProduct(item)"
+            >
+              <image
+                :src="item.cover || item.image"
+                class="grid-img"
+                mode="aspectFill"
+              />
+              <text class="grid-name">
+                {{ item.name || item.title }}
+              </text>
               <view class="grid-price-row">
-                <text class="grid-price">{{ comp.config.showPrice !== false ? '¥' + (item.price || 0) : '' }}</text>
+                <text class="grid-price">
+                  {{ comp.config.showPrice !== false ? '¥' + (item.price || 0) : '' }}
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <!-- 推荐 -->
-        <view v-else-if="comp.type === 'RECOMMEND'" class="comp-section">
-          <view class="section-hd"><text class="section-title">{{ comp.title || '为您推荐' }}</text></view>
-          <view v-for="item in (recommendItems || [])" :key="item.id" class="recommend-item" @click="goContent(item)">
-            <image :src="item.cover || item.image" class="rec-img" mode="aspectFill" />
+        <view
+          v-else-if="comp.type === 'RECOMMEND'"
+          class="comp-section"
+        >
+          <view class="section-hd">
+            <text class="section-title">
+              {{ comp.title || '为您推荐' }}
+            </text>
+          </view>
+          <view
+            v-for="item in (recommendItems || [])"
+            :key="item.id"
+            class="recommend-item"
+            @click="goContent(item)"
+          >
+            <image
+              :src="item.cover || item.image"
+              class="rec-img"
+              mode="aspectFill"
+            />
             <view class="rec-info">
-              <text class="rec-title">{{ item.title }}</text>
-              <text class="rec-desc">{{ item.description || item.summary || '' }}</text>
+              <text class="rec-title">
+                {{ item.title }}
+              </text>
+              <text class="rec-desc">
+                {{ item.description || item.summary || '' }}
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 未知类型 -->
-        <view v-else class="comp-unknown">
-          <text class="unknown-label">{{ comp.title || comp.type }}</text>
+        <view
+          v-else
+          class="comp-unknown"
+        >
+          <text class="unknown-label">
+            {{ comp.title || comp.type }}
+          </text>
         </view>
       </view>
 
       <!-- 空页面 -->
-      <view v-if="!visibleComponents.length" class="empty-state">
+      <view
+        v-if="!visibleComponents.length"
+        class="empty-state"
+      >
         <text>暂无可展示的内容</text>
       </view>
     </template>
 
     <!-- 页面不存在 -->
-    <view v-else class="empty-state">
+    <view
+      v-else
+      class="empty-state"
+    >
       <text>页面不存在或已下架</text>
     </view>
   </view>

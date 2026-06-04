@@ -2,84 +2,172 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">竞赛海报</text>
-      <text class="header-action" @click="share">分享</text>
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        竞赛海报
+      </text>
+      <text
+        class="header-action"
+        @click="share"
+      >
+        分享
+      </text>
     </view>
 
-    <scroll-view scroll-y class="scroll-area">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
       <!-- 海报预览 -->
       <view class="poster-wrapper">
-        <view class="poster-card" :style="{ background: posterBg }">
+        <view
+          class="poster-card"
+          :style="{ background: posterBg }"
+        >
           <!-- 顶部标题区 -->
           <view class="poster-top">
-            <text class="poster-badge">{{ comp.category || '国学竞赛' }}</text>
-            <text class="poster-title">{{ comp.name || comp.title || '国学知识竞赛' }}</text>
-            <text class="poster-subtitle">{{ comp.subtitle || '' }}</text>
+            <text class="poster-badge">
+              {{ comp.category || '国学竞赛' }}
+            </text>
+            <text class="poster-title">
+              {{ comp.name || comp.title || '国学知识竞赛' }}
+            </text>
+            <text class="poster-subtitle">
+              {{ comp.subtitle || '' }}
+            </text>
           </view>
 
           <!-- 中间装饰 -->
           <view class="poster-divider">
-            <text class="divider-icon">🏮</text>
+            <text class="divider-icon">
+              🏮
+            </text>
           </view>
 
           <!-- 竞赛详情 -->
           <view class="poster-details">
             <view class="detail-row">
-              <text class="detail-icon">📅</text>
-              <text class="detail-text">{{ formatDate(comp.startDate) }} - {{ formatDate(comp.endDate) }}</text>
+              <text class="detail-icon">
+                📅
+              </text>
+              <text class="detail-text">
+                {{ formatDate(comp.startDate) }} - {{ formatDate(comp.endDate) }}
+              </text>
             </view>
             <view class="detail-row">
-              <text class="detail-icon">👥</text>
-              <text class="detail-text">{{ comp.maxPlayers || '不限' }}人参赛</text>
+              <text class="detail-icon">
+                👥
+              </text>
+              <text class="detail-text">
+                {{ comp.maxPlayers || '不限' }}人参赛
+              </text>
             </view>
             <view class="detail-row">
-              <text class="detail-icon">🏆</text>
-              <text class="detail-text">{{ comp.prize || '丰厚奖品等你拿' }}</text>
+              <text class="detail-icon">
+                🏆
+              </text>
+              <text class="detail-text">
+                {{ comp.prize || '丰厚奖品等你拿' }}
+              </text>
             </view>
-            <view class="detail-row" v-if="comp.location">
-              <text class="detail-icon">📍</text>
-              <text class="detail-text">{{ comp.location }}</text>
+            <view
+              v-if="comp.location"
+              class="detail-row"
+            >
+              <text class="detail-icon">
+                📍
+              </text>
+              <text class="detail-text">
+                {{ comp.location }}
+              </text>
             </view>
           </view>
 
           <!-- 二维码 -->
           <view class="poster-qr-area">
-            <image v-if="qrcodeUrl" :src="qrcodeUrl" class="poster-qr" mode="aspectFit" />
-            <view v-else class="poster-qr-placeholder">
-              <text class="qr-icon">📱</text>
-              <text class="qr-text">扫码报名</text>
+            <image
+              v-if="qrcodeUrl"
+              :src="qrcodeUrl"
+              class="poster-qr"
+              mode="aspectFit"
+            />
+            <view
+              v-else
+              class="poster-qr-placeholder"
+            >
+              <text class="qr-icon">
+                📱
+              </text>
+              <text class="qr-text">
+                扫码报名
+              </text>
             </view>
-            <text class="poster-hint">长按识别二维码报名参赛</text>
+            <text class="poster-hint">
+              长按识别二维码报名参赛
+            </text>
           </view>
 
           <!-- 底部信息 -->
           <view class="poster-footer">
-            <text class="poster-org">{{ comp.organizer || '国学平台' }}</text>
+            <text class="poster-org">
+              {{ comp.organizer || '国学平台' }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 操作按钮 -->
       <view class="action-bar">
-        <view class="action-btn save-btn" @click="savePoster">
-          <text class="action-icon">💾</text>
-          <text class="action-label">保存图片</text>
+        <view
+          class="action-btn save-btn"
+          @click="savePoster"
+        >
+          <text class="action-icon">
+            💾
+          </text>
+          <text class="action-label">
+            保存图片
+          </text>
         </view>
-        <view class="action-btn share-btn" @click="share">
-          <text class="action-icon">📤</text>
-          <text class="action-label">分享好友</text>
+        <view
+          class="action-btn share-btn"
+          @click="share"
+        >
+          <text class="action-icon">
+            📤
+          </text>
+          <text class="action-label">
+            分享好友
+          </text>
         </view>
-        <view class="action-btn poster-btn" @click="regenerate">
-          <text class="action-icon">🔄</text>
-          <text class="action-label">重新生成</text>
+        <view
+          class="action-btn poster-btn"
+          @click="regenerate"
+        >
+          <text class="action-icon">
+            🔄
+          </text>
+          <text class="action-label">
+            重新生成
+          </text>
         </view>
       </view>
 
       <!-- 风格选择 -->
       <view class="style-section">
-        <text class="style-title">选择海报风格</text>
-        <scroll-view scroll-x class="style-scroll" show-scrollbar="false">
+        <text class="style-title">
+          选择海报风格
+        </text>
+        <scroll-view
+          scroll-x
+          class="style-scroll"
+          show-scrollbar="false"
+        >
           <view
             v-for="(style, idx) in styles"
             :key="idx"
@@ -87,10 +175,17 @@
             :class="{ active: selectedStyle === idx }"
             @click="selectStyle(idx)"
           >
-            <view class="style-preview" :style="{ background: style.bg }">
-              <text class="style-preview-text">{{ style.label }}</text>
+            <view
+              class="style-preview"
+              :style="{ background: style.bg }"
+            >
+              <text class="style-preview-text">
+                {{ style.label }}
+              </text>
             </view>
-            <text class="style-name">{{ style.name }}</text>
+            <text class="style-name">
+              {{ style.name }}
+            </text>
           </view>
         </scroll-view>
       </view>

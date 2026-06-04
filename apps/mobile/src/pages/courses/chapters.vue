@@ -3,22 +3,62 @@
     <LoadingSkeleton v-if="loading" />
     <view v-else>
       <view class="course-header">
-        <text class="course-title">{{ course.title }}</text>
-        <view class="progress-bar"><view class="progress-fill" :style="{ width: progress + '%' }" /></view>
-        <text class="progress-text">学习进度 {{ progress }}%</text>
+        <text class="course-title">
+          {{ course.title }}
+        </text>
+        <view class="progress-bar">
+          <view
+            class="progress-fill"
+            :style="{ width: progress + '%' }"
+          />
+        </view>
+        <text class="progress-text">
+          学习进度 {{ progress }}%
+        </text>
       </view>
       <view class="chapter-list">
-        <view v-for="(ch, i) in chapters" :key="ch.id" class="chapter-item" @click="goChapter(ch)">
-          <view class="ch-num">{{ i + 1 }}</view>
+        <view
+          v-for="(ch, i) in chapters"
+          :key="ch.id"
+          class="chapter-item"
+          @click="goChapter(ch)"
+        >
+          <view class="ch-num">
+            {{ i + 1 }}
+          </view>
           <view class="ch-info">
-            <text class="ch-title">{{ ch.title }}</text>
-            <text class="ch-duration">{{ ch.duration ? ch.duration + '分钟' : '' }}</text>
+            <text class="ch-title">
+              {{ ch.title }}
+            </text>
+            <text class="ch-duration">
+              {{ ch.duration ? ch.duration + '分钟' : '' }}
+            </text>
           </view>
           <view class="ch-status">
-            <text v-if="ch.completed" class="status-done">✓</text>
-            <text v-else-if="ch.inProgress" class="status-doing">学习中</text>
-            <text v-else-if="ch.locked" class="status-lock">🔒</text>
-            <text v-else class="status-play">▶</text>
+            <text
+              v-if="ch.completed"
+              class="status-done"
+            >
+              ✓
+            </text>
+            <text
+              v-else-if="ch.inProgress"
+              class="status-doing"
+            >
+              学习中
+            </text>
+            <text
+              v-else-if="ch.locked"
+              class="status-lock"
+            >
+              🔒
+            </text>
+            <text
+              v-else
+              class="status-play"
+            >
+              ▶
+            </text>
           </view>
         </view>
       </view>

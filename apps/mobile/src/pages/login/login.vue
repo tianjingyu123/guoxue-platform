@@ -2,101 +2,264 @@
   <view class="page">
     <!-- 品牌区 -->
     <view class="brand-area">
-      <view class="brand-icon">📚</view>
-      <text class="brand-name">国学传承平台</text>
-      <text class="brand-slogan">传承国学智慧 · 涵养文化自信</text>
+      <view class="brand-icon">
+        📚
+      </view>
+      <text class="brand-name">
+        国学传承平台
+      </text>
+      <text class="brand-slogan">
+        传承国学智慧 · 涵养文化自信
+      </text>
     </view>
 
     <!-- 标签切换 -->
     <view class="tabs">
-      <text :class="{ active: tab === 'login' }" @click="tab = 'login'">登录</text>
-      <text :class="{ active: tab === 'register' }" @click="tab = 'register'">注册</text>
-      <text :class="{ active: tab === 'sms' }" @click="tab = 'sms'">短信登录</text>
+      <text
+        :class="{ active: tab === 'login' }"
+        @click="tab = 'login'"
+      >
+        登录
+      </text>
+      <text
+        :class="{ active: tab === 'register' }"
+        @click="tab = 'register'"
+      >
+        注册
+      </text>
+      <text
+        :class="{ active: tab === 'sms' }"
+        @click="tab = 'sms'"
+      >
+        短信登录
+      </text>
     </view>
 
     <!-- 登录表单 -->
-    <view v-if="tab === 'login'" class="form">
+    <view
+      v-if="tab === 'login'"
+      class="form"
+    >
       <view class="input-wrap">
-        <text class="input-icon">📱</text>
-        <input v-model="loginForm.phone" placeholder="请输入手机号" class="input" type="number" maxlength="11" />
+        <text class="input-icon">
+          📱
+        </text>
+        <input
+          v-model="loginForm.phone"
+          placeholder="请输入手机号"
+          class="input"
+          type="number"
+          maxlength="11"
+        >
       </view>
       <view class="input-wrap">
-        <text class="input-icon">🔒</text>
-        <input v-model="loginForm.password" placeholder="请输入密码" class="input" :type="showPwd ? 'text' : 'password'" />
-        <text class="pwd-toggle" @click="showPwd = !showPwd">{{ showPwd ? '🙈' : '👁' }}</text>
+        <text class="input-icon">
+          🔒
+        </text>
+        <input
+          v-model="loginForm.password"
+          placeholder="请输入密码"
+          class="input"
+          :type="showPwd ? 'text' : 'password'"
+        >
+        <text
+          class="pwd-toggle"
+          @click="showPwd = !showPwd"
+        >
+          {{ showPwd ? '🙈' : '👁' }}
+        </text>
       </view>
-      <button class="submit-btn" @click="doLogin" :disabled="loading" :loading="loading">
+      <button
+        class="submit-btn"
+        :disabled="loading"
+        :loading="loading"
+        @click="doLogin"
+      >
         {{ loading ? '登录中...' : '登 录' }}
       </button>
       <view class="form-extra">
-        <text class="extra-link" @click="tab = 'register'">没有账号？立即注册</text>
+        <text
+          class="extra-link"
+          @click="tab = 'register'"
+        >
+          没有账号？立即注册
+        </text>
       </view>
     </view>
 
     <!-- 注册表单 -->
-    <view v-if="tab === 'register'" class="form">
+    <view
+      v-if="tab === 'register'"
+      class="form"
+    >
       <view class="input-wrap">
-        <text class="input-icon">👤</text>
-        <input v-model="regForm.nickname" placeholder="请输入昵称" class="input" />
+        <text class="input-icon">
+          👤
+        </text>
+        <input
+          v-model="regForm.nickname"
+          placeholder="请输入昵称"
+          class="input"
+        >
       </view>
       <view class="input-wrap">
-        <text class="input-icon">📱</text>
-        <input v-model="regForm.phone" placeholder="请输入手机号" class="input" type="number" maxlength="11" />
+        <text class="input-icon">
+          📱
+        </text>
+        <input
+          v-model="regForm.phone"
+          placeholder="请输入手机号"
+          class="input"
+          type="number"
+          maxlength="11"
+        >
       </view>
       <view class="input-wrap">
-        <text class="input-icon">🔒</text>
-        <input v-model="regForm.password" placeholder="密码（至少6位）" class="input" :type="showRegPwd ? 'text' : 'password'" />
-        <text class="pwd-toggle" @click="showRegPwd = !showRegPwd">{{ showRegPwd ? '🙈' : '👁' }}</text>
+        <text class="input-icon">
+          🔒
+        </text>
+        <input
+          v-model="regForm.password"
+          placeholder="密码（至少6位）"
+          class="input"
+          :type="showRegPwd ? 'text' : 'password'"
+        >
+        <text
+          class="pwd-toggle"
+          @click="showRegPwd = !showRegPwd"
+        >
+          {{ showRegPwd ? '🙈' : '👁' }}
+        </text>
       </view>
       <!-- 协议勾选 -->
-      <view class="agree-row" @click="agreed = !agreed">
-        <text class="agree-box" :class="{ checked: agreed }">{{ agreed ? '✓' : '' }}</text>
-        <text class="agree-text">已阅读并同意 <text class="agree-link">《用户协议》</text> 和 <text class="agree-link">《隐私政策》</text></text>
+      <view
+        class="agree-row"
+        @click="agreed = !agreed"
+      >
+        <text
+          class="agree-box"
+          :class="{ checked: agreed }"
+        >
+          {{ agreed ? '✓' : '' }}
+        </text>
+        <text class="agree-text">
+          已阅读并同意 <text class="agree-link">
+            《用户协议》
+          </text> 和 <text class="agree-link">
+            《隐私政策》
+          </text>
+        </text>
       </view>
-      <button class="submit-btn" @click="doRegister" :disabled="loading" :loading="loading">
+      <button
+        class="submit-btn"
+        :disabled="loading"
+        :loading="loading"
+        @click="doRegister"
+      >
         {{ loading ? '注册中...' : '注 册' }}
       </button>
       <view class="form-extra">
-        <text class="extra-link" @click="tab = 'login'">已有账号？立即登录</text>
+        <text
+          class="extra-link"
+          @click="tab = 'login'"
+        >
+          已有账号？立即登录
+        </text>
       </view>
     </view>
 
     <!-- 短信登录表单 -->
-    <view v-if="tab === 'sms'" class="form">
+    <view
+      v-if="tab === 'sms'"
+      class="form"
+    >
       <view class="input-wrap">
-        <text class="input-icon">📱</text>
-        <input v-model="smsForm.phone" placeholder="请输入手机号" class="input" type="number" maxlength="11" />
+        <text class="input-icon">
+          📱
+        </text>
+        <input
+          v-model="smsForm.phone"
+          placeholder="请输入手机号"
+          class="input"
+          type="number"
+          maxlength="11"
+        >
       </view>
       <view class="input-wrap">
-        <text class="input-icon">✉️</text>
-        <input v-model="smsForm.code" placeholder="请输入验证码" class="input" type="number" maxlength="6" />
-        <text class="sms-btn" :class="{ disabled: countdown > 0 }" @click="sendSmsCode">
+        <text class="input-icon">
+          ✉️
+        </text>
+        <input
+          v-model="smsForm.code"
+          placeholder="请输入验证码"
+          class="input"
+          type="number"
+          maxlength="6"
+        >
+        <text
+          class="sms-btn"
+          :class="{ disabled: countdown > 0 }"
+          @click="sendSmsCode"
+        >
           {{ countdown > 0 ? `${countdown}s` : '发送验证码' }}
         </text>
       </view>
-      <button class="submit-btn" @click="doSmsLogin" :disabled="loading" :loading="loading">
+      <button
+        class="submit-btn"
+        :disabled="loading"
+        :loading="loading"
+        @click="doSmsLogin"
+      >
         {{ loading ? '登录中...' : '登 录' }}
       </button>
       <view class="form-extra">
-        <text class="extra-link" @click="tab = 'register'">没有账号？注册后自动登录</text>
+        <text
+          class="extra-link"
+          @click="tab = 'register'"
+        >
+          没有账号？注册后自动登录
+        </text>
       </view>
     </view>
 
     <!-- 第三方登录 -->
     <view class="third-party">
-      <text class="third-label">—— 其他方式登录 ——</text>
+      <text class="third-label">
+        —— 其他方式登录 ——
+      </text>
       <view class="third-icons">
-        <view class="third-item" @click="wechatLogin">
-          <text class="third-icon">💬</text>
-          <text class="third-name">微信</text>
+        <view
+          class="third-item"
+          @click="wechatLogin"
+        >
+          <text class="third-icon">
+            💬
+          </text>
+          <text class="third-name">
+            微信
+          </text>
         </view>
-        <view class="third-item" @click="appleLogin">
-          <text class="third-icon">🍎</text>
-          <text class="third-name">Apple</text>
+        <view
+          class="third-item"
+          @click="appleLogin"
+        >
+          <text class="third-icon">
+            🍎
+          </text>
+          <text class="third-name">
+            Apple
+          </text>
         </view>
-        <view class="third-item" @click="visitorLogin">
-          <text class="third-icon">👀</text>
-          <text class="third-name">游客</text>
+        <view
+          class="third-item"
+          @click="visitorLogin"
+        >
+          <text class="third-icon">
+            👀
+          </text>
+          <text class="third-name">
+            游客
+          </text>
         </view>
       </view>
     </view>

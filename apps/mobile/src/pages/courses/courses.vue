@@ -2,18 +2,34 @@
   <view class="page">
     <!-- 页面头部 -->
     <view class="page-header">
-      <text class="page-title">课程</text>
-      <text class="page-sub">发现优质国学课程</text>
+      <text class="page-title">
+        课程
+      </text>
+      <text class="page-sub">
+        发现优质国学课程
+      </text>
     </view>
 
     <!-- 搜索入口 -->
-    <view class="search-entry" @click="goSearch">
-      <text class="search-icon">🔍</text>
-      <text class="search-text">搜索课程...</text>
+    <view
+      class="search-entry"
+      @click="goSearch"
+    >
+      <text class="search-icon">
+        🔍
+      </text>
+      <text class="search-text">
+        搜索课程...
+      </text>
     </view>
 
     <!-- 分类 Tab -->
-    <scroll-view scroll-x class="tab-scroll" show-scrollbar="false" enhanced>
+    <scroll-view
+      scroll-x
+      class="tab-scroll"
+      show-scrollbar="false"
+      enhanced
+    >
       <view class="tab-list">
         <view
           v-for="cat in categories"
@@ -22,7 +38,9 @@
           :class="{ active: activeCategory === cat.id }"
           @click="switchCategory(cat.id)"
         >
-          <text class="tab-text">{{ cat.name }}</text>
+          <text class="tab-text">
+            {{ cat.name }}
+          </text>
         </view>
       </view>
     </scroll-view>
@@ -36,7 +54,9 @@
         :class="{ active: activeSort === s.id }"
         @click="switchSort(s.id)"
       >
-        <text class="sort-text">{{ s.name }}</text>
+        <text class="sort-text">
+          {{ s.name }}
+        </text>
       </view>
     </view>
 
@@ -66,25 +86,53 @@
               lazy-load
             />
             <!-- 价格标签 -->
-            <view class="card-price-tag" :class="{ free: c.isFree || c.price === 0 }">
+            <view
+              class="card-price-tag"
+              :class="{ free: c.isFree || c.price === 0 }"
+            >
               <text>{{ c.isFree || c.price === 0 ? '免费' : '¥' + toYuan(c.price) }}</text>
             </view>
             <!-- 难度标签 -->
-            <view v-if="c.difficulty" class="card-diff-tag">{{ diffLabel(c.difficulty) }}</view>
+            <view
+              v-if="c.difficulty"
+              class="card-diff-tag"
+            >
+              {{ diffLabel(c.difficulty) }}
+            </view>
           </view>
           <!-- 信息 -->
           <view class="card-body">
-            <text class="card-title">{{ c.title }}</text>
-            <text v-if="c.instructor" class="card-instructor">{{ c.instructor }}</text>
+            <text class="card-title">
+              {{ c.title }}
+            </text>
+            <text
+              v-if="c.instructor"
+              class="card-instructor"
+            >
+              {{ c.instructor }}
+            </text>
             <view class="card-meta">
-              <text class="card-students">👤 {{ formatSales(c.studentCount || 0) }}</text>
-              <text v-if="c.rating" class="card-rating">★ {{ c.rating }}</text>
+              <text class="card-students">
+                👤 {{ formatSales(c.studentCount || 0) }}
+              </text>
+              <text
+                v-if="c.rating"
+                class="card-rating"
+              >
+                ★ {{ c.rating }}
+              </text>
             </view>
             <view class="card-price-row">
-              <text class="card-price" :class="{ free: c.isFree || c.price === 0 }">
+              <text
+                class="card-price"
+                :class="{ free: c.isFree || c.price === 0 }"
+              >
                 {{ c.isFree || c.price === 0 ? '免费' : '¥' + toYuan(c.price) }}
               </text>
-              <text v-if="c.originalPrice && c.originalPrice > (c.price || 0)" class="card-original">
+              <text
+                v-if="c.originalPrice && c.originalPrice > (c.price || 0)"
+                class="card-original"
+              >
                 ¥{{ toYuan(c.originalPrice) }}
               </text>
             </view>
@@ -93,11 +141,19 @@
       </view>
 
       <!-- 加载更多 -->
-      <view v-if="loadingMore" class="load-more-bar">
+      <view
+        v-if="loadingMore"
+        class="load-more-bar"
+      >
         <text>加载中...</text>
       </view>
-      <view v-if="!hasMore && courses.length > 0" class="load-more-bar">
-        <text class="no-more">— 已经到底了 —</text>
+      <view
+        v-if="!hasMore && courses.length > 0"
+        class="load-more-bar"
+      >
+        <text class="no-more">
+          — 已经到底了 —
+        </text>
       </view>
     </DataState>
   </view>

@@ -2,23 +2,38 @@
   <view class="page">
     <!-- 导航栏 -->
     <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        <text class="nav-back-icon">‹</text>
+      <view
+        class="nav-back"
+        @click="goBack"
+      >
+        <text class="nav-back-icon">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">充值国学币</text>
+      <text class="nav-title">
+        充值国学币
+      </text>
       <view class="nav-placeholder" />
     </view>
 
     <!-- 当前余额 -->
     <view class="current-balance">
-      <text class="balance-label">当前余额</text>
-      <text class="balance-value">{{ balance }} 币</text>
+      <text class="balance-label">
+        当前余额
+      </text>
+      <text class="balance-value">
+        {{ balance }} 币
+      </text>
     </view>
 
     <!-- 充值说明 -->
     <view class="rate-hint">
-      <text class="rate-text">国学币与人民币比例 100:1</text>
-      <text class="rate-sub">充值后可用于课程、圈子、打赏、付费问答等</text>
+      <text class="rate-text">
+        国学币与人民币比例 100:1
+      </text>
+      <text class="rate-sub">
+        充值后可用于课程、圈子、打赏、付费问答等
+      </text>
     </view>
 
     <DataState
@@ -31,7 +46,9 @@
     >
       <!-- ==================== 充值档位 ==================== -->
       <view class="section">
-        <text class="section-title">选择充值金额</text>
+        <text class="section-title">
+          选择充值金额
+        </text>
 
         <view class="tier-grid">
           <view
@@ -42,18 +59,34 @@
             @click="selectedTier = tier"
           >
             <view class="tier-content">
-              <text class="tier-amount">¥{{ tier.amount }}</text>
-              <text class="tier-coin">获得 {{ tier.coin }} 币</text>
-              <text v-if="tier.bonus" class="tier-bonus">额外赠送 {{ tier.bonus }} 币</text>
+              <text class="tier-amount">
+                ¥{{ tier.amount }}
+              </text>
+              <text class="tier-coin">
+                获得 {{ tier.coin }} 币
+              </text>
+              <text
+                v-if="tier.bonus"
+                class="tier-bonus"
+              >
+                额外赠送 {{ tier.bonus }} 币
+              </text>
             </view>
-            <view v-if="tier.badge" class="tier-badge">{{ tier.badge }}</view>
+            <view
+              v-if="tier.badge"
+              class="tier-badge"
+            >
+              {{ tier.badge }}
+            </view>
           </view>
         </view>
       </view>
 
       <!-- ==================== 支付方式 ==================== -->
       <view class="section payment-section">
-        <text class="section-title">支付方式</text>
+        <text class="section-title">
+          支付方式
+        </text>
         <view class="payment-list">
           <view
             class="payment-item"
@@ -61,10 +94,19 @@
             @click="paymentMethod = 'wechat'"
           >
             <view class="payment-left">
-              <text class="payment-icon pay-wechat">💚</text>
-              <text class="payment-name">微信支付</text>
+              <text class="payment-icon pay-wechat">
+                💚
+              </text>
+              <text class="payment-name">
+                微信支付
+              </text>
             </view>
-            <text class="payment-check" :class="{ checked: paymentMethod === 'wechat' }">✓</text>
+            <text
+              class="payment-check"
+              :class="{ checked: paymentMethod === 'wechat' }"
+            >
+              ✓
+            </text>
           </view>
           <view
             class="payment-item"
@@ -72,10 +114,19 @@
             @click="paymentMethod = 'alipay'"
           >
             <view class="payment-left">
-              <text class="payment-icon pay-alipay">💙</text>
-              <text class="payment-name">支付宝</text>
+              <text class="payment-icon pay-alipay">
+                💙
+              </text>
+              <text class="payment-name">
+                支付宝
+              </text>
             </view>
-            <text class="payment-check" :class="{ checked: paymentMethod === 'alipay' }">✓</text>
+            <text
+              class="payment-check"
+              :class="{ checked: paymentMethod === 'alipay' }"
+            >
+              ✓
+            </text>
           </view>
           <view
             class="payment-item"
@@ -83,10 +134,19 @@
             @click="paymentMethod = 'unionpay'"
           >
             <view class="payment-left">
-              <text class="payment-icon pay-unionpay">🏦</text>
-              <text class="payment-name">银联支付</text>
+              <text class="payment-icon pay-unionpay">
+                🏦
+              </text>
+              <text class="payment-name">
+                银联支付
+              </text>
             </view>
-            <text class="payment-check" :class="{ checked: paymentMethod === 'unionpay' }">✓</text>
+            <text
+              class="payment-check"
+              :class="{ checked: paymentMethod === 'unionpay' }"
+            >
+              ✓
+            </text>
           </view>
         </view>
       </view>
@@ -95,9 +155,18 @@
     <!-- ==================== 确认按钮 ==================== -->
     <view class="bottom-bar">
       <view class="bottom-summary">
-        <text class="summary-label">需支付</text>
-        <text class="summary-price">¥{{ selectedTier?.amount || 0 }}</text>
-        <text v-if="selectedTier" class="summary-coin">获得 {{ totalCoin }} 币</text>
+        <text class="summary-label">
+          需支付
+        </text>
+        <text class="summary-price">
+          ¥{{ selectedTier?.amount || 0 }}
+        </text>
+        <text
+          v-if="selectedTier"
+          class="summary-coin"
+        >
+          获得 {{ totalCoin }} 币
+        </text>
       </view>
       <button
         class="confirm-btn"

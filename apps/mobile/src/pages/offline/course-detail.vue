@@ -3,48 +3,111 @@
     <!-- 头部 -->
     <view class="header">
       <view class="header-row">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title ellipsis">{{ course?.title || '课程详情' }}</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title ellipsis">
+          {{ course?.title || '课程详情' }}
+        </text>
         <view class="header-actions">
-          <text class="action-btn" :class="{ favorited: isFavorited }" @click="isFavorited = !isFavorited">❤</text>
-          <text class="action-btn" @click="handleShare">↗</text>
+          <text
+            class="action-btn"
+            :class="{ favorited: isFavorited }"
+            @click="isFavorited = !isFavorited"
+          >
+            ❤
+          </text>
+          <text
+            class="action-btn"
+            @click="handleShare"
+          >
+            ↗
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 加载中 -->
-    <view v-if="loading" class="loading-state">
+    <view
+      v-if="loading"
+      class="loading-state"
+    >
       <text>⏳</text>
     </view>
 
     <!-- 不存在 -->
-    <view v-else-if="!course" class="empty-state">
+    <view
+      v-else-if="!course"
+      class="empty-state"
+    >
       <text>⚠️</text>
-      <text class="empty-text">课程不存在</text>
+      <text class="empty-text">
+        课程不存在
+      </text>
     </view>
 
     <template v-else>
       <!-- 封面 -->
       <view class="cover-wrap">
-        <image :src="course.cover" class="cover-img" mode="aspectFill" />
-        <text class="cover-status" :class="'status-' + course.status">
+        <image
+          :src="course.cover"
+          class="cover-img"
+          mode="aspectFill"
+        />
+        <text
+          class="cover-status"
+          :class="'status-' + course.status"
+        >
           {{ getCourseStatusLabel(course.status) }}
         </text>
-        <text v-if="course.price === 0" class="cover-free">免费</text>
+        <text
+          v-if="course.price === 0"
+          class="cover-free"
+        >
+          免费
+        </text>
       </view>
 
       <!-- 基本信息 -->
       <view class="body-section">
-        <text class="course-title">{{ course.title }}</text>
-        <view v-if="course.tags && course.tags.length" class="tags-row">
-          <text v-for="(tag, i) in course.tags" :key="i" class="tag">{{ tag }}</text>
+        <text class="course-title">
+          {{ course.title }}
+        </text>
+        <view
+          v-if="course.tags && course.tags.length"
+          class="tags-row"
+        >
+          <text
+            v-for="(tag, i) in course.tags"
+            :key="i"
+            class="tag"
+          >
+            {{ tag }}
+          </text>
         </view>
-        <text class="course-desc">{{ course.description }}</text>
+        <text class="course-desc">
+          {{ course.description }}
+        </text>
         <view class="price-row">
-          <text v-if="course.price === 0" class="price-free">免费</text>
+          <text
+            v-if="course.price === 0"
+            class="price-free"
+          >
+            免费
+          </text>
           <template v-else>
-            <text class="price-current">¥{{ course.price }}</text>
-            <text v-if="course.originalPrice && course.originalPrice > course.price" class="price-original">¥{{ course.originalPrice }}</text>
+            <text class="price-current">
+              ¥{{ course.price }}
+            </text>
+            <text
+              v-if="course.originalPrice && course.originalPrice > course.price"
+              class="price-original"
+            >
+              ¥{{ course.originalPrice }}
+            </text>
           </template>
         </view>
 
@@ -53,30 +116,56 @@
           <view class="info-item">
             <text>📅</text>
             <view>
-              <text class="info-label">课程时间</text>
-              <text class="info-value">{{ formatDateTime(course.startTime) }} - {{ formatDateTime(course.endTime) }}</text>
+              <text class="info-label">
+                课程时间
+              </text>
+              <text class="info-value">
+                {{ formatDateTime(course.startTime) }} - {{ formatDateTime(course.endTime) }}
+              </text>
             </view>
           </view>
           <view class="info-item">
             <text>📍</text>
             <view class="info-address">
-              <text class="info-label">{{ course.stationName || '上课地点' }}</text>
-              <text class="info-value">{{ course.address }}</text>
+              <text class="info-label">
+                {{ course.stationName || '上课地点' }}
+              </text>
+              <text class="info-value">
+                {{ course.address }}
+              </text>
             </view>
-            <text v-if="course.location?.latitude" class="nav-link" @click="navigateToCourse">🧭 导航</text>
+            <text
+              v-if="course.location?.latitude"
+              class="nav-link"
+              @click="navigateToCourse"
+            >
+              🧭 导航
+            </text>
           </view>
           <view class="info-item">
             <text>👥</text>
             <view>
-              <text class="info-label">报名人数</text>
-              <text class="info-value">{{ participants }}/{{ maxParticipants }}人</text>
-              <text v-if="isFull" class="full-tag">（已满）</text>
+              <text class="info-label">
+                报名人数
+              </text>
+              <text class="info-value">
+                {{ participants }}/{{ maxParticipants }}人
+              </text>
+              <text
+                v-if="isFull"
+                class="full-tag"
+              >
+                （已满）
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 已报名学员 -->
-        <view v-if="course.enrolledUsers && course.enrolledUsers.length" class="enrolled-row">
+        <view
+          v-if="course.enrolledUsers && course.enrolledUsers.length"
+          class="enrolled-row"
+        >
           <view class="enrolled-avatars">
             <image
               v-for="u in course.enrolledUsers.slice(0, 5)"
@@ -86,7 +175,9 @@
               mode="aspectFill"
             />
           </view>
-          <text class="enrolled-count">{{ participants }}人已报名</text>
+          <text class="enrolled-count">
+            {{ participants }}人已报名
+          </text>
         </view>
 
         <!-- Tab 内容 -->
@@ -98,49 +189,111 @@
               class="tab"
               :class="{ active: infoActiveTab === tab.value }"
               @click="infoActiveTab = tab.value"
-            >{{ tab.label }}</text>
+            >
+              {{ tab.label }}
+            </text>
           </view>
 
           <!-- 课程介绍 -->
-          <view v-if="infoActiveTab === 'intro'" class="tab-panel">
-            <view v-if="course.content" class="html-content">
+          <view
+            v-if="infoActiveTab === 'intro'"
+            class="tab-panel"
+          >
+            <view
+              v-if="course.content"
+              class="html-content"
+            >
               <rich-text :nodes="course.content" />
             </view>
-            <view v-if="course.enrollNotice" class="notice-card">
-              <text class="notice-title">⚠️ 报名须知</text>
-              <text class="notice-text">{{ course.enrollNotice }}</text>
+            <view
+              v-if="course.enrollNotice"
+              class="notice-card"
+            >
+              <text class="notice-title">
+                ⚠️ 报名须知
+              </text>
+              <text class="notice-text">
+                {{ course.enrollNotice }}
+              </text>
             </view>
-            <view v-if="course.refundPolicy" class="notice-card">
-              <text class="notice-title">退款规则</text>
-              <text class="notice-text">{{ course.refundPolicy }}</text>
+            <view
+              v-if="course.refundPolicy"
+              class="notice-card"
+            >
+              <text class="notice-title">
+                退款规则
+              </text>
+              <text class="notice-text">
+                {{ course.refundPolicy }}
+              </text>
             </view>
           </view>
 
           <!-- 课程大纲 -->
-          <view v-if="infoActiveTab === 'outline'" class="tab-panel">
-            <view v-if="course.outline && course.outline.length" class="outline-list">
-              <view v-for="(item, idx) in course.outline" :key="item.id" class="outline-item">
-                <view class="outline-number">{{ idx + 1 }}</view>
+          <view
+            v-if="infoActiveTab === 'outline'"
+            class="tab-panel"
+          >
+            <view
+              v-if="course.outline && course.outline.length"
+              class="outline-list"
+            >
+              <view
+                v-for="(item, idx) in course.outline"
+                :key="item.id"
+                class="outline-item"
+              >
+                <view class="outline-number">
+                  {{ idx + 1 }}
+                </view>
                 <view class="outline-body">
                   <view class="outline-title-row">
-                    <text class="outline-title">{{ item.title }}</text>
-                    <text class="outline-duration">{{ item.duration }}</text>
+                    <text class="outline-title">
+                      {{ item.title }}
+                    </text>
+                    <text class="outline-duration">
+                      {{ item.duration }}
+                    </text>
                   </view>
-                  <text v-if="item.description" class="outline-desc">{{ item.description }}</text>
+                  <text
+                    v-if="item.description"
+                    class="outline-desc"
+                  >
+                    {{ item.description }}
+                  </text>
                 </view>
               </view>
             </view>
-            <text v-else class="empty-tab">暂无大纲</text>
+            <text
+              v-else
+              class="empty-tab"
+            >
+              暂无大纲
+            </text>
           </view>
 
           <!-- 讲师介绍 -->
-          <view v-if="infoActiveTab === 'instructor'" class="tab-panel">
-            <view v-if="course.instructorDetail" class="instructor-card">
+          <view
+            v-if="infoActiveTab === 'instructor'"
+            class="tab-panel"
+          >
+            <view
+              v-if="course.instructorDetail"
+              class="instructor-card"
+            >
               <view class="instructor-top">
-                <image :src="course.instructorDetail.avatar" class="instructor-avatar-lg" mode="aspectFill" />
+                <image
+                  :src="course.instructorDetail.avatar"
+                  class="instructor-avatar-lg"
+                  mode="aspectFill"
+                />
                 <view class="instructor-top-info">
-                  <text class="instructor-name-lg">{{ course.instructorDetail.name }}</text>
-                  <text class="instructor-title">{{ course.instructorDetail.title }}</text>
+                  <text class="instructor-name-lg">
+                    {{ course.instructorDetail.name }}
+                  </text>
+                  <text class="instructor-title">
+                    {{ course.instructorDetail.title }}
+                  </text>
                   <view class="instructor-stats">
                     <text>📖 {{ course.instructorDetail.courseCount }}门课</text>
                     <text>🎓 {{ course.instructorDetail.studentCount }}学员</text>
@@ -148,24 +301,53 @@
                 </view>
               </view>
               <view class="instructor-bio">
-                <text class="instructor-bio-title">讲师简介</text>
-                <text class="instructor-bio-text">{{ course.instructorDetail.introduction }}</text>
+                <text class="instructor-bio-title">
+                  讲师简介
+                </text>
+                <text class="instructor-bio-text">
+                  {{ course.instructorDetail.introduction }}
+                </text>
               </view>
-              <view v-if="course.instructorDetail.specialties" class="instructor-specs">
-                <text class="instructor-bio-title">擅长领域</text>
+              <view
+                v-if="course.instructorDetail.specialties"
+                class="instructor-specs"
+              >
+                <text class="instructor-bio-title">
+                  擅长领域
+                </text>
                 <view class="spec-tags">
-                  <text v-for="s in course.instructorDetail.specialties" :key="s" class="tag">{{ s }}</text>
+                  <text
+                    v-for="s in course.instructorDetail.specialties"
+                    :key="s"
+                    class="tag"
+                  >
+                    {{ s }}
+                  </text>
                 </view>
               </view>
-              <view class="btn btn-outline btn-full" @click="goInstructorPage(course.instructor?.id)">
+              <view
+                class="btn btn-outline btn-full"
+                @click="goInstructorPage(course.instructor?.id)"
+              >
                 查看讲师主页 ›
               </view>
             </view>
-            <view v-else-if="course.instructor" class="instructor-simple">
-              <image :src="course.instructor.avatar" class="instructor-avatar-sm" mode="aspectFill" />
+            <view
+              v-else-if="course.instructor"
+              class="instructor-simple"
+            >
+              <image
+                :src="course.instructor.avatar"
+                class="instructor-avatar-sm"
+                mode="aspectFill"
+              />
               <view>
-                <text class="instructor-name-sm">{{ course.instructor.name }}</text>
-                <text class="instructor-title-sm">{{ course.instructor.title }}</text>
+                <text class="instructor-name-sm">
+                  {{ course.instructor.name }}
+                </text>
+                <text class="instructor-title-sm">
+                  {{ course.instructor.title }}
+                </text>
               </view>
             </view>
           </view>
@@ -175,21 +357,40 @@
       <!-- 底部操作栏 -->
       <view class="bottom-bar">
         <template v-if="isEnrolled">
-          <view class="bottom-btn bottom-btn-outline" @click="showQrCode = true">
+          <view
+            class="bottom-btn bottom-btn-outline"
+            @click="showQrCode = true"
+          >
             <text>📱</text>
             <text>入场码</text>
           </view>
-          <view class="bottom-btn bottom-btn-icon" @click="handleAddToCalendar">
+          <view
+            class="bottom-btn bottom-btn-icon"
+            @click="handleAddToCalendar"
+          >
             <text>📅+</text>
           </view>
-          <view class="bottom-btn bottom-btn-ghost" @click="showCancelConfirm = true">
+          <view
+            class="bottom-btn bottom-btn-ghost"
+            @click="showCancelConfirm = true"
+          >
             <text>取消报名</text>
           </view>
         </template>
         <template v-else>
           <view class="bottom-price">
-            <text v-if="course.price === 0" class="bottom-free">免费</text>
-            <text v-else class="bottom-price-text">¥{{ course.price }}</text>
+            <text
+              v-if="course.price === 0"
+              class="bottom-free"
+            >
+              免费
+            </text>
+            <text
+              v-else
+              class="bottom-price-text"
+            >
+              ¥{{ course.price }}
+            </text>
           </view>
           <view
             class="bottom-btn bottom-btn-primary"
@@ -203,40 +404,87 @@
       </view>
 
       <!-- 入场二维码弹窗 -->
-      <view v-if="showQrCode && course.myEnrollment" class="modal-overlay" @click="showQrCode = false">
-        <view class="modal-dialog" @click.stop>
+      <view
+        v-if="showQrCode && course.myEnrollment"
+        class="modal-overlay"
+        @click="showQrCode = false"
+      >
+        <view
+          class="modal-dialog"
+          @click.stop
+        >
           <view class="modal-header">
-            <text class="modal-title">入场二维码</text>
-            <text @click="showQrCode = false">✕</text>
+            <text class="modal-title">
+              入场二维码
+            </text>
+            <text @click="showQrCode = false">
+              ✕
+            </text>
           </view>
           <view class="modal-body">
-            <view class="qrcode-placeholder">📱</view>
-            <text class="qrcode-hint">请在入场时向工作人员出示此二维码</text>
-            <text v-if="course.myEnrollment.seatNo" class="seat-no">座位号: {{ course.myEnrollment.seatNo }}</text>
+            <view class="qrcode-placeholder">
+              📱
+            </view>
+            <text class="qrcode-hint">
+              请在入场时向工作人员出示此二维码
+            </text>
+            <text
+              v-if="course.myEnrollment.seatNo"
+              class="seat-no"
+            >
+              座位号: {{ course.myEnrollment.seatNo }}
+            </text>
             <view class="qrcode-info">
               <text>课程: {{ course.title }}</text>
               <text>时间: {{ formatDateTime(course.startTime) }}</text>
               <text>地点: {{ course.address }}</text>
             </view>
           </view>
-          <view class="btn btn-outline btn-full" @click="showQrCode = false">关闭</view>
+          <view
+            class="btn btn-outline btn-full"
+            @click="showQrCode = false"
+          >
+            关闭
+          </view>
         </view>
       </view>
 
       <!-- 取消报名确认弹窗 -->
-      <view v-if="showCancelConfirm" class="modal-overlay" @click="showCancelConfirm = false">
-        <view class="modal-dialog" @click.stop>
+      <view
+        v-if="showCancelConfirm"
+        class="modal-overlay"
+        @click="showCancelConfirm = false"
+      >
+        <view
+          class="modal-dialog"
+          @click.stop
+        >
           <view class="modal-header">
             <text>⚠️</text>
             <text>确认取消报名？</text>
           </view>
-          <view v-if="course.refundPolicy" class="refund-notice">
-            <text class="refund-title">退款规则：</text>
-            <text class="refund-text">{{ course.refundPolicy }}</text>
+          <view
+            v-if="course.refundPolicy"
+            class="refund-notice"
+          >
+            <text class="refund-title">
+              退款规则：
+            </text>
+            <text class="refund-text">
+              {{ course.refundPolicy }}
+            </text>
           </view>
           <view class="modal-actions">
-            <view class="btn btn-outline flex-1" @click="showCancelConfirm = false">再想想</view>
-            <view class="btn btn-danger flex-1" @click="handleCancel">
+            <view
+              class="btn btn-outline flex-1"
+              @click="showCancelConfirm = false"
+            >
+              再想想
+            </view>
+            <view
+              class="btn btn-danger flex-1"
+              @click="handleCancel"
+            >
               {{ cancelling ? '⏳' : '' }} 确认取消
             </view>
           </view>

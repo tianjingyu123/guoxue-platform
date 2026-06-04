@@ -1,7 +1,10 @@
 <template>
   <view class="skeleton-wrapper">
     <!-- 卡片骨架 -->
-    <view v-if="type === 'card'" class="skeleton-card">
+    <view
+      v-if="type === 'card'"
+      class="skeleton-card"
+    >
       <view class="sk-cover" />
       <view class="sk-body">
         <view class="sk-line w-80" />
@@ -12,8 +15,15 @@
     </view>
 
     <!-- 列表骨架 -->
-    <view v-if="type === 'list'" class="skeleton-list">
-      <view v-for="i in 5" :key="i" class="list-item">
+    <view
+      v-if="type === 'list'"
+      class="skeleton-list"
+    >
+      <view
+        v-for="i in 5"
+        :key="i"
+        class="list-item"
+      >
         <view class="sk-row">
           <view class="sk-avatar" />
           <view class="sk-col">
@@ -27,12 +37,19 @@
     </view>
 
     <!-- 详情骨架 -->
-    <view v-if="type === 'detail'" class="skeleton-detail">
+    <view
+      v-if="type === 'detail'"
+      class="skeleton-detail"
+    >
       <view class="sk-cover sk-cover-lg" />
       <view class="sk-line w-90 sk-title-lg" />
       <view class="sk-line w-50" />
       <view class="sk-divider" />
-      <view v-for="i in 6" :key="i" class="sk-line w-100" />
+      <view
+        v-for="i in 6"
+        :key="i"
+        class="sk-line w-100"
+      />
       <view class="sk-line w-80" />
       <view class="sk-line w-70" />
     </view>

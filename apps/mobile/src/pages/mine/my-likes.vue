@@ -3,27 +3,43 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">我的点赞</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          我的点赞
+        </text>
         <view class="header-right" />
       </view>
 
       <!-- 筛选 -->
       <view class="filter-bar">
-        <scroll-view scroll-x class="filter-scroll" show-scrollbar="false">
+        <scroll-view
+          scroll-x
+          class="filter-scroll"
+          show-scrollbar="false"
+        >
           <view
             v-for="f in filterOptions"
             :key="f.value"
             class="filter-chip"
             :class="{ active: filter === f.value }"
             @click="switchFilter(f.value)"
-          >{{ f.label }}</view>
+          >
+            {{ f.label }}
+          </view>
         </scroll-view>
       </view>
     </view>
 
     <!-- 统计 -->
-    <view v-if="!loading && likes.length > 0" class="stats-line">
+    <view
+      v-if="!loading && likes.length > 0"
+      class="stats-line"
+    >
       <text>共 {{ likes.length }} 条点赞记录</text>
     </view>
 
@@ -42,21 +58,48 @@
         @empty-action="goHome"
       >
         <view class="likes-list">
-          <view v-for="item in likes" :key="item.id" class="like-card" @click="goDetail(item)">
-            <view class="like-type-icon" :class="'ltic-' + item.target.type">
-              <text class="like-type-icon-text">{{ typeIcon(item.target.type) }}</text>
+          <view
+            v-for="item in likes"
+            :key="item.id"
+            class="like-card"
+            @click="goDetail(item)"
+          >
+            <view
+              class="like-type-icon"
+              :class="'ltic-' + item.target.type"
+            >
+              <text class="like-type-icon-text">
+                {{ typeIcon(item.target.type) }}
+              </text>
             </view>
             <view class="like-info">
-              <text class="like-title">{{ item.target.title }}</text>
+              <text class="like-title">
+                {{ item.target.title }}
+              </text>
               <view class="like-meta">
-                <image v-if="item.target.author?.avatar" :src="item.target.author.avatar" class="like-author-avatar" mode="aspectFill" />
-                <text class="like-author-name">{{ item.target.author?.nickname || '' }}</text>
-                <text class="like-type-tag">{{ typeLabel(item.target.type) }}</text>
+                <image
+                  v-if="item.target.author?.avatar"
+                  :src="item.target.author.avatar"
+                  class="like-author-avatar"
+                  mode="aspectFill"
+                />
+                <text class="like-author-name">
+                  {{ item.target.author?.nickname || '' }}
+                </text>
+                <text class="like-type-tag">
+                  {{ typeLabel(item.target.type) }}
+                </text>
               </view>
             </view>
             <view class="like-right">
-              <text class="like-time">{{ item.createdAt }}</text>
-              <text class="like-heart" :class="{ unliking: unlikingId === item.id }" @click.stop="handleUnlike(item)">
+              <text class="like-time">
+                {{ item.createdAt }}
+              </text>
+              <text
+                class="like-heart"
+                :class="{ unliking: unlikingId === item.id }"
+                @click.stop="handleUnlike(item)"
+              >
                 ❤
               </text>
             </view>

@@ -1,18 +1,38 @@
 <template>
   <view class="page">
     <!-- 自定义导航栏 -->
-    <view class="nav-bar" :style="{ background: station.theme?.primaryColor || '#C41E3A' }">
+    <view
+      class="nav-bar"
+      :style="{ background: station.theme?.primaryColor || '#C41E3A' }"
+    >
       <view class="nav-content">
         <view class="nav-left">
-          <image v-if="station.logo" :src="station.logo" class="nav-logo" mode="aspectFill" />
-          <text class="nav-name">{{ station.name || '国学分站' }}</text>
+          <image
+            v-if="station.logo"
+            :src="station.logo"
+            class="nav-logo"
+            mode="aspectFill"
+          />
+          <text class="nav-name">
+            {{ station.name || '国学分站' }}
+          </text>
         </view>
-        <text class="nav-share" @click="handleShare">📤</text>
+        <text
+          class="nav-share"
+          @click="handleShare"
+        >
+          📤
+        </text>
       </view>
     </view>
 
     <!-- Banner 轮播 -->
-    <scroll-view scroll-x class="banner-scroll" :show-scrollbar="false" @scroll="onBannerScroll">
+    <scroll-view
+      scroll-x
+      class="banner-scroll"
+      :show-scrollbar="false"
+      @scroll="onBannerScroll"
+    >
       <view class="banner-track">
         <view
           v-for="(banner, idx) in banners"
@@ -20,15 +40,26 @@
           class="banner-item"
           @click="goBannerLink(banner)"
         >
-          <image :src="banner.image || banner.cover" class="banner-img" mode="aspectFill" />
+          <image
+            :src="banner.image || banner.cover"
+            class="banner-img"
+            mode="aspectFill"
+          />
           <view class="banner-overlay">
-            <text class="banner-title">{{ banner.title }}</text>
+            <text class="banner-title">
+              {{ banner.title }}
+            </text>
           </view>
         </view>
       </view>
       <!-- 指示器 -->
       <view class="banner-dots">
-        <text v-for="(_, idx) in banners" :key="idx" class="dot" :class="{ active: currentBanner === idx }" />
+        <text
+          v-for="(_, idx) in banners"
+          :key="idx"
+          class="dot"
+          :class="{ active: currentBanner === idx }"
+        />
       </view>
     </scroll-view>
 
@@ -40,40 +71,89 @@
         class="feature-item"
         @click="goFeature(feature)"
       >
-        <view class="feature-icon-wrap" :style="{ background: feature.color + '20' || '#F5F0E8' }">
-          <text class="feature-icon">{{ feature.icon }}</text>
-          <text v-if="feature.badge" class="feature-badge">{{ feature.badge }}</text>
+        <view
+          class="feature-icon-wrap"
+          :style="{ background: feature.color + '20' || '#F5F0E8' }"
+        >
+          <text class="feature-icon">
+            {{ feature.icon }}
+          </text>
+          <text
+            v-if="feature.badge"
+            class="feature-badge"
+          >
+            {{ feature.badge }}
+          </text>
         </view>
-        <text class="feature-label">{{ feature.label }}</text>
+        <text class="feature-label">
+          {{ feature.label }}
+        </text>
       </view>
     </view>
 
     <!-- 站长推荐 -->
-    <view class="section" v-if="recommends.length > 0">
+    <view
+      v-if="recommends.length > 0"
+      class="section"
+    >
       <view class="section-header">
         <view class="section-header-left">
-          <image v-if="station.master?.avatar" :src="station.master.avatar" class="master-avatar" mode="aspectFill" />
-          <text class="section-title">站长推荐</text>
+          <image
+            v-if="station.master?.avatar"
+            :src="station.master.avatar"
+            class="master-avatar"
+            mode="aspectFill"
+          />
+          <text class="section-title">
+            站长推荐
+          </text>
         </view>
-        <text class="section-more" @click="goMore">更多 ›</text>
+        <text
+          class="section-more"
+          @click="goMore"
+        >
+          更多 ›
+        </text>
       </view>
-      <scroll-view scroll-x class="recommend-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="recommend-scroll"
+        show-scrollbar="false"
+      >
         <view
           v-for="item in recommends"
           :key="item.id"
           class="recommend-card"
           @click="goDetail(item.type, item.id)"
         >
-          <image :src="item.cover" class="rec-cover" mode="aspectFill" />
-          <view v-if="item.tag" class="rec-tag" :style="{ background: station.theme?.primaryColor || '#C41E3A' }">
+          <image
+            :src="item.cover"
+            class="rec-cover"
+            mode="aspectFill"
+          />
+          <view
+            v-if="item.tag"
+            class="rec-tag"
+            :style="{ background: station.theme?.primaryColor || '#C41E3A' }"
+          >
             <text>{{ item.tag }}</text>
           </view>
-          <text class="rec-title">{{ item.title }}</text>
+          <text class="rec-title">
+            {{ item.title }}
+          </text>
           <view class="rec-price">
-            <text v-if="item.price !== undefined" :style="{ color: station.theme?.primaryColor || '#C41E3A' }">
+            <text
+              v-if="item.price !== undefined"
+              :style="{ color: station.theme?.primaryColor || '#C41E3A' }"
+            >
               {{ item.price > 0 ? '¥' + item.price : '免费' }}
             </text>
-            <text v-if="item.originalPrice" class="rec-original">¥{{ item.originalPrice }}</text>
+            <text
+              v-if="item.originalPrice"
+              class="rec-original"
+            >
+              ¥{{ item.originalPrice }}
+            </text>
           </view>
         </view>
       </scroll-view>
@@ -82,7 +162,9 @@
     <!-- 精选内容 Feed -->
     <view class="section">
       <view class="section-header">
-        <text class="section-title">精选内容</text>
+        <text class="section-title">
+          精选内容
+        </text>
       </view>
       <DataState
         :is-loading="feedLoading && feedList.length === 0"
@@ -93,17 +175,42 @@
         skeleton-type="feed"
         @retry="fetchFeed"
       >
-        <view v-for="item in feedList" :key="item.id" class="feed-item" @click="goDetail(item.type, item.id)">
+        <view
+          v-for="item in feedList"
+          :key="item.id"
+          class="feed-item"
+          @click="goDetail(item.type, item.id)"
+        >
           <view class="feed-left">
-            <image :src="item.cover" class="feed-cover" mode="aspectFill" />
-            <text v-if="item.isLive" class="feed-live-badge">● 直播中</text>
+            <image
+              :src="item.cover"
+              class="feed-cover"
+              mode="aspectFill"
+            />
+            <text
+              v-if="item.isLive"
+              class="feed-live-badge"
+            >
+              ● 直播中
+            </text>
           </view>
           <view class="feed-right">
-            <text class="feed-type">{{ typeLabels[item.type] || item.type }}</text>
-            <text class="feed-title">{{ item.title }}</text>
+            <text class="feed-type">
+              {{ typeLabels[item.type] || item.type }}
+            </text>
+            <text class="feed-title">
+              {{ item.title }}
+            </text>
             <view class="feed-meta">
-              <image v-if="item.author?.avatar" :src="item.author.avatar" class="feed-author-avatar" mode="aspectFill" />
-              <text class="feed-author">{{ item.author?.nickname || '' }}</text>
+              <image
+                v-if="item.author?.avatar"
+                :src="item.author.avatar"
+                class="feed-author-avatar"
+                mode="aspectFill"
+              />
+              <text class="feed-author">
+                {{ item.author?.nickname || '' }}
+              </text>
             </view>
             <view class="feed-stats">
               <text>👁 {{ formatCount(item.stats?.views) }}</text>
@@ -112,7 +219,11 @@
           </view>
         </view>
       </DataState>
-      <view v-if="hasMoreFeed" class="load-more" @click="loadMoreFeed">
+      <view
+        v-if="hasMoreFeed"
+        class="load-more"
+        @click="loadMoreFeed"
+      >
         <text>加载更多</text>
       </view>
     </view>

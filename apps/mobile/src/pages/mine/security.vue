@@ -2,91 +2,166 @@
   <view class="page">
     <!-- 导航栏 -->
     <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        <text class="nav-back-icon">‹</text>
+      <view
+        class="nav-back"
+        @click="goBack"
+      >
+        <text class="nav-back-icon">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">安全中心</text>
+      <text class="nav-title">
+        安全中心
+      </text>
       <view class="nav-placeholder" />
     </view>
 
     <!-- 安全评分 -->
     <view class="security-score">
       <view class="score-circle">
-        <text class="score-num">{{ securityScore }}</text>
-        <text class="score-label">安全分</text>
+        <text class="score-num">
+          {{ securityScore }}
+        </text>
+        <text class="score-label">
+          安全分
+        </text>
       </view>
       <view class="score-detail">
-        <text class="score-title">账号安全状态</text>
-        <text class="score-desc">{{ scoreDesc }}</text>
+        <text class="score-title">
+          账号安全状态
+        </text>
+        <text class="score-desc">
+          {{ scoreDesc }}
+        </text>
         <view class="score-bar">
-          <view class="score-bar-fill" :style="{ width: securityScore + '%' }" />
+          <view
+            class="score-bar-fill"
+            :style="{ width: securityScore + '%' }"
+          />
         </view>
       </view>
     </view>
 
     <!-- ==================== 账号安全 ==================== -->
     <view class="section">
-      <text class="section-title">账号安全</text>
+      <text class="section-title">
+        账号安全
+      </text>
       <view class="security-list">
-        <view class="security-item" @click="goPage('/pages/mine/change-password')">
+        <view
+          class="security-item"
+          @click="goPage('/pages/mine/change-password')"
+        >
           <view class="si-left">
-            <text class="si-icon">🔑</text>
+            <text class="si-icon">
+              🔑
+            </text>
             <view>
-              <text class="si-label">登录密码</text>
-              <text class="si-desc">定期更换密码可提高安全性</text>
+              <text class="si-label">
+                登录密码
+              </text>
+              <text class="si-desc">
+                定期更换密码可提高安全性
+              </text>
             </view>
           </view>
           <view class="si-right">
-            <text class="si-status safe">已设置</text>
-            <text class="si-arrow">›</text>
+            <text class="si-status safe">
+              已设置
+            </text>
+            <text class="si-arrow">
+              ›
+            </text>
           </view>
         </view>
 
-        <view class="security-item" @click="goPage('/pages/mine/change-phone')">
+        <view
+          class="security-item"
+          @click="goPage('/pages/mine/change-phone')"
+        >
           <view class="si-left">
-            <text class="si-icon">📱</text>
+            <text class="si-icon">
+              📱
+            </text>
             <view>
-              <text class="si-label">绑定手机</text>
-              <text class="si-desc">{{ maskedPhone || '未绑定' }}</text>
+              <text class="si-label">
+                绑定手机
+              </text>
+              <text class="si-desc">
+                {{ maskedPhone || '未绑定' }}
+              </text>
             </view>
           </view>
           <view class="si-right">
-            <text class="si-status" :class="{ safe: !!maskedPhone }">
+            <text
+              class="si-status"
+              :class="{ safe: !!maskedPhone }"
+            >
               {{ maskedPhone ? '已绑定' : '未绑定' }}
             </text>
-            <text class="si-arrow">›</text>
+            <text class="si-arrow">
+              ›
+            </text>
           </view>
         </view>
 
-        <view class="security-item" @click="goPage('/pages/mine/payment-password')">
+        <view
+          class="security-item"
+          @click="goPage('/pages/mine/payment-password')"
+        >
           <view class="si-left">
-            <text class="si-icon">💳</text>
+            <text class="si-icon">
+              💳
+            </text>
             <view>
-              <text class="si-label">支付密码</text>
-              <text class="si-desc">用于支付和提现验证</text>
+              <text class="si-label">
+                支付密码
+              </text>
+              <text class="si-desc">
+                用于支付和提现验证
+              </text>
             </view>
           </view>
           <view class="si-right">
-            <text class="si-status" :class="{ safe: hasPaymentPwd }">
+            <text
+              class="si-status"
+              :class="{ safe: hasPaymentPwd }"
+            >
               {{ hasPaymentPwd ? '已设置' : '未设置' }}
             </text>
-            <text class="si-arrow">›</text>
+            <text class="si-arrow">
+              ›
+            </text>
           </view>
         </view>
 
-        <view class="security-item" @click="goPage('/pages/mine/identity-verify')">
+        <view
+          class="security-item"
+          @click="goPage('/pages/mine/identity-verify')"
+        >
           <view class="si-left">
-            <text class="si-icon">🪪</text>
+            <text class="si-icon">
+              🪪
+            </text>
             <view>
-              <text class="si-label">实名认证</text>
-              <text class="si-desc">认证后可使用更多功能</text>
+              <text class="si-label">
+                实名认证
+              </text>
+              <text class="si-desc">
+                认证后可使用更多功能
+              </text>
             </view>
           </view>
           <view class="si-right">
-            <text class="si-status" :class="{ verified: isVerified }">
+            <text
+              class="si-status"
+              :class="{ verified: isVerified }"
+            >
               {{ isVerified ? '已认证' : '未认证' }}
             </text>
-            <text class="si-arrow">›</text>
+            <text class="si-arrow">
+              ›
+            </text>
           </view>
         </view>
       </view>
@@ -94,59 +169,120 @@
 
     <!-- ==================== 设备管理 ==================== -->
     <view class="section">
-      <text class="section-title">设备管理</text>
+      <text class="section-title">
+        设备管理
+      </text>
       <view class="security-list">
-        <view class="security-item" v-for="(device, idx) in devices" :key="idx">
+        <view
+          v-for="(device, idx) in devices"
+          :key="idx"
+          class="security-item"
+        >
           <view class="si-left">
-            <text class="si-icon">{{ device.icon }}</text>
+            <text class="si-icon">
+              {{ device.icon }}
+            </text>
             <view>
-              <text class="si-label">{{ device.name }}</text>
-              <text class="si-desc">{{ device.lastActive }}</text>
+              <text class="si-label">
+                {{ device.name }}
+              </text>
+              <text class="si-desc">
+                {{ device.lastActive }}
+              </text>
             </view>
           </view>
-          <text v-if="device.current" class="device-current">当前设备</text>
+          <text
+            v-if="device.current"
+            class="device-current"
+          >
+            当前设备
+          </text>
         </view>
       </view>
     </view>
 
     <!-- ==================== 更多操作 ==================== -->
     <view class="section">
-      <text class="section-title">更多操作</text>
+      <text class="section-title">
+        更多操作
+      </text>
       <view class="security-list">
-        <view class="security-item" @click="goPage('/pages/mine/heritage-verify')">
+        <view
+          class="security-item"
+          @click="goPage('/pages/mine/heritage-verify')"
+        >
           <view class="si-left">
-            <text class="si-icon">📜</text>
+            <text class="si-icon">
+              📜
+            </text>
             <view>
-              <text class="si-label">传承人认证</text>
-              <text class="si-desc">国学传承人身份认证</text>
+              <text class="si-label">
+                传承人认证
+              </text>
+              <text class="si-desc">
+                国学传承人身份认证
+              </text>
             </view>
           </view>
-          <text class="si-arrow">›</text>
+          <text class="si-arrow">
+            ›
+          </text>
         </view>
-        <view class="security-item" @click="goPage('/pages/mine/delete-account')">
+        <view
+          class="security-item"
+          @click="goPage('/pages/mine/delete-account')"
+        >
           <view class="si-left">
-            <text class="si-icon">⚠️</text>
+            <text class="si-icon">
+              ⚠️
+            </text>
             <view>
-              <text class="si-label" style="color: $primary">注销账号</text>
-              <text class="si-desc">注销后数据将不可恢复</text>
+              <text
+                class="si-label"
+                style="color: $primary"
+              >
+                注销账号
+              </text>
+              <text class="si-desc">
+                注销后数据将不可恢复
+              </text>
             </view>
           </view>
-          <text class="si-arrow">›</text>
+          <text class="si-arrow">
+            ›
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 最近登录记录 -->
-    <view class="login-history" v-if="loginHistory.length > 0">
-      <text class="login-history-title">最近登录</text>
+    <view
+      v-if="loginHistory.length > 0"
+      class="login-history"
+    >
+      <text class="login-history-title">
+        最近登录
+      </text>
       <view class="login-history-list">
-        <view class="login-history-item" v-for="(item, idx) in loginHistory" :key="idx">
-          <text class="lh-icon">🔐</text>
+        <view
+          v-for="(item, idx) in loginHistory"
+          :key="idx"
+          class="login-history-item"
+        >
+          <text class="lh-icon">
+            🔐
+          </text>
           <view class="lh-info">
-            <text class="lh-device">{{ item.device }}</text>
-            <text class="lh-time">{{ item.time }}</text>
+            <text class="lh-device">
+              {{ item.device }}
+            </text>
+            <text class="lh-time">
+              {{ item.time }}
+            </text>
           </view>
-          <text class="lh-location">{{ item.location }}</text>
+          <text class="lh-location">
+            {{ item.location }}
+          </text>
         </view>
       </view>
     </view>

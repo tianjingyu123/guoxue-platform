@@ -3,20 +3,49 @@
     <!-- 导航栏 -->
     <view class="nav-bar">
       <view class="nav-content">
-        <text class="back-btn" @click="uni.navigateBack">‹</text>
-        <image v-if="stationLogo" :src="stationLogo" class="nav-logo" mode="aspectFill" />
-        <text class="nav-title">{{ stationName || '国学' }} - 直播</text>
-        <text class="nav-refresh" :class="{ refreshing }" @click="onRefresh">🔄</text>
+        <text
+          class="back-btn"
+          @click="uni.navigateBack"
+        >
+          ‹
+        </text>
+        <image
+          v-if="stationLogo"
+          :src="stationLogo"
+          class="nav-logo"
+          mode="aspectFill"
+        />
+        <text class="nav-title">
+          {{ stationName || '国学' }} - 直播
+        </text>
+        <text
+          class="nav-refresh"
+          :class="{ refreshing }"
+          @click="onRefresh"
+        >
+          🔄
+        </text>
       </view>
       <!-- 搜索框 -->
       <view class="search-box">
-        <input v-model="searchKeyword" class="search-input" placeholder="搜索直播间" @input="onSearchInput" />
-        <text class="search-icon">🔍</text>
+        <input
+          v-model="searchKeyword"
+          class="search-input"
+          placeholder="搜索直播间"
+          @input="onSearchInput"
+        >
+        <text class="search-icon">
+          🔍
+        </text>
       </view>
     </view>
 
     <!-- 筛选标签 -->
-    <scroll-view scroll-x class="filter-bar" :show-scrollbar="false">
+    <scroll-view
+      scroll-x
+      class="filter-bar"
+      :show-scrollbar="false"
+    >
       <view class="filter-track">
         <text
           v-for="opt in filterOptions"
@@ -26,13 +55,22 @@
           @click="switchFilter(opt.value)"
         >
           {{ opt.label }}
-          <text v-if="opt.value === 'live' && liveCount > 0" class="filter-count">({{ liveCount }})</text>
+          <text
+            v-if="opt.value === 'live' && liveCount > 0"
+            class="filter-count"
+          >
+            ({{ liveCount }})
+          </text>
         </text>
       </view>
     </scroll-view>
 
     <!-- 直播列表 -->
-    <scroll-view scroll-y class="scroll-area" @scrolltolower="loadMore">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      @scrolltolower="loadMore"
+    >
       <DataState
         :is-loading="loading"
         :error="loadError"
@@ -52,57 +90,117 @@
           >
             <!-- 封面 -->
             <view class="live-cover-wrap">
-              <image :src="room.cover" class="live-cover" mode="aspectFill" />
+              <image
+                :src="room.cover"
+                class="live-cover"
+                mode="aspectFill"
+              />
               <!-- 状态标签 -->
-              <view class="live-status-tag" :style="{ background: statusInfo(room.status).bg, color: statusInfo(room.status).color }">
-                <text v-if="room.status === 'live'" class="live-pulse" />
+              <view
+                class="live-status-tag"
+                :style="{ background: statusInfo(room.status).bg, color: statusInfo(room.status).color }"
+              >
+                <text
+                  v-if="room.status === 'live'"
+                  class="live-pulse"
+                />
                 {{ statusInfo(room.status).label }}
               </view>
               <!-- LIVE角标 -->
-              <view v-if="room.status === 'live'" class="live-badge">
+              <view
+                v-if="room.status === 'live'"
+                class="live-badge"
+              >
                 <text>LIVE</text>
               </view>
               <!-- 回放时长 -->
-              <text v-if="room.status === 'replay' && room.duration" class="live-duration">
+              <text
+                v-if="room.status === 'replay' && room.duration"
+                class="live-duration"
+              >
                 {{ formatDuration(room.duration) }}
               </text>
               <!-- 预告倒计时 -->
-              <view v-if="room.status === 'preview' && countdowns[room.id]" class="live-countdown">
-                <text class="countdown-text">{{ countdowns[room.id] }}</text>
+              <view
+                v-if="room.status === 'preview' && countdowns[room.id]"
+                class="live-countdown"
+              >
+                <text class="countdown-text">
+                  {{ countdowns[room.id] }}
+                </text>
               </view>
               <!-- 商品数量 -->
-              <text v-if="room.productCount" class="live-product-badge">
+              <text
+                v-if="room.productCount"
+                class="live-product-badge"
+              >
                 🛍️ {{ room.productCount }}件商品
               </text>
             </view>
             <!-- 信息 -->
             <view class="live-info">
-              <text class="live-title">{{ room.title }}</text>
+              <text class="live-title">
+                {{ room.title }}
+              </text>
               <view class="live-anchor">
-                <image :src="room.anchor?.avatar" class="anchor-avatar" mode="aspectFill" />
-                <text class="anchor-name">{{ room.anchor?.nickname }}</text>
-                <text v-if="room.isExclusive" class="anchor-badge">专属</text>
+                <image
+                  :src="room.anchor?.avatar"
+                  class="anchor-avatar"
+                  mode="aspectFill"
+                />
+                <text class="anchor-name">
+                  {{ room.anchor?.nickname }}
+                </text>
+                <text
+                  v-if="room.isExclusive"
+                  class="anchor-badge"
+                >
+                  专属
+                </text>
               </view>
               <view class="live-stats">
                 <text>👁 {{ formatViewCount(room.viewCount) }}</text>
                 <text>❤ {{ formatViewCount(room.likeCount) }}</text>
               </view>
-              <view class="live-tags" v-if="room.tags?.length">
-                <text v-for="(tag, ti) in room.tags.slice(0, 3)" :key="ti" class="live-tag">{{ tag }}</text>
+              <view
+                v-if="room.tags?.length"
+                class="live-tags"
+              >
+                <text
+                  v-for="(tag, ti) in room.tags.slice(0, 3)"
+                  :key="ti"
+                  class="live-tag"
+                >
+                  {{ tag }}
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <!-- 加载更多 -->
-        <view v-if="hasMore" class="load-more" @click="loadMore">
+        <view
+          v-if="hasMore"
+          class="load-more"
+          @click="loadMore"
+        >
           <text>{{ loadingMore ? '加载中...' : '加载更多' }}</text>
         </view>
 
         <!-- 直播中空态 -->
-        <view v-if="!loading && filteredList.length === 0 && currentFilter === 'live'" class="empty-live">
-          <text class="empty-text">暂无正在直播的内容</text>
-          <text class="empty-action" @click="switchFilter('preview')">查看直播预告</text>
+        <view
+          v-if="!loading && filteredList.length === 0 && currentFilter === 'live'"
+          class="empty-live"
+        >
+          <text class="empty-text">
+            暂无正在直播的内容
+          </text>
+          <text
+            class="empty-action"
+            @click="switchFilter('preview')"
+          >
+            查看直播预告
+          </text>
         </view>
       </DataState>
     </scroll-view>

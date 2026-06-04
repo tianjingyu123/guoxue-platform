@@ -1,7 +1,10 @@
 <template>
   <view class="page">
     <!-- 加载态 -->
-    <LoadingSkeleton v-if="loading" type="detail" />
+    <LoadingSkeleton
+      v-if="loading"
+      type="detail"
+    />
 
     <!-- 错误态 -->
     <EmptyState
@@ -15,28 +18,67 @@
     />
 
     <!-- 聊天界面 -->
-    <view v-else class="chat-layout">
+    <view
+      v-else
+      class="chat-layout"
+    >
       <!-- 导航栏 -->
       <view class="nav">
         <view class="nav-left">
-          <text class="nav-back" @click="goBack">←</text>
-          <view class="nav-user" @click="goUserProfile">
+          <text
+            class="nav-back"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <view
+            class="nav-user"
+            @click="goUserProfile"
+          >
             <view class="nav-avatar-wrap">
-              <image :src="target.avatar || ''" class="nav-avatar" mode="aspectFill" />
-              <view v-if="target.isOnline" class="nav-online" />
+              <image
+                :src="target.avatar || ''"
+                class="nav-avatar"
+                mode="aspectFill"
+              />
+              <view
+                v-if="target.isOnline"
+                class="nav-online"
+              />
             </view>
             <view class="nav-user-info">
-              <text class="nav-user-name">{{ target.remark || target.nickname }}</text>
-              <text class="nav-user-status">{{ target.isOnline ? '在线' : target.lastActiveAt || '离线' }}</text>
+              <text class="nav-user-name">
+                {{ target.remark || target.nickname }}
+              </text>
+              <text class="nav-user-status">
+                {{ target.isOnline ? '在线' : target.lastActiveAt || '离线' }}
+              </text>
             </view>
           </view>
         </view>
-        <text class="nav-more" @click="showNavMenu = !showNavMenu">⋮</text>
+        <text
+          class="nav-more"
+          @click="showNavMenu = !showNavMenu"
+        >
+          ⋮
+        </text>
         <!-- 下拉菜单 -->
-        <view v-if="showNavMenu" class="nav-dropdown">
-          <view class="dropdown-item" @click="goUserProfile">查看主页</view>
-          <view class="dropdown-item">清空聊天记录</view>
-          <view class="dropdown-item dropdown-danger">{{ target.isBlocked ? '移出黑名单' : '加入黑名单' }}</view>
+        <view
+          v-if="showNavMenu"
+          class="nav-dropdown"
+        >
+          <view
+            class="dropdown-item"
+            @click="goUserProfile"
+          >
+            查看主页
+          </view>
+          <view class="dropdown-item">
+            清空聊天记录
+          </view>
+          <view class="dropdown-item dropdown-danger">
+            {{ target.isBlocked ? '移出黑名单' : '加入黑名单' }}
+          </view>
         </view>
       </view>
 
@@ -49,18 +91,37 @@
         @scrolltolower="loadMore"
       >
         <!-- 加载更多 -->
-        <view v-if="loadingMore" class="load-more-indicator">加载中...</view>
-        <view v-if="hasMore && !loadingMore && messages.length > 0" class="load-more-btn" @click="loadMore">
+        <view
+          v-if="loadingMore"
+          class="load-more-indicator"
+        >
+          加载中...
+        </view>
+        <view
+          v-if="hasMore && !loadingMore && messages.length > 0"
+          class="load-more-btn"
+          @click="loadMore"
+        >
           加载更多消息
         </view>
 
-        <view v-for="(msg, idx) in messages" :key="msg.id || idx" class="msg-item">
+        <view
+          v-for="(msg, idx) in messages"
+          :key="msg.id || idx"
+          class="msg-item"
+        >
           <!-- 时间标签 -->
-          <view v-if="shouldShowTime(msg, messages[idx - 1])" class="time-label">
+          <view
+            v-if="shouldShowTime(msg, messages[idx - 1])"
+            class="time-label"
+          >
             <text>{{ formatTime(msg.timestamp) }}</text>
           </view>
           <!-- 消息气泡 -->
-          <view class="msg-row" :class="{ mine: msg.fromMe }">
+          <view
+            class="msg-row"
+            :class="{ mine: msg.fromMe }"
+          >
             <!-- 头像 -->
             <image
               :src="msg.fromMe ? myAvatar : (msg.senderAvatar || targetAvatar)"
@@ -80,9 +141,19 @@
                 @longpress="onMsgLongPress(msg)"
               >
                 <!-- 已撤回 -->
-                <text v-if="msg.isWithdrawn" class="withdrawn-text">消息已撤回</text>
+                <text
+                  v-if="msg.isWithdrawn"
+                  class="withdrawn-text"
+                >
+                  消息已撤回
+                </text>
                 <!-- 文本 -->
-                <text v-else-if="msg.type === 'text'" class="msg-text">{{ msg.content }}</text>
+                <text
+                  v-else-if="msg.type === 'text'"
+                  class="msg-text"
+                >
+                  {{ msg.content }}
+                </text>
                 <!-- 图片 -->
                 <image
                   v-else-if="msg.type === 'image'"
@@ -92,25 +163,55 @@
                   @click="previewImage(msg.image?.url)"
                 />
                 <!-- 语音 -->
-                <view v-else-if="msg.type === 'voice'" class="voice-wrap">
-                  <text class="voice-play">▶</text>
-                  <text class="voice-duration">{{ msg.voice?.duration || 0 }}″</text>
-                  <view class="voice-bar"><view class="voice-progress" /></view>
+                <view
+                  v-else-if="msg.type === 'voice'"
+                  class="voice-wrap"
+                >
+                  <text class="voice-play">
+                    ▶
+                  </text>
+                  <text class="voice-duration">
+                    {{ msg.voice?.duration || 0 }}″
+                  </text>
+                  <view class="voice-bar">
+                    <view class="voice-progress" />
+                  </view>
                 </view>
                 <!-- 商品卡片 -->
-                <view v-else-if="msg.type === 'card' && msg.product" class="card-wrap" @click="goProduct(msg.product)">
-                  <image :src="msg.product.cover" class="card-cover" mode="aspectFill" />
+                <view
+                  v-else-if="msg.type === 'card' && msg.product"
+                  class="card-wrap"
+                  @click="goProduct(msg.product)"
+                >
+                  <image
+                    :src="msg.product.cover"
+                    class="card-cover"
+                    mode="aspectFill"
+                  />
                   <view class="card-info">
-                    <text class="card-title">{{ msg.product.title }}</text>
+                    <text class="card-title">
+                      {{ msg.product.title }}
+                    </text>
                     <view class="card-price-row">
-                      <text class="card-price">¥{{ msg.product.price }}</text>
-                      <text v-if="msg.product.originalPrice" class="card-original">¥{{ msg.product.originalPrice }}</text>
+                      <text class="card-price">
+                        ¥{{ msg.product.price }}
+                      </text>
+                      <text
+                        v-if="msg.product.originalPrice"
+                        class="card-original"
+                      >
+                        ¥{{ msg.product.originalPrice }}
+                      </text>
                     </view>
                   </view>
                 </view>
               </view>
               <!-- 消息状态 -->
-              <text v-if="msg.fromMe" class="msg-status" :class="msg.status">
+              <text
+                v-if="msg.fromMe"
+                class="msg-status"
+                :class="msg.status"
+              >
                 {{ msg.status === 'sending' ? '发送中' : msg.status === 'failed' ? '失败' : msg.status === 'read' ? '✓✓' : '✓' }}
               </text>
             </view>
@@ -122,7 +223,10 @@
       <!-- 底部输入区 -->
       <view class="input-area">
         <view class="input-row">
-          <text class="input-plus" @click="showMorePanel = !showMorePanel">
+          <text
+            class="input-plus"
+            @click="showMorePanel = !showMorePanel"
+          >
             {{ showMorePanel ? '✕' : '＋' }}
           </text>
           <view class="input-wrap">
@@ -132,49 +236,109 @@
               placeholder="输入消息..."
               :confirm-type="'send'"
               @confirm="sendText"
-            />
+            >
           </view>
-          <text v-if="inputText.trim()" class="input-send" @click="sendText">
+          <text
+            v-if="inputText.trim()"
+            class="input-send"
+            @click="sendText"
+          >
             {{ sending ? '...' : '➤' }}
           </text>
-          <text v-else class="input-mic" @touchstart="onMicStart" @touchend="onMicEnd">🎤</text>
+          <text
+            v-else
+            class="input-mic"
+            @touchstart="onMicStart"
+            @touchend="onMicEnd"
+          >
+            🎤
+          </text>
         </view>
 
         <!-- 更多功能面板 -->
-        <view v-if="showMorePanel" class="more-panel">
-          <view class="more-item" @click="pickImage">
-            <view class="more-icon">🖼</view>
-            <text class="more-label">相册</text>
+        <view
+          v-if="showMorePanel"
+          class="more-panel"
+        >
+          <view
+            class="more-item"
+            @click="pickImage"
+          >
+            <view class="more-icon">
+              🖼
+            </view>
+            <text class="more-label">
+              相册
+            </text>
           </view>
           <view class="more-item">
-            <view class="more-icon">📷</view>
-            <text class="more-label">拍照</text>
+            <view class="more-icon">
+              📷
+            </view>
+            <text class="more-label">
+              拍照
+            </text>
           </view>
           <view class="more-item">
-            <view class="more-icon">🎤</view>
-            <text class="more-label">语音</text>
+            <view class="more-icon">
+              🎤
+            </view>
+            <text class="more-label">
+              语音
+            </text>
           </view>
-          <view class="more-item" @click="openProductSearch">
-            <view class="more-icon">🛍</view>
-            <text class="more-label">商品</text>
+          <view
+            class="more-item"
+            @click="openProductSearch"
+          >
+            <view class="more-icon">
+              🛍
+            </view>
+            <text class="more-label">
+              商品
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 消息操作菜单 -->
-      <view v-if="showMsgActions" class="sheet-mask" @click="closeMsgActions">
-        <view class="sheet-content sheet-bottom" @click.stop>
+      <view
+        v-if="showMsgActions"
+        class="sheet-mask"
+        @click="closeMsgActions"
+      >
+        <view
+          class="sheet-content sheet-bottom"
+          @click.stop
+        >
           <view class="action-row-sm">
-            <view v-if="selectedMsg?.type === 'text'" class="action-item-sm" @click="copyMsg">
-              <view class="action-icon-sm">📋</view>
+            <view
+              v-if="selectedMsg?.type === 'text'"
+              class="action-item-sm"
+              @click="copyMsg"
+            >
+              <view class="action-icon-sm">
+                📋
+              </view>
               <text>复制</text>
             </view>
-            <view v-if="selectedMsg?.fromMe && canWithdraw(selectedMsg.timestamp)" class="action-item-sm" @click="showWithdrawConfirm = true">
-              <view class="action-icon-sm">↩</view>
+            <view
+              v-if="selectedMsg?.fromMe && canWithdraw(selectedMsg.timestamp)"
+              class="action-item-sm"
+              @click="showWithdrawConfirm = true"
+            >
+              <view class="action-icon-sm">
+                ↩
+              </view>
               <text>撤回</text>
             </view>
-            <view class="action-item-sm" @click="showDeleteConfirm = true">
-              <view class="action-icon-sm">🗑</view>
+            <view
+              class="action-item-sm"
+              @click="showDeleteConfirm = true"
+            >
+              <view class="action-icon-sm">
+                🗑
+              </view>
               <text>删除</text>
             </view>
           </view>
@@ -182,58 +346,140 @@
       </view>
 
       <!-- 商品搜索弹层 -->
-      <view v-if="showProductSearch" class="sheet-mask" @click="showProductSearch = false">
-        <view class="sheet-content sheet-partial" @click.stop>
+      <view
+        v-if="showProductSearch"
+        class="sheet-mask"
+        @click="showProductSearch = false"
+      >
+        <view
+          class="sheet-content sheet-partial"
+          @click.stop
+        >
           <view class="product-search-header">
-            <text class="product-search-title">选择商品</text>
+            <text class="product-search-title">
+              选择商品
+            </text>
           </view>
           <view class="product-search-body">
             <view class="product-search-input-wrap">
-              <input v-model="productKeyword" class="product-search-input" placeholder="搜索商品" @confirm="searchProducts" />
-              <text class="product-search-btn" @click="searchProducts">🔍</text>
+              <input
+                v-model="productKeyword"
+                class="product-search-input"
+                placeholder="搜索商品"
+                @confirm="searchProducts"
+              >
+              <text
+                class="product-search-btn"
+                @click="searchProducts"
+              >
+                🔍
+              </text>
             </view>
-            <scroll-view scroll-y class="product-list">
+            <scroll-view
+              scroll-y
+              class="product-list"
+            >
               <view
                 v-for="p in products"
                 :key="p.id"
                 class="product-item"
                 @click="sendProductCard(p)"
               >
-                <image :src="p.cover" class="product-cover" mode="aspectFill" />
+                <image
+                  :src="p.cover"
+                  class="product-cover"
+                  mode="aspectFill"
+                />
                 <view class="product-info">
-                  <text class="product-title">{{ p.title }}</text>
+                  <text class="product-title">
+                    {{ p.title }}
+                  </text>
                   <view class="product-price-row">
-                    <text class="product-price">¥{{ p.price }}</text>
-                    <text v-if="p.originalPrice" class="product-original">¥{{ p.originalPrice }}</text>
+                    <text class="product-price">
+                      ¥{{ p.price }}
+                    </text>
+                    <text
+                      v-if="p.originalPrice"
+                      class="product-original"
+                    >
+                      ¥{{ p.originalPrice }}
+                    </text>
                   </view>
                 </view>
               </view>
-              <view v-if="products.length === 0 && !searchingProducts" class="product-empty">暂无商品</view>
+              <view
+                v-if="products.length === 0 && !searchingProducts"
+                class="product-empty"
+              >
+                暂无商品
+              </view>
             </scroll-view>
           </view>
         </view>
       </view>
 
       <!-- 撤回确认 -->
-      <view v-if="showWithdrawConfirm" class="dialog-mask" @click="showWithdrawConfirm = false">
-        <view class="dialog-box" @click.stop>
-          <text class="dialog-title">撤回消息</text>
-          <text class="dialog-desc">确定要撤回这条消息吗？撤回后对方将无法看到。</text>
+      <view
+        v-if="showWithdrawConfirm"
+        class="dialog-mask"
+        @click="showWithdrawConfirm = false"
+      >
+        <view
+          class="dialog-box"
+          @click.stop
+        >
+          <text class="dialog-title">
+            撤回消息
+          </text>
+          <text class="dialog-desc">
+            确定要撤回这条消息吗？撤回后对方将无法看到。
+          </text>
           <view class="dialog-btns">
-            <text class="dialog-btn dialog-btn-cancel" @click="showWithdrawConfirm = false">取消</text>
-            <text class="dialog-btn dialog-btn-primary" @click="doWithdraw">撤回</text>
+            <text
+              class="dialog-btn dialog-btn-cancel"
+              @click="showWithdrawConfirm = false"
+            >
+              取消
+            </text>
+            <text
+              class="dialog-btn dialog-btn-primary"
+              @click="doWithdraw"
+            >
+              撤回
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 删除确认 -->
-      <view v-if="showDeleteConfirm" class="dialog-mask" @click="showDeleteConfirm = false">
-        <view class="dialog-box" @click.stop>
-          <text class="dialog-title">删除消息</text>
-          <text class="dialog-desc">确定要删除这条消息吗？删除后仅自己不可见。</text>
+      <view
+        v-if="showDeleteConfirm"
+        class="dialog-mask"
+        @click="showDeleteConfirm = false"
+      >
+        <view
+          class="dialog-box"
+          @click.stop
+        >
+          <text class="dialog-title">
+            删除消息
+          </text>
+          <text class="dialog-desc">
+            确定要删除这条消息吗？删除后仅自己不可见。
+          </text>
           <view class="dialog-btns">
-            <text class="dialog-btn dialog-btn-cancel" @click="showDeleteConfirm = false">取消</text>
-            <text class="dialog-btn dialog-btn-danger" @click="doDelete">删除</text>
+            <text
+              class="dialog-btn dialog-btn-cancel"
+              @click="showDeleteConfirm = false"
+            >
+              取消
+            </text>
+            <text
+              class="dialog-btn dialog-btn-danger"
+              @click="doDelete"
+            >
+              删除
+            </text>
           </view>
         </view>
       </view>

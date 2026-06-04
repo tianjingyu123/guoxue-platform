@@ -2,10 +2,17 @@
   <view class="page">
     <!-- 导航栏 -->
     <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        <text class="nav-back-icon">‹</text>
+      <view
+        class="nav-back"
+        @click="goBack"
+      >
+        <text class="nav-back-icon">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">提现</text>
+      <text class="nav-title">
+        提现
+      </text>
       <view class="nav-placeholder" />
     </view>
 
@@ -18,39 +25,60 @@
     >
       <!-- 可提现余额卡片 -->
       <view class="balance-card">
-        <text class="b-label">可提现余额</text>
-        <text class="b-amount">¥{{ balance }}</text>
-        <text class="b-note">最低提现 ¥{{ minWithdraw }}，单笔最高 ¥{{ maxWithdraw }}</text>
+        <text class="b-label">
+          可提现余额
+        </text>
+        <text class="b-amount">
+          ¥{{ balance }}
+        </text>
+        <text class="b-note">
+          最低提现 ¥{{ minWithdraw }}，单笔最高 ¥{{ maxWithdraw }}
+        </text>
       </view>
 
       <!-- 表单 -->
       <view class="form-section">
         <!-- 提现金额 -->
         <view class="form-group">
-          <text class="f-label">提现金额</text>
+          <text class="f-label">
+            提现金额
+          </text>
           <view class="amount-input-wrap">
-            <text class="amount-prefix">¥</text>
+            <text class="amount-prefix">
+              ¥
+            </text>
             <input
               v-model="amount"
               type="digit"
               placeholder="请输入提现金额"
               class="amount-input"
               @input="onAmountInput"
-            />
+            >
             <text
               v-if="parseFloat(amount) > 0"
               class="amount-all"
               @click="withdrawAll"
-            >全部提现</text>
+            >
+              全部提现
+            </text>
           </view>
           <view class="amount-info">
-            <text v-if="parseFloat(amount) > 0" class="fee-text">
+            <text
+              v-if="parseFloat(amount) > 0"
+              class="fee-text"
+            >
               手续费 ¥{{ fee }}（{{ (feeRate * 100).toFixed(1) }}%）
             </text>
-            <text v-if="actualAmount > 0" class="actual-text">
+            <text
+              v-if="actualAmount > 0"
+              class="actual-text"
+            >
               实际到账 ¥{{ actualAmount }}
             </text>
-            <text v-if="amount && !isValidAmount" class="error-text">
+            <text
+              v-if="amount && !isValidAmount"
+              class="error-text"
+            >
               {{ amountErrorMsg }}
             </text>
           </view>
@@ -58,7 +86,9 @@
 
         <!-- 提现方式 -->
         <view class="form-group">
-          <text class="f-label">提现方式</text>
+          <text class="f-label">
+            提现方式
+          </text>
           <view class="method-tabs">
             <view
               class="method-tab"
@@ -82,28 +112,59 @@
         <!-- 支付宝信息 -->
         <template v-if="method === 'alipay'">
           <view class="form-group">
-            <text class="f-label">支付宝账号</text>
-            <input v-model="alipayAccount" placeholder="请输入支付宝账号" class="f-input" />
+            <text class="f-label">
+              支付宝账号
+            </text>
+            <input
+              v-model="alipayAccount"
+              placeholder="请输入支付宝账号"
+              class="f-input"
+            >
           </view>
           <view class="form-group">
-            <text class="f-label">姓名</text>
-            <input v-model="alipayName" placeholder="请输入姓名" class="f-input" />
+            <text class="f-label">
+              姓名
+            </text>
+            <input
+              v-model="alipayName"
+              placeholder="请输入姓名"
+              class="f-input"
+            >
           </view>
         </template>
 
         <!-- 银行卡信息 -->
         <template v-if="method === 'bank'">
           <view class="form-group">
-            <text class="f-label">银行名称</text>
-            <input v-model="bankName" placeholder="请输入银行名称" class="f-input" />
+            <text class="f-label">
+              银行名称
+            </text>
+            <input
+              v-model="bankName"
+              placeholder="请输入银行名称"
+              class="f-input"
+            >
           </view>
           <view class="form-group">
-            <text class="f-label">银行卡号</text>
-            <input v-model="bankAccount" placeholder="请输入银行卡号" class="f-input" type="number" />
+            <text class="f-label">
+              银行卡号
+            </text>
+            <input
+              v-model="bankAccount"
+              placeholder="请输入银行卡号"
+              class="f-input"
+              type="number"
+            >
           </view>
           <view class="form-group">
-            <text class="f-label">持卡人姓名</text>
-            <input v-model="bankHolder" placeholder="请输入持卡人姓名" class="f-input" />
+            <text class="f-label">
+              持卡人姓名
+            </text>
+            <input
+              v-model="bankHolder"
+              placeholder="请输入持卡人姓名"
+              class="f-input"
+            >
           </view>
         </template>
       </view>
@@ -123,9 +184,18 @@
     </view>
 
     <!-- 支付密码弹窗 -->
-    <view v-if="showPasswordModal" class="modal-overlay" @click="closePasswordModal">
-      <view class="modal-content" @click.stop>
-        <text class="modal-title">输入支付密码</text>
+    <view
+      v-if="showPasswordModal"
+      class="modal-overlay"
+      @click="closePasswordModal"
+    >
+      <view
+        class="modal-content"
+        @click.stop
+      >
+        <text class="modal-title">
+          输入支付密码
+        </text>
         <view class="password-dots">
           <view
             v-for="(p, idx) in 6"
@@ -133,7 +203,9 @@
             class="dot"
             :class="{ filled: password[idx] }"
           >
-            <text v-if="password[idx]">●</text>
+            <text v-if="password[idx]">
+              ●
+            </text>
           </view>
         </view>
         <view class="password-input-hidden">
@@ -143,12 +215,22 @@
             password
             maxlength="6"
             focus
-            @input="onPasswordInput"
             class="hidden-input"
-          />
+            @input="onPasswordInput"
+          >
         </view>
-        <text class="modal-cancel" @click="closePasswordModal">取消</text>
-        <text v-if="passwordError" class="password-error">{{ passwordError }}</text>
+        <text
+          class="modal-cancel"
+          @click="closePasswordModal"
+        >
+          取消
+        </text>
+        <text
+          v-if="passwordError"
+          class="password-error"
+        >
+          {{ passwordError }}
+        </text>
       </view>
     </view>
   </view>

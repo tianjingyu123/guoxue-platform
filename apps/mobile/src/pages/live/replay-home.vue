@@ -1,25 +1,48 @@
 <template>
   <view class="page">
     <!-- 加载态 -->
-    <view v-if="loading" class="loading-wrap">
+    <view
+      v-if="loading"
+      class="loading-wrap"
+    >
       <view class="skeleton-header" />
       <view class="skeleton-body">
         <view class="skeleton-tags">
-          <view v-for="i in 5" :key="i" class="skeleton-tag" />
+          <view
+            v-for="i in 5"
+            :key="i"
+            class="skeleton-tag"
+          />
         </view>
         <view class="skeleton-banner" />
         <view class="skeleton-grid">
-          <view v-for="i in 4" :key="i" class="skeleton-card-half" />
+          <view
+            v-for="i in 4"
+            :key="i"
+            class="skeleton-card-half"
+          />
         </view>
       </view>
     </view>
 
     <!-- 错误态 -->
-    <view v-else-if="loadError" class="error-wrap">
+    <view
+      v-else-if="loadError"
+      class="error-wrap"
+    >
       <view class="error-inner">
-        <text class="error-icon">⚠️</text>
-        <text class="error-text">{{ loadError }}</text>
-        <view class="error-retry" @click="fetchReplays">重新加载</view>
+        <text class="error-icon">
+          ⚠️
+        </text>
+        <text class="error-text">
+          {{ loadError }}
+        </text>
+        <view
+          class="error-retry"
+          @click="fetchReplays"
+        >
+          重新加载
+        </view>
       </view>
     </view>
 
@@ -28,26 +51,62 @@
       <view class="nav-header">
         <view class="nav-inner">
           <view class="nav-left">
-            <text class="nav-back" @click="goBack">←</text>
-            <text class="nav-title">直播回放</text>
+            <text
+              class="nav-back"
+              @click="goBack"
+            >
+              ←
+            </text>
+            <text class="nav-title">
+              直播回放
+            </text>
           </view>
-          <text class="nav-search-btn" @click="showSearch = true">🔍</text>
+          <text
+            class="nav-search-btn"
+            @click="showSearch = true"
+          >
+            🔍
+          </text>
         </view>
       </view>
 
       <!-- 搜索覆盖层 -->
-      <view v-if="showSearch" class="search-overlay">
+      <view
+        v-if="showSearch"
+        class="search-overlay"
+      >
         <view class="search-header-row">
           <view class="search-input-wrap">
-            <text class="search-icon">🔍</text>
-            <input v-model="searchQuery" class="search-input" placeholder="搜索回放..." @confirm="doSearch" />
-            <text v-if="searchQuery" class="search-clear" @click="searchQuery = ''">✕</text>
+            <text class="search-icon">
+              🔍
+            </text>
+            <input
+              v-model="searchQuery"
+              class="search-input"
+              placeholder="搜索回放..."
+              @confirm="doSearch"
+            >
+            <text
+              v-if="searchQuery"
+              class="search-clear"
+              @click="searchQuery = ''"
+            >
+              ✕
+            </text>
           </view>
-          <text class="search-cancel" @click="closeSearch">取消</text>
+          <text
+            class="search-cancel"
+            @click="closeSearch"
+          >
+            取消
+          </text>
         </view>
         <view class="search-body">
           <!-- 搜索结果 -->
-          <view v-if="searchQuery" class="search-results">
+          <view
+            v-if="searchQuery"
+            class="search-results"
+          >
             <view
               v-for="item in searchedReplays"
               :key="item.id"
@@ -55,19 +114,39 @@
               @click="goPlay(item.id)"
             >
               <view class="search-result-cover-wrap">
-                <image :src="item.cover" mode="aspectFill" class="search-result-cover" />
+                <image
+                  :src="item.cover"
+                  mode="aspectFill"
+                  class="search-result-cover"
+                />
               </view>
               <view class="search-result-info">
-                <text class="search-result-title">{{ item.title }}</text>
-                <text class="search-result-host">{{ item.host.name }}</text>
+                <text class="search-result-title">
+                  {{ item.title }}
+                </text>
+                <text class="search-result-host">
+                  {{ item.host.name }}
+                </text>
               </view>
             </view>
           </view>
           <!-- 热门搜索 -->
-          <view v-else class="hot-searches">
-            <text class="hs-title">热门搜索</text>
+          <view
+            v-else
+            class="hot-searches"
+          >
+            <text class="hs-title">
+              热门搜索
+            </text>
             <view class="hs-tags">
-              <text v-for="tag in hotTags" :key="tag" class="hs-tag" @click="searchQuery = tag">{{ tag }}</text>
+              <text
+                v-for="tag in hotTags"
+                :key="tag"
+                class="hs-tag"
+                @click="searchQuery = tag"
+              >
+                {{ tag }}
+              </text>
             </view>
           </view>
         </view>
@@ -75,7 +154,11 @@
 
       <!-- 分类导航 -->
       <view class="category-bar">
-        <scroll-view scroll-x class="category-scroll" show-scrollbar="false">
+        <scroll-view
+          scroll-x
+          class="category-scroll"
+          show-scrollbar="false"
+        >
           <view class="category-inner">
             <text
               v-for="cat in categories"
@@ -84,7 +167,9 @@
               @click="selectCategory(cat.id)"
             >
               {{ cat.icon }} {{ cat.name }}
-              <text class="cat-count">({{ cat.count }})</text>
+              <text class="cat-count">
+                ({{ cat.count }})
+              </text>
             </text>
           </view>
         </scroll-view>
@@ -92,12 +177,24 @@
 
       <view class="content-area">
         <!-- 热门回放 -->
-        <view v-if="!selectedCategory" class="hot-section">
+        <view
+          v-if="!selectedCategory"
+          class="hot-section"
+        >
           <view class="section-header">
-            <text class="section-title">热门回放</text>
-            <view class="section-more" @click="goReplays">
-              <text class="more-text">更多</text>
-              <text class="more-arrow">›</text>
+            <text class="section-title">
+              热门回放
+            </text>
+            <view
+              class="section-more"
+              @click="goReplays"
+            >
+              <text class="more-text">
+                更多
+              </text>
+              <text class="more-arrow">
+                ›
+              </text>
             </view>
           </view>
           <view class="hot-list">
@@ -108,19 +205,41 @@
               @click="goPlay(replay.id)"
             >
               <view class="hot-cover-wrap">
-                <image :src="replay.cover" mode="aspectFill" class="hot-cover" />
+                <image
+                  :src="replay.cover"
+                  mode="aspectFill"
+                  class="hot-cover"
+                />
                 <view class="hot-cover-gradient" />
-                <view class="hot-badge">🔥 热门</view>
-                <view class="hot-rank">{{ index + 1 }}</view>
-                <view class="hot-play-btn">▶</view>
-                <view class="hot-duration">⏱️ {{ formatDuration(replay.duration) }}</view>
-                <text class="hot-title">{{ replay.title }}</text>
+                <view class="hot-badge">
+                  🔥 热门
+                </view>
+                <view class="hot-rank">
+                  {{ index + 1 }}
+                </view>
+                <view class="hot-play-btn">
+                  ▶
+                </view>
+                <view class="hot-duration">
+                  ⏱️ {{ formatDuration(replay.duration) }}
+                </view>
+                <text class="hot-title">
+                  {{ replay.title }}
+                </text>
               </view>
               <view class="hot-footer">
                 <view class="hot-host">
-                  <image :src="replay.host.avatar" mode="aspectFill" class="hot-host-avatar" />
-                  <text class="hot-host-name">{{ replay.host.name }}</text>
-                  <text class="hot-category">{{ replay.category }}</text>
+                  <image
+                    :src="replay.host.avatar"
+                    mode="aspectFill"
+                    class="hot-host-avatar"
+                  />
+                  <text class="hot-host-name">
+                    {{ replay.host.name }}
+                  </text>
+                  <text class="hot-category">
+                    {{ replay.category }}
+                  </text>
                 </view>
                 <view class="hot-views">
                   <text>👁️</text>
@@ -146,19 +265,37 @@
               @click="goPlay(replay.id)"
             >
               <view class="replay-card-cover-wrap">
-                <image :src="replay.cover" mode="aspectFill" class="replay-card-cover" />
+                <image
+                  :src="replay.cover"
+                  mode="aspectFill"
+                  class="replay-card-cover"
+                />
                 <view class="replay-card-overlay" />
-                <view class="replay-card-tag">▶ 回放</view>
-                <view class="replay-card-duration">{{ formatDuration(replay.duration) }}</view>
+                <view class="replay-card-tag">
+                  ▶ 回放
+                </view>
+                <view class="replay-card-duration">
+                  {{ formatDuration(replay.duration) }}
+                </view>
               </view>
               <view class="replay-card-body">
-                <text class="replay-card-title">{{ replay.title }}</text>
+                <text class="replay-card-title">
+                  {{ replay.title }}
+                </text>
                 <view class="replay-card-footer">
                   <view class="replay-card-host">
-                    <image :src="replay.host.avatar" mode="aspectFill" class="rc-host-avatar" />
-                    <text class="rc-host-name">{{ replay.host.name }}</text>
+                    <image
+                      :src="replay.host.avatar"
+                      mode="aspectFill"
+                      class="rc-host-avatar"
+                    />
+                    <text class="rc-host-name">
+                      {{ replay.host.name }}
+                    </text>
                   </view>
-                  <view class="rc-views">👁️ {{ formatViews(replay.views) }}</view>
+                  <view class="rc-views">
+                    👁️ {{ formatViews(replay.views) }}
+                  </view>
                 </view>
               </view>
             </view>
@@ -166,7 +303,9 @@
         </view>
 
         <view class="load-more">
-          <text class="load-more-text">上拉加载更多</text>
+          <text class="load-more-text">
+            上拉加载更多
+          </text>
         </view>
       </view>
     </template>

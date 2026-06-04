@@ -16,7 +16,10 @@
     >
       <template v-if="room">
         <!-- ===== 播放器区域 ===== -->
-        <view class="player-area" @click="toggleControls">
+        <view
+          class="player-area"
+          @click="toggleControls"
+        >
           <!-- 视频播放器 TRTC 占位 -->
           <!-- #ifdef H5 -->
           <video
@@ -39,40 +42,94 @@
           />
           <!-- #endif -->
           <!-- 纯占位 -->
-          <view v-if="!playUrl && !room.cover" class="player-placeholder">
-            <text class="placeholder-logo">📡</text>
-            <text class="placeholder-text" v-if="room.status === 'LIVING'">直播已连接</text>
-            <text class="placeholder-text" v-else-if="room.status === 'WAITING'">等待开播</text>
-            <text class="placeholder-text" v-else>直播已结束</text>
+          <view
+            v-if="!playUrl && !room.cover"
+            class="player-placeholder"
+          >
+            <text class="placeholder-logo">
+              📡
+            </text>
+            <text
+              v-if="room.status === 'LIVING'"
+              class="placeholder-text"
+            >
+              直播已连接
+            </text>
+            <text
+              v-else-if="room.status === 'WAITING'"
+              class="placeholder-text"
+            >
+              等待开播
+            </text>
+            <text
+              v-else
+              class="placeholder-text"
+            >
+              直播已结束
+            </text>
           </view>
 
           <!-- 遮罩层 -->
-          <view class="player-overlay" :class="{ hidden: !showControls }">
+          <view
+            class="player-overlay"
+            :class="{ hidden: !showControls }"
+          >
             <!-- 顶部栏 -->
             <view class="top-bar">
-              <text class="back-btn" @click.stop="goBack">‹</text>
-              <view class="host-info" @click.stop="goHostProfile">
+              <text
+                class="back-btn"
+                @click.stop="goBack"
+              >
+                ‹
+              </text>
+              <view
+                class="host-info"
+                @click.stop="goHostProfile"
+              >
                 <image
                   v-if="room.user?.avatar || room.hostAvatar"
                   :src="room.user?.avatar || room.hostAvatar"
                   class="host-avatar"
                   mode="aspectFill"
                 />
-                <view v-else class="host-avatar-placeholder" />
+                <view
+                  v-else
+                  class="host-avatar-placeholder"
+                />
                 <view class="host-text">
-                  <text class="host-name">{{ room.user?.nickname || room.hostName || '主播' }}</text>
-                  <text class="host-fans">{{ viewCountText }} 观看</text>
+                  <text class="host-name">
+                    {{ room.user?.nickname || room.hostName || '主播' }}
+                  </text>
+                  <text class="host-fans">
+                    {{ viewCountText }} 观看
+                  </text>
                 </view>
               </view>
               <view class="top-actions">
-                <text class="action-btn" @click.stop="shareRoom">↗</text>
-                <text class="action-btn" @click.stop="goBack">✕</text>
+                <text
+                  class="action-btn"
+                  @click.stop="shareRoom"
+                >
+                  ↗
+                </text>
+                <text
+                  class="action-btn"
+                  @click.stop="goBack"
+                >
+                  ✕
+                </text>
               </view>
             </view>
 
             <!-- 直播状态角标 -->
-            <view class="live-badge" :class="room.status">
-              <view v-if="room.status === 'LIVING'" class="badge-dot" />
+            <view
+              class="live-badge"
+              :class="room.status"
+            >
+              <view
+                v-if="room.status === 'LIVING'"
+                class="badge-dot"
+              />
               <text>{{ statusText }}</text>
             </view>
 
@@ -84,12 +141,23 @@
                 class="gift-banner-item"
                 :style="{ animationDelay: idx * 0.3 + 's' }"
               >
-                <text class="gift-banner-icon">{{ anim.giftIcon || '🎁' }}</text>
+                <text class="gift-banner-icon">
+                  {{ anim.giftIcon || '🎁' }}
+                </text>
                 <text class="gift-banner-text">
-                  <text class="gift-banner-user">{{ anim.userName }}</text>
+                  <text class="gift-banner-user">
+                    {{ anim.userName }}
+                  </text>
                   送出
-                  <text class="gift-banner-name">{{ anim.giftName }}</text>
-                  <text v-if="anim.quantity > 1" class="gift-banner-qty">x{{ anim.quantity }}</text>
+                  <text class="gift-banner-name">
+                    {{ anim.giftName }}
+                  </text>
+                  <text
+                    v-if="anim.quantity > 1"
+                    class="gift-banner-qty"
+                  >
+                    x{{ anim.quantity }}
+                  </text>
                 </text>
               </view>
             </view>
@@ -101,61 +169,123 @@
                 :key="heart.id"
                 class="floating-heart"
                 :style="{ left: heart.x + '%' }"
-              >❤️</text>
+              >
+                ❤️
+              </text>
             </view>
 
             <!-- 秒杀商品浮窗 -->
-            <view v-if="flashSales.length && showFlashSale" class="flash-popup" @click.stop>
+            <view
+              v-if="flashSales.length && showFlashSale"
+              class="flash-popup"
+              @click.stop
+            >
               <view class="flash-header">
-                <text class="flash-title">⚡ 限时秒杀</text>
-                <text class="flash-close" @click.stop="showFlashSale = false">✕</text>
+                <text class="flash-title">
+                  ⚡ 限时秒杀
+                </text>
+                <text
+                  class="flash-close"
+                  @click.stop="showFlashSale = false"
+                >
+                  ✕
+                </text>
               </view>
-              <scroll-view scroll-x class="flash-scroll" show-scrollbar="false">
+              <scroll-view
+                scroll-x
+                class="flash-scroll"
+                show-scrollbar="false"
+              >
                 <view
                   v-for="fs in flashSales"
                   :key="fs.id"
                   class="flash-item"
                   @click.stop="buyFlash(fs)"
                 >
-                  <text class="fs-price">{{ fs.flashPrice }}币</text>
-                  <text class="fs-name">{{ fs.productName || '商品' }}</text>
-                  <text class="fs-stock">剩{{ fs.stock - fs.soldCount }}件</text>
-                  <text class="fs-btn">抢购</text>
+                  <text class="fs-price">
+                    {{ fs.flashPrice }}币
+                  </text>
+                  <text class="fs-name">
+                    {{ fs.productName || '商品' }}
+                  </text>
+                  <text class="fs-stock">
+                    剩{{ fs.stock - fs.soldCount }}件
+                  </text>
+                  <text class="fs-btn">
+                    抢购
+                  </text>
                 </view>
               </scroll-view>
             </view>
 
             <!-- 礼物面板 -->
-            <view v-if="showGiftPanel" class="gift-panel" @click.stop>
+            <view
+              v-if="showGiftPanel"
+              class="gift-panel"
+              @click.stop
+            >
               <view class="gift-panel-header">
-                <text class="gift-panel-title">送礼物</text>
-                <text class="gift-panel-close" @click="showGiftPanel = false">✕</text>
+                <text class="gift-panel-title">
+                  送礼物
+                </text>
+                <text
+                  class="gift-panel-close"
+                  @click="showGiftPanel = false"
+                >
+                  ✕
+                </text>
               </view>
-              <scroll-view scroll-x class="gift-scroll" show-scrollbar="false">
+              <scroll-view
+                scroll-x
+                class="gift-scroll"
+                show-scrollbar="false"
+              >
                 <view
                   v-for="g in gifts"
                   :key="g.id"
                   class="gift-item"
                   @click="sendGiftAction(g)"
                 >
-                  <text class="gift-icon">{{ g.icon || '🎁' }}</text>
-                  <text class="gift-name">{{ g.name }}</text>
-                  <text class="gift-price">{{ g.priceCoin || g.price }}币</text>
+                  <text class="gift-icon">
+                    {{ g.icon || '🎁' }}
+                  </text>
+                  <text class="gift-name">
+                    {{ g.name }}
+                  </text>
+                  <text class="gift-price">
+                    {{ g.priceCoin || g.price }}币
+                  </text>
                 </view>
               </scroll-view>
             </view>
 
             <!-- 商品购物袋入口 -->
-            <view v-if="products.length > 0 && !showGiftPanel" class="product-entrance" @click.stop="showProductPanel = !showProductPanel">
-              <text class="product-entrance-icon">🛍️</text>
-              <text class="product-entrance-text">购物袋</text>
-              <text class="product-entrance-badge">{{ products.length }}</text>
+            <view
+              v-if="products.length > 0 && !showGiftPanel"
+              class="product-entrance"
+              @click.stop="showProductPanel = !showProductPanel"
+            >
+              <text class="product-entrance-icon">
+                🛍️
+              </text>
+              <text class="product-entrance-text">
+                购物袋
+              </text>
+              <text class="product-entrance-badge">
+                {{ products.length }}
+              </text>
             </view>
 
             <!-- 预约按钮 -->
-            <view v-if="room.status === 'WAITING' || room.status === 'UPCOMING'" class="book-area" @click.stop>
+            <view
+              v-if="room.status === 'WAITING' || room.status === 'UPCOMING'"
+              class="book-area"
+              @click.stop
+            >
               <view class="book-card">
-                <text class="book-count">{{ bookingCount }}人已预约</text>
+                <text class="book-count">
+                  {{ bookingCount }}人已预约
+                </text>
                 <view
                   class="book-btn"
                   :class="{ booked: isBooked }"
@@ -163,42 +293,85 @@
                 >
                   <text>{{ isBooked ? '已预约' : '预约直播' }}</text>
                 </view>
-                <text class="book-time" v-if="room.startTime || room.startAt">
+                <text
+                  v-if="room.startTime || room.startAt"
+                  class="book-time"
+                >
                   {{ formatDateTime(room.startTime || room.startAt) }} 开播
                 </text>
               </view>
             </view>
 
             <!-- 离开提示 -->
-            <view v-if="showLeaveTip" class="leave-tip" @click.stop="showLeaveTip = false">
-              <text class="leave-text">再逛逛？正在直播中</text>
+            <view
+              v-if="showLeaveTip"
+              class="leave-tip"
+              @click.stop="showLeaveTip = false"
+            >
+              <text class="leave-text">
+                再逛逛？正在直播中
+              </text>
               <view class="leave-actions">
-                <text class="leave-action danger" @click.stop="goBack">离开</text>
-                <text class="leave-action primary" @click.stop="showLeaveTip = false">继续观看</text>
+                <text
+                  class="leave-action danger"
+                  @click.stop="goBack"
+                >
+                  离开
+                </text>
+                <text
+                  class="leave-action primary"
+                  @click.stop="showLeaveTip = false"
+                >
+                  继续观看
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <!-- ===== 弹幕层 ===== -->
-        <view class="danmaku-layer" v-if="room.status === 'LIVING'">
+        <view
+          v-if="room.status === 'LIVING'"
+          class="danmaku-layer"
+        >
           <view
             v-for="(dm, idx) in visibleDanmakus"
             :key="dm.id + '-' + idx"
             class="danmaku-item"
             :class="'dm-' + dm.type"
           >
-            <text class="dm-user" v-if="dm.type !== 'system'">{{ dm.nickname || dm.user }}：</text>
-            <text class="dm-content" v-if="dm.type === 'gift'">
+            <text
+              v-if="dm.type !== 'system'"
+              class="dm-user"
+            >
+              {{ dm.nickname || dm.user }}：
+            </text>
+            <text
+              v-if="dm.type === 'gift'"
+              class="dm-content"
+            >
               {{ dm.nickname || '用户' }} 送出 {{ dm.giftName }}{{ dm.quantity > 1 ? ' x' + dm.quantity : '' }}
             </text>
-            <text class="dm-content dm-system" v-else-if="dm.type === 'system'">{{ dm.content }}</text>
-            <text class="dm-content" v-else>{{ dm.content || dm.text }}</text>
+            <text
+              v-else-if="dm.type === 'system'"
+              class="dm-content dm-system"
+            >
+              {{ dm.content }}
+            </text>
+            <text
+              v-else
+              class="dm-content"
+            >
+              {{ dm.content || dm.text }}
+            </text>
           </view>
         </view>
 
         <!-- ===== 聊天消息区（非直播时） ===== -->
-        <view v-if="room.status !== 'LIVING'" class="chat-area">
+        <view
+          v-if="room.status !== 'LIVING'"
+          class="chat-area"
+        >
           <scroll-view
             scroll-y
             class="chat-scroll"
@@ -206,16 +379,26 @@
           >
             <view
               v-for="(msg, i) in messages"
-              :key="i"
               :id="'msg-' + i"
+              :key="i"
               class="chat-msg"
             >
-              <text v-if="msg.type === 'system'" class="msg-system">{{ msg.content }}</text>
+              <text
+                v-if="msg.type === 'system'"
+                class="msg-system"
+              >
+                {{ msg.content }}
+              </text>
               <template v-else>
-                <text class="msg-user" :style="{ color: msg.color || '#C9A96E' }">
+                <text
+                  class="msg-user"
+                  :style="{ color: msg.color || '#C9A96E' }"
+                >
                   {{ msg.nickname || msg.user }}：
                 </text>
-                <text class="msg-text">{{ msg.content || msg.text }}</text>
+                <text class="msg-text">
+                  {{ msg.content || msg.text }}
+                </text>
               </template>
             </view>
           </scroll-view>
@@ -230,29 +413,76 @@
             placeholder-style="color: rgba(255,255,255,0.4)"
             :disabled="sending"
             @confirm="sendMessage"
-          />
+          >
           <view class="bottom-actions">
-            <text class="ba-item" @click="openGiftPanel">🎁</text>
-            <text class="ba-item" @click="doLike">
-              ❤️
-              <text v-if="likeCount > 0" class="ba-count">{{ likeCount }}</text>
+            <text
+              class="ba-item"
+              @click="openGiftPanel"
+            >
+              🎁
             </text>
-            <text v-if="flashSales.length" class="ba-item" @click="toggleFlashSale">⚡</text>
-            <text v-if="products.length" class="ba-item" @click="showProductPanel = !showProductPanel">🛍️</text>
-            <text class="ba-item" @click="shareRoom">↗</text>
+            <text
+              class="ba-item"
+              @click="doLike"
+            >
+              ❤️
+              <text
+                v-if="likeCount > 0"
+                class="ba-count"
+              >
+                {{ likeCount }}
+              </text>
+            </text>
+            <text
+              v-if="flashSales.length"
+              class="ba-item"
+              @click="toggleFlashSale"
+            >
+              ⚡
+            </text>
+            <text
+              v-if="products.length"
+              class="ba-item"
+              @click="showProductPanel = !showProductPanel"
+            >
+              🛍️
+            </text>
+            <text
+              class="ba-item"
+              @click="shareRoom"
+            >
+              ↗
+            </text>
           </view>
         </view>
       </template>
     </DataState>
 
     <!-- 商品面板（购物袋） -->
-    <view v-if="showProductPanel && products.length" class="product-panel-mask" @click="showProductPanel = false">
-      <view class="product-panel" @click.stop>
+    <view
+      v-if="showProductPanel && products.length"
+      class="product-panel-mask"
+      @click="showProductPanel = false"
+    >
+      <view
+        class="product-panel"
+        @click.stop
+      >
         <view class="pp-header">
-          <text class="pp-title">直播商品</text>
-          <text class="pp-close" @click="showProductPanel = false">✕</text>
+          <text class="pp-title">
+            直播商品
+          </text>
+          <text
+            class="pp-close"
+            @click="showProductPanel = false"
+          >
+            ✕
+          </text>
         </view>
-        <scroll-view scroll-y class="pp-list">
+        <scroll-view
+          scroll-y
+          class="pp-list"
+        >
           <view
             v-for="p in products"
             :key="p.id"
@@ -265,13 +495,33 @@
               class="pp-cover"
               mode="aspectFill"
             />
-            <view v-else class="pp-cover-placeholder">🛍️</view>
+            <view
+              v-else
+              class="pp-cover-placeholder"
+            >
+              🛍️
+            </view>
             <view class="pp-info">
-              <text class="pp-name">{{ p.name || p.productName }}</text>
-              <text class="pp-price" v-if="p.flashPrice || p.price">
-                <text v-if="p.flashPrice" class="pp-flash">⚡</text>
+              <text class="pp-name">
+                {{ p.name || p.productName }}
+              </text>
+              <text
+                v-if="p.flashPrice || p.price"
+                class="pp-price"
+              >
+                <text
+                  v-if="p.flashPrice"
+                  class="pp-flash"
+                >
+                  ⚡
+                </text>
                 ¥{{ ((p.flashPrice || p.price) / 100).toFixed(2) }}
-                <text v-if="p.originalPrice" class="pp-original">¥{{ (p.originalPrice / 100).toFixed(2) }}</text>
+                <text
+                  v-if="p.originalPrice"
+                  class="pp-original"
+                >
+                  ¥{{ (p.originalPrice / 100).toFixed(2) }}
+                </text>
               </text>
             </view>
           </view>
@@ -363,7 +613,7 @@ onMounted(() => {
   if (id.value) {
     fetchRoom()
   } else {
-    loading = false
+    loading.value = false
   }
 })
 

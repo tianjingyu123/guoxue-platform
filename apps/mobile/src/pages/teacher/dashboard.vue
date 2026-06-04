@@ -1,71 +1,147 @@
 <template>
   <view class="page">
     <!-- 头部 -->
-    <view class="header" style="background:#C41E3A">
+    <view
+      class="header"
+      style="background:#C41E3A"
+    >
       <view class="header-top">
         <view class="header-left">
-          <text class="back-btn" @click="uni.navigateBack">‹</text>
-          <text class="header-title">讲师工作台</text>
+          <text
+            class="back-btn"
+            @click="uni.navigateBack"
+          >
+            ‹
+          </text>
+          <text class="header-title">
+            讲师工作台
+          </text>
         </view>
         <view class="header-actions">
-          <text class="header-icon" @click="goNotifications">🔔</text>
-          <text class="header-icon" @click="goSettings">⚙️</text>
+          <text
+            class="header-icon"
+            @click="goNotifications"
+          >
+            🔔
+          </text>
+          <text
+            class="header-icon"
+            @click="goSettings"
+          >
+            ⚙️
+          </text>
         </view>
       </view>
       <!-- 讲师身份卡片 -->
       <view class="teacher-card">
         <view class="teacher-avatar">
-          <text class="teacher-avatar-icon">🏆</text>
+          <text class="teacher-avatar-icon">
+            🏆
+          </text>
         </view>
         <view class="teacher-info">
           <view class="teacher-name-row">
-            <text class="teacher-name">{{ teacherName }}</text>
-            <text class="teacher-level">金牌讲师</text>
+            <text class="teacher-name">
+              {{ teacherName }}
+            </text>
+            <text class="teacher-level">
+              金牌讲师
+            </text>
           </view>
-          <text class="teacher-title">命理咨询师 · 从业20年</text>
+          <text class="teacher-title">
+            命理咨询师 · 从业20年
+          </text>
           <view class="teacher-rating">
-            <text class="rating-star">⭐</text>
-            <text class="rating-val">{{ stats.rating }}</text>
-            <text class="rating-count">({{ stats.ratingCount }}评价)</text>
+            <text class="rating-star">
+              ⭐
+            </text>
+            <text class="rating-val">
+              {{ stats.rating }}
+            </text>
+            <text class="rating-count">
+              ({{ stats.ratingCount }}评价)
+            </text>
           </view>
         </view>
       </view>
     </view>
 
-    <scroll-view scroll-y class="scroll-area">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
       <!-- 数据概览 -->
       <view class="stats-grid">
         <view class="stat-card">
-          <text class="stat-icon">👥</text>
-          <text class="stat-val">{{ formatCount(stats.studentCount) }}</text>
-          <text class="stat-label">累计学员</text>
-          <text class="stat-change">+128 本月新增</text>
+          <text class="stat-icon">
+            👥
+          </text>
+          <text class="stat-val">
+            {{ formatCount(stats.studentCount) }}
+          </text>
+          <text class="stat-label">
+            累计学员
+          </text>
+          <text class="stat-change">
+            +128 本月新增
+          </text>
         </view>
         <view class="stat-card">
-          <text class="stat-icon">📚</text>
-          <text class="stat-val">{{ stats.courseCount }}</text>
-          <text class="stat-label">课程数量</text>
-          <text class="stat-sub">3 门草稿中</text>
+          <text class="stat-icon">
+            📚
+          </text>
+          <text class="stat-val">
+            {{ stats.courseCount }}
+          </text>
+          <text class="stat-label">
+            课程数量
+          </text>
+          <text class="stat-sub">
+            3 门草稿中
+          </text>
         </view>
         <view class="stat-card">
-          <text class="stat-icon">💰</text>
-          <text class="stat-val" style="color:#C41E3A">¥{{ formatWan(stats.totalIncome) }}</text>
-          <text class="stat-label">累计收入</text>
-          <text class="stat-sub">可提现 ¥{{ formatMoney(stats.withdrawable) }}</text>
+          <text class="stat-icon">
+            💰
+          </text>
+          <text
+            class="stat-val"
+            style="color:#C41E3A"
+          >
+            ¥{{ formatWan(stats.totalIncome) }}
+          </text>
+          <text class="stat-label">
+            累计收入
+          </text>
+          <text class="stat-sub">
+            可提现 ¥{{ formatMoney(stats.withdrawable) }}
+          </text>
         </view>
         <view class="stat-card">
-          <text class="stat-icon">📈</text>
-          <text class="stat-val">¥{{ formatMoney(stats.monthIncome) }}</text>
-          <text class="stat-label">本月收入</text>
-          <text class="stat-change up">+12.5% 环比</text>
+          <text class="stat-icon">
+            📈
+          </text>
+          <text class="stat-val">
+            ¥{{ formatMoney(stats.monthIncome) }}
+          </text>
+          <text class="stat-label">
+            本月收入
+          </text>
+          <text class="stat-change up">
+            +12.5% 环比
+          </text>
         </view>
       </view>
 
       <!-- 待处理事项 -->
       <view class="section-card">
         <view class="section-header">
-          <text class="section-title">待处理事项</text>
-          <text class="section-count">共 {{ pendingTotal }} 项</text>
+          <text class="section-title">
+            待处理事项
+          </text>
+          <text class="section-count">
+            共 {{ pendingTotal }} 项
+          </text>
         </view>
         <view class="pending-list">
           <view
@@ -74,16 +150,29 @@
             class="pending-item"
             @click="goPending(item.type)"
           >
-            <view class="pending-icon-wrap" :class="'pending-' + item.type">
-              <text class="pending-icon">{{ pendingIcon(item.type) }}</text>
+            <view
+              class="pending-icon-wrap"
+              :class="'pending-' + item.type"
+            >
+              <text class="pending-icon">
+                {{ pendingIcon(item.type) }}
+              </text>
             </view>
             <view class="pending-info">
-              <text class="pending-title">{{ item.title }}</text>
-              <text class="pending-time">{{ item.time }}</text>
+              <text class="pending-title">
+                {{ item.title }}
+              </text>
+              <text class="pending-time">
+                {{ item.time }}
+              </text>
             </view>
             <view class="pending-right">
-              <text class="pending-count">{{ item.count }}</text>
-              <text class="pending-arrow">›</text>
+              <text class="pending-count">
+                {{ item.count }}
+              </text>
+              <text class="pending-arrow">
+                ›
+              </text>
             </view>
           </view>
         </view>
@@ -92,8 +181,15 @@
       <!-- 收入趋势 -->
       <view class="section-card">
         <view class="section-header">
-          <text class="section-title">收入趋势</text>
-          <text class="section-more" @click="goIncomeDetail">查看详情 ›</text>
+          <text class="section-title">
+            收入趋势
+          </text>
+          <text
+            class="section-more"
+            @click="goIncomeDetail"
+          >
+            查看详情 ›
+          </text>
         </view>
         <view class="income-chart">
           <view
@@ -106,7 +202,9 @@
               :class="{ 'income-bar-current': idx === incomeTrend.length - 1 }"
               :style="{ height: (item.income / maxIncome) * 100 + '%' }"
             />
-            <text class="income-label">{{ item.month }}</text>
+            <text class="income-label">
+              {{ item.month }}
+            </text>
           </view>
         </view>
       </view>
@@ -114,38 +212,72 @@
       <!-- 我的课程 -->
       <view class="section-card">
         <view class="section-header">
-          <text class="section-title">我的课程</text>
-          <text class="section-more" @click="goAllCourses">全部课程 ›</text>
+          <text class="section-title">
+            我的课程
+          </text>
+          <text
+            class="section-more"
+            @click="goAllCourses"
+          >
+            全部课程 ›
+          </text>
         </view>
         <view class="course-list">
-          <view v-for="c in courses" :key="c.id" class="course-item" @click="goCourseDetail(c.id)">
+          <view
+            v-for="c in courses"
+            :key="c.id"
+            class="course-item"
+            @click="goCourseDetail(c.id)"
+          >
             <view class="course-icon-wrap">
-              <text class="course-icon">🎬</text>
+              <text class="course-icon">
+                🎬
+              </text>
             </view>
             <view class="course-info">
               <view class="course-name-row">
-                <text class="course-name">{{ c.title }}</text>
-                <text v-if="c.status === 'draft'" class="course-draft">草稿</text>
+                <text class="course-name">
+                  {{ c.title }}
+                </text>
+                <text
+                  v-if="c.status === 'draft'"
+                  class="course-draft"
+                >
+                  草稿
+                </text>
               </view>
               <view class="course-meta">
                 <text>👥 {{ c.students }}</text>
                 <text>⭐ {{ c.rating }}</text>
               </view>
             </view>
-            <text class="course-arrow">›</text>
+            <text class="course-arrow">
+              ›
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 快捷操作 -->
       <view class="section-card">
-        <text class="section-title">快捷操作</text>
+        <text class="section-title">
+          快捷操作
+        </text>
         <view class="quick-grid">
-          <view v-for="act in quickActions" :key="act.label" class="quick-item" @click="goQuick(act.path)">
+          <view
+            v-for="act in quickActions"
+            :key="act.label"
+            class="quick-item"
+            @click="goQuick(act.path)"
+          >
             <view class="quick-icon-wrap">
-              <text class="quick-icon">{{ act.icon }}</text>
+              <text class="quick-icon">
+                {{ act.icon }}
+              </text>
             </view>
-            <text class="quick-label">{{ act.label }}</text>
+            <text class="quick-label">
+              {{ act.label }}
+            </text>
           </view>
         </view>
       </view>

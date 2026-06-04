@@ -3,44 +3,91 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-left">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">成就墙</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          成就墙
+        </text>
       </view>
-      <text class="header-right">&nbsp;</text>
+      <text class="header-right">
+&nbsp;
+      </text>
     </view>
 
-    <DataState :is-loading="loading" :error="loadError" :is-empty="!data" empty-title="暂无成就" @retry="loadData">
-      <view v-if="data" class="content">
+    <DataState
+      :is-loading="loading"
+      :error="loadError"
+      :is-empty="!data"
+      empty-title="暂无成就"
+      @retry="loadData"
+    >
+      <view
+        v-if="data"
+        class="content"
+      >
         <!-- 总览卡片 -->
         <view class="overview-card">
           <view class="overview-top">
             <view class="overview-icon-wrap">
-              <text class="overview-icon">🏆</text>
+              <text class="overview-icon">
+                🏆
+              </text>
             </view>
             <view class="overview-info">
-              <text class="overview-label">成就进度</text>
-              <text class="overview-count">{{ data.stats.unlockedCount }}/{{ data.stats.totalCount }}</text>
+              <text class="overview-label">
+                成就进度
+              </text>
+              <text class="overview-count">
+                {{ data.stats.unlockedCount }}/{{ data.stats.totalCount }}
+              </text>
             </view>
             <view class="overview-points">
-              <text class="overview-label">累计积分</text>
-              <text class="overview-points-val">+{{ data.stats.totalPoints }}</text>
+              <text class="overview-label">
+                累计积分
+              </text>
+              <text class="overview-points-val">
+                +{{ data.stats.totalPoints }}
+              </text>
             </view>
           </view>
           <view class="progress-wrap">
             <view class="progress-bar">
-              <view class="progress-fill" :style="{ width: progressPercent + '%' }" />
+              <view
+                class="progress-fill"
+                :style="{ width: progressPercent + '%' }"
+              />
             </view>
-            <text class="progress-text">{{ progressPercent }}%</text>
+            <text class="progress-text">
+              {{ progressPercent }}%
+            </text>
           </view>
         </view>
 
         <!-- 分类筛选 -->
-        <scroll-view scroll-x class="cats-scroll" show-scrollbar="false">
+        <scroll-view
+          scroll-x
+          class="cats-scroll"
+          show-scrollbar="false"
+        >
           <view class="cats-inner">
-            <text class="cat-btn" :class="{ active: selectedCategory === 'all' }" @click="selectedCategory = 'all'; loadData()">
+            <text
+              class="cat-btn"
+              :class="{ active: selectedCategory === 'all' }"
+              @click="selectedCategory = 'all'; loadData()"
+            >
               全部 ({{ data.stats.totalCount }})
             </text>
-            <text v-for="cat in data.categories" :key="cat.key" class="cat-btn" :class="{ active: selectedCategory === cat.key }" @click="selectedCategory = cat.key; loadData()">
+            <text
+              v-for="cat in data.categories"
+              :key="cat.key"
+              class="cat-btn"
+              :class="{ active: selectedCategory === cat.key }"
+              @click="selectedCategory = cat.key; loadData()"
+            >
               <text>{{ cat.icon }} </text>
               <text>{{ cat.name.replace('成就', '') }} ({{ cat.unlocked }}/{{ cat.total }})</text>
             </text>
@@ -49,93 +96,235 @@
 
         <!-- 成就网格 -->
         <view class="grid">
-          <view v-for="ach in data.achievements" :key="ach.id" class="ach-item" :class="{ locked: !ach.isUnlocked }" @click="openDetail(ach)">
-            <text class="ach-icon" :class="{ grayscale: !ach.isUnlocked }">{{ ach.icon || '🏆' }}</text>
-            <text class="ach-name">{{ ach.name }}</text>
-            <view v-if="ach.isUnlocked" class="ach-status">
-              <text class="ach-check">✓</text>
-              <text class="ach-status-txt">已获得</text>
+          <view
+            v-for="ach in data.achievements"
+            :key="ach.id"
+            class="ach-item"
+            :class="{ locked: !ach.isUnlocked }"
+            @click="openDetail(ach)"
+          >
+            <text
+              class="ach-icon"
+              :class="{ grayscale: !ach.isUnlocked }"
+            >
+              {{ ach.icon || '🏆' }}
+            </text>
+            <text class="ach-name">
+              {{ ach.name }}
+            </text>
+            <view
+              v-if="ach.isUnlocked"
+              class="ach-status"
+            >
+              <text class="ach-check">
+                ✓
+              </text>
+              <text class="ach-status-txt">
+                已获得
+              </text>
             </view>
-            <view v-else class="ach-progress">
-              <view class="ach-progress-bar"><view class="ach-progress-fill" :style="{ width: (ach.currentProgress / ach.targetProgress * 100) + '%' }" /></view>
-              <text class="ach-progress-num">{{ ach.currentProgress }}/{{ ach.targetProgress }}</text>
+            <view
+              v-else
+              class="ach-progress"
+            >
+              <view class="ach-progress-bar">
+                <view
+                  class="ach-progress-fill"
+                  :style="{ width: (ach.currentProgress / ach.targetProgress * 100) + '%' }"
+                />
+              </view>
+              <text class="ach-progress-num">
+                {{ ach.currentProgress }}/{{ ach.targetProgress }}
+              </text>
             </view>
-            <text v-if="ach.rarity !== 'common'" class="ach-rarity" :style="{ color: rarityColor(ach.rarity) }">{{ rarityName(ach.rarity) }}</text>
+            <text
+              v-if="ach.rarity !== 'common'"
+              class="ach-rarity"
+              :style="{ color: rarityColor(ach.rarity) }"
+            >
+              {{ rarityName(ach.rarity) }}
+            </text>
           </view>
         </view>
 
         <!-- 最近解锁 -->
-        <view v-if="data.stats.recentUnlocked?.length" class="recent-section">
-          <text class="section-title">最近解锁</text>
-          <view v-for="ach in data.stats.recentUnlocked" :key="ach.id" class="recent-item" @click="openDetail(ach)">
-            <text class="recent-icon">{{ ach.icon }}</text>
+        <view
+          v-if="data.stats.recentUnlocked?.length"
+          class="recent-section"
+        >
+          <text class="section-title">
+            最近解锁
+          </text>
+          <view
+            v-for="ach in data.stats.recentUnlocked"
+            :key="ach.id"
+            class="recent-item"
+            @click="openDetail(ach)"
+          >
+            <text class="recent-icon">
+              {{ ach.icon }}
+            </text>
             <view class="recent-info">
-              <text class="recent-name">{{ ach.name }}</text>
-              <text class="recent-time">{{ ach.unlockedAt }}</text>
+              <text class="recent-name">
+                {{ ach.name }}
+              </text>
+              <text class="recent-time">
+                {{ ach.unlockedAt }}
+              </text>
             </view>
-            <text class="recent-points">+{{ ach.rewardPoints }}</text>
-            <text class="recent-arrow">›</text>
+            <text class="recent-points">
+              +{{ ach.rewardPoints }}
+            </text>
+            <text class="recent-arrow">
+              ›
+            </text>
           </view>
         </view>
       </view>
     </DataState>
 
     <!-- 成就详情弹窗 -->
-    <view v-if="selectedAchievement" class="sheet-mask" @click="selectedAchievement = null" />
-    <view v-if="selectedAchievement" class="sheet-content">
+    <view
+      v-if="selectedAchievement"
+      class="sheet-mask"
+      @click="selectedAchievement = null"
+    />
+    <view
+      v-if="selectedAchievement"
+      class="sheet-content"
+    >
       <view class="sheet-handle" />
-      <view class="sheet-close" @click="selectedAchievement = null">✕</view>
-      <text class="sheet-title">成就详情</text>
+      <view
+        class="sheet-close"
+        @click="selectedAchievement = null"
+      >
+        ✕
+      </view>
+      <text class="sheet-title">
+        成就详情
+      </text>
 
-      <scroll-view scroll-y class="sheet-body">
+      <scroll-view
+        scroll-y
+        class="sheet-body"
+      >
         <view class="detail-icon-wrap">
-          <text class="detail-icon" :class="{ grayscale: !selectedAchievement.isUnlocked }">{{ selectedAchievement.icon }}</text>
-          <text class="detail-name">{{ selectedAchievement.name }}</text>
-          <text class="detail-rarity" :style="{ color: rarityColor(selectedAchievement.rarity) }">{{ rarityName(selectedAchievement.rarity) }}成就</text>
-          <text class="detail-desc">{{ selectedAchievement.description }}</text>
+          <text
+            class="detail-icon"
+            :class="{ grayscale: !selectedAchievement.isUnlocked }"
+          >
+            {{ selectedAchievement.icon }}
+          </text>
+          <text class="detail-name">
+            {{ selectedAchievement.name }}
+          </text>
+          <text
+            class="detail-rarity"
+            :style="{ color: rarityColor(selectedAchievement.rarity) }"
+          >
+            {{ rarityName(selectedAchievement.rarity) }}成就
+          </text>
+          <text class="detail-desc">
+            {{ selectedAchievement.description }}
+          </text>
         </view>
 
-        <view class="detail-status" :class="selectedAchievement.isUnlocked ? 'status-unlocked' : 'status-locked'">
-          <view v-if="selectedAchievement.isUnlocked" class="status-row">
-            <text class="status-ok">✓</text>
+        <view
+          class="detail-status"
+          :class="selectedAchievement.isUnlocked ? 'status-unlocked' : 'status-locked'"
+        >
+          <view
+            v-if="selectedAchievement.isUnlocked"
+            class="status-row"
+          >
+            <text class="status-ok">
+              ✓
+            </text>
             <view>
-              <text class="status-title">已获得此成就</text>
-              <text class="status-time">{{ selectedAchievement.unlockedAt }} 解锁</text>
+              <text class="status-title">
+                已获得此成就
+              </text>
+              <text class="status-time">
+                {{ selectedAchievement.unlockedAt }} 解锁
+              </text>
             </view>
             <view class="status-points">
-              <text class="status-plabel">获得积分</text>
-              <text class="status-pval">+{{ selectedAchievement.rewardPoints }}</text>
+              <text class="status-plabel">
+                获得积分
+              </text>
+              <text class="status-pval">
+                +{{ selectedAchievement.rewardPoints }}
+              </text>
             </view>
           </view>
           <view v-else>
             <view class="status-row">
-              <text class="status-lock-icon">🔒</text>
+              <text class="status-lock-icon">
+                🔒
+              </text>
               <view>
-                <text class="status-title">尚未解锁</text>
-                <text class="status-time">{{ selectedAchievement.condition }}</text>
+                <text class="status-title">
+                  尚未解锁
+                </text>
+                <text class="status-time">
+                  {{ selectedAchievement.condition }}
+                </text>
               </view>
             </view>
             <view class="detail-progress-row">
-              <view class="detail-progress-bar"><view class="detail-progress-fill" :style="{ width: (selectedAchievement.currentProgress / selectedAchievement.targetProgress * 100) + '%' }" /></view>
-              <text class="detail-progress-num">{{ selectedAchievement.currentProgress }}/{{ selectedAchievement.targetProgress }}</text>
+              <view class="detail-progress-bar">
+                <view
+                  class="detail-progress-fill"
+                  :style="{ width: (selectedAchievement.currentProgress / selectedAchievement.targetProgress * 100) + '%' }"
+                />
+              </view>
+              <text class="detail-progress-num">
+                {{ selectedAchievement.currentProgress }}/{{ selectedAchievement.targetProgress }}
+              </text>
             </view>
           </view>
         </view>
 
         <view class="reward-box">
-          <text class="reward-title">成就奖励</text>
+          <text class="reward-title">
+            成就奖励
+          </text>
           <view class="reward-items">
             <text>⭐ {{ selectedAchievement.rewardPoints }} 积分</text>
-            <text v-if="selectedAchievement.rewardBadge"> 🏆 {{ selectedAchievement.rewardBadge }}</text>
+            <text v-if="selectedAchievement.rewardBadge">
+              🏆 {{ selectedAchievement.rewardBadge }}
+            </text>
           </view>
         </view>
 
-        <view v-if="detailData?.relatedAchievements?.length" class="related-section">
-          <text class="section-title">相关成就</text>
-          <scroll-view scroll-x class="related-scroll" show-scrollbar="false">
-            <view v-for="r in detailData.relatedAchievements" :key="r.id" class="related-item" :class="{ locked: !r.isUnlocked }" @click="openDetail(r)">
-              <text class="related-icon" :class="{ grayscale: !r.isUnlocked }">{{ r.icon }}</text>
-              <text class="related-name">{{ r.name }}</text>
+        <view
+          v-if="detailData?.relatedAchievements?.length"
+          class="related-section"
+        >
+          <text class="section-title">
+            相关成就
+          </text>
+          <scroll-view
+            scroll-x
+            class="related-scroll"
+            show-scrollbar="false"
+          >
+            <view
+              v-for="r in detailData.relatedAchievements"
+              :key="r.id"
+              class="related-item"
+              :class="{ locked: !r.isUnlocked }"
+              @click="openDetail(r)"
+            >
+              <text
+                class="related-icon"
+                :class="{ grayscale: !r.isUnlocked }"
+              >
+                {{ r.icon }}
+              </text>
+              <text class="related-name">
+                {{ r.name }}
+              </text>
             </view>
           </scroll-view>
         </view>

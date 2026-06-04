@@ -8,20 +8,46 @@
         class="input-field"
         confirm-type="send"
         @confirm="submitComment"
-      />
-      <button class="send-btn" size="mini" :disabled="!inputText.trim()" @click="submitComment">
+      >
+      <button
+        class="send-btn"
+        size="mini"
+        :disabled="!inputText.trim()"
+        @click="submitComment"
+      >
         发送
       </button>
     </view>
-    <text v-if="replyTarget" class="reply-hint" @click="cancelReply">
+    <text
+      v-if="replyTarget"
+      class="reply-hint"
+      @click="cancelReply"
+    >
       取消回复 @{{ replyTarget.nickname }}
     </text>
 
     <!-- 评论列表 -->
-    <view v-if="loading" class="loading">加载中...</view>
-    <view v-else-if="list.length === 0" class="empty">暂无评论，来说两句吧</view>
-    <view v-else class="comment-list">
-      <view v-for="item in list" :key="item.id" class="comment-item">
+    <view
+      v-if="loading"
+      class="loading"
+    >
+      加载中...
+    </view>
+    <view
+      v-else-if="list.length === 0"
+      class="empty"
+    >
+      暂无评论，来说两句吧
+    </view>
+    <view
+      v-else
+      class="comment-list"
+    >
+      <view
+        v-for="item in list"
+        :key="item.id"
+        class="comment-item"
+      >
         <view class="comment-header">
           <image
             v-if="item.user?.avatar"
@@ -29,31 +55,78 @@
             class="avatar"
             mode="aspectFill"
           />
-          <view v-else class="avatar-placeholder">{{ (item.user?.nickname || '?')[0] }}</view>
+          <view
+            v-else
+            class="avatar-placeholder"
+          >
+            {{ (item.user?.nickname || '?')[0] }}
+          </view>
           <view class="comment-user">
-            <text class="nickname">{{ item.user?.nickname || '匿名' }}</text>
-            <text class="time">{{ formatTime(item.createdAt) }}</text>
+            <text class="nickname">
+              {{ item.user?.nickname || '匿名' }}
+            </text>
+            <text class="time">
+              {{ formatTime(item.createdAt) }}
+            </text>
           </view>
         </view>
-        <view class="comment-content">{{ item.content }}</view>
+        <view class="comment-content">
+          {{ item.content }}
+        </view>
         <view class="comment-actions">
-          <text class="action-btn" @click="toggleLike(item)">
+          <text
+            class="action-btn"
+            @click="toggleLike(item)"
+          >
             {{ item.liked ? '❤️' : '🤍' }} {{ item.likeCount || 0 }}
           </text>
-          <text class="action-btn" @click="startReply(item)">💬 回复</text>
+          <text
+            class="action-btn"
+            @click="startReply(item)"
+          >
+            💬 回复
+          </text>
         </view>
         <!-- 嵌套回复 -->
-        <view v-if="item.replies && item.replies.length" class="replies">
-          <view v-for="reply in item.replies" :key="reply.id" class="reply-item">
+        <view
+          v-if="item.replies && item.replies.length"
+          class="replies"
+        >
+          <view
+            v-for="reply in item.replies"
+            :key="reply.id"
+            class="reply-item"
+          >
             <view class="reply-header">
-              <text class="reply-nickname">{{ reply.user?.nickname || '匿名' }}</text>
-              <text v-if="reply.replyTo" class="reply-to">回复</text>
-              <text v-if="reply.replyTo" class="reply-target">{{ reply.replyTo.nickname }}</text>
+              <text class="reply-nickname">
+                {{ reply.user?.nickname || '匿名' }}
+              </text>
+              <text
+                v-if="reply.replyTo"
+                class="reply-to"
+              >
+                回复
+              </text>
+              <text
+                v-if="reply.replyTo"
+                class="reply-target"
+              >
+                {{ reply.replyTo.nickname }}
+              </text>
             </view>
-            <view class="reply-content">{{ reply.content }}</view>
+            <view class="reply-content">
+              {{ reply.content }}
+            </view>
             <view class="reply-actions">
-              <text class="action-btn">{{ formatTime(reply.createdAt) }}</text>
-              <text class="action-btn" @click="startReply(item, reply)">回复</text>
+              <text class="action-btn">
+                {{ formatTime(reply.createdAt) }}
+              </text>
+              <text
+                class="action-btn"
+                @click="startReply(item, reply)"
+              >
+                回复
+              </text>
             </view>
           </view>
         </view>

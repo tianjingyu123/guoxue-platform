@@ -2,20 +2,45 @@
   <view class="page">
     <LoadingSkeleton v-if="loading" />
     <view v-else>
-      <view v-for="req in requests" :key="req.id" class="request-item">
+      <view
+        v-for="req in requests"
+        :key="req.id"
+        class="request-item"
+      >
         <view class="user-info">
-          <image :src="req.user?.avatar || ''" class="avatar" mode="aspectFill" />
+          <image
+            :src="req.user?.avatar || ''"
+            class="avatar"
+            mode="aspectFill"
+          />
           <view class="info">
-            <text class="name">{{ req.user?.nickname || '用户' }}</text>
-            <text class="reason">{{ req.reason || req.message }}</text>
+            <text class="name">
+              {{ req.user?.nickname || '用户' }}
+            </text>
+            <text class="reason">
+              {{ req.reason || req.message }}
+            </text>
           </view>
         </view>
         <view class="actions">
-          <button class="btn-approve" @click="handleApprove(req)">通过</button>
-          <button class="btn-reject" @click="handleReject(req)">拒绝</button>
+          <button
+            class="btn-approve"
+            @click="handleApprove(req)"
+          >
+            通过
+          </button>
+          <button
+            class="btn-reject"
+            @click="handleReject(req)"
+          >
+            拒绝
+          </button>
         </view>
       </view>
-      <EmptyState v-if="!requests.length" text="暂无待审批申请" />
+      <EmptyState
+        v-if="!requests.length"
+        text="暂无待审批申请"
+      />
     </view>
   </view>
 </template>

@@ -3,47 +3,116 @@
     <!-- 顶部 - 古典风格 -->
     <view class="classic-header">
       <view class="header-row">
-        <text class="nav-back" @click="goBack">←</text>
+        <text
+          class="nav-back"
+          @click="goBack"
+        >
+          ←
+        </text>
         <view class="header-brand">
-          <text class="header-icon">📖</text>
-          <text class="header-brand-text">读书笔记</text>
+          <text class="header-icon">
+            📖
+          </text>
+          <text class="header-brand-text">
+            读书笔记
+          </text>
         </view>
-        <text class="header-create-btn" @click="showCreateForm = true">＋ 写笔记</text>
+        <text
+          class="header-create-btn"
+          @click="showCreateForm = true"
+        >
+          ＋ 写笔记
+        </text>
       </view>
     </view>
 
     <!-- 搜索筛选 -->
     <view class="filter-bar">
       <view class="search-input-wrap">
-        <input v-model="searchQuery" class="search-input" placeholder="搜索笔记内容..." />
+        <input
+          v-model="searchQuery"
+          class="search-input"
+          placeholder="搜索笔记内容..."
+        >
       </view>
     </view>
 
     <!-- 创建/编辑笔记表单 -->
-    <view v-if="showCreateForm" class="form-overlay" @click="showCreateForm = false">
-      <view class="form-panel" @click.stop>
+    <view
+      v-if="showCreateForm"
+      class="form-overlay"
+      @click="showCreateForm = false"
+    >
+      <view
+        class="form-panel"
+        @click.stop
+      >
         <view class="form-header">
-          <text class="form-title">{{ editingNote ? '编辑笔记' : '新建笔记' }}</text>
-          <text class="form-close" @click="closeForm">✕</text>
+          <text class="form-title">
+            {{ editingNote ? '编辑笔记' : '新建笔记' }}
+          </text>
+          <text
+            class="form-close"
+            @click="closeForm"
+          >
+            ✕
+          </text>
         </view>
         <view class="form-body">
           <view class="form-group">
-            <text class="form-label">关联古籍 <text class="required">*</text></text>
-            <picker :value="selectedBookIndex" :range="books" range-key="title" @change="onBookChange">
-              <view class="picker-input">{{ selectedBook?.title || '请选择古籍' }} ›</view>
+            <text class="form-label">
+              关联古籍 <text class="required">
+                *
+              </text>
+            </text>
+            <picker
+              :value="selectedBookIndex"
+              :range="books"
+              range-key="title"
+              @change="onBookChange"
+            >
+              <view class="picker-input">
+                {{ selectedBook?.title || '请选择古籍' }} ›
+              </view>
             </picker>
           </view>
           <view class="form-group">
-            <text class="form-label">章节 <text class="required">*</text></text>
-            <input v-model="formChapter" class="form-input" placeholder="输入章节名称" />
+            <text class="form-label">
+              章节 <text class="required">
+                *
+              </text>
+            </text>
+            <input
+              v-model="formChapter"
+              class="form-input"
+              placeholder="输入章节名称"
+            >
           </view>
           <view class="form-group">
-            <text class="form-label">笔记内容 <text class="required">*</text></text>
-            <textarea v-model="formContent" class="form-textarea" placeholder="记录你的阅读心得、感悟..." />
+            <text class="form-label">
+              笔记内容 <text class="required">
+                *
+              </text>
+            </text>
+            <textarea
+              v-model="formContent"
+              class="form-textarea"
+              placeholder="记录你的阅读心得、感悟..."
+            />
           </view>
           <view class="form-actions">
-            <view class="btn btn-outline flex-1" @click="closeForm">取消</view>
-            <view class="btn btn-primary flex-1" @click="handleSaveNote">保存</view>
+            <view
+              class="btn btn-outline flex-1"
+              @click="closeForm"
+            >
+              取消
+            </view>
+            <view
+              class="btn btn-primary flex-1"
+              @click="handleSaveNote"
+            >
+              保存
+            </view>
           </view>
         </view>
       </view>
@@ -60,16 +129,38 @@
       @retry="loadNotes"
     >
       <view class="notes-list">
-        <view v-for="note in filteredNotes" :key="note.id" class="note-card">
+        <view
+          v-for="note in filteredNotes"
+          :key="note.id"
+          class="note-card"
+        >
           <view class="note-header">
-            <text class="note-book">{{ note.bookName }}</text>
-            <text class="note-chapter">· {{ note.chapterName }}</text>
-            <text class="note-time">{{ formatTime(note.createdAt) }}</text>
+            <text class="note-book">
+              {{ note.bookName }}
+            </text>
+            <text class="note-chapter">
+              · {{ note.chapterName }}
+            </text>
+            <text class="note-time">
+              {{ formatTime(note.createdAt) }}
+            </text>
           </view>
-          <text class="note-content">{{ note.content }}</text>
+          <text class="note-content">
+            {{ note.content }}
+          </text>
           <view class="note-footer">
-            <text class="note-action" @click="editNote(note)">✏️ 编辑</text>
-            <text class="note-action note-action-del" @click="handleDeleteNote(note.id)">🗑 删除</text>
+            <text
+              class="note-action"
+              @click="editNote(note)"
+            >
+              ✏️ 编辑
+            </text>
+            <text
+              class="note-action note-action-del"
+              @click="handleDeleteNote(note.id)"
+            >
+              🗑 删除
+            </text>
           </view>
         </view>
       </view>

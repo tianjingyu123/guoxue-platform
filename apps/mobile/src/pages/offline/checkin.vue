@@ -3,21 +3,41 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-row">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">课程签到</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          课程签到
+        </text>
         <view class="header-spacer" />
       </view>
     </view>
 
     <!-- 加载中 -->
-    <view v-if="loading" class="loading-state">
+    <view
+      v-if="loading"
+      class="loading-state"
+    >
       <text>⏳</text>
     </view>
 
     <!-- 无课程 -->
-    <view v-else-if="!detail" class="empty-state">
-      <text class="empty-text">未找到课程信息</text>
-      <view class="btn btn-outline" @click="goBack">返回</view>
+    <view
+      v-else-if="!detail"
+      class="empty-state"
+    >
+      <text class="empty-text">
+        未找到课程信息
+      </text>
+      <view
+        class="btn btn-outline"
+        @click="goBack"
+      >
+        返回
+      </view>
     </view>
 
     <template v-else>
@@ -25,19 +45,39 @@
         <!-- 课程信息 -->
         <view class="card">
           <view class="course-cover-wrap">
-            <image :src="course.cover" class="course-cover" mode="aspectFill" />
-            <text class="course-status-badge" :class="course.status === 'ongoing' ? 'bg-green' : 'bg-blue'">
+            <image
+              :src="course.cover"
+              class="course-cover"
+              mode="aspectFill"
+            />
+            <text
+              class="course-status-badge"
+              :class="course.status === 'ongoing' ? 'bg-green' : 'bg-blue'"
+            >
               {{ getCourseStatusInfo(course.status).label }}
             </text>
           </view>
           <view class="course-body">
-            <text class="course-title">{{ course.title }}</text>
+            <text class="course-title">
+              {{ course.title }}
+            </text>
             <!-- 讲师 -->
             <view class="instructor-row">
-              <image :src="course.instructor?.avatar" class="instructor-avatar" mode="aspectFill" />
+              <image
+                :src="course.instructor?.avatar"
+                class="instructor-avatar"
+                mode="aspectFill"
+              />
               <view>
-                <text class="instructor-name">{{ course.instructor?.name }}</text>
-                <text v-if="course.instructor?.title" class="instructor-title">{{ course.instructor.title }}</text>
+                <text class="instructor-name">
+                  {{ course.instructor?.name }}
+                </text>
+                <text
+                  v-if="course.instructor?.title"
+                  class="instructor-title"
+                >
+                  {{ course.instructor.title }}
+                </text>
               </view>
             </view>
             <!-- 时间地点 -->
@@ -46,14 +86,18 @@
                 <text>📅</text>
                 <view>
                   <text>{{ course.startTime?.split(' ')[0] }}</text>
-                  <text class="meta-sub">{{ course.startTime?.split(' ')[1] }} - {{ course.endTime?.split(' ')[1] }}</text>
+                  <text class="meta-sub">
+                    {{ course.startTime?.split(' ')[1] }} - {{ course.endTime?.split(' ')[1] }}
+                  </text>
                 </view>
               </view>
               <view class="meta-row">
                 <text>📍</text>
                 <view>
                   <text>{{ course.location?.name }}</text>
-                  <text class="meta-sub">{{ course.location?.address }}</text>
+                  <text class="meta-sub">
+                    {{ course.location?.address }}
+                  </text>
                 </view>
               </view>
             </view>
@@ -66,30 +110,53 @@
         </view>
 
         <!-- 我的签到状态 -->
-        <view v-if="myRecord" class="card">
+        <view
+          v-if="myRecord"
+          class="card"
+        >
           <view class="my-status-row">
             <view class="my-status-left">
-              <view class="status-icon-wrap" :class="myRecord.status === 'checked_in' ? 'bg-green-light' : 'bg-gray-light'">
-                <text :class="myRecord.status === 'checked_in' ? 'text-green' : 'text-gray'">✅</text>
+              <view
+                class="status-icon-wrap"
+                :class="myRecord.status === 'checked_in' ? 'bg-green-light' : 'bg-gray-light'"
+              >
+                <text :class="myRecord.status === 'checked_in' ? 'text-green' : 'text-gray'">
+                  ✅
+                </text>
               </view>
               <view>
-                <text class="my-status-label">{{ getCheckinStatusInfo(myRecord.status).label }}</text>
+                <text class="my-status-label">
+                  {{ getCheckinStatusInfo(myRecord.status).label }}
+                </text>
                 <text class="my-status-time">
                   签到时间: {{ myRecord.checkinTime?.split(' ')[1] || '' }}
-                  <text v-if="myRecord.checkoutTime"> | 签退: {{ myRecord.checkoutTime.split(' ')[1] }}</text>
+                  <text v-if="myRecord.checkoutTime">
+                    | 签退: {{ myRecord.checkoutTime.split(' ')[1] }}
+                  </text>
                 </text>
               </view>
             </view>
-            <text class="checkin-method-badge">{{ formatCheckinMethod(myRecord.checkinMethod) }}</text>
+            <text class="checkin-method-badge">
+              {{ formatCheckinMethod(myRecord.checkinMethod) }}
+            </text>
           </view>
-          <view v-if="canCheckout" class="btn btn-outline btn-full mt-20" @click="handleCheckout">
+          <view
+            v-if="canCheckout"
+            class="btn btn-outline btn-full mt-20"
+            @click="handleCheckout"
+          >
             {{ isChecking ? '⏳' : '' }} 签退
           </view>
         </view>
 
         <!-- 签到区域 -->
-        <view v-if="canCheckin" class="card">
-          <text class="card-title">签到方式</text>
+        <view
+          v-if="canCheckin"
+          class="card"
+        >
+          <text class="card-title">
+            签到方式
+          </text>
           <view class="mode-toggle">
             <view
               class="mode-btn"
@@ -110,24 +177,40 @@
           </view>
 
           <!-- 扫码签到 -->
-          <view v-if="checkinMode === 'qr'" class="qr-section">
-            <view class="qr-icon-wrap" @click="openScanner">
-              <text class="qr-icon">📱</text>
+          <view
+            v-if="checkinMode === 'qr'"
+            class="qr-section"
+          >
+            <view
+              class="qr-icon-wrap"
+              @click="openScanner"
+            >
+              <text class="qr-icon">
+                📱
+              </text>
             </view>
-            <text class="qr-hint">点击扫描签到二维码</text>
-            <view class="btn btn-primary" @click="openScanner">
+            <text class="qr-hint">
+              点击扫描签到二维码
+            </text>
+            <view
+              class="btn btn-primary"
+              @click="openScanner"
+            >
               {{ isChecking ? '⏳' : '' }} 打开扫码
             </view>
           </view>
 
           <!-- 签到码 -->
-          <view v-else class="code-section">
+          <view
+            v-else
+            class="code-section"
+          >
             <input
               v-model="inputCode"
               class="code-input"
               placeholder="请输入签到码"
               maxlength="10"
-            />
+            >
             <view
               class="btn btn-primary btn-full"
               :class="{ disabled: !inputCode.trim() }"
@@ -143,37 +226,75 @@
         </view>
 
         <!-- 签到未开放 -->
-        <view v-if="!canCheckin && !myRecord" class="card card-center">
-          <text class="clock-icon">🕐</text>
-          <text class="no-checkin-title">签到未开放</text>
-          <text class="no-checkin-hint">签到时间: {{ course.checkinStart?.split(' ')[1] }} - {{ course.checkinEnd?.split(' ')[1] }}</text>
+        <view
+          v-if="!canCheckin && !myRecord"
+          class="card card-center"
+        >
+          <text class="clock-icon">
+            🕐
+          </text>
+          <text class="no-checkin-title">
+            签到未开放
+          </text>
+          <text class="no-checkin-hint">
+            签到时间: {{ course.checkinStart?.split(' ')[1] }} - {{ course.checkinEnd?.split(' ')[1] }}
+          </text>
         </view>
 
         <!-- 导航 -->
-        <view v-if="course.location?.latitude && course.location?.longitude" class="btn btn-outline btn-full" @click="navigateToCourse">
+        <view
+          v-if="course.location?.latitude && course.location?.longitude"
+          class="btn btn-outline btn-full"
+          @click="navigateToCourse"
+        >
           <text>🧭</text>
           <text>导航到上课地点</text>
         </view>
       </view>
 
       <!-- 签到成功弹窗 -->
-      <view v-if="showSuccess" class="success-overlay">
+      <view
+        v-if="showSuccess"
+        class="success-overlay"
+      >
         <view class="success-dialog">
-          <view class="success-close" @click="showSuccess = false">✕</view>
+          <view
+            class="success-close"
+            @click="showSuccess = false"
+          >
+            ✕
+          </view>
           <view class="success-anim">
             <view class="success-icon-wrap">
-              <text class="success-icon">✅</text>
+              <text class="success-icon">
+                ✅
+              </text>
             </view>
           </view>
-          <text class="success-title">签到成功</text>
-          <text v-if="successData?.rank" class="success-rank">
-            您是第 <text class="text-primary">{{ successData.rank }}</text> 位签到
+          <text class="success-title">
+            签到成功
           </text>
-          <view v-if="successData?.points" class="success-points">
+          <text
+            v-if="successData?.rank"
+            class="success-rank"
+          >
+            您是第 <text class="text-primary">
+              {{ successData.rank }}
+            </text> 位签到
+          </text>
+          <view
+            v-if="successData?.points"
+            class="success-points"
+          >
             <text>🏆</text>
-            <text class="text-primary">+{{ successData.points }} 积分</text>
+            <text class="text-primary">
+              +{{ successData.points }} 积分
+            </text>
           </view>
-          <view class="btn btn-primary btn-full" @click="showSuccess = false">
+          <view
+            class="btn btn-primary btn-full"
+            @click="showSuccess = false"
+          >
             确定
           </view>
         </view>

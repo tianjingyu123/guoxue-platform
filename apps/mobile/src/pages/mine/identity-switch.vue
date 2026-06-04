@@ -3,8 +3,15 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">身份切换</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          身份切换
+        </text>
         <view class="header-right" />
       </view>
     </view>
@@ -16,110 +23,226 @@
       skeleton-type="card"
       @retry="loadData"
     >
-      <view class="content" v-if="showContent">
+      <view
+        v-if="showContent"
+        class="content"
+      >
         <!-- 当前身份 -->
         <view class="section">
-          <text class="section-label">当前身份</text>
-          <view class="current-role" :class="'cr-' + currentRole?.type">
+          <text class="section-label">
+            当前身份
+          </text>
+          <view
+            class="current-role"
+            :class="'cr-' + currentRole?.type"
+          >
             <view class="current-role-icon-wrap">
-              <text class="current-role-icon">{{ roleIcon(currentRole?.type || '') }}</text>
+              <text class="current-role-icon">
+                {{ roleIcon(currentRole?.type || '') }}
+              </text>
             </view>
             <view class="current-role-info">
               <view class="current-role-name-row">
-                <text class="current-role-name">{{ currentRole?.name }}</text>
-                <text class="current-role-tag">当前</text>
+                <text class="current-role-name">
+                  {{ currentRole?.name }}
+                </text>
+                <text class="current-role-tag">
+                  当前
+                </text>
               </view>
-              <text class="current-role-desc">{{ currentRole?.description }}</text>
-              <text v-if="currentRole?.activatedAt" class="current-role-date">激活于 {{ currentRole.activatedAt }}</text>
+              <text class="current-role-desc">
+                {{ currentRole?.description }}
+              </text>
+              <text
+                v-if="currentRole?.activatedAt"
+                class="current-role-date"
+              >
+                激活于 {{ currentRole.activatedAt }}
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 可切换身份 -->
-        <view v-if="activeRoles.length > 0" class="section">
-          <text class="section-label">可切换身份</text>
-          <view v-for="role in activeRoles" :key="role.id" class="role-item" @click="handleRoleClick(role)">
-            <view class="role-icon-wrap" :class="'riw-' + role.type">
-              <text class="role-item-icon">{{ roleIcon(role.type) }}</text>
+        <view
+          v-if="activeRoles.length > 0"
+          class="section"
+        >
+          <text class="section-label">
+            可切换身份
+          </text>
+          <view
+            v-for="role in activeRoles"
+            :key="role.id"
+            class="role-item"
+            @click="handleRoleClick(role)"
+          >
+            <view
+              class="role-icon-wrap"
+              :class="'riw-' + role.type"
+            >
+              <text class="role-item-icon">
+                {{ roleIcon(role.type) }}
+              </text>
             </view>
             <view class="role-item-info">
               <view class="role-item-name-row">
-                <text class="role-item-name">{{ role.name }}</text>
-                <text class="role-item-badge">已激活</text>
+                <text class="role-item-name">
+                  {{ role.name }}
+                </text>
+                <text class="role-item-badge">
+                  已激活
+                </text>
               </view>
-              <text class="role-item-desc">{{ role.description }}</text>
+              <text class="role-item-desc">
+                {{ role.description }}
+              </text>
             </view>
-            <text class="role-item-arrow">→</text>
+            <text class="role-item-arrow">
+              →
+            </text>
           </view>
         </view>
 
         <!-- 审核中 -->
-        <view v-if="pendingRoles.length > 0" class="section">
-          <text class="section-label">审核中</text>
-          <view v-for="role in pendingRoles" :key="role.id" class="role-item disabled">
+        <view
+          v-if="pendingRoles.length > 0"
+          class="section"
+        >
+          <text class="section-label">
+            审核中
+          </text>
+          <view
+            v-for="role in pendingRoles"
+            :key="role.id"
+            class="role-item disabled"
+          >
             <view class="role-icon-wrap riw-pending">
-              <text class="role-item-icon">{{ roleIcon(role.type) }}</text>
+              <text class="role-item-icon">
+                {{ roleIcon(role.type) }}
+              </text>
             </view>
             <view class="role-item-info">
               <view class="role-item-name-row">
-                <text class="role-item-name">{{ role.name }}</text>
-                <text class="role-item-badge pending-badge">审核中</text>
+                <text class="role-item-name">
+                  {{ role.name }}
+                </text>
+                <text class="role-item-badge pending-badge">
+                  审核中
+                </text>
               </view>
-              <text class="role-item-desc">{{ role.description }}</text>
-              <text class="role-item-pending-hint">您的申请正在审核中，预计1-3个工作日完成</text>
+              <text class="role-item-desc">
+                {{ role.description }}
+              </text>
+              <text class="role-item-pending-hint">
+                您的申请正在审核中，预计1-3个工作日完成
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 更多身份 -->
-        <view v-if="inactiveRoles.length > 0" class="section">
-          <text class="section-label">更多身份</text>
-          <view v-for="role in inactiveRoles" :key="role.id" class="role-item inactive" @click="handleRoleClick(role)">
+        <view
+          v-if="inactiveRoles.length > 0"
+          class="section"
+        >
+          <text class="section-label">
+            更多身份
+          </text>
+          <view
+            v-for="role in inactiveRoles"
+            :key="role.id"
+            class="role-item inactive"
+            @click="handleRoleClick(role)"
+          >
             <view class="role-icon-wrap riw-inactive">
-              <text class="role-item-icon inactive-icon">{{ roleIcon(role.type) }}</text>
+              <text class="role-item-icon inactive-icon">
+                {{ roleIcon(role.type) }}
+              </text>
             </view>
             <view class="role-item-info">
               <view class="role-item-name-row">
-                <text class="role-item-name inactive-text">{{ role.name }}</text>
-                <text class="role-item-badge inactive-badge">🔒 未开通</text>
+                <text class="role-item-name inactive-text">
+                  {{ role.name }}
+                </text>
+                <text class="role-item-badge inactive-badge">
+                  🔒 未开通
+                </text>
               </view>
-              <text class="role-item-desc">{{ role.description }}</text>
+              <text class="role-item-desc">
+                {{ role.description }}
+              </text>
             </view>
-            <text class="role-item-apply">申请开通</text>
+            <text class="role-item-apply">
+              申请开通
+            </text>
           </view>
         </view>
 
         <!-- 提示 -->
         <view class="tip-card">
-          <text class="tip-icon">🛡</text>
+          <text class="tip-icon">
+            🛡
+          </text>
           <view class="tip-body">
-            <text class="tip-title">身份切换说明</text>
-            <text class="tip-item">• 切换身份后，界面将自动跳转至对应工作台</text>
-            <text class="tip-item">• 不同身份的数据和权限相互独立</text>
-            <text class="tip-item">• 您可以随时切换回其他已激活身份</text>
+            <text class="tip-title">
+              身份切换说明
+            </text>
+            <text class="tip-item">
+              • 切换身份后，界面将自动跳转至对应工作台
+            </text>
+            <text class="tip-item">
+              • 不同身份的数据和权限相互独立
+            </text>
+            <text class="tip-item">
+              • 您可以随时切换回其他已激活身份
+            </text>
           </view>
         </view>
       </view>
     </DataState>
 
     <!-- 切换确认底部弹窗 -->
-    <view v-if="showConfirm && selectedRole" class="sheet-overlay" @click="!switching && (showConfirm = false)">
-      <view class="sheet-content" @click.stop>
+    <view
+      v-if="showConfirm && selectedRole"
+      class="sheet-overlay"
+      @click="!switching && (showConfirm = false)"
+    >
+      <view
+        class="sheet-content"
+        @click.stop
+      >
         <view class="sheet-handle" />
         <view class="sheet-body">
-          <view class="sheet-icon-wrap" :class="'siw-' + selectedRole.type">
-            <text class="sheet-icon-text">{{ roleIcon(selectedRole.type) }}</text>
+          <view
+            class="sheet-icon-wrap"
+            :class="'siw-' + selectedRole.type"
+          >
+            <text class="sheet-icon-text">
+              {{ roleIcon(selectedRole.type) }}
+            </text>
           </view>
-          <text class="sheet-title">切换至「{{ selectedRole.name }}」身份</text>
-          <text class="sheet-desc">切换后将跳转至{{ selectedRole.name }}工作台</text>
+          <text class="sheet-title">
+            切换至「{{ selectedRole.name }}」身份
+          </text>
+          <text class="sheet-desc">
+            切换后将跳转至{{ selectedRole.name }}工作台
+          </text>
         </view>
 
         <view class="sheet-hint">
-          <text class="sheet-hint-text">提示：切换身份不会影响您在其他身份下的数据，您可以随时切换回来。</text>
+          <text class="sheet-hint-text">
+            提示：切换身份不会影响您在其他身份下的数据，您可以随时切换回来。
+          </text>
         </view>
 
         <view class="sheet-actions">
-          <view class="sheet-btn sheet-btn-cancel" @click="showConfirm = false">取消</view>
+          <view
+            class="sheet-btn sheet-btn-cancel"
+            @click="showConfirm = false"
+          >
+            取消
+          </view>
           <view
             class="sheet-btn sheet-btn-confirm"
             :class="{ disabled: switching }"

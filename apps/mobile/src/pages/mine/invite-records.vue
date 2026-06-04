@@ -3,9 +3,21 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">邀请记录</text>
-        <text class="header-share" @click="showLinkSheet = true">📤</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          邀请记录
+        </text>
+        <text
+          class="header-share"
+          @click="showLinkSheet = true"
+        >
+          📤
+        </text>
       </view>
     </view>
 
@@ -13,30 +25,58 @@
       <!-- 统计卡片 -->
       <view class="stats-card">
         <view class="stats-grid">
-          <view v-for="s in statItems" :key="s.label" class="stats-item">
+          <view
+            v-for="s in statItems"
+            :key="s.label"
+            class="stats-item"
+          >
             <view class="stats-icon-wrap">
-              <text class="stats-icon">{{ s.icon }}</text>
+              <text class="stats-icon">
+                {{ s.icon }}
+              </text>
             </view>
-            <text class="stats-value">{{ s.value }}</text>
-            <text class="stats-label">{{ s.label }}</text>
+            <text class="stats-value">
+              {{ s.value }}
+            </text>
+            <text class="stats-label">
+              {{ s.label }}
+            </text>
           </view>
         </view>
-        <view v-if="pendingEarnings > 0" class="stats-pending">
-          <text class="stats-pending-label">待结算收益</text>
-          <text class="stats-pending-value">¥{{ pendingEarnings.toFixed(2) }}</text>
+        <view
+          v-if="pendingEarnings > 0"
+          class="stats-pending"
+        >
+          <text class="stats-pending-label">
+            待结算收益
+          </text>
+          <text class="stats-pending-value">
+            ¥{{ pendingEarnings.toFixed(2) }}
+          </text>
         </view>
       </view>
 
       <!-- 邀请链接快捷入口 -->
-      <view class="link-entry" @click="showLinkSheet = true">
+      <view
+        class="link-entry"
+        @click="showLinkSheet = true"
+      >
         <view class="link-entry-icon-wrap">
-          <text class="link-entry-icon">🔗</text>
+          <text class="link-entry-icon">
+            🔗
+          </text>
         </view>
         <view class="link-entry-info">
-          <text class="link-entry-title">我的邀请链接</text>
-          <text class="link-entry-code">邀请码：{{ linkInfo.inviteCode }}</text>
+          <text class="link-entry-title">
+            我的邀请链接
+          </text>
+          <text class="link-entry-code">
+            邀请码：{{ linkInfo.inviteCode }}
+          </text>
         </view>
-        <text class="link-entry-arrow">→</text>
+        <text class="link-entry-arrow">
+          →
+        </text>
       </view>
 
       <!-- 筛选 -->
@@ -47,7 +87,9 @@
           class="filter-tab"
           :class="{ active: filter === f.value }"
           @click="switchFilter(f.value)"
-        >{{ f.label }}</view>
+        >
+          {{ f.label }}
+        </view>
       </view>
 
       <!-- 邀请记录列表 -->
@@ -61,24 +103,69 @@
         @retry="loadData"
       >
         <view class="records-list">
-          <view v-for="record in records" :key="record.id" class="record-item">
-            <image v-if="record.invitee.avatar" :src="record.invitee.avatar" class="record-avatar" mode="aspectFill" />
-            <view v-else class="record-avatar-placeholder">
-              <text class="record-avatar-text">{{ (record.invitee.nickname || '?').slice(0, 1) }}</text>
+          <view
+            v-for="record in records"
+            :key="record.id"
+            class="record-item"
+          >
+            <image
+              v-if="record.invitee.avatar"
+              :src="record.invitee.avatar"
+              class="record-avatar"
+              mode="aspectFill"
+            />
+            <view
+              v-else
+              class="record-avatar-placeholder"
+            >
+              <text class="record-avatar-text">
+                {{ (record.invitee.nickname || '?').slice(0, 1) }}
+              </text>
             </view>
             <view class="record-info">
               <view class="record-name-row">
-                <text class="record-name">{{ record.invitee.nickname }}</text>
-                <text v-if="record.status === 'vip'" class="record-crown">👑</text>
+                <text class="record-name">
+                  {{ record.invitee.nickname }}
+                </text>
+                <text
+                  v-if="record.status === 'vip'"
+                  class="record-crown"
+                >
+                  👑
+                </text>
               </view>
-              <text class="record-phone">{{ record.invitee.phone }}</text>
-              <text class="record-date">注册：{{ record.registeredAt }}</text>
-              <text v-if="record.paidAt" class="record-paid">首付：{{ record.paidAt }} · 累计 ¥{{ record.paidAmount }}</text>
+              <text class="record-phone">
+                {{ record.invitee.phone }}
+              </text>
+              <text class="record-date">
+                注册：{{ record.registeredAt }}
+              </text>
+              <text
+                v-if="record.paidAt"
+                class="record-paid"
+              >
+                首付：{{ record.paidAt }} · 累计 ¥{{ record.paidAmount }}
+              </text>
             </view>
             <view class="record-right">
-              <text class="record-status-badge" :class="'rsb-' + record.status">{{ statusLabel(record.status) }}</text>
-              <text v-if="record.commission > 0" class="record-commission">+¥{{ record.commission.toFixed(2) }}</text>
-              <text v-if="record.pendingCommission > 0" class="record-pending-commission">待结算 ¥{{ record.pendingCommission.toFixed(2) }}</text>
+              <text
+                class="record-status-badge"
+                :class="'rsb-' + record.status"
+              >
+                {{ statusLabel(record.status) }}
+              </text>
+              <text
+                v-if="record.commission > 0"
+                class="record-commission"
+              >
+                +¥{{ record.commission.toFixed(2) }}
+              </text>
+              <text
+                v-if="record.pendingCommission > 0"
+                class="record-pending-commission"
+              >
+                待结算 ¥{{ record.pendingCommission.toFixed(2) }}
+              </text>
             </view>
           </view>
         </view>
@@ -86,43 +173,76 @@
     </view>
 
     <!-- 邀请链接弹窗 -->
-    <view v-if="showLinkSheet" class="sheet-overlay" @click="showLinkSheet = false">
-      <view class="sheet-content" @click.stop>
+    <view
+      v-if="showLinkSheet"
+      class="sheet-overlay"
+      @click="showLinkSheet = false"
+    >
+      <view
+        class="sheet-content"
+        @click.stop
+      >
         <view class="sheet-header">
-          <text class="sheet-title">邀请好友</text>
-          <text class="sheet-close" @click="showLinkSheet = false">✕</text>
+          <text class="sheet-title">
+            邀请好友
+          </text>
+          <text
+            class="sheet-close"
+            @click="showLinkSheet = false"
+          >
+            ✕
+          </text>
         </view>
 
         <!-- 二维码 -->
         <view class="qrcode-area">
           <view class="qrcode-box">
-            <text class="qrcode-placeholder-icon">📱</text>
+            <text class="qrcode-placeholder-icon">
+              📱
+            </text>
           </view>
         </view>
 
         <!-- 邀请码 -->
         <view class="invite-code-area">
-          <text class="invite-code-label">我的邀请码</text>
-          <text class="invite-code-value">{{ linkInfo.inviteCode }}</text>
+          <text class="invite-code-label">
+            我的邀请码
+          </text>
+          <text class="invite-code-value">
+            {{ linkInfo.inviteCode }}
+          </text>
         </view>
 
         <!-- 邀请链接 -->
         <view class="invite-link-box">
-          <text class="invite-link-label">邀请链接</text>
-          <text class="invite-link-text">{{ linkInfo.inviteLink }}</text>
+          <text class="invite-link-label">
+            邀请链接
+          </text>
+          <text class="invite-link-text">
+            {{ linkInfo.inviteLink }}
+          </text>
         </view>
 
         <!-- 操作按钮 -->
         <view class="sheet-buttons">
-          <view class="sheet-btn-outline" :class="{ disabled: regenerating }" @click="handleRegenerate">
+          <view
+            class="sheet-btn-outline"
+            :class="{ disabled: regenerating }"
+            @click="handleRegenerate"
+          >
             {{ regenerating ? '生成中...' : '🔄 重新生成' }}
           </view>
-          <view class="sheet-btn-primary" @click="handleCopy">
+          <view
+            class="sheet-btn-primary"
+            @click="handleCopy"
+          >
             {{ copied ? '✅ 已复制' : '📋 复制链接' }}
           </view>
         </view>
 
-        <text class="sheet-rule">好友通过链接注册并付费后，您将获得相应佣金奖励</text>
+        <text class="sheet-rule">
+          好友通过链接注册并付费后，您将获得相应佣金奖励
+        </text>
       </view>
     </view>
   </view>

@@ -1,21 +1,63 @@
 <template>
-  <view class="content-card" @click="goDetail">
-    <image v-if="article.cover" :src="article.cover" class="card-cover" mode="aspectFill" />
+  <view
+    class="content-card"
+    @click="goDetail"
+  >
+    <image
+      v-if="article.cover"
+      :src="article.cover"
+      class="card-cover"
+      mode="aspectFill"
+    />
     <view class="card-body">
-      <view class="card-title">{{ article.title }}</view>
-      <view class="card-meta">
-        <text v-if="article.author" class="meta-author">{{ article.author }}</text>
-        <text v-if="article.dynasty" class="meta-dynasty">{{ article.dynasty }}</text>
-        <text class="meta-time">{{ formatTime(article.createdAt) }}</text>
+      <view class="card-title">
+        {{ article.title }}
       </view>
-      <view class="card-excerpt" v-if="article.excerpt">{{ article.excerpt }}</view>
-      <view class="card-tags" v-if="article.tags && article.tags.length">
-        <text v-for="tag in article.tags" :key="tag" class="tag">{{ tag }}</text>
+      <view class="card-meta">
+        <text
+          v-if="article.author"
+          class="meta-author"
+        >
+          {{ article.author }}
+        </text>
+        <text
+          v-if="article.dynasty"
+          class="meta-dynasty"
+        >
+          {{ article.dynasty }}
+        </text>
+        <text class="meta-time">
+          {{ formatTime(article.createdAt) }}
+        </text>
+      </view>
+      <view
+        v-if="article.excerpt"
+        class="card-excerpt"
+      >
+        {{ article.excerpt }}
+      </view>
+      <view
+        v-if="article.tags && article.tags.length"
+        class="card-tags"
+      >
+        <text
+          v-for="tag in article.tags"
+          :key="tag"
+          class="tag"
+        >
+          {{ tag }}
+        </text>
       </view>
       <view class="card-stats">
-        <text class="stat-item">📖 {{ article.viewCount ?? 0 }}</text>
-        <text class="stat-item">👍 {{ article.likeCount ?? 0 }}</text>
-        <text class="stat-item">⭐ {{ article.collectCount ?? 0 }}</text>
+        <text class="stat-item">
+          📖 {{ article.viewCount ?? 0 }}
+        </text>
+        <text class="stat-item">
+          👍 {{ article.likeCount ?? 0 }}
+        </text>
+        <text class="stat-item">
+          ⭐ {{ article.collectCount ?? 0 }}
+        </text>
       </view>
     </view>
   </view>

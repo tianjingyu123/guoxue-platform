@@ -3,12 +3,29 @@
     <!-- 导航栏 -->
     <view class="nav">
       <view class="nav-left">
-        <text class="nav-back" @click="goBack">←</text>
-        <text class="nav-title">通讯录</text>
+        <text
+          class="nav-back"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="nav-title">
+          通讯录
+        </text>
       </view>
       <view class="nav-right">
-        <text class="nav-btn" @click="openSearch">🔍</text>
-        <text class="nav-btn" @click="goAddFriend">＋</text>
+        <text
+          class="nav-btn"
+          @click="openSearch"
+        >
+          🔍
+        </text>
+        <text
+          class="nav-btn"
+          @click="goAddFriend"
+        >
+          ＋
+        </text>
       </view>
     </view>
 
@@ -33,12 +50,14 @@
         >
           <view
             v-for="group in letterGroups"
-            :key="group.letter"
             :id="'group-' + group.letter"
+            :key="group.letter"
             class="letter-group"
           >
             <view class="letter-header">
-              <text class="letter-label">{{ group.letter }}</text>
+              <text class="letter-label">
+                {{ group.letter }}
+              </text>
             </view>
             <view class="friends-wrap">
               <view
@@ -48,14 +67,38 @@
                 @click="selectFriend(f)"
               >
                 <view class="friend-avatar-wrap">
-                  <image :src="f.avatar || ''" class="friend-avatar" mode="aspectFill" />
-                  <view v-if="f.isOnline" class="online-dot" />
+                  <image
+                    :src="f.avatar || ''"
+                    class="friend-avatar"
+                    mode="aspectFill"
+                  />
+                  <view
+                    v-if="f.isOnline"
+                    class="online-dot"
+                  />
                 </view>
                 <view class="friend-info">
-                  <text class="friend-name">{{ f.remark || f.nickname }}</text>
-                  <text v-if="f.remark" class="friend-nickname">({{ f.nickname }})</text>
-                  <text v-if="f.signature" class="friend-signature">{{ f.signature }}</text>
-                  <text v-else-if="f.lastActiveAt && !f.isOnline" class="friend-active">{{ f.lastActiveAt }}活跃</text>
+                  <text class="friend-name">
+                    {{ f.remark || f.nickname }}
+                  </text>
+                  <text
+                    v-if="f.remark"
+                    class="friend-nickname"
+                  >
+                    ({{ f.nickname }})
+                  </text>
+                  <text
+                    v-if="f.signature"
+                    class="friend-signature"
+                  >
+                    {{ f.signature }}
+                  </text>
+                  <text
+                    v-else-if="f.lastActiveAt && !f.isOnline"
+                    class="friend-active"
+                  >
+                    {{ f.lastActiveAt }}活跃
+                  </text>
                 </view>
               </view>
             </view>
@@ -64,82 +107,168 @@
       </scroll-view>
 
       <!-- 右侧字母索引条 -->
-      <view v-if="letterList.length > 0" class="letter-index">
+      <view
+        v-if="letterList.length > 0"
+        class="letter-index"
+      >
         <text
           v-for="(l, i) in letterList"
           :key="l"
           class="index-letter"
           :class="{ active: activeIndex === i }"
           @click="scrollToLetter(l)"
-        >{{ l }}</text>
+        >
+          {{ l }}
+        </text>
       </view>
     </view>
 
     <!-- 搜索弹层 -->
-    <view v-if="showSearch" class="sheet-mask" @click="closeSearch">
-      <view class="sheet-content sheet-full" @click.stop>
+    <view
+      v-if="showSearch"
+      class="sheet-mask"
+      @click="closeSearch"
+    >
+      <view
+        class="sheet-content sheet-full"
+        @click.stop
+      >
         <view class="search-header">
-          <text class="search-header-title">搜索好友</text>
+          <text class="search-header-title">
+            搜索好友
+          </text>
         </view>
         <view class="search-body">
           <view class="search-input-wrap">
-            <text class="search-icon">🔍</text>
+            <text class="search-icon">
+              🔍
+            </text>
             <input
               v-model="searchKeyword"
               class="search-input"
               placeholder="搜索昵称、备注"
               focus
-            />
-            <text v-if="searchKeyword" class="search-clear" @click="clearSearch">✕</text>
+            >
+            <text
+              v-if="searchKeyword"
+              class="search-clear"
+              @click="clearSearch"
+            >
+              ✕
+            </text>
           </view>
           <view class="search-results">
-            <view v-if="isSearching" class="search-status">搜索中...</view>
+            <view
+              v-if="isSearching"
+              class="search-status"
+            >
+              搜索中...
+            </view>
             <view v-else-if="searchKeyword">
-              <view v-if="searchResults.length > 0" class="search-list">
+              <view
+                v-if="searchResults.length > 0"
+                class="search-list"
+              >
                 <view
                   v-for="f in searchResults"
                   :key="f.id"
                   class="friend-item"
                   @click="selectFriend(f)"
                 >
-                  <image :src="f.avatar || ''" class="friend-avatar" mode="aspectFill" />
+                  <image
+                    :src="f.avatar || ''"
+                    class="friend-avatar"
+                    mode="aspectFill"
+                  />
                   <view class="friend-info">
-                    <text class="friend-name">{{ f.remark || f.nickname }}</text>
-                    <text v-if="f.signature" class="friend-signature">{{ f.signature }}</text>
+                    <text class="friend-name">
+                      {{ f.remark || f.nickname }}
+                    </text>
+                    <text
+                      v-if="f.signature"
+                      class="friend-signature"
+                    >
+                      {{ f.signature }}
+                    </text>
                   </view>
                 </view>
               </view>
-              <view v-else class="search-status">未找到相关好友</view>
+              <view
+                v-else
+                class="search-status"
+              >
+                未找到相关好友
+              </view>
             </view>
-            <view v-else class="search-status">输入关键词搜索好友</view>
+            <view
+              v-else
+              class="search-status"
+            >
+              输入关键词搜索好友
+            </view>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 好友操作弹窗 -->
-    <view v-if="selectedFriend" class="sheet-mask" @click="selectedFriend = null">
-      <view class="sheet-content sheet-bottom" @click.stop>
+    <view
+      v-if="selectedFriend"
+      class="sheet-mask"
+      @click="selectedFriend = null"
+    >
+      <view
+        class="sheet-content sheet-bottom"
+        @click.stop
+      >
         <view class="friend-profile">
           <view class="friend-avatar-big-wrap">
-            <image :src="selectedFriend.avatar || ''" class="friend-avatar-big" mode="aspectFill" />
-            <view v-if="selectedFriend.isOnline" class="online-dot-lg" />
+            <image
+              :src="selectedFriend.avatar || ''"
+              class="friend-avatar-big"
+              mode="aspectFill"
+            />
+            <view
+              v-if="selectedFriend.isOnline"
+              class="online-dot-lg"
+            />
           </view>
           <view class="friend-detail">
-            <text class="friend-detail-name">{{ selectedFriend.remark || selectedFriend.nickname }}</text>
-            <text v-if="selectedFriend.remark" class="friend-detail-sub">昵称: {{ selectedFriend.nickname }}</text>
-            <text v-if="selectedFriend.signature" class="friend-detail-signature">{{ selectedFriend.signature }}</text>
-            <text class="friend-detail-status" :class="{ online: selectedFriend.isOnline }">
+            <text class="friend-detail-name">
+              {{ selectedFriend.remark || selectedFriend.nickname }}
+            </text>
+            <text
+              v-if="selectedFriend.remark"
+              class="friend-detail-sub"
+            >
+              昵称: {{ selectedFriend.nickname }}
+            </text>
+            <text
+              v-if="selectedFriend.signature"
+              class="friend-detail-signature"
+            >
+              {{ selectedFriend.signature }}
+            </text>
+            <text
+              class="friend-detail-status"
+              :class="{ online: selectedFriend.isOnline }"
+            >
               {{ selectedFriend.isOnline ? '在线' : selectedFriend.lastActiveAt ? selectedFriend.lastActiveAt + '活跃' : '离线' }}
             </text>
           </view>
         </view>
         <view class="action-row">
-          <view class="action-btn action-btn-primary" @click="friendAction('chat')">
+          <view
+            class="action-btn action-btn-primary"
+            @click="friendAction('chat')"
+          >
             <text>💬</text>
             <text>发消息</text>
           </view>
-          <view class="action-btn action-btn-outline" @click="friendAction('profile')">
+          <view
+            class="action-btn action-btn-outline"
+            @click="friendAction('profile')"
+          >
             <text>👤</text>
             <text>查看主页</text>
           </view>

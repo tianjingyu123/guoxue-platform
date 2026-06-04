@@ -4,8 +4,15 @@
     <view class="header">
       <view class="header-inner">
         <view class="header-left">
-          <text class="back-btn" @click="goBack">←</text>
-          <text class="header-title">第三方账号</text>
+          <text
+            class="back-btn"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <text class="header-title">
+            第三方账号
+          </text>
         </view>
       </view>
     </view>
@@ -19,18 +26,31 @@
       <!-- 提示卡片 -->
       <view class="tip-card">
         <view class="tip-icon-wrap">
-          <text class="tip-icon">⚠</text>
+          <text class="tip-icon">
+            ⚠
+          </text>
         </view>
         <view class="tip-content">
-          <text class="tip-title">绑定提示</text>
-          <text class="tip-desc">绑定第三方账号后，可使用该账号快速登录。解绑后将无法使用该方式登录，请确保已绑定其他登录方式。</text>
+          <text class="tip-title">
+            绑定提示
+          </text>
+          <text class="tip-desc">
+            绑定第三方账号后，可使用该账号快速登录。解绑后将无法使用该方式登录，请确保已绑定其他登录方式。
+          </text>
         </view>
       </view>
 
       <!-- 统计 -->
       <view class="stats-row">
-        <text class="stats-text">已绑定 {{ boundCount }}/3 个账号</text>
-        <text v-if="boundCount >= 2" class="stats-badge">账号安全</text>
+        <text class="stats-text">
+          已绑定 {{ boundCount }}/3 个账号
+        </text>
+        <text
+          v-if="boundCount >= 2"
+          class="stats-badge"
+        >
+          账号安全
+        </text>
       </view>
 
       <!-- 账号列表 -->
@@ -41,19 +61,41 @@
           class="account-card"
         >
           <view class="account-left">
-            <view class="account-icon" :style="{ backgroundColor: providerColor(acc.provider) }">
-              <text class="account-icon-text">{{ providerIcon(acc.provider) }}</text>
+            <view
+              class="account-icon"
+              :style="{ backgroundColor: providerColor(acc.provider) }"
+            >
+              <text class="account-icon-text">
+                {{ providerIcon(acc.provider) }}
+              </text>
             </view>
             <view class="account-info">
               <view class="account-name-row">
-                <text class="account-name">{{ providerName(acc.provider) }}</text>
-                <text v-if="acc.isBound" class="account-badge">✓ 已绑定</text>
+                <text class="account-name">
+                  {{ providerName(acc.provider) }}
+                </text>
+                <text
+                  v-if="acc.isBound"
+                  class="account-badge"
+                >
+                  ✓ 已绑定
+                </text>
               </view>
-              <text v-if="acc.isBound" class="account-desc">
+              <text
+                v-if="acc.isBound"
+                class="account-desc"
+              >
                 {{ acc.accountInfo }}
-                <text class="account-date"> 绑定于 {{ acc.boundAt }}</text>
+                <text class="account-date">
+                  绑定于 {{ acc.boundAt }}
+                </text>
               </text>
-              <text v-else class="account-desc">未绑定，绑定后可快速登录</text>
+              <text
+                v-else
+                class="account-desc"
+              >
+                未绑定，绑定后可快速登录
+              </text>
             </view>
           </view>
           <view class="account-right">
@@ -78,41 +120,84 @@
 
       <!-- 绑定后可享受 -->
       <view class="benefits">
-        <text class="benefits-title">绑定后可享受</text>
+        <text class="benefits-title">
+          绑定后可享受
+        </text>
         <view class="benefits-grid">
-          <view v-for="item in benefits" :key="item.title" class="benefit-item">
-            <text class="benefit-icon">{{ item.icon }}</text>
-            <text class="benefit-name">{{ item.title }}</text>
-            <text class="benefit-desc">{{ item.desc }}</text>
+          <view
+            v-for="item in benefits"
+            :key="item.title"
+            class="benefit-item"
+          >
+            <text class="benefit-icon">
+              {{ item.icon }}
+            </text>
+            <text class="benefit-name">
+              {{ item.title }}
+            </text>
+            <text class="benefit-desc">
+              {{ item.desc }}
+            </text>
           </view>
         </view>
       </view>
     </DataState>
 
     <!-- 解绑确认弹窗 -->
-    <view v-if="unbindTarget" class="dialog-overlay" @click="unbindTarget = null">
-      <view class="dialog-content" @click.stop>
-        <text class="dialog-title">确认解绑</text>
+    <view
+      v-if="unbindTarget"
+      class="dialog-overlay"
+      @click="unbindTarget = null"
+    >
+      <view
+        class="dialog-content"
+        @click.stop
+      >
+        <text class="dialog-title">
+          确认解绑
+        </text>
 
         <view class="dialog-account-info">
-          <view class="dialog-account-icon" :style="{ backgroundColor: providerColor(unbindTarget.provider) }">
-            <text class="account-icon-text">{{ providerIcon(unbindTarget.provider) }}</text>
+          <view
+            class="dialog-account-icon"
+            :style="{ backgroundColor: providerColor(unbindTarget.provider) }"
+          >
+            <text class="account-icon-text">
+              {{ providerIcon(unbindTarget.provider) }}
+            </text>
           </view>
           <view>
-            <text class="dialog-account-name">{{ providerName(unbindTarget.provider) }}</text>
-            <text class="dialog-account-desc">{{ unbindTarget.accountInfo }}</text>
+            <text class="dialog-account-name">
+              {{ providerName(unbindTarget.provider) }}
+            </text>
+            <text class="dialog-account-desc">
+              {{ unbindTarget.accountInfo }}
+            </text>
           </view>
         </view>
 
         <view class="dialog-warning">
-          <text class="dialog-warning-title">解绑后：</text>
-          <text class="dialog-warning-item">• 无法使用该账号登录</text>
-          <text class="dialog-warning-item">• 请确保已绑定手机号或其他账号</text>
-          <text class="dialog-warning-item">• 解绑后可重新绑定</text>
+          <text class="dialog-warning-title">
+            解绑后：
+          </text>
+          <text class="dialog-warning-item">
+            • 无法使用该账号登录
+          </text>
+          <text class="dialog-warning-item">
+            • 请确保已绑定手机号或其他账号
+          </text>
+          <text class="dialog-warning-item">
+            • 解绑后可重新绑定
+          </text>
         </view>
 
         <view class="dialog-actions">
-          <view class="dialog-btn dialog-btn-cancel" @click="unbindTarget = null">取消</view>
+          <view
+            class="dialog-btn dialog-btn-cancel"
+            @click="unbindTarget = null"
+          >
+            取消
+          </view>
           <view
             class="dialog-btn dialog-btn-confirm"
             :class="{ disabled: processing }"

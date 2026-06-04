@@ -2,32 +2,65 @@
   <view class="page">
     <!-- 顶栏 -->
     <view class="nav-bar">
-      <view class="nav-left" @click="goBack">
-        <text class="nav-back">‹</text>
+      <view
+        class="nav-left"
+        @click="goBack"
+      >
+        <text class="nav-back">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">发布视频</text>
+      <text class="nav-title">
+        发布视频
+      </text>
       <view class="nav-right">
-        <text class="publish-btn" :class="{ disabled: publishing || !canPublish }" @click="publish">
+        <text
+          class="publish-btn"
+          :class="{ disabled: publishing || !canPublish }"
+          @click="publish"
+        >
           {{ publishing ? '发布中...' : '发布' }}
         </text>
       </view>
     </view>
 
     <!-- 视频选择区域 -->
-    <view class="video-section" v-if="!videoPath">
+    <view
+      v-if="!videoPath"
+      class="video-section"
+    >
       <view class="video-placeholder">
-        <text class="vp-icon">🎬</text>
-        <text class="vp-text">选择或拍摄视频</text>
-        <text class="vp-hint">支持 mp4 / webm，最大200MB</text>
+        <text class="vp-icon">
+          🎬
+        </text>
+        <text class="vp-text">
+          选择或拍摄视频
+        </text>
+        <text class="vp-hint">
+          支持 mp4 / webm，最大200MB
+        </text>
         <view class="vp-actions">
-          <button class="vp-btn" @click="chooseVideo">📂 相册选择</button>
-          <button class="vp-btn primary" @click="recordVideo">🎥 拍摄视频</button>
+          <button
+            class="vp-btn"
+            @click="chooseVideo"
+          >
+            📂 相册选择
+          </button>
+          <button
+            class="vp-btn primary"
+            @click="recordVideo"
+          >
+            🎥 拍摄视频
+          </button>
         </view>
       </view>
     </view>
 
     <!-- 视频预览 -->
-    <view class="video-section" v-else>
+    <view
+      v-else
+      class="video-section"
+    >
       <view class="preview-wrap">
         <video
           :src="videoPath"
@@ -38,51 +71,95 @@
           :show-center-play-btn="true"
         />
         <view class="preview-actions">
-          <text class="preview-retake" @click="retakeVideo">重新选择</text>
+          <text
+            class="preview-retake"
+            @click="retakeVideo"
+          >
+            重新选择
+          </text>
         </view>
       </view>
 
       <!-- 上传进度 -->
-      <view v-if="uploading" class="upload-progress">
-        <text class="up-text">上传中...</text>
+      <view
+        v-if="uploading"
+        class="upload-progress"
+      >
+        <text class="up-text">
+          上传中...
+        </text>
         <view class="up-bar">
-          <view class="up-fill" :style="{ width: uploadProgress + '%' }" />
+          <view
+            class="up-fill"
+            :style="{ width: uploadProgress + '%' }"
+          />
         </view>
-        <text class="up-percent">{{ uploadProgress }}%</text>
+        <text class="up-percent">
+          {{ uploadProgress }}%
+        </text>
       </view>
     </view>
 
     <!-- 表单 -->
-    <view class="form" v-if="videoPath && !uploading">
+    <view
+      v-if="videoPath && !uploading"
+      class="form"
+    >
       <!-- 标题 -->
       <view class="form-row">
-        <text class="form-label">标题</text>
+        <text class="form-label">
+          标题
+        </text>
         <input
           v-model="title"
           class="form-input"
           placeholder="给视频取个标题..."
           maxlength="50"
-        />
+        >
       </view>
 
       <!-- 封面 -->
       <view class="form-row">
-        <text class="form-label">封面</text>
+        <text class="form-label">
+          封面
+        </text>
         <view class="cover-row">
-          <view v-if="coverUrl" class="cover-preview-wrap">
-            <image :src="coverUrl" class="cover-preview" mode="aspectFill" />
-            <text class="cover-remove" @click="coverUrl = ''">×</text>
+          <view
+            v-if="coverUrl"
+            class="cover-preview-wrap"
+          >
+            <image
+              :src="coverUrl"
+              class="cover-preview"
+              mode="aspectFill"
+            />
+            <text
+              class="cover-remove"
+              @click="coverUrl = ''"
+            >
+              ×
+            </text>
           </view>
-          <view v-else class="cover-add" @click="chooseCover">
-            <text class="cover-add-icon">🖼</text>
-            <text class="cover-add-text">添加封面</text>
+          <view
+            v-else
+            class="cover-add"
+            @click="chooseCover"
+          >
+            <text class="cover-add-icon">
+              🖼
+            </text>
+            <text class="cover-add-text">
+              添加封面
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 圈子 -->
       <view class="form-row">
-        <text class="form-label">发布到圈子</text>
+        <text class="form-label">
+          发布到圈子
+        </text>
         <picker
           v-if="circles.length > 0"
           mode="selector"
@@ -94,22 +171,33 @@
             <text :class="{ placeholder: circleIndex < 0 }">
               {{ circleIndex >= 0 ? circleNames[circleIndex] : '不发布到圈子' }}
             </text>
-            <text class="picker-arrow">›</text>
+            <text class="picker-arrow">
+              ›
+            </text>
           </view>
         </picker>
-        <text v-else class="form-hint">暂无已加入的圈子</text>
+        <text
+          v-else
+          class="form-hint"
+        >
+          暂无已加入的圈子
+        </text>
       </view>
 
       <!-- 描述 -->
       <view class="form-row">
-        <text class="form-label">描述</text>
+        <text class="form-label">
+          描述
+        </text>
         <textarea
           v-model="description"
           class="form-textarea"
           placeholder="介绍一下视频内容..."
           :maxlength="200"
         />
-        <text class="char-count">{{ description.length }}/200</text>
+        <text class="char-count">
+          {{ description.length }}/200
+        </text>
       </view>
     </view>
 

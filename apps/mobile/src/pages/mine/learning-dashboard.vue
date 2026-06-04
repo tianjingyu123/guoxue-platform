@@ -1,56 +1,108 @@
 <template>
   <view class="page">
     <view class="page-header">
-      <text class="page-title">学习看板</text>
-      <text class="page-sub">我的学习数据</text>
+      <text class="page-title">
+        学习看板
+      </text>
+      <text class="page-sub">
+        我的学习数据
+      </text>
     </view>
 
-    <view v-if="loading" class="loading">加载中...</view>
+    <view
+      v-if="loading"
+      class="loading"
+    >
+      加载中...
+    </view>
 
     <template v-else-if="dashboard">
       <!-- 统计卡片 -->
       <view class="stats-grid">
         <view class="stat-card">
-          <text class="stat-value">{{ dashboard.enrolledCourses || 0 }}</text>
-          <text class="stat-label">已购课程</text>
+          <text class="stat-value">
+            {{ dashboard.enrolledCourses || 0 }}
+          </text>
+          <text class="stat-label">
+            已购课程
+          </text>
         </view>
         <view class="stat-card">
-          <text class="stat-value">{{ dashboard.completedChapters || 0 }}</text>
-          <text class="stat-label">已完成章节</text>
+          <text class="stat-value">
+            {{ dashboard.completedChapters || 0 }}
+          </text>
+          <text class="stat-label">
+            已完成章节
+          </text>
         </view>
         <view class="stat-card">
-          <text class="stat-value">{{ dashboard.inProgressChapters || 0 }}</text>
-          <text class="stat-label">进行中</text>
+          <text class="stat-value">
+            {{ dashboard.inProgressChapters || 0 }}
+          </text>
+          <text class="stat-label">
+            进行中
+          </text>
         </view>
         <view class="stat-card">
-          <text class="stat-value">{{ dashboard.pendingWorks || 0 }}</text>
-          <text class="stat-label">待批改作业</text>
+          <text class="stat-value">
+            {{ dashboard.pendingWorks || 0 }}
+          </text>
+          <text class="stat-label">
+            待批改作业
+          </text>
         </view>
       </view>
 
       <!-- 最近学习 -->
-      <view v-if="(dashboard.recentProgress || []).length > 0" class="section">
-        <view class="section-title">最近学习</view>
+      <view
+        v-if="(dashboard.recentProgress || []).length > 0"
+        class="section"
+      >
+        <view class="section-title">
+          最近学习
+        </view>
         <view class="recent-list">
-          <view v-for="rp in dashboard.recentProgress" :key="rp.chapter?.id || rp.chapterId" class="recent-item" @click="goChapter(rp)">
+          <view
+            v-for="rp in dashboard.recentProgress"
+            :key="rp.chapter?.id || rp.chapterId"
+            class="recent-item"
+            @click="goChapter(rp)"
+          >
             <view class="r-left">
-              <text class="r-course">{{ rp.course?.title || '未知课程' }}</text>
-              <text class="r-chapter">{{ rp.chapter?.title || '未知章节' }}</text>
+              <text class="r-course">
+                {{ rp.course?.title || '未知课程' }}
+              </text>
+              <text class="r-chapter">
+                {{ rp.chapter?.title || '未知章节' }}
+              </text>
             </view>
             <view class="r-right">
               <view class="r-progress-bar">
-                <view class="r-progress-fill" :style="{ width: (rp.progress || 0) + '%' }" />
+                <view
+                  class="r-progress-fill"
+                  :style="{ width: (rp.progress || 0) + '%' }"
+                />
               </view>
-              <text class="r-pct">{{ rp.progress || 0 }}%</text>
+              <text class="r-pct">
+                {{ rp.progress || 0 }}%
+              </text>
             </view>
           </view>
         </view>
       </view>
 
-      <EmptyState v-else icon="📊" text="暂无学习记录" />
+      <EmptyState
+        v-else
+        icon="📊"
+        text="暂无学习记录"
+      />
     </template>
 
-    <EmptyState v-else-if="!loading" icon="⚠️" text="加载失败" />
+    <EmptyState
+      v-else-if="!loading"
+      icon="⚠️"
+      text="加载失败"
+    />
   </view>
 </template>
 

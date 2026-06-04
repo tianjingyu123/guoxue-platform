@@ -1,30 +1,68 @@
 <template>
-  <view class="page" :class="{ 'dark-mode': isDark }">
+  <view
+    class="page"
+    :class="{ 'dark-mode': isDark }"
+  >
     <!-- ========== 自定义导航栏 ========== -->
-    <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view
+      class="nav-bar"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
       <view class="nav-inner">
         <view class="nav-left">
-          <text class="nav-back" @click="goBack">&#8592;</text>
+          <text
+            class="nav-back"
+            @click="goBack"
+          >
+            &#8592;
+          </text>
         </view>
         <view class="nav-center">
-          <text class="nav-title">{{ book?.title || '阅读' }}</text>
+          <text class="nav-title">
+            {{ book?.title || '阅读' }}
+          </text>
         </view>
         <view class="nav-right">
-          <text class="nav-btn" :class="{ active: isReading || isPaused }" @click="toggleTTS">
+          <text
+            class="nav-btn"
+            :class="{ active: isReading || isPaused }"
+            @click="toggleTTS"
+          >
             {{ ttsLoading ? '⏳' : '🔊' }}
           </text>
-          <text class="nav-btn" @click="showSettings = !showSettings">Aa</text>
-          <text class="nav-btn" @click="showAiPanel = !showAiPanel">🤖</text>
-          <text class="nav-btn" @click="showToc = true">&#9776;</text>
+          <text
+            class="nav-btn"
+            @click="showSettings = !showSettings"
+          >
+            Aa
+          </text>
+          <text
+            class="nav-btn"
+            @click="showAiPanel = !showAiPanel"
+          >
+            🤖
+          </text>
+          <text
+            class="nav-btn"
+            @click="showToc = true"
+          >
+            &#9776;
+          </text>
         </view>
       </view>
     </view>
 
     <!-- ========== 设置面板 ========== -->
-    <view v-if="showSettings" class="settings-panel" :style="{ top: (statusBarHeight + 44) + 'px' }">
+    <view
+      v-if="showSettings"
+      class="settings-panel"
+      :style="{ top: (statusBarHeight + 44) + 'px' }"
+    >
       <!-- 字号 -->
       <view class="setting-row">
-        <text class="setting-label">字号</text>
+        <text class="setting-label">
+          字号
+        </text>
         <view class="font-presets">
           <text
             v-for="preset in fontPresets"
@@ -38,116 +76,306 @@
       </view>
       <!-- 译文开关 -->
       <view class="setting-row">
-        <text class="setting-label">显示译文</text>
-        <view :class="['toggle-switch', { on: showTranslation }]" @click="showTranslation = !showTranslation">
+        <text class="setting-label">
+          显示译文
+        </text>
+        <view
+          :class="['toggle-switch', { on: showTranslation }]"
+          @click="showTranslation = !showTranslation"
+        >
           <view class="toggle-knob" />
         </view>
       </view>
       <!-- 夜间模式 -->
       <view class="setting-row">
-        <text class="setting-label">夜间模式</text>
-        <view :class="['toggle-switch', { on: isDark }]" @click="toggleDark">
+        <text class="setting-label">
+          夜间模式
+        </text>
+        <view
+          :class="['toggle-switch', { on: isDark }]"
+          @click="toggleDark"
+        >
           <view class="toggle-knob" />
         </view>
       </view>
     </view>
 
     <!-- ========== AI 工具面板 ========== -->
-    <view v-if="showAiPanel" class="ai-panel" :style="{ top: (statusBarHeight + 44) + 'px' }">
+    <view
+      v-if="showAiPanel"
+      class="ai-panel"
+      :style="{ top: (statusBarHeight + 44) + 'px' }"
+    >
       <view class="ai-tabs">
-        <text :class="['ai-tab', { active: aiTab === 'dict' }]" @click="aiTab = 'dict'">查字典</text>
-        <text :class="['ai-tab', { active: aiTab === 'translate' }]" @click="aiTab = 'translate'">AI翻译</text>
-        <text :class="['ai-tab', { active: aiTab === 'qa' }]" @click="aiTab = 'qa'">AI问答</text>
+        <text
+          :class="['ai-tab', { active: aiTab === 'dict' }]"
+          @click="aiTab = 'dict'"
+        >
+          查字典
+        </text>
+        <text
+          :class="['ai-tab', { active: aiTab === 'translate' }]"
+          @click="aiTab = 'translate'"
+        >
+          AI翻译
+        </text>
+        <text
+          :class="['ai-tab', { active: aiTab === 'qa' }]"
+          @click="aiTab = 'qa'"
+        >
+          AI问答
+        </text>
       </view>
 
       <!-- 查字典 -->
-      <view v-if="aiTab === 'dict'" class="ai-section">
+      <view
+        v-if="aiTab === 'dict'"
+        class="ai-section"
+      >
         <view class="ai-input-row">
-          <input v-model="dictWord" placeholder="输入字词，如：仁" class="ai-input" @confirm="doDictLookup" />
-          <text class="ai-btn" @click="doDictLookup">查询</text>
+          <input
+            v-model="dictWord"
+            placeholder="输入字词，如：仁"
+            class="ai-input"
+            @confirm="doDictLookup"
+          >
+          <text
+            class="ai-btn"
+            @click="doDictLookup"
+          >
+            查询
+          </text>
         </view>
-        <view v-if="dictResult" class="ai-result">
-          <view v-if="dictResult.pinyin" class="ai-field"><text class="ai-label">拼音：</text>{{ dictResult.pinyin }}</view>
-          <view v-if="dictResult.radicals" class="ai-field"><text class="ai-label">部首：</text>{{ dictResult.radicals }}</view>
-          <view v-if="dictResult.meanings?.length" class="ai-field">
-            <text class="ai-label">释义：</text>
-            <text v-for="(m, i) in dictResult.meanings" :key="i" class="ai-meaning">{{ i + 1 }}. {{ m }}</text>
+        <view
+          v-if="dictResult"
+          class="ai-result"
+        >
+          <view
+            v-if="dictResult.pinyin"
+            class="ai-field"
+          >
+            <text class="ai-label">
+              拼音：
+            </text>{{ dictResult.pinyin }}
           </view>
-          <view v-if="dictResult.explanation" class="ai-field ai-explain">{{ dictResult.explanation }}</view>
+          <view
+            v-if="dictResult.radicals"
+            class="ai-field"
+          >
+            <text class="ai-label">
+              部首：
+            </text>{{ dictResult.radicals }}
+          </view>
+          <view
+            v-if="dictResult.meanings?.length"
+            class="ai-field"
+          >
+            <text class="ai-label">
+              释义：
+            </text>
+            <text
+              v-for="(m, i) in dictResult.meanings"
+              :key="i"
+              class="ai-meaning"
+            >
+              {{ i + 1 }}. {{ m }}
+            </text>
+          </view>
+          <view
+            v-if="dictResult.explanation"
+            class="ai-field ai-explain"
+          >
+            {{ dictResult.explanation }}
+          </view>
         </view>
-        <view v-if="dictLoading" class="ai-loading">查询中...</view>
+        <view
+          v-if="dictLoading"
+          class="ai-loading"
+        >
+          查询中...
+        </view>
       </view>
 
       <!-- AI翻译 -->
-      <view v-if="aiTab === 'translate'" class="ai-section">
+      <view
+        v-if="aiTab === 'translate'"
+        class="ai-section"
+      >
         <view class="ai-input-row">
-          <textarea v-model="translateText" placeholder="输入或粘贴文言文段落" class="ai-textarea" :rows="3" />
+          <textarea
+            v-model="translateText"
+            placeholder="输入或粘贴文言文段落"
+            class="ai-textarea"
+            :rows="3"
+          />
         </view>
-        <view class="ai-input-row" style="margin-top:6px">
-          <text class="ai-btn" @click="doTranslate">翻译</text>
-          <text class="ai-btn-sub" @click="translateSelected">翻译选中章节</text>
+        <view
+          class="ai-input-row"
+          style="margin-top:6px"
+        >
+          <text
+            class="ai-btn"
+            @click="doTranslate"
+          >
+            翻译
+          </text>
+          <text
+            class="ai-btn-sub"
+            @click="translateSelected"
+          >
+            翻译选中章节
+          </text>
         </view>
-        <view v-if="translateResult" class="ai-result">
-          <view class="ai-field"><text class="ai-label">原文：</text>{{ translateResult.original }}</view>
-          <view class="ai-field ai-translation"><text class="ai-label">译文：</text>{{ translateResult.translation }}</view>
-          <view v-if="translateResult.notes?.length" class="ai-field">
-            <text class="ai-label">注释：</text>
-            <text v-for="(n, i) in translateResult.notes" :key="i" class="ai-note">{{ i + 1 }}. {{ n }}</text>
+        <view
+          v-if="translateResult"
+          class="ai-result"
+        >
+          <view class="ai-field">
+            <text class="ai-label">
+              原文：
+            </text>{{ translateResult.original }}
+          </view>
+          <view class="ai-field ai-translation">
+            <text class="ai-label">
+              译文：
+            </text>{{ translateResult.translation }}
+          </view>
+          <view
+            v-if="translateResult.notes?.length"
+            class="ai-field"
+          >
+            <text class="ai-label">
+              注释：
+            </text>
+            <text
+              v-for="(n, i) in translateResult.notes"
+              :key="i"
+              class="ai-note"
+            >
+              {{ i + 1 }}. {{ n }}
+            </text>
           </view>
         </view>
-        <view v-if="translateLoading" class="ai-loading">翻译中...</view>
+        <view
+          v-if="translateLoading"
+          class="ai-loading"
+        >
+          翻译中...
+        </view>
       </view>
 
       <!-- AI问答 -->
-      <view v-if="aiTab === 'qa'" class="ai-section">
+      <view
+        v-if="aiTab === 'qa'"
+        class="ai-section"
+      >
         <view class="ai-input-row">
-          <textarea v-model="qaQuestion" placeholder="输入关于当前内容的问题..." class="ai-textarea" :rows="2" />
+          <textarea
+            v-model="qaQuestion"
+            placeholder="输入关于当前内容的问题..."
+            class="ai-textarea"
+            :rows="2"
+          />
         </view>
-        <view class="ai-input-row" style="margin-top:6px">
-          <text class="ai-btn" @click="doQA">提问</text>
+        <view
+          class="ai-input-row"
+          style="margin-top:6px"
+        >
+          <text
+            class="ai-btn"
+            @click="doQA"
+          >
+            提问
+          </text>
         </view>
-        <view v-if="qaResult" class="ai-result">
-          <view class="ai-field ai-explain">{{ qaResult }}</view>
+        <view
+          v-if="qaResult"
+          class="ai-result"
+        >
+          <view class="ai-field ai-explain">
+            {{ qaResult }}
+          </view>
         </view>
-        <view v-if="qaLoading" class="ai-loading">AI思考中...</view>
+        <view
+          v-if="qaLoading"
+          class="ai-loading"
+        >
+          AI思考中...
+        </view>
       </view>
     </view>
 
     <!-- ========== TTS 朗读控制栏（底部悬浮） ========== -->
-    <view v-if="(isReading || isPaused) && sentences.length" class="tts-float-bar">
+    <view
+      v-if="(isReading || isPaused) && sentences.length"
+      class="tts-float-bar"
+    >
       <view class="tts-float-row tts-float-main">
-        <text class="tts-icon-btn" @click="isPaused ? resumeTTS() : pauseTTS()">
+        <text
+          class="tts-icon-btn"
+          @click="isPaused ? resumeTTS() : pauseTTS()"
+        >
           {{ isPaused ? '▶' : '⏸' }}
         </text>
         <view class="tts-progress-area">
           <view class="tts-progress-track">
-            <view class="tts-progress-fill" :style="{ width: ((currentSentenceIdx + 1) / sentences.length * 100) + '%' }" />
+            <view
+              class="tts-progress-fill"
+              :style="{ width: ((currentSentenceIdx + 1) / sentences.length * 100) + '%' }"
+            />
           </view>
-          <text class="tts-progress-text">{{ currentSentenceIdx + 1 }}/{{ sentences.length }}句</text>
+          <text class="tts-progress-text">
+            {{ currentSentenceIdx + 1 }}/{{ sentences.length }}句
+          </text>
         </view>
-        <text class="tts-icon-btn" @click="stopTTS()">⏹</text>
+        <text
+          class="tts-icon-btn"
+          @click="stopTTS()"
+        >
+          ⏹
+        </text>
       </view>
       <view class="tts-float-row tts-float-options">
-        <text class="tts-voice-btn" @click="openVoicePicker">{{ currentVoiceName }} ▾</text>
+        <text
+          class="tts-voice-btn"
+          @click="openVoicePicker"
+        >
+          {{ currentVoiceName }} ▾
+        </text>
         <view class="tts-rate-tags">
           <text
-            v-for="r in rateOptions" :key="r.value"
+            v-for="r in rateOptions"
+            :key="r.value"
             :class="['tts-rate-tag', { active: ttsRate === r.value }]"
             @click="changeRate(r.value)"
-          >{{ r.label }}</text>
+          >
+            {{ r.label }}
+          </text>
         </view>
       </view>
     </view>
 
     <!-- ========== 阅读内容 ========== -->
-    <view class="reader-body" :style="{ paddingTop: (statusBarHeight + 44) + 'px' }">
-      <view v-if="loading" class="loading-section">
+    <view
+      class="reader-body"
+      :style="{ paddingTop: (statusBarHeight + 44) + 'px' }"
+    >
+      <view
+        v-if="loading"
+        class="loading-section"
+      >
         <LoadingSkeleton type="detail" />
       </view>
 
-      <view v-else-if="chapter" class="reader-content" ref="contentRef">
+      <view
+        v-else-if="chapter"
+        ref="contentRef"
+        class="reader-content"
+      >
         <!-- 章节标题 -->
-        <text class="chapter-title">{{ chapter.title }}</text>
+        <text class="chapter-title">
+          {{ chapter.title }}
+        </text>
         <view class="chapter-divider" />
 
         <!-- 原文 -->
@@ -159,17 +387,25 @@
           }"
         >
           <text
-            v-for="(seg, idx) in sentences" :key="idx"
+            v-for="(seg, idx) in sentences"
             :id="'seg-' + idx"
+            :key="idx"
             :class="['tts-seg', { 'tts-seg-active': idx === currentSentenceIdx && (isReading || isPaused) }]"
             @click="jumpToSentence(idx)"
-          >{{ seg }}</text>
+          >
+            {{ seg }}
+          </text>
         </view>
 
         <!-- 译文 -->
-        <view v-if="showTranslation && chapter.translation" class="translation-block">
+        <view
+          v-if="showTranslation && chapter.translation"
+          class="translation-block"
+        >
           <view class="trans-header">
-            <text class="trans-label">【译文】</text>
+            <text class="trans-label">
+              【译文】
+            </text>
           </view>
           <view
             class="trans-body"
@@ -180,9 +416,14 @@
         </view>
 
         <!-- 注释 -->
-        <view v-if="chapter.annotation" class="annotation-block">
+        <view
+          v-if="chapter.annotation"
+          class="annotation-block"
+        >
           <view class="trans-header">
-            <text class="trans-label">【注释】</text>
+            <text class="trans-label">
+              【注释】
+            </text>
           </view>
           <view
             class="annotation-body"
@@ -194,23 +435,51 @@
 
         <!-- 笔记区域 -->
         <view class="notes-section">
-          <view class="notes-header" @click="showNotesPanel = !showNotesPanel">
-            <text class="notes-title">&#128221; 笔记</text>
-            <text class="notes-toggle">{{ showNotesPanel ? '收起' : '展开' }}</text>
+          <view
+            class="notes-header"
+            @click="showNotesPanel = !showNotesPanel"
+          >
+            <text class="notes-title">
+              &#128221; 笔记
+            </text>
+            <text class="notes-toggle">
+              {{ showNotesPanel ? '收起' : '展开' }}
+            </text>
           </view>
-          <view v-if="showNotesPanel" class="notes-body">
+          <view
+            v-if="showNotesPanel"
+            class="notes-body"
+          >
             <textarea
               v-model="noteContent"
               placeholder="在此写下你的读书笔记..."
               class="notes-textarea"
               :style="{ fontSize: (fontSize - 2) + 'px' }"
             />
-            <button class="notes-save-btn" @click="saveNote">保存笔记</button>
-            <view v-if="currentNotes.length" class="notes-history">
-              <text class="notes-history-title">历史笔记</text>
-              <view v-for="(note, i) in currentNotes" :key="i" class="notes-history-item">
-                <text class="notes-history-time">{{ note.time }}</text>
-                <text class="notes-history-content">{{ note.content }}</text>
+            <button
+              class="notes-save-btn"
+              @click="saveNote"
+            >
+              保存笔记
+            </button>
+            <view
+              v-if="currentNotes.length"
+              class="notes-history"
+            >
+              <text class="notes-history-title">
+                历史笔记
+              </text>
+              <view
+                v-for="(note, i) in currentNotes"
+                :key="i"
+                class="notes-history-item"
+              >
+                <text class="notes-history-time">
+                  {{ note.time }}
+                </text>
+                <text class="notes-history-content">
+                  {{ note.content }}
+                </text>
               </view>
             </view>
           </view>
@@ -221,19 +490,36 @@
       </view>
 
       <!-- 错误状态 -->
-      <view v-else-if="errorMsg" class="error-section">
-        <EmptyState icon="&#9888;" :text="errorMsg">
-          <button class="retry-btn" @click="initReader">重新加载</button>
+      <view
+        v-else-if="errorMsg"
+        class="error-section"
+      >
+        <EmptyState
+          icon="&#9888;"
+          :text="errorMsg"
+        >
+          <button
+            class="retry-btn"
+            @click="initReader"
+          >
+            重新加载
+          </button>
         </EmptyState>
       </view>
 
-      <view v-else class="loading-section">
+      <view
+        v-else
+        class="loading-section"
+      >
         <LoadingSkeleton type="detail" />
       </view>
     </view>
 
     <!-- ========== 底部导航 ========== -->
-    <view v-if="chapters.length > 0" class="bottom-bar">
+    <view
+      v-if="chapters.length > 0"
+      class="bottom-bar"
+    >
       <view class="bottom-progress">
         <view class="progress-track">
           <view
@@ -244,53 +530,118 @@
       </view>
       <view class="bottom-main">
         <view class="bottom-left">
-          <text class="bottom-btn" @click="prevChapter" :class="{ disabled: !hasPrev }">&#9664; 上一章</text>
+          <text
+            class="bottom-btn"
+            :class="{ disabled: !hasPrev }"
+            @click="prevChapter"
+          >
+            &#9664; 上一章
+          </text>
         </view>
         <view class="bottom-center">
-          <text class="progress-text">{{ curIdx + 1 }}/{{ chapters.length }}</text>
-          <text class="chapter-name" v-if="chapter">{{ chapter.title }}</text>
+          <text class="progress-text">
+            {{ curIdx + 1 }}/{{ chapters.length }}
+          </text>
+          <text
+            v-if="chapter"
+            class="chapter-name"
+          >
+            {{ chapter.title }}
+          </text>
         </view>
         <view class="bottom-right">
-          <text class="bottom-btn" @click="nextChapter" :class="{ disabled: !hasNext }">下一章 &#9654;</text>
+          <text
+            class="bottom-btn"
+            :class="{ disabled: !hasNext }"
+            @click="nextChapter"
+          >
+            下一章 &#9654;
+          </text>
         </view>
       </view>
       <view class="bottom-actions">
-        <text class="action-item" :class="{ active: isBookmarked }" @click="toggleBookmark">
+        <text
+          class="action-item"
+          :class="{ active: isBookmarked }"
+          @click="toggleBookmark"
+        >
           {{ isBookmarked ? '&#128278;' : '&#128205;' }}
-          <text class="action-label">{{ isBookmarked ? '已收藏' : '书签' }}</text>
+          <text class="action-label">
+            {{ isBookmarked ? '已收藏' : '书签' }}
+          </text>
         </text>
-        <text class="action-item" :class="{ active: isCollected }" @click="toggleCollect">
+        <text
+          class="action-item"
+          :class="{ active: isCollected }"
+          @click="toggleCollect"
+        >
           {{ isCollected ? '⭐' : '☆' }}
-          <text class="action-label">{{ isCollected ? '已收藏' : '收藏' }}</text>
+          <text class="action-label">
+            {{ isCollected ? '已收藏' : '收藏' }}
+          </text>
         </text>
-        <text class="action-item" @click="scrollToTop">
-          &#8679; <text class="action-label">回顶部</text>
+        <text
+          class="action-item"
+          @click="scrollToTop"
+        >
+          &#8679; <text class="action-label">
+            回顶部
+          </text>
         </text>
-        <text class="action-item" @click="showBookmarkList = !showBookmarkList">
-          &#128203; <text class="action-label">书签列表</text>
+        <text
+          class="action-item"
+          @click="showBookmarkList = !showBookmarkList"
+        >
+          &#128203; <text class="action-label">
+            书签列表
+          </text>
         </text>
       </view>
     </view>
 
     <!-- ========== 章节目录（左侧抽屉） ========== -->
-    <view v-if="showToc" class="toc-overlay" @click="showToc = false">
-      <view class="toc-drawer" @click.stop="">
+    <view
+      v-if="showToc"
+      class="toc-overlay"
+      @click="showToc = false"
+    >
+      <view
+        class="toc-drawer"
+        @click.stop=""
+      >
         <view class="toc-header">
-          <text class="toc-title">章节目录</text>
-          <text class="toc-close" @click="showToc = false">&#10005;</text>
+          <text class="toc-title">
+            章节目录
+          </text>
+          <text
+            class="toc-close"
+            @click="showToc = false"
+          >
+            &#10005;
+          </text>
         </view>
-        <view class="toc-bookmarks-bar" v-if="bookmarkedChapters.length">
-          <text class="toc-bm-title">&#128205; 已收藏</text>
+        <view
+          v-if="bookmarkedChapters.length"
+          class="toc-bookmarks-bar"
+        >
+          <text class="toc-bm-title">
+            &#128205; 已收藏
+          </text>
           <view class="toc-bm-tags">
             <text
               v-for="bm in bookmarkedChapters"
               :key="bm.chapterId"
               class="toc-bm-tag"
               @click="switchToChapterByIndex(bm.index)"
-            >{{ bm.title }}</text>
+            >
+              {{ bm.title }}
+            </text>
           </view>
         </view>
-        <scroll-view scroll-y class="toc-list">
+        <scroll-view
+          scroll-y
+          class="toc-list"
+        >
           <view
             v-for="(ch, idx) in chapters"
             :key="ch.id"
@@ -298,34 +649,70 @@
             @click="switchToChapter(idx)"
           >
             <view class="toc-item-left">
-              <text v-if="isChapterBookmarked(idx)" class="toc-bm-icon">&#128205;</text>
-              <text class="toc-chapter-num">{{ idx + 1 }}</text>
+              <text
+                v-if="isChapterBookmarked(idx)"
+                class="toc-bm-icon"
+              >
+                &#128205;
+              </text>
+              <text class="toc-chapter-num">
+                {{ idx + 1 }}
+              </text>
             </view>
-            <text class="toc-chapter-title">{{ ch.title }}</text>
+            <text class="toc-chapter-title">
+              {{ ch.title }}
+            </text>
           </view>
         </scroll-view>
       </view>
     </view>
 
     <!-- ========== 书签列表弹窗 ========== -->
-    <view v-if="showBookmarkList" class="toc-overlay" @click="showBookmarkList = false">
-      <view class="bookmark-panel" @click.stop="">
+    <view
+      v-if="showBookmarkList"
+      class="toc-overlay"
+      @click="showBookmarkList = false"
+    >
+      <view
+        class="bookmark-panel"
+        @click.stop=""
+      >
         <view class="toc-header">
-          <text class="toc-title">书签列表</text>
-          <text class="toc-close" @click="showBookmarkList = false">&#10005;</text>
+          <text class="toc-title">
+            书签列表
+          </text>
+          <text
+            class="toc-close"
+            @click="showBookmarkList = false"
+          >
+            &#10005;
+          </text>
         </view>
-        <view v-if="bookmarkedChapters.length === 0" class="bm-empty">
-          <text class="bm-empty-text">暂无书签</text>
+        <view
+          v-if="bookmarkedChapters.length === 0"
+          class="bm-empty"
+        >
+          <text class="bm-empty-text">
+            暂无书签
+          </text>
         </view>
-        <scroll-view v-else scroll-y class="bm-list">
+        <scroll-view
+          v-else
+          scroll-y
+          class="bm-list"
+        >
           <view
             v-for="(bm, idx) in bookmarkedChapters"
             :key="idx"
             class="bm-item"
             @click="switchToChapterByIndex(bm.index); showBookmarkList = false"
           >
-            <text class="bm-chapter">第{{ bm.index + 1 }}章</text>
-            <text class="bm-title">{{ bm.title }}</text>
+            <text class="bm-chapter">
+              第{{ bm.index + 1 }}章
+            </text>
+            <text class="bm-title">
+              {{ bm.title }}
+            </text>
           </view>
         </scroll-view>
       </view>

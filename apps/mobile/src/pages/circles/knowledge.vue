@@ -2,24 +2,33 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
-      <view class="nav-left" @click="goBack">
-        <text class="nav-icon">‹</text>
+      <view
+        class="nav-left"
+        @click="goBack"
+      >
+        <text class="nav-icon">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">知识库</text>
+      <text class="nav-title">
+        知识库
+      </text>
       <view class="nav-spacer" />
     </view>
 
     <!-- 搜索框 -->
     <view class="search-bar">
       <view class="search-inner">
-        <text class="search-icon">🔍</text>
+        <text class="search-icon">
+          🔍
+        </text>
         <input
           v-model="keyword"
           class="search-input"
           placeholder="搜索知识..."
           @confirm="onSearch"
           @input="onSearch"
-        />
+        >
       </view>
     </view>
 
@@ -30,7 +39,9 @@
         :class="{ active: activeTab === 'confirmed' }"
         @click="switchTab('confirmed')"
       >
-        <text class="tab-icon">📖</text>
+        <text class="tab-icon">
+          📖
+        </text>
         <text>已入库</text>
       </view>
       <view
@@ -40,14 +51,23 @@
         @click="switchTab('pending')"
       >
         <text>待确认</text>
-        <view v-if="pendingCount > 0" class="tab-badge">{{ pendingCount }}</view>
+        <view
+          v-if="pendingCount > 0"
+          class="tab-badge"
+        >
+          {{ pendingCount }}
+        </view>
       </view>
     </view>
 
     <!-- 内容区 -->
     <view class="content-wrap">
       <template v-if="loading">
-        <view v-for="i in 4" :key="i" class="sk-card">
+        <view
+          v-for="i in 4"
+          :key="i"
+          class="sk-card"
+        >
           <view class="sk-title" />
           <view class="sk-line" />
           <view class="sk-line short" />
@@ -61,66 +81,132 @@
       <template v-else-if="items.length === 0">
         <view class="empty-state">
           <view class="empty-icon-wrap">
-            <text class="empty-icon">📖</text>
+            <text class="empty-icon">
+              📖
+            </text>
           </view>
-          <text class="empty-text">{{ activeTab === 'confirmed' ? '暂无知识内容' : '暂无待确认内容' }}</text>
+          <text class="empty-text">
+            {{ activeTab === 'confirmed' ? '暂无知识内容' : '暂无待确认内容' }}
+          </text>
         </view>
       </template>
 
       <template v-else>
-        <view v-for="item in items" :key="item.id" class="knowledge-card">
+        <view
+          v-for="item in items"
+          :key="item.id"
+          class="knowledge-card"
+        >
           <view class="kc-body">
             <!-- 标题 -->
             <view class="kc-title-row">
-              <text class="kc-title">{{ item.title }}</text>
-              <text v-if="item.status === 'pending'" class="kc-pending-badge">待确认</text>
+              <text class="kc-title">
+                {{ item.title }}
+              </text>
+              <text
+                v-if="item.status === 'pending'"
+                class="kc-pending-badge"
+              >
+                待确认
+              </text>
             </view>
 
             <!-- 摘要 -->
-            <text class="kc-summary">{{ item.summary }}</text>
+            <text class="kc-summary">
+              {{ item.summary }}
+            </text>
 
             <!-- 标签 -->
-            <view v-if="item.tags && item.tags.length > 0" class="kc-tags">
-              <text v-for="(tag, idx) in item.tags.slice(0, 3)" :key="idx" class="kc-tag">
-                <text class="kc-tag-icon">🏷</text>
+            <view
+              v-if="item.tags && item.tags.length > 0"
+              class="kc-tags"
+            >
+              <text
+                v-for="(tag, idx) in item.tags.slice(0, 3)"
+                :key="idx"
+                class="kc-tag"
+              >
+                <text class="kc-tag-icon">
+                  🏷
+                </text>
                 {{ tag }}
               </text>
-              <text v-if="item.tags.length > 3" class="kc-tag-more">+{{ item.tags.length - 3 }}</text>
+              <text
+                v-if="item.tags.length > 3"
+                class="kc-tag-more"
+              >
+                +{{ item.tags.length - 3 }}
+              </text>
             </view>
 
             <!-- 来源和时间 -->
             <view class="kc-meta">
               <text class="kc-source">
-                <text class="kc-meta-icon">📄</text>
+                <text class="kc-meta-icon">
+                  📄
+                </text>
                 {{ sourceLabel(item.source) }}
               </text>
               <text class="kc-time">
-                <text class="kc-meta-icon">🕐</text>
+                <text class="kc-meta-icon">
+                  🕐
+                </text>
                 {{ formatDate(item.createdAt) }}
               </text>
             </view>
 
             <!-- 展开详情 -->
-            <view v-if="expandedIds[item.id]" class="kc-expanded">
-              <text class="kc-expanded-text">{{ item.content }}</text>
+            <view
+              v-if="expandedIds[item.id]"
+              class="kc-expanded"
+            >
+              <text class="kc-expanded-text">
+                {{ item.content }}
+              </text>
             </view>
 
             <!-- 展开/收起 -->
-            <view class="kc-toggle" @click="toggleExpand(item.id)">
-              <text v-if="expandedIds[item.id]" class="kc-toggle-text">收起</text>
-              <text v-else class="kc-toggle-text">查看详情</text>
+            <view
+              class="kc-toggle"
+              @click="toggleExpand(item.id)"
+            >
+              <text
+                v-if="expandedIds[item.id]"
+                class="kc-toggle-text"
+              >
+                收起
+              </text>
+              <text
+                v-else
+                class="kc-toggle-text"
+              >
+                查看详情
+              </text>
             </view>
           </view>
 
           <!-- 圈主操作 -->
-          <view v-if="isOwner && item.status === 'pending'" class="kc-actions">
-            <view class="kc-action-btn ignore" @click="handleIgnore(item.id)">
-              <text class="kc-action-icon">✕</text>
+          <view
+            v-if="isOwner && item.status === 'pending'"
+            class="kc-actions"
+          >
+            <view
+              class="kc-action-btn ignore"
+              @click="handleIgnore(item.id)"
+            >
+              <text class="kc-action-icon">
+                ✕
+              </text>
               <text>忽略</text>
             </view>
             <view class="kc-action-divider" />
-            <view class="kc-action-btn confirm" @click="handleConfirm(item.id)">
-              <text class="kc-action-icon">✓</text>
+            <view
+              class="kc-action-btn confirm"
+              @click="handleConfirm(item.id)"
+            >
+              <text class="kc-action-icon">
+                ✓
+              </text>
               <text>确认入库</text>
             </view>
           </view>

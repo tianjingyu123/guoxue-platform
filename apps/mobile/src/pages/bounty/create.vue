@@ -1,53 +1,134 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="title">发布悬赏</text>
+      <text class="title">
+        发布悬赏
+      </text>
     </view>
 
     <view class="form">
       <view class="form-item">
-        <text class="form-label">标题 <text class="required">*</text></text>
-        <input v-model="title" placeholder="简明扼要的标题（最多50字）" maxlength="50" class="form-input" />
-        <text class="char-count">{{ title.length }}/50</text>
+        <text class="form-label">
+          标题 <text class="required">
+            *
+          </text>
+        </text>
+        <input
+          v-model="title"
+          placeholder="简明扼要的标题（最多50字）"
+          maxlength="50"
+          class="form-input"
+        >
+        <text class="char-count">
+          {{ title.length }}/50
+        </text>
       </view>
 
       <view class="form-item">
-        <text class="form-label">问题描述 <text class="required">*</text></text>
-        <textarea v-model="description" placeholder="详细描述你的问题（最多2000字）" maxlength="2000" class="form-textarea" />
-        <text class="char-count">{{ description.length }}/2000</text>
+        <text class="form-label">
+          问题描述 <text class="required">
+            *
+          </text>
+        </text>
+        <textarea
+          v-model="description"
+          placeholder="详细描述你的问题（最多2000字）"
+          maxlength="2000"
+          class="form-textarea"
+        />
+        <text class="char-count">
+          {{ description.length }}/2000
+        </text>
       </view>
 
       <view class="form-item">
-        <text class="form-label">分类 <text class="required">*</text></text>
-        <picker :range="categoryLabels" @change="onCategoryChange">
-          <text class="picker-text">{{ selectedCategoryLabel || '请选择分类' }}</text>
+        <text class="form-label">
+          分类 <text class="required">
+            *
+          </text>
+        </text>
+        <picker
+          :range="categoryLabels"
+          @change="onCategoryChange"
+        >
+          <text class="picker-text">
+            {{ selectedCategoryLabel || '请选择分类' }}
+          </text>
         </picker>
       </view>
 
       <view class="form-item">
-        <text class="form-label">悬赏金额（虚拟币） <text class="required">*</text></text>
+        <text class="form-label">
+          悬赏金额（虚拟币） <text class="required">
+            *
+          </text>
+        </text>
         <view class="price-options">
-          <text v-for="p in priceOptions" :key="p" :class="['price-tag', { active: bountyCoin === p }]" @click="bountyCoin = p">{{ p }}币</text>
+          <text
+            v-for="p in priceOptions"
+            :key="p"
+            :class="['price-tag', { active: bountyCoin === p }]"
+            @click="bountyCoin = p"
+          >
+            {{ p }}币
+          </text>
         </view>
-        <input v-model.number="bountyCoin" type="number" placeholder="自定义金额" class="custom-input" />
-        <text class="form-hint">当前余额：{{ balance }} 币</text>
+        <input
+          v-model.number="bountyCoin"
+          type="number"
+          placeholder="自定义金额"
+          class="custom-input"
+        >
+        <text class="form-hint">
+          当前余额：{{ balance }} 币
+        </text>
       </view>
 
       <view class="form-item">
-        <text class="form-label">图片上传（可选）</text>
+        <text class="form-label">
+          图片上传（可选）
+        </text>
         <view class="upload-area">
-          <view v-for="(img, idx) in images" :key="idx" class="upload-preview">
-            <image :src="img" mode="aspectFill" class="upload-img" />
-            <text class="upload-remove" @click="removeImage(idx)">×</text>
+          <view
+            v-for="(img, idx) in images"
+            :key="idx"
+            class="upload-preview"
+          >
+            <image
+              :src="img"
+              mode="aspectFill"
+              class="upload-img"
+            />
+            <text
+              class="upload-remove"
+              @click="removeImage(idx)"
+            >
+              ×
+            </text>
           </view>
-          <view v-if="images.length < 9" class="upload-btn" @click="chooseImage">
-            <text class="upload-plus">+</text>
-            <text class="upload-hint">上传图片</text>
+          <view
+            v-if="images.length < 9"
+            class="upload-btn"
+            @click="chooseImage"
+          >
+            <text class="upload-plus">
+              +
+            </text>
+            <text class="upload-hint">
+              上传图片
+            </text>
           </view>
         </view>
       </view>
 
-      <button class="submit-btn" @click="submit" :loading="submitting" :disabled="!canSubmit">提交悬赏</button>
+      <button
+        class="submit-btn"
+        :loading="submitting"
+        :disabled="!canSubmit"
+        @click="submit"
+      >
+        提交悬赏
+      </button>
     </view>
   </view>
 </template>

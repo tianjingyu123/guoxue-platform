@@ -2,28 +2,57 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        <text class="nav-back-icon">‹</text>
+      <view
+        class="nav-back"
+        @click="goBack"
+      >
+        <text class="nav-back-icon">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">商品评价</text>
+      <text class="nav-title">
+        商品评价
+      </text>
     </view>
 
     <!-- 评分概览 -->
     <view class="rating-overview">
       <view class="rating-left">
-        <text class="rating-score">{{ mockStats.average }}</text>
+        <text class="rating-score">
+          {{ mockStats.average }}
+        </text>
         <view class="rating-stars">
-          <text v-for="i in 5" :key="i" class="star" :class="{ filled: i <= Math.round(mockStats.average) }">⭐</text>
+          <text
+            v-for="i in 5"
+            :key="i"
+            class="star"
+            :class="{ filled: i <= Math.round(mockStats.average) }"
+          >
+            ⭐
+          </text>
         </view>
-        <text class="rating-total">{{ mockStats.total }}条评价</text>
+        <text class="rating-total">
+          {{ mockStats.total }}条评价
+        </text>
       </view>
       <view class="rating-distribution">
-        <view v-for="d in mockStats.distribution" :key="d.stars" class="dist-row">
-          <text class="dist-label">{{ d.stars }}星</text>
+        <view
+          v-for="d in mockStats.distribution"
+          :key="d.stars"
+          class="dist-row"
+        >
+          <text class="dist-label">
+            {{ d.stars }}星
+          </text>
           <view class="dist-bar-bg">
-            <view class="dist-bar-fill" :style="{ width: d.percent + '%' }" />
+            <view
+              class="dist-bar-fill"
+              :style="{ width: d.percent + '%' }"
+            />
           </view>
-          <text class="dist-percent">{{ d.percent }}%</text>
+          <text class="dist-percent">
+            {{ d.percent }}%
+          </text>
         </view>
       </view>
     </view>
@@ -39,7 +68,13 @@
           @click="filter = tab.key"
         >
           <text>{{ tab.label }}</text>
-          <text v-if="tab.count !== undefined" class="filter-count" :class="{ active: filter === tab.key }">({{ tab.count }})</text>
+          <text
+            v-if="tab.count !== undefined"
+            class="filter-count"
+            :class="{ active: filter === tab.key }"
+          >
+            ({{ tab.count }})
+          </text>
         </view>
       </view>
     </view>
@@ -47,7 +82,11 @@
     <!-- 评价列表 -->
     <view class="review-list">
       <template v-if="loading">
-        <view v-for="i in 3" :key="i" class="sk-review">
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="sk-review"
+        >
           <view class="sk-review-header">
             <view class="sk-avatar" />
             <view class="sk-review-info">
@@ -62,29 +101,62 @@
 
       <template v-else-if="filteredReviews.length === 0">
         <view class="empty-state">
-          <text class="empty-icon">💬</text>
-          <text class="empty-text">暂无相关评价</text>
+          <text class="empty-icon">
+            💬
+          </text>
+          <text class="empty-text">
+            暂无相关评价
+          </text>
         </view>
       </template>
 
       <template v-else>
-        <view v-for="review in filteredReviews" :key="review.id" class="review-card">
+        <view
+          v-for="review in filteredReviews"
+          :key="review.id"
+          class="review-card"
+        >
           <view class="review-header">
-            <image :src="review.user.avatar || ''" class="review-avatar" mode="aspectFill" />
+            <image
+              :src="review.user.avatar || ''"
+              class="review-avatar"
+              mode="aspectFill"
+            />
             <view class="review-user-info">
-              <text class="review-username">{{ review.user.name }}</text>
+              <text class="review-username">
+                {{ review.user.name }}
+              </text>
               <view class="review-stars-row">
-                <text v-for="i in 5" :key="i" class="star small" :class="{ filled: i <= review.rating }">⭐</text>
-                <text v-if="review.skuName" class="review-sku">{{ review.skuName }}</text>
+                <text
+                  v-for="i in 5"
+                  :key="i"
+                  class="star small"
+                  :class="{ filled: i <= review.rating }"
+                >
+                  ⭐
+                </text>
+                <text
+                  v-if="review.skuName"
+                  class="review-sku"
+                >
+                  {{ review.skuName }}
+                </text>
               </view>
             </view>
-            <text class="review-time">{{ review.createdAt }}</text>
+            <text class="review-time">
+              {{ review.createdAt }}
+            </text>
           </view>
 
-          <text class="review-content">{{ review.content }}</text>
+          <text class="review-content">
+            {{ review.content }}
+          </text>
 
           <!-- 晒图 -->
-          <view v-if="review.images && review.images.length > 0" class="review-images">
+          <view
+            v-if="review.images && review.images.length > 0"
+            class="review-images"
+          >
             <image
               v-for="(img, idx) in review.images"
               :key="idx"
@@ -98,8 +170,12 @@
           <!-- 底部操作 -->
           <view class="review-actions">
             <view class="review-like">
-              <text class="review-like-icon">👍</text>
-              <text class="review-like-count">有用 ({{ review.likes }})</text>
+              <text class="review-like-icon">
+                👍
+              </text>
+              <text class="review-like-count">
+                有用 ({{ review.likes }})
+              </text>
             </view>
           </view>
         </view>

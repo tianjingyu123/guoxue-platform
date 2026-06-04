@@ -4,38 +4,103 @@
     <view v-else>
       <view class="top-info">
         <view class="progress-ring">
-          <text class="ring-value">{{ progress }}%</text>
-          <text class="ring-label">学习进度</text>
+          <text class="ring-value">
+            {{ progress }}%
+          </text>
+          <text class="ring-label">
+            学习进度
+          </text>
         </view>
-        <view class="course-name">{{ course.title }}</view>
+        <view class="course-name">
+          {{ course.title }}
+        </view>
       </view>
       <view class="tabs">
-        <view v-for="t in tabs" :key="t.key" class="tab" :class="{ active: activeTab === t.key }" @click="activeTab = t.key">
+        <view
+          v-for="t in tabs"
+          :key="t.key"
+          class="tab"
+          :class="{ active: activeTab === t.key }"
+          @click="activeTab = t.key"
+        >
           <text>{{ t.label }}</text>
         </view>
       </view>
-      <view v-if="activeTab === 'chapters'" class="list">
-        <view v-for="(ch, i) in chapters" :key="ch.id" class="item" @click="goChapter(ch)">
-          <text class="item-num">{{ i + 1 }}</text>
-          <view class="item-info"><text class="item-title">{{ ch.title }}</text></view>
-          <text v-if="ch.completed">✓</text>
-          <text v-else>▶</text>
+      <view
+        v-if="activeTab === 'chapters'"
+        class="list"
+      >
+        <view
+          v-for="(ch, i) in chapters"
+          :key="ch.id"
+          class="item"
+          @click="goChapter(ch)"
+        >
+          <text class="item-num">
+            {{ i + 1 }}
+          </text>
+          <view class="item-info">
+            <text class="item-title">
+              {{ ch.title }}
+            </text>
+          </view>
+          <text v-if="ch.completed">
+            ✓
+          </text>
+          <text v-else>
+            ▶
+          </text>
         </view>
-        <EmptyState v-if="!chapters.length" text="暂无章节" />
+        <EmptyState
+          v-if="!chapters.length"
+          text="暂无章节"
+        />
       </view>
-      <view v-if="activeTab === 'notes'" class="list">
-        <EmptyState v-if="!notes.length" text="暂无笔记" />
-        <view v-for="n in notes" :key="n.id" class="note-card"><text>{{ n.content }}</text></view>
+      <view
+        v-if="activeTab === 'notes'"
+        class="list"
+      >
+        <EmptyState
+          v-if="!notes.length"
+          text="暂无笔记"
+        />
+        <view
+          v-for="n in notes"
+          :key="n.id"
+          class="note-card"
+        >
+          <text>{{ n.content }}</text>
+        </view>
       </view>
-      <view v-if="activeTab === 'qa'" class="list">
-        <EmptyState v-if="!questions.length" text="暂无问答" />
-        <view v-for="q in questions" :key="q.id" class="qa-card">
-          <text class="qa-q">{{ q.question }}</text>
-          <text v-if="q.answer" class="qa-a">{{ q.answer }}</text>
+      <view
+        v-if="activeTab === 'qa'"
+        class="list"
+      >
+        <EmptyState
+          v-if="!questions.length"
+          text="暂无问答"
+        />
+        <view
+          v-for="q in questions"
+          :key="q.id"
+          class="qa-card"
+        >
+          <text class="qa-q">
+            {{ q.question }}
+          </text>
+          <text
+            v-if="q.answer"
+            class="qa-a"
+          >
+            {{ q.answer }}
+          </text>
         </view>
       </view>
     </view>
-    <view class="bottom-btn" @click="continueLearn">
+    <view
+      class="bottom-btn"
+      @click="continueLearn"
+    >
       <text>继续学习</text>
     </view>
   </view>

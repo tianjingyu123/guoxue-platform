@@ -3,73 +3,211 @@
     <!-- 顶部搜索栏 -->
     <view class="search-header">
       <view class="search-row">
-        <text class="nav-back" @click="goBack">←</text>
+        <text
+          class="nav-back"
+          @click="goBack"
+        >
+          ←
+        </text>
         <view class="search-input-wrap">
-          <text class="search-input-icon">🔍</text>
-          <input v-model="filters.keyword" class="search-input" placeholder="搜索内容..." @confirm="performSearch" />
-          <text v-if="filters.keyword" class="search-clear" @click="filters.keyword = ''">✕</text>
+          <text class="search-input-icon">
+            🔍
+          </text>
+          <input
+            v-model="filters.keyword"
+            class="search-input"
+            placeholder="搜索内容..."
+            @confirm="performSearch"
+          >
+          <text
+            v-if="filters.keyword"
+            class="search-clear"
+            @click="filters.keyword = ''"
+          >
+            ✕
+          </text>
         </view>
-        <text class="search-action" @click="performSearch">搜索</text>
+        <text
+          class="search-action"
+          @click="performSearch"
+        >
+          搜索
+        </text>
       </view>
 
       <!-- 筛选按钮行 -->
       <view class="filter-row">
         <view class="filter-group">
-          <text class="filter-label">☰ 筛选</text>
-          <text class="filter-tag" :class="{ 'filter-active': filters.timeRange !== 'all' }" @click="toggleFilter('time')">
+          <text class="filter-label">
+            ☰ 筛选
+          </text>
+          <text
+            class="filter-tag"
+            :class="{ 'filter-active': filters.timeRange !== 'all' }"
+            @click="toggleFilter('time')"
+          >
             🕐 {{ timeLabel }}
-            <text class="filter-arrow" :class="{ 'arrow-up': activeFilter === 'time' }">▼</text>
+            <text
+              class="filter-arrow"
+              :class="{ 'arrow-up': activeFilter === 'time' }"
+            >
+              ▼
+            </text>
           </text>
-          <text class="filter-tag" :class="{ 'filter-active': filters.contentType.length > 0 }" @click="toggleFilter('type')">
+          <text
+            class="filter-tag"
+            :class="{ 'filter-active': filters.contentType.length > 0 }"
+            @click="toggleFilter('type')"
+          >
             📄 类型{{ filters.contentType.length ? `(${filters.contentType.length})` : '' }}
-            <text class="filter-arrow" :class="{ 'arrow-up': activeFilter === 'type' }">▼</text>
+            <text
+              class="filter-arrow"
+              :class="{ 'arrow-up': activeFilter === 'type' }"
+            >
+              ▼
+            </text>
           </text>
-          <text class="filter-tag" :class="{ 'filter-active': filters.category }" @click="toggleFilter('category')">
+          <text
+            class="filter-tag"
+            :class="{ 'filter-active': filters.category }"
+            @click="toggleFilter('category')"
+          >
             {{ filters.category ? categoryLabel : '分类' }}
-            <text class="filter-arrow" :class="{ 'arrow-up': activeFilter === 'category' }">▼</text>
+            <text
+              class="filter-arrow"
+              :class="{ 'arrow-up': activeFilter === 'category' }"
+            >
+              ▼
+            </text>
           </text>
-          <text class="filter-tag" :class="{ 'filter-active': filters.sortBy !== 'relevance' }" @click="toggleFilter('sort')">
+          <text
+            class="filter-tag"
+            :class="{ 'filter-active': filters.sortBy !== 'relevance' }"
+            @click="toggleFilter('sort')"
+          >
             {{ sortLabel }}
-            <text class="filter-arrow" :class="{ 'arrow-up': activeFilter === 'sort' }">▼</text>
+            <text
+              class="filter-arrow"
+              :class="{ 'arrow-up': activeFilter === 'sort' }"
+            >
+              ▼
+            </text>
           </text>
         </view>
       </view>
 
       <!-- 筛选下拉面板 -->
-      <view v-if="activeFilter" class="filter-dropdown" @click.stop>
-        <view v-if="activeFilter === 'time'" class="dropdown-options">
-          <text v-for="opt in timeRangeOptions" :key="opt.value" class="dropdown-opt" :class="{ 'opt-active': filters.timeRange === opt.value }" @click="selectTime(opt.value)">{{ opt.label }}</text>
-        </view>
-        <view v-if="activeFilter === 'type'" class="dropdown-grid">
-          <text v-for="opt in contentTypeOptions" :key="opt.value" class="dropdown-grid-opt" :class="{ 'grid-opt-active': filters.contentType.includes(opt.value) }" @click="toggleContentType(opt.value)">
+      <view
+        v-if="activeFilter"
+        class="filter-dropdown"
+        @click.stop
+      >
+        <view
+          v-if="activeFilter === 'time'"
+          class="dropdown-options"
+        >
+          <text
+            v-for="opt in timeRangeOptions"
+            :key="opt.value"
+            class="dropdown-opt"
+            :class="{ 'opt-active': filters.timeRange === opt.value }"
+            @click="selectTime(opt.value)"
+          >
             {{ opt.label }}
-            <text v-if="filters.contentType.includes(opt.value)" class="check">✓</text>
           </text>
         </view>
-        <view v-if="activeFilter === 'category'" class="dropdown-options">
-          <text v-for="opt in categoryOptions" :key="opt.value" class="dropdown-opt" :class="{ 'opt-active': filters.category === opt.value }" @click="selectCategory(opt.value)">{{ opt.label }}</text>
+        <view
+          v-if="activeFilter === 'type'"
+          class="dropdown-grid"
+        >
+          <text
+            v-for="opt in contentTypeOptions"
+            :key="opt.value"
+            class="dropdown-grid-opt"
+            :class="{ 'grid-opt-active': filters.contentType.includes(opt.value) }"
+            @click="toggleContentType(opt.value)"
+          >
+            {{ opt.label }}
+            <text
+              v-if="filters.contentType.includes(opt.value)"
+              class="check"
+            >
+              ✓
+            </text>
+          </text>
         </view>
-        <view v-if="activeFilter === 'sort'" class="dropdown-options">
-          <text v-for="opt in sortOptions" :key="opt.value" class="dropdown-opt" :class="{ 'opt-active': filters.sortBy === opt.value }" @click="selectSort(opt.value)">{{ opt.label }}</text>
+        <view
+          v-if="activeFilter === 'category'"
+          class="dropdown-options"
+        >
+          <text
+            v-for="opt in categoryOptions"
+            :key="opt.value"
+            class="dropdown-opt"
+            :class="{ 'opt-active': filters.category === opt.value }"
+            @click="selectCategory(opt.value)"
+          >
+            {{ opt.label }}
+          </text>
+        </view>
+        <view
+          v-if="activeFilter === 'sort'"
+          class="dropdown-options"
+        >
+          <text
+            v-for="opt in sortOptions"
+            :key="opt.value"
+            class="dropdown-opt"
+            :class="{ 'opt-active': filters.sortBy === opt.value }"
+            @click="selectSort(opt.value)"
+          >
+            {{ opt.label }}
+          </text>
         </view>
       </view>
 
       <!-- 已选筛选标签 -->
-      <view v-if="activeFilters.length > 0" class="active-filters">
-        <text class="af-label">已选:</text>
-        <text v-for="(af, idx) in activeFilters" :key="idx" class="af-tag">
-          {{ af.label }}
-          <text class="af-remove" @click="removeFilter(af.key, af.value)">✕</text>
+      <view
+        v-if="activeFilters.length > 0"
+        class="active-filters"
+      >
+        <text class="af-label">
+          已选:
         </text>
-        <text class="af-reset" @click="resetFilters">🔄 重置</text>
+        <text
+          v-for="(af, idx) in activeFilters"
+          :key="idx"
+          class="af-tag"
+        >
+          {{ af.label }}
+          <text
+            class="af-remove"
+            @click="removeFilter(af.key, af.value)"
+          >
+            ✕
+          </text>
+        </text>
+        <text
+          class="af-reset"
+          @click="resetFilters"
+        >
+          🔄 重置
+        </text>
       </view>
     </view>
 
     <!-- 结果区 -->
     <view class="results-section">
       <!-- 加载中 -->
-      <view v-if="loading" class="skeleton-list">
-        <view v-for="i in 3" :key="i" class="skeleton-item">
+      <view
+        v-if="loading"
+        class="skeleton-list"
+      >
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="skeleton-item"
+        >
           <view class="skeleton-img" />
           <view class="skeleton-texts">
             <view class="skeleton-line w-75" />
@@ -81,21 +219,55 @@
 
       <!-- 结果列表 -->
       <template v-else-if="results.length > 0">
-        <view class="result-count">共找到 <text class="count-num">{{ total }}</text> 条结果</view>
+        <view class="result-count">
+          共找到 <text class="count-num">
+            {{ total }}
+          </text> 条结果
+        </view>
         <view class="result-list">
-          <view v-for="item in results" :key="item.id" class="result-item" @click="goResult(item)">
-            <image v-if="item.cover" :src="item.cover" mode="aspectFill" class="result-cover" />
+          <view
+            v-for="item in results"
+            :key="item.id"
+            class="result-item"
+            @click="goResult(item)"
+          >
+            <image
+              v-if="item.cover"
+              :src="item.cover"
+              mode="aspectFill"
+              class="result-cover"
+            />
             <view class="result-body">
               <view class="result-type-tag">
                 <text>{{ getTypeLabel(item.type) }}</text>
               </view>
-              <text class="result-title">{{ item.title }}</text>
-              <text class="result-summary">{{ item.summary }}</text>
-              <view v-if="item.author" class="result-author-row">
-                <image :src="item.author.avatar" mode="aspectFill" class="result-author-avatar" />
-                <text class="result-author-name">{{ item.author.name }}</text>
-                <text class="result-date">{{ item.createdAt }}</text>
-                <text v-if="item.stats" class="result-stats">{{ item.stats.views }}阅读 · {{ item.stats.likes }}赞</text>
+              <text class="result-title">
+                {{ item.title }}
+              </text>
+              <text class="result-summary">
+                {{ item.summary }}
+              </text>
+              <view
+                v-if="item.author"
+                class="result-author-row"
+              >
+                <image
+                  :src="item.author.avatar"
+                  mode="aspectFill"
+                  class="result-author-avatar"
+                />
+                <text class="result-author-name">
+                  {{ item.author.name }}
+                </text>
+                <text class="result-date">
+                  {{ item.createdAt }}
+                </text>
+                <text
+                  v-if="item.stats"
+                  class="result-stats"
+                >
+                  {{ item.stats.views }}阅读 · {{ item.stats.likes }}赞
+                </text>
               </view>
             </view>
           </view>
@@ -103,21 +275,39 @@
       </template>
 
       <!-- 无结果 -->
-      <view v-else-if="filters.keyword" class="empty-state">
+      <view
+        v-else-if="filters.keyword"
+        class="empty-state"
+      >
         <view class="empty-icon-wrap">
-          <text class="empty-icon">🔍</text>
+          <text class="empty-icon">
+            🔍
+          </text>
         </view>
-        <text class="empty-title">未找到相关结果</text>
-        <text class="empty-desc">试试调整筛选条件或更换关键词</text>
+        <text class="empty-title">
+          未找到相关结果
+        </text>
+        <text class="empty-desc">
+          试试调整筛选条件或更换关键词
+        </text>
       </view>
 
       <!-- 初始状态 -->
-      <view v-else class="empty-state">
+      <view
+        v-else
+        class="empty-state"
+      >
         <view class="empty-icon-wrap">
-          <text class="empty-icon">☰</text>
+          <text class="empty-icon">
+            ☰
+          </text>
         </view>
-        <text class="empty-title">输入关键词开始搜索</text>
-        <text class="empty-desc">使用筛选条件精确查找内容</text>
+        <text class="empty-title">
+          输入关键词开始搜索
+        </text>
+        <text class="empty-desc">
+          使用筛选条件精确查找内容
+        </text>
       </view>
     </view>
   </view>

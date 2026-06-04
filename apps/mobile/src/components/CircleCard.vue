@@ -1,18 +1,51 @@
 <template>
-  <view class="circle-card" @click="goDetail">
-    <image v-if="circle.cover" :src="circle.cover" class="card-cover" mode="aspectFill" />
+  <view
+    class="circle-card"
+    @click="goDetail"
+  >
+    <image
+      v-if="circle.cover"
+      :src="circle.cover"
+      class="card-cover"
+      mode="aspectFill"
+    />
     <view class="card-body">
       <view class="card-header">
-        <text class="card-name">{{ circle.name }}</text>
-        <text class="type-tag" :class="circle.type">{{ circle.type === 'paid' ? '付费' : '免费' }}</text>
+        <text class="card-name">
+          {{ circle.name }}
+        </text>
+        <text
+          class="type-tag"
+          :class="circle.type"
+        >
+          {{ circle.type === 'paid' ? '付费' : '免费' }}
+        </text>
       </view>
-      <view class="card-intro" v-if="circle.intro">{{ circle.intro }}</view>
-      <view class="card-tags" v-if="circle.tags && circle.tags.length">
-        <text v-for="tag in circle.tags" :key="tag" class="tag">{{ tag }}</text>
+      <view
+        v-if="circle.intro"
+        class="card-intro"
+      >
+        {{ circle.intro }}
+      </view>
+      <view
+        v-if="circle.tags && circle.tags.length"
+        class="card-tags"
+      >
+        <text
+          v-for="tag in circle.tags"
+          :key="tag"
+          class="tag"
+        >
+          {{ tag }}
+        </text>
       </view>
       <view class="card-stats">
-        <text class="stat-item">👥 {{ circle.memberCount ?? 0 }} 成员</text>
-        <text class="stat-item">📝 {{ circle.postCount ?? 0 }} 帖子</text>
+        <text class="stat-item">
+          👥 {{ circle.memberCount ?? 0 }} 成员
+        </text>
+        <text class="stat-item">
+          📝 {{ circle.postCount ?? 0 }} 帖子
+        </text>
       </view>
     </view>
   </view>

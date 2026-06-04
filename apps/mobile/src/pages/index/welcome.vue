@@ -4,48 +4,88 @@
     <view class="bg-layer">
       <view class="bg-gradient" />
       <view class="bg-stars">
-        <view v-for="i in 20" :key="i" class="star" :style="starStyle(i)" />
+        <view
+          v-for="i in 20"
+          :key="i"
+          class="star"
+          :style="starStyle(i)"
+        />
       </view>
       <view class="bg-glow" />
     </view>
 
     <view class="content">
       <!-- Logo -->
-      <view class="logo-area" :class="{ show: showContent }">
+      <view
+        class="logo-area"
+        :class="{ show: showContent }"
+      >
         <view class="logo-circle">
-          <text class="logo-icon">🏛</text>
+          <text class="logo-icon">
+            🏛
+          </text>
         </view>
       </view>
 
       <!-- 欢迎文字 -->
-      <view class="text-area" :class="{ show: showContent }">
-        <text class="welcome-line">{{ userName ? `${userName}，欢迎来到` : '欢迎来到' }}</text>
-        <text class="brand-name">国学传统文化平台</text>
+      <view
+        class="text-area"
+        :class="{ show: showContent }"
+      >
+        <text class="welcome-line">
+          {{ userName ? `${userName}，欢迎来到` : '欢迎来到' }}
+        </text>
+        <text class="brand-name">
+          国学传统文化平台
+        </text>
       </view>
 
       <!-- Slogan -->
-      <text class="slogan" :class="{ show: showSlogan }">探寻东方智慧，传承千年文化</text>
+      <text
+        class="slogan"
+        :class="{ show: showSlogan }"
+      >
+        探寻东方智慧，传承千年文化
+      </text>
 
       <!-- 进入按钮 -->
-      <view class="btn-area" :class="{ show: showButton }">
-        <view class="btn-enter" @click="enter">
+      <view
+        class="btn-area"
+        :class="{ show: showButton }"
+      >
+        <view
+          class="btn-enter"
+          @click="enter"
+        >
           <text>进入平台</text>
-          <text class="btn-countdown">({{ countdown }}s)</text>
+          <text class="btn-countdown">
+            ({{ countdown }}s)
+          </text>
         </view>
       </view>
 
       <!-- 装饰 -->
-      <view class="deco-line" :class="{ show: showButton }">
+      <view
+        class="deco-line"
+        :class="{ show: showButton }"
+      >
         <view class="deco-bar" />
         <view class="deco-dot" />
         <view class="deco-bar" />
       </view>
 
       <!-- 底部提示 -->
-      <text class="bottom-tip" :class="{ show: showButton }">{{ hasInterests ? '即将进入首页' : '即将进入兴趣选择' }}</text>
+      <text
+        class="bottom-tip"
+        :class="{ show: showButton }"
+      >
+        {{ hasInterests ? '即将进入首页' : '即将进入兴趣选择' }}
+      </text>
     </view>
 
-    <view class="footer-copy">国学平台 · 传承东方智慧</view>
+    <view class="footer-copy">
+      国学平台 · 传承东方智慧
+    </view>
   </view>
 </template>
 

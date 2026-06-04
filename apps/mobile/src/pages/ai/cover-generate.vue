@@ -3,83 +3,214 @@
     <view class="header">
       <view class="header-inner">
         <view class="header-left">
-          <text class="back-btn" @click="goBack">‹</text>
-          <text class="header-title">AI 封面生成</text>
+          <text
+            class="back-btn"
+            @click="goBack"
+          >
+            ‹
+          </text>
+          <text class="header-title">
+            AI 封面生成
+          </text>
         </view>
-        <text class="history-btn" @click="openHistory">📋 历史</text>
+        <text
+          class="history-btn"
+          @click="openHistory"
+        >
+          📋 历史
+        </text>
       </view>
     </view>
 
-    <scroll-view scroll-y class="content-scroll">
+    <scroll-view
+      scroll-y
+      class="content-scroll"
+    >
       <view class="form-section">
         <view class="field">
-          <text class="field-label">内容标题</text>
-          <input v-model="title" class="field-input" placeholder="输入文章/帖子标题" />
+          <text class="field-label">
+            内容标题
+          </text>
+          <input
+            v-model="title"
+            class="field-input"
+            placeholder="输入文章/帖子标题"
+          >
         </view>
 
         <view class="field">
           <view class="field-label-row">
-            <text class="field-label">生成描述 (Prompt)</text>
-            <text class="smart-btn" :class="{ disabled: !title.trim() }" @click="handleSmartPrompt">✨ 智能生成</text>
+            <text class="field-label">
+              生成描述 (Prompt)
+            </text>
+            <text
+              class="smart-btn"
+              :class="{ disabled: !title.trim() }"
+              @click="handleSmartPrompt"
+            >
+              ✨ 智能生成
+            </text>
           </view>
-          <textarea v-model="prompt" class="field-textarea" placeholder="描述你想要的封面风格、元素、色调等（可选）" />
+          <textarea
+            v-model="prompt"
+            class="field-textarea"
+            placeholder="描述你想要的封面风格、元素、色调等（可选）"
+          />
         </view>
 
         <view class="field">
-          <text class="field-label">封面风格</text>
+          <text class="field-label">
+            封面风格
+          </text>
           <view class="style-grid">
-            <view v-for="s in styles" :key="s.value" class="style-card" :class="{ active: selectedStyle === s.value }" @click="selectedStyle = s.value">
-              <view class="style-preview"><text class="style-preview-icon">🖼</text></view>
-              <text class="style-name" :class="{ active: selectedStyle === s.value }">{{ s.label }}</text>
-              <text v-if="selectedStyle === s.value" class="style-checked">✓</text>
+            <view
+              v-for="s in styles"
+              :key="s.value"
+              class="style-card"
+              :class="{ active: selectedStyle === s.value }"
+              @click="selectedStyle = s.value"
+            >
+              <view class="style-preview">
+                <text class="style-preview-icon">
+                  🖼
+                </text>
+              </view>
+              <text
+                class="style-name"
+                :class="{ active: selectedStyle === s.value }"
+              >
+                {{ s.label }}
+              </text>
+              <text
+                v-if="selectedStyle === s.value"
+                class="style-checked"
+              >
+                ✓
+              </text>
             </view>
           </view>
         </view>
 
         <view class="field">
-          <text class="field-label">封面尺寸</text>
+          <text class="field-label">
+            封面尺寸
+          </text>
           <view class="size-options">
-            <view v-for="s in sizeOptions" :key="s.value" class="size-btn" :class="{ active: selectedSize === s.value }" @click="selectedSize = s.value">
-              <text class="size-label">{{ s.label }}</text>
-              <text class="size-ratio">{{ s.ratio }}</text>
+            <view
+              v-for="s in sizeOptions"
+              :key="s.value"
+              class="size-btn"
+              :class="{ active: selectedSize === s.value }"
+              @click="selectedSize = s.value"
+            >
+              <text class="size-label">
+                {{ s.label }}
+              </text>
+              <text class="size-ratio">
+                {{ s.ratio }}
+              </text>
             </view>
           </view>
         </view>
 
         <view class="field">
-          <text class="field-label">生成数量</text>
+          <text class="field-label">
+            生成数量
+          </text>
           <view class="count-options">
-            <view v-for="n in [2, 4, 6]" :key="n" class="count-btn" :class="{ active: generateCount === n }" @click="generateCount = n"><text>{{ n }} 张</text></view>
+            <view
+              v-for="n in [2, 4, 6]"
+              :key="n"
+              class="count-btn"
+              :class="{ active: generateCount === n }"
+              @click="generateCount = n"
+            >
+              <text>{{ n }} 张</text>
+            </view>
           </view>
         </view>
 
-        <view class="gen-btn" :class="{ disabled: !title.trim() || generating }" @click="handleGenerate">
-          <text v-if="generating">⏳ AI 生成中...</text>
-          <text v-else>✨ 生成封面</text>
+        <view
+          class="gen-btn"
+          :class="{ disabled: !title.trim() || generating }"
+          @click="handleGenerate"
+        >
+          <text v-if="generating">
+            ⏳ AI 生成中...
+          </text>
+          <text v-else>
+            ✨ 生成封面
+          </text>
         </view>
 
         <!-- 生成结果 -->
-        <view v-if="results.length" class="results-section">
+        <view
+          v-if="results.length"
+          class="results-section"
+        >
           <view class="results-header">
-            <text class="results-title">生成结果</text>
-            <text class="regenerate-btn" @click="handleGenerate">🔄 重新生成</text>
+            <text class="results-title">
+              生成结果
+            </text>
+            <text
+              class="regenerate-btn"
+              @click="handleGenerate"
+            >
+              🔄 重新生成
+            </text>
           </view>
           <view class="results-grid">
-            <view v-for="r in results" :key="r.id" class="result-card" :class="{ selected: selectedResultId === r.id }" @click="selectedResultId = r.id">
-              <image :src="r.url" mode="aspectFill" class="result-img" />
-              <text v-if="selectedResultId === r.id" class="result-check">✓</text>
+            <view
+              v-for="r in results"
+              :key="r.id"
+              class="result-card"
+              :class="{ selected: selectedResultId === r.id }"
+              @click="selectedResultId = r.id"
+            >
+              <image
+                :src="r.url"
+                mode="aspectFill"
+                class="result-img"
+              />
+              <text
+                v-if="selectedResultId === r.id"
+                class="result-check"
+              >
+                ✓
+              </text>
             </view>
           </view>
 
-          <view v-if="selectedResult" class="selected-preview">
-            <image :src="selectedResult.url" mode="aspectFill" class="preview-img" />
+          <view
+            v-if="selectedResult"
+            class="selected-preview"
+          >
+            <image
+              :src="selectedResult.url"
+              mode="aspectFill"
+              class="preview-img"
+            />
             <view class="preview-tags">
-              <text class="preview-tag">{{ getStyleName(selectedResult.style) }}</text>
-              <text class="preview-tag">{{ selectedResult.size }}</text>
+              <text class="preview-tag">
+                {{ getStyleName(selectedResult.style) }}
+              </text>
+              <text class="preview-tag">
+                {{ selectedResult.size }}
+              </text>
             </view>
             <view class="preview-actions">
-              <view class="action-btn" @click="handleSave"><text>💾 保存</text></view>
-              <view class="action-btn" @click="handleDownload"><text>📥 下载</text></view>
+              <view
+                class="action-btn"
+                @click="handleSave"
+              >
+                <text>💾 保存</text>
+              </view>
+              <view
+                class="action-btn"
+                @click="handleDownload"
+              >
+                <text>📥 下载</text>
+              </view>
             </view>
           </view>
         </view>
@@ -87,18 +218,70 @@
     </scroll-view>
 
     <!-- 历史记录弹层 -->
-    <view v-if="showHistory" class="overlay" @click="showHistory = false">
-      <view class="sheet" @click.stop>
-        <view class="sheet-header"><text class="sheet-title">生成历史</text><text class="sheet-close" @click="showHistory = false">✕</text></view>
-        <scroll-view scroll-y class="sheet-list">
-          <view v-if="historyLoading" class="history-loading">
-            <view v-for="i in 3" :key="i" class="history-skeleton" />
+    <view
+      v-if="showHistory"
+      class="overlay"
+      @click="showHistory = false"
+    >
+      <view
+        class="sheet"
+        @click.stop
+      >
+        <view class="sheet-header">
+          <text class="sheet-title">
+            生成历史
+          </text><text
+            class="sheet-close"
+            @click="showHistory = false"
+          >
+            ✕
+          </text>
+        </view>
+        <scroll-view
+          scroll-y
+          class="sheet-list"
+        >
+          <view
+            v-if="historyLoading"
+            class="history-loading"
+          >
+            <view
+              v-for="i in 3"
+              :key="i"
+              class="history-skeleton"
+            />
           </view>
-          <view v-else-if="!history.length" class="history-empty">暂无生成历史</view>
-          <view v-else v-for="item in history" :key="item.id" class="history-item">
-            <view class="hi-top"><text class="hi-title">{{ item.title }}</text><text class="hi-time">{{ item.createdAt }}</text></view>
-            <scroll-view scroll-x class="hi-thumbs">
-              <image v-for="r in item.results" :key="r.id" :src="r.url" mode="aspectFill" class="hi-thumb" :class="{ selected: r.id === item.selectedId }" />
+          <view
+            v-else-if="!history.length"
+            class="history-empty"
+          >
+            暂无生成历史
+          </view>
+          <view
+            v-for="item in history"
+            v-else
+            :key="item.id"
+            class="history-item"
+          >
+            <view class="hi-top">
+              <text class="hi-title">
+                {{ item.title }}
+              </text><text class="hi-time">
+                {{ item.createdAt }}
+              </text>
+            </view>
+            <scroll-view
+              scroll-x
+              class="hi-thumbs"
+            >
+              <image
+                v-for="r in item.results"
+                :key="r.id"
+                :src="r.url"
+                mode="aspectFill"
+                class="hi-thumb"
+                :class="{ selected: r.id === item.selectedId }"
+              />
             </scroll-view>
           </view>
         </scroll-view>

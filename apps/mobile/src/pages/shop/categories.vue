@@ -2,15 +2,26 @@
   <view class="page">
     <template v-if="loading">
       <view class="sk-top">
-        <view class="sk-line mx-auto" style="width:192rpx;height:48rpx" />
+        <view
+          class="sk-line mx-auto"
+          style="width:192rpx;height:48rpx"
+        />
       </view>
       <view class="flex h-[calc(100vh-112rpx)]">
         <view class="sk-sidebar">
-          <view v-for="i in 8" :key="i" class="sk-bar-item" />
+          <view
+            v-for="i in 8"
+            :key="i"
+            class="sk-bar-item"
+          />
         </view>
         <view class="sk-content">
           <view class="grid grid-cols-2 gap-6">
-            <view v-for="i in 6" :key="i" class="sk-product" />
+            <view
+              v-for="i in 6"
+              :key="i"
+              class="sk-product"
+            />
           </view>
         </view>
       </view>
@@ -19,33 +30,76 @@
     <template v-else>
       <!-- 顶部导航 -->
       <view class="nav-bar">
-        <view class="nav-left" @click="goBack">
-          <text class="nav-icon">←</text>
+        <view
+          class="nav-left"
+          @click="goBack"
+        >
+          <text class="nav-icon">
+            ←
+          </text>
         </view>
-        <text class="nav-title">商品分类</text>
-        <view class="nav-right" @click="goSearch">
-          <text class="nav-icon">🔍</text>
+        <text class="nav-title">
+          商品分类
+        </text>
+        <view
+          class="nav-right"
+          @click="goSearch"
+        >
+          <text class="nav-icon">
+            🔍
+          </text>
         </view>
       </view>
 
       <!-- 双栏布局 -->
       <view class="main-layout">
         <!-- 左侧一级分类 -->
-        <scroll-view class="left-sidebar" scroll-y>
-          <view v-for="cat in categories" :key="cat.id" class="cat-item" :class="{ active: selectedCategory === cat.id }" @click="handleCategoryClick(cat.id)">
-            <view v-if="selectedCategory === cat.id" class="cat-indicator" />
-            <text class="cat-icon">{{ cat.icon || '⊞' }}</text>
-            <text class="cat-name">{{ cat.name }}</text>
+        <scroll-view
+          class="left-sidebar"
+          scroll-y
+        >
+          <view
+            v-for="cat in categories"
+            :key="cat.id"
+            class="cat-item"
+            :class="{ active: selectedCategory === cat.id }"
+            @click="handleCategoryClick(cat.id)"
+          >
+            <view
+              v-if="selectedCategory === cat.id"
+              class="cat-indicator"
+            />
+            <text class="cat-icon">
+              {{ cat.icon || '⊞' }}
+            </text>
+            <text class="cat-name">
+              {{ cat.name }}
+            </text>
           </view>
         </scroll-view>
 
         <!-- 右侧 -->
-        <scroll-view class="right-panel" scroll-y>
+        <scroll-view
+          class="right-panel"
+          scroll-y
+        >
           <!-- 二级分类 -->
-          <view v-if="currentCategory?.children?.length" class="sub-tab-bar">
-            <scroll-view scroll-x show-scrollbar="false">
+          <view
+            v-if="currentCategory?.children?.length"
+            class="sub-tab-bar"
+          >
+            <scroll-view
+              scroll-x
+              show-scrollbar="false"
+            >
               <view class="sub-tab-list">
-                <view v-for="sub in currentCategory.children" :key="sub.id" class="sub-tab" :class="{ active: selectedSubCategory === sub.id }" @click="selectedSubCategory = sub.id">
+                <view
+                  v-for="sub in currentCategory.children"
+                  :key="sub.id"
+                  class="sub-tab"
+                  :class="{ active: selectedSubCategory === sub.id }"
+                  @click="selectedSubCategory = sub.id"
+                >
                   <text>{{ sub.name }}</text>
                 </view>
               </view>
@@ -56,7 +110,11 @@
           <view class="product-area">
             <template v-if="productsLoading">
               <view class="product-grid">
-                <view v-for="i in 6" :key="i" class="sk-product-item">
+                <view
+                  v-for="i in 6"
+                  :key="i"
+                  class="sk-product-item"
+                >
                   <view class="sk-product-img" />
                   <view class="sk-product-name" />
                   <view class="sk-product-price" />
@@ -65,23 +123,49 @@
             </template>
             <template v-else-if="products.length > 0">
               <view class="product-grid">
-                <view v-for="product in products" :key="product.id" class="product-card" @click="goProduct(product.id)">
+                <view
+                  v-for="product in products"
+                  :key="product.id"
+                  class="product-card"
+                  @click="goProduct(product.id)"
+                >
                   <view class="product-img-wrap">
-                    <image :src="product.cover || ''" class="product-img" mode="aspectFill" />
+                    <image
+                      :src="product.cover || ''"
+                      class="product-img"
+                      mode="aspectFill"
+                    />
                   </view>
-                  <text class="product-title">{{ product.name }}</text>
+                  <text class="product-title">
+                    {{ product.name }}
+                  </text>
                   <view class="product-price-row">
-                    <text class="product-price">¥{{ product.price }}</text>
-                    <text v-if="product.originalPrice > product.price" class="product-original">¥{{ product.originalPrice }}</text>
+                    <text class="product-price">
+                      ¥{{ product.price }}
+                    </text>
+                    <text
+                      v-if="product.originalPrice > product.price"
+                      class="product-original"
+                    >
+                      ¥{{ product.originalPrice }}
+                    </text>
                   </view>
-                  <text class="product-sales">已售 {{ product.sales }}</text>
+                  <text class="product-sales">
+                    已售 {{ product.sales }}
+                  </text>
                 </view>
               </view>
             </template>
             <template v-else>
               <view class="empty-state">
-                <view class="empty-icon-wrap"><text class="empty-icon">🔍</text></view>
-                <text class="empty-text">暂无商品</text>
+                <view class="empty-icon-wrap">
+                  <text class="empty-icon">
+                    🔍
+                  </text>
+                </view>
+                <text class="empty-text">
+                  暂无商品
+                </text>
               </view>
             </template>
           </view>

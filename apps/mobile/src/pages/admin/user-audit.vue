@@ -2,84 +2,221 @@
   <view class="page">
     <view class="header">
       <view class="header-left">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">用户行为审计</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          用户行为审计
+        </text>
       </view>
     </view>
     <view class="search-bar">
       <view class="search-input-wrap">
-        <text class="search-icon">🔍</text>
-        <input v-model="searchQuery" class="search-input" placeholder="搜索用户ID/手机号/昵称" @confirm="handleSearch" />
+        <text class="search-icon">
+          🔍
+        </text>
+        <input
+          v-model="searchQuery"
+          class="search-input"
+          placeholder="搜索用户ID/手机号/昵称"
+          @confirm="handleSearch"
+        >
       </view>
-      <view class="search-btn" @click="handleSearch"><text>{{ loading ? '⏳' : '搜索' }}</text></view>
+      <view
+        class="search-btn"
+        @click="handleSearch"
+      >
+        <text>{{ loading ? '⏳' : '搜索' }}</text>
+      </view>
     </view>
 
-    <view v-if="selectedUser" class="user-card">
+    <view
+      v-if="selectedUser"
+      class="user-card"
+    >
       <view class="user-card-top">
-        <view class="uc-avatar"><text class="uc-avatar-text">👤</text></view>
+        <view class="uc-avatar">
+          <text class="uc-avatar-text">
+            👤
+          </text>
+        </view>
         <view class="uc-info">
           <view class="uc-name-row">
-            <text class="uc-name">{{ selectedUser.nickname }}</text>
-            <text class="uc-uid">UID: {{ selectedUser.uid }}</text>
-            <text class="uc-risk" :class="'risk-' + selectedUser.riskLevel">{{ riskLabel(selectedUser.riskLevel) }}</text>
+            <text class="uc-name">
+              {{ selectedUser.nickname }}
+            </text>
+            <text class="uc-uid">
+              UID: {{ selectedUser.uid }}
+            </text>
+            <text
+              class="uc-risk"
+              :class="'risk-' + selectedUser.riskLevel"
+            >
+              {{ riskLabel(selectedUser.riskLevel) }}
+            </text>
           </view>
-          <text class="uc-phone">手机：{{ selectedUser.phone }}</text>
-          <view class="uc-meta"><text>注册：{{ selectedUser.registerTime }}</text><text>最后活跃：{{ selectedUser.lastActiveTime }}</text></view>
+          <text class="uc-phone">
+            手机：{{ selectedUser.phone }}
+          </text>
+          <view class="uc-meta">
+            <text>注册：{{ selectedUser.registerTime }}</text><text>最后活跃：{{ selectedUser.lastActiveTime }}</text>
+          </view>
           <view class="uc-stats">
-            <view class="uc-stat"><text class="uc-stat-num">{{ selectedUser.loginCount }}</text><text class="uc-stat-label">登录次数</text></view>
-            <view class="uc-stat"><text class="uc-stat-num">{{ selectedUser.orderCount }}</text><text class="uc-stat-label">订单数</text></view>
+            <view class="uc-stat">
+              <text class="uc-stat-num">
+                {{ selectedUser.loginCount }}
+              </text><text class="uc-stat-label">
+                登录次数
+              </text>
+            </view>
+            <view class="uc-stat">
+              <text class="uc-stat-num">
+                {{ selectedUser.orderCount }}
+              </text><text class="uc-stat-label">
+                订单数
+              </text>
+            </view>
           </view>
         </view>
       </view>
     </view>
 
-    <view v-if="selectedUser" class="filter-bar">
-      <scroll-view scroll-x class="filter-scroll" show-scrollbar="false">
+    <view
+      v-if="selectedUser"
+      class="filter-bar"
+    >
+      <scroll-view
+        scroll-x
+        class="filter-scroll"
+        show-scrollbar="false"
+      >
         <view class="filter-btn-row">
-          <text v-for="t in actionTypes" :key="t.value" class="filter-tag" :class="{ active: filterType === t.value }" @click="filterType = t.value">{{ t.label }}</text>
+          <text
+            v-for="t in actionTypes"
+            :key="t.value"
+            class="filter-tag"
+            :class="{ active: filterType === t.value }"
+            @click="filterType = t.value"
+          >
+            {{ t.label }}
+          </text>
         </view>
       </scroll-view>
       <view class="filter-actions">
-        <text class="abnormal-btn" :class="{ active: showAbnormalOnly }" @click="showAbnormalOnly = !showAbnormalOnly">⚠ 异常</text>
+        <text
+          class="abnormal-btn"
+          :class="{ active: showAbnormalOnly }"
+          @click="showAbnormalOnly = !showAbnormalOnly"
+        >
+          ⚠ 异常
+        </text>
       </view>
     </view>
 
-    <view v-if="selectedUser && filteredLogs.length" class="log-list">
-      <view v-for="(log, idx) in filteredLogs" :key="log.id" class="log-item" :class="{ abnormal: log.isAbnormal }">
-        <view class="log-dot" :class="{ 'dot-abnormal': log.isAbnormal }">
+    <view
+      v-if="selectedUser && filteredLogs.length"
+      class="log-list"
+    >
+      <view
+        v-for="(log, idx) in filteredLogs"
+        :key="log.id"
+        class="log-item"
+        :class="{ abnormal: log.isAbnormal }"
+      >
+        <view
+          class="log-dot"
+          :class="{ 'dot-abnormal': log.isAbnormal }"
+        >
           <text>{{ log.isAbnormal ? '⚠' : actionIcon(log.actionType) }}</text>
         </view>
         <view class="log-content">
           <view class="log-top">
             <view class="log-name-row">
-              <text class="log-name">{{ log.actionName }}</text>
-              <text v-if="log.isAbnormal" class="log-abnormal-tag">异常</text>
+              <text class="log-name">
+                {{ log.actionName }}
+              </text>
+              <text
+                v-if="log.isAbnormal"
+                class="log-abnormal-tag"
+              >
+                异常
+              </text>
             </view>
-            <text class="log-time">{{ log.timestamp.split(' ')[1] }}</text>
+            <text class="log-time">
+              {{ log.timestamp.split(' ')[1] }}
+            </text>
           </view>
-          <text class="log-desc">{{ log.description }}</text>
-          <text v-if="log.isAbnormal && log.abnormalReason" class="log-abnormal-reason">🛡 {{ log.abnormalReason }}</text>
+          <text class="log-desc">
+            {{ log.description }}
+          </text>
+          <text
+            v-if="log.isAbnormal && log.abnormalReason"
+            class="log-abnormal-reason"
+          >
+            🛡 {{ log.abnormalReason }}
+          </text>
           <view class="log-device">
             <text>{{ log.deviceType === 'mobile' ? '📱' : '💻' }} {{ log.device }}</text>
             <text>IP: {{ log.ip }}</text>
-            <text v-if="log.location">📍 {{ log.location }}</text>
+            <text v-if="log.location">
+              📍 {{ log.location }}
+            </text>
           </view>
-          <view v-if="log.extra && Object.keys(log.extra).length" class="log-extra">
-            <view v-for="(v, k) in log.extra" :key="k" class="log-extra-item"><text class="extra-key">{{ k }}:</text><text class="extra-val">{{ v }}</text></view>
+          <view
+            v-if="log.extra && Object.keys(log.extra).length"
+            class="log-extra"
+          >
+            <view
+              v-for="(v, k) in log.extra"
+              :key="k"
+              class="log-extra-item"
+            >
+              <text class="extra-key">
+                {{ k }}:
+              </text><text class="extra-val">
+                {{ v }}
+              </text>
+            </view>
           </view>
         </view>
       </view>
     </view>
 
-    <view v-if="selectedUser && !filteredLogs.length" class="empty-state">
-      <text class="empty-icon">🕐</text>
-      <text class="empty-text">暂无操作记录</text>
+    <view
+      v-if="selectedUser && !filteredLogs.length"
+      class="empty-state"
+    >
+      <text class="empty-icon">
+        🕐
+      </text>
+      <text class="empty-text">
+        暂无操作记录
+      </text>
     </view>
 
-    <view v-if="!selectedUser && !loading" class="empty-state" style="padding-top:160rpx">
-      <text class="empty-icon" style="font-size:80rpx">👤</text>
-      <text class="empty-text" style="font-size:28rpx">搜索用户查看操作轨迹</text>
-      <text class="empty-sub">支持用户ID、手机号、昵称搜索</text>
+    <view
+      v-if="!selectedUser && !loading"
+      class="empty-state"
+      style="padding-top:160rpx"
+    >
+      <text
+        class="empty-icon"
+        style="font-size:80rpx"
+      >
+        👤
+      </text>
+      <text
+        class="empty-text"
+        style="font-size:28rpx"
+      >
+        搜索用户查看操作轨迹
+      </text>
+      <text class="empty-sub">
+        支持用户ID、手机号、昵称搜索
+      </text>
     </view>
   </view>
 </template>

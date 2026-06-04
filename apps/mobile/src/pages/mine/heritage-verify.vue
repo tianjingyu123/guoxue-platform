@@ -3,57 +3,116 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">非遗传承人认证</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          非遗传承人认证
+        </text>
         <view class="header-right" />
       </view>
 
       <!-- Tab -->
       <view class="tabs">
-        <view class="tab" :class="{ active: activeTab === 'apply' }" @click="activeTab = 'apply'">申请认证</view>
-        <view class="tab" :class="{ active: activeTab === 'status' }" @click="activeTab = 'status'">认证进度</view>
+        <view
+          class="tab"
+          :class="{ active: activeTab === 'apply' }"
+          @click="activeTab = 'apply'"
+        >
+          申请认证
+        </view>
+        <view
+          class="tab"
+          :class="{ active: activeTab === 'status' }"
+          @click="activeTab = 'status'"
+        >
+          认证进度
+        </view>
       </view>
     </view>
 
     <!-- 申请认证 -->
-    <view v-if="activeTab === 'apply'" class="apply-content">
+    <view
+      v-if="activeTab === 'apply'"
+      class="apply-content"
+    >
       <!-- 说明卡片 -->
       <view class="intro-card">
         <view class="intro-icon-wrap">
-          <text class="intro-icon">🏅</text>
+          <text class="intro-icon">
+            🏅
+          </text>
         </view>
         <view class="intro-body">
-          <text class="intro-title">非遗传承人认证</text>
-          <text class="intro-desc">通过认证后，您将获得平台官方传承人标识，享受专属权益和流量扶持</text>
+          <text class="intro-title">
+            非遗传承人认证
+          </text>
+          <text class="intro-desc">
+            通过认证后，您将获得平台官方传承人标识，享受专属权益和流量扶持
+          </text>
         </view>
       </view>
 
       <!-- 基本信息 -->
       <view class="form-card">
-        <text class="form-card-title">📋 基本信息</text>
+        <text class="form-card-title">
+          📋 基本信息
+        </text>
         <view class="form-group">
-          <text class="form-label">真实姓名 *</text>
-          <input v-model="form.name" class="form-input" placeholder="请输入真实姓名" />
+          <text class="form-label">
+            真实姓名 *
+          </text>
+          <input
+            v-model="form.name"
+            class="form-input"
+            placeholder="请输入真实姓名"
+          >
         </view>
         <view class="form-group">
-          <text class="form-label">身份证号 *</text>
-          <input v-model="form.idCard" class="form-input" placeholder="请输入身份证号" />
+          <text class="form-label">
+            身份证号 *
+          </text>
+          <input
+            v-model="form.idCard"
+            class="form-input"
+            placeholder="请输入身份证号"
+          >
         </view>
         <view class="form-group">
-          <text class="form-label">联系电话 *</text>
-          <input v-model="form.phone" class="form-input" placeholder="请输入联系电话" type="tel" />
+          <text class="form-label">
+            联系电话 *
+          </text>
+          <input
+            v-model="form.phone"
+            class="form-input"
+            placeholder="请输入联系电话"
+            type="tel"
+          >
         </view>
       </view>
 
       <!-- 传承项目信息 -->
       <view class="form-card">
-        <text class="form-card-title">📚 传承项目信息</text>
+        <text class="form-card-title">
+          📚 传承项目信息
+        </text>
         <view class="form-group">
-          <text class="form-label">传承项目名称 *</text>
-          <input v-model="form.projectName" class="form-input" placeholder="如：苏绣、景德镇手工制瓷技艺" />
+          <text class="form-label">
+            传承项目名称 *
+          </text>
+          <input
+            v-model="form.projectName"
+            class="form-input"
+            placeholder="如：苏绣、景德镇手工制瓷技艺"
+          >
         </view>
         <view class="form-group">
-          <text class="form-label">项目级别 *</text>
+          <text class="form-label">
+            项目级别 *
+          </text>
           <view class="level-grid">
             <view
               v-for="lv in projectLevels"
@@ -61,20 +120,43 @@
               class="level-btn"
               :class="{ active: form.projectLevel === lv.value }"
               @click="form.projectLevel = lv.value"
-            >{{ lv.label }}</view>
+            >
+              {{ lv.label }}
+            </view>
           </view>
         </view>
         <view class="form-group">
-          <text class="form-label">传承谱系 *</text>
-          <textarea v-model="form.lineage" class="form-textarea" placeholder="请描述您的传承谱系，如：师承某某大师，为第几代传人" rows="3" />
+          <text class="form-label">
+            传承谱系 *
+          </text>
+          <textarea
+            v-model="form.lineage"
+            class="form-textarea"
+            placeholder="请描述您的传承谱系，如：师承某某大师，为第几代传人"
+            rows="3"
+          />
         </view>
         <view class="form-group">
-          <text class="form-label">技艺描述</text>
-          <textarea v-model="form.skillDescription" class="form-textarea" placeholder="请详细描述您的技艺特点、创作风格等" rows="4" />
+          <text class="form-label">
+            技艺描述
+          </text>
+          <textarea
+            v-model="form.skillDescription"
+            class="form-textarea"
+            placeholder="请详细描述您的技艺特点、创作风格等"
+            rows="4"
+          />
         </view>
         <view class="form-group">
-          <text class="form-label">从业经历</text>
-          <textarea v-model="form.experience" class="form-textarea" placeholder="请描述您的从业年限、获得的荣誉等" rows="3" />
+          <text class="form-label">
+            从业经历
+          </text>
+          <textarea
+            v-model="form.experience"
+            class="form-textarea"
+            placeholder="请描述您的从业年限、获得的荣誉等"
+            rows="3"
+          />
         </view>
       </view>
 
@@ -82,17 +164,42 @@
       <view class="form-card">
         <text class="form-card-title">
           📄 资质证书
-          <text class="form-card-sub">（最多5张）</text>
+          <text class="form-card-sub">
+            （最多5张）
+          </text>
         </text>
-        <text class="upload-desc">请上传传承人证书、获奖证书、相关资质证明等</text>
+        <text class="upload-desc">
+          请上传传承人证书、获奖证书、相关资质证明等
+        </text>
         <view class="upload-grid three-cols">
-          <view v-for="(url, idx) in certificates" :key="idx" class="upload-item">
-            <image :src="url" class="upload-img" mode="aspectFill" />
-            <text class="upload-remove" @click="removeCert(idx)">✕</text>
+          <view
+            v-for="(url, idx) in certificates"
+            :key="idx"
+            class="upload-item"
+          >
+            <image
+              :src="url"
+              class="upload-img"
+              mode="aspectFill"
+            />
+            <text
+              class="upload-remove"
+              @click="removeCert(idx)"
+            >
+              ✕
+            </text>
           </view>
-          <view v-if="certificates.length < 5" class="upload-add" @click="uploadCert">
-            <text class="upload-add-icon">📷</text>
-            <text class="upload-add-text">上传证书</text>
+          <view
+            v-if="certificates.length < 5"
+            class="upload-add"
+            @click="uploadCert"
+          >
+            <text class="upload-add-icon">
+              📷
+            </text>
+            <text class="upload-add-text">
+              上传证书
+            </text>
           </view>
         </view>
       </view>
@@ -101,28 +208,63 @@
       <view class="form-card">
         <text class="form-card-title">
           📤 代表作品
-          <text class="form-card-sub">（最多9张）</text>
+          <text class="form-card-sub">
+            （最多9张）
+          </text>
         </text>
-        <text class="upload-desc">请上传您的代表作品照片，展示您的技艺水平</text>
+        <text class="upload-desc">
+          请上传您的代表作品照片，展示您的技艺水平
+        </text>
         <view class="upload-grid three-cols">
-          <view v-for="(url, idx) in works" :key="idx" class="upload-item">
-            <image :src="url" class="upload-img" mode="aspectFill" />
-            <text class="upload-remove" @click="removeWork(idx)">✕</text>
+          <view
+            v-for="(url, idx) in works"
+            :key="idx"
+            class="upload-item"
+          >
+            <image
+              :src="url"
+              class="upload-img"
+              mode="aspectFill"
+            />
+            <text
+              class="upload-remove"
+              @click="removeWork(idx)"
+            >
+              ✕
+            </text>
           </view>
-          <view v-if="works.length < 9" class="upload-add" @click="uploadWork">
-            <text class="upload-add-icon">📷</text>
-            <text class="upload-add-text">上传作品</text>
+          <view
+            v-if="works.length < 9"
+            class="upload-add"
+            @click="uploadWork"
+          >
+            <text class="upload-add-icon">
+              📷
+            </text>
+            <text class="upload-add-text">
+              上传作品
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 认证权益 -->
       <view class="benefits-card">
-        <text class="form-card-title">认证后您将获得</text>
+        <text class="form-card-title">
+          认证后您将获得
+        </text>
         <view class="benefits-grid">
-          <view v-for="b in benefits" :key="b.text" class="benefit-item">
-            <text class="benefit-icon">{{ b.icon }}</text>
-            <text class="benefit-text">{{ b.text }}</text>
+          <view
+            v-for="b in benefits"
+            :key="b.text"
+            class="benefit-item"
+          >
+            <text class="benefit-icon">
+              {{ b.icon }}
+            </text>
+            <text class="benefit-text">
+              {{ b.text }}
+            </text>
           </view>
         </view>
       </view>
@@ -136,13 +278,18 @@
         >
           {{ submitting ? '提交中...' : '提交认证申请' }}
         </view>
-        <text class="submit-tip">提交即表示您同意《非遗传承人认证协议》</text>
+        <text class="submit-tip">
+          提交即表示您同意《非遗传承人认证协议》
+        </text>
       </view>
       <view class="bottom-spacer" />
     </view>
 
     <!-- 认证进度 -->
-    <view v-if="activeTab === 'status'" class="status-content">
+    <view
+      v-if="activeTab === 'status'"
+      class="status-content"
+    >
       <DataState
         :is-loading="false"
         :is-empty="verifyStatus.status === 'none'"
@@ -154,60 +301,128 @@
         @empty-action="activeTab = 'apply'"
       >
         <!-- 状态卡片 -->
-        <view class="status-card" :class="'sc-' + verifyStatus.status">
+        <view
+          class="status-card"
+          :class="'sc-' + verifyStatus.status"
+        >
           <view class="status-card-icon-wrap">
-            <text class="status-card-icon">{{ statusIcon }}</text>
+            <text class="status-card-icon">
+              {{ statusIcon }}
+            </text>
           </view>
           <view class="status-card-body">
-            <text class="status-card-title">{{ statusTitle }}</text>
-            <text class="status-card-desc">{{ statusDesc }}</text>
+            <text class="status-card-title">
+              {{ statusTitle }}
+            </text>
+            <text class="status-card-desc">
+              {{ statusDesc }}
+            </text>
           </view>
-          <view v-if="verifyStatus.status === 'approved'" class="status-card-footer">
+          <view
+            v-if="verifyStatus.status === 'approved'"
+            class="status-card-footer"
+          >
             <view class="status-card-row">
-              <text class="status-card-row-label">证书编号</text>
-              <text class="status-card-row-value">{{ verifyStatus.certificateNo }}</text>
+              <text class="status-card-row-label">
+                证书编号
+              </text>
+              <text class="status-card-row-value">
+                {{ verifyStatus.certificateNo }}
+              </text>
             </view>
             <view class="status-card-row">
-              <text class="status-card-row-label">认证时间</text>
-              <text class="status-card-row-value">{{ verifyStatus.verifiedAt }}</text>
+              <text class="status-card-row-label">
+                认证时间
+              </text>
+              <text class="status-card-row-value">
+                {{ verifyStatus.verifiedAt }}
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 审核进度 -->
-        <view v-if="verifyStatus.status === 'pending'" class="progress-card">
-          <text class="section-title">审核进度</text>
-          <view v-for="(s, idx) in progressSteps" :key="idx" class="progress-step">
-            <view class="progress-dot" :class="{ done: s.done }">
-              <text v-if="s.done" class="progress-dot-check">✓</text>
-              <text v-else>{{ idx + 1 }}</text>
+        <view
+          v-if="verifyStatus.status === 'pending'"
+          class="progress-card"
+        >
+          <text class="section-title">
+            审核进度
+          </text>
+          <view
+            v-for="(s, idx) in progressSteps"
+            :key="idx"
+            class="progress-step"
+          >
+            <view
+              class="progress-dot"
+              :class="{ done: s.done }"
+            >
+              <text
+                v-if="s.done"
+                class="progress-dot-check"
+              >
+                ✓
+              </text>
+              <text v-else>
+                {{ idx + 1 }}
+              </text>
             </view>
             <view class="progress-info">
-              <text class="progress-step-label" :class="{ done: s.done }">{{ s.step }}</text>
-              <text v-if="s.time" class="progress-step-time">{{ s.time }}</text>
+              <text
+                class="progress-step-label"
+                :class="{ done: s.done }"
+              >
+                {{ s.step }}
+              </text>
+              <text
+                v-if="s.time"
+                class="progress-step-time"
+              >
+                {{ s.time }}
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 认证标识预览 -->
-        <view v-if="verifyStatus.status === 'approved'" class="badge-preview-card">
-          <text class="section-title">您的认证标识</text>
+        <view
+          v-if="verifyStatus.status === 'approved'"
+          class="badge-preview-card"
+        >
+          <text class="section-title">
+            您的认证标识
+          </text>
           <view class="badge-preview">
             <view class="badge-icon-wrap">
-              <text class="badge-icon">🏅</text>
+              <text class="badge-icon">
+                🏅
+              </text>
             </view>
             <view>
               <view class="badge-name-row">
-                <text class="badge-name">非遗传承人</text>
-                <text class="badge-tag">官方认证</text>
+                <text class="badge-name">
+                  非遗传承人
+                </text>
+                <text class="badge-tag">
+                  官方认证
+                </text>
               </view>
-              <text class="badge-project">{{ form.projectName }} · {{ levelName }}</text>
+              <text class="badge-project">
+                {{ form.projectName }} · {{ levelName }}
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 重新申请 -->
-        <view v-if="verifyStatus.status === 'rejected'" class="btn-reapply" @click="activeTab = 'apply'">重新提交申请</view>
+        <view
+          v-if="verifyStatus.status === 'rejected'"
+          class="btn-reapply"
+          @click="activeTab = 'apply'"
+        >
+          重新提交申请
+        </view>
       </DataState>
     </view>
   </view>

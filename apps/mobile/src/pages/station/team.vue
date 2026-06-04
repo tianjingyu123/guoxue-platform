@@ -3,44 +3,100 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-left">
-        <text class="back-btn" @click="uni.navigateBack">‹</text>
-        <text class="header-title">团队管理</text>
+        <text
+          class="back-btn"
+          @click="uni.navigateBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          团队管理
+        </text>
       </view>
-      <text class="header-action" @click="showInvite = true">👥 邀请下级</text>
+      <text
+        class="header-action"
+        @click="showInvite = true"
+      >
+        👥 邀请下级
+      </text>
     </view>
 
-    <scroll-view scroll-y class="scroll-area">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
       <!-- 概览卡片 -->
-      <view class="overview" v-if="data">
+      <view
+        v-if="data"
+        class="overview"
+      >
         <view class="overview-grid">
           <view class="ov-item">
-            <text class="ov-icon">👥</text>
-            <text class="ov-val">{{ data.overview?.totalMembers || 0 }}</text>
-            <text class="ov-label">团队总人数</text>
-            <text class="ov-change" v-if="data.overview?.newMembersThisMonth">本月 +{{ data.overview.newMembersThisMonth }}</text>
+            <text class="ov-icon">
+              👥
+            </text>
+            <text class="ov-val">
+              {{ data.overview?.totalMembers || 0 }}
+            </text>
+            <text class="ov-label">
+              团队总人数
+            </text>
+            <text
+              v-if="data.overview?.newMembersThisMonth"
+              class="ov-change"
+            >
+              本月 +{{ data.overview.newMembersThisMonth }}
+            </text>
           </view>
           <view class="ov-item">
-            <text class="ov-icon">💰</text>
-            <text class="ov-val" style="color:#C41E3A">{{ formatMoney(data.overview?.totalCommission) }}</text>
-            <text class="ov-label">累计佣金</text>
+            <text class="ov-icon">
+              💰
+            </text>
+            <text
+              class="ov-val"
+              style="color:#C41E3A"
+            >
+              {{ formatMoney(data.overview?.totalCommission) }}
+            </text>
+            <text class="ov-label">
+              累计佣金
+            </text>
           </view>
           <view class="ov-item">
-            <text class="ov-icon">📊</text>
-            <text class="ov-val">{{ data.overview?.commissionRate || 0 }}%</text>
-            <text class="ov-label">提成比例</text>
-            <text class="ov-change">{{ data.overview?.myLevel || '' }}</text>
+            <text class="ov-icon">
+              📊
+            </text>
+            <text class="ov-val">
+              {{ data.overview?.commissionRate || 0 }}%
+            </text>
+            <text class="ov-label">
+              提成比例
+            </text>
+            <text class="ov-change">
+              {{ data.overview?.myLevel || '' }}
+            </text>
           </view>
           <view class="ov-item">
-            <text class="ov-icon">📈</text>
+            <text class="ov-icon">
+              📈
+            </text>
             <view class="ov-progress">
               <view class="progress-track">
-                <view class="progress-fill" :style="{ width: progressPct + '%' }" />
+                <view
+                  class="progress-fill"
+                  :style="{ width: progressPct + '%' }"
+                />
               </view>
-              <text class="progress-text" v-if="data.overview?.nextLevelRequirement">
+              <text
+                v-if="data.overview?.nextLevelRequirement"
+                class="progress-text"
+              >
                 还需 {{ formatMoney(data.overview.nextLevelRequirement - data.overview.totalCommission) }} 元
               </text>
             </view>
-            <text class="ov-label">升级进度</text>
+            <text class="ov-label">
+              升级进度
+            </text>
           </view>
         </view>
       </view>
@@ -53,134 +109,330 @@
           class="tab"
           :class="{ 'tab-active': activeTab === t.value }"
           @click="switchTab(t.value)"
-        >{{ t.label }}</text>
+        >
+          {{ t.label }}
+        </text>
       </view>
 
       <!-- 成员列表 -->
-      <view v-if="activeTab === 'members'" class="tab-content">
+      <view
+        v-if="activeTab === 'members'"
+        class="tab-content"
+      >
         <!-- 筛选栏 -->
         <view class="member-filters">
-          <view class="filter-select" @click="showMemberFilter = !showMemberFilter">
+          <view
+            class="filter-select"
+            @click="showMemberFilter = !showMemberFilter"
+          >
             <text>{{ memberFilterLabel }}</text>
-            <text class="filter-arrow">▼</text>
+            <text class="filter-arrow">
+              ▼
+            </text>
           </view>
-          <view class="filter-select" @click="showMemberSort = !showMemberSort">
+          <view
+            class="filter-select"
+            @click="showMemberSort = !showMemberSort"
+          >
             <text>{{ memberSortLabel }}</text>
-            <text class="filter-arrow">▼</text>
+            <text class="filter-arrow">
+              ▼
+            </text>
           </view>
         </view>
-        <view v-if="showMemberFilter" class="filter-dropdown">
-          <text v-for="f in memberFilterOptions" :key="f.value" class="filter-option" :class="{ active: memberFilter === f.value }" @click="setMemberFilter(f.value)">{{ f.label }}</text>
+        <view
+          v-if="showMemberFilter"
+          class="filter-dropdown"
+        >
+          <text
+            v-for="f in memberFilterOptions"
+            :key="f.value"
+            class="filter-option"
+            :class="{ active: memberFilter === f.value }"
+            @click="setMemberFilter(f.value)"
+          >
+            {{ f.label }}
+          </text>
         </view>
-        <view v-if="showMemberSort" class="filter-dropdown">
-          <text v-for="f in memberSortOptions" :key="f.value" class="filter-option" :class="{ active: memberSort === f.value }" @click="setMemberSort(f.value)">{{ f.label }}</text>
+        <view
+          v-if="showMemberSort"
+          class="filter-dropdown"
+        >
+          <text
+            v-for="f in memberSortOptions"
+            :key="f.value"
+            class="filter-option"
+            :class="{ active: memberSort === f.value }"
+            @click="setMemberSort(f.value)"
+          >
+            {{ f.label }}
+          </text>
         </view>
 
         <view class="member-list">
-          <view v-for="m in members" :key="m.id" class="member-card" @click="viewMemberDetail(m)">
-            <image :src="m.avatar" class="member-avatar" mode="aspectFill" />
+          <view
+            v-for="m in members"
+            :key="m.id"
+            class="member-card"
+            @click="viewMemberDetail(m)"
+          >
+            <image
+              :src="m.avatar"
+              class="member-avatar"
+              mode="aspectFill"
+            />
             <view class="member-info">
               <view class="member-top">
-                <text class="member-name">{{ m.nickname }}</text>
-                <text class="member-level">{{ m.levelIcon || '' }} {{ m.level || '' }}</text>
-                <text v-if="m.status === 'inactive'" class="member-status-tag">不活跃</text>
+                <text class="member-name">
+                  {{ m.nickname }}
+                </text>
+                <text class="member-level">
+                  {{ m.levelIcon || '' }} {{ m.level || '' }}
+                </text>
+                <text
+                  v-if="m.status === 'inactive'"
+                  class="member-status-tag"
+                >
+                  不活跃
+                </text>
               </view>
-              <text class="member-contact">{{ m.phone || '' }} · 加入于 {{ m.joinDate || '' }}</text>
+              <text class="member-contact">
+                {{ m.phone || '' }} · 加入于 {{ m.joinDate || '' }}
+              </text>
               <view class="member-stats">
-                <text>佣金 <text class="member-stat-val">{{ formatMoney(m.totalCommission) }}</text></text>
-                <text>邀请 <text class="member-stat-val">{{ m.inviteCount || 0 }}</text> 人</text>
+                <text>
+                  佣金 <text class="member-stat-val">
+                    {{ formatMoney(m.totalCommission) }}
+                  </text>
+                </text>
+                <text>
+                  邀请 <text class="member-stat-val">
+                    {{ m.inviteCount || 0 }}
+                  </text> 人
+                </text>
               </view>
             </view>
-            <text class="member-arrow">›</text>
+            <text class="member-arrow">
+              ›
+            </text>
           </view>
-          <view v-if="members.length === 0" class="empty-state">
-            <text class="empty-icon">👥</text>
-            <text class="empty-text">暂无团队成员</text>
-            <text class="empty-action" @click="showInvite = true">立即邀请下级</text>
+          <view
+            v-if="members.length === 0"
+            class="empty-state"
+          >
+            <text class="empty-icon">
+              👥
+            </text>
+            <text class="empty-text">
+              暂无团队成员
+            </text>
+            <text
+              class="empty-action"
+              @click="showInvite = true"
+            >
+              立即邀请下级
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 排行榜 -->
-      <view v-if="activeTab === 'leaderboard'" class="tab-content">
+      <view
+        v-if="activeTab === 'leaderboard'"
+        class="tab-content"
+      >
         <view class="period-selector">
-          <text v-for="p in periodOptions" :key="p.value" class="period-btn" :class="{ 'period-active': leaderboardPeriod === p.value }" @click="switchPeriod(p.value)">{{ p.label }}</text>
+          <text
+            v-for="p in periodOptions"
+            :key="p.value"
+            class="period-btn"
+            :class="{ 'period-active': leaderboardPeriod === p.value }"
+            @click="switchPeriod(p.value)"
+          >
+            {{ p.label }}
+          </text>
         </view>
         <view class="rank-list">
-          <view v-for="(item, idx) in leaderboard" :key="item.userId || idx" class="rank-card" :class="{ 'rank-top3': item.rank <= 3 }">
-            <view class="rank-num" :class="'rank-num-' + item.rank">{{ item.rank }}</view>
-            <image :src="item.avatar" class="rank-avatar" mode="aspectFill" />
+          <view
+            v-for="(item, idx) in leaderboard"
+            :key="item.userId || idx"
+            class="rank-card"
+            :class="{ 'rank-top3': item.rank <= 3 }"
+          >
+            <view
+              class="rank-num"
+              :class="'rank-num-' + item.rank"
+            >
+              {{ item.rank }}
+            </view>
+            <image
+              :src="item.avatar"
+              class="rank-avatar"
+              mode="aspectFill"
+            />
             <view class="rank-info">
               <view class="rank-name-row">
-                <text class="rank-name">{{ item.nickname }}</text>
-                <text class="rank-icon" v-if="item.rank === 1">🏆</text>
-                <text class="rank-icon" v-else-if="item.rank === 2">🥈</text>
-                <text class="rank-icon" v-else-if="item.rank === 3">🥉</text>
+                <text class="rank-name">
+                  {{ item.nickname }}
+                </text>
+                <text
+                  v-if="item.rank === 1"
+                  class="rank-icon"
+                >
+                  🏆
+                </text>
+                <text
+                  v-else-if="item.rank === 2"
+                  class="rank-icon"
+                >
+                  🥈
+                </text>
+                <text
+                  v-else-if="item.rank === 3"
+                  class="rank-icon"
+                >
+                  🥉
+                </text>
               </view>
-              <text class="rank-level">{{ item.level || '' }}</text>
+              <text class="rank-level">
+                {{ item.level || '' }}
+              </text>
             </view>
             <view class="rank-value-wrap">
-              <text class="rank-value">{{ item.value?.toFixed(2) }}</text>
-              <text class="rank-change" :class="(item.change || 0) > 0 ? 'up' : 'down'">
+              <text class="rank-value">
+                {{ item.value?.toFixed(2) }}
+              </text>
+              <text
+                class="rank-change"
+                :class="(item.change || 0) > 0 ? 'up' : 'down'"
+              >
                 {{ item.change || 0 > 0 ? '+' : '' }}{{ item.change || 0 }}
               </text>
             </view>
           </view>
         </view>
-        <view v-if="myRank" class="my-rank-card">
-          <text class="my-rank-label">我的排名</text>
-          <text class="my-rank-val">第 {{ myRank }} 名</text>
+        <view
+          v-if="myRank"
+          class="my-rank-card"
+        >
+          <text class="my-rank-label">
+            我的排名
+          </text>
+          <text class="my-rank-val">
+            第 {{ myRank }} 名
+          </text>
         </view>
       </view>
 
       <!-- 团队动态 -->
-      <view v-if="activeTab === 'activities'" class="tab-content">
+      <view
+        v-if="activeTab === 'activities'"
+        class="tab-content"
+      >
         <view class="timeline">
           <view class="timeline-line" />
-          <view v-for="a in activities" :key="a.id" class="timeline-item">
+          <view
+            v-for="a in activities"
+            :key="a.id"
+            class="timeline-item"
+          >
             <view class="timeline-dot" />
             <view class="timeline-card">
               <view class="tl-header">
-                <image :src="a.userAvatar" class="tl-avatar" mode="aspectFill" />
+                <image
+                  :src="a.userAvatar"
+                  class="tl-avatar"
+                  mode="aspectFill"
+                />
                 <view class="tl-info">
-                  <text class="tl-name">{{ a.userNickname }}</text>
-                  <text class="tl-text">{{ a.content }}</text>
+                  <text class="tl-name">
+                    {{ a.userNickname }}
+                  </text>
+                  <text class="tl-text">
+                    {{ a.content }}
+                  </text>
                 </view>
               </view>
-              <text v-if="a.amount" class="tl-amount">+{{ a.amount?.toFixed(2) }} 元</text>
-              <text class="tl-time">🕐 {{ a.createdAt }}</text>
+              <text
+                v-if="a.amount"
+                class="tl-amount"
+              >
+                +{{ a.amount?.toFixed(2) }} 元
+              </text>
+              <text class="tl-time">
+                🕐 {{ a.createdAt }}
+              </text>
             </view>
           </view>
-          <view v-if="activities.length === 0" class="empty-state">
-            <text class="empty-icon">🕐</text>
-            <text class="empty-text">暂无团队动态</text>
+          <view
+            v-if="activities.length === 0"
+            class="empty-state"
+          >
+            <text class="empty-icon">
+              🕐
+            </text>
+            <text class="empty-text">
+              暂无团队动态
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 成功案例 -->
-      <view v-if="activeTab === 'cases'" class="tab-content">
-        <view v-for="c in successCases" :key="c.id" class="case-card">
+      <view
+        v-if="activeTab === 'cases'"
+        class="tab-content"
+      >
+        <view
+          v-for="c in successCases"
+          :key="c.id"
+          class="case-card"
+        >
           <view class="case-header">
-            <image :src="c.avatar" class="case-avatar" mode="aspectFill" />
+            <image
+              :src="c.avatar"
+              class="case-avatar"
+              mode="aspectFill"
+            />
             <view class="case-info">
-              <text class="case-name">{{ c.nickname }}</text>
+              <text class="case-name">
+                {{ c.nickname }}
+              </text>
               <view class="case-tags-row">
-                <text class="case-badge">{{ c.achievement || '' }}</text>
-                <text class="case-duration">加入 {{ c.duration || '' }}</text>
+                <text class="case-badge">
+                  {{ c.achievement || '' }}
+                </text>
+                <text class="case-duration">
+                  加入 {{ c.duration || '' }}
+                </text>
               </view>
             </view>
           </view>
-          <text class="case-title">{{ c.title }}</text>
-          <text class="case-desc">{{ c.description }}</text>
+          <text class="case-title">
+            {{ c.title }}
+          </text>
+          <text class="case-desc">
+            {{ c.description }}
+          </text>
           <view class="case-footer">
-            <text class="case-earn-label">累计收益</text>
-            <text class="case-earn-val">{{ formatMoney(c.totalEarnings) }}</text>
+            <text class="case-earn-label">
+              累计收益
+            </text>
+            <text class="case-earn-val">
+              {{ formatMoney(c.totalEarnings) }}
+            </text>
           </view>
         </view>
-        <view v-if="successCases.length === 0" class="empty-state">
-          <text class="empty-icon">⭐</text>
-          <text class="empty-text">暂无成功案例</text>
+        <view
+          v-if="successCases.length === 0"
+          class="empty-state"
+        >
+          <text class="empty-icon">
+            ⭐
+          </text>
+          <text class="empty-text">
+            暂无成功案例
+          </text>
         </view>
       </view>
 
@@ -188,57 +440,138 @@
     </scroll-view>
 
     <!-- 邀请弹窗 -->
-    <view v-if="showInvite" class="dialog-overlay" @click="showInvite = false">
-      <view class="dialog-content" @click.stop>
-        <text class="dialog-title">邀请下级</text>
+    <view
+      v-if="showInvite"
+      class="dialog-overlay"
+      @click="showInvite = false"
+    >
+      <view
+        class="dialog-content"
+        @click.stop
+      >
+        <text class="dialog-title">
+          邀请下级
+        </text>
         <view class="invite-qrcode">
-          <image v-if="inviteQrcode" :src="inviteQrcode" class="invite-qr-img" mode="aspectFit" />
-          <view v-else class="invite-qr-placeholder">📱</view>
+          <image
+            v-if="inviteQrcode"
+            :src="inviteQrcode"
+            class="invite-qr-img"
+            mode="aspectFit"
+          />
+          <view
+            v-else
+            class="invite-qr-placeholder"
+          >
+            📱
+          </view>
         </view>
-        <text class="invite-tip">扫码加入我的团队</text>
+        <text class="invite-tip">
+          扫码加入我的团队
+        </text>
         <view class="invite-link-row">
-          <input :value="inviteLink" class="invite-link-input" readonly />
-          <text class="invite-copy-btn" @click="copyInviteLink">复制</text>
+          <input
+            :value="inviteLink"
+            class="invite-link-input"
+            readonly
+          >
+          <text
+            class="invite-copy-btn"
+            @click="copyInviteLink"
+          >
+            复制
+          </text>
         </view>
-        <text class="invite-share-btn">📤 分享邀请海报</text>
+        <text class="invite-share-btn">
+          📤 分享邀请海报
+        </text>
       </view>
     </view>
 
     <!-- 成员详情弹窗 -->
-    <view v-if="showMemberDetail" class="dialog-overlay" @click="showMemberDetail = false">
-      <view class="dialog-content member-detail" @click.stop>
-        <text class="dialog-title">成员详情</text>
+    <view
+      v-if="showMemberDetail"
+      class="dialog-overlay"
+      @click="showMemberDetail = false"
+    >
+      <view
+        class="dialog-content member-detail"
+        @click.stop
+      >
+        <text class="dialog-title">
+          成员详情
+        </text>
         <view class="md-header">
-          <image :src="selectedMember?.avatar" class="md-avatar" mode="aspectFill" />
+          <image
+            :src="selectedMember?.avatar"
+            class="md-avatar"
+            mode="aspectFill"
+          />
           <view class="md-info">
-            <text class="md-name">{{ selectedMember?.nickname }}</text>
-            <text class="md-level">{{ selectedMember?.levelIcon || '' }} {{ selectedMember?.level || '' }}</text>
-            <text class="md-date">加入于 {{ selectedMember?.joinDate || '' }}</text>
+            <text class="md-name">
+              {{ selectedMember?.nickname }}
+            </text>
+            <text class="md-level">
+              {{ selectedMember?.levelIcon || '' }} {{ selectedMember?.level || '' }}
+            </text>
+            <text class="md-date">
+              加入于 {{ selectedMember?.joinDate || '' }}
+            </text>
           </view>
         </view>
         <view class="md-stats">
           <view class="md-stat">
-            <text class="md-stat-val" style="color:#C41E3A">{{ formatMoney(selectedMember?.totalCommission) }}</text>
-            <text class="md-stat-label">累计佣金</text>
+            <text
+              class="md-stat-val"
+              style="color:#C41E3A"
+            >
+              {{ formatMoney(selectedMember?.totalCommission) }}
+            </text>
+            <text class="md-stat-label">
+              累计佣金
+            </text>
           </view>
           <view class="md-stat">
-            <text class="md-stat-val">{{ formatMoney(selectedMember?.thisMonthCommission) }}</text>
-            <text class="md-stat-label">本月佣金</text>
+            <text class="md-stat-val">
+              {{ formatMoney(selectedMember?.thisMonthCommission) }}
+            </text>
+            <text class="md-stat-label">
+              本月佣金
+            </text>
           </view>
           <view class="md-stat">
-            <text class="md-stat-val">{{ selectedMember?.inviteCount || 0 }}</text>
-            <text class="md-stat-label">邀请人数</text>
+            <text class="md-stat-val">
+              {{ selectedMember?.inviteCount || 0 }}
+            </text>
+            <text class="md-stat-label">
+              邀请人数
+            </text>
           </view>
         </view>
         <!-- 近期订单 -->
-        <view class="md-section" v-if="memberDetailData?.recentOrders?.length">
-          <text class="md-section-title">近期推广订单</text>
-          <view v-for="o in memberDetailData.recentOrders" :key="o.id" class="md-order">
+        <view
+          v-if="memberDetailData?.recentOrders?.length"
+          class="md-section"
+        >
+          <text class="md-section-title">
+            近期推广订单
+          </text>
+          <view
+            v-for="o in memberDetailData.recentOrders"
+            :key="o.id"
+            class="md-order"
+          >
             <view class="md-order-info">
-              <text class="md-order-amount">订单金额 {{ o.amount }} 元</text>
-              <text class="md-order-time">{{ o.time }}</text>
+              <text class="md-order-amount">
+                订单金额 {{ o.amount }} 元
+              </text>
+              <text class="md-order-time">
+                {{ o.time }}
+              </text>
             </view>
-            <text class="md-order-comm">+{{ o.commission?.toFixed(2) }}</text>
+            <text class="md-order-comm">
+              +{{ o.commission?.toFixed(2) }}
+            </text>
           </view>
         </view>
       </view>

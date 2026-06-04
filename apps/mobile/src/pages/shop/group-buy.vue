@@ -1,32 +1,75 @@
 <template>
   <view class="page">
-    <view v-if="loading" class="loading-state"><text class="loading-text">加载中...</text></view>
+    <view
+      v-if="loading"
+      class="loading-state"
+    >
+      <text class="loading-text">
+        加载中...
+      </text>
+    </view>
 
     <template v-else>
-      <view v-if="activeBuys.length" class="section">
+      <view
+        v-if="activeBuys.length"
+        class="section"
+      >
         <view class="section-header">
-          <text class="section-title">👥 拼团优惠</text>
-          <text class="section-sub">{{ activeBuys.length }}个活动进行中</text>
+          <text class="section-title">
+            👥 拼团优惠
+          </text>
+          <text class="section-sub">
+            {{ activeBuys.length }}个活动进行中
+          </text>
         </view>
-        <view v-for="gb in activeBuys" :key="gb.id" class="gb-card" @click="goDetail(gb)">
-          <image :src="gb.cover || gb.images?.[0]" class="gb-img" mode="aspectFill" />
+        <view
+          v-for="gb in activeBuys"
+          :key="gb.id"
+          class="gb-card"
+          @click="goDetail(gb)"
+        >
+          <image
+            :src="gb.cover || gb.images?.[0]"
+            class="gb-img"
+            mode="aspectFill"
+          />
           <view class="gb-info">
-            <text class="gb-name">{{ gb.title || gb.name }}</text>
+            <text class="gb-name">
+              {{ gb.title || gb.name }}
+            </text>
             <view class="gb-price-row">
-              <text class="gb-price">¥{{ gb.groupPrice }}</text>
-              <text class="gb-original">¥{{ gb.originalPrice }}</text>
+              <text class="gb-price">
+                ¥{{ gb.groupPrice }}
+              </text>
+              <text class="gb-original">
+                ¥{{ gb.originalPrice }}
+              </text>
             </view>
             <view class="gb-meta">
-              <text class="gb-count">{{ gb.minCount }}人成团</text>
-              <text class="gb-joined">{{ gb.joinedCount || 0 }}人参团</text>
+              <text class="gb-count">
+                {{ gb.minCount }}人成团
+              </text>
+              <text class="gb-joined">
+                {{ gb.joinedCount || 0 }}人参团
+              </text>
             </view>
           </view>
-          <view class="gb-btn" @click.stop="joinBuy(gb)">去拼团</view>
+          <view
+            class="gb-btn"
+            @click.stop="joinBuy(gb)"
+          >
+            去拼团
+          </view>
         </view>
       </view>
 
-      <view v-if="!loading && !activeBuys.length" class="empty">
-        <text class="empty-icon">👥</text>
+      <view
+        v-if="!loading && !activeBuys.length"
+        class="empty"
+      >
+        <text class="empty-icon">
+          👥
+        </text>
         <text>暂无拼团活动</text>
       </view>
     </template>

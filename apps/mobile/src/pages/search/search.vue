@@ -3,7 +3,9 @@
     <!-- 搜索栏 -->
     <view class="search-bar">
       <view class="search-input-wrap">
-        <text class="search-icon">🔍</text>
+        <text class="search-icon">
+          🔍
+        </text>
         <input
           v-model="keyword"
           placeholder="搜索国学经典、文章、课程..."
@@ -12,14 +14,28 @@
           @input="onInput"
           @focus="onFocus"
           @blur="onBlur"
-        />
-        <text v-if="keyword" class="clear-btn" @click.stop="clearKeyword">✕</text>
+        >
+        <text
+          v-if="keyword"
+          class="clear-btn"
+          @click.stop="clearKeyword"
+        >
+          ✕
+        </text>
       </view>
-      <text class="search-btn" @click="doSearch">搜索</text>
+      <text
+        class="search-btn"
+        @click="doSearch"
+      >
+        搜索
+      </text>
     </view>
 
     <!-- 搜索建议下拉 -->
-    <view v-if="showSuggest && suggestions.length > 0" class="suggest-list">
+    <view
+      v-if="showSuggest && suggestions.length > 0"
+      class="suggest-list"
+    >
       <view
         v-for="(s, i) in suggestions"
         :key="i"
@@ -27,24 +43,54 @@
         @touchstart.stop="selectSuggest(s)"
         @mousedown.stop="selectSuggest(s)"
       >
-        <text class="suggest-icon">🔍</text>
-        <text class="suggest-text">{{ s }}</text>
-        <text class="suggest-arrow">↗</text>
+        <text class="suggest-icon">
+          🔍
+        </text>
+        <text class="suggest-text">
+          {{ s }}
+        </text>
+        <text class="suggest-arrow">
+          ↗
+        </text>
       </view>
     </view>
 
     <!-- 初始状态：热搜 + 历史 -->
     <view v-if="!searched && !showSuggest">
       <!-- 搜索历史 -->
-      <view v-if="historyWords.length > 0" class="section-card">
+      <view
+        v-if="historyWords.length > 0"
+        class="section-card"
+      >
         <view class="section-header">
-          <text class="section-title">🕐 搜索历史</text>
-          <text class="section-action" @click="clearAllHistory">清除全部</text>
+          <text class="section-title">
+            🕐 搜索历史
+          </text>
+          <text
+            class="section-action"
+            @click="clearAllHistory"
+          >
+            清除全部
+          </text>
         </view>
         <view class="tag-list">
-          <view v-for="(h, i) in historyWords" :key="i" class="tag-with-del">
-            <text class="hot-tag" @click="clickHistory(h)">{{ h }}</text>
-            <text class="tag-del" @click.stop="removeHistory(i)">✕</text>
+          <view
+            v-for="(h, i) in historyWords"
+            :key="i"
+            class="tag-with-del"
+          >
+            <text
+              class="hot-tag"
+              @click="clickHistory(h)"
+            >
+              {{ h }}
+            </text>
+            <text
+              class="tag-del"
+              @click.stop="removeHistory(i)"
+            >
+              ✕
+            </text>
           </view>
         </view>
       </view>
@@ -52,12 +98,24 @@
       <!-- 热门搜索 -->
       <view class="section-card">
         <view class="section-header">
-          <text class="section-title">🔥 热门搜索</text>
+          <text class="section-title">
+            🔥 热门搜索
+          </text>
         </view>
-        <view v-if="loadingHot" class="tag-list">
-          <text v-for="i in 8" :key="i" class="hot-tag-skeleton" />
+        <view
+          v-if="loadingHot"
+          class="tag-list"
+        >
+          <text
+            v-for="i in 8"
+            :key="i"
+            class="hot-tag-skeleton"
+          />
         </view>
-        <view v-else-if="hotWords.length > 0" class="tag-list">
+        <view
+          v-else-if="hotWords.length > 0"
+          class="tag-list"
+        >
           <text
             v-for="h in hotWords"
             :key="h.keyword || h"
@@ -65,10 +123,18 @@
             @click="clickHot(h.keyword || h)"
           >
             {{ h.keyword || h }}
-            <text v-if="h.count" class="hot-count">{{ formatCount(h.count) }}</text>
+            <text
+              v-if="h.count"
+              class="hot-count"
+            >
+              {{ formatCount(h.count) }}
+            </text>
           </text>
         </view>
-        <view v-else class="no-hot">
+        <view
+          v-else
+          class="no-hot"
+        >
           <text>暂无热门搜索</text>
         </view>
       </view>
@@ -78,24 +144,39 @@
     <view v-if="searched">
       <!-- 结果统计 -->
       <view class="result-stats">
-        <text>搜索 "<text class="stat-keyword">{{ searchKeyword }}</text>" 共找到 <text class="stat-num">{{ totalCount }}</text> 条结果</text>
+        <text>
+          搜索 "<text class="stat-keyword">
+            {{ searchKeyword }}
+          </text>" 共找到 <text class="stat-num">
+            {{ totalCount }}
+          </text> 条结果
+        </text>
       </view>
 
       <!-- Tab 切换 -->
       <view class="result-tabs">
-        <scroll-view scroll-x class="tabs-scroll" show-scrollbar="false">
+        <scroll-view
+          scroll-x
+          class="tabs-scroll"
+          show-scrollbar="false"
+        >
           <text
             v-for="t in tabs"
             :key="t.key"
             :class="{ active: tab === t.key }"
             class="tab-item"
             @click="switchTab(t.key)"
-          >{{ t.label }}</text>
+          >
+            {{ t.label }}
+          </text>
         </scroll-view>
       </view>
 
       <!-- 加载中 -->
-      <LoadingSkeleton v-if="loading && totalCount === 0" type="card" />
+      <LoadingSkeleton
+        v-if="loading && totalCount === 0"
+        type="card"
+      />
 
       <!-- 空状态 -->
       <EmptyState
@@ -103,15 +184,25 @@
         icon="🔍"
         text="未找到相关内容"
       >
-        <view v-if="hotWords.length > 0" class="empty-hot">
-          <text class="empty-hot-title">热门搜索：</text>
-          <view class="tag-list" style="justify-content: center;">
+        <view
+          v-if="hotWords.length > 0"
+          class="empty-hot"
+        >
+          <text class="empty-hot-title">
+            热门搜索：
+          </text>
+          <view
+            class="tag-list"
+            style="justify-content: center;"
+          >
             <text
               v-for="h in hotWords.slice(0, 6)"
               :key="h.keyword || h"
               class="hot-tag"
               @click="clickHot(h.keyword || h)"
-            >{{ h.keyword || h }}</text>
+            >
+              {{ h.keyword || h }}
+            </text>
           </view>
         </view>
       </EmptyState>
@@ -120,7 +211,12 @@
       <view v-if="!loading || results">
         <!-- 文章结果 -->
         <template v-if="displayArticles.length > 0">
-          <view v-if="tab === 'all'" class="result-group-title">📄 文章</view>
+          <view
+            v-if="tab === 'all'"
+            class="result-group-title"
+          >
+            📄 文章
+          </view>
           <ContentCard
             v-for="a in displayArticles"
             :key="a.id"
@@ -130,7 +226,12 @@
 
         <!-- 编辑内容结果 -->
         <template v-if="displayContents.length > 0">
-          <view v-if="tab === 'all'" class="result-group-title">📜 诗词经典</view>
+          <view
+            v-if="tab === 'all'"
+            class="result-group-title"
+          >
+            📜 诗词经典
+          </view>
           <ContentCard
             v-for="c in displayContents"
             :key="'content-' + c.id"
@@ -140,7 +241,12 @@
 
         <!-- 课程结果 -->
         <template v-if="displayCourses.length > 0">
-          <view v-if="tab === 'all'" class="result-group-title">📚 课程</view>
+          <view
+            v-if="tab === 'all'"
+            class="result-group-title"
+          >
+            📚 课程
+          </view>
           <CourseCard
             v-for="c in displayCourses"
             :key="c.id"
@@ -150,7 +256,12 @@
 
         <!-- 圈子结果 -->
         <template v-if="displayCircles.length > 0">
-          <view v-if="tab === 'all'" class="result-group-title">👥 圈子</view>
+          <view
+            v-if="tab === 'all'"
+            class="result-group-title"
+          >
+            👥 圈子
+          </view>
           <CircleCard
             v-for="c in displayCircles"
             :key="c.id"
@@ -160,7 +271,12 @@
 
         <!-- 古籍结果 -->
         <template v-if="displayClassics.length > 0">
-          <view v-if="tab === 'all'" class="result-group-title">📜 古籍</view>
+          <view
+            v-if="tab === 'all'"
+            class="result-group-title"
+          >
+            📜 古籍
+          </view>
           <view
             v-for="b in displayClassics"
             :key="'classic-' + b.id"
@@ -168,25 +284,51 @@
             @click="goReader(b)"
           >
             <view class="book-cover-wrap">
-              <image v-if="b.cover" :src="b.cover" class="book-cover" mode="aspectFill" />
-              <view v-else class="book-cover-placeholder">
-                <text class="plc-cat">{{ b.category || '典' }}</text>
+              <image
+                v-if="b.cover"
+                :src="b.cover"
+                class="book-cover"
+                mode="aspectFill"
+              />
+              <view
+                v-else
+                class="book-cover-placeholder"
+              >
+                <text class="plc-cat">
+                  {{ b.category || '典' }}
+                </text>
               </view>
             </view>
             <view class="book-body">
-              <text class="book-title">{{ b.title }}</text>
+              <text class="book-title">
+                {{ b.title }}
+              </text>
               <view class="book-meta">
-                <text class="book-author">{{ b.author || '佚名' }}</text>
-                <text v-if="b.dynasty" class="book-dynasty">{{ b.dynasty }}</text>
+                <text class="book-author">
+                  {{ b.author || '佚名' }}
+                </text>
+                <text
+                  v-if="b.dynasty"
+                  class="book-dynasty"
+                >
+                  {{ b.dynasty }}
+                </text>
               </view>
-              <text class="book-intro">{{ b.intro || '' }}</text>
+              <text class="book-intro">
+                {{ b.intro || '' }}
+              </text>
             </view>
           </view>
         </template>
 
         <!-- 电子书结果 -->
         <template v-if="displayEbooks.length > 0">
-          <view v-if="tab === 'all'" class="result-group-title">📖 电子书</view>
+          <view
+            v-if="tab === 'all'"
+            class="result-group-title"
+          >
+            📖 电子书
+          </view>
           <view
             v-for="b in displayEbooks"
             :key="'ebook-' + b.id"
@@ -194,27 +336,56 @@
             @click="goEbookDetail(b)"
           >
             <view class="book-cover-wrap">
-              <image v-if="b.cover" :src="b.cover" class="book-cover" mode="aspectFill" />
-              <view v-else class="book-cover-placeholder">
-                <text class="plc-cat">📖</text>
+              <image
+                v-if="b.cover"
+                :src="b.cover"
+                class="book-cover"
+                mode="aspectFill"
+              />
+              <view
+                v-else
+                class="book-cover-placeholder"
+              >
+                <text class="plc-cat">
+                  📖
+                </text>
               </view>
             </view>
             <view class="book-body">
-              <text class="book-title">{{ b.title }}</text>
+              <text class="book-title">
+                {{ b.title }}
+              </text>
               <view class="book-meta">
-                <text class="book-author">{{ b.author || '佚名' }}</text>
+                <text class="book-author">
+                  {{ b.author || '佚名' }}
+                </text>
               </view>
-              <text class="book-intro">{{ b.description || '' }}</text>
+              <text class="book-intro">
+                {{ b.description || '' }}
+              </text>
             </view>
           </view>
         </template>
 
         <!-- 加载更多 -->
-        <view v-if="hasMore && !loading" class="load-more-wrap">
-          <text class="load-more-btn" @click="loadMore">加载更多</text>
+        <view
+          v-if="hasMore && !loading"
+          class="load-more-wrap"
+        >
+          <text
+            class="load-more-btn"
+            @click="loadMore"
+          >
+            加载更多
+          </text>
         </view>
-        <view v-if="!hasMore && totalCount > 0" class="load-more-wrap">
-          <text class="no-more-text">— 已显示全部结果 —</text>
+        <view
+          v-if="!hasMore && totalCount > 0"
+          class="load-more-wrap"
+        >
+          <text class="no-more-text">
+            — 已显示全部结果 —
+          </text>
         </view>
       </view>
     </view>

@@ -2,55 +2,166 @@
   <view class="page">
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">我的收藏</text>
-        <text class="edit-btn" @click="toggleEdit">{{ isEditMode ? '完成' : '管理' }}</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          我的收藏
+        </text>
+        <text
+          class="edit-btn"
+          @click="toggleEdit"
+        >
+          {{ isEditMode ? '完成' : '管理' }}
+        </text>
       </view>
-      <scroll-view scroll-x class="tabs-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="tabs-scroll"
+        show-scrollbar="false"
+      >
         <view class="tabs-inner">
-          <text v-for="t in tabs" :key="t.id" class="tab" :class="{ active: activeTab === t.id }" @click="switchTab(t.id)">
-            {{ t.name }}<text class="tab-count">{{ t.count }}</text>
+          <text
+            v-for="t in tabs"
+            :key="t.id"
+            class="tab"
+            :class="{ active: activeTab === t.id }"
+            @click="switchTab(t.id)"
+          >
+            {{ t.name }}<text class="tab-count">
+              {{ t.count }}
+            </text>
           </text>
         </view>
       </scroll-view>
     </view>
 
-    <DataState :is-loading="loading" :is-empty="!favorites.length" empty-icon="❤" empty-title="暂无收藏" empty-description="还没有收藏任何内容" empty-action-text="去发现" @empty-action="goDiscover">
-      <view v-for="item in favorites" :key="item.id" class="fav-item">
-        <view v-if="isEditMode" class="check-box" :class="{ checked: selectedIds.includes(item.id) }" @click="toggleSelect(item.id)">
-          <text v-if="selectedIds.includes(item.id)">✓</text>
+    <DataState
+      :is-loading="loading"
+      :is-empty="!favorites.length"
+      empty-icon="❤"
+      empty-title="暂无收藏"
+      empty-description="还没有收藏任何内容"
+      empty-action-text="去发现"
+      @empty-action="goDiscover"
+    >
+      <view
+        v-for="item in favorites"
+        :key="item.id"
+        class="fav-item"
+      >
+        <view
+          v-if="isEditMode"
+          class="check-box"
+          :class="{ checked: selectedIds.includes(item.id) }"
+          @click="toggleSelect(item.id)"
+        >
+          <text v-if="selectedIds.includes(item.id)">
+            ✓
+          </text>
         </view>
-        <view class="fav-card" @click="isEditMode ? toggleSelect(item.id) : goItem(item)">
+        <view
+          class="fav-card"
+          @click="isEditMode ? toggleSelect(item.id) : goItem(item)"
+        >
           <view class="fc-cover">
-            <image v-if="item.cover" :src="item.cover" mode="aspectFill" class="fc-img" />
-            <view v-else class="fc-placeholder"><text class="fc-placeholder-icon">{{ typeIcon(item.type) }}</text></view>
+            <image
+              v-if="item.cover"
+              :src="item.cover"
+              mode="aspectFill"
+              class="fc-img"
+            />
+            <view
+              v-else
+              class="fc-placeholder"
+            >
+              <text class="fc-placeholder-icon">
+                {{ typeIcon(item.type) }}
+              </text>
+            </view>
           </view>
           <view class="fc-info">
             <view class="fc-tags">
-              <text class="fc-type-tag">{{ typeName(item.type) }}</text>
-              <text v-if="item.isInvalid" class="fc-invalid">已失效</text>
-              <text class="fc-date">{{ item.collectedAt?.split(' ')[0] }}</text>
+              <text class="fc-type-tag">
+                {{ typeName(item.type) }}
+              </text>
+              <text
+                v-if="item.isInvalid"
+                class="fc-invalid"
+              >
+                已失效
+              </text>
+              <text class="fc-date">
+                {{ item.collectedAt?.split(' ')[0] }}
+              </text>
             </view>
-            <text class="fc-title">{{ item.title }}</text>
-            <text class="fc-subtitle">{{ item.subtitle }}</text>
+            <text class="fc-title">
+              {{ item.title }}
+            </text>
+            <text class="fc-subtitle">
+              {{ item.subtitle }}
+            </text>
             <view class="fc-price-row">
-              <text v-if="item.price > 0" class="fc-price">¥{{ item.price }}</text>
-              <text v-if="item.originalPrice && item.originalPrice > item.price" class="fc-orig-price">¥{{ item.originalPrice }}</text>
-              <text v-else-if="!item.price" class="fc-free">免费</text>
+              <text
+                v-if="item.price > 0"
+                class="fc-price"
+              >
+                ¥{{ item.price }}
+              </text>
+              <text
+                v-if="item.originalPrice && item.originalPrice > item.price"
+                class="fc-orig-price"
+              >
+                ¥{{ item.originalPrice }}
+              </text>
+              <text
+                v-else-if="!item.price"
+                class="fc-free"
+              >
+                免费
+              </text>
             </view>
           </view>
         </view>
-        <text v-if="!isEditMode" class="fav-remove" @click="removeItem(item)">🗑</text>
+        <text
+          v-if="!isEditMode"
+          class="fav-remove"
+          @click="removeItem(item)"
+        >
+          🗑
+        </text>
       </view>
 
-      <view v-if="hasMore" class="load-more-btn" @click="loadFavorites(false)"><text>加载更多</text></view>
+      <view
+        v-if="hasMore"
+        class="load-more-btn"
+        @click="loadFavorites(false)"
+      >
+        <text>加载更多</text>
+      </view>
     </DataState>
 
     <!-- 底部操作栏（编辑模式） -->
-    <view v-if="isEditMode && selectedIds.length" class="bottom-edit-bar">
+    <view
+      v-if="isEditMode && selectedIds.length"
+      class="bottom-edit-bar"
+    >
       <view class="bottom-edit-inner">
-        <text class="select-all-btn" @click="selectAll">{{ selectedIds.length === favorites.length ? '取消全选' : '全选' }}</text>
-        <view class="batch-remove-btn" @click="batchRemove"><text>🗑 删除 ({{ selectedIds.length }})</text></view>
+        <text
+          class="select-all-btn"
+          @click="selectAll"
+        >
+          {{ selectedIds.length === favorites.length ? '取消全选' : '全选' }}
+        </text>
+        <view
+          class="batch-remove-btn"
+          @click="batchRemove"
+        >
+          <text>🗑 删除 ({{ selectedIds.length }})</text>
+        </view>
       </view>
     </view>
   </view>

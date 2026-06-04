@@ -3,15 +3,29 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-row">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title ellipsis">{{ station?.name || '驿站详情' }}</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title ellipsis">
+          {{ station?.name || '驿站详情' }}
+        </text>
         <view class="header-actions">
-          <text class="action-btn" @click="handleShare">↗</text>
+          <text
+            class="action-btn"
+            @click="handleShare"
+          >
+            ↗
+          </text>
           <text
             class="action-btn"
             :class="{ favorited: station?.isFavorited }"
             @click="handleToggleFavorite"
-          >❤</text>
+          >
+            ❤
+          </text>
         </view>
       </view>
     </view>
@@ -20,12 +34,15 @@
     <DataState
       v-if="isLoading"
       :is-loading="true"
-      :isEmpty="false"
+      :is-empty="false"
       skeleton-type="detail"
     />
 
     <!-- 不存在 -->
-    <view v-else-if="!station" class="error-state">
+    <view
+      v-else-if="!station"
+      class="error-state"
+    >
       <text>驿站不存在</text>
     </view>
 
@@ -40,7 +57,10 @@
             mode="aspectFill"
           />
         </view>
-        <view v-if="station.images && station.images.length > 1" class="carousel-dots">
+        <view
+          v-if="station.images && station.images.length > 1"
+          class="carousel-dots"
+        >
           <text
             v-for="(_, idx) in station.images"
             :key="idx"
@@ -56,22 +76,43 @@
 
       <!-- 基本信息 -->
       <view class="info-section">
-        <text class="info-title">{{ station.name }}</text>
+        <text class="info-title">
+          {{ station.name }}
+        </text>
         <view class="info-rating">
           <text>⭐</text>
-          <text class="rating-num">{{ station.rating }}</text>
-          <text class="rating-count">({{ station.reviewCount }}条评价)</text>
-          <text v-if="station.distance" class="info-dist">{{ formatDistance(station.distance) }}</text>
+          <text class="rating-num">
+            {{ station.rating }}
+          </text>
+          <text class="rating-count">
+            ({{ station.reviewCount }}条评价)
+          </text>
+          <text
+            v-if="station.distance"
+            class="info-dist"
+          >
+            {{ formatDistance(station.distance) }}
+          </text>
         </view>
         <view class="info-row">
           <text>📍</text>
-          <text class="info-text">{{ station.address }}</text>
+          <text class="info-text">
+            {{ station.address }}
+          </text>
         </view>
-        <view class="info-row" @click="handleCall">
+        <view
+          class="info-row"
+          @click="handleCall"
+        >
           <text>📞</text>
-          <text class="info-text info-phone">{{ station.phone }}</text>
+          <text class="info-text info-phone">
+            {{ station.phone }}
+          </text>
         </view>
-        <view v-if="station.businessHours && station.businessHours.length" class="info-row">
+        <view
+          v-if="station.businessHours && station.businessHours.length"
+          class="info-row"
+        >
           <text>🕐</text>
           <view class="biz-hours">
             <text
@@ -79,11 +120,22 @@
               :key="idx"
               class="biz-hour"
               :class="{ closed: !bh.isOpen }"
-            >{{ bh.day }}: {{ bh.isOpen ? bh.open + '-' + bh.close : '休息' }}</text>
+            >
+              {{ bh.day }}: {{ bh.isOpen ? bh.open + '-' + bh.close : '休息' }}
+            </text>
           </view>
         </view>
-        <view v-if="station.tags && station.tags.length" class="info-tags">
-          <text v-for="tag in station.tags" :key="tag" class="info-tag">{{ tag }}</text>
+        <view
+          v-if="station.tags && station.tags.length"
+          class="info-tags"
+        >
+          <text
+            v-for="tag in station.tags"
+            :key="tag"
+            class="info-tag"
+          >
+            {{ tag }}
+          </text>
         </view>
       </view>
 
@@ -95,124 +147,256 @@
           class="tab"
           :class="{ active: activeTab === tab.value }"
           @click="activeTab = tab.value"
-        >{{ tab.label }}</text>
+        >
+          {{ tab.label }}
+        </text>
       </view>
 
       <!-- 介绍 Tab -->
-      <view v-if="activeTab === 'intro'" class="tab-content">
-        <view v-if="station.manager" class="card">
-          <text class="card-title">驿站主理人</text>
+      <view
+        v-if="activeTab === 'intro'"
+        class="tab-content"
+      >
+        <view
+          v-if="station.manager"
+          class="card"
+        >
+          <text class="card-title">
+            驿站主理人
+          </text>
           <view class="manager-row">
-            <image :src="station.manager.avatar" class="manager-avatar" mode="aspectFill" />
+            <image
+              :src="station.manager.avatar"
+              class="manager-avatar"
+              mode="aspectFill"
+            />
             <view>
-              <text class="manager-name">{{ station.manager.name }}</text>
-              <text class="manager-title">{{ station.manager.title }}</text>
+              <text class="manager-name">
+                {{ station.manager.name }}
+              </text>
+              <text class="manager-title">
+                {{ station.manager.title }}
+              </text>
             </view>
           </view>
         </view>
 
         <view class="card">
-          <text class="card-title">设施服务</text>
+          <text class="card-title">
+            设施服务
+          </text>
           <view class="facility-grid">
-            <view v-for="f in station.facilities || []" :key="f" class="facility-item">
-              <view class="facility-icon-wrap">{{ facilityIconMap[f] || '•' }}</view>
-              <text class="facility-label">{{ getFacilityLabel(f) }}</text>
+            <view
+              v-for="f in station.facilities || []"
+              :key="f"
+              class="facility-item"
+            >
+              <view class="facility-icon-wrap">
+                {{ facilityIconMap[f] || '•' }}
+              </view>
+              <text class="facility-label">
+                {{ getFacilityLabel(f) }}
+              </text>
             </view>
           </view>
         </view>
 
         <view class="card">
-          <text class="card-title">驿站介绍</text>
-          <text class="card-desc">{{ station.description }}</text>
+          <text class="card-title">
+            驿站介绍
+          </text>
+          <text class="card-desc">
+            {{ station.description }}
+          </text>
         </view>
 
-        <view v-if="station.upcomingEvents && station.upcomingEvents.length" class="card">
+        <view
+          v-if="station.upcomingEvents && station.upcomingEvents.length"
+          class="card"
+        >
           <view class="card-title-row">
-            <text class="card-title">近期活动</text>
-            <text class="card-more" @click="goEvents">更多 ›</text>
+            <text class="card-title">
+              近期活动
+            </text>
+            <text
+              class="card-more"
+              @click="goEvents"
+            >
+              更多 ›
+            </text>
           </view>
           <view class="event-list">
-            <view v-for="evt in station.upcomingEvents" :key="evt.id" class="event-item">
-              <view class="event-icon">📅</view>
-              <view class="event-info">
-                <text class="event-title">{{ evt.title }}</text>
-                <text class="event-date">{{ evt.date }}</text>
+            <view
+              v-for="evt in station.upcomingEvents"
+              :key="evt.id"
+              class="event-item"
+            >
+              <view class="event-icon">
+                📅
               </view>
-              <text class="event-type-badge">{{ evt.type === 'course' ? '课程' : '活动' }}</text>
+              <view class="event-info">
+                <text class="event-title">
+                  {{ evt.title }}
+                </text>
+                <text class="event-date">
+                  {{ evt.date }}
+                </text>
+              </view>
+              <text class="event-type-badge">
+                {{ evt.type === 'course' ? '课程' : '活动' }}
+              </text>
             </view>
           </view>
         </view>
 
-        <view v-if="station.reviews && station.reviews.length" class="card">
+        <view
+          v-if="station.reviews && station.reviews.length"
+          class="card"
+        >
           <view class="card-title-row">
-            <text class="card-title">用户评价</text>
-            <text class="card-more">全部 ›</text>
+            <text class="card-title">
+              用户评价
+            </text>
+            <text class="card-more">
+              全部 ›
+            </text>
           </view>
           <view class="review-list">
-            <view v-for="rev in station.reviews" :key="rev.id" class="review-item">
+            <view
+              v-for="rev in station.reviews"
+              :key="rev.id"
+              class="review-item"
+            >
               <view class="review-header">
-                <image :src="rev.user?.avatar" class="review-avatar" mode="aspectFill" />
+                <image
+                  :src="rev.user?.avatar"
+                  class="review-avatar"
+                  mode="aspectFill"
+                />
                 <view>
-                  <text class="review-name">{{ rev.user?.name }}</text>
+                  <text class="review-name">
+                    {{ rev.user?.name }}
+                  </text>
                   <view class="review-stars">
-                    <text v-for="i in 5" :key="i">{{ i <= rev.rating ? '⭐' : '☆' }}</text>
+                    <text
+                      v-for="i in 5"
+                      :key="i"
+                    >
+                      {{ i <= rev.rating ? '⭐' : '☆' }}
+                    </text>
                   </view>
                 </view>
-                <text class="review-time">{{ rev.time }}</text>
+                <text class="review-time">
+                  {{ rev.time }}
+                </text>
               </view>
-              <text class="review-content">{{ rev.content }}</text>
+              <text class="review-content">
+                {{ rev.content }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 课程 Tab -->
-      <view v-if="activeTab === 'courses'" class="tab-content">
-        <view v-for="i in 3" :key="i" class="course-card">
+      <view
+        v-if="activeTab === 'courses'"
+        class="tab-content"
+      >
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="course-card"
+        >
           <view class="course-card-placeholder" />
           <view class="course-card-body">
-            <text class="course-card-title">八字命理实战研修班（第{{ i }}期）</text>
-            <text class="course-card-meta">张明德老师 · 2026年6月{{ 10 + i }}日</text>
+            <text class="course-card-title">
+              八字命理实战研修班（第{{ i }}期）
+            </text>
+            <text class="course-card-meta">
+              张明德老师 · 2026年6月{{ 10 + i }}日
+            </text>
             <view class="course-card-bottom">
-              <text class="course-card-price">¥1980</text>
-              <text class="course-card-status">报名中</text>
+              <text class="course-card-price">
+                ¥1980
+              </text>
+              <text class="course-card-status">
+                报名中
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 商品 Tab -->
-      <view v-if="activeTab === 'products'" class="tab-content">
+      <view
+        v-if="activeTab === 'products'"
+        class="tab-content"
+      >
         <view class="product-grid">
-          <view v-for="i in 4" :key="i" class="product-item">
+          <view
+            v-for="i in 4"
+            :key="i"
+            class="product-item"
+          >
             <view class="product-placeholder" />
             <view class="product-body">
-              <text class="product-name">驿站特色商品{{ i }}</text>
-              <text class="product-price">¥{{ 99 * i }}</text>
+              <text class="product-name">
+                驿站特色商品{{ i }}
+              </text>
+              <text class="product-price">
+                ¥{{ 99 * i }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 讲师 Tab -->
-      <view v-if="activeTab === 'instructors'" class="tab-content">
-        <view v-for="t in (station.instructors || [])" :key="t.id" class="teacher-card">
-          <image :src="t.avatar" class="teacher-avatar" mode="aspectFill" />
+      <view
+        v-if="activeTab === 'instructors'"
+        class="tab-content"
+      >
+        <view
+          v-for="t in (station.instructors || [])"
+          :key="t.id"
+          class="teacher-card"
+        >
+          <image
+            :src="t.avatar"
+            class="teacher-avatar"
+            mode="aspectFill"
+          />
           <view class="teacher-info">
-            <text class="teacher-name">{{ t.name }}</text>
-            <text class="teacher-specialty">{{ t.specialty }}</text>
+            <text class="teacher-name">
+              {{ t.name }}
+            </text>
+            <text class="teacher-specialty">
+              {{ t.specialty }}
+            </text>
           </view>
-          <text class="teacher-book-btn" @click="goBooking(t)">预约</text>
+          <text
+            class="teacher-book-btn"
+            @click="goBooking(t)"
+          >
+            预约
+          </text>
         </view>
       </view>
 
       <!-- 底部操作栏 -->
       <view class="bottom-bar">
-        <view class="bottom-btn bottom-btn-muted" @click="handleCall">
+        <view
+          class="bottom-btn bottom-btn-muted"
+          @click="handleCall"
+        >
           <text>📞</text>
           <text>联系客服</text>
         </view>
-        <view class="bottom-btn bottom-btn-primary" @click="handleNavigate">
+        <view
+          class="bottom-btn bottom-btn-primary"
+          @click="handleNavigate"
+        >
           <text>🧭</text>
           <text>导航到驿站</text>
         </view>

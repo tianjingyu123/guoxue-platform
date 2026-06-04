@@ -2,61 +2,123 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">竞赛成绩</text>
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        竞赛成绩
+      </text>
     </view>
 
-    <scroll-view scroll-y class="scroll-area">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
       <!-- 成绩展示 -->
       <view class="score-hero">
-        <text class="score-emoji">{{ scoreEmoji }}</text>
-        <text class="score-grade" :style="{ color: scoreColor }">{{ gradeText }}</text>
+        <text class="score-emoji">
+          {{ scoreEmoji }}
+        </text>
+        <text
+          class="score-grade"
+          :style="{ color: scoreColor }"
+        >
+          {{ gradeText }}
+        </text>
 
         <view class="score-circle">
           <view class="score-ring">
-            <text class="score-num">{{ totalScore }}</text>
-            <text class="score-unit">分</text>
+            <text class="score-num">
+              {{ totalScore }}
+            </text>
+            <text class="score-unit">
+              分
+            </text>
           </view>
           <view class="score-ring-bg" />
-          <view class="score-ring-fill" :style="{ transform: `rotate(${scoreAngle}deg)` }" />
+          <view
+            class="score-ring-fill"
+            :style="{ transform: `rotate(${scoreAngle}deg)` }"
+          />
         </view>
 
-        <text class="score-comp">{{ compName }}</text>
-        <text class="score-round">{{ roundName }} · {{ submittedAt }}</text>
+        <text class="score-comp">
+          {{ compName }}
+        </text>
+        <text class="score-round">
+          {{ roundName }} · {{ submittedAt }}
+        </text>
       </view>
 
       <!-- 数据统计 -->
       <view class="stats-grid">
         <view class="stat-item">
-          <text class="stat-icon">✅</text>
-          <text class="stat-val">{{ correctCount }}</text>
-          <text class="stat-label">正确</text>
+          <text class="stat-icon">
+            ✅
+          </text>
+          <text class="stat-val">
+            {{ correctCount }}
+          </text>
+          <text class="stat-label">
+            正确
+          </text>
         </view>
         <view class="stat-item">
-          <text class="stat-icon">❌</text>
-          <text class="stat-val">{{ wrongCount }}</text>
-          <text class="stat-label">错误</text>
+          <text class="stat-icon">
+            ❌
+          </text>
+          <text class="stat-val">
+            {{ wrongCount }}
+          </text>
+          <text class="stat-label">
+            错误
+          </text>
         </view>
         <view class="stat-item">
-          <text class="stat-icon">⏱</text>
-          <text class="stat-val">{{ formatDuration }}</text>
-          <text class="stat-label">用时</text>
+          <text class="stat-icon">
+            ⏱
+          </text>
+          <text class="stat-val">
+            {{ formatDuration }}
+          </text>
+          <text class="stat-label">
+            用时
+          </text>
         </view>
         <view class="stat-item">
-          <text class="stat-icon">🏅</text>
-          <text class="stat-val">{{ rank || '--' }}</text>
-          <text class="stat-label">排名</text>
+          <text class="stat-icon">
+            🏅
+          </text>
+          <text class="stat-val">
+            {{ rank || '--' }}
+          </text>
+          <text class="stat-label">
+            排名
+          </text>
         </view>
       </view>
 
       <!-- 正确率条 -->
       <view class="accuracy-bar">
         <view class="acc-header">
-          <text class="acc-label">正确率</text>
-          <text class="acc-value" :style="{ color: scoreColor }">{{ accuracyPct }}%</text>
+          <text class="acc-label">
+            正确率
+          </text>
+          <text
+            class="acc-value"
+            :style="{ color: scoreColor }"
+          >
+            {{ accuracyPct }}%
+          </text>
         </view>
         <view class="acc-track">
-          <view class="acc-fill" :style="{ width: accuracyPct + '%', background: scoreColor }" />
+          <view
+            class="acc-fill"
+            :style="{ width: accuracyPct + '%', background: scoreColor }"
+          />
         </view>
         <view class="acc-scale">
           <text>0%</text>
@@ -66,34 +128,85 @@
       </view>
 
       <!-- 各题型得分 -->
-      <view class="section" v-if="sectionScores.length > 0">
-        <text class="section-title">题型得分</text>
-        <view v-for="(ss, idx) in sectionScores" :key="idx" class="section-score-row">
-          <text class="ss-label">{{ ss.name }}</text>
-          <text class="ss-value">{{ ss.correct }}/{{ ss.total }}</text>
+      <view
+        v-if="sectionScores.length > 0"
+        class="section"
+      >
+        <text class="section-title">
+          题型得分
+        </text>
+        <view
+          v-for="(ss, idx) in sectionScores"
+          :key="idx"
+          class="section-score-row"
+        >
+          <text class="ss-label">
+            {{ ss.name }}
+          </text>
+          <text class="ss-value">
+            {{ ss.correct }}/{{ ss.total }}
+          </text>
           <view class="ss-bar">
-            <view class="ss-fill" :style="{ width: (ss.correct / ss.total * 100) + '%' }" />
+            <view
+              class="ss-fill"
+              :style="{ width: (ss.correct / ss.total * 100) + '%' }"
+            />
           </view>
         </view>
       </view>
 
       <!-- 排名变化 -->
-      <view class="section" v-if="rankHistory.length > 0">
-        <text class="section-title">排名变化</text>
+      <view
+        v-if="rankHistory.length > 0"
+        class="section"
+      >
+        <text class="section-title">
+          排名变化
+        </text>
         <view class="rank-chart">
-          <view v-for="(rh, idx) in rankHistory" :key="idx" class="rank-point">
-            <view class="rp-line" v-if="idx < rankHistory.length - 1" />
-            <text class="rp-dot" :class="{ current: idx === rankHistory.length - 1 }">{{ rh.rank }}</text>
-            <text class="rp-label">{{ rh.round }}</text>
+          <view
+            v-for="(rh, idx) in rankHistory"
+            :key="idx"
+            class="rank-point"
+          >
+            <view
+              v-if="idx < rankHistory.length - 1"
+              class="rp-line"
+            />
+            <text
+              class="rp-dot"
+              :class="{ current: idx === rankHistory.length - 1 }"
+            >
+              {{ rh.rank }}
+            </text>
+            <text class="rp-label">
+              {{ rh.round }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 操作按钮 -->
       <view class="action-buttons">
-        <button class="btn-primary" @click="goDetail">查看详细答案</button>
-        <button class="btn-secondary" @click="goPromotion" v-if="passed">查看晋级情况</button>
-        <button class="btn-ghost" @click="goDashboard">返回竞赛首页</button>
+        <button
+          class="btn-primary"
+          @click="goDetail"
+        >
+          查看详细答案
+        </button>
+        <button
+          v-if="passed"
+          class="btn-secondary"
+          @click="goPromotion"
+        >
+          查看晋级情况
+        </button>
+        <button
+          class="btn-ghost"
+          @click="goDashboard"
+        >
+          返回竞赛首页
+        </button>
       </view>
     </scroll-view>
 

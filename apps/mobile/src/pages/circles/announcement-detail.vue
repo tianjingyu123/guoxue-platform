@@ -2,95 +2,217 @@
   <view class="page">
     <!-- 顶部导航栏 -->
     <view class="header-bar">
-      <view class="header-left" @click="goBack">
-        <text class="header-icon">←</text>
+      <view
+        class="header-left"
+        @click="goBack"
+      >
+        <text class="header-icon">
+          ←
+        </text>
       </view>
-      <text class="header-title">圈子公告</text>
-      <view class="header-right" @click="handleShare">
-        <text class="header-icon">↗</text>
+      <text class="header-title">
+        圈子公告
+      </text>
+      <view
+        class="header-right"
+        @click="handleShare"
+      >
+        <text class="header-icon">
+          ↗
+        </text>
       </view>
     </view>
 
-    <view v-if="isLoading" class="skeleton-wrap">
+    <view
+      v-if="isLoading"
+      class="skeleton-wrap"
+    >
       <view class="skeleton-line w-3/4" />
       <view class="skeleton-line w-1/3" />
-      <view class="skeleton-block" v-for="i in 5" :key="i" />
+      <view
+        v-for="i in 5"
+        :key="i"
+        class="skeleton-block"
+      />
     </view>
 
     <template v-else-if="announcement">
       <!-- 圈子来源标签 -->
-      <view class="source-bar" @click="goCircle">
-        <text class="source-icon">🔔</text>
-        <text class="source-text">来自圈子：<text class="source-name">{{ announcement.circleName }}</text></text>
-        <text class="source-arrow">›</text>
+      <view
+        class="source-bar"
+        @click="goCircle"
+      >
+        <text class="source-icon">
+          🔔
+        </text>
+        <text class="source-text">
+          来自圈子：<text class="source-name">
+            {{ announcement.circleName }}
+          </text>
+        </text>
+        <text class="source-arrow">
+          ›
+        </text>
       </view>
 
       <!-- 主内容卡片 -->
       <view class="content-card">
         <!-- 置顶标识 -->
-        <view v-if="announcement.isPinned" class="pinned-bar">
-          <text class="pinned-icon">📌</text>
-          <text class="pinned-text">置顶公告</text>
+        <view
+          v-if="announcement.isPinned"
+          class="pinned-bar"
+        >
+          <text class="pinned-icon">
+            📌
+          </text>
+          <text class="pinned-text">
+            置顶公告
+          </text>
         </view>
 
         <view class="content-body">
           <!-- 标题 -->
-          <text class="content-title">{{ announcement.title }}</text>
+          <text class="content-title">
+            {{ announcement.title }}
+          </text>
 
           <!-- 元信息 -->
           <view class="meta-row">
             <view class="meta-author">
-              <view v-if="announcement.author.avatar" class="avatar-small">
-                <image :src="announcement.author.avatar" mode="aspectFill" class="avatar-img" />
+              <view
+                v-if="announcement.author.avatar"
+                class="avatar-small"
+              >
+                <image
+                  :src="announcement.author.avatar"
+                  mode="aspectFill"
+                  class="avatar-img"
+                />
               </view>
-              <view v-else class="avatar-small avatar-fallback">
-                <text class="avatar-fallback-text">管</text>
+              <view
+                v-else
+                class="avatar-small avatar-fallback"
+              >
+                <text class="avatar-fallback-text">
+                  管
+                </text>
               </view>
-              <text class="meta-name">{{ announcement.author.name }}</text>
+              <text class="meta-name">
+                {{ announcement.author.name }}
+              </text>
             </view>
             <view class="meta-item">
-              <text class="meta-icon">🕐</text>
-              <text class="meta-label">{{ formatDate(announcement.publishedAt) }}</text>
+              <text class="meta-icon">
+                🕐
+              </text>
+              <text class="meta-label">
+                {{ formatDate(announcement.publishedAt) }}
+              </text>
             </view>
             <view class="meta-item ml-auto">
-              <text class="meta-icon">👁</text>
-              <text class="meta-label">{{ announcement.readCount }} 已读</text>
+              <text class="meta-icon">
+                👁
+              </text>
+              <text class="meta-label">
+                {{ announcement.readCount }} 已读
+              </text>
             </view>
           </view>
 
           <!-- 正文 -->
           <view class="rich-content">
-            <view v-for="(line, i) in contentLines" :key="i">
-              <view v-if="!line.trim()" class="rich-space" />
-              <text v-else-if="isBoldTitle(line)" class="rich-title">{{ stripBold(line) }}</text>
-              <view v-else-if="isNumberedList(line)" class="rich-list-item">
-                <text class="rich-list-text">{{ line }}</text>
+            <view
+              v-for="(line, i) in contentLines"
+              :key="i"
+            >
+              <view
+                v-if="!line.trim()"
+                class="rich-space"
+              />
+              <text
+                v-else-if="isBoldTitle(line)"
+                class="rich-title"
+              >
+                {{ stripBold(line) }}
+              </text>
+              <view
+                v-else-if="isNumberedList(line)"
+                class="rich-list-item"
+              >
+                <text class="rich-list-text">
+                  {{ line }}
+                </text>
               </view>
-              <view v-else-if="isBulletList(line)" class="rich-bullet-item">
-                <text class="rich-bullet-dot">•</text>
-                <text class="rich-bullet-text">{{ line.slice(2) }}</text>
+              <view
+                v-else-if="isBulletList(line)"
+                class="rich-bullet-item"
+              >
+                <text class="rich-bullet-dot">
+                  •
+                </text>
+                <text class="rich-bullet-text">
+                  {{ line.slice(2) }}
+                </text>
               </view>
-              <view v-else-if="isDivider(line)" class="rich-divider" />
-              <text v-else class="rich-paragraph">{{ line }}</text>
+              <view
+                v-else-if="isDivider(line)"
+                class="rich-divider"
+              />
+              <text
+                v-else
+                class="rich-paragraph"
+              >
+                {{ line }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 相关公告 -->
-      <view v-if="related.length > 0" class="related-section">
-        <text class="related-title">其他公告</text>
+      <view
+        v-if="related.length > 0"
+        class="related-section"
+      >
+        <text class="related-title">
+          其他公告
+        </text>
         <view class="related-list">
-          <view v-for="item in related" :key="item.id" class="related-item" @click="goAnnouncement(item.id)">
+          <view
+            v-for="item in related"
+            :key="item.id"
+            class="related-item"
+            @click="goAnnouncement(item.id)"
+          >
             <view class="related-icon-wrap">
-              <text v-if="item.isPinned" class="related-icon">📌</text>
-              <text v-else class="related-icon bell">🔔</text>
+              <text
+                v-if="item.isPinned"
+                class="related-icon"
+              >
+                📌
+              </text>
+              <text
+                v-else
+                class="related-icon bell"
+              >
+                🔔
+              </text>
             </view>
             <view class="related-info">
-              <text class="related-name" :class="{ read: item.isRead }">{{ item.title }}</text>
-              <text class="related-time">{{ formatDate(item.publishedAt) }}</text>
+              <text
+                class="related-name"
+                :class="{ read: item.isRead }"
+              >
+                {{ item.title }}
+              </text>
+              <text class="related-time">
+                {{ formatDate(item.publishedAt) }}
+              </text>
             </view>
-            <view v-if="!item.isRead" class="unread-dot" />
+            <view
+              v-if="!item.isRead"
+              class="unread-dot"
+            />
           </view>
         </view>
       </view>
@@ -98,21 +220,38 @@
       <!-- 底部确认按钮 -->
       <view class="bottom-bar">
         <view class="bottom-inner">
-          <view class="btn-back" @click="goCircle">返回圈子</view>
+          <view
+            class="btn-back"
+            @click="goCircle"
+          >
+            返回圈子
+          </view>
           <view
             class="btn-read"
             :class="{ disabled: isRead }"
             @click="handleRead"
           >
-            <text class="btn-read-icon">✓</text>
+            <text class="btn-read-icon">
+              ✓
+            </text>
             <text>{{ isRead ? '已确认阅读' : '确认已读' }}</text>
           </view>
         </view>
       </view>
 
       <!-- Toast -->
-      <view v-if="showReadToast" class="toast">{{ '✓ 已标记为已读' }}</view>
-      <view v-if="showShareToast" class="toast">链接已复制</view>
+      <view
+        v-if="showReadToast"
+        class="toast"
+      >
+        {{ '✓ 已标记为已读' }}
+      </view>
+      <view
+        v-if="showShareToast"
+        class="toast"
+      >
+        链接已复制
+      </view>
     </template>
   </view>
 </template>

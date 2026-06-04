@@ -1,45 +1,112 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="title">回答悬赏</text>
+      <text class="title">
+        回答悬赏
+      </text>
     </view>
 
     <!-- 原问题摘要 -->
-    <view v-if="question" class="question-summary">
-      <text class="qs-title">{{ question.title }}</text>
-      <text class="qs-body">{{ question.description }}</text>
+    <view
+      v-if="question"
+      class="question-summary"
+    >
+      <text class="qs-title">
+        {{ question.title }}
+      </text>
+      <text class="qs-body">
+        {{ question.description }}
+      </text>
     </view>
 
     <view class="form">
       <view class="form-item">
-        <text class="form-label">回答内容 <text class="required">*</text></text>
-        <textarea v-model="content" placeholder="请输入你的回答..." maxlength="5000" class="form-textarea" />
-        <text class="char-count">{{ content.length }}/5000</text>
+        <text class="form-label">
+          回答内容 <text class="required">
+            *
+          </text>
+        </text>
+        <textarea
+          v-model="content"
+          placeholder="请输入你的回答..."
+          maxlength="5000"
+          class="form-textarea"
+        />
+        <text class="char-count">
+          {{ content.length }}/5000
+        </text>
       </view>
 
       <view class="form-item">
-        <text class="form-label">图片上传（可选）</text>
+        <text class="form-label">
+          图片上传（可选）
+        </text>
         <view class="upload-area">
-          <view v-for="(img, idx) in images" :key="idx" class="upload-preview">
-            <image :src="img" mode="aspectFill" class="upload-img" />
-            <text class="upload-remove" @click="removeImage(idx)">×</text>
+          <view
+            v-for="(img, idx) in images"
+            :key="idx"
+            class="upload-preview"
+          >
+            <image
+              :src="img"
+              mode="aspectFill"
+              class="upload-img"
+            />
+            <text
+              class="upload-remove"
+              @click="removeImage(idx)"
+            >
+              ×
+            </text>
           </view>
-          <view v-if="images.length < 9" class="upload-btn" @click="chooseImage">
-            <text class="upload-plus">+</text>
+          <view
+            v-if="images.length < 9"
+            class="upload-btn"
+            @click="chooseImage"
+          >
+            <text class="upload-plus">
+              +
+            </text>
           </view>
         </view>
       </view>
 
       <view class="form-item">
-        <text class="form-label">语音回答（可选）</text>
+        <text class="form-label">
+          语音回答（可选）
+        </text>
         <view class="audio-area">
-          <button v-if="!recording" class="audio-btn" @click="startRecord">🎤 开始录音</button>
-          <button v-else class="audio-btn recording" @click="stopRecord">⏹ 停止录音</button>
-          <text v-if="audioUrl" class="audio-ready">已录制音频</text>
+          <button
+            v-if="!recording"
+            class="audio-btn"
+            @click="startRecord"
+          >
+            🎤 开始录音
+          </button>
+          <button
+            v-else
+            class="audio-btn recording"
+            @click="stopRecord"
+          >
+            ⏹ 停止录音
+          </button>
+          <text
+            v-if="audioUrl"
+            class="audio-ready"
+          >
+            已录制音频
+          </text>
         </view>
       </view>
 
-      <button class="submit-btn" @click="submit" :loading="submitting" :disabled="!canSubmit">提交回答</button>
+      <button
+        class="submit-btn"
+        :loading="submitting"
+        :disabled="!canSubmit"
+        @click="submit"
+      >
+        提交回答
+      </button>
     </view>
   </view>
 </template>

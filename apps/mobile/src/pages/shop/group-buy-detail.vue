@@ -3,25 +3,61 @@
     <LoadingSkeleton v-if="loading" />
     <view v-else-if="group">
       <view class="group-header">
-        <text class="g-title">{{ group.title }}</text>
-        <view class="countdown"><text>距结束 </text><text class="cd-time">{{ countdownStr }}</text></view>
-        <text class="g-progress">已拼 {{ group.joinedCount || 0 }}/{{ group.requiredCount || 2 }} 人</text>
+        <text class="g-title">
+          {{ group.title }}
+        </text>
+        <view class="countdown">
+          <text>距结束 </text><text class="cd-time">
+            {{ countdownStr }}
+          </text>
+        </view>
+        <text class="g-progress">
+          已拼 {{ group.joinedCount || 0 }}/{{ group.requiredCount || 2 }} 人
+        </text>
       </view>
       <view class="members">
-        <text class="section-title">已参团</text>
-        <view v-for="m in members" :key="m.id" class="member-row">
-          <image :src="m.avatar || ''" class="m-avatar" mode="aspectFill" />
-          <text class="m-name">{{ m.nickname || m.name }}</text>
+        <text class="section-title">
+          已参团
+        </text>
+        <view
+          v-for="m in members"
+          :key="m.id"
+          class="member-row"
+        >
+          <image
+            :src="m.avatar || ''"
+            class="m-avatar"
+            mode="aspectFill"
+          />
+          <text class="m-name">
+            {{ m.nickname || m.name }}
+          </text>
         </view>
       </view>
-      <view class="product-detail" @click="goProduct">
-        <image :src="group.product?.cover || ''" class="cover" mode="aspectFill" />
+      <view
+        class="product-detail"
+        @click="goProduct"
+      >
+        <image
+          :src="group.product?.cover || ''"
+          class="cover"
+          mode="aspectFill"
+        />
         <view class="p-info">
-          <text class="p-name">{{ group.product?.name }}</text>
-          <text class="p-price">¥{{ group.groupPrice }}</text>
+          <text class="p-name">
+            {{ group.product?.name }}
+          </text>
+          <text class="p-price">
+            ¥{{ group.groupPrice }}
+          </text>
         </view>
       </view>
-      <button class="btn-join" @click="joinGroup">参与拼团 ¥{{ group.groupPrice }}</button>
+      <button
+        class="btn-join"
+        @click="joinGroup"
+      >
+        参与拼团 ¥{{ group.groupPrice }}
+      </button>
     </view>
   </view>
 </template>

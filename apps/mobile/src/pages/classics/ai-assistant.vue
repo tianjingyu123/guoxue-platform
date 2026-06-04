@@ -3,16 +3,35 @@
     <!-- 顶部 - 古典书卷风格 -->
     <view class="classic-header">
       <view class="header-row">
-        <text class="nav-back" @click="goBack">←</text>
+        <text
+          class="nav-back"
+          @click="goBack"
+        >
+          ←
+        </text>
         <view class="header-brand">
-          <text class="header-icon">📚</text>
-          <text class="header-brand-text">古籍典藏</text>
+          <text class="header-icon">
+            📚
+          </text>
+          <text class="header-brand-text">
+            古籍典藏
+          </text>
         </view>
-        <text class="header-search-icon" @click="goSearch">🔍</text>
+        <text
+          class="header-search-icon"
+          @click="goSearch"
+        >
+          🔍
+        </text>
       </view>
       <!-- 搜索框 -->
       <view class="header-search-bar">
-        <input v-model="searchQuery" class="header-search-input" placeholder="搜索古籍、作者" @confirm="handleSearch" />
+        <input
+          v-model="searchQuery"
+          class="header-search-input"
+          placeholder="搜索古籍、作者"
+          @confirm="handleSearch"
+        >
       </view>
     </view>
 
@@ -27,8 +46,12 @@
           :style="activeMainCat === cat.id ? { background: cat.gradient } : {}"
           @click="toggleMainCat(cat.id)"
         >
-          <text class="category-emoji">{{ cat.icon }}</text>
-          <text class="category-name">{{ cat.name }}</text>
+          <text class="category-emoji">
+            {{ cat.icon }}
+          </text>
+          <text class="category-name">
+            {{ cat.name }}
+          </text>
         </view>
       </view>
     </view>
@@ -37,18 +60,42 @@
     <view class="section-padding">
       <view class="section-header">
         <view class="section-header-left">
-          <text class="section-icon">📑</text>
-          <text class="section-title">精选书单</text>
+          <text class="section-icon">
+            📑
+          </text>
+          <text class="section-title">
+            精选书单
+          </text>
         </view>
-        <text class="section-more" @click="goBookLists">更多 ›</text>
+        <text
+          class="section-more"
+          @click="goBookLists"
+        >
+          更多 ›
+        </text>
       </view>
-      <scroll-view scroll-x class="booklist-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="booklist-scroll"
+        show-scrollbar="false"
+      >
         <view class="booklist-inner">
-          <view v-for="list in bookLists" :key="list.id" class="booklist-card" @click="goBookList(list.id)">
-            <text class="booklist-icon">{{ list.icon }}</text>
+          <view
+            v-for="list in bookLists"
+            :key="list.id"
+            class="booklist-card"
+            @click="goBookList(list.id)"
+          >
+            <text class="booklist-icon">
+              {{ list.icon }}
+            </text>
             <view>
-              <text class="booklist-title">{{ list.title }}</text>
-              <text class="booklist-count">{{ list.count }}本</text>
+              <text class="booklist-title">
+                {{ list.title }}
+              </text>
+              <text class="booklist-count">
+                {{ list.count }}本
+              </text>
             </view>
           </view>
         </view>
@@ -57,7 +104,11 @@
 
     <!-- 子分类 + 筛选 -->
     <view class="sticky-bar">
-      <scroll-view scroll-x class="subcat-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="subcat-scroll"
+        show-scrollbar="false"
+      >
         <view class="subcat-inner">
           <text
             v-for="cat in subCategories"
@@ -65,17 +116,43 @@
             class="subcat-tab"
             :class="{ 'subcat-active': activeSubCat === cat.id }"
             @click="activeSubCat = cat.id"
-          >{{ cat.name }}</text>
+          >
+            {{ cat.name }}
+          </text>
         </view>
       </scroll-view>
       <view class="filter-row">
         <view class="filter-left">
-          <text class="filter-btn" :class="{ 'filter-on': onlyFree }" @click="onlyFree = !onlyFree">免费</text>
-          <text class="filter-btn" :class="{ 'filter-on': onlyAI }" @click="onlyAI = !onlyAI">✨ AI智读</text>
+          <text
+            class="filter-btn"
+            :class="{ 'filter-on': onlyFree }"
+            @click="onlyFree = !onlyFree"
+          >
+            免费
+          </text>
+          <text
+            class="filter-btn"
+            :class="{ 'filter-on': onlyAI }"
+            @click="onlyAI = !onlyAI"
+          >
+            ✨ AI智读
+          </text>
         </view>
         <view class="filter-right">
-          <text class="view-btn" :class="{ 'view-active': viewMode === 'grid' }" @click="viewMode = 'grid'">▦</text>
-          <text class="view-btn" :class="{ 'view-active': viewMode === 'list' }" @click="viewMode = 'list'">☰</text>
+          <text
+            class="view-btn"
+            :class="{ 'view-active': viewMode === 'grid' }"
+            @click="viewMode = 'grid'"
+          >
+            ▦
+          </text>
+          <text
+            class="view-btn"
+            :class="{ 'view-active': viewMode === 'list' }"
+            @click="viewMode = 'list'"
+          >
+            ☰
+          </text>
         </view>
       </view>
     </view>
@@ -83,31 +160,74 @@
     <!-- 古籍列表 -->
     <view class="classics-section">
       <!-- 加载中 -->
-      <view v-if="loading" class="loading-state">
+      <view
+        v-if="loading"
+        class="loading-state"
+      >
         <view class="loading-spinner" />
-        <text class="loading-text">加载中...</text>
+        <text class="loading-text">
+          加载中...
+        </text>
       </view>
       <!-- 书架网格 -->
       <template v-else-if="viewMode === 'grid'">
-        <view v-if="filteredClassics.length === 0" class="empty-state">
-          <text class="empty-icon">📖</text>
-          <text class="empty-text">暂无相关古籍</text>
+        <view
+          v-if="filteredClassics.length === 0"
+          class="empty-state"
+        >
+          <text class="empty-icon">
+            📖
+          </text>
+          <text class="empty-text">
+            暂无相关古籍
+          </text>
         </view>
-        <view v-else class="grid-view">
-          <view v-for="book in filteredClassics" :key="book.id" class="book-card" @click="goReader(book.id)">
-            <view class="book-cover" :class="book.cover === 'ancient' ? 'cover-ancient' : 'cover-classic'">
+        <view
+          v-else
+          class="grid-view"
+        >
+          <view
+            v-for="book in filteredClassics"
+            :key="book.id"
+            class="book-card"
+            @click="goReader(book.id)"
+          >
+            <view
+              class="book-cover"
+              :class="book.cover === 'ancient' ? 'cover-ancient' : 'cover-classic'"
+            >
               <view class="book-spine" />
               <view class="book-tags">
-                <text v-if="book.hasAI" class="tag-ai">✨ AI</text>
-                <text v-if="book.isFree" class="tag-free">免费</text>
+                <text
+                  v-if="book.hasAI"
+                  class="tag-ai"
+                >
+                  ✨ AI
+                </text>
+                <text
+                  v-if="book.isFree"
+                  class="tag-free"
+                >
+                  免费
+                </text>
               </view>
-              <text class="book-dynasty-tag">{{ book.dynasty }}</text>
-              <text class="book-title-vertical">{{ book.title }}</text>
-              <text class="book-author-bottom">{{ book.author }}</text>
+              <text class="book-dynasty-tag">
+                {{ book.dynasty }}
+              </text>
+              <text class="book-title-vertical">
+                {{ book.title }}
+              </text>
+              <text class="book-author-bottom">
+                {{ book.author }}
+              </text>
             </view>
             <view class="book-meta">
-              <text class="book-name">{{ book.title }}</text>
-              <text class="book-reads">{{ (book.reads / 10000).toFixed(1) }}万人读</text>
+              <text class="book-name">
+                {{ book.title }}
+              </text>
+              <text class="book-reads">
+                {{ (book.reads / 10000).toFixed(1) }}万人读
+              </text>
             </view>
           </view>
         </view>
@@ -115,25 +235,63 @@
 
       <!-- 列表视图 -->
       <template v-else-if="!loading">
-        <view v-if="filteredClassics.length === 0" class="empty-state">
-          <text class="empty-icon">📖</text>
-          <text class="empty-text">暂无相关古籍</text>
+        <view
+          v-if="filteredClassics.length === 0"
+          class="empty-state"
+        >
+          <text class="empty-icon">
+            📖
+          </text>
+          <text class="empty-text">
+            暂无相关古籍
+          </text>
         </view>
-        <view v-else class="list-view">
-          <view v-for="book in filteredClassics" :key="book.id" class="book-list-item" @click="goReader(book.id)">
-            <view class="list-cover" :class="book.cover === 'ancient' ? 'cover-ancient' : 'cover-classic'">
+        <view
+          v-else
+          class="list-view"
+        >
+          <view
+            v-for="book in filteredClassics"
+            :key="book.id"
+            class="book-list-item"
+            @click="goReader(book.id)"
+          >
+            <view
+              class="list-cover"
+              :class="book.cover === 'ancient' ? 'cover-ancient' : 'cover-classic'"
+            >
               <view class="list-spine" />
-              <text class="list-title-vertical">{{ book.title }}</text>
-              <text v-if="book.hasAI" class="list-ai-tag">✨</text>
+              <text class="list-title-vertical">
+                {{ book.title }}
+              </text>
+              <text
+                v-if="book.hasAI"
+                class="list-ai-tag"
+              >
+                ✨
+              </text>
             </view>
             <view class="list-info">
               <view class="list-title-row">
-                <text class="list-title">{{ book.title }}</text>
-                <text class="list-dynasty">{{ book.dynasty }}</text>
-                <text v-if="book.isFree" class="tag-free-sm">免费</text>
+                <text class="list-title">
+                  {{ book.title }}
+                </text>
+                <text class="list-dynasty">
+                  {{ book.dynasty }}
+                </text>
+                <text
+                  v-if="book.isFree"
+                  class="tag-free-sm"
+                >
+                  免费
+                </text>
               </view>
-              <text class="list-author">{{ book.author }} · {{ book.chapters }}篇</text>
-              <text class="list-desc">{{ book.description }}</text>
+              <text class="list-author">
+                {{ book.author }} · {{ book.chapters }}篇
+              </text>
+              <text class="list-desc">
+                {{ book.description }}
+              </text>
               <view class="list-stats">
                 <text>⭐ {{ book.rating }}</text>
                 <text>👁 {{ (book.reads / 10000).toFixed(1) }}万</text>

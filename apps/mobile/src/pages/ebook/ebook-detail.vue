@@ -1,48 +1,105 @@
 <template>
   <view class="page">
     <!-- 顶部信息 -->
-    <view v-if="book" class="header-section">
+    <view
+      v-if="book"
+      class="header-section"
+    >
       <view class="book-banner">
-        <image :src="book.cover || '/static/default-book.png'" class="banner-cover" mode="aspectFill" />
+        <image
+          :src="book.cover || '/static/default-book.png'"
+          class="banner-cover"
+          mode="aspectFill"
+        />
         <view class="banner-info">
-          <text class="banner-title">{{ book.title }}</text>
-          <text class="banner-author">{{ book.author }}</text>
+          <text class="banner-title">
+            {{ book.title }}
+          </text>
+          <text class="banner-author">
+            {{ book.author }}
+          </text>
           <view class="banner-tags">
-            <text v-if="book.category" class="tag">{{ book.category.name }}</text>
-            <text v-if="book.language" class="tag">{{ book.language }}</text>
-            <text v-if="book.fileType" class="tag">{{ book.fileType }}</text>
+            <text
+              v-if="book.category"
+              class="tag"
+            >
+              {{ book.category.name }}
+            </text>
+            <text
+              v-if="book.language"
+              class="tag"
+            >
+              {{ book.language }}
+            </text>
+            <text
+              v-if="book.fileType"
+              class="tag"
+            >
+              {{ book.fileType }}
+            </text>
           </view>
           <view class="banner-stats">
-            <text class="stat">{{ formatCount(book.viewCount) }} 人阅读</text>
-            <text class="stat">{{ book.totalChapters || 0 }} 章</text>
+            <text class="stat">
+              {{ formatCount(book.viewCount) }} 人阅读
+            </text>
+            <text class="stat">
+              {{ book.totalChapters || 0 }} 章
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 操作按钮 -->
       <view class="action-row">
-        <view v-if="book.purchased || Number(book.price) <= 0" class="btn-primary" @click="startReading">
+        <view
+          v-if="book.purchased || Number(book.price) <= 0"
+          class="btn-primary"
+          @click="startReading"
+        >
           <text>开始阅读</text>
         </view>
         <template v-else>
-          <view class="btn-primary" @click="doPurchase">
+          <view
+            class="btn-primary"
+            @click="doPurchase"
+          >
             <text>¥{{ book.price }} 购买</text>
           </view>
-          <view v-if="book.memberFree" class="member-tip">
+          <view
+            v-if="book.memberFree"
+            class="member-tip"
+          >
             <text>会员免费</text>
           </view>
         </template>
-        <view class="btn-secondary" @click="toggleCollect">
+        <view
+          class="btn-secondary"
+          @click="toggleCollect"
+        >
           <text>{{ isCollected ? '已收藏 ♥' : '收藏 ♡' }}</text>
         </view>
       </view>
     </view>
 
     <!-- 简介 -->
-    <view v-if="book?.description" class="section">
-      <text class="section-title">简介</text>
-      <text class="desc-text" :class="{ expanded: descExpanded }">{{ book.description }}</text>
-      <text v-if="book.description.length > 100" class="expand-btn" @click="descExpanded = !descExpanded">
+    <view
+      v-if="book?.description"
+      class="section"
+    >
+      <text class="section-title">
+        简介
+      </text>
+      <text
+        class="desc-text"
+        :class="{ expanded: descExpanded }"
+      >
+        {{ book.description }}
+      </text>
+      <text
+        v-if="book.description.length > 100"
+        class="expand-btn"
+        @click="descExpanded = !descExpanded"
+      >
         {{ descExpanded ? '收起' : '展开' }}
       </text>
     </view>
@@ -50,56 +107,103 @@
     <!-- 目录 -->
     <view class="section">
       <view class="section-hdr">
-        <text class="section-title">目录</text>
-        <text class="chapter-count">共{{ book?.chapters?.length || 0 }}章</text>
+        <text class="section-title">
+          目录
+        </text>
+        <text class="chapter-count">
+          共{{ book?.chapters?.length || 0 }}章
+        </text>
       </view>
-      <view v-if="book?.chapters?.length" class="chapter-list">
+      <view
+        v-if="book?.chapters?.length"
+        class="chapter-list"
+      >
         <view
           v-for="ch in displayChapters"
           :key="ch.id"
           class="chapter-item"
           @click="goChapter(ch)"
         >
-          <text class="ch-title">{{ ch.title }}</text>
+          <text class="ch-title">
+            {{ ch.title }}
+          </text>
           <view class="ch-right">
-            <text v-if="ch.freeTrial" class="ch-free">试读</text>
-            <text v-else-if="!book.purchased && Number(book.price) > 0" class="ch-lock">🔒</text>
+            <text
+              v-if="ch.freeTrial"
+              class="ch-free"
+            >
+              试读
+            </text>
+            <text
+              v-else-if="!book.purchased && Number(book.price) > 0"
+              class="ch-lock"
+            >
+              🔒
+            </text>
           </view>
         </view>
-        <view v-if="book.chapters.length > 10 && !showAllChapters" class="show-more" @click="showAllChapters = true">
+        <view
+          v-if="book.chapters.length > 10 && !showAllChapters"
+          class="show-more"
+          @click="showAllChapters = true"
+        >
           <text>查看全部目录 ({{ book.chapters.length }}章)</text>
         </view>
       </view>
-      <view v-else class="empty-chapters">
+      <view
+        v-else
+        class="empty-chapters"
+      >
         <text>暂无章节</text>
       </view>
     </view>
 
     <!-- 书籍信息 -->
     <view class="section">
-      <text class="section-title">书籍信息</text>
+      <text class="section-title">
+        书籍信息
+      </text>
       <view class="info-grid">
         <view class="info-item">
-          <text class="info-label">分类</text>
-          <text class="info-value">{{ book?.category?.name || '未分类' }}</text>
+          <text class="info-label">
+            分类
+          </text>
+          <text class="info-value">
+            {{ book?.category?.name || '未分类' }}
+          </text>
         </view>
         <view class="info-item">
-          <text class="info-label">格式</text>
-          <text class="info-value">{{ book?.fileType || '-' }}</text>
+          <text class="info-label">
+            格式
+          </text>
+          <text class="info-value">
+            {{ book?.fileType || '-' }}
+          </text>
         </view>
         <view class="info-item">
-          <text class="info-label">语言</text>
-          <text class="info-value">{{ book?.language || '中文' }}</text>
+          <text class="info-label">
+            语言
+          </text>
+          <text class="info-value">
+            {{ book?.language || '中文' }}
+          </text>
         </view>
         <view class="info-item">
-          <text class="info-label">购买人数</text>
-          <text class="info-value">{{ formatCount(book?.purchaseCount) }}</text>
+          <text class="info-label">
+            购买人数
+          </text>
+          <text class="info-value">
+            {{ formatCount(book?.purchaseCount) }}
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="!book && loading" class="skeleton">
+    <view
+      v-if="!book && loading"
+      class="skeleton"
+    >
       <view class="sk-cover" />
       <view class="sk-line w80" />
       <view class="sk-line w50" />

@@ -1,8 +1,12 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="title">🏆 赛事中心</text>
-      <text class="subtitle">国学竞技 · 以赛会友</text>
+      <text class="title">
+        🏆 赛事中心
+      </text>
+      <text class="subtitle">
+        国学竞技 · 以赛会友
+      </text>
     </view>
 
     <!-- 赛事类型快捷入口 -->
@@ -13,30 +17,57 @@
         class="type-card"
         :class="{ 'type-disabled': !features.competition }"
       >
-        <text class="type-icon">{{ item.icon }}</text>
-        <text class="type-name">{{ item.name }}</text>
-        <text class="type-count">{{ item.count }} 场进行中</text>
+        <text class="type-icon">
+          {{ item.icon }}
+        </text>
+        <text class="type-name">
+          {{ item.name }}
+        </text>
+        <text class="type-count">
+          {{ item.count }} 场进行中
+        </text>
       </view>
     </view>
 
     <!-- 占位提示 -->
     <view class="placeholder">
-      <text class="placeholder-icon">🏗️</text>
-      <text class="placeholder-title">赛事功能即将上线</text>
+      <text class="placeholder-icon">
+        🏗️
+      </text>
+      <text class="placeholder-title">
+        赛事功能即将上线
+      </text>
       <text class="placeholder-desc">
         八字预测大赛 · 诗词创作赛 · 格物感知赛 · 书法绘画赛{'\n'}
         月度赛 · 季度赛 · 年度总决赛
       </text>
-      <text class="placeholder-tip">敬请期待</text>
+      <text class="placeholder-tip">
+        敬请期待
+      </text>
     </view>
 
     <!-- 赛事预告 -->
-    <view class="upcoming" v-if="upcomingList.length > 0">
-      <text class="section-title">📅 赛事预告</text>
-      <view v-for="item in upcomingList" :key="item.id" class="upcoming-item">
-        <text class="upcoming-date">{{ item.date }}</text>
-        <text class="upcoming-name">{{ item.title }}</text>
-        <text class="upcoming-tag">{{ item.tag }}</text>
+    <view
+      v-if="upcomingList.length > 0"
+      class="upcoming"
+    >
+      <text class="section-title">
+        📅 赛事预告
+      </text>
+      <view
+        v-for="item in upcomingList"
+        :key="item.id"
+        class="upcoming-item"
+      >
+        <text class="upcoming-date">
+          {{ item.date }}
+        </text>
+        <text class="upcoming-name">
+          {{ item.title }}
+        </text>
+        <text class="upcoming-tag">
+          {{ item.tag }}
+        </text>
       </view>
     </view>
   </view>

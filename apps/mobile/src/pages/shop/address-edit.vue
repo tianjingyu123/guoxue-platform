@@ -2,30 +2,75 @@
   <view class="page">
     <view class="form">
       <view class="form-item">
-        <text class="form-label">收货人</text>
-        <input class="form-input" v-model="form.name" placeholder="请输入收货人姓名" />
+        <text class="form-label">
+          收货人
+        </text>
+        <input
+          v-model="form.name"
+          class="form-input"
+          placeholder="请输入收货人姓名"
+        >
       </view>
       <view class="form-item">
-        <text class="form-label">手机号</text>
-        <input class="form-input" v-model="form.phone" type="number" maxlength="11" placeholder="请输入手机号" />
+        <text class="form-label">
+          手机号
+        </text>
+        <input
+          v-model="form.phone"
+          class="form-input"
+          type="number"
+          maxlength="11"
+          placeholder="请输入手机号"
+        >
       </view>
       <view class="form-item">
-        <text class="form-label">所在地区</text>
-        <input class="form-input" v-model="regionText" disabled placeholder="请选择省市区" @click="pickRegion" />
+        <text class="form-label">
+          所在地区
+        </text>
+        <input
+          v-model="regionText"
+          class="form-input"
+          disabled
+          placeholder="请选择省市区"
+          @click="pickRegion"
+        >
       </view>
       <view class="form-item">
-        <text class="form-label">详细地址</text>
-        <input class="form-input" v-model="form.detail" placeholder="街道、门牌号等" />
+        <text class="form-label">
+          详细地址
+        </text>
+        <input
+          v-model="form.detail"
+          class="form-input"
+          placeholder="街道、门牌号等"
+        >
       </view>
       <view class="form-item switch-item">
-        <text class="form-label">设为默认</text>
-        <switch :checked="form.isDefault" @change="form.isDefault = $event.detail.value" color="#C41E3A" />
+        <text class="form-label">
+          设为默认
+        </text>
+        <switch
+          :checked="form.isDefault"
+          color="#C41E3A"
+          @change="form.isDefault = $event.detail.value"
+        />
       </view>
     </view>
 
     <view class="btn-area">
-      <view class="btn-save" @click="save">保存</view>
-      <view v-if="isEdit" class="btn-delete" @click="remove">删除地址</view>
+      <view
+        class="btn-save"
+        @click="save"
+      >
+        保存
+      </view>
+      <view
+        v-if="isEdit"
+        class="btn-delete"
+        @click="remove"
+      >
+        删除地址
+      </view>
     </view>
   </view>
 </template>

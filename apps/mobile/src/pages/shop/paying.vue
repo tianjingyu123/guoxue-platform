@@ -2,10 +2,17 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
-      <view class="nav-close" @click="handleCancel">
-        <text class="nav-close-icon">✕</text>
+      <view
+        class="nav-close"
+        @click="handleCancel"
+      >
+        <text class="nav-close-icon">
+          ✕
+        </text>
       </view>
-      <text class="nav-title">支付中</text>
+      <text class="nav-title">
+        支付中
+      </text>
       <view class="nav-spacer" />
     </view>
 
@@ -14,49 +21,106 @@
       <!-- 支付中 -->
       <template v-if="status === 'paying'">
         <view class="paying-animation">
-          <view class="paying-ring-outer" :style="{ backgroundColor: getPayMethodColor() + '15' }">
-            <view class="paying-ring-inner" :style="{ backgroundColor: getPayMethodColor() + '25' }">
-              <view class="paying-dot" :style="{ backgroundColor: getPayMethodColor() }" />
+          <view
+            class="paying-ring-outer"
+            :style="{ backgroundColor: getPayMethodColor() + '15' }"
+          >
+            <view
+              class="paying-ring-inner"
+              :style="{ backgroundColor: getPayMethodColor() + '25' }"
+            >
+              <view
+                class="paying-dot"
+                :style="{ backgroundColor: getPayMethodColor() }"
+              />
             </view>
           </view>
-          <view class="paying-pulse" :style="{ backgroundColor: getPayMethodColor() }" />
+          <view
+            class="paying-pulse"
+            :style="{ backgroundColor: getPayMethodColor() }"
+          />
         </view>
-        <text class="status-title">正在支付中...</text>
-        <text class="status-pay-method">{{ getPayMethodName() }}</text>
-        <text class="status-amount">¥{{ amountStr }}</text>
+        <text class="status-title">
+          正在支付中...
+        </text>
+        <text class="status-pay-method">
+          {{ getPayMethodName() }}
+        </text>
+        <text class="status-amount">
+          ¥{{ amountStr }}
+        </text>
 
         <view class="countdown-card">
           <view class="countdown-content">
-            <text class="countdown-icon">⚠</text>
-            <text>请在 <text class="countdown-num">{{ countdown }}</text> 秒内完成支付</text>
+            <text class="countdown-icon">
+              ⚠
+            </text>
+            <text>
+              请在 <text class="countdown-num">
+                {{ countdown }}
+              </text> 秒内完成支付
+            </text>
           </view>
         </view>
 
-        <text class="cancel-link" @click="handleCancel">取消支付</text>
+        <text
+          class="cancel-link"
+          @click="handleCancel"
+        >
+          取消支付
+        </text>
       </template>
 
       <!-- 加载中 -->
       <template v-if="status === 'loading'">
         <view class="loading-spinner" />
-        <text class="loading-text">正在准备支付...</text>
+        <text class="loading-text">
+          正在准备支付...
+        </text>
       </template>
 
       <!-- 支付成功 -->
       <template v-if="status === 'success'">
-        <view class="result-icon-wrap green"><text class="result-icon-large">✓</text></view>
-        <text class="status-title">支付成功</text>
-        <text class="status-sub">正在跳转...</text>
+        <view class="result-icon-wrap green">
+          <text class="result-icon-large">
+            ✓
+          </text>
+        </view>
+        <text class="status-title">
+          支付成功
+        </text>
+        <text class="status-sub">
+          正在跳转...
+        </text>
       </template>
 
       <!-- 支付失败 -->
       <template v-if="status === 'failed'">
-        <view class="result-icon-wrap red"><text class="result-icon-large">✕</text></view>
-        <text class="status-title">支付失败</text>
-        <text class="status-sub">{{ failReason || '请重新尝试' }}</text>
+        <view class="result-icon-wrap red">
+          <text class="result-icon-large">
+            ✕
+          </text>
+        </view>
+        <text class="status-title">
+          支付失败
+        </text>
+        <text class="status-sub">
+          {{ failReason || '请重新尝试' }}
+        </text>
         <view class="result-actions">
-          <view class="btn-outline" @click="handleCancel">返回订单</view>
-          <view class="btn-primary-sm" @click="handleRetry">
-            <text class="btn-retry-icon">🔄</text>
+          <view
+            class="btn-outline"
+            @click="handleCancel"
+          >
+            返回订单
+          </view>
+          <view
+            class="btn-primary-sm"
+            @click="handleRetry"
+          >
+            <text class="btn-retry-icon">
+              🔄
+            </text>
             <text>重新支付</text>
           </view>
         </view>
@@ -64,13 +128,31 @@
 
       <!-- 支付超时 -->
       <template v-if="status === 'timeout'">
-        <view class="result-icon-wrap orange"><text class="result-icon-large">⚠</text></view>
-        <text class="status-title">支付超时</text>
-        <text class="status-sub">未收到支付结果，请确认支付状态</text>
+        <view class="result-icon-wrap orange">
+          <text class="result-icon-large">
+            ⚠
+          </text>
+        </view>
+        <text class="status-title">
+          支付超时
+        </text>
+        <text class="status-sub">
+          未收到支付结果，请确认支付状态
+        </text>
         <view class="result-actions">
-          <view class="btn-outline" @click="goOrder">查看订单</view>
-          <view class="btn-primary-sm" @click="handleRetry">
-            <text class="btn-retry-icon">🔄</text>
+          <view
+            class="btn-outline"
+            @click="goOrder"
+          >
+            查看订单
+          </view>
+          <view
+            class="btn-primary-sm"
+            @click="handleRetry"
+          >
+            <text class="btn-retry-icon">
+              🔄
+            </text>
             <text>重新支付</text>
           </view>
         </view>
@@ -78,20 +160,39 @@
 
       <!-- 已取消 -->
       <template v-if="status === 'cancelled'">
-        <view class="result-icon-wrap gray"><text class="result-icon-large">✕</text></view>
-        <text class="status-title">支付已取消</text>
-        <text class="status-sub">您已取消本次支付</text>
-        <view class="btn-primary-sm" @click="goOrder">查看订单</view>
+        <view class="result-icon-wrap gray">
+          <text class="result-icon-large">
+            ✕
+          </text>
+        </view>
+        <text class="status-title">
+          支付已取消
+        </text>
+        <text class="status-sub">
+          您已取消本次支付
+        </text>
+        <view
+          class="btn-primary-sm"
+          @click="goOrder"
+        >
+          查看订单
+        </view>
       </template>
     </view>
 
     <!-- 底部安全提示 -->
     <view class="footer-safe">
       <view class="safe-row">
-        <text class="safe-icon">🛡</text>
-        <text class="safe-text">支付环境安全 · 资金加密保护</text>
+        <text class="safe-icon">
+          🛡
+        </text>
+        <text class="safe-text">
+          支付环境安全 · 资金加密保护
+        </text>
       </view>
-      <text class="safe-brand">热卜国学 提供安全支付保障</text>
+      <text class="safe-brand">
+        热卜国学 提供安全支付保障
+      </text>
     </view>
   </view>
 </template>

@@ -4,21 +4,48 @@
     <view class="nav-header">
       <view class="nav-inner">
         <view class="nav-left">
-          <text class="nav-back" @click="goBack">←</text>
-          <text class="nav-title">直播回放</text>
+          <text
+            class="nav-back"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <text class="nav-title">
+            直播回放
+          </text>
         </view>
       </view>
 
       <!-- 搜索栏 -->
       <view class="search-bar">
         <view class="search-input-wrap">
-          <text class="search-icon">🔍</text>
-          <input v-model="searchQuery" class="search-input" placeholder="搜索讲师或标题" @confirm="doSearch" />
-          <text v-if="searchQuery" class="search-clear" @click="searchQuery = ''">✕</text>
+          <text class="search-icon">
+            🔍
+          </text>
+          <input
+            v-model="searchQuery"
+            class="search-input"
+            placeholder="搜索讲师或标题"
+            @confirm="doSearch"
+          >
+          <text
+            v-if="searchQuery"
+            class="search-clear"
+            @click="searchQuery = ''"
+          >
+            ✕
+          </text>
         </view>
-        <view class="sort-btn" @click="showSortSheet = true">
-          <text class="sort-icon">⚙️</text>
-          <text class="sort-text">{{ sortOptions.find(o => o.value === sortBy)?.label }}</text>
+        <view
+          class="sort-btn"
+          @click="showSortSheet = true"
+        >
+          <text class="sort-icon">
+            ⚙️
+          </text>
+          <text class="sort-text">
+            {{ sortOptions.find(o => o.value === sortBy)?.label }}
+          </text>
         </view>
       </view>
     </view>
@@ -26,8 +53,15 @@
     <!-- 回放列表 -->
     <view class="list-section">
       <!-- 加载态 -->
-      <view v-if="loading" class="skeleton-list">
-        <view v-for="i in 4" :key="i" class="skeleton-item">
+      <view
+        v-if="loading"
+        class="skeleton-list"
+      >
+        <view
+          v-for="i in 4"
+          :key="i"
+          class="skeleton-item"
+        >
           <view class="skeleton-cover" />
           <view class="skeleton-info">
             <view class="skeleton-line w-full" />
@@ -41,25 +75,49 @@
       </view>
 
       <!-- 错误态 -->
-      <view v-else-if="loadError" class="error-wrap">
+      <view
+        v-else-if="loadError"
+        class="error-wrap"
+      >
         <view class="error-inner">
-          <text class="error-icon">⚠️</text>
-          <text class="error-text">{{ loadError }}</text>
-          <view class="error-retry" @click="loadReplays()">重新加载</view>
+          <text class="error-icon">
+            ⚠️
+          </text>
+          <text class="error-text">
+            {{ loadError }}
+          </text>
+          <view
+            class="error-retry"
+            @click="loadReplays()"
+          >
+            重新加载
+          </view>
         </view>
       </view>
 
       <!-- 空状态 -->
-      <view v-else-if="filteredReplays.length === 0" class="empty-state">
+      <view
+        v-else-if="filteredReplays.length === 0"
+        class="empty-state"
+      >
         <view class="empty-icon-wrap">
-          <text class="empty-icon">🎬</text>
+          <text class="empty-icon">
+            🎬
+          </text>
         </view>
-        <text class="empty-title">暂无回放内容</text>
-        <text class="empty-desc">{{ searchQuery ? '换个关键词试试' : '精彩内容即将上线' }}</text>
+        <text class="empty-title">
+          暂无回放内容
+        </text>
+        <text class="empty-desc">
+          {{ searchQuery ? '换个关键词试试' : '精彩内容即将上线' }}
+        </text>
       </view>
 
       <!-- 列表 -->
-      <view v-else class="replay-list">
+      <view
+        v-else
+        class="replay-list"
+      >
         <view
           v-for="replay in filteredReplays"
           :key="replay.id"
@@ -69,49 +127,94 @@
           <view class="replay-card-inner">
             <!-- 封面 -->
             <view class="replay-cover-wrap">
-              <image :src="replay.cover" mode="aspectFill" class="replay-cover" />
+              <image
+                :src="replay.cover"
+                mode="aspectFill"
+                class="replay-cover"
+              />
               <view class="replay-badge-row">
-                <text class="replay-badge">▶ 回放</text>
+                <text class="replay-badge">
+                  ▶ 回放
+                </text>
               </view>
-              <text class="replay-duration">{{ formatDuration(replay.duration || 0) }}</text>
+              <text class="replay-duration">
+                {{ formatDuration(replay.duration || 0) }}
+              </text>
             </view>
 
             <!-- 信息 -->
             <view class="replay-info">
-              <text class="replay-title">{{ replay.title }}</text>
+              <text class="replay-title">
+                {{ replay.title }}
+              </text>
               <view class="replay-host-row">
-                <image :src="replay.host.avatar" mode="aspectFill" class="replay-host-avatar" />
-                <text class="replay-host-name">{{ replay.host.name }}</text>
-                <text class="replay-category">{{ replay.category }}</text>
+                <image
+                  :src="replay.host.avatar"
+                  mode="aspectFill"
+                  class="replay-host-avatar"
+                />
+                <text class="replay-host-name">
+                  {{ replay.host.name }}
+                </text>
+                <text class="replay-category">
+                  {{ replay.category }}
+                </text>
               </view>
               <view class="replay-stats">
-                <text class="replay-stat">👁️ {{ formatViews(replay.viewers) }}次播放</text>
-                <text class="replay-stat">{{ formatDate(replay.endTime || '') }}</text>
+                <text class="replay-stat">
+                  👁️ {{ formatViews(replay.viewers) }}次播放
+                </text>
+                <text class="replay-stat">
+                  {{ formatDate(replay.endTime || '') }}
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <!-- 加载更多 -->
-        <view v-if="loadingMore" class="load-more-btn">
+        <view
+          v-if="loadingMore"
+          class="load-more-btn"
+        >
           <text>加载中...</text>
         </view>
-        <view v-else-if="hasMore" class="load-more-btn" @click="loadMore">
+        <view
+          v-else-if="hasMore"
+          class="load-more-btn"
+          @click="loadMore"
+        >
           <text>加载更多</text>
         </view>
-        <view v-else class="load-end">
+        <view
+          v-else
+          class="load-end"
+        >
           <text>已显示全部回放</text>
         </view>
       </view>
     </view>
 
     <!-- 排序面板 -->
-    <view v-if="showSortSheet" class="sort-sheet">
-      <view class="sort-mask" @click="showSortSheet = false" />
+    <view
+      v-if="showSortSheet"
+      class="sort-sheet"
+    >
+      <view
+        class="sort-mask"
+        @click="showSortSheet = false"
+      />
       <view class="sort-panel">
         <view class="sort-panel-header">
-          <text class="sort-panel-title">排序方式</text>
-          <text class="sort-panel-close" @click="showSortSheet = false">✕</text>
+          <text class="sort-panel-title">
+            排序方式
+          </text>
+          <text
+            class="sort-panel-close"
+            @click="showSortSheet = false"
+          >
+            ✕
+          </text>
         </view>
         <view class="sort-options">
           <text
@@ -119,7 +222,9 @@
             :key="opt.value"
             :class="['sort-option', sortBy === opt.value ? 'sort-option-active' : '']"
             @click="selectSort(opt.value)"
-          >{{ opt.label }}</text>
+          >
+            {{ opt.label }}
+          </text>
         </view>
       </view>
     </view>

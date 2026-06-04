@@ -3,22 +3,54 @@
     <!-- 头部 -->
     <view class="header">
       <view class="header-row">
-        <text class="back-btn" @click="goBack">←</text>
-        <view class="city-selector" @click="showCitySelector = true">
-          <text class="city-icon">📍</text>
-          <text class="city-name">{{ locating ? '定位中...' : currentCity }}</text>
-          <text class="city-arrow">▼</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <view
+          class="city-selector"
+          @click="showCitySelector = true"
+        >
+          <text class="city-icon">
+            📍
+          </text>
+          <text class="city-name">
+            {{ locating ? '定位中...' : currentCity }}
+          </text>
+          <text class="city-arrow">
+            ▼
+          </text>
         </view>
         <view class="header-spacer" />
-        <text class="refresh-btn" :class="{ spinning: refreshing }" @click="loadData(true)">🔄</text>
+        <text
+          class="refresh-btn"
+          :class="{ spinning: refreshing }"
+          @click="loadData(true)"
+        >
+          🔄
+        </text>
       </view>
       <!-- 定位失败提示 -->
-      <view v-if="locationError" class="loc-error">
+      <view
+        v-if="locationError"
+        class="loc-error"
+      >
         <text>定位失败，请手动选择城市</text>
-        <text class="loc-retry" @click="requestLocation">重试</text>
+        <text
+          class="loc-retry"
+          @click="requestLocation"
+        >
+          重试
+        </text>
       </view>
       <!-- 筛选 Tab -->
-      <scroll-view scroll-x class="tabs-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="tabs-scroll"
+        show-scrollbar="false"
+      >
         <view class="tabs-inner">
           <text
             v-for="tab in filterTabs"
@@ -26,7 +58,9 @@
             class="tab"
             :class="{ active: activeTab === tab.key }"
             @click="activeTab = tab.key; loadData()"
-          >{{ tab.label }}</text>
+          >
+            {{ tab.label }}
+          </text>
         </view>
       </scroll-view>
     </view>
@@ -34,7 +68,7 @@
     <!-- 内容列表 -->
     <DataState
       :is-loading="loading && items.length === 0"
-      :isEmpty="!loading && items.length === 0"
+      :is-empty="!loading && items.length === 0"
       empty-icon="🧭"
       empty-title="暂无附近内容"
       empty-description="换个城市或类型试试"
@@ -50,45 +84,105 @@
         >
           <!-- 封面 -->
           <view class="fc-cover-wrap">
-            <image :src="item.cover" class="fc-cover" mode="aspectFill" />
-            <view class="fc-type-badge" :class="'type-' + item.type">
+            <image
+              :src="item.cover"
+              class="fc-cover"
+              mode="aspectFill"
+            />
+            <view
+              class="fc-type-badge"
+              :class="'type-' + item.type"
+            >
               <text>{{ getContentTypeLabel(item.type) }}</text>
             </view>
-            <view v-if="item.distance" class="fc-distance" @click.stop="handleNavigate(item)">
+            <view
+              v-if="item.distance"
+              class="fc-distance"
+              @click.stop="handleNavigate(item)"
+            >
               <text>🧭 {{ formatDistance(item.distance) }}</text>
             </view>
-            <view v-if="item.type === 'video'" class="fc-play-btn">
-              <text class="fc-play-icon">▶</text>
+            <view
+              v-if="item.type === 'video'"
+              class="fc-play-btn"
+            >
+              <text class="fc-play-icon">
+                ▶
+              </text>
             </view>
-            <view v-if="item.price !== undefined || item.isFree" class="fc-price-tag">
+            <view
+              v-if="item.price !== undefined || item.isFree"
+              class="fc-price-tag"
+            >
               <text>{{ item.isFree ? '免费' : '¥' + item.price }}</text>
             </view>
           </view>
           <!-- 内容 -->
           <view class="fc-body">
-            <text class="fc-title">{{ item.title }}</text>
-            <text v-if="item.description" class="fc-desc">{{ item.description }}</text>
-            <view v-if="item.startTime" class="fc-meta-row">
+            <text class="fc-title">
+              {{ item.title }}
+            </text>
+            <text
+              v-if="item.description"
+              class="fc-desc"
+            >
+              {{ item.description }}
+            </text>
+            <view
+              v-if="item.startTime"
+              class="fc-meta-row"
+            >
               <text>📅 {{ item.startTime.split(' ')[0] }}</text>
-              <text v-if="item.status" class="fc-status-text">· {{ item.status }}</text>
+              <text
+                v-if="item.status"
+                class="fc-status-text"
+              >
+                · {{ item.status }}
+              </text>
             </view>
             <view class="fc-meta-row">
               <text>📍 {{ item.location?.name || '' }}</text>
             </view>
             <view class="fc-footer">
               <view class="fc-stats">
-                <text v-if="item.participantCount">👥 {{ item.participantCount }}人</text>
-                <text v-if="item.viewCount">👁 {{ item.viewCount }}</text>
-                <text v-if="item.likeCount">❤ {{ item.likeCount }}</text>
-                <text v-if="item.commentCount">💬 {{ item.commentCount }}</text>
+                <text v-if="item.participantCount">
+                  👥 {{ item.participantCount }}人
+                </text>
+                <text v-if="item.viewCount">
+                  👁 {{ item.viewCount }}
+                </text>
+                <text v-if="item.likeCount">
+                  ❤ {{ item.likeCount }}
+                </text>
+                <text v-if="item.commentCount">
+                  💬 {{ item.commentCount }}
+                </text>
               </view>
-              <view v-if="item.author" class="fc-author">
-                <image :src="item.author.avatar" class="fc-avatar" mode="aspectFill" />
-                <text class="fc-author-name">{{ item.author.name }}</text>
+              <view
+                v-if="item.author"
+                class="fc-author"
+              >
+                <image
+                  :src="item.author.avatar"
+                  class="fc-avatar"
+                  mode="aspectFill"
+                />
+                <text class="fc-author-name">
+                  {{ item.author.name }}
+                </text>
               </view>
             </view>
-            <view v-if="item.tags?.length" class="fc-tags">
-              <text v-for="(tag, ti) in item.tags.slice(0, 3)" :key="ti" class="fc-tag">{{ tag }}</text>
+            <view
+              v-if="item.tags?.length"
+              class="fc-tags"
+            >
+              <text
+                v-for="(tag, ti) in item.tags.slice(0, 3)"
+                :key="ti"
+                class="fc-tag"
+              >
+                {{ tag }}
+              </text>
             </view>
           </view>
         </view>
@@ -96,26 +190,55 @@
     </DataState>
 
     <!-- 城市选择器 -->
-    <view v-if="showCitySelector" class="city-mask" @click="showCitySelector = false">
-      <view class="city-sheet" @click.stop>
+    <view
+      v-if="showCitySelector"
+      class="city-mask"
+      @click="showCitySelector = false"
+    >
+      <view
+        class="city-sheet"
+        @click.stop
+      >
         <view class="city-header">
-          <text class="city-title">选择城市</text>
-          <text @click="showCitySelector = false">✕</text>
+          <text class="city-title">
+            选择城市
+          </text>
+          <text @click="showCitySelector = false">
+            ✕
+          </text>
         </view>
         <view class="city-search-wrap">
-          <text class="city-search-icon">🔍</text>
-          <input v-model="cityKeyword" class="city-search-input" placeholder="搜索城市" />
+          <text class="city-search-icon">
+            🔍
+          </text>
+          <input
+            v-model="cityKeyword"
+            class="city-search-input"
+            placeholder="搜索城市"
+          >
         </view>
-        <scroll-view scroll-y class="city-list-scroll">
+        <scroll-view
+          scroll-y
+          class="city-list-scroll"
+        >
           <view class="city-section">
-            <text class="city-section-title">当前定位</text>
+            <text class="city-section-title">
+              当前定位
+            </text>
             <view class="city-current">
               <text>📍</text>
-              <text class="city-current-name">{{ currentCity || '定位中...' }}</text>
+              <text class="city-current-name">
+                {{ currentCity || '定位中...' }}
+              </text>
             </view>
           </view>
-          <view v-if="!cityKeyword" class="city-section">
-            <text class="city-section-title">热门城市</text>
+          <view
+            v-if="!cityKeyword"
+            class="city-section"
+          >
+            <text class="city-section-title">
+              热门城市
+            </text>
             <view class="city-grid">
               <text
                 v-for="c in hotCities"
@@ -123,21 +246,35 @@
                 class="city-item"
                 :class="{ active: currentCity === c.name }"
                 @click="selectCity(c.name)"
-              >{{ c.name }}</text>
+              >
+                {{ c.name }}
+              </text>
             </view>
           </view>
           <view class="city-section">
-            <text class="city-section-title">{{ cityKeyword ? '搜索结果' : '全部城市' }}</text>
-            <view v-if="filteredCities.length" class="city-grid">
+            <text class="city-section-title">
+              {{ cityKeyword ? '搜索结果' : '全部城市' }}
+            </text>
+            <view
+              v-if="filteredCities.length"
+              class="city-grid"
+            >
               <text
                 v-for="c in filteredCities"
                 :key="c.code"
                 class="city-item"
                 :class="{ active: currentCity === c.name }"
                 @click="selectCity(c.name)"
-              >{{ c.name }}</text>
+              >
+                {{ c.name }}
+              </text>
             </view>
-            <text v-else-if="cityKeyword" class="city-empty">未找到相关城市</text>
+            <text
+              v-else-if="cityKeyword"
+              class="city-empty"
+            >
+              未找到相关城市
+            </text>
           </view>
         </scroll-view>
       </view>

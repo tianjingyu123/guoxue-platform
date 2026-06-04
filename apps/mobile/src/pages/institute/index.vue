@@ -3,49 +3,99 @@
     <!-- 顶部导航 -->
     <view class="nav-header">
       <view class="nav-header-inner">
-        <text class="nav-back" @click="goBack">←</text>
-        <text class="nav-title">研究院</text>
+        <text
+          class="nav-back"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="nav-title">
+          研究院
+        </text>
       </view>
     </view>
 
     <!-- Banner -->
-    <view v-if="instituteInfo" class="banner-wrap">
-      <image :src="instituteInfo.bannerUrl" mode="aspectFill" class="banner-img" />
+    <view
+      v-if="instituteInfo"
+      class="banner-wrap"
+    >
+      <image
+        :src="instituteInfo.bannerUrl"
+        mode="aspectFill"
+        class="banner-img"
+      />
       <view class="banner-overlay" />
       <view class="banner-content">
-        <text class="banner-title">{{ instituteInfo.name }}</text>
-        <text class="banner-slogan">{{ instituteInfo.slogan }}</text>
+        <text class="banner-title">
+          {{ instituteInfo.name }}
+        </text>
+        <text class="banner-slogan">
+          {{ instituteInfo.slogan }}
+        </text>
       </view>
     </view>
 
     <!-- 搜索栏 -->
     <view class="search-bar">
       <view class="search-input-wrap">
-        <text class="search-icon">🔍</text>
-        <input v-model="searchKeyword" class="search-input" placeholder="搜索讲师、课程..." @confirm="handleSearch" />
-        <view class="search-btn" @click="handleSearch">
-          <text class="search-btn-text">搜索</text>
+        <text class="search-icon">
+          🔍
+        </text>
+        <input
+          v-model="searchKeyword"
+          class="search-input"
+          placeholder="搜索讲师、课程..."
+          @confirm="handleSearch"
+        >
+        <view
+          class="search-btn"
+          @click="handleSearch"
+        >
+          <text class="search-btn-text">
+            搜索
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 统计数据 -->
-    <view v-if="instituteInfo" class="section-padding">
+    <view
+      v-if="instituteInfo"
+      class="section-padding"
+    >
       <view class="stats-grid">
-        <view class="stat-item" v-for="stat in statsList" :key="stat.label">
-          <text class="stat-num">{{ stat.value }}</text>
-          <text class="stat-label">{{ stat.label }}</text>
+        <view
+          v-for="stat in statsList"
+          :key="stat.label"
+          class="stat-item"
+        >
+          <text class="stat-num">
+            {{ stat.value }}
+          </text>
+          <text class="stat-label">
+            {{ stat.label }}
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 关于我们 -->
-    <view v-if="instituteInfo" class="section-padding">
+    <view
+      v-if="instituteInfo"
+      class="section-padding"
+    >
       <view class="card">
-        <text class="section-title">关于我们</text>
-        <text class="about-desc">{{ instituteInfo.description }}</text>
+        <text class="section-title">
+          关于我们
+        </text>
+        <text class="about-desc">
+          {{ instituteInfo.description }}
+        </text>
         <view class="mission-box">
-          <text class="mission-text">使命：{{ instituteInfo.mission }}</text>
+          <text class="mission-text">
+            使命：{{ instituteInfo.mission }}
+          </text>
         </view>
       </view>
     </view>
@@ -54,63 +104,134 @@
     <view class="section-padding">
       <view class="section-header">
         <view class="section-header-left">
-          <text class="section-icon">👥</text>
-          <text class="section-title">金牌讲师</text>
+          <text class="section-icon">
+            👥
+          </text>
+          <text class="section-title">
+            金牌讲师
+          </text>
         </view>
-        <view class="section-more" @click="goInstructors">
+        <view
+          class="section-more"
+          @click="goInstructors"
+        >
           <text>查看全部 </text>
           <text>›</text>
         </view>
       </view>
       <view class="instructor-grid">
-        <view v-for="inst in instructors.slice(0, 4)" :key="inst.id" class="instructor-card" @click="goInstructorDetail(inst.id)">
+        <view
+          v-for="inst in instructors.slice(0, 4)"
+          :key="inst.id"
+          class="instructor-card"
+          @click="goInstructorDetail(inst.id)"
+        >
           <view class="instructor-avatar-wrap">
-            <image :src="inst.avatar" mode="aspectFill" class="instructor-avatar" />
-            <text v-if="inst.verified" class="verified-badge">✓</text>
+            <image
+              :src="inst.avatar"
+              mode="aspectFill"
+              class="instructor-avatar"
+            />
+            <text
+              v-if="inst.verified"
+              class="verified-badge"
+            >
+              ✓
+            </text>
           </view>
           <view class="instructor-meta">
-            <text class="instructor-name">{{ inst.name }}</text>
-            <text class="instructor-title">{{ inst.title }}</text>
+            <text class="instructor-name">
+              {{ inst.name }}
+            </text>
+            <text class="instructor-title">
+              {{ inst.title }}
+            </text>
           </view>
           <view class="tag-group">
-            <text v-for="s in inst.specialties.slice(0, 2)" :key="s" class="tag">{{ s }}</text>
+            <text
+              v-for="s in inst.specialties.slice(0, 2)"
+              :key="s"
+              class="tag"
+            >
+              {{ s }}
+            </text>
           </view>
           <view class="instructor-footer">
-            <text class="meta-text">👥 {{ inst.studentCount }}</text>
-            <text class="meta-text">⭐ {{ inst.rating }}</text>
+            <text class="meta-text">
+              👥 {{ inst.studentCount }}
+            </text>
+            <text class="meta-text">
+              ⭐ {{ inst.rating }}
+            </text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 近期活动 -->
-    <view v-if="events.length > 0" class="section-padding">
+    <view
+      v-if="events.length > 0"
+      class="section-padding"
+    >
       <view class="section-header">
         <view class="section-header-left">
-          <text class="section-icon">📅</text>
-          <text class="section-title">近期活动</text>
+          <text class="section-icon">
+            📅
+          </text>
+          <text class="section-title">
+            近期活动
+          </text>
         </view>
-        <view class="section-more" @click="goEvents">
+        <view
+          class="section-more"
+          @click="goEvents"
+        >
           <text>更多活动 </text>
           <text>›</text>
         </view>
       </view>
       <view class="events-list">
-        <view v-for="evt in events" :key="evt.id" class="event-card" @click="goEventDetail(evt.id)">
+        <view
+          v-for="evt in events"
+          :key="evt.id"
+          class="event-card"
+          @click="goEventDetail(evt.id)"
+        >
           <view class="event-cover-wrap">
-            <image :src="evt.cover" mode="aspectFill" class="event-cover" />
-            <text class="event-status" :style="{ backgroundColor: getEventStatusColor(evt.status) }">{{ getEventStatusLabel(evt.status) }}</text>
+            <image
+              :src="evt.cover"
+              mode="aspectFill"
+              class="event-cover"
+            />
+            <text
+              class="event-status"
+              :style="{ backgroundColor: getEventStatusColor(evt.status) }"
+            >
+              {{ getEventStatusLabel(evt.status) }}
+            </text>
           </view>
           <view class="event-info">
             <view class="event-title-row">
-              <text class="event-title ellipsis">{{ evt.title }}</text>
-              <text class="event-type-label">{{ getEventTypeLabel(evt.type) }}</text>
+              <text class="event-title ellipsis">
+                {{ evt.title }}
+              </text>
+              <text class="event-type-label">
+                {{ getEventTypeLabel(evt.type) }}
+              </text>
             </view>
-            <view class="event-row"><text>🕐 {{ evt.startTime.split(' ')[0] }}</text></view>
-            <view class="event-row"><text>📍 {{ evt.isOnline ? '线上直播' : evt.location }}</text></view>
+            <view class="event-row">
+              <text>🕐 {{ evt.startTime.split(' ')[0] }}</text>
+            </view>
+            <view class="event-row">
+              <text>📍 {{ evt.isOnline ? '线上直播' : evt.location }}</text>
+            </view>
             <view class="event-footer">
-              <text :class="evt.price === 0 ? 'text-free' : 'text-price'">{{ evt.price === 0 ? '免费' : '¥' + evt.price }}</text>
-              <text class="text-muted-small">{{ evt.currentParticipants }}人已报名</text>
+              <text :class="evt.price === 0 ? 'text-free' : 'text-price'">
+                {{ evt.price === 0 ? '免费' : '¥' + evt.price }}
+              </text>
+              <text class="text-muted-small">
+                {{ evt.currentParticipants }}人已报名
+              </text>
             </view>
           </view>
         </view>
@@ -118,11 +239,20 @@
     </view>
 
     <!-- 成为讲师入口 -->
-    <view class="cta-section" @click="goApply">
+    <view
+      class="cta-section"
+      @click="goApply"
+    >
       <view class="cta-content">
-        <text class="cta-title">成为讲师</text>
-        <text class="cta-desc">加入热卜研究院，分享你的专业知识</text>
-        <view class="cta-btn"><text>立即申请 →</text></view>
+        <text class="cta-title">
+          成为讲师
+        </text>
+        <text class="cta-desc">
+          加入热卜研究院，分享你的专业知识
+        </text>
+        <view class="cta-btn">
+          <text>立即申请 →</text>
+        </view>
       </view>
       <view class="cta-deco-1" />
       <view class="cta-deco-2" />

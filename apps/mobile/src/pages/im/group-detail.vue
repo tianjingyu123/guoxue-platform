@@ -10,34 +10,77 @@
       <view class="content">
         <!-- 导航 -->
         <view class="nav">
-          <text class="nav-back" @click="goBack">←</text>
-          <text class="nav-title">群聊设置</text>
+          <text
+            class="nav-back"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <text class="nav-title">
+            群聊设置
+          </text>
           <view class="nav-placeholder" />
         </view>
 
         <!-- 群基本信息 -->
-        <view v-if="group" class="card">
+        <view
+          v-if="group"
+          class="card"
+        >
           <view class="group-header">
-            <image :src="group.avatar || ''" class="group-avatar" mode="aspectFill" />
+            <image
+              :src="group.avatar || ''"
+              class="group-avatar"
+              mode="aspectFill"
+            />
             <view class="group-info">
               <view class="group-name-row">
-                <text class="group-name">{{ group.name }}</text>
-                <text v-if="perms?.canUpdateNotice" class="group-edit">✎</text>
+                <text class="group-name">
+                  {{ group.name }}
+                </text>
+                <text
+                  v-if="perms?.canUpdateNotice"
+                  class="group-edit"
+                >
+                  ✎
+                </text>
               </view>
               <view class="group-id-row">
-                <text class="group-id">群号: {{ groupId }}</text>
-                <text class="group-copy" @click="copyGroupId">📋</text>
+                <text class="group-id">
+                  群号: {{ groupId }}
+                </text>
+                <text
+                  class="group-copy"
+                  @click="copyGroupId"
+                >
+                  📋
+                </text>
               </view>
             </view>
-            <text class="group-qr" @click="showQr">📱</text>
+            <text
+              class="group-qr"
+              @click="showQr"
+            >
+              📱
+            </text>
           </view>
         </view>
 
         <!-- 群成员 -->
-        <view v-if="group" class="card">
+        <view
+          v-if="group"
+          class="card"
+        >
           <view class="member-header">
-            <text class="member-title">群成员 ({{ group.memberCount }}人)</text>
-            <text class="member-all" @click="showAllMembers = true">查看全部 ›</text>
+            <text class="member-title">
+              群成员 ({{ group.memberCount }}人)
+            </text>
+            <text
+              class="member-all"
+              @click="showAllMembers = true"
+            >
+              查看全部 ›
+            </text>
           </view>
           <view class="member-avatars">
             <view
@@ -47,42 +90,104 @@
               @click="selectMemberAction(m)"
             >
               <view class="member-avatar-wrap">
-                <image :src="m.avatar || ''" class="member-avatar-sm" mode="aspectFill" />
-                <text v-if="m.role === 'owner'" class="m-role-icon">👑</text>
-                <text v-if="m.role === 'admin'" class="m-role-icon">🛡</text>
+                <image
+                  :src="m.avatar || ''"
+                  class="member-avatar-sm"
+                  mode="aspectFill"
+                />
+                <text
+                  v-if="m.role === 'owner'"
+                  class="m-role-icon"
+                >
+                  👑
+                </text>
+                <text
+                  v-if="m.role === 'admin'"
+                  class="m-role-icon"
+                >
+                  🛡
+                </text>
               </view>
-              <text class="member-avatar-name">{{ m.remark || m.nickname }}</text>
+              <text class="member-avatar-name">
+                {{ m.remark || m.nickname }}
+              </text>
             </view>
-            <view v-if="perms?.canInvite" class="member-avatar-item" @click="goInvite">
+            <view
+              v-if="perms?.canInvite"
+              class="member-avatar-item"
+              @click="goInvite"
+            >
               <view class="member-add-wrap">
-                <text class="member-add-icon">＋</text>
+                <text class="member-add-icon">
+                  ＋
+                </text>
               </view>
-              <text class="member-avatar-name">邀请</text>
+              <text class="member-avatar-name">
+                邀请
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 群公告 -->
-        <view v-if="group?.noticeDetail" class="card">
+        <view
+          v-if="group?.noticeDetail"
+          class="card"
+        >
           <view class="card-header-row">
-            <text class="card-title">群公告</text>
-            <text v-if="perms?.canUpdateNotice" class="card-action">编辑</text>
+            <text class="card-title">
+              群公告
+            </text>
+            <text
+              v-if="perms?.canUpdateNotice"
+              class="card-action"
+            >
+              编辑
+            </text>
           </view>
-          <text class="card-text">{{ group.noticeDetail.content }}</text>
-          <text class="card-meta">{{ group.noticeDetail.publisher }} 发布于 {{ group.noticeDetail.publishedAt }}</text>
+          <text class="card-text">
+            {{ group.noticeDetail.content }}
+          </text>
+          <text class="card-meta">
+            {{ group.noticeDetail.publisher }} 发布于 {{ group.noticeDetail.publishedAt }}
+          </text>
         </view>
 
         <!-- 我的设置 -->
         <view class="card">
           <!-- 我的群昵称 -->
           <view class="setting-item">
-            <text class="setting-label">我在本群的昵称</text>
-            <view v-if="editingNickname" class="setting-edit-row">
-              <input v-model="nicknameInput" class="setting-input" placeholder="请输入昵称" maxlength="20" />
-              <text class="setting-save" @click="saveNickname">✓</text>
-              <text class="setting-cancel" @click="editingNickname = false">✕</text>
+            <text class="setting-label">
+              我在本群的昵称
+            </text>
+            <view
+              v-if="editingNickname"
+              class="setting-edit-row"
+            >
+              <input
+                v-model="nicknameInput"
+                class="setting-input"
+                placeholder="请输入昵称"
+                maxlength="20"
+              >
+              <text
+                class="setting-save"
+                @click="saveNickname"
+              >
+                ✓
+              </text>
+              <text
+                class="setting-cancel"
+                @click="editingNickname = false"
+              >
+                ✕
+              </text>
             </view>
-            <text v-else class="setting-value" @click="startEditNickname">
+            <text
+              v-else
+              class="setting-value"
+              @click="startEditNickname"
+            >
               {{ settings?.myNickname || '未设置' }} ›
             </text>
           </view>
@@ -90,52 +195,117 @@
           <view class="setting-item">
             <view class="setting-label-row">
               <text>{{ settings?.isMuted ? '🔕' : '🔔' }}</text>
-              <text class="setting-label">消息免打扰</text>
+              <text class="setting-label">
+                消息免打扰
+              </text>
             </view>
-            <switch :checked="settings?.isMuted || false" color="#C41E3A" @change="toggleMute" />
+            <switch
+              :checked="settings?.isMuted || false"
+              color="#C41E3A"
+              @change="toggleMute"
+            />
           </view>
           <!-- 置顶聊天 -->
           <view class="setting-item">
             <view class="setting-label-row">
               <text>{{ settings?.isPinned ? '📌' : '📌' }}</text>
-              <text class="setting-label">置顶聊天</text>
+              <text class="setting-label">
+                置顶聊天
+              </text>
             </view>
-            <switch :checked="settings?.isPinned || false" color="#C41E3A" @change="togglePin" />
+            <switch
+              :checked="settings?.isPinned || false"
+              color="#C41E3A"
+              @change="togglePin"
+            />
           </view>
         </view>
 
         <!-- 退出/解散 -->
         <view class="card">
-          <view v-if="group?.myRole === 'owner'" class="danger-btn" @click="showDismissConfirm = true">
+          <view
+            v-if="group?.myRole === 'owner'"
+            class="danger-btn"
+            @click="showDismissConfirm = true"
+          >
             <text>🗑 解散群聊</text>
           </view>
-          <view v-else class="danger-btn" @click="showQuitConfirm = true">
+          <view
+            v-else
+            class="danger-btn"
+            @click="showQuitConfirm = true"
+          >
             <text>🚪 退出群聊</text>
           </view>
         </view>
       </view>
 
       <!-- 全部成员抽屉 -->
-      <view v-if="showAllMembers" class="sheet-mask" @click="showAllMembers = false">
-        <view class="sheet-side" @click.stop>
+      <view
+        v-if="showAllMembers"
+        class="sheet-mask"
+        @click="showAllMembers = false"
+      >
+        <view
+          class="sheet-side"
+          @click.stop
+        >
           <view class="sheet-side-header">
-            <text class="sheet-side-title">群成员 ({{ memberList.length }})</text>
+            <text class="sheet-side-title">
+              群成员 ({{ memberList.length }})
+            </text>
           </view>
-          <scroll-view scroll-y class="sheet-side-body">
-            <view v-for="m in memberList" :key="m.id" class="member-row">
+          <scroll-view
+            scroll-y
+            class="sheet-side-body"
+          >
+            <view
+              v-for="m in memberList"
+              :key="m.id"
+              class="member-row"
+            >
               <view class="member-row-left">
-                <image :src="m.avatar || ''" class="member-row-avatar" mode="aspectFill" />
+                <image
+                  :src="m.avatar || ''"
+                  class="member-row-avatar"
+                  mode="aspectFill"
+                />
                 <view class="member-row-info">
                   <view class="member-row-name-row">
-                    <text class="member-row-name">{{ m.remark || m.nickname }}</text>
-                    <text v-if="m.role === 'owner'" class="role-badge owner">👑 群主</text>
-                    <text v-else-if="m.role === 'admin'" class="role-badge admin">🛡 管理员</text>
+                    <text class="member-row-name">
+                      {{ m.remark || m.nickname }}
+                    </text>
+                    <text
+                      v-if="m.role === 'owner'"
+                      class="role-badge owner"
+                    >
+                      👑 群主
+                    </text>
+                    <text
+                      v-else-if="m.role === 'admin'"
+                      class="role-badge admin"
+                    >
+                      🛡 管理员
+                    </text>
                   </view>
-                  <text v-if="m.remark" class="member-row-sub">{{ m.nickname }}</text>
+                  <text
+                    v-if="m.remark"
+                    class="member-row-sub"
+                  >
+                    {{ m.nickname }}
+                  </text>
                 </view>
               </view>
-              <view v-if="m.id !== currentUserId && perms && (perms.canRemoveMember || perms.canSetAdmin) && m.role !== 'owner'" class="member-row-right">
-                <text class="member-row-more" @click="openMemberMenu(m)">⋮</text>
+              <view
+                v-if="m.id !== currentUserId && perms && (perms.canRemoveMember || perms.canSetAdmin) && m.role !== 'owner'"
+                class="member-row-right"
+              >
+                <text
+                  class="member-row-more"
+                  @click="openMemberMenu(m)"
+                >
+                  ⋮
+                </text>
               </view>
             </view>
           </scroll-view>
@@ -143,76 +313,194 @@
       </view>
 
       <!-- 二维码弹窗 -->
-      <view v-if="showQrCode" class="dialog-mask" @click="showQrCode = false">
-        <view class="dialog-box" @click.stop>
-          <text class="dialog-title">群二维码</text>
+      <view
+        v-if="showQrCode"
+        class="dialog-mask"
+        @click="showQrCode = false"
+      >
+        <view
+          class="dialog-box"
+          @click.stop
+        >
+          <text class="dialog-title">
+            群二维码
+          </text>
           <view class="qr-wrap">
-            <view class="qr-placeholder">📱</view>
+            <view class="qr-placeholder">
+              📱
+            </view>
           </view>
-          <text class="qr-hint">扫一扫，加入群聊</text>
-          <text class="qr-expire">二维码7天内有效</text>
+          <text class="qr-hint">
+            扫一扫，加入群聊
+          </text>
+          <text class="qr-expire">
+            二维码7天内有效
+          </text>
         </view>
       </view>
 
       <!-- 成员操作弹窗 -->
-      <view v-if="memberActionTarget" class="sheet-mask" @click="memberActionTarget = null">
-        <view class="sheet-content sheet-bottom" @click.stop>
-          <view v-if="perms?.canSetAdmin" class="action-item" @click="toggleAdmin(memberActionTarget)">
+      <view
+        v-if="memberActionTarget"
+        class="sheet-mask"
+        @click="memberActionTarget = null"
+      >
+        <view
+          class="sheet-content sheet-bottom"
+          @click.stop
+        >
+          <view
+            v-if="perms?.canSetAdmin"
+            class="action-item"
+            @click="toggleAdmin(memberActionTarget)"
+          >
             <text>{{ memberActionTarget.role === 'admin' ? '取消管理员' : '设为管理员' }}</text>
           </view>
-          <view v-if="perms?.canTransfer && memberActionTarget?.role !== 'owner'" class="action-item" @click="showTransferConfirm = true">
+          <view
+            v-if="perms?.canTransfer && memberActionTarget?.role !== 'owner'"
+            class="action-item"
+            @click="showTransferConfirm = true"
+          >
             <text>转让群主</text>
           </view>
-          <view v-if="perms?.canRemoveMember && memberActionTarget?.role !== 'owner'" class="action-item action-danger-text" @click="showRemoveConfirm = true">
+          <view
+            v-if="perms?.canRemoveMember && memberActionTarget?.role !== 'owner'"
+            class="action-item action-danger-text"
+            @click="showRemoveConfirm = true"
+          >
             <text>移除成员</text>
           </view>
         </view>
       </view>
 
       <!-- 退出确认 -->
-      <view v-if="showQuitConfirm" class="dialog-mask" @click="showQuitConfirm = false">
-        <view class="dialog-box" @click.stop>
-          <text class="dialog-title">退出群聊</text>
-          <text class="dialog-desc">确定要退出群聊「{{ group?.name }}」吗？退出后将不再接收此群消息。</text>
+      <view
+        v-if="showQuitConfirm"
+        class="dialog-mask"
+        @click="showQuitConfirm = false"
+      >
+        <view
+          class="dialog-box"
+          @click.stop
+        >
+          <text class="dialog-title">
+            退出群聊
+          </text>
+          <text class="dialog-desc">
+            确定要退出群聊「{{ group?.name }}」吗？退出后将不再接收此群消息。
+          </text>
           <view class="dialog-btns">
-            <text class="dialog-btn dialog-btn-cancel" @click="showQuitConfirm = false">取消</text>
-            <text class="dialog-btn dialog-btn-danger" @click="doQuit">退出</text>
+            <text
+              class="dialog-btn dialog-btn-cancel"
+              @click="showQuitConfirm = false"
+            >
+              取消
+            </text>
+            <text
+              class="dialog-btn dialog-btn-danger"
+              @click="doQuit"
+            >
+              退出
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 解散确认 -->
-      <view v-if="showDismissConfirm" class="dialog-mask" @click="showDismissConfirm = false">
-        <view class="dialog-box" @click.stop>
-          <text class="dialog-title">解散群聊</text>
-          <text class="dialog-desc">确定要解散群聊「{{ group?.name }}」吗？解散后所有成员将被移出，此操作不可撤销。</text>
+      <view
+        v-if="showDismissConfirm"
+        class="dialog-mask"
+        @click="showDismissConfirm = false"
+      >
+        <view
+          class="dialog-box"
+          @click.stop
+        >
+          <text class="dialog-title">
+            解散群聊
+          </text>
+          <text class="dialog-desc">
+            确定要解散群聊「{{ group?.name }}」吗？解散后所有成员将被移出，此操作不可撤销。
+          </text>
           <view class="dialog-btns">
-            <text class="dialog-btn dialog-btn-cancel" @click="showDismissConfirm = false">取消</text>
-            <text class="dialog-btn dialog-btn-danger" @click="doDismiss">解散</text>
+            <text
+              class="dialog-btn dialog-btn-cancel"
+              @click="showDismissConfirm = false"
+            >
+              取消
+            </text>
+            <text
+              class="dialog-btn dialog-btn-danger"
+              @click="doDismiss"
+            >
+              解散
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 转让确认 -->
-      <view v-if="showTransferConfirm" class="dialog-mask" @click="showTransferConfirm = false">
-        <view class="dialog-box" @click.stop>
-          <text class="dialog-title">转让群主</text>
-          <text class="dialog-desc">确定要将群主转让给「{{ memberActionTarget?.nickname }}」吗？转让后您将成为普通成员。</text>
+      <view
+        v-if="showTransferConfirm"
+        class="dialog-mask"
+        @click="showTransferConfirm = false"
+      >
+        <view
+          class="dialog-box"
+          @click.stop
+        >
+          <text class="dialog-title">
+            转让群主
+          </text>
+          <text class="dialog-desc">
+            确定要将群主转让给「{{ memberActionTarget?.nickname }}」吗？转让后您将成为普通成员。
+          </text>
           <view class="dialog-btns">
-            <text class="dialog-btn dialog-btn-cancel" @click="showTransferConfirm = false">取消</text>
-            <text class="dialog-btn dialog-btn-primary" @click="doTransfer">确认转让</text>
+            <text
+              class="dialog-btn dialog-btn-cancel"
+              @click="showTransferConfirm = false"
+            >
+              取消
+            </text>
+            <text
+              class="dialog-btn dialog-btn-primary"
+              @click="doTransfer"
+            >
+              确认转让
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 移除确认 -->
-      <view v-if="showRemoveConfirm" class="dialog-mask" @click="showRemoveConfirm = false">
-        <view class="dialog-box" @click.stop>
-          <text class="dialog-title">移除成员</text>
-          <text class="dialog-desc">确定要将「{{ memberActionTarget?.nickname }}」移出群聊吗？</text>
+      <view
+        v-if="showRemoveConfirm"
+        class="dialog-mask"
+        @click="showRemoveConfirm = false"
+      >
+        <view
+          class="dialog-box"
+          @click.stop
+        >
+          <text class="dialog-title">
+            移除成员
+          </text>
+          <text class="dialog-desc">
+            确定要将「{{ memberActionTarget?.nickname }}」移出群聊吗？
+          </text>
           <view class="dialog-btns">
-            <text class="dialog-btn dialog-btn-cancel" @click="showRemoveConfirm = false">取消</text>
-            <text class="dialog-btn dialog-btn-danger" @click="doRemoveMember">移除</text>
+            <text
+              class="dialog-btn dialog-btn-cancel"
+              @click="showRemoveConfirm = false"
+            >
+              取消
+            </text>
+            <text
+              class="dialog-btn dialog-btn-danger"
+              @click="doRemoveMember"
+            >
+              移除
+            </text>
           </view>
         </view>
       </view>

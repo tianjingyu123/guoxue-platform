@@ -4,12 +4,31 @@
     <view class="nav-header">
       <view class="nav-header-inner">
         <view class="nav-left">
-          <text class="nav-back" @click="goBack">←</text>
-          <text class="nav-title">研究院活动</text>
+          <text
+            class="nav-back"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <text class="nav-title">
+            研究院活动
+          </text>
         </view>
         <view class="view-toggle">
-          <text class="toggle-btn" :class="{ 'toggle-active': viewMode === 'list' }" @click="viewMode = 'list'">☰</text>
-          <text class="toggle-btn" :class="{ 'toggle-active': viewMode === 'calendar' }" @click="viewMode = 'calendar'">📅</text>
+          <text
+            class="toggle-btn"
+            :class="{ 'toggle-active': viewMode === 'list' }"
+            @click="viewMode = 'list'"
+          >
+            ☰
+          </text>
+          <text
+            class="toggle-btn"
+            :class="{ 'toggle-active': viewMode === 'calendar' }"
+            @click="viewMode = 'calendar'"
+          >
+            📅
+          </text>
         </view>
       </view>
     </view>
@@ -17,44 +36,120 @@
     <!-- 搜索和筛选 -->
     <view class="filter-bar">
       <view class="search-input-wrap">
-        <text class="search-icon">🔍</text>
-        <input v-model="searchKeyword" class="search-input" placeholder="搜索活动名称、主讲人..." />
+        <text class="search-icon">
+          🔍
+        </text>
+        <input
+          v-model="searchKeyword"
+          class="search-input"
+          placeholder="搜索活动名称、主讲人..."
+        >
       </view>
-      <scroll-view scroll-x class="type-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="type-scroll"
+        show-scrollbar="false"
+      >
         <view class="type-inner">
-          <text v-for="t in eventTypes" :key="t.value" class="type-tab" :class="{ 'type-active': selectedType === t.value }" @click="switchType(t.value)">{{ t.label }}</text>
+          <text
+            v-for="t in eventTypes"
+            :key="t.value"
+            class="type-tab"
+            :class="{ 'type-active': selectedType === t.value }"
+            @click="switchType(t.value)"
+          >
+            {{ t.label }}
+          </text>
         </view>
       </scroll-view>
     </view>
 
     <!-- 列表视图 -->
     <template v-if="viewMode === 'list'">
-      <DataState :is-loading="loading" :error="loadError" :is-empty="!loading && filteredEvents.length === 0" empty-icon="📅" empty-title="暂无相关活动" :empty-show-action="false" @retry="loadEvents">
+      <DataState
+        :is-loading="loading"
+        :error="loadError"
+        :is-empty="!loading && filteredEvents.length === 0"
+        empty-icon="📅"
+        empty-title="暂无相关活动"
+        :empty-show-action="false"
+        @retry="loadEvents"
+      >
         <view class="events-wrap">
-          <view v-for="evt in filteredEvents" :key="evt.id" class="event-item" @click="goDetail(evt.id)">
-            <image :src="evt.cover" mode="aspectFill" class="event-item-cover" />
+          <view
+            v-for="evt in filteredEvents"
+            :key="evt.id"
+            class="event-item"
+            @click="goDetail(evt.id)"
+          >
+            <image
+              :src="evt.cover"
+              mode="aspectFill"
+              class="event-item-cover"
+            />
             <view class="event-item-overlay-top">
-              <text class="event-tag" :style="{ backgroundColor: getEventTypeColor(evt.type), color: '#fff' }">{{ getEventTypeLabel(evt.type) }}</text>
-              <text class="event-tag" :style="{ backgroundColor: getEventStatusColor(evt.status), color: '#fff' }">{{ getEventStatusLabel(evt.status) }}</text>
-              <text v-if="evt.isOnline" class="event-tag-online">🎬 线上</text>
+              <text
+                class="event-tag"
+                :style="{ backgroundColor: getEventTypeColor(evt.type), color: '#fff' }"
+              >
+                {{ getEventTypeLabel(evt.type) }}
+              </text>
+              <text
+                class="event-tag"
+                :style="{ backgroundColor: getEventStatusColor(evt.status), color: '#fff' }"
+              >
+                {{ getEventStatusLabel(evt.status) }}
+              </text>
+              <text
+                v-if="evt.isOnline"
+                class="event-tag-online"
+              >
+                🎬 线上
+              </text>
             </view>
             <view class="event-item-body">
-              <text class="event-item-title">{{ evt.title }}</text>
-              <view v-if="evt.speakers?.length" class="speaker-row">
+              <text class="event-item-title">
+                {{ evt.title }}
+              </text>
+              <view
+                v-if="evt.speakers?.length"
+                class="speaker-row"
+              >
                 <view class="speaker-avatars">
-                  <image v-for="(sp, idx) in evt.speakers.slice(0, 3)" :key="idx" :src="sp.avatar" mode="aspectFill" class="speaker-avatar" :style="{ marginLeft: idx > 0 ? '-12rpx' : '0', zIndex: 3 - idx }" />
+                  <image
+                    v-for="(sp, idx) in evt.speakers.slice(0, 3)"
+                    :key="idx"
+                    :src="sp.avatar"
+                    mode="aspectFill"
+                    class="speaker-avatar"
+                    :style="{ marginLeft: idx > 0 ? '-12rpx' : '0', zIndex: 3 - idx }"
+                  />
                 </view>
-                <text class="speaker-name">{{ evt.speakers.map((s: any) => s.name).join('、') }}</text>
+                <text class="speaker-name">
+                  {{ evt.speakers.map((s: any) => s.name).join('、') }}
+                </text>
               </view>
               <view class="event-meta">
                 <text>🕐 {{ formatDate(evt.startTime) }}</text>
                 <text>📍 {{ evt.isOnline ? '线上直播' : evt.location }}</text>
               </view>
               <view class="event-item-footer">
-                <text class="meta-text">👥 {{ evt.enrolledCount }}/{{ evt.maxEnrollment || '不限' }}人</text>
+                <text class="meta-text">
+                  👥 {{ evt.enrolledCount }}/{{ evt.maxEnrollment || '不限' }}人
+                </text>
                 <view class="event-actions">
-                  <view class="btn btn-sm btn-ghost" @click.stop="addToCalendar(evt)">📅 日历</view>
-                  <view v-if="evt.status === 'enrolling'" class="btn btn-sm" :class="evt.isEnrolled ? 'btn-outline' : 'btn-primary'" @click.stop="handleEnroll(evt)">
+                  <view
+                    class="btn btn-sm btn-ghost"
+                    @click.stop="addToCalendar(evt)"
+                  >
+                    📅 日历
+                  </view>
+                  <view
+                    v-if="evt.status === 'enrolling'"
+                    class="btn btn-sm"
+                    :class="evt.isEnrolled ? 'btn-outline' : 'btn-primary'"
+                    @click.stop="handleEnroll(evt)"
+                  >
                     {{ enrollingId === evt.id ? '处理中...' : evt.isEnrolled ? '已报名' : '我要报名' }}
                   </view>
                 </view>
@@ -69,20 +164,64 @@
     <template v-else>
       <view class="calendar-section">
         <view class="cal-header">
-          <text class="cal-nav" @click="prevMonth">‹</text>
-          <text class="cal-title">{{ currentYear }}年{{ currentMonth + 1 }}月</text>
-          <text class="cal-nav" @click="nextMonth">›</text>
+          <text
+            class="cal-nav"
+            @click="prevMonth"
+          >
+            ‹
+          </text>
+          <text class="cal-title">
+            {{ currentYear }}年{{ currentMonth + 1 }}月
+          </text>
+          <text
+            class="cal-nav"
+            @click="nextMonth"
+          >
+            ›
+          </text>
         </view>
         <view class="cal-weekdays">
-          <text v-for="d in weekdays" :key="d" class="cal-weekday">{{ d }}</text>
+          <text
+            v-for="d in weekdays"
+            :key="d"
+            class="cal-weekday"
+          >
+            {{ d }}
+          </text>
         </view>
         <view class="cal-grid">
-          <view v-for="(day, idx) in calendarData" :key="idx" class="cal-cell" :class="{ 'cal-empty': day.date === 0, 'cal-has-event': day.events.length > 0 }">
+          <view
+            v-for="(day, idx) in calendarData"
+            :key="idx"
+            class="cal-cell"
+            :class="{ 'cal-empty': day.date === 0, 'cal-has-event': day.events.length > 0 }"
+          >
             <template v-if="day.date > 0">
-              <text class="cal-date" :class="{ 'cal-today': isToday(day) }">{{ day.date }}</text>
-              <view v-if="day.events.length > 0" class="cal-events">
-                <text v-for="e in day.events.slice(0, 2)" :key="e.id" class="cal-event" :style="{ backgroundColor: getEventTypeColor(e.type) }" @click="goDetail(e.id)">{{ e.title }}</text>
-                <text v-if="day.events.length > 2" class="cal-more">+{{ day.events.length - 2 }}</text>
+              <text
+                class="cal-date"
+                :class="{ 'cal-today': isToday(day) }"
+              >
+                {{ day.date }}
+              </text>
+              <view
+                v-if="day.events.length > 0"
+                class="cal-events"
+              >
+                <text
+                  v-for="e in day.events.slice(0, 2)"
+                  :key="e.id"
+                  class="cal-event"
+                  :style="{ backgroundColor: getEventTypeColor(e.type) }"
+                  @click="goDetail(e.id)"
+                >
+                  {{ e.title }}
+                </text>
+                <text
+                  v-if="day.events.length > 2"
+                  class="cal-more"
+                >
+                  +{{ day.events.length - 2 }}
+                </text>
               </view>
             </template>
           </view>

@@ -3,13 +3,24 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">预约记录</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          预约记录
+        </text>
         <view class="header-right" />
       </view>
 
       <!-- Tab 切换 -->
-      <scroll-view scroll-x class="tabs-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="tabs-scroll"
+        show-scrollbar="false"
+      >
         <view class="tabs-inner">
           <text
             v-for="t in tabs"
@@ -17,7 +28,9 @@
             class="tab"
             :class="{ active: activeTab === t.value }"
             @click="switchTab(t.value)"
-          >{{ t.label }}</text>
+          >
+            {{ t.label }}
+          </text>
         </view>
       </scroll-view>
     </view>
@@ -47,52 +60,122 @@
                 class="booking-avatar"
                 mode="aspectFill"
               />
-              <view v-else class="booking-avatar-placeholder">
-                <text class="booking-avatar-icon">📅</text>
+              <view
+                v-else
+                class="booking-avatar-placeholder"
+              >
+                <text class="booking-avatar-icon">
+                  📅
+                </text>
               </view>
             </view>
             <view class="booking-info">
               <view class="booking-tags">
-                <text class="booking-type-tag">{{ typeName(booking.type) }}</text>
-                <text class="booking-status-tag" :class="'bs-' + booking.status">{{ statusName(booking.status) }}</text>
+                <text class="booking-type-tag">
+                  {{ typeName(booking.type) }}
+                </text>
+                <text
+                  class="booking-status-tag"
+                  :class="'bs-' + booking.status"
+                >
+                  {{ statusName(booking.status) }}
+                </text>
               </view>
-              <text class="booking-name">{{ booking.target?.name }}</text>
-              <text v-if="booking.target?.title" class="booking-title">{{ booking.target.title }}</text>
+              <text class="booking-name">
+                {{ booking.target?.name }}
+              </text>
+              <text
+                v-if="booking.target?.title"
+                class="booking-title"
+              >
+                {{ booking.target.title }}
+              </text>
               <view class="booking-meta">
-                <text class="booking-meta-item">🕐 {{ booking.bookingTime }}</text>
-                <text v-if="booking.duration" class="booking-meta-item">⏱ {{ booking.duration }}分钟</text>
+                <text class="booking-meta-item">
+                  🕐 {{ booking.bookingTime }}
+                </text>
+                <text
+                  v-if="booking.duration"
+                  class="booking-meta-item"
+                >
+                  ⏱ {{ booking.duration }}分钟
+                </text>
               </view>
-              <text v-if="booking.location" class="booking-location">📍 {{ booking.location }}</text>
-              <text v-if="booking.remark" class="booking-remark">备注：{{ booking.remark }}</text>
+              <text
+                v-if="booking.location"
+                class="booking-location"
+              >
+                📍 {{ booking.location }}
+              </text>
+              <text
+                v-if="booking.remark"
+                class="booking-remark"
+              >
+                备注：{{ booking.remark }}
+              </text>
             </view>
           </view>
 
           <!-- 操作按钮 -->
-          <view v-if="isActive(booking.status)" class="booking-actions">
-            <view class="booking-btn booking-btn-cal" @click="addToCalendar(booking)">＋ 添加到日历</view>
+          <view
+            v-if="isActive(booking.status)"
+            class="booking-actions"
+          >
+            <view
+              class="booking-btn booking-btn-cal"
+              @click="addToCalendar(booking)"
+            >
+              ＋ 添加到日历
+            </view>
             <view
               v-if="booking.canCancel"
               class="booking-btn booking-btn-cancel"
               @click="confirmCancel(booking)"
-            >取消预约</view>
+            >
+              取消预约
+            </view>
           </view>
         </view>
       </view>
     </DataState>
 
     <!-- 取消确认弹窗 -->
-    <view v-if="cancelDialogOpen" class="dialog-overlay" @click="closeCancelDialog">
-      <view class="dialog-content" @click.stop>
-        <text class="dialog-title">确认取消预约？</text>
-        <view v-if="selectedBooking" class="dialog-info">
-          <text class="dialog-info-item">预约对象：{{ selectedBooking.target?.name }}</text>
-          <text class="dialog-info-item">预约时间：{{ selectedBooking.bookingTime }}</text>
-          <text v-if="selectedBooking.cancelDeadline" class="dialog-info-item dialog-info-warn">
+    <view
+      v-if="cancelDialogOpen"
+      class="dialog-overlay"
+      @click="closeCancelDialog"
+    >
+      <view
+        class="dialog-content"
+        @click.stop
+      >
+        <text class="dialog-title">
+          确认取消预约？
+        </text>
+        <view
+          v-if="selectedBooking"
+          class="dialog-info"
+        >
+          <text class="dialog-info-item">
+            预约对象：{{ selectedBooking.target?.name }}
+          </text>
+          <text class="dialog-info-item">
+            预约时间：{{ selectedBooking.bookingTime }}
+          </text>
+          <text
+            v-if="selectedBooking.cancelDeadline"
+            class="dialog-info-item dialog-info-warn"
+          >
             取消截止：{{ selectedBooking.cancelDeadline }}
           </text>
         </view>
         <view class="dialog-actions">
-          <view class="dialog-btn dialog-btn-cancel" @click="closeCancelDialog">再想想</view>
+          <view
+            class="dialog-btn dialog-btn-cancel"
+            @click="closeCancelDialog"
+          >
+            再想想
+          </view>
           <view
             class="dialog-btn dialog-btn-confirm"
             :class="{ disabled: cancelling }"

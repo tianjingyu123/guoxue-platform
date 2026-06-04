@@ -3,12 +3,28 @@
     <!-- 顶部导航 -->
     <view class="nav-header">
       <view class="nav-header-inner">
-        <text class="nav-back" @click="goBack">←</text>
-        <text class="nav-title">我的收藏</text>
-        <text class="nav-action" @click="toggleEdit">{{ isEditMode ? '完成' : '管理' }}</text>
+        <text
+          class="nav-back"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="nav-title">
+          我的收藏
+        </text>
+        <text
+          class="nav-action"
+          @click="toggleEdit"
+        >
+          {{ isEditMode ? '完成' : '管理' }}
+        </text>
       </view>
       <!-- 分类Tab -->
-      <scroll-view scroll-x class="tabs-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="tabs-scroll"
+        show-scrollbar="false"
+      >
         <view class="tabs-inner">
           <text
             v-for="tab in tabs"
@@ -16,15 +32,24 @@
             class="tab"
             :class="{ 'tab-active': activeTab === tab.id }"
             @click="switchTab(tab.id)"
-          >{{ tab.name }} {{ tab.count }}</text>
+          >
+            {{ tab.name }} {{ tab.count }}
+          </text>
         </view>
       </scroll-view>
     </view>
 
     <!-- 刷新 -->
-    <view class="refresh-row" @click="handleRefresh">
-      <text :class="['refresh-icon', refreshing ? 'spinning' : '']">🔄</text>
-      <text class="refresh-text">{{ refreshing ? '刷新中...' : '下拉刷新' }}</text>
+    <view
+      class="refresh-row"
+      @click="handleRefresh"
+    >
+      <text :class="['refresh-icon', refreshing ? 'spinning' : '']">
+        🔄
+      </text>
+      <text class="refresh-text">
+        {{ refreshing ? '刷新中...' : '下拉刷新' }}
+      </text>
     </view>
 
     <!-- 收藏列表 -->
@@ -40,53 +65,134 @@
       @empty-action="goDiscover"
     >
       <view class="fav-list">
-        <view v-for="item in favorites" :key="item.id" class="fav-row">
+        <view
+          v-for="item in favorites"
+          :key="item.id"
+          class="fav-row"
+        >
           <!-- 选择框（编辑模式） -->
-          <view v-if="isEditMode" class="checkbox" :class="{ 'checked': selectedIds.includes(item.id) }" @click="toggleSelect(item.id)">
-            <text v-if="selectedIds.includes(item.id)" class="check-mark">✓</text>
+          <view
+            v-if="isEditMode"
+            class="checkbox"
+            :class="{ 'checked': selectedIds.includes(item.id) }"
+            @click="toggleSelect(item.id)"
+          >
+            <text
+              v-if="selectedIds.includes(item.id)"
+              class="check-mark"
+            >
+              ✓
+            </text>
           </view>
 
-          <view class="fav-card" :class="{ 'fav-invalid': item.isInvalid }" @click="goDetail(item)">
+          <view
+            class="fav-card"
+            :class="{ 'fav-invalid': item.isInvalid }"
+            @click="goDetail(item)"
+          >
             <!-- 封面 -->
             <view class="fav-cover-wrap">
-              <image v-if="item.cover" :src="item.cover" mode="aspectFill" class="fav-cover" />
-              <view v-else class="fav-cover-placeholder">
-                <text class="fav-placeholder-icon">{{ typeIcon(item.type) }}</text>
+              <image
+                v-if="item.cover"
+                :src="item.cover"
+                mode="aspectFill"
+                class="fav-cover"
+              />
+              <view
+                v-else
+                class="fav-cover-placeholder"
+              >
+                <text class="fav-placeholder-icon">
+                  {{ typeIcon(item.type) }}
+                </text>
               </view>
             </view>
             <!-- 信息 -->
             <view class="fav-info">
               <view class="fav-tags">
-                <text class="fav-type-tag" :style="{ backgroundColor: getTypeColor(item.type) + '20', color: getTypeColor(item.type) }">{{ getTypeName(item.type) }}</text>
-                <text v-if="item.isInvalid" class="fav-type-tag" style="background:#F5F0E8;color:#999;">已失效</text>
-                <text class="fav-time">{{ item.collectedAt?.split(' ')[0] }}</text>
+                <text
+                  class="fav-type-tag"
+                  :style="{ backgroundColor: getTypeColor(item.type) + '20', color: getTypeColor(item.type) }"
+                >
+                  {{ getTypeName(item.type) }}
+                </text>
+                <text
+                  v-if="item.isInvalid"
+                  class="fav-type-tag"
+                  style="background:#F5F0E8;color:#999;"
+                >
+                  已失效
+                </text>
+                <text class="fav-time">
+                  {{ item.collectedAt?.split(' ')[0] }}
+                </text>
               </view>
-              <text class="fav-title">{{ item.title }}</text>
-              <text class="fav-subtitle">{{ item.subtitle }}</text>
+              <text class="fav-title">
+                {{ item.title }}
+              </text>
+              <text class="fav-subtitle">
+                {{ item.subtitle }}
+              </text>
               <view class="fav-price-row">
-                <text v-if="item.price > 0" class="fav-price">¥{{ item.price }}</text>
-                <text v-if="item.originalPrice && item.originalPrice > item.price" class="fav-original">¥{{ item.originalPrice }}</text>
-                <text v-else-if="!item.price" class="fav-free">免费</text>
+                <text
+                  v-if="item.price > 0"
+                  class="fav-price"
+                >
+                  ¥{{ item.price }}
+                </text>
+                <text
+                  v-if="item.originalPrice && item.originalPrice > item.price"
+                  class="fav-original"
+                >
+                  ¥{{ item.originalPrice }}
+                </text>
+                <text
+                  v-else-if="!item.price"
+                  class="fav-free"
+                >
+                  免费
+                </text>
               </view>
             </view>
           </view>
 
           <!-- 删除按钮（非编辑模式） -->
-          <text v-if="!isEditMode" class="fav-delete" @click="handleRemove(item.id)">🗑</text>
+          <text
+            v-if="!isEditMode"
+            class="fav-delete"
+            @click="handleRemove(item.id)"
+          >
+            🗑
+          </text>
         </view>
 
         <!-- 加载更多 -->
-        <view v-if="hasMore" class="load-more" @click="loadFavorites(false)">
+        <view
+          v-if="hasMore"
+          class="load-more"
+          @click="loadFavorites(false)"
+        >
           <text>加载更多</text>
         </view>
       </view>
     </DataState>
 
     <!-- 底部操作栏（编辑模式） -->
-    <view v-if="isEditMode && selectedIds.length > 0" class="bottom-bar">
+    <view
+      v-if="isEditMode && selectedIds.length > 0"
+      class="bottom-bar"
+    >
       <view class="bottom-bar-inner">
-        <text class="select-all" @click="handleSelectAll">{{ selectedIds.length === favorites.length ? '取消全选' : '全选' }}</text>
-        <view class="btn-delete" @click="handleBatchRemove">
+        <text
+          class="select-all"
+          @click="handleSelectAll"
+        >
+          {{ selectedIds.length === favorites.length ? '取消全选' : '全选' }}
+        </text>
+        <view
+          class="btn-delete"
+          @click="handleBatchRemove"
+        >
           <text>🗑 删除 ({{ selectedIds.length }})</text>
         </view>
       </view>

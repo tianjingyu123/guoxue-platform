@@ -3,19 +3,48 @@
     <LoadingSkeleton v-if="loading" />
     <view v-else>
       <view class="preview-header">
-        <image :src="circle.cover || circle.avatar || ''" class="circle-cover" mode="aspectFill" />
-        <text class="circle-name">{{ circle.name }}</text>
-        <text class="circle-desc">{{ circle.description || circle.intro }}</text>
-        <view class="stats"><text>{{ circle.memberCount || 0 }} 成员</text><text>{{ circle.postCount || 0 }} 帖子</text></view>
-        <button class="btn-join" @click="joinCircle">{{ joined ? '进入圈子' : '加入圈子' }}</button>
+        <image
+          :src="circle.cover || circle.avatar || ''"
+          class="circle-cover"
+          mode="aspectFill"
+        />
+        <text class="circle-name">
+          {{ circle.name }}
+        </text>
+        <text class="circle-desc">
+          {{ circle.description || circle.intro }}
+        </text>
+        <view class="stats">
+          <text>{{ circle.memberCount || 0 }} 成员</text><text>{{ circle.postCount || 0 }} 帖子</text>
+        </view>
+        <button
+          class="btn-join"
+          @click="joinCircle"
+        >
+          {{ joined ? '进入圈子' : '加入圈子' }}
+        </button>
       </view>
       <view class="recent-posts">
-        <text class="section-title">最新帖子</text>
-        <view v-for="p in posts" :key="p.id" class="post-item" @click="goPost(p)">
-          <text class="post-title">{{ p.title }}</text>
-          <text class="post-excerpt">{{ p.excerpt || p.content?.slice(0, 80) }}</text>
+        <text class="section-title">
+          最新帖子
+        </text>
+        <view
+          v-for="p in posts"
+          :key="p.id"
+          class="post-item"
+          @click="goPost(p)"
+        >
+          <text class="post-title">
+            {{ p.title }}
+          </text>
+          <text class="post-excerpt">
+            {{ p.excerpt || p.content?.slice(0, 80) }}
+          </text>
         </view>
-        <EmptyState v-if="!posts.length" text="暂无帖子" />
+        <EmptyState
+          v-if="!posts.length"
+          text="暂无帖子"
+        />
       </view>
     </view>
   </view>

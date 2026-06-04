@@ -2,23 +2,55 @@
   <view class="page">
     <!-- Header -->
     <view class="header">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">创作者中心</text>
-      <text class="header-refresh" :class="{ refreshing }" @click="handleRefresh">🔄</text>
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        创作者中心
+      </text>
+      <text
+        class="header-refresh"
+        :class="{ refreshing }"
+        @click="handleRefresh"
+      >
+        🔄
+      </text>
     </view>
 
-    <scroll-view scroll-y class="scroll-area" refresher-enabled @refresherrefresh="handleRefresh">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      refresher-enabled
+      @refresherrefresh="handleRefresh"
+    >
       <!-- 概览卡片 -->
       <view class="overview-grid">
-        <view v-for="(card, idx) in overviewCards" :key="idx" class="overview-card" :class="'card-bg-' + idx">
+        <view
+          v-for="(card, idx) in overviewCards"
+          :key="idx"
+          class="overview-card"
+          :class="'card-bg-' + idx"
+        >
           <view class="card-top">
-            <text class="card-icon">{{ card.icon }}</text>
-            <text class="card-growth" :class="card.growth >= 0 ? 'growth-up' : 'growth-down'">
+            <text class="card-icon">
+              {{ card.icon }}
+            </text>
+            <text
+              class="card-growth"
+              :class="card.growth >= 0 ? 'growth-up' : 'growth-down'"
+            >
               {{ card.growth >= 0 ? '↑' : '↓' }}{{ Math.abs(card.growth) }}%
             </text>
           </view>
-          <text class="card-val">{{ card.value }}</text>
-          <text class="card-label">{{ card.label }}</text>
+          <text class="card-val">
+            {{ card.value }}
+          </text>
+          <text class="card-label">
+            {{ card.label }}
+          </text>
         </view>
       </view>
 
@@ -30,40 +62,84 @@
           class="tab"
           :class="{ 'tab-active': activeTab === t.value }"
           @click="activeTab = t.value"
-        >{{ t.icon }} {{ t.label }}</text>
+        >
+          {{ t.icon }} {{ t.label }}
+        </text>
       </view>
 
       <!-- 内容管理 -->
-      <view v-if="activeTab === 'content'" class="tab-content">
-        <view v-for="c in contentList" :key="c.id" class="content-card">
+      <view
+        v-if="activeTab === 'content'"
+        class="tab-content"
+      >
+        <view
+          v-for="c in contentList"
+          :key="c.id"
+          class="content-card"
+        >
           <view class="content-left">
-            <image v-if="c.cover" :src="c.cover" class="content-cover" mode="aspectFill" />
+            <image
+              v-if="c.cover"
+              :src="c.cover"
+              class="content-cover"
+              mode="aspectFill"
+            />
           </view>
           <view class="content-right">
             <view class="content-top">
-              <text class="content-title">{{ c.title }}</text>
+              <text class="content-title">
+                {{ c.title }}
+              </text>
             </view>
             <view class="content-tags">
-              <text class="content-status" :class="'status-' + c.status">{{ statusLabel(c.status) }}</text>
-              <text class="content-type">{{ c.type === 'article' ? '文章' : '帖子' }}</text>
+              <text
+                class="content-status"
+                :class="'status-' + c.status"
+              >
+                {{ statusLabel(c.status) }}
+              </text>
+              <text class="content-type">
+                {{ c.type === 'article' ? '文章' : '帖子' }}
+              </text>
             </view>
-            <view v-if="c.status === 'published'" class="content-stats">
+            <view
+              v-if="c.status === 'published'"
+              class="content-stats"
+            >
               <text>👁 {{ c.views || 0 }}</text>
               <text>❤ {{ c.likes || 0 }}</text>
               <text>💬 {{ c.comments || 0 }}</text>
-              <text v-if="c.revenue" class="content-rev">¥{{ c.revenue }}</text>
+              <text
+                v-if="c.revenue"
+                class="content-rev"
+              >
+                ¥{{ c.revenue }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 数据分析 -->
-      <view v-if="activeTab === 'analytics'" class="tab-content">
+      <view
+        v-if="activeTab === 'analytics'"
+        class="tab-content"
+      >
         <view class="chart-card">
-          <text class="chart-title">近30天阅读趋势</text>
+          <text class="chart-title">
+            近30天阅读趋势
+          </text>
           <view class="bar-chart">
-            <view v-for="(v, i) in trendData" :key="i" class="bar-item">
-              <view class="bar-fill" :class="{ 'bar-today': i === 29 }" :style="{ height: v + '%' }" />
+            <view
+              v-for="(v, i) in trendData"
+              :key="i"
+              class="bar-item"
+            >
+              <view
+                class="bar-fill"
+                :class="{ 'bar-today': i === 29 }"
+                :style="{ height: v + '%' }"
+              />
             </view>
           </view>
           <view class="chart-labels">
@@ -72,86 +148,175 @@
           </view>
         </view>
         <view class="chart-card">
-          <text class="chart-title">内容表现 TOP5</text>
-          <view v-for="(c, idx) in topContents" :key="c.id" class="top-item">
-            <text class="top-num" :class="'top-num-' + (idx + 1)">{{ idx + 1 }}</text>
+          <text class="chart-title">
+            内容表现 TOP5
+          </text>
+          <view
+            v-for="(c, idx) in topContents"
+            :key="c.id"
+            class="top-item"
+          >
+            <text
+              class="top-num"
+              :class="'top-num-' + (idx + 1)"
+            >
+              {{ idx + 1 }}
+            </text>
             <view class="top-info">
-              <text class="top-title">{{ c.title }}</text>
-              <text class="top-views">{{ (c.views || 0).toLocaleString() }} 阅读</text>
+              <text class="top-title">
+                {{ c.title }}
+              </text>
+              <text class="top-views">
+                {{ (c.views || 0).toLocaleString() }} 阅读
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 收益概览 -->
-      <view v-if="activeTab === 'revenue'" class="tab-content">
+      <view
+        v-if="activeTab === 'revenue'"
+        class="tab-content"
+      >
         <view class="revenue-hero">
-          <text class="rev-label">累计收益</text>
-          <text class="rev-val">¥{{ overview.totalRevenue?.toFixed(2) || '0.00' }}</text>
+          <text class="rev-label">
+            累计收益
+          </text>
+          <text class="rev-val">
+            ¥{{ overview.totalRevenue?.toFixed(2) || '0.00' }}
+          </text>
           <view class="rev-sub">
             <view class="rev-sub-item">
-              <text class="rev-sub-label">可提现</text>
-              <text class="rev-sub-val">¥2,180.00</text>
+              <text class="rev-sub-label">
+                可提现
+              </text>
+              <text class="rev-sub-val">
+                ¥2,180.00
+              </text>
             </view>
             <view class="rev-sub-item">
-              <text class="rev-sub-label">待结算</text>
-              <text class="rev-sub-val">¥1,500.50</text>
+              <text class="rev-sub-label">
+                待结算
+              </text>
+              <text class="rev-sub-val">
+                ¥1,500.50
+              </text>
             </view>
           </view>
-          <text class="rev-withdraw">提现</text>
+          <text class="rev-withdraw">
+            提现
+          </text>
         </view>
         <view class="chart-card">
-          <text class="chart-title">收益趋势</text>
+          <text class="chart-title">
+            收益趋势
+          </text>
           <view class="bar-chart">
-            <view v-for="(v, i) in revenueTrend" :key="i" class="bar-item">
-              <view class="bar-fill bar-revenue" :style="{ height: v + '%' }" />
+            <view
+              v-for="(v, i) in revenueTrend"
+              :key="i"
+              class="bar-item"
+            >
+              <view
+                class="bar-fill bar-revenue"
+                :style="{ height: v + '%' }"
+              />
             </view>
           </view>
         </view>
         <view class="chart-card">
-          <text class="chart-title">收益构成</text>
-          <view v-for="item in revenueSources" :key="item.name" class="source-row">
+          <text class="chart-title">
+            收益构成
+          </text>
+          <view
+            v-for="item in revenueSources"
+            :key="item.name"
+            class="source-row"
+          >
             <view class="source-header">
-              <text class="source-name">{{ item.name }}</text>
-              <text class="source-val">¥{{ item.value }}</text>
+              <text class="source-name">
+                {{ item.name }}
+              </text>
+              <text class="source-val">
+                ¥{{ item.value }}
+              </text>
             </view>
             <view class="source-track">
-              <view class="source-fill" :class="item.color" :style="{ width: item.percent + '%' }" />
+              <view
+                class="source-fill"
+                :class="item.color"
+                :style="{ width: item.percent + '%' }"
+              />
             </view>
           </view>
         </view>
       </view>
 
       <!-- 互动 -->
-      <view v-if="activeTab === 'interaction'" class="tab-content">
+      <view
+        v-if="activeTab === 'interaction'"
+        class="tab-content"
+      >
         <view class="chart-card">
           <view class="interact-header">
-            <text class="chart-title">新增粉丝</text>
-            <text class="interact-week">+12 本周</text>
+            <text class="chart-title">
+              新增粉丝
+            </text>
+            <text class="interact-week">
+              +12 本周
+            </text>
           </view>
-          <view v-for="f in followers" :key="f.id" class="follower-item">
+          <view
+            v-for="f in followers"
+            :key="f.id"
+            class="follower-item"
+          >
             <view class="follower-avatar" />
             <view class="follower-info">
-              <text class="follower-name">{{ f.name }}</text>
-              <text class="follower-date">{{ f.followedAt }} 关注</text>
+              <text class="follower-name">
+                {{ f.name }}
+              </text>
+              <text class="follower-date">
+                {{ f.followedAt }} 关注
+              </text>
             </view>
-            <text v-if="f.hasInteracted" class="follower-badge">已互动</text>
+            <text
+              v-if="f.hasInteracted"
+              class="follower-badge"
+            >
+              已互动
+            </text>
           </view>
         </view>
         <view class="chart-card">
-          <text class="chart-title">互动统计</text>
+          <text class="chart-title">
+            互动统计
+          </text>
           <view class="interact-stats">
             <view class="is-item">
-              <text class="is-val">156</text>
-              <text class="is-label">收到点赞</text>
+              <text class="is-val">
+                156
+              </text>
+              <text class="is-label">
+                收到点赞
+              </text>
             </view>
             <view class="is-item">
-              <text class="is-val">42</text>
-              <text class="is-label">收到评论</text>
+              <text class="is-val">
+                42
+              </text>
+              <text class="is-label">
+                收到评论
+              </text>
             </view>
             <view class="is-item">
-              <text class="is-val">18</text>
-              <text class="is-label">被转发</text>
+              <text class="is-val">
+                18
+              </text>
+              <text class="is-label">
+                被转发
+              </text>
             </view>
           </view>
         </view>
@@ -161,7 +326,12 @@
     </scroll-view>
 
     <!-- FAB 发布 -->
-    <text class="fab" @click="goCreate">✏️</text>
+    <text
+      class="fab"
+      @click="goCreate"
+    >
+      ✏️
+    </text>
 
     <DataState
       :is-loading="loading"

@@ -2,20 +2,40 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
-      <view class="back-btn" @click="goBack">
-        <text class="back-icon">‹</text>
+      <view
+        class="back-btn"
+        @click="goBack"
+      >
+        <text class="back-icon">
+          ‹
+        </text>
       </view>
       <view class="header-info">
-        <view class="header-avatar" :style="{ background: bot.color || '#C41E3A' }">
-          <text class="header-avatar-text">{{ bot.name?.charAt(0) || '智' }}</text>
+        <view
+          class="header-avatar"
+          :style="{ background: bot.color || '#C41E3A' }"
+        >
+          <text class="header-avatar-text">
+            {{ bot.name?.charAt(0) || '智' }}
+          </text>
         </view>
         <view class="header-text">
-          <text class="header-name">{{ bot.name || '智能体' }}</text>
-          <text class="header-status">{{ streaming ? '回复中...' : '在线' }}</text>
+          <text class="header-name">
+            {{ bot.name || '智能体' }}
+          </text>
+          <text class="header-status">
+            {{ streaming ? '回复中...' : '在线' }}
+          </text>
         </view>
       </view>
       <view class="header-right">
-        <text v-if="messages.length > 0" class="header-action" @click="clearChat">清空</text>
+        <text
+          v-if="messages.length > 0"
+          class="header-action"
+          @click="clearChat"
+        >
+          清空
+        </text>
       </view>
     </view>
 
@@ -28,65 +48,148 @@
       :show-scrollbar="false"
     >
       <!-- ====== 欢迎页 ====== -->
-      <view v-if="messages.length === 0" class="welcome">
-        <view class="welcome-avatar" :style="{ background: bot.color || '#C41E3A' }">
-          <text class="welcome-avatar-text">{{ bot.name?.charAt(0) || '智' }}</text>
+      <view
+        v-if="messages.length === 0"
+        class="welcome"
+      >
+        <view
+          class="welcome-avatar"
+          :style="{ background: bot.color || '#C41E3A' }"
+        >
+          <text class="welcome-avatar-text">
+            {{ bot.name?.charAt(0) || '智' }}
+          </text>
         </view>
-        <text class="welcome-name">{{ bot.name }}</text>
-        <text v-if="bot.tag" class="welcome-tag">{{ bot.tag }}</text>
-        <text class="welcome-intro">{{ bot.intro || '您好！有什么可以帮助您的？' }}</text>
+        <text class="welcome-name">
+          {{ bot.name }}
+        </text>
+        <text
+          v-if="bot.tag"
+          class="welcome-tag"
+        >
+          {{ bot.tag }}
+        </text>
+        <text class="welcome-intro">
+          {{ bot.intro || '您好！有什么可以帮助您的？' }}
+        </text>
 
-        <view class="welcome-stats" v-if="bot.usageCount">
-          <text class="welcome-stat">已服务 {{ formatNum(bot.usageCount) }} 次</text>
+        <view
+          v-if="bot.usageCount"
+          class="welcome-stats"
+        >
+          <text class="welcome-stat">
+            已服务 {{ formatNum(bot.usageCount) }} 次
+          </text>
         </view>
 
         <view class="suggestion-list">
-          <text class="suggestion-title">试试这些问题</text>
+          <text class="suggestion-title">
+            试试这些问题
+          </text>
           <view
             v-for="(s, idx) in bot.suggestions || []"
             :key="idx"
             class="suggestion-chip"
             @click="sendSuggestion(s)"
           >
-            <text class="suggestion-text">{{ s }}</text>
+            <text class="suggestion-text">
+              {{ s }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- ====== 消息列表 ====== -->
-      <view v-for="(msg, idx) in messages" :key="idx" :id="'msg-' + idx" class="msg-block">
+      <view
+        v-for="(msg, idx) in messages"
+        :id="'msg-' + idx"
+        :key="idx"
+        class="msg-block"
+      >
         <!-- 时间提示（间隔>2分钟时显示） -->
-        <view v-if="showTimeGap(idx)" class="time-gap">
-          <text class="time-gap-text">{{ formatTime(msg.createdAt) }}</text>
+        <view
+          v-if="showTimeGap(idx)"
+          class="time-gap"
+        >
+          <text class="time-gap-text">
+            {{ formatTime(msg.createdAt) }}
+          </text>
         </view>
 
         <!-- 用户消息 -->
-        <view v-if="msg.role === 'user'" class="msg-row user-row">
+        <view
+          v-if="msg.role === 'user'"
+          class="msg-row user-row"
+        >
           <view class="msg-bubble user-bubble">
-            <text class="msg-text">{{ msg.content }}</text>
+            <text class="msg-text">
+              {{ msg.content }}
+            </text>
           </view>
-          <view class="msg-time-right">{{ formatShortTime(msg.createdAt) }}</view>
+          <view class="msg-time-right">
+            {{ formatShortTime(msg.createdAt) }}
+          </view>
         </view>
 
         <!-- 智能体消息 -->
-        <view v-else class="msg-row bot-row">
+        <view
+          v-else
+          class="msg-row bot-row"
+        >
           <view class="bot-avatar-col">
-            <view class="bot-bubble-avatar" :style="{ background: bot.color || '#C41E3A' }">
-              <text class="mini-avatar-text">{{ bot.name?.charAt(0) || '智' }}</text>
+            <view
+              class="bot-bubble-avatar"
+              :style="{ background: bot.color || '#C41E3A' }"
+            >
+              <text class="mini-avatar-text">
+                {{ bot.name?.charAt(0) || '智' }}
+              </text>
             </view>
           </view>
           <view class="bot-content-col">
-            <view class="msg-bubble bot-bubble" @longpress="copyMsg(msg)">
-              <text class="msg-text" :class="{ 'msg-typing': msg.typing }">{{ msg.content }}</text>
-              <text v-if="msg.typing" class="typing-cursor">|</text>
+            <view
+              class="msg-bubble bot-bubble"
+              @longpress="copyMsg(msg)"
+            >
+              <text
+                class="msg-text"
+                :class="{ 'msg-typing': msg.typing }"
+              >
+                {{ msg.content }}
+              </text>
+              <text
+                v-if="msg.typing"
+                class="typing-cursor"
+              >
+                |
+              </text>
             </view>
-            <view class="msg-time-left">{{ formatShortTime(msg.createdAt) }}</view>
+            <view class="msg-time-left">
+              {{ formatShortTime(msg.createdAt) }}
+            </view>
 
             <!-- 操作按钮（仅已完成的bot消息） -->
-            <view v-if="!msg.typing" class="bot-actions">
-              <text class="bot-action-btn" @click="copyMsg(msg)">📋 复制</text>
-              <text class="bot-action-btn" @click="regenerate(idx)">🔄 重新生成</text>
-              <text class="bot-action-btn" :class="{ liked: msg.liked }" @click="toggleLike(idx)">
+            <view
+              v-if="!msg.typing"
+              class="bot-actions"
+            >
+              <text
+                class="bot-action-btn"
+                @click="copyMsg(msg)"
+              >
+                📋 复制
+              </text>
+              <text
+                class="bot-action-btn"
+                @click="regenerate(idx)"
+              >
+                🔄 重新生成
+              </text>
+              <text
+                class="bot-action-btn"
+                :class="{ liked: msg.liked }"
+                @click="toggleLike(idx)"
+              >
                 {{ msg.liked ? '❤️' : '🤍' }}
               </text>
             </view>
@@ -95,7 +198,10 @@
       </view>
 
       <!-- 触底占位 -->
-      <view class="msg-bottom-pad" id="msg-bottom" />
+      <view
+        id="msg-bottom"
+        class="msg-bottom-pad"
+      />
     </scroll-view>
 
     <!-- 底部输入框 -->
@@ -105,10 +211,10 @@
         class="input-box"
         placeholder="输入你的问题..."
         :disabled="streaming"
-        @confirm="sendMessage"
         confirm-type="send"
         :maxlength="2000"
-      />
+        @confirm="sendMessage"
+      >
       <button
         class="send-btn"
         :disabled="!inputText.trim() || streaming"
@@ -119,8 +225,13 @@
     </view>
 
     <!-- Toast 提示（模拟） -->
-    <view v-if="toastMsg" class="toast-overlay">
-      <text class="toast-text">{{ toastMsg }}</text>
+    <view
+      v-if="toastMsg"
+      class="toast-overlay"
+    >
+      <text class="toast-text">
+        {{ toastMsg }}
+      </text>
     </view>
   </view>
 </template>

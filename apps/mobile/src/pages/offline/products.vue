@@ -3,31 +3,67 @@
     <!-- 头部 -->
     <view class="header">
       <view class="header-row">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">驿站商品</text>
-        <view class="cart-btn-wrap" @click="goCart">
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          驿站商品
+        </text>
+        <view
+          class="cart-btn-wrap"
+          @click="goCart"
+        >
           <text>🛒</text>
-          <text v-if="cartCount > 0" class="cart-badge">{{ cartCount }}</text>
+          <text
+            v-if="cartCount > 0"
+            class="cart-badge"
+          >
+            {{ cartCount }}
+          </text>
         </view>
       </view>
       <!-- 搜索框 -->
       <view class="search-wrap">
-        <text class="search-icon">🔍</text>
-        <input v-model="keyword" class="search-input" placeholder="搜索商品..." @confirm="handleSearch" />
+        <text class="search-icon">
+          🔍
+        </text>
+        <input
+          v-model="keyword"
+          class="search-input"
+          placeholder="搜索商品..."
+          @confirm="handleSearch"
+        >
       </view>
       <!-- 筛选栏 -->
       <view class="filter-row">
-        <view class="filter-btn" @click="showStationPicker = true">
-          <text class="filter-text">{{ selectedStationName }}</text>
+        <view
+          class="filter-btn"
+          @click="showStationPicker = true"
+        >
+          <text class="filter-text">
+            {{ selectedStationName }}
+          </text>
           <text>▼</text>
         </view>
-        <view class="filter-btn" @click="showSortPicker = true">
+        <view
+          class="filter-btn"
+          @click="showSortPicker = true"
+        >
           <text>☰</text>
-          <text class="filter-text">{{ sortLabel }}</text>
+          <text class="filter-text">
+            {{ sortLabel }}
+          </text>
         </view>
       </view>
       <!-- 分类Tab -->
-      <scroll-view scroll-x class="category-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="category-scroll"
+        show-scrollbar="false"
+      >
         <view class="category-inner">
           <text
             v-for="cat in categories"
@@ -35,7 +71,9 @@
             class="category-tab"
             :class="{ active: selectedCategory === cat.value }"
             @click="selectedCategory = cat.value"
-          >{{ cat.value !== 'all' ? (categoryIcons[cat.value] || '') : '' }} {{ cat.label }}</text>
+          >
+            {{ cat.value !== 'all' ? (categoryIcons[cat.value] || '') : '' }} {{ cat.label }}
+          </text>
         </view>
       </scroll-view>
     </view>
@@ -43,7 +81,7 @@
     <!-- 商品网格 -->
     <DataState
       :is-loading="loading && products.length === 0"
-      :isEmpty="!loading && products.length === 0"
+      :is-empty="!loading && products.length === 0"
       empty-icon="📦"
       empty-title="暂无商品"
       skeleton-type="card"
@@ -57,46 +95,93 @@
           @click="goProduct(p)"
         >
           <view class="product-img-wrap">
-            <image :src="p.cover" class="product-img" mode="aspectFill" />
-            <text v-if="p.originalPrice && p.originalPrice > p.price" class="product-discount">
+            <image
+              :src="p.cover"
+              class="product-img"
+              mode="aspectFill"
+            />
+            <text
+              v-if="p.originalPrice && p.originalPrice > p.price"
+              class="product-discount"
+            >
               {{ Math.round((1 - p.price / p.originalPrice) * 100) }}%OFF
             </text>
           </view>
           <view class="product-body">
-            <text class="product-name">{{ p.name }}</text>
-            <view v-if="p.tags && p.tags.length" class="product-tags">
-              <text v-for="tag in p.tags.slice(0, 2)" :key="tag" class="product-tag">{{ tag }}</text>
+            <text class="product-name">
+              {{ p.name }}
+            </text>
+            <view
+              v-if="p.tags && p.tags.length"
+              class="product-tags"
+            >
+              <text
+                v-for="tag in p.tags.slice(0, 2)"
+                :key="tag"
+                class="product-tag"
+              >
+                {{ tag }}
+              </text>
             </view>
             <view class="product-bottom">
               <view class="product-price-row">
-                <text class="product-price">¥{{ p.price }}</text>
-                <text v-if="p.originalPrice && p.originalPrice > p.price" class="product-original-price">¥{{ p.originalPrice }}</text>
+                <text class="product-price">
+                  ¥{{ p.price }}
+                </text>
+                <text
+                  v-if="p.originalPrice && p.originalPrice > p.price"
+                  class="product-original-price"
+                >
+                  ¥{{ p.originalPrice }}
+                </text>
               </view>
-              <text class="product-add-cart" :class="{ added: addingToCart === p.id }" @click.stop="handleAddToCart(p.id)">
+              <text
+                class="product-add-cart"
+                :class="{ added: addingToCart === p.id }"
+                @click.stop="handleAddToCart(p.id)"
+              >
                 {{ addingToCart === p.id ? '✓' : '+' }}
               </text>
             </view>
-            <text class="product-sales">已售 {{ p.sales || 0 }}</text>
+            <text class="product-sales">
+              已售 {{ p.sales || 0 }}
+            </text>
           </view>
         </view>
       </view>
     </DataState>
 
     <!-- 驿站选择弹窗 -->
-    <view v-if="showStationPicker" class="mask" @click="showStationPicker = false">
-      <view class="bottom-sheet" @click.stop>
+    <view
+      v-if="showStationPicker"
+      class="mask"
+      @click="showStationPicker = false"
+    >
+      <view
+        class="bottom-sheet"
+        @click.stop
+      >
         <view class="sheet-header">
-          <text class="sheet-title">选择驿站</text>
-          <text @click="showStationPicker = false">▼</text>
+          <text class="sheet-title">
+            选择驿站
+          </text>
+          <text @click="showStationPicker = false">
+            ▼
+          </text>
         </view>
-        <scroll-view scroll-y class="sheet-scroll">
+        <scroll-view
+          scroll-y
+          class="sheet-scroll"
+        >
           <view
             class="sheet-item"
             :class="{ active: !selectedStation }"
             @click="selectStation(undefined)"
           >
             <text>全部驿站</text>
-            <text v-if="!selectedStation">✓</text>
+            <text v-if="!selectedStation">
+              ✓
+            </text>
           </view>
           <view
             v-for="s in stations"
@@ -106,21 +191,38 @@
             @click="selectStation(s.id)"
           >
             <view>
-              <text class="sheet-item-name">{{ s.name }}</text>
-              <text class="sheet-item-city">{{ s.city }}</text>
+              <text class="sheet-item-name">
+                {{ s.name }}
+              </text>
+              <text class="sheet-item-city">
+                {{ s.city }}
+              </text>
             </view>
-            <text v-if="selectedStation === s.id">✓</text>
+            <text v-if="selectedStation === s.id">
+              ✓
+            </text>
           </view>
         </scroll-view>
       </view>
     </view>
 
     <!-- 排序选择弹窗 -->
-    <view v-if="showSortPicker" class="mask" @click="showSortPicker = false">
-      <view class="bottom-sheet" @click.stop>
+    <view
+      v-if="showSortPicker"
+      class="mask"
+      @click="showSortPicker = false"
+    >
+      <view
+        class="bottom-sheet"
+        @click.stop
+      >
         <view class="sheet-header">
-          <text class="sheet-title">排序方式</text>
-          <text @click="showSortPicker = false">▼</text>
+          <text class="sheet-title">
+            排序方式
+          </text>
+          <text @click="showSortPicker = false">
+            ▼
+          </text>
         </view>
         <view>
           <view
@@ -131,7 +233,9 @@
             @click="selectSort(opt.value)"
           >
             <text>{{ opt.label }}</text>
-            <text v-if="sortBy === opt.value">✓</text>
+            <text v-if="sortBy === opt.value">
+              ✓
+            </text>
           </view>
         </view>
       </view>

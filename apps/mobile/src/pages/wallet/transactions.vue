@@ -2,8 +2,15 @@
   <view class="page">
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">交易记录</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          交易记录
+        </text>
         <view style="width:60rpx" />
       </view>
     </view>
@@ -11,60 +18,139 @@
     <!-- 余额卡片 -->
     <view class="balance-card">
       <view class="bc-left">
-        <text class="bc-label">学习币余额</text>
-        <text class="bc-amount">{{ (balance.coin || 0).toLocaleString() }}</text>
-        <text v-if="balance.frozen > 0" class="bc-frozen">冻结: {{ balance.frozen }}</text>
+        <text class="bc-label">
+          学习币余额
+        </text>
+        <text class="bc-amount">
+          {{ (balance.coin || 0).toLocaleString() }}
+        </text>
+        <text
+          v-if="balance.frozen > 0"
+          class="bc-frozen"
+        >
+          冻结: {{ balance.frozen }}
+        </text>
       </view>
       <view class="bc-right">
-        <text class="bc-label">积分</text>
-        <text class="bc-points">{{ (balance.points || 0).toLocaleString() }}</text>
+        <text class="bc-label">
+          积分
+        </text>
+        <text class="bc-points">
+          {{ (balance.points || 0).toLocaleString() }}
+        </text>
       </view>
     </view>
 
     <!-- 筛选栏 -->
     <view class="filter-bar">
       <view class="filter-left">
-        <view class="filter-select" @click="showMonthPicker = !showMonthPicker">
-          <text class="fs-text">{{ selectedMonth ? monthLabel : '全部月份' }}</text>
-          <text class="fs-arrow" :class="{ open: showMonthPicker }">▼</text>
+        <view
+          class="filter-select"
+          @click="showMonthPicker = !showMonthPicker"
+        >
+          <text class="fs-text">
+            {{ selectedMonth ? monthLabel : '全部月份' }}
+          </text>
+          <text
+            class="fs-arrow"
+            :class="{ open: showMonthPicker }"
+          >
+            ▼
+          </text>
         </view>
-        <view class="filter-select" @click="showTypePicker = !showTypePicker">
-          <text class="fs-text">{{ filterType === 'income' ? '收入' : filterType === 'expense' ? '支出' : '全部类型' }}</text>
-          <text class="fs-arrow" :class="{ open: showTypePicker }">▼</text>
+        <view
+          class="filter-select"
+          @click="showTypePicker = !showTypePicker"
+        >
+          <text class="fs-text">
+            {{ filterType === 'income' ? '收入' : filterType === 'expense' ? '支出' : '全部类型' }}
+          </text>
+          <text
+            class="fs-arrow"
+            :class="{ open: showTypePicker }"
+          >
+            ▼
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 交易列表 -->
-    <scroll-view scroll-y class="list-scroll">
-      <view v-if="loading" class="loading-state">
-        <view v-for="i in 5" :key="i" class="skeleton-item" />
+    <scroll-view
+      scroll-y
+      class="list-scroll"
+    >
+      <view
+        v-if="loading"
+        class="loading-state"
+      >
+        <view
+          v-for="i in 5"
+          :key="i"
+          class="skeleton-item"
+        />
       </view>
 
-      <view v-else-if="!groupedList.length" class="empty-state">
-        <text class="empty-icon">💰</text>
-        <text class="empty-text">暂无交易记录</text>
+      <view
+        v-else-if="!groupedList.length"
+        class="empty-state"
+      >
+        <text class="empty-icon">
+          💰
+        </text>
+        <text class="empty-text">
+          暂无交易记录
+        </text>
       </view>
 
       <template v-else>
-        <view v-for="group in groupedList" :key="group.date" class="date-group">
-          <text class="date-label">{{ formatGroupDate(group.date) }}</text>
+        <view
+          v-for="group in groupedList"
+          :key="group.date"
+          class="date-group"
+        >
+          <text class="date-label">
+            {{ formatGroupDate(group.date) }}
+          </text>
           <view class="txn-list">
-            <view v-for="t in group.items" :key="t.id" class="txn-item" @click="goDetail(t)">
-              <view class="txn-icon" :class="'bg-' + (t.category || 'other')">
+            <view
+              v-for="t in group.items"
+              :key="t.id"
+              class="txn-item"
+              @click="goDetail(t)"
+            >
+              <view
+                class="txn-icon"
+                :class="'bg-' + (t.category || 'other')"
+              >
                 <text>{{ categoryIcon(t.category) }}</text>
               </view>
               <view class="txn-info">
                 <view class="txn-title-row">
-                  <text class="txn-title">{{ t.title }}</text>
-                  <text class="txn-direction">{{ t.type === 'income' ? '↓' : '↑' }}</text>
+                  <text class="txn-title">
+                    {{ t.title }}
+                  </text>
+                  <text class="txn-direction">
+                    {{ t.type === 'income' ? '↓' : '↑' }}
+                  </text>
                 </view>
-                <text class="txn-desc">{{ t.description }}</text>
-                <text class="txn-time">{{ formatDate(t.createdAt) }}</text>
+                <text class="txn-desc">
+                  {{ t.description }}
+                </text>
+                <text class="txn-time">
+                  {{ formatDate(t.createdAt) }}
+                </text>
               </view>
               <view class="txn-amount-wrap">
-                <text class="txn-amount" :class="{ income: t.type === 'income' }">{{ t.type === 'income' ? '+' : '' }}{{ t.amount }}</text>
-                <text class="txn-balance">余额 {{ t.balance }}</text>
+                <text
+                  class="txn-amount"
+                  :class="{ income: t.type === 'income' }"
+                >
+                  {{ t.type === 'income' ? '+' : '' }}{{ t.amount }}
+                </text>
+                <text class="txn-balance">
+                  余额 {{ t.balance }}
+                </text>
               </view>
             </view>
           </view>
@@ -73,22 +159,79 @@
     </scroll-view>
 
     <!-- 月份选择器 -->
-    <view v-if="showMonthPicker" class="picker-overlay" @click="showMonthPicker = false">
-      <view class="picker-sheet" @click.stop>
-        <view class="picker-header"><text class="picker-title">选择月份</text><text class="picker-close" @click="showMonthPicker = false">✕</text></view>
-        <scroll-view scroll-y class="picker-list">
-          <text class="picker-item" :class="{ active: !selectedMonth }" @click="selectMonth('')">全部月份</text>
-          <text v-for="m in months" :key="m.value" class="picker-item" :class="{ active: selectedMonth === m.value }" @click="selectMonth(m.value)">{{ m.label }}</text>
+    <view
+      v-if="showMonthPicker"
+      class="picker-overlay"
+      @click="showMonthPicker = false"
+    >
+      <view
+        class="picker-sheet"
+        @click.stop
+      >
+        <view class="picker-header">
+          <text class="picker-title">
+            选择月份
+          </text><text
+            class="picker-close"
+            @click="showMonthPicker = false"
+          >
+            ✕
+          </text>
+        </view>
+        <scroll-view
+          scroll-y
+          class="picker-list"
+        >
+          <text
+            class="picker-item"
+            :class="{ active: !selectedMonth }"
+            @click="selectMonth('')"
+          >
+            全部月份
+          </text>
+          <text
+            v-for="m in months"
+            :key="m.value"
+            class="picker-item"
+            :class="{ active: selectedMonth === m.value }"
+            @click="selectMonth(m.value)"
+          >
+            {{ m.label }}
+          </text>
         </scroll-view>
       </view>
     </view>
 
     <!-- 类型选择器 -->
-    <view v-if="showTypePicker" class="picker-overlay" @click="showTypePicker = false">
-      <view class="picker-sheet" @click.stop>
-        <view class="picker-header"><text class="picker-title">选择类型</text><text class="picker-close" @click="showTypePicker = false">✕</text></view>
+    <view
+      v-if="showTypePicker"
+      class="picker-overlay"
+      @click="showTypePicker = false"
+    >
+      <view
+        class="picker-sheet"
+        @click.stop
+      >
+        <view class="picker-header">
+          <text class="picker-title">
+            选择类型
+          </text><text
+            class="picker-close"
+            @click="showTypePicker = false"
+          >
+            ✕
+          </text>
+        </view>
         <view class="picker-list">
-          <text v-for="opt in typeOptions" :key="opt.value" class="picker-item" :class="{ active: filterType === opt.value }" @click="selectType(opt.value)">{{ opt.label }}</text>
+          <text
+            v-for="opt in typeOptions"
+            :key="opt.value"
+            class="picker-item"
+            :class="{ active: filterType === opt.value }"
+            @click="selectType(opt.value)"
+          >
+            {{ opt.label }}
+          </text>
         </view>
       </view>
     </view>

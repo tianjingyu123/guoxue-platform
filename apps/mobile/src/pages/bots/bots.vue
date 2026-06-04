@@ -2,12 +2,19 @@
   <view class="page">
     <!-- 标题 -->
     <view class="page-header">
-      <text class="page-title">智能体广场</text>
-      <text class="page-subtitle">选择智能体，开启国学智慧之旅</text>
+      <text class="page-title">
+        智能体广场
+      </text>
+      <text class="page-subtitle">
+        选择智能体，开启国学智慧之旅
+      </text>
     </view>
 
     <!-- 分类筛选 -->
-    <scroll-view class="tabs" scroll-x>
+    <scroll-view
+      class="tabs"
+      scroll-x
+    >
       <view
         v-for="tab in tabs"
         :key="tab.key"
@@ -20,21 +27,41 @@
     </scroll-view>
 
     <!-- 智能体列表 -->
-    <view v-if="loading" class="loading">加载中...</view>
-    <view v-else-if="filteredList.length === 0" class="empty">暂无可用智能体</view>
-    <view v-else class="bot-list">
+    <view
+      v-if="loading"
+      class="loading"
+    >
+      加载中...
+    </view>
+    <view
+      v-else-if="filteredList.length === 0"
+      class="empty"
+    >
+      暂无可用智能体
+    </view>
+    <view
+      v-else
+      class="bot-list"
+    >
       <view
         v-for="bot in filteredList"
         :key="bot.id"
         class="bot-card"
         @click="goChat(bot)"
       >
-        <view class="bot-avatar" :style="{ background: bot.color || '#C41E3A' }">
-          <text class="bot-avatar-text">{{ bot.name.charAt(0) }}</text>
+        <view
+          class="bot-avatar"
+          :style="{ background: bot.color || '#C41E3A' }"
+        >
+          <text class="bot-avatar-text">
+            {{ bot.name.charAt(0) }}
+          </text>
         </view>
         <view class="bot-info">
           <view class="bot-name-row">
-            <text class="bot-name">{{ bot.name }}</text>
+            <text class="bot-name">
+              {{ bot.name }}
+            </text>
             <text
               class="bot-tag"
               :class="{
@@ -46,10 +73,16 @@
               {{ bot.tag }}
             </text>
           </view>
-          <text class="bot-desc">{{ bot.desc }}</text>
-          <text class="bot-usage">已调用 {{ bot.usageCount || 0 }} 次</text>
+          <text class="bot-desc">
+            {{ bot.desc }}
+          </text>
+          <text class="bot-usage">
+            已调用 {{ bot.usageCount || 0 }} 次
+          </text>
         </view>
-        <text class="bot-arrow">›</text>
+        <text class="bot-arrow">
+          ›
+        </text>
       </view>
     </view>
   </view>

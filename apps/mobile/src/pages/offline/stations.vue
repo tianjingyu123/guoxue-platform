@@ -3,21 +3,41 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-row">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">线下驿站</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          线下驿站
+        </text>
         <view class="header-right">
-          <text class="view-toggle" @click="viewMode = viewMode === 'list' ? 'map' : 'list'">
+          <text
+            class="view-toggle"
+            @click="viewMode = viewMode === 'list' ? 'map' : 'list'"
+          >
             {{ viewMode === 'list' ? '🗺' : '☰' }}
           </text>
         </view>
       </view>
       <!-- 搜索栏 -->
       <view class="search-wrap">
-        <text class="search-icon">🔍</text>
-        <input v-model="searchKeyword" class="search-input" placeholder="搜索驿站名称或地址" />
+        <text class="search-icon">
+          🔍
+        </text>
+        <input
+          v-model="searchKeyword"
+          class="search-input"
+          placeholder="搜索驿站名称或地址"
+        >
       </view>
       <!-- 类型筛选 -->
-      <scroll-view scroll-x class="type-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="type-scroll"
+        show-scrollbar="false"
+      >
         <view class="type-inner">
           <text
             v-for="t in stationTypes"
@@ -25,13 +45,18 @@
             class="type-tab"
             :class="{ active: selectedType === t.value }"
             @click="selectedType = t.value"
-          >{{ t.label }}</text>
+          >
+            {{ t.label }}
+          </text>
         </view>
       </scroll-view>
     </view>
 
     <!-- 地图视图 -->
-    <view v-if="viewMode === 'map'" class="map-view">
+    <view
+      v-if="viewMode === 'map'"
+      class="map-view"
+    >
       <map
         :latitude="userLocation?.lat || 39.9042"
         :longitude="userLocation?.lng || 116.4074"
@@ -42,13 +67,25 @@
     </view>
 
     <!-- 列表视图 -->
-    <view v-else class="content">
+    <view
+      v-else
+      class="content"
+    >
       <!-- 附近推荐 -->
-      <view v-if="nearbyStations.length && !searchKeyword && selectedType === 'all'" class="section">
+      <view
+        v-if="nearbyStations.length && !searchKeyword && selectedType === 'all'"
+        class="section"
+      >
         <view class="section-title-row">
-          <text class="section-title">📍 附近驿站</text>
+          <text class="section-title">
+            📍 附近驿站
+          </text>
         </view>
-        <scroll-view scroll-x class="nearby-scroll" show-scrollbar="false">
+        <scroll-view
+          scroll-x
+          class="nearby-scroll"
+          show-scrollbar="false"
+        >
           <view class="nearby-inner">
             <view
               v-for="s in nearbyStations"
@@ -56,11 +93,21 @@
               class="nearby-card"
               @click="goStation(s)"
             >
-              <image :src="s.cover" class="nearby-cover" mode="aspectFill" />
-              <view class="nearby-dist">{{ formatDistance(s.distance) }}</view>
+              <image
+                :src="s.cover"
+                class="nearby-cover"
+                mode="aspectFill"
+              />
+              <view class="nearby-dist">
+                {{ formatDistance(s.distance) }}
+              </view>
               <view class="nearby-info">
-                <text class="nearby-name">{{ s.name }}</text>
-                <text class="nearby-addr">{{ s.address }}</text>
+                <text class="nearby-name">
+                  {{ s.name }}
+                </text>
+                <text class="nearby-addr">
+                  {{ s.address }}
+                </text>
               </view>
             </view>
           </view>
@@ -70,36 +117,67 @@
       <!-- 驿站列表 -->
       <view class="section">
         <view class="section-title-row">
-          <text class="section-title">{{ searchKeyword ? '搜索结果' : '全部驿站' }}</text>
-          <text v-if="!isLoading" class="section-count">({{ stations.length }})</text>
+          <text class="section-title">
+            {{ searchKeyword ? '搜索结果' : '全部驿站' }}
+          </text>
+          <text
+            v-if="!isLoading"
+            class="section-count"
+          >
+            ({{ stations.length }})
+          </text>
         </view>
 
         <DataState
           :is-loading="isLoading && stations.length === 0"
-          :isEmpty="!isLoading && stations.length === 0"
+          :is-empty="!isLoading && stations.length === 0"
           empty-icon="📍"
           empty-title="暂无驿站"
           skeleton-type="list"
           @retry="loadStations"
         >
           <view class="station-list">
-            <view v-for="s in stations" :key="s.id" class="station-card" @click="goStation(s)">
+            <view
+              v-for="s in stations"
+              :key="s.id"
+              class="station-card"
+              @click="goStation(s)"
+            >
               <view class="station-cover-wrap">
-                <image :src="s.cover" class="station-cover" mode="aspectFill" />
-                <view v-if="s.status !== 'open'" class="station-status-overlay">
-                  <text class="station-status-text">{{ s.status === 'closed' ? '暂停营业' : '装修中' }}</text>
+                <image
+                  :src="s.cover"
+                  class="station-cover"
+                  mode="aspectFill"
+                />
+                <view
+                  v-if="s.status !== 'open'"
+                  class="station-status-overlay"
+                >
+                  <text class="station-status-text">
+                    {{ s.status === 'closed' ? '暂停营业' : '装修中' }}
+                  </text>
                 </view>
               </view>
               <view class="station-body">
                 <view class="station-top">
                   <view class="station-name-row">
-                    <text class="station-name">{{ s.name }}</text>
-                    <text class="station-type-tag">{{ getStationTypeLabel(s.type) }}</text>
+                    <text class="station-name">
+                      {{ s.name }}
+                    </text>
+                    <text class="station-type-tag">
+                      {{ getStationTypeLabel(s.type) }}
+                    </text>
                   </view>
                   <view class="station-rating">
-                    <text class="star">⭐</text>
-                    <text class="rating-num">{{ s.rating }}</text>
-                    <text class="rating-count">({{ s.reviewCount }}评价)</text>
+                    <text class="star">
+                      ⭐
+                    </text>
+                    <text class="rating-num">
+                      {{ s.rating }}
+                    </text>
+                    <text class="rating-count">
+                      ({{ s.reviewCount }}评价)
+                    </text>
                   </view>
                 </view>
                 <view class="station-addr-row">
@@ -111,12 +189,29 @@
                     :key="f"
                     class="facility-icon"
                     :title="f"
-                  >{{ facilityIcons[f] || '•' }}</text>
-                  <text v-if="s.facilities?.length > 4" class="facility-more">+{{ s.facilities.length - 4 }}</text>
+                  >
+                    {{ facilityIcons[f] || '•' }}
+                  </text>
+                  <text
+                    v-if="s.facilities?.length > 4"
+                    class="facility-more"
+                  >
+                    +{{ s.facilities.length - 4 }}
+                  </text>
                 </view>
                 <view class="station-bottom">
-                  <text v-if="s.distance" class="station-dist">{{ formatDistance(s.distance) }}</text>
-                  <text class="station-nav" @click.stop="handleNavigate(s)">🧭 导航</text>
+                  <text
+                    v-if="s.distance"
+                    class="station-dist"
+                  >
+                    {{ formatDistance(s.distance) }}
+                  </text>
+                  <text
+                    class="station-nav"
+                    @click.stop="handleNavigate(s)"
+                  >
+                    🧭 导航
+                  </text>
                 </view>
               </view>
             </view>

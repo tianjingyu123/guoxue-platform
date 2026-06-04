@@ -10,22 +10,48 @@
       <template v-if="course">
         <!-- ===== 顶部封面 ===== -->
         <view class="header">
-          <image :src="course.cover" class="cover-img" mode="aspectFill" />
+          <image
+            :src="course.cover"
+            class="cover-img"
+            mode="aspectFill"
+          />
           <view class="cover-overlay">
-            <view class="play-btn" @click="playFirst">
-              <text class="play-icon">▶</text>
+            <view
+              class="play-btn"
+              @click="playFirst"
+            >
+              <text class="play-icon">
+                ▶
+              </text>
             </view>
           </view>
           <!-- 返回按钮 -->
-          <view class="back-btn" @click="goBack">
-            <text class="back-icon">‹</text>
+          <view
+            class="back-btn"
+            @click="goBack"
+          >
+            <text class="back-icon">
+              ‹
+            </text>
           </view>
           <!-- 封面底部阴影信息 -->
           <view class="cover-bottom">
-            <text class="cover-title">{{ course.title }}</text>
+            <text class="cover-title">
+              {{ course.title }}
+            </text>
             <view class="cover-tags">
-              <text v-if="course.difficulty" class="tag">{{ diffLabel(course.difficulty) }}</text>
-              <text v-if="course.totalChapters" class="tag">{{ course.totalChapters }} 章</text>
+              <text
+                v-if="course.difficulty"
+                class="tag"
+              >
+                {{ diffLabel(course.difficulty) }}
+              </text>
+              <text
+                v-if="course.totalChapters"
+                class="tag"
+              >
+                {{ course.totalChapters }} 章
+              </text>
             </view>
           </view>
         </view>
@@ -34,46 +60,106 @@
         <view class="info-section">
           <view class="info-row">
             <view class="info-left">
-              <text v-if="course.price && course.price > 0" class="info-price">¥{{ toYuan(course.price) }}</text>
-              <text v-else class="info-price free">免费</text>
-              <text v-if="course.originalPrice && course.originalPrice > (course.price || 0)" class="info-original">¥{{ toYuan(course.originalPrice) }}</text>
+              <text
+                v-if="course.price && course.price > 0"
+                class="info-price"
+              >
+                ¥{{ toYuan(course.price) }}
+              </text>
+              <text
+                v-else
+                class="info-price free"
+              >
+                免费
+              </text>
+              <text
+                v-if="course.originalPrice && course.originalPrice > (course.price || 0)"
+                class="info-original"
+              >
+                ¥{{ toYuan(course.originalPrice) }}
+              </text>
             </view>
             <view class="info-right">
               <view class="info-stat">
-                <text class="stat-num">{{ formatSales(course.studentCount || 0) }}</text>
-                <text class="stat-label">学员</text>
+                <text class="stat-num">
+                  {{ formatSales(course.studentCount || 0) }}
+                </text>
+                <text class="stat-label">
+                  学员
+                </text>
               </view>
               <view class="info-stat">
-                <text class="stat-num">{{ course.totalChapters || 0 }}</text>
-                <text class="stat-label">章节</text>
+                <text class="stat-num">
+                  {{ course.totalChapters || 0 }}
+                </text>
+                <text class="stat-label">
+                  章节
+                </text>
               </view>
-              <view v-if="course.rating" class="info-stat">
-                <text class="stat-num">{{ course.rating }}</text>
-                <text class="stat-label">评分</text>
+              <view
+                v-if="course.rating"
+                class="info-stat"
+              >
+                <text class="stat-num">
+                  {{ course.rating }}
+                </text>
+                <text class="stat-label">
+                  评分
+                </text>
               </view>
             </view>
           </view>
-          <text class="info-brief">{{ course.description || course.intro || '' }}</text>
+          <text class="info-brief">
+            {{ course.description || course.intro || '' }}
+          </text>
         </view>
 
         <!-- ===== 讲师信息 ===== -->
-        <view v-if="course.instructor" class="section">
-          <view class="section-title">授课讲师</view>
-          <view class="teacher-card" @click="goTeacher">
-            <image v-if="course.instructorAvatar" :src="course.instructorAvatar" class="teacher-avatar" />
-            <view v-else class="teacher-avatar-placeholder">{{ course.instructor.charAt(0) }}</view>
+        <view
+          v-if="course.instructor"
+          class="section"
+        >
+          <view class="section-title">
+            授课讲师
+          </view>
+          <view
+            class="teacher-card"
+            @click="goTeacher"
+          >
+            <image
+              v-if="course.instructorAvatar"
+              :src="course.instructorAvatar"
+              class="teacher-avatar"
+            />
+            <view
+              v-else
+              class="teacher-avatar-placeholder"
+            >
+              {{ course.instructor.charAt(0) }}
+            </view>
             <view class="teacher-info">
-              <text class="teacher-name">{{ course.instructor }}</text>
-              <text v-if="course.instructorId" class="teacher-detail">查看讲师主页 ›</text>
+              <text class="teacher-name">
+                {{ course.instructor }}
+              </text>
+              <text
+                v-if="course.instructorId"
+                class="teacher-detail"
+              >
+                查看讲师主页 ›
+              </text>
             </view>
           </view>
         </view>
 
         <!-- ===== 课程简介 ===== -->
         <view class="section">
-          <view class="section-title">课程简介</view>
+          <view class="section-title">
+            课程简介
+          </view>
           <view class="desc-box">
-            <text class="desc-text">{{ course.description || course.intro || '暂无详细介绍' }}</text>
+            <text class="desc-text">
+              {{ course.description || course.intro || '暂无详细介绍' }}
+            </text>
           </view>
         </view>
 
@@ -81,12 +167,20 @@
         <view class="section">
           <view class="section-title">
             课程大纲
-            <text class="section-badge">{{ chapters.length }} 节</text>
+            <text class="section-badge">
+              {{ chapters.length }} 节
+            </text>
           </view>
-          <view v-if="chapters.length === 0" class="empty-section">
+          <view
+            v-if="chapters.length === 0"
+            class="empty-section"
+          >
             <text>暂无章节</text>
           </view>
-          <view v-else class="outline-list">
+          <view
+            v-else
+            class="outline-list"
+          >
             <view
               v-for="(ch, idx) in chapters"
               :key="ch.id"
@@ -94,20 +188,42 @@
               @click="toggleChapter(idx)"
             >
               <view class="outline-header">
-                <view class="outline-index" :class="{ done: completedChs.has(ch.id) }">
+                <view
+                  class="outline-index"
+                  :class="{ done: completedChs.has(ch.id) }"
+                >
                   <text>{{ completedChs.has(ch.id) ? '✓' : idx + 1 }}</text>
                 </view>
                 <view class="outline-info">
-                  <text class="outline-title">{{ ch.title }}</text>
+                  <text class="outline-title">
+                    {{ ch.title }}
+                  </text>
                   <view class="outline-meta">
-                    <text v-if="ch.duration" class="outline-duration">⏱ {{ formatDuration(ch.duration) }}</text>
-                    <text v-if="ch.isFree" class="free-tag">试看</text>
+                    <text
+                      v-if="ch.duration"
+                      class="outline-duration"
+                    >
+                      ⏱ {{ formatDuration(ch.duration) }}
+                    </text>
+                    <text
+                      v-if="ch.isFree"
+                      class="free-tag"
+                    >
+                      试看
+                    </text>
                   </view>
                 </view>
-                <text class="outline-arrow">{{ expandedChapters.has(idx) ? '−' : '+' }}</text>
+                <text class="outline-arrow">
+                  {{ expandedChapters.has(idx) ? '−' : '+' }}
+                </text>
               </view>
-              <view v-if="expandedChapters.has(idx) && ch.summary" class="outline-body">
-                <text class="outline-summary">{{ ch.summary }}</text>
+              <view
+                v-if="expandedChapters.has(idx) && ch.summary"
+                class="outline-body"
+              >
+                <text class="outline-summary">
+                  {{ ch.summary }}
+                </text>
               </view>
             </view>
           </view>
@@ -117,50 +233,115 @@
         <view class="section">
           <view class="section-title">
             课程评价
-            <text class="section-badge">{{ ratingStats.reviewCount || 0 }} 条</text>
+            <text class="section-badge">
+              {{ ratingStats.reviewCount || 0 }} 条
+            </text>
           </view>
-          <view v-if="ratingStats.reviewCount > 0" class="rating-summary">
-            <text class="rating-avg">{{ ratingStats.avgRating || 0 }}</text>
+          <view
+            v-if="ratingStats.reviewCount > 0"
+            class="rating-summary"
+          >
+            <text class="rating-avg">
+              {{ ratingStats.avgRating || 0 }}
+            </text>
             <view class="rating-stars-row">
-              <text v-for="s in 5" :key="s" class="r-star" :class="{ active: s <= Math.round(ratingStats.avgRating) }">★</text>
+              <text
+                v-for="s in 5"
+                :key="s"
+                class="r-star"
+                :class="{ active: s <= Math.round(ratingStats.avgRating) }"
+              >
+                ★
+              </text>
             </view>
-            <text class="rating-total">{{ ratingStats.reviewCount }} 条评价</text>
+            <text class="rating-total">
+              {{ ratingStats.reviewCount }} 条评价
+            </text>
           </view>
-          <view v-if="reviews.length > 0" class="review-list">
-            <view v-for="rv in reviews.slice(0, 3)" :key="rv.id" class="review-item">
+          <view
+            v-if="reviews.length > 0"
+            class="review-list"
+          >
+            <view
+              v-for="rv in reviews.slice(0, 3)"
+              :key="rv.id"
+              class="review-item"
+            >
               <view class="review-header">
-                <image v-if="rv.avatar" :src="rv.avatar" class="review-avatar" />
-                <view v-else class="review-avatar-plc">{{ (rv.nickname || '?').charAt(0) }}</view>
+                <image
+                  v-if="rv.avatar"
+                  :src="rv.avatar"
+                  class="review-avatar"
+                />
+                <view
+                  v-else
+                  class="review-avatar-plc"
+                >
+                  {{ (rv.nickname || '?').charAt(0) }}
+                </view>
                 <view class="review-uid">
-                  <text class="review-nickname">{{ rv.nickname || '匿名' }}</text>
+                  <text class="review-nickname">
+                    {{ rv.nickname || '匿名' }}
+                  </text>
                   <view class="review-stars">
-                    <text v-for="s in 5" :key="s" class="r-star small" :class="{ active: s <= rv.rating }">★</text>
+                    <text
+                      v-for="s in 5"
+                      :key="s"
+                      class="r-star small"
+                      :class="{ active: s <= rv.rating }"
+                    >
+                      ★
+                    </text>
                   </view>
                 </view>
-                <text class="review-time">{{ formatTime(rv.createdAt) }}</text>
+                <text class="review-time">
+                  {{ formatTime(rv.createdAt) }}
+                </text>
               </view>
-              <text class="review-content">{{ rv.content }}</text>
+              <text class="review-content">
+                {{ rv.content }}
+              </text>
             </view>
           </view>
-          <view v-else class="empty-section">
+          <view
+            v-else
+            class="empty-section"
+          >
             <text>暂无评价</text>
           </view>
         </view>
 
         <!-- ===== 相关课程 ===== -->
-        <view v-if="related.length > 0" class="section">
-          <view class="section-title">相关推荐</view>
-          <scroll-view scroll-x class="related-scroll" show-scrollbar="false">
+        <view
+          v-if="related.length > 0"
+          class="section"
+        >
+          <view class="section-title">
+            相关推荐
+          </view>
+          <scroll-view
+            scroll-x
+            class="related-scroll"
+            show-scrollbar="false"
+          >
             <view
               v-for="rc in related"
               :key="rc.id"
               class="related-card"
               @click="goCourse(rc.id)"
             >
-              <image :src="rc.cover" class="related-cover" mode="aspectFill" />
+              <image
+                :src="rc.cover"
+                class="related-cover"
+                mode="aspectFill"
+              />
               <view class="related-body">
-                <text class="related-title">{{ rc.title }}</text>
-                <text class="related-price">{{ rc.price > 0 ? '¥' + toYuan(rc.price) : '免费' }}</text>
+                <text class="related-title">
+                  {{ rc.title }}
+                </text>
+                <text class="related-price">
+                  {{ rc.price > 0 ? '¥' + toYuan(rc.price) : '免费' }}
+                </text>
               </view>
             </view>
           </scroll-view>
@@ -169,25 +350,54 @@
     </DataState>
 
     <!-- ===== 底部固定栏 ===== -->
-    <view v-if="course" class="bottom-bar">
+    <view
+      v-if="course"
+      class="bottom-bar"
+    >
       <view class="bar-left">
-        <view class="bar-icon" @click="goBack">
-          <text class="bar-icon-emoji">🏠</text>
-          <text class="bar-icon-text">首页</text>
+        <view
+          class="bar-icon"
+          @click="goBack"
+        >
+          <text class="bar-icon-emoji">
+            🏠
+          </text>
+          <text class="bar-icon-text">
+            首页
+          </text>
         </view>
-        <view class="bar-icon" @click="doShare">
-          <text class="bar-icon-emoji">📤</text>
-          <text class="bar-icon-text">分享</text>
+        <view
+          class="bar-icon"
+          @click="doShare"
+        >
+          <text class="bar-icon-emoji">
+            📤
+          </text>
+          <text class="bar-icon-text">
+            分享
+          </text>
         </view>
       </view>
       <view class="bar-right">
-        <view v-if="chapters.some(ch => ch.isFree)" class="btn-trial" @click="playFirstFree">
+        <view
+          v-if="chapters.some(ch => ch.isFree)"
+          class="btn-trial"
+          @click="playFirstFree"
+        >
           <text>免费试看</text>
         </view>
-        <view v-if="isJoined" class="btn-study" @click="continueStudy">
+        <view
+          v-if="isJoined"
+          class="btn-study"
+          @click="continueStudy"
+        >
           <text>{{ firstUncompleted ? '继续学习' : '重新学习' }}</text>
         </view>
-        <view v-else class="btn-buy" @click="handlePurchase">
+        <view
+          v-else
+          class="btn-buy"
+          @click="handlePurchase"
+        >
           <text>{{ course.price && course.price > 0 ? '立即购买' : '加入学习' }}</text>
         </view>
       </view>

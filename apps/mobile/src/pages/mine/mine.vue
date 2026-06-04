@@ -1,102 +1,214 @@
 <template>
   <view class="page">
     <!-- ==================== 未登录 ==================== -->
-    <view v-if="!userStore.isLogin" class="unlogin-page">
+    <view
+      v-if="!userStore.isLogin"
+      class="unlogin-page"
+    >
       <!-- 用户卡片区域（引导登录） -->
       <view class="user-card unlogin">
-        <view class="unlogin-avatar">👤</view>
-        <text class="unlogin-title">国学传统文化平台</text>
-        <text class="unlogin-subtitle">登录后体验完整国学之旅</text>
-        <button class="login-btn" @click="showLogin = true">登录 / 注册</button>
+        <view class="unlogin-avatar">
+          👤
+        </view>
+        <text class="unlogin-title">
+          国学传统文化平台
+        </text>
+        <text class="unlogin-subtitle">
+          登录后体验完整国学之旅
+        </text>
+        <button
+          class="login-btn"
+          @click="showLogin = true"
+        >
+          登录 / 注册
+        </button>
       </view>
 
       <!-- 功能预览 -->
       <view class="feature-preview">
-        <text class="fp-title">登录后可使用</text>
+        <text class="fp-title">
+          登录后可使用
+        </text>
         <view class="fp-grid">
           <view class="fp-item">
-            <text class="fp-icon">📖</text>
-            <text class="fp-label">古籍阅读</text>
-            <text class="fp-desc">记录阅读进度与书签</text>
+            <text class="fp-icon">
+              📖
+            </text>
+            <text class="fp-label">
+              古籍阅读
+            </text>
+            <text class="fp-desc">
+              记录阅读进度与书签
+            </text>
           </view>
           <view class="fp-item">
-            <text class="fp-icon">☯</text>
-            <text class="fp-label">八字排盘</text>
-            <text class="fp-desc">保存排盘与AI解读</text>
+            <text class="fp-icon">
+              ☯
+            </text>
+            <text class="fp-label">
+              八字排盘
+            </text>
+            <text class="fp-desc">
+              保存排盘与AI解读
+            </text>
           </view>
           <view class="fp-item">
-            <text class="fp-icon">⭐</text>
-            <text class="fp-label">收藏内容</text>
-            <text class="fp-desc">收藏喜欢的文章课程</text>
+            <text class="fp-icon">
+              ⭐
+            </text>
+            <text class="fp-label">
+              收藏内容
+            </text>
+            <text class="fp-desc">
+              收藏喜欢的文章课程
+            </text>
           </view>
           <view class="fp-item">
-            <text class="fp-icon">💬</text>
-            <text class="fp-label">社区互动</text>
-            <text class="fp-desc">发帖评论与圈子交流</text>
+            <text class="fp-icon">
+              💬
+            </text>
+            <text class="fp-label">
+              社区互动
+            </text>
+            <text class="fp-desc">
+              发帖评论与圈子交流
+            </text>
           </view>
           <view class="fp-item">
-            <text class="fp-icon">📚</text>
-            <text class="fp-label">学习记录</text>
-            <text class="fp-desc">跟踪课程学习进度</text>
+            <text class="fp-icon">
+              📚
+            </text>
+            <text class="fp-label">
+              学习记录
+            </text>
+            <text class="fp-desc">
+              跟踪课程学习进度
+            </text>
           </view>
           <view class="fp-item">
-            <text class="fp-icon">🛒</text>
-            <text class="fp-label">文创商城</text>
-            <text class="fp-desc">购买国学相关商品</text>
+            <text class="fp-icon">
+              🛒
+            </text>
+            <text class="fp-label">
+              文创商城
+            </text>
+            <text class="fp-desc">
+              购买国学相关商品
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 底部登录入口 -->
-      <view class="bottom-login" @click="showLogin = true">
-        <text class="bottom-login-text">已有账号？立即登录</text>
-        <text class="arrow">›</text>
+      <view
+        class="bottom-login"
+        @click="showLogin = true"
+      >
+        <text class="bottom-login-text">
+          已有账号？立即登录
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
     </view>
 
     <!-- ==================== 已登录：用户信息卡片 ==================== -->
-    <view v-if="userStore.isLogin" class="user-card">
+    <view
+      v-if="userStore.isLogin"
+      class="user-card"
+    >
       <image
         class="avatar"
         :src="userStore.userAvatar || '/static/default-avatar.png'"
         mode="aspectFill"
       />
-      <text class="nickname">{{ userStore.userNickname || '国学爱好者' }}</text>
-      <text v-if="profile.signature" class="bio">{{ profile.signature }}</text>
+      <text class="nickname">
+        {{ userStore.userNickname || '国学爱好者' }}
+      </text>
+      <text
+        v-if="profile.signature"
+        class="bio"
+      >
+        {{ profile.signature }}
+      </text>
       <view class="stats-row">
-        <view class="stat-item" @click="goPage('/pages/user/user')">
-          <text class="stat-num">{{ profile.followingCount ?? 0 }}</text>
-          <text class="stat-label">关注</text>
+        <view
+          class="stat-item"
+          @click="goPage('/pages/user/user')"
+        >
+          <text class="stat-num">
+            {{ profile.followingCount ?? 0 }}
+          </text>
+          <text class="stat-label">
+            关注
+          </text>
         </view>
-        <view class="stat-item" @click="goPage('/pages/user/user')">
-          <text class="stat-num">{{ profile.followerCount ?? 0 }}</text>
-          <text class="stat-label">粉丝</text>
+        <view
+          class="stat-item"
+          @click="goPage('/pages/user/user')"
+        >
+          <text class="stat-num">
+            {{ profile.followerCount ?? 0 }}
+          </text>
+          <text class="stat-label">
+            粉丝
+          </text>
         </view>
         <view class="stat-item">
-          <text class="stat-num">{{ profile.likeCount ?? 0 }}</text>
-          <text class="stat-label">获赞</text>
+          <text class="stat-num">
+            {{ profile.likeCount ?? 0 }}
+          </text>
+          <text class="stat-label">
+            获赞
+          </text>
         </view>
       </view>
     </view>
 
     <!-- ==================== 会员信息卡片 ==================== -->
-    <view v-if="userStore.isLogin" class="vip-card">
+    <view
+      v-if="userStore.isLogin"
+      class="vip-card"
+    >
       <view class="vip-left">
-        <text class="vip-label" :class="{ active: userStore.isVip }">
+        <text
+          class="vip-label"
+          :class="{ active: userStore.isVip }"
+        >
           {{ userStore.isVip ? 'VIP会员' : '普通用户' }}
         </text>
-        <text v-if="userStore.isVip && userStore.user?.vipExpireAt" class="vip-expire">
+        <text
+          v-if="userStore.isVip && userStore.user?.vipExpireAt"
+          class="vip-expire"
+        >
           到期时间：{{ formatDate(userStore.user.vipExpireAt) }}
         </text>
-        <text v-else class="vip-expire">开通会员解锁更多内容</text>
+        <text
+          v-else
+          class="vip-expire"
+        >
+          开通会员解锁更多内容
+        </text>
       </view>
-      <view v-if="!userStore.isVip" class="vip-right">
-        <text class="vip-upgrade" @click="goVip">开通</text>
+      <view
+        v-if="!userStore.isVip"
+        class="vip-right"
+      >
+        <text
+          class="vip-upgrade"
+          @click="goVip"
+        >
+          开通
+        </text>
       </view>
     </view>
 
     <!-- ==================== Tab 切换 ==================== -->
-    <view v-if="userStore.isLogin" class="tab-bar">
+    <view
+      v-if="userStore.isLogin"
+      class="tab-bar"
+    >
       <view
         v-for="tab in tabs"
         :key="tab.key"
@@ -109,12 +221,25 @@
     </view>
 
     <!-- ==================== Tab 内容区域 ==================== -->
-    <view v-if="userStore.isLogin" class="content-area">
+    <view
+      v-if="userStore.isLogin"
+      class="content-area"
+    >
       <!-- ====== 动态列表 ====== -->
       <template v-if="currentTab === 'posts'">
-        <LoadingSkeleton v-if="loadingPosts && posts.length === 0" type="list" />
-        <view v-else-if="posts.length > 0" class="post-list">
-          <view v-for="post in posts" :key="post.id" class="post-card">
+        <LoadingSkeleton
+          v-if="loadingPosts && posts.length === 0"
+          type="list"
+        />
+        <view
+          v-else-if="posts.length > 0"
+          class="post-list"
+        >
+          <view
+            v-for="post in posts"
+            :key="post.id"
+            class="post-card"
+          >
             <view class="post-header">
               <view class="post-user-info">
                 <image
@@ -124,17 +249,36 @@
                   mode="aspectFill"
                 />
                 <view class="post-user-meta">
-                  <text class="post-user">{{ post.author?.nickname || '匿名' }}</text>
-                  <text class="post-time">{{ formatTime(post.createdAt) }}</text>
+                  <text class="post-user">
+                    {{ post.author?.nickname || '匿名' }}
+                  </text>
+                  <text class="post-time">
+                    {{ formatTime(post.createdAt) }}
+                  </text>
                 </view>
               </view>
               <view class="post-badges">
-                <text v-if="post.isEssence" class="badge essence">精华</text>
+                <text
+                  v-if="post.isEssence"
+                  class="badge essence"
+                >
+                  精华
+                </text>
               </view>
             </view>
-            <text v-if="post.title" class="post-title">{{ post.title }}</text>
-            <text class="post-body">{{ post.content }}</text>
-            <view v-if="post.images?.length" class="post-images">
+            <text
+              v-if="post.title"
+              class="post-title"
+            >
+              {{ post.title }}
+            </text>
+            <text class="post-body">
+              {{ post.content }}
+            </text>
+            <view
+              v-if="post.images?.length"
+              class="post-images"
+            >
               <image
                 v-for="(img, idx) in post.images"
                 :key="idx"
@@ -147,22 +291,36 @@
             <view class="post-footer">
               <view class="footer-item">
                 <text>❤️</text>
-                <text class="footer-count">{{ post.likeCount || 0 }}</text>
+                <text class="footer-count">
+                  {{ post.likeCount || 0 }}
+                </text>
               </view>
               <view class="footer-item">
                 <text>💬</text>
-                <text class="footer-count">{{ post.commentCount || 0 }}</text>
+                <text class="footer-count">
+                  {{ post.commentCount || 0 }}
+                </text>
               </view>
             </view>
           </view>
         </view>
-        <EmptyState v-else icon="📝" text="暂无动态" />
+        <EmptyState
+          v-else
+          icon="📝"
+          text="暂无动态"
+        />
       </template>
 
       <!-- ====== 文章列表 ====== -->
       <template v-if="currentTab === 'articles'">
-        <LoadingSkeleton v-if="loadingArticles && articles.length === 0" type="list" />
-        <view v-else-if="articles.length > 0" class="article-list">
+        <LoadingSkeleton
+          v-if="loadingArticles && articles.length === 0"
+          type="list"
+        />
+        <view
+          v-else-if="articles.length > 0"
+          class="article-list"
+        >
           <view
             v-for="article in articles"
             :key="article.id"
@@ -176,23 +334,43 @@
               mode="aspectFill"
             />
             <view class="article-info">
-              <text class="article-title">{{ article.title }}</text>
-              <text class="article-summary">{{ article.summary || article.content?.slice(0, 80) || '' }}</text>
+              <text class="article-title">
+                {{ article.title }}
+              </text>
+              <text class="article-summary">
+                {{ article.summary || article.content?.slice(0, 80) || '' }}
+              </text>
               <view class="article-meta">
-                <text class="meta-item">❤️ {{ article.likeCount ?? 0 }}</text>
-                <text class="meta-item">💬 {{ article.commentCount ?? 0 }}</text>
-                <text class="meta-item time">{{ formatTime(article.createdAt) }}</text>
+                <text class="meta-item">
+                  ❤️ {{ article.likeCount ?? 0 }}
+                </text>
+                <text class="meta-item">
+                  💬 {{ article.commentCount ?? 0 }}
+                </text>
+                <text class="meta-item time">
+                  {{ formatTime(article.createdAt) }}
+                </text>
               </view>
             </view>
           </view>
         </view>
-        <EmptyState v-else icon="📖" text="暂无文章" />
+        <EmptyState
+          v-else
+          icon="📖"
+          text="暂无文章"
+        />
       </template>
 
       <!-- ====== 收藏列表 ====== -->
       <template v-if="currentTab === 'collects'">
-        <LoadingSkeleton v-if="loadingCollects && collects.length === 0" type="list" />
-        <view v-else-if="collects.length > 0" class="collect-list">
+        <LoadingSkeleton
+          v-if="loadingCollects && collects.length === 0"
+          type="list"
+        />
+        <view
+          v-else-if="collects.length > 0"
+          class="collect-list"
+        >
           <view
             v-for="item in collects"
             :key="item.id"
@@ -206,155 +384,390 @@
               mode="aspectFill"
             />
             <view class="collect-info">
-              <text class="collect-title">{{ item.title || '收藏内容' }}</text>
+              <text class="collect-title">
+                {{ item.title || '收藏内容' }}
+              </text>
               <view class="collect-meta">
-                <text class="meta-type">{{ collectTypeLabel(item.targetType) }}</text>
-                <text class="meta-time">{{ formatTime(item.createdAt) }}</text>
+                <text class="meta-type">
+                  {{ collectTypeLabel(item.targetType) }}
+                </text>
+                <text class="meta-time">
+                  {{ formatTime(item.createdAt) }}
+                </text>
               </view>
             </view>
           </view>
         </view>
-        <EmptyState v-else icon="⭐" text="暂无收藏" />
+        <EmptyState
+          v-else
+          icon="⭐"
+          text="暂无收藏"
+        />
       </template>
 
       <!-- 加载更多 -->
-      <view v-if="loadingMore" class="load-more">加载中...</view>
-      <view v-if="!hasMore && currentListLength > 0" class="no-more">— 已全部加载 —</view>
+      <view
+        v-if="loadingMore"
+        class="load-more"
+      >
+        加载中...
+      </view>
+      <view
+        v-if="!hasMore && currentListLength > 0"
+        class="no-more"
+      >
+        — 已全部加载 —
+      </view>
     </view>
 
     <!-- ==================== 功能菜单列表 ==================== -->
-    <view v-if="userStore.isLogin" class="menu">
-      <view class="menu-item" @click="goPage('/pages/favorites/favorites')">
-        <text class="menu-icon">⭐</text>
-        <text class="menu-label">我的收藏</text>
-        <text class="arrow">›</text>
+    <view
+      v-if="userStore.isLogin"
+      class="menu"
+    >
+      <view
+        class="menu-item"
+        @click="goPage('/pages/favorites/favorites')"
+      >
+        <text class="menu-icon">
+          ⭐
+        </text>
+        <text class="menu-label">
+          我的收藏
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/articles/drafts')">
-        <text class="menu-icon">📝</text>
-        <text class="menu-label">我的草稿</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/articles/drafts')"
+      >
+        <text class="menu-icon">
+          📝
+        </text>
+        <text class="menu-label">
+          我的草稿
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/courses/courses')">
-        <text class="menu-icon">📚</text>
-        <text class="menu-label">学习记录</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/courses/courses')"
+      >
+        <text class="menu-icon">
+          📚
+        </text>
+        <text class="menu-label">
+          学习记录
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/orders/orders')">
-        <text class="menu-icon">📦</text>
-        <text class="menu-label">我的订单</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/orders/orders')"
+      >
+        <text class="menu-icon">
+          📦
+        </text>
+        <text class="menu-label">
+          我的订单
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/shop/cart')">
-        <text class="menu-icon">🛒</text>
-        <text class="menu-label">购物车</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/shop/cart')"
+      >
+        <text class="menu-icon">
+          🛒
+        </text>
+        <text class="menu-label">
+          购物车
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/shop/address-list')">
-        <text class="menu-icon">📍</text>
-        <text class="menu-label">收货地址</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/shop/address-list')"
+      >
+        <text class="menu-icon">
+          📍
+        </text>
+        <text class="menu-label">
+          收货地址
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/shop/my-after-sales')">
-        <text class="menu-icon">🔄</text>
-        <text class="menu-label">我的售后</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/shop/my-after-sales')"
+      >
+        <text class="menu-icon">
+          🔄
+        </text>
+        <text class="menu-label">
+          我的售后
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/circles/circles')">
-        <text class="menu-icon">👥</text>
-        <text class="menu-label">我的圈子</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/circles/circles')"
+      >
+        <text class="menu-icon">
+          👥
+        </text>
+        <text class="menu-label">
+          我的圈子
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/classics/classics')">
-        <text class="menu-icon">📜</text>
-        <text class="menu-label">阅读记录</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/classics/classics')"
+      >
+        <text class="menu-icon">
+          📜
+        </text>
+        <text class="menu-label">
+          阅读记录
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/bazi/bazi')">
-        <text class="menu-icon">☯</text>
-        <text class="menu-label">八字排盘</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/bazi/bazi')"
+      >
+        <text class="menu-icon">
+          ☯
+        </text>
+        <text class="menu-label">
+          八字排盘
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/ziwei/ziwei')">
-        <text class="menu-icon">🌟</text>
-        <text class="menu-label">紫微斗数</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/ziwei/ziwei')"
+      >
+        <text class="menu-icon">
+          🌟
+        </text>
+        <text class="menu-label">
+          紫微斗数
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/wallet/wallet')">
-        <text class="menu-icon">🪙</text>
-        <text class="menu-label">我的钱包</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/wallet/wallet')"
+      >
+        <text class="menu-icon">
+          🪙
+        </text>
+        <text class="menu-label">
+          我的钱包
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/competition/competition')">
-        <text class="menu-icon">🏆</text>
-        <text class="menu-label">我的赛事</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/competition/competition')"
+      >
+        <text class="menu-icon">
+          🏆
+        </text>
+        <text class="menu-label">
+          我的赛事
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/shop/coupons')">
-        <text class="menu-icon">🎫</text>
-        <text class="menu-label">优惠券</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/shop/coupons')"
+      >
+        <text class="menu-icon">
+          🎫
+        </text>
+        <text class="menu-label">
+          优惠券
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/station/earnings')">
-        <text class="menu-icon">💰</text>
-        <text class="menu-label">推广收益</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/station/earnings')"
+      >
+        <text class="menu-icon">
+          💰
+        </text>
+        <text class="menu-label">
+          推广收益
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view class="menu-item" @click="goPage('/pages/notifications/notifications')">
-        <text class="menu-icon">🔔</text>
-        <text class="menu-label">消息通知</text>
-        <text v-if="unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</text>
-        <text class="arrow">›</text>
+      <view
+        class="menu-item"
+        @click="goPage('/pages/notifications/notifications')"
+      >
+        <text class="menu-icon">
+          🔔
+        </text>
+        <text class="menu-label">
+          消息通知
+        </text>
+        <text
+          v-if="unreadCount > 0"
+          class="badge"
+        >
+          {{ unreadCount > 99 ? '99+' : unreadCount }}
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
     </view>
 
     <!-- ==================== 角色管理入口（根据用户角色显示） ==================== -->
-    <view v-if="userStore.isLogin && showAdminEntry" class="menu" style="margin-top: 12px;">
-      <view class="menu-section-title">管理功能</view>
-      <view v-if="isSuperAdmin || isOperationAdmin" class="menu-item" @click="goPage('/pages/mine/role-panels/admin-panel')">
-        <text class="menu-icon">🛠️</text>
-        <text class="menu-label">管理后台</text>
-        <text class="arrow">›</text>
+    <view
+      v-if="userStore.isLogin && showAdminEntry"
+      class="menu"
+      style="margin-top: 12px;"
+    >
+      <view class="menu-section-title">
+        管理功能
       </view>
-      <view v-if="isStationMaster" class="menu-item" @click="goPage('/pages/mine/role-panels/station-master-panel')">
-        <text class="menu-icon">🏪</text>
-        <text class="menu-label">分站管理</text>
-        <text class="arrow">›</text>
+      <view
+        v-if="isSuperAdmin || isOperationAdmin"
+        class="menu-item"
+        @click="goPage('/pages/mine/role-panels/admin-panel')"
+      >
+        <text class="menu-icon">
+          🛠️
+        </text>
+        <text class="menu-label">
+          管理后台
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
-      <view v-if="isOperator" class="menu-item" @click="goPage('/pages/mine/role-panels/operator-panel')">
-        <text class="menu-icon">📱</text>
-        <text class="menu-label">运营商中心</text>
-        <text class="arrow">›</text>
+      <view
+        v-if="isStationMaster"
+        class="menu-item"
+        @click="goPage('/pages/mine/role-panels/station-master-panel')"
+      >
+        <text class="menu-icon">
+          🏪
+        </text>
+        <text class="menu-label">
+          分站管理
+        </text>
+        <text class="arrow">
+          ›
+        </text>
+      </view>
+      <view
+        v-if="isOperator"
+        class="menu-item"
+        @click="goPage('/pages/mine/role-panels/operator-panel')"
+      >
+        <text class="menu-icon">
+          📱
+        </text>
+        <text class="menu-label">
+          运营商中心
+        </text>
+        <text class="arrow">
+          ›
+        </text>
       </view>
     </view>
 
     <!-- ==================== 退出登录 ==================== -->
-    <view v-if="userStore.isLogin" class="logout-btn" @click="handleLogout">退出登录</view>
+    <view
+      v-if="userStore.isLogin"
+      class="logout-btn"
+      @click="handleLogout"
+    >
+      退出登录
+    </view>
 
     <!-- ==================== 登录弹窗 ==================== -->
-    <view v-if="showLogin" class="modal-overlay" @click="showLogin = false">
-      <view class="modal-content" @click.stop>
-        <text class="modal-title">登录</text>
+    <view
+      v-if="showLogin"
+      class="modal-overlay"
+      @click="showLogin = false"
+    >
+      <view
+        class="modal-content"
+        @click.stop
+      >
+        <text class="modal-title">
+          登录
+        </text>
         <input
           v-model="loginForm.phone"
           class="modal-input"
           placeholder="手机号"
           type="text"
           maxlength="11"
-        />
+        >
         <input
           v-model="loginForm.password"
           class="modal-input"
           placeholder="密码"
           type="password"
-        />
-        <view v-if="loginError" class="login-error">{{ loginError }}</view>
+        >
+        <view
+          v-if="loginError"
+          class="login-error"
+        >
+          {{ loginError }}
+        </view>
         <button
           class="modal-btn"
           :disabled="loginLoading || !loginForm.phone || !loginForm.password"
           :loading="loginLoading"
           @click="handleLogin"
-        >登录</button>
-        <text class="modal-cancel" @click="showLogin = false">取消</text>
+        >
+          登录
+        </button>
+        <text
+          class="modal-cancel"
+          @click="showLogin = false"
+        >
+          取消
+        </text>
       </view>
     </view>
   </view>

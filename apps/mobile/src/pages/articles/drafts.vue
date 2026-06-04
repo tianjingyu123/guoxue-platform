@@ -2,18 +2,31 @@
   <view class="page">
     <!-- 顶栏 -->
     <view class="nav-bar">
-      <view class="nav-left" @click="goBack">
-        <text class="nav-back">‹</text>
+      <view
+        class="nav-left"
+        @click="goBack"
+      >
+        <text class="nav-back">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">我的草稿</text>
+      <text class="nav-title">
+        我的草稿
+      </text>
       <view class="nav-right" />
     </view>
 
     <!-- 加载中 -->
-    <LoadingSkeleton v-if="loading && drafts.length === 0" type="list" />
+    <LoadingSkeleton
+      v-if="loading && drafts.length === 0"
+      type="list"
+    />
 
     <!-- 草稿列表 -->
-    <view v-else-if="drafts.length > 0" class="draft-list">
+    <view
+      v-else-if="drafts.length > 0"
+      class="draft-list"
+    >
       <view
         v-for="draft in drafts"
         :key="draft.id"
@@ -21,20 +34,35 @@
         @click="editDraft(draft)"
       >
         <view class="draft-body">
-          <text class="draft-title">{{ draft.title || '无标题' }}</text>
-          <text class="draft-excerpt">{{ draft.content?.slice(0, 100) || '暂无内容' }}</text>
+          <text class="draft-title">
+            {{ draft.title || '无标题' }}
+          </text>
+          <text class="draft-excerpt">
+            {{ draft.content?.slice(0, 100) || '暂无内容' }}
+          </text>
           <view class="draft-meta">
-            <text class="draft-time">{{ formatTime(draft.updatedAt || draft.createdAt) }}</text>
+            <text class="draft-time">
+              {{ formatTime(draft.updatedAt || draft.createdAt) }}
+            </text>
           </view>
         </view>
         <view class="draft-actions">
-          <text class="draft-delete" @click.stop="removeDraft(draft)">删除</text>
+          <text
+            class="draft-delete"
+            @click.stop="removeDraft(draft)"
+          >
+            删除
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 空 -->
-    <EmptyState v-else icon="📝" text="暂无草稿" />
+    <EmptyState
+      v-else
+      icon="📝"
+      text="暂无草稿"
+    />
 
     <view class="bottom-safe" />
   </view>

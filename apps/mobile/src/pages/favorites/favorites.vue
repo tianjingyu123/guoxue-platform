@@ -7,14 +7,24 @@
         :key="f.key"
         :class="{ active: currentFilter === f.key }"
         @click="switchFilter(f.key)"
-      >{{ f.label }}</text>
+      >
+        {{ f.label }}
+      </text>
     </view>
 
     <!-- 下拉刷新提示 -->
-    <view v-if="refreshing" class="refresh-hint">刷新中...</view>
+    <view
+      v-if="refreshing"
+      class="refresh-hint"
+    >
+      刷新中...
+    </view>
 
     <!-- 加载骨架 -->
-    <LoadingSkeleton v-if="loading && list.length === 0" type="card" />
+    <LoadingSkeleton
+      v-if="loading && list.length === 0"
+      type="card"
+    />
 
     <!-- 收藏列表 -->
     <view v-if="!loading || list.length > 0">
@@ -50,16 +60,30 @@
             class="simple-cover"
             mode="aspectFill"
           />
-          <view v-else class="simple-cover-plc">
+          <view
+            v-else
+            class="simple-cover-plc"
+          >
             <text>{{ (item.target?.category || '典').charAt(0) }}</text>
           </view>
           <view class="simple-body">
-            <text class="simple-title">{{ item.target?.title || '未知古籍' }}</text>
+            <text class="simple-title">
+              {{ item.target?.title || '未知古籍' }}
+            </text>
             <view class="simple-meta">
-              <text class="simple-author">{{ item.target?.author || '佚名' }}</text>
-              <text v-if="item.target?.dynasty" class="simple-dynasty">{{ item.target.dynasty }}</text>
+              <text class="simple-author">
+                {{ item.target?.author || '佚名' }}
+              </text>
+              <text
+                v-if="item.target?.dynasty"
+                class="simple-dynasty"
+              >
+                {{ item.target.dynasty }}
+              </text>
             </view>
-            <text class="simple-type">{{ typeLabel(item.targetType) }}</text>
+            <text class="simple-type">
+              {{ typeLabel(item.targetType) }}
+            </text>
           </view>
         </view>
       </template>
@@ -78,15 +102,24 @@
             class="simple-cover"
             mode="aspectFill"
           />
-          <view v-else class="simple-cover-plc">
+          <view
+            v-else
+            class="simple-cover-plc"
+          >
             <text>📖</text>
           </view>
           <view class="simple-body">
-            <text class="simple-title">{{ item.target?.title || '未知电子书' }}</text>
+            <text class="simple-title">
+              {{ item.target?.title || '未知电子书' }}
+            </text>
             <view class="simple-meta">
-              <text class="simple-author">{{ item.target?.author || '佚名' }}</text>
+              <text class="simple-author">
+                {{ item.target?.author || '佚名' }}
+              </text>
             </view>
-            <text class="simple-type">电子书</text>
+            <text class="simple-type">
+              电子书
+            </text>
           </view>
         </view>
       </template>
@@ -106,8 +139,12 @@
             mode="aspectFill"
           />
           <view class="simple-body">
-            <text class="simple-title">{{ item.target?.title || item.target?.name || '未知' }}</text>
-            <text class="simple-type">{{ typeLabel(item.targetType) }}</text>
+            <text class="simple-title">
+              {{ item.target?.title || item.target?.name || '未知' }}
+            </text>
+            <text class="simple-type">
+              {{ typeLabel(item.targetType) }}
+            </text>
           </view>
         </view>
       </template>

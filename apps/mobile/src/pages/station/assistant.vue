@@ -1,46 +1,98 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="header" :style="{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}cc)` }">
+    <view
+      class="header"
+      :style="{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}cc)` }"
+    >
       <view class="header-left">
-        <text class="back-btn" @click="uni.navigateBack">‹</text>
-        <image v-if="config?.avatar" :src="config.avatar" class="header-avatar" mode="aspectFill" />
+        <text
+          class="back-btn"
+          @click="uni.navigateBack"
+        >
+          ‹
+        </text>
+        <image
+          v-if="config?.avatar"
+          :src="config.avatar"
+          class="header-avatar"
+          mode="aspectFill"
+        />
         <view class="header-info">
-          <text class="header-name">{{ config?.name || '站长助理' }}</text>
-          <text class="header-desc">AI 运营助手</text>
+          <text class="header-name">
+            {{ config?.name || '站长助理' }}
+          </text>
+          <text class="header-desc">
+            AI 运营助手
+          </text>
         </view>
       </view>
       <view class="header-right">
-        <text class="header-action" @click="showClearDialog = true">🗑️</text>
+        <text
+          class="header-action"
+          @click="showClearDialog = true"
+        >
+          🗑️
+        </text>
       </view>
     </view>
 
     <!-- 对话区域 -->
-    <scroll-view class="chat-area" scroll-y :scroll-into-view="scrollToId" scroll-with-animation @click="hideKeyboard">
+    <scroll-view
+      class="chat-area"
+      scroll-y
+      :scroll-into-view="scrollToId"
+      scroll-with-animation
+      @click="hideKeyboard"
+    >
       <!-- 欢迎消息 -->
-      <view v-if="messages.length === 0 && !isSending" class="welcome">
+      <view
+        v-if="messages.length === 0 && !isSending"
+        class="welcome"
+      >
         <view class="ai-msg">
-          <image v-if="config?.avatar" :src="config.avatar" class="ai-avatar" mode="aspectFill" />
+          <image
+            v-if="config?.avatar"
+            :src="config.avatar"
+            class="ai-avatar"
+            mode="aspectFill"
+          />
           <view class="ai-bubble">
-            <text class="ai-text">{{ config?.welcomeMessage || '您好，我是分站智能助手，有什么可以帮您？' }}</text>
+            <text class="ai-text">
+              {{ config?.welcomeMessage || '您好，我是分站智能助手，有什么可以帮您？' }}
+            </text>
           </view>
         </view>
         <!-- 能力标签 -->
-        <view class="capabilities" v-if="config?.capabilities?.length">
-          <view class="cap-tag" v-for="(cap, idx) in config.capabilities" :key="idx">
+        <view
+          v-if="config?.capabilities?.length"
+          class="capabilities"
+        >
+          <view
+            v-for="(cap, idx) in config.capabilities"
+            :key="idx"
+            class="cap-tag"
+          >
             <text>{{ cap }}</text>
           </view>
         </view>
         <!-- 推荐问题 -->
-        <view class="suggestions" v-if="config?.suggestions?.length">
-          <text class="suggest-title">您可以试着问我：</text>
+        <view
+          v-if="config?.suggestions?.length"
+          class="suggestions"
+        >
+          <text class="suggest-title">
+            您可以试着问我：
+          </text>
           <view class="suggest-list">
             <text
               v-for="s in config.suggestions"
               :key="s.id || s.text"
               class="suggest-item"
               @click="handleSend(s.text)"
-            >{{ s.text }}</text>
+            >
+              {{ s.text }}
+            </text>
           </view>
         </view>
       </view>
@@ -52,29 +104,77 @@
         class="msg-row"
         :class="{ 'msg-mine': msg.role === 'user' }"
       >
-        <image v-if="msg.role === 'assistant' && config?.avatar" :src="config.avatar" class="ai-avatar" mode="aspectFill" />
-        <view class="msg-bubble" :class="{ 'msg-bubble-mine': msg.role === 'user' }">
-          <view v-if="msg.role === 'assistant'" class="msg-content">
-            <view v-for="(block, bi) in parseContent(msg.content)" :key="bi">
+        <image
+          v-if="msg.role === 'assistant' && config?.avatar"
+          :src="config.avatar"
+          class="ai-avatar"
+          mode="aspectFill"
+        />
+        <view
+          class="msg-bubble"
+          :class="{ 'msg-bubble-mine': msg.role === 'user' }"
+        >
+          <view
+            v-if="msg.role === 'assistant'"
+            class="msg-content"
+          >
+            <view
+              v-for="(block, bi) in parseContent(msg.content)"
+              :key="bi"
+            >
               <!-- 标题 -->
-              <text v-if="block.type === 'h2'" class="md-h2">{{ block.text }}</text>
-              <text v-else-if="block.type === 'h3'" class="md-h3">{{ block.text }}</text>
+              <text
+                v-if="block.type === 'h2'"
+                class="md-h2"
+              >
+                {{ block.text }}
+              </text>
+              <text
+                v-else-if="block.type === 'h3'"
+                class="md-h3"
+              >
+                {{ block.text }}
+              </text>
               <!-- 引用 -->
-              <view v-else-if="block.type === 'quote'" class="md-quote">
+              <view
+                v-else-if="block.type === 'quote'"
+                class="md-quote"
+              >
                 <text>{{ block.text }}</text>
               </view>
               <!-- 列表 -->
-              <text v-else-if="block.type === 'li'" class="md-li">• {{ block.text }}</text>
+              <text
+                v-else-if="block.type === 'li'"
+                class="md-li"
+              >
+                • {{ block.text }}
+              </text>
               <!-- 段落 -->
-              <text v-else-if="block.type === 'p'" class="md-p">{{ block.text }}</text>
+              <text
+                v-else-if="block.type === 'p'"
+                class="md-p"
+              >
+                {{ block.text }}
+              </text>
               <!-- 空行 -->
-              <view v-else-if="block.type === 'br'" class="md-br" />
+              <view
+                v-else-if="block.type === 'br'"
+                class="md-br"
+              />
             </view>
             <!-- 图表 -->
-            <view v-if="msg.chart" class="chart-block">
-              <text class="chart-title">{{ msg.chart.title }}</text>
+            <view
+              v-if="msg.chart"
+              class="chart-block"
+            >
+              <text class="chart-title">
+                {{ msg.chart.title }}
+              </text>
               <!-- 柱状图 -->
-              <view v-if="msg.chart.type === 'bar'" class="bar-chart">
+              <view
+                v-if="msg.chart.type === 'bar'"
+                class="bar-chart"
+              >
                 <view
                   v-for="(d, di) in msg.chart.data"
                   :key="di"
@@ -84,87 +184,231 @@
                     class="bar-fill"
                     :style="{ height: (d.value / maxChartValue(msg.chart.data)) * 100 + '%' }"
                   />
-                  <text class="bar-label">{{ d.label }}</text>
+                  <text class="bar-label">
+                    {{ d.label }}
+                  </text>
                 </view>
               </view>
               <!-- 饼图 -->
-              <view v-if="msg.chart.type === 'pie'" class="pie-chart">
-                <view v-for="(d, di) in msg.chart.data" :key="di" class="pie-row">
-                  <view class="pie-dot" :style="{ background: d.color || '#C41E3A' }" />
-                  <text class="pie-label">{{ d.label }}</text>
-                  <text class="pie-value">{{ d.value }}</text>
+              <view
+                v-if="msg.chart.type === 'pie'"
+                class="pie-chart"
+              >
+                <view
+                  v-for="(d, di) in msg.chart.data"
+                  :key="di"
+                  class="pie-row"
+                >
+                  <view
+                    class="pie-dot"
+                    :style="{ background: d.color || '#C41E3A' }"
+                  />
+                  <text class="pie-label">
+                    {{ d.label }}
+                  </text>
+                  <text class="pie-value">
+                    {{ d.value }}
+                  </text>
                 </view>
               </view>
             </view>
             <!-- 表格 -->
-            <view v-if="msg.table" class="table-block">
-              <text class="table-title">{{ msg.table.title }}</text>
+            <view
+              v-if="msg.table"
+              class="table-block"
+            >
+              <text class="table-title">
+                {{ msg.table.title }}
+              </text>
               <view class="table-wrap">
                 <view class="table-row table-header">
-                  <text v-for="(h, hi) in msg.table.headers" :key="hi" class="table-cell">{{ h }}</text>
+                  <text
+                    v-for="(h, hi) in msg.table.headers"
+                    :key="hi"
+                    class="table-cell"
+                  >
+                    {{ h }}
+                  </text>
                 </view>
-                <view v-for="(row, ri) in msg.table.rows" :key="ri" class="table-row">
-                  <text v-for="(cell, ci) in row" :key="ci" class="table-cell">{{ cell }}</text>
+                <view
+                  v-for="(row, ri) in msg.table.rows"
+                  :key="ri"
+                  class="table-row"
+                >
+                  <text
+                    v-for="(cell, ci) in row"
+                    :key="ci"
+                    class="table-cell"
+                  >
+                    {{ cell }}
+                  </text>
                 </view>
               </view>
             </view>
             <!-- 操作建议 -->
-            <view v-if="msg.actions?.length" class="actions-block">
+            <view
+              v-if="msg.actions?.length"
+              class="actions-block"
+            >
               <text
                 v-for="(act, ai) in msg.actions"
                 :key="ai"
                 class="action-btn"
                 :class="{ 'action-high': act.priority === 'high', 'action-med': act.priority === 'medium' }"
                 @click="goAction(act)"
-              >{{ act.title }} →</text>
+              >
+                {{ act.title }} →
+              </text>
             </view>
           </view>
-          <text v-else class="msg-text">{{ msg.content }}</text>
+          <text
+            v-else
+            class="msg-text"
+          >
+            {{ msg.content }}
+          </text>
         </view>
       </view>
 
       <!-- 流式输出 -->
-      <view v-if="isSending" class="msg-row">
-        <image v-if="config?.avatar" :src="config.avatar" class="ai-avatar" mode="aspectFill" />
+      <view
+        v-if="isSending"
+        class="msg-row"
+      >
+        <image
+          v-if="config?.avatar"
+          :src="config.avatar"
+          class="ai-avatar"
+          mode="aspectFill"
+        />
         <view class="msg-bubble">
-          <view v-if="streamingContent" class="msg-content">
-            <view v-for="(block, bi) in parseContent(streamingContent)" :key="bi">
-              <text v-if="block.type === 'h2'" class="md-h2">{{ block.text }}</text>
-              <text v-else-if="block.type === 'h3'" class="md-h3">{{ block.text }}</text>
-              <view v-else-if="block.type === 'quote'" class="md-quote"><text>{{ block.text }}</text></view>
-              <text v-else-if="block.type === 'li'" class="md-li">• {{ block.text }}</text>
-              <text v-else-if="block.type === 'p'" class="md-p">{{ block.text }}</text>
-              <view v-else-if="block.type === 'br'" class="md-br" />
+          <view
+            v-if="streamingContent"
+            class="msg-content"
+          >
+            <view
+              v-for="(block, bi) in parseContent(streamingContent)"
+              :key="bi"
+            >
+              <text
+                v-if="block.type === 'h2'"
+                class="md-h2"
+              >
+                {{ block.text }}
+              </text>
+              <text
+                v-else-if="block.type === 'h3'"
+                class="md-h3"
+              >
+                {{ block.text }}
+              </text>
+              <view
+                v-else-if="block.type === 'quote'"
+                class="md-quote"
+              >
+                <text>{{ block.text }}</text>
+              </view>
+              <text
+                v-else-if="block.type === 'li'"
+                class="md-li"
+              >
+                • {{ block.text }}
+              </text>
+              <text
+                v-else-if="block.type === 'p'"
+                class="md-p"
+              >
+                {{ block.text }}
+              </text>
+              <view
+                v-else-if="block.type === 'br'"
+                class="md-br"
+              />
             </view>
-            <view v-if="streamingChart" class="chart-block">
-              <text class="chart-title">{{ streamingChart.title }}</text>
-              <view v-if="streamingChart.type === 'bar'" class="bar-chart">
-                <view v-for="(d, di) in streamingChart.data" :key="di" class="bar-item">
-                  <view class="bar-fill" :style="{ height: (d.value / maxChartValue(streamingChart.data)) * 100 + '%' }" />
-                  <text class="bar-label">{{ d.label }}</text>
+            <view
+              v-if="streamingChart"
+              class="chart-block"
+            >
+              <text class="chart-title">
+                {{ streamingChart.title }}
+              </text>
+              <view
+                v-if="streamingChart.type === 'bar'"
+                class="bar-chart"
+              >
+                <view
+                  v-for="(d, di) in streamingChart.data"
+                  :key="di"
+                  class="bar-item"
+                >
+                  <view
+                    class="bar-fill"
+                    :style="{ height: (d.value / maxChartValue(streamingChart.data)) * 100 + '%' }"
+                  />
+                  <text class="bar-label">
+                    {{ d.label }}
+                  </text>
                 </view>
               </view>
-              <view v-if="streamingChart.type === 'pie'" class="pie-chart">
-                <view v-for="(d, di) in streamingChart.data" :key="di" class="pie-row">
-                  <view class="pie-dot" :style="{ background: d.color || '#C41E3A' }" />
-                  <text class="pie-label">{{ d.label }}</text>
-                  <text class="pie-value">{{ d.value }}</text>
+              <view
+                v-if="streamingChart.type === 'pie'"
+                class="pie-chart"
+              >
+                <view
+                  v-for="(d, di) in streamingChart.data"
+                  :key="di"
+                  class="pie-row"
+                >
+                  <view
+                    class="pie-dot"
+                    :style="{ background: d.color || '#C41E3A' }"
+                  />
+                  <text class="pie-label">
+                    {{ d.label }}
+                  </text>
+                  <text class="pie-value">
+                    {{ d.value }}
+                  </text>
                 </view>
               </view>
             </view>
-            <view v-if="streamingTable" class="table-block">
-              <text class="table-title">{{ streamingTable.title }}</text>
+            <view
+              v-if="streamingTable"
+              class="table-block"
+            >
+              <text class="table-title">
+                {{ streamingTable.title }}
+              </text>
               <view class="table-wrap">
                 <view class="table-row table-header">
-                  <text v-for="(h, hi) in streamingTable.headers" :key="hi" class="table-cell">{{ h }}</text>
+                  <text
+                    v-for="(h, hi) in streamingTable.headers"
+                    :key="hi"
+                    class="table-cell"
+                  >
+                    {{ h }}
+                  </text>
                 </view>
-                <view v-for="(row, ri) in streamingTable.rows" :key="ri" class="table-row">
-                  <text v-for="(cell, ci) in row" :key="ci" class="table-cell">{{ cell }}</text>
+                <view
+                  v-for="(row, ri) in streamingTable.rows"
+                  :key="ri"
+                  class="table-row"
+                >
+                  <text
+                    v-for="(cell, ci) in row"
+                    :key="ci"
+                    class="table-cell"
+                  >
+                    {{ cell }}
+                  </text>
                 </view>
               </view>
             </view>
           </view>
-          <view v-else class="typing">
+          <view
+            v-else
+            class="typing"
+          >
             <view class="typing-dot" />
             <view class="typing-dot" />
             <view class="typing-dot" />
@@ -182,22 +426,47 @@
         class="input-field"
         placeholder="输入您的问题..."
         :disabled="isSending"
-        @confirm="handleSend()"
         confirm-type="send"
-      />
-      <button class="btn-send" :disabled="!inputText.trim() || isSending" @click="handleSend()">
+        @confirm="handleSend()"
+      >
+      <button
+        class="btn-send"
+        :disabled="!inputText.trim() || isSending"
+        @click="handleSend()"
+      >
         <text>发送</text>
       </button>
     </view>
 
     <!-- 清除确认弹窗 -->
-    <view v-if="showClearDialog" class="dialog-overlay" @click="showClearDialog = false">
-      <view class="dialog-content" @click.stop>
-        <text class="dialog-title">清除对话</text>
-        <text class="dialog-desc">确定要清除所有对话记录吗？此操作不可恢复。</text>
+    <view
+      v-if="showClearDialog"
+      class="dialog-overlay"
+      @click="showClearDialog = false"
+    >
+      <view
+        class="dialog-content"
+        @click.stop
+      >
+        <text class="dialog-title">
+          清除对话
+        </text>
+        <text class="dialog-desc">
+          确定要清除所有对话记录吗？此操作不可恢复。
+        </text>
         <view class="dialog-actions">
-          <text class="dialog-btn dialog-btn-cancel" @click="showClearDialog = false">取消</text>
-          <text class="dialog-btn dialog-btn-confirm" @click="handleClearSession">确定清除</text>
+          <text
+            class="dialog-btn dialog-btn-cancel"
+            @click="showClearDialog = false"
+          >
+            取消
+          </text>
+          <text
+            class="dialog-btn dialog-btn-confirm"
+            @click="handleClearSession"
+          >
+            确定清除
+          </text>
         </view>
       </view>
     </view>

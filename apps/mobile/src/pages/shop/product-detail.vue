@@ -18,85 +18,185 @@
           interval="3000"
           circular
         >
-          <swiper-item v-for="(img, i) in images" :key="i">
-            <image :src="img" class="swiper-img" mode="aspectFill" @click="previewImg(images, i)" />
+          <swiper-item
+            v-for="(img, i) in images"
+            :key="i"
+          >
+            <image
+              :src="img"
+              class="swiper-img"
+              mode="aspectFill"
+              @click="previewImg(images, i)"
+            />
           </swiper-item>
         </swiper>
 
         <!-- 返回按钮 -->
-        <view class="nav-back" @click="goBack">
-          <text class="nav-back-icon">‹</text>
+        <view
+          class="nav-back"
+          @click="goBack"
+        >
+          <text class="nav-back-icon">
+            ‹
+          </text>
         </view>
 
         <!-- 价格区 -->
         <view class="price-section">
           <view class="price-row">
             <view class="price-group">
-              <text class="price-symbol">¥</text>
-              <text class="price">{{ toYuan(currentPrice) }}</text>
-              <text v-if="originalPrice && originalPrice > currentPrice" class="origin">¥{{ toYuan(originalPrice) }}</text>
+              <text class="price-symbol">
+                ¥
+              </text>
+              <text class="price">
+                {{ toYuan(currentPrice) }}
+              </text>
+              <text
+                v-if="originalPrice && originalPrice > currentPrice"
+                class="origin"
+              >
+                ¥{{ toYuan(originalPrice) }}
+              </text>
             </view>
-            <view class="share-btn" @click="onShare">
-              <text class="share-icon">📤</text>
-              <text class="share-text">分享</text>
+            <view
+              class="share-btn"
+              @click="onShare"
+            >
+              <text class="share-icon">
+                📤
+              </text>
+              <text class="share-text">
+                分享
+              </text>
             </view>
           </view>
-          <text class="title">{{ product.title }}</text>
+          <text class="title">
+            {{ product.title }}
+          </text>
           <view class="sales-row">
-            <text class="sales">已售 {{ formatSales(product.sales || 0) }}</text>
-            <text class="stock">库存 {{ product.stock || 0 }}</text>
+            <text class="sales">
+              已售 {{ formatSales(product.sales || 0) }}
+            </text>
+            <text class="stock">
+              库存 {{ product.stock || 0 }}
+            </text>
           </view>
 
           <!-- 优惠券提示 -->
-          <view v-if="availableCoupons.length" class="coupon-tip" @click="goCoupons">
-            <text class="coupon-tip-icon">🎫</text>
-            <text class="coupon-tip-text">领券更优惠 · {{ availableCoupons.length }} 张可用</text>
-            <text class="coupon-tip-arrow">›</text>
+          <view
+            v-if="availableCoupons.length"
+            class="coupon-tip"
+            @click="goCoupons"
+          >
+            <text class="coupon-tip-icon">
+              🎫
+            </text>
+            <text class="coupon-tip-text">
+              领券更优惠 · {{ availableCoupons.length }} 张可用
+            </text>
+            <text class="coupon-tip-arrow">
+              ›
+            </text>
           </view>
         </view>
 
         <!-- SKU 选择入口 -->
-        <view class="spec-section" @click="showSkuPanel = true">
-          <text class="spec-label">已选</text>
-          <text class="spec-val">{{ selectedSku ? selectedSku.name : '请选择规格' }}</text>
-          <text class="spec-arrow">›</text>
+        <view
+          class="spec-section"
+          @click="showSkuPanel = true"
+        >
+          <text class="spec-label">
+            已选
+          </text>
+          <text class="spec-val">
+            {{ selectedSku ? selectedSku.name : '请选择规格' }}
+          </text>
+          <text class="spec-arrow">
+            ›
+          </text>
         </view>
 
         <!-- 商品描述（富文本） -->
         <view class="desc-section">
           <view class="section-title">
-            <text class="section-title-bar"></text>
+            <text class="section-title-bar" />
             <text>商品详情</text>
           </view>
-          <rich-text :nodes="product.detail || '暂无详情'" class="desc-html" />
+          <rich-text
+            :nodes="product.detail || '暂无详情'"
+            class="desc-html"
+          />
         </view>
 
         <!-- 评价列表 -->
         <view class="review-section">
-          <view class="section-title" @click="showAllReviews">
-            <text class="section-title-bar"></text>
+          <view
+            class="section-title"
+            @click="showAllReviews"
+          >
+            <text class="section-title-bar" />
             <text>商品评价</text>
-            <text class="section-badge">{{ reviewTotal }}</text>
-            <text class="section-more">查看全部 ›</text>
+            <text class="section-badge">
+              {{ reviewTotal }}
+            </text>
+            <text class="section-more">
+              查看全部 ›
+            </text>
           </view>
-          <view v-if="reviews.length === 0" class="no-review">
-            <text class="no-review-icon">📝</text>
-            <text class="no-review-text">暂无评价，快来第一个评价吧</text>
+          <view
+            v-if="reviews.length === 0"
+            class="no-review"
+          >
+            <text class="no-review-icon">
+              📝
+            </text>
+            <text class="no-review-text">
+              暂无评价，快来第一个评价吧
+            </text>
           </view>
-          <view v-for="rv in reviews.slice(0, 3)" :key="rv.id" class="review-item">
+          <view
+            v-for="rv in reviews.slice(0, 3)"
+            :key="rv.id"
+            class="review-item"
+          >
             <view class="review-header">
-              <image v-if="rv.avatar" :src="rv.avatar" class="review-avatar" />
-              <view v-else class="review-avatar-plc">{{ rv.nickname?.charAt(0) || '?' }}</view>
+              <image
+                v-if="rv.avatar"
+                :src="rv.avatar"
+                class="review-avatar"
+              />
+              <view
+                v-else
+                class="review-avatar-plc"
+              >
+                {{ rv.nickname?.charAt(0) || '?' }}
+              </view>
               <view class="review-user-info">
-                <text class="review-user">{{ rv.nickname || '匿名用户' }}</text>
+                <text class="review-user">
+                  {{ rv.nickname || '匿名用户' }}
+                </text>
                 <view class="review-stars">
-                  <text v-for="s in 5" :key="s" class="star" :class="{ active: s <= rv.rating }">★</text>
+                  <text
+                    v-for="s in 5"
+                    :key="s"
+                    class="star"
+                    :class="{ active: s <= rv.rating }"
+                  >
+                    ★
+                  </text>
                 </view>
               </view>
-              <text class="review-time">{{ formatTime(rv.createdAt) }}</text>
+              <text class="review-time">
+                {{ formatTime(rv.createdAt) }}
+              </text>
             </view>
-            <text class="review-content">{{ rv.content }}</text>
-            <view v-if="rv.images?.length" class="review-images">
+            <text class="review-content">
+              {{ rv.content }}
+            </text>
+            <view
+              v-if="rv.images?.length"
+              class="review-images"
+            >
               <image
                 v-for="(img, i) in rv.images.slice(0, 3)"
                 :key="i"
@@ -110,22 +210,37 @@
         </view>
 
         <!-- 推荐商品 -->
-        <view v-if="relatedProducts.length" class="related-section">
+        <view
+          v-if="relatedProducts.length"
+          class="related-section"
+        >
           <view class="section-title">
-            <text class="section-title-bar"></text>
+            <text class="section-title-bar" />
             <text>猜你喜欢</text>
           </view>
-          <scroll-view scroll-x class="related-scroll" show-scrollbar="false">
+          <scroll-view
+            scroll-x
+            class="related-scroll"
+            show-scrollbar="false"
+          >
             <view
               v-for="rp in relatedProducts"
               :key="rp.id"
               class="related-card"
               @click="goProduct(rp.id)"
             >
-              <image :src="rp.cover" class="related-img" mode="aspectFill" />
+              <image
+                :src="rp.cover"
+                class="related-img"
+                mode="aspectFill"
+              />
               <view class="related-body">
-                <text class="related-name">{{ rp.title }}</text>
-                <text class="related-price">¥{{ toYuan(rp.price) }}</text>
+                <text class="related-name">
+                  {{ rp.title }}
+                </text>
+                <text class="related-price">
+                  ¥{{ toYuan(rp.price) }}
+                </text>
               </view>
             </view>
           </scroll-view>
@@ -134,19 +249,49 @@
     </DataState>
 
     <!-- SKU 选择面板（底部弹出） -->
-    <view v-if="showSkuPanel" class="mask" @click="showSkuPanel = false">
-      <view class="sku-panel" @click.stop>
+    <view
+      v-if="showSkuPanel"
+      class="mask"
+      @click="showSkuPanel = false"
+    >
+      <view
+        class="sku-panel"
+        @click.stop
+      >
         <view class="panel-header">
-          <image :src="images[0] || product?.cover" class="panel-thumb" mode="aspectFill" />
+          <image
+            :src="images[0] || product?.cover"
+            class="panel-thumb"
+            mode="aspectFill"
+          />
           <view class="panel-header-info">
-            <text class="panel-price">¥{{ toYuan(currentPrice) }}</text>
-            <text class="panel-stock">库存 {{ selectedSku?.stock || product?.stock || 0 }} 件</text>
-            <text class="panel-selected" v-if="selectedSku">已选: {{ selectedSku.name }}</text>
+            <text class="panel-price">
+              ¥{{ toYuan(currentPrice) }}
+            </text>
+            <text class="panel-stock">
+              库存 {{ selectedSku?.stock || product?.stock || 0 }} 件
+            </text>
+            <text
+              v-if="selectedSku"
+              class="panel-selected"
+            >
+              已选: {{ selectedSku.name }}
+            </text>
           </view>
-          <text class="panel-close" @click="showSkuPanel = false">✕</text>
+          <text
+            class="panel-close"
+            @click="showSkuPanel = false"
+          >
+            ✕
+          </text>
         </view>
-        <scroll-view scroll-y class="panel-body">
-          <text class="panel-label">选择规格</text>
+        <scroll-view
+          scroll-y
+          class="panel-body"
+        >
+          <text class="panel-label">
+            选择规格
+          </text>
           <view class="panel-list">
             <view
               v-for="sku in (product?.skus || [])"
@@ -159,27 +304,55 @@
             </view>
           </view>
         </scroll-view>
-        <view class="panel-confirm" @click="showSkuPanel = false">确定</view>
+        <view
+          class="panel-confirm"
+          @click="showSkuPanel = false"
+        >
+          确定
+        </view>
       </view>
     </view>
 
     <!-- 底部固定栏 -->
-    <view v-if="product" class="bottom-bar">
+    <view
+      v-if="product"
+      class="bottom-bar"
+    >
       <view class="bar-left">
-        <view class="bar-icon" @click="onCollect">
-          <text :class="['collect-star', { active: isCollected }]">{{ isCollected ? '★' : '☆' }}</text>
-          <text class="bar-icon-text">{{ isCollected ? '已收藏' : '收藏' }}</text>
+        <view
+          class="bar-icon"
+          @click="onCollect"
+        >
+          <text :class="['collect-star', { active: isCollected }]">
+            {{ isCollected ? '★' : '☆' }}
+          </text>
+          <text class="bar-icon-text">
+            {{ isCollected ? '已收藏' : '收藏' }}
+          </text>
         </view>
-        <view class="bar-icon" @click="goCart">
-          <text class="bar-icon-emoji">🛒</text>
-          <text class="bar-icon-text">购物车</text>
+        <view
+          class="bar-icon"
+          @click="goCart"
+        >
+          <text class="bar-icon-emoji">
+            🛒
+          </text>
+          <text class="bar-icon-text">
+            购物车
+          </text>
         </view>
       </view>
       <view class="bar-right">
-        <view class="btn-cart" @click="onAddToCart">
+        <view
+          class="btn-cart"
+          @click="onAddToCart"
+        >
           <text>加入购物车</text>
         </view>
-        <view class="btn-buy" @click="onBuyNow">
+        <view
+          class="btn-buy"
+          @click="onBuyNow"
+        >
           <text>立即购买</text>
         </view>
       </view>

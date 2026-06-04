@@ -1,21 +1,41 @@
 <template>
   <view class="global-chat">
     <!-- 悬浮按钮 -->
-    <view class="chat-fab" @click="togglePanel">
-      <text class="fab-icon">💬</text>
+    <view
+      class="chat-fab"
+      @click="togglePanel"
+    >
+      <text class="fab-icon">
+        💬
+      </text>
     </view>
 
     <!-- 遮罩 -->
-    <view v-if="visible" class="chat-overlay" @click="closePanel" />
+    <view
+      v-if="visible"
+      class="chat-overlay"
+      @click="closePanel"
+    />
 
     <!-- 半屏对话窗口 -->
-    <view v-if="visible" class="chat-panel" :class="{ 'slide-in': visible }">
+    <view
+      v-if="visible"
+      class="chat-panel"
+      :class="{ 'slide-in': visible }"
+    >
       <!-- 顶部标题栏 -->
       <view class="chat-header">
         <view class="header-left" />
-        <text class="header-title">智能客服</text>
-        <view class="header-right" @click="closePanel">
-          <text class="close-btn">✕</text>
+        <text class="header-title">
+          智能客服
+        </text>
+        <view
+          class="header-right"
+          @click="closePanel"
+        >
+          <text class="close-btn">
+            ✕
+          </text>
         </view>
       </view>
 
@@ -28,30 +48,43 @@
       >
         <view
           v-for="(msg, idx) in messages"
-          :key="idx"
           :id="'msg-' + idx"
+          :key="idx"
           class="message-row"
           :class="msg.role === 'user' ? 'row-user' : 'row-bot'"
         >
-          <view class="bubble" :class="msg.role === 'user' ? 'bubble-user' : 'bubble-bot'">
-            <text class="bubble-text">{{ msg.content }}</text>
+          <view
+            class="bubble"
+            :class="msg.role === 'user' ? 'bubble-user' : 'bubble-bot'"
+          >
+            <text class="bubble-text">
+              {{ msg.content }}
+            </text>
           </view>
         </view>
 
         <!-- 推荐问题快捷入口（仅在最底部未发送消息时显示） -->
-        <view v-if="showQuickReplies" class="quick-replies">
+        <view
+          v-if="showQuickReplies"
+          class="quick-replies"
+        >
           <view
             v-for="(q, qi) in quickQuestions"
             :key="qi"
             class="quick-tag"
             @click="sendQuickMessage(q)"
           >
-            <text class="quick-tag-text">{{ q }}</text>
+            <text class="quick-tag-text">
+              {{ q }}
+            </text>
           </view>
         </view>
 
         <!-- 用于滚动的锚点 -->
-        <view id="scroll-anchor" style="height: 1px" />
+        <view
+          id="scroll-anchor"
+          style="height: 1px"
+        />
       </scroll-view>
 
       <!-- 底部输入区 -->
@@ -63,9 +96,15 @@
           placeholder="输入您的问题..."
           :disabled="sending"
           @confirm="sendMessage"
-        />
-        <view class="send-btn" :class="{ 'send-active': inputText.trim() }" @click="sendMessage">
-          <text class="send-btn-text">发送</text>
+        >
+        <view
+          class="send-btn"
+          :class="{ 'send-active': inputText.trim() }"
+          @click="sendMessage"
+        >
+          <text class="send-btn-text">
+            发送
+          </text>
         </view>
       </view>
     </view>

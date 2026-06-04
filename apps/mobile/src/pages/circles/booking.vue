@@ -1,13 +1,23 @@
 <template>
   <view class="page">
-    <view v-if="loading" class="skeleton-wrap">
+    <view
+      v-if="loading"
+      class="skeleton-wrap"
+    >
       <view class="skeleton-block h-14 bg-white" />
       <view class="skeleton-padding">
         <view class="skeleton-line w-24" />
         <view class="skeleton-expert-row">
-          <view v-for="i in 3" :key="i" class="skeleton-expert" />
+          <view
+            v-for="i in 3"
+            :key="i"
+            class="skeleton-expert"
+          />
         </view>
-        <view class="skeleton-line w-24" style="margin-top: 48rpx;" />
+        <view
+          class="skeleton-line w-24"
+          style="margin-top: 48rpx;"
+        />
         <view class="skeleton-block h-48" />
       </view>
     </view>
@@ -17,46 +27,84 @@
       <view class="success-page">
         <view class="success-inner">
           <view class="success-icon-wrap">
-            <text class="success-icon">✓</text>
+            <text class="success-icon">
+              ✓
+            </text>
           </view>
-          <text class="success-title">预约成功</text>
-          <text class="success-desc">我们已向专家发送通知，请准时参加</text>
+          <text class="success-title">
+            预约成功
+          </text>
+          <text class="success-desc">
+            我们已向专家发送通知，请准时参加
+          </text>
 
           <view class="success-card">
             <view class="success-expert">
-              <view class="success-avatar">{{ selectedExpert.name[0] }}</view>
+              <view class="success-avatar">
+                {{ selectedExpert.name[0] }}
+              </view>
               <view>
-                <text class="success-expert-name">{{ selectedExpert.name }}</text>
-                <text class="success-expert-title">{{ selectedExpert.title }}</text>
+                <text class="success-expert-name">
+                  {{ selectedExpert.name }}
+                </text>
+                <text class="success-expert-title">
+                  {{ selectedExpert.title }}
+                </text>
               </view>
             </view>
             <view class="success-detail">
               <view class="success-row">
-                <text class="success-label">日期</text>
-                <text class="success-value">{{ selectedDateText }}</text>
+                <text class="success-label">
+                  日期
+                </text>
+                <text class="success-value">
+                  {{ selectedDateText }}
+                </text>
               </view>
               <view class="success-row">
-                <text class="success-label">时间</text>
-                <text class="success-value">{{ selectedSlot.startTime }} - {{ selectedSlot.endTime }}</text>
+                <text class="success-label">
+                  时间
+                </text>
+                <text class="success-value">
+                  {{ selectedSlot.startTime }} - {{ selectedSlot.endTime }}
+                </text>
               </view>
               <view class="success-row">
-                <text class="success-label">咨询主题</text>
-                <text class="success-value">{{ topic }}</text>
+                <text class="success-label">
+                  咨询主题
+                </text>
+                <text class="success-value">
+                  {{ topic }}
+                </text>
               </view>
               <view class="success-row">
-                <text class="success-label">费用</text>
-                <text class="success-price">¥{{ calculatePrice() }}</text>
+                <text class="success-label">
+                  费用
+                </text>
+                <text class="success-price">
+                  ¥{{ calculatePrice() }}
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <view class="success-actions">
-          <view class="btn-calendar" @click="addToCalendar">
-            <text class="btn-calendar-icon">📅</text>
+          <view
+            class="btn-calendar"
+            @click="addToCalendar"
+          >
+            <text class="btn-calendar-icon">
+              📅
+            </text>
             <text>添加到日历</text>
           </view>
-          <view class="btn-back-circle" @click="goBackToCircle">返回圈子</view>
+          <view
+            class="btn-back-circle"
+            @click="goBackToCircle"
+          >
+            返回圈子
+          </view>
         </view>
       </view>
     </template>
@@ -65,18 +113,31 @@
     <template v-else>
       <!-- 顶部导航 -->
       <view class="nav-bar">
-        <view class="nav-left" @click="goBack">
-          <text class="nav-icon">←</text>
+        <view
+          class="nav-left"
+          @click="goBack"
+        >
+          <text class="nav-icon">
+            ←
+          </text>
         </view>
-        <text class="nav-title">连麦预约</text>
+        <text class="nav-title">
+          连麦预约
+        </text>
         <view class="nav-spacer" />
       </view>
 
       <view class="form-wrap">
         <!-- 选择专家 -->
         <view class="section">
-          <text class="section-title">选择专家</text>
-          <scroll-view scroll-x class="expert-scroll" show-scrollbar="false">
+          <text class="section-title">
+            选择专家
+          </text>
+          <scroll-view
+            scroll-x
+            class="expert-scroll"
+            show-scrollbar="false"
+          >
             <view class="expert-list">
               <view
                 v-for="expert in experts"
@@ -88,18 +149,37 @@
                 }"
                 @click="expert.available && (selectedExpert = expert)"
               >
-                <view class="expert-avatar">{{ expert.name[0] }}</view>
-                <text class="expert-name">{{ expert.name }}</text>
-                <text class="expert-title-sm">{{ expert.title }}</text>
+                <view class="expert-avatar">
+                  {{ expert.name[0] }}
+                </view>
+                <text class="expert-name">
+                  {{ expert.name }}
+                </text>
+                <text class="expert-title-sm">
+                  {{ expert.title }}
+                </text>
                 <view class="expert-rating">
-                  <text class="star-icon">⭐</text>
-                  <text class="rating-num">{{ expert.rating }}</text>
+                  <text class="star-icon">
+                    ⭐
+                  </text>
+                  <text class="rating-num">
+                    {{ expert.rating }}
+                  </text>
                 </view>
                 <view class="expert-price">
-                  <text class="price-num">¥{{ expert.pricePerMinute }}</text>
-                  <text class="price-unit">/分钟</text>
+                  <text class="price-num">
+                    ¥{{ expert.pricePerMinute }}
+                  </text>
+                  <text class="price-unit">
+                    /分钟
+                  </text>
                 </view>
-                <text v-if="!expert.available" class="expert-unavailable">暂不可约</text>
+                <text
+                  v-if="!expert.available"
+                  class="expert-unavailable"
+                >
+                  暂不可约
+                </text>
               </view>
             </view>
           </scroll-view>
@@ -107,22 +187,46 @@
 
         <!-- 选择日期 -->
         <view class="section">
-          <text class="section-title">选择日期</text>
+          <text class="section-title">
+            选择日期
+          </text>
           <view class="calendar-wrap">
             <view class="calendar-header">
-              <view class="cal-nav-btn" @click="prevMonth">
-                <text class="cal-nav-icon">‹</text>
+              <view
+                class="cal-nav-btn"
+                @click="prevMonth"
+              >
+                <text class="cal-nav-icon">
+                  ‹
+                </text>
               </view>
-              <text class="cal-month-text">{{ currentYear }}年{{ currentMonth + 1 }}月</text>
-              <view class="cal-nav-btn" @click="nextMonth">
-                <text class="cal-nav-icon">›</text>
+              <text class="cal-month-text">
+                {{ currentYear }}年{{ currentMonth + 1 }}月
+              </text>
+              <view
+                class="cal-nav-btn"
+                @click="nextMonth"
+              >
+                <text class="cal-nav-icon">
+                  ›
+                </text>
               </view>
             </view>
             <view class="calendar-weekdays">
-              <text v-for="day in weekDays" :key="day" class="cal-weekday">{{ day }}</text>
+              <text
+                v-for="day in weekDays"
+                :key="day"
+                class="cal-weekday"
+              >
+                {{ day }}
+              </text>
             </view>
             <view class="calendar-days">
-              <view v-for="(date, i) in calendarDays" :key="i" class="cal-day-cell">
+              <view
+                v-for="(date, i) in calendarDays"
+                :key="i"
+                class="cal-day-cell"
+              >
                 <view
                   v-if="date"
                   class="cal-day"
@@ -141,9 +245,14 @@
 
         <!-- 选择时段 -->
         <view class="section">
-          <text class="section-title">选择时段</text>
+          <text class="section-title">
+            选择时段
+          </text>
           <view class="slots-wrap">
-            <view v-if="sortedSlots.length > 0" class="slots-grid">
+            <view
+              v-if="sortedSlots.length > 0"
+              class="slots-grid"
+            >
               <view
                 v-for="slot in sortedSlots"
                 :key="slot.id"
@@ -157,13 +266,20 @@
                 <text>{{ slot.startTime }}</text>
               </view>
             </view>
-            <text v-else class="slots-empty">该日期暂无可用时段</text>
+            <text
+              v-else
+              class="slots-empty"
+            >
+              该日期暂无可用时段
+            </text>
           </view>
         </view>
 
         <!-- 咨询时长 -->
         <view class="section">
-          <text class="section-title">咨询时长</text>
+          <text class="section-title">
+            咨询时长
+          </text>
           <view class="duration-row">
             <view
               v-for="mins in [15, 30, 45, 60]"
@@ -179,7 +295,9 @@
 
         <!-- 咨询主题 -->
         <view class="section">
-          <text class="section-title">咨询主题</text>
+          <text class="section-title">
+            咨询主题
+          </text>
           <view class="topic-wrap">
             <textarea
               v-model="topic"
@@ -187,27 +305,48 @@
               class="topic-input"
             />
             <view class="topic-hint">
-              <text class="topic-hint-icon">💬</text>
-              <text class="topic-hint-text">专家将根据您的主题提前准备</text>
+              <text class="topic-hint-icon">
+                💬
+              </text>
+              <text class="topic-hint-text">
+                专家将根据您的主题提前准备
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 费用预览 -->
-        <view v-if="selectedExpert" class="section">
-          <text class="section-title">费用预览</text>
+        <view
+          v-if="selectedExpert"
+          class="section"
+        >
+          <text class="section-title">
+            费用预览
+          </text>
           <view class="fee-wrap">
             <view class="fee-row">
-              <text class="fee-label">单价</text>
-              <text class="fee-value">¥{{ selectedExpert.pricePerMinute }}/分钟</text>
+              <text class="fee-label">
+                单价
+              </text>
+              <text class="fee-value">
+                ¥{{ selectedExpert.pricePerMinute }}/分钟
+              </text>
             </view>
             <view class="fee-row">
-              <text class="fee-label">时长</text>
-              <text class="fee-value">{{ duration }}分钟</text>
+              <text class="fee-label">
+                时长
+              </text>
+              <text class="fee-value">
+                {{ duration }}分钟
+              </text>
             </view>
             <view class="fee-total">
-              <text class="fee-total-label">合计</text>
-              <text class="fee-total-value">¥{{ calculatePrice() }}</text>
+              <text class="fee-total-label">
+                合计
+              </text>
+              <text class="fee-total-value">
+                ¥{{ calculatePrice() }}
+              </text>
             </view>
           </view>
         </view>
@@ -217,14 +356,20 @@
       <view class="bottom-bar">
         <view class="bottom-status">
           <view class="bottom-time">
-            <text class="bottom-time-icon">🕐</text>
+            <text class="bottom-time-icon">
+              🕐
+            </text>
             <text class="bottom-time-text">
               {{ selectedSlot ? `${selectedDateText} ${selectedSlot.startTime}` : '请选择时段' }}
             </text>
           </view>
           <view class="bottom-price">
-            <text class="bottom-price-label">需支付</text>
-            <text class="bottom-price-num">¥{{ calculatePrice() }}</text>
+            <text class="bottom-price-label">
+              需支付
+            </text>
+            <text class="bottom-price-num">
+              ¥{{ calculatePrice() }}
+            </text>
           </view>
         </view>
         <view
@@ -232,8 +377,15 @@
           :class="{ disabled: !selectedExpert || !selectedSlot || !topic.trim() || submitting }"
           @click="handleSubmit"
         >
-          <text v-if="submitting" class="loading-text">预约中...</text>
-          <text v-else>立即预约</text>
+          <text
+            v-if="submitting"
+            class="loading-text"
+          >
+            预约中...
+          </text>
+          <text v-else>
+            立即预约
+          </text>
         </view>
       </view>
     </template>

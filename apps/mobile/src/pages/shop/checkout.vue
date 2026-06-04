@@ -1,62 +1,136 @@
 <template>
   <view class="page">
-    <view v-if="loading" class="loading-state">
-      <text class="loading-text">加载中...</text>
+    <view
+      v-if="loading"
+      class="loading-state"
+    >
+      <text class="loading-text">
+        加载中...
+      </text>
     </view>
 
     <template v-else>
       <!-- 收货地址 -->
-      <view class="section address-section" @click="goSelectAddress">
+      <view
+        class="section address-section"
+        @click="goSelectAddress"
+      >
         <template v-if="selectedAddress">
           <view class="addr-info">
-            <text class="addr-name">{{ selectedAddress.name }}</text>
-            <text class="addr-phone">{{ selectedAddress.phone }}</text>
-            <text class="addr-tag" v-if="selectedAddress.isDefault">默认</text>
+            <text class="addr-name">
+              {{ selectedAddress.name }}
+            </text>
+            <text class="addr-phone">
+              {{ selectedAddress.phone }}
+            </text>
+            <text
+              v-if="selectedAddress.isDefault"
+              class="addr-tag"
+            >
+              默认
+            </text>
           </view>
           <text class="addr-detail">
             {{ selectedAddress.province }}{{ selectedAddress.city }}{{ selectedAddress.district }} {{ selectedAddress.detail }}
           </text>
         </template>
-        <view v-else class="addr-empty">
-          <text class="addr-empty-icon">📍</text>
+        <view
+          v-else
+          class="addr-empty"
+        >
+          <text class="addr-empty-icon">
+            📍
+          </text>
           <text>请选择收货地址</text>
         </view>
-        <text class="addr-arrow">›</text>
+        <text class="addr-arrow">
+          ›
+        </text>
       </view>
 
       <!-- 商品清单 -->
       <view class="section">
-        <view class="section-title">商品清单</view>
-        <view v-for="item in checkoutItems" :key="item.id" class="goods-item">
-          <image :src="item.product?.image || '/static/placeholder.png'" class="goods-img" mode="aspectFill" />
+        <view class="section-title">
+          商品清单
+        </view>
+        <view
+          v-for="item in checkoutItems"
+          :key="item.id"
+          class="goods-item"
+        >
+          <image
+            :src="item.product?.image || '/static/placeholder.png'"
+            class="goods-img"
+            mode="aspectFill"
+          />
           <view class="goods-info">
-            <text class="goods-title">{{ item.product?.title }}</text>
-            <text v-if="item.sku" class="goods-sku">{{ skuText(item.sku.specs) }}</text>
+            <text class="goods-title">
+              {{ item.product?.title }}
+            </text>
+            <text
+              v-if="item.sku"
+              class="goods-sku"
+            >
+              {{ skuText(item.sku.specs) }}
+            </text>
             <view class="goods-bottom">
               <view class="goods-price-col">
-                <text class="goods-price">¥{{ item.unitPrice }}</text>
-                <text v-if="item.hasPromotion && item.originalPrice && item.originalPrice > item.unitPrice" class="goods-original">¥{{ item.originalPrice }}</text>
-                <text v-if="item.promotionTag" class="goods-promo-tag">{{ item.promotionTag }}</text>
+                <text class="goods-price">
+                  ¥{{ item.unitPrice }}
+                </text>
+                <text
+                  v-if="item.hasPromotion && item.originalPrice && item.originalPrice > item.unitPrice"
+                  class="goods-original"
+                >
+                  ¥{{ item.originalPrice }}
+                </text>
+                <text
+                  v-if="item.promotionTag"
+                  class="goods-promo-tag"
+                >
+                  {{ item.promotionTag }}
+                </text>
               </view>
-              <text class="goods-qty">×{{ item.quantity }}</text>
+              <text class="goods-qty">
+                ×{{ item.quantity }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 优惠券 -->
-      <view class="section coupon-section" @click="showCouponPanel = true">
-        <text class="section-label">优惠券</text>
+      <view
+        class="section coupon-section"
+        @click="showCouponPanel = true"
+      >
+        <text class="section-label">
+          优惠券
+        </text>
         <view class="section-right">
-          <text v-if="selectedCoupon" class="coupon-selected">-¥{{ selectedCoupon.discountAmount || selectedCoupon.value }}</text>
-          <text v-else class="coupon-placeholder">选择优惠券</text>
-          <text class="addr-arrow">›</text>
+          <text
+            v-if="selectedCoupon"
+            class="coupon-selected"
+          >
+            -¥{{ selectedCoupon.discountAmount || selectedCoupon.value }}
+          </text>
+          <text
+            v-else
+            class="coupon-placeholder"
+          >
+            选择优惠券
+          </text>
+          <text class="addr-arrow">
+            ›
+          </text>
         </view>
       </view>
 
       <!-- 支付方式 -->
       <view class="section">
-        <text class="section-label">支付方式</text>
+        <text class="section-label">
+          支付方式
+        </text>
         <view class="pay-methods">
           <view
             v-for="m in payMethods"
@@ -65,9 +139,15 @@
             :class="{ active: payMethod === m.value }"
             @click="payMethod = m.value"
           >
-            <text class="pay-icon">{{ m.icon }}</text>
-            <text class="pay-name">{{ m.label }}</text>
-            <text class="pay-check">{{ payMethod === m.value ? '✓' : '○' }}</text>
+            <text class="pay-icon">
+              {{ m.icon }}
+            </text>
+            <text class="pay-name">
+              {{ m.label }}
+            </text>
+            <text class="pay-check">
+              {{ payMethod === m.value ? '✓' : '○' }}
+            </text>
           </view>
         </view>
       </view>
@@ -75,39 +155,78 @@
       <!-- 金额明细 -->
       <view class="section">
         <view class="amount-row">
-          <text class="amount-label">商品总额</text>
-          <text class="amount-val">¥{{ totalGoodsAmount }}</text>
+          <text class="amount-label">
+            商品总额
+          </text>
+          <text class="amount-val">
+            ¥{{ totalGoodsAmount }}
+          </text>
         </view>
         <view class="amount-row">
-          <text class="amount-label">运费</text>
-          <text class="amount-val">{{ freightAmount > 0 ? '¥' + freightAmount : '免运费' }}</text>
+          <text class="amount-label">
+            运费
+          </text>
+          <text class="amount-val">
+            {{ freightAmount > 0 ? '¥' + freightAmount : '免运费' }}
+          </text>
         </view>
-        <view v-if="selectedCoupon" class="amount-row discount-row">
-          <text class="amount-label">优惠券</text>
-          <text class="amount-val">-¥{{ selectedCoupon.discountAmount || selectedCoupon.value }}</text>
+        <view
+          v-if="selectedCoupon"
+          class="amount-row discount-row"
+        >
+          <text class="amount-label">
+            优惠券
+          </text>
+          <text class="amount-val">
+            -¥{{ selectedCoupon.discountAmount || selectedCoupon.value }}
+          </text>
         </view>
         <view class="amount-row total-row">
-          <text class="amount-label">实付金额</text>
-          <text class="amount-val final">¥{{ finalAmount }}</text>
+          <text class="amount-label">
+            实付金额
+          </text>
+          <text class="amount-val final">
+            ¥{{ finalAmount }}
+          </text>
         </view>
       </view>
 
       <!-- 提交 -->
       <view class="submit-area">
-        <view class="btn-submit" @click="submitOrder">
+        <view
+          class="btn-submit"
+          @click="submitOrder"
+        >
           提交订单 ¥{{ finalAmount }}
         </view>
       </view>
     </template>
 
     <!-- 优惠券选择弹窗 -->
-    <view v-if="showCouponPanel" class="mask" @click="showCouponPanel = false">
-      <view class="panel" @click.stop>
+    <view
+      v-if="showCouponPanel"
+      class="mask"
+      @click="showCouponPanel = false"
+    >
+      <view
+        class="panel"
+        @click.stop
+      >
         <view class="panel-header">
-          <text class="panel-title">选择优惠券</text>
-          <text class="panel-close" @click="showCouponPanel = false">✕</text>
+          <text class="panel-title">
+            选择优惠券
+          </text>
+          <text
+            class="panel-close"
+            @click="showCouponPanel = false"
+          >
+            ✕
+          </text>
         </view>
-        <view v-if="availableCoupons.length === 0" class="no-coupon">
+        <view
+          v-if="availableCoupons.length === 0"
+          class="no-coupon"
+        >
           <text>暂无可用优惠券</text>
         </view>
         <view
@@ -118,17 +237,40 @@
           @click="selectCoupon(c)"
         >
           <view class="coupon-left">
-            <text class="coupon-value">¥{{ c.discountAmount || c.value }}</text>
-            <text class="coupon-cond" v-if="c.minAmount">满{{ c.minAmount }}可用</text>
-            <text class="coupon-cond" v-else>无门槛</text>
+            <text class="coupon-value">
+              ¥{{ c.discountAmount || c.value }}
+            </text>
+            <text
+              v-if="c.minAmount"
+              class="coupon-cond"
+            >
+              满{{ c.minAmount }}可用
+            </text>
+            <text
+              v-else
+              class="coupon-cond"
+            >
+              无门槛
+            </text>
           </view>
           <view class="coupon-right">
-            <text class="coupon-name">{{ c.name || c.type }}</text>
-            <text class="coupon-expire">有效期至 {{ formatDate(c.validEnd) }}</text>
+            <text class="coupon-name">
+              {{ c.name || c.type }}
+            </text>
+            <text class="coupon-expire">
+              有效期至 {{ formatDate(c.validEnd) }}
+            </text>
           </view>
-          <text class="coupon-check">{{ selectedCoupon?.id === c.id ? '✓' : '' }}</text>
+          <text class="coupon-check">
+            {{ selectedCoupon?.id === c.id ? '✓' : '' }}
+          </text>
         </view>
-        <view class="panel-confirm" @click="showCouponPanel = false">确定</view>
+        <view
+          class="panel-confirm"
+          @click="showCouponPanel = false"
+        >
+          确定
+        </view>
       </view>
     </view>
   </view>

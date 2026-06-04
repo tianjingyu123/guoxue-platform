@@ -2,12 +2,27 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">创作者收益</text>
-      <text class="header-action" @click="goWithdraw">💰 提现</text>
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        创作者收益
+      </text>
+      <text
+        class="header-action"
+        @click="goWithdraw"
+      >
+        💰 提现
+      </text>
     </view>
 
-    <scroll-view scroll-y class="scroll-area">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
       <DataState
         :is-loading="loading"
         :error="loadError"
@@ -17,23 +32,48 @@
       >
         <!-- 收益总览 -->
         <view class="overview-card">
-          <text class="ov-label">累计收益（元）</text>
-          <text class="ov-val">{{ formatMoney(data?.overview?.totalRevenue) }}</text>
+          <text class="ov-label">
+            累计收益（元）
+          </text>
+          <text class="ov-val">
+            {{ formatMoney(data?.overview?.totalRevenue) }}
+          </text>
           <view class="ov-grid">
             <view class="ov-item">
-              <text class="ov-item-label">本月收益</text>
-              <text class="ov-item-val">{{ formatMoney(data?.overview?.monthRevenue) }}</text>
-              <text class="ov-item-change" :class="(data?.overview?.monthGrowthRate || 0) >= 0 ? 'up' : 'down'">
+              <text class="ov-item-label">
+                本月收益
+              </text>
+              <text class="ov-item-val">
+                {{ formatMoney(data?.overview?.monthRevenue) }}
+              </text>
+              <text
+                class="ov-item-change"
+                :class="(data?.overview?.monthGrowthRate || 0) >= 0 ? 'up' : 'down'"
+              >
                 {{ (data?.overview?.monthGrowthRate || 0) >= 0 ? '↑' : '↓' }}{{ Math.abs(data?.overview?.monthGrowthRate || 0) }}%
               </text>
             </view>
             <view class="ov-item">
-              <text class="ov-item-label">可提现</text>
-              <text class="ov-item-val" style="color:#C41E3A">{{ formatMoney(data?.overview?.withdrawable) }}</text>
+              <text class="ov-item-label">
+                可提现
+              </text>
+              <text
+                class="ov-item-val"
+                style="color:#C41E3A"
+              >
+                {{ formatMoney(data?.overview?.withdrawable) }}
+              </text>
             </view>
             <view class="ov-item">
-              <text class="ov-item-label">待结算</text>
-              <text class="ov-item-val" style="color:#F59E0B">{{ formatMoney(data?.overview?.pending) }}</text>
+              <text class="ov-item-label">
+                待结算
+              </text>
+              <text
+                class="ov-item-val"
+                style="color:#F59E0B"
+              >
+                {{ formatMoney(data?.overview?.pending) }}
+              </text>
             </view>
           </view>
         </view>
@@ -41,36 +81,79 @@
         <!-- 收益趋势 -->
         <view class="section-card">
           <view class="section-header">
-            <text class="section-title">收益趋势</text>
-            <text class="section-sub">近30天</text>
+            <text class="section-title">
+              收益趋势
+            </text>
+            <text class="section-sub">
+              近30天
+            </text>
           </view>
-          <view class="trend-chart" v-if="data?.trend?.length">
-            <canvas canvas-id="trendCanvas" class="trend-canvas" />
+          <view
+            v-if="data?.trend?.length"
+            class="trend-chart"
+          >
+            <canvas
+              canvas-id="trendCanvas"
+              class="trend-canvas"
+            />
           </view>
-          <view class="trend-labels" v-if="data?.trend?.length">
-            <text class="trend-label">{{ data.trend[0]?.date?.slice(5) }}</text>
-            <text class="trend-label">{{ data.trend[Math.floor(data.trend.length / 2)]?.date?.slice(5) }}</text>
-            <text class="trend-label">{{ data.trend[data.trend.length - 1]?.date?.slice(5) }}</text>
+          <view
+            v-if="data?.trend?.length"
+            class="trend-labels"
+          >
+            <text class="trend-label">
+              {{ data.trend[0]?.date?.slice(5) }}
+            </text>
+            <text class="trend-label">
+              {{ data.trend[Math.floor(data.trend.length / 2)]?.date?.slice(5) }}
+            </text>
+            <text class="trend-label">
+              {{ data.trend[data.trend.length - 1]?.date?.slice(5) }}
+            </text>
           </view>
         </view>
 
         <!-- 收益来源构成 -->
         <view class="section-card">
           <view class="section-header">
-            <text class="section-title">收益来源</text>
-            <text class="section-more" @click="goSourceDetail">查看详情 ›</text>
+            <text class="section-title">
+              收益来源
+            </text>
+            <text
+              class="section-more"
+              @click="goSourceDetail"
+            >
+              查看详情 ›
+            </text>
           </view>
-          <view v-for="s in data?.sources || []" :key="s.type" class="source-item">
-            <view class="source-icon-wrap" :class="'source-icon-' + s.type">
-              <text class="source-icon">{{ sourceIcon(s.type) }}</text>
+          <view
+            v-for="s in data?.sources || []"
+            :key="s.type"
+            class="source-item"
+          >
+            <view
+              class="source-icon-wrap"
+              :class="'source-icon-' + s.type"
+            >
+              <text class="source-icon">
+                {{ sourceIcon(s.type) }}
+              </text>
             </view>
             <view class="source-info">
               <view class="source-top">
-                <text class="source-name">{{ sourceName(s.type) }}</text>
-                <text class="source-amount">{{ formatMoney(s.amount) }}</text>
+                <text class="source-name">
+                  {{ sourceName(s.type) }}
+                </text>
+                <text class="source-amount">
+                  {{ formatMoney(s.amount) }}
+                </text>
               </view>
               <view class="source-bar-track">
-                <view class="source-bar-fill" :class="'source-fill-' + s.type" :style="{ width: (s.percentage || 0) + '%' }" />
+                <view
+                  class="source-bar-fill"
+                  :class="'source-fill-' + s.type"
+                  :style="{ width: (s.percentage || 0) + '%' }"
+                />
               </view>
             </view>
           </view>
@@ -78,10 +161,16 @@
 
         <!-- 收益明细 -->
         <view class="section-card">
-          <text class="section-title">收益明细</text>
+          <text class="section-title">
+            收益明细
+          </text>
 
           <!-- 类型筛选 -->
-          <scroll-view scroll-x class="filter-scroll" :show-scrollbar="false">
+          <scroll-view
+            scroll-x
+            class="filter-scroll"
+            :show-scrollbar="false"
+          >
             <view class="filter-track">
               <text
                 v-for="f in filterOptions"
@@ -89,31 +178,73 @@
                 class="filter-tag"
                 :class="{ 'filter-active': selectedType === f.value }"
                 @click="switchFilter(f.value)"
-              >{{ f.label }}</text>
+              >
+                {{ f.label }}
+              </text>
             </view>
           </scroll-view>
 
           <!-- 明细列表 -->
-          <view v-if="detailsLoading" class="skeleton-list">
-            <view v-for="i in 3" :key="i" class="skeleton-item" />
+          <view
+            v-if="detailsLoading"
+            class="skeleton-list"
+          >
+            <view
+              v-for="i in 3"
+              :key="i"
+              class="skeleton-item"
+            />
           </view>
-          <view v-else-if="details.length === 0" class="empty-details">
-            <text class="empty-text">暂无收益记录</text>
+          <view
+            v-else-if="details.length === 0"
+            class="empty-details"
+          >
+            <text class="empty-text">
+              暂无收益记录
+            </text>
           </view>
-          <view v-else class="detail-list">
-            <view v-for="item in details" :key="item.id" class="detail-item">
-              <view class="detail-icon-wrap" :class="'source-icon-' + item.type">
-                <text class="detail-icon">{{ sourceIcon(item.type) }}</text>
+          <view
+            v-else
+            class="detail-list"
+          >
+            <view
+              v-for="item in details"
+              :key="item.id"
+              class="detail-item"
+            >
+              <view
+                class="detail-icon-wrap"
+                :class="'source-icon-' + item.type"
+              >
+                <text class="detail-icon">
+                  {{ sourceIcon(item.type) }}
+                </text>
               </view>
               <view class="detail-info">
                 <view class="detail-top">
-                  <text class="detail-title">{{ item.title }}</text>
-                  <text class="detail-amount">+{{ formatMoney(item.amount) }}</text>
+                  <text class="detail-title">
+                    {{ item.title }}
+                  </text>
+                  <text class="detail-amount">
+                    +{{ formatMoney(item.amount) }}
+                  </text>
                 </view>
                 <view class="detail-meta">
-                  <image v-if="item.buyer?.avatar" :src="item.buyer.avatar" class="detail-buyer-avatar" mode="aspectFill" />
-                  <text v-if="item.buyer?.nickname" class="detail-buyer">{{ item.buyer.nickname }}</text>
-                  <text class="detail-date">{{ item.createdAt }}</text>
+                  <image
+                    v-if="item.buyer?.avatar"
+                    :src="item.buyer.avatar"
+                    class="detail-buyer-avatar"
+                    mode="aspectFill"
+                  />
+                  <text
+                    v-if="item.buyer?.nickname"
+                    class="detail-buyer"
+                  >
+                    {{ item.buyer.nickname }}
+                  </text>
+                  <text class="detail-date">
+                    {{ item.createdAt }}
+                  </text>
                 </view>
               </view>
             </view>

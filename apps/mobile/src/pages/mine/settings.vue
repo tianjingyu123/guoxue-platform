@@ -2,23 +2,38 @@
   <view class="page">
     <!-- 导航栏 -->
     <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        <text class="nav-back-icon">‹</text>
+      <view
+        class="nav-back"
+        @click="goBack"
+      >
+        <text class="nav-back-icon">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">设置</text>
+      <text class="nav-title">
+        设置
+      </text>
       <view class="nav-placeholder" />
     </view>
 
     <!-- ==================== 通知设置 ==================== -->
     <view class="section">
-      <text class="section-title">通知设置</text>
+      <text class="section-title">
+        通知设置
+      </text>
       <view class="setting-list">
         <view class="setting-item">
           <view class="setting-left">
-            <text class="setting-icon">🔔</text>
+            <text class="setting-icon">
+              🔔
+            </text>
             <view>
-              <text class="setting-label">系统通知</text>
-              <text class="setting-desc">活动推送、系统公告</text>
+              <text class="setting-label">
+                系统通知
+              </text>
+              <text class="setting-desc">
+                活动推送、系统公告
+              </text>
             </view>
           </view>
           <switch
@@ -29,10 +44,16 @@
         </view>
         <view class="setting-item">
           <view class="setting-left">
-            <text class="setting-icon">💬</text>
+            <text class="setting-icon">
+              💬
+            </text>
             <view>
-              <text class="setting-label">评论与回复</text>
-              <text class="setting-desc">有人评论或回复我的内容</text>
+              <text class="setting-label">
+                评论与回复
+              </text>
+              <text class="setting-desc">
+                有人评论或回复我的内容
+              </text>
             </view>
           </view>
           <switch
@@ -43,10 +64,16 @@
         </view>
         <view class="setting-item">
           <view class="setting-left">
-            <text class="setting-icon">❤️</text>
+            <text class="setting-icon">
+              ❤️
+            </text>
             <view>
-              <text class="setting-label">点赞与关注</text>
-              <text class="setting-desc">有人点赞或关注我</text>
+              <text class="setting-label">
+                点赞与关注
+              </text>
+              <text class="setting-desc">
+                有人点赞或关注我
+              </text>
             </view>
           </view>
           <switch
@@ -57,10 +84,16 @@
         </view>
         <view class="setting-item">
           <view class="setting-left">
-            <text class="setting-icon">📢</text>
+            <text class="setting-icon">
+              📢
+            </text>
             <view>
-              <text class="setting-label">直播提醒</text>
-              <text class="setting-desc">关注的直播开始</text>
+              <text class="setting-label">
+                直播提醒
+              </text>
+              <text class="setting-desc">
+                关注的直播开始
+              </text>
             </view>
           </view>
           <switch
@@ -74,14 +107,22 @@
 
     <!-- ==================== 隐私设置 ==================== -->
     <view class="section">
-      <text class="section-title">隐私设置</text>
+      <text class="section-title">
+        隐私设置
+      </text>
       <view class="setting-list">
         <view class="setting-item">
           <view class="setting-left">
-            <text class="setting-icon">👤</text>
+            <text class="setting-icon">
+              👤
+            </text>
             <view>
-              <text class="setting-label">公开个人资料</text>
-              <text class="setting-desc">允许他人查看我的资料页</text>
+              <text class="setting-label">
+                公开个人资料
+              </text>
+              <text class="setting-desc">
+                允许他人查看我的资料页
+              </text>
             </view>
           </view>
           <switch
@@ -92,10 +133,16 @@
         </view>
         <view class="setting-item">
           <view class="setting-left">
-            <text class="setting-icon">📍</text>
+            <text class="setting-icon">
+              📍
+            </text>
             <view>
-              <text class="setting-label">显示地理位置</text>
-              <text class="setting-desc">在内容中展示位置信息</text>
+              <text class="setting-label">
+                显示地理位置
+              </text>
+              <text class="setting-desc">
+                在内容中展示位置信息
+              </text>
             </view>
           </view>
           <switch
@@ -106,10 +153,16 @@
         </view>
         <view class="setting-item">
           <view class="setting-left">
-            <text class="setting-icon">🔍</text>
+            <text class="setting-icon">
+              🔍
+            </text>
             <view>
-              <text class="setting-label">允许被搜索</text>
-              <text class="setting-desc">通过手机号可搜索到我</text>
+              <text class="setting-label">
+                允许被搜索
+              </text>
+              <text class="setting-desc">
+                通过手机号可搜索到我
+              </text>
             </view>
           </view>
           <switch
@@ -118,29 +171,48 @@
             @change="(e: any) => togglePrivacy('searchable', e.detail.value)"
           />
         </view>
-        <view class="setting-item" @click="goPage('/pages/mine/privacy-authorization')">
+        <view
+          class="setting-item"
+          @click="goPage('/pages/mine/privacy-authorization')"
+        >
           <view class="setting-left">
-            <text class="setting-icon">🛡️</text>
+            <text class="setting-icon">
+              🛡️
+            </text>
             <view>
-              <text class="setting-label">授权管理</text>
-              <text class="setting-desc">管理第三方授权</text>
+              <text class="setting-label">
+                授权管理
+              </text>
+              <text class="setting-desc">
+                管理第三方授权
+              </text>
             </view>
           </view>
-          <text class="setting-arrow">›</text>
+          <text class="setting-arrow">
+            ›
+          </text>
         </view>
       </view>
     </view>
 
     <!-- ==================== 通用设置 ==================== -->
     <view class="section">
-      <text class="section-title">通用设置</text>
+      <text class="section-title">
+        通用设置
+      </text>
       <view class="setting-list">
         <view class="setting-item">
           <view class="setting-left">
-            <text class="setting-icon">🎨</text>
+            <text class="setting-icon">
+              🎨
+            </text>
             <view>
-              <text class="setting-label">深色模式</text>
-              <text class="setting-desc">跟随系统或手动切换</text>
+              <text class="setting-label">
+                深色模式
+              </text>
+              <text class="setting-desc">
+                跟随系统或手动切换
+              </text>
             </view>
           </view>
           <view class="theme-selector">
@@ -148,54 +220,98 @@
               class="theme-option"
               :class="{ active: theme === 'auto' }"
               @click="theme = 'auto'"
-            >自动</text>
+            >
+              自动
+            </text>
             <text
               class="theme-option"
               :class="{ active: theme === 'light' }"
               @click="theme = 'light'"
-            >浅色</text>
+            >
+              浅色
+            </text>
             <text
               class="theme-option"
               :class="{ active: theme === 'dark' }"
               @click="theme = 'dark'"
-            >深色</text>
+            >
+              深色
+            </text>
           </view>
         </view>
-        <view class="setting-item" @click="goTeenMode">
+        <view
+          class="setting-item"
+          @click="goTeenMode"
+        >
           <view class="setting-left">
-            <text class="setting-icon">👶</text>
+            <text class="setting-icon">
+              👶
+            </text>
             <view>
-              <text class="setting-label">青少年模式</text>
-              <text class="setting-desc">限制使用时长和内容</text>
+              <text class="setting-label">
+                青少年模式
+              </text>
+              <text class="setting-desc">
+                限制使用时长和内容
+              </text>
             </view>
           </view>
-          <text class="setting-arrow">›</text>
+          <text class="setting-arrow">
+            ›
+          </text>
         </view>
-        <view class="setting-item" @click="clearCache">
+        <view
+          class="setting-item"
+          @click="clearCache"
+        >
           <view class="setting-left">
-            <text class="setting-icon">🗑️</text>
+            <text class="setting-icon">
+              🗑️
+            </text>
             <view>
-              <text class="setting-label">清除缓存</text>
-              <text class="setting-desc">清理本地缓存数据</text>
+              <text class="setting-label">
+                清除缓存
+              </text>
+              <text class="setting-desc">
+                清理本地缓存数据
+              </text>
             </view>
           </view>
-          <text class="setting-value">{{ cacheSize }}</text>
+          <text class="setting-value">
+            {{ cacheSize }}
+          </text>
         </view>
-        <view class="setting-item" @click="goPage('')">
+        <view
+          class="setting-item"
+          @click="goPage('')"
+        >
           <view class="setting-left">
-            <text class="setting-icon">ℹ️</text>
+            <text class="setting-icon">
+              ℹ️
+            </text>
             <view>
-              <text class="setting-label">关于我们</text>
-              <text class="setting-desc">版本信息与用户协议</text>
+              <text class="setting-label">
+                关于我们
+              </text>
+              <text class="setting-desc">
+                版本信息与用户协议
+              </text>
             </view>
           </view>
-          <text class="setting-value">v1.0.0</text>
+          <text class="setting-value">
+            v1.0.0
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 退出登录 -->
-    <button class="logout-btn" @click="handleLogout">退出登录</button>
+    <button
+      class="logout-btn"
+      @click="handleLogout"
+    >
+      退出登录
+    </button>
   </view>
 </template>
 
@@ -251,13 +367,13 @@ function saveSettings() {
 }
 
 function toggleNotify(key: string, val: boolean) {
-  ;(notifySettings.value as any)[key] = val
+  (notifySettings.value as any)[key] = val
   saveSettings()
   uni.showToast({ title: val ? '已开启' : '已关闭', icon: 'none' })
 }
 
 function togglePrivacy(key: string, val: boolean) {
-  ;(privacySettings.value as any)[key] = val
+  (privacySettings.value as any)[key] = val
   saveSettings()
   uni.showToast({ title: val ? '已开启' : '已关闭', icon: 'none' })
 }

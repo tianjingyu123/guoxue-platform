@@ -3,25 +3,62 @@
     <LoadingSkeleton v-if="loading" />
     <view v-else>
       <view class="course-summary">
-        <image :src="course.cover || ''" class="cover" mode="aspectFill" />
-        <text class="c-title">{{ course.title }}</text>
-        <text class="c-price">¥{{ course.price }}</text>
+        <image
+          :src="course.cover || ''"
+          class="cover"
+          mode="aspectFill"
+        />
+        <text class="c-title">
+          {{ course.title }}
+        </text>
+        <text class="c-price">
+          ¥{{ course.price }}
+        </text>
       </view>
       <view class="section">
-        <text class="section-title">优惠券</text>
-        <view v-if="coupons.length" class="coupon-list">
-          <view v-for="c in coupons" :key="c.id" class="coupon-item" :class="{ selected: selectedCoupon === c.id }" @click="selectCoupon(c)">
-            <text class="coupon-amount">¥{{ c.amount || c.value }}</text>
-            <text class="coupon-cond">{{ c.minAmount ? '满' + c.minAmount + '可用' : '无门槛' }}</text>
+        <text class="section-title">
+          优惠券
+        </text>
+        <view
+          v-if="coupons.length"
+          class="coupon-list"
+        >
+          <view
+            v-for="c in coupons"
+            :key="c.id"
+            class="coupon-item"
+            :class="{ selected: selectedCoupon === c.id }"
+            @click="selectCoupon(c)"
+          >
+            <text class="coupon-amount">
+              ¥{{ c.amount || c.value }}
+            </text>
+            <text class="coupon-cond">
+              {{ c.minAmount ? '满' + c.minAmount + '可用' : '无门槛' }}
+            </text>
           </view>
         </view>
-        <text v-else class="empty-tip">暂无可用优惠券</text>
+        <text
+          v-else
+          class="empty-tip"
+        >
+          暂无可用优惠券
+        </text>
       </view>
       <view class="total">
-        <text class="total-label">实付</text>
-        <text class="total-price">¥{{ finalPrice }}</text>
+        <text class="total-label">
+          实付
+        </text>
+        <text class="total-price">
+          ¥{{ finalPrice }}
+        </text>
       </view>
-      <button class="btn-pay" @click="pay">立即支付</button>
+      <button
+        class="btn-pay"
+        @click="pay"
+      >
+        立即支付
+      </button>
     </view>
   </view>
 </template>

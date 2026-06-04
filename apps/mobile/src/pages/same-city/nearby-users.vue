@@ -4,21 +4,49 @@
     <view class="header">
       <view class="header-row">
         <view class="header-left">
-          <text class="back-btn" @click="goBack">←</text>
-          <text class="header-title">附近的人</text>
+          <text
+            class="back-btn"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <text class="header-title">
+            附近的人
+          </text>
         </view>
         <view class="header-right">
-          <text class="header-btn" :class="{ spinning: refreshing }" @click="loadUsers(true)">🔄</text>
-          <text class="header-btn" @click="showSettings = true">⚙</text>
+          <text
+            class="header-btn"
+            :class="{ spinning: refreshing }"
+            @click="loadUsers(true)"
+          >
+            🔄
+          </text>
+          <text
+            class="header-btn"
+            @click="showSettings = true"
+          >
+            ⚙
+          </text>
         </view>
       </view>
       <!-- 搜索框 -->
       <view class="search-wrap">
-        <text class="search-icon">🔍</text>
-        <input v-model="searchKeyword" class="search-input" placeholder="搜索用户名、兴趣..." />
+        <text class="search-icon">
+          🔍
+        </text>
+        <input
+          v-model="searchKeyword"
+          class="search-input"
+          placeholder="搜索用户名、兴趣..."
+        >
       </view>
       <!-- 类型筛选 -->
-      <scroll-view scroll-x class="type-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="type-scroll"
+        show-scrollbar="false"
+      >
         <view class="type-inner">
           <text
             v-for="t in userTypes"
@@ -26,7 +54,9 @@
             class="type-tab"
             :class="{ active: selectedType === t.value }"
             @click="selectedType = t.value; loadUsers()"
-          >{{ t.icon }} {{ t.label }}</text>
+          >
+            {{ t.icon }} {{ t.label }}
+          </text>
         </view>
       </scroll-view>
     </view>
@@ -34,46 +64,106 @@
     <!-- 用户列表 -->
     <DataState
       :is-loading="loading && users.length === 0"
-      :isEmpty="!loading && filteredUsers.length === 0"
+      :is-empty="!loading && filteredUsers.length === 0"
       empty-icon="📍"
       :empty-title="searchKeyword ? '没有找到匹配的用户' : '附近暂无用户'"
       skeleton-type="card"
       @retry="loadUsers"
     >
       <view class="user-list">
-        <view v-for="user in filteredUsers" :key="user.id" class="user-card">
+        <view
+          v-for="user in filteredUsers"
+          :key="user.id"
+          class="user-card"
+        >
           <view class="user-card-inner">
             <!-- 头像 -->
-            <view class="user-avatar-wrap" @click="goUser(user)">
-              <image :src="user.avatar" class="user-avatar" mode="aspectFill" />
-              <view v-if="user.isOnline" class="online-dot" />
+            <view
+              class="user-avatar-wrap"
+              @click="goUser(user)"
+            >
+              <image
+                :src="user.avatar"
+                class="user-avatar"
+                mode="aspectFill"
+              />
+              <view
+                v-if="user.isOnline"
+                class="online-dot"
+              />
             </view>
             <!-- 信息 -->
             <view class="user-info">
               <view class="user-name-row">
-                <text class="user-name" @click="goUser(user)">{{ user.name }}</text>
-                <text v-if="user.verified" class="verified-badge">✅</text>
-                <text class="user-type-tag" :class="'type-' + user.type">{{ getUserTypeLabel(user.type) }}</text>
+                <text
+                  class="user-name"
+                  @click="goUser(user)"
+                >
+                  {{ user.name }}
+                </text>
+                <text
+                  v-if="user.verified"
+                  class="verified-badge"
+                >
+                  ✅
+                </text>
+                <text
+                  class="user-type-tag"
+                  :class="'type-' + user.type"
+                >
+                  {{ getUserTypeLabel(user.type) }}
+                </text>
               </view>
-              <text v-if="user.verifiedTitle" class="user-verified-title">{{ user.verifiedTitle }}</text>
-              <text v-if="user.bio" class="user-bio">{{ user.bio }}</text>
+              <text
+                v-if="user.verifiedTitle"
+                class="user-verified-title"
+              >
+                {{ user.verifiedTitle }}
+              </text>
+              <text
+                v-if="user.bio"
+                class="user-bio"
+              >
+                {{ user.bio }}
+              </text>
               <view class="user-tags">
-                <text v-for="interest in user.commonInterests" :key="interest" class="tag tag-primary">{{ interest }}</text>
-                <text v-for="interest in (user.interests || []).filter((i: string) => !(user.commonInterests || []).includes(i)).slice(0, 2)" :key="interest" class="tag tag-muted">{{ interest }}</text>
+                <text
+                  v-for="interest in user.commonInterests"
+                  :key="interest"
+                  class="tag tag-primary"
+                >
+                  {{ interest }}
+                </text>
+                <text
+                  v-for="interest in (user.interests || []).filter((i: string) => !(user.commonInterests || []).includes(i)).slice(0, 2)"
+                  :key="interest"
+                  class="tag tag-muted"
+                >
+                  {{ interest }}
+                </text>
               </view>
               <view class="user-footer">
                 <view class="user-meta">
                   <text>📍 {{ formatUserDistance(user.distance, user.showExactDistance) }}</text>
                   <text>{{ user.followerCount }} 粉丝</text>
-                  <text v-if="user.lastActiveAt">{{ user.lastActiveAt }}</text>
+                  <text v-if="user.lastActiveAt">
+                    {{ user.lastActiveAt }}
+                  </text>
                 </view>
                 <view class="user-actions">
-                  <text class="action-chat" @click="goChat(user)">💬</text>
+                  <text
+                    class="action-chat"
+                    @click="goChat(user)"
+                  >
+                    💬
+                  </text>
                   <text
                     class="action-follow"
                     :class="{ following: followingIds.has(user.id) }"
                     @click="handleToggleFollow(user.id)"
-                  >{{ followingIds.has(user.id) ? (user.isMutual ? '互关' : '已关注') : '+ 关注' }}</text>
+                  >
+                    {{ followingIds.has(user.id) ? (user.isMutual ? '互关' : '已关注') : '+ 关注' }}
+                  </text>
                 </view>
               </view>
             </view>
@@ -83,43 +173,77 @@
     </DataState>
 
     <!-- 隐私设置弹窗 -->
-    <view v-if="showSettings && privacySetting" class="mask" @click="showSettings = false">
-      <view class="settings-sheet" @click.stop>
+    <view
+      v-if="showSettings && privacySetting"
+      class="mask"
+      @click="showSettings = false"
+    >
+      <view
+        class="settings-sheet"
+        @click.stop
+      >
         <view class="settings-header">
-          <text class="settings-title">位置隐私设置</text>
-          <text @click="showSettings = false" class="settings-close">关闭</text>
+          <text class="settings-title">
+            位置隐私设置
+          </text>
+          <text
+            class="settings-close"
+            @click="showSettings = false"
+          >
+            关闭
+          </text>
         </view>
         <view class="settings-body">
           <view class="setting-row">
             <view class="setting-left">
-              <text class="setting-icon">👁</text>
+              <text class="setting-icon">
+                👁
+              </text>
               <view>
-                <text class="setting-label">对附近的人可见</text>
-                <text class="setting-desc">开启后，附近的人可以发现你</text>
+                <text class="setting-label">
+                  对附近的人可见
+                </text>
+                <text class="setting-desc">
+                  开启后，附近的人可以发现你
+                </text>
               </view>
             </view>
-            <view class="toggle" :class="{ active: privacySetting.visibleToNearby }" @click="privacySetting.visibleToNearby = !privacySetting.visibleToNearby">
+            <view
+              class="toggle"
+              :class="{ active: privacySetting.visibleToNearby }"
+              @click="privacySetting.visibleToNearby = !privacySetting.visibleToNearby"
+            >
               <view class="toggle-knob" />
             </view>
           </view>
           <view class="setting-block">
-            <text class="setting-label">距离显示精度</text>
+            <text class="setting-label">
+              距离显示精度
+            </text>
             <view class="btn-group">
               <text
                 class="btn-option"
                 :class="{ active: privacySetting.distancePrecision === 'fuzzy' }"
                 @click="privacySetting.distancePrecision = 'fuzzy'"
-              >模糊（推荐）</text>
+              >
+                模糊（推荐）
+              </text>
               <text
                 class="btn-option"
                 :class="{ active: privacySetting.distancePrecision === 'exact' }"
                 @click="privacySetting.distancePrecision = 'exact'"
-              >精确</text>
+              >
+                精确
+              </text>
             </view>
-            <text class="setting-hint">模糊模式下，1km内统一显示"附近"</text>
+            <text class="setting-hint">
+              模糊模式下，1km内统一显示"附近"
+            </text>
           </view>
           <view class="setting-block">
-            <text class="setting-label">可见范围</text>
+            <text class="setting-label">
+              可见范围
+            </text>
             <view class="btn-group">
               <text
                 v-for="range in visibleRanges"
@@ -127,9 +251,13 @@
                 class="btn-option"
                 :class="{ active: privacySetting.visibleRange === range }"
                 @click="privacySetting.visibleRange = range"
-              >{{ range }}km</text>
+              >
+                {{ range }}km
+              </text>
             </view>
-            <text class="setting-hint">只有在此范围内的用户才能看到你</text>
+            <text class="setting-hint">
+              只有在此范围内的用户才能看到你
+            </text>
           </view>
         </view>
       </view>

@@ -2,41 +2,84 @@
   <view class="page">
     <view class="header">
       <view class="header-top">
-        <text class="header-title">短视频</text>
-        <text class="header-publish" @click="goPublish">✚ 发布</text>
+        <text class="header-title">
+          短视频
+        </text>
+        <text
+          class="header-publish"
+          @click="goPublish"
+        >
+          ✚ 发布
+        </text>
       </view>
-      <text class="header-sub">国学智慧 · 视听盛宴</text>
+      <text class="header-sub">
+        国学智慧 · 视听盛宴
+      </text>
     </view>
 
     <!-- 分类标签 -->
-    <scroll-view scroll-x class="tabs-scroll">
+    <scroll-view
+      scroll-x
+      class="tabs-scroll"
+    >
       <text
         v-for="t in tabs"
         :key="t.value"
         class="tab"
         :class="{ active: activeTab === t.value }"
         @click="switchTab(t.value)"
-      >{{ t.label }}</text>
+      >
+        {{ t.label }}
+      </text>
     </scroll-view>
 
     <!-- 视频瀑布流 -->
-    <view class="video-grid" v-if="videos.length">
-      <view v-for="v in videos" :key="v.id" class="video-card" @click="goPlay(v.id)">
+    <view
+      v-if="videos.length"
+      class="video-grid"
+    >
+      <view
+        v-for="v in videos"
+        :key="v.id"
+        class="video-card"
+        @click="goPlay(v.id)"
+      >
         <view class="vc-cover-wrap">
-          <image :src="v.coverUrl || v.cover" class="vc-cover" mode="aspectFill" />
-          <text class="vc-duration">{{ formatDuration(v.duration) }}</text>
-          <view class="vc-play-icon">▶</view>
+          <image
+            :src="v.coverUrl || v.cover"
+            class="vc-cover"
+            mode="aspectFill"
+          />
+          <text class="vc-duration">
+            {{ formatDuration(v.duration) }}
+          </text>
+          <view class="vc-play-icon">
+            ▶
+          </view>
         </view>
         <view class="vc-info">
-          <text class="vc-title">{{ v.title }}</text>
+          <text class="vc-title">
+            {{ v.title }}
+          </text>
           <view class="vc-meta">
             <view class="vc-author-row">
-              <image v-if="v.author?.avatar" :src="v.author.avatar" class="vc-avatar" mode="aspectFill" />
-              <text class="vc-author">{{ v.author?.nickname || '国学作者' }}</text>
+              <image
+                v-if="v.author?.avatar"
+                :src="v.author.avatar"
+                class="vc-avatar"
+                mode="aspectFill"
+              />
+              <text class="vc-author">
+                {{ v.author?.nickname || '国学作者' }}
+              </text>
             </view>
             <view class="vc-stats">
-              <text class="vc-stat">❤️ {{ formatCount(v.likeCount) }}</text>
-              <text class="vc-stat">💬 {{ formatCount(v.commentCount) }}</text>
+              <text class="vc-stat">
+                ❤️ {{ formatCount(v.likeCount) }}
+              </text>
+              <text class="vc-stat">
+                💬 {{ formatCount(v.commentCount) }}
+              </text>
             </view>
           </view>
         </view>
@@ -44,21 +87,48 @@
     </view>
 
     <!-- 错误状态 -->
-    <view v-if="errorMsg" class="error-state">
-      <text class="error-icon">⚠️</text>
-      <text class="error-text">{{ errorMsg }}</text>
-      <text class="retry-btn" @click="fetchVideos()">点击重试</text>
+    <view
+      v-if="errorMsg"
+      class="error-state"
+    >
+      <text class="error-icon">
+        ⚠️
+      </text>
+      <text class="error-text">
+        {{ errorMsg }}
+      </text>
+      <text
+        class="retry-btn"
+        @click="fetchVideos()"
+      >
+        点击重试
+      </text>
     </view>
 
     <!-- 空状态 -->
-    <view v-if="!errorMsg && !loading && videos.length === 0" class="empty">
-      <text class="empty-icon">🎬</text>
+    <view
+      v-if="!errorMsg && !loading && videos.length === 0"
+      class="empty"
+    >
+      <text class="empty-icon">
+        🎬
+      </text>
       <text>暂无视频</text>
     </view>
 
     <!-- 加载状态 -->
-    <view v-if="loading" class="loading">加载中...</view>
-    <view v-if="loadingMore" class="loading">加载更多...</view>
+    <view
+      v-if="loading"
+      class="loading"
+    >
+      加载中...
+    </view>
+    <view
+      v-if="loadingMore"
+      class="loading"
+    >
+      加载更多...
+    </view>
   </view>
 </template>
 

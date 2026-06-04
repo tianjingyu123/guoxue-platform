@@ -2,14 +2,20 @@
   <view class="page">
     <!-- 页面标题 -->
     <view class="page-header">
-      <text class="page-title">诗词赏析</text>
-      <text class="page-subtitle">唐诗宋词 · 千年风雅</text>
+      <text class="page-title">
+        诗词赏析
+      </text>
+      <text class="page-subtitle">
+        唐诗宋词 · 千年风雅
+      </text>
     </view>
 
     <!-- 搜索栏 -->
     <view class="search-bar">
       <view class="search-input-wrap">
-        <text class="search-icon">🔍</text>
+        <text class="search-icon">
+          🔍
+        </text>
         <input
           v-model="searchKeyword"
           placeholder="搜索诗词标题或作者..."
@@ -17,14 +23,24 @@
           confirm-type="search"
           @confirm="onSearch"
           @input="onSearchInput"
-        />
-        <text v-if="searchKeyword" class="search-clear" @click="clearSearch">✕</text>
+        >
+        <text
+          v-if="searchKeyword"
+          class="search-clear"
+          @click="clearSearch"
+        >
+          ✕
+        </text>
       </view>
     </view>
 
     <!-- 朝代分类标签 -->
     <view class="filter-section">
-      <scroll-view scroll-x class="filter-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="filter-scroll"
+        show-scrollbar="false"
+      >
         <view class="filter-inner">
           <text
             v-for="d in dynasties"
@@ -39,14 +55,20 @@
     </view>
 
     <!-- 加载骨架屏 -->
-    <view v-if="loading && poems.length === 0" class="poem-list">
+    <view
+      v-if="loading && poems.length === 0"
+      class="poem-list"
+    >
       <LoadingSkeleton type="card" />
       <LoadingSkeleton type="card" />
       <LoadingSkeleton type="card" />
     </view>
 
     <!-- 诗词列表 -->
-    <view v-else-if="poems.length > 0" class="poem-list">
+    <view
+      v-else-if="poems.length > 0"
+      class="poem-list"
+    >
       <view
         v-for="item in poems"
         :key="item.id"
@@ -59,35 +81,67 @@
         <view class="poem-main">
           <!-- 标题行 -->
           <view class="poem-top">
-            <text class="poem-title">{{ item.title }}</text>
-            <text class="poem-dynasty">{{ getDynastyLabel(item) }}</text>
+            <text class="poem-title">
+              {{ item.title }}
+            </text>
+            <text class="poem-dynasty">
+              {{ getDynastyLabel(item) }}
+            </text>
           </view>
 
           <!-- 作者 -->
-          <text class="poem-author">— {{ item.author || '佚名' }}</text>
+          <text class="poem-author">
+            — {{ item.author || '佚名' }}
+          </text>
 
           <!-- 诗句预览 -->
-          <text class="poem-text">{{ item.excerpt || item.content?.slice(0, 80) || '暂无预览' }}</text>
+          <text class="poem-text">
+            {{ item.excerpt || item.content?.slice(0, 80) || '暂无预览' }}
+          </text>
 
           <!-- 底部信息 -->
           <view class="poem-bottom">
-            <view v-if="item.tags?.length" class="poem-tags">
-              <text v-for="t in item.tags.slice(0, 3)" :key="t" class="poem-tag">{{ t }}</text>
+            <view
+              v-if="item.tags?.length"
+              class="poem-tags"
+            >
+              <text
+                v-for="t in item.tags.slice(0, 3)"
+                :key="t"
+                class="poem-tag"
+              >
+                {{ t }}
+              </text>
             </view>
             <view class="poem-stats">
-              <text class="poem-stat">👁 {{ formatNum(item.viewCount ?? 0) }}</text>
-              <text class="poem-stat">♥ {{ formatNum(item.likeCount ?? 0) }}</text>
+              <text class="poem-stat">
+                👁 {{ formatNum(item.viewCount ?? 0) }}
+              </text>
+              <text class="poem-stat">
+                ♥ {{ formatNum(item.likeCount ?? 0) }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 加载更多 -->
-      <view v-if="hasMore" class="load-more" @click="loadMore">
-        <text class="load-more-text">{{ loadMoreLoading ? '加载中...' : '— 查看更多 —' }}</text>
+      <view
+        v-if="hasMore"
+        class="load-more"
+        @click="loadMore"
+      >
+        <text class="load-more-text">
+          {{ loadMoreLoading ? '加载中...' : '— 查看更多 —' }}
+        </text>
       </view>
-      <view v-else-if="poems.length > 0" class="load-more">
-        <text class="load-end">— 已展示全部 —</text>
+      <view
+        v-else-if="poems.length > 0"
+        class="load-more"
+      >
+        <text class="load-end">
+          — 已展示全部 —
+        </text>
       </view>
     </view>
 
@@ -97,19 +151,46 @@
         :text="searchKeyword ? '未找到匹配的诗词' : '暂无诗词数据'"
         icon="📜"
       >
-        <view v-if="searchKeyword" class="empty-action">
-          <button class="empty-btn" @click="clearSearch">清除搜索</button>
+        <view
+          v-if="searchKeyword"
+          class="empty-action"
+        >
+          <button
+            class="empty-btn"
+            @click="clearSearch"
+          >
+            清除搜索
+          </button>
         </view>
-        <view v-else class="empty-action">
-          <button class="empty-btn" @click="refreshData">重新加载</button>
+        <view
+          v-else
+          class="empty-action"
+        >
+          <button
+            class="empty-btn"
+            @click="refreshData"
+          >
+            重新加载
+          </button>
         </view>
       </EmptyState>
     </view>
 
     <!-- 错误状态 -->
-    <view v-if="errorMsg" class="error-section">
-      <EmptyState icon="⚠️" :text="errorMsg">
-        <button class="empty-btn" @click="refreshData">重新加载</button>
+    <view
+      v-if="errorMsg"
+      class="error-section"
+    >
+      <EmptyState
+        icon="⚠️"
+        :text="errorMsg"
+      >
+        <button
+          class="empty-btn"
+          @click="refreshData"
+        >
+          重新加载
+        </button>
       </EmptyState>
     </view>
   </view>

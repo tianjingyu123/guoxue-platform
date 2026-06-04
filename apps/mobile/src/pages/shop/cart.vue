@@ -24,9 +24,17 @@
         >
           <view class="item-left">
             <!-- 选择框 -->
-            <view class="item-checkbox" @click.stop="toggleSelect(item.id)">
+            <view
+              class="item-checkbox"
+              @click.stop="toggleSelect(item.id)"
+            >
               <view :class="['checkbox-circle', { checked: selectedIds.has(item.id) }]">
-                <text v-if="selectedIds.has(item.id)" class="check-mark">✓</text>
+                <text
+                  v-if="selectedIds.has(item.id)"
+                  class="check-mark"
+                >
+                  ✓
+                </text>
               </view>
             </view>
             <!-- 商品图 -->
@@ -38,16 +46,40 @@
             />
           </view>
           <view class="item-info">
-            <text class="item-title" @click="goProduct(item.productId)">{{ item.title }}</text>
-            <text v-if="item.skuAttrs" class="item-sku">{{ item.skuAttrs }}</text>
+            <text
+              class="item-title"
+              @click="goProduct(item.productId)"
+            >
+              {{ item.title }}
+            </text>
+            <text
+              v-if="item.skuAttrs"
+              class="item-sku"
+            >
+              {{ item.skuAttrs }}
+            </text>
             <view class="item-bottom">
               <view class="item-price-col">
-                <text class="item-price">¥{{ toYuan(item.price) }}</text>
+                <text class="item-price">
+                  ¥{{ toYuan(item.price) }}
+                </text>
               </view>
               <view class="qty-ctrl">
-                <text class="qty-btn" @click.stop="decrease(item)">−</text>
-                <text class="qty-val">{{ item.quantity }}</text>
-                <text class="qty-btn" @click.stop="increase(item)">+</text>
+                <text
+                  class="qty-btn"
+                  @click.stop="decrease(item)"
+                >
+                  −
+                </text>
+                <text class="qty-val">
+                  {{ item.quantity }}
+                </text>
+                <text
+                  class="qty-btn"
+                  @click.stop="increase(item)"
+                >
+                  +
+                </text>
               </view>
             </view>
           </view>
@@ -57,22 +89,38 @@
             :class="{ visible: swipeItemId === item.id }"
             @click.stop="removeItem(item)"
           >
-            <text class="delete-text">删除</text>
+            <text class="delete-text">
+              删除
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 底部结算栏 -->
       <view class="bottom-bar">
-        <view class="select-all" @click="toggleAll">
+        <view
+          class="select-all"
+          @click="toggleAll"
+        >
           <view :class="['checkbox-circle', { checked: isAllSelected }]">
-            <text v-if="isAllSelected" class="check-mark">✓</text>
+            <text
+              v-if="isAllSelected"
+              class="check-mark"
+            >
+              ✓
+            </text>
           </view>
-          <text class="select-label">全选</text>
+          <text class="select-label">
+            全选
+          </text>
         </view>
         <view class="total-area">
-          <text class="total-label">合计：</text>
-          <text class="total-price">¥{{ toYuan(totalAmount) }}</text>
+          <text class="total-label">
+            合计：
+          </text>
+          <text class="total-price">
+            ¥{{ toYuan(totalAmount) }}
+          </text>
         </view>
         <view
           class="btn-checkout"

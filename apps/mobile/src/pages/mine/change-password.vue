@@ -3,54 +3,101 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">修改密码</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          修改密码
+        </text>
         <view class="header-right" />
       </view>
     </view>
 
     <view class="tip-card">
-      <text class="tip-text">为保护账号安全，修改密码后所有设备将重新登录。请妥善保管新密码。</text>
+      <text class="tip-text">
+        为保护账号安全，修改密码后所有设备将重新登录。请妥善保管新密码。
+      </text>
     </view>
 
     <view class="form-card">
       <!-- 当前密码 -->
       <view class="form-group">
-        <text class="form-label">当前密码</text>
+        <text class="form-label">
+          当前密码
+        </text>
         <view class="form-input-wrap">
-          <text class="form-input-icon">🔒</text>
+          <text class="form-input-icon">
+            🔒
+          </text>
           <input
             v-model="oldPwd"
             :type="showOld ? 'text' : 'password'"
             class="form-input"
             placeholder="请输入当前登录密码"
-          />
-          <text class="form-toggle" @click="showOld = !showOld">{{ showOld ? '🙈' : '👁' }}</text>
+          >
+          <text
+            class="form-toggle"
+            @click="showOld = !showOld"
+          >
+            {{ showOld ? '🙈' : '👁' }}
+          </text>
         </view>
-        <text v-if="errors.oldPwd" class="form-error">{{ errors.oldPwd }}</text>
+        <text
+          v-if="errors.oldPwd"
+          class="form-error"
+        >
+          {{ errors.oldPwd }}
+        </text>
       </view>
 
       <!-- 新密码 -->
       <view class="form-group">
-        <text class="form-label">新密码</text>
+        <text class="form-label">
+          新密码
+        </text>
         <view class="form-input-wrap">
-          <text class="form-input-icon">🔒</text>
+          <text class="form-input-icon">
+            🔒
+          </text>
           <input
             v-model="newPwd"
             :type="showNew ? 'text' : 'password'"
             class="form-input"
             placeholder="请设置新密码"
-          />
-          <text class="form-toggle" @click="showNew = !showNew">{{ showNew ? '🙈' : '👁' }}</text>
+          >
+          <text
+            class="form-toggle"
+            @click="showNew = !showNew"
+          >
+            {{ showNew ? '🙈' : '👁' }}
+          </text>
         </view>
-        <text v-if="errors.newPwd" class="form-error">{{ errors.newPwd }}</text>
+        <text
+          v-if="errors.newPwd"
+          class="form-error"
+        >
+          {{ errors.newPwd }}
+        </text>
       </view>
 
       <!-- 密码强度 -->
-      <view v-if="newPwd.length > 0" class="strength-bar">
+      <view
+        v-if="newPwd.length > 0"
+        class="strength-bar"
+      >
         <view class="strength-header">
-          <text class="strength-label">密码强度</text>
-          <text class="strength-value" :style="{ color: strength.color }">{{ strength.label }}</text>
+          <text class="strength-label">
+            密码强度
+          </text>
+          <text
+            class="strength-value"
+            :style="{ color: strength.color }"
+          >
+            {{ strength.label }}
+          </text>
         </view>
         <view class="strength-track">
           <view
@@ -65,28 +112,63 @@
 
       <!-- 确认新密码 -->
       <view class="form-group">
-        <text class="form-label">确认新密码</text>
+        <text class="form-label">
+          确认新密码
+        </text>
         <view class="form-input-wrap">
-          <text class="form-input-icon">🔒</text>
+          <text class="form-input-icon">
+            🔒
+          </text>
           <input
             v-model="confirmPwd"
             :type="showConfirm ? 'text' : 'password'"
             class="form-input"
             placeholder="请再次输入新密码"
-          />
-          <text class="form-toggle" @click="showConfirm = !showConfirm">{{ showConfirm ? '🙈' : '👁' }}</text>
+          >
+          <text
+            class="form-toggle"
+            @click="showConfirm = !showConfirm"
+          >
+            {{ showConfirm ? '🙈' : '👁' }}
+          </text>
         </view>
-        <text v-if="errors.confirmPwd" class="form-error">{{ errors.confirmPwd }}</text>
+        <text
+          v-if="errors.confirmPwd"
+          class="form-error"
+        >
+          {{ errors.confirmPwd }}
+        </text>
       </view>
     </view>
 
     <!-- 密码要求 -->
     <view class="rules-card">
-      <text class="rules-title">密码要求</text>
-      <view v-for="rule in rules" :key="rule.label" class="rule-item">
-        <text v-if="newPwd.length > 0 && rule.pass(newPwd)" class="rule-icon rule-pass">✓</text>
-        <text v-else class="rule-icon rule-pending">○</text>
-        <text class="rule-text" :class="{ 'rule-text-pass': newPwd.length > 0 && rule.pass(newPwd) }">{{ rule.label }}</text>
+      <text class="rules-title">
+        密码要求
+      </text>
+      <view
+        v-for="rule in rules"
+        :key="rule.label"
+        class="rule-item"
+      >
+        <text
+          v-if="newPwd.length > 0 && rule.pass(newPwd)"
+          class="rule-icon rule-pass"
+        >
+          ✓
+        </text>
+        <text
+          v-else
+          class="rule-icon rule-pending"
+        >
+          ○
+        </text>
+        <text
+          class="rule-text"
+          :class="{ 'rule-text-pass': newPwd.length > 0 && rule.pass(newPwd) }"
+        >
+          {{ rule.label }}
+        </text>
       </view>
     </view>
 
@@ -102,7 +184,11 @@
     </view>
 
     <!-- Toast -->
-    <view v-if="toast" class="toast" :class="'toast-' + toast.type">
+    <view
+      v-if="toast"
+      class="toast"
+      :class="'toast-' + toast.type"
+    >
       <text>{{ toast.msg }}</text>
     </view>
   </view>

@@ -2,60 +2,122 @@
   <view class="page">
     <!-- 页面标题 -->
     <view class="page-header">
-      <text class="page-title">紫微斗数</text>
-      <text class="page-subtitle">十二宫 · 星曜 · 四化</text>
+      <text class="page-title">
+        紫微斗数
+      </text>
+      <text class="page-subtitle">
+        十二宫 · 星曜 · 四化
+      </text>
     </view>
 
     <!-- 输入表单 -->
     <view class="form-card">
-      <view class="form-section-title">👤 个人信息</view>
-
-      <view class="form-row">
-        <text class="form-label">姓名</text>
-        <input v-model="form.name" placeholder="请输入姓名" class="form-input" maxlength="10" />
+      <view class="form-section-title">
+        👤 个人信息
       </view>
 
       <view class="form-row">
-        <text class="form-label">性别</text>
+        <text class="form-label">
+          姓名
+        </text>
+        <input
+          v-model="form.name"
+          placeholder="请输入姓名"
+          class="form-input"
+          maxlength="10"
+        >
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">
+          性别
+        </text>
         <view class="gender-group">
-          <text :class="['gender-btn', { active: form.gender === '男' }]" @click="form.gender='男'">♂ 男</text>
-          <text :class="['gender-btn', { active: form.gender === '女' }]" @click="form.gender='女'">♀ 女</text>
+          <text
+            :class="['gender-btn', { active: form.gender === '男' }]"
+            @click="form.gender='男'"
+          >
+            ♂ 男
+          </text>
+          <text
+            :class="['gender-btn', { active: form.gender === '女' }]"
+            @click="form.gender='女'"
+          >
+            ♀ 女
+          </text>
         </view>
       </view>
 
       <view class="form-divider" />
 
-      <view class="form-section-title">📅 农历出生信息</view>
-
-      <view class="form-row">
-        <text class="form-label">农历年份</text>
-        <input v-model.number="form.year" placeholder="如 1990" class="form-input" type="number" />
+      <view class="form-section-title">
+        📅 农历出生信息
       </view>
 
       <view class="form-row">
-        <text class="form-label">出生月</text>
-        <picker :range="lunarMonths" :value="form.lunarMonth - 1" @change="onMonthChange" class="form-picker">
+        <text class="form-label">
+          农历年份
+        </text>
+        <input
+          v-model.number="form.year"
+          placeholder="如 1990"
+          class="form-input"
+          type="number"
+        >
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">
+          出生月
+        </text>
+        <picker
+          :range="lunarMonths"
+          :value="form.lunarMonth - 1"
+          class="form-picker"
+          @change="onMonthChange"
+        >
           <view class="picker-value">
-            <text :class="['picker-text', { placeholder: !form.lunarMonth }]">{{ form.lunarMonth ? form.lunarMonth + '月' : '选择月份' }}</text>
-            <text class="picker-arrow">▼</text>
+            <text :class="['picker-text', { placeholder: !form.lunarMonth }]">
+              {{ form.lunarMonth ? form.lunarMonth + '月' : '选择月份' }}
+            </text>
+            <text class="picker-arrow">
+              ▼
+            </text>
           </view>
         </picker>
       </view>
 
       <view class="form-row">
-        <text class="form-label">出生日</text>
-        <picker :range="lunarDays" :value="form.lunarDay - 1" @change="onDayChange" class="form-picker">
+        <text class="form-label">
+          出生日
+        </text>
+        <picker
+          :range="lunarDays"
+          :value="form.lunarDay - 1"
+          class="form-picker"
+          @change="onDayChange"
+        >
           <view class="picker-value">
-            <text :class="['picker-text', { placeholder: !form.lunarDay }]">{{ form.lunarDay ? '农历' + form.lunarDay + '日' : '选择日期' }}</text>
-            <text class="picker-arrow">▼</text>
+            <text :class="['picker-text', { placeholder: !form.lunarDay }]">
+              {{ form.lunarDay ? '农历' + form.lunarDay + '日' : '选择日期' }}
+            </text>
+            <text class="picker-arrow">
+              ▼
+            </text>
           </view>
         </picker>
       </view>
 
       <view class="form-row">
-        <text class="form-label">出生时辰</text>
+        <text class="form-label">
+          出生时辰
+        </text>
         <view class="shichen-list">
-          <scroll-view scroll-x class="shichen-scroll" show-scrollbar="false">
+          <scroll-view
+            scroll-x
+            class="shichen-scroll"
+            show-scrollbar="false"
+          >
             <view class="shichen-inner">
               <text
                 v-for="sc in shiChenOptions"
@@ -63,8 +125,12 @@
                 :class="['shichen-btn', { active: form.lunarHour === sc.value }]"
                 @click="form.lunarHour = sc.value"
               >
-                <text class="sc-dizhi">{{ sc.label }}</text>
-                <text class="sc-time">{{ sc.timeRange }}</text>
+                <text class="sc-dizhi">
+                  {{ sc.label }}
+                </text>
+                <text class="sc-time">
+                  {{ sc.timeRange }}
+                </text>
               </text>
             </view>
           </scroll-view>
@@ -73,107 +139,190 @@
 
       <view class="form-divider" />
 
-      <view class="form-section-title">🗓 年份干支</view>
+      <view class="form-section-title">
+        🗓 年份干支
+      </view>
       <view class="form-row">
-        <text class="form-label">年干</text>
+        <text class="form-label">
+          年干
+        </text>
         <view class="tiangan-list">
           <text
             v-for="g in tianGanList"
             :key="g"
             :class="['gan-btn', { active: form.lunarYearGan === g }]"
             @click="form.lunarYearGan = g"
-          >{{ g }}</text>
+          >
+            {{ g }}
+          </text>
         </view>
       </view>
       <view class="form-row">
-        <text class="form-label">年支</text>
+        <text class="form-label">
+          年支
+        </text>
         <view class="dizhi-list">
           <text
             v-for="z in diZhiList"
             :key="z"
             :class="['zhi-btn', { active: form.lunarYearZhi === z }]"
             @click="form.lunarYearZhi = z"
-          >{{ z }}</text>
+          >
+            {{ z }}
+          </text>
         </view>
       </view>
 
-      <button class="calc-btn" :loading="loading" @click="doCalc" :disabled="loading">
-        <text v-if="!loading">☯ 开始排盘</text>
-        <text v-else>推演中...</text>
+      <button
+        class="calc-btn"
+        :loading="loading"
+        :disabled="loading"
+        @click="doCalc"
+      >
+        <text v-if="!loading">
+          ☯ 开始排盘
+        </text>
+        <text v-else>
+          推演中...
+        </text>
       </button>
     </view>
 
     <!-- 加载状态 -->
-    <view v-if="loading" class="loading-section">
+    <view
+      v-if="loading"
+      class="loading-section"
+    >
       <view class="loading-animation">
-        <text class="loading-icon">☯</text>
-        <text class="loading-text">紫微斗数推演中...</text>
+        <text class="loading-icon">
+          ☯
+        </text>
+        <text class="loading-text">
+          紫微斗数推演中...
+        </text>
       </view>
     </view>
 
     <!-- 排盘结果 -->
-    <view v-if="result && !loading" class="result-section">
+    <view
+      v-if="result && !loading"
+      class="result-section"
+    >
       <!-- 概览卡片 -->
       <view class="overview-card">
-        <view class="ov-header">命盘总览</view>
+        <view class="ov-header">
+          命盘总览
+        </view>
         <view class="overview-grid">
           <view class="ov-item">
-            <text class="ov-label">五行局</text>
-            <text class="ov-val highlight">{{ result.wuXingJu }}</text>
+            <text class="ov-label">
+              五行局
+            </text>
+            <text class="ov-val highlight">
+              {{ result.wuXingJu }}
+            </text>
           </view>
           <view class="ov-item">
-            <text class="ov-label">命宫</text>
-            <text class="ov-val">{{ result.mingGong.name }}·{{ result.mingGong.gan }}{{ result.mingGong.zhi }}</text>
+            <text class="ov-label">
+              命宫
+            </text>
+            <text class="ov-val">
+              {{ result.mingGong.name }}·{{ result.mingGong.gan }}{{ result.mingGong.zhi }}
+            </text>
           </view>
           <view class="ov-item">
-            <text class="ov-label">身宫</text>
-            <text class="ov-val">{{ result.shenGong }}</text>
+            <text class="ov-label">
+              身宫
+            </text>
+            <text class="ov-val">
+              {{ result.shenGong }}
+            </text>
           </view>
           <view class="ov-item">
-            <text class="ov-label">格局</text>
-            <text class="ov-val" v-if="result.geShi.length">{{ result.geShi.join(' · ') }}</text>
-            <text class="ov-val dim" v-else>暂无特殊格局</text>
+            <text class="ov-label">
+              格局
+            </text>
+            <text
+              v-if="result.geShi.length"
+              class="ov-val"
+            >
+              {{ result.geShi.join(' · ') }}
+            </text>
+            <text
+              v-else
+              class="ov-val dim"
+            >
+              暂无特殊格局
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 四化 -->
-      <view class="section-title">四化飞星</view>
+      <view class="section-title">
+        四化飞星
+      </view>
       <view class="sihua-card">
         <view class="sihua-row">
           <view class="sihua-item lu">
             <view class="sihua-icon-wrap lu-bg">
-              <text class="sihua-icon">禄</text>
+              <text class="sihua-icon">
+                禄
+              </text>
             </view>
-            <text class="sihua-label">化禄</text>
-            <text class="sihua-star">{{ result.siHua.huaLu }}</text>
+            <text class="sihua-label">
+              化禄
+            </text>
+            <text class="sihua-star">
+              {{ result.siHua.huaLu }}
+            </text>
           </view>
           <view class="sihua-item quan">
             <view class="sihua-icon-wrap quan-bg">
-              <text class="sihua-icon">权</text>
+              <text class="sihua-icon">
+                权
+              </text>
             </view>
-            <text class="sihua-label">化权</text>
-            <text class="sihua-star">{{ result.siHua.huaQuan }}</text>
+            <text class="sihua-label">
+              化权
+            </text>
+            <text class="sihua-star">
+              {{ result.siHua.huaQuan }}
+            </text>
           </view>
           <view class="sihua-item ke">
             <view class="sihua-icon-wrap ke-bg">
-              <text class="sihua-icon">科</text>
+              <text class="sihua-icon">
+                科
+              </text>
             </view>
-            <text class="sihua-label">化科</text>
-            <text class="sihua-star">{{ result.siHua.huaKe }}</text>
+            <text class="sihua-label">
+              化科
+            </text>
+            <text class="sihua-star">
+              {{ result.siHua.huaKe }}
+            </text>
           </view>
           <view class="sihua-item ji">
             <view class="sihua-icon-wrap ji-bg">
-              <text class="sihua-icon">忌</text>
+              <text class="sihua-icon">
+                忌
+              </text>
             </view>
-            <text class="sihua-label">化忌</text>
-            <text class="sihua-star">{{ result.siHua.huaJi }}</text>
+            <text class="sihua-label">
+              化忌
+            </text>
+            <text class="sihua-star">
+              {{ result.siHua.huaJi }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 十二宫 -->
-      <view class="section-title">十二宫 · {{ result.wuXingJu }}</view>
+      <view class="section-title">
+        十二宫 · {{ result.wuXingJu }}
+      </view>
       <view class="gong-list">
         <view
           v-for="gong in result.gongWei"
@@ -182,27 +331,62 @@
         >
           <view class="gong-header">
             <view class="gong-name-row">
-              <text class="gong-name">{{ gong.name }}</text>
-              <text v-if="gong.shenGong" class="gong-badge shen-badge">身</text>
-              <text v-if="gong.name === '命宫'" class="gong-badge ming-badge">命</text>
+              <text class="gong-name">
+                {{ gong.name }}
+              </text>
+              <text
+                v-if="gong.shenGong"
+                class="gong-badge shen-badge"
+              >
+                身
+              </text>
+              <text
+                v-if="gong.name === '命宫'"
+                class="gong-badge ming-badge"
+              >
+                命
+              </text>
             </view>
-            <text class="gong-ganzhi">{{ gong.gan }}{{ gong.zhi }}</text>
-            <text class="gong-daxian">{{ gong.daXianStart }}-{{ gong.daXianEnd }}岁</text>
+            <text class="gong-ganzhi">
+              {{ gong.gan }}{{ gong.zhi }}
+            </text>
+            <text class="gong-daxian">
+              {{ gong.daXianStart }}-{{ gong.daXianEnd }}岁
+            </text>
           </view>
 
           <view class="gong-stars">
-            <text v-if="!gong.stars.length" class="no-star">空宫</text>
+            <text
+              v-if="!gong.stars.length"
+              class="no-star"
+            >
+              空宫
+            </text>
             <text
               v-for="star in gong.stars"
               :key="star.name"
               :class="['star-badge', star.liangJi, star.type]"
-            >{{ star.name }}</text>
+            >
+              {{ star.name }}
+            </text>
           </view>
 
           <view class="gong-extra">
-            <text class="extra-row"><text class="extra-label">三方</text> {{ gong.sanFang.join(' · ') }}</text>
-            <text class="extra-row"><text class="extra-label">对宫</text> {{ gong.duiGong }}</text>
-            <text class="extra-row"><text class="extra-label">宫气</text> {{ gong.gongQi }}</text>
+            <text class="extra-row">
+              <text class="extra-label">
+                三方
+              </text> {{ gong.sanFang.join(' · ') }}
+            </text>
+            <text class="extra-row">
+              <text class="extra-label">
+                对宫
+              </text> {{ gong.duiGong }}
+            </text>
+            <text class="extra-row">
+              <text class="extra-label">
+                宫气
+              </text> {{ gong.gongQi }}
+            </text>
           </view>
         </view>
       </view>

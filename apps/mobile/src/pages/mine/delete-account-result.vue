@@ -4,8 +4,15 @@
     <template v-if="status === 'pending'">
       <view class="header">
         <view class="header-inner">
-          <text class="back-btn" @click="goBack">←</text>
-          <text class="header-title">注销申请</text>
+          <text
+            class="back-btn"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <text class="header-title">
+            注销申请
+          </text>
           <view class="header-right" />
         </view>
       </view>
@@ -13,76 +20,159 @@
       <view class="pending-content">
         <!-- 图标 -->
         <view class="result-icon-wrap">
-          <text class="result-icon pending-icon">⏳</text>
+          <text class="result-icon pending-icon">
+            ⏳
+          </text>
         </view>
 
-        <text class="result-main-title">注销申请已提交</text>
-        <text class="result-sub-desc">您的账号将在7天冷静期后正式注销</text>
+        <text class="result-main-title">
+          注销申请已提交
+        </text>
+        <text class="result-sub-desc">
+          您的账号将在7天冷静期后正式注销
+        </text>
 
         <!-- 倒计时 -->
         <view class="countdown-card">
-          <text class="countdown-label">冷静期剩余时间</text>
+          <text class="countdown-label">
+            冷静期剩余时间
+          </text>
           <view class="countdown-grid">
             <view class="countdown-item">
-              <view class="countdown-value">{{ countdown.days }}</view>
-              <text class="countdown-unit">天</text>
+              <view class="countdown-value">
+                {{ countdown.days }}
+              </view>
+              <text class="countdown-unit">
+                天
+              </text>
             </view>
-            <text class="countdown-colon">:</text>
+            <text class="countdown-colon">
+              :
+            </text>
             <view class="countdown-item">
-              <view class="countdown-value">{{ padZero(countdown.hours) }}</view>
-              <text class="countdown-unit">时</text>
+              <view class="countdown-value">
+                {{ padZero(countdown.hours) }}
+              </view>
+              <text class="countdown-unit">
+                时
+              </text>
             </view>
-            <text class="countdown-colon">:</text>
+            <text class="countdown-colon">
+              :
+            </text>
             <view class="countdown-item">
-              <view class="countdown-value">{{ padZero(countdown.minutes) }}</view>
-              <text class="countdown-unit">分</text>
+              <view class="countdown-value">
+                {{ padZero(countdown.minutes) }}
+              </view>
+              <text class="countdown-unit">
+                分
+              </text>
             </view>
-            <text class="countdown-colon">:</text>
+            <text class="countdown-colon">
+              :
+            </text>
             <view class="countdown-item">
-              <view class="countdown-value">{{ padZero(countdown.seconds) }}</view>
-              <text class="countdown-unit">秒</text>
+              <view class="countdown-value">
+                {{ padZero(countdown.seconds) }}
+              </view>
+              <text class="countdown-unit">
+                秒
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 冷静期内提示 -->
         <view class="cooling-tip">
-          <text class="cooling-tip-icon">ℹ️</text>
+          <text class="cooling-tip-icon">
+            ℹ️
+          </text>
           <view class="cooling-tip-body">
-            <text class="cooling-tip-title">冷静期内您可以：</text>
-            <text class="cooling-tip-item">• 重新登录账号撤销注销申请</text>
-            <text class="cooling-tip-item">• 正常使用所有功能</text>
-            <text class="cooling-tip-item">• 冷静期结束后账号将被永久注销</text>
+            <text class="cooling-tip-title">
+              冷静期内您可以：
+            </text>
+            <text class="cooling-tip-item">
+              • 重新登录账号撤销注销申请
+            </text>
+            <text class="cooling-tip-item">
+              • 正常使用所有功能
+            </text>
+            <text class="cooling-tip-item">
+              • 冷静期结束后账号将被永久注销
+            </text>
           </view>
         </view>
 
         <!-- 注销后结果 -->
         <view class="aftermath-card">
-          <text class="aftermath-title">注销后将发生</text>
-          <view v-for="item in aftermathItems" :key="item.text" class="aftermath-item">
-            <text class="aftermath-icon">{{ item.icon }}</text>
-            <text class="aftermath-text">{{ item.text }}</text>
+          <text class="aftermath-title">
+            注销后将发生
+          </text>
+          <view
+            v-for="item in aftermathItems"
+            :key="item.text"
+            class="aftermath-item"
+          >
+            <text class="aftermath-icon">
+              {{ item.icon }}
+            </text>
+            <text class="aftermath-text">
+              {{ item.text }}
+            </text>
           </view>
         </view>
 
         <!-- 按钮 -->
         <view class="pending-buttons">
-          <view class="btn-cancel-delete" @click="showCancelDialog = true">撤销注销申请</view>
-          <view class="btn-home" @click="goHome">🏠 返回首页</view>
-          <text class="btn-help" @click="showHelp">📄 了解注销详情</text>
+          <view
+            class="btn-cancel-delete"
+            @click="showCancelDialog = true"
+          >
+            撤销注销申请
+          </view>
+          <view
+            class="btn-home"
+            @click="goHome"
+          >
+            🏠 返回首页
+          </view>
+          <text
+            class="btn-help"
+            @click="showHelp"
+          >
+            📄 了解注销详情
+          </text>
         </view>
       </view>
 
       <!-- 撤销确认弹窗 -->
-      <view v-if="showCancelDialog" class="dialog-overlay" @click="showCancelDialog = false">
-        <view class="dialog-content" @click.stop>
+      <view
+        v-if="showCancelDialog"
+        class="dialog-overlay"
+        @click="showCancelDialog = false"
+      >
+        <view
+          class="dialog-content"
+          @click.stop
+        >
           <view class="dialog-icon-wrap">
-            <text class="dialog-check-icon">✅</text>
+            <text class="dialog-check-icon">
+              ✅
+            </text>
           </view>
-          <text class="dialog-title">撤销注销申请</text>
-          <text class="dialog-desc">确定要撤销注销申请吗？撤销后账号将恢复正常状态。</text>
+          <text class="dialog-title">
+            撤销注销申请
+          </text>
+          <text class="dialog-desc">
+            确定要撤销注销申请吗？撤销后账号将恢复正常状态。
+          </text>
           <view class="dialog-actions">
-            <view class="dialog-btn dialog-btn-cancel" @click="showCancelDialog = false">取消</view>
+            <view
+              class="dialog-btn dialog-btn-cancel"
+              @click="showCancelDialog = false"
+            >
+              取消
+            </view>
             <view
               class="dialog-btn dialog-btn-confirm-green"
               :class="{ disabled: cancelling }"
@@ -99,42 +189,77 @@
     <template v-else>
       <view class="header">
         <view class="header-inner center">
-          <text class="header-title">账号注销</text>
+          <text class="header-title">
+            账号注销
+          </text>
         </view>
       </view>
 
       <view class="completed-content">
         <view class="result-icon-wrap">
           <view class="completed-icon-outer">
-            <text class="completed-icon">✕</text>
+            <text class="completed-icon">
+              ✕
+            </text>
           </view>
         </view>
 
-        <text class="result-main-title">账号已注销</text>
-        <text class="result-sub-desc">所有数据将按隐私政策处理，感谢您一直以来的使用与支持</text>
+        <text class="result-main-title">
+          账号已注销
+        </text>
+        <text class="result-sub-desc">
+          所有数据将按隐私政策处理，感谢您一直以来的使用与支持
+        </text>
 
         <view class="completed-details">
-          <text class="completed-details-title">注销完成说明</text>
-          <view v-for="item in completedItems" :key="item" class="completed-detail-item">
-            <text class="completed-detail-check">✓</text>
-            <text class="completed-detail-text">{{ item }}</text>
+          <text class="completed-details-title">
+            注销完成说明
+          </text>
+          <view
+            v-for="item in completedItems"
+            :key="item"
+            class="completed-detail-item"
+          >
+            <text class="completed-detail-check">
+              ✓
+            </text>
+            <text class="completed-detail-text">
+              {{ item }}
+            </text>
           </view>
         </view>
 
         <view class="feedback-card">
           <text class="feedback-text">
             如果您愿意告诉我们离开的原因，可以
-            <text class="feedback-link" @click="fillFeedback">填写反馈问卷</text>
+            <text
+              class="feedback-link"
+              @click="fillFeedback"
+            >
+              填写反馈问卷
+            </text>
             帮助我们改进服务
           </text>
         </view>
 
         <view class="completed-buttons">
-          <view class="btn-register" @click="reRegister">👤 重新注册账号</view>
-          <view class="btn-close" @click="closeApp">关闭应用</view>
+          <view
+            class="btn-register"
+            @click="reRegister"
+          >
+            👤 重新注册账号
+          </view>
+          <view
+            class="btn-close"
+            @click="closeApp"
+          >
+            关闭应用
+          </view>
         </view>
 
-        <text class="contact-footer">如有问题请联系客服：400-xxx-xxxx</text>
+        <text class="contact-footer">
+          如有问题请联系客服：400-xxx-xxxx
+        </text>
       </view>
     </template>
   </view>

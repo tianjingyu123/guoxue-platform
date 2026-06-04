@@ -3,59 +3,102 @@
     <template v-if="loading">
       <view class="skeleton-header" />
       <view class="skeleton-body">
-        <view v-for="i in 3" :key="i" class="skeleton-card" />
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="skeleton-card"
+        />
       </view>
     </template>
 
     <template v-else-if="detail">
       <!-- 顶部导航 -->
       <view class="header-bar">
-        <view class="header-left" @click="goBack">
-          <text class="header-icon">‹</text>
+        <view
+          class="header-left"
+          @click="goBack"
+        >
+          <text class="header-icon">
+            ‹
+          </text>
         </view>
-        <text class="header-title">售后结果</text>
+        <text class="header-title">
+          售后结果
+        </text>
       </view>
 
       <!-- 结果区域 -->
       <view class="result-area">
         <view class="result-icon-wrap">
-          <text class="result-icon">✕</text>
+          <text class="result-icon">
+            ✕
+          </text>
         </view>
-        <text class="result-title">售后申请已驳回</text>
-        <text class="result-desc">您的售后申请未通过审核</text>
+        <text class="result-title">
+          售后申请已驳回
+        </text>
+        <text class="result-desc">
+          您的售后申请未通过审核
+        </text>
       </view>
 
       <!-- 驳回原因 -->
       <view class="reject-card">
         <view class="reject-body">
           <view class="reject-header">
-            <text class="reject-icon">⚠</text>
-            <text class="reject-label">驳回原因</text>
+            <text class="reject-icon">
+              ⚠
+            </text>
+            <text class="reject-label">
+              驳回原因
+            </text>
           </view>
-          <text class="reject-text">{{ detail.rejectReason }}</text>
+          <text class="reject-text">
+            {{ detail.rejectReason }}
+          </text>
         </view>
         <view class="reject-time">
-          <text class="reject-time-label">处理时间</text>
-          <text class="reject-time-value">{{ rejectTime }}</text>
+          <text class="reject-time-label">
+            处理时间
+          </text>
+          <text class="reject-time-value">
+            {{ rejectTime }}
+          </text>
         </view>
       </view>
 
       <!-- 售后信息 -->
       <view class="info-card">
         <view class="info-title-row">
-          <text class="info-title-icon">🧾</text>
-          <text class="info-title-text">售后信息</text>
+          <text class="info-title-icon">
+            🧾
+          </text>
+          <text class="info-title-text">
+            售后信息
+          </text>
         </view>
 
         <!-- 商品 -->
         <view class="product-info">
-          <image :src="detail.product.cover || ''" class="product-cover" mode="aspectFill" />
+          <image
+            :src="detail.product.cover || ''"
+            class="product-cover"
+            mode="aspectFill"
+          />
           <view class="product-detail">
-            <text class="product-name">{{ detail.product.name }}</text>
-            <text class="product-sku">{{ detail.product.skuName }}</text>
+            <text class="product-name">
+              {{ detail.product.name }}
+            </text>
+            <text class="product-sku">
+              {{ detail.product.skuName }}
+            </text>
             <view class="product-price-row">
-              <text class="product-price">¥{{ detail.product.price }}</text>
-              <text class="product-qty">x{{ detail.product.quantity }}</text>
+              <text class="product-price">
+                ¥{{ detail.product.price }}
+              </text>
+              <text class="product-qty">
+                x{{ detail.product.quantity }}
+              </text>
             </view>
           </view>
         </view>
@@ -63,82 +106,158 @@
         <!-- 信息列表 -->
         <view class="info-list">
           <view class="info-row">
-            <text class="info-label">售后类型</text>
-            <text class="info-value">{{ detail.type === 'refund_only' ? '仅退款' : '退货退款' }}</text>
+            <text class="info-label">
+              售后类型
+            </text>
+            <text class="info-value">
+              {{ detail.type === 'refund_only' ? '仅退款' : '退货退款' }}
+            </text>
           </view>
           <view class="info-row">
-            <text class="info-label">退款金额</text>
-            <text class="info-value price">¥{{ detail.amount.toFixed(2) }}</text>
+            <text class="info-label">
+              退款金额
+            </text>
+            <text class="info-value price">
+              ¥{{ detail.amount.toFixed(2) }}
+            </text>
           </view>
           <view class="info-row">
-            <text class="info-label">退款原因</text>
-            <text class="info-value">{{ detail.reason }}</text>
+            <text class="info-label">
+              退款原因
+            </text>
+            <text class="info-value">
+              {{ detail.reason }}
+            </text>
           </view>
           <view class="info-row">
-            <text class="info-label">售后单号</text>
+            <text class="info-label">
+              售后单号
+            </text>
             <view class="info-value-row">
-              <text class="info-value">{{ detail.id }}</text>
-              <text class="copy-btn" @click="handleCopy(detail.id)">{{ copied ? '✓' : '📋' }}</text>
+              <text class="info-value">
+                {{ detail.id }}
+              </text>
+              <text
+                class="copy-btn"
+                @click="handleCopy(detail.id)"
+              >
+                {{ copied ? '✓' : '📋' }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 问题描述 -->
-      <view v-if="detail.description" class="desc-card">
-        <text class="desc-title">问题描述</text>
-        <text class="desc-text">{{ detail.description }}</text>
+      <view
+        v-if="detail.description"
+        class="desc-card"
+      >
+        <text class="desc-title">
+          问题描述
+        </text>
+        <text class="desc-text">
+          {{ detail.description }}
+        </text>
       </view>
 
       <!-- 凭证图片 -->
-      <view v-if="detail.images && detail.images.length > 0" class="image-card">
-        <text class="desc-title">凭证图片</text>
+      <view
+        v-if="detail.images && detail.images.length > 0"
+        class="image-card"
+      >
+        <text class="desc-title">
+          凭证图片
+        </text>
         <view class="image-list">
-          <image v-for="(img, idx) in detail.images" :key="idx" :src="img" class="evidence-img" mode="aspectFill" />
+          <image
+            v-for="(img, idx) in detail.images"
+            :key="idx"
+            :src="img"
+            class="evidence-img"
+            mode="aspectFill"
+          />
         </view>
       </view>
 
       <!-- 申诉提示 -->
       <view class="appeal-tips">
         <view class="appeal-icon-wrap">
-          <text class="appeal-icon">💬</text>
+          <text class="appeal-icon">
+            💬
+          </text>
         </view>
         <view class="appeal-content">
-          <text class="appeal-title">对结果有异议？</text>
-          <text class="appeal-desc">如果您对驳回结果有疑问，可以发起申诉，我们会安排专人重新审核您的售后申请。</text>
+          <text class="appeal-title">
+            对结果有异议？
+          </text>
+          <text class="appeal-desc">
+            如果您对驳回结果有疑问，可以发起申诉，我们会安排专人重新审核您的售后申请。
+          </text>
         </view>
       </view>
 
       <!-- 联系客服 -->
-      <view class="contact-card" @click="goContact">
+      <view
+        class="contact-card"
+        @click="goContact"
+      >
         <view class="contact-left">
           <view class="contact-icon-wrap">
-            <text class="contact-icon">📞</text>
+            <text class="contact-icon">
+              📞
+            </text>
           </view>
           <view class="contact-info">
-            <text class="contact-title">联系客服</text>
-            <text class="contact-desc">在线客服为您解答</text>
+            <text class="contact-title">
+              联系客服
+            </text>
+            <text class="contact-desc">
+              在线客服为您解答
+            </text>
           </view>
         </view>
-        <text class="contact-arrow">›</text>
+        <text class="contact-arrow">
+          ›
+        </text>
       </view>
 
       <!-- 底部固定按钮 -->
       <view class="bottom-bar">
         <view class="bottom-btn-row">
-          <view class="btn-secondary" @click="reapply">
-            <text class="btn-icon">🔄</text>
+          <view
+            class="btn-secondary"
+            @click="reapply"
+          >
+            <text class="btn-icon">
+              🔄
+            </text>
             <text>重新申请</text>
           </view>
-          <view class="btn-primary" @click="goDispute">
-            <text class="btn-icon">⚠</text>
+          <view
+            class="btn-primary"
+            @click="goDispute"
+          >
+            <text class="btn-icon">
+              ⚠
+            </text>
             <text>我要申诉</text>
           </view>
         </view>
-        <view class="btn-order-link" @click="goOrder">查看订单详情</view>
+        <view
+          class="btn-order-link"
+          @click="goOrder"
+        >
+          查看订单详情
+        </view>
       </view>
 
-      <view v-if="showCopiedToast" class="toast">已复制</view>
+      <view
+        v-if="showCopiedToast"
+        class="toast"
+      >
+        已复制
+      </view>
     </template>
   </view>
 </template>

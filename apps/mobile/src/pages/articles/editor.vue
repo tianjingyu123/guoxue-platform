@@ -2,15 +2,30 @@
   <view class="page">
     <!-- 顶栏 -->
     <view class="nav-bar">
-      <view class="nav-left" @click="goBack">
-        <text class="nav-back">‹</text>
+      <view
+        class="nav-left"
+        @click="goBack"
+      >
+        <text class="nav-back">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">{{ isEdit ? '编辑文章' : '写文章' }}</text>
+      <text class="nav-title">
+        {{ isEdit ? '编辑文章' : '写文章' }}
+      </text>
       <view class="nav-right">
-        <text class="draft-btn" @click="saveDraft" :class="{ disabled: saving }">
+        <text
+          class="draft-btn"
+          :class="{ disabled: saving }"
+          @click="saveDraft"
+        >
           {{ saving ? '保存中...' : '存草稿' }}
         </text>
-        <text class="publish-btn" @click="publish" :class="{ disabled: publishing }">
+        <text
+          class="publish-btn"
+          :class="{ disabled: publishing }"
+          @click="publish"
+        >
           {{ publishing ? '发布中...' : '发布' }}
         </text>
       </view>
@@ -22,17 +37,37 @@
       class="title-input"
       placeholder="请输入文章标题（2-100字）"
       maxlength="100"
-    />
+    >
 
     <!-- 封面 -->
     <view class="cover-row">
-      <view v-if="cover" class="cover-preview-wrap">
-        <image :src="cover" class="cover-preview" mode="aspectFill" />
-        <text class="cover-remove" @click="cover = ''">×</text>
+      <view
+        v-if="cover"
+        class="cover-preview-wrap"
+      >
+        <image
+          :src="cover"
+          class="cover-preview"
+          mode="aspectFill"
+        />
+        <text
+          class="cover-remove"
+          @click="cover = ''"
+        >
+          ×
+        </text>
       </view>
-      <view v-else class="cover-add" @click="uploadCover">
-        <text class="cover-add-icon">🖼</text>
-        <text class="cover-add-text">添加封面</text>
+      <view
+        v-else
+        class="cover-add"
+        @click="uploadCover"
+      >
+        <text class="cover-add-icon">
+          🖼
+        </text>
+        <text class="cover-add-text">
+          添加封面
+        </text>
       </view>
     </view>
 
@@ -46,11 +81,22 @@
 
     <!-- 标签 -->
     <view class="tags-section">
-      <view class="section-label">标签</view>
+      <view class="section-label">
+        标签
+      </view>
       <view class="tags-row">
-        <view v-for="(tag, idx) in tags" :key="idx" class="tag-item">
+        <view
+          v-for="(tag, idx) in tags"
+          :key="idx"
+          class="tag-item"
+        >
           <text>{{ tag }}</text>
-          <text class="tag-remove" @click="removeTag(idx)">×</text>
+          <text
+            class="tag-remove"
+            @click="removeTag(idx)"
+          >
+            ×
+          </text>
         </view>
         <input
           v-if="tags.length < 5"
@@ -59,7 +105,7 @@
           placeholder="添加标签"
           maxlength="10"
           @confirm="addTag"
-        />
+        >
       </view>
     </view>
 

@@ -1,17 +1,28 @@
 <template>
   <view class="page">
     <!-- 加载 -->
-    <view v-if="loading" class="loading-wrap">
-      <text class="loading-text">诗词加载中...</text>
+    <view
+      v-if="loading"
+      class="loading-wrap"
+    >
+      <text class="loading-text">
+        诗词加载中...
+      </text>
     </view>
 
     <!-- 内容 -->
-    <scroll-view v-else-if="poem" scroll-y class="scroll-wrap">
+    <scroll-view
+      v-else-if="poem"
+      scroll-y
+      class="scroll-wrap"
+    >
       <!-- 顶部背景 -->
       <view class="header-bg">
         <view class="header-overlay" />
         <view class="header-content">
-          <text class="poem-title">{{ poem.title }}</text>
+          <text class="poem-title">
+            {{ poem.title }}
+          </text>
           <text class="poem-author">
             {{ poem.dynasty ? `〔${poem.dynasty}〕` : '' }}{{ poem.author || '佚名' }}
           </text>
@@ -25,74 +36,145 @@
             v-for="(line, i) in poemLines"
             :key="i"
             class="poem-line"
-          >{{ line }}</text>
+          >
+            {{ line }}
+          </text>
         </view>
 
         <!-- 操作栏 -->
         <view class="action-row">
-          <view class="action-item" @click="toggleLike">
-            <text class="action-icon">{{ isLiked ? '❤️' : '🤍' }}</text>
-            <text class="action-label">{{ likeCount }}</text>
+          <view
+            class="action-item"
+            @click="toggleLike"
+          >
+            <text class="action-icon">
+              {{ isLiked ? '❤️' : '🤍' }}
+            </text>
+            <text class="action-label">
+              {{ likeCount }}
+            </text>
           </view>
-          <view class="action-item" @click="toggleCollect">
-            <text class="action-icon">{{ isCollected ? '⭐' : '☆' }}</text>
-            <text class="action-label">收藏</text>
+          <view
+            class="action-item"
+            @click="toggleCollect"
+          >
+            <text class="action-icon">
+              {{ isCollected ? '⭐' : '☆' }}
+            </text>
+            <text class="action-label">
+              收藏
+            </text>
           </view>
-          <view class="action-item" @click="copyPoem">
-            <text class="action-icon">📋</text>
-            <text class="action-label">复制</text>
+          <view
+            class="action-item"
+            @click="copyPoem"
+          >
+            <text class="action-icon">
+              📋
+            </text>
+            <text class="action-label">
+              复制
+            </text>
           </view>
-          <view class="action-item" @click="sharePoem">
-            <text class="action-icon">↗</text>
-            <text class="action-label">分享</text>
+          <view
+            class="action-item"
+            @click="sharePoem"
+          >
+            <text class="action-icon">
+              ↗
+            </text>
+            <text class="action-label">
+              分享
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 标签 -->
-      <view v-if="poem.tags?.length" class="tags-section">
-        <text v-for="t in poem.tags" :key="t" class="tag-chip">{{ t }}</text>
+      <view
+        v-if="poem.tags?.length"
+        class="tags-section"
+      >
+        <text
+          v-for="t in poem.tags"
+          :key="t"
+          class="tag-chip"
+        >
+          {{ t }}
+        </text>
       </view>
 
       <!-- 注释/赏析 -->
-      <view class="section-card" v-if="appreciation">
+      <view
+        v-if="appreciation"
+        class="section-card"
+      >
         <view class="section-tab-row">
           <text
             class="section-tab"
             :class="{ active: activeTab === 'translation' }"
             @click="activeTab = 'translation'"
-          >译文</text>
+          >
+            译文
+          </text>
           <text
             class="section-tab"
             :class="{ active: activeTab === 'annotation' }"
             @click="activeTab = 'annotation'"
-          >注释</text>
+          >
+            注释
+          </text>
           <text
             class="section-tab"
             :class="{ active: activeTab === 'appreciation' }"
             @click="activeTab = 'appreciation'"
-          >赏析</text>
+          >
+            赏析
+          </text>
         </view>
         <view class="section-body">
-          <text v-if="activeTab === 'translation'" class="section-text">
+          <text
+            v-if="activeTab === 'translation'"
+            class="section-text"
+          >
             {{ appreciation.translation || '暂无译文，AI生成中...' }}
           </text>
-          <text v-if="activeTab === 'annotation'" class="section-text">
+          <text
+            v-if="activeTab === 'annotation'"
+            class="section-text"
+          >
             {{ appreciation.annotation || '暂无注释，AI生成中...' }}
           </text>
-          <text v-if="activeTab === 'appreciation'" class="section-text">
+          <text
+            v-if="activeTab === 'appreciation'"
+            class="section-text"
+          >
             {{ appreciation.appreciation || '暂无赏析，AI生成中...' }}
           </text>
         </view>
       </view>
 
       <!-- 每日推荐 -->
-      <view v-if="dailyPoem && dailyPoem.id !== poem.id" class="section-card">
-        <text class="card-title">📖 每日一诗</text>
-        <view class="daily-poem" @click="goPoem(dailyPoem.id)">
-          <text class="daily-title">{{ dailyPoem.title }}</text>
-          <text class="daily-author">{{ dailyPoem.dynasty ? `〔${dailyPoem.dynasty}〕` : '' }}{{ dailyPoem.author }}</text>
-          <text class="daily-excerpt">{{ dailyPoem.excerpt || extractExcerpt(dailyPoem.body) }}</text>
+      <view
+        v-if="dailyPoem && dailyPoem.id !== poem.id"
+        class="section-card"
+      >
+        <text class="card-title">
+          📖 每日一诗
+        </text>
+        <view
+          class="daily-poem"
+          @click="goPoem(dailyPoem.id)"
+        >
+          <text class="daily-title">
+            {{ dailyPoem.title }}
+          </text>
+          <text class="daily-author">
+            {{ dailyPoem.dynasty ? `〔${dailyPoem.dynasty}〕` : '' }}{{ dailyPoem.author }}
+          </text>
+          <text class="daily-excerpt">
+            {{ dailyPoem.excerpt || extractExcerpt(dailyPoem.body) }}
+          </text>
         </view>
       </view>
 
@@ -101,8 +183,13 @@
     </scroll-view>
 
     <!-- 错误 -->
-    <view v-else class="loading-wrap">
-      <text class="loading-text">诗词不存在或加载失败</text>
+    <view
+      v-else
+      class="loading-wrap"
+    >
+      <text class="loading-text">
+        诗词不存在或加载失败
+      </text>
     </view>
   </view>
 </template>

@@ -3,22 +3,43 @@
     <LoadingSkeleton v-if="loading" />
     <view v-else-if="sale">
       <view class="flash-header">
-        <text class="flash-title">{{ sale.title }}</text>
+        <text class="flash-title">
+          {{ sale.title }}
+        </text>
         <view class="countdown">
           <text>距结束</text>
-          <text class="cd-time">{{ countdownStr }}</text>
+          <text class="cd-time">
+            {{ countdownStr }}
+          </text>
         </view>
       </view>
       <view class="product-info">
-        <image :src="sale.product?.cover || sale.cover || ''" class="cover" mode="aspectFill" />
-        <text class="p-name">{{ sale.product?.name || sale.product?.title }}</text>
+        <image
+          :src="sale.product?.cover || sale.cover || ''"
+          class="cover"
+          mode="aspectFill"
+        />
+        <text class="p-name">
+          {{ sale.product?.name || sale.product?.title }}
+        </text>
         <view class="price-row">
-          <text class="flash-price">¥{{ sale.flashPrice || sale.price }}</text>
-          <text class="orig-price">¥{{ sale.product?.originalPrice || sale.originalPrice }}</text>
-          <text class="sold-count">已抢 {{ sale.soldCount || 0 }} 件</text>
+          <text class="flash-price">
+            ¥{{ sale.flashPrice || sale.price }}
+          </text>
+          <text class="orig-price">
+            ¥{{ sale.product?.originalPrice || sale.originalPrice }}
+          </text>
+          <text class="sold-count">
+            已抢 {{ sale.soldCount || 0 }} 件
+          </text>
         </view>
       </view>
-      <button class="btn-buy" @click="buy">立即抢购</button>
+      <button
+        class="btn-buy"
+        @click="buy"
+      >
+        立即抢购
+      </button>
     </view>
   </view>
 </template>

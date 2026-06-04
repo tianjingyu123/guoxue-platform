@@ -1,38 +1,88 @@
 <template>
   <view class="page">
     <view class="page-header">
-      <text class="page-title">我的课程</text>
+      <text class="page-title">
+        我的课程
+      </text>
     </view>
 
-    <view v-if="loading && courses.length === 0" class="skeleton-list">
-      <view v-for="i in 3" :key="i" class="course-card-skeleton">
+    <view
+      v-if="loading && courses.length === 0"
+      class="skeleton-list"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="course-card-skeleton"
+      >
         <view class="sk-cover" />
-        <view class="sk-body"><view class="sk-line w80" /><view class="sk-line w50" /></view>
+        <view class="sk-body">
+          <view class="sk-line w80" /><view class="sk-line w50" />
+        </view>
       </view>
     </view>
 
-    <view v-else-if="courses.length > 0" class="course-list">
-      <view v-for="item in courses" :key="item.orderId || item.course?.id" class="course-card" @click="goDetail(item.course)">
+    <view
+      v-else-if="courses.length > 0"
+      class="course-list"
+    >
+      <view
+        v-for="item in courses"
+        :key="item.orderId || item.course?.id"
+        class="course-card"
+        @click="goDetail(item.course)"
+      >
         <view class="card-cover">
-          <image v-if="item.course?.cover" :src="item.course.cover" class="cover-img" mode="aspectFill" />
-          <view v-else class="cover-plc"><text>📚</text></view>
-        </view>
-        <view class="card-body">
-          <text class="card-title">{{ item.course?.title || '未知课程' }}</text>
-          <text class="card-type">{{ typeLabel(item.course?.type) }}</text>
-          <view class="card-meta">
-            <text v-if="item.remainingDays !== null" class="meta-expiry" :class="{ warning: item.remainingDays <= 3 }">
-              {{ item.remainingDays > 0 ? '剩余' + item.remainingDays + '天' : '已过期' }}
-            </text>
-            <text v-else class="meta-expiry permanent">永久有效</text>
-            <text class="meta-paid">{{ item.paidAt ? new Date(item.paidAt).toLocaleDateString() : '' }} 购买</text>
+          <image
+            v-if="item.course?.cover"
+            :src="item.course.cover"
+            class="cover-img"
+            mode="aspectFill"
+          />
+          <view
+            v-else
+            class="cover-plc"
+          >
+            <text>📚</text>
           </view>
         </view>
-        <text class="card-arrow">›</text>
+        <view class="card-body">
+          <text class="card-title">
+            {{ item.course?.title || '未知课程' }}
+          </text>
+          <text class="card-type">
+            {{ typeLabel(item.course?.type) }}
+          </text>
+          <view class="card-meta">
+            <text
+              v-if="item.remainingDays !== null"
+              class="meta-expiry"
+              :class="{ warning: item.remainingDays <= 3 }"
+            >
+              {{ item.remainingDays > 0 ? '剩余' + item.remainingDays + '天' : '已过期' }}
+            </text>
+            <text
+              v-else
+              class="meta-expiry permanent"
+            >
+              永久有效
+            </text>
+            <text class="meta-paid">
+              {{ item.paidAt ? new Date(item.paidAt).toLocaleDateString() : '' }} 购买
+            </text>
+          </view>
+        </view>
+        <text class="card-arrow">
+          ›
+        </text>
       </view>
     </view>
 
-    <EmptyState v-else icon="📚" text="还没有购买任何课程" />
+    <EmptyState
+      v-else
+      icon="📚"
+      text="还没有购买任何课程"
+    />
   </view>
 </template>
 

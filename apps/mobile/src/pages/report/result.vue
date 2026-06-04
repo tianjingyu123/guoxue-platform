@@ -2,83 +2,224 @@
   <view class="page">
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">举报处理结果</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          举报处理结果
+        </text>
         <view style="width:60rpx" />
       </view>
     </view>
 
     <!-- 统计卡片 -->
     <view class="stats-bar">
-      <view class="stat-item"><text class="stat-num">{{ stats.total }}</text><text class="stat-label">总举报</text></view>
-      <view class="stat-item"><text class="stat-num orange">{{ stats.pending + stats.processing }}</text><text class="stat-label">处理中</text></view>
-      <view class="stat-item"><text class="stat-num green">{{ stats.resolved }}</text><text class="stat-label">已处理</text></view>
-      <view class="stat-item"><text class="stat-num red">{{ stats.rejected }}</text><text class="stat-label">已驳回</text></view>
+      <view class="stat-item">
+        <text class="stat-num">
+          {{ stats.total }}
+        </text><text class="stat-label">
+          总举报
+        </text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num orange">
+          {{ stats.pending + stats.processing }}
+        </text><text class="stat-label">
+          处理中
+        </text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num green">
+          {{ stats.resolved }}
+        </text><text class="stat-label">
+          已处理
+        </text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num red">
+          {{ stats.rejected }}
+        </text><text class="stat-label">
+          已驳回
+        </text>
+      </view>
     </view>
 
     <!-- 状态筛选 -->
-    <scroll-view scroll-x class="filter-scroll" show-scrollbar="false">
+    <scroll-view
+      scroll-x
+      class="filter-scroll"
+      show-scrollbar="false"
+    >
       <view class="filter-row">
-        <text v-for="f in statusFilters" :key="f.value" class="filter-tag" :class="{ active: statusFilter === f.value }" @click="statusFilter = f.value">{{ f.label }}</text>
+        <text
+          v-for="f in statusFilters"
+          :key="f.value"
+          class="filter-tag"
+          :class="{ active: statusFilter === f.value }"
+          @click="statusFilter = f.value"
+        >
+          {{ f.label }}
+        </text>
       </view>
     </scroll-view>
 
-    <view v-if="!filteredRecords.length" class="empty-state">
-      <text class="empty-icon">📋</text>
-      <text class="empty-text">暂无举报记录</text>
+    <view
+      v-if="!filteredRecords.length"
+      class="empty-state"
+    >
+      <text class="empty-icon">
+        📋
+      </text>
+      <text class="empty-text">
+        暂无举报记录
+      </text>
     </view>
 
-    <view v-else class="record-list">
-      <view v-for="r in filteredRecords" :key="r.id" class="record-item" @click="selectedRecord = r; showDetail = true">
+    <view
+      v-else
+      class="record-list"
+    >
+      <view
+        v-for="r in filteredRecords"
+        :key="r.id"
+        class="record-item"
+        @click="selectedRecord = r; showDetail = true"
+      >
         <view class="ri-left">
-          <view class="ri-icon">{{ typeIcon(r.targetType) }}</view>
+          <view class="ri-icon">
+            {{ typeIcon(r.targetType) }}
+          </view>
           <view class="ri-info">
             <view class="ri-title-row">
-              <text class="ri-title">{{ r.targetTitle }}</text>
-              <text class="ri-type-tag">{{ typeLabel(r.targetType) }}</text>
+              <text class="ri-title">
+                {{ r.targetTitle }}
+              </text>
+              <text class="ri-type-tag">
+                {{ typeLabel(r.targetType) }}
+              </text>
             </view>
-            <text class="ri-reason">{{ reasonLabel(r.reportType) }}：{{ r.reason }}</text>
+            <text class="ri-reason">
+              {{ reasonLabel(r.reportType) }}：{{ r.reason }}
+            </text>
             <view class="ri-bottom">
-              <text class="ri-time">{{ r.createdAt }}</text>
-              <text class="ri-status" :class="'s-' + r.status">{{ statusLabel(r.status) }}</text>
+              <text class="ri-time">
+                {{ r.createdAt }}
+              </text>
+              <text
+                class="ri-status"
+                :class="'s-' + r.status"
+              >
+                {{ statusLabel(r.status) }}
+              </text>
             </view>
           </view>
         </view>
-        <text class="ri-arrow">›</text>
+        <text class="ri-arrow">
+          ›
+        </text>
       </view>
     </view>
 
     <!-- 详情弹层 -->
-    <view v-if="showDetail && selectedRecord" class="overlay" @click="showDetail = false">
-      <view class="detail-sheet" @click.stop>
-        <view class="ds-header"><text class="ds-title">举报详情</text><text class="ds-close" @click="showDetail = false">✕</text></view>
-        <scroll-view scroll-y class="ds-body">
+    <view
+      v-if="showDetail && selectedRecord"
+      class="overlay"
+      @click="showDetail = false"
+    >
+      <view
+        class="detail-sheet"
+        @click.stop
+      >
+        <view class="ds-header">
+          <text class="ds-title">
+            举报详情
+          </text><text
+            class="ds-close"
+            @click="showDetail = false"
+          >
+            ✕
+          </text>
+        </view>
+        <scroll-view
+          scroll-y
+          class="ds-body"
+        >
           <view class="ds-section">
-            <text class="ds-section-title">举报对象</text>
+            <text class="ds-section-title">
+              举报对象
+            </text>
             <view class="ds-target">
-              <text class="ds-target-icon">{{ typeIcon(selectedRecord.targetType) }}</text>
-              <view><text class="ds-target-name">{{ selectedRecord.targetTitle }}</text><text class="ds-target-type">{{ typeLabel(selectedRecord.targetType) }}</text></view>
+              <text class="ds-target-icon">
+                {{ typeIcon(selectedRecord.targetType) }}
+              </text>
+              <view>
+                <text class="ds-target-name">
+                  {{ selectedRecord.targetTitle }}
+                </text><text class="ds-target-type">
+                  {{ typeLabel(selectedRecord.targetType) }}
+                </text>
+              </view>
             </view>
           </view>
           <view class="ds-section">
-            <text class="ds-section-title">举报信息</text>
+            <text class="ds-section-title">
+              举报信息
+            </text>
             <view class="ds-info-grid">
-              <text class="ds-info-label">举报类型：<text class="ds-info-val">{{ reasonLabel(selectedRecord.reportType) }}</text></text>
-              <text class="ds-info-label">提交时间：<text class="ds-info-val">{{ selectedRecord.createdAt }}</text></text>
+              <text class="ds-info-label">
+                举报类型：<text class="ds-info-val">
+                  {{ reasonLabel(selectedRecord.reportType) }}
+                </text>
+              </text>
+              <text class="ds-info-label">
+                提交时间：<text class="ds-info-val">
+                  {{ selectedRecord.createdAt }}
+                </text>
+              </text>
             </view>
-            <text class="ds-info-label">举报原因：</text>
-            <text class="ds-info-text">{{ selectedRecord.reason }}</text>
+            <text class="ds-info-label">
+              举报原因：
+            </text>
+            <text class="ds-info-text">
+              {{ selectedRecord.reason }}
+            </text>
           </view>
           <view class="ds-section">
-            <text class="ds-section-title">处理状态</text>
-            <text class="ds-status" :class="'s-' + selectedRecord.status">{{ statusLabel(selectedRecord.status) }}</text>
-            <view v-if="selectedRecord.result" class="ds-result">
-              <text class="ds-result-label">处理结论：<text :class="'c-' + selectedRecord.result.conclusion">{{ conclusionLabel(selectedRecord.result.conclusion) }}</text></text>
-              <text class="ds-result-text">{{ selectedRecord.result.description }}</text>
-              <view class="ds-result-meta"><text>处理人：{{ selectedRecord.result.handler }}</text><text>{{ selectedRecord.result.handledAt }}</text></view>
+            <text class="ds-section-title">
+              处理状态
+            </text>
+            <text
+              class="ds-status"
+              :class="'s-' + selectedRecord.status"
+            >
+              {{ statusLabel(selectedRecord.status) }}
+            </text>
+            <view
+              v-if="selectedRecord.result"
+              class="ds-result"
+            >
+              <text class="ds-result-label">
+                处理结论：<text :class="'c-' + selectedRecord.result.conclusion">
+                  {{ conclusionLabel(selectedRecord.result.conclusion) }}
+                </text>
+              </text>
+              <text class="ds-result-text">
+                {{ selectedRecord.result.description }}
+              </text>
+              <view class="ds-result-meta">
+                <text>处理人：{{ selectedRecord.result.handler }}</text><text>{{ selectedRecord.result.handledAt }}</text>
+              </view>
             </view>
-            <view v-else class="ds-waiting">
-              <text class="ds-waiting-icon">🕐</text>
+            <view
+              v-else
+              class="ds-waiting"
+            >
+              <text class="ds-waiting-icon">
+                🕐
+              </text>
               <text>正在处理中，请耐心等待</text>
             </view>
           </view>

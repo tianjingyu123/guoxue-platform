@@ -2,68 +2,149 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">作业批改结果</text>
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        作业批改结果
+      </text>
       <view class="header-spacer" />
     </view>
 
-    <scroll-view scroll-y class="scroll-area">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
       <!-- 状态卡片 -->
-      <view class="status-card" :class="'status-' + (work?.status || 'pending')">
+      <view
+        class="status-card"
+        :class="'status-' + (work?.status || 'pending')"
+      >
         <view class="status-row">
-          <view class="status-icon-wrap" :class="'status-icon-' + (work?.status || 'pending')">
-            <text class="status-emoji">{{ statusEmoji }}</text>
+          <view
+            class="status-icon-wrap"
+            :class="'status-icon-' + (work?.status || 'pending')"
+          >
+            <text class="status-emoji">
+              {{ statusEmoji }}
+            </text>
           </view>
           <view class="status-info">
             <view class="status-title-row">
-              <text class="status-title" :class="'status-color-' + (work?.status || 'pending')">{{ statusText }}</text>
-              <text v-if="work?.status === 'graded' && work.score !== undefined" class="status-score" :style="{ color: scoreColor }">
-                {{ work.score }}<text class="status-max">/{{ work.maxScore }}分</text>
+              <text
+                class="status-title"
+                :class="'status-color-' + (work?.status || 'pending')"
+              >
+                {{ statusText }}
+              </text>
+              <text
+                v-if="work?.status === 'graded' && work.score !== undefined"
+                class="status-score"
+                :style="{ color: scoreColor }"
+              >
+                {{ work.score }}<text class="status-max">
+                  /{{ work.maxScore }}分
+                </text>
               </text>
             </view>
-            <text class="status-course">{{ work?.courseTitle || '' }} · {{ work?.chapterTitle || '' }}</text>
+            <text class="status-course">
+              {{ work?.courseTitle || '' }} · {{ work?.chapterTitle || '' }}
+            </text>
           </view>
         </view>
-        <view v-if="work?.status === 'pending'" class="status-waiting">
+        <view
+          v-if="work?.status === 'pending'"
+          class="status-waiting"
+        >
           <view class="waiting-dot" />
-          <text class="waiting-text">教师正在批改中，请耐心等待...</text>
+          <text class="waiting-text">
+            教师正在批改中，请耐心等待...
+          </text>
         </view>
       </view>
 
       <!-- 批改结果 -->
-      <view v-if="work?.status === 'graded' && work?.gradedBy" class="section-card">
+      <view
+        v-if="work?.status === 'graded' && work?.gradedBy"
+        class="section-card"
+      >
         <view class="section-header">
-          <text class="section-icon">💬</text>
-          <text class="section-title">教师评语</text>
+          <text class="section-icon">
+            💬
+          </text>
+          <text class="section-title">
+            教师评语
+          </text>
         </view>
         <view class="teacher-row">
           <view class="teacher-avatar-wrap">
-            <image v-if="work.gradedBy.avatar" :src="work.gradedBy.avatar" class="teacher-avatar" mode="aspectFill" />
-            <text v-else class="teacher-avatar-placeholder">👨‍🏫</text>
+            <image
+              v-if="work.gradedBy.avatar"
+              :src="work.gradedBy.avatar"
+              class="teacher-avatar"
+              mode="aspectFill"
+            />
+            <text
+              v-else
+              class="teacher-avatar-placeholder"
+            >
+              👨‍🏫
+            </text>
           </view>
           <view class="teacher-info">
-            <text class="teacher-name">{{ work.gradedBy.name }}</text>
-            <text class="teacher-date">批改于 {{ work.gradedAt }}</text>
+            <text class="teacher-name">
+              {{ work.gradedBy.name }}
+            </text>
+            <text class="teacher-date">
+              批改于 {{ work.gradedAt }}
+            </text>
           </view>
         </view>
-        <text class="teacher-comment">{{ work.teacherComment }}</text>
+        <text class="teacher-comment">
+          {{ work.teacherComment }}
+        </text>
         <!-- 修改建议 -->
-        <view v-if="work.suggestions?.length" class="suggestions-box">
-          <text class="suggestions-title">修改建议：</text>
-          <text v-for="(s, idx) in work.suggestions" :key="idx" class="suggestion-item">• {{ s }}</text>
+        <view
+          v-if="work.suggestions?.length"
+          class="suggestions-box"
+        >
+          <text class="suggestions-title">
+            修改建议：
+          </text>
+          <text
+            v-for="(s, idx) in work.suggestions"
+            :key="idx"
+            class="suggestion-item"
+          >
+            • {{ s }}
+          </text>
         </view>
       </view>
 
       <!-- 我的提交 -->
       <view class="section-card">
         <view class="section-header">
-          <text class="section-icon">📄</text>
-          <text class="section-title">我的提交</text>
-          <text class="section-date">{{ work?.submittedAt || '' }}</text>
+          <text class="section-icon">
+            📄
+          </text>
+          <text class="section-title">
+            我的提交
+          </text>
+          <text class="section-date">
+            {{ work?.submittedAt || '' }}
+          </text>
         </view>
-        <text class="submit-content">{{ work?.content || '' }}</text>
+        <text class="submit-content">
+          {{ work?.content || '' }}
+        </text>
         <!-- 图片 -->
-        <view v-if="work?.images?.length" class="image-grid">
+        <view
+          v-if="work?.images?.length"
+          class="image-grid"
+        >
           <image
             v-for="(img, idx) in work.images"
             :key="idx"
@@ -76,17 +157,34 @@
       </view>
 
       <!-- 评分详情 -->
-      <view v-if="work?.status === 'graded' && work.score !== undefined" class="section-card">
+      <view
+        v-if="work?.status === 'graded' && work.score !== undefined"
+        class="section-card"
+      >
         <view class="section-header">
-          <text class="section-icon">⭐</text>
-          <text class="section-title">评分详情</text>
+          <text class="section-icon">
+            ⭐
+          </text>
+          <text class="section-title">
+            评分详情
+          </text>
         </view>
         <view class="score-hero">
-          <text class="score-big" :style="{ color: scoreColor }">{{ work.score }}</text>
-          <text class="score-max">满分 {{ work.maxScore }} 分</text>
+          <text
+            class="score-big"
+            :style="{ color: scoreColor }"
+          >
+            {{ work.score }}
+          </text>
+          <text class="score-max">
+            满分 {{ work.maxScore }} 分
+          </text>
         </view>
         <view class="score-track">
-          <view class="score-fill" :style="{ width: scorePct + '%', background: scoreColor }" />
+          <view
+            class="score-fill"
+            :style="{ width: scorePct + '%', background: scoreColor }"
+          />
         </view>
         <view class="score-scale">
           <text>0</text>
@@ -99,14 +197,24 @@
     </scroll-view>
 
     <!-- 底部操作栏 -->
-    <view class="bottom-bar" v-if="work?.canResubmit">
-      <button class="btn-resubmit" @click="handleResubmit">
+    <view
+      v-if="work?.canResubmit"
+      class="bottom-bar"
+    >
+      <button
+        class="btn-resubmit"
+        @click="handleResubmit"
+      >
         🔄 重新提交
       </button>
     </view>
 
     <!-- 图片预览 -->
-    <view v-if="previewIndex !== null && work?.images?.length" class="image-preview-overlay" @click="previewIndex = null">
+    <view
+      v-if="previewIndex !== null && work?.images?.length"
+      class="image-preview-overlay"
+      @click="previewIndex = null"
+    >
       <image
         :src="work.images[previewIndex]"
         class="preview-full"
@@ -114,9 +222,21 @@
         @click.stop
       />
       <view class="preview-nav">
-        <text class="preview-nav-btn" @click.stop="prevImage">‹</text>
-        <text class="preview-counter">{{ previewIndex + 1 }}/{{ work.images.length }}</text>
-        <text class="preview-nav-btn" @click.stop="nextImage">›</text>
+        <text
+          class="preview-nav-btn"
+          @click.stop="prevImage"
+        >
+          ‹
+        </text>
+        <text class="preview-counter">
+          {{ previewIndex + 1 }}/{{ work.images.length }}
+        </text>
+        <text
+          class="preview-nav-btn"
+          @click.stop="nextImage"
+        >
+          ›
+        </text>
       </view>
     </view>
 

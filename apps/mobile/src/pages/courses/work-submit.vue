@@ -1,13 +1,22 @@
 <template>
   <view class="page">
     <view class="nav-bar">
-      <text class="nav-back" @click="goBack">‹ 返回</text>
-      <text class="nav-title">提交作业</text>
+      <text
+        class="nav-back"
+        @click="goBack"
+      >
+        ‹ 返回
+      </text>
+      <text class="nav-title">
+        提交作业
+      </text>
       <text class="nav-placeholder" />
     </view>
 
     <view class="form-area">
-      <text class="form-label">作业内容</text>
+      <text class="form-label">
+        作业内容
+      </text>
       <textarea
         v-model="content"
         class="content-input"
@@ -15,19 +24,46 @@
         :maxlength="5000"
       />
 
-      <view v-if="images.length > 0" class="image-list">
-        <view v-for="(img, i) in images" :key="i" class="image-item">
-          <image :src="img" class="preview-img" mode="aspectFill" />
-          <text class="remove-img" @click="removeImage(i)">✕</text>
+      <view
+        v-if="images.length > 0"
+        class="image-list"
+      >
+        <view
+          v-for="(img, i) in images"
+          :key="i"
+          class="image-item"
+        >
+          <image
+            :src="img"
+            class="preview-img"
+            mode="aspectFill"
+          />
+          <text
+            class="remove-img"
+            @click="removeImage(i)"
+          >
+            ✕
+          </text>
         </view>
       </view>
 
       <view class="upload-row">
-        <button class="upload-btn" @click="chooseImage">📷 上传图片</button>
-        <text class="upload-hint">最多9张</text>
+        <button
+          class="upload-btn"
+          @click="chooseImage"
+        >
+          📷 上传图片
+        </button>
+        <text class="upload-hint">
+          最多9张
+        </text>
       </view>
 
-      <button class="submit-btn" @click="doSubmit" :disabled="submitting || !content.trim()">
+      <button
+        class="submit-btn"
+        :disabled="submitting || !content.trim()"
+        @click="doSubmit"
+      >
         {{ submitting ? '提交中...' : '提交作业' }}
       </button>
     </view>

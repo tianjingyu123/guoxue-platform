@@ -2,33 +2,87 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">答题详情</text>
-      <text class="header-score" :style="{ color: scoreColor }">{{ totalScore }}分</text>
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        答题详情
+      </text>
+      <text
+        class="header-score"
+        :style="{ color: scoreColor }"
+      >
+        {{ totalScore }}分
+      </text>
     </view>
 
     <!-- Tabs -->
     <view class="tabs">
-      <text class="tab" :class="{ active: tab === 'all' }" @click="tab = 'all'">全部</text>
-      <text class="tab" :class="{ active: tab === 'correct' }" @click="tab = 'correct'">正确</text>
-      <text class="tab" :class="{ active: tab === 'wrong' }" @click="tab = 'wrong'">错误</text>
-      <text class="tab" :class="{ active: tab === 'unanswered' }" @click="tab = 'unanswered'">未答</text>
+      <text
+        class="tab"
+        :class="{ active: tab === 'all' }"
+        @click="tab = 'all'"
+      >
+        全部
+      </text>
+      <text
+        class="tab"
+        :class="{ active: tab === 'correct' }"
+        @click="tab = 'correct'"
+      >
+        正确
+      </text>
+      <text
+        class="tab"
+        :class="{ active: tab === 'wrong' }"
+        @click="tab = 'wrong'"
+      >
+        错误
+      </text>
+      <text
+        class="tab"
+        :class="{ active: tab === 'unanswered' }"
+        @click="tab = 'unanswered'"
+      >
+        未答
+      </text>
     </view>
 
     <!-- 题目列表 -->
-    <scroll-view scroll-y class="scroll-area" v-if="filteredQuestions.length > 0">
-      <view v-for="(q, idx) in filteredQuestions" :key="q.id || idx" class="q-card">
+    <scroll-view
+      v-if="filteredQuestions.length > 0"
+      scroll-y
+      class="scroll-area"
+    >
+      <view
+        v-for="(q, idx) in filteredQuestions"
+        :key="q.id || idx"
+        class="q-card"
+      >
         <view class="q-header">
-          <text class="q-num">第 {{ q.index || idx + 1 }} 题</text>
-          <text class="q-tag" :class="q.correct ? 'correct' : q.userAnswer !== undefined ? 'wrong' : 'skip'">
+          <text class="q-num">
+            第 {{ q.index || idx + 1 }} 题
+          </text>
+          <text
+            class="q-tag"
+            :class="q.correct ? 'correct' : q.userAnswer !== undefined ? 'wrong' : 'skip'"
+          >
             {{ q.correct ? '✓ 正确' : q.userAnswer !== undefined ? '✗ 错误' : '— 未答' }}
           </text>
         </view>
 
-        <text class="q-title">{{ q.title || q.stem || q.question }}</text>
+        <text class="q-title">
+          {{ q.title || q.stem || q.question }}
+        </text>
 
         <!-- 选择题 -->
-        <view v-if="q.options?.length" class="options">
+        <view
+          v-if="q.options?.length"
+          class="options"
+        >
           <view
             v-for="(opt, oi) in q.options"
             :key="oi"
@@ -39,21 +93,42 @@
               user: oi === q.userAnswer,
             }"
           >
-            <text class="option-label">{{ String.fromCharCode(65 + oi) }}</text>
-            <text class="option-text">{{ typeof opt === 'string' ? opt : opt.text || opt }}</text>
-            <text v-if="oi === q.answer" class="option-check">✓</text>
+            <text class="option-label">
+              {{ String.fromCharCode(65 + oi) }}
+            </text>
+            <text class="option-text">
+              {{ typeof opt === 'string' ? opt : opt.text || opt }}
+            </text>
+            <text
+              v-if="oi === q.answer"
+              class="option-check"
+            >
+              ✓
+            </text>
           </view>
         </view>
 
         <!-- 解析 -->
-        <view class="explanation" v-if="q.explanation || q.analysis">
-          <text class="exp-icon">💡</text>
-          <text class="exp-text">{{ q.explanation || q.analysis }}</text>
+        <view
+          v-if="q.explanation || q.analysis"
+          class="explanation"
+        >
+          <text class="exp-icon">
+            💡
+          </text>
+          <text class="exp-text">
+            {{ q.explanation || q.analysis }}
+          </text>
         </view>
 
         <!-- 参考来源 -->
-        <view class="source" v-if="q.source">
-          <text class="source-text">📖 参考：{{ q.source }}</text>
+        <view
+          v-if="q.source"
+          class="source"
+        >
+          <text class="source-text">
+            📖 参考：{{ q.source }}
+          </text>
         </view>
       </view>
     </scroll-view>
@@ -69,7 +144,10 @@
     />
 
     <!-- 底部统计 -->
-    <view class="bottom-bar" v-if="questions.length > 0">
+    <view
+      v-if="questions.length > 0"
+      class="bottom-bar"
+    >
       <view class="bottom-stats">
         <text class="bs-item">
           <text class="bs-dot correct" />正确 {{ correctCount }}

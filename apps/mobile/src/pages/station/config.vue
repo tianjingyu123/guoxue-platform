@@ -1,85 +1,183 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="header" :style="{ background: currentTheme.primary }">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">分站配置</text>
-      <text class="header-save" :class="{ saving }" @click="handleSave">
+    <view
+      class="header"
+      :style="{ background: currentTheme.primary }"
+    >
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        分站配置
+      </text>
+      <text
+        class="header-save"
+        :class="{ saving }"
+        @click="handleSave"
+      >
         {{ saving ? '保存中...' : '保存' }}
       </text>
     </view>
 
-    <scroll-view scroll-y class="scroll-area">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
       <!-- 运营数据摘要 -->
-      <view class="summary-card" v-if="summary">
+      <view
+        v-if="summary"
+        class="summary-card"
+      >
         <view class="summary-grid">
           <view class="summary-item">
-            <text class="summary-val" :style="{ color: currentTheme.primary }">{{ summary.memberCount || 0 }}</text>
-            <text class="summary-label">成员</text>
+            <text
+              class="summary-val"
+              :style="{ color: currentTheme.primary }"
+            >
+              {{ summary.memberCount || 0 }}
+            </text>
+            <text class="summary-label">
+              成员
+            </text>
           </view>
           <view class="summary-item">
-            <text class="summary-val" :style="{ color: currentTheme.primary }">{{ formatMoney(summary.totalRevenue) }}</text>
-            <text class="summary-label">收益</text>
+            <text
+              class="summary-val"
+              :style="{ color: currentTheme.primary }"
+            >
+              {{ formatMoney(summary.totalRevenue) }}
+            </text>
+            <text class="summary-label">
+              收益
+            </text>
           </view>
           <view class="summary-item">
-            <text class="summary-val" :style="{ color: currentTheme.primary }">{{ summary.contentCount || 0 }}</text>
-            <text class="summary-label">内容</text>
+            <text
+              class="summary-val"
+              :style="{ color: currentTheme.primary }"
+            >
+              {{ summary.contentCount || 0 }}
+            </text>
+            <text class="summary-label">
+              内容
+            </text>
           </view>
           <view class="summary-item">
-            <text class="summary-val" :style="{ color: currentTheme.primary }">{{ formatCount(summary.visitCount) }}</text>
-            <text class="summary-label">访问</text>
+            <text
+              class="summary-val"
+              :style="{ color: currentTheme.primary }"
+            >
+              {{ formatCount(summary.visitCount) }}
+            </text>
+            <text class="summary-label">
+              访问
+            </text>
           </view>
         </view>
       </view>
 
       <!-- Logo 上传 -->
       <view class="section">
-        <text class="section-title">分站Logo</text>
+        <text class="section-title">
+          分站Logo
+        </text>
         <view class="logo-upload">
           <view
             class="logo-preview"
             :style="{ borderColor: currentTheme.primary }"
             @click="chooseLogo"
           >
-            <image v-if="formData.logo" :src="formData.logo" class="logo-img" mode="aspectFill" />
-            <view v-else class="logo-placeholder">
-              <text class="logo-placeholder-icon">📷</text>
+            <image
+              v-if="formData.logo"
+              :src="formData.logo"
+              class="logo-img"
+              mode="aspectFill"
+            />
+            <view
+              v-else
+              class="logo-placeholder"
+            >
+              <text class="logo-placeholder-icon">
+                📷
+              </text>
             </view>
-            <view class="logo-overlay" v-if="uploadingLogo">
-              <text class="logo-loading">上传中...</text>
+            <view
+              v-if="uploadingLogo"
+              class="logo-overlay"
+            >
+              <text class="logo-loading">
+                上传中...
+              </text>
             </view>
           </view>
           <view class="logo-tips">
-            <text class="tip-text">建议尺寸：200x200像素</text>
-            <text class="tip-sub">支持 JPG、PNG 格式，最大 2MB</text>
+            <text class="tip-text">
+              建议尺寸：200x200像素
+            </text>
+            <text class="tip-sub">
+              支持 JPG、PNG 格式，最大 2MB
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 基本信息 -->
       <view class="section">
-        <text class="section-title">基本信息</text>
+        <text class="section-title">
+          基本信息
+        </text>
         <view class="form-item">
-          <text class="form-label">分站名称 *</text>
-          <input v-model="formData.name" class="form-input" placeholder="请输入分站名称" maxlength="20" />
-          <text class="form-count">{{ (formData.name || '').length }}/20</text>
+          <text class="form-label">
+            分站名称 *
+          </text>
+          <input
+            v-model="formData.name"
+            class="form-input"
+            placeholder="请输入分站名称"
+            maxlength="20"
+          >
+          <text class="form-count">
+            {{ (formData.name || '').length }}/20
+          </text>
         </view>
         <view class="form-item">
-          <text class="form-label">分站简介</text>
-          <textarea v-model="formData.description" class="form-textarea" placeholder="介绍一下你的分站..." maxlength="200" />
-          <text class="form-count">{{ (formData.description || '').length }}/200</text>
+          <text class="form-label">
+            分站简介
+          </text>
+          <textarea
+            v-model="formData.description"
+            class="form-textarea"
+            placeholder="介绍一下你的分站..."
+            maxlength="200"
+          />
+          <text class="form-count">
+            {{ (formData.description || '').length }}/200
+          </text>
         </view>
       </view>
 
       <!-- 主题色选择 -->
       <view class="section">
         <view class="section-header">
-          <text class="section-title">主题色</text>
-          <text class="section-toggle" :style="{ color: currentTheme.primary }" @click="useCustomColor = !useCustomColor">
+          <text class="section-title">
+            主题色
+          </text>
+          <text
+            class="section-toggle"
+            :style="{ color: currentTheme.primary }"
+            @click="useCustomColor = !useCustomColor"
+          >
             {{ useCustomColor ? '使用预设' : '自定义' }}
           </text>
         </view>
-        <view v-if="!useCustomColor" class="theme-grid">
+        <view
+          v-if="!useCustomColor"
+          class="theme-grid"
+        >
           <view
             v-for="p in themePresets"
             :key="p.id"
@@ -87,104 +185,242 @@
             :class="{ 'theme-active': selectedTheme === p.id }"
             @click="selectedTheme = p.id"
           >
-            <view class="theme-block" :style="{ background: `linear-gradient(135deg, ${p.primary} 50%, ${p.secondary} 50%)` }" />
-            <text class="theme-name">{{ p.name }}</text>
-            <text v-if="selectedTheme === p.id" class="theme-check">✓</text>
+            <view
+              class="theme-block"
+              :style="{ background: `linear-gradient(135deg, ${p.primary} 50%, ${p.secondary} 50%)` }"
+            />
+            <text class="theme-name">
+              {{ p.name }}
+            </text>
+            <text
+              v-if="selectedTheme === p.id"
+              class="theme-check"
+            >
+              ✓
+            </text>
           </view>
         </view>
-        <view v-else class="custom-colors">
+        <view
+          v-else
+          class="custom-colors"
+        >
           <view class="color-row">
-            <text class="color-label">主色调</text>
+            <text class="color-label">
+              主色调
+            </text>
             <view class="color-picker-wrap">
-              <input type="text" v-model="customColor.primary" class="color-input" placeholder="#C41E3A" />
-              <view class="color-dot" :style="{ background: customColor.primary }" />
+              <input
+                v-model="customColor.primary"
+                type="text"
+                class="color-input"
+                placeholder="#C41E3A"
+              >
+              <view
+                class="color-dot"
+                :style="{ background: customColor.primary }"
+              />
             </view>
           </view>
           <view class="color-row">
-            <text class="color-label">辅助色</text>
+            <text class="color-label">
+              辅助色
+            </text>
             <view class="color-picker-wrap">
-              <input type="text" v-model="customColor.secondary" class="color-input" placeholder="#C9A96E" />
-              <view class="color-dot" :style="{ background: customColor.secondary }" />
+              <input
+                v-model="customColor.secondary"
+                type="text"
+                class="color-input"
+                placeholder="#C9A96E"
+              >
+              <view
+                class="color-dot"
+                :style="{ background: customColor.secondary }"
+              />
             </view>
           </view>
         </view>
         <!-- 预览 -->
-        <view class="preview-section" :style="{ background: currentTheme.primary + '10' }">
+        <view
+          class="preview-section"
+          :style="{ background: currentTheme.primary + '10' }"
+        >
           <view class="preview-header">
-            <text class="preview-icon" :style="{ color: currentTheme.primary }">👁</text>
-            <text class="preview-title" :style="{ color: currentTheme.primary }">导航栏样式</text>
+            <text
+              class="preview-icon"
+              :style="{ color: currentTheme.primary }"
+            >
+              👁
+            </text>
+            <text
+              class="preview-title"
+              :style="{ color: currentTheme.primary }"
+            >
+              导航栏样式
+            </text>
           </view>
-          <view class="preview-navbar" :style="{ background: currentTheme.primary }">
-            <text class="preview-nav-text">分站首页</text>
+          <view
+            class="preview-navbar"
+            :style="{ background: currentTheme.primary }"
+          >
+            <text class="preview-nav-text">
+              分站首页
+            </text>
           </view>
           <view class="preview-buttons">
-            <view class="preview-btn-primary" :style="{ background: currentTheme.primary }">主按钮</view>
-            <view class="preview-btn-secondary" :style="{ borderColor: currentTheme.primary, color: currentTheme.primary }">次按钮</view>
+            <view
+              class="preview-btn-primary"
+              :style="{ background: currentTheme.primary }"
+            >
+              主按钮
+            </view>
+            <view
+              class="preview-btn-secondary"
+              :style="{ borderColor: currentTheme.primary, color: currentTheme.primary }"
+            >
+              次按钮
+            </view>
           </view>
         </view>
       </view>
 
       <!-- 联系方式 -->
       <view class="section">
-        <text class="section-title">联系方式</text>
+        <text class="section-title">
+          联系方式
+        </text>
         <view class="contact-row">
-          <text class="contact-icon">📞</text>
-          <input v-model="formData.contactPhone" class="contact-input" placeholder="联系电话" type="text" />
+          <text class="contact-icon">
+            📞
+          </text>
+          <input
+            v-model="formData.contactPhone"
+            class="contact-input"
+            placeholder="联系电话"
+            type="text"
+          >
         </view>
         <view class="contact-row">
-          <text class="contact-icon">💬</text>
-          <input v-model="formData.contactWechat" class="contact-input" placeholder="微信号" />
+          <text class="contact-icon">
+            💬
+          </text>
+          <input
+            v-model="formData.contactWechat"
+            class="contact-input"
+            placeholder="微信号"
+          >
         </view>
         <view class="contact-row">
-          <text class="contact-icon">📧</text>
-          <input v-model="formData.contactEmail" class="contact-input" placeholder="邮箱地址" type="email" />
+          <text class="contact-icon">
+            📧
+          </text>
+          <input
+            v-model="formData.contactEmail"
+            class="contact-input"
+            placeholder="邮箱地址"
+            type="email"
+          >
         </view>
       </view>
 
       <!-- 小程序码 -->
       <view class="section">
-        <text class="section-title">小程序码</text>
+        <text class="section-title">
+          小程序码
+        </text>
         <view class="qrcode-upload">
-          <view class="qrcode-preview" @click="chooseQrcode">
-            <image v-if="formData.miniProgramQrcode" :src="formData.miniProgramQrcode" class="qrcode-img" mode="aspectFill" />
-            <view v-else class="qrcode-placeholder">
-              <text class="qrcode-icon">⬆️</text>
-              <text class="qrcode-text">上传小程序码</text>
+          <view
+            class="qrcode-preview"
+            @click="chooseQrcode"
+          >
+            <image
+              v-if="formData.miniProgramQrcode"
+              :src="formData.miniProgramQrcode"
+              class="qrcode-img"
+              mode="aspectFill"
+            />
+            <view
+              v-else
+              class="qrcode-placeholder"
+            >
+              <text class="qrcode-icon">
+                ⬆️
+              </text>
+              <text class="qrcode-text">
+                上传小程序码
+              </text>
             </view>
           </view>
           <view class="qrcode-tips">
-            <text class="tip-text">上传小程序码供用户扫码访问</text>
-            <text class="tip-sub">建议尺寸：430x430像素</text>
+            <text class="tip-text">
+              上传小程序码供用户扫码访问
+            </text>
+            <text class="tip-sub">
+              建议尺寸：430x430像素
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 站长信息（只读） -->
-      <view class="section" v-if="config?.masterInfo">
-        <text class="section-title">站长信息</text>
+      <view
+        v-if="config?.masterInfo"
+        class="section"
+      >
+        <text class="section-title">
+          站长信息
+        </text>
         <view class="master-row">
-          <image v-if="config.masterInfo.avatar" :src="config.masterInfo.avatar" class="master-avatar" mode="aspectFill" />
+          <image
+            v-if="config.masterInfo.avatar"
+            :src="config.masterInfo.avatar"
+            class="master-avatar"
+            mode="aspectFill"
+          />
           <view class="master-info">
-            <text class="master-name">{{ config.masterInfo.nickname }}</text>
-            <text class="master-phone">{{ config.masterInfo.phone }}</text>
+            <text class="master-name">
+              {{ config.masterInfo.nickname }}
+            </text>
+            <text class="master-phone">
+              {{ config.masterInfo.phone }}
+            </text>
           </view>
-          <text class="master-date" v-if="config.masterInfo.joinDate">入驻：{{ config.masterInfo.joinDate }}</text>
+          <text
+            v-if="config.masterInfo.joinDate"
+            class="master-date"
+          >
+            入驻：{{ config.masterInfo.joinDate }}
+          </text>
         </view>
       </view>
 
       <!-- 状态信息 -->
       <view class="section">
         <view class="status-row">
-          <text class="status-label">分站状态</text>
-          <text class="status-badge" :class="config?.status">{{ statusLabel(config?.status) }}</text>
+          <text class="status-label">
+            分站状态
+          </text>
+          <text
+            class="status-badge"
+            :class="config?.status"
+          >
+            {{ statusLabel(config?.status) }}
+          </text>
         </view>
         <view class="status-row">
-          <text class="status-label">分站代码</text>
-          <text class="status-code">{{ config?.code || '--' }}</text>
+          <text class="status-label">
+            分站代码
+          </text>
+          <text class="status-code">
+            {{ config?.code || '--' }}
+          </text>
         </view>
         <view class="status-row">
-          <text class="status-label">最后更新</text>
-          <text class="status-value">{{ config?.updatedAt || '--' }}</text>
+          <text class="status-label">
+            最后更新
+          </text>
+          <text class="status-value">
+            {{ config?.updatedAt || '--' }}
+          </text>
         </view>
       </view>
 
@@ -192,8 +428,16 @@
     </scroll-view>
 
     <!-- 底部保存按钮 -->
-    <view class="bottom-bar" v-if="config">
-      <button class="btn-save" :style="{ background: currentTheme.primary }" :disabled="saving" @click="handleSave">
+    <view
+      v-if="config"
+      class="bottom-bar"
+    >
+      <button
+        class="btn-save"
+        :style="{ background: currentTheme.primary }"
+        :disabled="saving"
+        @click="handleSave"
+      >
         {{ saving ? '保存中...' : '保存配置' }}
       </button>
     </view>

@@ -2,32 +2,70 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
-      <view class="header-left" @click="goBack">
-        <text class="nav-icon">‹</text>
-        <text class="nav-title">活动日历</text>
+      <view
+        class="header-left"
+        @click="goBack"
+      >
+        <text class="nav-icon">
+          ‹
+        </text>
+        <text class="nav-title">
+          活动日历
+        </text>
       </view>
     </view>
 
     <!-- 月份选择器 -->
     <view class="month-bar">
-      <view class="nav-btn" @click="changeMonth(-1)"><text class="nav-arrow">‹</text></view>
-      <view class="month-info">
-        <text class="month-text">{{ year }}年{{ month }}月</text>
+      <view
+        class="nav-btn"
+        @click="changeMonth(-1)"
+      >
+        <text class="nav-arrow">
+          ‹
+        </text>
       </view>
-      <view class="nav-btn" @click="changeMonth(1)"><text class="nav-arrow">›</text></view>
+      <view class="month-info">
+        <text class="month-text">
+          {{ year }}年{{ month }}月
+        </text>
+      </view>
+      <view
+        class="nav-btn"
+        @click="changeMonth(1)"
+      >
+        <text class="nav-arrow">
+          ›
+        </text>
+      </view>
     </view>
 
     <!-- 图例 -->
     <view class="legend-row">
-      <view v-for="t in legendTypes" :key="t.key" class="legend-item">
-        <view class="legend-dot" :style="{ background: t.color }" />
-        <text class="legend-label">{{ t.label }}</text>
+      <view
+        v-for="t in legendTypes"
+        :key="t.key"
+        class="legend-item"
+      >
+        <view
+          class="legend-dot"
+          :style="{ background: t.color }"
+        />
+        <text class="legend-label">
+          {{ t.label }}
+        </text>
       </view>
     </view>
 
     <!-- 星期标题 -->
     <view class="weekday-row">
-      <text v-for="d in weekdays" :key="d" class="wd">{{ d }}</text>
+      <text
+        v-for="d in weekdays"
+        :key="d"
+        class="wd"
+      >
+        {{ d }}
+      </text>
     </view>
 
     <!-- 日期网格 -->
@@ -39,12 +77,36 @@
         :class="{ 'other-month': !cell.isCurrent, 'today': cell.isToday, 'selected': selectedDate === cell.date }"
         @click="selectDay(cell)"
       >
-        <text class="day-num" :class="{ 'today-num': cell.isToday }">{{ cell.day }}</text>
-        <view v-if="cell.marker" class="marker-row">
-          <view v-if="cell.marker.hasFlashSale" class="marker-dot" style="background:#C41E3A" />
-          <view v-if="cell.marker.hasGroupBuy" class="marker-dot" style="background:#C9A96E" />
-          <view v-if="cell.marker.hasLive" class="marker-dot" style="background:#3498db" />
-          <view v-if="cell.marker.hasCourse" class="marker-dot" style="background:#2ecc71" />
+        <text
+          class="day-num"
+          :class="{ 'today-num': cell.isToday }"
+        >
+          {{ cell.day }}
+        </text>
+        <view
+          v-if="cell.marker"
+          class="marker-row"
+        >
+          <view
+            v-if="cell.marker.hasFlashSale"
+            class="marker-dot"
+            style="background:#C41E3A"
+          />
+          <view
+            v-if="cell.marker.hasGroupBuy"
+            class="marker-dot"
+            style="background:#C9A96E"
+          />
+          <view
+            v-if="cell.marker.hasLive"
+            class="marker-dot"
+            style="background:#3498db"
+          />
+          <view
+            v-if="cell.marker.hasCourse"
+            class="marker-dot"
+            style="background:#2ecc71"
+          />
         </view>
       </view>
     </view>
@@ -52,7 +114,9 @@
     <!-- 选中日期活动 -->
     <view class="events-section">
       <view class="events-header">
-        <text class="events-title">{{ selectedDate ? selectedDate + ' 活动' : '点击日期查看活动' }}</text>
+        <text class="events-title">
+          {{ selectedDate ? selectedDate + ' 活动' : '点击日期查看活动' }}
+        </text>
       </view>
       <DataState
         :is-loading="eventsLoading"
@@ -61,19 +125,45 @@
         empty-title="当天暂无活动"
         empty-description="该日期没有安排活动"
       >
-        <view v-for="e in dayEvents" :key="e.id" class="event-card" @click="goEvent(e)">
-          <view class="event-icon-wrap" :style="{ background: getEventColor(e.type) + '20' }">
-            <text class="event-icon">{{ getEventEmoji(e.type) }}</text>
+        <view
+          v-for="e in dayEvents"
+          :key="e.id"
+          class="event-card"
+          @click="goEvent(e)"
+        >
+          <view
+            class="event-icon-wrap"
+            :style="{ background: getEventColor(e.type) + '20' }"
+          >
+            <text class="event-icon">
+              {{ getEventEmoji(e.type) }}
+            </text>
           </view>
           <view class="event-info">
             <view class="event-title-row">
-              <text class="event-title">{{ e.title }}</text>
-              <text class="event-status" :class="'status-' + e.status">{{ getStatusText(e.status) }}</text>
+              <text class="event-title">
+                {{ e.title }}
+              </text>
+              <text
+                class="event-status"
+                :class="'status-' + e.status"
+              >
+                {{ getStatusText(e.status) }}
+              </text>
             </view>
-            <text class="event-time">{{ e.startTime?.split(' ')[1] }} - {{ e.endTime?.split(' ')[1] }}</text>
-            <text v-if="e.extra?.hostName" class="event-host">👤 {{ e.extra.hostName }}</text>
+            <text class="event-time">
+              {{ e.startTime?.split(' ')[1] }} - {{ e.endTime?.split(' ')[1] }}
+            </text>
+            <text
+              v-if="e.extra?.hostName"
+              class="event-host"
+            >
+              👤 {{ e.extra.hostName }}
+            </text>
           </view>
-          <text class="event-arrow">›</text>
+          <text class="event-arrow">
+            ›
+          </text>
         </view>
       </DataState>
     </view>

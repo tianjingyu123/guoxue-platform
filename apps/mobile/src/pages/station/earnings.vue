@@ -1,77 +1,183 @@
 <template>
   <view class="page">
     <!-- 分站品牌头 -->
-    <view v-if="brand" class="brand-header" :style="{ background: brand.themeColor || '#667eea' }">
-      <image v-if="brand.logo" :src="brand.logo" class="brand-logo" mode="aspectFit" />
-      <text class="brand-name">{{ brand.name }}</text>
-      <text class="brand-intro">{{ brand.intro }}</text>
+    <view
+      v-if="brand"
+      class="brand-header"
+      :style="{ background: brand.themeColor || '#667eea' }"
+    >
+      <image
+        v-if="brand.logo"
+        :src="brand.logo"
+        class="brand-logo"
+        mode="aspectFit"
+      />
+      <text class="brand-name">
+        {{ brand.name }}
+      </text>
+      <text class="brand-intro">
+        {{ brand.intro }}
+      </text>
     </view>
 
     <!-- 余额卡片 -->
     <view class="balance-card">
-      <text class="balance-label">可提现余额</text>
-      <text class="balance-amount">¥{{ balance.toFixed(2) }}</text>
+      <text class="balance-label">
+        可提现余额
+      </text>
+      <text class="balance-amount">
+        ¥{{ balance.toFixed(2) }}
+      </text>
       <view class="balance-sub">
         <text>累计收益 ¥{{ totalEarned.toFixed(2) }}</text>
         <text>已提现 ¥{{ totalWithdrawn.toFixed(2) }}</text>
       </view>
-      <button class="withdraw-btn" @click="showWithdraw = true" :disabled="balance < 100">
+      <button
+        class="withdraw-btn"
+        :disabled="balance < 100"
+        @click="showWithdraw = true"
+      >
         {{ balance < 100 ? '满¥100可提现' : '申请提现' }}
       </button>
     </view>
 
     <!-- 收益列表（分页加载） -->
     <view class="section">
-      <text class="section-title">收益明细</text>
-      <view v-if="earnings.length === 0 && !loadingEarnings" class="empty">暂无收益记录</view>
-      <view v-for="item in earnings" :key="item.id" class="earning-item">
+      <text class="section-title">
+        收益明细
+      </text>
+      <view
+        v-if="earnings.length === 0 && !loadingEarnings"
+        class="empty"
+      >
+        暂无收益记录
+      </view>
+      <view
+        v-for="item in earnings"
+        :key="item.id"
+        class="earning-item"
+      >
         <view class="earn-left">
-          <text class="earn-type">{{ typeLabel(item.type) }}</text>
-          <text class="earn-time">{{ formatTime(item.createdAt) }}</text>
+          <text class="earn-type">
+            {{ typeLabel(item.type) }}
+          </text>
+          <text class="earn-time">
+            {{ formatTime(item.createdAt) }}
+          </text>
         </view>
-        <text class="earn-amount">+¥{{ Number(item.earned).toFixed(2) }}</text>
+        <text class="earn-amount">
+          +¥{{ Number(item.earned).toFixed(2) }}
+        </text>
       </view>
       <!-- 加载更多 -->
-      <view v-if="hasMore" class="load-more" @click="fetchMoreEarnings">
-        <text v-if="!loadingEarnings">加载更多</text>
-        <text v-else>加载中...</text>
+      <view
+        v-if="hasMore"
+        class="load-more"
+        @click="fetchMoreEarnings"
+      >
+        <text v-if="!loadingEarnings">
+          加载更多
+        </text>
+        <text v-else>
+          加载中...
+        </text>
       </view>
-      <view v-else-if="earnings.length > 0" class="load-more load-end">没有更多了</view>
+      <view
+        v-else-if="earnings.length > 0"
+        class="load-more load-end"
+      >
+        没有更多了
+      </view>
     </view>
 
     <!-- 提现记录 -->
     <view class="section">
-      <text class="section-title">提现记录</text>
-      <view v-if="withdrawals.length === 0" class="empty">暂无提现记录</view>
-      <view v-for="item in withdrawals" :key="item.id" class="w-item">
+      <text class="section-title">
+        提现记录
+      </text>
+      <view
+        v-if="withdrawals.length === 0"
+        class="empty"
+      >
+        暂无提现记录
+      </view>
+      <view
+        v-for="item in withdrawals"
+        :key="item.id"
+        class="w-item"
+      >
         <view class="earn-left">
-          <text class="earn-type">{{ item.alipayAccount || item.bankName || '提现' }}</text>
-          <text class="earn-time">{{ formatTime(item.createdAt) }}</text>
+          <text class="earn-type">
+            {{ item.alipayAccount || item.bankName || '提现' }}
+          </text>
+          <text class="earn-time">
+            {{ formatTime(item.createdAt) }}
+          </text>
         </view>
         <view style="text-align: right">
-          <text class="earn-amount" :class="{ fail: item.status === 'REJECTED' }">
+          <text
+            class="earn-amount"
+            :class="{ fail: item.status === 'REJECTED' }"
+          >
             {{ item.status === 'REJECTED' ? '-' : '' }}¥{{ Number(item.amount).toFixed(2) }}
           </text>
-          <text class="w-status" :class="item.status">{{ statusLabel(item.status) }}</text>
+          <text
+            class="w-status"
+            :class="item.status"
+          >
+            {{ statusLabel(item.status) }}
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 提现弹窗 -->
-    <view v-if="showWithdraw" class="modal-mask" @click="showWithdraw = false">
-      <view class="modal" @click.stop>
-        <text class="modal-title">申请提现</text>
+    <view
+      v-if="showWithdraw"
+      class="modal-mask"
+      @click="showWithdraw = false"
+    >
+      <view
+        class="modal"
+        @click.stop
+      >
+        <text class="modal-title">
+          申请提现
+        </text>
         <view class="form-item">
-          <text class="label">金额</text>
-          <input class="input" v-model="wdAmount" type="digit" placeholder="最低¥100" />
+          <text class="label">
+            金额
+          </text>
+          <input
+            v-model="wdAmount"
+            class="input"
+            type="digit"
+            placeholder="最低¥100"
+          >
         </view>
         <view class="form-item">
-          <text class="label">支付宝</text>
-          <input class="input" v-model="wdAlipay" placeholder="收款支付宝账号" />
+          <text class="label">
+            支付宝
+          </text>
+          <input
+            v-model="wdAlipay"
+            class="input"
+            placeholder="收款支付宝账号"
+          >
         </view>
         <view class="modal-btns">
-          <button class="btn-cancel" @click="showWithdraw = false">取消</button>
-          <button class="btn-confirm" @click="doWithdraw">确认提现</button>
+          <button
+            class="btn-cancel"
+            @click="showWithdraw = false"
+          >
+            取消
+          </button>
+          <button
+            class="btn-confirm"
+            @click="doWithdraw"
+          >
+            确认提现
+          </button>
         </view>
       </view>
     </view>

@@ -2,8 +2,15 @@
   <view class="page">
     <!-- 导航栏 -->
     <view class="nav">
-      <text class="nav-back" @click="goBack">←</text>
-      <text class="nav-title">好友请求</text>
+      <text
+        class="nav-back"
+        @click="goBack"
+      >
+        ←
+      </text>
+      <text class="nav-title">
+        好友请求
+      </text>
       <view class="nav-placeholder" />
     </view>
 
@@ -18,22 +25,63 @@
     >
       <view class="content">
         <!-- 待处理请求 -->
-        <view v-if="data && pendingList.length > 0" class="section">
+        <view
+          v-if="data && pendingList.length > 0"
+          class="section"
+        >
           <view class="section-header">
-            <text class="section-label">待处理 ({{ pendingList.length }})</text>
-            <text class="section-action" @click="approveAll" v-if="!approveAllLoading">全部同意</text>
-            <text class="section-action disabled" v-else>处理中...</text>
+            <text class="section-label">
+              待处理 ({{ pendingList.length }})
+            </text>
+            <text
+              v-if="!approveAllLoading"
+              class="section-action"
+              @click="approveAll"
+            >
+              全部同意
+            </text>
+            <text
+              v-else
+              class="section-action disabled"
+            >
+              处理中...
+            </text>
           </view>
           <view class="request-list">
-            <view v-for="r in pendingList" :key="r.id" class="request-item">
-              <view class="request-avatar-wrap" @click="goUser(r.fromUser?.id)">
-                <image :src="r.fromUser?.avatar || ''" class="request-avatar" mode="aspectFill" />
+            <view
+              v-for="r in pendingList"
+              :key="r.id"
+              class="request-item"
+            >
+              <view
+                class="request-avatar-wrap"
+                @click="goUser(r.fromUser?.id)"
+              >
+                <image
+                  :src="r.fromUser?.avatar || ''"
+                  class="request-avatar"
+                  mode="aspectFill"
+                />
               </view>
               <view class="request-info">
-                <text class="request-name">{{ r.fromUser?.nickname || '未知用户' }}</text>
-                <text v-if="r.fromUser?.signature" class="request-bio">{{ r.fromUser.signature }}</text>
-                <text v-if="r.message" class="request-message">{{ r.message }}</text>
-                <text class="request-time">{{ r.createdAt || '' }}</text>
+                <text class="request-name">
+                  {{ r.fromUser?.nickname || '未知用户' }}
+                </text>
+                <text
+                  v-if="r.fromUser?.signature"
+                  class="request-bio"
+                >
+                  {{ r.fromUser.signature }}
+                </text>
+                <text
+                  v-if="r.message"
+                  class="request-message"
+                >
+                  {{ r.message }}
+                </text>
+                <text class="request-time">
+                  {{ r.createdAt || '' }}
+                </text>
               </view>
               <view class="request-actions">
                 <view
@@ -56,42 +104,91 @@
         </view>
 
         <!-- 已处理请求 -->
-        <view v-if="data && processedList.length > 0" class="section">
-          <view class="section-header" @click="showProcessed = !showProcessed">
-            <text class="section-label">已处理 ({{ processedList.length }})</text>
-            <text class="section-toggle">{{ showProcessed ? '▲' : '▼' }}</text>
+        <view
+          v-if="data && processedList.length > 0"
+          class="section"
+        >
+          <view
+            class="section-header"
+            @click="showProcessed = !showProcessed"
+          >
+            <text class="section-label">
+              已处理 ({{ processedList.length }})
+            </text>
+            <text class="section-toggle">
+              {{ showProcessed ? '▲' : '▼' }}
+            </text>
           </view>
-          <view v-if="showProcessed" class="request-list">
-            <view v-for="r in processedList" :key="r.id" class="request-item processed">
+          <view
+            v-if="showProcessed"
+            class="request-list"
+          >
+            <view
+              v-for="r in processedList"
+              :key="r.id"
+              class="request-item processed"
+            >
               <view class="request-avatar-wrap">
-                <image :src="r.fromUser?.avatar || ''" class="request-avatar" mode="aspectFill" />
+                <image
+                  :src="r.fromUser?.avatar || ''"
+                  class="request-avatar"
+                  mode="aspectFill"
+                />
               </view>
               <view class="request-info">
                 <view class="request-name-row">
-                  <text class="request-name">{{ r.fromUser?.nickname || '未知用户' }}</text>
-                  <text class="request-status" :class="r.status">
+                  <text class="request-name">
+                    {{ r.fromUser?.nickname || '未知用户' }}
+                  </text>
+                  <text
+                    class="request-status"
+                    :class="r.status"
+                  >
                     {{ r.status === 'approved' ? '✅ 已同意' : r.status === 'rejected' ? '❌ 已拒绝' : '⏳ 已过期' }}
                   </text>
                 </view>
-                <text v-if="r.message" class="request-message">{{ r.message }}</text>
-                <text class="request-time">{{ r.processedAt || r.createdAt || '' }}</text>
+                <text
+                  v-if="r.message"
+                  class="request-message"
+                >
+                  {{ r.message }}
+                </text>
+                <text class="request-time">
+                  {{ r.processedAt || r.createdAt || '' }}
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <!-- 空态 - 待处理为空但有已处理 -->
-        <view v-if="data && pendingList.length === 0 && processedList.length > 0" class="empty-section">
-          <text class="empty-section-text">暂无待处理的好友请求</text>
+        <view
+          v-if="data && pendingList.length === 0 && processedList.length > 0"
+          class="empty-section"
+        >
+          <text class="empty-section-text">
+            暂无待处理的好友请求
+          </text>
         </view>
       </view>
     </DataState>
 
     <!-- 拒绝确认弹窗 -->
-    <view v-if="rejectDialog.open" class="dialog-mask" @click="closeRejectDialog">
-      <view class="dialog-box" @click.stop>
-        <text class="dialog-title">拒绝好友请求</text>
-        <text class="dialog-desc">确定要拒绝 {{ rejectDialog.userName }} 的好友请求吗？</text>
+    <view
+      v-if="rejectDialog.open"
+      class="dialog-mask"
+      @click="closeRejectDialog"
+    >
+      <view
+        class="dialog-box"
+        @click.stop
+      >
+        <text class="dialog-title">
+          拒绝好友请求
+        </text>
+        <text class="dialog-desc">
+          确定要拒绝 {{ rejectDialog.userName }} 的好友请求吗？
+        </text>
         <view class="dialog-textarea-wrap">
           <textarea
             v-model="rejectReason"
@@ -101,8 +198,18 @@
           />
         </view>
         <view class="dialog-btns">
-          <text class="dialog-btn dialog-btn-cancel" @click="closeRejectDialog">取消</text>
-          <text class="dialog-btn dialog-btn-danger" @click="handleReject">拒绝</text>
+          <text
+            class="dialog-btn dialog-btn-cancel"
+            @click="closeRejectDialog"
+          >
+            取消
+          </text>
+          <text
+            class="dialog-btn dialog-btn-danger"
+            @click="handleReject"
+          >
+            拒绝
+          </text>
         </view>
       </view>
     </view>

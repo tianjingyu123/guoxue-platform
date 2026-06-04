@@ -2,42 +2,66 @@
   <view class="page">
     <!-- 导航栏 -->
     <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        <text class="nav-back-icon">‹</text>
+      <view
+        class="nav-back"
+        @click="goBack"
+      >
+        <text class="nav-back-icon">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">编辑资料</text>
-      <text class="nav-save" :class="{ disabled: !changed }" @click="save">保存</text>
+      <text class="nav-title">
+        编辑资料
+      </text>
+      <text
+        class="nav-save"
+        :class="{ disabled: !changed }"
+        @click="save"
+      >
+        保存
+      </text>
     </view>
 
     <view class="form">
       <!-- 头像 -->
-      <view class="form-row avatar-row" @click="changeAvatar">
-        <text class="form-label">头像</text>
+      <view
+        class="form-row avatar-row"
+        @click="changeAvatar"
+      >
+        <text class="form-label">
+          头像
+        </text>
         <view class="avatar-wrap">
           <image
             :src="avatar || '/static/default-avatar.png'"
             class="avatar-img"
             mode="aspectFill"
           />
-          <text class="avatar-edit">📷</text>
+          <text class="avatar-edit">
+            📷
+          </text>
         </view>
       </view>
 
       <!-- 昵称 -->
       <view class="form-row">
-        <text class="form-label">昵称</text>
+        <text class="form-label">
+          昵称
+        </text>
         <input
           v-model="nickname"
           class="form-input"
           placeholder="请输入昵称"
           maxlength="20"
           @input="onChange"
-        />
+        >
       </view>
 
       <!-- 简介 -->
       <view class="form-row textarea-row">
-        <text class="form-label">简介</text>
+        <text class="form-label">
+          简介
+        </text>
         <textarea
           v-model="bio"
           class="form-textarea"
@@ -49,29 +73,39 @@
 
       <!-- 性别 -->
       <view class="form-row">
-        <text class="form-label">性别</text>
+        <text class="form-label">
+          性别
+        </text>
         <view class="gender-group">
           <text
             class="gender-option"
             :class="{ active: gender === 1 }"
             @click="gender = 1; onChange()"
-          >男</text>
+          >
+            男
+          </text>
           <text
             class="gender-option"
             :class="{ active: gender === 2 }"
             @click="gender = 2; onChange()"
-          >女</text>
+          >
+            女
+          </text>
           <text
             class="gender-option"
             :class="{ active: gender === 0 }"
             @click="gender = 0; onChange()"
-          >保密</text>
+          >
+            保密
+          </text>
         </view>
       </view>
 
       <!-- 生日 -->
       <view class="form-row">
-        <text class="form-label">生日</text>
+        <text class="form-label">
+          生日
+        </text>
         <picker
           mode="date"
           :value="birthday"
@@ -79,7 +113,10 @@
           :end="today"
           @change="onBirthdayChange"
         >
-          <text class="form-value" :class="{ placeholder: !birthday }">
+          <text
+            class="form-value"
+            :class="{ placeholder: !birthday }"
+          >
             {{ birthday || '选择生日' }}
           </text>
         </picker>
@@ -87,29 +124,56 @@
 
       <!-- 邮箱 -->
       <view class="form-row">
-        <text class="form-label">邮箱</text>
+        <text class="form-label">
+          邮箱
+        </text>
         <input
           v-model="email"
           class="form-input"
           placeholder="请输入邮箱（选填）"
           type="text"
           @input="onChange"
-        />
+        >
       </view>
 
       <!-- 个人主页背景 -->
-      <view class="form-row" @click="changeBanner">
-        <text class="form-label">主页背景</text>
-        <view class="banner-preview" v-if="banner">
-          <image :src="banner" mode="aspectFill" class="banner-img" />
+      <view
+        class="form-row"
+        @click="changeBanner"
+      >
+        <text class="form-label">
+          主页背景
+        </text>
+        <view
+          v-if="banner"
+          class="banner-preview"
+        >
+          <image
+            :src="banner"
+            mode="aspectFill"
+            class="banner-img"
+          />
         </view>
-        <text v-else class="form-action">更换 ›</text>
+        <text
+          v-else
+          class="form-action"
+        >
+          更换 ›
+        </text>
       </view>
     </view>
 
     <!-- 保存按钮（固定底部） -->
-    <view class="bottom-bar" v-if="changed">
-      <button class="save-btn" :loading="saving" :disabled="saving" @click="save">
+    <view
+      v-if="changed"
+      class="bottom-bar"
+    >
+      <button
+        class="save-btn"
+        :loading="saving"
+        :disabled="saving"
+        @click="save"
+      >
         保存修改
       </button>
     </view>

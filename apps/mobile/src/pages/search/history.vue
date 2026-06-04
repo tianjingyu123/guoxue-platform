@@ -2,44 +2,114 @@
   <view class="page">
     <view class="search-header">
       <view class="search-input-wrap">
-        <text class="search-icon">🔍</text>
-        <input v-model="q" class="search-input" placeholder="搜索感兴趣的内容" @confirm="doSearch" @input="onInput" />
-        <text v-if="q" class="clear-btn" @click="q = ''">✕</text>
+        <text class="search-icon">
+          🔍
+        </text>
+        <input
+          v-model="q"
+          class="search-input"
+          placeholder="搜索感兴趣的内容"
+          @confirm="doSearch"
+          @input="onInput"
+        >
+        <text
+          v-if="q"
+          class="clear-btn"
+          @click="q = ''"
+        >
+          ✕
+        </text>
       </view>
-      <text class="search-cancel" @click="doSearch">搜索</text>
+      <text
+        class="search-cancel"
+        @click="doSearch"
+      >
+        搜索
+      </text>
     </view>
 
-    <scroll-view scroll-y class="content-scroll">
+    <scroll-view
+      scroll-y
+      class="content-scroll"
+    >
       <!-- 热门搜索 -->
       <view class="section">
-        <text class="section-label">🔥 热门搜索</text>
+        <text class="section-label">
+          🔥 热门搜索
+        </text>
         <view class="hot-tags">
-          <text v-for="h in hotWords" :key="h" class="hot-tag" @click="selectWord(h)">{{ h }}</text>
+          <text
+            v-for="h in hotWords"
+            :key="h"
+            class="hot-tag"
+            @click="selectWord(h)"
+          >
+            {{ h }}
+          </text>
         </view>
       </view>
 
       <!-- 搜索历史 -->
       <view class="section">
         <view class="section-header">
-          <text class="section-label">🕐 搜索历史</text>
-          <text v-if="history.length" class="clear-all" @click="clearHistory">清空</text>
+          <text class="section-label">
+            🕐 搜索历史
+          </text>
+          <text
+            v-if="history.length"
+            class="clear-all"
+            @click="clearHistory"
+          >
+            清空
+          </text>
         </view>
-        <view v-if="history.length" class="history-list">
-          <view v-for="(h, idx) in history" :key="idx" class="history-item" @click="selectWord(h)">
-            <text class="hi-icon">🕐</text>
-            <text class="hi-word">{{ h }}</text>
+        <view
+          v-if="history.length"
+          class="history-list"
+        >
+          <view
+            v-for="(h, idx) in history"
+            :key="idx"
+            class="history-item"
+            @click="selectWord(h)"
+          >
+            <text class="hi-icon">
+              🕐
+            </text>
+            <text class="hi-word">
+              {{ h }}
+            </text>
           </view>
         </view>
-        <view v-else class="history-empty">暂无搜索历史</view>
+        <view
+          v-else
+          class="history-empty"
+        >
+          暂无搜索历史
+        </view>
       </view>
 
       <!-- 搜索建议 -->
-      <view v-if="suggestions.length" class="section">
-        <text class="section-label">💡 搜索建议</text>
+      <view
+        v-if="suggestions.length"
+        class="section"
+      >
+        <text class="section-label">
+          💡 搜索建议
+        </text>
         <view class="suggest-list">
-          <view v-for="(s, idx) in suggestions" :key="idx" class="suggest-item" @click="selectWord(s)">
-            <text class="sg-icon">🔍</text>
-            <text class="sg-word">{{ s }}</text>
+          <view
+            v-for="(s, idx) in suggestions"
+            :key="idx"
+            class="suggest-item"
+            @click="selectWord(s)"
+          >
+            <text class="sg-icon">
+              🔍
+            </text>
+            <text class="sg-word">
+              {{ s }}
+            </text>
           </view>
         </view>
       </view>

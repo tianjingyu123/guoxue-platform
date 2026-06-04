@@ -2,67 +2,133 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">评审打分</text>
-      <text class="header-count" v-if="submissions.length">共 {{ submissions.length }} 份</text>
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        评审打分
+      </text>
+      <text
+        v-if="submissions.length"
+        class="header-count"
+      >
+        共 {{ submissions.length }} 份
+      </text>
     </view>
 
-    <scroll-view scroll-y class="scroll-area" refresher-enabled @refresherrefresh="onRefresh">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      refresher-enabled
+      @refresherrefresh="onRefresh"
+    >
       <!-- 统计卡片 -->
       <view class="stats-bar">
         <view class="stat-item">
-          <text class="stat-num">{{ stats.total || submissions.length }}</text>
-          <text class="stat-label">待评</text>
+          <text class="stat-num">
+            {{ stats.total || submissions.length }}
+          </text>
+          <text class="stat-label">
+            待评
+          </text>
         </view>
         <view class="stat-item">
-          <text class="stat-num">{{ stats.graded || 0 }}</text>
-          <text class="stat-label">已评</text>
+          <text class="stat-num">
+            {{ stats.graded || 0 }}
+          </text>
+          <text class="stat-label">
+            已评
+          </text>
         </view>
         <view class="stat-item">
-          <text class="stat-num">{{ stats.avg || '--' }}</text>
-          <text class="stat-label">均分</text>
+          <text class="stat-num">
+            {{ stats.avg || '--' }}
+          </text>
+          <text class="stat-label">
+            均分
+          </text>
         </view>
       </view>
 
-      <view v-if="submissions.length === 0 && !loading" class="empty-state">
-        <text class="empty-icon">✅</text>
-        <text class="empty-title">暂无待评作品</text>
-        <text class="empty-desc">所有作品已评审完毕</text>
+      <view
+        v-if="submissions.length === 0 && !loading"
+        class="empty-state"
+      >
+        <text class="empty-icon">
+          ✅
+        </text>
+        <text class="empty-title">
+          暂无待评作品
+        </text>
+        <text class="empty-desc">
+          所有作品已评审完毕
+        </text>
       </view>
 
-      <view v-for="s in submissions" :key="s.id" class="sub-card">
+      <view
+        v-for="s in submissions"
+        :key="s.id"
+        class="sub-card"
+      >
         <!-- 选手信息 -->
         <view class="sub-header">
-          <image v-if="s.avatar" :src="s.avatar" class="sub-avatar" mode="aspectFill" />
-          <view v-else class="sub-avatar-placeholder" />
+          <image
+            v-if="s.avatar"
+            :src="s.avatar"
+            class="sub-avatar"
+            mode="aspectFill"
+          />
+          <view
+            v-else
+            class="sub-avatar-placeholder"
+          />
           <view class="sub-info">
-            <text class="sub-name">{{ s.participantName || s.name || s.nickname || '选手' }}</text>
-            <text class="sub-meta">{{ s.group || s.level || '默认组别' }} · {{ s.id?.slice(0, 8) }}</text>
+            <text class="sub-name">
+              {{ s.participantName || s.name || s.nickname || '选手' }}
+            </text>
+            <text class="sub-meta">
+              {{ s.group || s.level || '默认组别' }} · {{ s.id?.slice(0, 8) }}
+            </text>
           </view>
-          <view class="sub-status" :class="s.graded ? 'graded' : 'pending'">
+          <view
+            class="sub-status"
+            :class="s.graded ? 'graded' : 'pending'"
+          >
             <text>{{ s.graded ? '已评' : '待评' }}</text>
           </view>
         </view>
 
         <!-- 作品内容 -->
         <view class="sub-work">
-          <text class="sub-work-title">{{ s.title || '作品名称' }}</text>
-          <text class="sub-work-content">{{ s.content || s.description || '暂无内容' }}</text>
+          <text class="sub-work-title">
+            {{ s.title || '作品名称' }}
+          </text>
+          <text class="sub-work-content">
+            {{ s.content || s.description || '暂无内容' }}
+          </text>
         </view>
 
         <!-- 评分区 -->
         <view class="score-area">
           <view class="score-header">
-            <text class="score-label">评分</text>
-            <text class="score-hint">0-100分</text>
+            <text class="score-label">
+              评分
+            </text>
+            <text class="score-hint">
+              0-100分
+            </text>
           </view>
           <view class="score-input-row">
             <slider
               :value="s.scoreValue || 0"
-              min="0" max="100"
-              activeColor="#C41E3A"
-              blockColor="#C41E3A"
-              blockSize="32"
+              min="0"
+              max="100"
+              active-color="#C41E3A"
+              block-color="#C41E3A"
+              block-size="32"
               @changing="(e: any) => s.scoreValue = e.detail.value"
               @change="(e: any) => s.scoreValue = e.detail.value"
             />
@@ -72,14 +138,25 @@
               class="score-input"
               placeholder="0"
               maxlength="3"
-            />
-            <text class="score-unit">分</text>
+            >
+            <text class="score-unit">
+              分
+            </text>
           </view>
 
           <!-- 评分维度 -->
-          <view v-if="dimensions.length > 0" class="dims">
-            <view v-for="(dim, di) in dimensions" :key="di" class="dim-row">
-              <text class="dim-label">{{ dim.name }}</text>
+          <view
+            v-if="dimensions.length > 0"
+            class="dims"
+          >
+            <view
+              v-for="(dim, di) in dimensions"
+              :key="di"
+              class="dim-row"
+            >
+              <text class="dim-label">
+                {{ dim.name }}
+              </text>
               <view class="dim-stars">
                 <text
                   v-for="star in 5"
@@ -87,7 +164,9 @@
                   class="dim-star"
                   :class="{ active: star <= (s.dimScores?.[di] || 0) }"
                   @click="setDimScore(s, di, star)"
-                >★</text>
+                >
+                  ★
+                </text>
               </view>
             </view>
           </view>
@@ -101,13 +180,23 @@
             class="comment-input"
             maxlength="500"
           />
-          <text class="comment-count">{{ (s.comment || '').length }}/500</text>
+          <text class="comment-count">
+            {{ (s.comment || '').length }}/500
+          </text>
         </view>
 
         <!-- 提交按钮 -->
-        <button class="submit-btn" :disabled="s.submitting" @click="submitScore(s)">
-          <text v-if="s.submitting">提交中...</text>
-          <text v-else>{{ s.graded ? '更新评分' : '提交评分' }}</text>
+        <button
+          class="submit-btn"
+          :disabled="s.submitting"
+          @click="submitScore(s)"
+        >
+          <text v-if="s.submitting">
+            提交中...
+          </text>
+          <text v-else>
+            {{ s.graded ? '更新评分' : '提交评分' }}
+          </text>
         </button>
       </view>
     </scroll-view>

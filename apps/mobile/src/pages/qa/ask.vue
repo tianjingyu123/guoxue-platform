@@ -1,44 +1,101 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="title">发起提问</text>
-      <text class="subtitle" v-if="circleName">{{ circleName }}</text>
+      <text class="title">
+        发起提问
+      </text>
+      <text
+        v-if="circleName"
+        class="subtitle"
+      >
+        {{ circleName }}
+      </text>
     </view>
 
     <view class="form">
       <view class="form-item">
-        <text class="form-label">圈子</text>
-        <text class="form-value">{{ circleName || '请从圈子进入' }}</text>
+        <text class="form-label">
+          圈子
+        </text>
+        <text class="form-value">
+          {{ circleName || '请从圈子进入' }}
+        </text>
       </view>
 
       <view class="form-item">
-        <text class="form-label">向谁提问</text>
-        <picker :range="memberNames" @change="onPickMember">
-          <text class="picker-text">{{ selectedName || '请选择嘉宾' }}</text>
+        <text class="form-label">
+          向谁提问
+        </text>
+        <picker
+          :range="memberNames"
+          @change="onPickMember"
+        >
+          <text class="picker-text">
+            {{ selectedName || '请选择嘉宾' }}
+          </text>
         </picker>
       </view>
 
       <view class="form-item">
-        <text class="form-label">问题内容</text>
-        <textarea v-model="question" placeholder="请输入你的问题（最多500字）" maxlength="500" class="textarea" />
-        <text class="char-count">{{ question.length }}/500</text>
+        <text class="form-label">
+          问题内容
+        </text>
+        <textarea
+          v-model="question"
+          placeholder="请输入你的问题（最多500字）"
+          maxlength="500"
+          class="textarea"
+        />
+        <text class="char-count">
+          {{ question.length }}/500
+        </text>
       </view>
 
       <view class="form-item">
-        <text class="form-label">提问金额（虚拟币）</text>
+        <text class="form-label">
+          提问金额（虚拟币）
+        </text>
         <view class="price-options">
-          <text v-for="p in priceOptions" :key="p" :class="['price-tag', { active: priceCoin === p }]" @click="priceCoin = p">{{ p }}币</text>
+          <text
+            v-for="p in priceOptions"
+            :key="p"
+            :class="['price-tag', { active: priceCoin === p }]"
+            @click="priceCoin = p"
+          >
+            {{ p }}币
+          </text>
         </view>
-        <input v-model.number="priceCoin" type="number" placeholder="自定义金额" class="custom-input" />
+        <input
+          v-model.number="priceCoin"
+          type="number"
+          placeholder="自定义金额"
+          class="custom-input"
+        >
       </view>
 
       <view class="form-item">
-        <text class="form-label">围观价格（可选，0=不可围观）</text>
-        <input v-model.number="peekPriceCoin" type="number" placeholder="默认为0" class="custom-input" />
-        <text class="form-hint">其他人支付此金额后可围观答案</text>
+        <text class="form-label">
+          围观价格（可选，0=不可围观）
+        </text>
+        <input
+          v-model.number="peekPriceCoin"
+          type="number"
+          placeholder="默认为0"
+          class="custom-input"
+        >
+        <text class="form-hint">
+          其他人支付此金额后可围观答案
+        </text>
       </view>
 
-      <button class="submit-btn" @click="submit" :loading="submitting" :disabled="!canSubmit">提交提问</button>
+      <button
+        class="submit-btn"
+        :loading="submitting"
+        :disabled="!canSubmit"
+        @click="submit"
+      >
+        提交提问
+      </button>
     </view>
   </view>
 </template>

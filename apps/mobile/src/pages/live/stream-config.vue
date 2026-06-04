@@ -2,12 +2,24 @@
   <view class="page">
     <!-- 顶栏 -->
     <view class="nav-bar">
-      <view class="nav-left" @click="goBack">
-        <text class="nav-back">‹</text>
+      <view
+        class="nav-left"
+        @click="goBack"
+      >
+        <text class="nav-back">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">推流配置</text>
+      <text class="nav-title">
+        推流配置
+      </text>
       <view class="nav-right">
-        <text class="nav-action" @click="copyAll">📋 复制</text>
+        <text
+          class="nav-action"
+          @click="copyAll"
+        >
+          📋 复制
+        </text>
       </view>
     </view>
 
@@ -19,49 +31,86 @@
       skeleton-type="card"
       @retry="loadConfig"
     >
-      <scroll-view scroll-y class="config-scroll">
+      <scroll-view
+        scroll-y
+        class="config-scroll"
+      >
         <!-- 房间信息 -->
         <view class="config-section">
-          <text class="section-title">直播间信息</text>
+          <text class="section-title">
+            直播间信息
+          </text>
           <view class="info-card">
             <view class="info-row">
-              <text class="info-label">房间标题</text>
-              <text class="info-value">{{ config?.roomTitle || roomTitle || '未设置' }}</text>
+              <text class="info-label">
+                房间标题
+              </text>
+              <text class="info-value">
+                {{ config?.roomTitle || roomTitle || '未设置' }}
+              </text>
             </view>
             <view class="info-row">
-              <text class="info-label">房间ID</text>
-              <text class="info-value mono">{{ config?.roomId || roomId }}</text>
+              <text class="info-label">
+                房间ID
+              </text>
+              <text class="info-value mono">
+                {{ config?.roomId || roomId }}
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 推流地址 -->
         <view class="config-section">
-          <text class="section-title">OBS 推流设置</text>
+          <text class="section-title">
+            OBS 推流设置
+          </text>
 
           <view class="stream-card">
-            <text class="stream-card-title">📡 推流地址 (RTMP)</text>
+            <text class="stream-card-title">
+              📡 推流地址 (RTMP)
+            </text>
             <view class="stream-url-box">
-              <text class="stream-url-text selectable">{{ streamUrl || '生成中...' }}</text>
+              <text class="stream-url-text selectable">
+                {{ streamUrl || '生成中...' }}
+              </text>
             </view>
             <view class="stream-actions">
-              <text class="stream-btn" @click="copyStreamUrl">
+              <text
+                class="stream-btn"
+                @click="copyStreamUrl"
+              >
                 {{ copiedUrl ? '✅ 已复制' : '📋 复制' }}
               </text>
-              <text class="stream-btn secondary" @click="refreshStreamUrl">🔄 刷新</text>
+              <text
+                class="stream-btn secondary"
+                @click="refreshStreamUrl"
+              >
+                🔄 刷新
+              </text>
             </view>
           </view>
 
           <view class="stream-card">
-            <text class="stream-card-title">🔑 推流密钥 (Stream Key)</text>
+            <text class="stream-card-title">
+              🔑 推流密钥 (Stream Key)
+            </text>
             <view class="stream-url-box">
-              <text class="stream-url-text mono selectable">{{ showKey ? (streamKey || '---') : '••••••••••••' }}</text>
+              <text class="stream-url-text mono selectable">
+                {{ showKey ? (streamKey || '---') : '••••••••••••' }}
+              </text>
             </view>
             <view class="stream-actions">
-              <text class="stream-btn" @click="copyStreamKey">
+              <text
+                class="stream-btn"
+                @click="copyStreamKey"
+              >
                 {{ copiedKey ? '✅ 已复制' : '📋 复制' }}
               </text>
-              <text class="stream-btn secondary" @click="showKey = !showKey">
+              <text
+                class="stream-btn secondary"
+                @click="showKey = !showKey"
+              >
                 {{ showKey ? '🙈 隐藏' : '👁️ 显示' }}
               </text>
             </view>
@@ -70,30 +119,50 @@
 
         <!-- 推荐参数 -->
         <view class="config-section">
-          <text class="section-title">推荐编码参数</text>
+          <text class="section-title">
+            推荐编码参数
+          </text>
           <view class="params-card">
             <view class="param-row">
-              <text class="param-label">分辨率</text>
-              <text class="param-value">{{ recommended?.resolution || '1920×1080' }}</text>
+              <text class="param-label">
+                分辨率
+              </text>
+              <text class="param-value">
+                {{ recommended?.resolution || '1920×1080' }}
+              </text>
             </view>
             <view class="param-row">
-              <text class="param-label">码率</text>
-              <text class="param-value">{{ recommended?.bitrate || '4000-6000 Kbps' }}</text>
+              <text class="param-label">
+                码率
+              </text>
+              <text class="param-value">
+                {{ recommended?.bitrate || '4000-6000 Kbps' }}
+              </text>
             </view>
             <view class="param-row">
-              <text class="param-label">帧率</text>
-              <text class="param-value">{{ recommended?.fps || '30' }}</text>
+              <text class="param-label">
+                帧率
+              </text>
+              <text class="param-value">
+                {{ recommended?.fps || '30' }}
+              </text>
             </view>
             <view class="param-row">
-              <text class="param-label">编码器</text>
-              <text class="param-value">{{ recommended?.encoder || 'x264 / NVENC' }}</text>
+              <text class="param-label">
+                编码器
+              </text>
+              <text class="param-value">
+                {{ recommended?.encoder || 'x264 / NVENC' }}
+              </text>
             </view>
           </view>
         </view>
 
         <!-- OBS 配置步骤 -->
         <view class="config-section">
-          <text class="section-title">OBS 配置步骤</text>
+          <text class="section-title">
+            OBS 配置步骤
+          </text>
           <view class="steps-card">
             <view
               v-for="(step, i) in obsSteps"
@@ -102,12 +171,22 @@
               :class="{ active: currentStep === i }"
               @click="currentStep = i"
             >
-              <view class="step-number" :class="{ done: currentStep > i, active: currentStep === i }">
+              <view
+                class="step-number"
+                :class="{ done: currentStep > i, active: currentStep === i }"
+              >
                 <text>{{ currentStep > i ? '✓' : i + 1 }}</text>
               </view>
               <view class="step-content">
-                <text class="step-title">{{ step.title }}</text>
-                <text class="step-desc" v-if="currentStep === i">{{ step.description }}</text>
+                <text class="step-title">
+                  {{ step.title }}
+                </text>
+                <text
+                  v-if="currentStep === i"
+                  class="step-desc"
+                >
+                  {{ step.description }}
+                </text>
               </view>
             </view>
           </view>
@@ -115,11 +194,21 @@
 
         <!-- 推流状态检测 -->
         <view class="config-section">
-          <text class="section-title">推流状态</text>
+          <text class="section-title">
+            推流状态
+          </text>
           <view class="status-card">
-            <view class="status-indicator" :class="{ active: isStreaming }">
-              <view class="status-dot" :class="{ online: isStreaming }" />
-              <text class="status-text">{{ isStreaming ? '推流中' : '未推流' }}</text>
+            <view
+              class="status-indicator"
+              :class="{ active: isStreaming }"
+            >
+              <view
+                class="status-dot"
+                :class="{ online: isStreaming }"
+              />
+              <text class="status-text">
+                {{ isStreaming ? '推流中' : '未推流' }}
+              </text>
             </view>
             <text
               class="status-check-btn"

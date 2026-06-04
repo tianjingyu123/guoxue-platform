@@ -11,19 +11,30 @@
       <view class="vip-header">
         <view class="vh-bg-deco" />
         <view class="vh-content">
-          <text class="vh-icon">{{ memberStatus?.isMember ? '👑' : '🔓' }}</text>
+          <text class="vh-icon">
+            {{ memberStatus?.isMember ? '👑' : '🔓' }}
+          </text>
           <text class="vh-title">
             {{ memberStatus?.isMember ? planNameLabel : '解锁国学之旅' }}
           </text>
           <text class="vh-sub">
             {{ memberStatus?.isMember ? '享受专属会员权益' : '开通会员，享受更多精彩内容' }}
           </text>
-          <view v-if="memberStatus?.isMember" class="vh-badge">
+          <view
+            v-if="memberStatus?.isMember"
+            class="vh-badge"
+          >
             <text>{{ planNameLabel }}</text>
-            <text v-if="memberStatus?.expireAt" class="vh-expire">
+            <text
+              v-if="memberStatus?.expireAt"
+              class="vh-expire"
+            >
               到期 {{ formatDate(memberStatus.expireAt) }}
             </text>
-            <text v-if="memberStatus?.daysLeft !== undefined" class="vh-days">
+            <text
+              v-if="memberStatus?.daysLeft !== undefined"
+              class="vh-days"
+            >
               剩余 {{ memberStatus.daysLeft }} 天
             </text>
           </view>
@@ -39,23 +50,39 @@
           :class="{ active: selectedLevel === tab.key }"
           @click="selectedLevel = tab.key"
         >
-          <text class="lt-name">{{ tab.label }}</text>
-          <text class="lt-price">¥{{ tab.price }}{{ tab.unit }}</text>
+          <text class="lt-name">
+            {{ tab.label }}
+          </text>
+          <text class="lt-price">
+            ¥{{ tab.price }}{{ tab.unit }}
+          </text>
         </view>
       </view>
 
       <!-- ==================== 权益图标 ==================== -->
       <view class="benefit-icons">
-        <view class="bi-item" v-for="b in benefitItems" :key="b.name">
-          <text class="bi-icon">{{ b.icon }}</text>
-          <text class="bi-name">{{ b.name }}</text>
-          <text class="bi-desc">{{ b.desc }}</text>
+        <view
+          v-for="b in benefitItems"
+          :key="b.name"
+          class="bi-item"
+        >
+          <text class="bi-icon">
+            {{ b.icon }}
+          </text>
+          <text class="bi-name">
+            {{ b.name }}
+          </text>
+          <text class="bi-desc">
+            {{ b.desc }}
+          </text>
         </view>
       </view>
 
       <!-- ==================== 套餐卡片 ==================== -->
       <view class="section">
-        <text class="section-title">选择套餐</text>
+        <text class="section-title">
+          选择套餐
+        </text>
         <view class="plans-list">
           <view
             v-for="(plan, idx) in plans"
@@ -67,22 +94,45 @@
             }"
             @click="selectedPlanIndex = idx"
           >
-            <view v-if="plan.featured" class="plan-ribbon">推荐</view>
+            <view
+              v-if="plan.featured"
+              class="plan-ribbon"
+            >
+              推荐
+            </view>
             <view class="plan-header">
               <view>
-                <text class="plan-name">{{ plan.name }}</text>
-                <text v-if="plan.originalPrice" class="plan-original">
+                <text class="plan-name">
+                  {{ plan.name }}
+                </text>
+                <text
+                  v-if="plan.originalPrice"
+                  class="plan-original"
+                >
                   原价 ¥{{ plan.originalPrice }}
                 </text>
               </view>
               <view class="plan-price">
-                <text class="price-symbol">¥</text>
-                <text class="price-num">{{ plan.price }}</text>
-                <text v-if="plan.unit" class="price-unit">/{{ plan.unit }}</text>
+                <text class="price-symbol">
+                  ¥
+                </text>
+                <text class="price-num">
+                  {{ plan.price }}
+                </text>
+                <text
+                  v-if="plan.unit"
+                  class="price-unit"
+                >
+                  /{{ plan.unit }}
+                </text>
               </view>
             </view>
             <view class="plan-benefits">
-              <text v-for="b in plan.benefits" :key="b" class="plan-benefit">
+              <text
+                v-for="b in plan.benefits"
+                :key="b"
+                class="plan-benefit"
+              >
                 ✓ {{ b }}
               </text>
             </view>
@@ -100,63 +150,137 @@
         >
           立即开通 · ¥{{ selectedPlan?.price || 0 }}
         </button>
-        <text class="buy-disclaimer">支付即表示同意《会员服务协议》</text>
+        <text class="buy-disclaimer">
+          支付即表示同意《会员服务协议》
+        </text>
       </view>
 
       <!-- ==================== 会员权益对比 ==================== -->
       <view class="section">
-        <text class="section-title">会员权益对比</text>
+        <text class="section-title">
+          会员权益对比
+        </text>
         <view class="compare-table">
           <view class="compare-row head">
-            <text class="col-name">权益</text>
-            <text class="col-val">普通</text>
-            <text class="col-val">月会员</text>
-            <text class="col-val">年会员</text>
-            <text class="col-val">终身</text>
+            <text class="col-name">
+              权益
+            </text>
+            <text class="col-val">
+              普通
+            </text>
+            <text class="col-val">
+              月会员
+            </text>
+            <text class="col-val">
+              年会员
+            </text>
+            <text class="col-val">
+              终身
+            </text>
           </view>
-          <view v-for="r in compareRows" :key="r.name" class="compare-row">
-            <text class="col-name">{{ r.name }}</text>
-            <text class="col-val">{{ r.free }}</text>
-            <text class="col-val">{{ r.monthly }}</text>
-            <text class="col-val">{{ r.yearly }}</text>
-            <text class="col-val">{{ r.lifetime }}</text>
+          <view
+            v-for="r in compareRows"
+            :key="r.name"
+            class="compare-row"
+          >
+            <text class="col-name">
+              {{ r.name }}
+            </text>
+            <text class="col-val">
+              {{ r.free }}
+            </text>
+            <text class="col-val">
+              {{ r.monthly }}
+            </text>
+            <text class="col-val">
+              {{ r.yearly }}
+            </text>
+            <text class="col-val">
+              {{ r.lifetime }}
+            </text>
           </view>
         </view>
       </view>
     </DataState>
 
     <!-- 支付弹窗 -->
-    <view v-if="showPaySheet" class="modal-overlay" @click="showPaySheet = false">
-      <view class="pay-sheet" @click.stop>
-        <text class="pay-title">选择支付方式</text>
+    <view
+      v-if="showPaySheet"
+      class="modal-overlay"
+      @click="showPaySheet = false"
+    >
+      <view
+        class="pay-sheet"
+        @click.stop
+      >
+        <text class="pay-title">
+          选择支付方式
+        </text>
         <view class="pay-methods">
-          <view class="pay-method" :class="{ active: payMethod === 'wechat' }" @click="payMethod = 'wechat'">
+          <view
+            class="pay-method"
+            :class="{ active: payMethod === 'wechat' }"
+            @click="payMethod = 'wechat'"
+          >
             <view class="pm-left">
-              <text class="pm-icon pay-wechat">💚</text>
-              <text class="pm-name">微信支付</text>
+              <text class="pm-icon pay-wechat">
+                💚
+              </text>
+              <text class="pm-name">
+                微信支付
+              </text>
             </view>
-            <text class="pm-check" :class="{ checked: payMethod === 'wechat' }">✓</text>
+            <text
+              class="pm-check"
+              :class="{ checked: payMethod === 'wechat' }"
+            >
+              ✓
+            </text>
           </view>
-          <view class="pay-method" :class="{ active: payMethod === 'alipay' }" @click="payMethod = 'alipay'">
+          <view
+            class="pay-method"
+            :class="{ active: payMethod === 'alipay' }"
+            @click="payMethod = 'alipay'"
+          >
             <view class="pm-left">
-              <text class="pm-icon pay-alipay">💙</text>
-              <text class="pm-name">支付宝</text>
+              <text class="pm-icon pay-alipay">
+                💙
+              </text>
+              <text class="pm-name">
+                支付宝
+              </text>
             </view>
-            <text class="pm-check" :class="{ checked: payMethod === 'alipay' }">✓</text>
+            <text
+              class="pm-check"
+              :class="{ checked: payMethod === 'alipay' }"
+            >
+              ✓
+            </text>
           </view>
         </view>
         <view class="pay-summary">
-          <text class="pay-summary-label">{{ selectedPlan?.name }}</text>
-          <text class="pay-summary-price">¥{{ selectedPlan?.price || 0 }}</text>
+          <text class="pay-summary-label">
+            {{ selectedPlan?.name }}
+          </text>
+          <text class="pay-summary-price">
+            ¥{{ selectedPlan?.price || 0 }}
+          </text>
         </view>
         <view class="pay-actions">
-          <button class="pay-cancel" @click="showPaySheet = false">取消</button>
+          <button
+            class="pay-cancel"
+            @click="showPaySheet = false"
+          >
+            取消
+          </button>
           <button
             class="pay-confirm"
             :loading="paying"
             :disabled="paying"
             @click="confirmPay"
-          >确认支付</button>
+          >
+            确认支付
+          </button>
         </view>
       </view>
     </view>

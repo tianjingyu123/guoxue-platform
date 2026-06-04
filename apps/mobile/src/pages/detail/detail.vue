@@ -1,7 +1,10 @@
 <template>
   <view class="page">
     <!-- 加载骨架 -->
-    <LoadingSkeleton v-if="initialLoading" type="detail" />
+    <LoadingSkeleton
+      v-if="initialLoading"
+      type="detail"
+    />
 
     <!-- 错误状态 -->
     <EmptyState
@@ -9,96 +12,206 @@
       icon="⚠️"
       :text="errorMsg"
     >
-      <button class="retry-btn" @click="fetchDetail">重新加载</button>
+      <button
+        class="retry-btn"
+        @click="fetchDetail"
+      >
+        重新加载
+      </button>
     </EmptyState>
 
     <!-- 顶部返回按钮（有封面时悬浮） -->
-    <view v-if="!initialLoading && content" class="nav-back" @click="goBack">
-      <text class="nav-back-icon">‹</text>
+    <view
+      v-if="!initialLoading && content"
+      class="nav-back"
+      @click="goBack"
+    >
+      <text class="nav-back-icon">
+        ‹
+      </text>
     </view>
 
     <!-- ==================== 文章/内容详情 ==================== -->
     <template v-if="!initialLoading && content && (type === 'ARTICLE' || type === 'CONTENT')">
       <!-- 封面图 -->
       <view class="cover-wrap">
-        <image v-if="content.cover" :src="content.cover" class="cover-img" mode="aspectFill" />
-        <view v-else class="cover-plc">
-          <text class="plc-icon">📜</text>
+        <image
+          v-if="content.cover"
+          :src="content.cover"
+          class="cover-img"
+          mode="aspectFill"
+        />
+        <view
+          v-else
+          class="cover-plc"
+        >
+          <text class="plc-icon">
+            📜
+          </text>
         </view>
         <view class="cover-overlay" />
       </view>
 
       <!-- 标题区域 -->
       <view class="title-section">
-        <text class="article-title">{{ content.title }}</text>
+        <text class="article-title">
+          {{ content.title }}
+        </text>
         <view class="article-meta">
           <view class="meta-left">
-            <text v-if="content.author" class="meta-author">{{ content.author }}</text>
-            <text v-if="content.dynasty" class="meta-dynasty">{{ content.dynasty }}</text>
-            <text class="meta-time">{{ formatTime(content.createdAt) }}</text>
+            <text
+              v-if="content.author"
+              class="meta-author"
+            >
+              {{ content.author }}
+            </text>
+            <text
+              v-if="content.dynasty"
+              class="meta-dynasty"
+            >
+              {{ content.dynasty }}
+            </text>
+            <text class="meta-time">
+              {{ formatTime(content.createdAt) }}
+            </text>
           </view>
           <view class="meta-stats">
-            <text class="meta-stat">👁 {{ formatCount(content.viewCount || 0) }}</text>
-            <text class="meta-stat">♥ {{ formatCount(likeCount) }}</text>
+            <text class="meta-stat">
+              👁 {{ formatCount(content.viewCount || 0) }}
+            </text>
+            <text class="meta-stat">
+              ♥ {{ formatCount(likeCount) }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 标签 -->
-      <view v-if="content.tags?.length" class="tags-row">
-        <text v-for="t in content.tags" :key="t" class="content-tag">{{ t }}</text>
+      <view
+        v-if="content.tags?.length"
+        class="tags-row"
+      >
+        <text
+          v-for="t in content.tags"
+          :key="t"
+          class="content-tag"
+        >
+          {{ t }}
+        </text>
       </view>
 
       <!-- 正文 -->
       <view class="content-body">
-        <rich-text v-if="content.body" class="rich-content" :nodes="content.body" />
-        <rich-text v-else-if="content.content" class="rich-content" :nodes="content.content" />
-        <text v-else class="no-content">暂无正文内容</text>
+        <rich-text
+          v-if="content.body"
+          class="rich-content"
+          :nodes="content.body"
+        />
+        <rich-text
+          v-else-if="content.content"
+          class="rich-content"
+          :nodes="content.content"
+        />
+        <text
+          v-else
+          class="no-content"
+        >
+          暂无正文内容
+        </text>
       </view>
     </template>
 
     <!-- ==================== 课程详情 ==================== -->
     <template v-if="!initialLoading && content && type === 'COURSE'">
       <view class="cover-wrap">
-        <image v-if="content.cover" :src="content.cover" class="cover-img" mode="aspectFill" />
-        <view v-else class="cover-plc">
-          <text class="plc-icon">📚</text>
+        <image
+          v-if="content.cover"
+          :src="content.cover"
+          class="cover-img"
+          mode="aspectFill"
+        />
+        <view
+          v-else
+          class="cover-plc"
+        >
+          <text class="plc-icon">
+            📚
+          </text>
         </view>
         <view class="cover-overlay" />
       </view>
 
       <view class="title-section">
-        <text class="article-title">{{ content.title }}</text>
+        <text class="article-title">
+          {{ content.title }}
+        </text>
         <view class="course-type-row">
-          <text v-if="content.type" class="course-type-tag">{{ typeLabel(content.type) }}</text>
-          <text v-if="content.level" class="course-level-tag">{{ content.level }}</text>
+          <text
+            v-if="content.type"
+            class="course-type-tag"
+          >
+            {{ typeLabel(content.type) }}
+          </text>
+          <text
+            v-if="content.level"
+            class="course-level-tag"
+          >
+            {{ content.level }}
+          </text>
         </view>
       </view>
 
       <!-- 价格 -->
       <view class="price-card">
         <view class="price-left">
-          <text class="price-now" :class="{ free: !content.price }">
+          <text
+            class="price-now"
+            :class="{ free: !content.price }"
+          >
             {{ content.price > 0 ? '¥' + content.price : '免费' }}
           </text>
-          <text v-if="content.originalPrice && content.originalPrice > (content.price || 0)" class="price-old">
+          <text
+            v-if="content.originalPrice && content.originalPrice > (content.price || 0)"
+            class="price-old"
+          >
             ¥{{ content.originalPrice }}
           </text>
         </view>
         <view class="price-right">
-          <text class="price-stat">👤 {{ formatCount(content.studentCount || 0) }} 学员</text>
+          <text class="price-stat">
+            👤 {{ formatCount(content.studentCount || 0) }} 学员
+          </text>
         </view>
       </view>
 
       <!-- 教师信息 -->
-      <view v-if="content.teacher || content.teacherName" class="teacher-block">
-        <view class="block-title">授课讲师</view>
+      <view
+        v-if="content.teacher || content.teacherName"
+        class="teacher-block"
+      >
+        <view class="block-title">
+          授课讲师
+        </view>
         <view class="teacher-row">
-          <image v-if="content.teacherAvatar" :src="content.teacherAvatar" class="teacher-avatar" />
-          <view v-else class="teacher-avatar-plc">👨‍🏫</view>
+          <image
+            v-if="content.teacherAvatar"
+            :src="content.teacherAvatar"
+            class="teacher-avatar"
+          />
+          <view
+            v-else
+            class="teacher-avatar-plc"
+          >
+            👨‍🏫
+          </view>
           <view class="teacher-text">
-            <text class="teacher-name">{{ content.teacher || content.teacherName }}</text>
-            <text v-if="content.teacherBio || content.teacherDesc" class="teacher-bio">
+            <text class="teacher-name">
+              {{ content.teacher || content.teacherName }}
+            </text>
+            <text
+              v-if="content.teacherBio || content.teacherDesc"
+              class="teacher-bio"
+            >
               {{ content.teacherBio || content.teacherDesc }}
             </text>
           </view>
@@ -107,23 +220,50 @@
 
       <!-- 简介 -->
       <view class="desc-block">
-        <view class="block-title">课程简介</view>
-        <text class="desc-text">{{ content.description || content.intro || '暂无详细介绍' }}</text>
+        <view class="block-title">
+          课程简介
+        </view>
+        <text class="desc-text">
+          {{ content.description || content.intro || '暂无详细介绍' }}
+        </text>
       </view>
 
       <!-- 章节 -->
-      <view v-if="chapters.length" class="chapters-block">
+      <view
+        v-if="chapters.length"
+        class="chapters-block"
+      >
         <view class="block-title">
           课程目录
-          <text class="block-badge">{{ chapters.length }} 章</text>
+          <text class="block-badge">
+            {{ chapters.length }} 章
+          </text>
         </view>
         <view class="chapter-list">
-          <view v-for="(ch, idx) in chapters" :key="ch.id" class="chapter-row">
-            <view class="ch-num">{{ idx + 1 }}</view>
-            <text class="ch-name">{{ ch.title }}</text>
+          <view
+            v-for="(ch, idx) in chapters"
+            :key="ch.id"
+            class="chapter-row"
+          >
+            <view class="ch-num">
+              {{ idx + 1 }}
+            </view>
+            <text class="ch-name">
+              {{ ch.title }}
+            </text>
             <view class="ch-right">
-              <text v-if="ch.duration" class="ch-dur">⏱ {{ formatDuration(ch.duration) }}</text>
-              <text v-if="ch.isFree" class="ch-free">免费</text>
+              <text
+                v-if="ch.duration"
+                class="ch-dur"
+              >
+                ⏱ {{ formatDuration(ch.duration) }}
+              </text>
+              <text
+                v-if="ch.isFree"
+                class="ch-free"
+              >
+                免费
+              </text>
             </view>
           </view>
         </view>
@@ -133,92 +273,205 @@
     <!-- ==================== 圈子详情 ==================== -->
     <template v-if="!initialLoading && content && type === 'CIRCLE'">
       <view class="cover-wrap">
-        <image v-if="content.cover" :src="content.cover" class="cover-img" mode="aspectFill" />
-        <view v-else class="cover-plc">
-          <text class="plc-icon">🏘️</text>
+        <image
+          v-if="content.cover"
+          :src="content.cover"
+          class="cover-img"
+          mode="aspectFill"
+        />
+        <view
+          v-else
+          class="cover-plc"
+        >
+          <text class="plc-icon">
+            🏘️
+          </text>
         </view>
         <view class="cover-overlay" />
       </view>
 
       <view class="title-section">
-        <text class="article-title">{{ content.name || content.title }}</text>
+        <text class="article-title">
+          {{ content.name || content.title }}
+        </text>
         <view class="circle-stats-row">
           <view class="circle-stat-item">
-            <text class="cs-val">{{ formatCount(content.memberCount || 0) }}</text>
-            <text class="cs-label">成员</text>
+            <text class="cs-val">
+              {{ formatCount(content.memberCount || 0) }}
+            </text>
+            <text class="cs-label">
+              成员
+            </text>
           </view>
           <view class="circle-stat-item">
-            <text class="cs-val">{{ formatCount(content.postCount || 0) }}</text>
-            <text class="cs-label">帖子</text>
+            <text class="cs-val">
+              {{ formatCount(content.postCount || 0) }}
+            </text>
+            <text class="cs-label">
+              帖子
+            </text>
           </view>
         </view>
       </view>
 
       <view class="desc-block">
-        <view class="block-title">圈子简介</view>
-        <text class="desc-text">{{ content.intro || content.description || '暂无简介' }}</text>
+        <view class="block-title">
+          圈子简介
+        </view>
+        <text class="desc-text">
+          {{ content.intro || content.description || '暂无简介' }}
+        </text>
       </view>
 
       <view class="circle-action-wrap">
         <button
           v-if="!joined"
           class="circle-join-btn"
-          @click="joinCircle"
           :loading="joinLoading"
-        >加入圈子</button>
-        <button v-else class="circle-joined-btn" disabled>✓ 已加入</button>
+          @click="joinCircle"
+        >
+          加入圈子
+        </button>
+        <button
+          v-else
+          class="circle-joined-btn"
+          disabled
+        >
+          ✓ 已加入
+        </button>
       </view>
     </template>
 
     <!-- ==================== 底部操作栏 ==================== -->
-    <view v-if="content" class="action-bar">
-      <view v-if="isOwner && (type === 'ARTICLE')" class="action-item" @click="goEditArticle">
-        <text class="action-icon">✏️</text>
-        <text class="action-label">编辑</text>
+    <view
+      v-if="content"
+      class="action-bar"
+    >
+      <view
+        v-if="isOwner && (type === 'ARTICLE')"
+        class="action-item"
+        @click="goEditArticle"
+      >
+        <text class="action-icon">
+          ✏️
+        </text>
+        <text class="action-label">
+          编辑
+        </text>
       </view>
-      <view class="action-item" @click="toggleLike">
-        <text class="action-icon">{{ liked ? '❤️' : '🤍' }}</text>
-        <text class="action-label">{{ liked ? '已赞' : '点赞' }}</text>
-        <text v-if="likeCount > 0" class="action-num">{{ likeCount }}</text>
+      <view
+        class="action-item"
+        @click="toggleLike"
+      >
+        <text class="action-icon">
+          {{ liked ? '❤️' : '🤍' }}
+        </text>
+        <text class="action-label">
+          {{ liked ? '已赞' : '点赞' }}
+        </text>
+        <text
+          v-if="likeCount > 0"
+          class="action-num"
+        >
+          {{ likeCount }}
+        </text>
       </view>
-      <view class="action-item" @click="toggleCollect">
-        <text class="action-icon">{{ collected ? '⭐' : '☆' }}</text>
-        <text class="action-label">{{ collected ? '已收藏' : '收藏' }}</text>
+      <view
+        class="action-item"
+        @click="toggleCollect"
+      >
+        <text class="action-icon">
+          {{ collected ? '⭐' : '☆' }}
+        </text>
+        <text class="action-label">
+          {{ collected ? '已收藏' : '收藏' }}
+        </text>
       </view>
-      <view class="action-item" @click="scrollToComment">
-        <text class="action-icon">💬</text>
-        <text class="action-label">评论</text>
-        <text v-if="commentCount > 0" class="action-num">{{ commentCount }}</text>
+      <view
+        class="action-item"
+        @click="scrollToComment"
+      >
+        <text class="action-icon">
+          💬
+        </text>
+        <text class="action-label">
+          评论
+        </text>
+        <text
+          v-if="commentCount > 0"
+          class="action-num"
+        >
+          {{ commentCount }}
+        </text>
       </view>
-      <view class="action-item" @click="handleShare">
-        <text class="action-icon">📤</text>
-        <text class="action-label">分享</text>
+      <view
+        class="action-item"
+        @click="handleShare"
+      >
+        <text class="action-icon">
+          📤
+        </text>
+        <text class="action-label">
+          分享
+        </text>
       </view>
     </view>
 
     <!-- ==================== 评论 ==================== -->
-    <view v-if="content && (type === 'ARTICLE' || type === 'CONTENT')" class="comment-section" id="comment-section">
-      <view class="section-header">评论</view>
-      <CommentList :target-type="type" :target-id="id" />
+    <view
+      v-if="content && (type === 'ARTICLE' || type === 'CONTENT')"
+      id="comment-section"
+      class="comment-section"
+    >
+      <view class="section-header">
+        评论
+      </view>
+      <CommentList
+        :target-type="type"
+        :target-id="id"
+      />
     </view>
 
     <!-- ==================== 相关推荐 ==================== -->
-    <view v-if="related.length > 0 && (type === 'ARTICLE' || type === 'CONTENT')" class="related-section">
-      <view class="section-header">相关推荐</view>
-      <scroll-view scroll-x class="related-scroll" show-scrollbar="false">
+    <view
+      v-if="related.length > 0 && (type === 'ARTICLE' || type === 'CONTENT')"
+      class="related-section"
+    >
+      <view class="section-header">
+        相关推荐
+      </view>
+      <scroll-view
+        scroll-x
+        class="related-scroll"
+        show-scrollbar="false"
+      >
         <view
           v-for="item in related"
           :key="item.id"
           class="related-card"
           @click="goDetail(item.id, type)"
         >
-          <image v-if="item.cover" :src="item.cover" class="related-cover" mode="aspectFill" />
-          <view v-else class="related-cover-plc">
-            <text class="r-plc-icon">📜</text>
+          <image
+            v-if="item.cover"
+            :src="item.cover"
+            class="related-cover"
+            mode="aspectFill"
+          />
+          <view
+            v-else
+            class="related-cover-plc"
+          >
+            <text class="r-plc-icon">
+              📜
+            </text>
           </view>
           <view class="related-body">
-            <text class="related-title">{{ item.title }}</text>
-            <text class="related-author">{{ item.author || '' }}</text>
+            <text class="related-title">
+              {{ item.title }}
+            </text>
+            <text class="related-author">
+              {{ item.author || '' }}
+            </text>
           </view>
         </view>
       </scroll-view>

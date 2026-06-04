@@ -2,115 +2,399 @@
   <view class="page">
     <view class="header">
       <view class="header-left">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">批量发放优惠券</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          批量发放优惠券
+        </text>
       </view>
     </view>
     <view class="content">
       <view class="card">
-        <view class="card-header"><text class="card-icon">🎫</text><text class="card-title">选择优惠券</text><text class="required">*</text></view>
-        <view class="coupon-select" @click="showCouponSelect = true">
-          <view v-if="selectedCoupon" class="coupon-selected">
-            <view class="cs-icon-wrap"><text class="cs-icon">🎫</text></view>
-            <view class="cs-info"><text class="cs-name">{{ selectedCoupon.name }}</text><text class="cs-meta">库存 {{ selectedCoupon.stock }} | 有效期至 {{ selectedCoupon.expireAt }}</text></view>
+        <view class="card-header">
+          <text class="card-icon">
+            🎫
+          </text><text class="card-title">
+            选择优惠券
+          </text><text class="required">
+            *
+          </text>
+        </view>
+        <view
+          class="coupon-select"
+          @click="showCouponSelect = true"
+        >
+          <view
+            v-if="selectedCoupon"
+            class="coupon-selected"
+          >
+            <view class="cs-icon-wrap">
+              <text class="cs-icon">
+                🎫
+              </text>
+            </view>
+            <view class="cs-info">
+              <text class="cs-name">
+                {{ selectedCoupon.name }}
+              </text><text class="cs-meta">
+                库存 {{ selectedCoupon.stock }} | 有效期至 {{ selectedCoupon.expireAt }}
+              </text>
+            </view>
           </view>
-          <text v-else class="cs-placeholder">请选择要发放的优惠券</text>
-          <text class="cs-arrow">▼</text>
+          <text
+            v-else
+            class="cs-placeholder"
+          >
+            请选择要发放的优惠券
+          </text>
+          <text class="cs-arrow">
+            ▼
+          </text>
         </view>
       </view>
       <view class="card">
-        <view class="card-header"><text class="card-icon">🎯</text><text class="card-title">目标用户</text></view>
+        <view class="card-header">
+          <text class="card-icon">
+            🎯
+          </text><text class="card-title">
+            目标用户
+          </text>
+        </view>
         <view class="filter-grid">
-          <view v-for="f in filterTypes" :key="f.type" class="filter-btn" :class="{ active: config.userFilter.type === f.type }" @click="config.userFilter.type = f.type">
-            <text class="filter-icon">{{ f.icon }}</text><text class="filter-label">{{ f.label }}</text>
+          <view
+            v-for="f in filterTypes"
+            :key="f.type"
+            class="filter-btn"
+            :class="{ active: config.userFilter.type === f.type }"
+            @click="config.userFilter.type = f.type"
+          >
+            <text class="filter-icon">
+              {{ f.icon }}
+            </text><text class="filter-label">
+              {{ f.label }}
+            </text>
           </view>
         </view>
-        <view v-if="config.userFilter.type === 'level'" class="filter-detail">
-          <text class="fd-label">选择会员等级</text>
+        <view
+          v-if="config.userFilter.type === 'level'"
+          class="filter-detail"
+        >
+          <text class="fd-label">
+            选择会员等级
+          </text>
           <view class="level-tags">
-            <text v-for="lv in memberLevels" :key="lv.value" class="level-tag" :class="{ active: (config.userFilter.levels || []).includes(lv.value) }" @click="toggleLevel(lv.value)">{{ lv.label }}</text>
+            <text
+              v-for="lv in memberLevels"
+              :key="lv.value"
+              class="level-tag"
+              :class="{ active: (config.userFilter.levels || []).includes(lv.value) }"
+              @click="toggleLevel(lv.value)"
+            >
+              {{ lv.label }}
+            </text>
           </view>
         </view>
-        <view v-if="config.userFilter.type === 'register_time'" class="filter-detail">
-          <view class="date-field"><text class="fd-label">注册开始</text><input type="date" v-model="config.userFilter.registerStart" class="date-input" /></view>
-          <view class="date-field"><text class="fd-label">注册结束</text><input type="date" v-model="config.userFilter.registerEnd" class="date-input" /></view>
+        <view
+          v-if="config.userFilter.type === 'register_time'"
+          class="filter-detail"
+        >
+          <view class="date-field">
+            <text class="fd-label">
+              注册开始
+            </text><input
+              v-model="config.userFilter.registerStart"
+              type="date"
+              class="date-input"
+            >
+          </view>
+          <view class="date-field">
+            <text class="fd-label">
+              注册结束
+            </text><input
+              v-model="config.userFilter.registerEnd"
+              type="date"
+              class="date-input"
+            >
+          </view>
         </view>
-        <view v-if="config.userFilter.type === 'consumption'" class="filter-detail">
+        <view
+          v-if="config.userFilter.type === 'consumption'"
+          class="filter-detail"
+        >
           <view class="row-fields">
-            <view class="half-field"><text class="fd-label">最低消费(元)</text><input type="number" v-model="config.userFilter.minConsumption" class="num-input" placeholder="0" /></view>
-            <view class="half-field"><text class="fd-label">最高消费(元)</text><input type="number" v-model="config.userFilter.maxConsumption" class="num-input" placeholder="不限" /></view>
+            <view class="half-field">
+              <text class="fd-label">
+                最低消费(元)
+              </text><input
+                v-model="config.userFilter.minConsumption"
+                type="number"
+                class="num-input"
+                placeholder="0"
+              >
+            </view>
+            <view class="half-field">
+              <text class="fd-label">
+                最高消费(元)
+              </text><input
+                v-model="config.userFilter.maxConsumption"
+                type="number"
+                class="num-input"
+                placeholder="不限"
+              >
+            </view>
           </view>
         </view>
-        <view v-if="config.userFilter.type === 'uid_list'" class="filter-detail">
-          <textarea v-model="config.userFilter.uidList" class="uid-textarea" placeholder="输入用户UID，每行一个或用逗号分隔" />
-          <text class="uid-count">已输入 {{ uidCount }} 个用户</text>
+        <view
+          v-if="config.userFilter.type === 'uid_list'"
+          class="filter-detail"
+        >
+          <textarea
+            v-model="config.userFilter.uidList"
+            class="uid-textarea"
+            placeholder="输入用户UID，每行一个或用逗号分隔"
+          />
+          <text class="uid-count">
+            已输入 {{ uidCount }} 个用户
+          </text>
         </view>
       </view>
       <view class="card">
-        <view class="card-header"><text class="card-icon">🕐</text><text class="card-title">发放时间</text></view>
+        <view class="card-header">
+          <text class="card-icon">
+            🕐
+          </text><text class="card-title">
+            发放时间
+          </text>
+        </view>
         <view class="time-options">
-          <view class="time-btn" :class="{ active: config.sendTime === 'now' }" @click="config.sendTime = 'now'"><text>立即发放</text></view>
-          <view class="time-btn" :class="{ active: config.sendTime === 'scheduled' }" @click="config.sendTime = 'scheduled'"><text>定时发放</text></view>
+          <view
+            class="time-btn"
+            :class="{ active: config.sendTime === 'now' }"
+            @click="config.sendTime = 'now'"
+          >
+            <text>立即发放</text>
+          </view>
+          <view
+            class="time-btn"
+            :class="{ active: config.sendTime === 'scheduled' }"
+            @click="config.sendTime = 'scheduled'"
+          >
+            <text>定时发放</text>
+          </view>
         </view>
-        <input v-if="config.sendTime === 'scheduled'" type="datetime-local" v-model="config.scheduledTime" class="datetime-input" />
+        <input
+          v-if="config.sendTime === 'scheduled'"
+          v-model="config.scheduledTime"
+          type="datetime-local"
+          class="datetime-input"
+        >
       </view>
       <view class="card">
-        <view class="card-header"><text class="card-icon">⚙</text><text class="card-title">发放限制</text></view>
+        <view class="card-header">
+          <text class="card-icon">
+            ⚙
+          </text><text class="card-title">
+            发放限制
+          </text>
+        </view>
         <view class="limit-fields">
-          <view class="field-row"><text class="field-label">每人限领</text><input type="number" v-model.number="config.perUserLimit" class="limit-input" min="1" max="10" /></view>
-          <view class="field-row"><text class="field-label">总量限制(选填)</text><input type="number" v-model="config.totalLimit" class="limit-input" placeholder="不限" /></view>
+          <view class="field-row">
+            <text class="field-label">
+              每人限领
+            </text><input
+              v-model.number="config.perUserLimit"
+              type="number"
+              class="limit-input"
+              min="1"
+              max="10"
+            >
+          </view>
+          <view class="field-row">
+            <text class="field-label">
+              总量限制(选填)
+            </text><input
+              v-model="config.totalLimit"
+              type="number"
+              class="limit-input"
+              placeholder="不限"
+            >
+          </view>
         </view>
       </view>
-      <view class="warning-banner"><text class="warn-icon">⚠</text><text class="warn-text">优惠券发放后不可撤销，请仔细核对发放条件和数量。</text></view>
+      <view class="warning-banner">
+        <text class="warn-icon">
+          ⚠
+        </text><text class="warn-text">
+          优惠券发放后不可撤销，请仔细核对发放条件和数量。
+        </text>
+      </view>
     </view>
     <view class="bottom-bar">
       <view class="btns-row">
-        <view class="btn-outline" @click="handlePreview"><text>👁 预览</text></view>
-        <view class="btn-primary" @click="confirmSend"><text>📤 确认发放</text></view>
+        <view
+          class="btn-outline"
+          @click="handlePreview"
+        >
+          <text>👁 预览</text>
+        </view>
+        <view
+          class="btn-primary"
+          @click="confirmSend"
+        >
+          <text>📤 确认发放</text>
+        </view>
       </view>
     </view>
     <!-- 优惠券选择弹层 -->
-    <view v-if="showCouponSelect" class="overlay" @click="showCouponSelect = false">
-      <view class="sheet" @click.stop>
-        <view class="sheet-header"><text class="sheet-title">选择优惠券</text><text class="sheet-close" @click="showCouponSelect = false">✕</text></view>
-        <scroll-view scroll-y class="sheet-list">
-          <view v-for="c in coupons" :key="c.id" class="coupon-option" :class="{ selected: config.couponId === c.id }" @click="selectCoupon(c)">
-            <view class="co-left"><text class="co-value">{{ c.type === 'discount' ? (c.value / 10) + '折' : c.type === 'cash' ? '¥' + c.value : '免邮' }}</text></view>
-            <view class="co-info"><text class="co-name">{{ c.name }}</text><text class="co-meta">{{ c.minOrder > 0 ? '满' + c.minOrder + '可用' : '无门槛' }} · 库存{{ c.stock }}</text></view>
-            <text v-if="config.couponId === c.id" class="co-check">✓</text>
+    <view
+      v-if="showCouponSelect"
+      class="overlay"
+      @click="showCouponSelect = false"
+    >
+      <view
+        class="sheet"
+        @click.stop
+      >
+        <view class="sheet-header">
+          <text class="sheet-title">
+            选择优惠券
+          </text><text
+            class="sheet-close"
+            @click="showCouponSelect = false"
+          >
+            ✕
+          </text>
+        </view>
+        <scroll-view
+          scroll-y
+          class="sheet-list"
+        >
+          <view
+            v-for="c in coupons"
+            :key="c.id"
+            class="coupon-option"
+            :class="{ selected: config.couponId === c.id }"
+            @click="selectCoupon(c)"
+          >
+            <view class="co-left">
+              <text class="co-value">
+                {{ c.type === 'discount' ? (c.value / 10) + '折' : c.type === 'cash' ? '¥' + c.value : '免邮' }}
+              </text>
+            </view>
+            <view class="co-info">
+              <text class="co-name">
+                {{ c.name }}
+              </text><text class="co-meta">
+                {{ c.minOrder > 0 ? '满' + c.minOrder + '可用' : '无门槛' }} · 库存{{ c.stock }}
+              </text>
+            </view>
+            <text
+              v-if="config.couponId === c.id"
+              class="co-check"
+            >
+              ✓
+            </text>
           </view>
         </scroll-view>
       </view>
     </view>
     <!-- 预览弹窗 -->
-    <view v-if="showPreview && previewData" class="dialog-overlay">
+    <view
+      v-if="showPreview && previewData"
+      class="dialog-overlay"
+    >
       <view class="dialog">
-        <view class="dialog-header"><text class="dialog-title">发放预览</text></view>
+        <view class="dialog-header">
+          <text class="dialog-title">
+            发放预览
+          </text>
+        </view>
         <view class="dialog-body">
-          <view class="preview-count"><text class="pc-label">目标用户数</text><text class="pc-number">{{ previewData.userCount }}</text></view>
-          <view class="preview-grid">
-            <view class="pg-item"><text class="pg-label">优惠券</text><text class="pg-value">{{ selectedCoupon?.name }}</text></view>
-            <view class="pg-item"><text class="pg-label">每人限领</text><text class="pg-value">{{ config.perUserLimit }}张</text></view>
+          <view class="preview-count">
+            <text class="pc-label">
+              目标用户数
+            </text><text class="pc-number">
+              {{ previewData.userCount }}
+            </text>
           </view>
-          <view v-if="previewData.totalBudget > 0" class="budget-warn"><text>预计最大预算：¥{{ previewData.totalBudget.toLocaleString() }}</text></view>
+          <view class="preview-grid">
+            <view class="pg-item">
+              <text class="pg-label">
+                优惠券
+              </text><text class="pg-value">
+                {{ selectedCoupon?.name }}
+              </text>
+            </view>
+            <view class="pg-item">
+              <text class="pg-label">
+                每人限领
+              </text><text class="pg-value">
+                {{ config.perUserLimit }}张
+              </text>
+            </view>
+          </view>
+          <view
+            v-if="previewData.totalBudget > 0"
+            class="budget-warn"
+          >
+            <text>预计最大预算：¥{{ previewData.totalBudget.toLocaleString() }}</text>
+          </view>
         </view>
         <view class="dialog-footer">
-          <view class="btn-outline" @click="showPreview = false"><text>返回修改</text></view>
-          <view class="btn-primary" @click="showConfirm = true"><text>确认发放</text></view>
+          <view
+            class="btn-outline"
+            @click="showPreview = false"
+          >
+            <text>返回修改</text>
+          </view>
+          <view
+            class="btn-primary"
+            @click="showConfirm = true"
+          >
+            <text>确认发放</text>
+          </view>
         </view>
       </view>
     </view>
     <!-- 二次确认弹窗 -->
-    <view v-if="showConfirm" class="dialog-overlay">
+    <view
+      v-if="showConfirm"
+      class="dialog-overlay"
+    >
       <view class="dialog">
-        <view class="dialog-body" style="text-align:center;padding:40rpx 32rpx;">
-          <view class="confirm-icon-wrap"><text class="confirm-icon">⚠</text></view>
-          <text class="confirm-title">确认发放优惠券？</text>
-          <text class="confirm-desc">即将向 {{ previewData?.userCount }} 位用户发放优惠券，此操作不可撤销。</text>
+        <view
+          class="dialog-body"
+          style="text-align:center;padding:40rpx 32rpx;"
+        >
+          <view class="confirm-icon-wrap">
+            <text class="confirm-icon">
+              ⚠
+            </text>
+          </view>
+          <text class="confirm-title">
+            确认发放优惠券？
+          </text>
+          <text class="confirm-desc">
+            即将向 {{ previewData?.userCount }} 位用户发放优惠券，此操作不可撤销。
+          </text>
         </view>
         <view class="dialog-footer">
-          <view class="btn-outline" @click="showConfirm = false"><text>取消</text></view>
-          <view class="btn-primary" @click="handleSend"><text>{{ sending ? '发放中...' : '确认发放' }}</text></view>
+          <view
+            class="btn-outline"
+            @click="showConfirm = false"
+          >
+            <text>取消</text>
+          </view>
+          <view
+            class="btn-primary"
+            @click="handleSend"
+          >
+            <text>{{ sending ? '发放中...' : '确认发放' }}</text>
+          </view>
         </view>
       </view>
     </view>

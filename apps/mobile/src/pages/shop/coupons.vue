@@ -8,35 +8,83 @@
         class="tab"
         :class="{ active: activeTab === t.value }"
         @click="switchTab(t.value)"
-      >{{ t.label }}</text>
+      >
+        {{ t.label }}
+      </text>
     </view>
 
     <!-- 领券中心 -->
     <template v-if="activeTab === 'center'">
-      <scroll-view scroll-y class="coupon-list" refresher-enabled @refresherrefresh="fetchAvailable" :refresher-triggered="refreshing">
-        <view v-for="c in availableCoupons" :key="c.id" class="coupon-card" :class="{ claimed: c.claimed }">
+      <scroll-view
+        scroll-y
+        class="coupon-list"
+        refresher-enabled
+        :refresher-triggered="refreshing"
+        @refresherrefresh="fetchAvailable"
+      >
+        <view
+          v-for="c in availableCoupons"
+          :key="c.id"
+          class="coupon-card"
+          :class="{ claimed: c.claimed }"
+        >
           <view class="cc-left">
-            <text class="cc-amount" v-if="c.type === 'FULL_REDUCE'">
-              <text class="cc-symbol">¥</text>{{ c.reduceAmount || c.value }}
+            <text
+              v-if="c.type === 'FULL_REDUCE'"
+              class="cc-amount"
+            >
+              <text class="cc-symbol">
+                ¥
+              </text>{{ c.reduceAmount || c.value }}
             </text>
-            <text class="cc-amount" v-else-if="c.type === 'DISCOUNT'">
-              {{ (c.discountRate || c.value || 10) * 10 }}<text class="cc-symbol">折</text>
+            <text
+              v-else-if="c.type === 'DISCOUNT'"
+              class="cc-amount"
+            >
+              {{ (c.discountRate || c.value || 10) * 10 }}<text class="cc-symbol">
+                折
+              </text>
             </text>
-            <text class="cc-amount" v-else>
-              <text class="cc-symbol">¥</text>{{ c.value || c.reduceAmount }}
+            <text
+              v-else
+              class="cc-amount"
+            >
+              <text class="cc-symbol">
+                ¥
+              </text>{{ c.value || c.reduceAmount }}
             </text>
-            <text class="cc-condition">{{ conditionText(c) }}</text>
+            <text class="cc-condition">
+              {{ conditionText(c) }}
+            </text>
           </view>
           <view class="cc-right">
-            <text class="cc-name">{{ c.title || c.name || '优惠券' }}</text>
-            <text class="cc-desc" v-if="c.description">{{ c.description }}</text>
-            <text class="cc-expire">有效期至 {{ formatDate(c.validEnd || c.endTime) }}</text>
+            <text class="cc-name">
+              {{ c.title || c.name || '优惠券' }}
+            </text>
+            <text
+              v-if="c.description"
+              class="cc-desc"
+            >
+              {{ c.description }}
+            </text>
+            <text class="cc-expire">
+              有效期至 {{ formatDate(c.validEnd || c.endTime) }}
+            </text>
           </view>
-          <view class="cc-btn" :class="{ claimed: c.claimed }" @click="claimCoupon(c)">
+          <view
+            class="cc-btn"
+            :class="{ claimed: c.claimed }"
+            @click="claimCoupon(c)"
+          >
             <text>{{ c.claimed ? '已领取' : '立即领取' }}</text>
           </view>
         </view>
-        <view v-if="!loading && availableCoupons.length === 0" class="empty">暂无可领优惠券</view>
+        <view
+          v-if="!loading && availableCoupons.length === 0"
+          class="empty"
+        >
+          暂无可领优惠券
+        </view>
       </scroll-view>
     </template>
 
@@ -49,29 +97,70 @@
           class="my-tab"
           :class="{ active: myStatus === st.value }"
           @click="myStatus = st.value"
-        >{{ st.label }}</text>
+        >
+          {{ st.label }}
+        </text>
       </view>
-      <scroll-view scroll-y class="coupon-list">
-        <view v-for="c in filteredMyCoupons" :key="c.id" class="coupon-card" :class="{ used: c.status === 'USED', expired: c.status === 'EXPIRED' }">
+      <scroll-view
+        scroll-y
+        class="coupon-list"
+      >
+        <view
+          v-for="c in filteredMyCoupons"
+          :key="c.id"
+          class="coupon-card"
+          :class="{ used: c.status === 'USED', expired: c.status === 'EXPIRED' }"
+        >
           <view class="cc-left">
-            <text class="cc-amount" v-if="c.type === 'FULL_REDUCE'">
-              <text class="cc-symbol">¥</text>{{ c.reduceAmount || c.value }}
+            <text
+              v-if="c.type === 'FULL_REDUCE'"
+              class="cc-amount"
+            >
+              <text class="cc-symbol">
+                ¥
+              </text>{{ c.reduceAmount || c.value }}
             </text>
-            <text class="cc-amount" v-else-if="c.type === 'DISCOUNT'">
-              {{ (c.discountRate || c.value || 10) * 10 }}<text class="cc-symbol">折</text>
+            <text
+              v-else-if="c.type === 'DISCOUNT'"
+              class="cc-amount"
+            >
+              {{ (c.discountRate || c.value || 10) * 10 }}<text class="cc-symbol">
+                折
+              </text>
             </text>
-            <text class="cc-amount" v-else>
-              <text class="cc-symbol">¥</text>{{ c.value || c.reduceAmount }}
+            <text
+              v-else
+              class="cc-amount"
+            >
+              <text class="cc-symbol">
+                ¥
+              </text>{{ c.value || c.reduceAmount }}
             </text>
-            <text class="cc-condition">{{ conditionText(c) }}</text>
+            <text class="cc-condition">
+              {{ conditionText(c) }}
+            </text>
           </view>
           <view class="cc-right">
-            <text class="cc-name">{{ c.title || c.name || '优惠券' }}</text>
-            <text class="cc-expire">有效期至 {{ formatDate(c.validEnd || c.endTime) }}</text>
-            <text class="cc-status-tag" :class="c.status">{{ statusLabel(c.status) }}</text>
+            <text class="cc-name">
+              {{ c.title || c.name || '优惠券' }}
+            </text>
+            <text class="cc-expire">
+              有效期至 {{ formatDate(c.validEnd || c.endTime) }}
+            </text>
+            <text
+              class="cc-status-tag"
+              :class="c.status"
+            >
+              {{ statusLabel(c.status) }}
+            </text>
           </view>
         </view>
-        <view v-if="filteredMyCoupons.length === 0" class="empty">暂无优惠券</view>
+        <view
+          v-if="filteredMyCoupons.length === 0"
+          class="empty"
+        >
+          暂无优惠券
+        </view>
       </scroll-view>
     </template>
   </view>

@@ -3,36 +3,74 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">举报</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          举报
+        </text>
         <view style="width:60rpx" />
       </view>
     </view>
 
-    <scroll-view scroll-y class="content-scroll">
+    <scroll-view
+      scroll-y
+      class="content-scroll"
+    >
       <!-- 举报对象摘要 -->
       <view class="section">
-        <text class="section-label">举报对象</text>
+        <text class="section-label">
+          举报对象
+        </text>
         <view class="target-card">
-          <view class="tc-icon"><text>{{ targetType === 'user' ? '👤' : targetType === 'comment' ? '💬' : '📄' }}</text></view>
+          <view class="tc-icon">
+            <text>{{ targetType === 'user' ? '👤' : targetType === 'comment' ? '💬' : '📄' }}</text>
+          </view>
           <view class="tc-info">
-            <text class="tc-name">{{ targetTitle || '目标内容' }}</text>
-            <text class="tc-type">{{ targetType === 'user' ? '用户' : targetType === 'comment' ? '评论' : '内容' }}</text>
+            <text class="tc-name">
+              {{ targetTitle || '目标内容' }}
+            </text>
+            <text class="tc-type">
+              {{ targetType === 'user' ? '用户' : targetType === 'comment' ? '评论' : '内容' }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 举报类型 -->
       <view class="section">
-        <text class="section-label">举报类型 <text class="required">*</text></text>
+        <text class="section-label">
+          举报类型 <text class="required">
+            *
+          </text>
+        </text>
         <view class="report-types">
-          <view v-for="r in reportTypes" :key="r.id" class="rt-item" :class="{ selected: selectedType === r.id }" @click="selectedType = r.id">
+          <view
+            v-for="r in reportTypes"
+            :key="r.id"
+            class="rt-item"
+            :class="{ selected: selectedType === r.id }"
+            @click="selectedType = r.id"
+          >
             <view class="rt-info">
-              <text class="rt-label">{{ r.label }}</text>
-              <text class="rt-desc">{{ r.description }}</text>
+              <text class="rt-label">
+                {{ r.label }}
+              </text>
+              <text class="rt-desc">
+                {{ r.description }}
+              </text>
             </view>
-            <view class="rt-radio" :class="{ checked: selectedType === r.id }">
-              <view v-if="selectedType === r.id" class="rt-dot" />
+            <view
+              class="rt-radio"
+              :class="{ checked: selectedType === r.id }"
+            >
+              <view
+                v-if="selectedType === r.id"
+                class="rt-dot"
+              />
             </view>
           </view>
         </view>
@@ -40,38 +78,89 @@
 
       <!-- 详细说明 -->
       <view class="section">
-        <text class="section-label">详细说明 <text v-if="selectedType === 'other'" class="required">*</text></text>
-        <textarea v-model="reason" class="reason-textarea" placeholder="请详细描述举报理由，便于我们快速处理" maxlength="500" />
-        <text class="char-count">{{ reason.length }}/500</text>
+        <text class="section-label">
+          详细说明 <text
+            v-if="selectedType === 'other'"
+            class="required"
+          >
+            *
+          </text>
+        </text>
+        <textarea
+          v-model="reason"
+          class="reason-textarea"
+          placeholder="请详细描述举报理由，便于我们快速处理"
+          maxlength="500"
+        />
+        <text class="char-count">
+          {{ reason.length }}/500
+        </text>
       </view>
 
       <!-- 上传截图 -->
       <view class="section">
-        <text class="section-label">上传截图 <text class="optional">(可选，最多4张)</text></text>
+        <text class="section-label">
+          上传截图 <text class="optional">
+            (可选，最多4张)
+          </text>
+        </text>
         <view class="image-grid">
-          <view v-for="(img, idx) in images" :key="idx" class="img-preview">
-            <image :src="img" mode="aspectFill" class="img-pic" />
-            <text class="img-remove" @click="removeImage(idx)">✕</text>
+          <view
+            v-for="(img, idx) in images"
+            :key="idx"
+            class="img-preview"
+          >
+            <image
+              :src="img"
+              mode="aspectFill"
+              class="img-pic"
+            />
+            <text
+              class="img-remove"
+              @click="removeImage(idx)"
+            >
+              ✕
+            </text>
           </view>
-          <view v-if="images.length < 4" class="img-add" @click="chooseImage">
-            <text class="img-add-icon">+</text>
-            <text class="img-add-text">添加图片</text>
+          <view
+            v-if="images.length < 4"
+            class="img-add"
+            @click="chooseImage"
+          >
+            <text class="img-add-icon">
+              +
+            </text>
+            <text class="img-add-text">
+              添加图片
+            </text>
           </view>
         </view>
-        <text class="img-tip">支持 JPG、PNG 格式，建议上传清晰的违规截图</text>
+        <text class="img-tip">
+          支持 JPG、PNG 格式，建议上传清晰的违规截图
+        </text>
       </view>
 
       <!-- 提示说明 -->
       <view class="tip-section">
-        <text class="tip-text">温馨提示：请如实填写举报信息，恶意举报将影响你的信誉分。我们将在24小时内处理你的举报，处理结果会通过站内信通知。</text>
+        <text class="tip-text">
+          温馨提示：请如实填写举报信息，恶意举报将影响你的信誉分。我们将在24小时内处理你的举报，处理结果会通过站内信通知。
+        </text>
       </view>
     </scroll-view>
 
     <!-- 底部提交 -->
     <view class="bottom-bar">
-      <view class="submit-btn" :class="{ disabled: !canSubmit || submitting }" @click="submit">
-        <text v-if="submitting">⏳ 提交中...</text>
-        <text v-else>提交举报</text>
+      <view
+        class="submit-btn"
+        :class="{ disabled: !canSubmit || submitting }"
+        @click="submit"
+      >
+        <text v-if="submitting">
+          ⏳ 提交中...
+        </text>
+        <text v-else>
+          提交举报
+        </text>
       </view>
     </view>
   </view>

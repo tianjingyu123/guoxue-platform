@@ -3,35 +3,63 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-row">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">线下课程</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          线下课程
+        </text>
         <view class="header-spacer" />
       </view>
       <!-- 搜索栏 -->
       <view class="search-wrap">
-        <text class="search-icon">🔍</text>
-        <input v-model="keyword" class="search-input" placeholder="搜索课程、讲师..." />
+        <text class="search-icon">
+          🔍
+        </text>
+        <input
+          v-model="keyword"
+          class="search-input"
+          placeholder="搜索课程、讲师..."
+        >
       </view>
       <!-- 筛选栏 -->
       <view class="filter-row">
-        <view class="filter-btn" @click="toggleStationPicker">
+        <view
+          class="filter-btn"
+          @click="toggleStationPicker"
+        >
           <text>🏛</text>
-          <text class="filter-text">{{ selectedStationName }}</text>
+          <text class="filter-text">
+            {{ selectedStationName }}
+          </text>
           <text>▼</text>
         </view>
-        <view class="filter-btn" @click="toggleDatePicker">
+        <view
+          class="filter-btn"
+          @click="toggleDatePicker"
+        >
           <text>📅</text>
-          <text class="filter-text">{{ selectedDateLabel }}</text>
+          <text class="filter-text">
+            {{ selectedDateLabel }}
+          </text>
           <text>▼</text>
         </view>
       </view>
       <!-- 驿站下拉 -->
-      <view v-if="showStationPicker" class="dropdown">
+      <view
+        v-if="showStationPicker"
+        class="dropdown"
+      >
         <view
           class="dropdown-item"
           :class="{ active: !selectedStation }"
           @click="selectStation(undefined)"
-        >全部驿站</view>
+        >
+          全部驿站
+        </view>
         <view
           v-for="s in stations"
           :key="s.id"
@@ -39,28 +67,41 @@
           :class="{ active: selectedStation === s.id }"
           @click="selectStation(s.id)"
         >
-          <text class="dropdown-item-name">{{ s.name }}</text>
-          <text class="dropdown-item-addr">{{ s.address }}</text>
+          <text class="dropdown-item-name">
+            {{ s.name }}
+          </text>
+          <text class="dropdown-item-addr">
+            {{ s.address }}
+          </text>
         </view>
       </view>
       <!-- 日期下拉 -->
-      <view v-if="showDatePicker" class="dropdown">
+      <view
+        v-if="showDatePicker"
+        class="dropdown"
+      >
         <view
           v-for="opt in dateFilterOptions"
           :key="opt.value"
           class="dropdown-item"
           :class="{ active: dateFilter === opt.value }"
           @click="selectDate(opt.value)"
-        >{{ opt.label }}</view>
+        >
+          {{ opt.label }}
+        </view>
       </view>
       <!-- 下拉遮罩 -->
-      <view v-if="showStationPicker || showDatePicker" class="dropdown-overlay" @click="closeDropdowns" />
+      <view
+        v-if="showStationPicker || showDatePicker"
+        class="dropdown-overlay"
+        @click="closeDropdowns"
+      />
     </view>
 
     <!-- 课程列表 -->
     <DataState
       :is-loading="loading && courses.length === 0"
-      :isEmpty="!loading && courses.length === 0"
+      :is-empty="!loading && courses.length === 0"
       empty-icon="📅"
       empty-title="暂无课程"
       :empty-description="keyword ? '没有找到匹配的课程' : '该时间段暂无线下课程安排'"
@@ -76,37 +117,90 @@
         >
           <view class="course-card-inner">
             <view class="course-cover-wrap">
-              <image :src="c.cover" class="course-cover" mode="aspectFill" />
-              <text v-if="c.price === 0" class="free-badge">免费</text>
+              <image
+                :src="c.cover"
+                class="course-cover"
+                mode="aspectFill"
+              />
+              <text
+                v-if="c.price === 0"
+                class="free-badge"
+              >
+                免费
+              </text>
             </view>
             <view class="course-body">
               <view class="course-title-row">
-                <text class="course-title">{{ c.title }}</text>
-                <text class="course-status-tag" :class="'status-' + c.status">
+                <text class="course-title">
+                  {{ c.title }}
+                </text>
+                <text
+                  class="course-status-tag"
+                  :class="'status-' + c.status"
+                >
                   {{ getCourseStatusLabel(c.status) }}
                 </text>
               </view>
               <view class="course-teacher-row">
-                <image :src="c.instructor?.avatar" class="course-teacher-avatar" mode="aspectFill" />
-                <text class="course-teacher-name">{{ c.instructor?.name }}</text>
-                <text v-if="c.instructor?.title" class="course-teacher-title">· {{ c.instructor.title }}</text>
+                <image
+                  :src="c.instructor?.avatar"
+                  class="course-teacher-avatar"
+                  mode="aspectFill"
+                />
+                <text class="course-teacher-name">
+                  {{ c.instructor?.name }}
+                </text>
+                <text
+                  v-if="c.instructor?.title"
+                  class="course-teacher-title"
+                >
+                  · {{ c.instructor.title }}
+                </text>
               </view>
               <view class="course-meta-row">
                 <text>🕐 {{ formatDate(c.startTime) }}</text>
-                <text class="course-station">📍 {{ c.stationName }}</text>
+                <text class="course-station">
+                  📍 {{ c.stationName }}
+                </text>
               </view>
               <view class="course-bottom-row">
                 <view class="course-price-row">
-                  <text v-if="c.price > 0" class="course-price">¥{{ c.price }}</text>
-                  <text v-if="c.originalPrice && c.originalPrice > c.price" class="course-original-price">¥{{ c.originalPrice }}</text>
-                  <text v-else-if="c.price === 0" class="course-free">免费</text>
+                  <text
+                    v-if="c.price > 0"
+                    class="course-price"
+                  >
+                    ¥{{ c.price }}
+                  </text>
+                  <text
+                    v-if="c.originalPrice && c.originalPrice > c.price"
+                    class="course-original-price"
+                  >
+                    ¥{{ c.originalPrice }}
+                  </text>
+                  <text
+                    v-else-if="c.price === 0"
+                    class="course-free"
+                  >
+                    免费
+                  </text>
                 </view>
-                <text class="course-participants">👥 {{ c.currentParticipants || 0 }}/{{ c.maxParticipants || 0 }}人</text>
+                <text class="course-participants">
+                  👥 {{ c.currentParticipants || 0 }}/{{ c.maxParticipants || 0 }}人
+                </text>
               </view>
             </view>
           </view>
-          <view v-if="c.tags && c.tags.length" class="course-tags">
-            <text v-for="tag in c.tags.slice(0, 3)" :key="tag" class="course-tag">{{ tag }}</text>
+          <view
+            v-if="c.tags && c.tags.length"
+            class="course-tags"
+          >
+            <text
+              v-for="tag in c.tags.slice(0, 3)"
+              :key="tag"
+              class="course-tag"
+            >
+              {{ tag }}
+            </text>
           </view>
         </view>
       </view>

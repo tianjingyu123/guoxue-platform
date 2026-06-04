@@ -1,41 +1,106 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="title">付费问答</text>
-      <text class="subtitle" v-if="circleName">{{ circleName }}</text>
+      <text class="title">
+        付费问答
+      </text>
+      <text
+        v-if="circleName"
+        class="subtitle"
+      >
+        {{ circleName }}
+      </text>
     </view>
 
     <view class="filter-tabs">
-      <text v-for="t in tabs" :key="t.value" :class="['tab', { active: activeTab === t.value }]" @click="switchTab(t.value)">{{ t.label }}</text>
+      <text
+        v-for="t in tabs"
+        :key="t.value"
+        :class="['tab', { active: activeTab === t.value }]"
+        @click="switchTab(t.value)"
+      >
+        {{ t.label }}
+      </text>
     </view>
 
-    <LoadingSkeleton v-if="loading && questions.length === 0" type="list" />
-    <EmptyState v-else-if="!loading && questions.length === 0" icon="💬" text="暂无问答" />
+    <LoadingSkeleton
+      v-if="loading && questions.length === 0"
+      type="list"
+    />
+    <EmptyState
+      v-else-if="!loading && questions.length === 0"
+      icon="💬"
+      text="暂无问答"
+    />
 
-    <view v-else class="question-list">
-      <view v-for="q in questions" :key="q.id" class="question-card" @click="goDetail(q.id)">
+    <view
+      v-else
+      class="question-list"
+    >
+      <view
+        v-for="q in questions"
+        :key="q.id"
+        class="question-card"
+        @click="goDetail(q.id)"
+      >
         <view class="q-header">
-          <image class="q-avatar" :src="q.asker?.avatar || '/static/default-avatar.png'" mode="aspectFill" />
-          <text class="q-asker">{{ q.asker?.nickname || '匿名' }}</text>
-          <view class="q-status" :class="'status-' + q.status">
+          <image
+            class="q-avatar"
+            :src="q.asker?.avatar || '/static/default-avatar.png'"
+            mode="aspectFill"
+          />
+          <text class="q-asker">
+            {{ q.asker?.nickname || '匿名' }}
+          </text>
+          <view
+            class="q-status"
+            :class="'status-' + q.status"
+          >
             <text>{{ statusMap[q.status] || q.status }}</text>
           </view>
         </view>
-        <text class="q-body">{{ q.question }}</text>
+        <text class="q-body">
+          {{ q.question }}
+        </text>
         <view class="q-footer">
-          <text class="q-price">{{ q.priceCoin }}币</text>
-          <text v-if="q.answer" class="q-has-answer">已回复</text>
-          <text v-if="q.peekCount" class="q-peek">{{ q.peekCount }}人围观</text>
+          <text class="q-price">
+            {{ q.priceCoin }}币
+          </text>
+          <text
+            v-if="q.answer"
+            class="q-has-answer"
+          >
+            已回复
+          </text>
+          <text
+            v-if="q.peekCount"
+            class="q-peek"
+          >
+            {{ q.peekCount }}人围观
+          </text>
         </view>
       </view>
     </view>
 
-    <view class="pagination" v-if="total > pageSize">
-      <text class="load-more" @click="loadMore">{{ questions.length >= total ? '没有更多了' : '加载更多' }}</text>
+    <view
+      v-if="total > pageSize"
+      class="pagination"
+    >
+      <text
+        class="load-more"
+        @click="loadMore"
+      >
+        {{ questions.length >= total ? '没有更多了' : '加载更多' }}
+      </text>
     </view>
 
-    <view class="ask-fab" @click="goAsk">
-      <text class="fab-icon">+</text>
+    <view
+      class="ask-fab"
+      @click="goAsk"
+    >
+      <text class="fab-icon">
+        +
+      </text>
     </view>
   </view>
 </template>

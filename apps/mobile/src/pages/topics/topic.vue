@@ -2,64 +2,152 @@
   <view class="page">
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">话题</text>
-        <text class="share-btn" @click="handleShare">📤</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          话题
+        </text>
+        <text
+          class="share-btn"
+          @click="handleShare"
+        >
+          📤
+        </text>
       </view>
     </view>
 
     <!-- 话题信息 -->
     <view class="topic-info">
       <view class="ti-left">
-        <view class="ti-hash"><text>#</text></view>
-        <view><text class="ti-tag">#{{ tag }}#</text><text class="ti-desc">{{ description }}</text></view>
+        <view class="ti-hash">
+          <text>#</text>
+        </view>
+        <view>
+          <text class="ti-tag">
+            #{{ tag }}#
+          </text><text class="ti-desc">
+            {{ description }}
+          </text>
+        </view>
       </view>
-      <text class="ti-follow" :class="{ followed: isFollowed }" @click="toggleFollow">{{ isFollowed ? '✓ 已关注' : '+ 关注' }}</text>
+      <text
+        class="ti-follow"
+        :class="{ followed: isFollowed }"
+        @click="toggleFollow"
+      >
+        {{ isFollowed ? '✓ 已关注' : '+ 关注' }}
+      </text>
     </view>
 
     <!-- 统计数据 -->
     <view class="topic-stats">
-      <text class="ts-item"><text class="ts-num">{{ contentCount.toLocaleString() }}</text><text class="ts-label">篇内容</text></text>
-      <text class="ts-item"><text class="ts-num">{{ followCount.toLocaleString() }}</text><text class="ts-label">人关注</text></text>
+      <text class="ts-item">
+        <text class="ts-num">
+          {{ contentCount.toLocaleString() }}
+        </text><text class="ts-label">
+          篇内容
+        </text>
+      </text>
+      <text class="ts-item">
+        <text class="ts-num">
+          {{ followCount.toLocaleString() }}
+        </text><text class="ts-label">
+          人关注
+        </text>
+      </text>
     </view>
 
     <!-- 排序栏 -->
     <view class="sort-bar">
       <view class="sort-left">
-        <text class="sort-btn" :class="{ active: sortBy === 'latest' }" @click="sortBy = 'latest'">最新发布</text>
-        <text class="sort-btn" :class="{ active: sortBy === 'hot' }" @click="sortBy = 'hot'">最受欢迎</text>
+        <text
+          class="sort-btn"
+          :class="{ active: sortBy === 'latest' }"
+          @click="sortBy = 'latest'"
+        >
+          最新发布
+        </text>
+        <text
+          class="sort-btn"
+          :class="{ active: sortBy === 'hot' }"
+          @click="sortBy = 'hot'"
+        >
+          最受欢迎
+        </text>
       </view>
-      <text class="refresh-btn" @click="refresh">{{ isRefreshing ? '刷新中...' : '刷新' }}</text>
+      <text
+        class="refresh-btn"
+        @click="refresh"
+      >
+        {{ isRefreshing ? '刷新中...' : '刷新' }}
+      </text>
     </view>
 
     <!-- 内容列表 -->
     <view class="content-list">
-      <view v-for="item in sortedContent" :key="item.id" class="content-item" @click="goItem(item)">
+      <view
+        v-for="item in sortedContent"
+        :key="item.id"
+        class="content-item"
+        @click="goItem(item)"
+      >
         <!-- 文章 -->
         <template v-if="item.type === 'article'">
           <view class="ci-left">
-            <view class="ci-type-tag blue"><text>📄 文章</text></view>
-            <text class="ci-title">{{ item.title }}</text>
-            <text class="ci-excerpt">{{ item.excerpt }}</text>
+            <view class="ci-type-tag blue">
+              <text>📄 文章</text>
+            </view>
+            <text class="ci-title">
+              {{ item.title }}
+            </text>
+            <text class="ci-excerpt">
+              {{ item.excerpt }}
+            </text>
             <view class="ci-meta">
-              <text class="ci-author">{{ item.author?.name }}</text>
-              <text class="ci-stat">❤ {{ item.likes }}</text>
-              <text class="ci-stat">💬 {{ item.comments }}</text>
-              <text class="ci-time">{{ item.time }}</text>
+              <text class="ci-author">
+                {{ item.author?.name }}
+              </text>
+              <text class="ci-stat">
+                ❤ {{ item.likes }}
+              </text>
+              <text class="ci-stat">
+                💬 {{ item.comments }}
+              </text>
+              <text class="ci-time">
+                {{ item.time }}
+              </text>
             </view>
           </view>
-          <view class="ci-thumb"><text>📄</text></view>
+          <view class="ci-thumb">
+            <text>📄</text>
+          </view>
         </template>
 
         <!-- 帖子 -->
         <template v-if="item.type === 'post'">
           <view class="ci-full">
             <view class="ci-user">
-              <text class="ci-avatar">{{ (item.author?.name || '?')[0] }}</text>
-              <view><text class="ci-author-name">{{ item.author?.name }}</text><text class="ci-time">{{ item.time }}</text></view>
-              <text class="ci-type-tag green">💬 帖子</text>
+              <text class="ci-avatar">
+                {{ (item.author?.name || '?')[0] }}
+              </text>
+              <view>
+                <text class="ci-author-name">
+                  {{ item.author?.name }}
+                </text><text class="ci-time">
+                  {{ item.time }}
+                </text>
+              </view>
+              <text class="ci-type-tag green">
+                💬 帖子
+              </text>
             </view>
-            <text class="ci-content">{{ item.content }}</text>
+            <text class="ci-content">
+              {{ item.content }}
+            </text>
             <view class="ci-stats">
               <text>❤ {{ item.likes }}</text>
               <text>💬 {{ item.comments }}</text>
@@ -70,25 +158,45 @@
         <!-- 视频 -->
         <template v-if="item.type === 'video'">
           <view class="ci-left">
-            <view class="ci-type-tag purple"><text>🎬 视频</text></view>
-            <text class="ci-title">{{ item.title }}</text>
+            <view class="ci-type-tag purple">
+              <text>🎬 视频</text>
+            </view>
+            <text class="ci-title">
+              {{ item.title }}
+            </text>
             <view class="ci-meta">
-              <text class="ci-author">{{ item.author?.name }}</text>
-              <text class="ci-stat">❤ {{ item.likes }}</text>
-              <text class="ci-stat">👁 {{ item.views }}</text>
-              <text class="ci-time">{{ item.time }}</text>
+              <text class="ci-author">
+                {{ item.author?.name }}
+              </text>
+              <text class="ci-stat">
+                ❤ {{ item.likes }}
+              </text>
+              <text class="ci-stat">
+                👁 {{ item.views }}
+              </text>
+              <text class="ci-time">
+                {{ item.time }}
+              </text>
             </view>
           </view>
           <view class="ci-video-thumb">
-            <text class="ci-video-icon">▶</text>
-            <text class="ci-duration">{{ item.duration }}</text>
+            <text class="ci-video-icon">
+              ▶
+            </text>
+            <text class="ci-duration">
+              {{ item.duration }}
+            </text>
           </view>
         </template>
       </view>
     </view>
 
     <!-- 加载更多 -->
-    <view v-if="sortedContent.length" class="load-more" @click="loadMore">
+    <view
+      v-if="sortedContent.length"
+      class="load-more"
+      @click="loadMore"
+    >
       <text>{{ isLoadingMore ? '⏳ 加载中...' : '点击加载更多' }}</text>
     </view>
   </view>

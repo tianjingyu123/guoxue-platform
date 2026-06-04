@@ -2,23 +2,43 @@
   <view class="page">
     <!-- 页面标题 -->
     <view class="page-header">
-      <text class="page-title">圈子</text>
-      <text class="page-subtitle">以文会友 · 以友辅仁</text>
+      <text class="page-title">
+        圈子
+      </text>
+      <text class="page-subtitle">
+        以文会友 · 以友辅仁
+      </text>
     </view>
 
     <!-- 搜索栏 + 创建 -->
     <view class="toolbar">
-      <view class="search-bar" @click="goSearch">
-        <text class="search-icon">🔍</text>
-        <text class="search-placeholder">搜索圈子...</text>
+      <view
+        class="search-bar"
+        @click="goSearch"
+      >
+        <text class="search-icon">
+          🔍
+        </text>
+        <text class="search-placeholder">
+          搜索圈子...
+        </text>
       </view>
-      <view class="create-btn" @click="goCreateCircle">
-        <text class="create-icon">＋</text>
+      <view
+        class="create-btn"
+        @click="goCreateCircle"
+      >
+        <text class="create-icon">
+          ＋
+        </text>
       </view>
     </view>
 
     <!-- 分类筛选 -->
-    <scroll-view scroll-x class="tabs-scroll" show-scrollbar="false">
+    <scroll-view
+      scroll-x
+      class="tabs-scroll"
+      show-scrollbar="false"
+    >
       <view class="tabs-inner">
         <text
           v-for="tab in typeTabs"
@@ -26,7 +46,9 @@
           class="tab"
           :class="{ active: currentTab === tab.key }"
           @click="switchTab(tab.key)"
-        >{{ tab.label }}</text>
+        >
+          {{ tab.label }}
+        </text>
       </view>
     </scroll-view>
 
@@ -45,7 +67,10 @@
       @empty-action="goCreateCircle"
     >
       <!-- 圈子卡片网格 -->
-      <view class="circle-grid" v-if="circles.length > 0">
+      <view
+        v-if="circles.length > 0"
+        class="circle-grid"
+      >
         <view
           v-for="c in circles"
           :key="c.id"
@@ -60,42 +85,79 @@
               class="cc-cover"
               mode="aspectFill"
             />
-            <view v-else class="cc-cover-placeholder">
-              <text class="cc-placeholder-icon">{{ c.name?.charAt(0) || '圈' }}</text>
+            <view
+              v-else
+              class="cc-cover-placeholder"
+            >
+              <text class="cc-placeholder-icon">
+                {{ c.name?.charAt(0) || '圈' }}
+              </text>
             </view>
             <!-- 排名角标 -->
-            <view v-if="c.rank && c.rank <= 3" class="cc-rank-badge" :class="'rank-' + c.rank">
+            <view
+              v-if="c.rank && c.rank <= 3"
+              class="cc-rank-badge"
+              :class="'rank-' + c.rank"
+            >
               <text>{{ c.rank }}</text>
             </view>
             <!-- 今日活跃 -->
-            <view v-if="c.todayActive" class="cc-active-badge">
+            <view
+              v-if="c.todayActive"
+              class="cc-active-badge"
+            >
               <text>🔥 {{ c.todayActive }}</text>
             </view>
           </view>
 
           <!-- 信息 -->
           <view class="cc-info">
-            <text class="cc-name">{{ c.name }}</text>
-            <text class="cc-intro">{{ c.intro || c.description || '' }}</text>
+            <text class="cc-name">
+              {{ c.name }}
+            </text>
+            <text class="cc-intro">
+              {{ c.intro || c.description || '' }}
+            </text>
             <view class="cc-bottom">
               <view class="cc-stats">
-                <text class="cc-stat">👤 {{ formatCount(c.memberCount) }}</text>
-                <text class="cc-stat">📝 {{ formatCount(c.postCount) }}</text>
+                <text class="cc-stat">
+                  👤 {{ formatCount(c.memberCount) }}
+                </text>
+                <text class="cc-stat">
+                  📝 {{ formatCount(c.postCount) }}
+                </text>
               </view>
               <text
                 v-if="!c.isJoined"
                 class="cc-join-btn"
                 @click.stop="joinCircle(c)"
-              >加入</text>
-              <text v-else class="cc-joined-tag">已加入</text>
+              >
+                加入
+              </text>
+              <text
+                v-else
+                class="cc-joined-tag"
+              >
+                已加入
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 加载更多 -->
-      <view v-if="loadingMore" class="load-more">加载更多...</view>
-      <view v-if="!hasMore && circles.length > 0" class="no-more">— 已全部加载 —</view>
+      <view
+        v-if="loadingMore"
+        class="load-more"
+      >
+        加载更多...
+      </view>
+      <view
+        v-if="!hasMore && circles.length > 0"
+        class="no-more"
+      >
+        — 已全部加载 —
+      </view>
     </DataState>
   </view>
 </template>

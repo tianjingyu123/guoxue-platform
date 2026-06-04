@@ -1,29 +1,64 @@
 <template>
   <view class="page">
-    <view v-if="loading" class="loading-state"><text class="loading-text">加载中...</text></view>
+    <view
+      v-if="loading"
+      class="loading-state"
+    >
+      <text class="loading-text">
+        加载中...
+      </text>
+    </view>
 
     <template v-else>
-      <view v-if="list.length === 0" class="empty">
-        <text class="empty-icon">🔄</text>
+      <view
+        v-if="list.length === 0"
+        class="empty"
+      >
+        <text class="empty-icon">
+          🔄
+        </text>
         <text>暂无售后记录</text>
       </view>
 
-      <view v-for="item in list" :key="item.id" class="card" @click="goDetail(item)">
+      <view
+        v-for="item in list"
+        :key="item.id"
+        class="card"
+        @click="goDetail(item)"
+      >
         <view class="card-header">
-          <text class="card-type">{{ typeLabel(item.type) }}</text>
-          <text class="card-status" :class="'status-' + (item.status || '').toLowerCase()">
+          <text class="card-type">
+            {{ typeLabel(item.type) }}
+          </text>
+          <text
+            class="card-status"
+            :class="'status-' + (item.status || '').toLowerCase()"
+          >
             {{ statusLabel(item.status) }}
           </text>
         </view>
-        <text class="card-reason">{{ item.reason }}</text>
+        <text class="card-reason">
+          {{ item.reason }}
+        </text>
         <view class="card-footer">
-          <text class="card-amount" v-if="item.amount">¥{{ Number(item.amount).toFixed(2) }}</text>
-          <text class="card-time">{{ formatTime(item.createdAt) }}</text>
+          <text
+            v-if="item.amount"
+            class="card-amount"
+          >
+            ¥{{ Number(item.amount).toFixed(2) }}
+          </text>
+          <text class="card-time">
+            {{ formatTime(item.createdAt) }}
+          </text>
         </view>
       </view>
 
       <!-- 分页加载 -->
-      <view v-if="hasMore" class="load-more" @click="loadMore">
+      <view
+        v-if="hasMore"
+        class="load-more"
+        @click="loadMore"
+      >
         <text>加载更多</text>
       </view>
     </template>

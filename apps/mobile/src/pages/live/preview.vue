@@ -1,7 +1,10 @@
 <template>
   <view class="page">
     <!-- 加载态 -->
-    <view v-if="loading" class="loading-wrap">
+    <view
+      v-if="loading"
+      class="loading-wrap"
+    >
       <view class="skeleton-cover" />
       <view class="skeleton-body">
         <view class="skeleton-line w-80" />
@@ -11,82 +14,161 @@
     </view>
 
     <!-- 错误态 -->
-    <view v-else-if="loadError" class="error-wrap">
+    <view
+      v-else-if="loadError"
+      class="error-wrap"
+    >
       <view class="error-inner">
-        <text class="error-icon">⚠️</text>
-        <text class="error-text">{{ loadError }}</text>
-        <view class="error-retry" @click="loadRoom">重新加载</view>
+        <text class="error-icon">
+          ⚠️
+        </text>
+        <text class="error-text">
+          {{ loadError }}
+        </text>
+        <view
+          class="error-retry"
+          @click="loadRoom"
+        >
+          重新加载
+        </view>
       </view>
     </view>
 
-    <view v-else-if="!room" class="empty-state">
-      <text class="empty-text">直播不存在</text>
+    <view
+      v-else-if="!room"
+      class="empty-state"
+    >
+      <text class="empty-text">
+        直播不存在
+      </text>
     </view>
 
     <template v-else>
       <!-- 封面区域 -->
       <view class="cover-section">
-        <image :src="room.cover" mode="aspectFill" class="cover-bg" />
+        <image
+          :src="room.cover"
+          mode="aspectFill"
+          class="cover-bg"
+        />
         <view class="cover-gradient" />
 
         <!-- 顶部导航 -->
         <view class="cover-top">
-          <view class="top-btn" @click="goBack">
-            <text class="top-btn-icon">←</text>
+          <view
+            class="top-btn"
+            @click="goBack"
+          >
+            <text class="top-btn-icon">
+              ←
+            </text>
           </view>
-          <view class="top-btn" @click="handleShare">
-            <text class="top-btn-icon">↗️</text>
+          <view
+            class="top-btn"
+            @click="handleShare"
+          >
+            <text class="top-btn-icon">
+              ↗️
+            </text>
           </view>
         </view>
 
         <!-- 预告标签 -->
         <view class="cover-label">
-          <text class="label-icon">📅</text>
-          <text class="label-text">直播预告</text>
+          <text class="label-icon">
+            📅
+          </text>
+          <text class="label-text">
+            直播预告
+          </text>
         </view>
 
         <!-- 底部信息 -->
         <view class="cover-bottom">
-          <text class="cover-title">{{ room.title }}</text>
+          <text class="cover-title">
+            {{ room.title }}
+          </text>
 
           <!-- 讲师信息 -->
-          <view class="host-row" @click="goProfile(room.host.id)">
-            <image :src="room.host.avatar" mode="aspectFill" class="host-avatar" />
+          <view
+            class="host-row"
+            @click="goProfile(room.host.id)"
+          >
+            <image
+              :src="room.host.avatar"
+              mode="aspectFill"
+              class="host-avatar"
+            />
             <view class="host-info">
-              <text class="host-name">{{ room.host.name }}</text>
-              <text class="host-fans">{{ room.host.followers.toLocaleString() }} 粉丝</text>
+              <text class="host-name">
+                {{ room.host.name }}
+              </text>
+              <text class="host-fans">
+                {{ room.host.followers.toLocaleString() }} 粉丝
+              </text>
             </view>
           </view>
 
           <!-- 倒计时 -->
           <view class="countdown-box">
-            <view v-if="isStartingSoon" class="countdown-soon">
-              <text class="soon-icon">▶</text>
-              <text class="soon-text">即将开始</text>
+            <view
+              v-if="isStartingSoon"
+              class="countdown-soon"
+            >
+              <text class="soon-icon">
+                ▶
+              </text>
+              <text class="soon-text">
+                即将开始
+              </text>
             </view>
             <template v-else>
-              <text class="countdown-label">距开播还有</text>
+              <text class="countdown-label">
+                距开播还有
+              </text>
               <view class="countdown-display">
                 <template v-if="countdown.days > 0">
                   <view class="countdown-block">
-                    <text class="cd-num">{{ countdown.days }}</text>
-                    <text class="cd-unit">天</text>
+                    <text class="cd-num">
+                      {{ countdown.days }}
+                    </text>
+                    <text class="cd-unit">
+                      天
+                    </text>
                   </view>
-                  <text class="cd-sep">:</text>
+                  <text class="cd-sep">
+                    :
+                  </text>
                 </template>
                 <view class="countdown-block">
-                  <text class="cd-num">{{ String(countdown.hours).padStart(2, '0') }}</text>
-                  <text class="cd-unit">时</text>
+                  <text class="cd-num">
+                    {{ String(countdown.hours).padStart(2, '0') }}
+                  </text>
+                  <text class="cd-unit">
+                    时
+                  </text>
                 </view>
-                <text class="cd-sep">:</text>
+                <text class="cd-sep">
+                  :
+                </text>
                 <view class="countdown-block">
-                  <text class="cd-num">{{ String(countdown.minutes).padStart(2, '0') }}</text>
-                  <text class="cd-unit">分</text>
+                  <text class="cd-num">
+                    {{ String(countdown.minutes).padStart(2, '0') }}
+                  </text>
+                  <text class="cd-unit">
+                    分
+                  </text>
                 </view>
-                <text class="cd-sep">:</text>
+                <text class="cd-sep">
+                  :
+                </text>
                 <view class="countdown-block">
-                  <text class="cd-num">{{ String(countdown.seconds).padStart(2, '0') }}</text>
-                  <text class="cd-unit">秒</text>
+                  <text class="cd-num">
+                    {{ String(countdown.seconds).padStart(2, '0') }}
+                  </text>
+                  <text class="cd-unit">
+                    秒
+                  </text>
                 </view>
               </view>
             </template>
@@ -101,55 +183,128 @@
           <view class="info-grid">
             <view class="info-item">
               <view class="info-value-row">
-                <text class="info-icon accent">👥</text>
-                <text class="info-value">{{ bookedCount.toLocaleString() }}</text>
+                <text class="info-icon accent">
+                  👥
+                </text>
+                <text class="info-value">
+                  {{ bookedCount.toLocaleString() }}
+                </text>
               </view>
-              <text class="info-label">已预约</text>
+              <text class="info-label">
+                已预约
+              </text>
             </view>
             <view class="info-item">
               <view class="info-value-row">
-                <text class="info-icon gold">⏱️</text>
-                <text class="info-value">{{ room.estimatedDuration || 60 }}</text>
+                <text class="info-icon gold">
+                  ⏱️
+                </text>
+                <text class="info-value">
+                  {{ room.estimatedDuration || 60 }}
+                </text>
               </view>
-              <text class="info-label">预计时长(分钟)</text>
+              <text class="info-label">
+                预计时长(分钟)
+              </text>
             </view>
             <view class="info-item">
-              <text class="info-value">{{ formatDate(room.startTime) }}</text>
-              <text class="info-label">{{ formatTime(room.startTime) }}</text>
+              <text class="info-value">
+                {{ formatDate(room.startTime) }}
+              </text>
+              <text class="info-label">
+                {{ formatTime(room.startTime) }}
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 标签 -->
-        <view v-if="room.tags && room.tags.length > 0" class="tags-row">
-          <text v-for="(tag, i) in room.tags" :key="i" class="tag">{{ tag }}</text>
+        <view
+          v-if="room.tags && room.tags.length > 0"
+          class="tags-row"
+        >
+          <text
+            v-for="(tag, i) in room.tags"
+            :key="i"
+            class="tag"
+          >
+            {{ tag }}
+          </text>
         </view>
 
         <!-- 直播简介 -->
         <view class="desc-card">
-          <text class="section-title">直播简介</text>
+          <text class="section-title">
+            直播简介
+          </text>
           <view class="desc-content">
-            <template v-for="(line, i) in descLines" :key="i">
-              <text v-if="line.type === 'h3'" class="desc-h3">{{ line.text }}</text>
-              <text v-else-if="line.type === 'bold'" class="desc-bold">{{ line.text }}</text>
-              <text v-else-if="line.type === 'list'" class="desc-list-item">• {{ line.text }}</text>
-              <text v-else-if="line.type === 'numbered'" class="desc-numbered">{{ line.text }}</text>
-              <text v-else-if="line.text === ''" class="desc-break" />
-              <text v-else class="desc-paragraph">{{ line.text }}</text>
+            <template
+              v-for="(line, i) in descLines"
+              :key="i"
+            >
+              <text
+                v-if="line.type === 'h3'"
+                class="desc-h3"
+              >
+                {{ line.text }}
+              </text>
+              <text
+                v-else-if="line.type === 'bold'"
+                class="desc-bold"
+              >
+                {{ line.text }}
+              </text>
+              <text
+                v-else-if="line.type === 'list'"
+                class="desc-list-item"
+              >
+                • {{ line.text }}
+              </text>
+              <text
+                v-else-if="line.type === 'numbered'"
+                class="desc-numbered"
+              >
+                {{ line.text }}
+              </text>
+              <text
+                v-else-if="line.text === ''"
+                class="desc-break"
+              />
+              <text
+                v-else
+                class="desc-paragraph"
+              >
+                {{ line.text }}
+              </text>
             </template>
           </view>
         </view>
 
         <!-- 讲师介绍 -->
         <view class="teacher-card">
-          <text class="section-title">讲师介绍</text>
-          <view class="teacher-row" @click="goProfile(room.host.id)">
-            <image :src="room.host.avatar" mode="aspectFill" class="teacher-avatar" />
+          <text class="section-title">
+            讲师介绍
+          </text>
+          <view
+            class="teacher-row"
+            @click="goProfile(room.host.id)"
+          >
+            <image
+              :src="room.host.avatar"
+              mode="aspectFill"
+              class="teacher-avatar"
+            />
             <view class="teacher-info">
-              <text class="teacher-name">{{ room.host.name }}</text>
-              <text class="teacher-fans">{{ room.host.followers.toLocaleString() }} 粉丝</text>
+              <text class="teacher-name">
+                {{ room.host.name }}
+              </text>
+              <text class="teacher-fans">
+                {{ room.host.followers.toLocaleString() }} 粉丝
+              </text>
             </view>
-            <text class="teacher-link">查看主页 →</text>
+            <text class="teacher-link">
+              查看主页 →
+            </text>
           </view>
         </view>
       </view>
@@ -157,9 +312,16 @@
       <!-- 底部固定按钮 -->
       <view class="bottom-bar">
         <view class="bottom-inner">
-          <view :class="['book-btn', isBooked ? 'booked' : '']" @click="handleBook">
-            <text v-if="isBooked">✓ 已预约</text>
-            <text v-else>🔔 立即预约</text>
+          <view
+            :class="['book-btn', isBooked ? 'booked' : '']"
+            @click="handleBook"
+          >
+            <text v-if="isBooked">
+              ✓ 已预约
+            </text>
+            <text v-else>
+              🔔 立即预约
+            </text>
           </view>
         </view>
       </view>

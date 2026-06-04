@@ -4,37 +4,72 @@
     <view class="header">
       <view class="header-row">
         <view class="header-left">
-          <text class="back-btn" @click="goBack">←</text>
-          <text class="header-title">收入结算</text>
+          <text
+            class="back-btn"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <text class="header-title">
+            收入结算
+          </text>
         </view>
-        <text class="filter-icon" @click="showYearFilter = true">📅</text>
+        <text
+          class="filter-icon"
+          @click="showYearFilter = true"
+        >
+          📅
+        </text>
       </view>
     </view>
 
     <!-- 统计卡片 -->
-    <view v-if="stats" class="stats-section">
+    <view
+      v-if="stats"
+      class="stats-section"
+    >
       <view class="stats-card">
-        <text class="stats-label">累计收入</text>
-        <text class="stats-amount">¥{{ formatNumber(stats.totalNetAmount) }}</text>
+        <text class="stats-label">
+          累计收入
+        </text>
+        <text class="stats-amount">
+          ¥{{ formatNumber(stats.totalNetAmount) }}
+        </text>
         <view class="stats-grid">
           <view class="stats-item">
-            <text class="stats-item-label">总收入</text>
-            <text class="stats-item-val">¥{{ formatNumber(stats.totalIncome) }}</text>
+            <text class="stats-item-label">
+              总收入
+            </text>
+            <text class="stats-item-val">
+              ¥{{ formatNumber(stats.totalIncome) }}
+            </text>
           </view>
           <view class="stats-item">
-            <text class="stats-item-label">扣除</text>
-            <text class="stats-item-val stats-deduction">¥{{ formatNumber(stats.totalDeduction) }}</text>
+            <text class="stats-item-label">
+              扣除
+            </text>
+            <text class="stats-item-val stats-deduction">
+              ¥{{ formatNumber(stats.totalDeduction) }}
+            </text>
           </view>
           <view class="stats-item">
-            <text class="stats-item-label">待结算</text>
-            <text class="stats-item-val stats-pending">¥{{ formatNumber(stats.pendingAmount) }}</text>
+            <text class="stats-item-label">
+              待结算
+            </text>
+            <text class="stats-item-val stats-pending">
+              ¥{{ formatNumber(stats.pendingAmount) }}
+            </text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- 状态筛选 -->
-    <scroll-view scroll-x class="status-scroll" show-scrollbar="false">
+    <scroll-view
+      scroll-x
+      class="status-scroll"
+      show-scrollbar="false"
+    >
       <view class="status-inner">
         <text
           v-for="opt in statusOptions"
@@ -42,14 +77,16 @@
           class="status-tab"
           :class="{ active: selectedStatus === opt.value }"
           @click="selectedStatus = opt.value"
-        >{{ opt.label }}</text>
+        >
+          {{ opt.label }}
+        </text>
       </view>
     </scroll-view>
 
     <!-- 结算列表 -->
     <DataState
       :is-loading="loading && settlements.length === 0"
-      :isEmpty="!loading && settlements.length === 0"
+      :is-empty="!loading && settlements.length === 0"
       empty-icon="💰"
       empty-title="暂无结算记录"
       skeleton-type="list"
@@ -65,40 +102,72 @@
           <view class="settlement-top">
             <view class="settlement-period">
               <text>📅</text>
-              <text class="settlement-period-text">{{ s.periodStart }} ~ {{ s.periodEnd }}</text>
+              <text class="settlement-period-text">
+                {{ s.periodStart }} ~ {{ s.periodEnd }}
+              </text>
             </view>
-            <text class="settlement-status" :class="'status-' + s.status">
+            <text
+              class="settlement-status"
+              :class="'status-' + s.status"
+            >
               {{ getStatusLabel(s.status) }}
             </text>
           </view>
-          <text class="settlement-no">结算单号：{{ s.settlementNo }}</text>
+          <text class="settlement-no">
+            结算单号：{{ s.settlementNo }}
+          </text>
           <view class="settlement-bottom">
             <view class="settlement-figures">
               <view class="settlement-figure">
-                <text class="figure-label">收入</text>
-                <text class="figure-val">¥{{ formatNumber(s.totalIncome) }}</text>
+                <text class="figure-label">
+                  收入
+                </text>
+                <text class="figure-val">
+                  ¥{{ formatNumber(s.totalIncome) }}
+                </text>
               </view>
               <view class="settlement-figure">
-                <text class="figure-label">扣除</text>
-                <text class="figure-val figure-deduction">-¥{{ formatNumber(s.totalDeduction) }}</text>
+                <text class="figure-label">
+                  扣除
+                </text>
+                <text class="figure-val figure-deduction">
+                  -¥{{ formatNumber(s.totalDeduction) }}
+                </text>
               </view>
               <view class="settlement-figure">
-                <text class="figure-label">实收</text>
-                <text class="figure-val figure-net">¥{{ formatNumber(s.netAmount) }}</text>
+                <text class="figure-label">
+                  实收
+                </text>
+                <text class="figure-val figure-net">
+                  ¥{{ formatNumber(s.netAmount) }}
+                </text>
               </view>
             </view>
-            <text class="settlement-arrow">›</text>
+            <text class="settlement-arrow">
+              ›
+            </text>
           </view>
         </view>
       </view>
     </DataState>
 
     <!-- 年份筛选弹窗 -->
-    <view v-if="showYearFilter" class="mask" @click="showYearFilter = false">
-      <view class="bottom-sheet" @click.stop>
+    <view
+      v-if="showYearFilter"
+      class="mask"
+      @click="showYearFilter = false"
+    >
+      <view
+        class="bottom-sheet"
+        @click.stop
+      >
         <view class="sheet-header">
-          <text class="sheet-title">筛选年份</text>
-          <text @click="showYearFilter = false">✕</text>
+          <text class="sheet-title">
+            筛选年份
+          </text>
+          <text @click="showYearFilter = false">
+            ✕
+          </text>
         </view>
         <view class="year-grid">
           <text
@@ -107,95 +176,184 @@
             class="year-btn"
             :class="{ active: selectedYear === y }"
             @click="selectedYear = y"
-          >{{ y }}年</text>
+          >
+            {{ y }}年
+          </text>
         </view>
         <view class="sheet-footer">
-          <view class="confirm-btn" @click="showYearFilter = false">确定</view>
+          <view
+            class="confirm-btn"
+            @click="showYearFilter = false"
+          >
+            确定
+          </view>
         </view>
       </view>
     </view>
 
     <!-- 结算详情弹窗 -->
-    <view v-if="showDetail" class="mask" @click="showDetail = false">
-      <view class="bottom-sheet detail-sheet" @click.stop>
+    <view
+      v-if="showDetail"
+      class="mask"
+      @click="showDetail = false"
+    >
+      <view
+        class="bottom-sheet detail-sheet"
+        @click.stop
+      >
         <view class="sheet-header">
-          <text class="sheet-title">结算详情</text>
-          <text @click="showDetail = false">✕</text>
+          <text class="sheet-title">
+            结算详情
+          </text>
+          <text @click="showDetail = false">
+            ✕
+          </text>
         </view>
-        <scroll-view scroll-y class="detail-scroll">
-          <view v-if="detailLoading" class="detail-loading">
+        <scroll-view
+          scroll-y
+          class="detail-scroll"
+        >
+          <view
+            v-if="detailLoading"
+            class="detail-loading"
+          >
             <text>加载中...</text>
           </view>
-          <view v-else-if="detailData" class="detail-body">
+          <view
+            v-else-if="detailData"
+            class="detail-body"
+          >
             <!-- 概览 -->
             <view class="detail-overview">
               <view class="detail-period">
                 <text>📅</text>
-                <text class="detail-period-text">{{ detailData.periodStart }} ~ {{ detailData.periodEnd }}</text>
-                <text class="settlement-status" :class="'status-' + detailData.status">
+                <text class="detail-period-text">
+                  {{ detailData.periodStart }} ~ {{ detailData.periodEnd }}
+                </text>
+                <text
+                  class="settlement-status"
+                  :class="'status-' + detailData.status"
+                >
                   {{ getStatusLabel(detailData.status) }}
                 </text>
               </view>
               <view class="detail-grid">
                 <view class="detail-grid-item">
-                  <text class="detail-grid-label">总收入</text>
-                  <text class="detail-grid-val">¥{{ formatNumber(detailData.totalIncome) }}</text>
+                  <text class="detail-grid-label">
+                    总收入
+                  </text>
+                  <text class="detail-grid-val">
+                    ¥{{ formatNumber(detailData.totalIncome) }}
+                  </text>
                 </view>
                 <view class="detail-grid-item">
-                  <text class="detail-grid-label">扣除</text>
-                  <text class="detail-grid-val detail-grid-deduction">-¥{{ formatNumber(detailData.totalDeduction) }}</text>
+                  <text class="detail-grid-label">
+                    扣除
+                  </text>
+                  <text class="detail-grid-val detail-grid-deduction">
+                    -¥{{ formatNumber(detailData.totalDeduction) }}
+                  </text>
                 </view>
                 <view class="detail-grid-item">
-                  <text class="detail-grid-label">实收</text>
-                  <text class="detail-grid-val detail-grid-net">¥{{ formatNumber(detailData.netAmount) }}</text>
+                  <text class="detail-grid-label">
+                    实收
+                  </text>
+                  <text class="detail-grid-val detail-grid-net">
+                    ¥{{ formatNumber(detailData.netAmount) }}
+                  </text>
                 </view>
               </view>
             </view>
 
             <!-- 收入构成 -->
             <view class="detail-section">
-              <text class="detail-section-title">收入构成</text>
+              <text class="detail-section-title">
+                收入构成
+              </text>
               <view class="income-type-grid">
-                <view v-for="item in detailData.incomeByType" :key="item.type" class="income-type-card">
+                <view
+                  v-for="item in detailData.incomeByType"
+                  :key="item.type"
+                  class="income-type-card"
+                >
                   <view class="income-type-header">
-                    <view class="income-type-icon" :class="'icon-' + item.type">
+                    <view
+                      class="income-type-icon"
+                      :class="'icon-' + item.type"
+                    >
                       <text>{{ getIncomeTypeIcon(item.type) }}</text>
                     </view>
-                    <text class="income-type-label">{{ getIncomeTypeLabel(item.type) }}</text>
+                    <text class="income-type-label">
+                      {{ getIncomeTypeLabel(item.type) }}
+                    </text>
                   </view>
-                  <text class="income-type-amount">¥{{ formatNumber(item.amount) }}</text>
-                  <text class="income-type-count">{{ item.count }}笔</text>
+                  <text class="income-type-amount">
+                    ¥{{ formatNumber(item.amount) }}
+                  </text>
+                  <text class="income-type-count">
+                    {{ item.count }}笔
+                  </text>
                 </view>
               </view>
             </view>
 
             <!-- 收入明细 -->
             <view class="detail-section">
-              <text class="detail-section-title">收入明细</text>
+              <text class="detail-section-title">
+                收入明细
+              </text>
               <view class="detail-items">
-                <view v-for="item in detailData.incomeItems" :key="item.id" class="detail-item">
-                  <view class="detail-item-icon" :class="'icon-' + item.type">
+                <view
+                  v-for="item in detailData.incomeItems"
+                  :key="item.id"
+                  class="detail-item"
+                >
+                  <view
+                    class="detail-item-icon"
+                    :class="'icon-' + item.type"
+                  >
                     <text>{{ getIncomeTypeIcon(item.type) }}</text>
                   </view>
                   <view class="detail-item-info">
-                    <text class="detail-item-title">{{ item.title }}</text>
-                    <text class="detail-item-time">{{ item.time }}</text>
+                    <text class="detail-item-title">
+                      {{ item.title }}
+                    </text>
+                    <text class="detail-item-time">
+                      {{ item.time }}
+                    </text>
                   </view>
-                  <text class="detail-item-amount income-amount">+¥{{ formatNumber(item.amount) }}</text>
+                  <text class="detail-item-amount income-amount">
+                    +¥{{ formatNumber(item.amount) }}
+                  </text>
                 </view>
               </view>
             </view>
 
             <!-- 扣除明细 -->
             <view class="detail-section">
-              <text class="detail-section-title">扣除明细</text>
+              <text class="detail-section-title">
+                扣除明细
+              </text>
               <view class="detail-items">
-                <view v-for="item in detailData.deductionItems" :key="item.id" class="detail-item">
+                <view
+                  v-for="item in detailData.deductionItems"
+                  :key="item.id"
+                  class="detail-item"
+                >
                   <view class="detail-item-info">
-                    <text class="detail-item-title">{{ item.title }}</text>
-                    <text v-if="item.remark" class="detail-item-time">{{ item.remark }}</text>
+                    <text class="detail-item-title">
+                      {{ item.title }}
+                    </text>
+                    <text
+                      v-if="item.remark"
+                      class="detail-item-time"
+                    >
+                      {{ item.remark }}
+                    </text>
                   </view>
-                  <text class="detail-item-amount deduction-amount">-¥{{ formatNumber(item.amount) }}</text>
+                  <text class="detail-item-amount deduction-amount">
+                    -¥{{ formatNumber(item.amount) }}
+                  </text>
                 </view>
               </view>
             </view>

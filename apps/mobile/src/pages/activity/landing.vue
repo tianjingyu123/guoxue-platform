@@ -3,75 +3,178 @@
     <!-- 顶部导航 -->
     <view class="top-bar">
       <view class="top-bar-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="top-title">{{ activity?.title || '活动详情' }}</text>
-        <text class="share-btn" @click="handleShare">📤</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="top-title">
+          {{ activity?.title || '活动详情' }}
+        </text>
+        <text
+          class="share-btn"
+          @click="handleShare"
+        >
+          📤
+        </text>
       </view>
     </view>
 
     <!-- Banner -->
-    <view class="banner-wrap" v-if="activity?.bannerUrl">
-      <image :src="activity.bannerUrl" mode="aspectFill" class="banner-img" />
+    <view
+      v-if="activity?.bannerUrl"
+      class="banner-wrap"
+    >
+      <image
+        :src="activity.bannerUrl"
+        mode="aspectFill"
+        class="banner-img"
+      />
       <view class="banner-overlay" />
       <view class="banner-text">
-        <text class="banner-title">{{ activity.title }}</text>
-        <text v-if="activity.subtitle" class="banner-sub">{{ activity.subtitle }}</text>
+        <text class="banner-title">
+          {{ activity.title }}
+        </text>
+        <text
+          v-if="activity.subtitle"
+          class="banner-sub"
+        >
+          {{ activity.subtitle }}
+        </text>
       </view>
     </view>
 
     <!-- 倒计时 -->
-    <view class="countdown-bar" v-if="countdown">
+    <view
+      v-if="countdown"
+      class="countdown-bar"
+    >
       <view class="cd-left">
-        <text class="cd-icon">🕐</text>
-        <text class="cd-label">{{ activity?.status === 'upcoming' ? '距开始' : '距结束' }}</text>
+        <text class="cd-icon">
+          🕐
+        </text>
+        <text class="cd-label">
+          {{ activity?.status === 'upcoming' ? '距开始' : '距结束' }}
+        </text>
       </view>
-      <view class="cd-right" v-if="!countdown.isEnded">
-        <text class="cd-box">{{ countdown.hours }}</text>
-        <text class="cd-colon">:</text>
-        <text class="cd-box">{{ countdown.minutes }}</text>
-        <text class="cd-colon">:</text>
-        <text class="cd-box">{{ countdown.seconds }}</text>
+      <view
+        v-if="!countdown.isEnded"
+        class="cd-right"
+      >
+        <text class="cd-box">
+          {{ countdown.hours }}
+        </text>
+        <text class="cd-colon">
+          :
+        </text>
+        <text class="cd-box">
+          {{ countdown.minutes }}
+        </text>
+        <text class="cd-colon">
+          :
+        </text>
+        <text class="cd-box">
+          {{ countdown.seconds }}
+        </text>
       </view>
-      <text v-else class="cd-ended">{{ activity?.status === 'upcoming' ? '即将开始' : '已结束' }}</text>
+      <text
+        v-else
+        class="cd-ended"
+      >
+        {{ activity?.status === 'upcoming' ? '即将开始' : '已结束' }}
+      </text>
     </view>
 
     <!-- 活动商品 -->
-    <view class="section" v-if="activity">
-      <view v-if="activity.type === 'flash_sale'" class="section-header">
-        <text class="section-icon">⚡</text>
-        <text class="section-title">限时秒杀</text>
+    <view
+      v-if="activity"
+      class="section"
+    >
+      <view
+        v-if="activity.type === 'flash_sale'"
+        class="section-header"
+      >
+        <text class="section-icon">
+          ⚡
+        </text>
+        <text class="section-title">
+          限时秒杀
+        </text>
       </view>
-      <view v-else-if="activity.type === 'group_buy'" class="section-header">
-        <text class="section-icon">👥</text>
-        <text class="section-title">拼团购</text>
+      <view
+        v-else-if="activity.type === 'group_buy'"
+        class="section-header"
+      >
+        <text class="section-icon">
+          👥
+        </text>
+        <text class="section-title">
+          拼团购
+        </text>
       </view>
-      <view v-else-if="activity.type === 'promotion'" class="section-header">
-        <text class="section-icon">🎁</text>
-        <text class="section-title">促销商品</text>
+      <view
+        v-else-if="activity.type === 'promotion'"
+        class="section-header"
+      >
+        <text class="section-icon">
+          🎁
+        </text>
+        <text class="section-title">
+          促销商品
+        </text>
       </view>
 
       <!-- Flash Sale Items -->
-      <view v-if="activity.type === 'flash_sale' && activity.items" class="item-list">
-        <view v-for="item in activity.items" :key="item.id" class="item-card">
+      <view
+        v-if="activity.type === 'flash_sale' && activity.items"
+        class="item-list"
+      >
+        <view
+          v-for="item in activity.items"
+          :key="item.id"
+          class="item-card"
+        >
           <view class="item-row">
-            <image :src="item.cover" mode="aspectFill" class="item-cover" />
+            <image
+              :src="item.cover"
+              mode="aspectFill"
+              class="item-cover"
+            />
             <view class="item-info">
-              <text class="item-title">{{ item.title }}</text>
+              <text class="item-title">
+                {{ item.title }}
+              </text>
               <view class="price-row">
-                <text class="sale-price">¥{{ item.salePrice }}</text>
-                <text class="orig-price">¥{{ item.originalPrice }}</text>
+                <text class="sale-price">
+                  ¥{{ item.salePrice }}
+                </text>
+                <text class="orig-price">
+                  ¥{{ item.originalPrice }}
+                </text>
               </view>
               <view class="progress-row">
-                <text class="progress-text">已抢 {{ calcProgress(item) }}%</text>
-                <text class="limit-text">限购 {{ item.limitPerUser }} 件</text>
+                <text class="progress-text">
+                  已抢 {{ calcProgress(item) }}%
+                </text>
+                <text class="limit-text">
+                  限购 {{ item.limitPerUser }} 件
+                </text>
               </view>
               <view class="progress-bar">
-                <view class="progress-fill" :style="{ width: calcProgress(item) + '%' }" />
+                <view
+                  class="progress-fill"
+                  :style="{ width: calcProgress(item) + '%' }"
+                />
               </view>
             </view>
           </view>
           <view class="item-action">
-            <view class="buy-btn" :class="{ disabled: item.status !== 'ongoing' }" @click="buyFlash(item)">
+            <view
+              class="buy-btn"
+              :class="{ disabled: item.status !== 'ongoing' }"
+              @click="buyFlash(item)"
+            >
               <text>{{ buyingId === item.id ? '抢购中...' : item.status === 'sold_out' ? '已抢光' : '立即抢购' }}</text>
             </view>
           </view>
@@ -79,30 +182,74 @@
       </view>
 
       <!-- Group Buy Items -->
-      <view v-if="activity.type === 'group_buy' && activity.items" class="item-list">
-        <view v-for="item in activity.items" :key="item.id" class="item-card">
+      <view
+        v-if="activity.type === 'group_buy' && activity.items"
+        class="item-list"
+      >
+        <view
+          v-for="item in activity.items"
+          :key="item.id"
+          class="item-card"
+        >
           <view class="item-row">
-            <image :src="item.cover" mode="aspectFill" class="item-cover" />
+            <image
+              :src="item.cover"
+              mode="aspectFill"
+              class="item-cover"
+            />
             <view class="item-info">
-              <text class="item-title">{{ item.title }}</text>
+              <text class="item-title">
+                {{ item.title }}
+              </text>
               <view class="price-row">
-                <text class="sale-price">¥{{ item.groupPrice }}</text>
-                <text class="orig-price">¥{{ item.originalPrice }}</text>
+                <text class="sale-price">
+                  ¥{{ item.groupPrice }}
+                </text>
+                <text class="orig-price">
+                  ¥{{ item.originalPrice }}
+                </text>
               </view>
-              <text class="group-meta">{{ item.groupSize }}人团 · 已拼{{ item.completedGroups }}件</text>
+              <text class="group-meta">
+                {{ item.groupSize }}人团 · 已拼{{ item.completedGroups }}件
+              </text>
             </view>
           </view>
-          <view v-if="item.ongoingGroups?.length" class="ongoing-groups">
-            <text class="og-title">正在拼团：</text>
-            <view v-for="g in item.ongoingGroups.slice(0, 2)" :key="g.id" class="og-item">
-              <image :src="g.leaderAvatar" mode="aspectFill" class="og-avatar" />
-              <text class="og-name">{{ g.leaderName }}</text>
-              <text class="og-remain">还差{{ item.groupSize - g.currentSize }}人</text>
-              <text class="og-join" @click="joinGroupBuy(g.id)">去拼团</text>
+          <view
+            v-if="item.ongoingGroups?.length"
+            class="ongoing-groups"
+          >
+            <text class="og-title">
+              正在拼团：
+            </text>
+            <view
+              v-for="g in item.ongoingGroups.slice(0, 2)"
+              :key="g.id"
+              class="og-item"
+            >
+              <image
+                :src="g.leaderAvatar"
+                mode="aspectFill"
+                class="og-avatar"
+              />
+              <text class="og-name">
+                {{ g.leaderName }}
+              </text>
+              <text class="og-remain">
+                还差{{ item.groupSize - g.currentSize }}人
+              </text>
+              <text
+                class="og-join"
+                @click="joinGroupBuy(g.id)"
+              >
+                去拼团
+              </text>
             </view>
           </view>
           <view class="item-action">
-            <view class="buy-btn primary" @click="createGroupBuy(item.id)">
+            <view
+              class="buy-btn primary"
+              @click="createGroupBuy(item.id)"
+            >
               <text>{{ buyingId === item.id ? '开团中...' : '我要开团' }}</text>
             </view>
           </view>
@@ -110,15 +257,35 @@
       </view>
 
       <!-- Promotion Items -->
-      <view v-if="activity.type === 'promotion' && activity.items" class="promo-grid">
-        <view v-for="item in activity.items" :key="item.id" class="promo-card" @click="goProduct(item)">
-          <image :src="item.cover" mode="aspectFill" class="promo-cover" />
-          <view class="promo-badge">{{ item.discountLabel }}</view>
+      <view
+        v-if="activity.type === 'promotion' && activity.items"
+        class="promo-grid"
+      >
+        <view
+          v-for="item in activity.items"
+          :key="item.id"
+          class="promo-card"
+          @click="goProduct(item)"
+        >
+          <image
+            :src="item.cover"
+            mode="aspectFill"
+            class="promo-cover"
+          />
+          <view class="promo-badge">
+            {{ item.discountLabel }}
+          </view>
           <view class="promo-info">
-            <text class="promo-title">{{ item.title }}</text>
+            <text class="promo-title">
+              {{ item.title }}
+            </text>
             <view class="promo-price-row">
-              <text class="promo-price">¥{{ item.promotionPrice }}</text>
-              <text class="promo-orig">¥{{ item.originalPrice }}</text>
+              <text class="promo-price">
+                ¥{{ item.promotionPrice }}
+              </text>
+              <text class="promo-orig">
+                ¥{{ item.originalPrice }}
+              </text>
             </view>
           </view>
         </view>
@@ -126,19 +293,43 @@
     </view>
 
     <!-- 活动规则 -->
-    <view class="rules-section" v-if="activity?.rules?.length">
-      <view class="rules-header" @click="showRules = !showRules">
-        <text class="rules-title">活动规则</text>
-        <text class="rules-arrow">{{ showRules ? '▲' : '▼' }}</text>
+    <view
+      v-if="activity?.rules?.length"
+      class="rules-section"
+    >
+      <view
+        class="rules-header"
+        @click="showRules = !showRules"
+      >
+        <text class="rules-title">
+          活动规则
+        </text>
+        <text class="rules-arrow">
+          {{ showRules ? '▲' : '▼' }}
+        </text>
       </view>
-      <view v-if="showRules" class="rules-body">
-        <text v-for="(r, i) in activity.rules" :key="i" class="rule-item">{{ i + 1 }}. {{ r }}</text>
+      <view
+        v-if="showRules"
+        class="rules-body"
+      >
+        <text
+          v-for="(r, i) in activity.rules"
+          :key="i"
+          class="rule-item"
+        >
+          {{ i + 1 }}. {{ r }}
+        </text>
       </view>
     </view>
 
     <!-- Loading -->
-    <view v-if="loading" class="loading-wrap">
-      <text class="loading-text">加载中...</text>
+    <view
+      v-if="loading"
+      class="loading-wrap"
+    >
+      <text class="loading-text">
+        加载中...
+      </text>
     </view>
   </view>
 </template>

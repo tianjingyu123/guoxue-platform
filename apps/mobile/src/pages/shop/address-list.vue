@@ -1,35 +1,87 @@
 <template>
   <view class="page">
-    <view v-if="loading" class="loading-state">
-      <text class="loading-text">加载中...</text>
+    <view
+      v-if="loading"
+      class="loading-state"
+    >
+      <text class="loading-text">
+        加载中...
+      </text>
     </view>
 
     <template v-else>
-      <view v-if="addresses.length === 0" class="empty">
-        <text class="empty-icon">📍</text>
-        <text class="empty-text">暂无收货地址</text>
+      <view
+        v-if="addresses.length === 0"
+        class="empty"
+      >
+        <text class="empty-icon">
+          📍
+        </text>
+        <text class="empty-text">
+          暂无收货地址
+        </text>
       </view>
 
-      <view v-for="addr in addresses" :key="addr.id" class="addr-card" @click="onSelect(addr)">
+      <view
+        v-for="addr in addresses"
+        :key="addr.id"
+        class="addr-card"
+        @click="onSelect(addr)"
+      >
         <view class="addr-info">
-          <text class="addr-name">{{ addr.name }}</text>
-          <text class="addr-phone">{{ addr.phone }}</text>
-          <text v-if="addr.isDefault" class="default-tag">默认</text>
+          <text class="addr-name">
+            {{ addr.name }}
+          </text>
+          <text class="addr-phone">
+            {{ addr.phone }}
+          </text>
+          <text
+            v-if="addr.isDefault"
+            class="default-tag"
+          >
+            默认
+          </text>
         </view>
         <text class="addr-detail">
           {{ addr.province }}{{ addr.city }}{{ addr.district }} {{ addr.detail }}
         </text>
         <view class="addr-actions">
-          <text v-if="!addr.isDefault" class="action-link" @click.stop="setDefault(addr.id)">设为默认</text>
-          <text class="action-link" @click.stop="editAddr(addr)">编辑</text>
-          <text class="action-link danger" @click.stop="deleteAddr(addr.id)">删除</text>
+          <text
+            v-if="!addr.isDefault"
+            class="action-link"
+            @click.stop="setDefault(addr.id)"
+          >
+            设为默认
+          </text>
+          <text
+            class="action-link"
+            @click.stop="editAddr(addr)"
+          >
+            编辑
+          </text>
+          <text
+            class="action-link danger"
+            @click.stop="deleteAddr(addr.id)"
+          >
+            删除
+          </text>
         </view>
-        <text v-if="isSelectMode" class="select-check">{{ addr.id === selectedId ? '✓' : '' }}</text>
+        <text
+          v-if="isSelectMode"
+          class="select-check"
+        >
+          {{ addr.id === selectedId ? '✓' : '' }}
+        </text>
       </view>
     </template>
 
     <view class="bottom-fixed">
-      <view class="btn-add" @click="addAddr">+ 新增地址</view>
+      <view
+        class="btn-add"
+        @click="addAddr"
+      >
+        + 新增地址
+      </view>
     </view>
   </view>
 </template>

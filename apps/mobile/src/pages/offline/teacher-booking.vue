@@ -4,8 +4,15 @@
     <view class="header">
       <view class="header-row">
         <view class="header-left">
-          <text class="back-btn" @click="goBack">←</text>
-          <text class="header-title">预约讲师</text>
+          <text
+            class="back-btn"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <text class="header-title">
+            预约讲师
+          </text>
         </view>
       </view>
       <!-- Tab 切换 -->
@@ -28,11 +35,20 @@
     </view>
 
     <!-- 预约咨询 -->
-    <view v-if="activeTab === 'booking'" class="booking-content">
+    <view
+      v-if="activeTab === 'booking'"
+      class="booking-content"
+    >
       <!-- 讲师选择 -->
       <view class="section">
-        <text class="section-label">选择讲师</text>
-        <scroll-view scroll-x class="teacher-scroll" show-scrollbar="false">
+        <text class="section-label">
+          选择讲师
+        </text>
+        <scroll-view
+          scroll-x
+          class="teacher-scroll"
+          show-scrollbar="false"
+        >
           <view class="teacher-inner">
             <view
               v-for="t in teachers"
@@ -42,51 +58,107 @@
               @click="selectTeacher(t)"
             >
               <view class="teacher-avatar-wrap">
-                <image :src="t.avatar" class="teacher-avatar" mode="aspectFill" />
-                <view v-if="!t.isAvailable" class="teacher-rest-overlay">
-                  <text class="teacher-rest-text">休息</text>
+                <image
+                  :src="t.avatar"
+                  class="teacher-avatar"
+                  mode="aspectFill"
+                />
+                <view
+                  v-if="!t.isAvailable"
+                  class="teacher-rest-overlay"
+                >
+                  <text class="teacher-rest-text">
+                    休息
+                  </text>
                 </view>
               </view>
-              <text class="teacher-name">{{ t.name }}</text>
-              <text class="teacher-rate">¥{{ t.hourlyRate }}/时</text>
+              <text class="teacher-name">
+                {{ t.name }}
+              </text>
+              <text class="teacher-rate">
+                ¥{{ t.hourlyRate }}/时
+              </text>
             </view>
           </view>
         </scroll-view>
       </view>
 
       <!-- 讲师简介 -->
-      <view v-if="selectedTeacher" class="section teacher-intro">
+      <view
+        v-if="selectedTeacher"
+        class="section teacher-intro"
+      >
         <view class="intro-top">
-          <image :src="selectedTeacher.avatar" class="intro-avatar" mode="aspectFill" />
+          <image
+            :src="selectedTeacher.avatar"
+            class="intro-avatar"
+            mode="aspectFill"
+          />
           <view class="intro-info">
             <view class="intro-name-row">
-              <text class="intro-name">{{ selectedTeacher.name }}</text>
-              <text class="intro-title-tag">{{ selectedTeacher.title }}</text>
+              <text class="intro-name">
+                {{ selectedTeacher.name }}
+              </text>
+              <text class="intro-title-tag">
+                {{ selectedTeacher.title }}
+              </text>
             </view>
             <view class="intro-stats">
-              <text class="intro-stat">⭐ {{ selectedTeacher.rating }}</text>
-              <text class="intro-stat">{{ selectedTeacher.reviewCount }}评价</text>
-              <text class="intro-stat">{{ selectedTeacher.bookingCount }}次预约</text>
+              <text class="intro-stat">
+                ⭐ {{ selectedTeacher.rating }}
+              </text>
+              <text class="intro-stat">
+                {{ selectedTeacher.reviewCount }}评价
+              </text>
+              <text class="intro-stat">
+                {{ selectedTeacher.bookingCount }}次预约
+              </text>
             </view>
             <view class="intro-tags">
-              <text v-for="(s, i) in selectedTeacher.specialties" :key="i" class="intro-tag">{{ s }}</text>
+              <text
+                v-for="(s, i) in selectedTeacher.specialties"
+                :key="i"
+                class="intro-tag"
+              >
+                {{ s }}
+              </text>
             </view>
           </view>
         </view>
-        <text class="intro-desc">{{ selectedTeacher.introduction }}</text>
+        <text class="intro-desc">
+          {{ selectedTeacher.introduction }}
+        </text>
       </view>
 
       <!-- 日期选择 -->
       <view class="section">
         <view class="date-header">
-          <text class="section-label">选择日期</text>
+          <text class="section-label">
+            选择日期
+          </text>
           <view class="date-nav">
-            <text class="date-nav-btn" @click="changeMonth(-1)">‹</text>
-            <text class="date-nav-label">{{ formatMonth(currentMonth) }}</text>
-            <text class="date-nav-btn" @click="changeMonth(1)">›</text>
+            <text
+              class="date-nav-btn"
+              @click="changeMonth(-1)"
+            >
+              ‹
+            </text>
+            <text class="date-nav-label">
+              {{ formatMonth(currentMonth) }}
+            </text>
+            <text
+              class="date-nav-btn"
+              @click="changeMonth(1)"
+            >
+              ›
+            </text>
           </view>
         </view>
-        <scroll-view scroll-x class="date-scroll" show-scrollbar="false">
+        <scroll-view
+          scroll-x
+          class="date-scroll"
+          show-scrollbar="false"
+        >
           <view class="date-inner">
             <view
               v-for="d in availability"
@@ -99,16 +171,25 @@
               }"
               @click="selectDate(d)"
             >
-              <text class="date-weekday">{{ isToday(d.date) ? '今天' : getWeekday(d.date) }}</text>
-              <text class="date-day">{{ getDay(d.date) }}</text>
+              <text class="date-weekday">
+                {{ isToday(d.date) ? '今天' : getWeekday(d.date) }}
+              </text>
+              <text class="date-day">
+                {{ getDay(d.date) }}
+              </text>
             </view>
           </view>
         </scroll-view>
       </view>
 
       <!-- 时段选择 -->
-      <view v-if="selectedDate" class="section">
-        <text class="section-label">选择时段</text>
+      <view
+        v-if="selectedDate"
+        class="section"
+      >
+        <text class="section-label">
+          选择时段
+        </text>
         <view class="slot-grid">
           <view
             v-for="slot in currentSlots"
@@ -120,9 +201,22 @@
             }"
             @click="selectSlot(slot)"
           >
-            <text class="slot-time">{{ slot.startTime }}-{{ slot.endTime }}</text>
-            <text v-if="slot.isAvailable" class="slot-price" :class="{ 'slot-price-selected': selectedSlot?.id === slot.id }">¥{{ slot.price }}</text>
-            <text v-else class="slot-booked">已约满</text>
+            <text class="slot-time">
+              {{ slot.startTime }}-{{ slot.endTime }}
+            </text>
+            <text
+              v-if="slot.isAvailable"
+              class="slot-price"
+              :class="{ 'slot-price-selected': selectedSlot?.id === slot.id }"
+            >
+              ¥{{ slot.price }}
+            </text>
+            <text
+              v-else
+              class="slot-booked"
+            >
+              已约满
+            </text>
           </view>
         </view>
       </view>
@@ -130,16 +224,22 @@
       <!-- 咨询信息 -->
       <view class="section">
         <view class="form-group">
-          <text class="form-label">咨询主题 <text class="required">*</text></text>
+          <text class="form-label">
+            咨询主题 <text class="required">
+              *
+            </text>
+          </text>
           <input
             v-model="topic"
             class="form-input"
             placeholder="如：八字命理咨询、事业发展规划..."
             maxlength="50"
-          />
+          >
         </view>
         <view class="form-group">
-          <text class="form-label">补充说明（选填）</text>
+          <text class="form-label">
+            补充说明（选填）
+          </text>
           <textarea
             v-model="description"
             class="form-textarea"
@@ -153,8 +253,14 @@
       <view class="bottom-bar">
         <view class="bottom-bar-inner">
           <view class="bottom-price">
-            <text class="bottom-price-label">预约费用</text>
-            <text class="bottom-price-val">¥{{ totalPrice }}<text class="bottom-price-unit">/小时</text></text>
+            <text class="bottom-price-label">
+              预约费用
+            </text>
+            <text class="bottom-price-val">
+              ¥{{ totalPrice }}<text class="bottom-price-unit">
+                /小时
+              </text>
+            </text>
           </view>
           <view
             class="submit-btn"
@@ -168,25 +274,43 @@
     </view>
 
     <!-- 我的预约 -->
-    <view v-else class="records-content">
+    <view
+      v-else
+      class="records-content"
+    >
       <DataState
         :is-loading="bookingsLoading && bookings.length === 0"
-        :isEmpty="!bookingsLoading && bookings.length === 0"
+        :is-empty="!bookingsLoading && bookings.length === 0"
         empty-icon="📋"
         empty-title="暂无预约记录"
         skeleton-type="list"
       >
         <view class="records-list">
-          <view v-for="b in bookings" :key="b.id" class="record-card">
+          <view
+            v-for="b in bookings"
+            :key="b.id"
+            class="record-card"
+          >
             <view class="record-top">
               <view class="record-teacher">
-                <image :src="b.teacher?.avatar" class="record-avatar" mode="aspectFill" />
+                <image
+                  :src="b.teacher?.avatar"
+                  class="record-avatar"
+                  mode="aspectFill"
+                />
                 <view>
-                  <text class="record-name">{{ b.teacher?.name }}</text>
-                  <text class="record-title">{{ b.teacher?.title }}</text>
+                  <text class="record-name">
+                    {{ b.teacher?.name }}
+                  </text>
+                  <text class="record-title">
+                    {{ b.teacher?.title }}
+                  </text>
                 </view>
               </view>
-              <text class="record-status" :class="'status-' + b.status">
+              <text
+                class="record-status"
+                :class="'status-' + b.status"
+              >
                 {{ getBookingStatusLabel(b.status) }}
               </text>
             </view>
@@ -197,7 +321,9 @@
               </view>
               <view class="record-info-item">
                 <text>📍</text>
-                <text class="record-station">{{ b.stationName }}</text>
+                <text class="record-station">
+                  {{ b.stationName }}
+                </text>
               </view>
               <view class="record-info-item">
                 <text>💬</text>
@@ -205,7 +331,9 @@
               </view>
             </view>
             <view class="record-footer">
-              <text class="record-price">¥{{ b.price }}</text>
+              <text class="record-price">
+                ¥{{ b.price }}
+              </text>
               <view
                 v-if="b.status === 'pending' || b.status === 'confirmed'"
                 class="cancel-btn"
@@ -220,17 +348,42 @@
     </view>
 
     <!-- 预约成功弹窗 -->
-    <view v-if="showSuccess" class="mask success-mask" @click="closeSuccess">
-      <view class="success-dialog" @click.stop>
+    <view
+      v-if="showSuccess"
+      class="mask success-mask"
+      @click="closeSuccess"
+    >
+      <view
+        class="success-dialog"
+        @click.stop
+      >
         <view class="success-icon-wrap">
-          <text class="success-icon">✓</text>
+          <text class="success-icon">
+            ✓
+          </text>
         </view>
-        <text class="success-title">预约成功</text>
-        <text class="success-desc">{{ selectedTeacher?.name }} · {{ selectedDate }}</text>
-        <text class="success-time">{{ selectedSlot?.startTime }}-{{ selectedSlot?.endTime }}</text>
+        <text class="success-title">
+          预约成功
+        </text>
+        <text class="success-desc">
+          {{ selectedTeacher?.name }} · {{ selectedDate }}
+        </text>
+        <text class="success-time">
+          {{ selectedSlot?.startTime }}-{{ selectedSlot?.endTime }}
+        </text>
         <view class="success-actions">
-          <view class="success-btn-primary" @click="goToRecords">查看我的预约</view>
-          <view class="success-btn-outline" @click="continueBooking">继续预约</view>
+          <view
+            class="success-btn-primary"
+            @click="goToRecords"
+          >
+            查看我的预约
+          </view>
+          <view
+            class="success-btn-outline"
+            @click="continueBooking"
+          >
+            继续预约
+          </view>
         </view>
       </view>
     </view>
@@ -298,10 +451,12 @@ const showSuccess = ref(false)
 const bookings = ref<TeacherBooking[]>([])
 const bookingsLoading = ref(false)
 
-const currentMonth = ref(() => {
+const currentMonth = ref(getCurrentMonth())
+
+function getCurrentMonth() {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}())
+}
 
 const currentSlots = computed(() => {
   const dateData = availability.value.find(d => d.date === selectedDate.value)

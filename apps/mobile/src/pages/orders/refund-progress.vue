@@ -2,40 +2,92 @@
   <view class="page">
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">退款进度</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          退款进度
+        </text>
         <view style="width:60rpx" />
       </view>
     </view>
 
-    <view v-if="loading" class="loading-skeleton">
-      <view v-for="i in 3" :key="i" class="s-card" />
+    <view
+      v-if="loading"
+      class="loading-skeleton"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="s-card"
+      />
     </view>
 
     <template v-else-if="refund">
       <!-- 退款金额卡片 -->
       <view class="amount-card">
-        <view class="ac-top"><text class="ac-icon">💰</text><text class="ac-label">退款金额</text></view>
-        <text class="ac-amount">¥{{ (refund.amount || 0).toFixed(2) }}</text>
-        <text class="ac-method">退款方式：原路退回</text>
-        <view v-if="refund.status === 'refunding'" class="ac-eta"><text>🕐</text><text>预计 3个工作日内 到账</text></view>
-        <view v-if="refund.status === 'completed'" class="ac-done"><text>✅</text><text>退款已到账</text></view>
+        <view class="ac-top">
+          <text class="ac-icon">
+            💰
+          </text><text class="ac-label">
+            退款金额
+          </text>
+        </view>
+        <text class="ac-amount">
+          ¥{{ (refund.amount || 0).toFixed(2) }}
+        </text>
+        <text class="ac-method">
+          退款方式：原路退回
+        </text>
+        <view
+          v-if="refund.status === 'refunding'"
+          class="ac-eta"
+        >
+          <text>🕐</text><text>预计 3个工作日内 到账</text>
+        </view>
+        <view
+          v-if="refund.status === 'completed'"
+          class="ac-done"
+        >
+          <text>✅</text><text>退款已到账</text>
+        </view>
       </view>
 
       <!-- 进度时间轴 -->
       <view class="timeline-card">
-        <text class="tl-title">退款进度</text>
+        <text class="tl-title">
+          退款进度
+        </text>
         <view class="timeline">
-          <view v-for="(s, idx) in steps" :key="idx" class="tl-item" :class="{ completed: idx < currentStepIndex, current: idx === currentStepIndex, pending: idx > currentStepIndex }">
+          <view
+            v-for="(s, idx) in steps"
+            :key="idx"
+            class="tl-item"
+            :class="{ completed: idx < currentStepIndex, current: idx === currentStepIndex, pending: idx > currentStepIndex }"
+          >
             <view class="tl-dot-row">
-              <view class="tl-dot" :class="{ completed: idx < currentStepIndex, current: idx === currentStepIndex }">
-                <text v-if="idx < currentStepIndex">✓</text>
-                <text v-else-if="idx === currentStepIndex">🕐</text>
+              <view
+                class="tl-dot"
+                :class="{ completed: idx < currentStepIndex, current: idx === currentStepIndex }"
+              >
+                <text v-if="idx < currentStepIndex">
+                  ✓
+                </text>
+                <text v-else-if="idx === currentStepIndex">
+                  🕐
+                </text>
               </view>
             </view>
             <view class="tl-content">
-              <text class="tl-title-text">{{ s.title }}</text>
-              <text class="tl-desc">{{ s.desc }}</text>
+              <text class="tl-title-text">
+                {{ s.title }}
+              </text>
+              <text class="tl-desc">
+                {{ s.desc }}
+              </text>
             </view>
           </view>
         </view>
@@ -43,27 +95,77 @@
 
       <!-- 退款信息 -->
       <view class="info-card">
-        <text class="info-title">退款信息</text>
+        <text class="info-title">
+          退款信息
+        </text>
         <view class="info-rows">
-          <view class="info-row"><text class="ir-label">退款单号</text><text class="ir-val">{{ refund.id }}</text></view>
-          <view class="info-row"><text class="ir-label">关联订单</text><text class="ir-val link" @click="goOrder(refund.orderId)">{{ refund.orderNo }} ›</text></view>
-          <view class="info-row"><text class="ir-label">退款类型</text><text class="ir-val">{{ refund.type === 'refund_only' ? '仅退款' : '退货退款' }}</text></view>
-          <view class="info-row"><text class="ir-label">退款原因</text><text class="ir-val">{{ refund.reason }}</text></view>
-          <view class="info-row"><text class="ir-label">申请时间</text><text class="ir-val">{{ refund.createdAt }}</text></view>
+          <view class="info-row">
+            <text class="ir-label">
+              退款单号
+            </text><text class="ir-val">
+              {{ refund.id }}
+            </text>
+          </view>
+          <view class="info-row">
+            <text class="ir-label">
+              关联订单
+            </text><text
+              class="ir-val link"
+              @click="goOrder(refund.orderId)"
+            >
+              {{ refund.orderNo }} ›
+            </text>
+          </view>
+          <view class="info-row">
+            <text class="ir-label">
+              退款类型
+            </text><text class="ir-val">
+              {{ refund.type === 'refund_only' ? '仅退款' : '退货退款' }}
+            </text>
+          </view>
+          <view class="info-row">
+            <text class="ir-label">
+              退款原因
+            </text><text class="ir-val">
+              {{ refund.reason }}
+            </text>
+          </view>
+          <view class="info-row">
+            <text class="ir-label">
+              申请时间
+            </text><text class="ir-val">
+              {{ refund.createdAt }}
+            </text>
+          </view>
         </view>
       </view>
 
       <!-- 商品信息 -->
-      <view v-if="refund.product" class="product-card">
-        <text class="info-title">退款商品</text>
+      <view
+        v-if="refund.product"
+        class="product-card"
+      >
+        <text class="info-title">
+          退款商品
+        </text>
         <view class="product-item">
-          <view class="pi-cover"><text>📦</text></view>
+          <view class="pi-cover">
+            <text>📦</text>
+          </view>
           <view class="pi-info">
-            <text class="pi-name">{{ refund.product.name }}</text>
-            <text class="pi-sku">{{ refund.product.skuName }}</text>
+            <text class="pi-name">
+              {{ refund.product.name }}
+            </text>
+            <text class="pi-sku">
+              {{ refund.product.skuName }}
+            </text>
             <view class="pi-price-row">
-              <text class="pi-price">¥{{ refund.product.price }}</text>
-              <text class="pi-qty">×{{ refund.product.quantity }}</text>
+              <text class="pi-price">
+                ¥{{ refund.product.price }}
+              </text>
+              <text class="pi-qty">
+                ×{{ refund.product.quantity }}
+              </text>
             </view>
           </view>
         </view>
@@ -71,19 +173,31 @@
 
       <!-- 温馨提示 -->
       <view class="tip-card">
-        <text class="tip-icon">⚠️</text>
+        <text class="tip-icon">
+          ⚠️
+        </text>
         <view class="tip-content">
-          <text class="tip-title">温馨提示</text>
-          <text class="tip-text">退款将在1-3个工作日内原路退回</text>
-          <text class="tip-text">银行卡退款可能延迟，具体以银行到账时间为准</text>
+          <text class="tip-title">
+            温馨提示
+          </text>
+          <text class="tip-text">
+            退款将在1-3个工作日内原路退回
+          </text>
+          <text class="tip-text">
+            银行卡退款可能延迟，具体以银行到账时间为准
+          </text>
         </view>
       </view>
 
       <!-- 底部操作 -->
       <view class="bottom-bar">
         <view class="bottom-inner">
-          <view class="bb-btn">💬 联系客服</view>
-          <view class="bb-btn">🛡 我要申诉</view>
+          <view class="bb-btn">
+            💬 联系客服
+          </view>
+          <view class="bb-btn">
+            🛡 我要申诉
+          </view>
         </view>
       </view>
     </template>

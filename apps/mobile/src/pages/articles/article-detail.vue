@@ -3,27 +3,75 @@
     <LoadingSkeleton v-if="loading" />
     <view v-else-if="article">
       <view class="article-header">
-        <text class="title">{{ article.title }}</text>
+        <text class="title">
+          {{ article.title }}
+        </text>
         <view class="author-row">
-          <image :src="article.authorAvatar || ''" class="avatar" mode="aspectFill" />
-          <text class="author">{{ article.author || '国学平台' }}</text>
-          <text class="time">{{ article.createdAt?.slice(0, 10) }}</text>
+          <image
+            :src="article.authorAvatar || ''"
+            class="avatar"
+            mode="aspectFill"
+          />
+          <text class="author">
+            {{ article.author || '国学平台' }}
+          </text>
+          <text class="time">
+            {{ article.createdAt?.slice(0, 10) }}
+          </text>
         </view>
       </view>
-      <view class="content"><rich-text :nodes="article.content || ''" /></view>
-      <view v-if="related.length" class="related">
-        <text class="section-title">推荐内容</text>
-        <view v-for="r in related" :key="r.id" class="rel-item" @click="goDetail(r)">
-          <image :src="r.cover || ''" class="rel-cover" mode="aspectFill" />
-          <text class="rel-title">{{ r.title }}</text>
+      <view class="content">
+        <rich-text :nodes="article.content || ''" />
+      </view>
+      <view
+        v-if="related.length"
+        class="related"
+      >
+        <text class="section-title">
+          推荐内容
+        </text>
+        <view
+          v-for="r in related"
+          :key="r.id"
+          class="rel-item"
+          @click="goDetail(r)"
+        >
+          <image
+            :src="r.cover || ''"
+            class="rel-cover"
+            mode="aspectFill"
+          />
+          <text class="rel-title">
+            {{ r.title }}
+          </text>
         </view>
       </view>
     </view>
     <view class="bottom-bar">
-      <view class="action" @click="toggleLike"><text>{{ liked ? '❤️' : '🤍' }} {{ likeCount }}</text></view>
-      <view class="action" @click="showComment"><text>💬 评论</text></view>
-      <view class="action" @click="toggleCollect"><text>{{ collected ? '⭐' : '☆' }} 收藏</text></view>
-      <view class="action" @click="share"><text>↗ 分享</text></view>
+      <view
+        class="action"
+        @click="toggleLike"
+      >
+        <text>{{ liked ? '❤️' : '🤍' }} {{ likeCount }}</text>
+      </view>
+      <view
+        class="action"
+        @click="showComment"
+      >
+        <text>💬 评论</text>
+      </view>
+      <view
+        class="action"
+        @click="toggleCollect"
+      >
+        <text>{{ collected ? '⭐' : '☆' }} 收藏</text>
+      </view>
+      <view
+        class="action"
+        @click="share"
+      >
+        <text>↗ 分享</text>
+      </view>
     </view>
   </view>
 </template>

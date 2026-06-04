@@ -1,20 +1,48 @@
 <template>
-  <view class="course-card" @click="goDetail">
-    <image v-if="course.cover" :src="course.cover" class="card-cover" mode="aspectFill" />
-    <view class="card-overlay" v-if="course.type">
-      <text class="type-tag">{{ typeLabel }}</text>
+  <view
+    class="course-card"
+    @click="goDetail"
+  >
+    <image
+      v-if="course.cover"
+      :src="course.cover"
+      class="card-cover"
+      mode="aspectFill"
+    />
+    <view
+      v-if="course.type"
+      class="card-overlay"
+    >
+      <text class="type-tag">
+        {{ typeLabel }}
+      </text>
     </view>
     <view class="card-body">
-      <view class="card-title">{{ course.title }}</view>
-      <view class="card-intro" v-if="course.intro">{{ course.intro }}</view>
+      <view class="card-title">
+        {{ course.title }}
+      </view>
+      <view
+        v-if="course.intro"
+        class="card-intro"
+      >
+        {{ course.intro }}
+      </view>
       <view class="card-footer">
-        <text class="price" :class="{ free: course.price === 0 }">
+        <text
+          class="price"
+          :class="{ free: course.price === 0 }"
+        >
           {{ course.price && course.price > 0 ? `¥${course.price}` : '免费' }}
         </text>
-        <text v-if="course.originalPrice && course.originalPrice > course.price" class="original-price">
+        <text
+          v-if="course.originalPrice && course.originalPrice > course.price"
+          class="original-price"
+        >
           ¥{{ course.originalPrice }}
         </text>
-        <text class="student-count">👤 {{ course.studentCount ?? 0 }} 人</text>
+        <text class="student-count">
+          👤 {{ course.studentCount ?? 0 }} 人
+        </text>
       </view>
     </view>
   </view>

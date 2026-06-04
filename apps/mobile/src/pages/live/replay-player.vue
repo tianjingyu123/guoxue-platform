@@ -1,30 +1,58 @@
 <template>
   <view class="page">
     <!-- 加载态 -->
-    <view v-if="loading" class="loading-wrap">
+    <view
+      v-if="loading"
+      class="loading-wrap"
+    >
       <view class="loading-spinner" />
     </view>
 
     <!-- 错误态 -->
-    <view v-else-if="loadError" class="error-wrap">
+    <view
+      v-else-if="loadError"
+      class="error-wrap"
+    >
       <view class="error-inner">
-        <text class="error-icon">⚠️</text>
-        <text class="error-text">{{ loadError }}</text>
-        <view class="error-retry" @click="loadReplay">重新加载</view>
+        <text class="error-icon">
+          ⚠️
+        </text>
+        <text class="error-text">
+          {{ loadError }}
+        </text>
+        <view
+          class="error-retry"
+          @click="loadReplay"
+        >
+          重新加载
+        </view>
       </view>
     </view>
 
-    <view v-else-if="!replay" class="empty-state">
-      <text class="empty-text">回放不存在</text>
+    <view
+      v-else-if="!replay"
+      class="empty-state"
+    >
+      <text class="empty-text">
+        回放不存在
+      </text>
     </view>
 
     <template v-else>
       <!-- 播放器区域 -->
-      <view class="player-container" @click="handleVideoClick">
+      <view
+        class="player-container"
+        @click="handleVideoClick"
+      >
         <!-- 返回按钮 -->
         <view :class="['player-top-left', showControls ? 'fade-in' : 'fade-out']">
-          <view class="player-btn" @click.stop="goBack">
-            <text class="btn-icon">←</text>
+          <view
+            class="player-btn"
+            @click.stop="goBack"
+          >
+            <text class="btn-icon">
+              ←
+            </text>
           </view>
         </view>
 
@@ -36,28 +64,42 @@
           :autoplay="false"
           :muted="isMuted"
           :playback-rate="speed"
+          class="native-video"
+          object-fit="contain"
           @timeupdate="onTimeUpdate"
           @play="onVideoPlay"
           @pause="onVideoPause"
           @ended="onVideoEnded"
           @error="onVideoError"
           @click="handleVideoClick"
-          class="native-video"
-          object-fit="contain"
         />
 
         <!-- 播放按钮覆盖层 -->
-        <view v-if="!isPlaying && playUrl && !videoEnded" class="play-button-wrap" @click.stop="handlePlayPause">
+        <view
+          v-if="!isPlaying && playUrl && !videoEnded"
+          class="play-button-wrap"
+          @click.stop="handlePlayPause"
+        >
           <view class="play-button">
-            <text class="play-icon">▶</text>
+            <text class="play-icon">
+              ▶
+            </text>
           </view>
         </view>
 
         <!-- 重播按钮 -->
-        <view v-if="videoEnded" class="replay-overlay" @click.stop="handleReplay">
+        <view
+          v-if="videoEnded"
+          class="replay-overlay"
+          @click.stop="handleReplay"
+        >
           <view class="replay-btn">
-            <text class="replay-icon">🔄</text>
-            <text class="replay-text">重新播放</text>
+            <text class="replay-icon">
+              🔄
+            </text>
+            <text class="replay-text">
+              重新播放
+            </text>
           </view>
         </view>
 
@@ -66,18 +108,29 @@
           <view class="player-badge">
             <text>⏱️ 回放</text>
           </view>
-          <view v-if="speed !== 1" class="player-badge speed-badge">{{ speed }}x</view>
+          <view
+            v-if="speed !== 1"
+            class="player-badge speed-badge"
+          >
+            {{ speed }}x
+          </view>
         </view>
 
         <!-- 当前章节 -->
-        <view v-if="currentChapter" :class="['chapter-badge', showControls ? 'fade-in' : 'fade-out']">
+        <view
+          v-if="currentChapter"
+          :class="['chapter-badge', showControls ? 'fade-in' : 'fade-out']"
+        >
           <text>{{ currentChapter.title }}</text>
         </view>
 
         <!-- 控制栏 -->
         <view :class="['controls-bar', showControls ? 'fade-in' : 'fade-out']">
           <!-- 进度条 -->
-          <view class="progress-bar" @click.stop="handleProgressClick">
+          <view
+            class="progress-bar"
+            @click.stop="handleProgressClick"
+          >
             <!-- 章节标记点 -->
             <view
               v-for="ch in replay.chapters"
@@ -87,7 +140,10 @@
               @click.stop="handleChapterClick(ch)"
             />
             <!-- 进度 -->
-            <view class="progress-fill" :style="{ width: `${progress}%` }">
+            <view
+              class="progress-fill"
+              :style="{ width: `${progress}%` }"
+            >
               <view class="progress-thumb" />
             </view>
           </view>
@@ -95,56 +151,130 @@
           <!-- 控制按钮 -->
           <view class="controls-row">
             <view class="controls-left">
-              <view class="ctrl-btn" @click.stop="handlePlayPause">
-                <text v-if="isPlaying" class="ctrl-icon">⏸️</text>
-                <text v-else class="ctrl-icon">▶️</text>
+              <view
+                class="ctrl-btn"
+                @click.stop="handlePlayPause"
+              >
+                <text
+                  v-if="isPlaying"
+                  class="ctrl-icon"
+                >
+                  ⏸️
+                </text>
+                <text
+                  v-else
+                  class="ctrl-icon"
+                >
+                  ▶️
+                </text>
               </view>
-              <view class="ctrl-btn" @click.stop="handleSeek(currentTime - 10)">
-                <text class="ctrl-icon">⏪</text>
+              <view
+                class="ctrl-btn"
+                @click.stop="handleSeek(currentTime - 10)"
+              >
+                <text class="ctrl-icon">
+                  ⏪
+                </text>
               </view>
-              <view class="ctrl-btn" @click.stop="handleSeek(currentTime + 10)">
-                <text class="ctrl-icon">⏩</text>
+              <view
+                class="ctrl-btn"
+                @click.stop="handleSeek(currentTime + 10)"
+              >
+                <text class="ctrl-icon">
+                  ⏩
+                </text>
               </view>
-              <text class="time-display">{{ formatSeconds(currentTime) }} / {{ formatSeconds(duration) }}</text>
+              <text class="time-display">
+                {{ formatSeconds(currentTime) }} / {{ formatSeconds(duration) }}
+              </text>
             </view>
             <view class="controls-right">
               <!-- 章节按钮 -->
-              <view class="ctrl-btn-sm" @click.stop="toggleChapters">
-                <text class="ctrl-icon-sm">📋</text>
-                <text class="ctrl-label">章节</text>
+              <view
+                class="ctrl-btn-sm"
+                @click.stop="toggleChapters"
+              >
+                <text class="ctrl-icon-sm">
+                  📋
+                </text>
+                <text class="ctrl-label">
+                  章节
+                </text>
               </view>
               <!-- 倍速 -->
               <view class="speed-menu-wrap">
-                <view class="ctrl-btn-sm" @click.stop="showSpeedMenu = !showSpeedMenu">
-                  <text class="ctrl-label">{{ getSpeedLabel(speed) }}</text>
-                  <text class="arrow-down">▼</text>
+                <view
+                  class="ctrl-btn-sm"
+                  @click.stop="showSpeedMenu = !showSpeedMenu"
+                >
+                  <text class="ctrl-label">
+                    {{ getSpeedLabel(speed) }}
+                  </text>
+                  <text class="arrow-down">
+                    ▼
+                  </text>
                 </view>
-                <view v-if="showSpeedMenu" class="speed-menu">
+                <view
+                  v-if="showSpeedMenu"
+                  class="speed-menu"
+                >
                   <text
                     v-for="s in playbackSpeeds"
                     :key="s"
                     :class="['speed-opt', speed === s ? 'speed-opt-active' : '']"
                     @click.stop="handleSpeedChange(s)"
-                  >{{ s }}x</text>
+                  >
+                    {{ s }}x
+                  </text>
                 </view>
               </view>
               <!-- 课件 -->
-              <view v-if="replay.slides && replay.slides.length > 0" class="ctrl-btn-sm" @click.stop="showSlides = !showSlides">
-                <text class="ctrl-icon-sm">🖼️</text>
+              <view
+                v-if="replay.slides && replay.slides.length > 0"
+                class="ctrl-btn-sm"
+                @click.stop="showSlides = !showSlides"
+              >
+                <text class="ctrl-icon-sm">
+                  🖼️
+                </text>
               </view>
-              <view class="ctrl-btn" @click.stop="toggleMuted">
-                <text v-if="isMuted" class="ctrl-icon">🔇</text>
-                <text v-else class="ctrl-icon">🔊</text>
+              <view
+                class="ctrl-btn"
+                @click.stop="toggleMuted"
+              >
+                <text
+                  v-if="isMuted"
+                  class="ctrl-icon"
+                >
+                  🔇
+                </text>
+                <text
+                  v-else
+                  class="ctrl-icon"
+                >
+                  🔊
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <!-- 章节侧边栏 -->
-        <view v-if="showChapters" class="chapters-sidebar" @click.stop>
+        <view
+          v-if="showChapters"
+          class="chapters-sidebar"
+          @click.stop
+        >
           <view class="sidebar-header">
-            <text class="sidebar-title">章节列表</text>
-            <text class="sidebar-close" @click="showChapters = false">›</text>
+            <text class="sidebar-title">
+              章节列表
+            </text>
+            <text
+              class="sidebar-close"
+              @click="showChapters = false"
+            >
+              ›
+            </text>
           </view>
           <view class="chapter-list">
             <view
@@ -153,25 +283,56 @@
               :class="['chapter-item', currentChapter?.id === ch.id ? 'chapter-active' : '']"
               @click="handleChapterClick(ch)"
             >
-              <text class="chapter-time">{{ ch.timeDisplay }}</text>
+              <text class="chapter-time">
+                {{ ch.timeDisplay }}
+              </text>
               <view class="chapter-text">
-                <text :class="['chapter-title', currentChapter?.id === ch.id ? 'ch-active-text' : '']">{{ ch.title }}</text>
-                <text v-if="ch.description" class="chapter-desc">{{ ch.description }}</text>
+                <text :class="['chapter-title', currentChapter?.id === ch.id ? 'ch-active-text' : '']">
+                  {{ ch.title }}
+                </text>
+                <text
+                  v-if="ch.description"
+                  class="chapter-desc"
+                >
+                  {{ ch.description }}
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <!-- 课件预览 -->
-        <view v-if="showSlides && currentSlide" class="slides-sidebar" @click.stop>
+        <view
+          v-if="showSlides && currentSlide"
+          class="slides-sidebar"
+          @click.stop
+        >
           <view class="sidebar-header">
-            <text class="sidebar-title">课件同步</text>
-            <text class="sidebar-close" @click="showSlides = false">›</text>
+            <text class="sidebar-title">
+              课件同步
+            </text>
+            <text
+              class="sidebar-close"
+              @click="showSlides = false"
+            >
+              ›
+            </text>
           </view>
           <view class="slides-body">
-            <image :src="currentSlide.imageUrl" mode="widthFix" class="slide-current-img" />
-            <text v-if="currentSlide.title" class="slide-title">{{ currentSlide.title }}</text>
-            <text class="slide-time">{{ currentSlide.timeDisplay }}</text>
+            <image
+              :src="currentSlide.imageUrl"
+              mode="widthFix"
+              class="slide-current-img"
+            />
+            <text
+              v-if="currentSlide.title"
+              class="slide-title"
+            >
+              {{ currentSlide.title }}
+            </text>
+            <text class="slide-time">
+              {{ currentSlide.timeDisplay }}
+            </text>
           </view>
           <view class="slide-thumbs">
             <image
@@ -188,24 +349,50 @@
 
       <!-- 回放信息 -->
       <view class="info-section">
-        <text class="info-title">{{ replay.title }}</text>
+        <text class="info-title">
+          {{ replay.title }}
+        </text>
         <view class="info-host-row">
-          <view class="info-host-left" @click="goExpert(replay.host.id)">
-            <image :src="replay.host.avatar" mode="aspectFill" class="info-host-avatar" />
+          <view
+            class="info-host-left"
+            @click="goExpert(replay.host.id)"
+          >
+            <image
+              :src="replay.host.avatar"
+              mode="aspectFill"
+              class="info-host-avatar"
+            />
             <view class="info-host-text">
               <view class="info-host-name-row">
-                <text class="info-host-name">{{ replay.host.name }}</text>
-                <text v-if="replay.host.isVerified" class="verified-badge">V</text>
+                <text class="info-host-name">
+                  {{ replay.host.name }}
+                </text>
+                <text
+                  v-if="replay.host.isVerified"
+                  class="verified-badge"
+                >
+                  V
+                </text>
               </view>
-              <text class="info-host-fans">{{ replay.host.followers.toLocaleString() }} 粉丝</text>
+              <text class="info-host-fans">
+                {{ replay.host.followers.toLocaleString() }} 粉丝
+              </text>
             </view>
           </view>
-          <text class="follow-btn">+ 关注</text>
+          <text class="follow-btn">
+            + 关注
+          </text>
         </view>
         <view class="info-stats">
-          <text class="info-stat">⏱️ {{ replay.startTime }}</text>
-          <text class="info-stat">👁️ {{ replay.viewerCount.toLocaleString() }} 观看</text>
-          <text class="info-stat">❤️ {{ replay.likeCount.toLocaleString() }} 点赞</text>
+          <text class="info-stat">
+            ⏱️ {{ replay.startTime }}
+          </text>
+          <text class="info-stat">
+            👁️ {{ replay.viewerCount.toLocaleString() }} 观看
+          </text>
+          <text class="info-stat">
+            ❤️ {{ replay.likeCount.toLocaleString() }} 点赞
+          </text>
         </view>
       </view>
 
@@ -218,105 +405,221 @@
           @click="activeTab = tab.key"
         >
           <text>{{ tab.icon }} {{ tab.label }}({{ tab.count }})</text>
-          <view v-if="activeTab === tab.key" class="tab-indicator" />
+          <view
+            v-if="activeTab === tab.key"
+            class="tab-indicator"
+          />
         </view>
       </view>
 
       <!-- Tab内容 -->
       <view class="tab-content">
         <!-- 章节Tab -->
-        <view v-if="activeTab === 'chapters'" class="chapter-tab-list">
+        <view
+          v-if="activeTab === 'chapters'"
+          class="chapter-tab-list"
+        >
           <view
             v-for="ch in replay.chapters"
             :key="ch.id"
             :class="['chapter-tab-item', currentChapter?.id === ch.id ? 'ct-item-active' : '']"
             @click="handleChapterClick(ch)"
           >
-            <text class="ct-time">{{ ch.timeDisplay }}</text>
+            <text class="ct-time">
+              {{ ch.timeDisplay }}
+            </text>
             <view class="ct-text">
-              <text :class="['ct-title', currentChapter?.id === ch.id ? 'ct-title-active' : '']">{{ ch.title }}</text>
-              <text v-if="ch.description" class="ct-desc">{{ ch.description }}</text>
+              <text :class="['ct-title', currentChapter?.id === ch.id ? 'ct-title-active' : '']">
+                {{ ch.title }}
+              </text>
+              <text
+                v-if="ch.description"
+                class="ct-desc"
+              >
+                {{ ch.description }}
+              </text>
             </view>
-            <text v-if="currentChapter?.id === ch.id" class="ct-current-badge">当前</text>
+            <text
+              v-if="currentChapter?.id === ch.id"
+              class="ct-current-badge"
+            >
+              当前
+            </text>
           </view>
         </view>
 
         <!-- 讨论Tab -->
-        <view v-if="activeTab === 'discussion'" class="discuss-list">
+        <view
+          v-if="activeTab === 'discussion'"
+          class="discuss-list"
+        >
           <view
             v-for="item in replay.discussions"
             :key="item.id"
             class="discuss-item"
             @click="handleSeek(item.time)"
           >
-            <text class="discuss-time">{{ item.timeDisplay }}</text>
-            <image :src="item.userAvatar" mode="aspectFill" class="discuss-avatar" />
+            <text class="discuss-time">
+              {{ item.timeDisplay }}
+            </text>
+            <image
+              :src="item.userAvatar"
+              mode="aspectFill"
+              class="discuss-avatar"
+            />
             <view class="discuss-body">
               <view class="discuss-name-row">
-                <text :class="['discuss-name', item.isHost ? 'discuss-host' : '']">{{ item.userName }}</text>
-                <text v-if="item.isHost" class="host-tag">主播</text>
+                <text :class="['discuss-name', item.isHost ? 'discuss-host' : '']">
+                  {{ item.userName }}
+                </text>
+                <text
+                  v-if="item.isHost"
+                  class="host-tag"
+                >
+                  主播
+                </text>
               </view>
-              <text class="discuss-content">{{ item.content }}</text>
+              <text class="discuss-content">
+                {{ item.content }}
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 问答Tab -->
-        <view v-if="activeTab === 'qa'" class="qa-list">
-          <view v-for="item in replay.qaList" :key="item.id" class="qa-item" @click="handleSeek(item.time)">
+        <view
+          v-if="activeTab === 'qa'"
+          class="qa-list"
+        >
+          <view
+            v-for="item in replay.qaList"
+            :key="item.id"
+            class="qa-item"
+            @click="handleSeek(item.time)"
+          >
             <view class="qa-question">
-              <text class="qa-time">{{ item.timeDisplay }}</text>
-              <text class="qa-icon">❓</text>
+              <text class="qa-time">
+                {{ item.timeDisplay }}
+              </text>
+              <text class="qa-icon">
+                ❓
+              </text>
               <view class="qa-texts">
-                <text class="qa-asker">{{ item.questionerName }} 提问</text>
-                <text class="qa-question-text">{{ item.question }}</text>
+                <text class="qa-asker">
+                  {{ item.questionerName }} 提问
+                </text>
+                <text class="qa-question-text">
+                  {{ item.question }}
+                </text>
               </view>
             </view>
             <view class="qa-answer">
-              <image :src="item.answererAvatar || ''" mode="aspectFill" class="qa-answer-avatar" />
+              <image
+                :src="item.answererAvatar || ''"
+                mode="aspectFill"
+                class="qa-answer-avatar"
+              />
               <view class="qa-answer-body">
-                <text class="qa-answerer">{{ item.answererName }} 回答</text>
-                <text class="qa-answer-text">{{ item.answer }}</text>
+                <text class="qa-answerer">
+                  {{ item.answererName }} 回答
+                </text>
+                <text class="qa-answer-text">
+                  {{ item.answer }}
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <!-- 商品Tab -->
-        <view v-if="activeTab === 'products' && replay.products" class="product-list">
-          <view v-for="item in replay.products" :key="item.id" class="product-item">
+        <view
+          v-if="activeTab === 'products' && replay.products"
+          class="product-list"
+        >
+          <view
+            v-for="item in replay.products"
+            :key="item.id"
+            class="product-item"
+          >
             <view class="product-img-wrap">
-              <image v-if="item.image" :src="item.image" mode="aspectFill" class="product-img" />
-              <text v-else class="product-placeholder">🛍️</text>
+              <image
+                v-if="item.image"
+                :src="item.image"
+                mode="aspectFill"
+                class="product-img"
+              />
+              <text
+                v-else
+                class="product-placeholder"
+              >
+                🛍️
+              </text>
             </view>
             <view class="product-info">
-              <text class="product-name">{{ item.name }}</text>
-              <text class="product-jump" @click="handleSeek(item.mentionTime)">跳转到 {{ item.mentionTimeDisplay }}</text>
+              <text class="product-name">
+                {{ item.name }}
+              </text>
+              <text
+                class="product-jump"
+                @click="handleSeek(item.mentionTime)"
+              >
+                跳转到 {{ item.mentionTimeDisplay }}
+              </text>
               <view class="product-bottom">
-                <text class="product-price">{{ item.price }}</text>
-                <text class="product-original">{{ item.originalPrice }}</text>
-                <text class="product-sales">{{ item.sales }}人购买</text>
+                <text class="product-price">
+                  {{ item.price }}
+                </text>
+                <text class="product-original">
+                  {{ item.originalPrice }}
+                </text>
+                <text class="product-sales">
+                  {{ item.sales }}人购买
+                </text>
               </view>
             </view>
-            <text class="product-buy-btn" @click="goProduct(item.id)">购买</text>
+            <text
+              class="product-buy-btn"
+              @click="goProduct(item.id)"
+            >
+              购买
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 底部操作栏 -->
       <view class="bottom-action-bar">
-        <view class="action-btn" @click="isCollected = !isCollected">
-          <text :class="['action-icon', isCollected ? 'collected' : '']">❤️</text>
-          <text class="action-label">收藏</text>
+        <view
+          class="action-btn"
+          @click="isCollected = !isCollected"
+        >
+          <text :class="['action-icon', isCollected ? 'collected' : '']">
+            ❤️
+          </text>
+          <text class="action-label">
+            收藏
+          </text>
         </view>
         <view class="action-btn">
-          <text class="action-icon">↗️</text>
-          <text class="action-label">分享</text>
+          <text class="action-icon">
+            ↗️
+          </text>
+          <text class="action-label">
+            分享
+          </text>
         </view>
-        <view v-if="replay.isPaid && !replay.isPurchased" class="action-primary" @click="buyReplay">
+        <view
+          v-if="replay.isPaid && !replay.isPurchased"
+          class="action-primary"
+          @click="buyReplay"
+        >
           购买回放 {{ replay.price }}
         </view>
-        <view v-else-if="replay.circle" class="action-primary" @click="goCircle(replay.circle.id)">
+        <view
+          v-else-if="replay.circle"
+          class="action-primary"
+          @click="goCircle(replay.circle.id)"
+        >
           加入「{{ replay.circle.name }}」
         </view>
       </view>

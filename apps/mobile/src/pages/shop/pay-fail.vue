@@ -2,20 +2,34 @@
   <view class="page">
     <!-- 红色顶部背景 -->
     <view class="fail-header">
-      <view class="deco-circle" style="top:80rpx;right:80rpx;width:256rpx;height:256rpx" />
-      <view class="deco-circle" style="top:160rpx;right:160rpx;width:160rpx;height:160rpx" />
+      <view
+        class="deco-circle"
+        style="top:80rpx;right:80rpx;width:256rpx;height:256rpx"
+      />
+      <view
+        class="deco-circle"
+        style="top:160rpx;right:160rpx;width:160rpx;height:160rpx"
+      />
 
       <view class="fail-icon-group">
         <view class="fail-ring" />
         <view class="fail-icon-wrap">
-          <text class="fail-icon">✕</text>
+          <text class="fail-icon">
+            ✕
+          </text>
         </view>
       </view>
 
-      <text class="fail-title">{{ failInfo.title }}</text>
+      <text class="fail-title">
+        {{ failInfo.title }}
+      </text>
       <view class="fail-amount">
-        <text class="fail-amount-sign">¥</text>
-        <text class="fail-amount-num">{{ parseFloat(amountStr).toFixed(2) }}</text>
+        <text class="fail-amount-sign">
+          ¥
+        </text>
+        <text class="fail-amount-num">
+          {{ parseFloat(amountStr).toFixed(2) }}
+        </text>
       </view>
     </view>
 
@@ -23,36 +37,65 @@
     <view class="fail-card">
       <view class="fail-reason">
         <view class="reason-icon-wrap">
-          <text class="reason-icon">{{ failInfo.icon }}</text>
+          <text class="reason-icon">
+            {{ failInfo.icon }}
+          </text>
         </view>
         <view class="reason-text">
-          <text class="reason-title">{{ failInfo.title }}</text>
-          <text class="reason-desc">{{ failInfo.desc }}</text>
+          <text class="reason-title">
+            {{ failInfo.title }}
+          </text>
+          <text class="reason-desc">
+            {{ failInfo.desc }}
+          </text>
         </view>
       </view>
 
       <view class="order-info">
         <view class="order-info-row">
-          <text class="order-info-label">订单编号</text>
-          <text class="order-info-value">{{ orderId || '—' }}</text>
+          <text class="order-info-label">
+            订单编号
+          </text>
+          <text class="order-info-value">
+            {{ orderId || '—' }}
+          </text>
         </view>
         <view class="order-info-row">
-          <text class="order-info-label">失败时间</text>
-          <text class="order-info-value">{{ currentTime }}</text>
+          <text class="order-info-label">
+            失败时间
+          </text>
+          <text class="order-info-value">
+            {{ currentTime }}
+          </text>
         </view>
       </view>
 
       <view class="fail-actions">
-        <view class="btn-retry" @click="retryPay">
-          <text class="btn-retry-icon">🔄</text>
+        <view
+          class="btn-retry"
+          @click="retryPay"
+        >
+          <text class="btn-retry-icon">
+            🔄
+          </text>
           <text>重新支付</text>
         </view>
-        <view class="btn-switch" @click="switchPay">
-          <text class="btn-switch-icon">💳</text>
+        <view
+          class="btn-switch"
+          @click="switchPay"
+        >
+          <text class="btn-switch-icon">
+            💳
+          </text>
           <text>换个方式支付</text>
         </view>
-        <view class="btn-order" @click="goOrder">
-          <text class="btn-order-icon">🧾</text>
+        <view
+          class="btn-order"
+          @click="goOrder"
+        >
+          <text class="btn-order-icon">
+            🧾
+          </text>
           <text>查看订单详情</text>
         </view>
       </view>
@@ -61,19 +104,36 @@
     <!-- 温馨提示 -->
     <view class="tips-card">
       <view class="tips-content">
-        <text class="tips-icon">⚠</text>
+        <text class="tips-icon">
+          ⚠
+        </text>
         <view class="tips-text">
-          <text class="tips-title">温馨提示</text>
-          <text class="tips-item">• 请检查支付账户余额是否充足</text>
-          <text class="tips-item">• 确保网络连接稳定后重试</text>
-          <text class="tips-item">• 如多次失败，请尝试其他支付方式</text>
-          <text class="tips-item">• 订单将保留30分钟，请尽快完成支付</text>
+          <text class="tips-title">
+            温馨提示
+          </text>
+          <text class="tips-item">
+            • 请检查支付账户余额是否充足
+          </text>
+          <text class="tips-item">
+            • 确保网络连接稳定后重试
+          </text>
+          <text class="tips-item">
+            • 如多次失败，请尝试其他支付方式
+          </text>
+          <text class="tips-item">
+            • 订单将保留30分钟，请尽快完成支付
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 返回商城 -->
-    <view class="footer-link" @click="goShop">返回商城首页</view>
+    <view
+      class="footer-link"
+      @click="goShop"
+    >
+      返回商城首页
+    </view>
 
     <view class="shake-keyframes" />
   </view>

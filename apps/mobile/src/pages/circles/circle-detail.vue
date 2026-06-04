@@ -24,8 +24,13 @@
               class="ch-cover"
               mode="aspectFill"
             />
-            <view v-else class="ch-cover-placeholder">
-              <text class="ch-placeholder-icon">{{ circle.name?.charAt(0) || '圈' }}</text>
+            <view
+              v-else
+              class="ch-cover-placeholder"
+            >
+              <text class="ch-placeholder-icon">
+                {{ circle.name?.charAt(0) || '圈' }}
+              </text>
             </view>
             <view class="ch-overlay" />
           </view>
@@ -37,25 +42,49 @@
                 class="ch-avatar"
                 mode="aspectFill"
               />
-              <view v-else class="ch-avatar-placeholder">
+              <view
+                v-else
+                class="ch-avatar-placeholder"
+              >
                 <text>{{ circle.name?.charAt(0) || '圈' }}</text>
               </view>
               <view class="ch-text">
-                <text class="ch-name">{{ circle.name }}</text>
-                <view class="ch-tags" v-if="circle.tags?.length">
-                  <text v-for="t in circle.tags.slice(0, 3)" :key="t" class="ch-tag">{{ t }}</text>
+                <text class="ch-name">
+                  {{ circle.name }}
+                </text>
+                <view
+                  v-if="circle.tags?.length"
+                  class="ch-tags"
+                >
+                  <text
+                    v-for="t in circle.tags.slice(0, 3)"
+                    :key="t"
+                    class="ch-tag"
+                  >
+                    {{ t }}
+                  </text>
                 </view>
               </view>
             </view>
-            <text class="ch-intro">{{ circle.intro || '暂无简介' }}</text>
+            <text class="ch-intro">
+              {{ circle.intro || '暂无简介' }}
+            </text>
             <view class="ch-stats">
               <view class="ch-stat">
-                <text class="ch-stat-num">{{ formatCount(circle.memberCount) }}</text>
-                <text class="ch-stat-label">成员</text>
+                <text class="ch-stat-num">
+                  {{ formatCount(circle.memberCount) }}
+                </text>
+                <text class="ch-stat-label">
+                  成员
+                </text>
               </view>
               <view class="ch-stat">
-                <text class="ch-stat-num">{{ formatCount(circle.postCount) }}</text>
-                <text class="ch-stat-label">帖子</text>
+                <text class="ch-stat-num">
+                  {{ formatCount(circle.postCount) }}
+                </text>
+                <text class="ch-stat-label">
+                  帖子
+                </text>
               </view>
             </view>
             <!-- 加入/退出 -->
@@ -81,34 +110,72 @@
         </view>
 
         <!-- ===== 公告横幅 ===== -->
-        <view v-if="announcement" class="announcement-bar" @click="goAnnouncement">
-          <text class="announcement-icon">📢</text>
-          <text class="announcement-text">{{ announcement }}</text>
-          <text class="announcement-arrow">›</text>
+        <view
+          v-if="announcement"
+          class="announcement-bar"
+          @click="goAnnouncement"
+        >
+          <text class="announcement-icon">
+            📢
+          </text>
+          <text class="announcement-text">
+            {{ announcement }}
+          </text>
+          <text class="announcement-arrow">
+            ›
+          </text>
         </view>
 
         <!-- ===== 精华帖子 ===== -->
-        <view v-if="essencePosts.length > 0" class="essence-section">
+        <view
+          v-if="essencePosts.length > 0"
+          class="essence-section"
+        >
           <view class="section-header">
-            <text class="section-title">🌟 精华帖子</text>
-            <text class="section-more" @click="switchToEssence">查看全部 ›</text>
+            <text class="section-title">
+              🌟 精华帖子
+            </text>
+            <text
+              class="section-more"
+              @click="switchToEssence"
+            >
+              查看全部 ›
+            </text>
           </view>
-          <scroll-view scroll-x class="essence-scroll" show-scrollbar="false">
+          <scroll-view
+            scroll-x
+            class="essence-scroll"
+            show-scrollbar="false"
+          >
             <view
               v-for="post in essencePosts"
               :key="post.id"
               class="essence-card"
               @click="goPostDetail(post)"
             >
-              <view v-if="post.images?.length" class="ec-cover">
-                <image :src="post.images[0]" mode="aspectFill" class="ec-img" />
+              <view
+                v-if="post.images?.length"
+                class="ec-cover"
+              >
+                <image
+                  :src="post.images[0]"
+                  mode="aspectFill"
+                  class="ec-img"
+                />
               </view>
-              <view v-else class="ec-cover ec-cover-placeholder">
+              <view
+                v-else
+                class="ec-cover ec-cover-placeholder"
+              >
                 <text>📝</text>
               </view>
               <view class="ec-info">
-                <text class="ec-author">{{ post.author?.nickname || '匿名' }}</text>
-                <text class="ec-title">{{ post.title || post.content?.slice(0, 30) }}</text>
+                <text class="ec-author">
+                  {{ post.author?.nickname || '匿名' }}
+                </text>
+                <text class="ec-title">
+                  {{ post.title || post.content?.slice(0, 30) }}
+                </text>
                 <view class="ec-stats">
                   <text>❤️ {{ post.likeCount || 0 }}</text>
                   <text>💬 {{ post.commentCount || 0 }}</text>
@@ -121,7 +188,9 @@
         <!-- ===== 帖子列表 ===== -->
         <view class="post-section">
           <view class="section-header">
-            <text class="section-title">📝 全部帖子</text>
+            <text class="section-title">
+              📝 全部帖子
+            </text>
           </view>
 
           <DataState
@@ -150,20 +219,44 @@
                       mode="aspectFill"
                     />
                     <view class="post-user-meta">
-                      <text class="post-user">{{ post.author?.nickname || '匿名' }}</text>
-                      <text class="post-time">{{ formatTime(post.createdAt) }}</text>
+                      <text class="post-user">
+                        {{ post.author?.nickname || '匿名' }}
+                      </text>
+                      <text class="post-time">
+                        {{ formatTime(post.createdAt) }}
+                      </text>
                     </view>
                   </view>
                   <view class="post-badges">
-                    <text v-if="post.isTop" class="badge top">置顶</text>
-                    <text v-if="post.isEssence" class="badge essence">精华</text>
+                    <text
+                      v-if="post.isTop"
+                      class="badge top"
+                    >
+                      置顶
+                    </text>
+                    <text
+                      v-if="post.isEssence"
+                      class="badge essence"
+                    >
+                      精华
+                    </text>
                   </view>
                 </view>
 
-                <text class="post-title" v-if="post.title">{{ post.title }}</text>
-                <text class="post-body">{{ post.content }}</text>
+                <text
+                  v-if="post.title"
+                  class="post-title"
+                >
+                  {{ post.title }}
+                </text>
+                <text class="post-body">
+                  {{ post.content }}
+                </text>
 
-                <view v-if="post.images?.length" class="post-images">
+                <view
+                  v-if="post.images?.length"
+                  class="post-images"
+                >
                   <image
                     v-for="(img, idx) in post.images.slice(0, 3)"
                     :key="idx"
@@ -172,19 +265,34 @@
                     class="post-img"
                     @click.stop="previewImages(post.images, idx)"
                   />
-                  <text v-if="post.images.length > 3" class="post-img-more">+{{ post.images.length - 3 }}</text>
+                  <text
+                    v-if="post.images.length > 3"
+                    class="post-img-more"
+                  >
+                    +{{ post.images.length - 3 }}
+                  </text>
                 </view>
 
                 <view class="post-footer">
-                  <view class="footer-item" @click.stop="toggleLike(post)">
+                  <view
+                    class="footer-item"
+                    @click.stop="toggleLike(post)"
+                  >
                     <text>{{ post.isLiked ? '❤️' : '🤍' }}</text>
-                    <text class="footer-count">{{ post.likeCount || 0 }}</text>
+                    <text class="footer-count">
+                      {{ post.likeCount || 0 }}
+                    </text>
                   </view>
                   <view class="footer-item">
                     <text>💬</text>
-                    <text class="footer-count">{{ post.commentCount || 0 }}</text>
+                    <text class="footer-count">
+                      {{ post.commentCount || 0 }}
+                    </text>
                   </view>
-                  <view class="footer-item" @click.stop="sharePost(post)">
+                  <view
+                    class="footer-item"
+                    @click.stop="sharePost(post)"
+                  >
                     <text>↗</text>
                   </view>
                 </view>
@@ -192,31 +300,66 @@
             </view>
 
             <!-- 加载更多 -->
-            <view v-if="loadingMorePosts" class="load-more">加载更多...</view>
-            <view v-if="!hasMorePosts && posts.length > 0" class="no-more">— 已全部加载 —</view>
+            <view
+              v-if="loadingMorePosts"
+              class="load-more"
+            >
+              加载更多...
+            </view>
+            <view
+              v-if="!hasMorePosts && posts.length > 0"
+              class="no-more"
+            >
+              — 已全部加载 —
+            </view>
           </DataState>
         </view>
       </template>
     </DataState>
 
     <!-- 底部发布按钮 -->
-    <view v-if="circle && joined" class="post-fab" @click="showCreatePanel">
-      <text class="fab-icon">✏️</text>
-      <text class="fab-text">发帖</text>
+    <view
+      v-if="circle && joined"
+      class="post-fab"
+      @click="showCreatePanel"
+    >
+      <text class="fab-icon">
+        ✏️
+      </text>
+      <text class="fab-text">
+        发帖
+      </text>
     </view>
 
     <!-- AI助理悬浮按钮 -->
-    <view v-if="hasBot" class="bot-fab" @click="openBotChat">
-      <text class="bot-fab-icon">🤖</text>
+    <view
+      v-if="hasBot"
+      class="bot-fab"
+      @click="openBotChat"
+    >
+      <text class="bot-fab-icon">
+        🤖
+      </text>
     </view>
 
     <!-- 发帖弹窗 -->
-    <view v-if="showPostPanel" class="post-mask" @click="hideCreatePanel">
-      <view class="post-panel" @click.stop>
+    <view
+      v-if="showPostPanel"
+      class="post-mask"
+      @click="hideCreatePanel"
+    >
+      <view
+        class="post-panel"
+        @click.stop
+      >
         <view class="panel-header">
-          <text class="panel-title">发表帖子</text>
+          <text class="panel-title">
+            发表帖子
+          </text>
           <view class="panel-actions">
-            <text class="panel-char-count">{{ postContent.length }}/500</text>
+            <text class="panel-char-count">
+              {{ postContent.length }}/500
+            </text>
             <button
               class="panel-submit-btn"
               :disabled="!postContent.trim() || submitting"
@@ -224,7 +367,12 @@
             >
               {{ submitting ? '发布中...' : '发布' }}
             </button>
-            <text class="panel-close" @click="hideCreatePanel">✕</text>
+            <text
+              class="panel-close"
+              @click="hideCreatePanel"
+            >
+              ✕
+            </text>
           </view>
         </view>
         <input
@@ -232,7 +380,7 @@
           placeholder="标题（选填）"
           class="post-title-input"
           maxlength="60"
-        />
+        >
         <textarea
           v-model="postContent"
           placeholder="分享你的见解..."
@@ -240,16 +388,37 @@
           maxlength="500"
           auto-height
         />
-        <view class="panel-images" v-if="postImages.length > 0">
-          <view v-for="(img, idx) in postImages" :key="idx" class="panel-img-wrap">
-            <image :src="img" class="panel-img" mode="aspectFill" />
-            <text class="panel-img-remove" @click="removeImage(idx)">×</text>
+        <view
+          v-if="postImages.length > 0"
+          class="panel-images"
+        >
+          <view
+            v-for="(img, idx) in postImages"
+            :key="idx"
+            class="panel-img-wrap"
+          >
+            <image
+              :src="img"
+              class="panel-img"
+              mode="aspectFill"
+            />
+            <text
+              class="panel-img-remove"
+              @click="removeImage(idx)"
+            >
+              ×
+            </text>
           </view>
         </view>
         <view class="panel-tools">
-          <view class="panel-tool" @click="chooseImage">
+          <view
+            class="panel-tool"
+            @click="chooseImage"
+          >
             <text>🖼️</text>
-            <text class="panel-tool-text">图片</text>
+            <text class="panel-tool-text">
+              图片
+            </text>
           </view>
         </view>
       </view>

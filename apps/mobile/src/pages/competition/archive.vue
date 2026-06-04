@@ -2,27 +2,51 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">历史竞赛</text>
-      <view class="header-filter" @click="showFilter = !showFilter">
-        <text class="filter-text">{{ currentFilterLabel }}</text>
-        <text class="filter-arrow">▼</text>
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        历史竞赛
+      </text>
+      <view
+        class="header-filter"
+        @click="showFilter = !showFilter"
+      >
+        <text class="filter-text">
+          {{ currentFilterLabel }}
+        </text>
+        <text class="filter-arrow">
+          ▼
+        </text>
       </view>
     </view>
 
     <!-- 下拉筛选项 -->
-    <view v-if="showFilter" class="filter-dropdown">
+    <view
+      v-if="showFilter"
+      class="filter-dropdown"
+    >
       <text
         v-for="f in filters"
         :key="f.value"
         class="filter-option"
         :class="{ active: currentFilter === f.value }"
         @click="selectFilter(f.value)"
-      >{{ f.label }}</text>
+      >
+        {{ f.label }}
+      </text>
     </view>
 
     <!-- 内容列表 -->
-    <scroll-view scroll-y class="scroll-area" refresher-enabled @refresherrefresh="onRefresh">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+      refresher-enabled
+      @refresherrefresh="onRefresh"
+    >
       <DataState
         :is-loading="loading"
         :error="loadError"
@@ -33,29 +57,67 @@
         skeleton-type="list"
         @retry="fetchData"
       >
-        <view v-for="c in filteredList" :key="c.id" class="comp-card" @click="goDetail(c)">
+        <view
+          v-for="c in filteredList"
+          :key="c.id"
+          class="comp-card"
+          @click="goDetail(c)"
+        >
           <view class="comp-top">
             <view class="comp-icon-wrap">
-              <text class="comp-icon">🏆</text>
+              <text class="comp-icon">
+                🏆
+              </text>
             </view>
             <view class="comp-info">
-              <text class="comp-name">{{ c.name || c.title }}</text>
-              <text class="comp-date">{{ formatDate(c.startDate) }} - {{ formatDate(c.endDate) }}</text>
+              <text class="comp-name">
+                {{ c.name || c.title }}
+              </text>
+              <text class="comp-date">
+                {{ formatDate(c.startDate) }} - {{ formatDate(c.endDate) }}
+              </text>
             </view>
-            <text class="comp-status" :class="c.status">{{ statusLabel(c.status) }}</text>
+            <text
+              class="comp-status"
+              :class="c.status"
+            >
+              {{ statusLabel(c.status) }}
+            </text>
           </view>
           <view class="comp-bottom">
-            <text class="comp-stat">👥 {{ c.enrolledCount || c.participants || 0 }}人参赛</text>
-            <text class="comp-stat">🏅 {{ c.ranking || '--' }}</text>
-            <text class="comp-score" v-if="c.myScore">得分 {{ c.myScore }}</text>
+            <text class="comp-stat">
+              👥 {{ c.enrolledCount || c.participants || 0 }}人参赛
+            </text>
+            <text class="comp-stat">
+              🏅 {{ c.ranking || '--' }}
+            </text>
+            <text
+              v-if="c.myScore"
+              class="comp-score"
+            >
+              得分 {{ c.myScore }}
+            </text>
           </view>
-          <view class="comp-tags" v-if="c.tags?.length">
-            <text v-for="tag in c.tags.slice(0, 3)" :key="tag" class="comp-tag">{{ tag }}</text>
+          <view
+            v-if="c.tags?.length"
+            class="comp-tags"
+          >
+            <text
+              v-for="tag in c.tags.slice(0, 3)"
+              :key="tag"
+              class="comp-tag"
+            >
+              {{ tag }}
+            </text>
           </view>
         </view>
       </DataState>
 
-      <view v-if="!loading && hasMore" class="load-more" @click="loadMore">
+      <view
+        v-if="!loading && hasMore"
+        class="load-more"
+        @click="loadMore"
+      >
         <text>加载更多</text>
       </view>
     </scroll-view>

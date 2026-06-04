@@ -1,70 +1,165 @@
 <template>
   <view class="page">
-    <view v-if="loading" class="center"><text class="loading-text">加载中...</text></view>
+    <view
+      v-if="loading"
+      class="center"
+    >
+      <text class="loading-text">
+        加载中...
+      </text>
+    </view>
 
-    <view v-else-if="order" class="detail">
+    <view
+      v-else-if="order"
+      class="detail"
+    >
       <!-- 状态 -->
-      <view class="status-bar" :class="'status-' + (order.status || '').toLowerCase()">
-        <text class="status-text">{{ statusLabel(order.status) }}</text>
+      <view
+        class="status-bar"
+        :class="'status-' + (order.status || '').toLowerCase()"
+      >
+        <text class="status-text">
+          {{ statusLabel(order.status) }}
+        </text>
       </view>
 
       <!-- 订单信息 -->
       <view class="info-card">
         <view class="info-row">
-          <text class="label">订单编号</text>
-          <text class="value">{{ order.id }}</text>
+          <text class="label">
+            订单编号
+          </text>
+          <text class="value">
+            {{ order.id }}
+          </text>
         </view>
         <view class="info-row">
-          <text class="label">订单金额</text>
-          <text class="value amount">¥{{ Number(order.totalAmount).toFixed(2) }}</text>
+          <text class="label">
+            订单金额
+          </text>
+          <text class="value amount">
+            ¥{{ Number(order.totalAmount).toFixed(2) }}
+          </text>
         </view>
         <view class="info-row">
-          <text class="label">创建时间</text>
-          <text class="value">{{ formatTime(order.createdAt) }}</text>
+          <text class="label">
+            创建时间
+          </text>
+          <text class="value">
+            {{ formatTime(order.createdAt) }}
+          </text>
         </view>
-        <view v-if="order.productId" class="info-row">
-          <text class="label">商品ID</text>
-          <text class="value">{{ order.productId }}</text>
+        <view
+          v-if="order.productId"
+          class="info-row"
+        >
+          <text class="label">
+            商品ID
+          </text>
+          <text class="value">
+            {{ order.productId }}
+          </text>
         </view>
       </view>
 
       <!-- 物流信息 -->
-      <view v-if="logistics" class="info-card">
-        <view class="section-title">物流信息</view>
-        <view class="info-row">
-          <text class="label">快递公司</text>
-          <text class="value">{{ logistics.company || '--' }}</text>
+      <view
+        v-if="logistics"
+        class="info-card"
+      >
+        <view class="section-title">
+          物流信息
         </view>
         <view class="info-row">
-          <text class="label">快递单号</text>
-          <text class="value">{{ logistics.trackingNo || '--' }}</text>
+          <text class="label">
+            快递公司
+          </text>
+          <text class="value">
+            {{ logistics.company || '--' }}
+          </text>
         </view>
-        <view v-if="logistics.tracks?.length" class="logistics-timeline">
-          <view v-for="(t, i) in logistics.tracks" :key="i" class="logistics-node">
-            <view class="ln-dot" :class="{ active: i === 0 }" />
+        <view class="info-row">
+          <text class="label">
+            快递单号
+          </text>
+          <text class="value">
+            {{ logistics.trackingNo || '--' }}
+          </text>
+        </view>
+        <view
+          v-if="logistics.tracks?.length"
+          class="logistics-timeline"
+        >
+          <view
+            v-for="(t, i) in logistics.tracks"
+            :key="i"
+            class="logistics-node"
+          >
+            <view
+              class="ln-dot"
+              :class="{ active: i === 0 }"
+            />
             <view class="ln-content">
-              <text class="ln-text">{{ t.status || t.desc }}</text>
-              <text class="ln-time">{{ t.time || t.datetime }}</text>
+              <text class="ln-text">
+                {{ t.status || t.desc }}
+              </text>
+              <text class="ln-time">
+                {{ t.time || t.datetime }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 操作 -->
-      <view v-if="order.status === 'PENDING'" class="actions">
-        <button class="btn-primary" @click="handlePay">去支付</button>
-        <button class="btn-cancel" @click="handleCancel">取消订单</button>
+      <view
+        v-if="order.status === 'PENDING'"
+        class="actions"
+      >
+        <button
+          class="btn-primary"
+          @click="handlePay"
+        >
+          去支付
+        </button>
+        <button
+          class="btn-cancel"
+          @click="handleCancel"
+        >
+          取消订单
+        </button>
       </view>
-      <view v-else-if="order.status === 'PAID' || order.status === 'SHIPPED'" class="actions">
-        <button class="btn-outline" @click="goAfterSale">申请售后</button>
+      <view
+        v-else-if="order.status === 'PAID' || order.status === 'SHIPPED'"
+        class="actions"
+      >
+        <button
+          class="btn-outline"
+          @click="goAfterSale"
+        >
+          申请售后
+        </button>
       </view>
-      <view v-else-if="order.status === 'COMPLETED'" class="actions">
-        <button class="btn-outline" @click="goAfterSale">申请售后</button>
+      <view
+        v-else-if="order.status === 'COMPLETED'"
+        class="actions"
+      >
+        <button
+          class="btn-outline"
+          @click="goAfterSale"
+        >
+          申请售后
+        </button>
       </view>
     </view>
 
-    <view v-else class="empty">
-      <text class="empty-text">订单不存在</text>
+    <view
+      v-else
+      class="empty"
+    >
+      <text class="empty-text">
+        订单不存在
+      </text>
     </view>
   </view>
 </template>

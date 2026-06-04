@@ -3,17 +3,35 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-top">
-        <text class="header-title">直播</text>
+        <text class="header-title">
+          直播
+        </text>
         <view class="header-actions">
-          <text class="header-search" @click="goSearch">🔍</text>
-          <text class="header-create" @click="goCreate">＋ 开播</text>
+          <text
+            class="header-search"
+            @click="goSearch"
+          >
+            🔍
+          </text>
+          <text
+            class="header-create"
+            @click="goCreate"
+          >
+            ＋ 开播
+          </text>
         </view>
       </view>
-      <text class="header-sub">国学讲堂 · 在线互动</text>
+      <text class="header-sub">
+        国学讲堂 · 在线互动
+      </text>
     </view>
 
     <!-- Tab 切换 -->
-    <scroll-view scroll-x class="tabs-scroll" show-scrollbar="false">
+    <scroll-view
+      scroll-x
+      class="tabs-scroll"
+      show-scrollbar="false"
+    >
       <view class="tabs-inner">
         <text
           v-for="t in tabs"
@@ -21,15 +39,25 @@
           class="tab"
           :class="{ active: activeTab === t.value }"
           @click="switchTab(t.value)"
-        >{{ t.label }}</text>
+        >
+          {{ t.label }}
+        </text>
       </view>
     </scroll-view>
 
     <!-- 直播中横幅 -->
-    <view v-if="livingCount > 0 && activeTab === 'all'" class="living-bar" @click="switchTab('LIVING')">
+    <view
+      v-if="livingCount > 0 && activeTab === 'all'"
+      class="living-bar"
+      @click="switchTab('LIVING')"
+    >
       <view class="living-dot" />
-      <text class="living-text">{{ livingCount }} 场直播正在进行中</text>
-      <text class="living-arrow">去看看 →</text>
+      <text class="living-text">
+        {{ livingCount }} 场直播正在进行中
+      </text>
+      <text class="living-arrow">
+        去看看 →
+      </text>
     </view>
 
     <!-- 列表区域 -->
@@ -50,8 +78,8 @@
         scroll-y
         class="room-list"
         refresher-enabled
-        @refresherrefresh="onRefresh"
         :refresher-triggered="refreshing"
+        @refresherrefresh="onRefresh"
         @scrolltolower="onLoadMore"
       >
         <view
@@ -68,31 +96,52 @@
               class="rc-cover"
               mode="aspectFill"
             />
-            <view v-else class="rc-placeholder">
-              <text class="rc-placeholder-icon">📡</text>
+            <view
+              v-else
+              class="rc-placeholder"
+            >
+              <text class="rc-placeholder-icon">
+                📡
+              </text>
             </view>
 
             <!-- 状态标签 -->
-            <view class="rc-status" :class="'rc-' + room.status">
-              <view v-if="room.status === 'LIVING'" class="rc-live-dot" />
+            <view
+              class="rc-status"
+              :class="'rc-' + room.status"
+            >
+              <view
+                v-if="room.status === 'LIVING'"
+                class="rc-live-dot"
+              />
               <text>{{ statusLabel(room.status) }}</text>
             </view>
 
             <!-- 观看人数 -->
-            <view class="rc-viewers" v-if="room.status === 'LIVING'">
-              <text class="rc-viewers-icon">👁</text>
+            <view
+              v-if="room.status === 'LIVING'"
+              class="rc-viewers"
+            >
+              <text class="rc-viewers-icon">
+                👁
+              </text>
               <text>{{ formatCount(room.viewCount) }}</text>
             </view>
 
             <!-- 预约人数 -->
-            <view class="rc-viewers rc-viewers-book" v-else-if="room.status === 'UPCOMING' && room.bookingCount">
+            <view
+              v-else-if="room.status === 'UPCOMING' && room.bookingCount"
+              class="rc-viewers rc-viewers-book"
+            >
               <text>{{ room.bookingCount }}人预约</text>
             </view>
           </view>
 
           <!-- 信息区 -->
           <view class="rc-info">
-            <text class="rc-title">{{ room.title }}</text>
+            <text class="rc-title">
+              {{ room.title }}
+            </text>
 
             <view class="rc-host-row">
               <image
@@ -101,35 +150,70 @@
                 class="rc-host-avatar"
                 mode="aspectFill"
               />
-              <view v-else class="rc-host-avatar-placeholder" />
-              <text class="rc-host-name">{{ room.hostName || room.user?.nickname || '国学讲师' }}</text>
-              <text v-if="room.hostTitle" class="rc-host-title">{{ room.hostTitle }}</text>
+              <view
+                v-else
+                class="rc-host-avatar-placeholder"
+              />
+              <text class="rc-host-name">
+                {{ room.hostName || room.user?.nickname || '国学讲师' }}
+              </text>
+              <text
+                v-if="room.hostTitle"
+                class="rc-host-title"
+              >
+                {{ room.hostTitle }}
+              </text>
             </view>
 
             <view class="rc-bottom">
-              <text class="rc-time" v-if="room.status === 'UPCOMING' && room.startAt">
+              <text
+                v-if="room.status === 'UPCOMING' && room.startAt"
+                class="rc-time"
+              >
                 🕐 {{ formatDateTime(room.startAt) }}
               </text>
-              <text class="rc-time" v-else-if="room.status === 'REPLAY'">
+              <text
+                v-else-if="room.status === 'REPLAY'"
+                class="rc-time"
+              >
                 ▶ 回放
               </text>
-              <text class="rc-time rc-time-hot" v-else>
+              <text
+                v-else
+                class="rc-time rc-time-hot"
+              >
                 热度 {{ formatCount(room.viewCount || 0) }}
               </text>
 
               <view class="rc-tags">
-                <text v-if="room.isPinned" class="rc-tag rc-tag-pin">📌 置顶</text>
-                <text v-if="room.tags?.length" class="rc-tag">{{ room.tags[0] }}</text>
+                <text
+                  v-if="room.isPinned"
+                  class="rc-tag rc-tag-pin"
+                >
+                  📌 置顶
+                </text>
+                <text
+                  v-if="room.tags?.length"
+                  class="rc-tag"
+                >
+                  {{ room.tags[0] }}
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <!-- 加载更多 -->
-        <view v-if="loadingMore" class="load-more">
+        <view
+          v-if="loadingMore"
+          class="load-more"
+        >
           <text>加载更多...</text>
         </view>
-        <view v-if="!hasMore && rooms.length > 0" class="no-more">
+        <view
+          v-if="!hasMore && rooms.length > 0"
+          class="no-more"
+        >
           <text>— 已全部加载 —</text>
         </view>
       </scroll-view>

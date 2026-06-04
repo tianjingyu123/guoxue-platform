@@ -2,9 +2,16 @@
   <view class="page">
     <!-- 导航栏 -->
     <view class="nav-bar">
-      <text class="nav-title">积分中心</text>
-      <view class="nav-right" @click="goHistory">
-        <text class="nav-link">明细</text>
+      <text class="nav-title">
+        积分中心
+      </text>
+      <view
+        class="nav-right"
+        @click="goHistory"
+      >
+        <text class="nav-link">
+          明细
+        </text>
       </view>
     </view>
 
@@ -20,28 +27,55 @@
         <view class="pc-deco" />
         <view class="pc-content">
           <view class="pc-header">
-            <text class="pc-icon">⭐</text>
-            <text class="pc-label">我的积分</text>
+            <text class="pc-icon">
+              ⭐
+            </text>
+            <text class="pc-label">
+              我的积分
+            </text>
           </view>
-          <text class="pc-value">{{ points.toLocaleString() }}</text>
-          <text class="pc-rate">100 积分 = ¥1.00，可在兑换时抵扣</text>
+          <text class="pc-value">
+            {{ points.toLocaleString() }}
+          </text>
+          <text class="pc-rate">
+            100 积分 = ¥1.00，可在兑换时抵扣
+          </text>
 
           <view class="pc-stats">
             <view class="pc-stat-item">
-              <text class="pc-stat-val">+{{ todayEarned }}</text>
-              <text class="pc-stat-label">今日获取</text>
+              <text class="pc-stat-val">
+                +{{ todayEarned }}
+              </text>
+              <text class="pc-stat-label">
+                今日获取
+              </text>
             </view>
             <view class="pc-stat-item">
-              <text class="pc-stat-val">{{ totalEarned.toLocaleString() }}</text>
-              <text class="pc-stat-label">累计获取</text>
+              <text class="pc-stat-val">
+                {{ totalEarned.toLocaleString() }}
+              </text>
+              <text class="pc-stat-label">
+                累计获取
+              </text>
             </view>
             <view class="pc-stat-item">
-              <text class="pc-stat-val">{{ totalSpent.toLocaleString() }}</text>
-              <text class="pc-stat-label">累计使用</text>
+              <text class="pc-stat-val">
+                {{ totalSpent.toLocaleString() }}
+              </text>
+              <text class="pc-stat-label">
+                累计使用
+              </text>
             </view>
-            <view class="pc-stat-item" @click="goGrowth">
-              <text class="pc-stat-val grow-value">{{ growthValue }}</text>
-              <text class="pc-stat-label">成长值 ›</text>
+            <view
+              class="pc-stat-item"
+              @click="goGrowth"
+            >
+              <text class="pc-stat-val grow-value">
+                {{ growthValue }}
+              </text>
+              <text class="pc-stat-label">
+                成长值 ›
+              </text>
             </view>
           </view>
         </view>
@@ -50,7 +84,9 @@
       <!-- ==================== 签到日历 ==================== -->
       <view class="section">
         <view class="section-header">
-          <text class="section-title">每日签到</text>
+          <text class="section-title">
+            每日签到
+          </text>
           <button
             class="checkin-btn"
             :class="{ checked: todayCheckedIn, disabled: todayCheckedIn }"
@@ -65,7 +101,13 @@
         <!-- 日历网格 -->
         <view class="calendar-grid">
           <view class="cal-weekdays">
-            <text v-for="d in weekDays" :key="d" class="cal-weekday">{{ d }}</text>
+            <text
+              v-for="d in weekDays"
+              :key="d"
+              class="cal-weekday"
+            >
+              {{ d }}
+            </text>
           </view>
           <view class="cal-days">
             <view
@@ -78,30 +120,63 @@
                 'cal-day-today': day?.isToday,
               }"
             >
-              <text v-if="day">{{ day.date }}</text>
-              <text v-if="day?.checked" class="cal-dot">●</text>
+              <text v-if="day">
+                {{ day.date }}
+              </text>
+              <text
+                v-if="day?.checked"
+                class="cal-dot"
+              >
+                ●
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 签到奖励 -->
         <view class="checkin-rewards">
-          <text class="rewards-title">签到奖励</text>
+          <text class="rewards-title">
+            签到奖励
+          </text>
           <view class="rewards-list">
-            <view class="reward-item" :class="{ claimed: checkinStatus?.todayCheckedIn }">
-              <text class="reward-icon">📅</text>
-              <text class="reward-desc">每日签到 +10 积分</text>
+            <view
+              class="reward-item"
+              :class="{ claimed: checkinStatus?.todayCheckedIn }"
+            >
+              <text class="reward-icon">
+                📅
+              </text>
+              <text class="reward-desc">
+                每日签到 +10 积分
+              </text>
             </view>
-            <view class="reward-item" :class="{ claimed: (checkinStatus?.continuousDays || 0) >= 3 }">
-              <text class="reward-icon">🔥</text>
-              <text class="reward-desc">连续3天 +50 积分</text>
+            <view
+              class="reward-item"
+              :class="{ claimed: (checkinStatus?.continuousDays || 0) >= 3 }"
+            >
+              <text class="reward-icon">
+                🔥
+              </text>
+              <text class="reward-desc">
+                连续3天 +50 积分
+              </text>
             </view>
-            <view class="reward-item" :class="{ claimed: (checkinStatus?.continuousDays || 0) >= 7 }">
-              <text class="reward-icon">💎</text>
-              <text class="reward-desc">连续7天 +200 积分</text>
+            <view
+              class="reward-item"
+              :class="{ claimed: (checkinStatus?.continuousDays || 0) >= 7 }"
+            >
+              <text class="reward-icon">
+                💎
+              </text>
+              <text class="reward-desc">
+                连续7天 +200 积分
+              </text>
             </view>
           </view>
-          <text v-if="checkinStatus" class="checkin-streak">
+          <text
+            v-if="checkinStatus"
+            class="checkin-streak"
+          >
             已连续签到 {{ checkinStatus.continuousDays || 0 }} 天
           </text>
         </view>
@@ -109,14 +184,26 @@
 
       <!-- ==================== 如何获取积分 ==================== -->
       <view class="section">
-        <text class="section-title">如何获取积分</text>
+        <text class="section-title">
+          如何获取积分
+        </text>
         <view class="task-list">
-          <view class="task-item" v-for="task in dailyTasks" :key="task.id">
+          <view
+            v-for="task in dailyTasks"
+            :key="task.id"
+            class="task-item"
+          >
             <view class="task-left">
-              <text class="task-icon">{{ task.icon }}</text>
+              <text class="task-icon">
+                {{ task.icon }}
+              </text>
               <view class="task-info">
-                <text class="task-name">{{ task.name }}</text>
-                <text class="task-points">+{{ task.points }} 积分</text>
+                <text class="task-name">
+                  {{ task.name }}
+                </text>
+                <text class="task-points">
+                  +{{ task.points }} 积分
+                </text>
               </view>
             </view>
             <button
@@ -134,12 +221,22 @@
       <!-- ==================== 积分兑换 ==================== -->
       <view class="section">
         <view class="section-header">
-          <text class="section-title">积分兑换</text>
+          <text class="section-title">
+            积分兑换
+          </text>
         </view>
-        <view v-if="exchangeItems.length === 0" class="empty-exchange">
-          <text class="empty-text">暂无兑换商品</text>
+        <view
+          v-if="exchangeItems.length === 0"
+          class="empty-exchange"
+        >
+          <text class="empty-text">
+            暂无兑换商品
+          </text>
         </view>
-        <view v-else class="exchange-list">
+        <view
+          v-else
+          class="exchange-list"
+        >
           <view
             v-for="item in exchangeItems"
             :key="item.id"
@@ -147,15 +244,26 @@
             @click="handleExchange(item)"
           >
             <view class="ex-icon-wrap">
-              <text class="ex-icon">{{ item.icon || '🎁' }}</text>
+              <text class="ex-icon">
+                {{ item.icon || '🎁' }}
+              </text>
             </view>
             <view class="ex-info">
-              <text class="ex-name">{{ item.name }}</text>
-              <text class="ex-desc">{{ item.description }}</text>
+              <text class="ex-name">
+                {{ item.name }}
+              </text>
+              <text class="ex-desc">
+                {{ item.description }}
+              </text>
             </view>
             <view class="ex-right">
-              <text class="ex-points">{{ item.points }} 分</text>
-              <text class="ex-stock" v-if="item.stock !== undefined">
+              <text class="ex-points">
+                {{ item.points }} 分
+              </text>
+              <text
+                v-if="item.stock !== undefined"
+                class="ex-stock"
+              >
                 剩余 {{ item.stock }}
               </text>
             </view>
@@ -165,22 +273,46 @@
     </DataState>
 
     <!-- 兑换确认弹窗 -->
-    <view v-if="showExchangeModal" class="modal-overlay" @click="closeExchangeModal">
-      <view class="modal-content" @click.stop>
-        <text class="modal-title">确认兑换</text>
+    <view
+      v-if="showExchangeModal"
+      class="modal-overlay"
+      @click="closeExchangeModal"
+    >
+      <view
+        class="modal-content"
+        @click.stop
+      >
+        <text class="modal-title">
+          确认兑换
+        </text>
         <view class="modal-item-info">
-          <text class="modal-item-icon">{{ exchangeTarget?.icon || '🎁' }}</text>
-          <text class="modal-item-name">{{ exchangeTarget?.name }}</text>
+          <text class="modal-item-icon">
+            {{ exchangeTarget?.icon || '🎁' }}
+          </text>
+          <text class="modal-item-name">
+            {{ exchangeTarget?.name }}
+          </text>
         </view>
-        <text class="modal-points">消耗 {{ exchangeTarget?.points || 0 }} 积分</text>
-        <text class="modal-balance">当前积分 {{ points }}</text>
+        <text class="modal-points">
+          消耗 {{ exchangeTarget?.points || 0 }} 积分
+        </text>
+        <text class="modal-balance">
+          当前积分 {{ points }}
+        </text>
         <view class="modal-btns">
-          <button class="modal-cancel-btn" @click="closeExchangeModal">取消</button>
+          <button
+            class="modal-cancel-btn"
+            @click="closeExchangeModal"
+          >
+            取消
+          </button>
           <button
             class="modal-confirm-btn"
             :disabled="!(points >= (exchangeTarget?.points || 0))"
             @click="confirmExchange"
-          >确认兑换</button>
+          >
+            确认兑换
+          </button>
         </view>
       </view>
     </view>

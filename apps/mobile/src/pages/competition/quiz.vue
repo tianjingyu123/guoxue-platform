@@ -3,28 +3,56 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-left">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">答题</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          答题
+        </text>
       </view>
       <view class="header-right">
-        <text class="timer" :class="{ urgent: timeRemaining < 300 }">⏱ {{ formatTime(timeRemaining) }}</text>
+        <text
+          class="timer"
+          :class="{ urgent: timeRemaining < 300 }"
+        >
+          ⏱ {{ formatTime(timeRemaining) }}
+        </text>
       </view>
     </view>
 
     <!-- 进度条 -->
     <view class="progress-bar">
-      <view class="progress-fill" :style="{ width: progressPct + '%' }" />
-      <text class="progress-text">{{ currentIndex + 1 }}/{{ questions.length }}</text>
+      <view
+        class="progress-fill"
+        :style="{ width: progressPct + '%' }"
+      />
+      <text class="progress-text">
+        {{ currentIndex + 1 }}/{{ questions.length }}
+      </text>
     </view>
 
     <!-- 题目区域 -->
-    <scroll-view scroll-y class="quiz-scroll" v-if="questions.length > 0">
+    <scroll-view
+      v-if="questions.length > 0"
+      scroll-y
+      class="quiz-scroll"
+    >
       <view class="question-card">
-        <text class="q-number">第 {{ currentIndex + 1 }} 题</text>
-        <text class="q-text">{{ currentQuestion?.title || currentQuestion?.stem || currentQuestion?.question || '' }}</text>
+        <text class="q-number">
+          第 {{ currentIndex + 1 }} 题
+        </text>
+        <text class="q-text">
+          {{ currentQuestion?.title || currentQuestion?.stem || currentQuestion?.question || '' }}
+        </text>
 
         <!-- 选择题选项 -->
-        <view v-if="currentQuestion?.type === 'choice' || currentQuestion?.type === 'single' || !currentQuestion?.type" class="options">
+        <view
+          v-if="currentQuestion?.type === 'choice' || currentQuestion?.type === 'single' || !currentQuestion?.type"
+          class="options"
+        >
           <view
             v-for="(opt, idx) in currentQuestion.options"
             :key="idx"
@@ -32,20 +60,33 @@
             :class="{ selected: selectedOption === idx }"
             @click="selectOption(idx)"
           >
-            <text class="option-label">{{ String.fromCharCode(65 + idx) }}</text>
-            <text class="option-text">{{ typeof opt === 'string' ? opt : opt.text || opt }}</text>
+            <text class="option-label">
+              {{ String.fromCharCode(65 + idx) }}
+            </text>
+            <text class="option-text">
+              {{ typeof opt === 'string' ? opt : opt.text || opt }}
+            </text>
           </view>
         </view>
 
         <!-- 填空题 -->
-        <view v-if="currentQuestion?.type === 'fill'" class="fill-area">
-          <textarea v-model="fillText" placeholder="请输入你的答案" class="fill-input" />
+        <view
+          v-if="currentQuestion?.type === 'fill'"
+          class="fill-area"
+        >
+          <textarea
+            v-model="fillText"
+            placeholder="请输入你的答案"
+            class="fill-input"
+          />
         </view>
       </view>
 
       <!-- 答题卡 -->
       <view class="answer-sheet">
-        <text class="sheet-title">答题卡</text>
+        <text class="sheet-title">
+          答题卡
+        </text>
         <view class="sheet-grid">
           <text
             v-for="(_, idx) in questions"
@@ -53,15 +94,36 @@
             class="sheet-num"
             :class="{ answered: answers[idx] !== undefined, current: idx === currentIndex }"
             @click="goToQuestion(idx)"
-          >{{ idx + 1 }}</text>
+          >
+            {{ idx + 1 }}
+          </text>
         </view>
       </view>
 
       <!-- 导航按钮 -->
       <view class="nav-buttons">
-        <button v-if="currentIndex > 0" class="nav-btn prev" @click="prevQuestion">上一题</button>
-        <button v-if="currentIndex < questions.length - 1" class="nav-btn next" @click="nextQuestion">下一题</button>
-        <button v-if="currentIndex === questions.length - 1" class="nav-btn submit" @click="handleSubmit" :disabled="submitting">交卷</button>
+        <button
+          v-if="currentIndex > 0"
+          class="nav-btn prev"
+          @click="prevQuestion"
+        >
+          上一题
+        </button>
+        <button
+          v-if="currentIndex < questions.length - 1"
+          class="nav-btn next"
+          @click="nextQuestion"
+        >
+          下一题
+        </button>
+        <button
+          v-if="currentIndex === questions.length - 1"
+          class="nav-btn submit"
+          :disabled="submitting"
+          @click="handleSubmit"
+        >
+          交卷
+        </button>
       </view>
     </scroll-view>
 

@@ -2,42 +2,75 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
-      <view class="nav-left" @click="goBack">
-        <text class="nav-icon">‹</text>
+      <view
+        class="nav-left"
+        @click="goBack"
+      >
+        <text class="nav-icon">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">圈子智能体</text>
-      <view v-if="isAdmin" class="nav-right" @click="goManage">
-        <text class="nav-icon">⚙</text>
+      <text class="nav-title">
+        圈子智能体
+      </text>
+      <view
+        v-if="isAdmin"
+        class="nav-right"
+        @click="goManage"
+      >
+        <text class="nav-icon">
+          ⚙
+        </text>
       </view>
-      <view v-else class="nav-spacer" />
+      <view
+        v-else
+        class="nav-spacer"
+      />
     </view>
 
     <!-- 圈子信息 -->
-    <view v-if="circle" class="circle-info">
-      <image :src="circle.cover || ''" class="circle-cover" mode="aspectFill" />
+    <view
+      v-if="circle"
+      class="circle-info"
+    >
+      <image
+        :src="circle.cover || ''"
+        class="circle-cover"
+        mode="aspectFill"
+      />
       <view class="circle-detail">
-        <text class="circle-name">{{ circle.name }}</text>
-        <text class="circle-meta">{{ formatNumber(circle.members) }} 成员 · {{ bots.length }} 个智能体</text>
+        <text class="circle-name">
+          {{ circle.name }}
+        </text>
+        <text class="circle-meta">
+          {{ formatNumber(circle.members) }} 成员 · {{ bots.length }} 个智能体
+        </text>
       </view>
     </view>
 
     <!-- 搜索栏 -->
     <view class="search-bar">
       <view class="search-inner">
-        <text class="search-icon">🔍</text>
+        <text class="search-icon">
+          🔍
+        </text>
         <input
           v-model="searchQuery"
           class="search-input"
           placeholder="搜索智能体..."
           @input="onSearchInput"
-        />
+        >
       </view>
     </view>
 
     <!-- 智能体列表 -->
     <view class="bot-list-wrap">
       <template v-if="loading">
-        <view v-for="i in 4" :key="i" class="bot-skeleton">
+        <view
+          v-for="i in 4"
+          :key="i"
+          class="bot-skeleton"
+        >
           <view class="sk-avatar" />
           <view class="sk-info">
             <view class="sk-name" />
@@ -50,10 +83,18 @@
       <template v-else-if="filteredBots.length === 0">
         <view class="empty-state">
           <view class="empty-icon-wrap">
-            <text class="empty-icon">🤖</text>
+            <text class="empty-icon">
+              🤖
+            </text>
           </view>
-          <text class="empty-text">{{ searchQuery ? '未找到相关智能体' : '暂无智能体' }}</text>
-          <view v-if="isAdmin && !searchQuery" class="btn-empty-create" @click="goCreate">
+          <text class="empty-text">
+            {{ searchQuery ? '未找到相关智能体' : '暂无智能体' }}
+          </text>
+          <view
+            v-if="isAdmin && !searchQuery"
+            class="btn-empty-create"
+            @click="goCreate"
+          >
             创建智能体
           </view>
         </view>
@@ -73,29 +114,53 @@
                 class="bot-avatar"
                 mode="aspectFill"
               />
-              <view v-if="bot.isOfficial" class="badge-official">
-                <text class="badge-official-icon">✨</text>
+              <view
+                v-if="bot.isOfficial"
+                class="badge-official"
+              >
+                <text class="badge-official-icon">
+                  ✨
+                </text>
               </view>
             </view>
             <view class="bot-info">
               <view class="bot-name-row">
-                <text class="bot-name">{{ bot.name }}</text>
-                <text class="bot-category">{{ bot.category }}</text>
+                <text class="bot-name">
+                  {{ bot.name }}
+                </text>
+                <text class="bot-category">
+                  {{ bot.category }}
+                </text>
               </view>
-              <text class="bot-desc">{{ bot.description }}</text>
+              <text class="bot-desc">
+                {{ bot.description }}
+              </text>
             </view>
           </view>
 
           <view class="bot-stats">
             <view class="bot-stat-item">
-              <text class="bot-stat-icon">💬</text>
-              <text class="bot-stat-num">{{ formatNumber(bot.chats) }}</text>
+              <text class="bot-stat-icon">
+                💬
+              </text>
+              <text class="bot-stat-num">
+                {{ formatNumber(bot.chats) }}
+              </text>
             </view>
             <view class="bot-stat-item">
-              <text class="bot-stat-icon">❤</text>
-              <text class="bot-stat-num">{{ formatNumber(bot.likes) }}</text>
+              <text class="bot-stat-icon">
+                ❤
+              </text>
+              <text class="bot-stat-num">
+                {{ formatNumber(bot.likes) }}
+              </text>
             </view>
-            <view class="bot-chat-btn" @click.stop="goChat(bot)">对话</view>
+            <view
+              class="bot-chat-btn"
+              @click.stop="goChat(bot)"
+            >
+              对话
+            </view>
           </view>
         </view>
       </template>
@@ -107,7 +172,9 @@
       class="fab-create"
       @click="goCreate"
     >
-      <text class="fab-icon">＋</text>
+      <text class="fab-icon">
+        ＋
+      </text>
     </view>
   </view>
 </template>

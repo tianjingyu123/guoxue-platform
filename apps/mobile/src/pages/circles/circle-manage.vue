@@ -1,135 +1,385 @@
 <template>
   <view class="page">
-    <view v-if="loading" class="skeleton-page">
+    <view
+      v-if="loading"
+      class="skeleton-page"
+    >
       <view class="skeleton-header" />
-      <view v-for="i in 4" :key="i" class="skeleton-row" />
+      <view
+        v-for="i in 4"
+        :key="i"
+        class="skeleton-row"
+      />
     </view>
 
     <template v-else-if="circle">
       <!-- 顶部概览 -->
       <view class="header-card">
-        <image v-if="circle.cover" :src="circle.cover" class="cover" mode="aspectFill" />
+        <image
+          v-if="circle.cover"
+          :src="circle.cover"
+          class="cover"
+          mode="aspectFill"
+        />
         <view class="header-info">
-          <text class="circle-name">{{ circle.name }}</text>
-          <text class="circle-tag">{{ circle.type === 'FREE' ? '免费圈' : circle.type === 'YEARLY' ? '年费圈' : '付费圈' }}</text>
+          <text class="circle-name">
+            {{ circle.name }}
+          </text>
+          <text class="circle-tag">
+            {{ circle.type === 'FREE' ? '免费圈' : circle.type === 'YEARLY' ? '年费圈' : '付费圈' }}
+          </text>
         </view>
       </view>
 
       <!-- 数据概览卡片 -->
       <view class="stats-row">
-        <view class="stat-item"><text class="stat-value">{{ circle.memberCount || 0 }}</text><text class="stat-label">成员</text></view>
-        <view class="stat-item"><text class="stat-value">{{ circle.postCount || 0 }}</text><text class="stat-label">帖子</text></view>
-        <view class="stat-item"><text class="stat-value">{{ dashData?.totalRevenue || 0 }}</text><text class="stat-label">收益(元)</text></view>
-        <view class="stat-item"><text class="stat-value">{{ dashData?.pendingQuestions || 0 }}</text><text class="stat-label">待回答</text></view>
+        <view class="stat-item">
+          <text class="stat-value">
+            {{ circle.memberCount || 0 }}
+          </text><text class="stat-label">
+            成员
+          </text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-value">
+            {{ circle.postCount || 0 }}
+          </text><text class="stat-label">
+            帖子
+          </text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-value">
+            {{ dashData?.totalRevenue || 0 }}
+          </text><text class="stat-label">
+            收益(元)
+          </text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-value">
+            {{ dashData?.pendingQuestions || 0 }}
+          </text><text class="stat-label">
+            待回答
+          </text>
+        </view>
       </view>
 
       <!-- 快捷操作 -->
       <view class="quick-actions">
-        <view class="q-action" @click="editAnnouncement"><text class="q-icon">📢</text><text>公告</text></view>
-        <view class="q-action" @click="switchTab('members')"><text class="q-icon">👥</text><text>成员</text></view>
-        <view class="q-action" @click="switchTab('posts')"><text class="q-icon">📝</text><text>审核</text></view>
-        <view class="q-action" @click="switchTab('experts')"><text class="q-icon">⭐</text><text>达人</text></view>
+        <view
+          class="q-action"
+          @click="editAnnouncement"
+        >
+          <text class="q-icon">
+            📢
+          </text><text>公告</text>
+        </view>
+        <view
+          class="q-action"
+          @click="switchTab('members')"
+        >
+          <text class="q-icon">
+            👥
+          </text><text>成员</text>
+        </view>
+        <view
+          class="q-action"
+          @click="switchTab('posts')"
+        >
+          <text class="q-icon">
+            📝
+          </text><text>审核</text>
+        </view>
+        <view
+          class="q-action"
+          @click="switchTab('experts')"
+        >
+          <text class="q-icon">
+            ⭐
+          </text><text>达人</text>
+        </view>
       </view>
 
       <!-- Tab内容区 -->
       <view class="tab-bar">
-        <view v-for="t in tabs" :key="t.key" class="tab-item" :class="{ active: activeTab === t.key }" @click="switchTab(t.key)">{{ t.label }}</view>
+        <view
+          v-for="t in tabs"
+          :key="t.key"
+          class="tab-item"
+          :class="{ active: activeTab === t.key }"
+          @click="switchTab(t.key)"
+        >
+          {{ t.label }}
+        </view>
       </view>
 
       <!-- 公告编辑 -->
-      <view v-if="activeTab === 'announcement'" class="section">
-        <textarea v-model="announcement" class="announce-input" placeholder="输入圈子公告..." :maxlength="500" />
-        <text class="char-count">{{ announcement.length }}/500</text>
-        <button class="save-btn" @click="saveAnnouncement" :disabled="savingAnnouncement">{{ savingAnnouncement ? '保存中...' : '发布公告' }}</button>
+      <view
+        v-if="activeTab === 'announcement'"
+        class="section"
+      >
+        <textarea
+          v-model="announcement"
+          class="announce-input"
+          placeholder="输入圈子公告..."
+          :maxlength="500"
+        />
+        <text class="char-count">
+          {{ announcement.length }}/500
+        </text>
+        <button
+          class="save-btn"
+          :disabled="savingAnnouncement"
+          @click="saveAnnouncement"
+        >
+          {{ savingAnnouncement ? '保存中...' : '发布公告' }}
+        </button>
       </view>
 
       <!-- 成员管理 -->
-      <view v-if="activeTab === 'members'" class="section">
+      <view
+        v-if="activeTab === 'members'"
+        class="section"
+      >
         <view class="filter-row">
-          <input v-model="memberSearch" class="filter-input" placeholder="搜索成员..." />
-          <picker :range="roleOptions" @change="(e: any) => memberRoleFilter = roleValues[e.detail.value]">
-            <text class="filter-picker">{{ memberRoleFilter ? roleLabel(memberRoleFilter) : '角色筛选 ▼' }}</text>
+          <input
+            v-model="memberSearch"
+            class="filter-input"
+            placeholder="搜索成员..."
+          >
+          <picker
+            :range="roleOptions"
+            @change="(e: any) => memberRoleFilter = roleValues[e.detail.value]"
+          >
+            <text class="filter-picker">
+              {{ memberRoleFilter ? roleLabel(memberRoleFilter) : '角色筛选 ▼' }}
+            </text>
           </picker>
         </view>
-        <view v-if="memberLoading" class="loading-text">加载中...</view>
-        <view v-else-if="members.length > 0" class="member-list">
-          <view v-for="m in members" :key="m.userId" class="member-row">
-            <image v-if="m.user?.avatar" :src="m.user.avatar" class="m-avatar" mode="aspectFill" />
-            <view v-else class="m-avatar-placeholder" />
+        <view
+          v-if="memberLoading"
+          class="loading-text"
+        >
+          加载中...
+        </view>
+        <view
+          v-else-if="members.length > 0"
+          class="member-list"
+        >
+          <view
+            v-for="m in members"
+            :key="m.userId"
+            class="member-row"
+          >
+            <image
+              v-if="m.user?.avatar"
+              :src="m.user.avatar"
+              class="m-avatar"
+              mode="aspectFill"
+            />
+            <view
+              v-else
+              class="m-avatar-placeholder"
+            />
             <view class="m-info">
-              <text class="m-name">{{ m.user?.nickname || m.userId }}</text>
-              <text class="m-time">{{ fmtDate(m.joinedAt) }}</text>
+              <text class="m-name">
+                {{ m.user?.nickname || m.userId }}
+              </text>
+              <text class="m-time">
+                {{ fmtDate(m.joinedAt) }}
+              </text>
             </view>
-            <text class="m-role">{{ roleLabel(m.role) }}</text>
-            <text v-if="m.role !== 'OWNER'" class="m-remove" @click="removeMember(m)">移除</text>
+            <text class="m-role">
+              {{ roleLabel(m.role) }}
+            </text>
+            <text
+              v-if="m.role !== 'OWNER'"
+              class="m-remove"
+              @click="removeMember(m)"
+            >
+              移除
+            </text>
           </view>
         </view>
-        <EmptyState v-else icon="👥" text="暂无成员" />
+        <EmptyState
+          v-else
+          icon="👥"
+          text="暂无成员"
+        />
       </view>
 
       <!-- 帖子审核 -->
-      <view v-if="activeTab === 'posts'" class="section">
-        <view v-if="postLoading" class="loading-text">加载中...</view>
-        <view v-else-if="posts.length > 0" class="post-list">
-          <view v-for="p in posts" :key="p.id" class="audit-post">
-            <text class="ap-title">{{ p.title || p.content?.slice(0, 50) }}</text>
-            <text class="ap-author">by {{ p.user?.nickname || '匿名' }}</text>
+      <view
+        v-if="activeTab === 'posts'"
+        class="section"
+      >
+        <view
+          v-if="postLoading"
+          class="loading-text"
+        >
+          加载中...
+        </view>
+        <view
+          v-else-if="posts.length > 0"
+          class="post-list"
+        >
+          <view
+            v-for="p in posts"
+            :key="p.id"
+            class="audit-post"
+          >
+            <text class="ap-title">
+              {{ p.title || p.content?.slice(0, 50) }}
+            </text>
+            <text class="ap-author">
+              by {{ p.user?.nickname || '匿名' }}
+            </text>
             <view class="ap-actions">
-              <text v-if="p.status === 'AUDITING'" class="ap-approve" @click="approvePost(p)">通过</text>
-              <text v-if="p.status === 'AUDITING'" class="ap-reject" @click="rejectPost(p)">拒绝</text>
-              <text class="ap-delete" @click="deletePost(p)">删除</text>
+              <text
+                v-if="p.status === 'AUDITING'"
+                class="ap-approve"
+                @click="approvePost(p)"
+              >
+                通过
+              </text>
+              <text
+                v-if="p.status === 'AUDITING'"
+                class="ap-reject"
+                @click="rejectPost(p)"
+              >
+                拒绝
+              </text>
+              <text
+                class="ap-delete"
+                @click="deletePost(p)"
+              >
+                删除
+              </text>
             </view>
           </view>
         </view>
-        <EmptyState v-else icon="📝" text="暂无待审核帖子" />
+        <EmptyState
+          v-else
+          icon="📝"
+          text="暂无待审核帖子"
+        />
       </view>
 
       <!-- 达人配置 -->
-      <view v-if="activeTab === 'experts'" class="section">
-        <view v-if="expertLoading" class="loading-text">加载中...</view>
-        <view v-else-if="experts.length > 0" class="expert-list">
-          <view v-for="e in experts" :key="e.userId" class="expert-row">
-            <text class="ex-name">{{ e.user?.nickname || e.userId }}</text>
+      <view
+        v-if="activeTab === 'experts'"
+        class="section"
+      >
+        <view
+          v-if="expertLoading"
+          class="loading-text"
+        >
+          加载中...
+        </view>
+        <view
+          v-else-if="experts.length > 0"
+          class="expert-list"
+        >
+          <view
+            v-for="e in experts"
+            :key="e.userId"
+            class="expert-row"
+          >
+            <text class="ex-name">
+              {{ e.user?.nickname || e.userId }}
+            </text>
             <view class="ex-prices">
               <view class="ex-field">
-                <text class="ex-label">提问价</text>
-                <input v-model.number="e.questionPriceCoin" type="number" class="ex-input" @blur="saveExpertConfig(e)" />
-                <text class="ex-unit">币</text>
+                <text class="ex-label">
+                  提问价
+                </text>
+                <input
+                  v-model.number="e.questionPriceCoin"
+                  type="number"
+                  class="ex-input"
+                  @blur="saveExpertConfig(e)"
+                >
+                <text class="ex-unit">
+                  币
+                </text>
               </view>
               <view class="ex-field">
-                <text class="ex-label">连麦价</text>
-                <input v-model.number="e.callPricePerMinuteCoin" type="number" class="ex-input" @blur="saveExpertConfig(e)" />
-                <text class="ex-unit">币/分</text>
+                <text class="ex-label">
+                  连麦价
+                </text>
+                <input
+                  v-model.number="e.callPricePerMinuteCoin"
+                  type="number"
+                  class="ex-input"
+                  @blur="saveExpertConfig(e)"
+                >
+                <text class="ex-unit">
+                  币/分
+                </text>
               </view>
             </view>
           </view>
         </view>
-        <EmptyState v-else icon="⭐" text="暂无可配置的达人" />
+        <EmptyState
+          v-else
+          icon="⭐"
+          text="暂无可配置的达人"
+        />
       </view>
 
       <!-- 收益概览 -->
-      <view v-if="activeTab === 'revenue'" class="section">
+      <view
+        v-if="activeTab === 'revenue'"
+        class="section"
+      >
         <view class="revenue-summary">
-          <text class="rv-total">总收益: ¥{{ dashData?.totalRevenue || 0 }}</text>
-          <text class="rv-month">本月: ¥{{ dashData?.monthRevenue || 0 }}</text>
+          <text class="rv-total">
+            总收益: ¥{{ dashData?.totalRevenue || 0 }}
+          </text>
+          <text class="rv-month">
+            本月: ¥{{ dashData?.monthRevenue || 0 }}
+          </text>
         </view>
-        <view v-if="revenueLoading" class="loading-text">加载中...</view>
-        <view v-else-if="revenues.length > 0" class="revenue-list">
-          <view v-for="r in revenues" :key="r.id" class="rv-row">
+        <view
+          v-if="revenueLoading"
+          class="loading-text"
+        >
+          加载中...
+        </view>
+        <view
+          v-else-if="revenues.length > 0"
+          class="revenue-list"
+        >
+          <view
+            v-for="r in revenues"
+            :key="r.id"
+            class="rv-row"
+          >
             <view class="rv-left">
-              <text class="rv-type">{{ { circle_join: '入圈', course: '课程', product: '商品', gift: '礼物' }[r.type] || r.type }}</text>
-              <text class="rv-date">{{ fmtDate(r.createdAt) }}</text>
+              <text class="rv-type">
+                {{ { circle_join: '入圈', course: '课程', product: '商品', gift: '礼物' }[r.type] || r.type }}
+              </text>
+              <text class="rv-date">
+                {{ fmtDate(r.createdAt) }}
+              </text>
             </view>
             <view class="rv-right">
-              <text class="rv-amount">¥{{ r.amount }}</text>
-              <text class="rv-share">得¥{{ r.ownerShare }}</text>
+              <text class="rv-amount">
+                ¥{{ r.amount }}
+              </text>
+              <text class="rv-share">
+                得¥{{ r.ownerShare }}
+              </text>
             </view>
           </view>
         </view>
       </view>
     </template>
 
-    <EmptyState v-else icon="⚠️" text="圈子加载失败" />
+    <EmptyState
+      v-else
+      icon="⚠️"
+      text="圈子加载失败"
+    />
   </view>
 </template>
 

@@ -2,82 +2,170 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">晋级通知</text>
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        晋级通知
+      </text>
     </view>
 
-    <scroll-view scroll-y class="scroll-area">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
       <!-- 庆祝动画 -->
       <view class="celebration">
-        <text class="celeb-icon">{{ notification.passed ? '🎉' : '😢' }}</text>
-        <text class="celeb-title">{{ notification.passed ? '恭喜晋级！' : '未晋级' }}</text>
+        <text class="celeb-icon">
+          {{ notification.passed ? '🎉' : '😢' }}
+        </text>
+        <text class="celeb-title">
+          {{ notification.passed ? '恭喜晋级！' : '未晋级' }}
+        </text>
       </view>
 
       <!-- 结果卡片 -->
-      <view class="result-card" :class="{ passed: notification.passed, failed: !notification.passed }">
+      <view
+        class="result-card"
+        :class="{ passed: notification.passed, failed: !notification.passed }"
+      >
         <view class="result-header">
-          <text class="result-comp-name">{{ compName || '国学知识竞赛' }}</text>
-          <text class="result-round">{{ currentRound || '初赛' }}</text>
+          <text class="result-comp-name">
+            {{ compName || '国学知识竞赛' }}
+          </text>
+          <text class="result-round">
+            {{ currentRound || '初赛' }}
+          </text>
         </view>
 
         <view class="result-details">
           <view class="result-item">
-            <text class="ri-label">当前排名</text>
-            <text class="ri-value highlight">{{ rank }} 名</text>
+            <text class="ri-label">
+              当前排名
+            </text>
+            <text class="ri-value highlight">
+              {{ rank }} 名
+            </text>
           </view>
           <view class="result-item">
-            <text class="ri-label">获得积分</text>
-            <text class="ri-value">+{{ earnedPoints }}</text>
+            <text class="ri-label">
+              获得积分
+            </text>
+            <text class="ri-value">
+              +{{ earnedPoints }}
+            </text>
           </view>
           <view class="result-item">
-            <text class="ri-label">总得分</text>
-            <text class="ri-value">{{ totalScore }} 分</text>
+            <text class="ri-label">
+              总得分
+            </text>
+            <text class="ri-value">
+              {{ totalScore }} 分
+            </text>
           </view>
           <view class="result-item">
-            <text class="ri-label">晋级人数</text>
-            <text class="ri-value">{{ advanceCount }} 人</text>
+            <text class="ri-label">
+              晋级人数
+            </text>
+            <text class="ri-value">
+              {{ advanceCount }} 人
+            </text>
           </view>
         </view>
 
         <view class="result-divider" />
 
         <view class="next-info">
-          <text class="next-label">下一轮：</text>
-          <text class="next-value">{{ nextRoundName || '决赛' }}</text>
+          <text class="next-label">
+            下一轮：
+          </text>
+          <text class="next-value">
+            {{ nextRoundName || '决赛' }}
+          </text>
         </view>
         <view class="next-info">
-          <text class="next-label">开始时间：</text>
-          <text class="next-value">{{ nextStartTime || '待通知' }}</text>
+          <text class="next-label">
+            开始时间：
+          </text>
+          <text class="next-value">
+            {{ nextStartTime || '待通知' }}
+          </text>
         </view>
       </view>
 
       <!-- 鼓励语 -->
-      <view class="message-card" v-if="notification.passed">
-        <text class="message-icon">💪</text>
-        <text class="message-text">你的表现非常出色！请在规定时间内准备好下一轮比赛，再接再厉，争取更好的成绩！</text>
+      <view
+        v-if="notification.passed"
+        class="message-card"
+      >
+        <text class="message-icon">
+          💪
+        </text>
+        <text class="message-text">
+          你的表现非常出色！请在规定时间内准备好下一轮比赛，再接再厉，争取更好的成绩！
+        </text>
       </view>
-      <view class="message-card fail" v-else>
-        <text class="message-icon">📚</text>
-        <text class="message-text">不要灰心，每一次尝试都是成长。持续学习，下次一定能取得更好的成绩！</text>
+      <view
+        v-else
+        class="message-card fail"
+      >
+        <text class="message-icon">
+          📚
+        </text>
+        <text class="message-text">
+          不要灰心，每一次尝试都是成长。持续学习，下次一定能取得更好的成绩！
+        </text>
       </view>
 
       <!-- 历史晋级记录 -->
-      <view class="section" v-if="history.length > 0">
-        <text class="section-title">晋级历程</text>
-        <view v-for="(h, idx) in history" :key="idx" class="history-item">
-          <view class="history-dot" :class="{ active: h.passed }" />
+      <view
+        v-if="history.length > 0"
+        class="section"
+      >
+        <text class="section-title">
+          晋级历程
+        </text>
+        <view
+          v-for="(h, idx) in history"
+          :key="idx"
+          class="history-item"
+        >
+          <view
+            class="history-dot"
+            :class="{ active: h.passed }"
+          />
           <view class="history-content">
-            <text class="history-round">{{ h.roundName }}</text>
-            <text class="history-result">{{ h.passed ? '晋级' : '未晋级' }}</text>
+            <text class="history-round">
+              {{ h.roundName }}
+            </text>
+            <text class="history-result">
+              {{ h.passed ? '晋级' : '未晋级' }}
+            </text>
           </view>
-          <text class="history-score">{{ h.score }}分</text>
+          <text class="history-score">
+            {{ h.score }}分
+          </text>
         </view>
       </view>
 
       <!-- 操作按钮 -->
       <view class="action-buttons">
-        <button v-if="notification.passed" class="btn-primary" @click="goNext">进入下一轮</button>
-        <button class="btn-secondary" @click="goDashboard">查看详情</button>
+        <button
+          v-if="notification.passed"
+          class="btn-primary"
+          @click="goNext"
+        >
+          进入下一轮
+        </button>
+        <button
+          class="btn-secondary"
+          @click="goDashboard"
+        >
+          查看详情
+        </button>
       </view>
     </scroll-view>
 
@@ -149,7 +237,7 @@ async function fetchData() {
 
 function goNext() {
   uni.navigateTo({
-    url: `/pages/competition/quiz?roundId=${nextRoundName}&id=${getCompId()}`,
+    url: `/pages/competition/quiz?roundId=${nextRoundName.value}&id=${getCompId()}`,
   })
 }
 

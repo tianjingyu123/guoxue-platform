@@ -2,23 +2,67 @@
   <view class="page">
     <LoadingSkeleton v-if="loading" />
     <view v-else>
-      <view v-for="work in works" :key="work.id" class="work-card">
+      <view
+        v-for="work in works"
+        :key="work.id"
+        class="work-card"
+      >
         <view class="work-header">
-          <text class="student-name">{{ work.user?.nickname || '学生' }}</text>
-          <text class="work-time">{{ work.createdAt?.slice(0, 10) }}</text>
+          <text class="student-name">
+            {{ work.user?.nickname || '学生' }}
+          </text>
+          <text class="work-time">
+            {{ work.createdAt?.slice(0, 10) }}
+          </text>
         </view>
-        <text class="work-content">{{ work.content }}</text>
-        <view v-if="work.images?.length" class="work-imgs">
-          <image v-for="(img, i) in work.images" :key="i" :src="img" class="wimg" mode="aspectFill" />
+        <text class="work-content">
+          {{ work.content }}
+        </text>
+        <view
+          v-if="work.images?.length"
+          class="work-imgs"
+        >
+          <image
+            v-for="(img, i) in work.images"
+            :key="i"
+            :src="img"
+            class="wimg"
+            mode="aspectFill"
+          />
         </view>
-        <view class="review-form" v-if="!work.reviewed">
-          <input v-model="work._score" type="number" placeholder="分数 (0-100)" class="score-input" />
-          <textarea v-model="work._comment" placeholder="评语..." class="comment-input" />
-          <button class="btn-submit" @click="submitReview(work)">提交批改</button>
+        <view
+          v-if="!work.reviewed"
+          class="review-form"
+        >
+          <input
+            v-model="work._score"
+            type="number"
+            placeholder="分数 (0-100)"
+            class="score-input"
+          >
+          <textarea
+            v-model="work._comment"
+            placeholder="评语..."
+            class="comment-input"
+          />
+          <button
+            class="btn-submit"
+            @click="submitReview(work)"
+          >
+            提交批改
+          </button>
         </view>
-        <view v-else class="reviewed-tag"><text>已批改: {{ work.review?.score }}分</text></view>
+        <view
+          v-else
+          class="reviewed-tag"
+        >
+          <text>已批改: {{ work.review?.score }}分</text>
+        </view>
       </view>
-      <EmptyState v-if="!works.length" text="暂无待批改作业" />
+      <EmptyState
+        v-if="!works.length"
+        text="暂无待批改作业"
+      />
     </view>
   </view>
 </template>

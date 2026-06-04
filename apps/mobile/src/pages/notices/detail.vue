@@ -2,40 +2,91 @@
   <view class="page">
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">公告详情</text>
-        <text class="share-btn" @click="handleShare">📤</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          公告详情
+        </text>
+        <text
+          class="share-btn"
+          @click="handleShare"
+        >
+          📤
+        </text>
       </view>
     </view>
 
-    <view v-if="loading" class="loading-skeleton">
+    <view
+      v-if="loading"
+      class="loading-skeleton"
+    >
       <view class="s-block w-70" />
-      <view class="s-row"><view class="s-block w-30" /><view class="s-block w-40" /></view>
+      <view class="s-row">
+        <view class="s-block w-30" /><view class="s-block w-40" />
+      </view>
       <view class="s-block h-40" />
       <view class="s-block w-100" /><view class="s-block w-90" /><view class="s-block w-60" />
     </view>
 
-    <view v-else-if="!notice" class="empty-state">
-      <text class="empty-icon">📢</text>
-      <text class="empty-text">公告不存在或已删除</text>
-      <view class="empty-btn" @click="goBack">返回列表</view>
+    <view
+      v-else-if="!notice"
+      class="empty-state"
+    >
+      <text class="empty-icon">
+        📢
+      </text>
+      <text class="empty-text">
+        公告不存在或已删除
+      </text>
+      <view
+        class="empty-btn"
+        @click="goBack"
+      >
+        返回列表
+      </view>
     </view>
 
-    <scroll-view v-else scroll-y class="content-scroll">
+    <scroll-view
+      v-else
+      scroll-y
+      class="content-scroll"
+    >
       <!-- 封面 -->
-      <image v-if="notice.cover" :src="notice.cover" mode="aspectFill" class="cover-img" />
+      <image
+        v-if="notice.cover"
+        :src="notice.cover"
+        mode="aspectFill"
+        class="cover-img"
+      />
 
       <view class="detail-section">
         <view class="type-row">
-          <text v-if="notice.isPinned" class="pin-tag">📌 置顶</text>
-          <text class="type-tag">{{ typeLabel(notice.type) }}</text>
+          <text
+            v-if="notice.isPinned"
+            class="pin-tag"
+          >
+            📌 置顶
+          </text>
+          <text class="type-tag">
+            {{ typeLabel(notice.type) }}
+          </text>
         </view>
 
-        <text class="detail-title">{{ notice.title }}</text>
+        <text class="detail-title">
+          {{ notice.title }}
+        </text>
 
         <view class="meta-row">
-          <text class="meta-time">📅 {{ notice.publishedAt }}</text>
-          <text class="meta-views">👁 {{ notice.viewCount || 0 }} 次阅读</text>
+          <text class="meta-time">
+            📅 {{ notice.publishedAt }}
+          </text>
+          <text class="meta-views">
+            👁 {{ notice.viewCount || 0 }} 次阅读
+          </text>
         </view>
 
         <view class="divider" />
@@ -45,21 +96,47 @@
         </view>
 
         <!-- 相关链接 -->
-        <view v-if="notice.link" class="link-card" @click="openLink(notice.link)">
-          <text class="link-label">🔗 相关链接</text>
-          <text class="link-url">{{ notice.link }}</text>
+        <view
+          v-if="notice.link"
+          class="link-card"
+          @click="openLink(notice.link)"
+        >
+          <text class="link-label">
+            🔗 相关链接
+          </text>
+          <text class="link-url">
+            {{ notice.link }}
+          </text>
         </view>
 
         <!-- 附件 -->
-        <view v-if="notice.attachments && notice.attachments.length" class="attach-section">
-          <text class="attach-title">附件</text>
-          <view v-for="(att, idx) in notice.attachments" :key="idx" class="attach-item" @click="downloadAtt(att)">
-            <text class="attach-icon">📄</text>
+        <view
+          v-if="notice.attachments && notice.attachments.length"
+          class="attach-section"
+        >
+          <text class="attach-title">
+            附件
+          </text>
+          <view
+            v-for="(att, idx) in notice.attachments"
+            :key="idx"
+            class="attach-item"
+            @click="downloadAtt(att)"
+          >
+            <text class="attach-icon">
+              📄
+            </text>
             <view class="attach-info">
-              <text class="attach-name">{{ att.name }}</text>
-              <text class="attach-size">{{ formatSize(att.size) }}</text>
+              <text class="attach-name">
+                {{ att.name }}
+              </text>
+              <text class="attach-size">
+                {{ formatSize(att.size) }}
+              </text>
             </view>
-            <text class="attach-dl">下载</text>
+            <text class="attach-dl">
+              下载
+            </text>
           </view>
         </view>
 
@@ -70,10 +147,23 @@
       </view>
     </scroll-view>
 
-    <view v-if="notice" class="bottom-bar">
+    <view
+      v-if="notice"
+      class="bottom-bar"
+    >
       <view class="bottom-inner">
-        <view class="bb-btn" @click="goBack">返回列表</view>
-        <view class="bb-btn primary" @click="handleShare">📤 分享公告</view>
+        <view
+          class="bb-btn"
+          @click="goBack"
+        >
+          返回列表
+        </view>
+        <view
+          class="bb-btn primary"
+          @click="handleShare"
+        >
+          📤 分享公告
+        </view>
       </view>
     </view>
   </view>

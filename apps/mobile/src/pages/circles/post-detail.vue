@@ -25,25 +25,54 @@
               class="avatar"
               mode="aspectFill"
             />
-            <view v-else class="avatar-placeholder">👤</view>
+            <view
+              v-else
+              class="avatar-placeholder"
+            >
+              👤
+            </view>
             <view class="author-meta">
-              <text class="author-name">{{ post.author?.nickname || '匿名' }}</text>
-              <text class="post-time">{{ formatTime(post.createdAt) }}</text>
+              <text class="author-name">
+                {{ post.author?.nickname || '匿名' }}
+              </text>
+              <text class="post-time">
+                {{ formatTime(post.createdAt) }}
+              </text>
             </view>
             <view class="post-badges">
-              <text v-if="post.isTop" class="badge top">置顶</text>
-              <text v-if="post.isEssence" class="badge essence">精华</text>
+              <text
+                v-if="post.isTop"
+                class="badge top"
+              >
+                置顶
+              </text>
+              <text
+                v-if="post.isEssence"
+                class="badge essence"
+              >
+                精华
+              </text>
             </view>
           </view>
 
           <!-- 标题 -->
-          <text v-if="post.title" class="post-title">{{ post.title }}</text>
+          <text
+            v-if="post.title"
+            class="post-title"
+          >
+            {{ post.title }}
+          </text>
 
           <!-- 正文 -->
-          <text class="post-content">{{ post.content }}</text>
+          <text class="post-content">
+            {{ post.content }}
+          </text>
 
           <!-- 图片 -->
-          <view v-if="post.images?.length" class="post-images">
+          <view
+            v-if="post.images?.length"
+            class="post-images"
+          >
             <image
               v-for="(img, idx) in post.images"
               :key="idx"
@@ -56,47 +85,101 @@
           </view>
 
           <!-- 视频 -->
-          <video v-if="post.videoUrl" :src="post.videoUrl" class="post-video" :controls="true" />
+          <video
+            v-if="post.videoUrl"
+            :src="post.videoUrl"
+            class="post-video"
+            :controls="true"
+          />
 
           <!-- 音频 -->
-          <view v-if="post.audioUrl" class="post-audio">
+          <view
+            v-if="post.audioUrl"
+            class="post-audio"
+          >
             <view class="audio-card">
-              <view class="audio-btn" @click="togglePostAudio">
+              <view
+                class="audio-btn"
+                @click="togglePostAudio"
+              >
                 <text>{{ audioPlaying ? '⏸' : '▶' }}</text>
               </view>
               <view class="audio-info">
-                <text class="audio-label">语音消息</text>
-                <text class="audio-secs">{{ post.audioDuration || 0 }}s</text>
+                <text class="audio-label">
+                  语音消息
+                </text>
+                <text class="audio-secs">
+                  {{ post.audioDuration || 0 }}s
+                </text>
               </view>
-              <view class="audio-progress-track" @click="seekPostAudio">
-                <view class="audio-progress-fill" :style="{ width: audioProgress + '%' }" />
+              <view
+                class="audio-progress-track"
+                @click="seekPostAudio"
+              >
+                <view
+                  class="audio-progress-fill"
+                  :style="{ width: audioProgress + '%' }"
+                />
               </view>
             </view>
           </view>
 
           <!-- 附件/链接 -->
-          <view v-if="post.fileUrl" class="post-file" @click="openFile(post.fileUrl)">
-            <text class="file-icon">📎</text>
-            <text class="file-name">附件: {{ post.fileUrl.split('/').pop() || '下载' }}</text>
+          <view
+            v-if="post.fileUrl"
+            class="post-file"
+            @click="openFile(post.fileUrl)"
+          >
+            <text class="file-icon">
+              📎
+            </text>
+            <text class="file-name">
+              附件: {{ post.fileUrl.split('/').pop() || '下载' }}
+            </text>
           </view>
-          <view v-if="post.linkUrl" class="post-link" @click="openLink(post.linkUrl)">
-            <text class="link-icon">🔗</text>
-            <text class="link-text">{{ post.linkUrl }}</text>
+          <view
+            v-if="post.linkUrl"
+            class="post-link"
+            @click="openLink(post.linkUrl)"
+          >
+            <text class="link-icon">
+              🔗
+            </text>
+            <text class="link-text">
+              {{ post.linkUrl }}
+            </text>
           </view>
 
           <!-- 互动栏 -->
           <view class="post-actions">
-            <view class="action-item" :class="{ active: post.isLiked }" @click="toggleLike">
+            <view
+              class="action-item"
+              :class="{ active: post.isLiked }"
+              @click="toggleLike"
+            >
               <text>{{ post.isLiked ? '❤️' : '🤍' }}</text>
-              <text class="action-count">{{ post.likeCount || 0 }}</text>
+              <text class="action-count">
+                {{ post.likeCount || 0 }}
+              </text>
             </view>
-            <view class="action-item" :class="{ active: post.isCollected }" @click="toggleCollect">
+            <view
+              class="action-item"
+              :class="{ active: post.isCollected }"
+              @click="toggleCollect"
+            >
               <text>{{ post.isCollected ? '⭐' : '☆' }}</text>
-              <text class="action-count">{{ post.collectCount || 0 }}</text>
+              <text class="action-count">
+                {{ post.collectCount || 0 }}
+              </text>
             </view>
-            <view class="action-item" @click="sharePost">
+            <view
+              class="action-item"
+              @click="sharePost"
+            >
               <text>↗</text>
-              <text class="action-count">分享</text>
+              <text class="action-count">
+                分享
+              </text>
             </view>
           </view>
         </view>
@@ -106,7 +189,12 @@
           <view class="comment-header">
             <text class="comment-section-title">
               评论
-              <text v-if="totalComments > 0" class="comment-count">({{ totalComments }})</text>
+              <text
+                v-if="totalComments > 0"
+                class="comment-count"
+              >
+                ({{ totalComments }})
+              </text>
             </text>
           </view>
 
@@ -120,7 +208,10 @@
             skeleton-type="list"
             @retry="fetchComments"
           >
-            <view v-if="comments.length > 0" class="comment-list">
+            <view
+              v-if="comments.length > 0"
+              class="comment-list"
+            >
               <view
                 v-for="comment in comments"
                 :key="comment.id"
@@ -133,15 +224,31 @@
                     class="comment-avatar"
                     mode="aspectFill"
                   />
-                  <view v-else class="comment-avatar-placeholder">👤</view>
+                  <view
+                    v-else
+                    class="comment-avatar-placeholder"
+                  >
+                    👤
+                  </view>
                   <view class="comment-body">
                     <view class="comment-header-row">
-                      <text class="comment-name">{{ comment.user?.nickname || '匿名' }}</text>
-                      <text class="comment-time">{{ formatTime(comment.createdAt) }}</text>
+                      <text class="comment-name">
+                        {{ comment.user?.nickname || '匿名' }}
+                      </text>
+                      <text class="comment-time">
+                        {{ formatTime(comment.createdAt) }}
+                      </text>
                     </view>
-                    <text class="comment-text">{{ comment.content }}</text>
+                    <text class="comment-text">
+                      {{ comment.content }}
+                    </text>
                     <view class="comment-footer">
-                      <text class="comment-reply-btn" @click="startReply(comment)">回复</text>
+                      <text
+                        class="comment-reply-btn"
+                        @click="startReply(comment)"
+                      >
+                        回复
+                      </text>
                       <text
                         v-if="comment.children?.length"
                         class="comment-expand"
@@ -161,13 +268,22 @@
                         :key="reply.id"
                         class="reply-item"
                       >
-                        <text class="reply-name">{{ reply.user?.nickname || '匿名' }}</text>
-                        <text v-if="reply.parentUser?.nickname" class="reply-to">
+                        <text class="reply-name">
+                          {{ reply.user?.nickname || '匿名' }}
+                        </text>
+                        <text
+                          v-if="reply.parentUser?.nickname"
+                          class="reply-to"
+                        >
                           回复 @{{ reply.parentUser.nickname }}
                         </text>
                         <text>：</text>
-                        <text class="reply-text">{{ reply.content }}</text>
-                        <text class="reply-time">{{ formatTime(reply.createdAt) }}</text>
+                        <text class="reply-text">
+                          {{ reply.content }}
+                        </text>
+                        <text class="reply-time">
+                          {{ formatTime(reply.createdAt) }}
+                        </text>
                       </view>
                     </view>
                   </view>
@@ -176,8 +292,16 @@
             </view>
 
             <!-- 加载更多评论 -->
-            <view v-if="loadingMoreComments" class="load-more">加载中...</view>
-            <view v-if="!hasMoreComments && comments.length > 0" class="no-more">
+            <view
+              v-if="loadingMoreComments"
+              class="load-more"
+            >
+              加载中...
+            </view>
+            <view
+              v-if="!hasMoreComments && comments.length > 0"
+              class="no-more"
+            >
               — 已全部加载 —
             </view>
           </DataState>
@@ -186,17 +310,26 @@
     </DataState>
 
     <!-- 底部评论输入栏 -->
-    <view class="comment-bar" v-if="post">
+    <view
+      v-if="post"
+      class="comment-bar"
+    >
       <view class="comment-bar-inner">
         <input
           v-model="commentText"
           class="comment-input"
           :placeholder="replyTo ? '回复 @' + replyTo.user?.nickname + '...' : '写下你的评论...'"
           confirm-type="send"
-          @confirm="submitComment"
           :maxlength="500"
-        />
-        <text v-if="replyTo" class="cancel-reply" @click="cancelReply">✕</text>
+          @confirm="submitComment"
+        >
+        <text
+          v-if="replyTo"
+          class="cancel-reply"
+          @click="cancelReply"
+        >
+          ✕
+        </text>
         <text
           class="send-btn"
           :class="{ disabled: !commentText.trim() || submittingComment }"

@@ -2,8 +2,12 @@
   <view class="page">
     <!-- 页面标题 -->
     <view class="page-header">
-      <text class="page-title">古籍阅读</text>
-      <text class="page-subtitle">经史子集 · 涵泳古今</text>
+      <text class="page-title">
+        古籍阅读
+      </text>
+      <text class="page-subtitle">
+        经史子集 · 涵泳古今
+      </text>
     </view>
 
     <!-- 分类 + 排序 -->
@@ -11,17 +15,29 @@
       <!-- 搜索栏 -->
       <view class="search-row">
         <view class="search-input-wrap">
-          <text class="search-icon">🔍</text>
+          <text class="search-icon">
+            🔍
+          </text>
           <input
             v-model="searchKeyword"
             placeholder="搜索古籍名称、作者..."
             class="search-input"
             @confirm="doSearch"
-          />
-          <text v-if="searchKeyword" class="search-clear" @click="clearSearch">✕</text>
+          >
+          <text
+            v-if="searchKeyword"
+            class="search-clear"
+            @click="clearSearch"
+          >
+            ✕
+          </text>
         </view>
       </view>
-      <scroll-view scroll-x class="category-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="category-scroll"
+        show-scrollbar="false"
+      >
         <view class="category-inner">
           <text
             v-for="cat in categories"
@@ -29,8 +45,15 @@
             :class="['category-tab', { active: curCategory === cat.key }]"
             @click="selectCategory(cat.key)"
           >
-            <text class="cat-label">{{ cat.icon }} {{ cat.label }}</text>
-            <text v-if="cat.count != null" class="cat-count">{{ cat.count }}</text>
+            <text class="cat-label">
+              {{ cat.icon }} {{ cat.label }}
+            </text>
+            <text
+              v-if="cat.count != null"
+              class="cat-count"
+            >
+              {{ cat.count }}
+            </text>
           </text>
         </view>
       </scroll-view>
@@ -41,16 +64,27 @@
           :key="s.key"
           :class="['sort-tab', { active: curSort === s.key }]"
           @click="selectSort(s.key)"
-        >{{ s.label }}</text>
+        >
+          {{ s.label }}
+        </text>
       </view>
     </view>
 
     <!-- 继续阅读 -->
-    <view v-if="continueList.length > 0" class="continue-section">
+    <view
+      v-if="continueList.length > 0"
+      class="continue-section"
+    >
       <view class="section-header">
-        <text class="section-title">📖 继续阅读</text>
+        <text class="section-title">
+          📖 继续阅读
+        </text>
       </view>
-      <scroll-view scroll-x class="continue-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="continue-scroll"
+        show-scrollbar="false"
+      >
         <view
           v-for="item in continueList"
           :key="item.book.id"
@@ -58,24 +92,51 @@
           @click="goReader(item.book)"
         >
           <view class="cc-cover-wrap">
-            <image v-if="item.book.cover" :src="item.book.cover" class="cc-cover" mode="aspectFill" />
-            <view v-else class="cc-cover-plc" :style="{ background: placeholderBg(item.book.id) }">
-              <text class="cc-plc-text">{{ (item.book.title || '经').charAt(0) }}</text>
+            <image
+              v-if="item.book.cover"
+              :src="item.book.cover"
+              class="cc-cover"
+              mode="aspectFill"
+            />
+            <view
+              v-else
+              class="cc-cover-plc"
+              :style="{ background: placeholderBg(item.book.id) }"
+            >
+              <text class="cc-plc-text">
+                {{ (item.book.title || '经').charAt(0) }}
+              </text>
             </view>
             <view class="cc-progress-bar">
-              <view class="cc-progress-fill" :style="{ width: (item.progress || 0) + '%' }" />
+              <view
+                class="cc-progress-fill"
+                :style="{ width: (item.progress || 0) + '%' }"
+              />
             </view>
           </view>
-          <text class="cc-title">{{ item.book.title }}</text>
-          <text class="cc-chapter">{{ item.chapter?.title || '' }}</text>
-          <text class="cc-percent">已读 {{ item.progress || 0 }}%</text>
+          <text class="cc-title">
+            {{ item.book.title }}
+          </text>
+          <text class="cc-chapter">
+            {{ item.chapter?.title || '' }}
+          </text>
+          <text class="cc-percent">
+            已读 {{ item.progress || 0 }}%
+          </text>
         </view>
       </scroll-view>
     </view>
 
     <!-- 加载骨架 -->
-    <view v-if="loading && books.length === 0" class="books-list">
-      <view v-for="i in 4" :key="i" class="book-card-skeleton">
+    <view
+      v-if="loading && books.length === 0"
+      class="books-list"
+    >
+      <view
+        v-for="i in 4"
+        :key="i"
+        class="book-card-skeleton"
+      >
         <view class="sk-cover" />
         <view class="sk-body">
           <view class="sk-line w80" />
@@ -86,7 +147,10 @@
     </view>
 
     <!-- 书籍列表 -->
-    <view v-else-if="books.length > 0" class="books-list">
+    <view
+      v-else-if="books.length > 0"
+      class="books-list"
+    >
       <view
         v-for="book in books"
         :key="book.id"
@@ -101,34 +165,76 @@
             class="book-cover"
             mode="aspectFill"
           />
-          <view v-else class="book-cover-placeholder" :style="{ background: placeholderBg(book.id) }">
-            <text class="plc-cat">{{ getCategoryShort(book.category) }}</text>
-            <text class="plc-name">{{ (book.title || book.name || '经').charAt(0) }}</text>
+          <view
+            v-else
+            class="book-cover-placeholder"
+            :style="{ background: placeholderBg(book.id) }"
+          >
+            <text class="plc-cat">
+              {{ getCategoryShort(book.category) }}
+            </text>
+            <text class="plc-name">
+              {{ (book.title || book.name || '经').charAt(0) }}
+            </text>
           </view>
         </view>
 
         <!-- 信息 -->
         <view class="book-body">
           <view class="book-top">
-            <text class="book-title">{{ book.title || book.name }}</text>
-            <text v-if="book.category" class="book-cat-tag">{{ getCategoryLabel(book.category) }}</text>
+            <text class="book-title">
+              {{ book.title || book.name }}
+            </text>
+            <text
+              v-if="book.category"
+              class="book-cat-tag"
+            >
+              {{ getCategoryLabel(book.category) }}
+            </text>
           </view>
           <view class="book-meta">
-            <text class="book-author">{{ book.author || '佚名' }}</text>
-            <text v-if="book.dynasty" class="book-dynasty">{{ book.dynasty }}</text>
+            <text class="book-author">
+              {{ book.author || '佚名' }}
+            </text>
+            <text
+              v-if="book.dynasty"
+              class="book-dynasty"
+            >
+              {{ book.dynasty }}
+            </text>
           </view>
-          <text class="book-intro">{{ book.intro || book.description || '暂无简介' }}</text>
+          <text class="book-intro">
+            {{ book.intro || book.description || '暂无简介' }}
+          </text>
           <view class="book-stats">
-            <text v-if="book.chapterCount" class="bstat">📖 {{ book.chapterCount }} 章</text>
-            <text v-if="book.viewCount" class="bstat">👁 {{ formatNum(book.viewCount) }}</text>
+            <text
+              v-if="book.chapterCount"
+              class="bstat"
+            >
+              📖 {{ book.chapterCount }} 章
+            </text>
+            <text
+              v-if="book.viewCount"
+              class="bstat"
+            >
+              👁 {{ formatNum(book.viewCount) }}
+            </text>
           </view>
 
           <!-- 阅读进度 -->
-          <view v-if="book.progress" class="book-progress">
+          <view
+            v-if="book.progress"
+            class="book-progress"
+          >
             <view class="bp-bar-bg">
-              <view class="bp-bar-fill" :style="{ width: book.progress + '%' }" />
+              <view
+                class="bp-bar-fill"
+                :style="{ width: book.progress + '%' }"
+              />
             </view>
-            <text class="bp-text">已读 {{ book.progress }}%</text>
+            <text class="bp-text">
+              已读 {{ book.progress }}%
+            </text>
           </view>
         </view>
       </view>
@@ -136,15 +242,31 @@
 
     <!-- 空状态 -->
     <view v-else-if="!loading">
-      <EmptyState icon="📜" text="暂无古籍数据">
-        <button class="empty-btn" @click="refreshData">重新加载</button>
+      <EmptyState
+        icon="📜"
+        text="暂无古籍数据"
+      >
+        <button
+          class="empty-btn"
+          @click="refreshData"
+        >
+          重新加载
+        </button>
       </EmptyState>
     </view>
 
     <!-- 错误状态 -->
     <view v-if="errorMsg">
-      <EmptyState icon="⚠️" :text="errorMsg">
-        <button class="empty-btn" @click="refreshData">重新加载</button>
+      <EmptyState
+        icon="⚠️"
+        :text="errorMsg"
+      >
+        <button
+          class="empty-btn"
+          @click="refreshData"
+        >
+          重新加载
+        </button>
       </EmptyState>
     </view>
   </view>

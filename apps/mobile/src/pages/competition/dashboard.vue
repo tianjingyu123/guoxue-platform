@@ -2,86 +2,201 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">{{ comp.name || comp.title || '竞赛详情' }}</text>
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        {{ comp.name || comp.title || '竞赛详情' }}
+      </text>
     </view>
 
-    <scroll-view scroll-y class="scroll-area">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
       <!-- 统计数据 -->
       <view class="stats-grid">
         <view class="stat-card primary">
-          <text class="s-icon">👥</text>
-          <text class="s-val">{{ stats.totalPlayers || stats.enrolledCount || 0 }}</text>
-          <text class="s-label">参赛人数</text>
+          <text class="s-icon">
+            👥
+          </text>
+          <text class="s-val">
+            {{ stats.totalPlayers || stats.enrolledCount || 0 }}
+          </text>
+          <text class="s-label">
+            参赛人数
+          </text>
         </view>
         <view class="stat-card">
-          <text class="s-icon">📊</text>
-          <text class="s-val">{{ stats.avgScore || '--' }}</text>
-          <text class="s-label">平均分</text>
+          <text class="s-icon">
+            📊
+          </text>
+          <text class="s-val">
+            {{ stats.avgScore || '--' }}
+          </text>
+          <text class="s-label">
+            平均分
+          </text>
         </view>
         <view class="stat-card">
-          <text class="s-icon">🏅</text>
-          <text class="s-val">{{ myRank || '-' }}</text>
-          <text class="s-label">我的排名</text>
+          <text class="s-icon">
+            🏅
+          </text>
+          <text class="s-val">
+            {{ myRank || '-' }}
+          </text>
+          <text class="s-label">
+            我的排名
+          </text>
         </view>
         <view class="stat-card">
-          <text class="s-icon">🎯</text>
-          <text class="s-val">{{ myScore || '--' }}</text>
-          <text class="s-label">我的分数</text>
+          <text class="s-icon">
+            🎯
+          </text>
+          <text class="s-val">
+            {{ myScore || '--' }}
+          </text>
+          <text class="s-label">
+            我的分数
+          </text>
         </view>
       </view>
 
       <!-- 竞赛信息 -->
       <view class="info-card">
         <view class="info-row">
-          <text class="info-label">竞赛状态</text>
-          <text class="info-val" :style="{ color: statusColor }">{{ statusText }}</text>
+          <text class="info-label">
+            竞赛状态
+          </text>
+          <text
+            class="info-val"
+            :style="{ color: statusColor }"
+          >
+            {{ statusText }}
+          </text>
         </view>
         <view class="info-row">
-          <text class="info-label">开始时间</text>
-          <text class="info-val">{{ formatDate(comp.startDate) }}</text>
+          <text class="info-label">
+            开始时间
+          </text>
+          <text class="info-val">
+            {{ formatDate(comp.startDate) }}
+          </text>
         </view>
         <view class="info-row">
-          <text class="info-label">结束时间</text>
-          <text class="info-val">{{ formatDate(comp.endDate) }}</text>
+          <text class="info-label">
+            结束时间
+          </text>
+          <text class="info-val">
+            {{ formatDate(comp.endDate) }}
+          </text>
         </view>
         <view class="info-row">
-          <text class="info-label">当前轮次</text>
-          <text class="info-val">{{ comp.currentRound || comp.round || '--' }}</text>
+          <text class="info-label">
+            当前轮次
+          </text>
+          <text class="info-val">
+            {{ comp.currentRound || comp.round || '--' }}
+          </text>
         </view>
       </view>
 
       <!-- 操作按钮 -->
       <view class="action-buttons">
-        <button v-if="canRegister" class="action-btn register" @click="goRegister">立即报名</button>
-        <button v-if="canQuiz" class="action-btn quiz" @click="goQuiz">开始答题</button>
-        <button v-if="showResult" class="action-btn result" @click="goResult">查看成绩</button>
+        <button
+          v-if="canRegister"
+          class="action-btn register"
+          @click="goRegister"
+        >
+          立即报名
+        </button>
+        <button
+          v-if="canQuiz"
+          class="action-btn quiz"
+          @click="goQuiz"
+        >
+          开始答题
+        </button>
+        <button
+          v-if="showResult"
+          class="action-btn result"
+          @click="goResult"
+        >
+          查看成绩
+        </button>
       </view>
 
       <!-- 排行榜 -->
       <view class="section">
         <view class="section-header">
-          <text class="section-title">🏆 排行榜</text>
-          <text class="section-more" @click="goFullRanking">查看全部</text>
+          <text class="section-title">
+            🏆 排行榜
+          </text>
+          <text
+            class="section-more"
+            @click="goFullRanking"
+          >
+            查看全部
+          </text>
         </view>
 
-        <view v-if="ranking.length === 0" class="empty-rank">
-          <text class="empty-text">暂无排行数据</text>
+        <view
+          v-if="ranking.length === 0"
+          class="empty-rank"
+        >
+          <text class="empty-text">
+            暂无排行数据
+          </text>
         </view>
 
-        <view v-for="(r, idx) in ranking.slice(0, 10)" :key="r.id || idx" class="rank-item" :class="{ 'is-me': r.isMe }">
+        <view
+          v-for="(r, idx) in ranking.slice(0, 10)"
+          :key="r.id || idx"
+          class="rank-item"
+          :class="{ 'is-me': r.isMe }"
+        >
           <view class="rank-left">
-            <text class="rank-num" :class="'rank-' + (idx + 1)">{{ idx + 1 }}</text>
-            <image v-if="r.avatar" :src="r.avatar" class="rank-avatar" mode="aspectFill" />
-            <view v-else class="rank-avatar-placeholder" />
+            <text
+              class="rank-num"
+              :class="'rank-' + (idx + 1)"
+            >
+              {{ idx + 1 }}
+            </text>
+            <image
+              v-if="r.avatar"
+              :src="r.avatar"
+              class="rank-avatar"
+              mode="aspectFill"
+            />
+            <view
+              v-else
+              class="rank-avatar-placeholder"
+            />
           </view>
           <view class="rank-center">
-            <text class="rank-name">{{ r.nickname || r.name || r.username || '选手' }}</text>
-            <text class="rank-detail" v-if="r.school">来自 {{ r.school }}</text>
+            <text class="rank-name">
+              {{ r.nickname || r.name || r.username || '选手' }}
+            </text>
+            <text
+              v-if="r.school"
+              class="rank-detail"
+            >
+              来自 {{ r.school }}
+            </text>
           </view>
           <view class="rank-right">
-            <text class="rank-score">{{ r.score || r.totalScore }}分</text>
-            <text class="rank-duration" v-if="r.duration">用时 {{ r.duration }}</text>
+            <text class="rank-score">
+              {{ r.score || r.totalScore }}分
+            </text>
+            <text
+              v-if="r.duration"
+              class="rank-duration"
+            >
+              用时 {{ r.duration }}
+            </text>
           </view>
         </view>
       </view>

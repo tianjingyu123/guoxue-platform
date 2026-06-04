@@ -2,8 +2,15 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
-      <text class="nav-back" @click="goBack">←</text>
-      <text class="nav-title">邀请好友</text>
+      <text
+        class="nav-back"
+        @click="goBack"
+      >
+        ←
+      </text>
+      <text class="nav-title">
+        邀请好友
+      </text>
       <view class="nav-placeholder" />
     </view>
 
@@ -20,65 +27,146 @@
         <!-- 邀请奖励说明 -->
         <view class="reward-card">
           <view class="reward-header">
-            <text class="reward-icon">🎁</text>
-            <text class="reward-title">邀请奖励</text>
+            <text class="reward-icon">
+              🎁
+            </text>
+            <text class="reward-title">
+              邀请奖励
+            </text>
           </view>
           <view class="reward-list">
-            <text class="reward-item">• 好友注册即得 <text class="reward-highlight">10积分</text></text>
-            <text class="reward-item">• 好友首次付费返佣 <text class="reward-highlight">10%</text></text>
-            <text class="reward-item">• 好友开通会员再得 <text class="reward-highlight">20元</text></text>
+            <text class="reward-item">
+              • 好友注册即得 <text class="reward-highlight">
+                10积分
+              </text>
+            </text>
+            <text class="reward-item">
+              • 好友首次付费返佣 <text class="reward-highlight">
+                10%
+              </text>
+            </text>
+            <text class="reward-item">
+              • 好友开通会员再得 <text class="reward-highlight">
+                20元
+              </text>
+            </text>
           </view>
         </view>
 
         <!-- Tab切换 -->
         <view class="tabs">
-          <text class="tab" :class="{ active: activeTab === 'link' }" @click="activeTab = 'link'">🔗 推荐链接</text>
-          <text class="tab" :class="{ active: activeTab === 'qrcode' }" @click="activeTab = 'qrcode'">📱 二维码</text>
-          <text class="tab" :class="{ active: activeTab === 'poster' }" @click="activeTab = 'poster'">🖼 分享海报</text>
+          <text
+            class="tab"
+            :class="{ active: activeTab === 'link' }"
+            @click="activeTab = 'link'"
+          >
+            🔗 推荐链接
+          </text>
+          <text
+            class="tab"
+            :class="{ active: activeTab === 'qrcode' }"
+            @click="activeTab = 'qrcode'"
+          >
+            📱 二维码
+          </text>
+          <text
+            class="tab"
+            :class="{ active: activeTab === 'poster' }"
+            @click="activeTab = 'poster'"
+          >
+            🖼 分享海报
+          </text>
         </view>
 
         <!-- 推荐链接 -->
-        <view v-if="activeTab === 'link'" class="tab-content">
+        <view
+          v-if="activeTab === 'link'"
+          class="tab-content"
+        >
           <view class="info-card">
-            <text class="info-label">我的邀请码</text>
+            <text class="info-label">
+              我的邀请码
+            </text>
             <view class="info-code-row">
-              <text class="info-code">{{ linkInfo?.inviteCode || '------' }}</text>
-              <text class="info-copy" @click="copyCode">📋 复制</text>
+              <text class="info-code">
+                {{ linkInfo?.inviteCode || '------' }}
+              </text>
+              <text
+                class="info-copy"
+                @click="copyCode"
+              >
+                📋 复制
+              </text>
             </view>
           </view>
           <view class="info-card">
-            <text class="info-label">邀请链接</text>
+            <text class="info-label">
+              邀请链接
+            </text>
             <view class="info-link-box">
-              <text class="info-link-text">{{ linkInfo?.inviteLink || 'https://...' }}</text>
+              <text class="info-link-text">
+                {{ linkInfo?.inviteLink || 'https://...' }}
+              </text>
             </view>
-            <text class="info-copy-link" @click="copyLink">
+            <text
+              class="info-copy-link"
+              @click="copyLink"
+            >
               {{ copied ? '✅ 已复制' : '📋 复制链接' }}
             </text>
           </view>
         </view>
 
         <!-- 二维码 -->
-        <view v-if="activeTab === 'qrcode'" class="tab-content">
+        <view
+          v-if="activeTab === 'qrcode'"
+          class="tab-content"
+        >
           <view class="qrcode-card">
             <view class="qrcode-img-wrap">
-              <view class="qrcode-img-placeholder">📱 扫码加入</view>
+              <view class="qrcode-img-placeholder">
+                📱 扫码加入
+              </view>
             </view>
-            <text class="qrcode-hint">长按或扫描二维码加入</text>
-            <text class="qrcode-code">邀请码: {{ linkInfo?.inviteCode || '------' }}</text>
+            <text class="qrcode-hint">
+              长按或扫描二维码加入
+            </text>
+            <text class="qrcode-code">
+              邀请码: {{ linkInfo?.inviteCode || '------' }}
+            </text>
             <view class="qrcode-actions">
-              <text class="qrcode-btn qrcode-btn-outline" @click="saveQr">⬇ 保存二维码</text>
-              <text class="qrcode-btn qrcode-btn-primary" @click="copyLink">📋 复制链接</text>
+              <text
+                class="qrcode-btn qrcode-btn-outline"
+                @click="saveQr"
+              >
+                ⬇ 保存二维码
+              </text>
+              <text
+                class="qrcode-btn qrcode-btn-primary"
+                @click="copyLink"
+              >
+                📋 复制链接
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 分享海报 -->
-        <view v-if="activeTab === 'poster'" class="tab-content">
+        <view
+          v-if="activeTab === 'poster'"
+          class="tab-content"
+        >
           <view class="poster-card">
             <!-- 背景选择 -->
             <view class="poster-bg-section">
-              <text class="poster-label">选择背景</text>
-              <scroll-view scroll-x class="poster-bg-scroll" show-scrollbar="false">
+              <text class="poster-label">
+                选择背景
+              </text>
+              <scroll-view
+                scroll-x
+                class="poster-bg-scroll"
+                show-scrollbar="false"
+              >
                 <view class="poster-bg-row">
                   <view
                     v-for="(bg, idx) in posterBgList"
@@ -87,7 +175,9 @@
                     :class="{ selected: selectedBg === idx }"
                     @click="selectedBg = idx"
                   >
-                    <view class="poster-bg-placeholder">🎨</view>
+                    <view class="poster-bg-placeholder">
+                      🎨
+                    </view>
                   </view>
                 </view>
               </scroll-view>
@@ -96,48 +186,99 @@
             <!-- 海报预览 -->
             <view class="poster-preview">
               <view class="poster-placeholder">
-                <text class="poster-placeholder-title">邀请海报</text>
-                <text class="poster-placeholder-name">{{ posterConfig?.userName || '用户' }}</text>
-                <text class="poster-placeholder-sub">邀请您加入国学平台</text>
+                <text class="poster-placeholder-title">
+                  邀请海报
+                </text>
+                <text class="poster-placeholder-name">
+                  {{ posterConfig?.userName || '用户' }}
+                </text>
+                <text class="poster-placeholder-sub">
+                  邀请您加入国学平台
+                </text>
                 <view class="poster-placeholder-qr">
-                  <text class="poster-placeholder-code">邀请码: {{ posterConfig?.inviteCode || linkInfo?.inviteCode || '------' }}</text>
+                  <text class="poster-placeholder-code">
+                    邀请码: {{ posterConfig?.inviteCode || linkInfo?.inviteCode || '------' }}
+                  </text>
                 </view>
               </view>
             </view>
 
             <!-- 操作按钮 -->
             <view class="poster-actions">
-              <text class="poster-btn poster-btn-outline" @click="regeneratePoster">🔄 重新生成</text>
-              <text class="poster-btn poster-btn-primary" @click="savePoster">⬇ 保存海报</text>
+              <text
+                class="poster-btn poster-btn-outline"
+                @click="regeneratePoster"
+              >
+                🔄 重新生成
+              </text>
+              <text
+                class="poster-btn poster-btn-primary"
+                @click="savePoster"
+              >
+                ⬇ 保存海报
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 分享渠道 -->
         <view class="share-section">
-          <text class="share-title">分享到</text>
+          <text class="share-title">
+            分享到
+          </text>
           <view class="share-grid">
-            <view class="share-item" @click="shareTo('wechat')">
-              <view class="share-icon wechat"><text>💬</text></view>
-              <text class="share-name">微信</text>
+            <view
+              class="share-item"
+              @click="shareTo('wechat')"
+            >
+              <view class="share-icon wechat">
+                <text>💬</text>
+              </view>
+              <text class="share-name">
+                微信
+              </text>
             </view>
-            <view class="share-item" @click="shareTo('moments')">
-              <view class="share-icon moments"><text>🔄</text></view>
-              <text class="share-name">朋友圈</text>
+            <view
+              class="share-item"
+              @click="shareTo('moments')"
+            >
+              <view class="share-icon moments">
+                <text>🔄</text>
+              </view>
+              <text class="share-name">
+                朋友圈
+              </text>
             </view>
-            <view class="share-item" @click="shareTo('qq')">
-              <view class="share-icon qq"><text>🐧</text></view>
-              <text class="share-name">QQ</text>
+            <view
+              class="share-item"
+              @click="shareTo('qq')"
+            >
+              <view class="share-icon qq">
+                <text>🐧</text>
+              </view>
+              <text class="share-name">
+                QQ
+              </text>
             </view>
-            <view class="share-item" @click="copyLink">
-              <view class="share-icon copy"><text>📋</text></view>
-              <text class="share-name">复制链接</text>
+            <view
+              class="share-item"
+              @click="copyLink"
+            >
+              <view class="share-icon copy">
+                <text>📋</text>
+              </view>
+              <text class="share-name">
+                复制链接
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 查看邀请记录 -->
-        <view class="records-link" @click="goRecords">
+        <view
+          class="records-link"
+          @click="goRecords"
+        >
           <text>查看邀请记录</text>
           <text>›</text>
         </view>

@@ -1,6 +1,9 @@
 <template>
   <view class="page">
-    <LoadingSkeleton v-if="loading" type="detail" />
+    <LoadingSkeleton
+      v-if="loading"
+      type="detail"
+    />
 
     <EmptyState
       v-else-if="loadError || !groupDetail"
@@ -12,38 +15,83 @@
       @action="loadData"
     />
 
-    <view v-else class="chat-layout">
+    <view
+      v-else
+      class="chat-layout"
+    >
       <!-- 导航 -->
       <view class="nav">
         <view class="nav-left">
-          <text class="nav-back" @click="goBack">←</text>
+          <text
+            class="nav-back"
+            @click="goBack"
+          >
+            ←
+          </text>
           <view class="nav-group-info">
-            <text class="nav-group-name">{{ groupDetail.name }}</text>
-            <text class="nav-group-count">{{ onlineCount }}人在线 / {{ groupDetail.memberCount }}人</text>
+            <text class="nav-group-name">
+              {{ groupDetail.name }}
+            </text>
+            <text class="nav-group-count">
+              {{ onlineCount }}人在线 / {{ groupDetail.memberCount }}人
+            </text>
           </view>
         </view>
-        <text class="nav-more" @click="showMembersSheet = true">👥</text>
+        <text
+          class="nav-more"
+          @click="showMembersSheet = true"
+        >
+          👥
+        </text>
       </view>
 
       <!-- 群公告 -->
-      <view v-if="groupDetail.notice" class="notice-bar" @click="showNoticeSheet = true">
-        <text class="notice-icon">📢</text>
-        <text class="notice-text">{{ groupDetail.notice }}</text>
-        <text class="notice-arrow">›</text>
+      <view
+        v-if="groupDetail.notice"
+        class="notice-bar"
+        @click="showNoticeSheet = true"
+      >
+        <text class="notice-icon">
+          📢
+        </text>
+        <text class="notice-text">
+          {{ groupDetail.notice }}
+        </text>
+        <text class="notice-arrow">
+          ›
+        </text>
       </view>
 
       <!-- 消息列表 -->
-      <scroll-view scroll-y class="msg-list">
-        <view v-for="(msg, idx) in messages" :key="msg.id || idx">
+      <scroll-view
+        scroll-y
+        class="msg-list"
+      >
+        <view
+          v-for="(msg, idx) in messages"
+          :key="msg.id || idx"
+        >
           <!-- 时间标签 -->
-          <view v-if="shouldShowTime(msg, messages[idx - 1])" class="time-label">
+          <view
+            v-if="shouldShowTime(msg, messages[idx - 1])"
+            class="time-label"
+          >
             <text>{{ formatTime(msg.timestamp) }}</text>
           </view>
           <!-- 消息气泡 -->
-          <view v-if="msg.isWithdrawn" class="withdrawn-row">
-            <text class="withdrawn-text">{{ msg.fromMe ? '你' : msg.senderName }}撤回了一条消息</text>
+          <view
+            v-if="msg.isWithdrawn"
+            class="withdrawn-row"
+          >
+            <text class="withdrawn-text">
+              {{ msg.fromMe ? '你' : msg.senderName }}撤回了一条消息
+            </text>
           </view>
-          <view v-else class="msg-row" :class="{ mine: msg.fromMe }">
+          <view
+            v-else
+            class="msg-row"
+            :class="{ mine: msg.fromMe }"
+          >
             <!-- 头像 -->
             <image
               v-if="!msg.fromMe"
@@ -54,9 +102,17 @@
             />
             <view class="msg-content-wrap">
               <!-- 发送者名称 -->
-              <text v-if="!msg.fromMe" class="msg-sender-name">
+              <text
+                v-if="!msg.fromMe"
+                class="msg-sender-name"
+              >
                 {{ msg.senderName }}
-                <text v-if="msg.role && msg.role !== 'member'" class="msg-role">({{ getRoleName(msg.role) }})</text>
+                <text
+                  v-if="msg.role && msg.role !== 'member'"
+                  class="msg-role"
+                >
+                  ({{ getRoleName(msg.role) }})
+                </text>
               </text>
               <!-- 气泡 -->
               <view
@@ -64,8 +120,15 @@
                 :class="{ mine: msg.fromMe }"
                 @longpress="selectMsg(msg)"
               >
-                <text v-if="msg.atAll" class="at-all">@所有人 </text>
-                <text class="msg-text">{{ msg.content }}</text>
+                <text
+                  v-if="msg.atAll"
+                  class="at-all"
+                >
+                  @所有人
+                </text>
+                <text class="msg-text">
+                  {{ msg.content }}
+                </text>
               </view>
             </view>
           </view>
@@ -74,61 +137,145 @@
       </scroll-view>
 
       <!-- 消息操作菜单 -->
-      <view v-if="selectedMsg" class="msg-actions-overlay" @click="selectedMsg = null">
-        <view class="msg-actions-box" @click.stop>
-          <view v-if="selectedMsg?.type === 'text'" class="msg-action-item" @click="copyMsg">
+      <view
+        v-if="selectedMsg"
+        class="msg-actions-overlay"
+        @click="selectedMsg = null"
+      >
+        <view
+          class="msg-actions-box"
+          @click.stop
+        >
+          <view
+            v-if="selectedMsg?.type === 'text'"
+            class="msg-action-item"
+            @click="copyMsg"
+          >
             <text>📋 复制</text>
           </view>
-          <view v-if="selectedMsg?.fromMe && canWithdraw(selectedMsg.timestamp)" class="msg-action-item" @click="doWithdraw">
+          <view
+            v-if="selectedMsg?.fromMe && canWithdraw(selectedMsg.timestamp)"
+            class="msg-action-item"
+            @click="doWithdraw"
+          >
             <text>↩ 撤回</text>
           </view>
         </view>
       </view>
 
       <!-- @成员列表 -->
-      <view v-if="showAtList" class="at-list-overlay" @click="showAtList = false">
-        <view class="at-list" @click.stop>
+      <view
+        v-if="showAtList"
+        class="at-list-overlay"
+        @click="showAtList = false"
+      >
+        <view
+          class="at-list"
+          @click.stop
+        >
           <view class="at-search">
-            <input v-model="atSearchKeyword" class="at-search-input" placeholder="搜索成员..." />
+            <input
+              v-model="atSearchKeyword"
+              class="at-search-input"
+              placeholder="搜索成员..."
+            >
           </view>
-          <view v-if="groupDetail.myRole === 'owner' || groupDetail.myRole === 'admin'" class="at-item" @click="atAll">
-            <view class="at-icon-wrap">👥</view>
+          <view
+            v-if="groupDetail.myRole === 'owner' || groupDetail.myRole === 'admin'"
+            class="at-item"
+            @click="atAll"
+          >
+            <view class="at-icon-wrap">
+              👥
+            </view>
             <text>@所有人</text>
           </view>
-          <view v-for="m in atSearchResults" :key="m.id" class="at-item" @click="selectAtMember(m)">
-            <image :src="m.avatar || ''" class="at-avatar" mode="aspectFill" />
+          <view
+            v-for="m in atSearchResults"
+            :key="m.id"
+            class="at-item"
+            @click="selectAtMember(m)"
+          >
+            <image
+              :src="m.avatar || ''"
+              class="at-avatar"
+              mode="aspectFill"
+            />
             <view class="at-info">
-              <text class="at-name">{{ m.remark || m.nickname }}</text>
-              <text v-if="m.role !== 'member'" class="at-role">{{ getRoleName(m.role) }}</text>
+              <text class="at-name">
+                {{ m.remark || m.nickname }}
+              </text>
+              <text
+                v-if="m.role !== 'member'"
+                class="at-role"
+              >
+                {{ getRoleName(m.role) }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 更多功能面板 -->
-      <view v-if="showMorePanel" class="more-panel">
-        <view class="more-item" @click="uni.showToast({ title: '相册功能开发中', icon: 'none' })">
-          <view class="more-icon">🖼</view>
-          <text class="more-label">相册</text>
+      <view
+        v-if="showMorePanel"
+        class="more-panel"
+      >
+        <view
+          class="more-item"
+          @click="uni.showToast({ title: '相册功能开发中', icon: 'none' })"
+        >
+          <view class="more-icon">
+            🖼
+          </view>
+          <text class="more-label">
+            相册
+          </text>
         </view>
-        <view class="more-item" @click="uni.showToast({ title: '拍照功能开发中', icon: 'none' })">
-          <view class="more-icon">📷</view>
-          <text class="more-label">拍照</text>
+        <view
+          class="more-item"
+          @click="uni.showToast({ title: '拍照功能开发中', icon: 'none' })"
+        >
+          <view class="more-icon">
+            📷
+          </view>
+          <text class="more-label">
+            拍照
+          </text>
         </view>
-        <view class="more-item" @click="openAtList">
-          <view class="more-icon">@</view>
-          <text class="more-label">@成员</text>
+        <view
+          class="more-item"
+          @click="openAtList"
+        >
+          <view class="more-icon">
+            @
+          </view>
+          <text class="more-label">
+            @成员
+          </text>
         </view>
-        <view class="more-item" @click="uni.showToast({ title: '语音功能开发中', icon: 'none' })">
-          <view class="more-icon">🎤</view>
-          <text class="more-label">语音</text>
+        <view
+          class="more-item"
+          @click="uni.showToast({ title: '语音功能开发中', icon: 'none' })"
+        >
+          <view class="more-icon">
+            🎤
+          </view>
+          <text class="more-label">
+            语音
+          </text>
         </view>
       </view>
 
       <!-- 底部输入 -->
       <view class="input-area">
         <view class="input-row">
-          <text class="input-plus" @click="showMorePanel = !showMorePanel">{{ showMorePanel ? '✕' : '＋' }}</text>
+          <text
+            class="input-plus"
+            @click="showMorePanel = !showMorePanel"
+          >
+            {{ showMorePanel ? '✕' : '＋' }}
+          </text>
           <view class="input-wrap">
             <input
               v-model="inputText"
@@ -136,61 +283,126 @@
               placeholder="发送消息..."
               @confirm="sendMsg"
               @input="checkAt"
-            />
+            >
           </view>
-          <text class="input-send" :class="{ disabled: !inputText.trim() || sending }" @click="sendMsg">
+          <text
+            class="input-send"
+            :class="{ disabled: !inputText.trim() || sending }"
+            @click="sendMsg"
+          >
             {{ sending ? '...' : '➤' }}
           </text>
         </view>
       </view>
 
       <!-- 群成员侧边栏 -->
-      <view v-if="showMembersSheet" class="sheet-mask" @click="showMembersSheet = false">
-        <view class="sheet-side" @click.stop>
+      <view
+        v-if="showMembersSheet"
+        class="sheet-mask"
+        @click="showMembersSheet = false"
+      >
+        <view
+          class="sheet-side"
+          @click.stop
+        >
           <view class="sheet-side-header">
-            <text class="sheet-side-title">群聊信息</text>
+            <text class="sheet-side-title">
+              群聊信息
+            </text>
           </view>
-          <scroll-view scroll-y class="sheet-side-body">
+          <scroll-view
+            scroll-y
+            class="sheet-side-body"
+          >
             <!-- 群信息 -->
             <view class="sheet-section">
               <view class="sheet-group-info">
-                <image :src="groupDetail.avatar || ''" class="sheet-group-avatar" mode="aspectFill" />
+                <image
+                  :src="groupDetail.avatar || ''"
+                  class="sheet-group-avatar"
+                  mode="aspectFill"
+                />
                 <view class="sheet-group-detail">
-                  <text class="sheet-group-name">{{ groupDetail.name }}</text>
-                  <text class="sheet-group-count">{{ groupDetail.memberCount }}人</text>
+                  <text class="sheet-group-name">
+                    {{ groupDetail.name }}
+                  </text>
+                  <text class="sheet-group-count">
+                    {{ groupDetail.memberCount }}人
+                  </text>
                 </view>
               </view>
             </view>
             <!-- 成员列表 -->
             <view class="sheet-section">
               <view class="sheet-section-title-row">
-                <text class="sheet-section-title">群成员</text>
-                <text class="sheet-section-link" @click="showMembersSheet = false">查看全部 ›</text>
+                <text class="sheet-section-title">
+                  群成员
+                </text>
+                <text
+                  class="sheet-section-link"
+                  @click="showMembersSheet = false"
+                >
+                  查看全部 ›
+                </text>
               </view>
               <view class="member-grid">
-                <view v-for="m in members.slice(0, 10)" :key="m.id" class="member-grid-item">
+                <view
+                  v-for="m in members.slice(0, 10)"
+                  :key="m.id"
+                  class="member-grid-item"
+                >
                   <view class="member-grid-avatar-wrap">
-                    <image :src="m.avatar || ''" class="member-grid-avatar" mode="aspectFill" />
-                    <text v-if="m.role === 'owner'" class="role-icon owner">👑</text>
-                    <text v-if="m.role === 'admin'" class="role-icon admin">🛡</text>
+                    <image
+                      :src="m.avatar || ''"
+                      class="member-grid-avatar"
+                      mode="aspectFill"
+                    />
+                    <text
+                      v-if="m.role === 'owner'"
+                      class="role-icon owner"
+                    >
+                      👑
+                    </text>
+                    <text
+                      v-if="m.role === 'admin'"
+                      class="role-icon admin"
+                    >
+                      🛡
+                    </text>
                   </view>
-                  <text class="member-grid-name">{{ m.nickname }}</text>
+                  <text class="member-grid-name">
+                    {{ m.nickname }}
+                  </text>
                 </view>
               </view>
             </view>
             <!-- 群公告 -->
-            <view v-if="groupDetail.notice" class="sheet-section" @click="showMembersSheet = false; showNoticeSheet = true">
+            <view
+              v-if="groupDetail.notice"
+              class="sheet-section"
+              @click="showMembersSheet = false; showNoticeSheet = true"
+            >
               <view class="sheet-row">
-                <text class="sheet-row-label">群公告</text>
-                <text class="sheet-row-arrow">›</text>
+                <text class="sheet-row-label">
+                  群公告
+                </text>
+                <text class="sheet-row-arrow">
+                  ›
+                </text>
               </view>
-              <text class="sheet-notice-preview">{{ groupDetail.notice }}</text>
+              <text class="sheet-notice-preview">
+                {{ groupDetail.notice }}
+              </text>
             </view>
             <!-- 我的角色 -->
             <view class="sheet-section">
               <view class="sheet-row">
-                <text class="sheet-row-label">我在本群的身份</text>
-                <text class="sheet-row-value">{{ getRoleName(groupDetail.myRole) }}</text>
+                <text class="sheet-row-label">
+                  我在本群的身份
+                </text>
+                <text class="sheet-row-value">
+                  {{ getRoleName(groupDetail.myRole) }}
+                </text>
               </view>
             </view>
           </scroll-view>
@@ -198,20 +410,43 @@
       </view>
 
       <!-- 群公告详情 -->
-      <view v-if="showNoticeSheet" class="sheet-mask" @click="showNoticeSheet = false">
-        <view class="sheet-side" @click.stop>
+      <view
+        v-if="showNoticeSheet"
+        class="sheet-mask"
+        @click="showNoticeSheet = false"
+      >
+        <view
+          class="sheet-side"
+          @click.stop
+        >
           <view class="sheet-side-header">
-            <text class="sheet-side-title">群公告</text>
+            <text class="sheet-side-title">
+              群公告
+            </text>
           </view>
-          <scroll-view scroll-y class="sheet-side-body p-4">
+          <scroll-view
+            scroll-y
+            class="sheet-side-body p-4"
+          >
             <view v-if="groupDetail.noticeDetail">
               <view class="notice-meta">
-                <text class="notice-publisher">{{ groupDetail.noticeDetail.publisher }}</text>
-                <text class="notice-date">发布于 {{ groupDetail.noticeDetail.publishedAt }}</text>
+                <text class="notice-publisher">
+                  {{ groupDetail.noticeDetail.publisher }}
+                </text>
+                <text class="notice-date">
+                  发布于 {{ groupDetail.noticeDetail.publishedAt }}
+                </text>
               </view>
-              <text class="notice-content">{{ groupDetail.noticeDetail.content }}</text>
+              <text class="notice-content">
+                {{ groupDetail.noticeDetail.content }}
+              </text>
             </view>
-            <text v-else class="notice-empty">暂无群公告</text>
+            <text
+              v-else
+              class="notice-empty"
+            >
+              暂无群公告
+            </text>
           </scroll-view>
         </view>
       </view>

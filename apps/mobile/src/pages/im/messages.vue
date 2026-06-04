@@ -3,26 +3,57 @@
     <!-- 顶部导航 -->
     <view class="nav">
       <view class="nav-left">
-        <text class="nav-back" @click="goBack">←</text>
-        <text class="nav-title">消息中心</text>
+        <text
+          class="nav-back"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="nav-title">
+          消息中心
+        </text>
       </view>
-      <text v-if="currentUnread > 0" class="nav-action" @click="markAllRead">
+      <text
+        v-if="currentUnread > 0"
+        class="nav-action"
+        @click="markAllRead"
+      >
         {{ markingAllRead ? '处理中...' : '✅ 全部已读' }}
       </text>
     </view>
 
     <!-- 分类Tab -->
-    <scroll-view scroll-x class="tabs-scroll" show-scrollbar="false">
+    <scroll-view
+      scroll-x
+      class="tabs-scroll"
+      show-scrollbar="false"
+    >
       <view class="tabs-inner">
-        <view v-for="t in messageTabs" :key="t.key" class="tab" :class="{ active: activeTab === t.key }" @click="switchTab(t.key)">
+        <view
+          v-for="t in messageTabs"
+          :key="t.key"
+          class="tab"
+          :class="{ active: activeTab === t.key }"
+          @click="switchTab(t.key)"
+        >
           <view class="tab-icon-wrap">
-            <text class="tab-icon">{{ t.icon }}</text>
-            <text v-if="getUnreadCount(t.key) > 0" class="tab-badge">
+            <text class="tab-icon">
+              {{ t.icon }}
+            </text>
+            <text
+              v-if="getUnreadCount(t.key) > 0"
+              class="tab-badge"
+            >
               {{ getUnreadCount(t.key) > 99 ? '99+' : getUnreadCount(t.key) }}
             </text>
           </view>
-          <text class="tab-label">{{ t.label }}</text>
-          <view v-if="activeTab === t.key" class="tab-active-bar" />
+          <text class="tab-label">
+            {{ t.label }}
+          </text>
+          <view
+            v-if="activeTab === t.key"
+            class="tab-active-bar"
+          />
         </view>
       </view>
     </scroll-view>
@@ -48,28 +79,59 @@
         >
           <!-- 图标/头像 -->
           <view class="msg-icon-wrap">
-            <image v-if="m.avatar" :src="m.avatar" class="msg-avatar" mode="aspectFill" />
-            <view v-else class="msg-icon-bg" :class="getIconBg(m.type)">
-              <text class="msg-icon-emoji">{{ getIconEmoji(m) }}</text>
+            <image
+              v-if="m.avatar"
+              :src="m.avatar"
+              class="msg-avatar"
+              mode="aspectFill"
+            />
+            <view
+              v-else
+              class="msg-icon-bg"
+              :class="getIconBg(m.type)"
+            >
+              <text class="msg-icon-emoji">
+                {{ getIconEmoji(m) }}
+              </text>
             </view>
-            <view v-if="!m.isRead" class="msg-unread-dot" />
+            <view
+              v-if="!m.isRead"
+              class="msg-unread-dot"
+            />
           </view>
           <!-- 内容 -->
           <view class="msg-content">
             <view class="msg-top">
               <view class="msg-title-row">
-                <text class="msg-title" :class="{ bold: !m.isRead }">{{ m.title }}</text>
-                <text class="msg-category">{{ m.category }}</text>
+                <text
+                  class="msg-title"
+                  :class="{ bold: !m.isRead }"
+                >
+                  {{ m.title }}
+                </text>
+                <text class="msg-category">
+                  {{ m.category }}
+                </text>
               </view>
-              <text class="msg-time">{{ formatTime(m.createdAt) }}</text>
+              <text class="msg-time">
+                {{ formatTime(m.createdAt) }}
+              </text>
             </view>
-            <text class="msg-desc" :class="{ bold: !m.isRead }">{{ m.content }}</text>
+            <text
+              class="msg-desc"
+              :class="{ bold: !m.isRead }"
+            >
+              {{ m.content }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 底部提示 -->
-      <view v-if="filteredMessages.length > 0" class="list-footer">
+      <view
+        v-if="filteredMessages.length > 0"
+        class="list-footer"
+      >
         <text>— 已显示全部消息 —</text>
       </view>
     </DataState>

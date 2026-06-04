@@ -12,7 +12,9 @@
           :key="index"
           class="tag-item"
           :style="tagStyle"
-        >{{ tag }}</text>
+        >
+          {{ tag }}
+        </text>
       </view>
     </scroll-view>
   </view>

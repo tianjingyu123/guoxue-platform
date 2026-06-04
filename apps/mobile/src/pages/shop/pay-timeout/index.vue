@@ -2,25 +2,42 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
-      <view class="nav-back" @click="goBack">
-        <text class="nav-back-icon">‹</text>
+      <view
+        class="nav-back"
+        @click="goBack"
+      >
+        <text class="nav-back-icon">
+          ‹
+        </text>
       </view>
-      <text class="nav-title">支付结果</text>
+      <text class="nav-title">
+        支付结果
+      </text>
     </view>
 
     <!-- 橙色渐变背景 -->
     <view class="timeout-header">
       <view class="timeout-icon-group">
         <view class="timeout-icon-wrap">
-          <text class="timeout-icon-clock">🕐</text>
+          <text class="timeout-icon-clock">
+            🕐
+          </text>
         </view>
         <view class="timeout-ring" />
       </view>
-      <text class="timeout-title">支付超时</text>
-      <text class="timeout-desc">订单已超时，请重新发起支付</text>
+      <text class="timeout-title">
+        支付超时
+      </text>
+      <text class="timeout-desc">
+        订单已超时，请重新发起支付
+      </text>
       <view class="timeout-amount-row">
-        <text class="timeout-amount-label">订单金额</text>
-        <text class="timeout-amount-num">¥{{ amountStr }}</text>
+        <text class="timeout-amount-label">
+          订单金额
+        </text>
+        <text class="timeout-amount-num">
+          ¥{{ amountStr }}
+        </text>
       </view>
     </view>
 
@@ -29,31 +46,57 @@
       <!-- 可能原因 -->
       <view class="reasons-card">
         <view class="reasons-header">
-          <text class="reasons-icon">⚠</text>
-          <text class="reasons-title">可能的原因</text>
+          <text class="reasons-icon">
+            ⚠
+          </text>
+          <text class="reasons-title">
+            可能的原因
+          </text>
         </view>
-        <view v-for="(reason, idx) in timeoutReasons" :key="idx" class="reason-item">
+        <view
+          v-for="(reason, idx) in timeoutReasons"
+          :key="idx"
+          class="reason-item"
+        >
           <view class="reason-item-icon-wrap">
-            <text class="reason-item-icon">{{ reason.icon }}</text>
+            <text class="reason-item-icon">
+              {{ reason.icon }}
+            </text>
           </view>
-          <text class="reason-item-text">{{ reason.text }}</text>
+          <text class="reason-item-text">
+            {{ reason.text }}
+          </text>
         </view>
       </view>
 
       <!-- 订单信息 -->
       <view class="order-card">
-        <text class="order-section-title">订单信息</text>
+        <text class="order-section-title">
+          订单信息
+        </text>
         <view class="order-detail-row">
-          <text class="order-detail-label">订单编号</text>
-          <text class="order-detail-value">{{ orderId }}</text>
+          <text class="order-detail-label">
+            订单编号
+          </text>
+          <text class="order-detail-value">
+            {{ orderId }}
+          </text>
         </view>
         <view class="order-detail-row">
-          <text class="order-detail-label">超时时间</text>
-          <text class="order-detail-time">{{ currentTime }}</text>
+          <text class="order-detail-label">
+            超时时间
+          </text>
+          <text class="order-detail-time">
+            {{ currentTime }}
+          </text>
         </view>
         <view class="order-detail-row no-border">
-          <text class="order-detail-label">订单状态</text>
-          <text class="order-status">待支付</text>
+          <text class="order-detail-label">
+            订单状态
+          </text>
+          <text class="order-status">
+            待支付
+          </text>
         </view>
       </view>
 
@@ -61,11 +104,17 @@
       <view class="tips-card">
         <view class="tips-content">
           <view class="tips-icon-wrap">
-            <text class="tips-icon-text">!</text>
+            <text class="tips-icon-text">
+              !
+            </text>
           </view>
           <view class="tips-text">
-            <text class="tips-title">温馨提示</text>
-            <text class="tips-desc">如您已完成支付但显示超时，资金会在1-3个工作日内原路退回。如有疑问请联系客服。</text>
+            <text class="tips-title">
+              温馨提示
+            </text>
+            <text class="tips-desc">
+              如您已完成支付但显示超时，资金会在1-3个工作日内原路退回。如有疑问请联系客服。
+            </text>
           </view>
         </view>
       </view>
@@ -73,17 +122,32 @@
 
     <!-- 底部按钮 -->
     <view class="bottom-bar">
-      <view class="btn-retry" @click="retryPay">
-        <text class="btn-retry-icon">🔄</text>
+      <view
+        class="btn-retry"
+        @click="retryPay"
+      >
+        <text class="btn-retry-icon">
+          🔄
+        </text>
         <text>重新支付</text>
       </view>
       <view class="btn-row">
-        <view class="btn-switch" @click="switchPay">
-          <text class="btn-switch-icon">🔄</text>
+        <view
+          class="btn-switch"
+          @click="switchPay"
+        >
+          <text class="btn-switch-icon">
+            🔄
+          </text>
           <text>换个支付方式</text>
         </view>
-        <view class="btn-order" @click="goOrder">
-          <text class="btn-order-icon">🧾</text>
+        <view
+          class="btn-order"
+          @click="goOrder"
+        >
+          <text class="btn-order-icon">
+            🧾
+          </text>
           <text>查看订单</text>
         </view>
       </view>

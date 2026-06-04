@@ -6,89 +6,235 @@
       <view class="deco-dot" />
     </view>
 
-    <view v-if="loading" class="loading-center">
+    <view
+      v-if="loading"
+      class="loading-center"
+    >
       <view class="loading-spinner" />
     </view>
 
-    <view v-else-if="!notice" class="empty-state">
-      <text class="empty-icon">🎉</text>
-      <text class="empty-text">暂无新版本公告</text>
-      <view class="empty-btn" @click="goBack">返回</view>
+    <view
+      v-else-if="!notice"
+      class="empty-state"
+    >
+      <text class="empty-icon">
+        🎉
+      </text>
+      <text class="empty-text">
+        暂无新版本公告
+      </text>
+      <view
+        class="empty-btn"
+        @click="goBack"
+      >
+        返回
+      </view>
     </view>
 
     <template v-else>
       <view class="top-deco">
         <view class="logo-area">
           <view class="logo-box">
-            <text class="logo-text">国</text>
+            <text class="logo-text">
+              国
+            </text>
           </view>
         </view>
         <view class="version-block">
-          <text class="version-label">版本更新</text>
-          <text class="version-num">v{{ notice.version }}</text>
-          <text v-if="notice.versionName" class="version-name">{{ notice.versionName }}</text>
+          <text class="version-label">
+            版本更新
+          </text>
+          <text class="version-num">
+            v{{ notice.version }}
+          </text>
+          <text
+            v-if="notice.versionName"
+            class="version-name"
+          >
+            {{ notice.versionName }}
+          </text>
         </view>
         <view class="close-area">
-          <text v-if="canClose" class="close-btn" @click="handleClose">✕</text>
-          <text v-else class="countdown-num">{{ countdown }}</text>
+          <text
+            v-if="canClose"
+            class="close-btn"
+            @click="handleClose"
+          >
+            ✕
+          </text>
+          <text
+            v-else
+            class="countdown-num"
+          >
+            {{ countdown }}
+          </text>
         </view>
       </view>
 
-      <scroll-view scroll-y class="content-scroll">
+      <scroll-view
+        scroll-y
+        class="content-scroll"
+      >
         <view class="main-card">
           <view class="card-header">
-            <text class="card-title">{{ notice.title }}</text>
-            <text v-if="notice.subtitle" class="card-subtitle">{{ notice.subtitle }}</text>
+            <text class="card-title">
+              {{ notice.title }}
+            </text>
+            <text
+              v-if="notice.subtitle"
+              class="card-subtitle"
+            >
+              {{ notice.subtitle }}
+            </text>
           </view>
 
           <!-- 维护时间提示 -->
-          <view v-if="notice.maintenanceStart && notice.maintenanceEnd" class="maintenance-banner">
-            <view class="mb-top"><text>🕐</text><text class="mb-label">系统维护时间</text></view>
-            <text class="mb-time">{{ notice.maintenanceStart }} ~ {{ notice.maintenanceEnd }}</text>
-            <text class="mb-tip">维护期间部分功能可能无法使用，请提前做好准备</text>
+          <view
+            v-if="notice.maintenanceStart && notice.maintenanceEnd"
+            class="maintenance-banner"
+          >
+            <view class="mb-top">
+              <text>🕐</text><text class="mb-label">
+                系统维护时间
+              </text>
+            </view>
+            <text class="mb-time">
+              {{ notice.maintenanceStart }} ~ {{ notice.maintenanceEnd }}
+            </text>
+            <text class="mb-tip">
+              维护期间部分功能可能无法使用，请提前做好准备
+            </text>
           </view>
 
           <!-- 新功能 -->
-          <view v-if="notice.features && notice.features.length" class="upgrade-section">
-            <view class="us-header"><text class="us-icon">✨</text><text class="us-label">新功能</text><text class="us-count">{{ notice.features.length }}</text></view>
+          <view
+            v-if="notice.features && notice.features.length"
+            class="upgrade-section"
+          >
+            <view class="us-header">
+              <text class="us-icon">
+                ✨
+              </text><text class="us-label">
+                新功能
+              </text><text class="us-count">
+                {{ notice.features.length }}
+              </text>
+            </view>
             <view class="us-items">
-              <view v-for="(item, idx) in notice.features" :key="idx" class="us-item">
-                <text class="us-item-icon">✨</text>
-                <view class="us-item-info"><text class="us-item-title">{{ item.title }}</text><text v-if="item.description" class="us-item-desc">{{ item.description }}</text></view>
+              <view
+                v-for="(item, idx) in notice.features"
+                :key="idx"
+                class="us-item"
+              >
+                <text class="us-item-icon">
+                  ✨
+                </text>
+                <view class="us-item-info">
+                  <text class="us-item-title">
+                    {{ item.title }}
+                  </text><text
+                    v-if="item.description"
+                    class="us-item-desc"
+                  >
+                    {{ item.description }}
+                  </text>
+                </view>
               </view>
             </view>
           </view>
 
           <!-- 体验优化 -->
-          <view v-if="notice.optimizations && notice.optimizations.length" class="upgrade-section">
-            <view class="us-header"><text class="us-icon">⚡</text><text class="us-label">体验优化</text><text class="us-count">{{ notice.optimizations.length }}</text></view>
+          <view
+            v-if="notice.optimizations && notice.optimizations.length"
+            class="upgrade-section"
+          >
+            <view class="us-header">
+              <text class="us-icon">
+                ⚡
+              </text><text class="us-label">
+                体验优化
+              </text><text class="us-count">
+                {{ notice.optimizations.length }}
+              </text>
+            </view>
             <view class="us-items">
-              <view v-for="(item, idx) in notice.optimizations" :key="idx" class="us-item">
-                <text class="us-item-icon">⚡</text>
-                <view class="us-item-info"><text class="us-item-title">{{ item.title }}</text><text v-if="item.description" class="us-item-desc">{{ item.description }}</text></view>
+              <view
+                v-for="(item, idx) in notice.optimizations"
+                :key="idx"
+                class="us-item"
+              >
+                <text class="us-item-icon">
+                  ⚡
+                </text>
+                <view class="us-item-info">
+                  <text class="us-item-title">
+                    {{ item.title }}
+                  </text><text
+                    v-if="item.description"
+                    class="us-item-desc"
+                  >
+                    {{ item.description }}
+                  </text>
+                </view>
               </view>
             </view>
           </view>
 
           <!-- 问题修复 -->
-          <view v-if="notice.fixes && notice.fixes.length" class="upgrade-section">
-            <view class="us-header"><text class="us-icon">🔧</text><text class="us-label">问题修复</text><text class="us-count">{{ notice.fixes.length }}</text></view>
+          <view
+            v-if="notice.fixes && notice.fixes.length"
+            class="upgrade-section"
+          >
+            <view class="us-header">
+              <text class="us-icon">
+                🔧
+              </text><text class="us-label">
+                问题修复
+              </text><text class="us-count">
+                {{ notice.fixes.length }}
+              </text>
+            </view>
             <view class="us-items">
-              <view v-for="(item, idx) in notice.fixes" :key="idx" class="us-item">
-                <text class="us-item-icon">🔧</text>
-                <view class="us-item-info"><text class="us-item-title">{{ item.title }}</text><text v-if="item.description" class="us-item-desc">{{ item.description }}</text></view>
+              <view
+                v-for="(item, idx) in notice.fixes"
+                :key="idx"
+                class="us-item"
+              >
+                <text class="us-item-icon">
+                  🔧
+                </text>
+                <view class="us-item-info">
+                  <text class="us-item-title">
+                    {{ item.title }}
+                  </text><text
+                    v-if="item.description"
+                    class="us-item-desc"
+                  >
+                    {{ item.description }}
+                  </text>
+                </view>
               </view>
             </view>
           </view>
 
-          <view class="pub-time">发布于 {{ notice.publishedAt }}</view>
+          <view class="pub-time">
+            发布于 {{ notice.publishedAt }}
+          </view>
         </view>
       </scroll-view>
 
       <view class="bottom-bar">
-        <view class="bottom-btn" :class="{ disabled: !canClose }" @click="handleClose">
-          <text v-if="canClose">✓ 我知道了</text>
-          <text v-else>🕐 请等待 {{ countdown }} 秒</text>
+        <view
+          class="bottom-btn"
+          :class="{ disabled: !canClose }"
+          @click="handleClose"
+        >
+          <text v-if="canClose">
+            ✓ 我知道了
+          </text>
+          <text v-else>
+            🕐 请等待 {{ countdown }} 秒
+          </text>
         </view>
       </view>
     </template>

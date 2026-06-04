@@ -2,45 +2,89 @@
   <view class="page">
     <!-- 页面标题 -->
     <view class="page-header">
-      <text class="page-title">八字排盘</text>
-      <text class="page-subtitle">传统命理 · 四柱推演</text>
+      <text class="page-title">
+        八字排盘
+      </text>
+      <text class="page-subtitle">
+        传统命理 · 四柱推演
+      </text>
     </view>
 
     <!-- 输表单 -->
     <view class="form-card">
-      <view class="form-section-title">个人信息</view>
-
-      <view class="form-row">
-        <text class="form-label">姓名</text>
-        <input v-model="form.name" placeholder="请输入姓名" class="form-input" maxlength="10" />
+      <view class="form-section-title">
+        个人信息
       </view>
 
       <view class="form-row">
-        <text class="form-label">性别</text>
+        <text class="form-label">
+          姓名
+        </text>
+        <input
+          v-model="form.name"
+          placeholder="请输入姓名"
+          class="form-input"
+          maxlength="10"
+        >
+      </view>
+
+      <view class="form-row">
+        <text class="form-label">
+          性别
+        </text>
         <view class="gender-group">
-          <text :class="['gender-btn', { active: form.gender === '男' }]" @click="form.gender='男'">男</text>
-          <text :class="['gender-btn', { active: form.gender === '女' }]" @click="form.gender='女'">女</text>
+          <text
+            :class="['gender-btn', { active: form.gender === '男' }]"
+            @click="form.gender='男'"
+          >
+            男
+          </text>
+          <text
+            :class="['gender-btn', { active: form.gender === '女' }]"
+            @click="form.gender='女'"
+          >
+            女
+          </text>
         </view>
       </view>
 
       <view class="form-divider" />
 
-      <view class="form-section-title">出生信息</view>
+      <view class="form-section-title">
+        出生信息
+      </view>
 
       <view class="form-row">
-        <text class="form-label">公历日期</text>
-        <picker mode="date" :value="birthDateStr" @change="onDateChange" class="form-picker">
+        <text class="form-label">
+          公历日期
+        </text>
+        <picker
+          mode="date"
+          :value="birthDateStr"
+          class="form-picker"
+          @change="onDateChange"
+        >
           <view class="picker-value">
-            <text :class="['picker-text', { placeholder: !birthDateStr }]">{{ birthDateStr || '选择出生日期' }}</text>
-            <text class="picker-arrow">▼</text>
+            <text :class="['picker-text', { placeholder: !birthDateStr }]">
+              {{ birthDateStr || '选择出生日期' }}
+            </text>
+            <text class="picker-arrow">
+              ▼
+            </text>
           </view>
         </picker>
       </view>
 
       <view class="form-row">
-        <text class="form-label">出生时辰</text>
+        <text class="form-label">
+          出生时辰
+        </text>
         <view class="shichen-list">
-          <scroll-view scroll-x class="shichen-scroll" show-scrollbar="false">
+          <scroll-view
+            scroll-x
+            class="shichen-scroll"
+            show-scrollbar="false"
+          >
             <view class="shichen-inner">
               <text
                 v-for="sc in shiChenOptions"
@@ -48,8 +92,12 @@
                 :class="['shichen-btn', { active: activeShiChen === sc.value }]"
                 @click="selectShiChen(sc)"
               >
-                <text class="sc-dizhi">{{ sc.label }}</text>
-                <text class="sc-time">{{ sc.timeRange }}</text>
+                <text class="sc-dizhi">
+                  {{ sc.label }}
+                </text>
+                <text class="sc-time">
+                  {{ sc.timeRange }}
+                </text>
               </text>
             </view>
           </scroll-view>
@@ -57,36 +105,72 @@
       </view>
 
       <view class="form-row">
-        <text class="form-label">城市</text>
-        <input v-model="form.city" placeholder="如：北京（用于真太阳时校正）" class="form-input" maxlength="20" />
+        <text class="form-label">
+          城市
+        </text>
+        <input
+          v-model="form.city"
+          placeholder="如：北京（用于真太阳时校正）"
+          class="form-input"
+          maxlength="20"
+        >
       </view>
 
-      <button class="calc-btn" :loading="loading" @click="doCalc" :disabled="loading">
-        <text v-if="!loading">开始排盘</text>
-        <text v-else>推演中 ...</text>
+      <button
+        class="calc-btn"
+        :loading="loading"
+        :disabled="loading"
+        @click="doCalc"
+      >
+        <text v-if="!loading">
+          开始排盘
+        </text>
+        <text v-else>
+          推演中 ...
+        </text>
       </button>
     </view>
 
     <!-- 加载状态 -->
-    <view v-if="loading" class="loading-section">
+    <view
+      v-if="loading"
+      class="loading-section"
+    >
       <view class="loading-animation">
-        <text class="loading-icon">☯</text>
-        <text class="loading-text">天干地支推演中...</text>
+        <text class="loading-icon">
+          ☯
+        </text>
+        <text class="loading-text">
+          天干地支推演中...
+        </text>
       </view>
     </view>
 
     <!-- 排盘结果 -->
-    <view v-if="result && !loading" class="result-section">
+    <view
+      v-if="result && !loading"
+      class="result-section"
+    >
       <!-- 四柱八字表 -->
       <view class="card">
         <view class="card-header">
-          <text class="card-title">四柱八字</text>
-          <text class="card-subtitle">{{ form.name || '未知' }} · {{ form.gender }}</text>
+          <text class="card-title">
+            四柱八字
+          </text>
+          <text class="card-subtitle">
+            {{ form.name || '未知' }} · {{ form.gender }}
+          </text>
         </view>
         <view class="bazi-table">
           <!-- 表头：年柱 月柱 日柱 时柱 -->
           <view class="bt-row bt-header">
-            <view v-for="col in sizhuCols" :key="col[0]" class="bt-cell bt-label">{{ col[1] }}</view>
+            <view
+              v-for="col in sizhuCols"
+              :key="col[0]"
+              class="bt-cell bt-label"
+            >
+              {{ col[1] }}
+            </view>
           </view>
           <!-- 天干行（带五行颜色） -->
           <view class="bt-row">
@@ -96,8 +180,12 @@
               class="bt-cell bt-gan"
               :style="{ color: getGanColor(result.siZhu[col[0]].gan) }"
             >
-              <text class="bt-gan-text">{{ result.siZhu[col[0]].gan }}</text>
-              <text class="bt-wuxing-tag">{{ getGanWuXing(result.siZhu[col[0]].gan) }}</text>
+              <text class="bt-gan-text">
+                {{ result.siZhu[col[0]].gan }}
+              </text>
+              <text class="bt-wuxing-tag">
+                {{ getGanWuXing(result.siZhu[col[0]].gan) }}
+              </text>
             </view>
           </view>
           <!-- 地支行（带五行颜色） -->
@@ -108,34 +196,66 @@
               class="bt-cell bt-zhi"
               :style="{ color: getZhiColor(result.siZhu[col[0]].zhi) }"
             >
-              <text class="bt-zhi-text">{{ result.siZhu[col[0]].zhi }}</text>
-              <text class="bt-wuxing-tag">{{ getZhiWuXing(result.siZhu[col[0]].zhi) }}</text>
+              <text class="bt-zhi-text">
+                {{ result.siZhu[col[0]].zhi }}
+              </text>
+              <text class="bt-wuxing-tag">
+                {{ getZhiWuXing(result.siZhu[col[0]].zhi) }}
+              </text>
             </view>
           </view>
           <!-- 藏干行 -->
           <view class="bt-row">
-            <view v-for="col in sizhuCols" :key="'cg-' + col[0]" class="bt-cell bt-canggan">
-              <view v-if="result.siZhu[col[0]].cangGan?.length" class="cg-list">
+            <view
+              v-for="col in sizhuCols"
+              :key="'cg-' + col[0]"
+              class="bt-cell bt-canggan"
+            >
+              <view
+                v-if="result.siZhu[col[0]].cangGan?.length"
+                class="cg-list"
+              >
                 <text
                   v-for="cg in result.siZhu[col[0]].cangGan"
                   :key="cg.gan"
                   class="cg-item"
                   :style="{ color: getGanColor(cg.gan) }"
-                >{{ cg.gan }}<text class="cg-ss">{{ cg.shiShen }}</text></text>
+                >
+                  {{ cg.gan }}<text class="cg-ss">
+                    {{ cg.shiShen }}
+                  </text>
+                </text>
               </view>
-              <text v-else class="cg-empty">--</text>
+              <text
+                v-else
+                class="cg-empty"
+              >
+                --
+              </text>
             </view>
           </view>
           <!-- 纳音行 -->
           <view class="bt-row">
-            <view v-for="col in sizhuCols" :key="'ny-' + col[0]" class="bt-cell bt-nayin">
-              <text class="nayin-text">{{ result.siZhu[col[0]]?.nayin || '--' }}</text>
+            <view
+              v-for="col in sizhuCols"
+              :key="'ny-' + col[0]"
+              class="bt-cell bt-nayin"
+            >
+              <text class="nayin-text">
+                {{ result.siZhu[col[0]]?.nayin || '--' }}
+              </text>
             </view>
           </view>
           <!-- 十神行 -->
           <view class="bt-row">
-            <view v-for="col in sizhuCols" :key="'ss-' + col[0]" class="bt-cell bt-shishen">
-              <text class="ss-text">{{ result.siZhu[col[0]].ganShiShen || '--' }}</text>
+            <view
+              v-for="col in sizhuCols"
+              :key="'ss-' + col[0]"
+              class="bt-cell bt-shishen"
+            >
+              <text class="ss-text">
+                {{ result.siZhu[col[0]].ganShiShen || '--' }}
+              </text>
             </view>
           </view>
         </view>
@@ -144,25 +264,54 @@
       <!-- 胎元 · 命宫 -->
       <view class="card">
         <view class="card-header">
-          <text class="card-title">胎元 · 命宫</text>
+          <text class="card-title">
+            胎元 · 命宫
+          </text>
         </view>
         <view class="tms-container">
           <view class="tms-item">
-            <text class="tms-label">胎元</text>
-            <text class="tms-ganzhi">{{ result.taiYuan?.gan || '' }}{{ result.taiYuan?.zhi || '' }}</text>
-            <text class="tms-nayin" v-if="result.taiYuan?.nayin">{{ result.taiYuan.nayin }}</text>
+            <text class="tms-label">
+              胎元
+            </text>
+            <text class="tms-ganzhi">
+              {{ result.taiYuan?.gan || '' }}{{ result.taiYuan?.zhi || '' }}
+            </text>
+            <text
+              v-if="result.taiYuan?.nayin"
+              class="tms-nayin"
+            >
+              {{ result.taiYuan.nayin }}
+            </text>
           </view>
           <view class="tms-divider" />
           <view class="tms-item">
-            <text class="tms-label">命宫</text>
-            <text class="tms-ganzhi">{{ result.mingGong?.gan || '' }}{{ result.mingGong?.zhi || '' }}</text>
-            <text class="tms-nayin" v-if="result.mingGong?.nayin">{{ result.mingGong.nayin }}</text>
+            <text class="tms-label">
+              命宫
+            </text>
+            <text class="tms-ganzhi">
+              {{ result.mingGong?.gan || '' }}{{ result.mingGong?.zhi || '' }}
+            </text>
+            <text
+              v-if="result.mingGong?.nayin"
+              class="tms-nayin"
+            >
+              {{ result.mingGong.nayin }}
+            </text>
           </view>
           <view class="tms-divider" />
           <view class="tms-item">
-            <text class="tms-label">身宫</text>
-            <text class="tms-ganzhi">{{ result.shenGong?.gan || '' }}{{ result.shenGong?.zhi || '' }}</text>
-            <text class="tms-nayin" v-if="result.shenGong?.nayin">{{ result.shenGong.nayin }}</text>
+            <text class="tms-label">
+              身宫
+            </text>
+            <text class="tms-ganzhi">
+              {{ result.shenGong?.gan || '' }}{{ result.shenGong?.zhi || '' }}
+            </text>
+            <text
+              v-if="result.shenGong?.nayin"
+              class="tms-nayin"
+            >
+              {{ result.shenGong.nayin }}
+            </text>
           </view>
         </view>
       </view>
@@ -170,23 +319,46 @@
       <!-- 五行统计 -->
       <view class="card">
         <view class="card-header">
-          <text class="card-title">五行统计</text>
+          <text class="card-title">
+            五行统计
+          </text>
         </view>
         <view class="wx-stats">
-          <view v-for="wx in wuXingStats" :key="wx.key" class="wx-stat-item">
-            <view class="wx-stat-icon" :style="{ backgroundColor: wx.color }">
-              <text class="wx-stat-label">{{ wx.label }}</text>
+          <view
+            v-for="wx in wuXingStats"
+            :key="wx.key"
+            class="wx-stat-item"
+          >
+            <view
+              class="wx-stat-icon"
+              :style="{ backgroundColor: wx.color }"
+            >
+              <text class="wx-stat-label">
+                {{ wx.label }}
+              </text>
             </view>
             <view class="wx-stat-bar-bg">
-              <view class="wx-stat-bar-fill" :style="{ width: wx.percent + '%', backgroundColor: wx.color }" />
+              <view
+                class="wx-stat-bar-fill"
+                :style="{ width: wx.percent + '%', backgroundColor: wx.color }"
+              />
             </view>
-            <text class="wx-stat-count">{{ wx.count }}次</text>
+            <text class="wx-stat-count">
+              {{ wx.count }}次
+            </text>
           </view>
         </view>
         <view class="wx-summary">
           <text class="wx-summary-text">
-            <text v-for="(wx, i) in wuXingStats" :key="wx.key">
-              <text :style="{ color: wx.color, fontWeight: 'bold' }">{{ wx.label }}</text>{{ wx.count }}<text v-if="i < wuXingStats.length - 1"> · </text>
+            <text
+              v-for="(wx, i) in wuXingStats"
+              :key="wx.key"
+            >
+              <text :style="{ color: wx.color, fontWeight: 'bold' }">
+                {{ wx.label }}
+              </text>{{ wx.count }}<text v-if="i < wuXingStats.length - 1">
+                ·
+              </text>
             </text>
           </text>
         </view>
@@ -195,170 +367,370 @@
       <!-- 基本信息 -->
       <view class="card">
         <view class="card-header">
-          <text class="card-title">基本信息</text>
+          <text class="card-title">
+            基本信息
+          </text>
         </view>
         <view class="info-grid">
           <view class="info-item">
-            <text class="info-label">生肖</text>
-            <text class="info-value">{{ result.shengXiao }}</text>
+            <text class="info-label">
+              生肖
+            </text>
+            <text class="info-value">
+              {{ result.shengXiao }}
+            </text>
           </view>
           <view class="info-item">
-            <text class="info-label">空亡</text>
-            <text class="info-value">{{ result.kongWang || '--' }}</text>
+            <text class="info-label">
+              空亡
+            </text>
+            <text class="info-value">
+              {{ result.kongWang || '--' }}
+            </text>
           </view>
           <view class="info-item">
-            <text class="info-label">旺衰</text>
-            <text class="info-value">{{ result.wangXiang || '--' }}</text>
+            <text class="info-label">
+              旺衰
+            </text>
+            <text class="info-value">
+              {{ result.wangXiang || '--' }}
+            </text>
           </view>
           <view class="info-item">
-            <text class="info-label">农历</text>
-            <text class="info-value">{{ result.lunarDate || '--' }}</text>
+            <text class="info-label">
+              农历
+            </text>
+            <text class="info-value">
+              {{ result.lunarDate || '--' }}
+            </text>
           </view>
           <view class="info-item">
-            <text class="info-label">纳音</text>
-            <text class="info-value">{{ result.nianNaYin || result.siZhu?.nian?.nayin || '--' }}</text>
+            <text class="info-label">
+              纳音
+            </text>
+            <text class="info-value">
+              {{ result.nianNaYin || result.siZhu?.nian?.nayin || '--' }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 起运信息 -->
-      <view v-if="result.qiYun" class="card">
+      <view
+        v-if="result.qiYun"
+        class="card"
+      >
         <view class="card-header">
-          <text class="card-title">大运 · 起运</text>
+          <text class="card-title">
+            大运 · 起运
+          </text>
         </view>
         <view class="qiyun-info-card">
-          <text class="qiyun-desc">{{ result.qiYun.desc || '' }}</text>
+          <text class="qiyun-desc">
+            {{ result.qiYun.desc || '' }}
+          </text>
           <view class="qiyun-detail">
             <text class="qiyun-detail-item">
-              <text class="qiyun-label">起运年龄：</text>
-              <text class="qiyun-value">{{ result.qiYun.startAge }}岁</text>
+              <text class="qiyun-label">
+                起运年龄：
+              </text>
+              <text class="qiyun-value">
+                {{ result.qiYun.startAge }}岁
+              </text>
             </text>
             <text class="qiyun-detail-item">
-              <text class="qiyun-label">交运年份：</text>
-              <text class="qiyun-value">{{ result.qiYun.startYear }}年</text>
+              <text class="qiyun-label">
+                交运年份：
+              </text>
+              <text class="qiyun-value">
+                {{ result.qiYun.startYear }}年
+              </text>
             </text>
             <text class="qiyun-detail-item">
-              <text class="qiyun-label">交运月份：</text>
-              <text class="qiyun-value">{{ result.qiYun.jiaoYunMonth }}月</text>
+              <text class="qiyun-label">
+                交运月份：
+              </text>
+              <text class="qiyun-value">
+                {{ result.qiYun.jiaoYunMonth }}月
+              </text>
             </text>
           </view>
         </view>
-        <text class="dayun-section-title">大运列表</text>
-        <scroll-view scroll-x class="dayun-scroll" show-scrollbar="false">
+        <text class="dayun-section-title">
+          大运列表
+        </text>
+        <scroll-view
+          scroll-x
+          class="dayun-scroll"
+          show-scrollbar="false"
+        >
           <view
             v-for="(step, idx) in result.qiYun.daYun"
             :key="idx"
             :class="['dayun-item', { active: activeDayunIdx === idx }]"
             @click="activeDayunIdx = idx"
           >
-            <text class="dy-ganzhi">{{ step.ganZhi }}</text>
-            <text class="dy-shishen">{{ step.ganShiShen || '--' }}/{{ step.zhiShiShen || '--' }}</text>
-            <text class="dy-age">{{ step.startAge }}-{{ step.endAge }}岁</text>
-            <view v-if="activeDayunIdx === idx" class="dy-active-indicator" />
+            <text class="dy-ganzhi">
+              {{ step.ganZhi }}
+            </text>
+            <text class="dy-shishen">
+              {{ step.ganShiShen || '--' }}/{{ step.zhiShiShen || '--' }}
+            </text>
+            <text class="dy-age">
+              {{ step.startAge }}-{{ step.endAge }}岁
+            </text>
+            <view
+              v-if="activeDayunIdx === idx"
+              class="dy-active-indicator"
+            />
           </view>
         </scroll-view>
       </view>
 
       <!-- 流年 -->
-      <view v-if="activeDayun" class="card">
+      <view
+        v-if="activeDayun"
+        class="card"
+      >
         <view class="card-header">
-          <text class="card-title">流年 · {{ activeDayun.ganZhi }}大运</text>
+          <text class="card-title">
+            流年 · {{ activeDayun.ganZhi }}大运
+          </text>
         </view>
-        <scroll-view scroll-x class="liunian-scroll" show-scrollbar="false">
-          <view v-for="ln in activeDayun.liuNian" :key="ln.year" class="liunian-item">
-            <text class="ln-year">{{ ln.year }}</text>
-            <text class="ln-ganzhi">{{ ln.ganZhi }}</text>
-            <text class="ln-shishen">{{ ln.ganShiShen || '--' }}/{{ ln.zhiShiShen || '--' }}</text>
+        <scroll-view
+          scroll-x
+          class="liunian-scroll"
+          show-scrollbar="false"
+        >
+          <view
+            v-for="ln in activeDayun.liuNian"
+            :key="ln.year"
+            class="liunian-item"
+          >
+            <text class="ln-year">
+              {{ ln.year }}
+            </text>
+            <text class="ln-ganzhi">
+              {{ ln.ganZhi }}
+            </text>
+            <text class="ln-shishen">
+              {{ ln.ganShiShen || '--' }}/{{ ln.zhiShiShen || '--' }}
+            </text>
           </view>
         </scroll-view>
       </view>
 
       <!-- 格局分析 -->
-      <view v-if="result.geJu" class="card">
+      <view
+        v-if="result.geJu"
+        class="card"
+      >
         <view class="card-header">
-          <text class="card-title">格局分析</text>
+          <text class="card-title">
+            格局分析
+          </text>
         </view>
         <view class="geju-header">
-          <text class="geju-name">{{ result.geJu.name }}</text>
+          <text class="geju-name">
+            {{ result.geJu.name }}
+          </text>
           <text :class="['geju-badge', result.geJu.type === 'zheng' ? 'badge-zheng' : 'badge-bian']">
             {{ result.geJu.type === 'zheng' ? '正格' : '变格' }}
           </text>
         </view>
-        <text class="geju-desc">{{ result.geJu.desc || '' }}</text>
-        <view v-if="result.geJu.yongShen" class="yongji-row">
+        <text class="geju-desc">
+          {{ result.geJu.desc || '' }}
+        </text>
+        <view
+          v-if="result.geJu.yongShen"
+          class="yongji-row"
+        >
           <view class="yongji-item ys-yong">
-            <text class="yongji-tag">用神</text>
-            <text class="yongji-val">{{ result.geJu.yongShen }}</text>
+            <text class="yongji-tag">
+              用神
+            </text>
+            <text class="yongji-val">
+              {{ result.geJu.yongShen }}
+            </text>
           </view>
-          <view v-if="result.geJu.xiShen" class="yongji-item ys-xi">
-            <text class="yongji-tag">喜神</text>
-            <text class="yongji-val">{{ result.geJu.xiShen }}</text>
+          <view
+            v-if="result.geJu.xiShen"
+            class="yongji-item ys-xi"
+          >
+            <text class="yongji-tag">
+              喜神
+            </text>
+            <text class="yongji-val">
+              {{ result.geJu.xiShen }}
+            </text>
           </view>
-          <view v-if="result.geJu.jiShen" class="yongji-item ys-ji">
-            <text class="yongji-tag">忌神</text>
-            <text class="yongji-val">{{ result.geJu.jiShen }}</text>
+          <view
+            v-if="result.geJu.jiShen"
+            class="yongji-item ys-ji"
+          >
+            <text class="yongji-tag">
+              忌神
+            </text>
+            <text class="yongji-val">
+              {{ result.geJu.jiShen }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 合冲刑害 -->
-      <view v-if="result.fenXiTiShi" class="card">
+      <view
+        v-if="result.fenXiTiShi"
+        class="card"
+      >
         <view class="card-header">
-          <text class="card-title">合冲刑害</text>
+          <text class="card-title">
+            合冲刑害
+          </text>
         </view>
-        <view v-if="!hasFenXi" class="fx-empty">
-          <text class="fx-empty-text">无特殊合冲刑害关系</text>
+        <view
+          v-if="!hasFenXi"
+          class="fx-empty"
+        >
+          <text class="fx-empty-text">
+            无特殊合冲刑害关系
+          </text>
         </view>
-        <view v-else class="fx-container">
-          <view v-if="result.fenXiTiShi.ganHe?.length" class="fx-row">
-            <text class="fx-label">天干五合</text>
+        <view
+          v-else
+          class="fx-container"
+        >
+          <view
+            v-if="result.fenXiTiShi.ganHe?.length"
+            class="fx-row"
+          >
+            <text class="fx-label">
+              天干五合
+            </text>
             <view class="fx-tags">
-              <text v-for="g in result.fenXiTiShi.ganHe" :key="g" class="fx-tag tag-he">{{ g }}</text>
+              <text
+                v-for="g in result.fenXiTiShi.ganHe"
+                :key="g"
+                class="fx-tag tag-he"
+              >
+                {{ g }}
+              </text>
             </view>
           </view>
-          <view v-if="result.fenXiTiShi.liuHe?.length" class="fx-row">
-            <text class="fx-label">地支六合</text>
+          <view
+            v-if="result.fenXiTiShi.liuHe?.length"
+            class="fx-row"
+          >
+            <text class="fx-label">
+              地支六合
+            </text>
             <view class="fx-tags">
-              <text v-for="h in result.fenXiTiShi.liuHe" :key="h" class="fx-tag tag-he">{{ h }}</text>
+              <text
+                v-for="h in result.fenXiTiShi.liuHe"
+                :key="h"
+                class="fx-tag tag-he"
+              >
+                {{ h }}
+              </text>
             </view>
           </view>
-          <view v-if="result.fenXiTiShi.sanHe?.length" class="fx-row">
-            <text class="fx-label">三合局</text>
+          <view
+            v-if="result.fenXiTiShi.sanHe?.length"
+            class="fx-row"
+          >
+            <text class="fx-label">
+              三合局
+            </text>
             <view class="fx-tags">
-              <text v-for="s in result.fenXiTiShi.sanHe" :key="s" class="fx-tag tag-sanhe">{{ s }}</text>
+              <text
+                v-for="s in result.fenXiTiShi.sanHe"
+                :key="s"
+                class="fx-tag tag-sanhe"
+              >
+                {{ s }}
+              </text>
             </view>
           </view>
-          <view v-if="result.fenXiTiShi.sanHui?.length" class="fx-row">
-            <text class="fx-label">三会局</text>
+          <view
+            v-if="result.fenXiTiShi.sanHui?.length"
+            class="fx-row"
+          >
+            <text class="fx-label">
+              三会局
+            </text>
             <view class="fx-tags">
-              <text v-for="s in result.fenXiTiShi.sanHui" :key="s" class="fx-tag tag-sanhui">{{ s }}</text>
+              <text
+                v-for="s in result.fenXiTiShi.sanHui"
+                :key="s"
+                class="fx-tag tag-sanhui"
+              >
+                {{ s }}
+              </text>
             </view>
           </view>
-          <view v-if="result.fenXiTiShi.liuChong?.length" class="fx-row">
-            <text class="fx-label">六冲</text>
+          <view
+            v-if="result.fenXiTiShi.liuChong?.length"
+            class="fx-row"
+          >
+            <text class="fx-label">
+              六冲
+            </text>
             <view class="fx-tags">
-              <text v-for="c in result.fenXiTiShi.liuChong" :key="c" class="fx-tag tag-chong">{{ c }}</text>
+              <text
+                v-for="c in result.fenXiTiShi.liuChong"
+                :key="c"
+                class="fx-tag tag-chong"
+              >
+                {{ c }}
+              </text>
             </view>
           </view>
-          <view v-if="result.fenXiTiShi.liuHai?.length" class="fx-row">
-            <text class="fx-label">六害</text>
+          <view
+            v-if="result.fenXiTiShi.liuHai?.length"
+            class="fx-row"
+          >
+            <text class="fx-label">
+              六害
+            </text>
             <view class="fx-tags">
-              <text v-for="h in result.fenXiTiShi.liuHai" :key="h" class="fx-tag tag-hai">{{ h }}</text>
+              <text
+                v-for="h in result.fenXiTiShi.liuHai"
+                :key="h"
+                class="fx-tag tag-hai"
+              >
+                {{ h }}
+              </text>
             </view>
           </view>
-          <view v-if="result.fenXiTiShi.sanXing?.length" class="fx-row">
-            <text class="fx-label">三刑</text>
+          <view
+            v-if="result.fenXiTiShi.sanXing?.length"
+            class="fx-row"
+          >
+            <text class="fx-label">
+              三刑
+            </text>
             <view class="fx-tags">
-              <text v-for="x in result.fenXiTiShi.sanXing" :key="x" class="fx-tag tag-xing">{{ x }}</text>
+              <text
+                v-for="x in result.fenXiTiShi.sanXing"
+                :key="x"
+                class="fx-tag tag-xing"
+              >
+                {{ x }}
+              </text>
             </view>
           </view>
         </view>
       </view>
 
       <!-- 神煞 -->
-      <view v-if="result.shenSha?.length" class="card">
+      <view
+        v-if="result.shenSha?.length"
+        class="card"
+      >
         <view class="card-header">
-          <text class="card-title">神煞</text>
+          <text class="card-title">
+            神煞
+          </text>
         </view>
         <view class="shensha-grid">
           <view
@@ -366,30 +738,59 @@
             :key="ss.name"
             :class="['shensha-item', ss.type === 'ji' ? 'ss-ji' : 'ss-xiong']"
           >
-            <text class="ss-name">{{ ss.name }}</text>
-            <text class="ss-pillar">{{ ss.pillar || '' }}</text>
-            <text class="ss-desc">{{ ss.desc || '' }}</text>
+            <text class="ss-name">
+              {{ ss.name }}
+            </text>
+            <text class="ss-pillar">
+              {{ ss.pillar || '' }}
+            </text>
+            <text class="ss-desc">
+              {{ ss.desc || '' }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 未登录提示条 -->
-      <view v-if="!userStore.isLogin" class="login-banner">
-        <text class="login-banner-text">🔐 登录后可保存排盘、AI深度解读、查看历史记录</text>
-        <text class="login-banner-link" @click="goLogin">去登录 →</text>
+      <view
+        v-if="!userStore.isLogin"
+        class="login-banner"
+      >
+        <text class="login-banner-text">
+          🔐 登录后可保存排盘、AI深度解读、查看历史记录
+        </text>
+        <text
+          class="login-banner-link"
+          @click="goLogin"
+        >
+          去登录 →
+        </text>
       </view>
 
       <!-- AI智能解读 -->
       <view class="card">
         <view class="card-header">
-          <text class="card-title">AI 智能解读</text>
+          <text class="card-title">
+            AI 智能解读
+          </text>
         </view>
-        <view v-if="aiResult" class="ai-content">
-          <text class="ai-text">{{ aiResult }}</text>
+        <view
+          v-if="aiResult"
+          class="ai-content"
+        >
+          <text class="ai-text">
+            {{ aiResult }}
+          </text>
         </view>
         <view v-else>
-          <text class="ai-hint">点击下方按钮，获取 AI 对命局的深度解读</text>
-          <button class="ai-btn" :loading="aiLoading" @click="doAiAnalyze">
+          <text class="ai-hint">
+            点击下方按钮，获取 AI 对命局的深度解读
+          </text>
+          <button
+            class="ai-btn"
+            :loading="aiLoading"
+            @click="doAiAnalyze"
+          >
             {{ aiLoading ? '解读中...' : 'AI 深度解读' }}
           </button>
         </view>
@@ -397,16 +798,38 @@
 
       <!-- 操作按钮 -->
       <view class="action-row">
-        <button class="action-btn save-btn" @click="saveRecord">保存排盘</button>
-        <button class="action-btn history-btn" @click="goHistory">历史记录</button>
+        <button
+          class="action-btn save-btn"
+          @click="saveRecord"
+        >
+          保存排盘
+        </button>
+        <button
+          class="action-btn history-btn"
+          @click="goHistory"
+        >
+          历史记录
+        </button>
       </view>
     </view>
 
     <!-- 空状态/错误 -->
-    <view v-if="errorMsg && !loading" class="error-section">
-      <text class="error-icon">!</text>
-      <text class="error-text">{{ errorMsg }}</text>
-      <button class="retry-btn" @click="doCalc">重新排盘</button>
+    <view
+      v-if="errorMsg && !loading"
+      class="error-section"
+    >
+      <text class="error-icon">
+        !
+      </text>
+      <text class="error-text">
+        {{ errorMsg }}
+      </text>
+      <button
+        class="retry-btn"
+        @click="doCalc"
+      >
+        重新排盘
+      </button>
     </view>
   </view>
 </template>

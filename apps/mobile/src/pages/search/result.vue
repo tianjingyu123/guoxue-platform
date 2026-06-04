@@ -1,18 +1,51 @@
 <template>
   <view class="page">
     <view class="search-box">
-      <input v-model="keyword" placeholder="搜索课程、文章、圈子..." class="search-input" @confirm="doSearch" />
-      <button class="btn-search" @click="doSearch">搜索</button>
+      <input
+        v-model="keyword"
+        placeholder="搜索课程、文章、圈子..."
+        class="search-input"
+        @confirm="doSearch"
+      >
+      <button
+        class="btn-search"
+        @click="doSearch"
+      >
+        搜索
+      </button>
     </view>
     <view class="filter-tabs">
-      <view v-for="t in types" :key="t.key" class="f-tab" :class="{ active: activeType === t.key }" @click="activeType = t.key; doSearch()">{{ t.label }}</view>
+      <view
+        v-for="t in types"
+        :key="t.key"
+        class="f-tab"
+        :class="{ active: activeType === t.key }"
+        @click="activeType = t.key; doSearch()"
+      >
+        {{ t.label }}
+      </view>
     </view>
     <LoadingSkeleton v-if="loading" />
-    <view v-else-if="results.length" class="list">
-      <ContentCard v-for="r in results" :key="r.id" :data="r" />
+    <view
+      v-else-if="results.length"
+      class="list"
+    >
+      <ContentCard
+        v-for="r in results"
+        :key="r.id"
+        :data="r"
+      />
     </view>
-    <EmptyState v-else text="未找到结果" />
-    <view v-if="!loading && !hasMore && results.length" class="no-more">— 已全部加载 —</view>
+    <EmptyState
+      v-else
+      text="未找到结果"
+    />
+    <view
+      v-if="!loading && !hasMore && results.length"
+      class="no-more"
+    >
+      — 已全部加载 —
+    </view>
   </view>
 </template>
 

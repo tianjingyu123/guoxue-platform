@@ -1,39 +1,86 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="back-btn" @click="goBack">‹</text>
-      <text class="header-title">语音搜索</text>
+      <text
+        class="back-btn"
+        @click="goBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        语音搜索
+      </text>
       <view style="width:60rpx" />
     </view>
 
     <view class="content-area">
-      <view class="mic-area" @click="isRecording ? stopRecord() : startRecord()">
-        <view class="mic-circle" :class="{ recording: isRecording }">
-          <text class="mic-icon">{{ isRecording ? '🔴' : '🎤' }}</text>
+      <view
+        class="mic-area"
+        @click="isRecording ? stopRecord() : startRecord()"
+      >
+        <view
+          class="mic-circle"
+          :class="{ recording: isRecording }"
+        >
+          <text class="mic-icon">
+            {{ isRecording ? '🔴' : '🎤' }}
+          </text>
         </view>
-        <text class="mic-status">{{ statusText }}</text>
+        <text class="mic-status">
+          {{ statusText }}
+        </text>
       </view>
 
       <!-- 语音波动 -->
-      <view v-if="isRecording" class="wave-area">
-        <view v-for="i in 5" :key="i" class="wave-bar" :style="{ animationDelay: i * 0.15 + 's' }" />
+      <view
+        v-if="isRecording"
+        class="wave-area"
+      >
+        <view
+          v-for="i in 5"
+          :key="i"
+          class="wave-bar"
+          :style="{ animationDelay: i * 0.15 + 's' }"
+        />
       </view>
 
       <!-- 识别结果 -->
-      <view v-if="result" class="result-area">
+      <view
+        v-if="result"
+        class="result-area"
+      >
         <view class="result-card">
-          <text class="result-text">{{ result }}</text>
+          <text class="result-text">
+            {{ result }}
+          </text>
         </view>
         <view class="result-actions">
-          <view class="ra-btn" @click="retry">🔄 重新搜索</view>
-          <view class="ra-btn primary" @click="doSearch">🔍 搜索"{{ result }}"</view>
+          <view
+            class="ra-btn"
+            @click="retry"
+          >
+            🔄 重新搜索
+          </view>
+          <view
+            class="ra-btn primary"
+            @click="doSearch"
+          >
+            🔍 搜索"{{ result }}"
+          </view>
         </view>
       </view>
 
       <!-- 提示 -->
-      <view v-if="!isRecording && !result" class="tip-area">
-        <text class="tip-text">点击麦克风开始语音搜索</text>
-        <text class="tip-sub">支持中英文语音识别</text>
+      <view
+        v-if="!isRecording && !result"
+        class="tip-area"
+      >
+        <text class="tip-text">
+          点击麦克风开始语音搜索
+        </text>
+        <text class="tip-sub">
+          支持中英文语音识别
+        </text>
       </view>
     </view>
   </view>

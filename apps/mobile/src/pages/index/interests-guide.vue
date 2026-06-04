@@ -1,22 +1,41 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="title">选择你感兴趣的领域</text>
-      <text class="subtitle">选3-8个，为您定制专属内容</text>
+      <text class="title">
+        选择你感兴趣的领域
+      </text>
+      <text class="subtitle">
+        选3-8个，为您定制专属内容
+      </text>
     </view>
     <view class="tag-grid">
       <view
-        v-for="tag in tags" :key="tag.id"
-        class="tag-item" :class="{ active: selected.includes(tag.id) }"
+        v-for="tag in tags"
+        :key="tag.id"
+        class="tag-item"
+        :class="{ active: selected.includes(tag.id) }"
         @click="toggle(tag.id)"
       >
-        <text class="tag-icon">{{ tag.icon }}</text>
-        <text class="tag-name">{{ tag.name }}</text>
-        <text v-if="selected.includes(tag.id)" class="tag-check">✓</text>
+        <text class="tag-icon">
+          {{ tag.icon }}
+        </text>
+        <text class="tag-name">
+          {{ tag.name }}
+        </text>
+        <text
+          v-if="selected.includes(tag.id)"
+          class="tag-check"
+        >
+          ✓
+        </text>
       </view>
     </view>
     <view class="footer">
-      <button class="btn-start" :disabled="selected.length < 3" @click="submit">
+      <button
+        class="btn-start"
+        :disabled="selected.length < 3"
+        @click="submit"
+      >
         开始探索（{{ selected.length }}/8）
       </button>
     </view>

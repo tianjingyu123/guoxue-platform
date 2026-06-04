@@ -1,27 +1,49 @@
 <template>
   <view class="page">
-    <view v-if="loading" class="loading">加载中...</view>
+    <view
+      v-if="loading"
+      class="loading"
+    >
+      加载中...
+    </view>
 
-    <view v-else-if="cert" class="certificate">
+    <view
+      v-else-if="cert"
+      class="certificate"
+    >
       <!-- 证书主体 -->
       <view class="cert-body">
         <view class="cert-border">
           <view class="cert-inner">
-            <text class="cert-label">结课证书</text>
-            <text class="cert-title">{{ cert.courseTitle }}</text>
+            <text class="cert-label">
+              结课证书
+            </text>
+            <text class="cert-title">
+              {{ cert.courseTitle }}
+            </text>
             <view class="cert-divider" />
-            <text class="cert-to">此证书授予</text>
-            <text class="cert-name">{{ cert.studentName }}</text>
+            <text class="cert-to">
+              此证书授予
+            </text>
+            <text class="cert-name">
+              {{ cert.studentName }}
+            </text>
             <text class="cert-desc">
               已完成全部 {{ cert.totalChapters }} 个章节的学习，特发此证，以资鼓励。
             </text>
             <view class="cert-divider" />
             <view class="cert-bottom">
               <view class="cert-info">
-                <text class="cert-no">编号：{{ cert.certificateNo }}</text>
-                <text class="cert-date">颁发日期：{{ new Date().toLocaleDateString() }}</text>
+                <text class="cert-no">
+                  编号：{{ cert.certificateNo }}
+                </text>
+                <text class="cert-date">
+                  颁发日期：{{ new Date().toLocaleDateString() }}
+                </text>
               </view>
-              <view class="cert-seal">热卜国学</view>
+              <view class="cert-seal">
+                热卜国学
+              </view>
             </view>
           </view>
         </view>
@@ -29,15 +51,37 @@
 
       <!-- 操作栏 -->
       <view class="cert-actions">
-        <button class="action-btn primary" @click="saveImage">保存证书图片</button>
-        <button class="action-btn" @click="shareCert">分享证书</button>
+        <button
+          class="action-btn primary"
+          @click="saveImage"
+        >
+          保存证书图片
+        </button>
+        <button
+          class="action-btn"
+          @click="shareCert"
+        >
+          分享证书
+        </button>
       </view>
     </view>
 
-    <view v-else class="error-state">
-      <text class="error-icon">⚠️</text>
-      <text class="error-text">{{ errorMsg || '证书加载失败' }}</text>
-      <button class="retry-btn" @click="fetchCert">重新加载</button>
+    <view
+      v-else
+      class="error-state"
+    >
+      <text class="error-icon">
+        ⚠️
+      </text>
+      <text class="error-text">
+        {{ errorMsg || '证书加载失败' }}
+      </text>
+      <button
+        class="retry-btn"
+        @click="fetchCert"
+      >
+        重新加载
+      </button>
     </view>
   </view>
 </template>

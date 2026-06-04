@@ -1,7 +1,9 @@
 <template>
   <view class="search-bar">
     <view class="search-input-wrapper">
-      <text class="search-icon">🔍</text>
+      <text class="search-icon">
+        🔍
+      </text>
       <input
         v-model="keyword"
         :placeholder="placeholder"
@@ -9,10 +11,21 @@
         confirm-type="search"
         @confirm="onSearch"
         @input="onInput"
-      />
-      <text v-if="keyword" class="clear-btn" @click="clear">✕</text>
+      >
+      <text
+        v-if="keyword"
+        class="clear-btn"
+        @click="clear"
+      >
+        ✕
+      </text>
     </view>
-    <text class="search-action" @click="onSearch">搜索</text>
+    <text
+      class="search-action"
+      @click="onSearch"
+    >
+      搜索
+    </text>
   </view>
 </template>
 

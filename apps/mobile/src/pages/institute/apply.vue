@@ -3,8 +3,15 @@
     <!-- 头部 -->
     <view class="nav-header">
       <view class="nav-header-inner">
-        <text class="nav-back" @click="goBack">←</text>
-        <text class="nav-title">{{ existingApplication ? '申请状态' : '申请成为讲师' }}</text>
+        <text
+          class="nav-back"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="nav-title">
+          {{ existingApplication ? '申请状态' : '申请成为讲师' }}
+        </text>
       </view>
     </view>
 
@@ -13,44 +20,109 @@
       <view class="section-padding">
         <!-- 状态卡片 -->
         <view class="status-card">
-          <view class="status-icon-wrap" :style="{ backgroundColor: statusColor }">
-            <text class="status-icon">{{ statusIcon }}</text>
+          <view
+            class="status-icon-wrap"
+            :style="{ backgroundColor: statusColor }"
+          >
+            <text class="status-icon">
+              {{ statusIcon }}
+            </text>
           </view>
-          <text class="status-title">{{ statusLabel }}</text>
-          <text v-if="appStatus === 'submitted'" class="status-desc">您的申请已提交，预计3-5个工作日内完成审核</text>
-          <text v-if="appStatus === 'reviewing'" class="status-desc">审核人员正在审核您的资料，请耐心等待</text>
+          <text class="status-title">
+            {{ statusLabel }}
+          </text>
+          <text
+            v-if="appStatus === 'submitted'"
+            class="status-desc"
+          >
+            您的申请已提交，预计3-5个工作日内完成审核
+          </text>
+          <text
+            v-if="appStatus === 'reviewing'"
+            class="status-desc"
+          >
+            审核人员正在审核您的资料，请耐心等待
+          </text>
           <view v-if="appStatus === 'approved'">
-            <text class="status-desc status-success">恭喜您通过审核，已成为研究院讲师！</text>
-            <view class="btn btn-primary mt-3" @click="goInstitute">进入讲师中心</view>
+            <text class="status-desc status-success">
+              恭喜您通过审核，已成为研究院讲师！
+            </text>
+            <view
+              class="btn btn-primary mt-3"
+              @click="goInstitute"
+            >
+              进入讲师中心
+            </view>
           </view>
           <view v-if="appStatus === 'rejected'">
-            <text class="status-desc status-fail">很抱歉，您的申请未通过审核</text>
-            <text v-if="existingApplication.rejectReason" class="status-desc">原因：{{ existingApplication.rejectReason }}</text>
-            <view class="btn btn-outline mt-3" @click="existingApplication = null">重新申请</view>
+            <text class="status-desc status-fail">
+              很抱歉，您的申请未通过审核
+            </text>
+            <text
+              v-if="existingApplication.rejectReason"
+              class="status-desc"
+            >
+              原因：{{ existingApplication.rejectReason }}
+            </text>
+            <view
+              class="btn btn-outline mt-3"
+              @click="existingApplication = null"
+            >
+              重新申请
+            </view>
           </view>
         </view>
 
         <!-- 申请信息 -->
         <view class="card mt-3">
-          <view class="card-header"><text class="section-title">申请信息</text></view>
-          <view class="info-row"><text class="info-label">姓名</text><text>{{ existingApplication.realName }}</text></view>
-          <view class="info-row"><text class="info-label">手机</text><text>{{ existingApplication.phone }}</text></view>
+          <view class="card-header">
+            <text class="section-title">
+              申请信息
+            </text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">
+              姓名
+            </text><text>{{ existingApplication.realName }}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">
+              手机
+            </text><text>{{ existingApplication.phone }}</text>
+          </view>
           <view class="info-block">
-            <text class="info-label block mb-1">擅长领域</text>
+            <text class="info-label block mb-1">
+              擅长领域
+            </text>
             <view class="tag-group">
-              <text v-for="s in existingApplication.specialties" :key="s" class="tag tag-primary">{{ s }}</text>
+              <text
+                v-for="s in existingApplication.specialties"
+                :key="s"
+                class="tag tag-primary"
+              >
+                {{ s }}
+              </text>
             </view>
           </view>
-          <view v-if="existingApplication.submittedAt" class="info-row">
-            <text class="info-label">提交时间</text><text>{{ existingApplication.submittedAt }}</text>
+          <view
+            v-if="existingApplication.submittedAt"
+            class="info-row"
+          >
+            <text class="info-label">
+              提交时间
+            </text><text>{{ existingApplication.submittedAt }}</text>
           </view>
         </view>
 
         <!-- 刷新按钮 -->
-        <view v-if="appStatus === 'submitted' || appStatus === 'reviewing'" class="refresh-btn" @click="loadApplication">
+        <view
+          v-if="appStatus === 'submitted' || appStatus === 'reviewing'"
+          class="refresh-btn"
+          @click="loadApplication"
+        >
           <text>🔄 刷新状态</text>
         </view>
-      </section-padding>
+      </view>
     </template>
 
     <!-- 申请表单 -->
@@ -58,100 +130,238 @@
       <view class="content-wrap">
         <!-- 提示 -->
         <view class="tip-box">
-          <text class="tip-icon">🏆</text>
+          <text class="tip-icon">
+            🏆
+          </text>
           <view>
-            <text class="tip-title">成为研究院讲师</text>
-            <text class="tip-desc">加入研究院讲师团队，分享您的学识，传承国学文化</text>
+            <text class="tip-title">
+              成为研究院讲师
+            </text>
+            <text class="tip-desc">
+              加入研究院讲师团队，分享您的学识，传承国学文化
+            </text>
           </view>
         </view>
 
         <!-- 基本信息 -->
         <view class="form-section">
-          <text class="form-section-title">👤 基本信息</text>
+          <text class="form-section-title">
+            👤 基本信息
+          </text>
           <!-- 姓名 -->
           <view class="form-group">
-            <text class="form-label">真实姓名 <text class="required">*</text></text>
-            <input v-model="formData.realName" class="form-input" :class="{ 'input-error': errors.realName }" placeholder="请输入真实姓名" @input="clearError('realName')" />
-            <text v-if="errors.realName" class="error-text">{{ errors.realName }}</text>
+            <text class="form-label">
+              真实姓名 <text class="required">
+                *
+              </text>
+            </text>
+            <input
+              v-model="formData.realName"
+              class="form-input"
+              :class="{ 'input-error': errors.realName }"
+              placeholder="请输入真实姓名"
+              @input="clearError('realName')"
+            >
+            <text
+              v-if="errors.realName"
+              class="error-text"
+            >
+              {{ errors.realName }}
+            </text>
           </view>
           <!-- 手机 -->
           <view class="form-group">
-            <text class="form-label">手机号码 <text class="required">*</text></text>
+            <text class="form-label">
+              手机号码 <text class="required">
+                *
+              </text>
+            </text>
             <view class="input-with-icon">
-              <text class="input-icon">📞</text>
-              <input v-model="formData.phone" class="form-input pl-icon" :class="{ 'input-error': errors.phone }" placeholder="请输入手机号码" @input="clearError('phone')" />
+              <text class="input-icon">
+                📞
+              </text>
+              <input
+                v-model="formData.phone"
+                class="form-input pl-icon"
+                :class="{ 'input-error': errors.phone }"
+                placeholder="请输入手机号码"
+                @input="clearError('phone')"
+              >
             </view>
-            <text v-if="errors.phone" class="error-text">{{ errors.phone }}</text>
+            <text
+              v-if="errors.phone"
+              class="error-text"
+            >
+              {{ errors.phone }}
+            </text>
           </view>
           <!-- 邮箱 -->
           <view class="form-group">
-            <text class="form-label">邮箱（选填）</text>
+            <text class="form-label">
+              邮箱（选填）
+            </text>
             <view class="input-with-icon">
-              <text class="input-icon">✉️</text>
-              <input v-model="formData.email" class="form-input pl-icon" placeholder="请输入邮箱" />
+              <text class="input-icon">
+                ✉️
+              </text>
+              <input
+                v-model="formData.email"
+                class="form-input pl-icon"
+                placeholder="请输入邮箱"
+              >
             </view>
           </view>
         </view>
 
         <!-- 专业信息 -->
         <view class="form-section">
-          <text class="form-section-title">📖 专业信息</text>
+          <text class="form-section-title">
+            📖 专业信息
+          </text>
           <!-- 擅长领域 -->
           <view class="form-group">
-            <text class="form-label">擅长领域 <text class="required">*</text>（可多选）</text>
+            <text class="form-label">
+              擅长领域 <text class="required">
+                *
+              </text>（可多选）
+            </text>
             <view class="tag-group">
-              <text v-for="s in specialtyOptions" :key="s" class="tag-select" :class="{ 'tag-selected': formData.specialties.includes(s) }" @click="toggleSpecialty(s)">{{ s }}</text>
+              <text
+                v-for="s in specialtyOptions"
+                :key="s"
+                class="tag-select"
+                :class="{ 'tag-selected': formData.specialties.includes(s) }"
+                @click="toggleSpecialty(s)"
+              >
+                {{ s }}
+              </text>
             </view>
-            <text v-if="errors.specialties" class="error-text">{{ errors.specialties }}</text>
+            <text
+              v-if="errors.specialties"
+              class="error-text"
+            >
+              {{ errors.specialties }}
+            </text>
           </view>
           <!-- 经历 -->
           <view class="form-group">
-            <text class="form-label">从业/学习经历 <text class="required">*</text></text>
-            <textarea v-model="formData.experience" class="form-textarea" :class="{ 'input-error': errors.experience }" placeholder="请描述您的从业或学习经历，如师承、研究年限等" @input="clearError('experience')" />
-            <text v-if="errors.experience" class="error-text">{{ errors.experience }}</text>
+            <text class="form-label">
+              从业/学习经历 <text class="required">
+                *
+              </text>
+            </text>
+            <textarea
+              v-model="formData.experience"
+              class="form-textarea"
+              :class="{ 'input-error': errors.experience }"
+              placeholder="请描述您的从业或学习经历，如师承、研究年限等"
+              @input="clearError('experience')"
+            />
+            <text
+              v-if="errors.experience"
+              class="error-text"
+            >
+              {{ errors.experience }}
+            </text>
           </view>
           <!-- 简介 -->
           <view class="form-group">
-            <text class="form-label">个人简介 <text class="required">*</text></text>
-            <textarea v-model="formData.introduction" class="form-textarea" :class="{ 'input-error': errors.introduction }" placeholder="请详细介绍您自己，包括专业背景、教学理念等（至少50字）" @input="clearError('introduction')" />
+            <text class="form-label">
+              个人简介 <text class="required">
+                *
+              </text>
+            </text>
+            <textarea
+              v-model="formData.introduction"
+              class="form-textarea"
+              :class="{ 'input-error': errors.introduction }"
+              placeholder="请详细介绍您自己，包括专业背景、教学理念等（至少50字）"
+              @input="clearError('introduction')"
+            />
             <view class="form-footer-text">
-              <text v-if="errors.introduction" class="error-text">{{ errors.introduction }}</text>
-              <text class="char-count">{{ formData.introduction.length }}/50</text>
+              <text
+                v-if="errors.introduction"
+                class="error-text"
+              >
+                {{ errors.introduction }}
+              </text>
+              <text class="char-count">
+                {{ formData.introduction.length }}/50
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 资质证明 -->
         <view class="form-section">
-          <text class="form-section-title">🏆 资质证明（选填）</text>
-          <text class="form-tip">上传相关资质证书、学历证明等，提高审核通过率</text>
+          <text class="form-section-title">
+            🏆 资质证明（选填）
+          </text>
+          <text class="form-tip">
+            上传相关资质证书、学历证明等，提高审核通过率
+          </text>
           <view class="cert-grid">
-            <view v-for="(cert, idx) in formData.certificates" :key="idx" class="cert-item">
-              <image :src="cert" mode="aspectFill" class="cert-img" />
-              <view class="cert-remove" @click="removeCertificate(idx)">✕</view>
+            <view
+              v-for="(cert, idx) in formData.certificates"
+              :key="idx"
+              class="cert-item"
+            >
+              <image
+                :src="cert"
+                mode="aspectFill"
+                class="cert-img"
+              />
+              <view
+                class="cert-remove"
+                @click="removeCertificate(idx)"
+              >
+                ✕
+              </view>
             </view>
-            <view v-if="(formData.certificates?.length || 0) < 6" class="cert-add" @click="handleUploadCertificate">
-              <text class="cert-add-icon">📷</text>
-              <text class="cert-add-text">拍照上传</text>
+            <view
+              v-if="(formData.certificates?.length || 0) < 6"
+              class="cert-add"
+              @click="handleUploadCertificate"
+            >
+              <text class="cert-add-icon">
+                📷
+              </text>
+              <text class="cert-add-text">
+                拍照上传
+              </text>
             </view>
           </view>
         </view>
 
         <!-- 试讲视频 -->
         <view class="form-section">
-          <text class="form-section-title">🎬 试讲视频（选填）</text>
-          <text class="form-tip">提供一段3-5分钟的试讲视频链接，展示您的授课风格</text>
-          <input v-model="formData.trialVideoUrl" class="form-input" placeholder="请输入视频链接（如B站、抖音等）" />
+          <text class="form-section-title">
+            🎬 试讲视频（选填）
+          </text>
+          <text class="form-tip">
+            提供一段3-5分钟的试讲视频链接，展示您的授课风格
+          </text>
+          <input
+            v-model="formData.trialVideoUrl"
+            class="form-input"
+            placeholder="请输入视频链接（如B站、抖音等）"
+          >
         </view>
       </view>
 
       <!-- 底部提交按钮 -->
       <view class="bottom-bar">
         <view class="bottom-bar-inner">
-          <view class="btn btn-primary btn-block btn-lg" :class="{ 'btn-disabled': submitting }" @click="handleSubmit">
+          <view
+            class="btn btn-primary btn-block btn-lg"
+            :class="{ 'btn-disabled': submitting }"
+            @click="handleSubmit"
+          >
             <text>{{ submitting ? '提交中...' : '提交申请' }}</text>
           </view>
-          <text class="bottom-agreement">提交即表示您同意《讲师入驻协议》</text>
+          <text class="bottom-agreement">
+            提交即表示您同意《讲师入驻协议》
+          </text>
         </view>
       </view>
     </template>

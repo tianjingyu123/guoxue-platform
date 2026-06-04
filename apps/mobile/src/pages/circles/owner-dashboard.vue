@@ -3,18 +3,40 @@
     <LoadingSkeleton v-if="loading" />
     <view v-else>
       <view class="dashboard-grid">
-        <view v-for="card in cards" :key="card.label" class="stat-card">
-          <text class="stat-value">{{ card.value }}</text>
-          <text class="stat-label">{{ card.label }}</text>
+        <view
+          v-for="card in cards"
+          :key="card.label"
+          class="stat-card"
+        >
+          <text class="stat-value">
+            {{ card.value }}
+          </text>
+          <text class="stat-label">
+            {{ card.label }}
+          </text>
         </view>
       </view>
       <view class="section">
-        <text class="section-title">热门内容</text>
-        <view v-for="c in hotContent" :key="c.id" class="hot-item"><text>{{ c.title }}</text></view>
+        <text class="section-title">
+          热门内容
+        </text>
+        <view
+          v-for="c in hotContent"
+          :key="c.id"
+          class="hot-item"
+        >
+          <text>{{ c.title }}</text>
+        </view>
       </view>
       <view class="section">
-        <text class="section-title">最近成员</text>
-        <view v-for="m in recentMembers" :key="m.id" class="member-item">
+        <text class="section-title">
+          最近成员
+        </text>
+        <view
+          v-for="m in recentMembers"
+          :key="m.id"
+          class="member-item"
+        >
           <text>{{ m.user?.nickname || m.nickname }}</text>
         </view>
       </view>

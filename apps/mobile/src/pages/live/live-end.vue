@@ -1,37 +1,70 @@
 <template>
   <view class="page">
     <!-- 加载态 -->
-    <view v-if="loading" class="loading-wrap">
+    <view
+      v-if="loading"
+      class="loading-wrap"
+    >
       <view class="skeleton-cover" />
       <view class="skeleton-body">
-        <view v-for="i in 3" :key="i" class="skeleton-card" />
+        <view
+          v-for="i in 3"
+          :key="i"
+          class="skeleton-card"
+        />
       </view>
     </view>
 
     <!-- 错误态 -->
-    <view v-else-if="loadError" class="error-wrap">
+    <view
+      v-else-if="loadError"
+      class="error-wrap"
+    >
       <view class="error-inner">
-        <text class="error-icon">⚠️</text>
-        <text class="error-text">{{ loadError }}</text>
-        <view class="error-retry" @click="loadRoom">重新加载</view>
+        <text class="error-icon">
+          ⚠️
+        </text>
+        <text class="error-text">
+          {{ loadError }}
+        </text>
+        <view
+          class="error-retry"
+          @click="loadRoom"
+        >
+          重新加载
+        </view>
       </view>
     </view>
 
     <!-- 空态 -->
-    <view v-else-if="!room" class="empty-state">
-      <text class="empty-text">直播不存在</text>
+    <view
+      v-else-if="!room"
+      class="empty-state"
+    >
+      <text class="empty-text">
+        直播不存在
+      </text>
     </view>
 
     <template v-else>
       <!-- 封面区域 -->
       <view class="cover-section">
-        <image :src="room.cover" mode="aspectFill" class="cover-bg" />
+        <image
+          :src="room.cover"
+          mode="aspectFill"
+          class="cover-bg"
+        />
         <view class="cover-overlay" />
 
         <!-- 顶部导航 -->
         <view class="cover-top">
-          <view class="top-btn" @click="goBack">
-            <text class="top-btn-icon">←</text>
+          <view
+            class="top-btn"
+            @click="goBack"
+          >
+            <text class="top-btn-icon">
+              ←
+            </text>
           </view>
         </view>
 
@@ -39,59 +72,113 @@
         <view class="cover-center">
           <view class="end-badge">
             <view class="end-badge-icon-wrap">
-              <text class="end-badge-icon">📡</text>
+              <text class="end-badge-icon">
+                📡
+              </text>
             </view>
-            <text class="end-badge-title">直播已结束</text>
-            <text class="end-badge-duration">时长 {{ formatDuration(room.stats.duration) }}</text>
+            <text class="end-badge-title">
+              直播已结束
+            </text>
+            <text class="end-badge-duration">
+              时长 {{ formatDuration(room.stats.duration) }}
+            </text>
           </view>
         </view>
 
         <!-- 底部信息 -->
         <view class="cover-bottom">
-          <text class="cover-title">{{ room.title }}</text>
+          <text class="cover-title">
+            {{ room.title }}
+          </text>
           <view class="cover-tags">
-            <text v-for="tag in room.tags" :key="tag" class="cover-tag">{{ tag }}</text>
+            <text
+              v-for="tag in room.tags"
+              :key="tag"
+              class="cover-tag"
+            >
+              {{ tag }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 主播信息 -->
       <view class="host-card">
-        <view class="host-left" @click="goProfile(room.host.id)">
-          <image :src="room.host.avatar" mode="aspectFill" class="host-avatar" />
+        <view
+          class="host-left"
+          @click="goProfile(room.host.id)"
+        >
+          <image
+            :src="room.host.avatar"
+            mode="aspectFill"
+            class="host-avatar"
+          />
           <view class="host-info">
-            <text class="host-name">{{ room.host.name }}</text>
-            <text class="host-fans">{{ formatNumber(room.host.followers) }} 粉丝</text>
+            <text class="host-name">
+              {{ room.host.name }}
+            </text>
+            <text class="host-fans">
+              {{ formatNumber(room.host.followers) }} 粉丝
+            </text>
           </view>
         </view>
-        <text :class="['host-follow-btn', isFollowing ? 'following' : '']" @click="handleFollow">
+        <text
+          :class="['host-follow-btn', isFollowing ? 'following' : '']"
+          @click="handleFollow"
+        >
           {{ isFollowing ? '✓ 已关注' : '+ 关注' }}
         </text>
       </view>
 
       <!-- 直播数据统计 -->
       <view class="data-section">
-        <text class="section-title">直播数据</text>
+        <text class="section-title">
+          直播数据
+        </text>
         <view class="data-grid">
           <view class="data-item">
-            <text class="data-icon accent">👁️</text>
-            <text class="data-value">{{ formatNumber(room.stats.totalViewers) }}</text>
-            <text class="data-label">总观看</text>
+            <text class="data-icon accent">
+              👁️
+            </text>
+            <text class="data-value">
+              {{ formatNumber(room.stats.totalViewers) }}
+            </text>
+            <text class="data-label">
+              总观看
+            </text>
           </view>
           <view class="data-item">
-            <text class="data-icon gold">👥</text>
-            <text class="data-value">{{ formatNumber(room.stats.peakViewers) }}</text>
-            <text class="data-label">峰值在线</text>
+            <text class="data-icon gold">
+              👥
+            </text>
+            <text class="data-value">
+              {{ formatNumber(room.stats.peakViewers) }}
+            </text>
+            <text class="data-label">
+              峰值在线
+            </text>
           </view>
           <view class="data-item">
-            <text class="data-icon pink">❤️</text>
-            <text class="data-value">{{ formatNumber(room.stats.totalLikes) }}</text>
-            <text class="data-label">总点赞</text>
+            <text class="data-icon pink">
+              ❤️
+            </text>
+            <text class="data-value">
+              {{ formatNumber(room.stats.totalLikes) }}
+            </text>
+            <text class="data-label">
+              总点赞
+            </text>
           </view>
           <view class="data-item">
-            <text class="data-icon orange">🎁</text>
-            <text class="data-value">{{ formatNumber(room.stats.totalGifts) }}</text>
-            <text class="data-label">礼物收入</text>
+            <text class="data-icon orange">
+              🎁
+            </text>
+            <text class="data-value">
+              {{ formatNumber(room.stats.totalGifts) }}
+            </text>
+            <text class="data-label">
+              礼物收入
+            </text>
           </view>
         </view>
       </view>
@@ -99,21 +186,51 @@
       <!-- 讲师其他直播 -->
       <view class="recommend-section">
         <view class="recommend-header">
-          <text class="section-title">讲师其他直播</text>
-          <view class="recommend-more" @click="goProfileLives(room.host.id)">
-            <text class="more-text">查看全部</text>
-            <text class="more-arrow">›</text>
+          <text class="section-title">
+            讲师其他直播
+          </text>
+          <view
+            class="recommend-more"
+            @click="goProfileLives(room.host.id)"
+          >
+            <text class="more-text">
+              查看全部
+            </text>
+            <text class="more-arrow">
+              ›
+            </text>
           </view>
         </view>
         <view class="recommend-list">
-          <view v-for="live in recommendLives" :key="live.id" class="recommend-item" @click="goRecommendLive(live)">
+          <view
+            v-for="live in recommendLives"
+            :key="live.id"
+            class="recommend-item"
+            @click="goRecommendLive(live)"
+          >
             <view class="recommend-cover-wrap">
-              <image :src="live.cover" mode="aspectFill" class="recommend-cover" />
-              <text v-if="live.status === 'live'" class="live-badge live-status">🔴 直播中</text>
-              <text v-if="live.status === 'preview'" class="live-badge preview-status">预告</text>
+              <image
+                :src="live.cover"
+                mode="aspectFill"
+                class="recommend-cover"
+              />
+              <text
+                v-if="live.status === 'live'"
+                class="live-badge live-status"
+              >
+                🔴 直播中
+              </text>
+              <text
+                v-if="live.status === 'preview'"
+                class="live-badge preview-status"
+              >
+                预告
+              </text>
             </view>
             <view class="recommend-info">
-              <text class="recommend-title">{{ live.title }}</text>
+              <text class="recommend-title">
+                {{ live.title }}
+              </text>
               <text class="recommend-meta">
                 {{ live.status === 'live' ? formatNumber(live.viewers) + ' 观看' : live.bookedCount + ' 人预约' }}
               </text>
@@ -125,20 +242,44 @@
       <!-- 相关课程推荐 -->
       <view class="course-section">
         <view class="recommend-header">
-          <text class="section-title">相关课程推荐</text>
-          <view class="recommend-more" @click="goCourses">
-            <text class="more-text">查看更多</text>
-            <text class="more-arrow">›</text>
+          <text class="section-title">
+            相关课程推荐
+          </text>
+          <view
+            class="recommend-more"
+            @click="goCourses"
+          >
+            <text class="more-text">
+              查看更多
+            </text>
+            <text class="more-arrow">
+              ›
+            </text>
           </view>
         </view>
         <view class="course-grid">
-          <view v-for="course in recommendCourses" :key="course.id" class="course-card" @click="goCourse(course.id)">
-            <image :src="course.cover" mode="aspectFill" class="course-cover" />
+          <view
+            v-for="course in recommendCourses"
+            :key="course.id"
+            class="course-card"
+            @click="goCourse(course.id)"
+          >
+            <image
+              :src="course.cover"
+              mode="aspectFill"
+              class="course-cover"
+            />
             <view class="course-body">
-              <text class="course-title">{{ course.title }}</text>
+              <text class="course-title">
+                {{ course.title }}
+              </text>
               <view class="course-footer">
-                <text class="course-price">¥{{ course.price }}</text>
-                <text class="course-lessons">{{ course.lessons }}课时</text>
+                <text class="course-price">
+                  ¥{{ course.price }}
+                </text>
+                <text class="course-lessons">
+                  {{ course.lessons }}课时
+                </text>
               </view>
             </view>
           </view>
@@ -148,8 +289,17 @@
       <!-- 底部固定按钮 -->
       <view class="bottom-bar">
         <view class="bottom-inner">
-          <view class="bottom-btn outline" @click="goCircle(room.host.id)">进入讲师圈子</view>
-          <view v-if="room.hasReplay" class="bottom-btn primary" @click="goReplay(room.id)">
+          <view
+            class="bottom-btn outline"
+            @click="goCircle(room.host.id)"
+          >
+            进入讲师圈子
+          </view>
+          <view
+            v-if="room.hasReplay"
+            class="bottom-btn primary"
+            @click="goReplay(room.id)"
+          >
             ▶ 查看回放
           </view>
         </view>

@@ -2,72 +2,156 @@
   <view class="page">
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">物流详情</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          物流详情
+        </text>
         <view style="width:60rpx" />
       </view>
     </view>
 
-    <view v-if="loading" class="loading-skeleton">
-      <view v-for="i in 3" :key="i" class="s-card" />
+    <view
+      v-if="loading"
+      class="loading-skeleton"
+    >
+      <view
+        v-for="i in 3"
+        :key="i"
+        class="s-card"
+      />
     </view>
 
-    <view v-else-if="!logistics" class="empty-state">
-      <text class="empty-icon">📦</text>
-      <text class="empty-text">暂无物流信息</text>
+    <view
+      v-else-if="!logistics"
+      class="empty-state"
+    >
+      <text class="empty-icon">
+        📦
+      </text>
+      <text class="empty-text">
+        暂无物流信息
+      </text>
     </view>
 
     <template v-else>
       <!-- 物流状态卡片 -->
       <view class="status-card">
         <view class="sc-top">
-          <view class="sc-icon"><text>🚚</text></view>
+          <view class="sc-icon">
+            <text>🚚</text>
+          </view>
           <view class="sc-info">
             <view class="sc-name-row">
-              <text class="sc-company">{{ logistics.company }}</text>
-              <text class="sc-status-tag">{{ statusLabel(logistics.status) }}</text>
+              <text class="sc-company">
+                {{ logistics.company }}
+              </text>
+              <text class="sc-status-tag">
+                {{ statusLabel(logistics.status) }}
+              </text>
             </view>
-            <text class="sc-track-no">运单号：{{ logistics.trackingNo || logistics.trackNo }}</text>
+            <text class="sc-track-no">
+              运单号：{{ logistics.trackingNo || logistics.trackNo }}
+            </text>
           </view>
-          <text class="sc-copy" @click="copyNo">复制</text>
+          <text
+            class="sc-copy"
+            @click="copyNo"
+          >
+            复制
+          </text>
         </view>
-        <view v-if="logistics.estimatedDelivery" class="sc-delivery">
+        <view
+          v-if="logistics.estimatedDelivery"
+          class="sc-delivery"
+        >
           <text>🕐</text>
           <text>预计送达：{{ logistics.estimatedDelivery }}</text>
         </view>
       </view>
 
       <!-- 快递员信息 -->
-      <view v-if="logistics.courierName" class="courier-card">
+      <view
+        v-if="logistics.courierName"
+        class="courier-card"
+      >
         <view class="cc-left">
-          <view class="cc-avatar"><text>📦</text></view>
-          <view><text class="cc-name">快递员：{{ logistics.courierName }}</text><text class="cc-status">正在为您派送</text></view>
+          <view class="cc-avatar">
+            <text>📦</text>
+          </view>
+          <view>
+            <text class="cc-name">
+              快递员：{{ logistics.courierName }}
+            </text><text class="cc-status">
+              正在为您派送
+            </text>
+          </view>
         </view>
-        <view v-if="logistics.courierPhone" class="cc-call" @click="callPhone(logistics.courierPhone)"><text>📞</text><text>联系</text></view>
+        <view
+          v-if="logistics.courierPhone"
+          class="cc-call"
+          @click="callPhone(logistics.courierPhone)"
+        >
+          <text>📞</text><text>联系</text>
+        </view>
       </view>
 
       <!-- 收货信息 -->
-      <view v-if="logistics.receiver" class="receiver-card">
-        <view class="rc-icon"><text>📍</text></view>
+      <view
+        v-if="logistics.receiver"
+        class="receiver-card"
+      >
+        <view class="rc-icon">
+          <text>📍</text>
+        </view>
         <view class="rc-info">
-          <view class="rc-name-row"><text class="rc-name">{{ logistics.receiver.name }}</text><text class="rc-phone">{{ logistics.receiver.phone }}</text></view>
-          <text class="rc-address">{{ logistics.receiver.address }}</text>
+          <view class="rc-name-row">
+            <text class="rc-name">
+              {{ logistics.receiver.name }}
+            </text><text class="rc-phone">
+              {{ logistics.receiver.phone }}
+            </text>
+          </view>
+          <text class="rc-address">
+            {{ logistics.receiver.address }}
+          </text>
         </view>
       </view>
 
       <!-- 物流轨迹 -->
       <view class="timeline-card">
-        <text class="tl-title">物流轨迹</text>
+        <text class="tl-title">
+          物流轨迹
+        </text>
         <view class="timeline">
-          <view v-for="(t, idx) in (logistics.tracks || [])" :key="idx" class="tl-item" :class="{ latest: idx === 0 }">
+          <view
+            v-for="(t, idx) in (logistics.tracks || [])"
+            :key="idx"
+            class="tl-item"
+            :class="{ latest: idx === 0 }"
+          >
             <view class="tl-dot-row">
-              <view class="tl-dot" :class="{ latest: idx === 0 }" />
+              <view
+                class="tl-dot"
+                :class="{ latest: idx === 0 }"
+              />
             </view>
             <view class="tl-content">
-              <text class="tl-desc" :class="{ latest: idx === 0 }">{{ t.description }}</text>
+              <text
+                class="tl-desc"
+                :class="{ latest: idx === 0 }"
+              >
+                {{ t.description }}
+              </text>
               <view class="tl-meta">
                 <text>{{ t.time }}</text>
-                <text v-if="t.location">{{ t.location }}</text>
+                <text v-if="t.location">
+                  {{ t.location }}
+                </text>
               </view>
             </view>
           </view>
@@ -77,8 +161,16 @@
       <!-- 底部操作 -->
       <view class="bottom-bar">
         <view class="bottom-inner">
-          <view v-if="logistics.companyPhone" class="bb-btn" @click="callPhone(logistics.companyPhone)">📞 联系物流公司</view>
-          <view class="bb-btn primary">查看订单</view>
+          <view
+            v-if="logistics.companyPhone"
+            class="bb-btn"
+            @click="callPhone(logistics.companyPhone)"
+          >
+            📞 联系物流公司
+          </view>
+          <view class="bb-btn primary">
+            查看订单
+          </view>
         </view>
       </view>
     </template>

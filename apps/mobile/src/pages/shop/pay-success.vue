@@ -3,75 +3,150 @@
     <!-- 绿色成功头部 -->
     <view class="success-header-bg">
       <!-- 对勾动画 -->
-      <view class="check-animation" :class="{ visible: showAnimation }">
+      <view
+        class="check-animation"
+        :class="{ visible: showAnimation }"
+      >
         <view class="check-circle">
-          <view class="check-inner" :class="{ visible: showAnimation }">
-            <text class="check-icon">✓</text>
+          <view
+            class="check-inner"
+            :class="{ visible: showAnimation }"
+          >
+            <text class="check-icon">
+              ✓
+            </text>
           </view>
-          <view class="check-ring" :class="{ visible: showAnimation }" />
+          <view
+            class="check-ring"
+            :class="{ visible: showAnimation }"
+          />
         </view>
       </view>
 
-      <text class="success-title" :class="{ visible: showAnimation }">支付成功</text>
+      <text
+        class="success-title"
+        :class="{ visible: showAnimation }"
+      >
+        支付成功
+      </text>
 
-      <view v-if="orderInfo" class="success-amount-area" :class="{ visible: showAnimation }">
-        <text class="success-amount">¥{{ orderInfo.amount.toFixed(2) }}</text>
-        <text class="success-pay-info">{{ orderInfo.payMethod }} · {{ orderInfo.itemCount }}件商品</text>
+      <view
+        v-if="orderInfo"
+        class="success-amount-area"
+        :class="{ visible: showAnimation }"
+      >
+        <text class="success-amount">
+          ¥{{ orderInfo.amount.toFixed(2) }}
+        </text>
+        <text class="success-pay-info">
+          {{ orderInfo.payMethod }} · {{ orderInfo.itemCount }}件商品
+        </text>
       </view>
     </view>
 
     <!-- 白色卡片 -->
     <view class="content-cards">
       <!-- 订单信息 -->
-      <view class="card order-card" :class="{ visible: showAnimation }">
+      <view
+        class="card order-card"
+        :class="{ visible: showAnimation }"
+      >
         <view class="card-row">
-          <text class="card-label">订单编号</text>
+          <text class="card-label">
+            订单编号
+          </text>
           <view class="card-value-row">
-            <text class="card-value">{{ orderInfo?.orderId }}</text>
-            <text class="copy-btn" @click="handleCopy">{{ copied ? '已复制' : '📋' }}</text>
+            <text class="card-value">
+              {{ orderInfo?.orderId }}
+            </text>
+            <text
+              class="copy-btn"
+              @click="handleCopy"
+            >
+              {{ copied ? '已复制' : '📋' }}
+            </text>
           </view>
         </view>
         <view class="card-row">
-          <text class="card-label">支付方式</text>
-          <text class="card-value">{{ orderInfo?.payMethod }}</text>
+          <text class="card-label">
+            支付方式
+          </text>
+          <text class="card-value">
+            {{ orderInfo?.payMethod }}
+          </text>
         </view>
         <view class="card-row no-border">
-          <text class="card-label">支付时间</text>
-          <text class="card-value">{{ orderInfo?.paidAt }}</text>
+          <text class="card-label">
+            支付时间
+          </text>
+          <text class="card-value">
+            {{ orderInfo?.paidAt }}
+          </text>
         </view>
       </view>
 
       <!-- 操作按钮 -->
-      <view class="action-buttons" :class="{ visible: showAnimation }">
-        <view class="btn-primary-action" @click="goOrder">
-          <text class="action-icon">🛒</text>
+      <view
+        class="action-buttons"
+        :class="{ visible: showAnimation }"
+      >
+        <view
+          class="btn-primary-action"
+          @click="goOrder"
+        >
+          <text class="action-icon">
+            🛒
+          </text>
           <text>查看订单</text>
         </view>
-        <view class="btn-secondary-action" @click="goHome">
-          <text class="action-icon">🏠</text>
+        <view
+          class="btn-secondary-action"
+          @click="goHome"
+        >
+          <text class="action-icon">
+            🏠
+          </text>
           <text>返回首页</text>
         </view>
       </view>
 
       <!-- 推荐入口 -->
-      <view class="recommend-card" :class="{ visible: showAnimation }">
-        <text class="recommend-label">猜你喜欢</text>
-        <view class="recommend-item" @click="goShop">
+      <view
+        class="recommend-card"
+        :class="{ visible: showAnimation }"
+      >
+        <text class="recommend-label">
+          猜你喜欢
+        </text>
+        <view
+          class="recommend-item"
+          @click="goShop"
+        >
           <view class="recommend-icon-wrap">
-            <text class="recommend-icon">🎁</text>
+            <text class="recommend-icon">
+              🎁
+            </text>
           </view>
           <view class="recommend-info">
-            <text class="recommend-title">更多好物</text>
-            <text class="recommend-desc">发现更多国学精品</text>
+            <text class="recommend-title">
+              更多好物
+            </text>
+            <text class="recommend-desc">
+              发现更多国学精品
+            </text>
           </view>
-          <text class="recommend-arrow">›</text>
+          <text class="recommend-arrow">
+            ›
+          </text>
         </view>
       </view>
 
       <!-- 底部提示 -->
       <view class="bottom-tip">
         <text>如有问题请联系客服</text>
-        <text class="bottom-tip-sub">感谢您的支持，祝您学习愉快！</text>
+        <text class="bottom-tip-sub">
+          感谢您的支持，祝您学习愉快！
+        </text>
       </view>
     </view>
   </view>

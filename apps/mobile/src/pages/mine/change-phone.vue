@@ -3,46 +3,93 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">修改手机号</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          修改手机号
+        </text>
         <view class="header-right" />
       </view>
     </view>
 
     <!-- 步骤指示器 -->
     <view class="stepper">
-      <view v-for="(item, index) in steps" :key="item.num" class="stepper-item">
+      <view
+        v-for="(item, index) in steps"
+        :key="item.num"
+        class="stepper-item"
+      >
         <view class="stepper-left">
-          <view class="stepper-dot" :class="{ active: step >= item.num, done: step > item.num }">
-            <text v-if="step > item.num" class="stepper-check">✓</text>
-            <text v-else>{{ item.num }}</text>
+          <view
+            class="stepper-dot"
+            :class="{ active: step >= item.num, done: step > item.num }"
+          >
+            <text
+              v-if="step > item.num"
+              class="stepper-check"
+            >
+              ✓
+            </text>
+            <text v-else>
+              {{ item.num }}
+            </text>
           </view>
-          <text class="stepper-label" :class="{ active: step >= item.num }">{{ item.label }}</text>
+          <text
+            class="stepper-label"
+            :class="{ active: step >= item.num }"
+          >
+            {{ item.label }}
+          </text>
         </view>
-        <view v-if="index < steps.length - 1" class="stepper-line" :class="{ done: step > item.num }" />
+        <view
+          v-if="index < steps.length - 1"
+          class="stepper-line"
+          :class="{ done: step > item.num }"
+        />
       </view>
     </view>
 
     <!-- 步骤1：验证当前手机号 -->
-    <view v-if="step === 1" class="form-card">
+    <view
+      v-if="step === 1"
+      class="form-card"
+    >
       <view class="form-header">
         <view class="form-header-icon">
-          <text class="form-header-icon-text">🔒</text>
+          <text class="form-header-icon-text">
+            🔒
+          </text>
         </view>
         <view>
-          <text class="form-header-title">验证当前手机号</text>
-          <text class="form-header-desc">为保障账号安全，请先验证身份</text>
+          <text class="form-header-title">
+            验证当前手机号
+          </text>
+          <text class="form-header-desc">
+            为保障账号安全，请先验证身份
+          </text>
         </view>
       </view>
 
       <view class="phone-display">
-        <text class="phone-display-icon">📱</text>
-        <text class="phone-display-num">{{ currentPhone }}</text>
-        <text class="phone-display-tag">当前绑定</text>
+        <text class="phone-display-icon">
+          📱
+        </text>
+        <text class="phone-display-num">
+          {{ currentPhone }}
+        </text>
+        <text class="phone-display-tag">
+          当前绑定
+        </text>
       </view>
 
       <view class="form-group">
-        <text class="form-label">短信验证码</text>
+        <text class="form-label">
+          短信验证码
+        </text>
         <view class="code-row">
           <input
             v-model="verifyCode"
@@ -51,7 +98,7 @@
             class="form-input code-input"
             placeholder="请输入验证码"
             @input="onCodeInput"
-          />
+          >
           <view
             class="btn-send"
             :class="{ disabled: countdown > 0 }"
@@ -62,7 +109,12 @@
         </view>
       </view>
 
-      <text v-if="error" class="form-error">{{ error }}</text>
+      <text
+        v-if="error"
+        class="form-error"
+      >
+        {{ error }}
+      </text>
 
       <view
         class="btn-primary"
@@ -74,19 +126,33 @@
     </view>
 
     <!-- 步骤2：绑定新手机号 -->
-    <view v-if="step === 2" class="form-card">
+    <view
+      v-if="step === 2"
+      class="form-card"
+    >
       <view class="form-header">
-        <view class="form-header-icon" style="background:#E8F5E9">
-          <text class="form-header-icon-text">📱</text>
+        <view
+          class="form-header-icon"
+          style="background:#E8F5E9"
+        >
+          <text class="form-header-icon-text">
+            📱
+          </text>
         </view>
         <view>
-          <text class="form-header-title">绑定新手机号</text>
-          <text class="form-header-desc">请输入新的手机号并验证</text>
+          <text class="form-header-title">
+            绑定新手机号
+          </text>
+          <text class="form-header-desc">
+            请输入新的手机号并验证
+          </text>
         </view>
       </view>
 
       <view class="form-group">
-        <text class="form-label">新手机号</text>
+        <text class="form-label">
+          新手机号
+        </text>
         <input
           v-model="newPhone"
           type="text"
@@ -94,11 +160,13 @@
           class="form-input"
           placeholder="请输入新手机号"
           @input="onPhoneInput"
-        />
+        >
       </view>
 
       <view class="form-group">
-        <text class="form-label">短信验证码</text>
+        <text class="form-label">
+          短信验证码
+        </text>
         <view class="code-row">
           <input
             v-model="newCode"
@@ -107,7 +175,7 @@
             class="form-input code-input"
             placeholder="请输入验证码"
             @input="onCodeInput2"
-          />
+          >
           <view
             class="btn-send"
             :class="{ disabled: newCountdown > 0 || newPhone.length !== 11 }"
@@ -118,7 +186,12 @@
         </view>
       </view>
 
-      <text v-if="error" class="form-error">{{ error }}</text>
+      <text
+        v-if="error"
+        class="form-error"
+      >
+        {{ error }}
+      </text>
 
       <view
         class="btn-primary"
@@ -128,20 +201,40 @@
         {{ loading ? '绑定中...' : '确认绑定' }}
       </view>
 
-      <text class="btn-back" @click="step = 1">返回上一步</text>
+      <text
+        class="btn-back"
+        @click="step = 1"
+      >
+        返回上一步
+      </text>
 
-      <text class="form-tip">温馨提示：更换手机号后，原手机号将无法用于登录和找回密码</text>
+      <text class="form-tip">
+        温馨提示：更换手机号后，原手机号将无法用于登录和找回密码
+      </text>
     </view>
 
     <!-- 步骤3：完成 -->
-    <view v-if="step === 3" class="result-card">
+    <view
+      v-if="step === 3"
+      class="result-card"
+    >
       <view class="result-icon-wrap">
-        <text class="result-icon">✅</text>
+        <text class="result-icon">
+          ✅
+        </text>
       </view>
-      <text class="result-title">绑定成功</text>
-      <text class="result-desc">新手机号已绑定</text>
-      <text class="result-phone">{{ maskedNewPhone }}</text>
-      <text class="result-countdown">页面即将自动返回...</text>
+      <text class="result-title">
+        绑定成功
+      </text>
+      <text class="result-desc">
+        新手机号已绑定
+      </text>
+      <text class="result-phone">
+        {{ maskedNewPhone }}
+      </text>
+      <text class="result-countdown">
+        页面即将自动返回...
+      </text>
     </view>
   </view>
 </template>

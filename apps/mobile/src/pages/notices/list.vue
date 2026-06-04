@@ -2,38 +2,103 @@
   <view class="page">
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">平台公告</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          平台公告
+        </text>
         <view style="width:60rpx" />
       </view>
-      <scroll-view scroll-x class="tabs-scroll" show-scrollbar="false">
+      <scroll-view
+        scroll-x
+        class="tabs-scroll"
+        show-scrollbar="false"
+      >
         <view class="tabs-inner">
-          <text v-for="opt in filterOptions" :key="opt.value" class="tab" :class="{ active: filter === opt.value }" @click="switchFilter(opt.value)">{{ opt.label }}</text>
+          <text
+            v-for="opt in filterOptions"
+            :key="opt.value"
+            class="tab"
+            :class="{ active: filter === opt.value }"
+            @click="switchFilter(opt.value)"
+          >
+            {{ opt.label }}
+          </text>
         </view>
       </scroll-view>
     </view>
 
-    <DataState :is-loading="loading" :is-empty="!notices.length" empty-icon="📢" empty-title="暂无公告" empty-description="当前没有任何公告信息">
-      <view v-for="n in notices" :key="n.id" class="notice-card" @click="goDetail(n)">
+    <DataState
+      :is-loading="loading"
+      :is-empty="!notices.length"
+      empty-icon="📢"
+      empty-title="暂无公告"
+      empty-description="当前没有任何公告信息"
+    >
+      <view
+        v-for="n in notices"
+        :key="n.id"
+        class="notice-card"
+        @click="goDetail(n)"
+      >
         <view class="nc-left">
-          <view class="nc-dot" :class="{ unread: !n.isRead }" />
-          <view v-if="n.isPinned" class="nc-pin"><text>📌</text></view>
+          <view
+            class="nc-dot"
+            :class="{ unread: !n.isRead }"
+          />
+          <view
+            v-if="n.isPinned"
+            class="nc-pin"
+          >
+            <text>📌</text>
+          </view>
           <view class="nc-info">
             <view class="nc-title-row">
-              <text class="nc-title" :class="{ unread: !n.isRead }">{{ n.title }}</text>
+              <text
+                class="nc-title"
+                :class="{ unread: !n.isRead }"
+              >
+                {{ n.title }}
+              </text>
             </view>
-            <text class="nc-summary">{{ n.summary || n.title }}</text>
+            <text class="nc-summary">
+              {{ n.summary || n.title }}
+            </text>
             <view class="nc-meta">
-              <text class="nc-type-tag" :class="'t-' + (n.type || 'system')">{{ typeLabel(n.type) }}</text>
-              <text class="nc-time">{{ formatTime(n.publishedAt || n.createdAt) }}</text>
+              <text
+                class="nc-type-tag"
+                :class="'t-' + (n.type || 'system')"
+              >
+                {{ typeLabel(n.type) }}
+              </text>
+              <text class="nc-time">
+                {{ formatTime(n.publishedAt || n.createdAt) }}
+              </text>
             </view>
           </view>
         </view>
-        <text class="nc-arrow">›</text>
+        <text class="nc-arrow">
+          ›
+        </text>
       </view>
 
-      <view v-if="hasMore" class="load-more-btn" @click="loadMore"><text>{{ loadingMore ? '加载中...' : '点击加载更多' }}</text></view>
-      <view v-if="notices.length && !hasMore" class="no-more"><text>已加载全部公告</text></view>
+      <view
+        v-if="hasMore"
+        class="load-more-btn"
+        @click="loadMore"
+      >
+        <text>{{ loadingMore ? '加载中...' : '点击加载更多' }}</text>
+      </view>
+      <view
+        v-if="notices.length && !hasMore"
+        class="no-more"
+      >
+        <text>已加载全部公告</text>
+      </view>
     </DataState>
   </view>
 </template>

@@ -118,9 +118,28 @@ export const imApi = {
   removeBlacklist: (toUserId: string) =>
     api.post("/im/blacklist/remove", { toUserId }),
   getBlacklist: () => api.get("/im/blacklist"),
+  // 会话列表
+  getConversationList: () => api.get("/im/conversations"),
+  searchConversationsAndFriends: (keyword: string) => api.get("/im/search", { params: { keyword } }),
+  togglePinConversation: (id: string, pinned: boolean) => api.put(`/im/conversations/${id}/pin`, { pinned }),
+  toggleMuteConversation: (id: string, muted: boolean) => api.put(`/im/conversations/${id}/mute`, { muted }),
+  deleteConversation: (id: string) => api.delete(`/im/conversations/${id}`),
   // 群组
   getGroupInfo: (groupId: string) => api.get(`/im/groups/${groupId}/detail`),
   getGroupMembers: (groupId: string) => api.get(`/im/groups/${groupId}/members`),
+  getGroupList: () => api.get("/im/groups"),
+  searchGroups: (keyword: string) => api.get("/im/groups/search", { params: { keyword } }),
+  getGroupHistory: (groupId: string, page?: number) => api.get(`/im/groups/${groupId}/history`, { params: { page } }),
+  sendGroupMsg: (groupId: string, data: any) => api.post(`/im/groups/${groupId}/message`, data),
+  withdrawGroupMsg: (groupId: string, msgKey: string) => api.post(`/im/groups/${groupId}/message/withdraw`, { msgKey }),
+  updateGroupNickname: (groupId: string, nickname: string) => api.put(`/im/groups/${groupId}/nickname`, { nickname }),
+  setGroupMuted: (groupId: string, muted: boolean) => api.put(`/im/groups/${groupId}/mute`, { muted }),
+  setGroupAdmin: (groupId: string, userId: string, isAdmin: boolean) => api.put(`/im/groups/${groupId}/admin`, { userId, isAdmin }),
+  transferGroupOwner: (groupId: string, userId: string) => api.post(`/im/groups/${groupId}/transfer`, { userId }),
+  removeGroupMember: (groupId: string, userId: string) => api.delete(`/im/groups/${groupId}/members/${userId}`),
+  quitGroup: (groupId: string) => api.post(`/im/groups/${groupId}/quit`),
+  dismissGroup: (groupId: string) => api.post(`/im/groups/${groupId}/dismiss`),
+  listProcessedFriendRequests: () => api.get("/im/friends/processed"),
 };
 
 // 认证
@@ -269,6 +288,15 @@ export const circleApi = {
   setExpertConfig: (circleId: string, data: any) => api.post(`/circles/${circleId}/expert/config`, data),
   // 排行
   getRanking: (page = 1, pageSize = 20, sortBy?: string) => api.get("/circles/ranking", { page, pageSize, sortBy }),
+  // 公告已读
+  markAnnouncementRead: (circleId: string, announcementId: string) => api.post(`/circles/${circleId}/announcements/${announcementId}/read`),
+  // 达人预约
+  getExpertSlots: (expertId: string, date?: string) => api.get(`/circles/expert/${expertId}/slots`, { params: { date } }),
+  createBooking: (expertId: string, data: any) => api.post(`/circles/expert/${expertId}/bookings`, data),
+  // 知识库
+  listKnowledge: (circleId: string, params?: any) => api.get(`/circles/${circleId}/knowledge`, params),
+  confirmKnowledge: (circleId: string, id: string) => api.post(`/circles/${circleId}/knowledge/${id}/confirm`),
+  ignoreKnowledge: (circleId: string, id: string) => api.post(`/circles/${circleId}/knowledge/${id}/ignore`),
 };
 
 // 圈主仪表盘
@@ -806,7 +834,7 @@ export const offlineApi = {
   getRegistrations: (courseId: string) => api.get(`/offline/courses/${courseId}/registrations`),
   createProduct: (stationId: string, data: any) => api.post(`/offline/stations/${stationId}/products`, data),
   updateProduct: (productId: string, data: any) => api.put(`/offline/products/${productId}`, data),
-  getProducts: (stationId: string) => api.get(`/offline/stations/${stationId}/products`),
+  getProducts: (stationId: string, filters?: any) => api.get(`/offline/stations/${stationId}/products`, filters),
   deleteProduct: (productId: string) => api.delete(`/offline/products/${productId}`),
   bookTeacher: (stationId: string, data: any) => api.post(`/offline/stations/${stationId}/teacher-bookings`, data),
   getTeacherBookings: (stationId: string) => api.get(`/offline/stations/${stationId}/teacher-bookings`),
@@ -814,6 +842,11 @@ export const offlineApi = {
   getOrders: (stationId: string) => api.get(`/offline/stations/${stationId}/orders`),
   updateOrder: (orderId: string, data: any) => api.put(`/offline/orders/${orderId}`, data),
   getSettlements: (stationId: string) => api.get(`/offline/stations/${stationId}/settlements`),
+  getSettlementDetail: (id: string) => api.get(`/offline/settlements/${id}`),
+  getStationTeachers: (stationId: string) => api.get(`/offline/stations/${stationId}/teachers`),
+  getTeacherAvailability: (teacherId: string, date?: string) => api.get(`/offline/teachers/${teacherId}/availability`, { params: { date } }),
+  cancelTeacherBooking: (bookingId: string) => api.delete(`/offline/teacher-bookings/${bookingId}`),
+  getCheckinRecords: (stationId: string) => api.get(`/offline/stations/${stationId}/checkins`),
 };
 
 // ==================== 研究院 ====================

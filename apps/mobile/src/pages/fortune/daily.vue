@@ -2,81 +2,183 @@
   <view class="page">
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">每日运势</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          每日运势
+        </text>
         <view style="width:60rpx" />
       </view>
     </view>
 
-    <scroll-view scroll-y class="content-scroll">
+    <scroll-view
+      scroll-y
+      class="content-scroll"
+    >
       <!-- 运势卡片 -->
       <view class="fortune-card">
         <view class="fc-date-row">
-          <text class="fc-date">{{ today }}</text>
-          <text class="fc-lunar">{{ lunarDate }}</text>
+          <text class="fc-date">
+            {{ today }}
+          </text>
+          <text class="fc-lunar">
+            {{ lunarDate }}
+          </text>
         </view>
         <view class="fc-divider" />
         <view class="fc-level-row">
-          <text class="fc-level-icon">{{ levelIcon }}</text>
-          <text class="fc-level-text" :class="levelKey">{{ levelText }}</text>
+          <text class="fc-level-icon">
+            {{ levelIcon }}
+          </text>
+          <text
+            class="fc-level-text"
+            :class="levelKey"
+          >
+            {{ levelText }}
+          </text>
         </view>
-        <text class="fc-score">{{ score }}分</text>
-        <text class="fc-stars">{{ stars }}</text>
+        <text class="fc-score">
+          {{ score }}分
+        </text>
+        <text class="fc-stars">
+          {{ stars }}
+        </text>
       </view>
 
       <!-- 各项运势 -->
       <view class="aspects-card">
-        <view v-for="a in aspects" :key="a.key" class="aspect-row">
-          <text class="aspect-label">{{ a.label }}</text>
+        <view
+          v-for="a in aspects"
+          :key="a.key"
+          class="aspect-row"
+        >
+          <text class="aspect-label">
+            {{ a.label }}
+          </text>
           <view class="aspect-bar-wrap">
-            <view class="aspect-bar" :style="{ width: a.percent + '%', background: a.color }" />
+            <view
+              class="aspect-bar"
+              :style="{ width: a.percent + '%', background: a.color }"
+            />
           </view>
-          <text class="aspect-value" :style="{ color: a.color }">{{ a.value }}</text>
+          <text
+            class="aspect-value"
+            :style="{ color: a.color }"
+          >
+            {{ a.value }}
+          </text>
         </view>
       </view>
 
       <!-- 幸运信息 -->
       <view class="luck-card">
-        <view class="luck-item"><text class="luck-label">幸运数字</text><text class="luck-value">{{ lucky.number }}</text></view>
-        <view class="luck-item"><text class="luck-label">幸运颜色</text><text class="luck-value">{{ lucky.color }}</text></view>
-        <view class="luck-item"><text class="luck-label">幸运方位</text><text class="luck-value">{{ lucky.direction }}</text></view>
-        <view class="luck-item"><text class="luck-label">开运物</text><text class="luck-value">{{ lucky.item }}</text></view>
+        <view class="luck-item">
+          <text class="luck-label">
+            幸运数字
+          </text><text class="luck-value">
+            {{ lucky.number }}
+          </text>
+        </view>
+        <view class="luck-item">
+          <text class="luck-label">
+            幸运颜色
+          </text><text class="luck-value">
+            {{ lucky.color }}
+          </text>
+        </view>
+        <view class="luck-item">
+          <text class="luck-label">
+            幸运方位
+          </text><text class="luck-value">
+            {{ lucky.direction }}
+          </text>
+        </view>
+        <view class="luck-item">
+          <text class="luck-label">
+            开运物
+          </text><text class="luck-value">
+            {{ lucky.item }}
+          </text>
+        </view>
       </view>
 
       <!-- 今日建议 -->
       <view class="advice-card">
         <view class="advice-header">
-          <text class="advice-icon">📜</text>
-          <text class="advice-title">今日建议</text>
+          <text class="advice-icon">
+            📜
+          </text>
+          <text class="advice-title">
+            今日建议
+          </text>
         </view>
-        <text class="advice-text">{{ advice }}</text>
+        <text class="advice-text">
+          {{ advice }}
+        </text>
       </view>
 
       <!-- 宜忌 -->
       <view class="yiji-card">
         <view class="yi-section">
-          <text class="yi-label yi">宜</text>
+          <text class="yi-label yi">
+            宜
+          </text>
           <view class="yi-tags">
-            <text v-for="item in yi" :key="item" class="yi-tag yi">{{ item }}</text>
+            <text
+              v-for="item in yi"
+              :key="item"
+              class="yi-tag yi"
+            >
+              {{ item }}
+            </text>
           </view>
         </view>
         <view class="yi-divider" />
         <view class="yi-section">
-          <text class="yi-label ji">忌</text>
+          <text class="yi-label ji">
+            忌
+          </text>
           <view class="yi-tags">
-            <text v-for="item in ji" :key="item" class="yi-tag ji">{{ item }}</text>
+            <text
+              v-for="item in ji"
+              :key="item"
+              class="yi-tag ji"
+            >
+              {{ item }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 十二时辰 -->
       <view class="shichen-card">
-        <text class="sc-title">十二时辰吉凶</text>
-        <view v-for="s in shichen" :key="s.name" class="sc-row">
-          <text class="sc-name">{{ s.name }}</text>
-          <text class="sc-time">{{ s.time }}</text>
-          <text class="sc-desc">{{ s.desc }}</text>
-          <text class="sc-luck" :class="s.luck === '吉' ? 'good' : s.luck === '凶' ? 'bad' : 'mid'">{{ s.luck }}</text>
+        <text class="sc-title">
+          十二时辰吉凶
+        </text>
+        <view
+          v-for="s in shichen"
+          :key="s.name"
+          class="sc-row"
+        >
+          <text class="sc-name">
+            {{ s.name }}
+          </text>
+          <text class="sc-time">
+            {{ s.time }}
+          </text>
+          <text class="sc-desc">
+            {{ s.desc }}
+          </text>
+          <text
+            class="sc-luck"
+            :class="s.luck === '吉' ? 'good' : s.luck === '凶' ? 'bad' : 'mid'"
+          >
+            {{ s.luck }}
+          </text>
         </view>
       </view>
     </scroll-view>

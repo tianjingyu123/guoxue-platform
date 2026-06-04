@@ -3,15 +3,34 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">浏览历史</text>
-        <text v-if="totalCount > 0" class="header-clear" @click="showClearDialog = true">清空</text>
-        <view v-else class="header-right" />
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          浏览历史
+        </text>
+        <text
+          v-if="totalCount > 0"
+          class="header-clear"
+          @click="showClearDialog = true"
+        >
+          清空
+        </text>
+        <view
+          v-else
+          class="header-right"
+        />
       </view>
     </view>
 
     <!-- 统计 -->
-    <view v-if="totalCount > 0" class="stats-bar">
+    <view
+      v-if="totalCount > 0"
+      class="stats-bar"
+    >
       <text>📊 共 {{ totalCount }} 条记录 · 近30天</text>
     </view>
 
@@ -29,8 +48,14 @@
       @empty-action="goHome"
     >
       <view class="history-content">
-        <view v-for="group in historyGroups" :key="group.date" class="history-group">
-          <view class="date-header">{{ group.label }}</view>
+        <view
+          v-for="group in historyGroups"
+          :key="group.date"
+          class="history-group"
+        >
+          <view class="date-header">
+            {{ group.label }}
+          </view>
 
           <view
             v-for="item in group.items"
@@ -38,51 +63,115 @@
             class="history-item"
             :class="{ deleting: deletingId === item.id }"
           >
-            <view class="history-item-main" @click="handleItemClick(item)">
+            <view
+              class="history-item-main"
+              @click="handleItemClick(item)"
+            >
               <view class="history-thumb">
-                <image v-if="item.cover" :src="item.cover" class="history-thumb-img" mode="aspectFill" />
-                <view v-else class="history-thumb-placeholder" :class="'htp-' + item.type">
-                  <text class="history-thumb-icon">{{ typeIcon(item.type) }}</text>
+                <image
+                  v-if="item.cover"
+                  :src="item.cover"
+                  class="history-thumb-img"
+                  mode="aspectFill"
+                />
+                <view
+                  v-else
+                  class="history-thumb-placeholder"
+                  :class="'htp-' + item.type"
+                >
+                  <text class="history-thumb-icon">
+                    {{ typeIcon(item.type) }}
+                  </text>
                 </view>
-                <view v-if="item.type === 'video'" class="history-play-overlay">
-                  <text class="history-play-icon">▶</text>
+                <view
+                  v-if="item.type === 'video'"
+                  class="history-play-overlay"
+                >
+                  <text class="history-play-icon">
+                    ▶
+                  </text>
                 </view>
               </view>
               <view class="history-info">
                 <view class="history-info-top">
-                  <text class="history-type-tag" :class="'htt-' + item.type">{{ typeLabel(item.type) }}</text>
-                  <text class="history-title">{{ item.title }}</text>
+                  <text
+                    class="history-type-tag"
+                    :class="'htt-' + item.type"
+                  >
+                    {{ typeLabel(item.type) }}
+                  </text>
+                  <text class="history-title">
+                    {{ item.title }}
+                  </text>
                 </view>
                 <view class="history-meta">
                   <text>{{ item.viewedAt }}</text>
                   <text v-if="item.progress !== undefined && item.duration">
-                    · <text :class="item.progress >= 100 ? 'done' : ''">{{ formatProgress(item.progress, item.duration) }}</text>
+                    · <text :class="item.progress >= 100 ? 'done' : ''">
+                      {{ formatProgress(item.progress, item.duration) }}
+                    </text>
                   </text>
                 </view>
               </view>
-              <view v-if="item.progress !== undefined && item.progress < 100" class="history-continue" @click.stop="handleItemClick(item)">继续</view>
+              <view
+                v-if="item.progress !== undefined && item.progress < 100"
+                class="history-continue"
+                @click.stop="handleItemClick(item)"
+              >
+                继续
+              </view>
             </view>
 
             <!-- 左滑删除 -->
-            <view class="history-delete-btn" @click="handleDelete(item.id)">🗑</view>
+            <view
+              class="history-delete-btn"
+              @click="handleDelete(item.id)"
+            >
+              🗑
+            </view>
           </view>
         </view>
 
-        <view class="history-footer">仅展示近30天的浏览记录</view>
+        <view class="history-footer">
+          仅展示近30天的浏览记录
+        </view>
       </view>
     </DataState>
 
     <!-- 清空确认弹窗 -->
-    <view v-if="showClearDialog" class="dialog-overlay" @click="showClearDialog = false">
-      <view class="dialog-content" @click.stop>
+    <view
+      v-if="showClearDialog"
+      class="dialog-overlay"
+      @click="showClearDialog = false"
+    >
+      <view
+        class="dialog-content"
+        @click.stop
+      >
         <view class="dialog-icon-wrap">
-          <text class="dialog-icon">🗑</text>
+          <text class="dialog-icon">
+            🗑
+          </text>
         </view>
-        <text class="dialog-title">清空浏览历史</text>
-        <text class="dialog-desc">确定要清空所有浏览记录吗？此操作不可恢复</text>
+        <text class="dialog-title">
+          清空浏览历史
+        </text>
+        <text class="dialog-desc">
+          确定要清空所有浏览记录吗？此操作不可恢复
+        </text>
         <view class="dialog-actions">
-          <view class="dialog-btn dialog-btn-cancel" @click="showClearDialog = false">取消</view>
-          <view class="dialog-btn dialog-btn-confirm-danger" @click="handleClearAll">清空</view>
+          <view
+            class="dialog-btn dialog-btn-cancel"
+            @click="showClearDialog = false"
+          >
+            取消
+          </view>
+          <view
+            class="dialog-btn dialog-btn-confirm-danger"
+            @click="handleClearAll"
+          >
+            清空
+          </view>
         </view>
       </view>
     </view>

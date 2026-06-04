@@ -3,11 +3,28 @@
     <!-- 顶部导航 -->
     <view class="nav">
       <view class="nav-left">
-        <text class="nav-back" @click="goBack">←</text>
-        <text class="nav-title">消息</text>
-        <text v-if="totalUnread > 0" class="nav-badge">{{ totalUnread > 99 ? '99+' : totalUnread }}</text>
+        <text
+          class="nav-back"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="nav-title">
+          消息
+        </text>
+        <text
+          v-if="totalUnread > 0"
+          class="nav-badge"
+        >
+          {{ totalUnread > 99 ? '99+' : totalUnread }}
+        </text>
       </view>
-      <text class="nav-search-btn" @click="openSearch">🔍</text>
+      <text
+        class="nav-search-btn"
+        @click="openSearch"
+      >
+        🔍
+      </text>
     </view>
 
     <!-- 会话列表 -->
@@ -31,8 +48,16 @@
           @touchend="onTouchEnd($event, c)"
         >
           <!-- 左滑删除按钮 -->
-          <view class="swipe-delete" :class="{ show: swipeId === c.id }">
-            <view class="swipe-btn delete-btn" @click="confirmDelete(c)">🗑</view>
+          <view
+            class="swipe-delete"
+            :class="{ show: swipeId === c.id }"
+          >
+            <view
+              class="swipe-btn delete-btn"
+              @click="confirmDelete(c)"
+            >
+              🗑
+            </view>
           </view>
           <!-- 会话内容 -->
           <view
@@ -42,106 +67,245 @@
           >
             <!-- 头像 -->
             <view class="conv-avatar-wrap">
-              <image :src="c.avatar || ''" class="conv-avatar" mode="aspectFill" />
-              <text v-if="c.unread > 0 && !c.isMuted" class="badge-text">
+              <image
+                :src="c.avatar || ''"
+                class="conv-avatar"
+                mode="aspectFill"
+              />
+              <text
+                v-if="c.unread > 0 && !c.isMuted"
+                class="badge-text"
+              >
                 {{ c.unread > 99 ? '99+' : c.unread }}
               </text>
-              <view v-if="c.unread > 0 && c.isMuted" class="badge-dot" />
-              <view v-if="c.type === 'group'" class="type-icon">👥</view>
-              <view v-if="c.type === 'system'" class="type-icon">🔔</view>
-              <view v-if="c.type === 'service'" class="type-icon">🎧</view>
+              <view
+                v-if="c.unread > 0 && c.isMuted"
+                class="badge-dot"
+              />
+              <view
+                v-if="c.type === 'group'"
+                class="type-icon"
+              >
+                👥
+              </view>
+              <view
+                v-if="c.type === 'system'"
+                class="type-icon"
+              >
+                🔔
+              </view>
+              <view
+                v-if="c.type === 'service'"
+                class="type-icon"
+              >
+                🎧
+              </view>
             </view>
             <!-- 信息区 -->
             <view class="conv-info">
               <view class="conv-top">
                 <view class="conv-name-row">
-                  <text class="conv-name" :class="{ unread: c.unread > 0 }">{{ c.name }}</text>
-                  <text v-if="c.isPinned" class="icon-pin">📌</text>
-                  <text v-if="c.isMuted" class="icon-mute">🔕</text>
+                  <text
+                    class="conv-name"
+                    :class="{ unread: c.unread > 0 }"
+                  >
+                    {{ c.name }}
+                  </text>
+                  <text
+                    v-if="c.isPinned"
+                    class="icon-pin"
+                  >
+                    📌
+                  </text>
+                  <text
+                    v-if="c.isMuted"
+                    class="icon-mute"
+                  >
+                    🔕
+                  </text>
                 </view>
-                <text class="conv-time">{{ c.lastTime || '' }}</text>
+                <text class="conv-time">
+                  {{ c.lastTime || '' }}
+                </text>
               </view>
               <view class="conv-bottom">
-                <text v-if="c.draft" class="conv-draft">[草稿] {{ c.draft }}</text>
-                <text v-else class="conv-msg" :class="{ unread: c.unread > 0 }">{{ c.lastMsg || '' }}</text>
+                <text
+                  v-if="c.draft"
+                  class="conv-draft"
+                >
+                  [草稿] {{ c.draft }}
+                </text>
+                <text
+                  v-else
+                  class="conv-msg"
+                  :class="{ unread: c.unread > 0 }"
+                >
+                  {{ c.lastMsg || '' }}
+                </text>
               </view>
             </view>
             <!-- 更多按钮 -->
-            <text class="conv-more" @click.stop="openActions(c)">⋮</text>
+            <text
+              class="conv-more"
+              @click.stop="openActions(c)"
+            >
+              ⋮
+            </text>
           </view>
         </view>
       </view>
     </DataState>
 
     <!-- 搜索弹层 -->
-    <view v-if="showSearch" class="sheet-mask" @click="closeSearch">
-      <view class="sheet-content sheet-full" @click.stop>
+    <view
+      v-if="showSearch"
+      class="sheet-mask"
+      @click="closeSearch"
+    >
+      <view
+        class="sheet-content sheet-full"
+        @click.stop
+      >
         <view class="search-header">
           <view class="search-input-wrap">
-            <text class="search-icon">🔍</text>
+            <text class="search-icon">
+              🔍
+            </text>
             <input
               v-model="searchKeyword"
               class="search-input"
               placeholder="搜索好友或聊天记录"
               focus
-            />
-            <text v-if="searchKeyword" class="search-clear" @click="searchKeyword = ''">✕</text>
+            >
+            <text
+              v-if="searchKeyword"
+              class="search-clear"
+              @click="searchKeyword = ''"
+            >
+              ✕
+            </text>
           </view>
-          <text class="search-cancel" @click="closeSearch">取消</text>
+          <text
+            class="search-cancel"
+            @click="closeSearch"
+          >
+            取消
+          </text>
         </view>
         <!-- 搜索结果 -->
-        <view v-if="searching" class="search-status">搜索中...</view>
-        <view v-else-if="searchResults" class="search-results">
-          <view v-if="searchResults.friends?.length > 0" class="search-section">
-            <text class="search-section-title">好友</text>
+        <view
+          v-if="searching"
+          class="search-status"
+        >
+          搜索中...
+        </view>
+        <view
+          v-else-if="searchResults"
+          class="search-results"
+        >
+          <view
+            v-if="searchResults.friends?.length > 0"
+            class="search-section"
+          >
+            <text class="search-section-title">
+              好友
+            </text>
             <view
               v-for="f in searchResults.friends"
               :key="f.id"
               class="search-item"
               @click="searchToChat(f, 'private')"
             >
-              <image :src="f.avatar || ''" class="search-item-avatar" mode="aspectFill" />
+              <image
+                :src="f.avatar || ''"
+                class="search-item-avatar"
+                mode="aspectFill"
+              />
               <view class="search-item-info">
-                <text class="search-item-name">{{ f.remark || f.nickname }}</text>
-                <text v-if="f.signature" class="search-item-desc">{{ f.signature }}</text>
+                <text class="search-item-name">
+                  {{ f.remark || f.nickname }}
+                </text>
+                <text
+                  v-if="f.signature"
+                  class="search-item-desc"
+                >
+                  {{ f.signature }}
+                </text>
               </view>
             </view>
           </view>
-          <view v-if="searchResults.convs?.length > 0" class="search-section">
-            <text class="search-section-title">聊天记录</text>
+          <view
+            v-if="searchResults.convs?.length > 0"
+            class="search-section"
+          >
+            <text class="search-section-title">
+              聊天记录
+            </text>
             <view
               v-for="conv in searchResults.convs"
               :key="conv.id"
               class="search-item"
               @click="searchToChat(conv, conv.type)"
             >
-              <image :src="conv.avatar || ''" class="search-item-avatar" mode="aspectFill" />
+              <image
+                :src="conv.avatar || ''"
+                class="search-item-avatar"
+                mode="aspectFill"
+              />
               <view class="search-item-info">
-                <text class="search-item-name">{{ conv.name }}</text>
-                <text class="search-item-desc">{{ conv.lastMsg || '' }}</text>
+                <text class="search-item-name">
+                  {{ conv.name }}
+                </text>
+                <text class="search-item-desc">
+                  {{ conv.lastMsg || '' }}
+                </text>
               </view>
             </view>
           </view>
-          <view v-if="(!searchResults.friends || searchResults.friends.length === 0) && (!searchResults.convs || searchResults.convs.length === 0)" class="search-status">
+          <view
+            v-if="(!searchResults.friends || searchResults.friends.length === 0) && (!searchResults.convs || searchResults.convs.length === 0)"
+            class="search-status"
+          >
             未找到相关结果
           </view>
         </view>
-        <view v-else class="search-status">输入关键词搜索好友或聊天记录</view>
+        <view
+          v-else
+          class="search-status"
+        >
+          输入关键词搜索好友或聊天记录
+        </view>
       </view>
     </view>
 
     <!-- 操作菜单 -->
-    <view v-if="showActions" class="sheet-mask" @click="closeActions">
-      <view class="sheet-content sheet-bottom" @click.stop>
-        <view class="action-item" @click="togglePin">
+    <view
+      v-if="showActions"
+      class="sheet-mask"
+      @click="closeActions"
+    >
+      <view
+        class="sheet-content sheet-bottom"
+        @click.stop
+      >
+        <view
+          class="action-item"
+          @click="togglePin"
+        >
           <text>📌</text>
           <text>{{ activeConv?.isPinned ? '取消置顶' : '置顶聊天' }}</text>
         </view>
-        <view class="action-item" @click="toggleMute">
+        <view
+          class="action-item"
+          @click="toggleMute"
+        >
           <text>🔕</text>
           <text>{{ activeConv?.isMuted ? '取消免打扰' : '消息免打扰' }}</text>
         </view>
-        <view class="action-item action-danger" @click="confirmDelete(activeConv)">
+        <view
+          class="action-item action-danger"
+          @click="confirmDelete(activeConv)"
+        >
           <text>🗑</text>
           <text>删除会话</text>
         </view>
@@ -149,13 +313,34 @@
     </view>
 
     <!-- 删除确认弹窗 -->
-    <view v-if="showDeleteConfirm" class="dialog-mask" @click="showDeleteConfirm = false">
-      <view class="dialog-box" @click.stop>
-        <text class="dialog-title">删除会话</text>
-        <text class="dialog-desc">确定要删除与"{{ deleteTarget?.name }}"的会话吗？聊天记录将被清空且无法恢复。</text>
+    <view
+      v-if="showDeleteConfirm"
+      class="dialog-mask"
+      @click="showDeleteConfirm = false"
+    >
+      <view
+        class="dialog-box"
+        @click.stop
+      >
+        <text class="dialog-title">
+          删除会话
+        </text>
+        <text class="dialog-desc">
+          确定要删除与"{{ deleteTarget?.name }}"的会话吗？聊天记录将被清空且无法恢复。
+        </text>
         <view class="dialog-btns">
-          <text class="dialog-btn dialog-btn-cancel" @click="showDeleteConfirm = false">取消</text>
-          <text class="dialog-btn dialog-btn-danger" @click="handleDelete">删除</text>
+          <text
+            class="dialog-btn dialog-btn-cancel"
+            @click="showDeleteConfirm = false"
+          >
+            取消
+          </text>
+          <text
+            class="dialog-btn dialog-btn-danger"
+            @click="handleDelete"
+          >
+            删除
+          </text>
         </view>
       </view>
     </view>

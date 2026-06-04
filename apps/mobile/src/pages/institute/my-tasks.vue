@@ -3,49 +3,126 @@
     <!-- 头部 -->
     <view class="nav-header">
       <view class="nav-header-inner">
-        <text class="nav-back" @click="goBack">←</text>
-        <text class="nav-title">我的任务</text>
+        <text
+          class="nav-back"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="nav-title">
+          我的任务
+        </text>
       </view>
     </view>
 
     <!-- 奖励统计 -->
     <view class="reward-banner">
       <view class="reward-info">
-        <text class="reward-label">累计奖励</text>
-        <text class="reward-amount">{{ stats?.totalReward || 0 }} <text class="reward-unit">积分</text></text>
+        <text class="reward-label">
+          累计奖励
+        </text>
+        <text class="reward-amount">
+          {{ stats?.totalReward || 0 }} <text class="reward-unit">
+            积分
+          </text>
+        </text>
       </view>
-      <text class="reward-icon">🪙</text>
+      <text class="reward-icon">
+        🪙
+      </text>
     </view>
 
     <!-- Tabs -->
     <view class="tabs-bar">
-      <view v-for="tab in tabs" :key="tab.key" class="tab" :class="{ 'tab-active': activeTab === tab.key }" @click="switchTab(tab.key)">
+      <view
+        v-for="tab in tabs"
+        :key="tab.key"
+        class="tab"
+        :class="{ 'tab-active': activeTab === tab.key }"
+        @click="switchTab(tab.key)"
+      >
         <text>{{ tab.label }}</text>
-        <text v-if="tab.count !== undefined && tab.count > 0" class="tab-badge" :class="{ 'tab-badge-active': activeTab === tab.key }">{{ tab.count }}</text>
-        <view v-if="activeTab === tab.key" class="tab-indicator" />
+        <text
+          v-if="tab.count !== undefined && tab.count > 0"
+          class="tab-badge"
+          :class="{ 'tab-badge-active': activeTab === tab.key }"
+        >
+          {{ tab.count }}
+        </text>
+        <view
+          v-if="activeTab === tab.key"
+          class="tab-indicator"
+        />
       </view>
     </view>
 
     <!-- 任务列表 -->
-    <DataState :is-loading="loading" :error="loadError" :is-empty="!loading && tasks.length === 0" empty-icon="📄" :empty-title="emptyTitle" :empty-show-action="false" @retry="loadData">
+    <DataState
+      :is-loading="loading"
+      :error="loadError"
+      :is-empty="!loading && tasks.length === 0"
+      empty-icon="📄"
+      :empty-title="emptyTitle"
+      :empty-show-action="false"
+      @retry="loadData"
+    >
       <view class="task-list">
-        <view v-for="task in tasks" :key="task.id" class="task-card">
+        <view
+          v-for="task in tasks"
+          :key="task.id"
+          class="task-card"
+        >
           <view class="task-body">
             <view class="task-header">
-              <view class="task-type-wrap" :style="{ backgroundColor: getTaskTypeColor(task.type) + '20' }">
-                <text class="task-type-icon">{{ taskTypeIcon(task.type) }}</text>
-                <text class="task-type-label" :style="{ color: getTaskTypeColor(task.type) }">{{ getTaskTypeLabel(task.type) }}</text>
+              <view
+                class="task-type-wrap"
+                :style="{ backgroundColor: getTaskTypeColor(task.type) + '20' }"
+              >
+                <text class="task-type-icon">
+                  {{ taskTypeIcon(task.type) }}
+                </text>
+                <text
+                  class="task-type-label"
+                  :style="{ color: getTaskTypeColor(task.type) }"
+                >
+                  {{ getTaskTypeLabel(task.type) }}
+                </text>
               </view>
-              <text class="task-status-tag" :style="{ backgroundColor: getTaskStatusColor(task.status), color: '#fff' }">{{ getTaskStatusLabel(task.status) }}</text>
+              <text
+                class="task-status-tag"
+                :style="{ backgroundColor: getTaskStatusColor(task.status), color: '#fff' }"
+              >
+                {{ getTaskStatusLabel(task.status) }}
+              </text>
             </view>
-            <text class="task-title">{{ task.title }}</text>
-            <text class="task-desc">{{ task.description }}</text>
+            <text class="task-title">
+              {{ task.title }}
+            </text>
+            <text class="task-desc">
+              {{ task.description }}
+            </text>
 
             <!-- 任务要求 -->
-            <view v-if="task.requirements?.length" class="task-reqs">
-              <text class="reqs-label">任务要求：</text>
-              <text v-for="(req, i) in task.requirements.slice(0, 3)" :key="i" class="req-tag">{{ req }}</text>
-              <text v-if="task.requirements.length > 3" class="req-more">+{{ task.requirements.length - 3 }}</text>
+            <view
+              v-if="task.requirements?.length"
+              class="task-reqs"
+            >
+              <text class="reqs-label">
+                任务要求：
+              </text>
+              <text
+                v-for="(req, i) in task.requirements.slice(0, 3)"
+                :key="i"
+                class="req-tag"
+              >
+                {{ req }}
+              </text>
+              <text
+                v-if="task.requirements.length > 3"
+                class="req-more"
+              >
+                +{{ task.requirements.length - 3 }}
+              </text>
             </view>
 
             <!-- 信息行 -->
@@ -53,32 +130,78 @@
               <text :class="getDaysLeftClass(task.deadline)">
                 🕐 {{ getDaysLeft(task.deadline) }}
               </text>
-              <text class="task-reward">🎁 {{ task.reward.points }}积分</text>
-              <text v-if="task.reward.bonus" class="task-bonus">+¥{{ task.reward.bonus }}</text>
+              <text class="task-reward">
+                🎁 {{ task.reward.points }}积分
+              </text>
+              <text
+                v-if="task.reward.bonus"
+                class="task-bonus"
+              >
+                +¥{{ task.reward.bonus }}
+              </text>
             </view>
 
             <!-- 已提交内容 -->
-            <view v-if="task.submission" class="task-submission">
-              <text class="sub-label">已提交内容：</text>
-              <text class="sub-content">{{ task.submission.content }}</text>
-              <text class="sub-time">提交于 {{ task.submission.submittedAt }}</text>
+            <view
+              v-if="task.submission"
+              class="task-submission"
+            >
+              <text class="sub-label">
+                已提交内容：
+              </text>
+              <text class="sub-content">
+                {{ task.submission.content }}
+              </text>
+              <text class="sub-time">
+                提交于 {{ task.submission.submittedAt }}
+              </text>
             </view>
           </view>
 
           <!-- 操作按钮 -->
           <view class="task-actions">
-            <view v-if="task.status === 'available'" class="btn btn-primary flex-1" @click="handleAcceptTask(task)">领取任务</view>
-            <template v-if="task.status === 'in_progress'">
-              <view class="btn btn-outline flex-1" @click="handleOpenAbandon(task)">放弃任务</view>
-              <view class="btn btn-primary flex-1" @click="handleOpenSubmit(task)">提交成果</view>
-            </template>
-            <view v-if="task.status === 'submitted'" class="task-status-row">
-              <text class="warning-text">⚠</text>
-              <text class="warning-label">等待审核中</text>
+            <view
+              v-if="task.status === 'available'"
+              class="btn btn-primary flex-1"
+              @click="handleAcceptTask(task)"
+            >
+              领取任务
             </view>
-            <view v-if="task.status === 'completed'" class="task-status-row">
-              <text class="success-text">✓</text>
-              <text class="success-label">已完成，奖励已发放</text>
+            <template v-if="task.status === 'in_progress'">
+              <view
+                class="btn btn-outline flex-1"
+                @click="handleOpenAbandon(task)"
+              >
+                放弃任务
+              </view>
+              <view
+                class="btn btn-primary flex-1"
+                @click="handleOpenSubmit(task)"
+              >
+                提交成果
+              </view>
+            </template>
+            <view
+              v-if="task.status === 'submitted'"
+              class="task-status-row"
+            >
+              <text class="warning-text">
+                ⚠
+              </text>
+              <text class="warning-label">
+                等待审核中
+              </text>
+            </view>
+            <view
+              v-if="task.status === 'completed'"
+              class="task-status-row"
+            >
+              <text class="success-text">
+                ✓
+              </text>
+              <text class="success-label">
+                已完成，奖励已发放
+              </text>
             </view>
           </view>
         </view>
@@ -86,29 +209,65 @@
     </DataState>
 
     <!-- 提交任务弹窗 -->
-    <view v-if="submitModalOpen && selectedTask" class="modal-mask" @click="closeSubmitModal">
-      <view class="modal-sheet" @click.stop>
+    <view
+      v-if="submitModalOpen && selectedTask"
+      class="modal-mask"
+      @click="closeSubmitModal"
+    >
+      <view
+        class="modal-sheet"
+        @click.stop
+      >
         <view class="modal-header">
-          <text class="modal-title">提交任务成果</text>
-          <text class="modal-close" @click="closeSubmitModal">✕</text>
+          <text class="modal-title">
+            提交任务成果
+          </text>
+          <text
+            class="modal-close"
+            @click="closeSubmitModal"
+          >
+            ✕
+          </text>
         </view>
         <view class="modal-body">
           <view class="modal-info">
-            <text class="info-label">任务</text>
-            <text class="info-value">{{ selectedTask.title }}</text>
+            <text class="info-label">
+              任务
+            </text>
+            <text class="info-value">
+              {{ selectedTask.title }}
+            </text>
           </view>
           <view class="form-group">
-            <text class="form-label">成果描述 <text class="required">*</text></text>
-            <textarea v-model="submitContent" class="form-textarea" placeholder="请描述您的任务完成情况和成果..." />
+            <text class="form-label">
+              成果描述 <text class="required">
+                *
+              </text>
+            </text>
+            <textarea
+              v-model="submitContent"
+              class="form-textarea"
+              placeholder="请描述您的任务完成情况和成果..."
+            />
           </view>
           <view class="form-group">
-            <text class="form-label">附件（可选）</text>
+            <text class="form-label">
+              附件（可选）
+            </text>
             <view class="upload-area">
-              <text class="upload-icon">⬆️</text>
-              <text class="upload-text">点击上传附件</text>
+              <text class="upload-icon">
+                ⬆️
+              </text>
+              <text class="upload-text">
+                点击上传附件
+              </text>
             </view>
           </view>
-          <view class="btn btn-primary btn-block" :class="{ 'btn-disabled': !submitContent.trim() || submitting }" @click="handleSubmitTask">
+          <view
+            class="btn btn-primary btn-block"
+            :class="{ 'btn-disabled': !submitContent.trim() || submitting }"
+            @click="handleSubmitTask"
+          >
             {{ submitting ? '提交中...' : '确认提交' }}
           </view>
         </view>
@@ -116,17 +275,44 @@
     </view>
 
     <!-- 放弃任务弹窗 -->
-    <view v-if="abandonModalOpen && selectedTask" class="modal-mask" @click="closeAbandonModal">
-      <view class="modal-dialog" @click.stop>
-        <text class="dialog-title">确认放弃任务</text>
-        <text class="dialog-desc">放弃后任务将重新进入可领取状态，确定要放弃吗？</text>
+    <view
+      v-if="abandonModalOpen && selectedTask"
+      class="modal-mask"
+      @click="closeAbandonModal"
+    >
+      <view
+        class="modal-dialog"
+        @click.stop
+      >
+        <text class="dialog-title">
+          确认放弃任务
+        </text>
+        <text class="dialog-desc">
+          放弃后任务将重新进入可领取状态，确定要放弃吗？
+        </text>
         <view class="form-group">
-          <text class="form-label">放弃原因（可选）</text>
-          <textarea v-model="abandonReason" class="form-textarea" placeholder="请输入放弃原因..." />
+          <text class="form-label">
+            放弃原因（可选）
+          </text>
+          <textarea
+            v-model="abandonReason"
+            class="form-textarea"
+            placeholder="请输入放弃原因..."
+          />
         </view>
         <view class="dialog-actions">
-          <view class="btn btn-outline flex-1" @click="closeAbandonModal">取消</view>
-          <view class="btn btn-danger flex-1" @click="handleAbandonTask">确认放弃</view>
+          <view
+            class="btn btn-outline flex-1"
+            @click="closeAbandonModal"
+          >
+            取消
+          </view>
+          <view
+            class="btn btn-danger flex-1"
+            @click="handleAbandonTask"
+          >
+            确认放弃
+          </view>
         </view>
       </view>
     </view>

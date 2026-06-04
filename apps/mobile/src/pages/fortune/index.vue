@@ -1,87 +1,172 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="title">每日运势</text>
+      <text class="title">
+        每日运势
+      </text>
     </view>
 
     <!-- Tab 切换 -->
     <view class="tab-bar">
-      <view v-for="t in tabs" :key="t.value" :class="['tab-item', { active: activeTab === t.value }]" @click="switchTab(t.value)">
+      <view
+        v-for="t in tabs"
+        :key="t.value"
+        :class="['tab-item', { active: activeTab === t.value }]"
+        @click="switchTab(t.value)"
+      >
         <text>{{ t.label }}</text>
       </view>
     </view>
 
-    <LoadingSkeleton v-if="loading" type="detail" />
+    <LoadingSkeleton
+      v-if="loading"
+      type="detail"
+    />
 
     <template v-if="!loading && fortune">
       <!-- 运势总览卡片 -->
       <view class="fortune-card">
         <view class="score-circle">
-          <text class="score-value">{{ fortune.overallScore }}</text>
-          <text class="score-label">综合评分</text>
+          <text class="score-value">
+            {{ fortune.overallScore }}
+          </text>
+          <text class="score-label">
+            综合评分
+          </text>
         </view>
         <view class="score-detail">
           <view class="score-item">
-            <text class="si-label">事业</text>
-            <view class="si-bar"><view class="si-fill" :style="{ width: fortune.careerScore + '%' }" /></view>
-            <text class="si-value">{{ fortune.careerScore }}</text>
+            <text class="si-label">
+              事业
+            </text>
+            <view class="si-bar">
+              <view
+                class="si-fill"
+                :style="{ width: fortune.careerScore + '%' }"
+              />
+            </view>
+            <text class="si-value">
+              {{ fortune.careerScore }}
+            </text>
           </view>
           <view class="score-item">
-            <text class="si-label">爱情</text>
-            <view class="si-bar"><view class="si-fill love" :style="{ width: fortune.loveScore + '%' }" /></view>
-            <text class="si-value">{{ fortune.loveScore }}</text>
+            <text class="si-label">
+              爱情
+            </text>
+            <view class="si-bar">
+              <view
+                class="si-fill love"
+                :style="{ width: fortune.loveScore + '%' }"
+              />
+            </view>
+            <text class="si-value">
+              {{ fortune.loveScore }}
+            </text>
           </view>
           <view class="score-item">
-            <text class="si-label">财运</text>
-            <view class="si-bar"><view class="si-fill wealth" :style="{ width: fortune.wealthScore + '%' }" /></view>
-            <text class="si-value">{{ fortune.wealthScore }}</text>
+            <text class="si-label">
+              财运
+            </text>
+            <view class="si-bar">
+              <view
+                class="si-fill wealth"
+                :style="{ width: fortune.wealthScore + '%' }"
+              />
+            </view>
+            <text class="si-value">
+              {{ fortune.wealthScore }}
+            </text>
           </view>
           <view class="score-item">
-            <text class="si-label">健康</text>
-            <view class="si-bar"><view class="si-fill health" :style="{ width: fortune.healthScore + '%' }" /></view>
-            <text class="si-value">{{ fortune.healthScore }}</text>
+            <text class="si-label">
+              健康
+            </text>
+            <view class="si-bar">
+              <view
+                class="si-fill health"
+                :style="{ width: fortune.healthScore + '%' }"
+              />
+            </view>
+            <text class="si-value">
+              {{ fortune.healthScore }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 幸运信息 -->
       <view class="luck-card">
-        <text class="section-title">今日幸运</text>
+        <text class="section-title">
+          今日幸运
+        </text>
         <view class="luck-grid">
           <view class="luck-item">
-            <text class="luck-icon">🧭</text>
-            <text class="luck-label">幸运方向</text>
-            <text class="luck-value">{{ fortune.luckyDirection || '--' }}</text>
+            <text class="luck-icon">
+              🧭
+            </text>
+            <text class="luck-label">
+              幸运方向
+            </text>
+            <text class="luck-value">
+              {{ fortune.luckyDirection || '--' }}
+            </text>
           </view>
           <view class="luck-item">
-            <text class="luck-icon">🎨</text>
-            <text class="luck-label">幸运颜色</text>
-            <text class="luck-value">{{ fortune.luckyColor || '--' }}</text>
+            <text class="luck-icon">
+              🎨
+            </text>
+            <text class="luck-label">
+              幸运颜色
+            </text>
+            <text class="luck-value">
+              {{ fortune.luckyColor || '--' }}
+            </text>
           </view>
           <view class="luck-item">
-            <text class="luck-icon">🔢</text>
-            <text class="luck-label">幸运数字</text>
-            <text class="luck-value">{{ fortune.luckyNumber || '--' }}</text>
+            <text class="luck-icon">
+              🔢
+            </text>
+            <text class="luck-label">
+              幸运数字
+            </text>
+            <text class="luck-value">
+              {{ fortune.luckyNumber || '--' }}
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 运势解读 -->
       <view class="advice-card">
-        <text class="section-title">运势解读</text>
-        <text class="advice-text">{{ fortune.advice || '暂无解读' }}</text>
+        <text class="section-title">
+          运势解读
+        </text>
+        <text class="advice-text">
+          {{ fortune.advice || '暂无解读' }}
+        </text>
       </view>
 
       <!-- 订阅推送 -->
       <view class="subscribe-section">
-        <button class="subscribe-btn" @click="goSubscribe">
-          <text class="sub-icon">🔔</text>
-          <text class="sub-text">订阅运势推送</text>
+        <button
+          class="subscribe-btn"
+          @click="goSubscribe"
+        >
+          <text class="sub-icon">
+            🔔
+          </text>
+          <text class="sub-text">
+            订阅运势推送
+          </text>
         </button>
       </view>
     </template>
 
-    <EmptyState v-else-if="!loading && !fortune" icon="⭐" text="暂无运势数据" />
+    <EmptyState
+      v-else-if="!loading && !fortune"
+      icon="⭐"
+      text="暂无运势数据"
+    />
   </view>
 </template>
 

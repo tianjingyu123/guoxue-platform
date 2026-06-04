@@ -2,19 +2,48 @@
   <view class="page">
     <LoadingSkeleton v-if="loading" />
     <view v-else>
-      <view class="coupon-card" :class="{ expired: coupon.expired }">
+      <view
+        class="coupon-card"
+        :class="{ expired: coupon.expired }"
+      >
         <view class="coupon-left">
-          <text class="coupon-amount">¥{{ coupon.amount || coupon.value }}</text>
-          <text class="coupon-cond">{{ coupon.minAmount ? '满' + coupon.minAmount + '可用' : '无门槛' }}</text>
+          <text class="coupon-amount">
+            ¥{{ coupon.amount || coupon.value }}
+          </text>
+          <text class="coupon-cond">
+            {{ coupon.minAmount ? '满' + coupon.minAmount + '可用' : '无门槛' }}
+          </text>
         </view>
         <view class="coupon-right">
-          <text class="coupon-name">{{ coupon.name || '优惠券' }}</text>
-          <text class="coupon-date">有效期至 {{ coupon.expireAt?.slice(0, 10) || coupon.endTime?.slice(0, 10) }}</text>
-          <text class="coupon-scope">{{ coupon.scope || '全部商品可用' }}</text>
+          <text class="coupon-name">
+            {{ coupon.name || '优惠券' }}
+          </text>
+          <text class="coupon-date">
+            有效期至 {{ coupon.expireAt?.slice(0, 10) || coupon.endTime?.slice(0, 10) }}
+          </text>
+          <text class="coupon-scope">
+            {{ coupon.scope || '全部商品可用' }}
+          </text>
         </view>
-        <button v-if="!coupon.claimed && !coupon.expired" class="btn-claim" @click="claim">立即领取</button>
-        <text v-else-if="coupon.claimed" class="tag-claimed">已领取</text>
-        <text v-else class="tag-expired">已过期</text>
+        <button
+          v-if="!coupon.claimed && !coupon.expired"
+          class="btn-claim"
+          @click="claim"
+        >
+          立即领取
+        </button>
+        <text
+          v-else-if="coupon.claimed"
+          class="tag-claimed"
+        >
+          已领取
+        </text>
+        <text
+          v-else
+          class="tag-expired"
+        >
+          已过期
+        </text>
       </view>
     </view>
   </view>

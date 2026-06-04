@@ -1,7 +1,10 @@
 <template>
   <view class="page">
     <!-- ==================== 加载状态 ==================== -->
-    <LoadingSkeleton v-if="loading && !profile" type="detail" />
+    <LoadingSkeleton
+      v-if="loading && !profile"
+      type="detail"
+    />
 
     <!-- ==================== 内容区 ==================== -->
     <template v-else-if="profile">
@@ -12,20 +15,39 @@
           :src="profile.avatar || '/static/default-avatar.png'"
           mode="aspectFill"
         />
-        <text class="nickname">{{ profile.nickname || '国学爱好者' }}</text>
-        <text v-if="profile.signature" class="bio">{{ profile.signature }}</text>
+        <text class="nickname">
+          {{ profile.nickname || '国学爱好者' }}
+        </text>
+        <text
+          v-if="profile.signature"
+          class="bio"
+        >
+          {{ profile.signature }}
+        </text>
         <view class="stats-row">
           <view class="stat-item">
-            <text class="stat-num">{{ profile.followingCount ?? 0 }}</text>
-            <text class="stat-label">关注</text>
+            <text class="stat-num">
+              {{ profile.followingCount ?? 0 }}
+            </text>
+            <text class="stat-label">
+              关注
+            </text>
           </view>
           <view class="stat-item">
-            <text class="stat-num">{{ profile.followerCount ?? 0 }}</text>
-            <text class="stat-label">粉丝</text>
+            <text class="stat-num">
+              {{ profile.followerCount ?? 0 }}
+            </text>
+            <text class="stat-label">
+              粉丝
+            </text>
           </view>
           <view class="stat-item">
-            <text class="stat-num">{{ profile.likeCount ?? 0 }}</text>
-            <text class="stat-label">获赞</text>
+            <text class="stat-num">
+              {{ profile.likeCount ?? 0 }}
+            </text>
+            <text class="stat-label">
+              获赞
+            </text>
           </view>
         </view>
         <!-- 关注/取消关注按钮 -->
@@ -56,9 +78,19 @@
       <view class="content-area">
         <!-- ====== 动态列表 ====== -->
         <template v-if="currentTab === 'posts'">
-          <LoadingSkeleton v-if="loadingPosts && posts.length === 0" type="list" />
-          <view v-else-if="posts.length > 0" class="post-list">
-            <view v-for="post in posts" :key="post.id" class="post-card">
+          <LoadingSkeleton
+            v-if="loadingPosts && posts.length === 0"
+            type="list"
+          />
+          <view
+            v-else-if="posts.length > 0"
+            class="post-list"
+          >
+            <view
+              v-for="post in posts"
+              :key="post.id"
+              class="post-card"
+            >
               <view class="post-header">
                 <view class="post-user-info">
                   <image
@@ -68,17 +100,36 @@
                     mode="aspectFill"
                   />
                   <view class="post-user-meta">
-                    <text class="post-user">{{ post.author?.nickname || '匿名' }}</text>
-                    <text class="post-time">{{ formatTime(post.createdAt) }}</text>
+                    <text class="post-user">
+                      {{ post.author?.nickname || '匿名' }}
+                    </text>
+                    <text class="post-time">
+                      {{ formatTime(post.createdAt) }}
+                    </text>
                   </view>
                 </view>
                 <view class="post-badges">
-                  <text v-if="post.isEssence" class="badge essence">精华</text>
+                  <text
+                    v-if="post.isEssence"
+                    class="badge essence"
+                  >
+                    精华
+                  </text>
                 </view>
               </view>
-              <text v-if="post.title" class="post-title">{{ post.title }}</text>
-              <text class="post-body">{{ post.content }}</text>
-              <view v-if="post.images?.length" class="post-images">
+              <text
+                v-if="post.title"
+                class="post-title"
+              >
+                {{ post.title }}
+              </text>
+              <text class="post-body">
+                {{ post.content }}
+              </text>
+              <view
+                v-if="post.images?.length"
+                class="post-images"
+              >
                 <image
                   v-for="(img, idx) in post.images"
                   :key="idx"
@@ -91,22 +142,36 @@
               <view class="post-footer">
                 <view class="footer-item">
                   <text>❤️</text>
-                  <text class="footer-count">{{ post.likeCount || 0 }}</text>
+                  <text class="footer-count">
+                    {{ post.likeCount || 0 }}
+                  </text>
                 </view>
                 <view class="footer-item">
                   <text>💬</text>
-                  <text class="footer-count">{{ post.commentCount || 0 }}</text>
+                  <text class="footer-count">
+                    {{ post.commentCount || 0 }}
+                  </text>
                 </view>
               </view>
             </view>
           </view>
-          <EmptyState v-else icon="📝" text="暂无动态" />
+          <EmptyState
+            v-else
+            icon="📝"
+            text="暂无动态"
+          />
         </template>
 
         <!-- ====== 文章列表 ====== -->
         <template v-if="currentTab === 'articles'">
-          <LoadingSkeleton v-if="loadingArticles && articles.length === 0" type="list" />
-          <view v-else-if="articles.length > 0" class="article-list">
+          <LoadingSkeleton
+            v-if="loadingArticles && articles.length === 0"
+            type="list"
+          />
+          <view
+            v-else-if="articles.length > 0"
+            class="article-list"
+          >
             <view
               v-for="article in articles"
               :key="article.id"
@@ -120,29 +185,64 @@
                 mode="aspectFill"
               />
               <view class="article-info">
-                <text class="article-title">{{ article.title }}</text>
-                <text class="article-summary">{{ article.summary || article.content?.slice(0, 80) || '' }}</text>
+                <text class="article-title">
+                  {{ article.title }}
+                </text>
+                <text class="article-summary">
+                  {{ article.summary || article.content?.slice(0, 80) || '' }}
+                </text>
                 <view class="article-meta">
-                  <text class="meta-item">❤️ {{ article.likeCount ?? 0 }}</text>
-                  <text class="meta-item">💬 {{ article.commentCount ?? 0 }}</text>
-                  <text class="meta-item time">{{ formatTime(article.createdAt) }}</text>
+                  <text class="meta-item">
+                    ❤️ {{ article.likeCount ?? 0 }}
+                  </text>
+                  <text class="meta-item">
+                    💬 {{ article.commentCount ?? 0 }}
+                  </text>
+                  <text class="meta-item time">
+                    {{ formatTime(article.createdAt) }}
+                  </text>
                 </view>
               </view>
             </view>
           </view>
-          <EmptyState v-else icon="📖" text="暂无文章" />
+          <EmptyState
+            v-else
+            icon="📖"
+            text="暂无文章"
+          />
         </template>
 
         <!-- 加载更多 -->
-        <view v-if="loadingMore" class="load-more">加载中...</view>
-        <view v-if="!hasMore && currentListLength > 0" class="no-more">— 已全部加载 —</view>
+        <view
+          v-if="loadingMore"
+          class="load-more"
+        >
+          加载中...
+        </view>
+        <view
+          v-if="!hasMore && currentListLength > 0"
+          class="no-more"
+        >
+          — 已全部加载 —
+        </view>
       </view>
     </template>
 
     <!-- ==================== 异常状态 ==================== -->
-    <view v-if="!loading && !profile" class="error-state">
-      <EmptyState icon="⚠️" text="用户不存在或加载失败" />
-      <button class="retry-btn" @click="initData">重新加载</button>
+    <view
+      v-if="!loading && !profile"
+      class="error-state"
+    >
+      <EmptyState
+        icon="⚠️"
+        text="用户不存在或加载失败"
+      />
+      <button
+        class="retry-btn"
+        @click="initData"
+      >
+        重新加载
+      </button>
     </view>
   </view>
 </template>

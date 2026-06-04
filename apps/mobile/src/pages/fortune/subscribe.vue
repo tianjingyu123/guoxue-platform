@@ -1,38 +1,78 @@
 <template>
   <view class="page">
     <view class="header">
-      <text class="title">订阅设置</text>
+      <text class="title">
+        订阅设置
+      </text>
     </view>
 
     <view class="form-card">
       <view class="form-item">
-        <text class="form-label">推送频率</text>
+        <text class="form-label">
+          推送频率
+        </text>
         <view class="toggle-group">
-          <view v-for="freq in frequencies" :key="freq.value" class="toggle-row">
-            <text class="toggle-label">{{ freq.label }}</text>
-            <switch :checked="subscriptions.includes(freq.value)" @change="toggleSubscription(freq.value)" color="#C41E3A" />
+          <view
+            v-for="freq in frequencies"
+            :key="freq.value"
+            class="toggle-row"
+          >
+            <text class="toggle-label">
+              {{ freq.label }}
+            </text>
+            <switch
+              :checked="subscriptions.includes(freq.value)"
+              color="#C41E3A"
+              @change="toggleSubscription(freq.value)"
+            />
           </view>
         </view>
       </view>
 
       <view class="form-item">
-        <text class="form-label">推送渠道</text>
+        <text class="form-label">
+          推送渠道
+        </text>
         <view class="channel-group">
-          <view v-for="ch in channels" :key="ch.value" class="toggle-row">
-            <text class="toggle-label">{{ ch.label }}</text>
-            <switch :checked="selectedChannels.includes(ch.value)" @change="toggleChannel(ch.value)" color="#C41E3A" />
+          <view
+            v-for="ch in channels"
+            :key="ch.value"
+            class="toggle-row"
+          >
+            <text class="toggle-label">
+              {{ ch.label }}
+            </text>
+            <switch
+              :checked="selectedChannels.includes(ch.value)"
+              color="#C41E3A"
+              @change="toggleChannel(ch.value)"
+            />
           </view>
         </view>
       </view>
 
       <view class="form-item">
-        <text class="form-label">推送时间</text>
-        <picker mode="time" :value="pushTime" @change="onTimeChange">
-          <text class="picker-text">{{ pushTime || '选择推送时间' }}</text>
+        <text class="form-label">
+          推送时间
+        </text>
+        <picker
+          mode="time"
+          :value="pushTime"
+          @change="onTimeChange"
+        >
+          <text class="picker-text">
+            {{ pushTime || '选择推送时间' }}
+          </text>
         </picker>
       </view>
 
-      <button class="save-btn" @click="saveSettings" :loading="saving">保存设置</button>
+      <button
+        class="save-btn"
+        :loading="saving"
+        @click="saveSettings"
+      >
+        保存设置
+      </button>
     </view>
   </view>
 </template>

@@ -3,9 +3,20 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">我的评论</text>
-        <text v-if="comments.length > 0" class="header-action" @click="toggleEditMode">
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          我的评论
+        </text>
+        <text
+          v-if="comments.length > 0"
+          class="header-action"
+          @click="toggleEditMode"
+        >
           {{ isEditMode ? '完成' : '管理' }}
         </text>
       </view>
@@ -22,47 +33,111 @@
         @retry="loadData"
       >
         <view class="comments-list">
-          <view v-for="comment in comments" :key="comment.id" class="comment-card-wrap">
+          <view
+            v-for="comment in comments"
+            :key="comment.id"
+            class="comment-card-wrap"
+          >
             <!-- 编辑模式选择框 -->
-            <view v-if="isEditMode" class="checkbox" :class="{ checked: selectedIds.includes(comment.id) }" @click="toggleSelect(comment.id)">
-              <text v-if="selectedIds.includes(comment.id)" class="checkbox-mark">✓</text>
+            <view
+              v-if="isEditMode"
+              class="checkbox"
+              :class="{ checked: selectedIds.includes(comment.id) }"
+              @click="toggleSelect(comment.id)"
+            >
+              <text
+                v-if="selectedIds.includes(comment.id)"
+                class="checkbox-mark"
+              >
+                ✓
+              </text>
             </view>
 
-            <view class="comment-card" :class="{ swiped: !isEditMode && swipedId === comment.id }">
+            <view
+              class="comment-card"
+              :class="{ swiped: !isEditMode && swipedId === comment.id }"
+            >
               <!-- 主卡片 -->
-              <view class="comment-main" @click="!isEditMode && toggleSwipe(comment.id)">
-                <text class="comment-content">{{ comment.content }}</text>
+              <view
+                class="comment-main"
+                @click="!isEditMode && toggleSwipe(comment.id)"
+              >
+                <text class="comment-content">
+                  {{ comment.content }}
+                </text>
 
                 <!-- 目标内容 -->
-                <view class="comment-target" @click.stop="goTarget(comment)">
+                <view
+                  class="comment-target"
+                  @click.stop="goTarget(comment)"
+                >
                   <view class="target-thumb">
-                    <image v-if="comment.target?.cover" :src="comment.target.cover" class="target-thumb-img" mode="aspectFill" />
-                    <view v-else class="target-thumb-placeholder" :class="'ttp-' + comment.target?.type">
-                      <text class="target-thumb-icon">{{ targetIcon(comment.target?.type) }}</text>
+                    <image
+                      v-if="comment.target?.cover"
+                      :src="comment.target.cover"
+                      class="target-thumb-img"
+                      mode="aspectFill"
+                    />
+                    <view
+                      v-else
+                      class="target-thumb-placeholder"
+                      :class="'ttp-' + comment.target?.type"
+                    >
+                      <text class="target-thumb-icon">
+                        {{ targetIcon(comment.target?.type) }}
+                      </text>
                     </view>
                   </view>
                   <view class="target-info">
-                    <view class="target-type-tag" :class="'ttt-' + comment.target?.type">{{ targetName(comment.target?.type) }}</view>
-                    <text class="target-title">{{ comment.target?.title }}</text>
+                    <view
+                      class="target-type-tag"
+                      :class="'ttt-' + comment.target?.type"
+                    >
+                      {{ targetName(comment.target?.type) }}
+                    </view>
+                    <text class="target-title">
+                      {{ comment.target?.title }}
+                    </text>
                   </view>
-                  <text class="target-arrow">→</text>
+                  <text class="target-arrow">
+                    →
+                  </text>
                 </view>
 
                 <!-- 底部信息 -->
                 <view class="comment-footer">
-                  <text class="comment-time">{{ comment.createdAt }}</text>
+                  <text class="comment-time">
+                    {{ comment.createdAt }}
+                  </text>
                   <view class="comment-stats">
-                    <text class="comment-stat">❤ {{ comment.likeCount }}</text>
-                    <text class="comment-stat">💬 {{ comment.replyCount }}</text>
-                    <text v-if="comment.hasReply" class="comment-has-reply">有回复</text>
+                    <text class="comment-stat">
+                      ❤ {{ comment.likeCount }}
+                    </text>
+                    <text class="comment-stat">
+                      💬 {{ comment.replyCount }}
+                    </text>
+                    <text
+                      v-if="comment.hasReply"
+                      class="comment-has-reply"
+                    >
+                      有回复
+                    </text>
                   </view>
                 </view>
               </view>
 
               <!-- 左滑删除 -->
-              <view v-if="!isEditMode" class="swipe-delete" @click="handleDeleteOne(comment.id)">
-                <text class="swipe-delete-icon">🗑</text>
-                <text class="swipe-delete-text">删除</text>
+              <view
+                v-if="!isEditMode"
+                class="swipe-delete"
+                @click="handleDeleteOne(comment.id)"
+              >
+                <text class="swipe-delete-icon">
+                  🗑
+                </text>
+                <text class="swipe-delete-text">
+                  删除
+                </text>
               </view>
             </view>
           </view>
@@ -71,9 +146,20 @@
     </view>
 
     <!-- 底部操作栏（编辑模式） -->
-    <view v-if="isEditMode && selectedIds.length > 0" class="bottom-bar edit-bar">
-      <text class="select-all" @click="selectAll">全选</text>
-      <view class="btn-batch-delete" @click="handleBatchDelete">
+    <view
+      v-if="isEditMode && selectedIds.length > 0"
+      class="bottom-bar edit-bar"
+    >
+      <text
+        class="select-all"
+        @click="selectAll"
+      >
+        全选
+      </text>
+      <view
+        class="btn-batch-delete"
+        @click="handleBatchDelete"
+      >
         🗑 删除（{{ selectedIds.length }}）
       </view>
     </view>

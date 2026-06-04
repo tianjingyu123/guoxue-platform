@@ -4,35 +4,77 @@
     <view class="header">
       <view class="header-inner">
         <view class="header-left">
-          <text class="back-btn" @click="goBack">←</text>
-          <text class="header-title">下载管理</text>
+          <text
+            class="back-btn"
+            @click="goBack"
+          >
+            ←
+          </text>
+          <text class="header-title">
+            下载管理
+          </text>
         </view>
-        <text v-if="completedCount > 0" class="header-clear" @click="showClearDialog = true">清除已完成</text>
+        <text
+          v-if="completedCount > 0"
+          class="header-clear"
+          @click="showClearDialog = true"
+        >
+          清除已完成
+        </text>
       </view>
 
       <!-- 存储空间 -->
       <view class="storage-card">
         <view class="storage-top">
           <view class="storage-label">
-            <text class="storage-icon">💾</text>
-            <text class="storage-text">存储空间</text>
+            <text class="storage-icon">
+              💾
+            </text>
+            <text class="storage-text">
+              存储空间
+            </text>
           </view>
-          <text class="storage-usage">{{ formatSize(storageUsed) }} / {{ formatSize(totalSpace) }}</text>
+          <text class="storage-usage">
+            {{ formatSize(storageUsed) }} / {{ formatSize(totalSpace) }}
+          </text>
         </view>
         <view class="storage-track">
-          <view class="storage-bar" :style="{ width: storagePercent + '%' }" />
+          <view
+            class="storage-bar"
+            :style="{ width: storagePercent + '%' }"
+          />
         </view>
         <view class="storage-breakdown">
-          <text v-for="b in breakdown" :key="b.type" class="storage-breakdown-item">{{ b.label }} {{ formatSize(b.size) }}</text>
+          <text
+            v-for="b in breakdown"
+            :key="b.type"
+            class="storage-breakdown-item"
+          >
+            {{ b.label }} {{ formatSize(b.size) }}
+          </text>
         </view>
       </view>
 
       <!-- Tab -->
       <view class="tabs">
-        <view v-for="tb in tabList" :key="tb.key" class="tab" :class="{ active: activeTab === tb.key }" @click="switchTab(tb.key)">
+        <view
+          v-for="tb in tabList"
+          :key="tb.key"
+          class="tab"
+          :class="{ active: activeTab === tb.key }"
+          @click="switchTab(tb.key)"
+        >
           <text>{{ tb.label }}</text>
-          <text v-if="tabCount(tb.key) > 0" class="tab-count">({{ tabCount(tb.key) }})</text>
-          <view v-if="activeTab === tb.key" class="tab-indicator" />
+          <text
+            v-if="tabCount(tb.key) > 0"
+            class="tab-count"
+          >
+            ({{ tabCount(tb.key) }})
+          </text>
+          <view
+            v-if="activeTab === tb.key"
+            class="tab-indicator"
+          />
         </view>
       </view>
     </view>
@@ -47,70 +89,154 @@
       @retry="loadData"
     >
       <view class="download-list">
-        <view v-for="item in downloads" :key="item.id" class="download-card">
+        <view
+          v-for="item in downloads"
+          :key="item.id"
+          class="download-card"
+        >
           <view class="download-main">
             <view class="download-thumb">
-              <image v-if="item.cover" :src="item.cover" class="download-thumb-img" mode="aspectFill" />
-              <view v-else class="download-thumb-placeholder">
-                <text class="download-thumb-icon">{{ fileTypeIcon(item.fileType) }}</text>
+              <image
+                v-if="item.cover"
+                :src="item.cover"
+                class="download-thumb-img"
+                mode="aspectFill"
+              />
+              <view
+                v-else
+                class="download-thumb-placeholder"
+              >
+                <text class="download-thumb-icon">
+                  {{ fileTypeIcon(item.fileType) }}
+                </text>
               </view>
             </view>
             <view class="download-info">
               <view class="download-info-top">
-                <text class="download-name">{{ item.fileName }}</text>
-                <text class="download-more" @click="showActionSheet(item)">⋯</text>
+                <text class="download-name">
+                  {{ item.fileName }}
+                </text>
+                <text
+                  class="download-more"
+                  @click="showActionSheet(item)"
+                >
+                  ⋯
+                </text>
               </view>
-              <text class="download-source">{{ item.sourceTitle }}</text>
+              <text class="download-source">
+                {{ item.sourceTitle }}
+              </text>
 
               <!-- 下载中 -->
-              <view v-if="item.status === 'downloading'" class="download-progress-area">
+              <view
+                v-if="item.status === 'downloading'"
+                class="download-progress-area"
+              >
                 <view class="download-progress-track">
-                  <view class="download-progress-bar" :style="{ width: item.progress + '%' }" />
+                  <view
+                    class="download-progress-bar"
+                    :style="{ width: item.progress + '%' }"
+                  />
                 </view>
                 <view class="download-progress-info">
-                  <text class="download-progress-text">{{ item.progress }}% · {{ formatSize(item.downloadedSize) }}/{{ formatSize(item.fileSize) }}</text>
-                  <text v-if="item.speed" class="download-speed">{{ item.speed }}</text>
+                  <text class="download-progress-text">
+                    {{ item.progress }}% · {{ formatSize(item.downloadedSize) }}/{{ formatSize(item.fileSize) }}
+                  </text>
+                  <text
+                    v-if="item.speed"
+                    class="download-speed"
+                  >
+                    {{ item.speed }}
+                  </text>
                 </view>
                 <view class="download-actions">
-                  <view class="download-act-btn" @click="handlePause(item)">⏸ 暂停</view>
-                  <view class="download-act-btn danger" @click="confirmDelete(item)">🗑 删除</view>
+                  <view
+                    class="download-act-btn"
+                    @click="handlePause(item)"
+                  >
+                    ⏸ 暂停
+                  </view>
+                  <view
+                    class="download-act-btn danger"
+                    @click="confirmDelete(item)"
+                  >
+                    🗑 删除
+                  </view>
                 </view>
               </view>
 
               <!-- 暂停 -->
-              <view v-if="item.status === 'paused'" class="download-progress-area">
+              <view
+                v-if="item.status === 'paused'"
+                class="download-progress-area"
+              >
                 <view class="download-progress-track">
-                  <view class="download-progress-bar" :style="{ width: item.progress + '%' }" />
+                  <view
+                    class="download-progress-bar"
+                    :style="{ width: item.progress + '%' }"
+                  />
                 </view>
                 <view class="download-status paused">
-                  <text class="download-status-icon">⏸</text>
+                  <text class="download-status-icon">
+                    ⏸
+                  </text>
                   <text>已暂停 · {{ item.progress }}%</text>
                 </view>
                 <view class="download-actions">
-                  <view class="download-act-btn primary" @click="handleResume(item)">▶ 继续</view>
-                  <view class="download-act-btn danger" @click="confirmDelete(item)">🗑 删除</view>
+                  <view
+                    class="download-act-btn primary"
+                    @click="handleResume(item)"
+                  >
+                    ▶ 继续
+                  </view>
+                  <view
+                    class="download-act-btn danger"
+                    @click="confirmDelete(item)"
+                  >
+                    🗑 删除
+                  </view>
                 </view>
               </view>
 
               <!-- 等待中 -->
-              <view v-if="item.status === 'pending'" class="download-status pending">
+              <view
+                v-if="item.status === 'pending'"
+                class="download-status pending"
+              >
                 <text>⏳ 等待中 · {{ formatSize(item.fileSize) }}</text>
               </view>
 
               <!-- 已完成 -->
-              <view v-if="item.status === 'completed'" class="download-completed">
+              <view
+                v-if="item.status === 'completed'"
+                class="download-completed"
+              >
                 <view class="download-status completed">
                   <text>✅ 已完成 · {{ formatSize(item.fileSize) }}</text>
                 </view>
-                <view class="download-open-btn" @click="openContent(item)">{{ item.fileType === 'video' || item.fileType === 'audio' ? '▶ 播放' : '📖 阅读' }}</view>
+                <view
+                  class="download-open-btn"
+                  @click="openContent(item)"
+                >
+                  {{ item.fileType === 'video' || item.fileType === 'audio' ? '▶ 播放' : '📖 阅读' }}
+                </view>
               </view>
 
               <!-- 失败 -->
-              <view v-if="item.status === 'failed'" class="download-failed">
+              <view
+                v-if="item.status === 'failed'"
+                class="download-failed"
+              >
                 <view class="download-status failed">
                   <text>❌ {{ item.errorMsg || '下载失败' }}</text>
                 </view>
-                <view class="download-retry-btn" :class="{ disabled: actionLoading === item.id }" @click="handleRetry(item)">🔄 重试</view>
+                <view
+                  class="download-retry-btn"
+                  :class="{ disabled: actionLoading === item.id }"
+                  @click="handleRetry(item)"
+                >
+                  🔄 重试
+                </view>
               </view>
             </view>
           </view>
@@ -119,35 +245,101 @@
     </DataState>
 
     <!-- 删除确认弹窗 -->
-    <view v-if="deleteTarget" class="dialog-overlay" @click="deleteTarget = null">
-      <view class="dialog-content" @click.stop>
-        <text class="dialog-title">删除下载</text>
-        <text class="dialog-desc">确定要删除「{{ deleteTarget.fileName }}」吗？{{ deleteTarget.status === 'completed' ? '本地文件也将被删除。' : '' }}</text>
+    <view
+      v-if="deleteTarget"
+      class="dialog-overlay"
+      @click="deleteTarget = null"
+    >
+      <view
+        class="dialog-content"
+        @click.stop
+      >
+        <text class="dialog-title">
+          删除下载
+        </text>
+        <text class="dialog-desc">
+          确定要删除「{{ deleteTarget.fileName }}」吗？{{ deleteTarget.status === 'completed' ? '本地文件也将被删除。' : '' }}
+        </text>
         <view class="dialog-actions">
-          <view class="dialog-btn dialog-btn-cancel" @click="deleteTarget = null">取消</view>
-          <view class="dialog-btn dialog-btn-confirm" :class="{ disabled: actionLoading === deleteTarget.id }" @click="handleDelete">删除</view>
+          <view
+            class="dialog-btn dialog-btn-cancel"
+            @click="deleteTarget = null"
+          >
+            取消
+          </view>
+          <view
+            class="dialog-btn dialog-btn-confirm"
+            :class="{ disabled: actionLoading === deleteTarget.id }"
+            @click="handleDelete"
+          >
+            删除
+          </view>
         </view>
       </view>
     </view>
 
     <!-- 清除已完成确认弹窗 -->
-    <view v-if="showClearDialog" class="dialog-overlay" @click="showClearDialog = false">
-      <view class="dialog-content" @click.stop>
-        <text class="dialog-title">清除已完成</text>
-        <text class="dialog-desc">确定要清除所有已完成的下载记录吗？本地文件也将被删除。</text>
+    <view
+      v-if="showClearDialog"
+      class="dialog-overlay"
+      @click="showClearDialog = false"
+    >
+      <view
+        class="dialog-content"
+        @click.stop
+      >
+        <text class="dialog-title">
+          清除已完成
+        </text>
+        <text class="dialog-desc">
+          确定要清除所有已完成的下载记录吗？本地文件也将被删除。
+        </text>
         <view class="dialog-actions">
-          <view class="dialog-btn dialog-btn-cancel" @click="showClearDialog = false">取消</view>
-          <view class="dialog-btn dialog-btn-confirm" @click="handleClearCompleted">确定清除</view>
+          <view
+            class="dialog-btn dialog-btn-cancel"
+            @click="showClearDialog = false"
+          >
+            取消
+          </view>
+          <view
+            class="dialog-btn dialog-btn-confirm"
+            @click="handleClearCompleted"
+          >
+            确定清除
+          </view>
         </view>
       </view>
     </view>
 
     <!-- 操作底部菜单 -->
-    <view v-if="actionSheetTarget" class="sheet-overlay" @click="actionSheetTarget = null">
-      <view class="sheet-content" @click.stop>
-        <view v-if="actionSheetTarget.status === 'completed'" class="sheet-item" @click="openContent(actionSheetTarget); actionSheetTarget = null">📂 打开</view>
-        <view class="sheet-item danger" @click="confirmDelete(actionSheetTarget); actionSheetTarget = null">🗑 删除</view>
-        <view class="sheet-item sheet-cancel" @click="actionSheetTarget = null">取消</view>
+    <view
+      v-if="actionSheetTarget"
+      class="sheet-overlay"
+      @click="actionSheetTarget = null"
+    >
+      <view
+        class="sheet-content"
+        @click.stop
+      >
+        <view
+          v-if="actionSheetTarget.status === 'completed'"
+          class="sheet-item"
+          @click="openContent(actionSheetTarget); actionSheetTarget = null"
+        >
+          📂 打开
+        </view>
+        <view
+          class="sheet-item danger"
+          @click="confirmDelete(actionSheetTarget); actionSheetTarget = null"
+        >
+          🗑 删除
+        </view>
+        <view
+          class="sheet-item sheet-cancel"
+          @click="actionSheetTarget = null"
+        >
+          取消
+        </view>
       </view>
     </view>
   </view>

@@ -1,75 +1,221 @@
 <template>
   <view class="page">
     <template v-if="!info">
-      <view class="loading-wrap"><view class="loading-spinner" /></view>
+      <view class="loading-wrap">
+        <view class="loading-spinner" />
+      </view>
     </template>
     <template v-else>
       <view class="header-area">
         <view class="header-top">
-          <view class="header-left" @click="goBack"><text class="header-icon">‹</text></view>
-          <text class="header-title">拼团结果</text>
+          <view
+            class="header-left"
+            @click="goBack"
+          >
+            <text class="header-icon">
+              ‹
+            </text>
+          </view>
+          <text class="header-title">
+            拼团结果
+          </text>
         </view>
         <view class="header-result">
-          <view class="result-icon-wrap"><text class="result-icon">⚠</text></view>
-          <text class="result-title">拼团未成功</text>
-          <text class="result-desc">{{ getReasonText(info.reason) }}</text>
+          <view class="result-icon-wrap">
+            <text class="result-icon">
+              ⚠
+            </text>
+          </view>
+          <text class="result-title">
+            拼团未成功
+          </text>
+          <text class="result-desc">
+            {{ getReasonText(info.reason) }}
+          </text>
         </view>
       </view>
 
       <view class="content-area">
         <view class="product-card">
-          <image :src="info.productCover || ''" class="product-img" mode="aspectFill" />
+          <image
+            :src="info.productCover || ''"
+            class="product-img"
+            mode="aspectFill"
+          />
           <view class="product-info">
-            <text class="product-name">{{ info.productName }}</text>
-            <text class="product-price">¥{{ info.price }}</text>
+            <text class="product-name">
+              {{ info.productName }}
+            </text>
+            <text class="product-price">
+              ¥{{ info.price }}
+            </text>
           </view>
           <view class="product-meta">
             <view class="meta-row">
-              <text class="meta-label">参团人数</text>
+              <text class="meta-label">
+                参团人数
+              </text>
               <view class="meta-users">
                 <view class="user-avatars">
-                  <image v-for="m in info.members" :key="m.id" :src="m.avatar || ''" class="user-avatar" mode="aspectFill" />
-                  <view v-for="i in (info.minMembers - info.currentMembers)" :key="i" class="user-placeholder"><text class="placeholder-text">?</text></view>
+                  <image
+                    v-for="m in info.members"
+                    :key="m.id"
+                    :src="m.avatar || ''"
+                    class="user-avatar"
+                    mode="aspectFill"
+                  />
+                  <view
+                    v-for="i in (info.minMembers - info.currentMembers)"
+                    :key="i"
+                    class="user-placeholder"
+                  >
+                    <text class="placeholder-text">
+                      ?
+                    </text>
+                  </view>
                 </view>
-                <text class="user-count">{{ info.currentMembers }}/{{ info.minMembers }}人</text>
+                <text class="user-count">
+                  {{ info.currentMembers }}/{{ info.minMembers }}人
+                </text>
               </view>
             </view>
-            <view class="meta-row"><text class="meta-label">失败时间</text><text class="meta-value">{{ info.failedAt }}</text></view>
+            <view class="meta-row">
+              <text class="meta-label">
+                失败时间
+              </text><text class="meta-value">
+                {{ info.failedAt }}
+              </text>
+            </view>
           </view>
         </view>
 
         <view class="refund-card">
-          <view class="refund-header"><text class="refund-icon">👛</text><text class="refund-title">退款信息</text></view>
-          <view class="refund-detail">
-            <view class="refund-amount-row"><text class="refund-amount-label">退款金额</text><text class="refund-amount-value">¥{{ info.refundAmount.toFixed(2) }}</text></view>
-            <view class="refund-date-row"><text class="refund-date-label">预计到账</text><text class="refund-date-value">{{ info.estimatedRefundTime }}（1-3个工作日）</text></view>
+          <view class="refund-header">
+            <text class="refund-icon">
+              👛
+            </text><text class="refund-title">
+              退款信息
+            </text>
           </view>
-          <view class="refund-progress">
-            <view class="progress-labels"><text>申请退款</text><text>处理中</text><text>退款完成</text></view>
-            <view class="progress-bar"><view class="progress-fill" :style="{ width: getRefundProgress() + '%' }" /></view>
-            <view class="progress-dots">
-              <view class="progress-dot" :class="{ done: info.refundStatus !== 'pending' }"><text v-if="info.refundStatus !== 'pending'" class="dot-check">✓</text></view>
-              <view class="progress-dot" :class="{ done: info.refundStatus === 'completed', processing: info.refundStatus === 'processing' }"><text v-if="info.refundStatus === 'completed'" class="dot-check">✓</text></view>
-              <view class="progress-dot" :class="{ done: info.refundStatus === 'completed' }"><text v-if="info.refundStatus === 'completed'" class="dot-check">✓</text></view>
+          <view class="refund-detail">
+            <view class="refund-amount-row">
+              <text class="refund-amount-label">
+                退款金额
+              </text><text class="refund-amount-value">
+                ¥{{ info.refundAmount.toFixed(2) }}
+              </text>
+            </view>
+            <view class="refund-date-row">
+              <text class="refund-date-label">
+                预计到账
+              </text><text class="refund-date-value">
+                {{ info.estimatedRefundTime }}（1-3个工作日）
+              </text>
             </view>
           </view>
-          <view class="refund-note"><text class="refund-note-icon">🕐</text><text class="refund-note-text">退款将原路返回至您的支付账户，请留意账户变动</text></view>
+          <view class="refund-progress">
+            <view class="progress-labels">
+              <text>申请退款</text><text>处理中</text><text>退款完成</text>
+            </view>
+            <view class="progress-bar">
+              <view
+                class="progress-fill"
+                :style="{ width: getRefundProgress() + '%' }"
+              />
+            </view>
+            <view class="progress-dots">
+              <view
+                class="progress-dot"
+                :class="{ done: info.refundStatus !== 'pending' }"
+              >
+                <text
+                  v-if="info.refundStatus !== 'pending'"
+                  class="dot-check"
+                >
+                  ✓
+                </text>
+              </view>
+              <view
+                class="progress-dot"
+                :class="{ done: info.refundStatus === 'completed', processing: info.refundStatus === 'processing' }"
+              >
+                <text
+                  v-if="info.refundStatus === 'completed'"
+                  class="dot-check"
+                >
+                  ✓
+                </text>
+              </view>
+              <view
+                class="progress-dot"
+                :class="{ done: info.refundStatus === 'completed' }"
+              >
+                <text
+                  v-if="info.refundStatus === 'completed'"
+                  class="dot-check"
+                >
+                  ✓
+                </text>
+              </view>
+            </view>
+          </view>
+          <view class="refund-note">
+            <text class="refund-note-icon">
+              🕐
+            </text><text class="refund-note-text">
+              退款将原路返回至您的支付账户，请留意账户变动
+            </text>
+          </view>
         </view>
 
         <view class="order-card">
-          <text class="order-label">订单编号</text>
-          <view class="order-value-row"><text class="order-value">{{ info.orderId }}</text><text class="order-copy" @click="copyOrderId">{{ copied ? '✓' : '📋' }}</text></view>
+          <text class="order-label">
+            订单编号
+          </text>
+          <view class="order-value-row">
+            <text class="order-value">
+              {{ info.orderId }}
+            </text><text
+              class="order-copy"
+              @click="copyOrderId"
+            >
+              {{ copied ? '✓' : '📋' }}
+            </text>
+          </view>
         </view>
 
-        <view class="tips-card"><text class="tips-text">温馨提示：拼团失败不影响您再次参与，我们为您推荐了更多热门拼团商品，快去看看吧！</text></view>
+        <view class="tips-card">
+          <text class="tips-text">
+            温馨提示：拼团失败不影响您再次参与，我们为您推荐了更多热门拼团商品，快去看看吧！
+          </text>
+        </view>
       </view>
 
       <view class="bottom-bar">
         <view class="bottom-btn-row">
-          <view class="btn-secondary" @click="goRefund">查看退款</view>
-          <view class="btn-primary" @click="recreate"><text class="btn-icon">🔄</text><text>重新开团</text></view>
+          <view
+            class="btn-secondary"
+            @click="goRefund"
+          >
+            查看退款
+          </view>
+          <view
+            class="btn-primary"
+            @click="recreate"
+          >
+            <text class="btn-icon">
+              🔄
+            </text><text>重新开团</text>
+          </view>
         </view>
-        <view class="btn-link" @click="goGroupBuy"><text class="btn-icon">🛒</text><text>浏览其他拼团</text></view>
+        <view
+          class="btn-link"
+          @click="goGroupBuy"
+        >
+          <text class="btn-icon">
+            🛒
+          </text><text>浏览其他拼团</text>
+        </view>
       </view>
     </template>
   </view>

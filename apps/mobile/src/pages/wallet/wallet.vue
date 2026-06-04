@@ -2,7 +2,9 @@
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
-      <text class="nav-title">我的钱包</text>
+      <text class="nav-title">
+        我的钱包
+      </text>
     </view>
 
     <DataState
@@ -17,24 +19,48 @@
         <view class="card-bg-deco" />
         <view class="card-content">
           <view class="balance-header">
-            <text class="balance-label">国学币余额</text>
-            <text class="balance-sub">可用于课程、圈子、打赏等</text>
+            <text class="balance-label">
+              国学币余额
+            </text>
+            <text class="balance-sub">
+              可用于课程、圈子、打赏等
+            </text>
           </view>
           <view class="balance-main">
-            <text class="balance-coin">{{ balance.toLocaleString() }}</text>
-            <text class="balance-unit">币</text>
+            <text class="balance-coin">
+              {{ balance.toLocaleString() }}
+            </text>
+            <text class="balance-unit">
+              币
+            </text>
           </view>
-          <text class="balance-yuan">≈ ¥{{ balanceInYuan }}</text>
+          <text class="balance-yuan">
+            ≈ ¥{{ balanceInYuan }}
+          </text>
 
           <!-- 快捷操作 -->
           <view class="quick-actions">
-            <view class="quick-btn btn-recharge" @click="goRecharge">
-              <text class="qb-icon">+</text>
-              <text class="qb-label">充值</text>
+            <view
+              class="quick-btn btn-recharge"
+              @click="goRecharge"
+            >
+              <text class="qb-icon">
+                +
+              </text>
+              <text class="qb-label">
+                充值
+              </text>
             </view>
-            <view class="quick-btn btn-withdraw" @click="goWithdraw">
-              <text class="qb-icon">↑</text>
-              <text class="qb-label">提现</text>
+            <view
+              class="quick-btn btn-withdraw"
+              @click="goWithdraw"
+            >
+              <text class="qb-icon">
+                ↑
+              </text>
+              <text class="qb-label">
+                提现
+              </text>
             </view>
           </view>
         </view>
@@ -42,70 +68,140 @@
 
       <!-- ==================== 功能入口 ==================== -->
       <view class="entry-grid">
-        <view class="entry-item" @click="goPage('/pages/mine/points')">
-          <text class="entry-icon">⭐</text>
-          <text class="entry-label">积分中心</text>
+        <view
+          class="entry-item"
+          @click="goPage('/pages/mine/points')"
+        >
+          <text class="entry-icon">
+            ⭐
+          </text>
+          <text class="entry-label">
+            积分中心
+          </text>
         </view>
-        <view class="entry-item" @click="goPage('/pages/vip/vip')">
-          <text class="entry-icon">👑</text>
-          <text class="entry-label">会员中心</text>
+        <view
+          class="entry-item"
+          @click="goPage('/pages/vip/vip')"
+        >
+          <text class="entry-icon">
+            👑
+          </text>
+          <text class="entry-label">
+            会员中心
+          </text>
         </view>
-        <view class="entry-item" @click="goCoupons">
-          <text class="entry-icon">🎫</text>
-          <text class="entry-label">优惠券</text>
+        <view
+          class="entry-item"
+          @click="goCoupons"
+        >
+          <text class="entry-icon">
+            🎫
+          </text>
+          <text class="entry-label">
+            优惠券
+          </text>
         </view>
-        <view class="entry-item" @click="goPage('/pages/mine/payment-password')">
-          <text class="entry-icon">🔒</text>
-          <text class="entry-label">支付密码</text>
+        <view
+          class="entry-item"
+          @click="goPage('/pages/mine/payment-password')"
+        >
+          <text class="entry-icon">
+            🔒
+          </text>
+          <text class="entry-label">
+            支付密码
+          </text>
         </view>
       </view>
 
       <!-- ==================== 交易记录 ==================== -->
       <view class="section">
-        <view class="section-header" @click="goTransactions">
-          <text class="section-title">交易记录</text>
+        <view
+          class="section-header"
+          @click="goTransactions"
+        >
+          <text class="section-title">
+            交易记录
+          </text>
           <view class="section-more">
             <text>查看全部</text>
-            <text class="more-arrow">›</text>
+            <text class="more-arrow">
+              ›
+            </text>
           </view>
         </view>
 
-        <LoadingSkeleton v-if="loading && transactions.length === 0" type="list" />
-        <EmptyState v-else-if="transactions.length === 0" icon="💰" text="暂无交易记录" />
+        <LoadingSkeleton
+          v-if="loading && transactions.length === 0"
+          type="list"
+        />
+        <EmptyState
+          v-else-if="transactions.length === 0"
+          icon="💰"
+          text="暂无交易记录"
+        />
 
-        <view v-else class="transaction-list">
+        <view
+          v-else
+          class="transaction-list"
+        >
           <!-- 按月份分组 -->
-          <view v-for="(group, gIdx) in groupedTransactions" :key="gIdx" class="tx-group">
-            <text class="tx-group-title">{{ group.month }}</text>
+          <view
+            v-for="(group, gIdx) in groupedTransactions"
+            :key="gIdx"
+            class="tx-group"
+          >
+            <text class="tx-group-title">
+              {{ group.month }}
+            </text>
             <view
               v-for="tx in group.list"
               :key="tx.id"
               class="transaction-item"
             >
               <view class="tx-left">
-                <view class="tx-icon" :class="txIconClass(tx.type)">
+                <view
+                  class="tx-icon"
+                  :class="txIconClass(tx.type)"
+                >
                   <text>{{ txIconText(tx.type) }}</text>
                 </view>
                 <view class="tx-info">
-                  <text class="tx-scene">{{ txSceneLabel(tx.scene) }}</text>
-                  <text class="tx-time">{{ formatTime(tx.createdAt) }}</text>
+                  <text class="tx-scene">
+                    {{ txSceneLabel(tx.scene) }}
+                  </text>
+                  <text class="tx-time">
+                    {{ formatTime(tx.createdAt) }}
+                  </text>
                 </view>
               </view>
               <view class="tx-right">
-                <text class="tx-amount" :class="txAmountClass(tx.type)">
+                <text
+                  class="tx-amount"
+                  :class="txAmountClass(tx.type)"
+                >
                   {{ tx.type === 'RECHARGE' || tx.type === 'REFUND' || tx.type === 'BONUS' || tx.type === 'INCOME' ? '+' : '' }}{{ tx.amountCoin }}
                 </text>
-                <text class="tx-balance">余额 {{ tx.balanceAfter }}</text>
+                <text class="tx-balance">
+                  余额 {{ tx.balanceAfter }}
+                </text>
               </view>
             </view>
           </view>
         </view>
 
         <!-- 加载更多 -->
-        <view v-if="hasMore && !loading" class="load-more" @click="loadMore">
+        <view
+          v-if="hasMore && !loading"
+          class="load-more"
+          @click="loadMore"
+        >
           <text>加载更多</text>
         </view>
-        <view v-if="!hasMore && transactions.length > 0" class="no-more">
+        <view
+          v-if="!hasMore && transactions.length > 0"
+          class="no-more"
+        >
           <text>— 已全部加载 —</text>
         </view>
       </view>
@@ -114,7 +210,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onShow } from 'vue'
+import { ref, computed } from 'vue'
 import { useCoinStore } from '../../store/coinStore'
 import { storeToRefs } from 'pinia'
 import DataState from '../../components/DataState.vue'

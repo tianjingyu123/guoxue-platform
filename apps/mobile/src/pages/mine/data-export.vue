@@ -3,8 +3,15 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">←</text>
-        <text class="header-title">数据导出</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ←
+        </text>
+        <text class="header-title">
+          数据导出
+        </text>
         <view class="header-right" />
       </view>
     </view>
@@ -15,36 +22,63 @@
         class="tab"
         :class="{ active: activeTab === 'create' }"
         @click="switchTab('create')"
-      >申请导出</view>
+      >
+        申请导出
+      </view>
       <view
         class="tab"
         :class="{ active: activeTab === 'records' }"
         @click="switchTab('records')"
       >
         导出记录
-        <text v-if="completedCount > 0" class="tab-badge">{{ completedCount }}</text>
+        <text
+          v-if="completedCount > 0"
+          class="tab-badge"
+        >
+          {{ completedCount }}
+        </text>
       </view>
     </view>
 
     <!-- 申请导出 -->
-    <view v-if="activeTab === 'create'" class="create-content">
+    <view
+      v-if="activeTab === 'create'"
+      class="create-content"
+    >
       <!-- 说明卡片 -->
       <view class="info-card">
-        <text class="info-icon">ℹ️</text>
+        <text class="info-icon">
+          ℹ️
+        </text>
         <view class="info-body">
-          <text class="info-title">数据导出说明</text>
-          <text class="info-item">• 导出文件为 ZIP 压缩包格式</text>
-          <text class="info-item">• 处理时间约 5-30 分钟，完成后通知您</text>
-          <text class="info-item">• 文件有效期 7 天，请及时下载</text>
-          <text class="info-item">• 每月最多申请 3 次导出</text>
+          <text class="info-title">
+            数据导出说明
+          </text>
+          <text class="info-item">
+            • 导出文件为 ZIP 压缩包格式
+          </text>
+          <text class="info-item">
+            • 处理时间约 5-30 分钟，完成后通知您
+          </text>
+          <text class="info-item">
+            • 文件有效期 7 天，请及时下载
+          </text>
+          <text class="info-item">
+            • 每月最多申请 3 次导出
+          </text>
         </view>
       </view>
 
       <!-- 数据类型选择 -->
       <view class="type-card">
         <view class="type-header">
-          <text class="type-title">选择导出数据</text>
-          <text class="type-select-all" @click="toggleSelectAll">
+          <text class="type-title">
+            选择导出数据
+          </text>
+          <text
+            class="type-select-all"
+            @click="toggleSelectAll"
+          >
             {{ selectedTypes.length === dataTypes.length ? '取消全选' : '全选' }}
           </text>
         </view>
@@ -56,17 +90,36 @@
             class="type-item"
             @click="toggleType(t.id)"
           >
-            <view class="type-icon-wrap" :class="{ selected: selectedTypes.includes(t.id) }">
-              <text class="type-icon">{{ t.icon }}</text>
+            <view
+              class="type-icon-wrap"
+              :class="{ selected: selectedTypes.includes(t.id) }"
+            >
+              <text class="type-icon">
+                {{ t.icon }}
+              </text>
             </view>
             <view class="type-info">
-              <text class="type-name">{{ t.name }}</text>
-              <text class="type-desc">{{ t.desc }}</text>
+              <text class="type-name">
+                {{ t.name }}
+              </text>
+              <text class="type-desc">
+                {{ t.desc }}
+              </text>
             </view>
             <view class="type-right">
-              <text class="type-size">{{ t.size }}</text>
-              <view class="type-check" :class="{ checked: selectedTypes.includes(t.id) }">
-                <text v-if="selectedTypes.includes(t.id)" class="type-check-mark">✓</text>
+              <text class="type-size">
+                {{ t.size }}
+              </text>
+              <view
+                class="type-check"
+                :class="{ checked: selectedTypes.includes(t.id) }"
+              >
+                <text
+                  v-if="selectedTypes.includes(t.id)"
+                  class="type-check-mark"
+                >
+                  ✓
+                </text>
               </view>
             </view>
           </view>
@@ -74,9 +127,16 @@
       </view>
 
       <!-- 预估大小 -->
-      <view v-if="selectedTypes.length > 0" class="estimate-bar">
-        <text class="estimate-text">已选 {{ selectedTypes.length }} 项数据</text>
-        <text class="estimate-size">预估大小：约 {{ selectedTypes.length * 2 }}MB</text>
+      <view
+        v-if="selectedTypes.length > 0"
+        class="estimate-bar"
+      >
+        <text class="estimate-text">
+          已选 {{ selectedTypes.length }} 项数据
+        </text>
+        <text class="estimate-size">
+          预估大小：约 {{ selectedTypes.length * 2 }}MB
+        </text>
       </view>
 
       <!-- 底部提交 -->
@@ -93,7 +153,10 @@
     </view>
 
     <!-- 导出记录 -->
-    <view v-if="activeTab === 'records'" class="records-content">
+    <view
+      v-if="activeTab === 'records'"
+      class="records-content"
+    >
       <DataState
         :is-loading="loading"
         :error="loadError"
@@ -108,27 +171,50 @@
         @empty-action="switchTab('create')"
       >
         <view class="records-list">
-          <view v-for="record in records" :key="record.id" class="record-card">
+          <view
+            v-for="record in records"
+            :key="record.id"
+            class="record-card"
+          >
             <view class="record-top">
-              <view class="record-status" :class="'rs-' + record.status">
-                <text class="record-status-icon">{{ statusIcon(record.status) }}</text>
-                <text class="record-status-label">{{ statusLabel(record.status) }}</text>
+              <view
+                class="record-status"
+                :class="'rs-' + record.status"
+              >
+                <text class="record-status-icon">
+                  {{ statusIcon(record.status) }}
+                </text>
+                <text class="record-status-label">
+                  {{ statusLabel(record.status) }}
+                </text>
               </view>
-              <text class="record-date">{{ formatDate(record.createdAt) }}</text>
+              <text class="record-date">
+                {{ formatDate(record.createdAt) }}
+              </text>
             </view>
 
-            <text class="record-types">{{ getTypeNames(record.types) }}</text>
+            <text class="record-types">
+              {{ getTypeNames(record.types) }}
+            </text>
 
-            <text v-if="record.status === 'completed' && record.fileSize" class="record-meta">
+            <text
+              v-if="record.status === 'completed' && record.fileSize"
+              class="record-meta"
+            >
               文件大小：{{ record.fileSize }} · 有效期至 {{ formatDate(record.expireAt) }}
             </text>
 
             <!-- 处理中进度条 -->
-            <view v-if="record.status === 'processing'" class="record-progress">
+            <view
+              v-if="record.status === 'processing'"
+              class="record-progress"
+            >
               <view class="progress-track">
                 <view class="progress-bar" />
               </view>
-              <text class="progress-text">处理中...</text>
+              <text class="progress-text">
+                处理中...
+              </text>
             </view>
 
             <!-- 已完成 -->

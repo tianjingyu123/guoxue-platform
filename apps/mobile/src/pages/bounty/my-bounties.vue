@@ -2,53 +2,166 @@
   <view class="page">
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">我的悬赏</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          我的悬赏
+        </text>
         <view style="width:60rpx" />
       </view>
       <view class="tabs">
-        <text v-for="t in tabs" :key="t.key" class="tab" :class="{ active: activeTab === t.key }" @click="switchTab(t.key)">{{ t.label }}</text>
+        <text
+          v-for="t in tabs"
+          :key="t.key"
+          class="tab"
+          :class="{ active: activeTab === t.key }"
+          @click="switchTab(t.key)"
+        >
+          {{ t.label }}
+        </text>
       </view>
     </view>
 
     <!-- 统计卡片 -->
-    <view v-if="!loading && bounties.length" class="stats-card">
+    <view
+      v-if="!loading && bounties.length"
+      class="stats-card"
+    >
       <view class="stats-inner">
-        <text class="stats-icon">🎁</text>
-        <text class="stats-label">{{ activeTab === 'posted' ? '发布统计' : '回答统计' }}</text>
+        <text class="stats-icon">
+          🎁
+        </text>
+        <text class="stats-label">
+          {{ activeTab === 'posted' ? '发布统计' : '回答统计' }}
+        </text>
         <view class="stats-grid">
-          <view class="stat-item"><text class="stat-num">{{ stats.total }}</text><text class="stat-desc">总数</text></view>
-          <view class="stat-item"><text class="stat-num">{{ stats.open }}</text><text class="stat-desc">进行中</text></view>
-          <view class="stat-item"><text class="stat-num">{{ stats.resolved }}</text><text class="stat-desc">已解决</text></view>
-          <view class="stat-item"><text class="stat-num">¥{{ stats.totalAmount }}</text><text class="stat-desc">{{ activeTab === 'posted' ? '总投入' : '总收益' }}</text></view>
+          <view class="stat-item">
+            <text class="stat-num">
+              {{ stats.total }}
+            </text><text class="stat-desc">
+              总数
+            </text>
+          </view>
+          <view class="stat-item">
+            <text class="stat-num">
+              {{ stats.open }}
+            </text><text class="stat-desc">
+              进行中
+            </text>
+          </view>
+          <view class="stat-item">
+            <text class="stat-num">
+              {{ stats.resolved }}
+            </text><text class="stat-desc">
+              已解决
+            </text>
+          </view>
+          <view class="stat-item">
+            <text class="stat-num">
+              ¥{{ stats.totalAmount }}
+            </text><text class="stat-desc">
+              {{ activeTab === 'posted' ? '总投入' : '总收益' }}
+            </text>
+          </view>
         </view>
       </view>
     </view>
 
     <view class="list-wrap">
-      <DataState :is-loading="loading" :is-empty="!bounties.length" empty-icon="🎁" empty-title="暂无悬赏" empty-description="还没有发布过悬赏">
-        <view v-for="b in bounties" :key="b.id" class="bounty-card" @click="goDetail(b)">
+      <DataState
+        :is-loading="loading"
+        :is-empty="!bounties.length"
+        empty-icon="🎁"
+        empty-title="暂无悬赏"
+        empty-description="还没有发布过悬赏"
+      >
+        <view
+          v-for="b in bounties"
+          :key="b.id"
+          class="bounty-card"
+          @click="goDetail(b)"
+        >
           <view class="bc-top">
-            <view class="bc-status" :class="'s-' + b.status">
+            <view
+              class="bc-status"
+              :class="'s-' + b.status"
+            >
               <text>{{ getIcon(b.status) }}</text><text>{{ statusLabel(b.status) }}</text>
             </view>
-            <text class="bc-amount">¥{{ b.amount }}</text>
+            <text class="bc-amount">
+              ¥{{ b.amount }}
+            </text>
           </view>
-          <text class="bc-title">{{ b.title }}</text>
-          <text class="bc-desc">{{ b.description }}</text>
+          <text class="bc-title">
+            {{ b.title }}
+          </text>
+          <text class="bc-desc">
+            {{ b.description }}
+          </text>
           <view class="bc-meta">
-            <text v-if="activeTab === 'posted'" class="bc-meta-item">💬 {{ b.answerCount }}个回答</text>
-            <text v-if="activeTab === 'posted' && b.status === 'open'" class="bc-meta-item bc-remain">🕐 {{ getRemainTime(b.expireAt) }}</text>
-            <text v-if="activeTab === 'answered'" class="bc-meta-item">{{ formatTimeAgo(b.createdAt) }}回答</text>
+            <text
+              v-if="activeTab === 'posted'"
+              class="bc-meta-item"
+            >
+              💬 {{ b.answerCount }}个回答
+            </text>
+            <text
+              v-if="activeTab === 'posted' && b.status === 'open'"
+              class="bc-meta-item bc-remain"
+            >
+              🕐 {{ getRemainTime(b.expireAt) }}
+            </text>
+            <text
+              v-if="activeTab === 'answered'"
+              class="bc-meta-item"
+            >
+              {{ formatTimeAgo(b.createdAt) }}回答
+            </text>
           </view>
-          <view v-if="activeTab === 'posted'" class="bc-actions">
-            <view v-if="b.status === 'answered'" class="bc-btn bc-btn-green" @click.stop="settle(b)">💰 结算悬赏</view>
-            <view v-else-if="b.status === 'expired' || b.status === 'cancelled'" class="bc-btn bc-btn-primary" @click.stop="repost(b)">🔄 重新发布</view>
-            <view v-else-if="b.status === 'open' && b.answerCount > 0" class="bc-btn bc-btn-amber" @click.stop="goDetail(b)">查看回答</view>
-            <text v-else class="bc-waiting">等待回答中...</text>
+          <view
+            v-if="activeTab === 'posted'"
+            class="bc-actions"
+          >
+            <view
+              v-if="b.status === 'answered'"
+              class="bc-btn bc-btn-green"
+              @click.stop="settle(b)"
+            >
+              💰 结算悬赏
+            </view>
+            <view
+              v-else-if="b.status === 'expired' || b.status === 'cancelled'"
+              class="bc-btn bc-btn-primary"
+              @click.stop="repost(b)"
+            >
+              🔄 重新发布
+            </view>
+            <view
+              v-else-if="b.status === 'open' && b.answerCount > 0"
+              class="bc-btn bc-btn-amber"
+              @click.stop="goDetail(b)"
+            >
+              查看回答
+            </view>
+            <text
+              v-else
+              class="bc-waiting"
+            >
+              等待回答中...
+            </text>
           </view>
         </view>
-        <view v-if="hasMore" class="load-more" @click="loadBounties(true)"><text>加载更多</text></view>
+        <view
+          v-if="hasMore"
+          class="load-more"
+          @click="loadBounties(true)"
+        >
+          <text>加载更多</text>
+        </view>
       </DataState>
     </view>
   </view>

@@ -1,22 +1,62 @@
 <template>
   <view class="page">
     <view class="hero">
-      <text class="hero-title">古籍馆</text>
-      <text class="hero-sub">品读经典，传承智慧</text>
-      <SearchBar v-model="keyword" @search="doSearch" />
+      <text class="hero-title">
+        古籍馆
+      </text>
+      <text class="hero-sub">
+        品读经典，传承智慧
+      </text>
+      <SearchBar
+        v-model="keyword"
+        @search="doSearch"
+      />
     </view>
-    <scroll-view scroll-x class="cat-nav">
-      <view v-for="c in cats" :key="c" class="cat-item" :class="{ active: activeCat === c }" @click="activeCat = c; fetchBooks()">{{ c }}</view>
+    <scroll-view
+      scroll-x
+      class="cat-nav"
+    >
+      <view
+        v-for="c in cats"
+        :key="c"
+        class="cat-item"
+        :class="{ active: activeCat === c }"
+        @click="activeCat = c; fetchBooks()"
+      >
+        {{ c }}
+      </view>
     </scroll-view>
-    <LoadingSkeleton v-if="loading" type="card" />
-    <view v-else-if="books.length" class="book-grid">
-      <view v-for="b in books" :key="b.id" class="book-card" @click="goBook(b)">
-        <image :src="b.cover || ''" class="book-cover" mode="aspectFill" />
-        <text class="book-title">{{ b.title || b.name }}</text>
-        <text class="book-author">{{ b.author || b.dynasty }}</text>
+    <LoadingSkeleton
+      v-if="loading"
+      type="card"
+    />
+    <view
+      v-else-if="books.length"
+      class="book-grid"
+    >
+      <view
+        v-for="b in books"
+        :key="b.id"
+        class="book-card"
+        @click="goBook(b)"
+      >
+        <image
+          :src="b.cover || ''"
+          class="book-cover"
+          mode="aspectFill"
+        />
+        <text class="book-title">
+          {{ b.title || b.name }}
+        </text>
+        <text class="book-author">
+          {{ b.author || b.dynasty }}
+        </text>
       </view>
     </view>
-    <EmptyState v-else text="暂无古籍" />
+    <EmptyState
+      v-else
+      text="暂无古籍"
+    />
   </view>
 </template>
 

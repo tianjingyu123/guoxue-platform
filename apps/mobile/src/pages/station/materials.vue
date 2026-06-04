@@ -2,19 +2,36 @@
   <view class="page">
     <!-- 导航栏 -->
     <view class="header">
-      <text class="back-btn" @click="uni.navigateBack">‹</text>
-      <text class="header-title">推广素材库</text>
+      <text
+        class="back-btn"
+        @click="uni.navigateBack"
+      >
+        ‹
+      </text>
+      <text class="header-title">
+        推广素材库
+      </text>
       <view class="header-spacer" />
     </view>
 
     <!-- 搜索框 -->
     <view class="search-bar">
-      <input v-model="searchKeyword" class="search-input" placeholder="搜索素材..." />
-      <text class="search-icon">🔍</text>
+      <input
+        v-model="searchKeyword"
+        class="search-input"
+        placeholder="搜索素材..."
+      >
+      <text class="search-icon">
+        🔍
+      </text>
     </view>
 
     <!-- 分类Tab -->
-    <scroll-view scroll-x class="tabs" :show-scrollbar="false">
+    <scroll-view
+      scroll-x
+      class="tabs"
+      :show-scrollbar="false"
+    >
       <view class="tabs-track">
         <text
           v-for="t in tabOptions"
@@ -22,12 +39,17 @@
           class="tab"
           :class="{ 'tab-active': activeTab === t.value }"
           @click="switchTab(t.value)"
-        >{{ t.icon }} {{ t.label }}</text>
+        >
+          {{ t.icon }} {{ t.label }}
+        </text>
       </view>
     </scroll-view>
 
     <!-- 内容区 -->
-    <scroll-view scroll-y class="scroll-area">
+    <scroll-view
+      scroll-y
+      class="scroll-area"
+    >
       <DataState
         :is-loading="loading"
         :error="loadError"
@@ -39,8 +61,13 @@
       >
         <view class="content-wrap">
           <!-- 海报区 -->
-          <view v-if="showSection('poster') && posters.length > 0" class="section">
-            <text class="section-title">🖼️ 海报素材 ({{ posters.length }})</text>
+          <view
+            v-if="showSection('poster') && posters.length > 0"
+            class="section"
+          >
+            <text class="section-title">
+              🖼️ 海报素材 ({{ posters.length }})
+            </text>
             <view class="poster-grid">
               <view
                 v-for="p in posters"
@@ -48,14 +75,28 @@
                 class="poster-card"
                 @click="selectedPoster = p"
               >
-                <image :src="p.thumbnail || p.image" class="poster-img" mode="aspectFill" />
+                <image
+                  :src="p.thumbnail || p.image"
+                  class="poster-img"
+                  mode="aspectFill"
+                />
                 <view class="poster-overlay">
-                  <text class="poster-use">使用 {{ p.useCount || 0 }} 次</text>
+                  <text class="poster-use">
+                    使用 {{ p.useCount || 0 }} 次
+                  </text>
                 </view>
                 <view class="poster-info">
-                  <text class="poster-name">{{ p.title }}</text>
+                  <text class="poster-name">
+                    {{ p.title }}
+                  </text>
                   <view class="poster-tags">
-                    <text v-for="(tag, ti) in (p.tags || []).slice(0, 2)" :key="ti" class="poster-tag">{{ tag }}</text>
+                    <text
+                      v-for="(tag, ti) in (p.tags || []).slice(0, 2)"
+                      :key="ti"
+                      class="poster-tag"
+                    >
+                      {{ tag }}
+                    </text>
                   </view>
                 </view>
               </view>
@@ -63,14 +104,30 @@
           </view>
 
           <!-- 文案区 -->
-          <view v-if="showSection('copywriting') && copywritings.length > 0" class="section">
-            <text class="section-title">📝 文案素材 ({{ copywritings.length }})</text>
+          <view
+            v-if="showSection('copywriting') && copywritings.length > 0"
+            class="section"
+          >
+            <text class="section-title">
+              📝 文案素材 ({{ copywritings.length }})
+            </text>
             <view class="copy-list">
-              <view v-for="c in copywritings" :key="c.id" class="copy-card">
+              <view
+                v-for="c in copywritings"
+                :key="c.id"
+                class="copy-card"
+              >
                 <view class="copy-header">
                   <view class="copy-meta">
-                    <text class="copy-title">{{ c.title }}</text>
-                    <text class="copy-scene" v-if="c.scene">适用: {{ c.scene }}</text>
+                    <text class="copy-title">
+                      {{ c.title }}
+                    </text>
+                    <text
+                      v-if="c.scene"
+                      class="copy-scene"
+                    >
+                      适用: {{ c.scene }}
+                    </text>
                   </view>
                   <text
                     class="copy-btn"
@@ -80,14 +137,31 @@
                     {{ copiedId === c.id ? '✓ 已复制' : '复制' }}
                   </text>
                 </view>
-                <text class="copy-content" :class="{ expanded: expandedCopy === c.id }">{{ c.content }}</text>
-                <text v-if="(c.content || '').split('\n').length > 3" class="copy-expand" @click="toggleExpand(c.id)">
+                <text
+                  class="copy-content"
+                  :class="{ expanded: expandedCopy === c.id }"
+                >
+                  {{ c.content }}
+                </text>
+                <text
+                  v-if="(c.content || '').split('\n').length > 3"
+                  class="copy-expand"
+                  @click="toggleExpand(c.id)"
+                >
                   {{ expandedCopy === c.id ? '收起' : '展开全文' }}
                 </text>
                 <view class="copy-footer">
-                  <text class="copy-count">已复制 {{ c.copyCount || 0 }} 次</text>
+                  <text class="copy-count">
+                    已复制 {{ c.copyCount || 0 }} 次
+                  </text>
                   <view class="copy-tags">
-                    <text v-for="(tag, ti) in (c.tags || [])" :key="ti" class="copy-tag">{{ tag }}</text>
+                    <text
+                      v-for="(tag, ti) in (c.tags || [])"
+                      :key="ti"
+                      class="copy-tag"
+                    >
+                      {{ tag }}
+                    </text>
                   </view>
                 </view>
               </view>
@@ -95,8 +169,13 @@
           </view>
 
           <!-- 二维码区 -->
-          <view v-if="showSection('qrcode') && qrcodes.length > 0" class="section">
-            <text class="section-title">📱 二维码 ({{ qrcodes.length }})</text>
+          <view
+            v-if="showSection('qrcode') && qrcodes.length > 0"
+            class="section"
+          >
+            <text class="section-title">
+              📱 二维码 ({{ qrcodes.length }})
+            </text>
             <view class="qrcode-grid">
               <view
                 v-for="qr in qrcodes"
@@ -104,9 +183,17 @@
                 class="qrcode-card"
                 @click="selectedQrcode = qr"
               >
-                <image :src="qr.qrcodeUrl || qr.image" class="qrcode-img" mode="aspectFill" />
-                <text class="qrcode-name">{{ qr.title }}</text>
-                <text class="qrcode-scan">扫描 {{ qr.scanCount || 0 }} 次</text>
+                <image
+                  :src="qr.qrcodeUrl || qr.image"
+                  class="qrcode-img"
+                  mode="aspectFill"
+                />
+                <text class="qrcode-name">
+                  {{ qr.title }}
+                </text>
+                <text class="qrcode-scan">
+                  扫描 {{ qr.scanCount || 0 }} 次
+                </text>
               </view>
             </view>
           </view>
@@ -115,25 +202,71 @@
     </scroll-view>
 
     <!-- 海报预览弹窗 -->
-    <view v-if="selectedPoster" class="dialog-overlay" @click="selectedPoster = null">
-      <view class="dialog-preview" @click.stop>
-        <image :src="selectedPoster.fullImage || selectedPoster.image" class="preview-img" mode="widthFix" />
+    <view
+      v-if="selectedPoster"
+      class="dialog-overlay"
+      @click="selectedPoster = null"
+    >
+      <view
+        class="dialog-preview"
+        @click.stop
+      >
+        <image
+          :src="selectedPoster.fullImage || selectedPoster.image"
+          class="preview-img"
+          mode="widthFix"
+        />
         <view class="preview-actions">
-          <text class="preview-btn" @click="handleSavePoster(selectedPoster)">💾 保存图片</text>
-          <text class="preview-btn preview-btn-primary" @click="handleSharePoster(selectedPoster)">📤 分享</text>
+          <text
+            class="preview-btn"
+            @click="handleSavePoster(selectedPoster)"
+          >
+            💾 保存图片
+          </text>
+          <text
+            class="preview-btn preview-btn-primary"
+            @click="handleSharePoster(selectedPoster)"
+          >
+            📤 分享
+          </text>
         </view>
       </view>
     </view>
 
     <!-- 二维码详情弹窗 -->
-    <view v-if="selectedQrcode" class="dialog-overlay" @click="selectedQrcode = null">
-      <view class="dialog-qrcode" @click.stop>
-        <image :src="selectedQrcode.qrcodeUrl || selectedQrcode.image" class="qrcode-full" mode="aspectFit" />
-        <text class="qrcode-desc">长按二维码保存到相册</text>
-        <text class="qrcode-stats">扫描次数: {{ selectedQrcode.scanCount || 0 }}</text>
+    <view
+      v-if="selectedQrcode"
+      class="dialog-overlay"
+      @click="selectedQrcode = null"
+    >
+      <view
+        class="dialog-qrcode"
+        @click.stop
+      >
+        <image
+          :src="selectedQrcode.qrcodeUrl || selectedQrcode.image"
+          class="qrcode-full"
+          mode="aspectFit"
+        />
+        <text class="qrcode-desc">
+          长按二维码保存到相册
+        </text>
+        <text class="qrcode-stats">
+          扫描次数: {{ selectedQrcode.scanCount || 0 }}
+        </text>
         <view class="qrcode-actions">
-          <text class="qrcode-action" @click="handleSaveQrcode(selectedQrcode)">💾 保存图片</text>
-          <text class="qrcode-action qrcode-action-primary" @click="handleCopyLink(selectedQrcode)">📋 复制链接</text>
+          <text
+            class="qrcode-action"
+            @click="handleSaveQrcode(selectedQrcode)"
+          >
+            💾 保存图片
+          </text>
+          <text
+            class="qrcode-action qrcode-action-primary"
+            @click="handleCopyLink(selectedQrcode)"
+          >
+            📋 复制链接
+          </text>
         </view>
       </view>
     </view>

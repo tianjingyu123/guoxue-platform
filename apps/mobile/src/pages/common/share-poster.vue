@@ -2,83 +2,186 @@
   <view class="page">
     <view class="header">
       <view class="header-inner">
-        <text class="back-btn" @click="goBack">‹</text>
-        <text class="header-title">生成海报</text>
+        <text
+          class="back-btn"
+          @click="goBack"
+        >
+          ‹
+        </text>
+        <text class="header-title">
+          生成海报
+        </text>
         <view style="width:60rpx" />
       </view>
     </view>
 
-    <scroll-view scroll-y class="content-scroll">
+    <scroll-view
+      scroll-y
+      class="content-scroll"
+    >
       <!-- 海报预览 -->
       <view class="poster-preview">
-        <view class="poster" :class="'t-' + selectedTemplate">
+        <view
+          class="poster"
+          :class="'t-' + selectedTemplate"
+        >
           <view class="poster-deco">
             <view class="poster-logo">
-              <text class="pl-icon">🏛</text>
+              <text class="pl-icon">
+                🏛
+              </text>
             </view>
-            <text class="pl-brand">国学平台</text>
+            <text class="pl-brand">
+              国学平台
+            </text>
           </view>
           <view class="poster-body">
-            <text class="pb-title">{{ sceneConfig.title }}</text>
-            <text class="pb-subtitle">{{ sceneConfig.subtitle }}</text>
+            <text class="pb-title">
+              {{ sceneConfig.title }}
+            </text>
+            <text class="pb-subtitle">
+              {{ sceneConfig.subtitle }}
+            </text>
             <view class="pb-user">
-              <text class="pb-avatar">👤</text>
-              <view><text class="pb-name">国学爱好者</text><text class="pb-invite">邀请你一起探索国学</text></view>
+              <text class="pb-avatar">
+                👤
+              </text>
+              <view>
+                <text class="pb-name">
+                  国学爱好者
+                </text><text class="pb-invite">
+                  邀请你一起探索国学
+                </text>
+              </view>
             </view>
             <view class="pb-qrcode">
-              <text class="qr-icon">📱</text>
-              <text class="qr-tip">长按或扫码识别</text>
+              <text class="qr-icon">
+                📱
+              </text>
+              <text class="qr-tip">
+                长按或扫码识别
+              </text>
             </view>
-            <text class="pb-reward">{{ sceneConfig.reward }}</text>
+            <text class="pb-reward">
+              {{ sceneConfig.reward }}
+            </text>
           </view>
           <view class="poster-footer">
-            <text class="pf-text">国学平台 · 探索传统文化</text>
+            <text class="pf-text">
+              国学平台 · 探索传统文化
+            </text>
           </view>
         </view>
       </view>
 
       <!-- 模板选择 -->
       <view class="section">
-        <text class="section-label">选择模板</text>
-        <scroll-view scroll-x class="templates-scroll" show-scrollbar="false">
-          <view v-for="t in posterTemplates" :key="t.id" class="template-thumb" :class="{ active: selectedTemplate === t.id }" @click="selectedTemplate = t.id">
-            <view class="tt-preview" :class="t.bgClass">
-              <text class="tt-icon">🖼</text>
+        <text class="section-label">
+          选择模板
+        </text>
+        <scroll-view
+          scroll-x
+          class="templates-scroll"
+          show-scrollbar="false"
+        >
+          <view
+            v-for="t in posterTemplates"
+            :key="t.id"
+            class="template-thumb"
+            :class="{ active: selectedTemplate === t.id }"
+            @click="selectedTemplate = t.id"
+          >
+            <view
+              class="tt-preview"
+              :class="t.bgClass"
+            >
+              <text class="tt-icon">
+                🖼
+              </text>
             </view>
-            <text class="tt-name" :class="{ active: selectedTemplate === t.id }">{{ t.name }}</text>
+            <text
+              class="tt-name"
+              :class="{ active: selectedTemplate === t.id }"
+            >
+              {{ t.name }}
+            </text>
           </view>
         </scroll-view>
       </view>
 
       <!-- 提示 -->
       <view class="tip-card">
-        <text class="tip-text">分享后若有朋友通过你的海报进入平台，你将获得推广奖励</text>
+        <text class="tip-text">
+          分享后若有朋友通过你的海报进入平台，你将获得推广奖励
+        </text>
       </view>
     </scroll-view>
 
     <!-- 底部操作栏 -->
     <view class="bottom-bar">
       <view class="bottom-inner">
-        <view class="bb-btn" @click="savePoster">
-          <text v-if="isSaving">⏳</text>
-          <text v-else-if="isSaved">✅ 已保存</text>
-          <text v-else>💾 保存图片</text>
+        <view
+          class="bb-btn"
+          @click="savePoster"
+        >
+          <text v-if="isSaving">
+            ⏳
+          </text>
+          <text v-else-if="isSaved">
+            ✅ 已保存
+          </text>
+          <text v-else>
+            💾 保存图片
+          </text>
         </view>
-        <view class="bb-btn primary" @click="showShare = true">📤 直接分享</view>
+        <view
+          class="bb-btn primary"
+          @click="showShare = true"
+        >
+          📤 直接分享
+        </view>
       </view>
     </view>
 
     <!-- 分享菜单 -->
-    <view v-if="showShare" class="share-overlay" @click="showShare = false">
-      <view class="share-sheet" @click.stop>
-        <view class="share-header"><text class="share-title">分享至</text></view>
+    <view
+      v-if="showShare"
+      class="share-overlay"
+      @click="showShare = false"
+    >
+      <view
+        class="share-sheet"
+        @click.stop
+      >
+        <view class="share-header">
+          <text class="share-title">
+            分享至
+          </text>
+        </view>
         <view class="share-grid">
-          <view v-for="s in shareTargets" :key="s.name" class="share-item" @click="shareTo(s)">
-            <view class="si-icon" :style="{ background: s.color }"><text>{{ s.icon }}</text></view>
-            <text class="si-name">{{ s.name }}</text>
+          <view
+            v-for="s in shareTargets"
+            :key="s.name"
+            class="share-item"
+            @click="shareTo(s)"
+          >
+            <view
+              class="si-icon"
+              :style="{ background: s.color }"
+            >
+              <text>{{ s.icon }}</text>
+            </view>
+            <text class="si-name">
+              {{ s.name }}
+            </text>
           </view>
         </view>
-        <view class="share-cancel" @click="showShare = false">取消</view>
+        <view
+          class="share-cancel"
+          @click="showShare = false"
+        >
+          取消
+        </view>
       </view>
     </view>
   </view>
