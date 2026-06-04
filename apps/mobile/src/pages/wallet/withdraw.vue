@@ -308,20 +308,20 @@ const fee = computed(() => {
   const amt = parseFloat(amount.value) || 0
   const rawFee = amt * feeRate.value
   return Math.max(rawFee, 1).toFixed(2)
-}) */
+})
 
 /** 实际到账 */
 const actualAmount = computed(() => {
   const amt = parseFloat(amount.value) || 0
   const f = parseFloat(fee.value)
   return Math.max(amt - f, 0).toFixed(2)
-}) */
+})
 
 /** 金额是否有效 */
 const isValidAmount = computed(() => {
   const amt = parseFloat(amount.value) || 0
   return amt >= minWithdraw.value && amt <= parseFloat(balance.value) && amt <= maxWithdraw.value
-}) */
+})
 
 const amountErrorMsg = computed(() => {
   const amt = parseFloat(amount.value) || 0
@@ -338,7 +338,7 @@ const isValidAccount = computed(() => {
     return alipayAccount.value.trim().length > 0 && alipayName.value.trim().length > 0
   }
   return bankName.value.trim().length > 0 && bankAccount.value.trim().length > 0 && bankHolder.value.trim().length > 0
-}) */
+})
 
 const canSubmit = computed(() => isValidAmount.value && isValidAccount.value)
 
@@ -377,7 +377,7 @@ async function doWithdraw(pwd: string) {
     // 调API提现
     await commissionApi.applyWithdrawal({ ...payload, stationId: '' }) // TODO: 获取当前分站ID
 
-    uni.showToast({ title: '提现申请已提交', icon: 'success' }) */
+    uni.showToast({ title: '提现申请已提交', icon: 'success' })
     closePasswordModal()
     setTimeout(() => uni.navigateBack(), 1500)
   } catch (e: any) {

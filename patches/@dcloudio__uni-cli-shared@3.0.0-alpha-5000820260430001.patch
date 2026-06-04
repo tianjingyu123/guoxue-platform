@@ -1,0 +1,54 @@
+diff --git a/lib/vue-i18n/dist/vue-i18n.runtime.esm-bundler.js b/lib/vue-i18n/dist/vue-i18n.runtime.esm-bundler.js
+index b34dc475dd56f0d3bc6796dd8df4e303b7772b32..4419b1d0f274690153a824a2fca2a18a9e8e854a 100644
+--- a/lib/vue-i18n/dist/vue-i18n.runtime.esm-bundler.js
++++ b/lib/vue-i18n/dist/vue-i18n.runtime.esm-bundler.js
+@@ -4,11 +4,48 @@
+   * Released under the MIT License.
+   */
+ import { getGlobalThis, format, makeSymbol, isPlainObject, isArray, hasOwn, isObject, isBoolean, isString, isRegExp, isFunction, assign, isNumber, warn, createEmitter, isEmptyObject } from '@intlify/shared';
+-import { createCompileError, handleFlatJson, createCoreContext, updateFallbackLocale, resolveValue, clearDateTimeFormat, clearNumberFormat, setAdditionalMeta, NOT_REOSLVED, isTranslateFallbackWarn, isTranslateMissingWarn, parseTranslateArgs, translate, MISSING_RESOLVE_VALUE, parseDateTimeArgs, datetime, parseNumberArgs, number, getLocaleChain, setDevToolsHook } from '@intlify/core-base';
++import { createCompileError, createCoreContext, updateFallbackLocale, resolveValue, clearDateTimeFormat, clearNumberFormat, setAdditionalMeta, NOT_REOSLVED, isTranslateFallbackWarn, isTranslateMissingWarn, parseTranslateArgs, translate, MISSING_RESOLVE_VALUE, parseDateTimeArgs, datetime, parseNumberArgs, number, setDevToolsHook } from '@intlify/core-base';
+ import { ref, getCurrentInstance, computed, watch, createVNode, Text, h, Fragment, inject, onMounted, onUnmounted, isRef } from 'vue';
+ import { setupDevtoolsPlugin } from '@vue/devtools-api';
+ import { VueDevToolsLabels, VueDevToolsPlaceholders, VueDevToolsTimelineColors } from '@intlify/vue-devtools';
+ 
++function handleFlatJson(obj) {
++  if (!isObject(obj)) { return obj; }
++  for (const key in obj) {
++    if (!hasOwn(obj, key)) { continue; }
++    if (!key.includes(".")) {
++      if (isObject(obj[key])) { handleFlatJson(obj[key]); }
++    } else {
++      const subKeys = key.split(".");
++      const lastIndex = subKeys.length - 1;
++      let currentObj = obj;
++      for (let i = 0; i < lastIndex; i++) {
++        if (!(subKeys[i] in currentObj)) { currentObj[subKeys[i]] = {}; }
++        currentObj = currentObj[subKeys[i]];
++      }
++      handleFlatJson(currentObj[subKeys[lastIndex]] = obj[key]);
++      delete obj[key];
++    }
++  }
++  return obj;
++}
++
++
++function getLocaleChain(_ctx, _fallbackLocale, _locale) {
++  var chain = [ _locale ];
++  if (!_fallbackLocale) { return chain; }
++  if (typeof _fallbackLocale === 'string') { chain.push(_fallbackLocale); }
++  else if (Array.isArray(_fallbackLocale)) { chain.push.apply(chain, _fallbackLocale); }
++  else if (typeof _fallbackLocale === 'object') {
++    var fallback = _fallbackLocale[_locale] || _fallbackLocale.default;
++    if (fallback) {
++      if (Array.isArray(fallback)) { chain.push.apply(chain, fallback); }
++      else { chain.push(fallback); }
++    }
++  }
++  return chain;
++}
++
+ /**
+  * Vue I18n Version
+  *
