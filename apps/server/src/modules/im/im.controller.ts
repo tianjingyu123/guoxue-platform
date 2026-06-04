@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Query, Param, UseGuards, Req, ForbiddenException } from "@nestjs/common";
+import { Controller, Post, Get, Put, Delete, Body, Query, Param, UseGuards, Req, ForbiddenException } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -15,6 +15,12 @@ import {
   FriendDto,
   UpdateImProfileDto,
   SendImGroupMsgDto,
+  UpdateConversationDto,
+  MuteConversationDto,
+  UpdateGroupNicknameDto,
+  SetGroupAdminDto,
+  TransferGroupDto,
+  WithdrawGroupMsgDto,
 } from "./im.dto";
 
 @ApiTags("IM 即时通讯")
@@ -251,6 +257,142 @@ export class ImController {
   @UseGuards(JwtAuthGuard)
   getGroupMembers(@Param("groupId") groupId: string) {
     return this.im.getGroupMembers(groupId);
+  }
+
+  // ───────── 会话管理 ─────────
+
+  @Get("conversations")
+  @ApiOperation({ summary: "获取会话列表" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  getConversationList(@Req() req: Request) {
+    return this.im.getConversationList(req.user.id);
+  }
+
+  @Get("search")
+  @ApiOperation({ summary: "搜索好友和聊天记录" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  searchConversationsAndFriends(@Req() req: Request, @Query("keyword") keyword: string) {
+    return this.im.searchConversationsAndFriends(req.user.id, keyword || "");
+  }
+
+  @Put("conversations/:id/pin")
+  @ApiOperation({ summary: "置顶/取消置顶会话" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  togglePinConversation(@Req() req: Request, @Param("id") id: string, @Body() dto: UpdateConversationDto) {
+    return this.im.togglePinConversation(req.user.id, id, dto.pinned);
+  }
+
+  @Put("conversations/:id/mute")
+  @ApiOperation({ summary: "免打扰/取消免打扰" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  toggleMuteConversation(@Req() req: Request, @Param("id") id: string, @Body() dto: MuteConversationDto) {
+    return this.im.toggleMuteConversation(req.user.id, id, dto.muted);
+  }
+
+  @Delete("conversations/:id")
+  @ApiOperation({ summary: "删除会话" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  deleteConversation(@Req() req: Request, @Param("id") id: string) {
+    return this.im.deleteConversation(req.user.id, id);
+  }
+
+  // ───────── 群组列表与搜索 ─────────
+
+  @Get("groups")
+  @ApiOperation({ summary: "获取我的群组列表" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  getMyGroups(@Req() req: Request) {
+    return this.im.getMyGroups(req.user.id);
+  }
+
+  @Get("groups/search")
+  @ApiOperation({ summary: "搜索群组" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  searchGroups(@Query("keyword") keyword: string) {
+    return this.im.searchGroups(keyword || "");
+  }
+
+  // ───────── 群组扩展操作 ─────────
+
+  @Put("groups/:groupId/nickname")
+  @ApiOperation({ summary: "修改我的群内昵称" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  updateGroupNickname(@Req() req: Request, @Param("groupId") groupId: string, @Body() dto: UpdateGroupNicknameDto) {
+    return this.im.updateGroupNickname(groupId, req.user.id, dto.nickname);
+  }
+
+  @Put("groups/:groupId/mute")
+  @ApiOperation({ summary: "群消息免打扰" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  setGroupMuted(@Req() req: Request, @Param("groupId") groupId: string, @Body() dto: MuteConversationDto) {
+    return this.im.setGroupMuted(groupId, req.user.id, dto.muted);
+  }
+
+  @Put("groups/:groupId/admin")
+  @ApiOperation({ summary: "设置/取消管理员" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  setGroupAdmin(@Req() req: Request, @Param("groupId") groupId: string, @Body() dto: SetGroupAdminDto) {
+    return this.im.setGroupAdmin(groupId, req.user.id, dto.userId, dto.isAdmin);
+  }
+
+  @Post("groups/:groupId/transfer")
+  @ApiOperation({ summary: "转让群主" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  transferGroupOwner(@Req() req: Request, @Param("groupId") groupId: string, @Body() dto: TransferGroupDto) {
+    return this.im.transferGroupOwner(groupId, req.user.id, dto.userId);
+  }
+
+  @Delete("groups/:groupId/members/:userId")
+  @ApiOperation({ summary: "移除群成员" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  removeGroupMember(@Req() req: Request, @Param("groupId") groupId: string, @Param("userId") userId: string) {
+    return this.im.removeGroupMember(groupId, req.user.id, userId);
+  }
+
+  @Post("groups/:groupId/quit")
+  @ApiOperation({ summary: "退出群聊" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  quitGroup(@Req() req: Request, @Param("groupId") groupId: string) {
+    return this.im.quitGroup(groupId, req.user.id);
+  }
+
+  @Post("groups/:groupId/dismiss")
+  @ApiOperation({ summary: "解散群聊" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  dismissGroup(@Req() req: Request, @Param("groupId") groupId: string) {
+    return this.im.dismissGroup(groupId, req.user.id);
+  }
+
+  @Post("groups/:groupId/message/withdraw")
+  @ApiOperation({ summary: "撤回群消息" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  withdrawGroupMsg(@Req() req: Request, @Param("groupId") groupId: string, @Body() dto: WithdrawGroupMsgDto) {
+    return this.im.withdrawGroupMsg(groupId, dto.msgKey, req.user.id);
+  }
+
+  // ───────── 已处理好友申请 ─────────
+
+  @Get("friends/processed")
+  @ApiOperation({ summary: "获取已处理的好友申请记录" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  listProcessedFriendRequests(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.im.listProcessedFriendRequests(req.user.id, +page, +pageSize);
   }
 
   // ───────── 富媒体消息 ─────────
