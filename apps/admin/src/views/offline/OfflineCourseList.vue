@@ -1,36 +1,133 @@
 <template>
   <div class="page">
-    <div class="toolbar"><h3>线下课程管理</h3></div>
+    <div class="toolbar">
+      <h3>线下课程管理</h3>
+    </div>
 
-    <el-tabs v-model="tab" @tab-change="onTabChange">
-      <el-tab-pane label="待审核" name="pending" />
-      <el-tab-pane label="已推荐" name="recommended" />
+    <el-tabs
+      v-model="tab"
+      @tab-change="onTabChange"
+    >
+      <el-tab-pane
+        label="待审核"
+        name="pending"
+      />
+      <el-tab-pane
+        label="已推荐"
+        name="recommended"
+      />
     </el-tabs>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="title" label="课程名称" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="stationId" label="所属驿站" width="200" />
-      <el-table-column label="讲师" width="100"><template #default="{ row }">{{ row.teacher?.name || row.teacherId || '-' }}</template></el-table-column>
-      <el-table-column label="价格" width="80"><template #default="{ row }">¥{{ ((row.price || 0) / 100).toFixed(2) }}</template></el-table-column>
-      <el-table-column label="人数" width="60"><template #default="{ row }">{{ row.registeredCount || 0 }}/{{ row.maxStudents }}</template></el-table-column>
-      <el-table-column label="时间" width="300"><template #default="{ row }">{{ formatDate(row.startTime) }} ~ {{ formatDate(row.endTime) }}</template></el-table-column>
-      <el-table-column label="地点" width="120"><template #default="{ row }">{{ row.location || '-' }}</template></el-table-column>
-      <el-table-column label="创建时间" width="170"><template #default="{ row }">{{ formatDate(row.createdAt) }}</template></el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="title"
+        label="课程名称"
+        min-width="160"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="stationId"
+        label="所属驿站"
+        width="200"
+      />
+      <el-table-column
+        label="讲师"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ row.teacher?.name || row.teacherId || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="价格"
+        width="80"
+      >
+        <template #default="{ row }">
+          ¥{{ ((row.price || 0) / 100).toFixed(2) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="人数"
+        width="60"
+      >
+        <template #default="{ row }">
+          {{ row.registeredCount || 0 }}/{{ row.maxStudents }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="时间"
+        width="300"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.startTime) }} ~ {{ formatDate(row.endTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="地点"
+        width="120"
+      >
+        <template #default="{ row }">
+          {{ row.location || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="创建时间"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="200"
+        fixed="right"
+      >
         <template #default="{ row }">
           <template v-if="tab === 'pending'">
-            <el-button size="small" type="success" @click="auditCourse(row.id, 'APPROVED')">通过</el-button>
-            <el-button size="small" type="danger" @click="rejectCourse(row)">驳回</el-button>
+            <el-button
+              size="small"
+              type="success"
+              @click="auditCourse(row.id, 'APPROVED')"
+            >
+              通过
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="rejectCourse(row)"
+            >
+              驳回
+            </el-button>
           </template>
           <template v-else>
-            <el-button size="small" type="warning" @click="toggleRecommend(row)">取消推荐</el-button>
+            <el-button
+              size="small"
+              type="warning"
+              @click="toggleRecommend(row)"
+            >
+              取消推荐
+            </el-button>
           </template>
         </template>
       </el-table-column>
     </el-table>
 
-    <div v-if="total > 20" style="margin-top:16px;display:flex;justify-content:flex-end">
-      <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="fetchList" />
+    <div
+      v-if="total > 20"
+      style="margin-top:16px;display:flex;justify-content:flex-end"
+    >
+      <el-pagination
+        v-model:current-page="page"
+        :total="total"
+        :page-size="20"
+        layout="total, prev, pager, next"
+        @current-change="fetchList"
+      />
     </div>
   </div>
 </template>

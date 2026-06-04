@@ -3,106 +3,295 @@
     <div class="page-header">
       <h3>IM 即时通讯管理</h3>
       <div>
-        <el-tag :type="imStatus.connected ? 'success' : 'danger'" size="small">{{ imStatus.connected ? '已连接' : '未连接' }}</el-tag>
-        <el-button size="small" style="margin-left:8px" @click="refreshAll">刷新</el-button>
+        <el-tag
+          :type="imStatus.connected ? 'success' : 'danger'"
+          size="small"
+        >
+          {{ imStatus.connected ? '已连接' : '未连接' }}
+        </el-tag>
+        <el-button
+          size="small"
+          style="margin-left:8px"
+          @click="refreshAll"
+        >
+          刷新
+        </el-button>
       </div>
     </div>
 
     <!-- 概述卡片 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="6">
-        <div class="stat-card"><span class="value">{{ imStats.onlineUsers }}</span><span class="label">当前在线</span></div>
+        <div class="stat-card">
+          <span class="value">{{ imStats.onlineUsers }}</span><span class="label">当前在线</span>
+        </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card"><span class="value">{{ imStats.totalGroups }}</span><span class="label">群组总数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ imStats.totalGroups }}</span><span class="label">群组总数</span>
+        </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card"><span class="value">{{ imStats.todayMessages }}</span><span class="label">今日消息</span></div>
+        <div class="stat-card">
+          <span class="value">{{ imStats.todayMessages }}</span><span class="label">今日消息</span>
+        </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card"><span class="value">{{ imStats.activeConversations }}</span><span class="label">活跃会话</span></div>
+        <div class="stat-card">
+          <span class="value">{{ imStats.activeConversations }}</span><span class="label">活跃会话</span>
+        </div>
       </el-col>
     </el-row>
 
     <el-tabs v-model="activeTab">
       <!-- 在线状态 -->
-      <el-tab-pane label="在线状态" name="state">
+      <el-tab-pane
+        label="在线状态"
+        name="state"
+      >
         <div class="toolbar-row">
-          <el-input v-model="stateQuery.userIds" placeholder="输入用户ID，逗号分隔多个" size="small" style="width:400px" />
-          <el-button type="primary" size="small" @click="queryStates">查询状态</el-button>
-          <el-button size="small" @click="stateQuery.userIds = ''; stateResults = []">清空</el-button>
+          <el-input
+            v-model="stateQuery.userIds"
+            placeholder="输入用户ID，逗号分隔多个"
+            size="small"
+            style="width:400px"
+          />
+          <el-button
+            type="primary"
+            size="small"
+            @click="queryStates"
+          >
+            查询状态
+          </el-button>
+          <el-button
+            size="small"
+            @click="stateQuery.userIds = ''; stateResults = []"
+          >
+            清空
+          </el-button>
         </div>
-        <el-table :data="stateResults" stripe size="small" style="margin-top:12px" empty-text="输入用户ID查询在线状态">
-          <el-table-column label="用户ID" prop="userId" width="300" />
-          <el-table-column label="状态" width="120">
+        <el-table
+          :data="stateResults"
+          stripe
+          size="small"
+          style="margin-top:12px"
+          empty-text="输入用户ID查询在线状态"
+        >
+          <el-table-column
+            label="用户ID"
+            prop="userId"
+            width="300"
+          />
+          <el-table-column
+            label="状态"
+            width="120"
+          >
             <template #default="{ row }">
-              <el-tag :type="row.state === 'Online' ? 'success' : row.state === 'Offline' ? 'info' : 'warning'" size="small">
+              <el-tag
+                :type="row.state === 'Online' ? 'success' : row.state === 'Offline' ? 'info' : 'warning'"
+                size="small"
+              >
                 {{ row.state === 'Online' ? '在线' : row.state === 'Offline' ? '离线' : row.state }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="在线设备" prop="platform" width="120">
-            <template #default="{ row }">{{ row.platform || '-' }}</template>
+          <el-table-column
+            label="在线设备"
+            prop="platform"
+            width="120"
+          >
+            <template #default="{ row }">
+              {{ row.platform || '-' }}
+            </template>
           </el-table-column>
-          <el-table-column label="最近活跃" width="170">
-            <template #default="{ row }">{{ row.lastActiveTime ? fmtDate(row.lastActiveTime) : '-' }}</template>
+          <el-table-column
+            label="最近活跃"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ row.lastActiveTime ? fmtDate(row.lastActiveTime) : '-' }}
+            </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
       <!-- 群组管理 -->
-      <el-tab-pane label="群组管理" name="groups">
+      <el-tab-pane
+        label="群组管理"
+        name="groups"
+      >
         <div class="toolbar-row">
-          <el-button type="primary" size="small" @click="showCreateGroup">创建群组</el-button>
-          <el-input v-model="groupSearch" placeholder="搜索群组名称/ID" size="small" style="width:250px;margin-left:8px" clearable />
+          <el-button
+            type="primary"
+            size="small"
+            @click="showCreateGroup"
+          >
+            创建群组
+          </el-button>
+          <el-input
+            v-model="groupSearch"
+            placeholder="搜索群组名称/ID"
+            size="small"
+            style="width:250px;margin-left:8px"
+            clearable
+          />
         </div>
-        <el-table :data="filteredGroups" stripe size="small" style="margin-top:12px" empty-text="暂无群组数据">
-          <el-table-column label="群组ID" prop="groupId" width="200" show-overflow-tooltip />
-          <el-table-column label="群名称" prop="name" min-width="180" />
-          <el-table-column label="类型" prop="type" width="100">
-            <template #default="{ row }">{{ row.type === 'CIRCLE' ? '圈子群' : row.type || '-' }}</template>
-          </el-table-column>
-          <el-table-column label="成员数" prop="memberCount" width="90" align="center" />
-          <el-table-column label="创建时间" width="170">
-            <template #default="{ row }">{{ fmtDate(row.createdAt) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="280">
+        <el-table
+          :data="filteredGroups"
+          stripe
+          size="small"
+          style="margin-top:12px"
+          empty-text="暂无群组数据"
+        >
+          <el-table-column
+            label="群组ID"
+            prop="groupId"
+            width="200"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="群名称"
+            prop="name"
+            min-width="180"
+          />
+          <el-table-column
+            label="类型"
+            prop="type"
+            width="100"
+          >
             <template #default="{ row }">
-              <el-button size="small" @click="showGroupMembers(row)">成员</el-button>
-              <el-button size="small" type="primary" @click="showGroupHistory(row)">消息</el-button>
-              <el-button size="small" type="warning" @click="sendGroupMsg(row)">发消息</el-button>
-              <el-button size="small" type="danger" @click="destroyGroup(row)">解散</el-button>
+              {{ row.type === 'CIRCLE' ? '圈子群' : row.type || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="成员数"
+            prop="memberCount"
+            width="90"
+            align="center"
+          />
+          <el-table-column
+            label="创建时间"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ fmtDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="280"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                @click="showGroupMembers(row)"
+              >
+                成员
+              </el-button>
+              <el-button
+                size="small"
+                type="primary"
+                @click="showGroupHistory(row)"
+              >
+                消息
+              </el-button>
+              <el-button
+                size="small"
+                type="warning"
+                @click="sendGroupMsg(row)"
+              >
+                发消息
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                @click="destroyGroup(row)"
+              >
+                解散
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
       <!-- 消息监控 -->
-      <el-tab-pane label="消息监控" name="messages">
+      <el-tab-pane
+        label="消息监控"
+        name="messages"
+      >
         <div class="toolbar-row">
-          <el-input v-model="msgQuery.groupId" placeholder="群组ID" size="small" style="width:250px" />
-          <el-button type="primary" size="small" @click="fetchGroupHistory">查询消息</el-button>
+          <el-input
+            v-model="msgQuery.groupId"
+            placeholder="群组ID"
+            size="small"
+            style="width:250px"
+          />
+          <el-button
+            type="primary"
+            size="small"
+            @click="fetchGroupHistory"
+          >
+            查询消息
+          </el-button>
         </div>
-        <el-table :data="msgList" stripe size="small" style="margin-top:12px" empty-text="请选择群组查询消息">
-          <el-table-column label="发送者" width="160">
-            <template #default="{ row }">{{ row.senderNickname || row.fromUserId || '-' }}</template>
+        <el-table
+          :data="msgList"
+          stripe
+          size="small"
+          style="margin-top:12px"
+          empty-text="请选择群组查询消息"
+        >
+          <el-table-column
+            label="发送者"
+            width="160"
+          >
+            <template #default="{ row }">
+              {{ row.senderNickname || row.fromUserId || '-' }}
+            </template>
           </el-table-column>
-          <el-table-column label="消息内容" min-width="300" show-overflow-tooltip>
+          <el-table-column
+            label="消息内容"
+            min-width="300"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               <span :class="{ 'text-muted': row.isRevoked }">
                 {{ row.isRevoked ? '[消息已撤回]' : (row.text || row.content || '-') }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column label="类型" width="90">
-            <template #default="{ row }">{{ row.msgType || '文本' }}</template>
-          </el-table-column>
-          <el-table-column label="时间" width="170">
-            <template #default="{ row }">{{ fmtDate(row.createdAt || row.sendTime) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="100">
+          <el-table-column
+            label="类型"
+            width="90"
+          >
             <template #default="{ row }">
-              <el-button v-if="!row.isRevoked" size="small" type="danger" @click="withdrawMsg(row)">撤回</el-button>
+              {{ row.msgType || '文本' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="时间"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ fmtDate(row.createdAt || row.sendTime) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="100"
+          >
+            <template #default="{ row }">
+              <el-button
+                v-if="!row.isRevoked"
+                size="small"
+                type="danger"
+                @click="withdrawMsg(row)"
+              >
+                撤回
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -110,51 +299,147 @@
     </el-tabs>
 
     <!-- 创建群组弹窗 -->
-    <el-dialog v-model="groupVisible" title="创建群组" width="450px">
+    <el-dialog
+      v-model="groupVisible"
+      title="创建群组"
+      width="450px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="群ID" required><el-input v-model="groupForm.groupId" /></el-form-item>
-        <el-form-item label="群名称" required><el-input v-model="groupForm.name" /></el-form-item>
+        <el-form-item
+          label="群ID"
+          required
+        >
+          <el-input v-model="groupForm.groupId" />
+        </el-form-item>
+        <el-form-item
+          label="群名称"
+          required
+        >
+          <el-input v-model="groupForm.name" />
+        </el-form-item>
         <el-form-item label="类型">
-          <el-select v-model="groupForm.type" style="width:100%">
-            <el-option label="圈子群" value="CIRCLE" />
-            <el-option label="直播间群" value="LIVESTREAM" />
-            <el-option label="课程群" value="COURSE" />
+          <el-select
+            v-model="groupForm.type"
+            style="width:100%"
+          >
+            <el-option
+              label="圈子群"
+              value="CIRCLE"
+            />
+            <el-option
+              label="直播间群"
+              value="LIVESTREAM"
+            />
+            <el-option
+              label="课程群"
+              value="COURSE"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="群主ID"><el-input v-model="groupForm.ownerId" /></el-form-item>
+        <el-form-item label="群主ID">
+          <el-input v-model="groupForm.ownerId" />
+        </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="groupVisible = false">取消</el-button>
-        <el-button type="primary" :loading="groupSaving" @click="createGroup">创建</el-button>
+        <el-button @click="groupVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="groupSaving"
+          @click="createGroup"
+        >
+          创建
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 群成员弹窗 -->
-    <el-dialog v-model="memberVisible" title="群成员管理" width="500px">
-      <div class="toolbar-row" style="margin-bottom:12px">
-        <el-input v-model="addMemberId" placeholder="输入用户ID" size="small" style="width:250px" />
-        <el-button size="small" type="primary" @click="addMember">添加成员</el-button>
+    <el-dialog
+      v-model="memberVisible"
+      title="群成员管理"
+      width="500px"
+    >
+      <div
+        class="toolbar-row"
+        style="margin-bottom:12px"
+      >
+        <el-input
+          v-model="addMemberId"
+          placeholder="输入用户ID"
+          size="small"
+          style="width:250px"
+        />
+        <el-button
+          size="small"
+          type="primary"
+          @click="addMember"
+        >
+          添加成员
+        </el-button>
       </div>
-      <el-table :data="memberList" size="small" max-height="300">
-        <el-table-column label="用户ID" prop="userId" width="250" show-overflow-tooltip />
-        <el-table-column label="加入时间" width="170">
-          <template #default="{ row }">{{ fmtDate(row.joinTime) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="80">
+      <el-table
+        :data="memberList"
+        size="small"
+        max-height="300"
+      >
+        <el-table-column
+          label="用户ID"
+          prop="userId"
+          width="250"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="加入时间"
+          width="170"
+        >
           <template #default="{ row }">
-            <el-button size="small" type="danger" @click="removeMember(row)">移除</el-button>
+            {{ fmtDate(row.joinTime) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="80"
+        >
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              type="danger"
+              @click="removeMember(row)"
+            >
+              移除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-dialog>
 
     <!-- 发群消息弹窗 -->
-    <el-dialog v-model="msgSendVisible" title="发送群消息" width="450px">
-      <p style="color:#909399; margin-bottom:8px">发送至：{{ msgTargetGroup?.name }} ({{ msgTargetGroup?.groupId }})</p>
-      <el-input v-model="msgText" type="textarea" :rows="4" placeholder="输入消息内容" />
+    <el-dialog
+      v-model="msgSendVisible"
+      title="发送群消息"
+      width="450px"
+    >
+      <p style="color:#909399; margin-bottom:8px">
+        发送至：{{ msgTargetGroup?.name }} ({{ msgTargetGroup?.groupId }})
+      </p>
+      <el-input
+        v-model="msgText"
+        type="textarea"
+        :rows="4"
+        placeholder="输入消息内容"
+      />
       <template #footer>
-        <el-button @click="msgSendVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!msgText.trim()" @click="sendMsg">发送</el-button>
+        <el-button @click="msgSendVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :disabled="!msgText.trim()"
+          @click="sendMsg"
+        >
+          发送
+        </el-button>
       </template>
     </el-dialog>
   </div>

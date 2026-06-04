@@ -4,16 +4,40 @@
       <h2>运营商管理</h2>
     </div>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="brandName" label="品牌名称" min-width="160" />
-      <el-table-column prop="level" label="运营商等级" width="120">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="brandName"
+        label="品牌名称"
+        min-width="160"
+      />
+      <el-table-column
+        prop="level"
+        label="运营商等级"
+        width="120"
+      >
         <template #default="{ row }">
           <el-tag>{{ row.level }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="containQuota" label="总配额" width="100" />
-      <el-table-column prop="usedQuota" label="已使用" width="100" />
-      <el-table-column label="配额占比" width="120">
+      <el-table-column
+        prop="containQuota"
+        label="总配额"
+        width="100"
+      />
+      <el-table-column
+        prop="usedQuota"
+        label="已使用"
+        width="100"
+      />
+      <el-table-column
+        label="配额占比"
+        width="120"
+      >
         <template #default="{ row }">
           <el-progress
             :percentage="row.containQuota ? Math.round((row.usedQuota / row.containQuota) * 100) : 0"
@@ -21,14 +45,29 @@
           />
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="90">
+      <el-table-column
+        prop="status"
+        label="状态"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'">{{ row.status === 'ACTIVE' ? '启用' : '禁用' }}</el-tag>
+          <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'">
+            {{ row.status === 'ACTIVE' ? '启用' : '禁用' }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column
+        label="操作"
+        width="120"
+        fixed="right"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openEditDialog(row)">编辑品牌</el-button>
+          <el-button
+            size="small"
+            @click="openEditDialog(row)"
+          >
+            编辑品牌
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -42,28 +81,64 @@
       @size-change="fetchList"
     />
 
-    <el-dialog v-model="dialogVisible" title="编辑品牌信息" width="500px">
-      <el-form ref="formRef" :model="form" label-width="110px">
+    <el-dialog
+      v-model="dialogVisible"
+      title="编辑品牌信息"
+      width="500px"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        label-width="110px"
+      >
         <el-form-item label="品牌名称">
           <el-input v-model="form.brandName" />
         </el-form-item>
         <el-form-item label="运营商等级">
-          <el-select v-model="form.level" style="width:100%">
-            <el-option label="普通运营商" value="NORMAL" />
-            <el-option label="高级运营商" value="ADVANCED" />
-            <el-option label="VIP运营商" value="VIP" />
+          <el-select
+            v-model="form.level"
+            style="width:100%"
+          >
+            <el-option
+              label="普通运营商"
+              value="NORMAL"
+            />
+            <el-option
+              label="高级运营商"
+              value="ADVANCED"
+            />
+            <el-option
+              label="VIP运营商"
+              value="VIP"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="总配额">
-          <el-input-number v-model="form.containQuota" :min="0" style="width:100%" />
+          <el-input-number
+            v-model="form.containQuota"
+            :min="0"
+            style="width:100%"
+          />
         </el-form-item>
         <el-form-item label="状态">
-          <el-switch v-model="form.status" active-value="ACTIVE" inactive-value="DISABLED" />
+          <el-switch
+            v-model="form.status"
+            active-value="ACTIVE"
+            inactive-value="DISABLED"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">确认</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="handleSubmit"
+        >
+          确认
+        </el-button>
       </template>
     </el-dialog>
   </div>

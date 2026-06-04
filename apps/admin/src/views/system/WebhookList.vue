@@ -2,50 +2,144 @@
   <div class="page">
     <div class="toolbar">
       <h3>Webhook 管理</h3>
-      <el-button type="primary" @click="openRegister">注册订阅</el-button>
+      <el-button
+        type="primary"
+        @click="openRegister"
+      >
+        注册订阅
+      </el-button>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column label="事件类型" width="160">
-        <template #default="{ row }">{{ eventLabel(row.event) }}</template>
-      </el-table-column>
-      <el-table-column prop="url" label="回调URL" min-width="250" />
-      <el-table-column prop="description" label="备注" min-width="150" />
-      <el-table-column label="状态" width="80">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        label="事件类型"
+        width="160"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.isActive ? 'success' : 'info'" size="small">{{ row.isActive ? '启用' : '禁用' }}</el-tag>
+          {{ eventLabel(row.event) }}
         </template>
       </el-table-column>
-      <el-table-column label="最后发送" width="160">
-        <template #default="{ row }">{{ row.lastSentAt ? fmt(row.lastSentAt) : '-' }}</template>
-      </el-table-column>
-      <el-table-column label="最后状态" width="80">
-        <template #default="{ row }">{{ row.lastStatus || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column
+        prop="url"
+        label="回调URL"
+        min-width="250"
+      />
+      <el-table-column
+        prop="description"
+        label="备注"
+        min-width="150"
+      />
+      <el-table-column
+        label="状态"
+        width="80"
+      >
         <template #default="{ row }">
-          <el-button size="small" text :type="row.isActive ? 'warning' : 'success'" @click="toggle(row)">
+          <el-tag
+            :type="row.isActive ? 'success' : 'info'"
+            size="small"
+          >
+            {{ row.isActive ? '启用' : '禁用' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="最后发送"
+        width="160"
+      >
+        <template #default="{ row }">
+          {{ row.lastSentAt ? fmt(row.lastSentAt) : '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="最后状态"
+        width="80"
+      >
+        <template #default="{ row }">
+          {{ row.lastStatus || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="160"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            text
+            :type="row.isActive ? 'warning' : 'success'"
+            @click="toggle(row)"
+          >
             {{ row.isActive ? '禁用' : '启用' }}
           </el-button>
-          <el-button size="small" text type="danger" @click="del(row.id)">删除</el-button>
+          <el-button
+            size="small"
+            text
+            type="danger"
+            @click="del(row.id)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" title="注册 Webhook" width="550px">
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="事件类型" required>
-          <el-select v-model="form.event" style="width:100%">
-            <el-option v-for="e in EVENT_OPTIONS" :key="e.value" :label="e.label" :value="e.value" />
+    <el-dialog
+      v-model="dialogVisible"
+      title="注册 Webhook"
+      width="550px"
+    >
+      <el-form
+        :model="form"
+        label-width="80px"
+      >
+        <el-form-item
+          label="事件类型"
+          required
+        >
+          <el-select
+            v-model="form.event"
+            style="width:100%"
+          >
+            <el-option
+              v-for="e in EVENT_OPTIONS"
+              :key="e.value"
+              :label="e.label"
+              :value="e.value"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="回调URL" required><el-input v-model="form.url" placeholder="https://example.com/webhook" /></el-form-item>
-        <el-form-item label="签名密钥"><el-input v-model="form.secret" /></el-form-item>
-        <el-form-item label="备注"><el-input v-model="form.description" /></el-form-item>
+        <el-form-item
+          label="回调URL"
+          required
+        >
+          <el-input
+            v-model="form.url"
+            placeholder="https://example.com/webhook"
+          />
+        </el-form-item>
+        <el-form-item label="签名密钥">
+          <el-input v-model="form.secret" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="form.description" />
+        </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doRegister">注册</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doRegister"
+        >
+          注册
+        </el-button>
       </template>
     </el-dialog>
   </div>

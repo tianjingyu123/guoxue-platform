@@ -2,108 +2,244 @@
   <div class="search-analytics">
     <div class="page-header">
       <h3>搜索分析与AI监控</h3>
-      <el-button size="small" @click="refresh">刷新</el-button>
+      <el-button
+        size="small"
+        @click="refresh"
+      >
+        刷新
+      </el-button>
     </div>
 
     <!-- 概览卡片 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ fmtNum(stats.totalSearches) }}</span><span class="label">总搜索次数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ fmtNum(stats.totalSearches) }}</span><span class="label">总搜索次数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ fmtNum(stats.todaySearches) }}</span><span class="label">今日搜索</span></div>
+        <div class="stat-card">
+          <span class="value">{{ fmtNum(stats.todaySearches) }}</span><span class="label">今日搜索</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card info"><span class="value">{{ stats.aiSearchCount || 0 }}</span><span class="label">AI搜索次数</span></div>
+        <div class="stat-card info">
+          <span class="value">{{ stats.aiSearchCount || 0 }}</span><span class="label">AI搜索次数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.avgAiLatency || 0 }}ms</span><span class="label">AI平均响应</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.avgAiLatency || 0 }}ms</span><span class="label">AI平均响应</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card warn"><span class="value">{{ stats.zeroResultRate || 0 }}%</span><span class="label">零结果率</span></div>
+        <div class="stat-card warn">
+          <span class="value">{{ stats.zeroResultRate || 0 }}%</span><span class="label">零结果率</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.aiCoverageRate || 0 }}%</span><span class="label">AI覆盖率</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.aiCoverageRate || 0 }}%</span><span class="label">AI覆盖率</span>
+        </div>
       </el-col>
     </el-row>
 
-    <el-tabs v-model="activeTab" @tab-change="onTabChange">
+    <el-tabs
+      v-model="activeTab"
+      @tab-change="onTabChange"
+    >
       <!-- 搜索分析 -->
-      <el-tab-pane label="搜索分析" name="analytics">
+      <el-tab-pane
+        label="搜索分析"
+        name="analytics"
+      >
         <el-row :gutter="16">
           <el-col :span="14">
             <el-card>
-              <template #header><span>热搜关键词 TOP20</span></template>
-              <div v-if="stats.hotKeywords?.length" class="keyword-cloud">
-                <el-tag v-for="(kw, idx) in stats.hotKeywords" :key="kw.keyword"
-                  :type="idx < 3 ? 'danger' : idx < 10 ? 'warning' : 'info'" size="large" class="keyword-tag">
+              <template #header>
+                <span>热搜关键词 TOP20</span>
+              </template>
+              <div
+                v-if="stats.hotKeywords?.length"
+                class="keyword-cloud"
+              >
+                <el-tag
+                  v-for="(kw, idx) in stats.hotKeywords"
+                  :key="kw.keyword"
+                  :type="idx < 3 ? 'danger' : idx < 10 ? 'warning' : 'info'"
+                  size="large"
+                  class="keyword-tag"
+                >
                   {{ kw.keyword }} <span class="kw-count">({{ kw.count }})</span>
                 </el-tag>
               </div>
-              <el-empty v-else description="暂无热搜数据" />
+              <el-empty
+                v-else
+                description="暂无热搜数据"
+              />
             </el-card>
           </el-col>
           <el-col :span="10">
             <el-card>
-              <template #header><span>最近搜索</span></template>
-              <div v-if="stats.recentSearches?.length" class="recent-list">
-                <div v-for="s in stats.recentSearches" :key="s.keyword + s.createdAt" class="recent-item">
+              <template #header>
+                <span>最近搜索</span>
+              </template>
+              <div
+                v-if="stats.recentSearches?.length"
+                class="recent-list"
+              >
+                <div
+                  v-for="s in stats.recentSearches"
+                  :key="s.keyword + s.createdAt"
+                  class="recent-item"
+                >
                   <span class="recent-keyword">{{ s.keyword }}</span>
                   <span class="recent-meta">{{ s.user?.nickname || '匿名' }} · {{ fmtTime(s.createdAt) }}</span>
                 </div>
               </div>
-              <el-empty v-else description="暂无搜索记录" />
+              <el-empty
+                v-else
+                description="暂无搜索记录"
+              />
             </el-card>
           </el-col>
         </el-row>
       </el-tab-pane>
 
       <!-- AI搜索监控 -->
-      <el-tab-pane label="AI搜索监控" name="ai-monitor">
+      <el-tab-pane
+        label="AI搜索监控"
+        name="ai-monitor"
+      >
         <!-- AI搜索筛选 -->
         <el-card style="margin-bottom:12px">
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <el-input v-model="aiFilter.keyword" placeholder="搜索关键词" size="small" style="width:180px" clearable />
-            <el-select v-model="aiFilter.status" placeholder="状态" size="small" clearable style="width:120px" @change="fetchAiLogs">
-              <el-option label="成功" value="success" />
-              <el-option label="失败" value="error" />
-              <el-option label="超时" value="timeout" />
+            <el-input
+              v-model="aiFilter.keyword"
+              placeholder="搜索关键词"
+              size="small"
+              style="width:180px"
+              clearable
+            />
+            <el-select
+              v-model="aiFilter.status"
+              placeholder="状态"
+              size="small"
+              clearable
+              style="width:120px"
+              @change="fetchAiLogs"
+            >
+              <el-option
+                label="成功"
+                value="success"
+              />
+              <el-option
+                label="失败"
+                value="error"
+              />
+              <el-option
+                label="超时"
+                value="timeout"
+              />
             </el-select>
-            <el-date-picker v-model="aiFilter.dateRange" type="daterange" range-separator="至"
-              start-placeholder="开始" end-placeholder="结束" size="small" style="width:260px" />
-            <el-button size="small" type="primary" @click="fetchAiLogs">搜索</el-button>
+            <el-date-picker
+              v-model="aiFilter.dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始"
+              end-placeholder="结束"
+              size="small"
+              style="width:260px"
+            />
+            <el-button
+              size="small"
+              type="primary"
+              @click="fetchAiLogs"
+            >
+              搜索
+            </el-button>
           </div>
         </el-card>
 
         <!-- AI搜索日志表 -->
         <el-card>
-          <template #header><span>AI搜索调用日志</span></template>
-          <el-table :data="aiLogs" stripe size="small" v-loading="aiLoading" max-height="450">
-            <el-table-column label="用户" width="130" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.userId || '匿名' }}</template>
+          <template #header>
+            <span>AI搜索调用日志</span>
+          </template>
+          <el-table
+            v-loading="aiLoading"
+            :data="aiLogs"
+            stripe
+            size="small"
+            max-height="450"
+          >
+            <el-table-column
+              label="用户"
+              width="130"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ row.userId || '匿名' }}
+              </template>
             </el-table-column>
-            <el-table-column label="搜索词" width="180" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.query || '-' }}</template>
+            <el-table-column
+              label="搜索词"
+              width="180"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ row.query || '-' }}
+              </template>
             </el-table-column>
-            <el-table-column label="AI回答" min-width="250" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.response?.substring(0, 120) || '-' }}</template>
+            <el-table-column
+              label="AI回答"
+              min-width="250"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ row.response?.substring(0, 120) || '-' }}
+              </template>
             </el-table-column>
-            <el-table-column label="Token" width="100">
+            <el-table-column
+              label="Token"
+              width="100"
+            >
               <template #default="{ row }">
                 <span v-if="row.tokenUsage">P:{{ row.tokenUsage.promptTokens }} C:{{ row.tokenUsage.completionTokens }}</span>
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column label="延迟" width="70">
-              <template #default="{ row }">{{ row.latencyMs ? row.latencyMs + 'ms' : '-' }}</template>
-            </el-table-column>
-            <el-table-column label="状态" width="75">
+            <el-table-column
+              label="延迟"
+              width="70"
+            >
               <template #default="{ row }">
-                <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small">{{ row.status || 'ok' }}</el-tag>
+                {{ row.latencyMs ? row.latencyMs + 'ms' : '-' }}
               </template>
             </el-table-column>
-            <el-table-column label="时间" width="160">
-              <template #default="{ row }">{{ fmtTime(row.createdAt) }}</template>
+            <el-table-column
+              label="状态"
+              width="75"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.status === 'success' ? 'success' : 'danger'"
+                  size="small"
+                >
+                  {{ row.status || 'ok' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="时间"
+              width="160"
+            >
+              <template #default="{ row }">
+                {{ fmtTime(row.createdAt) }}
+              </template>
             </el-table-column>
           </el-table>
           <el-pagination
@@ -118,32 +254,78 @@
       </el-tab-pane>
 
       <!-- AI搜索效果分析 -->
-      <el-tab-pane label="AI效果分析" name="ai-effect">
-        <el-row :gutter="16" style="margin-bottom:16px">
+      <el-tab-pane
+        label="AI效果分析"
+        name="ai-effect"
+      >
+        <el-row
+          :gutter="16"
+          style="margin-bottom:16px"
+        >
           <el-col :span="12">
             <el-card>
-              <template #header><span>AI搜索趋势（近7天）</span></template>
-              <div ref="trendChartRef" style="height:300px" />
+              <template #header>
+                <span>AI搜索趋势（近7天）</span>
+              </template>
+              <div
+                ref="trendChartRef"
+                style="height:300px"
+              />
             </el-card>
           </el-col>
           <el-col :span="12">
             <el-card>
-              <template #header><span>搜索场景分布</span></template>
-              <div ref="sceneChartRef" style="height:300px" />
+              <template #header>
+                <span>搜索场景分布</span>
+              </template>
+              <div
+                ref="sceneChartRef"
+                style="height:300px"
+              />
             </el-card>
           </el-col>
         </el-row>
 
         <!-- 零结果关键词 -->
         <el-card>
-          <template #header><span>零结果关键词（近7天）</span></template>
-          <el-table :data="zeroResultKeywords" stripe size="small" max-height="300">
-            <el-table-column prop="keyword" label="关键词" min-width="180" />
-            <el-table-column prop="count" label="搜索次数" width="100" align="center" />
-            <el-table-column label="建议操作" width="200">
+          <template #header>
+            <span>零结果关键词（近7天）</span>
+          </template>
+          <el-table
+            :data="zeroResultKeywords"
+            stripe
+            size="small"
+            max-height="300"
+          >
+            <el-table-column
+              prop="keyword"
+              label="关键词"
+              min-width="180"
+            />
+            <el-table-column
+              prop="count"
+              label="搜索次数"
+              width="100"
+              align="center"
+            />
+            <el-table-column
+              label="建议操作"
+              width="200"
+            >
               <template #default="{ row }">
-                <el-button size="small" type="primary" @click="triggerAiFill(row)">AI生成内容</el-button>
-                <el-button size="small" @click="addToKnowledge(row)">加入知识库</el-button>
+                <el-button
+                  size="small"
+                  type="primary"
+                  @click="triggerAiFill(row)"
+                >
+                  AI生成内容
+                </el-button>
+                <el-button
+                  size="small"
+                  @click="addToKnowledge(row)"
+                >
+                  加入知识库
+                </el-button>
               </template>
             </el-table-column>
           </el-table>

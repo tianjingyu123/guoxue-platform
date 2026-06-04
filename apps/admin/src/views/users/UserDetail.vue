@@ -1,66 +1,150 @@
 <template>
   <div class="user-detail">
-    <el-page-header @back="$router.push('/users')" title="返回">
+    <el-page-header
+      title="返回"
+      @back="$router.push('/users')"
+    >
       <template #content>
         <span class="header-title">
           用户详情 — {{ profile.userInfo?.nickname || profile.userInfo?.phone || '加载中...' }}
         </span>
-        <el-tag v-if="profile.userInfo" size="small" style="margin-left:8px"
-          :type="profile.userInfo.status === 'ACTIVE' ? 'success' : 'danger'">
+        <el-tag
+          v-if="profile.userInfo"
+          size="small"
+          style="margin-left:8px"
+          :type="profile.userInfo.status === 'ACTIVE' ? 'success' : 'danger'"
+        >
           {{ profile.userInfo.status === 'ACTIVE' ? '正常' : profile.userInfo.status === 'BANNED' ? '封禁' : '禁用' }}
         </el-tag>
       </template>
       <template #extra>
-        <el-button v-if="profile.userInfo?.status === 'ACTIVE'" size="small" type="warning" @click="handleBan">封禁用户</el-button>
-        <el-button v-else size="small" type="success" @click="handleUnban">解封用户</el-button>
+        <el-button
+          v-if="profile.userInfo?.status === 'ACTIVE'"
+          size="small"
+          type="warning"
+          @click="handleBan"
+        >
+          封禁用户
+        </el-button>
+        <el-button
+          v-else
+          size="small"
+          type="success"
+          @click="handleUnban"
+        >
+          解封用户
+        </el-button>
       </template>
     </el-page-header>
 
     <!-- 统计概览卡片 -->
-    <div v-if="profile.userInfo" class="stats-row">
+    <div
+      v-if="profile.userInfo"
+      class="stats-row"
+    >
       <div class="stat-card">
-        <div class="stat-value">{{ stats.orderStats?.totalOrders || 0 }}</div>
-        <div class="stat-label">累计订单</div>
+        <div class="stat-value">
+          {{ stats.orderStats?.totalOrders || 0 }}
+        </div>
+        <div class="stat-label">
+          累计订单
+        </div>
       </div>
       <div class="stat-card">
-        <div class="stat-value coin">{{ profile.coinBalance || 0 }}</div>
-        <div class="stat-label">国学币余额</div>
+        <div class="stat-value coin">
+          {{ profile.coinBalance || 0 }}
+        </div>
+        <div class="stat-label">
+          国学币余额
+        </div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.totalCollects || 0 }}</div>
-        <div class="stat-label">收藏</div>
+        <div class="stat-value">
+          {{ stats.totalCollects || 0 }}
+        </div>
+        <div class="stat-label">
+          收藏
+        </div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.totalLikes || 0 }}</div>
-        <div class="stat-label">点赞</div>
+        <div class="stat-value">
+          {{ stats.totalLikes || 0 }}
+        </div>
+        <div class="stat-label">
+          点赞
+        </div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.followers || 0 }}</div>
-        <div class="stat-label">粉丝</div>
+        <div class="stat-value">
+          {{ stats.followers || 0 }}
+        </div>
+        <div class="stat-label">
+          粉丝
+        </div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ stats.following || 0 }}</div>
-        <div class="stat-label">关注</div>
+        <div class="stat-value">
+          {{ stats.following || 0 }}
+        </div>
+        <div class="stat-label">
+          关注
+        </div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ profile.deviceList?.length || 0 }}</div>
-        <div class="stat-label">设备数</div>
+        <div class="stat-value">
+          {{ profile.deviceList?.length || 0 }}
+        </div>
+        <div class="stat-label">
+          设备数
+        </div>
       </div>
     </div>
 
-    <el-tabs v-model="activeTab" class="tabs" @tab-change="onTabChange">
+    <el-tabs
+      v-model="activeTab"
+      class="tabs"
+      @tab-change="onTabChange"
+    >
       <!-- 基本信息 -->
-      <el-tab-pane label="基本信息" name="profile">
-        <el-descriptions v-if="profile.userInfo" :column="2" border>
-          <el-descriptions-item label="用户ID" :span="2">{{ profile.userInfo.id }}</el-descriptions-item>
-          <el-descriptions-item label="昵称">{{ profile.userInfo.nickname }}</el-descriptions-item>
-          <el-descriptions-item label="手机号">{{ profile.userInfo.phone }}</el-descriptions-item>
-          <el-descriptions-item label="邮箱">{{ profile.userInfo.email || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="性别">{{ profile.userInfo.gender === 'MALE' ? '男' : profile.userInfo.gender === 'FEMALE' ? '女' : '-' }}</el-descriptions-item>
-          <el-descriptions-item label="生日">{{ profile.userInfo.birthday || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="个人简介">{{ profile.userInfo.bio || '-' }}</el-descriptions-item>
+      <el-tab-pane
+        label="基本信息"
+        name="profile"
+      >
+        <el-descriptions
+          v-if="profile.userInfo"
+          :column="2"
+          border
+        >
+          <el-descriptions-item
+            label="用户ID"
+            :span="2"
+          >
+            {{ profile.userInfo.id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="昵称">
+            {{ profile.userInfo.nickname }}
+          </el-descriptions-item>
+          <el-descriptions-item label="手机号">
+            {{ profile.userInfo.phone }}
+          </el-descriptions-item>
+          <el-descriptions-item label="邮箱">
+            {{ profile.userInfo.email || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="性别">
+            {{ profile.userInfo.gender === 'MALE' ? '男' : profile.userInfo.gender === 'FEMALE' ? '女' : '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="生日">
+            {{ profile.userInfo.birthday || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="个人简介">
+            {{ profile.userInfo.bio || '-' }}
+          </el-descriptions-item>
           <el-descriptions-item label="会员等级">
-            <el-tag v-if="profile.memberInfo?.memberLevel !== 'NONE'" size="small" type="warning">
+            <el-tag
+              v-if="profile.memberInfo?.memberLevel !== 'NONE'"
+              size="small"
+              type="warning"
+            >
               {{ memberLabel(profile.memberInfo?.memberLevel) }}
             </el-tag>
             <span v-else>非会员</span>
@@ -68,149 +152,355 @@
           <el-descriptions-item label="会员到期">
             {{ profile.memberInfo?.memberExpire ? new Date(profile.memberInfo.memberExpire).toLocaleDateString() : '-' }}
           </el-descriptions-item>
-          <el-descriptions-item label="注册时间">{{ new Date(profile.userInfo.createdAt).toLocaleString() }}</el-descriptions-item>
-          <el-descriptions-item label="最后活跃">{{ formatRelative(profile.userInfo.createdAt) }}</el-descriptions-item>
+          <el-descriptions-item label="注册时间">
+            {{ new Date(profile.userInfo.createdAt).toLocaleString() }}
+          </el-descriptions-item>
+          <el-descriptions-item label="最后活跃">
+            {{ formatRelative(profile.userInfo.createdAt) }}
+          </el-descriptions-item>
         </el-descriptions>
       </el-tab-pane>
 
       <!-- 行为轨迹 — 客服核心视图 -->
-      <el-tab-pane label="行为轨迹" name="behavior">
+      <el-tab-pane
+        label="行为轨迹"
+        name="behavior"
+      >
         <el-timeline v-if="behaviors.length > 0">
           <el-timeline-item
-            v-for="b in behaviors" :key="b.id"
+            v-for="b in behaviors"
+            :key="b.id"
             :timestamp="new Date(b.createdAt).toLocaleString()"
             placement="top"
             :type="behaviorColor(b.action)"
           >
             <div class="behavior-item">
-              <el-tag size="small" :type="behaviorTagType(b.action)">{{ behaviorLabel(b.action) }}</el-tag>
-              <span v-if="b.targetType" class="behavior-target">
+              <el-tag
+                size="small"
+                :type="behaviorTagType(b.action)"
+              >
+                {{ behaviorLabel(b.action) }}
+              </el-tag>
+              <span
+                v-if="b.targetType"
+                class="behavior-target"
+              >
                 {{ targetTypeLabel(b.targetType) }}
                 <template v-if="b.targetId">({{ b.targetId.slice(0, 8) }}...)</template>
               </span>
-              <span v-if="b.ip" class="behavior-meta">IP: {{ b.ip }}</span>
-              <span v-if="b.deviceId" class="behavior-meta">设备: {{ b.deviceId.slice(0, 12) }}...</span>
-              <div v-if="b.meta && Object.keys(b.meta).length > 0" class="behavior-meta-detail">
+              <span
+                v-if="b.ip"
+                class="behavior-meta"
+              >IP: {{ b.ip }}</span>
+              <span
+                v-if="b.deviceId"
+                class="behavior-meta"
+              >设备: {{ b.deviceId.slice(0, 12) }}...</span>
+              <div
+                v-if="b.meta && Object.keys(b.meta).length > 0"
+                class="behavior-meta-detail"
+              >
                 {{ JSON.stringify(b.meta) }}
               </div>
             </div>
           </el-timeline-item>
         </el-timeline>
-        <el-empty v-else description="暂无行为记录" />
+        <el-empty
+          v-else
+          description="暂无行为记录"
+        />
       </el-tab-pane>
 
       <!-- 设备列表 -->
-      <el-tab-pane label="设备列表" name="devices">
-        <el-table :data="profile.deviceList || []" size="small" stripe>
-          <el-table-column label="设备ID" min-width="180">
-            <template #default="{ row }">{{ row.deviceId }}</template>
-          </el-table-column>
-          <el-table-column label="平台" width="100">
-            <template #default="{ row }">{{ row.platform || '-' }}</template>
-          </el-table-column>
-          <el-table-column label="可信设备" width="90">
+      <el-tab-pane
+        label="设备列表"
+        name="devices"
+      >
+        <el-table
+          :data="profile.deviceList || []"
+          size="small"
+          stripe
+        >
+          <el-table-column
+            label="设备ID"
+            min-width="180"
+          >
             <template #default="{ row }">
-              <el-tag size="small" :type="row.isTrusted ? 'success' : 'info'">
+              {{ row.deviceId }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="平台"
+            width="100"
+          >
+            <template #default="{ row }">
+              {{ row.platform || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="可信设备"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-tag
+                size="small"
+                :type="row.isTrusted ? 'success' : 'info'"
+              >
                 {{ row.isTrusted ? '可信' : '普通' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="首次出现" width="170">
-            <template #default="{ row }">{{ row.firstSeenAt ? new Date(row.firstSeenAt).toLocaleString() : '-' }}</template>
+          <el-table-column
+            label="首次出现"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ row.firstSeenAt ? new Date(row.firstSeenAt).toLocaleString() : '-' }}
+            </template>
           </el-table-column>
-          <el-table-column label="最近活跃" width="170">
-            <template #default="{ row }">{{ row.lastSeenAt ? new Date(row.lastSeenAt).toLocaleString() : '-' }}</template>
+          <el-table-column
+            label="最近活跃"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ row.lastSeenAt ? new Date(row.lastSeenAt).toLocaleString() : '-' }}
+            </template>
           </el-table-column>
         </el-table>
-        <el-empty v-if="!profile.deviceList?.length" description="暂无设备信息" />
+        <el-empty
+          v-if="!profile.deviceList?.length"
+          description="暂无设备信息"
+        />
       </el-tab-pane>
 
       <!-- 订单记录 -->
-      <el-tab-pane label="订单记录" name="orders">
-        <div class="tab-summary" v-if="profile.orderStats">
+      <el-tab-pane
+        label="订单记录"
+        name="orders"
+      >
+        <div
+          v-if="profile.orderStats"
+          class="tab-summary"
+        >
           累计 {{ profile.orderStats.totalOrders }} 笔订单，总金额 ¥{{ profile.orderStats.totalAmount?.toFixed(2) || '0.00' }}
         </div>
-        <el-table :data="orders" v-loading="orderLoading" stripe size="small">
-          <el-table-column label="订单号" prop="orderNo" width="180" />
-          <el-table-column label="类型" width="90">
-            <template #default="{ row }">{{ orderTypeLabel(row.type) }}</template>
-          </el-table-column>
-          <el-table-column label="金额" width="100">
-            <template #default="{ row }">¥{{ Number(row.amount || row.totalAmount || 0).toFixed(2) }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="90">
+        <el-table
+          v-loading="orderLoading"
+          :data="orders"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            label="订单号"
+            prop="orderNo"
+            width="180"
+          />
+          <el-table-column
+            label="类型"
+            width="90"
+          >
             <template #default="{ row }">
-              <el-tag size="small" :type="orderStatusType(row.status)">{{ row.status }}</el-tag>
+              {{ orderTypeLabel(row.type) }}
             </template>
           </el-table-column>
-          <el-table-column label="时间" width="170">
-            <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
+          <el-table-column
+            label="金额"
+            width="100"
+          >
+            <template #default="{ row }">
+              ¥{{ Number(row.amount || row.totalAmount || 0).toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-tag
+                size="small"
+                :type="orderStatusType(row.status)"
+              >
+                {{ row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="时间"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ new Date(row.createdAt).toLocaleString() }}
+            </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
       <!-- 圈子/课程 -->
-      <el-tab-pane label="圈子/课程" name="circles">
+      <el-tab-pane
+        label="圈子/课程"
+        name="circles"
+      >
         <h4>加入的圈子 ({{ profile.circleCount || 0 }})</h4>
-        <el-table :data="circles" size="small" stripe>
-          <el-table-column prop="circle?.name" label="圈子名" min-width="140" />
-          <el-table-column label="角色" width="100">
-            <template #default="{ row }">{{ row.role }}</template>
+        <el-table
+          :data="circles"
+          size="small"
+          stripe
+        >
+          <el-table-column
+            prop="circle?.name"
+            label="圈子名"
+            min-width="140"
+          />
+          <el-table-column
+            label="角色"
+            width="100"
+          >
+            <template #default="{ row }">
+              {{ row.role }}
+            </template>
           </el-table-column>
-          <el-table-column label="加入时间" width="170">
-            <template #default="{ row }">{{ new Date(row.joinedAt || row.createdAt).toLocaleString() }}</template>
+          <el-table-column
+            label="加入时间"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ new Date(row.joinedAt || row.createdAt).toLocaleString() }}
+            </template>
           </el-table-column>
         </el-table>
-        <h4 style="margin-top:20px">学习中的课程</h4>
-        <el-table :data="profile.learningProgress || []" size="small" stripe>
-          <el-table-column label="课程ID" width="200">
-            <template #default="{ row }">{{ row.courseId }}</template>
-          </el-table-column>
-          <el-table-column label="进度" width="80">
+        <h4 style="margin-top:20px">
+          学习中的课程
+        </h4>
+        <el-table
+          :data="profile.learningProgress || []"
+          size="small"
+          stripe
+        >
+          <el-table-column
+            label="课程ID"
+            width="200"
+          >
             <template #default="{ row }">
-              <el-progress :percentage="row.progress || 0" :stroke-width="6" />
+              {{ row.courseId }}
             </template>
           </el-table-column>
-          <el-table-column label="完成" width="70">
+          <el-table-column
+            label="进度"
+            width="80"
+          >
             <template #default="{ row }">
-              <el-tag size="small" :type="row.completed ? 'success' : 'info'">{{ row.completed ? '是' : '否' }}</el-tag>
+              <el-progress
+                :percentage="row.progress || 0"
+                :stroke-width="6"
+              />
             </template>
           </el-table-column>
-          <el-table-column label="最近学习" width="170">
-            <template #default="{ row }">{{ row.updatedAt ? new Date(row.updatedAt).toLocaleString() : '-' }}</template>
+          <el-table-column
+            label="完成"
+            width="70"
+          >
+            <template #default="{ row }">
+              <el-tag
+                size="small"
+                :type="row.completed ? 'success' : 'info'"
+              >
+                {{ row.completed ? '是' : '否' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="最近学习"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ row.updatedAt ? new Date(row.updatedAt).toLocaleString() : '-' }}
+            </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
       <!-- 国学币 -->
-      <el-tab-pane label="国学币" name="coins">
-        <el-descriptions v-if="profile.coinBalance !== undefined" :column="2" border>
-          <el-descriptions-item label="当前余额">{{ profile.coinBalance }}</el-descriptions-item>
+      <el-tab-pane
+        label="国学币"
+        name="coins"
+      >
+        <el-descriptions
+          v-if="profile.coinBalance !== undefined"
+          :column="2"
+          border
+        >
+          <el-descriptions-item label="当前余额">
+            {{ profile.coinBalance }}
+          </el-descriptions-item>
           <el-descriptions-item label="累计订单金额">
             ¥{{ profile.orderStats?.totalAmount?.toFixed(2) || '0.00' }}
           </el-descriptions-item>
         </el-descriptions>
-        <el-empty v-else description="暂无国学币数据" />
+        <el-empty
+          v-else
+          description="暂无国学币数据"
+        />
       </el-tab-pane>
 
       <!-- 角色权限 -->
-      <el-tab-pane label="角色权限" name="roles">
+      <el-tab-pane
+        label="角色权限"
+        name="roles"
+      >
         <div class="tab-toolbar">
-          <el-select v-model="newRole" placeholder="选择角色">
-            <el-option v-for="r in availableRoles" :key="r.value" :label="r.label" :value="r.value" />
+          <el-select
+            v-model="newRole"
+            placeholder="选择角色"
+          >
+            <el-option
+              v-for="r in availableRoles"
+              :key="r.value"
+              :label="r.label"
+              :value="r.value"
+            />
           </el-select>
-          <el-button type="primary" :disabled="!newRole" @click="assignRole">分配角色</el-button>
+          <el-button
+            type="primary"
+            :disabled="!newRole"
+            @click="assignRole"
+          >
+            分配角色
+          </el-button>
         </div>
-        <el-table :data="userRoles" border size="small">
-          <el-table-column label="角色" min-width="140">
-            <template #default="{ row }">{{ roleLabel(row.roleType) }}</template>
-          </el-table-column>
-          <el-table-column prop="bindId" label="绑定ID" width="200">
-            <template #default="{ row }">{{ row.bindId || '-' }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="80">
+        <el-table
+          :data="userRoles"
+          border
+          size="small"
+        >
+          <el-table-column
+            label="角色"
+            min-width="140"
+          >
             <template #default="{ row }">
-              <el-button size="small" type="danger" @click="removeRole(row)">移除</el-button>
+              {{ roleLabel(row.roleType) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="bindId"
+            label="绑定ID"
+            width="200"
+          >
+            <template #default="{ row }">
+              {{ row.bindId || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="80"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                type="danger"
+                @click="removeRole(row)"
+              >
+                移除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>

@@ -1,27 +1,103 @@
 <template>
   <div class="page">
-    <div class="toolbar"><h3>数据库备份管理</h3><div><el-button type="primary" :loading="backingUp" @click="manualBackup">手动备份</el-button><el-button :loading="uploading" @click="uploadToCos">上传到COS</el-button></div></div>
+    <div class="toolbar">
+      <h3>数据库备份管理</h3><div>
+        <el-button
+          type="primary"
+          :loading="backingUp"
+          @click="manualBackup"
+        >
+          手动备份
+        </el-button><el-button
+          :loading="uploading"
+          @click="uploadToCos"
+        >
+          上传到COS
+        </el-button>
+      </div>
+    </div>
 
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="8">
         <el-card shadow="hover">
-          <template #header><b>最新备份状态</b></template>
-          <div v-if="latest" style="display:flex;flex-direction:column;gap:8px">
-            <div><el-tag :type="latest.status === 'SUCCESS' ? 'success' : 'danger'" size="small">{{ latest.status || '未知' }}</el-tag></div>
+          <template #header>
+            <b>最新备份状态</b>
+          </template>
+          <div
+            v-if="latest"
+            style="display:flex;flex-direction:column;gap:8px"
+          >
+            <div>
+              <el-tag
+                :type="latest.status === 'SUCCESS' ? 'success' : 'danger'"
+                size="small"
+              >
+                {{ latest.status || '未知' }}
+              </el-tag>
+            </div>
             <div>时间：{{ formatDate(latest.createdAt) }}</div>
-            <div v-if="latest.size">大小：{{ formatSize(latest.size) }}</div>
-            <div v-if="latest.filePath">路径：{{ latest.filePath }}</div>
+            <div v-if="latest.size">
+              大小：{{ formatSize(latest.size) }}
+            </div>
+            <div v-if="latest.filePath">
+              路径：{{ latest.filePath }}
+            </div>
           </div>
-          <div v-else style="color:#999">暂无备份记录</div>
+          <div
+            v-else
+            style="color:#999"
+          >
+            暂无备份记录
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column label="文件名" min-width="250"><template #default="{ row }">{{ row.fileName || row.filePath }}</template></el-table-column>
-      <el-table-column label="大小" width="100"><template #default="{ row }">{{ formatSize(row.size) }}</template></el-table-column>
-      <el-table-column label="状态" width="100"><template #default="{ row }"><el-tag :type="row.status === 'SUCCESS' ? 'success' : 'danger'" size="small">{{ row.status || '-' }}</el-tag></template></el-table-column>
-      <el-table-column label="创建时间" width="180"><template #default="{ row }">{{ formatDate(row.createdAt) }}</template></el-table-column>
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        label="文件名"
+        min-width="250"
+      >
+        <template #default="{ row }">
+          {{ row.fileName || row.filePath }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="大小"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ formatSize(row.size) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
+        width="100"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="row.status === 'SUCCESS' ? 'success' : 'danger'"
+            size="small"
+          >
+            {{ row.status || '-' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="创建时间"
+        width="180"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
     </el-table>
   </div>
 </template>

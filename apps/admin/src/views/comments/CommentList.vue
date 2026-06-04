@@ -14,21 +14,27 @@
     />
 
     <DataTable
+      v-model:page="pagination.page"
+      v-model:page-size="pagination.pageSize"
       :columns="columns"
       :data="tableData"
       :loading="loading"
       :total="pagination.total"
-      v-model:page="pagination.page"
-      v-model:page-size="pagination.pageSize"
       actions-width="190"
     >
       <template #targetType="{ row }">
-        <el-tag size="small" :type="targetTypeColor(row.targetType)">
+        <el-tag
+          size="small"
+          :type="targetTypeColor(row.targetType)"
+        >
           {{ targetTypeLabel(row.targetType) }}
         </el-tag>
       </template>
       <template #status="{ row }">
-        <el-tag size="small" :type="row.status === 'PUBLISHED' ? 'success' : 'info'">
+        <el-tag
+          size="small"
+          :type="row.status === 'PUBLISHED' ? 'success' : 'info'"
+        >
           {{ row.status === 'PUBLISHED' ? '已发布' : '已隐藏' }}
         </el-tag>
       </template>
@@ -36,33 +42,67 @@
         {{ formatTime(row.createdAt) }}
       </template>
       <template #actions="{ row }">
-        <el-button size="small" text type="primary" @click="showDetail(row)">详情</el-button>
-        <el-button size="small" text :type="row.status === 'PUBLISHED' ? 'warning' : 'success'" @click="toggleHide(row)">
+        <el-button
+          size="small"
+          text
+          type="primary"
+          @click="showDetail(row)"
+        >
+          详情
+        </el-button>
+        <el-button
+          size="small"
+          text
+          :type="row.status === 'PUBLISHED' ? 'warning' : 'success'"
+          @click="toggleHide(row)"
+        >
           {{ row.status === 'PUBLISHED' ? '隐藏' : '显示' }}
         </el-button>
-        <el-popconfirm title="确定删除此评论？" @confirm="handleDelete(row.id)">
+        <el-popconfirm
+          title="确定删除此评论？"
+          @confirm="handleDelete(row.id)"
+        >
           <template #reference>
-            <el-button size="small" text type="danger">删除</el-button>
+            <el-button
+              size="small"
+              text
+              type="danger"
+            >
+              删除
+            </el-button>
           </template>
         </el-popconfirm>
       </template>
     </DataTable>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="评论详情" width="640px">
-      <div v-if="currentComment" class="detail-info">
+    <el-dialog
+      v-model="detailVisible"
+      title="评论详情"
+      width="640px"
+    >
+      <div
+        v-if="currentComment"
+        class="detail-info"
+      >
         <p><b>评论ID：</b>{{ currentComment.id }}</p>
         <p><b>用户：</b>{{ currentComment.user?.nickname ?? '未知' }}</p>
         <p>
           <b>目标类型：</b>
-          <el-tag size="small" :type="targetTypeColor(currentComment.targetType)">
+          <el-tag
+            size="small"
+            :type="targetTypeColor(currentComment.targetType)"
+          >
             {{ targetTypeLabel(currentComment.targetType) }}
           </el-tag>
         </p>
         <p><b>目标ID：</b>{{ currentComment.targetId }}</p>
         <p>
           <b>状态：</b>
-          <el-tag size="small" :type="currentComment.status === 'PUBLISHED' ? 'success' : 'info'">
+          <el-tag
+            size="small"
+            :type="currentComment.status === 'PUBLISHED' ? 'success' : 'info'"
+          >
             {{ currentComment.status === 'PUBLISHED' ? '已发布' : '已隐藏' }}
           </el-tag>
         </p>
@@ -70,25 +110,39 @@
         <p><b>发布时间：</b>{{ formatTime(currentComment.createdAt) }}</p>
 
         <p><b>评论内容：</b></p>
-        <div class="content-box">{{ currentComment.content }}</div>
+        <div class="content-box">
+          {{ currentComment.content }}
+        </div>
 
         <template v-if="currentComment.parent">
-          <p style="margin-top:16px"><b>父评论：</b></p>
+          <p style="margin-top:16px">
+            <b>父评论：</b>
+          </p>
           <div class="content-box parent-box">
-            <div class="parent-meta">{{ currentComment.parent.user?.nickname ?? '未知' }} 说：</div>
+            <div class="parent-meta">
+              {{ currentComment.parent.user?.nickname ?? '未知' }} 说：
+            </div>
             {{ currentComment.parent.content }}
           </div>
         </template>
 
         <template v-if="currentComment.replies && currentComment.replies.length > 0">
-          <p style="margin-top:16px"><b>回复列表（{{ currentComment.replies.length }}条）：</b></p>
+          <p style="margin-top:16px">
+            <b>回复列表（{{ currentComment.replies.length }}条）：</b>
+          </p>
           <div class="replies-list">
-            <div v-for="reply in currentComment.replies" :key="reply.id" class="reply-item">
+            <div
+              v-for="reply in currentComment.replies"
+              :key="reply.id"
+              class="reply-item"
+            >
               <div class="reply-meta">
                 <span class="reply-user">{{ reply.user?.nickname ?? '未知' }}</span>
                 <span class="reply-time">{{ formatTime(reply.createdAt) }}</span>
               </div>
-              <div class="reply-content">{{ reply.content }}</div>
+              <div class="reply-content">
+                {{ reply.content }}
+              </div>
             </div>
           </div>
         </template>

@@ -2,64 +2,157 @@
   <div class="page">
     <div class="header">
       <h2>流失预测</h2>
-      <el-button type="primary" :loading="scoring" @click="handleScore">
+      <el-button
+        type="primary"
+        :loading="scoring"
+        @click="handleScore"
+      >
         {{ scoring ? '评分中...' : '执行评分' }}
       </el-button>
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-low">
-          <div class="stat-label">低风险</div>
-          <div class="stat-value">{{ stats.LOW || 0 }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-low"
+        >
+          <div class="stat-label">
+            低风险
+          </div>
+          <div class="stat-value">
+            {{ stats.LOW || 0 }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-medium">
-          <div class="stat-label">中风险</div>
-          <div class="stat-value">{{ stats.MEDIUM || 0 }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-medium"
+        >
+          <div class="stat-label">
+            中风险
+          </div>
+          <div class="stat-value">
+            {{ stats.MEDIUM || 0 }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-high">
-          <div class="stat-label">高风险</div>
-          <div class="stat-value">{{ stats.HIGH || 0 }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-high"
+        >
+          <div class="stat-label">
+            高风险
+          </div>
+          <div class="stat-value">
+            {{ stats.HIGH || 0 }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-critical">
-          <div class="stat-label">严重风险</div>
-          <div class="stat-value">{{ stats.CRITICAL || 0 }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-critical"
+        >
+          <div class="stat-label">
+            严重风险
+          </div>
+          <div class="stat-value">
+            {{ stats.CRITICAL || 0 }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-form :inline="true" class="search-bar">
+    <el-form
+      :inline="true"
+      class="search-bar"
+    >
       <el-form-item label="风险等级">
-        <el-select v-model="filterRiskLevel" placeholder="全部" clearable>
-          <el-option label="低风险" value="LOW" />
-          <el-option label="中风险" value="MEDIUM" />
-          <el-option label="高风险" value="HIGH" />
-          <el-option label="严重风险" value="CRITICAL" />
+        <el-select
+          v-model="filterRiskLevel"
+          placeholder="全部"
+          clearable
+        >
+          <el-option
+            label="低风险"
+            value="LOW"
+          />
+          <el-option
+            label="中风险"
+            value="MEDIUM"
+          />
+          <el-option
+            label="高风险"
+            value="HIGH"
+          />
+          <el-option
+            label="严重风险"
+            value="CRITICAL"
+          />
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="fetchList">搜索</el-button>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          搜索
+        </el-button>
       </el-form-item>
     </el-form>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="userId" label="用户ID" width="200" />
-      <el-table-column prop="activityScore" label="活跃度评分" width="120" sortable />
-      <el-table-column prop="riskLevel" label="风险等级" width="110">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="userId"
+        label="用户ID"
+        width="200"
+      />
+      <el-table-column
+        prop="activityScore"
+        label="活跃度评分"
+        width="120"
+        sortable
+      />
+      <el-table-column
+        prop="riskLevel"
+        label="风险等级"
+        width="110"
+      >
         <template #default="{ row }">
-          <el-tag :type="riskTag(row.riskLevel)">{{ riskLabel(row.riskLevel) }}</el-tag>
+          <el-tag :type="riskTag(row.riskLevel)">
+            {{ riskLabel(row.riskLevel) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="daysSinceActive" label="未活跃天数" width="120" sortable />
-      <el-table-column prop="churnFactors" label="流失因素" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="predictedAt" label="预测时间" width="170" />
+      <el-table-column
+        prop="daysSinceActive"
+        label="未活跃天数"
+        width="120"
+        sortable
+      />
+      <el-table-column
+        prop="churnFactors"
+        label="流失因素"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="predictedAt"
+        label="预测时间"
+        width="170"
+      />
     </el-table>
 
     <el-pagination

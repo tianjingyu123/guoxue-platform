@@ -119,33 +119,91 @@ function exportData() {
 <template>
   <div class="competition-list">
     <DataTable
+      v-model:page="pagination.page"
+      v-model:page-size="pagination.pageSize"
       :columns="columns"
       :data="tableData"
       :loading="loading"
       :total="pagination.total"
-      v-model:page="pagination.page"
-      v-model:page-size="pagination.pageSize"
       actions-width="280"
       @change="onPageChange"
     >
       <template #toolbar>
-        <el-button type="primary" @click="router.push('/competitions/create')">新建赛事</el-button>
-        <el-button @click="exportData">导出CSV</el-button>
+        <el-button
+          type="primary"
+          @click="router.push('/competitions/create')"
+        >
+          新建赛事
+        </el-button>
+        <el-button @click="exportData">
+          导出CSV
+        </el-button>
         <div style="display:flex;gap:10px;margin-left:auto">
-          <el-input v-model="filters.keyword" placeholder="搜索赛事名称..." clearable style="width:200px" @keyup.enter="handleSearch" @clear="handleSearch" />
-          <el-select v-model="filters.type" placeholder="赛事类型" clearable style="width:130px" @change="handleSearch">
-            <el-option v-for="(label, val) in typeLabels" :key="val" :label="label" :value="val" />
+          <el-input
+            v-model="filters.keyword"
+            placeholder="搜索赛事名称..."
+            clearable
+            style="width:200px"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          />
+          <el-select
+            v-model="filters.type"
+            placeholder="赛事类型"
+            clearable
+            style="width:130px"
+            @change="handleSearch"
+          >
+            <el-option
+              v-for="(label, val) in typeLabels"
+              :key="val"
+              :label="label"
+              :value="val"
+            />
           </el-select>
-          <el-select v-model="filters.status" placeholder="状态" clearable style="width:110px" @change="handleSearch">
-            <el-option label="草稿" value="DRAFT" />
-            <el-option label="已发布" value="PUBLISHED" />
-            <el-option label="进行中" value="IN_PROGRESS" />
-            <el-option label="已结束" value="FINISHED" />
+          <el-select
+            v-model="filters.status"
+            placeholder="状态"
+            clearable
+            style="width:110px"
+            @change="handleSearch"
+          >
+            <el-option
+              label="草稿"
+              value="DRAFT"
+            />
+            <el-option
+              label="已发布"
+              value="PUBLISHED"
+            />
+            <el-option
+              label="进行中"
+              value="IN_PROGRESS"
+            />
+            <el-option
+              label="已结束"
+              value="FINISHED"
+            />
           </el-select>
-          <el-select v-model="filters.level" placeholder="级别" clearable style="width:100px" @change="handleSearch">
-            <el-option label="S级" value="S" />
-            <el-option label="A级" value="A" />
-            <el-option label="B级" value="B" />
+          <el-select
+            v-model="filters.level"
+            placeholder="级别"
+            clearable
+            style="width:100px"
+            @change="handleSearch"
+          >
+            <el-option
+              label="S级"
+              value="S"
+            />
+            <el-option
+              label="A级"
+              value="A"
+            />
+            <el-option
+              label="B级"
+              value="B"
+            />
           </el-select>
         </div>
       </template>
@@ -155,9 +213,27 @@ function exportData() {
       </template>
 
       <template #level="{ row }">
-        <el-tag v-if="row.level === 'S'" type="danger" size="small">S级</el-tag>
-        <el-tag v-else-if="row.level === 'A'" type="warning" size="small">A级</el-tag>
-        <el-tag v-else type="info" size="small">B级</el-tag>
+        <el-tag
+          v-if="row.level === 'S'"
+          type="danger"
+          size="small"
+        >
+          S级
+        </el-tag>
+        <el-tag
+          v-else-if="row.level === 'A'"
+          type="warning"
+          size="small"
+        >
+          A级
+        </el-tag>
+        <el-tag
+          v-else
+          type="info"
+          size="small"
+        >
+          B级
+        </el-tag>
       </template>
 
       <template #scoringModel="{ row }">
@@ -165,7 +241,10 @@ function exportData() {
       </template>
 
       <template #status="{ row }">
-        <el-tag :type="statusLabels[row.status]?.type || 'info'" size="small">
+        <el-tag
+          :type="statusLabels[row.status]?.type || 'info'"
+          size="small"
+        >
           {{ statusLabels[row.status]?.text || row.status }}
         </el-tag>
       </template>
@@ -185,12 +264,50 @@ function exportData() {
       </template>
 
       <template #actions="{ row }">
-        <el-button size="small" @click="router.push(`/competitions/${row.id}`)">详情</el-button>
-        <el-button size="small" @click="router.push(`/competitions/${row.id}/edit`)">编辑</el-button>
-        <el-button v-if="row.status === 'DRAFT'" size="small" type="success" @click="handlePublish(row.id)">发布</el-button>
-        <el-button v-if="row.status === 'PUBLISHED'" size="small" type="warning" @click="handleStart(row.id)">开始</el-button>
-        <el-button v-if="row.status === 'IN_PROGRESS'" size="small" type="danger" @click="handleFinish(row.id)">结束</el-button>
-        <el-button v-if="row.status === 'DRAFT'" size="small" type="danger" @click="handleDelete(row.id)">删除</el-button>
+        <el-button
+          size="small"
+          @click="router.push(`/competitions/${row.id}`)"
+        >
+          详情
+        </el-button>
+        <el-button
+          size="small"
+          @click="router.push(`/competitions/${row.id}/edit`)"
+        >
+          编辑
+        </el-button>
+        <el-button
+          v-if="row.status === 'DRAFT'"
+          size="small"
+          type="success"
+          @click="handlePublish(row.id)"
+        >
+          发布
+        </el-button>
+        <el-button
+          v-if="row.status === 'PUBLISHED'"
+          size="small"
+          type="warning"
+          @click="handleStart(row.id)"
+        >
+          开始
+        </el-button>
+        <el-button
+          v-if="row.status === 'IN_PROGRESS'"
+          size="small"
+          type="danger"
+          @click="handleFinish(row.id)"
+        >
+          结束
+        </el-button>
+        <el-button
+          v-if="row.status === 'DRAFT'"
+          size="small"
+          type="danger"
+          @click="handleDelete(row.id)"
+        >
+          删除
+        </el-button>
       </template>
     </DataTable>
   </div>

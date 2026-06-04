@@ -1,112 +1,343 @@
 <template>
   <div class="page">
-    <div class="toolbar"><h3>优惠券模板</h3><el-button type="primary" @click="openCreate">创建模板</el-button></div>
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="name" label="模板名称" min-width="140" />
-      <el-table-column label="类型" width="90">
-        <template #default="{ row }">{{ typeLabel(row.type) }}</template>
-      </el-table-column>
-      <el-table-column label="面额" width="100">
-        <template #default="{ row }">{{ row.type === 'PERCENT' ? Number(row.faceValue) + '%' : '¥' + Number(row.faceValue).toFixed(2) }}</template>
-      </el-table-column>
-      <el-table-column label="门槛" width="90">
-        <template #default="{ row }">{{ row.threshold ? '¥' + Number(row.threshold) : '无' }}</template>
-      </el-table-column>
-      <el-table-column label="已领/总量" width="90">
-        <template #default="{ row }">{{ row.claimedCount || 0 }}/{{ row.totalCount === 0 ? '∞' : row.totalCount }}</template>
-      </el-table-column>
-      <el-table-column label="有效期" width="280">
-        <template #default="{ row }">{{ formatDate(row.startTime) }} ~ {{ formatDate(row.endTime) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="300" fixed="right">
+    <div class="toolbar">
+      <h3>优惠券模板</h3><el-button
+        type="primary"
+        @click="openCreate"
+      >
+        创建模板
+      </el-button>
+    </div>
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="name"
+        label="模板名称"
+        min-width="140"
+      />
+      <el-table-column
+        label="类型"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="success" @click="openGrant(row)">发放</el-button>
-          <el-button size="small" @click="openRecords(row)">记录</el-button>
-          <el-button size="small" type="danger" @click="del(row.id)">删除</el-button>
+          {{ typeLabel(row.type) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="面额"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ row.type === 'PERCENT' ? Number(row.faceValue) + '%' : '¥' + Number(row.faceValue).toFixed(2) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="门槛"
+        width="90"
+      >
+        <template #default="{ row }">
+          {{ row.threshold ? '¥' + Number(row.threshold) : '无' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="已领/总量"
+        width="90"
+      >
+        <template #default="{ row }">
+          {{ row.claimedCount || 0 }}/{{ row.totalCount === 0 ? '∞' : row.totalCount }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="有效期"
+        width="280"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.startTime) }} ~ {{ formatDate(row.endTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="300"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="success"
+            @click="openGrant(row)"
+          >
+            发放
+          </el-button>
+          <el-button
+            size="small"
+            @click="openRecords(row)"
+          >
+            记录
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="del(row.id)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <div v-if="total > 20" style="margin-top:16px;display:flex;justify-content:flex-end">
-      <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="fetchList" />
+    <div
+      v-if="total > 20"
+      style="margin-top:16px;display:flex;justify-content:flex-end"
+    >
+      <el-pagination
+        v-model:current-page="page"
+        :total="total"
+        :page-size="20"
+        layout="total, prev, pager, next"
+        @current-change="fetchList"
+      />
     </div>
 
     <!-- 创建/编辑弹窗 -->
-    <el-dialog v-model="vis" :title="editingId ? '编辑模板' : '创建模板'" width="550px">
-      <el-form :model="form" label-width="90px">
-        <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
+    <el-dialog
+      v-model="vis"
+      :title="editingId ? '编辑模板' : '创建模板'"
+      width="550px"
+    >
+      <el-form
+        :model="form"
+        label-width="90px"
+      >
+        <el-form-item
+          label="名称"
+          required
+        >
+          <el-input v-model="form.name" />
+        </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="类型">
-              <el-select v-model="form.type" style="width:100%">
-                <el-option label="满减券" value="FIXED" />
-                <el-option label="折扣券" value="PERCENT" />
-                <el-option label="免邮券" value="SHIPPING" />
+              <el-select
+                v-model="form.type"
+                style="width:100%"
+              >
+                <el-option
+                  label="满减券"
+                  value="FIXED"
+                />
+                <el-option
+                  label="折扣券"
+                  value="PERCENT"
+                />
+                <el-option
+                  label="免邮券"
+                  value="SHIPPING"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="面额/折扣">
-              <el-input-number v-model="form.faceValue" :min="0.01" :precision="2" style="width:100%" />
+              <el-input-number
+                v-model="form.faceValue"
+                :min="0.01"
+                :precision="2"
+                style="width:100%"
+              />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="门槛金额"><el-input-number v-model="form.threshold" :min="0" :precision="2" style="width:100%" /></el-form-item>
+            <el-form-item label="门槛金额">
+              <el-input-number
+                v-model="form.threshold"
+                :min="0"
+                :precision="2"
+                style="width:100%"
+              />
+            </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="发放总量"><el-input-number v-model="form.totalCount" :min="0" :step="100" style="width:100%" /></el-form-item>
+            <el-form-item label="发放总量">
+              <el-input-number
+                v-model="form.totalCount"
+                :min="0"
+                :step="100"
+                style="width:100%"
+              />
+            </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :span="12"><el-form-item label="开始时间"><el-date-picker v-model="form.startTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="结束时间"><el-date-picker v-model="form.endTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col>
+          <el-col :span="12">
+            <el-form-item label="开始时间">
+              <el-date-picker
+                v-model="form.startTime"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                style="width:100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="结束时间">
+              <el-date-picker
+                v-model="form.endTime"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                style="width:100%"
+              />
+            </el-form-item>
+          </el-col>
         </el-row>
-        <el-form-item label="展示范围"><el-radio-group v-model="form.scope"><el-radio value="GLOBAL">全平台</el-radio><el-radio value="PAGE_ONLY">仅指定微页面</el-radio></el-radio-group></el-form-item>
-        <el-form-item v-if="form.scope === 'PAGE_ONLY'" label="关联微页面"><el-select v-model="form.scopePageId" placeholder="选择微页面" clearable style="width:100%"><el-option v-for="p in pages" :key="p.id" :label="p.name" :value="p.id" /></el-select></el-form-item>
+        <el-form-item label="展示范围">
+          <el-radio-group v-model="form.scope">
+            <el-radio value="GLOBAL">
+              全平台
+            </el-radio><el-radio value="PAGE_ONLY">
+              仅指定微页面
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item
+          v-if="form.scope === 'PAGE_ONLY'"
+          label="关联微页面"
+        >
+          <el-select
+            v-model="form.scopePageId"
+            placeholder="选择微页面"
+            clearable
+            style="width:100%"
+          >
+            <el-option
+              v-for="p in pages"
+              :key="p.id"
+              :label="p.name"
+              :value="p.id"
+            />
+          </el-select>
+        </el-form-item>
       </el-form>
-      <template #footer><el-button @click="vis = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
+      <template #footer>
+        <el-button @click="vis = false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
+      </template>
     </el-dialog>
 
     <!-- 发放弹窗 -->
-    <el-dialog v-model="grantVis" title="发放优惠券" width="480px">
+    <el-dialog
+      v-model="grantVis"
+      title="发放优惠券"
+      width="480px"
+    >
       <div v-if="grantTarget">
         <p><b>模板：</b>{{ grantTarget.name }}</p>
         <el-form label-width="90px">
           <el-form-item label="发放方式">
             <el-radio-group v-model="grantMode">
-              <el-radio value="single">单个用户</el-radio>
-              <el-radio value="batch">批量用户</el-radio>
+              <el-radio value="single">
+                单个用户
+              </el-radio>
+              <el-radio value="batch">
+                批量用户
+              </el-radio>
             </el-radio-group>
           </el-form-item>
-          <el-form-item v-if="grantMode === 'single'" label="用户ID">
-            <el-input v-model="grantUserId" placeholder="输入用户ID" />
+          <el-form-item
+            v-if="grantMode === 'single'"
+            label="用户ID"
+          >
+            <el-input
+              v-model="grantUserId"
+              placeholder="输入用户ID"
+            />
           </el-form-item>
-          <el-form-item v-if="grantMode === 'batch'" label="用户ID列表">
-            <el-input v-model="grantUserIds" type="textarea" :rows="4" placeholder="每行一个用户ID" />
+          <el-form-item
+            v-if="grantMode === 'batch'"
+            label="用户ID列表"
+          >
+            <el-input
+              v-model="grantUserIds"
+              type="textarea"
+              :rows="4"
+              placeholder="每行一个用户ID"
+            />
           </el-form-item>
         </el-form>
       </div>
       <template #footer>
-        <el-button @click="grantVis = false">取消</el-button>
-        <el-button type="primary" :loading="granting" @click="doGrant">确认发放</el-button>
+        <el-button @click="grantVis = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="granting"
+          @click="doGrant"
+        >
+          确认发放
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 发放记录弹窗 -->
-    <el-dialog v-model="recordsVis" title="发放记录" width="650px">
-      <el-table :data="records" stripe max-height="400" v-loading="recordsLoading">
-        <el-table-column prop="userId" label="用户ID" width="120" />
-        <el-table-column prop="userName" label="用户名" width="120" />
-        <el-table-column label="状态" width="80">
+    <el-dialog
+      v-model="recordsVis"
+      title="发放记录"
+      width="650px"
+    >
+      <el-table
+        v-loading="recordsLoading"
+        :data="records"
+        stripe
+        max-height="400"
+      >
+        <el-table-column
+          prop="userId"
+          label="用户ID"
+          width="120"
+        />
+        <el-table-column
+          prop="userName"
+          label="用户名"
+          width="120"
+        />
+        <el-table-column
+          label="状态"
+          width="80"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="row.status === 'USED' ? 'success' : row.status === 'EXPIRED' ? 'danger' : 'info'">{{ recordStatusMap[row.status] || row.status }}</el-tag>
+            <el-tag
+              size="small"
+              :type="row.status === 'USED' ? 'success' : row.status === 'EXPIRED' ? 'danger' : 'info'"
+            >
+              {{ recordStatusMap[row.status] || row.status }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="领取时间" width="170">
-          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+        <el-table-column
+          label="领取时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.createdAt) }}
+          </template>
         </el-table-column>
       </el-table>
     </el-dialog>

@@ -3,15 +3,32 @@
     <div class="page-header">
       <div>
         <h2>营收总览</h2>
-        <span class="update-time" v-if="lastUpdate">数据更新于 {{ lastUpdate }}</span>
+        <span
+          v-if="lastUpdate"
+          class="update-time"
+        >数据更新于 {{ lastUpdate }}</span>
       </div>
       <div class="header-actions">
-        <el-radio-group v-model="timeRange" @change="refresh" size="small">
-          <el-radio-button value="7d">近7天</el-radio-button>
-          <el-radio-button value="30d">近30天</el-radio-button>
-          <el-radio-button value="90d">近90天</el-radio-button>
-          <el-radio-button value="thisMonth">本月</el-radio-button>
-          <el-radio-button value="thisYear">本年</el-radio-button>
+        <el-radio-group
+          v-model="timeRange"
+          size="small"
+          @change="refresh"
+        >
+          <el-radio-button value="7d">
+            近7天
+          </el-radio-button>
+          <el-radio-button value="30d">
+            近30天
+          </el-radio-button>
+          <el-radio-button value="90d">
+            近90天
+          </el-radio-button>
+          <el-radio-button value="thisMonth">
+            本月
+          </el-radio-button>
+          <el-radio-button value="thisYear">
+            本年
+          </el-radio-button>
         </el-radio-group>
         <el-date-picker
           v-model="customRange"
@@ -23,82 +40,155 @@
           style="margin-left:8px"
           @change="onCustomRange"
         />
-        <el-button size="small" @click="refresh" style="margin-left:8px">刷新</el-button>
-        <el-button size="small" @click="exportCSV">导出报表</el-button>
+        <el-button
+          size="small"
+          style="margin-left:8px"
+          @click="refresh"
+        >
+          刷新
+        </el-button>
+        <el-button
+          size="small"
+          @click="exportCSV"
+        >
+          导出报表
+        </el-button>
       </div>
     </div>
 
     <!-- 核心指标卡片 -->
-    <el-row :gutter="16" class="metric-row">
+    <el-row
+      :gutter="16"
+      class="metric-row"
+    >
       <el-col :span="4">
         <div class="metric-card">
-          <div class="metric-label">平台总收入</div>
-          <div class="metric-value">¥{{ fmt(metrics.totalRevenue) }}</div>
-          <div class="metric-change" :class="metrics.revenueUp ? 'up' : 'down'">
+          <div class="metric-label">
+            平台总收入
+          </div>
+          <div class="metric-value">
+            ¥{{ fmt(metrics.totalRevenue) }}
+          </div>
+          <div
+            class="metric-change"
+            :class="metrics.revenueUp ? 'up' : 'down'"
+          >
             {{ metrics.revenueUp ? '↑' : '↓' }} {{ metrics.revenueChange }}% 环比
           </div>
         </div>
       </el-col>
       <el-col :span="4">
         <div class="metric-card">
-          <div class="metric-label">平台分佣</div>
-          <div class="metric-value">¥{{ fmt(metrics.platformCommission) }}</div>
-          <div class="metric-change text-muted">占总收入 {{ metrics.commissionRate }}%</div>
+          <div class="metric-label">
+            平台分佣
+          </div>
+          <div class="metric-value">
+            ¥{{ fmt(metrics.platformCommission) }}
+          </div>
+          <div class="metric-change text-muted">
+            占总收入 {{ metrics.commissionRate }}%
+          </div>
         </div>
       </el-col>
       <el-col :span="4">
         <div class="metric-card">
-          <div class="metric-label">用户收益</div>
-          <div class="metric-value">¥{{ fmt(metrics.userEarnings) }}</div>
-          <div class="metric-change text-muted">商家/讲师/分站长</div>
+          <div class="metric-label">
+            用户收益
+          </div>
+          <div class="metric-value">
+            ¥{{ fmt(metrics.userEarnings) }}
+          </div>
+          <div class="metric-change text-muted">
+            商家/讲师/分站长
+          </div>
         </div>
       </el-col>
       <el-col :span="4">
         <div class="metric-card">
-          <div class="metric-label">订单总数</div>
-          <div class="metric-value">{{ metrics.orderCount }}</div>
-          <div class="metric-change" :class="metrics.orderUp ? 'up' : 'down'">
+          <div class="metric-label">
+            订单总数
+          </div>
+          <div class="metric-value">
+            {{ metrics.orderCount }}
+          </div>
+          <div
+            class="metric-change"
+            :class="metrics.orderUp ? 'up' : 'down'"
+          >
             {{ metrics.orderUp ? '↑' : '↓' }} {{ metrics.orderChange }}% 环比
           </div>
         </div>
       </el-col>
       <el-col :span="4">
         <div class="metric-card">
-          <div class="metric-label">退款金额</div>
-          <div class="metric-value warn">¥{{ fmt(metrics.refundAmount) }}</div>
-          <div class="metric-change text-muted">退款率 {{ metrics.refundRate }}%</div>
+          <div class="metric-label">
+            退款金额
+          </div>
+          <div class="metric-value warn">
+            ¥{{ fmt(metrics.refundAmount) }}
+          </div>
+          <div class="metric-change text-muted">
+            退款率 {{ metrics.refundRate }}%
+          </div>
         </div>
       </el-col>
       <el-col :span="4">
         <div class="metric-card">
-          <div class="metric-label">客单价</div>
-          <div class="metric-value">¥{{ fmt(metrics.avgOrder) }}</div>
-          <div class="metric-change text-muted">付费用户 {{ metrics.payingUsers }} 人</div>
+          <div class="metric-label">
+            客单价
+          </div>
+          <div class="metric-value">
+            ¥{{ fmt(metrics.avgOrder) }}
+          </div>
+          <div class="metric-change text-muted">
+            付费用户 {{ metrics.payingUsers }} 人
+          </div>
         </div>
       </el-col>
     </el-row>
 
     <!-- 图表区 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="16">
         <el-card>
-          <template #header><span>营收趋势</span></template>
-          <div ref="trendChart" style="height:320px"></div>
+          <template #header>
+            <span>营收趋势</span>
+          </template>
+          <div
+            ref="trendChart"
+            style="height:320px"
+          />
         </el-card>
       </el-col>
       <el-col :span="8">
         <el-card>
-          <template #header><span>收入构成</span></template>
-          <div ref="pieChart" style="height:320px"></div>
+          <template #header>
+            <span>收入构成</span>
+          </template>
+          <div
+            ref="pieChart"
+            style="height:320px"
+          />
         </el-card>
       </el-col>
     </el-row>
 
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="12">
         <el-card>
-          <template #header><span>支付渠道分布</span></template>
-          <div ref="channelChart" style="height:280px"></div>
+          <template #header>
+            <span>支付渠道分布</span>
+          </template>
+          <div
+            ref="channelChart"
+            style="height:280px"
+          />
         </el-card>
       </el-col>
       <el-col :span="12">
@@ -106,16 +196,40 @@
           <template #header>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span>收入明细</span>
-              <el-button size="small" text @click="router.push('/orders/payments')">查看全部 →</el-button>
+              <el-button
+                size="small"
+                text
+                @click="router.push('/orders/payments')"
+              >
+                查看全部 →
+              </el-button>
             </div>
           </template>
-          <el-table :data="breakdownItems" stripe size="small" max-height="280">
-            <el-table-column prop="label" label="分类" />
-            <el-table-column label="金额" width="140">
-              <template #default="{ row }">¥{{ fmt(row.value) }}</template>
+          <el-table
+            :data="breakdownItems"
+            stripe
+            size="small"
+            max-height="280"
+          >
+            <el-table-column
+              prop="label"
+              label="分类"
+            />
+            <el-table-column
+              label="金额"
+              width="140"
+            >
+              <template #default="{ row }">
+                ¥{{ fmt(row.value) }}
+              </template>
             </el-table-column>
-            <el-table-column label="占比" width="80">
-              <template #default="{ row }">{{ row.percent }}%</template>
+            <el-table-column
+              label="占比"
+              width="80"
+            >
+              <template #default="{ row }">
+                {{ row.percent }}%
+              </template>
             </el-table-column>
           </el-table>
         </el-card>
@@ -124,13 +238,24 @@
 
     <!-- 快捷入口 -->
     <el-card>
-      <template #header><span>财务快捷入口</span></template>
+      <template #header>
+        <span>财务快捷入口</span>
+      </template>
       <el-row :gutter="12">
-        <el-col :span="4" v-for="link in quickLinks" :key="link.path">
-          <el-button @click="router.push(link.path)" style="width:100%; height:64px">
+        <el-col
+          v-for="link in quickLinks"
+          :key="link.path"
+          :span="4"
+        >
+          <el-button
+            style="width:100%; height:64px"
+            @click="router.push(link.path)"
+          >
             <div>
               <span style="font-size:18px">{{ link.icon }}</span>
-              <div style="margin-top:4px; font-size:12px">{{ link.label }}</div>
+              <div style="margin-top:4px; font-size:12px">
+                {{ link.label }}
+              </div>
             </div>
           </el-button>
         </el-col>

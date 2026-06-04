@@ -3,14 +3,26 @@
     <div class="page-header">
       <h3>退款审核</h3>
       <div>
-        <el-button size="small" @click="exportCSV">导出CSV</el-button>
+        <el-button
+          size="small"
+          @click="exportCSV"
+        >
+          导出CSV
+        </el-button>
       </div>
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="6">
-        <div class="stat-card pending" :class="{ active: activeTab === 'PENDING' }" @click="activeTab = 'PENDING'; fetchList()">
+        <div
+          class="stat-card pending"
+          :class="{ active: activeTab === 'PENDING' }"
+          @click="activeTab = 'PENDING'; fetchList()"
+        >
           <span class="value">{{ stats.pending }}</span><span class="label">待处理退款</span>
         </div>
       </el-col>
@@ -33,8 +45,20 @@
 
     <!-- 筛选 -->
     <div class="filter-bar">
-      <el-input v-model="search.orderNo" placeholder="订单号" clearable style="width:180px" @change="fetchList" />
-      <el-input v-model="search.userId" placeholder="用户ID/昵称" clearable style="width:160px" @change="fetchList" />
+      <el-input
+        v-model="search.orderNo"
+        placeholder="订单号"
+        clearable
+        style="width:180px"
+        @change="fetchList"
+      />
+      <el-input
+        v-model="search.userId"
+        placeholder="用户ID/昵称"
+        clearable
+        style="width:160px"
+        @change="fetchList"
+      />
       <el-date-picker
         v-model="search.dateRange"
         type="daterange"
@@ -45,40 +69,121 @@
         style="width:260px"
         @change="fetchList"
       />
-      <el-tabs v-model="activeTab" @tab-change="fetchList" style="flex:1">
-        <el-tab-pane label="待处理" name="PENDING" />
-        <el-tab-pane label="已同意" name="APPROVED" />
-        <el-tab-pane label="已拒绝" name="REJECTED" />
+      <el-tabs
+        v-model="activeTab"
+        style="flex:1"
+        @tab-change="fetchList"
+      >
+        <el-tab-pane
+          label="待处理"
+          name="PENDING"
+        />
+        <el-tab-pane
+          label="已同意"
+          name="APPROVED"
+        />
+        <el-tab-pane
+          label="已拒绝"
+          name="REJECTED"
+        />
       </el-tabs>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column label="订单号" prop="orderNo" width="180" show-overflow-tooltip />
-      <el-table-column label="用户" width="130">
-        <template #default="{ row }">{{ row.user?.nickname || row.userId }}</template>
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        label="订单号"
+        prop="orderNo"
+        width="180"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="用户"
+        width="130"
+      >
+        <template #default="{ row }">
+          {{ row.user?.nickname || row.userId }}
+        </template>
       </el-table-column>
-      <el-table-column label="商品/课程" min-width="180" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.product?.title || row.course?.title || '-' }}</template>
+      <el-table-column
+        label="商品/课程"
+        min-width="180"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          {{ row.product?.title || row.course?.title || '-' }}
+        </template>
       </el-table-column>
-      <el-table-column label="退款金额" width="110" align="right">
-        <template #default="{ row }">¥{{ fmt(row.amount || row.refundAmount) }}</template>
+      <el-table-column
+        label="退款金额"
+        width="110"
+        align="right"
+      >
+        <template #default="{ row }">
+          ¥{{ fmt(row.amount || row.refundAmount) }}
+        </template>
       </el-table-column>
-      <el-table-column label="退款原因" min-width="150" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.reason || '-' }}</template>
+      <el-table-column
+        label="退款原因"
+        min-width="150"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          {{ row.reason || '-' }}
+        </template>
       </el-table-column>
-      <el-table-column label="申请时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+      <el-table-column
+        label="申请时间"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column
+        label="操作"
+        width="200"
+        fixed="right"
+      >
         <template #default="{ row }">
           <template v-if="activeTab === 'PENDING'">
-            <el-button size="small" type="success" @click="showApproveConfirm(row)">同意退款</el-button>
-            <el-button size="small" type="danger" @click="showReject(row)">拒绝</el-button>
+            <el-button
+              size="small"
+              type="success"
+              @click="showApproveConfirm(row)"
+            >
+              同意退款
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="showReject(row)"
+            >
+              拒绝
+            </el-button>
           </template>
           <template v-else>
-            <span v-if="row.auditNote" class="reason text-muted">{{ row.auditNote }}</span>
-            <el-tag v-else-if="activeTab === 'APPROVED'" type="success" size="small">已同意</el-tag>
-            <el-tag v-else type="danger" size="small">已拒绝</el-tag>
+            <span
+              v-if="row.auditNote"
+              class="reason text-muted"
+            >{{ row.auditNote }}</span>
+            <el-tag
+              v-else-if="activeTab === 'APPROVED'"
+              type="success"
+              size="small"
+            >
+              已同意
+            </el-tag>
+            <el-tag
+              v-else
+              type="danger"
+              size="small"
+            >
+              已拒绝
+            </el-tag>
           </template>
         </template>
       </el-table-column>
@@ -96,26 +201,70 @@
     </div>
 
     <!-- 同意退款确认弹窗 -->
-    <el-dialog v-model="approveVisible" title="确认退款" width="450px">
-      <el-descriptions :column="1" border size="small">
-        <el-descriptions-item label="订单号">{{ approveTarget?.orderNo }}</el-descriptions-item>
-        <el-descriptions-item label="退款金额">¥{{ fmt(approveTarget?.amount || approveTarget?.refundAmount) }}</el-descriptions-item>
-        <el-descriptions-item label="退款原因">{{ approveTarget?.reason || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="用户">{{ approveTarget?.user?.nickname || approveTarget?.userId }}</el-descriptions-item>
+    <el-dialog
+      v-model="approveVisible"
+      title="确认退款"
+      width="450px"
+    >
+      <el-descriptions
+        :column="1"
+        border
+        size="small"
+      >
+        <el-descriptions-item label="订单号">
+          {{ approveTarget?.orderNo }}
+        </el-descriptions-item>
+        <el-descriptions-item label="退款金额">
+          ¥{{ fmt(approveTarget?.amount || approveTarget?.refundAmount) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="退款原因">
+          {{ approveTarget?.reason || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="用户">
+          {{ approveTarget?.user?.nickname || approveTarget?.userId }}
+        </el-descriptions-item>
       </el-descriptions>
-      <p style="margin-top:12px; color:#e6a23c">⚠️ 确认后将执行退款，资金将原路退回，此操作不可撤销。</p>
+      <p style="margin-top:12px; color:#e6a23c">
+        ⚠️ 确认后将执行退款，资金将原路退回，此操作不可撤销。
+      </p>
       <template #footer>
-        <el-button @click="approveVisible = false">取消</el-button>
-        <el-button type="success" :loading="processing" @click="confirmApprove">确认退款</el-button>
+        <el-button @click="approveVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="success"
+          :loading="processing"
+          @click="confirmApprove"
+        >
+          确认退款
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 拒绝退款弹窗 -->
-    <el-dialog v-model="rejectVisible" title="拒绝退款" width="450px">
-      <el-input v-model="rejectReason" type="textarea" :rows="3" placeholder="请填写拒绝原因（必填）" />
+    <el-dialog
+      v-model="rejectVisible"
+      title="拒绝退款"
+      width="450px"
+    >
+      <el-input
+        v-model="rejectReason"
+        type="textarea"
+        :rows="3"
+        placeholder="请填写拒绝原因（必填）"
+      />
       <template #footer>
-        <el-button @click="rejectVisible = false">取消</el-button>
-        <el-button type="danger" :disabled="!rejectReason.trim()" :loading="processing" @click="confirmReject">确认拒绝</el-button>
+        <el-button @click="rejectVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="danger"
+          :disabled="!rejectReason.trim()"
+          :loading="processing"
+          @click="confirmReject"
+        >
+          确认拒绝
+        </el-button>
       </template>
     </el-dialog>
   </div>

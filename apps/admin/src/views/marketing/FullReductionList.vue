@@ -1,53 +1,211 @@
 <template>
   <div class="page">
-    <div class="toolbar"><h3>满减送活动</h3><el-button type="primary" @click="openCreate">创建活动</el-button></div>
-    <el-alert type="info" :closable="false" show-icon style="margin-bottom:12px">
+    <div class="toolbar">
+      <h3>满减送活动</h3><el-button
+        type="primary"
+        @click="openCreate"
+      >
+        创建活动
+      </el-button>
+    </div>
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
       <template #title>
         <span style="font-size:13px">展示位置：<b>购物车页</b>自动匹配最优满减、<b>结算页</b>显示减免金额。创建后即生效。</span>
       </template>
     </el-alert>
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="name" label="活动名称" min-width="150" />
-      <el-table-column label="满减规则" min-width="200">
-        <template #default="{ row }">满¥{{ row.threshold }}减¥{{ row.reduction }}<template v-if="row.giftProductId"> + 赠品</template></template>
-      </el-table-column>
-      <el-table-column label="状态" width="90">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="name"
+        label="活动名称"
+        min-width="150"
+      />
+      <el-table-column
+        label="满减规则"
+        min-width="200"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'ACTIVE' ? 'success' : row.status === 'ENDED' ? 'danger' : 'info'" size="small">{{ statusLabel(row.status) }}</el-tag>
+          满¥{{ row.threshold }}减¥{{ row.reduction }}<template v-if="row.giftProductId">
+            + 赠品
+          </template>
         </template>
       </el-table-column>
-      <el-table-column label="有效期" width="280">
-        <template #default="{ row }">{{ formatDate(row.startTime) }} ~ {{ formatDate(row.endTime) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column
+        label="状态"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="del(row.id)">删除</el-button>
+          <el-tag
+            :type="row.status === 'ACTIVE' ? 'success' : row.status === 'ENDED' ? 'danger' : 'info'"
+            size="small"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="有效期"
+        width="280"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.startTime) }} ~ {{ formatDate(row.endTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="160"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="del(row.id)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <div v-if="total > 20" style="margin-top:16px;display:flex;justify-content:flex-end">
-      <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="fetchList" />
+    <div
+      v-if="total > 20"
+      style="margin-top:16px;display:flex;justify-content:flex-end"
+    >
+      <el-pagination
+        v-model:current-page="page"
+        :total="total"
+        :page-size="20"
+        layout="total, prev, pager, next"
+        @current-change="fetchList"
+      />
     </div>
 
-    <el-dialog v-model="vis" :title="editingId ? '编辑满减送' : '创建满减送'" width="550px">
-      <el-form :model="form" label-width="90px">
-        <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
+    <el-dialog
+      v-model="vis"
+      :title="editingId ? '编辑满减送' : '创建满减送'"
+      width="550px"
+    >
+      <el-form
+        :model="form"
+        label-width="90px"
+      >
+        <el-form-item
+          label="名称"
+          required
+        >
+          <el-input v-model="form.name" />
+        </el-form-item>
         <el-row :gutter="16">
-          <el-col :span="12"><el-form-item label="满金额(¥)"><el-input-number v-model="form.threshold" :min="0" :precision="2" style="width:100%" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="减金额(¥)"><el-input-number v-model="form.reduction" :min="0" :precision="2" style="width:100%" /></el-form-item></el-col>
+          <el-col :span="12">
+            <el-form-item label="满金额(¥)">
+              <el-input-number
+                v-model="form.threshold"
+                :min="0"
+                :precision="2"
+                style="width:100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="减金额(¥)">
+              <el-input-number
+                v-model="form.reduction"
+                :min="0"
+                :precision="2"
+                style="width:100%"
+              />
+            </el-form-item>
+          </el-col>
         </el-row>
-        <el-form-item label="赠品商品ID"><el-input v-model="form.giftProductId" placeholder="可选" /></el-form-item>
-        <el-form-item label="适用商品"><ProductPicker v-model="form.productIds" multiple placeholder="留空则全场商品参与" /></el-form-item>
+        <el-form-item label="赠品商品ID">
+          <el-input
+            v-model="form.giftProductId"
+            placeholder="可选"
+          />
+        </el-form-item>
+        <el-form-item label="适用商品">
+          <ProductPicker
+            v-model="form.productIds"
+            multiple
+            placeholder="留空则全场商品参与"
+          />
+        </el-form-item>
         <el-row :gutter="16">
-          <el-col :span="12"><el-form-item label="开始时间"><el-date-picker v-model="form.startTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="结束时间"><el-date-picker v-model="form.endTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col>
+          <el-col :span="12">
+            <el-form-item label="开始时间">
+              <el-date-picker
+                v-model="form.startTime"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                style="width:100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="结束时间">
+              <el-date-picker
+                v-model="form.endTime"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                style="width:100%"
+              />
+            </el-form-item>
+          </el-col>
         </el-row>
-        <el-form-item label="展示范围"><el-radio-group v-model="form.scope"><el-radio value="GLOBAL">全平台</el-radio><el-radio value="PAGE_ONLY">仅指定微页面</el-radio></el-radio-group></el-form-item>
-        <el-form-item v-if="form.scope === 'PAGE_ONLY'" label="关联微页面"><el-select v-model="form.scopePageId" placeholder="选择微页面" clearable style="width:100%"><el-option v-for="p in pages" :key="p.id" :label="p.name" :value="p.id" /></el-select></el-form-item>
+        <el-form-item label="展示范围">
+          <el-radio-group v-model="form.scope">
+            <el-radio value="GLOBAL">
+              全平台
+            </el-radio><el-radio value="PAGE_ONLY">
+              仅指定微页面
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item
+          v-if="form.scope === 'PAGE_ONLY'"
+          label="关联微页面"
+        >
+          <el-select
+            v-model="form.scopePageId"
+            placeholder="选择微页面"
+            clearable
+            style="width:100%"
+          >
+            <el-option
+              v-for="p in pages"
+              :key="p.id"
+              :label="p.name"
+              :value="p.id"
+            />
+          </el-select>
+        </el-form-item>
       </el-form>
-      <template #footer><el-button @click="vis = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
+      <template #footer>
+        <el-button @click="vis = false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
+      </template>
     </el-dialog>
   </div>
 </template>

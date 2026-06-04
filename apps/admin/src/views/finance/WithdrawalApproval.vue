@@ -119,81 +119,247 @@ function handleExport() {
     <div class="toolbar">
       <h3>提现审批</h3>
       <div class="toolbar-right">
-        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width:130px" @change="fetchList">
-          <el-option label="全部" value="" />
-          <el-option label="待审批" value="PENDING" />
-          <el-option label="已通过" value="APPROVED" />
-          <el-option label="已拒绝" value="REJECTED" />
-          <el-option label="已打款" value="PAID" />
+        <el-select
+          v-model="statusFilter"
+          placeholder="状态筛选"
+          clearable
+          style="width:130px"
+          @change="fetchList"
+        >
+          <el-option
+            label="全部"
+            value=""
+          />
+          <el-option
+            label="待审批"
+            value="PENDING"
+          />
+          <el-option
+            label="已通过"
+            value="APPROVED"
+          />
+          <el-option
+            label="已拒绝"
+            value="REJECTED"
+          />
+          <el-option
+            label="已打款"
+            value="PAID"
+          />
         </el-select>
-        <el-button @click="handleExport">导出CSV</el-button>
+        <el-button @click="handleExport">
+          导出CSV
+        </el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="userName" label="申请人" width="120" show-overflow-tooltip />
-      <el-table-column label="金额" width="120">
-        <template #default="{ row }"><span style="font-weight:600;color:#e6a23c">{{ formatMoney(row.amount) }}</span></template>
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="userName"
+        label="申请人"
+        width="120"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="金额"
+        width="120"
+      >
+        <template #default="{ row }">
+          <span style="font-weight:600;color:#e6a23c">{{ formatMoney(row.amount) }}</span>
+        </template>
       </el-table-column>
-      <el-table-column label="银行卡" width="200">
+      <el-table-column
+        label="银行卡"
+        width="200"
+      >
         <template #default="{ row }">
           <span v-if="row.bankName || row.bankCard">{{ row.bankName || '' }} {{ maskBankCard(row.bankCard) }}</span>
           <span v-else>{{ row.accountInfo || '-' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="100">
+      <el-table-column
+        label="状态"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+          <el-tag
+            :type="statusTagType(row.status)"
+            size="small"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="申请时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="240" fixed="right">
+      <el-table-column
+        label="申请时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="viewDetail(row)">详情</el-button>
-          <el-button v-if="row.status === 'PENDING'" size="small" type="success" @click="approve(row)">通过</el-button>
-          <el-button v-if="row.status === 'PENDING'" size="small" type="danger" @click="openReject(row)">拒绝</el-button>
-          <el-button v-if="row.status === 'APPROVED'" size="small" type="primary" @click="markPaid(row)">确认打款</el-button>
-          <span v-else-if="row.status === 'PAID'" style="color:#67c23a;font-size:12px">✓ 已打款</span>
-          <span v-else-if="row.status === 'REJECTED'" style="color:#f56c6c;font-size:12px">✗ 已拒绝</span>
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="240"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="viewDetail(row)"
+          >
+            详情
+          </el-button>
+          <el-button
+            v-if="row.status === 'PENDING'"
+            size="small"
+            type="success"
+            @click="approve(row)"
+          >
+            通过
+          </el-button>
+          <el-button
+            v-if="row.status === 'PENDING'"
+            size="small"
+            type="danger"
+            @click="openReject(row)"
+          >
+            拒绝
+          </el-button>
+          <el-button
+            v-if="row.status === 'APPROVED'"
+            size="small"
+            type="primary"
+            @click="markPaid(row)"
+          >
+            确认打款
+          </el-button>
+          <span
+            v-else-if="row.status === 'PAID'"
+            style="color:#67c23a;font-size:12px"
+          >✓ 已打款</span>
+          <span
+            v-else-if="row.status === 'REJECTED'"
+            style="color:#f56c6c;font-size:12px"
+          >✗ 已拒绝</span>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-empty v-if="!loading && list.length === 0" description="暂无提现记录" style="margin-top:40px" />
+    <el-empty
+      v-if="!loading && list.length === 0"
+      description="暂无提现记录"
+      style="margin-top:40px"
+    />
 
     <el-pagination
-      v-model:current-page="page" :total="total" :page-size="pageSize"
-      layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end"
+      v-model:current-page="page"
+      :total="total"
+      :page-size="pageSize"
+      layout="total, prev, pager, next"
+      style="margin-top:16px;justify-content:flex-end"
       @current-change="fetchList"
     />
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="提现详情" width="520px">
-      <el-descriptions v-if="detailData" :column="2" border>
-        <el-descriptions-item label="申请人" :span="2">{{ detailData.userName || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="金额"><span style="font-weight:600;color:#e6a23c">{{ formatMoney(detailData.amount) }}</span></el-descriptions-item>
-        <el-descriptions-item label="状态"><el-tag :type="statusTagType(detailData.status)" size="small">{{ statusLabel(detailData.status) }}</el-tag></el-descriptions-item>
-        <el-descriptions-item label="银行" :span="2">{{ detailData.bankName || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="卡号" :span="2">{{ maskBankCard(detailData.bankCard) }}</el-descriptions-item>
-        <el-descriptions-item label="开户名">{{ detailData.accountName || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="申请时间">{{ formatDate(detailData.createdAt) }}</el-descriptions-item>
-        <el-descriptions-item v-if="detailData.reviewNote" label="审核备注" :span="2">{{ detailData.reviewNote }}</el-descriptions-item>
-        <el-descriptions-item v-if="detailData.paidAt" label="打款时间" :span="2">{{ formatDate(detailData.paidAt) }}</el-descriptions-item>
+    <el-dialog
+      v-model="detailVisible"
+      title="提现详情"
+      width="520px"
+    >
+      <el-descriptions
+        v-if="detailData"
+        :column="2"
+        border
+      >
+        <el-descriptions-item
+          label="申请人"
+          :span="2"
+        >
+          {{ detailData.userName || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="金额">
+          <span style="font-weight:600;color:#e6a23c">{{ formatMoney(detailData.amount) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag
+            :type="statusTagType(detailData.status)"
+            size="small"
+          >
+            {{ statusLabel(detailData.status) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item
+          label="银行"
+          :span="2"
+        >
+          {{ detailData.bankName || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          label="卡号"
+          :span="2"
+        >
+          {{ maskBankCard(detailData.bankCard) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="开户名">
+          {{ detailData.accountName || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="申请时间">
+          {{ formatDate(detailData.createdAt) }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="detailData.reviewNote"
+          label="审核备注"
+          :span="2"
+        >
+          {{ detailData.reviewNote }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="detailData.paidAt"
+          label="打款时间"
+          :span="2"
+        >
+          {{ formatDate(detailData.paidAt) }}
+        </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
 
     <!-- 拒绝弹窗 -->
-    <el-dialog v-model="rejectVisible" title="拒绝提现" width="450px">
+    <el-dialog
+      v-model="rejectVisible"
+      title="拒绝提现"
+      width="450px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="拒绝原因" required>
-          <el-input v-model="rejectForm.reason" type="textarea" :rows="4" placeholder="请输入拒绝原因（必填）" maxlength="200" show-word-limit />
+        <el-form-item
+          label="拒绝原因"
+          required
+        >
+          <el-input
+            v-model="rejectForm.reason"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入拒绝原因（必填）"
+            maxlength="200"
+            show-word-limit
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rejectVisible = false">取消</el-button>
-        <el-button type="danger" :loading="saving" @click="reject">确认拒绝</el-button>
+        <el-button @click="rejectVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="danger"
+          :loading="saving"
+          @click="reject"
+        >
+          确认拒绝
+        </el-button>
       </template>
     </el-dialog>
   </div>

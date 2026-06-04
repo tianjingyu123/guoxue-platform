@@ -1,18 +1,32 @@
 <template>
   <div class="bigscreen content-eco">
     <header class="bs-header">
-      <div class="bs-title">内容生态数据大屏</div>
-      <div class="bs-time">{{ nowStr }}</div>
+      <div class="bs-title">
+        内容生态数据大屏
+      </div>
+      <div class="bs-time">
+        {{ nowStr }}
+      </div>
     </header>
 
     <div class="bs-body">
       <!-- 总量指标 -->
       <div class="kpi-bar">
-        <div class="kpi-item"><span class="kpi-label">总内容量</span><span class="kpi-value blue">{{ fmt(data.totalContent) }}</span></div>
-        <div class="kpi-item"><span class="kpi-label">文章</span><span class="kpi-value green">{{ fmt(data.totalArticles) }}</span></div>
-        <div class="kpi-item"><span class="kpi-label">帖子</span><span class="kpi-value orange">{{ fmt(data.totalPosts) }}</span></div>
-        <div class="kpi-item"><span class="kpi-label">课程</span><span class="kpi-value cyan">{{ fmt(data.totalCourses) }}</span></div>
-        <div class="kpi-item"><span class="kpi-label">视频</span><span class="kpi-value purple">{{ fmt(data.totalVideos) }}</span></div>
+        <div class="kpi-item">
+          <span class="kpi-label">总内容量</span><span class="kpi-value blue">{{ fmt(data.totalContent) }}</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">文章</span><span class="kpi-value green">{{ fmt(data.totalArticles) }}</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">帖子</span><span class="kpi-value orange">{{ fmt(data.totalPosts) }}</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">课程</span><span class="kpi-value cyan">{{ fmt(data.totalCourses) }}</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">视频</span><span class="kpi-value purple">{{ fmt(data.totalVideos) }}</span>
+        </div>
       </div>
 
       <div class="bs-grid-2">
@@ -20,21 +34,35 @@
         <div class="bs-panel">
           <h3>📈 近30天增长</h3>
           <div class="growth-cards">
-            <div class="growth-card"><span>新增文章</span><strong>{{ data.monthGrowth?.articles || 0 }}</strong></div>
-            <div class="growth-card"><span>新增帖子</span><strong>{{ data.monthGrowth?.posts || 0 }}</strong></div>
+            <div class="growth-card">
+              <span>新增文章</span><strong>{{ data.monthGrowth?.articles || 0 }}</strong>
+            </div>
+            <div class="growth-card">
+              <span>新增帖子</span><strong>{{ data.monthGrowth?.posts || 0 }}</strong>
+            </div>
           </div>
         </div>
         <!-- 创作者排行 -->
         <div class="bs-panel">
           <h3>✍️ 创作者贡献榜 Top10</h3>
           <div class="creator-list">
-            <div v-for="(c, i) in (data.topCreators || [])" :key="c.userId" class="creator-row">
+            <div
+              v-for="(c, i) in (data.topCreators || [])"
+              :key="c.userId"
+              class="creator-row"
+            >
               <span class="rank">{{ i + 1 }}</span>
-              <el-avatar :size="32">{{ c.nickname?.charAt(0) || '?' }}</el-avatar>
+              <el-avatar :size="32">
+                {{ c.nickname?.charAt(0) || '?' }}
+              </el-avatar>
               <span class="name">{{ c.nickname || c.userId }}</span>
               <span class="count">{{ c.articleCount }}篇</span>
             </div>
-            <el-empty v-if="!(data.topCreators?.length)" description="暂无数据" :image-size="60" />
+            <el-empty
+              v-if="!(data.topCreators?.length)"
+              description="暂无数据"
+              :image-size="60"
+            />
           </div>
         </div>
       </div>

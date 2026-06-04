@@ -4,18 +4,50 @@
       <h2>小程序管理</h2>
     </div>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="brandName" label="品牌名称" min-width="160" />
-      <el-table-column prop="miniAppId" label="小程序AppID" min-width="200" />
-      <el-table-column prop="mpAppId" label="公众号AppID" min-width="200" />
-      <el-table-column prop="status" label="状态" width="90">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="brandName"
+        label="品牌名称"
+        min-width="160"
+      />
+      <el-table-column
+        prop="miniAppId"
+        label="小程序AppID"
+        min-width="200"
+      />
+      <el-table-column
+        prop="mpAppId"
+        label="公众号AppID"
+        min-width="200"
+      />
+      <el-table-column
+        prop="status"
+        label="状态"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'">{{ row.status === 'ACTIVE' ? '启用' : '禁用' }}</el-tag>
+          <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'">
+            {{ row.status === 'ACTIVE' ? '启用' : '禁用' }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column
+        label="操作"
+        width="120"
+        fixed="right"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openEditDialog(row)">编辑</el-button>
+          <el-button
+            size="small"
+            @click="openEditDialog(row)"
+          >
+            编辑
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -29,21 +61,46 @@
       @size-change="fetchList"
     />
 
-    <el-dialog v-model="dialogVisible" title="编辑小程序配置" width="550px">
-      <el-form ref="formRef" :model="form" label-width="120px">
+    <el-dialog
+      v-model="dialogVisible"
+      title="编辑小程序配置"
+      width="550px"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        label-width="120px"
+      >
         <el-form-item label="品牌名称">
-          <el-input v-model="form.brandName" disabled />
+          <el-input
+            v-model="form.brandName"
+            disabled
+          />
         </el-form-item>
         <el-form-item label="小程序AppID">
-          <el-input v-model="form.miniAppId" placeholder="微信小程序AppID" />
+          <el-input
+            v-model="form.miniAppId"
+            placeholder="微信小程序AppID"
+          />
         </el-form-item>
         <el-form-item label="公众号AppID">
-          <el-input v-model="form.mpAppId" placeholder="微信公众号AppID" />
+          <el-input
+            v-model="form.mpAppId"
+            placeholder="微信公众号AppID"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">确认</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="handleSubmit"
+        >
+          确认
+        </el-button>
       </template>
     </el-dialog>
   </div>

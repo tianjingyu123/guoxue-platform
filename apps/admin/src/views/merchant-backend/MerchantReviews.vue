@@ -4,27 +4,81 @@
       <h3>评价管理</h3>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="productTitle" label="商品" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="userName" label="用户" width="100" />
-      <el-table-column label="评分" width="100">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="productTitle"
+        label="商品"
+        min-width="150"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="userName"
+        label="用户"
+        width="100"
+      />
+      <el-table-column
+        label="评分"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-rate :model-value="row.rating" disabled show-score text-color="#C9A96E" size="small" />
+          <el-rate
+            :model-value="row.rating"
+            disabled
+            show-score
+            text-color="#C9A96E"
+            size="small"
+          />
         </template>
       </el-table-column>
-      <el-table-column prop="content" label="评价内容" min-width="200" show-overflow-tooltip />
-      <el-table-column label="时间" width="160">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column prop="reply" label="商家回复" min-width="160" show-overflow-tooltip>
+      <el-table-column
+        prop="content"
+        label="评价内容"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="时间"
+        width="160"
+      >
         <template #default="{ row }">
-          <span v-if="row.reply" style="color:#67C23A">{{ row.reply }}</span>
-          <span v-else style="color:#ccc">暂未回复</span>
+          {{ formatDate(row.createdAt) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column
+        prop="reply"
+        label="商家回复"
+        min-width="160"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
-          <el-button size="small" text type="primary" @click="openReply(row)">{{ row.reply ? "修改回复" : "回复" }}</el-button>
+          <span
+            v-if="row.reply"
+            style="color:#67C23A"
+          >{{ row.reply }}</span>
+          <span
+            v-else
+            style="color:#ccc"
+          >暂未回复</span>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="100"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            text
+            type="primary"
+            @click="openReply(row)"
+          >
+            {{ row.reply ? "修改回复" : "回复" }}
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -34,19 +88,39 @@
       :total="total"
       :page-size="20"
       layout="total, prev, pager, next"
-      @current-change="fetchList"
       style="margin-top:16px;justify-content:flex-end"
+      @current-change="fetchList"
     />
 
-    <el-dialog v-model="replyDialog" title="回复评价" width="500px">
+    <el-dialog
+      v-model="replyDialog"
+      title="回复评价"
+      width="500px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="回复内容" required>
-          <el-input v-model="replyContent" type="textarea" :rows="4" placeholder="请输入回复内容" />
+        <el-form-item
+          label="回复内容"
+          required
+        >
+          <el-input
+            v-model="replyContent"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入回复内容"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="replyDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doReply">提交回复</el-button>
+        <el-button @click="replyDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doReply"
+        >
+          提交回复
+        </el-button>
       </template>
     </el-dialog>
   </div>

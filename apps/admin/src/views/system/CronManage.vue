@@ -46,28 +46,76 @@ function formatLastRun(v: any) {
   <div class="page">
     <div class="header">
       <h2>Cron 定时任务管理</h2>
-      <el-button @click="fetchStatus" :loading="loading">刷新</el-button>
+      <el-button
+        :loading="loading"
+        @click="fetchStatus"
+      >
+        刷新
+      </el-button>
     </div>
 
-    <el-table v-loading="loading" :data="jobs" border stripe>
-      <el-table-column prop="name" label="任务名称" width="250" />
-      <el-table-column prop="schedule" label="调度规则" width="180">
-        <template #default="{ row }">{{ row.schedule || row.cron || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="100">
+    <el-table
+      v-loading="loading"
+      :data="jobs"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="name"
+        label="任务名称"
+        width="250"
+      />
+      <el-table-column
+        prop="schedule"
+        label="调度规则"
+        width="180"
+      >
         <template #default="{ row }">
-          <el-tag size="small" :type="getStatusTag(row.status)">{{ row.status || '-' }}</el-tag>
+          {{ row.schedule || row.cron || '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="上次执行" width="180">
-        <template #default="{ row }">{{ formatLastRun(row.lastRun || row.lastRunAt) }}</template>
-      </el-table-column>
-      <el-table-column label="下次执行" width="180">
-        <template #default="{ row }">{{ formatLastRun(row.nextRun || row.nextRunAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column
+        label="状态"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="primary" @click="triggerJob(row.name)">手动触发</el-button>
+          <el-tag
+            size="small"
+            :type="getStatusTag(row.status)"
+          >
+            {{ row.status || '-' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="上次执行"
+        width="180"
+      >
+        <template #default="{ row }">
+          {{ formatLastRun(row.lastRun || row.lastRunAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="下次执行"
+        width="180"
+      >
+        <template #default="{ row }">
+          {{ formatLastRun(row.nextRun || row.nextRunAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="120"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            @click="triggerJob(row.name)"
+          >
+            手动触发
+          </el-button>
         </template>
       </el-table-column>
     </el-table>

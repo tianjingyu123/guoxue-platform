@@ -4,31 +4,86 @@
       <h3>违规记录</h3>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column label="类型" width="100">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        label="类型"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="severityType(row.severity)" size="small">{{ row.violationType || "违规" }}</el-tag>
+          <el-tag
+            :type="severityType(row.severity)"
+            size="small"
+          >
+            {{ row.violationType || "违规" }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" min-width="160" show-overflow-tooltip />
-      <el-table-column label="严重程度" width="90">
-        <template #default="{ row }">{{ ({ MINOR: "轻微", MODERATE: "中等", SEVERE: "严重" } as any)[row.severity] || row.severity }}</template>
-      </el-table-column>
-      <el-table-column prop="penalty" label="处罚" width="140" show-overflow-tooltip />
-      <el-table-column label="状态" width="90">
+      <el-table-column
+        prop="title"
+        label="标题"
+        min-width="160"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="严重程度"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-tag :type="({ PENDING: 'warning', CONFIRMED: 'danger', APPEALED: 'info', DISMISSED: 'info' } as any)[row.status] || 'info'" size="small">
+          {{ ({ MINOR: "轻微", MODERATE: "中等", SEVERE: "严重" } as any)[row.severity] || row.severity }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="penalty"
+        label="处罚"
+        width="140"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="状态"
+        width="90"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="({ PENDING: 'warning', CONFIRMED: 'danger', APPEALED: 'info', DISMISSED: 'info' } as any)[row.status] || 'info'"
+            size="small"
+          >
             {{ ({ PENDING: "待处理", CONFIRMED: "已确认", APPEALED: "申诉中", DISMISSED: "已撤销" } as any)[row.status] || row.status }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="描述" min-width="180" show-overflow-tooltip />
-      <el-table-column label="创建时间" width="160">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column
+        prop="description"
+        label="描述"
+        min-width="180"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="创建时间"
+        width="160"
+      >
         <template #default="{ row }">
-          <el-button v-if="row.status === 'CONFIRMED'" size="small" text type="primary" @click="openAppeal(row)">申诉</el-button>
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="100"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            v-if="row.status === 'CONFIRMED'"
+            size="small"
+            text
+            type="primary"
+            @click="openAppeal(row)"
+          >
+            申诉
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -38,19 +93,39 @@
       :total="total"
       :page-size="20"
       layout="total, prev, pager, next"
-      @current-change="fetchList"
       style="margin-top:16px;justify-content:flex-end"
+      @current-change="fetchList"
     />
 
-    <el-dialog v-model="appealDialog" title="违规申诉" width="500px">
+    <el-dialog
+      v-model="appealDialog"
+      title="违规申诉"
+      width="500px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="申诉内容" required>
-          <el-input v-model="appealContent" type="textarea" :rows="4" placeholder="请说明申诉理由" />
+        <el-form-item
+          label="申诉内容"
+          required
+        >
+          <el-input
+            v-model="appealContent"
+            type="textarea"
+            :rows="4"
+            placeholder="请说明申诉理由"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="appealDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doAppeal">提交申诉</el-button>
+        <el-button @click="appealDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doAppeal"
+        >
+          提交申诉
+        </el-button>
       </template>
     </el-dialog>
   </div>

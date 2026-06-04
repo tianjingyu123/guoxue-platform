@@ -1,72 +1,161 @@
 <template>
   <div class="competition-edit">
-    <el-page-header title="返回" style="margin-bottom:16px" @back="router.push('/competitions')">
-      <template #content>{{ isEdit ? '编辑赛事' : '新建赛事' }}</template>
+    <el-page-header
+      title="返回"
+      style="margin-bottom:16px"
+      @back="router.push('/competitions')"
+    >
+      <template #content>
+        {{ isEdit ? '编辑赛事' : '新建赛事' }}
+      </template>
     </el-page-header>
 
     <div class="edit-body">
       <div class="edit-main">
         <el-card>
-          <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
-            <el-form-item label="赛事标题" prop="title">
-              <el-input v-model="form.title" placeholder="赛事标题" size="large" maxlength="50" />
+          <el-form
+            ref="formRef"
+            :model="form"
+            :rules="rules"
+            label-width="110px"
+          >
+            <el-form-item
+              label="赛事标题"
+              prop="title"
+            >
+              <el-input
+                v-model="form.title"
+                placeholder="赛事标题"
+                size="large"
+                maxlength="50"
+              />
             </el-form-item>
 
             <el-row :gutter="16">
               <el-col :span="8">
-                <el-form-item label="赛事类型" prop="type">
-                  <el-select v-model="form.type" placeholder="选择类型" style="width:100%">
-                    <el-option v-for="(label, val) in typeLabels" :key="val" :label="label" :value="val" />
+                <el-form-item
+                  label="赛事类型"
+                  prop="type"
+                >
+                  <el-select
+                    v-model="form.type"
+                    placeholder="选择类型"
+                    style="width:100%"
+                  >
+                    <el-option
+                      v-for="(label, val) in typeLabels"
+                      :key="val"
+                      :label="label"
+                      :value="val"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
-                <el-form-item label="赛事级别" prop="level">
-                  <el-select v-model="form.level" style="width:100%">
-                    <el-option label="S级（平台官方赛）" value="S" />
-                    <el-option label="A级（圈子联合赛）" value="A" />
-                    <el-option label="B级（圈子内部赛）" value="B" />
+                <el-form-item
+                  label="赛事级别"
+                  prop="level"
+                >
+                  <el-select
+                    v-model="form.level"
+                    style="width:100%"
+                  >
+                    <el-option
+                      label="S级（平台官方赛）"
+                      value="S"
+                    />
+                    <el-option
+                      label="A级（圈子联合赛）"
+                      value="A"
+                    />
+                    <el-option
+                      label="B级（圈子内部赛）"
+                      value="B"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
-                <el-form-item label="评分模型" prop="scoringModel">
-                  <el-select v-model="form.scoringModel" style="width:100%">
-                    <el-option label="A - 全自动评分" value="A" />
-                    <el-option label="B - AI+评委混合" value="B" />
-                    <el-option label="C - 纯评委评分" value="C" />
-                    <el-option label="D - 对弈引擎" value="D" />
+                <el-form-item
+                  label="评分模型"
+                  prop="scoringModel"
+                >
+                  <el-select
+                    v-model="form.scoringModel"
+                    style="width:100%"
+                  >
+                    <el-option
+                      label="A - 全自动评分"
+                      value="A"
+                    />
+                    <el-option
+                      label="B - AI+评委混合"
+                      value="B"
+                    />
+                    <el-option
+                      label="C - 纯评委评分"
+                      value="C"
+                    />
+                    <el-option
+                      label="D - 对弈引擎"
+                      value="D"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
             </el-row>
 
             <el-form-item label="赛事描述">
-              <el-input v-model="form.description" type="textarea" :rows="4" placeholder="赛事描述（支持Markdown）" />
+              <el-input
+                v-model="form.description"
+                type="textarea"
+                :rows="4"
+                placeholder="赛事描述（支持Markdown）"
+              />
             </el-form-item>
 
             <el-form-item label="赛事规则">
-              <el-input v-model="form.rules" type="textarea" :rows="3" placeholder="赛事规则（支持Markdown）" />
+              <el-input
+                v-model="form.rules"
+                type="textarea"
+                :rows="3"
+                placeholder="赛事规则（支持Markdown）"
+              />
             </el-form-item>
 
-            <el-divider content-position="left">报名设置</el-divider>
+            <el-divider content-position="left">
+              报名设置
+            </el-divider>
 
             <el-row :gutter="16">
               <el-col :span="8">
                 <el-form-item label="报名费（分）">
-                  <el-input-number v-model="form.entryFee" :min="0" :step="100" style="width:100%" />
+                  <el-input-number
+                    v-model="form.entryFee"
+                    :min="0"
+                    :step="100"
+                    style="width:100%"
+                  />
                   <span class="hint">0=免费报名</span>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="人数上限">
-                  <el-input-number v-model="form.maxParticipants" :min="0" style="width:100%" />
+                  <el-input-number
+                    v-model="form.maxParticipants"
+                    :min="0"
+                    style="width:100%"
+                  />
                   <span class="hint">0=不限</span>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="最低等级">
-                  <el-input-number v-model="form.minLevel" :min="0" style="width:100%" />
+                  <el-input-number
+                    v-model="form.minLevel"
+                    :min="0"
+                    style="width:100%"
+                  />
                   <span class="hint">0=不限</span>
                 </el-form-item>
               </el-col>
@@ -85,28 +174,59 @@
               </el-col>
             </el-row>
 
-            <el-divider content-position="left">奖励设置</el-divider>
+            <el-divider content-position="left">
+              奖励设置
+            </el-divider>
 
             <el-row :gutter="16">
               <el-col :span="8">
-                <el-form-item label="奖品类型" prop="prizeType">
-                  <el-select v-model="form.prizeType" style="width:100%">
-                    <el-option label="现金奖金" value="CASH" />
-                    <el-option label="实物奖品" value="PHYSICAL" />
-                    <el-option label="虚拟商品" value="VIRTUAL" />
-                    <el-option label="混合（现金+实物/虚拟）" value="MIXED" />
+                <el-form-item
+                  label="奖品类型"
+                  prop="prizeType"
+                >
+                  <el-select
+                    v-model="form.prizeType"
+                    style="width:100%"
+                  >
+                    <el-option
+                      label="现金奖金"
+                      value="CASH"
+                    />
+                    <el-option
+                      label="实物奖品"
+                      value="PHYSICAL"
+                    />
+                    <el-option
+                      label="虚拟商品"
+                      value="VIRTUAL"
+                    />
+                    <el-option
+                      label="混合（现金+实物/虚拟）"
+                      value="MIXED"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="总奖金池">
-                  <el-input-number v-model="form.totalPrize" :min="0" :step="100" style="width:100%" :disabled="form.prizeType === 'PHYSICAL' || form.prizeType === 'VIRTUAL'" />
+                  <el-input-number
+                    v-model="form.totalPrize"
+                    :min="0"
+                    :step="100"
+                    style="width:100%"
+                    :disabled="form.prizeType === 'PHYSICAL' || form.prizeType === 'VIRTUAL'"
+                  />
                   <span class="hint">{{ form.totalPrize > 0 ? '= ¥' + (form.totalPrize / 100).toFixed(2) : '0=无现金' }}</span>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="邀请分润（‰）">
-                  <el-input-number v-model="form.invitationShare" :min="0" :max="1000" style="width:100%" />
+                  <el-input-number
+                    v-model="form.invitationShare"
+                    :min="0"
+                    :max="1000"
+                    style="width:100%"
+                  />
                   <span class="hint">如50=5%</span>
                 </el-form-item>
               </el-col>
@@ -114,49 +234,151 @@
 
             <el-form-item label="奖品分配">
               <div class="prize-config">
-                <div v-for="(item, idx) in form.prizeConfig" :key="idx" class="prize-row">
-                  <el-input v-model="item.rank" placeholder="名次" size="small" style="width:80px" />
-                  <el-input v-model="item.title" placeholder="奖项名" size="small" style="width:100px" />
-                  <el-select v-model="item.prizeType" size="small" style="width:100px">
-                    <el-option label="现金" value="CASH" />
-                    <el-option label="实物" value="PHYSICAL" />
-                    <el-option label="虚拟" value="VIRTUAL" />
+                <div
+                  v-for="(item, idx) in form.prizeConfig"
+                  :key="idx"
+                  class="prize-row"
+                >
+                  <el-input
+                    v-model="item.rank"
+                    placeholder="名次"
+                    size="small"
+                    style="width:80px"
+                  />
+                  <el-input
+                    v-model="item.title"
+                    placeholder="奖项名"
+                    size="small"
+                    style="width:100px"
+                  />
+                  <el-select
+                    v-model="item.prizeType"
+                    size="small"
+                    style="width:100px"
+                  >
+                    <el-option
+                      label="现金"
+                      value="CASH"
+                    />
+                    <el-option
+                      label="实物"
+                      value="PHYSICAL"
+                    />
+                    <el-option
+                      label="虚拟"
+                      value="VIRTUAL"
+                    />
                   </el-select>
                   <template v-if="item.prizeType === 'CASH' || !item.prizeType">
-                    <el-input-number v-model="item.prize" :min="0" :step="100" size="small" style="width:120px" placeholder="金额(分)" />
+                    <el-input-number
+                      v-model="item.prize"
+                      :min="0"
+                      :step="100"
+                      size="small"
+                      style="width:120px"
+                      placeholder="金额(分)"
+                    />
                     <span class="hint">{{ (item.prize ?? 0) > 0 ? '¥' + ((item.prize ?? 0) / 100).toFixed(0) : '' }}</span>
                   </template>
                   <template v-else>
-                    <el-input v-model="item.prizeItem" placeholder="奖品名称" size="small" style="width:120px" />
+                    <el-input
+                      v-model="item.prizeItem"
+                      placeholder="奖品名称"
+                      size="small"
+                      style="width:120px"
+                    />
                   </template>
-                  <el-input v-model="item.description" placeholder="描述（可选）" size="small" style="width:140px" />
-                  <el-button size="small" type="danger" :icon="Delete" circle @click="form.prizeConfig.splice(idx, 1)" />
+                  <el-input
+                    v-model="item.description"
+                    placeholder="描述（可选）"
+                    size="small"
+                    style="width:140px"
+                  />
+                  <el-button
+                    size="small"
+                    type="danger"
+                    :icon="Delete"
+                    circle
+                    @click="form.prizeConfig.splice(idx, 1)"
+                  />
                 </div>
-                <el-button size="small" type="primary" @click="addPrizeRow">+ 添加奖项</el-button>
-                <span class="hint" style="margin-left:12px">设置前几名分别奖励什么，不设则仅展示总奖金池</span>
+                <el-button
+                  size="small"
+                  type="primary"
+                  @click="addPrizeRow"
+                >
+                  + 添加奖项
+                </el-button>
+                <span
+                  class="hint"
+                  style="margin-left:12px"
+                >设置前几名分别奖励什么，不设则仅展示总奖金池</span>
               </div>
             </el-form-item>
 
-            <el-divider content-position="left">其他</el-divider>
+            <el-divider content-position="left">
+              其他
+            </el-divider>
 
             <el-form-item label="封面图片">
               <div class="cover-upload">
-                <div v-if="form.coverImage" class="cover-preview">
-                  <img :src="form.coverImage" alt="封面" />
-                  <el-button size="small" type="danger" class="cover-remove" @click="form.coverImage = ''">移除</el-button>
+                <div
+                  v-if="form.coverImage"
+                  class="cover-preview"
+                >
+                  <img
+                    :src="form.coverImage"
+                    alt="封面"
+                  >
+                  <el-button
+                    size="small"
+                    type="danger"
+                    class="cover-remove"
+                    @click="form.coverImage = ''"
+                  >
+                    移除
+                  </el-button>
                 </div>
                 <div class="cover-input-row">
-                  <el-input v-model="coverUrl" placeholder="图片URL" size="small" />
-                  <el-button size="small" @click="form.coverImage = coverUrl">设置</el-button>
+                  <el-input
+                    v-model="coverUrl"
+                    placeholder="图片URL"
+                    size="small"
+                  />
+                  <el-button
+                    size="small"
+                    @click="form.coverImage = coverUrl"
+                  >
+                    设置
+                  </el-button>
                 </div>
-                <el-upload :show-file-list="false" :http-request="handleCoverUpload" accept="image/*" style="margin-top:8px">
-                  <el-button size="small" type="primary" :loading="uploading">本地上传</el-button>
+                <el-upload
+                  :show-file-list="false"
+                  :http-request="handleCoverUpload"
+                  accept="image/*"
+                  style="margin-top:8px"
+                >
+                  <el-button
+                    size="small"
+                    type="primary"
+                    :loading="uploading"
+                  >
+                    本地上传
+                  </el-button>
                 </el-upload>
               </div>
             </el-form-item>
 
             <el-form-item label="标签">
-              <el-tag v-for="(tag, idx) in form.tags" :key="idx" closable style="margin-right:6px" @close="form.tags.splice(idx, 1)">{{ tag }}</el-tag>
+              <el-tag
+                v-for="(tag, idx) in form.tags"
+                :key="idx"
+                closable
+                style="margin-right:6px"
+                @close="form.tags.splice(idx, 1)"
+              >
+                {{ tag }}
+              </el-tag>
               <el-input
                 v-if="tagInputVisible"
                 ref="tagInputRef"
@@ -166,28 +388,76 @@
                 @keyup.enter="addTag"
                 @blur="addTag"
               />
-              <el-button v-else size="small" @click="showTagInput">+ 添加标签</el-button>
+              <el-button
+                v-else
+                size="small"
+                @click="showTagInput"
+              >
+                + 添加标签
+              </el-button>
             </el-form-item>
 
             <el-form-item>
-              <el-button type="primary" :loading="saving" @click="save">{{ isEdit ? '保存修改' : '创建赛事' }}</el-button>
-              <el-button v-if="isEdit" type="danger" @click="handleDelete">删除赛事</el-button>
-              <el-button @click="router.back()">取消</el-button>
+              <el-button
+                type="primary"
+                :loading="saving"
+                @click="save"
+              >
+                {{ isEdit ? '保存修改' : '创建赛事' }}
+              </el-button>
+              <el-button
+                v-if="isEdit"
+                type="danger"
+                @click="handleDelete"
+              >
+                删除赛事
+              </el-button>
+              <el-button @click="router.back()">
+                取消
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>
       </div>
 
-      <div v-if="isEdit" class="edit-sidebar">
+      <div
+        v-if="isEdit"
+        class="edit-sidebar"
+      >
         <div class="sidebar-section">
           <h4>赛事状态</h4>
-          <el-tag :type="statusLabels[form.status]?.type || 'info'" size="large" style="margin-bottom:12px">
+          <el-tag
+            :type="statusLabels[form.status]?.type || 'info'"
+            size="large"
+            style="margin-bottom:12px"
+          >
             {{ statusLabels[form.status]?.text || form.status }}
           </el-tag>
           <div style="display:flex;flex-direction:column;gap:8px">
-            <el-button v-if="form.status === 'DRAFT'" type="success" size="small" @click="changeStatus('publish')">发布赛事</el-button>
-            <el-button v-if="form.status === 'PUBLISHED'" type="warning" size="small" @click="changeStatus('start')">开始赛事</el-button>
-            <el-button v-if="form.status === 'IN_PROGRESS'" type="danger" size="small" @click="changeStatus('finish')">结束赛事</el-button>
+            <el-button
+              v-if="form.status === 'DRAFT'"
+              type="success"
+              size="small"
+              @click="changeStatus('publish')"
+            >
+              发布赛事
+            </el-button>
+            <el-button
+              v-if="form.status === 'PUBLISHED'"
+              type="warning"
+              size="small"
+              @click="changeStatus('start')"
+            >
+              开始赛事
+            </el-button>
+            <el-button
+              v-if="form.status === 'IN_PROGRESS'"
+              type="danger"
+              size="small"
+              @click="changeStatus('finish')"
+            >
+              结束赛事
+            </el-button>
           </div>
         </div>
       </div>

@@ -1,11 +1,11 @@
 <template>
   <div class="content-page">
     <DataTable
+      v-model:page="page"
       :columns="columns"
       :data="list"
       :loading="loading"
       :total="total"
-      v-model:page="page"
       :page-size="pageSize"
       selectable
       actions-width="220"
@@ -20,39 +20,113 @@
           @search="onSearch"
           @reset="onReset"
         />
-        <el-button style="margin-left:8px" size="small" @click="exportData">导出CSV</el-button>
-        <el-button type="primary" size="small" @click="$router.push('/contents/create')">新建内容</el-button>
+        <el-button
+          style="margin-left:8px"
+          size="small"
+          @click="exportData"
+        >
+          导出CSV
+        </el-button>
+        <el-button
+          type="primary"
+          size="small"
+          @click="$router.push('/contents/create')"
+        >
+          新建内容
+        </el-button>
       </template>
 
       <template #batch>
         <span>已选 {{ selectedIds.length }} 项</span>
-        <el-button size="small" type="success" @click="batchPublish">批量发布</el-button>
-        <el-button size="small" type="warning" @click="batchUnpublish">批量下架</el-button>
-        <el-button size="small" @click="clearSelection">取消选择</el-button>
+        <el-button
+          size="small"
+          type="success"
+          @click="batchPublish"
+        >
+          批量发布
+        </el-button>
+        <el-button
+          size="small"
+          type="warning"
+          @click="batchUnpublish"
+        >
+          批量下架
+        </el-button>
+        <el-button
+          size="small"
+          @click="clearSelection"
+        >
+          取消选择
+        </el-button>
       </template>
 
       <template #cover="{ row }">
-        <img v-if="row.cover" :src="row.cover" class="cover-thumb">
-        <span v-else class="no-cover">无</span>
+        <img
+          v-if="row.cover"
+          :src="row.cover"
+          class="cover-thumb"
+        >
+        <span
+          v-else
+          class="no-cover"
+        >无</span>
       </template>
       <template #type="{ row }">
-        <el-tag size="small" :type="row.type === 'POEM' ? 'success' : row.type === 'CLASSIC' ? 'warning' : ''">
+        <el-tag
+          size="small"
+          :type="row.type === 'POEM' ? 'success' : row.type === 'CLASSIC' ? 'warning' : ''"
+        >
           {{ typeLabels[row.type] ?? row.type }}
         </el-tag>
       </template>
       <template #tags="{ row }">
-        <el-tag v-for="t in (row.tags || [])" :key="t" size="small" class="tag-chip">{{ t }}</el-tag>
+        <el-tag
+          v-for="t in (row.tags || [])"
+          :key="t"
+          size="small"
+          class="tag-chip"
+        >
+          {{ t }}
+        </el-tag>
       </template>
       <template #status="{ row }">
-        <el-tag size="small" :type="row.status === 'PUBLISHED' ? 'success' : 'info'">
+        <el-tag
+          size="small"
+          :type="row.status === 'PUBLISHED' ? 'success' : 'info'"
+        >
           {{ row.status === 'PUBLISHED' ? '已发布' : '草稿' }}
         </el-tag>
       </template>
       <template #actions="{ row }">
-        <el-button size="small" @click="$router.push(`/contents/${row.id}/edit`)">编辑</el-button>
-        <el-button v-if="row.status !== 'PUBLISHED'" size="small" type="success" @click="publishOne(row.id)">发布</el-button>
-        <el-button v-else size="small" type="warning" @click="unpublishOne(row.id)">下架</el-button>
-        <el-button size="small" type="danger" @click="handleDelete(row.id)">删除</el-button>
+        <el-button
+          size="small"
+          @click="$router.push(`/contents/${row.id}/edit`)"
+        >
+          编辑
+        </el-button>
+        <el-button
+          v-if="row.status !== 'PUBLISHED'"
+          size="small"
+          type="success"
+          @click="publishOne(row.id)"
+        >
+          发布
+        </el-button>
+        <el-button
+          v-else
+          size="small"
+          type="warning"
+          @click="unpublishOne(row.id)"
+        >
+          下架
+        </el-button>
+        <el-button
+          size="small"
+          type="danger"
+          @click="handleDelete(row.id)"
+        >
+          删除
+        </el-button>
       </template>
     </DataTable>
   </div>

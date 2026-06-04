@@ -5,27 +5,59 @@
       <span class="subtitle">在本店下过单的用户</span>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column label="客户" min-width="180">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        label="客户"
+        min-width="180"
+      >
         <template #default="{ row }">
           <div class="customer-cell">
-            <img v-if="row.avatar" :src="row.avatar" class="avatar" />
-            <span v-else class="avatar-placeholder">{{ row.nickname?.charAt(0) || "?" }}</span>
+            <img
+              v-if="row.avatar"
+              :src="row.avatar"
+              class="avatar"
+            >
+            <span
+              v-else
+              class="avatar-placeholder"
+            >{{ row.nickname?.charAt(0) || "?" }}</span>
             <div>
-              <div class="nickname">{{ row.nickname || "匿名用户" }}</div>
-              <div class="phone">{{ maskPhone(row.phone) }}</div>
+              <div class="nickname">
+                {{ row.nickname || "匿名用户" }}
+              </div>
+              <div class="phone">
+                {{ maskPhone(row.phone) }}
+              </div>
             </div>
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="订单数" width="90" prop="orderCount" sortable />
-      <el-table-column label="累计消费" width="130" sortable>
+      <el-table-column
+        label="订单数"
+        width="90"
+        prop="orderCount"
+        sortable
+      />
+      <el-table-column
+        label="累计消费"
+        width="130"
+        sortable
+      >
         <template #default="{ row }">
           <span style="color:#C41E3A;font-weight:bold">¥{{ Number(row.totalSpent || 0).toFixed(2) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="最近下单" width="160">
-        <template #default="{ row }">{{ formatDate(row.lastOrderAt) }}</template>
+      <el-table-column
+        label="最近下单"
+        width="160"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.lastOrderAt) }}
+        </template>
       </el-table-column>
     </el-table>
 
@@ -34,8 +66,8 @@
       :total="total"
       :page-size="20"
       layout="total, prev, pager, next"
-      @current-change="fetchList"
       style="margin-top:16px;justify-content:flex-end"
+      @current-change="fetchList"
     />
   </div>
 </template>

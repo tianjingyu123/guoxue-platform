@@ -3,41 +3,93 @@
     <div class="header">
       <h2>古籍管理</h2>
       <div class="header-actions">
-        <el-button type="success" @click="seedLibrary">初始化种子数据</el-button>
-        <el-button type="warning" @click="syncKnowledge">同步知识库</el-button>
-        <el-button type="info" @click="vectorize">向量化索引</el-button>
-        <el-button @click="clearCache">清除缓存</el-button>
-        <el-button type="primary" @click="openEdit()">添加古籍</el-button>
+        <el-button
+          type="success"
+          @click="seedLibrary"
+        >
+          初始化种子数据
+        </el-button>
+        <el-button
+          type="warning"
+          @click="syncKnowledge"
+        >
+          同步知识库
+        </el-button>
+        <el-button
+          type="info"
+          @click="vectorize"
+        >
+          向量化索引
+        </el-button>
+        <el-button @click="clearCache">
+          清除缓存
+        </el-button>
+        <el-button
+          type="primary"
+          @click="openEdit()"
+        >
+          添加古籍
+        </el-button>
       </div>
     </div>
 
     <!-- 统计面板 -->
-    <div v-if="stats" class="stats-panel">
+    <div
+      v-if="stats"
+      class="stats-panel"
+    >
       <div class="stat-item">
-        <text class="stat-num">{{ stats.totals?.books || 0 }}</text>
-        <text class="stat-label">古籍总数</text>
+        <text class="stat-num">
+          {{ stats.totals?.books || 0 }}
+        </text>
+        <text class="stat-label">
+          古籍总数
+        </text>
       </div>
       <div class="stat-item">
-        <text class="stat-num">{{ stats.totals?.chapters || 0 }}</text>
-        <text class="stat-label">章节总数</text>
+        <text class="stat-num">
+          {{ stats.totals?.chapters || 0 }}
+        </text>
+        <text class="stat-label">
+          章节总数
+        </text>
       </div>
       <div class="stat-item">
-        <text class="stat-num">{{ stats.totals?.images || 0 }}</text>
-        <text class="stat-label">原图数量</text>
+        <text class="stat-num">
+          {{ stats.totals?.images || 0 }}
+        </text>
+        <text class="stat-label">
+          原图数量
+        </text>
       </div>
       <div class="stat-item">
-        <text class="stat-num">{{ stats.totals?.commentaries || 0 }}</text>
-        <text class="stat-label">名家注解</text>
+        <text class="stat-num">
+          {{ stats.totals?.commentaries || 0 }}
+        </text>
+        <text class="stat-label">
+          名家注解
+        </text>
       </div>
       <div class="stat-item">
-        <text class="stat-num">{{ stats.totals?.annotations || 0 }}</text>
-        <text class="stat-label">注疏批注</text>
+        <text class="stat-num">
+          {{ stats.totals?.annotations || 0 }}
+        </text>
+        <text class="stat-label">
+          注疏批注
+        </text>
       </div>
     </div>
 
     <!-- 分类分布 -->
-    <div v-if="stats?.byCategory" class="cat-dist">
-      <span v-for="c in stats.byCategory" :key="c.category" class="cat-chip">
+    <div
+      v-if="stats?.byCategory"
+      class="cat-dist"
+    >
+      <span
+        v-for="c in stats.byCategory"
+        :key="c.category"
+        class="cat-chip"
+      >
         {{ c.category }}: {{ c.count }}
       </span>
     </div>
@@ -82,7 +134,10 @@
       stripe
     >
       <template #empty>
-        <el-empty description="暂无古籍" :image-size="80" />
+        <el-empty
+          description="暂无古籍"
+          :image-size="80"
+        />
       </template>
       <el-table-column
         prop="title"
@@ -245,7 +300,10 @@
         max-height="400"
       >
         <template #empty>
-          <el-empty description="暂无章节" :image-size="60" />
+          <el-empty
+            description="暂无章节"
+            :image-size="60"
+          />
         </template>
         <el-table-column
           prop="title"

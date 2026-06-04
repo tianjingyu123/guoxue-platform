@@ -2,11 +2,19 @@
   <div class="interaction-page">
     <div class="page-header">
       <h3>互动数据看板</h3>
-      <el-button size="small" @click="refresh">刷新</el-button>
+      <el-button
+        size="small"
+        @click="refresh"
+      >
+        刷新
+      </el-button>
     </div>
 
     <!-- 核心指标 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="4">
         <div class="stat-card">
           <span class="value">{{ stats.total.likes }}</span>
@@ -52,25 +60,62 @@
     </el-row>
 
     <!-- 互动趋势图 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="16">
         <el-card>
-          <template #header><span>互动趋势（近7天）</span></template>
-          <div ref="trendChart" style="height:300px"></div>
+          <template #header>
+            <span>互动趋势（近7天）</span>
+          </template>
+          <div
+            ref="trendChart"
+            style="height:300px"
+          />
         </el-card>
       </el-col>
       <el-col :span="8">
         <el-card>
-          <template #header><span>热门内容排行</span></template>
-          <el-table :data="topContent" stripe size="small" max-height="300">
-            <el-table-column label="排名" width="60" align="center">
-              <template #default="{ $index }">{{ $index + 1 }}</template>
+          <template #header>
+            <span>热门内容排行</span>
+          </template>
+          <el-table
+            :data="topContent"
+            stripe
+            size="small"
+            max-height="300"
+          >
+            <el-table-column
+              label="排名"
+              width="60"
+              align="center"
+            >
+              <template #default="{ $index }">
+                {{ $index + 1 }}
+              </template>
             </el-table-column>
-            <el-table-column label="类型" prop="targetType" width="80">
-              <template #default="{ row }">{{ typeLabel(row.targetType) }}</template>
+            <el-table-column
+              label="类型"
+              prop="targetType"
+              width="80"
+            >
+              <template #default="{ row }">
+                {{ typeLabel(row.targetType) }}
+              </template>
             </el-table-column>
-            <el-table-column label="ID" prop="targetId" width="180" show-overflow-tooltip />
-            <el-table-column label="点赞" prop="likeCount" width="70" align="center" />
+            <el-table-column
+              label="ID"
+              prop="targetId"
+              width="180"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="点赞"
+              prop="likeCount"
+              width="70"
+              align="center"
+            />
           </el-table>
         </el-card>
       </el-col>
@@ -78,25 +123,39 @@
 
     <!-- 快捷入口 -->
     <el-card>
-      <template #header><span>互动管理入口</span></template>
+      <template #header>
+        <span>互动管理入口</span>
+      </template>
       <el-row :gutter="12">
         <el-col :span="6">
-          <el-button @click="router.push('/comments')" style="width:100%;height:56px">
+          <el-button
+            style="width:100%;height:56px"
+            @click="router.push('/comments')"
+          >
             💬 评论管理
           </el-button>
         </el-col>
         <el-col :span="6">
-          <el-button @click="router.push('/reports')" style="width:100%;height:56px">
+          <el-button
+            style="width:100%;height:56px"
+            @click="router.push('/reports')"
+          >
             ⚠️ 举报管理
           </el-button>
         </el-col>
         <el-col :span="6">
-          <el-button @click="router.push('/risk/timeline')" style="width:100%;height:56px">
+          <el-button
+            style="width:100%;height:56px"
+            @click="router.push('/risk/timeline')"
+          >
             👣 用户行为轨迹
           </el-button>
         </el-col>
         <el-col :span="6">
-          <el-button @click="router.push('/risk/fraud')" style="width:100%;height:56px">
+          <el-button
+            style="width:100%;height:56px"
+            @click="router.push('/risk/fraud')"
+          >
             🚫 刷单识别
           </el-button>
         </el-col>

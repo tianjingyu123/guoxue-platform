@@ -2,18 +2,42 @@
   <div class="page">
     <div class="header">
       <h2>专家管理</h2>
-      <el-button @click="refresh" :loading="loading" :disabled="!selectedCircle">刷新列表</el-button>
+      <el-button
+        :loading="loading"
+        :disabled="!selectedCircle"
+        @click="refresh"
+      >
+        刷新列表
+      </el-button>
     </div>
 
     <!-- 圈子选择 -->
-    <el-form inline style="margin-bottom:16px">
+    <el-form
+      inline
+      style="margin-bottom:16px"
+    >
       <el-form-item label="选择圈子">
-        <el-select v-model="selectedCircle" placeholder="选择圈子查看达人" @change="onCircleChange" clearable style="width:280px">
-          <el-option v-for="c in circles" :key="c.id" :label="c.name" :value="c.id" />
+        <el-select
+          v-model="selectedCircle"
+          placeholder="选择圈子查看达人"
+          clearable
+          style="width:280px"
+          @change="onCircleChange"
+        >
+          <el-option
+            v-for="c in circles"
+            :key="c.id"
+            :label="c.name"
+            :value="c.id"
+          />
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="showConfigDialog = true" :disabled="!selectedCircle">
+        <el-button
+          type="primary"
+          :disabled="!selectedCircle"
+          @click="showConfigDialog = true"
+        >
           配置达人价格
         </el-button>
       </el-form-item>
@@ -24,64 +48,160 @@
       <template #header>
         <span>达人列表（{{ experts.length }} 人）</span>
       </template>
-      <el-table :data="experts" v-loading="loading" stripe empty-text="该圈子暂无达人">
+      <el-table
+        v-loading="loading"
+        :data="experts"
+        stripe
+        empty-text="该圈子暂无达人"
+      >
         <el-table-column width="50">
           <template #default="{ row }">
-            <el-avatar v-if="row.user?.avatar" :src="row.user.avatar" size="small" />
-            <el-avatar v-else size="small">{{ (row.user?.nickname || '?')[0] }}</el-avatar>
+            <el-avatar
+              v-if="row.user?.avatar"
+              :src="row.user.avatar"
+              size="small"
+            />
+            <el-avatar
+              v-else
+              size="small"
+            >
+              {{ (row.user?.nickname || '?')[0] }}
+            </el-avatar>
           </template>
         </el-table-column>
-        <el-table-column prop="user.nickname" label="昵称" min-width="120" />
-        <el-table-column label="角色" width="100">
+        <el-table-column
+          prop="user.nickname"
+          label="昵称"
+          min-width="120"
+        />
+        <el-table-column
+          label="角色"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="row.role === 'OWNER' ? 'danger' : row.role === 'PARTNER' ? 'warning' : 'info'">
+            <el-tag
+              size="small"
+              :type="row.role === 'OWNER' ? 'danger' : row.role === 'PARTNER' ? 'warning' : 'info'"
+            >
               {{ row.role === 'OWNER' ? '圈主' : row.role === 'PARTNER' ? '合伙人' : '嘉宾' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="提问价格（币/次）" width="140">
-          <template #default="{ row }">{{ row.questionPriceCoin || '-' }}</template>
+        <el-table-column
+          label="提问价格（币/次）"
+          width="140"
+        >
+          <template #default="{ row }">
+            {{ row.questionPriceCoin || '-' }}
+          </template>
         </el-table-column>
-        <el-table-column label="连麦价格（币/分钟）" width="150">
-          <template #default="{ row }">{{ row.callPricePerMinuteCoin || '-' }}</template>
+        <el-table-column
+          label="连麦价格（币/分钟）"
+          width="150"
+        >
+          <template #default="{ row }">
+            {{ row.callPricePerMinuteCoin || '-' }}
+          </template>
         </el-table-column>
-        <el-table-column label="可连麦时段" min-width="160">
+        <el-table-column
+          label="可连麦时段"
+          min-width="160"
+        >
           <template #default="{ row }">
             <template v-if="row.callAvailableHours && row.callAvailableHours.length">
-              <el-tag v-for="(h, i) in row.callAvailableHours" :key="i" size="small" style="margin:2px">
+              <el-tag
+                v-for="(h, i) in row.callAvailableHours"
+                :key="i"
+                size="small"
+                style="margin:2px"
+              >
                 {{ h.day }} {{ h.start }}-{{ h.end }}
               </el-tag>
             </template>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="80" fixed="right">
+        <el-table-column
+          label="操作"
+          width="80"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button size="small" type="primary" link @click="openConfig(row)">配置</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              link
+              @click="openConfig(row)"
+            >
+              配置
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
-    <el-empty v-else description="请先选择一个圈子" />
+    <el-empty
+      v-else
+      description="请先选择一个圈子"
+    />
 
     <!-- 配置弹窗 -->
-    <el-dialog v-model="showConfigDialog" title="配置达人价格" width="480px" @closed="resetConfigForm">
-      <el-form :model="configForm" label-width="120px" :rules="configRules">
-        <el-form-item label="选择成员" required>
-          <el-select v-model="configForm.userId" placeholder="选择要配置的成员" filterable style="width:100%">
-            <el-option v-for="m in members" :key="m.userId" :label="`${m.user?.nickname || m.userId} (${roleLabel(m.role)})`" :value="m.userId" />
+    <el-dialog
+      v-model="showConfigDialog"
+      title="配置达人价格"
+      width="480px"
+      @closed="resetConfigForm"
+    >
+      <el-form
+        :model="configForm"
+        label-width="120px"
+        :rules="configRules"
+      >
+        <el-form-item
+          label="选择成员"
+          required
+        >
+          <el-select
+            v-model="configForm.userId"
+            placeholder="选择要配置的成员"
+            filterable
+            style="width:100%"
+          >
+            <el-option
+              v-for="m in members"
+              :key="m.userId"
+              :label="`${m.user?.nickname || m.userId} (${roleLabel(m.role)})`"
+              :value="m.userId"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="提问价格（币）">
-          <el-input-number v-model="configForm.questionPriceCoin" :min="0" :step="1" style="width:100%" />
+          <el-input-number
+            v-model="configForm.questionPriceCoin"
+            :min="0"
+            :step="1"
+            style="width:100%"
+          />
         </el-form-item>
         <el-form-item label="连麦价格（币/分）">
-          <el-input-number v-model="configForm.callPricePerMinuteCoin" :min="0" :step="1" style="width:100%" />
+          <el-input-number
+            v-model="configForm.callPricePerMinuteCoin"
+            :min="0"
+            :step="1"
+            style="width:100%"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showConfigDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitConfig">保存</el-button>
+        <el-button @click="showConfigDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="submitConfig"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

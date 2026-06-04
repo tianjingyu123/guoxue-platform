@@ -90,68 +90,197 @@ function handleExport() {
     <div class="toolbar">
       <h3>财务报表</h3>
       <div class="toolbar-right">
-        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width:120px" @change="fetchList">
-          <el-option label="全部" value="" />
-          <el-option label="已完成" value="COMPLETED" />
-          <el-option label="生成中" value="PENDING" />
-          <el-option label="失败" value="FAILED" />
+        <el-select
+          v-model="statusFilter"
+          placeholder="状态筛选"
+          clearable
+          style="width:120px"
+          @change="fetchList"
+        >
+          <el-option
+            label="全部"
+            value=""
+          />
+          <el-option
+            label="已完成"
+            value="COMPLETED"
+          />
+          <el-option
+            label="生成中"
+            value="PENDING"
+          />
+          <el-option
+            label="失败"
+            value="FAILED"
+          />
         </el-select>
-        <el-date-picker v-model="month" type="month" value-format="YYYY-MM" placeholder="选择月份" style="width:150px" @change="fetchList" />
-        <el-button type="primary" :loading="saving" @click="generateReport">生成月报</el-button>
-        <el-button @click="handleExport">导出CSV</el-button>
+        <el-date-picker
+          v-model="month"
+          type="month"
+          value-format="YYYY-MM"
+          placeholder="选择月份"
+          style="width:150px"
+          @change="fetchList"
+        />
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="generateReport"
+        >
+          生成月报
+        </el-button>
+        <el-button @click="handleExport">
+          导出CSV
+        </el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="month" label="月份" width="100" />
-      <el-table-column label="总收入" width="130">
-        <template #default="{ row }"><span style="font-weight:600;color:#409eff">{{ formatMoney(row.totalIncome) }}</span></template>
-      </el-table-column>
-      <el-table-column label="平台收入" width="130">
-        <template #default="{ row }">{{ formatMoney(row.platformIncome) }}</template>
-      </el-table-column>
-      <el-table-column label="分站收入" width="130">
-        <template #default="{ row }">{{ formatMoney(row.stationIncome) }}</template>
-      </el-table-column>
-      <el-table-column label="订单数" width="90">
-        <template #default="{ row }">{{ row.orderCount ?? '-' }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="100">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="month"
+        label="月份"
+        width="100"
+      />
+      <el-table-column
+        label="总收入"
+        width="130"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+          <span style="font-weight:600;color:#409eff">{{ formatMoney(row.totalIncome) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="生成时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.generatedAt || row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column
+        label="平台收入"
+        width="130"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="viewDetail(row)">详情</el-button>
+          {{ formatMoney(row.platformIncome) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="分站收入"
+        width="130"
+      >
+        <template #default="{ row }">
+          {{ formatMoney(row.stationIncome) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="订单数"
+        width="90"
+      >
+        <template #default="{ row }">
+          {{ row.orderCount ?? '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
+        width="100"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="statusTagType(row.status)"
+            size="small"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="生成时间"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.generatedAt || row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="100"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="viewDetail(row)"
+          >
+            详情
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-empty v-if="!loading && list.length === 0" description="暂无报表数据，请选择月份生成" style="margin-top:40px" />
+    <el-empty
+      v-if="!loading && list.length === 0"
+      description="暂无报表数据，请选择月份生成"
+      style="margin-top:40px"
+    />
 
     <el-pagination
       v-if="total > pageSize"
-      v-model:current-page="page" :total="total" :page-size="pageSize"
-      layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end"
+      v-model:current-page="page"
+      :total="total"
+      :page-size="pageSize"
+      layout="total, prev, pager, next"
+      style="margin-top:16px;justify-content:flex-end"
       @current-change="fetchList"
     />
 
-    <el-dialog v-model="detailVisible" title="报表详情" width="600px">
-      <el-descriptions v-if="detailData" :column="3" border>
-        <el-descriptions-item label="月份" :span="3">{{ detailData.month || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="总收入"><span style="font-weight:600;color:#409eff">{{ formatMoney(detailData.totalIncome) }}</span></el-descriptions-item>
-        <el-descriptions-item label="平台收入">{{ formatMoney(detailData.platformIncome) }}</el-descriptions-item>
-        <el-descriptions-item label="分站收入">{{ formatMoney(detailData.stationIncome) }}</el-descriptions-item>
-        <el-descriptions-item label="订单数">{{ detailData.orderCount ?? '-' }}</el-descriptions-item>
-        <el-descriptions-item label="退款金额">{{ formatMoney(detailData.refundAmount) }}</el-descriptions-item>
-        <el-descriptions-item label="退款率">{{ detailData.refundRate != null ? (Number(detailData.refundRate) * 100).toFixed(2) + '%' : '-' }}</el-descriptions-item>
-        <el-descriptions-item label="总支出">{{ formatMoney(detailData.totalExpense) }}</el-descriptions-item>
-        <el-descriptions-item label="净利润"><span style="font-weight:600" :style="{ color: Number(detailData.netProfit) >= 0 ? '#67c23a' : '#f56c6c' }">{{ formatMoney(detailData.netProfit) }}</span></el-descriptions-item>
-        <el-descriptions-item label="状态"><el-tag :type="statusTagType(detailData.status)" size="small">{{ statusLabel(detailData.status) }}</el-tag></el-descriptions-item>
+    <el-dialog
+      v-model="detailVisible"
+      title="报表详情"
+      width="600px"
+    >
+      <el-descriptions
+        v-if="detailData"
+        :column="3"
+        border
+      >
+        <el-descriptions-item
+          label="月份"
+          :span="3"
+        >
+          {{ detailData.month || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="总收入">
+          <span style="font-weight:600;color:#409eff">{{ formatMoney(detailData.totalIncome) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="平台收入">
+          {{ formatMoney(detailData.platformIncome) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="分站收入">
+          {{ formatMoney(detailData.stationIncome) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="订单数">
+          {{ detailData.orderCount ?? '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="退款金额">
+          {{ formatMoney(detailData.refundAmount) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="退款率">
+          {{ detailData.refundRate != null ? (Number(detailData.refundRate) * 100).toFixed(2) + '%' : '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="总支出">
+          {{ formatMoney(detailData.totalExpense) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="净利润">
+          <span
+            style="font-weight:600"
+            :style="{ color: Number(detailData.netProfit) >= 0 ? '#67c23a' : '#f56c6c' }"
+          >{{ formatMoney(detailData.netProfit) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag
+            :type="statusTagType(detailData.status)"
+            size="small"
+          >
+            {{ statusLabel(detailData.status) }}
+          </el-tag>
+        </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
   </div>

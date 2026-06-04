@@ -1,19 +1,45 @@
 <template>
   <div class="page">
-    <div class="toolbar"><h3>数据导入</h3></div>
+    <div class="toolbar">
+      <h3>数据导入</h3>
+    </div>
 
     <el-card>
       <el-form label-width="100px">
-        <el-form-item label="导入类型" required>
-          <el-select v-model="importType" style="width:300px">
-            <el-option label="文章" value="article" />
-            <el-option label="课程" value="course" />
-            <el-option label="商品" value="product" />
-            <el-option label="古籍" value="classic" />
-            <el-option label="用户" value="user" />
+        <el-form-item
+          label="导入类型"
+          required
+        >
+          <el-select
+            v-model="importType"
+            style="width:300px"
+          >
+            <el-option
+              label="文章"
+              value="article"
+            />
+            <el-option
+              label="课程"
+              value="course"
+            />
+            <el-option
+              label="商品"
+              value="product"
+            />
+            <el-option
+              label="古籍"
+              value="classic"
+            />
+            <el-option
+              label="用户"
+              value="user"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="CSV文件" required>
+        <el-form-item
+          label="CSV文件"
+          required
+        >
           <el-upload
             :auto-upload="false"
             :limit="1"
@@ -21,36 +47,75 @@
             :on-change="onFileChange"
             :on-remove="() => file = null"
           >
-            <el-button type="primary">选择文件</el-button>
-            <template #tip><span style="margin-left:8px;color:#999">仅支持 CSV 格式，最大 10MB</span></template>
+            <el-button type="primary">
+              选择文件
+            </el-button>
+            <template #tip>
+              <span style="margin-left:8px;color:#999">仅支持 CSV 格式，最大 10MB</span>
+            </template>
           </el-upload>
         </el-form-item>
         <el-form-item>
-          <el-button type="success" :loading="importing" @click="doImport" :disabled="!file">
+          <el-button
+            type="success"
+            :loading="importing"
+            :disabled="!file"
+            @click="doImport"
+          >
             开始导入
           </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
-    <el-card v-if="importResult" style="margin-top:16px">
-      <template #header>导入结果</template>
-      <el-descriptions :column="3" border>
-        <el-descriptions-item label="总行数">{{ importResult.total }}</el-descriptions-item>
-        <el-descriptions-item label="成功">{{ importResult.success }}</el-descriptions-item>
-        <el-descriptions-item label="失败">{{ importResult.failed }}</el-descriptions-item>
+    <el-card
+      v-if="importResult"
+      style="margin-top:16px"
+    >
+      <template #header>
+        导入结果
+      </template>
+      <el-descriptions
+        :column="3"
+        border
+      >
+        <el-descriptions-item label="总行数">
+          {{ importResult.total }}
+        </el-descriptions-item>
+        <el-descriptions-item label="成功">
+          {{ importResult.success }}
+        </el-descriptions-item>
+        <el-descriptions-item label="失败">
+          {{ importResult.failed }}
+        </el-descriptions-item>
       </el-descriptions>
-      <div v-if="importResult.errors?.length" style="margin-top:12px">
+      <div
+        v-if="importResult.errors?.length"
+        style="margin-top:12px"
+      >
         <h4>错误详情</h4>
-        <el-table :data="importResult.errors" stripe max-height="300">
-          <el-table-column prop="row" label="行号" width="80" />
-          <el-table-column prop="message" label="错误信息" />
+        <el-table
+          :data="importResult.errors"
+          stripe
+          max-height="300"
+        >
+          <el-table-column
+            prop="row"
+            label="行号"
+            width="80"
+          />
+          <el-table-column
+            prop="message"
+            label="错误信息"
+          />
         </el-table>
       </div>
     </el-card>
 
     <el-card style="margin-top:16px">
-      <template #header>CSV 格式说明</template>
+      <template #header>
+        CSV 格式说明
+      </template>
       <div v-if="importType === 'article'">
         <p><strong>文章</strong> — 列：title, content, tags(逗号分隔), cover, status</p>
       </div>
@@ -66,42 +131,111 @@
       <div v-else-if="importType === 'user'">
         <p><strong>用户</strong> — 列：nickname, phone, email, gender(0/1), bio</p>
       </div>
-      <p style="color:#999;margin-top:8px">第一行为表头，编码需为 UTF-8</p>
+      <p style="color:#999;margin-top:8px">
+        第一行为表头，编码需为 UTF-8
+      </p>
     </el-card>
 
     <el-card style="margin-top:16px">
-      <template #header>殆知阁古籍自动导入</template>
+      <template #header>
+        殆知阁古籍自动导入
+      </template>
       <p style="color:#666;margin-bottom:12px">
         从 daizhige.org 自动采集古籍全文，当前索引 <strong>8,860</strong> 部。
         需先运行 <code>py scripts/daizhige-scraper.py index && download N && generate</code> 生成种子文件。
       </p>
       <el-form inline>
         <el-form-item label="单次导入上限">
-          <el-input-number v-model="daizhigeMax" :min="10" :max="5000" :step="100" />
+          <el-input-number
+            v-model="daizhigeMax"
+            :min="10"
+            :max="5000"
+            :step="100"
+          />
         </el-form-item>
         <el-form-item label="分类筛选">
-          <el-select v-model="daizhigeCategory" clearable placeholder="全部" style="width:120px">
-            <el-option label="经" value="经" />
-            <el-option label="史" value="史" />
-            <el-option label="子" value="子" />
-            <el-option label="集" value="集" />
-            <el-option label="释" value="释" />
-            <el-option label="道" value="道" />
+          <el-select
+            v-model="daizhigeCategory"
+            clearable
+            placeholder="全部"
+            style="width:120px"
+          >
+            <el-option
+              label="经"
+              value="经"
+            />
+            <el-option
+              label="史"
+              value="史"
+            />
+            <el-option
+              label="子"
+              value="子"
+            />
+            <el-option
+              label="集"
+              value="集"
+            />
+            <el-option
+              label="释"
+              value="释"
+            />
+            <el-option
+              label="道"
+              value="道"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="daizhigeStats" :loading="statsLoading">查看统计</el-button>
-          <el-button type="success" @click="daizhigeImport" :loading="importingDaizhige">开始导入</el-button>
+          <el-button
+            type="primary"
+            :loading="statsLoading"
+            @click="daizhigeStats"
+          >
+            查看统计
+          </el-button>
+          <el-button
+            type="success"
+            :loading="importingDaizhige"
+            @click="daizhigeImport"
+          >
+            开始导入
+          </el-button>
         </el-form-item>
       </el-form>
-      <div v-if="daizhigeStatsResult" style="margin-top:8px">
+      <div
+        v-if="daizhigeStatsResult"
+        style="margin-top:8px"
+      >
         <p>种子总数: <strong>{{ daizhigeStatsResult.total }}</strong>，章节总数: <strong>{{ daizhigeStatsResult.totalChapters }}</strong></p>
-        <p>分类: <span v-for="(n, cat) in daizhigeStatsResult.byCategory" :key="cat" style="margin-right:12px">{{ cat }}: {{ n }}</span></p>
+        <p>
+          分类: <span
+            v-for="(n, cat) in daizhigeStatsResult.byCategory"
+            :key="cat"
+            style="margin-right:12px"
+          >{{ cat }}: {{ n }}</span>
+        </p>
       </div>
-      <div v-if="daizhigeResult" style="margin-top:8px">
-        <el-tag type="success">新建 {{ daizhigeResult.created }}</el-tag>
-        <el-tag type="info" style="margin-left:8px">跳过 {{ daizhigeResult.skipped }}</el-tag>
-        <el-tag v-if="daizhigeResult.errors" type="danger" style="margin-left:8px">失败 {{ daizhigeResult.errors }}</el-tag>
+      <div
+        v-if="daizhigeResult"
+        style="margin-top:8px"
+      >
+        <el-tag type="success">
+          新建 {{ daizhigeResult.created }}
+        </el-tag>
+        <el-tag
+          type="info"
+          style="margin-left:8px"
+        >
+          跳过 {{ daizhigeResult.skipped }}
+        </el-tag>
+        <el-tag
+          v-if="daizhigeResult.errors"
+          type="danger"
+          style="margin-left:8px"
+        >
+          失败 {{ daizhigeResult.errors }}
+        </el-tag>
       </div>
     </el-card>
   </div>

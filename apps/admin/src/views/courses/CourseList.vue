@@ -132,69 +132,204 @@ function exportData() {
 <template>
   <div class="course-list">
     <DataTable
+      v-model:page="pagination.page"
+      v-model:page-size="pagination.pageSize"
       :columns="columns"
       :data="tableData"
       :loading="loading"
       :total="pagination.total"
-      v-model:page="pagination.page"
-      v-model:page-size="pagination.pageSize"
       selectable
       actions-width="340"
       @change="fetchList"
       @selection-change="onSelectionChange"
     >
       <template #toolbar>
-        <el-button type="primary" @click="router.push('/courses/create')">新建课程</el-button>
-        <el-button @click="exportData">导出CSV</el-button>
-        <el-button v-if="hasSelection" type="success" @click="handleBatchAudit('APPROVED')">批量通过 ({{ selectedIds.length }})</el-button>
-        <el-button v-if="hasSelection" type="warning" @click="handleBatchAudit('REJECTED')">批量驳回</el-button>
+        <el-button
+          type="primary"
+          @click="router.push('/courses/create')"
+        >
+          新建课程
+        </el-button>
+        <el-button @click="exportData">
+          导出CSV
+        </el-button>
+        <el-button
+          v-if="hasSelection"
+          type="success"
+          @click="handleBatchAudit('APPROVED')"
+        >
+          批量通过 ({{ selectedIds.length }})
+        </el-button>
+        <el-button
+          v-if="hasSelection"
+          type="warning"
+          @click="handleBatchAudit('REJECTED')"
+        >
+          批量驳回
+        </el-button>
         <div style="display:flex;gap:10px;margin-left:auto">
-          <el-input v-model="filters.keyword" placeholder="搜索课程名称..." clearable style="width:200px" @keyup.enter="handleSearch" @clear="handleSearch" />
-          <el-select v-model="filters.auditStatus" placeholder="审核状态" clearable style="width:130px" @change="handleSearch">
-            <el-option label="草稿" value="DRAFT" /><el-option label="待审核" value="PENDING" />
-            <el-option label="已通过" value="APPROVED" /><el-option label="已驳回" value="REJECTED" />
+          <el-input
+            v-model="filters.keyword"
+            placeholder="搜索课程名称..."
+            clearable
+            style="width:200px"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          />
+          <el-select
+            v-model="filters.auditStatus"
+            placeholder="审核状态"
+            clearable
+            style="width:130px"
+            @change="handleSearch"
+          >
+            <el-option
+              label="草稿"
+              value="DRAFT"
+            /><el-option
+              label="待审核"
+              value="PENDING"
+            />
+            <el-option
+              label="已通过"
+              value="APPROVED"
+            /><el-option
+              label="已驳回"
+              value="REJECTED"
+            />
           </el-select>
-          <el-select v-model="filters.type" placeholder="课程类型" clearable style="width:110px" @change="handleSearch">
-            <el-option label="视频" value="VIDEO" /><el-option label="音频" value="AUDIO" />
-            <el-option label="文本" value="TEXT" /><el-option label="电子书" value="EBOOK" /><el-option label="组合" value="COMBO" />
+          <el-select
+            v-model="filters.type"
+            placeholder="课程类型"
+            clearable
+            style="width:110px"
+            @change="handleSearch"
+          >
+            <el-option
+              label="视频"
+              value="VIDEO"
+            /><el-option
+              label="音频"
+              value="AUDIO"
+            />
+            <el-option
+              label="文本"
+              value="TEXT"
+            /><el-option
+              label="电子书"
+              value="EBOOK"
+            /><el-option
+              label="组合"
+              value="COMBO"
+            />
           </el-select>
         </div>
       </template>
 
       <template #cover="{ row }">
-        <el-image v-if="row.cover" :src="row.cover" style="width:42px;height:28px;border-radius:4px" fit="cover" />
-        <span v-else style="color:#ccc">-</span>
+        <el-image
+          v-if="row.cover"
+          :src="row.cover"
+          style="width:42px;height:28px;border-radius:4px"
+          fit="cover"
+        />
+        <span
+          v-else
+          style="color:#ccc"
+        >-</span>
       </template>
-      <template #type="{ row }">{{ typeLabels[row.type] || row.type }}</template>
-      <template #category="{ row }">{{ row.category }}</template>
+      <template #type="{ row }">
+        {{ typeLabels[row.type] || row.type }}
+      </template>
+      <template #category="{ row }">
+        {{ row.category }}
+      </template>
       <template #price="{ row }">
         <span :style="{ color: row.price === 0 ? '#2e7d32' : '#C41E3A', fontWeight: 'bold' }">
           {{ row.price > 0 ? '¥' + row.price : '免费' }}
         </span>
-        <span v-if="row.originalPrice && row.originalPrice > row.price" style="font-size:11px;color:#bbb;text-decoration:line-through;margin-left:4px">¥{{ row.originalPrice }}</span>
+        <span
+          v-if="row.originalPrice && row.originalPrice > row.price"
+          style="font-size:11px;color:#bbb;text-decoration:line-through;margin-left:4px"
+        >¥{{ row.originalPrice }}</span>
       </template>
-      <template #validity="{ row }">{{ row.validity }}</template>
+      <template #validity="{ row }">
+        {{ row.validity }}
+      </template>
       <template #auditStatus="{ row }">
-        <el-tag :type="auditLabels[row.auditStatus]?.type || 'info'" size="small">
+        <el-tag
+          :type="auditLabels[row.auditStatus]?.type || 'info'"
+          size="small"
+        >
           {{ auditLabels[row.auditStatus]?.text || row.auditStatus }}
         </el-tag>
       </template>
-      <template #author="{ row }">{{ row.author }}</template>
+      <template #author="{ row }">
+        {{ row.author }}
+      </template>
       <template #actions="{ row }">
-        <el-button size="small" @click="router.push(`/courses/${row.id}/edit`)">编辑</el-button>
-        <el-button v-if="row.auditStatus === 'PENDING'" size="small" type="success" @click="handleAudit(row.id, 'APPROVED')">通过</el-button>
-        <el-button v-if="row.auditStatus === 'PENDING'" size="small" type="warning" @click="handleAudit(row.id, 'REJECTED')">驳回</el-button>
-        <el-dropdown trigger="click" style="margin-left:4px">
-          <el-button size="small">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+        <el-button
+          size="small"
+          @click="router.push(`/courses/${row.id}/edit`)"
+        >
+          编辑
+        </el-button>
+        <el-button
+          v-if="row.auditStatus === 'PENDING'"
+          size="small"
+          type="success"
+          @click="handleAudit(row.id, 'APPROVED')"
+        >
+          通过
+        </el-button>
+        <el-button
+          v-if="row.auditStatus === 'PENDING'"
+          size="small"
+          type="warning"
+          @click="handleAudit(row.id, 'REJECTED')"
+        >
+          驳回
+        </el-button>
+        <el-dropdown
+          trigger="click"
+          style="margin-left:4px"
+        >
+          <el-button size="small">
+            更多<el-icon class="el-icon--right">
+              <ArrowDown />
+            </el-icon>
+          </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item v-if="row.auditStatus !== 'APPROVED'" @click="handleForceStatus(row.id, 'APPROVED')">强制上架</el-dropdown-item>
-              <el-dropdown-item v-if="row.auditStatus !== 'DRAFT'" @click="handleForceStatus(row.id, 'DRAFT')">下架为草稿</el-dropdown-item>
-              <el-dropdown-item divided style="color:#C41E3A" @click="handleForceDelete(row.id)">强制删除</el-dropdown-item>
+              <el-dropdown-item
+                v-if="row.auditStatus !== 'APPROVED'"
+                @click="handleForceStatus(row.id, 'APPROVED')"
+              >
+                强制上架
+              </el-dropdown-item>
+              <el-dropdown-item
+                v-if="row.auditStatus !== 'DRAFT'"
+                @click="handleForceStatus(row.id, 'DRAFT')"
+              >
+                下架为草稿
+              </el-dropdown-item>
+              <el-dropdown-item
+                divided
+                style="color:#C41E3A"
+                @click="handleForceDelete(row.id)"
+              >
+                强制删除
+              </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <el-button size="small" type="danger" @click="handleDelete(row.id)">删除</el-button>
+        <el-button
+          size="small"
+          type="danger"
+          @click="handleDelete(row.id)"
+        >
+          删除
+        </el-button>
       </template>
     </DataTable>
   </div>

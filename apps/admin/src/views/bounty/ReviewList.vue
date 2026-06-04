@@ -4,21 +4,72 @@
       <h2>赏金审核管理</h2>
     </div>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="questionId" label="问题ID" width="200" />
-      <el-table-column prop="questionTitle" label="问题标题" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="reviewerId" label="审核人ID" width="180" />
-      <el-table-column prop="status" label="审核状态" width="110">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="questionId"
+        label="问题ID"
+        width="200"
+      />
+      <el-table-column
+        prop="questionTitle"
+        label="问题标题"
+        min-width="180"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="reviewerId"
+        label="审核人ID"
+        width="180"
+      />
+      <el-table-column
+        prop="status"
+        label="审核状态"
+        width="110"
+      >
         <template #default="{ row }">
-          <el-tag :type="reviewStatusTag(row.status)">{{ reviewStatusLabel(row.status) }}</el-tag>
+          <el-tag :type="reviewStatusTag(row.status)">
+            {{ reviewStatusLabel(row.status) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="reason" label="原因/备注" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="createdAt" label="创建时间" width="170" />
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column
+        prop="reason"
+        label="原因/备注"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="createdAt"
+        label="创建时间"
+        width="170"
+      />
+      <el-table-column
+        label="操作"
+        width="180"
+        fixed="right"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="success" :disabled="row.status !== 'PENDING'" @click="handleApprove(row)">通过</el-button>
-          <el-button size="small" type="danger" :disabled="row.status !== 'PENDING'" @click="handleReject(row)">拒绝</el-button>
+          <el-button
+            size="small"
+            type="success"
+            :disabled="row.status !== 'PENDING'"
+            @click="handleApprove(row)"
+          >
+            通过
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            :disabled="row.status !== 'PENDING'"
+            @click="handleReject(row)"
+          >
+            拒绝
+          </el-button>
         </template>
       </el-table-column>
     </el-table>

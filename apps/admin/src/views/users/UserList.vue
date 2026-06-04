@@ -6,11 +6,11 @@
     </div>
 
     <DataTable
+      v-model:page="page"
       :columns="columns"
       :data="list"
       :loading="loading"
       :total="total"
-      v-model:page="page"
       :page-size="pageSize"
       selectable
       actions-width="280"
@@ -18,111 +18,341 @@
       @selection-change="onSelectionChange"
     >
       <template #toolbar>
-        <el-input v-model="keyword" placeholder="搜索昵称/手机号" style="width:200px" clearable @keyup.enter="fetchList" @clear="fetchList" />
-        <el-select v-model="roleFilter" placeholder="角色筛选" clearable style="width:130px" @change="fetchList">
-          <el-option label="全部角色" value="" />
-          <el-option label="超级管理员" value="SUPER_ADMIN" />
-          <el-option label="运营管理" value="OPERATION_ADMIN" />
-          <el-option label="内容审核" value="CONTENT_AUDITOR" />
-          <el-option label="财务管理" value="FINANCE_ADMIN" />
-          <el-option label="客服管理" value="CUSTOMER_SERVICE" />
-          <el-option label="圈主" value="CIRCLE_OWNER" />
-          <el-option label="讲师" value="LECTURER" />
-          <el-option label="站长" value="STATION_MASTER" />
-          <el-option label="运营商" value="OPERATOR" />
-          <el-option label="普通用户" value="USER" />
+        <el-input
+          v-model="keyword"
+          placeholder="搜索昵称/手机号"
+          style="width:200px"
+          clearable
+          @keyup.enter="fetchList"
+          @clear="fetchList"
+        />
+        <el-select
+          v-model="roleFilter"
+          placeholder="角色筛选"
+          clearable
+          style="width:130px"
+          @change="fetchList"
+        >
+          <el-option
+            label="全部角色"
+            value=""
+          />
+          <el-option
+            label="超级管理员"
+            value="SUPER_ADMIN"
+          />
+          <el-option
+            label="运营管理"
+            value="OPERATION_ADMIN"
+          />
+          <el-option
+            label="内容审核"
+            value="CONTENT_AUDITOR"
+          />
+          <el-option
+            label="财务管理"
+            value="FINANCE_ADMIN"
+          />
+          <el-option
+            label="客服管理"
+            value="CUSTOMER_SERVICE"
+          />
+          <el-option
+            label="圈主"
+            value="CIRCLE_OWNER"
+          />
+          <el-option
+            label="讲师"
+            value="LECTURER"
+          />
+          <el-option
+            label="站长"
+            value="STATION_MASTER"
+          />
+          <el-option
+            label="运营商"
+            value="OPERATOR"
+          />
+          <el-option
+            label="普通用户"
+            value="USER"
+          />
         </el-select>
-        <el-select v-model="memberLevelFilter" placeholder="会员等级" clearable style="width:110px" @change="fetchList">
-          <el-option label="全部" value="" />
-          <el-option label="非会员" value="NONE" />
-          <el-option label="月卡" value="MONTHLY" />
-          <el-option label="年卡" value="YEARLY" />
-          <el-option label="终身" value="LIFETIME" />
+        <el-select
+          v-model="memberLevelFilter"
+          placeholder="会员等级"
+          clearable
+          style="width:110px"
+          @change="fetchList"
+        >
+          <el-option
+            label="全部"
+            value=""
+          />
+          <el-option
+            label="非会员"
+            value="NONE"
+          />
+          <el-option
+            label="月卡"
+            value="MONTHLY"
+          />
+          <el-option
+            label="年卡"
+            value="YEARLY"
+          />
+          <el-option
+            label="终身"
+            value="LIFETIME"
+          />
         </el-select>
-        <el-select v-model="statusFilter" placeholder="状态" clearable style="width:90px" @change="fetchList">
-          <el-option label="全部" value="" />
-          <el-option label="正常" value="ACTIVE" />
-          <el-option label="禁用" value="DISABLED" />
-          <el-option label="封禁" value="BANNED" />
+        <el-select
+          v-model="statusFilter"
+          placeholder="状态"
+          clearable
+          style="width:90px"
+          @change="fetchList"
+        >
+          <el-option
+            label="全部"
+            value=""
+          />
+          <el-option
+            label="正常"
+            value="ACTIVE"
+          />
+          <el-option
+            label="禁用"
+            value="DISABLED"
+          />
+          <el-option
+            label="封禁"
+            value="BANNED"
+          />
         </el-select>
-        <el-date-picker v-model="dateRange" type="daterange" range-separator="至"
-          start-placeholder="注册起始" end-placeholder="注册截止"
-          style="width:240px" value-format="YYYY-MM-DD"
-          @change="fetchList" />
-        <el-button type="primary" @click="fetchList">查询</el-button>
-        <el-button @click="resetFilters">重置</el-button>
-        <el-button @click="exportData">导出CSV</el-button>
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="注册起始"
+          end-placeholder="注册截止"
+          style="width:240px"
+          value-format="YYYY-MM-DD"
+          @change="fetchList"
+        />
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          查询
+        </el-button>
+        <el-button @click="resetFilters">
+          重置
+        </el-button>
+        <el-button @click="exportData">
+          导出CSV
+        </el-button>
       </template>
 
       <template #batch>
         <span>已选 {{ selectedRows.length }} 项</span>
-        <el-button size="small" type="success" @click="batchUnban">批量解封</el-button>
-        <el-button size="small" type="warning" @click="batchBan">批量封禁</el-button>
+        <el-button
+          size="small"
+          type="success"
+          @click="batchUnban"
+        >
+          批量解封
+        </el-button>
+        <el-button
+          size="small"
+          type="warning"
+          @click="batchBan"
+        >
+          批量封禁
+        </el-button>
       </template>
 
       <template #nickname="{ row }">
-        <el-link type="primary" @click="goDetail(row)">{{ row.nickname }}</el-link>
+        <el-link
+          type="primary"
+          @click="goDetail(row)"
+        >
+          {{ row.nickname }}
+        </el-link>
       </template>
       <template #roles="{ row }">
-        <el-tag v-for="r in row.roles" :key="r.roleType" size="small" style="margin-right:3px" :type="roleTagType(r.roleType)">
+        <el-tag
+          v-for="r in row.roles"
+          :key="r.roleType"
+          size="small"
+          style="margin-right:3px"
+          :type="roleTagType(r.roleType)"
+        >
           {{ roleLabel(r.roleType) }}
         </el-tag>
       </template>
       <template #memberLevel="{ row }">
-        <el-tag v-if="row.memberLevel !== 'NONE'" size="small" :type="memberTagType(row.memberLevel)">
+        <el-tag
+          v-if="row.memberLevel !== 'NONE'"
+          size="small"
+          :type="memberTagType(row.memberLevel)"
+        >
           {{ memberLabel(row.memberLevel) }}
         </el-tag>
-        <span v-else class="dim">-</span>
+        <span
+          v-else
+          class="dim"
+        >-</span>
       </template>
       <template #coinBalance="{ row }">
-        <span v-if="row.coinBalance > 0" class="coin">{{ row.coinBalance }}</span>
-        <span v-else class="dim">0</span>
+        <span
+          v-if="row.coinBalance > 0"
+          class="coin"
+        >{{ row.coinBalance }}</span>
+        <span
+          v-else
+          class="dim"
+        >0</span>
       </template>
       <template #orderCount="{ row }">
-        <span v-if="row.orderCount > 0" class="num">{{ row.orderCount }}</span>
-        <span v-else class="dim">0</span>
+        <span
+          v-if="row.orderCount > 0"
+          class="num"
+        >{{ row.orderCount }}</span>
+        <span
+          v-else
+          class="dim"
+        >0</span>
       </template>
       <template #status="{ row }">
-        <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" size="small">
+        <el-tag
+          :type="row.status === 'ACTIVE' ? 'success' : 'danger'"
+          size="small"
+        >
           {{ row.status === 'ACTIVE' ? '正常' : row.status === 'BANNED' ? '封禁' : '禁用' }}
         </el-tag>
       </template>
       <template #lastActiveAt="{ row }">
         <span :class="{ dim: isInactive(row.lastActiveAt) }">{{ formatRelative(row.lastActiveAt) }}</span>
       </template>
-      <template #createdAt="{ row }">{{ row.createdAt?.slice(0,16).replace('T',' ') }}</template>
+      <template #createdAt="{ row }">
+        {{ row.createdAt?.slice(0,16).replace('T',' ') }}
+      </template>
       <template #actions="{ row }">
-        <el-button size="small" type="primary" @click="goDetail(row)">详情</el-button>
-        <el-button size="small" @click="openRoles(row)">角色</el-button>
-        <el-button v-if="row.status === 'ACTIVE'" size="small" type="warning" @click="handleBan(row)">封禁</el-button>
-        <el-button v-else size="small" type="success" @click="handleUnban(row)">解封</el-button>
+        <el-button
+          size="small"
+          type="primary"
+          @click="goDetail(row)"
+        >
+          详情
+        </el-button>
+        <el-button
+          size="small"
+          @click="openRoles(row)"
+        >
+          角色
+        </el-button>
+        <el-button
+          v-if="row.status === 'ACTIVE'"
+          size="small"
+          type="warning"
+          @click="handleBan(row)"
+        >
+          封禁
+        </el-button>
+        <el-button
+          v-else
+          size="small"
+          type="success"
+          @click="handleUnban(row)"
+        >
+          解封
+        </el-button>
       </template>
     </DataTable>
 
     <!-- 角色管理弹窗 -->
-    <el-dialog v-model="roleVisible" title="角色管理" width="420px">
+    <el-dialog
+      v-model="roleVisible"
+      title="角色管理"
+      width="420px"
+    >
       <div v-if="roleUser">
         <p><b>用户：</b>{{ roleUser.nickname }}</p>
         <p><b>当前角色：</b></p>
-        <el-tag v-for="r in roleUserRoles" :key="r.roleType" size="small" closable style="margin:2px"
-          :type="r.roleType === 'SUPER_ADMIN' ? 'danger' : ''" @close="removeRole(roleUser.id, r.roleType)">
+        <el-tag
+          v-for="r in roleUserRoles"
+          :key="r.roleType"
+          size="small"
+          closable
+          style="margin:2px"
+          :type="r.roleType === 'SUPER_ADMIN' ? 'danger' : ''"
+          @close="removeRole(roleUser.id, r.roleType)"
+        >
           {{ roleLabel(r.roleType) }}
         </el-tag>
-        <p v-if="roleUserRoles.length === 0" class="dim">无特殊角色</p>
+        <p
+          v-if="roleUserRoles.length === 0"
+          class="dim"
+        >
+          无特殊角色
+        </p>
         <div style="margin-top:12px">
-          <el-select v-model="newRole" placeholder="添加角色" style="width:160px">
-            <el-option label="超级管理员" value="SUPER_ADMIN" />
-            <el-option label="运营管理" value="OPERATION_ADMIN" />
-            <el-option label="内容审核" value="CONTENT_AUDITOR" />
-            <el-option label="财务管理" value="FINANCE_ADMIN" />
-            <el-option label="客服管理" value="CUSTOMER_SERVICE" />
-            <el-option label="商品品控" value="GOODS_AUDITOR" />
-            <el-option label="圈主" value="CIRCLE_OWNER" />
-            <el-option label="讲师" value="LECTURER" />
-            <el-option label="站长" value="STATION_MASTER" />
-            <el-option label="运营商" value="OPERATOR" />
+          <el-select
+            v-model="newRole"
+            placeholder="添加角色"
+            style="width:160px"
+          >
+            <el-option
+              label="超级管理员"
+              value="SUPER_ADMIN"
+            />
+            <el-option
+              label="运营管理"
+              value="OPERATION_ADMIN"
+            />
+            <el-option
+              label="内容审核"
+              value="CONTENT_AUDITOR"
+            />
+            <el-option
+              label="财务管理"
+              value="FINANCE_ADMIN"
+            />
+            <el-option
+              label="客服管理"
+              value="CUSTOMER_SERVICE"
+            />
+            <el-option
+              label="商品品控"
+              value="GOODS_AUDITOR"
+            />
+            <el-option
+              label="圈主"
+              value="CIRCLE_OWNER"
+            />
+            <el-option
+              label="讲师"
+              value="LECTURER"
+            />
+            <el-option
+              label="站长"
+              value="STATION_MASTER"
+            />
+            <el-option
+              label="运营商"
+              value="OPERATOR"
+            />
           </el-select>
-          <el-button type="primary" size="small" style="margin-left:8px" :disabled="!newRole" @click="addRole">添加</el-button>
+          <el-button
+            type="primary"
+            size="small"
+            style="margin-left:8px"
+            :disabled="!newRole"
+            @click="addRole"
+          >
+            添加
+          </el-button>
         </div>
       </div>
     </el-dialog>

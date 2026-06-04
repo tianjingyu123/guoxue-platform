@@ -1,41 +1,134 @@
 <template>
   <div class="page">
-    <div class="toolbar"><h3>站点精选管理</h3></div>
+    <div class="toolbar">
+      <h3>站点精选管理</h3>
+    </div>
 
-    <el-form :inline="true" style="margin-bottom:16px">
+    <el-form
+      :inline="true"
+      style="margin-bottom:16px"
+    >
       <el-form-item label="选择分站">
-        <el-input v-model="stationId" placeholder="输入分站ID" @keyup.enter="fetchPicks" />
+        <el-input
+          v-model="stationId"
+          placeholder="输入分站ID"
+          @keyup.enter="fetchPicks"
+        />
       </el-form-item>
-      <el-form-item><el-button type="primary" @click="fetchPicks" :loading="loading">查询</el-button></el-form-item>
+      <el-form-item>
+        <el-button
+          type="primary"
+          :loading="loading"
+          @click="fetchPicks"
+        >
+          查询
+        </el-button>
+      </el-form-item>
     </el-form>
 
     <template v-if="stationId && picks.length >= 0">
       <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
         <span><b>精选内容列表</b>（{{ stationId }}）</span>
-        <el-button type="primary" size="small" @click="openConfig">配置设置</el-button>
+        <el-button
+          type="primary"
+          size="small"
+          @click="openConfig"
+        >
+          配置设置
+        </el-button>
       </div>
 
-      <el-table v-loading="loading" :data="picks" stripe>
-        <el-table-column label="排序" width="80"><template #default="{ row }">{{ row.sortOrder }}</template></el-table-column>
-        <el-table-column prop="contentType" label="内容类型" width="100" />
-        <el-table-column prop="contentId" label="内容ID" width="200" />
-        <el-table-column prop="remark" label="推荐语" min-width="200" show-overflow-tooltip />
-        <el-table-column label="创建时间" width="170"><template #default="{ row }">{{ formatDate(row.createdAt) }}</template></el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
-          <template #default="{ row }"><el-button size="small" type="danger" @click="removePick(row.id)">移除</el-button></template>
+      <el-table
+        v-loading="loading"
+        :data="picks"
+        stripe
+      >
+        <el-table-column
+          label="排序"
+          width="80"
+        >
+          <template #default="{ row }">
+            {{ row.sortOrder }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="contentType"
+          label="内容类型"
+          width="100"
+        />
+        <el-table-column
+          prop="contentId"
+          label="内容ID"
+          width="200"
+        />
+        <el-table-column
+          prop="remark"
+          label="推荐语"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="创建时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="100"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              type="danger"
+              @click="removePick(row.id)"
+            >
+              移除
+            </el-button>
+          </template>
         </el-table-column>
       </el-table>
     </template>
 
-    <el-empty v-if="stationId && !loading && picks.length === 0" description="暂无精选内容" />
+    <el-empty
+      v-if="stationId && !loading && picks.length === 0"
+      description="暂无精选内容"
+    />
 
     <!-- 配置弹窗 -->
-    <el-dialog v-model="configVis" title="精选配置" width="450px">
-      <el-form :model="configForm" label-width="120px">
-        <el-form-item label="启用精选注入"><el-switch v-model="configForm.stationZoneEnabled" /></el-form-item>
-        <el-form-item label="注入位置"><el-input v-model="configForm.positionsStr" placeholder="多个位置用逗号分隔，如 2,5,9" /></el-form-item>
+    <el-dialog
+      v-model="configVis"
+      title="精选配置"
+      width="450px"
+    >
+      <el-form
+        :model="configForm"
+        label-width="120px"
+      >
+        <el-form-item label="启用精选注入">
+          <el-switch v-model="configForm.stationZoneEnabled" />
+        </el-form-item>
+        <el-form-item label="注入位置">
+          <el-input
+            v-model="configForm.positionsStr"
+            placeholder="多个位置用逗号分隔，如 2,5,9"
+          />
+        </el-form-item>
       </el-form>
-      <template #footer><el-button @click="configVis = false">取消</el-button><el-button type="primary" :loading="savingConfig" @click="saveConfig">保存</el-button></template>
+      <template #footer>
+        <el-button @click="configVis = false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="savingConfig"
+          @click="saveConfig"
+        >
+          保存
+        </el-button>
+      </template>
     </el-dialog>
   </div>
 </template>

@@ -131,46 +131,125 @@ async function del(id: string) {
   <div class="page">
     <div class="toolbar">
       <h3>风控规则管理</h3>
-      <el-button type="primary" @click="openCreate">创建规则</el-button>
+      <el-button
+        type="primary"
+        @click="openCreate"
+      >
+        创建规则
+      </el-button>
     </div>
 
     <div class="filters">
-      <el-select v-model="typeFilter" placeholder="规则类型" clearable style="width:160px" @change="fetchList">
-        <el-option v-for="t in typeOptions" :key="t.value" :label="t.label" :value="t.value" />
+      <el-select
+        v-model="typeFilter"
+        placeholder="规则类型"
+        clearable
+        style="width:160px"
+        @change="fetchList"
+      >
+        <el-option
+          v-for="t in typeOptions"
+          :key="t.value"
+          :label="t.label"
+          :value="t.value"
+        />
       </el-select>
-      <el-select v-model="statusFilter" placeholder="状态" clearable style="width:120px" @change="fetchList">
-        <el-option label="启用" value="true" />
-        <el-option label="禁用" value="false" />
+      <el-select
+        v-model="statusFilter"
+        placeholder="状态"
+        clearable
+        style="width:120px"
+        @change="fetchList"
+      >
+        <el-option
+          label="启用"
+          value="true"
+        />
+        <el-option
+          label="禁用"
+          value="false"
+        />
       </el-select>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="name" label="规则名称" min-width="140" />
-      <el-table-column label="类型" width="120">
-        <template #default="{ row }">{{ getTypeLabel(row.type) }}</template>
-      </el-table-column>
-      <el-table-column label="风险等级" width="100">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="name"
+        label="规则名称"
+        min-width="140"
+      />
+      <el-table-column
+        label="类型"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.level === 'HIGH' ? 'danger' : row.level === 'MEDIUM' ? 'warning' : 'info'" size="small">
+          {{ getTypeLabel(row.type) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="风险等级"
+        width="100"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="row.level === 'HIGH' ? 'danger' : row.level === 'MEDIUM' ? 'warning' : 'info'"
+            size="small"
+          >
             {{ row.level === 'HIGH' ? '高' : row.level === 'MEDIUM' ? '中' : '低' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="80">
+      <el-table-column
+        label="状态"
+        width="80"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.enabled ? 'success' : 'info'" size="small">{{ row.enabled ? '启用' : '禁用' }}</el-tag>
+          <el-tag
+            :type="row.enabled ? 'success' : 'info'"
+            size="small"
+          >
+            {{ row.enabled ? '启用' : '禁用' }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="更新时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.updatedAt || row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="210" fixed="right">
+      <el-table-column
+        label="更新时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" :type="row.enabled ? 'warning' : 'success'" @click="toggleRule(row)">
+          {{ formatDate(row.updatedAt || row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="210"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            :type="row.enabled ? 'warning' : 'success'"
+            @click="toggleRule(row)"
+          >
             {{ row.enabled ? '禁用' : '启用' }}
           </el-button>
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="del(row.id)">删除</el-button>
+          <el-button
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="del(row.id)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -184,27 +263,68 @@ async function del(id: string) {
       @current-change="fetchList"
     />
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑规则' : '创建规则'" width="550px">
-      <el-form :model="form" label-width="90px">
-        <el-form-item label="规则名称" required>
-          <el-input v-model="form.name" placeholder="请输入规则名称" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editingId ? '编辑规则' : '创建规则'"
+      width="550px"
+    >
+      <el-form
+        :model="form"
+        label-width="90px"
+      >
+        <el-form-item
+          label="规则名称"
+          required
+        >
+          <el-input
+            v-model="form.name"
+            placeholder="请输入规则名称"
+          />
         </el-form-item>
         <el-form-item label="规则类型">
-          <el-select v-model="form.type" style="width:100%">
-            <el-option v-for="t in typeOptions" :key="t.value" :label="t.label" :value="t.value" />
+          <el-select
+            v-model="form.type"
+            style="width:100%"
+          >
+            <el-option
+              v-for="t in typeOptions"
+              :key="t.value"
+              :label="t.label"
+              :value="t.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="风险等级">
-          <el-select v-model="form.level" style="width:100%">
-            <el-option v-for="l in levelOptions" :key="l.value" :label="l.label" :value="l.value" />
+          <el-select
+            v-model="form.level"
+            style="width:100%"
+          >
+            <el-option
+              v-for="l in levelOptions"
+              :key="l.value"
+              :label="l.label"
+              :value="l.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="触发阈值">
-          <el-input-number v-model="form.threshold" :min="0" style="width:100%" />
+          <el-input-number
+            v-model="form.threshold"
+            :min="0"
+            style="width:100%"
+          />
         </el-form-item>
         <el-form-item label="处置动作">
-          <el-select v-model="form.action" style="width:100%">
-            <el-option v-for="a in actionOptions" :key="a.value" :label="a.label" :value="a.value" />
+          <el-select
+            v-model="form.action"
+            style="width:100%"
+          >
+            <el-option
+              v-for="a in actionOptions"
+              :key="a.value"
+              :label="a.label"
+              :value="a.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="启用状态">
@@ -212,8 +332,16 @@ async function del(id: string) {
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

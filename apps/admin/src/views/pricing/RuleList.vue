@@ -2,40 +2,109 @@
   <div class="page">
     <div class="header">
       <h2>定价规则管理</h2>
-      <el-button type="primary" @click="openAddDialog">添加规则</el-button>
+      <el-button
+        type="primary"
+        @click="openAddDialog"
+      >
+        添加规则
+      </el-button>
     </div>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="name" label="规则名称" min-width="140" />
-      <el-table-column prop="targetType" label="目标类型" width="110">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="name"
+        label="规则名称"
+        min-width="140"
+      />
+      <el-table-column
+        prop="targetType"
+        label="目标类型"
+        width="110"
+      >
         <template #default="{ row }">
           <el-tag>{{ targetTypeLabel(row.targetType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="strategy" label="策略" width="120">
+      <el-table-column
+        prop="strategy"
+        label="策略"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-tag :type="strategyTag(row.strategy)">{{ strategyLabel(row.strategy) }}</el-tag>
+          <el-tag :type="strategyTag(row.strategy)">
+            {{ strategyLabel(row.strategy) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="basePrice" label="基础价格" width="110" sortable>
-        <template #default="{ row }">￥{{ row.basePrice }}</template>
-      </el-table-column>
-      <el-table-column prop="minPrice" label="最低价" width="100">
-        <template #default="{ row }">￥{{ row.minPrice }}</template>
-      </el-table-column>
-      <el-table-column prop="maxPrice" label="最高价" width="100">
-        <template #default="{ row }">￥{{ row.maxPrice }}</template>
-      </el-table-column>
-      <el-table-column prop="priority" label="优先级" width="90" sortable />
-      <el-table-column prop="isActive" label="启用状态" width="100">
+      <el-table-column
+        prop="basePrice"
+        label="基础价格"
+        width="110"
+        sortable
+      >
         <template #default="{ row }">
-          <el-tag :type="row.isActive ? 'success' : 'info'">{{ row.isActive ? '启用' : '禁用' }}</el-tag>
+          ￥{{ row.basePrice }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column
+        prop="minPrice"
+        label="最低价"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="$router.push(`/pricing/rules/${row.id}`)">编辑</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          ￥{{ row.minPrice }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="maxPrice"
+        label="最高价"
+        width="100"
+      >
+        <template #default="{ row }">
+          ￥{{ row.maxPrice }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="priority"
+        label="优先级"
+        width="90"
+        sortable
+      />
+      <el-table-column
+        prop="isActive"
+        label="启用状态"
+        width="100"
+      >
+        <template #default="{ row }">
+          <el-tag :type="row.isActive ? 'success' : 'info'">
+            {{ row.isActive ? '启用' : '禁用' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="200"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="$router.push(`/pricing/rules/${row.id}`)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -49,46 +118,141 @@
       @size-change="fetchList"
     />
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑规则' : '添加规则'" width="600px">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
-        <el-form-item label="规则名称" prop="name">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? '编辑规则' : '添加规则'"
+      width="600px"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="110px"
+      >
+        <el-form-item
+          label="规则名称"
+          prop="name"
+        >
           <el-input v-model="form.name" />
         </el-form-item>
-        <el-form-item label="目标类型" prop="targetType">
-          <el-select v-model="form.targetType" style="width:100%">
-            <el-option label="商品" value="PRODUCT" />
-            <el-option label="课程" value="COURSE" />
-            <el-option label="会员" value="MEMBERSHIP" />
-            <el-option label="电子书" value="EBOOK" />
+        <el-form-item
+          label="目标类型"
+          prop="targetType"
+        >
+          <el-select
+            v-model="form.targetType"
+            style="width:100%"
+          >
+            <el-option
+              label="商品"
+              value="PRODUCT"
+            />
+            <el-option
+              label="课程"
+              value="COURSE"
+            />
+            <el-option
+              label="会员"
+              value="MEMBERSHIP"
+            />
+            <el-option
+              label="电子书"
+              value="EBOOK"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="策略" prop="strategy">
-          <el-select v-model="form.strategy" style="width:100%">
-            <el-option label="固定价格" value="FIXED" />
-            <el-option label="阶梯定价" value="TIERED" />
-            <el-option label="动态定价" value="DYNAMIC" />
-            <el-option label="促销定价" value="PROMOTION" />
+        <el-form-item
+          label="策略"
+          prop="strategy"
+        >
+          <el-select
+            v-model="form.strategy"
+            style="width:100%"
+          >
+            <el-option
+              label="固定价格"
+              value="FIXED"
+            />
+            <el-option
+              label="阶梯定价"
+              value="TIERED"
+            />
+            <el-option
+              label="动态定价"
+              value="DYNAMIC"
+            />
+            <el-option
+              label="促销定价"
+              value="PROMOTION"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="基础价格" prop="basePrice">
-          <el-input-number v-model="form.basePrice" :min="0" :precision="2" style="width:100%" />
+        <el-form-item
+          label="基础价格"
+          prop="basePrice"
+        >
+          <el-input-number
+            v-model="form.basePrice"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+          />
         </el-form-item>
-        <el-form-item label="最低价格" prop="minPrice">
-          <el-input-number v-model="form.minPrice" :min="0" :precision="2" style="width:100%" />
+        <el-form-item
+          label="最低价格"
+          prop="minPrice"
+        >
+          <el-input-number
+            v-model="form.minPrice"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+          />
         </el-form-item>
-        <el-form-item label="最高价格" prop="maxPrice">
-          <el-input-number v-model="form.maxPrice" :min="0" :precision="2" style="width:100%" />
+        <el-form-item
+          label="最高价格"
+          prop="maxPrice"
+        >
+          <el-input-number
+            v-model="form.maxPrice"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+          />
         </el-form-item>
-        <el-form-item label="策略配置" prop="strategyConfig">
-          <el-input v-model="form.strategyConfig" type="textarea" :rows="3" placeholder="JSON格式策略配置" />
+        <el-form-item
+          label="策略配置"
+          prop="strategyConfig"
+        >
+          <el-input
+            v-model="form.strategyConfig"
+            type="textarea"
+            :rows="3"
+            placeholder="JSON格式策略配置"
+          />
         </el-form-item>
-        <el-form-item label="优先级" prop="priority">
-          <el-input-number v-model="form.priority" :min="0" style="width:100%" />
+        <el-form-item
+          label="优先级"
+          prop="priority"
+        >
+          <el-input-number
+            v-model="form.priority"
+            :min="0"
+            style="width:100%"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">确认</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="handleSubmit"
+        >
+          确认
+        </el-button>
       </template>
     </el-dialog>
   </div>

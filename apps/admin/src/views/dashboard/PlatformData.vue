@@ -170,49 +170,126 @@ onMounted(fetchData)
     <div class="toolbar">
       <h3>平台总数据</h3>
       <div class="toolbar-right">
-        <el-button @click="fetchData" :loading="loading">刷新</el-button>
-        <el-button @click="exportCSV">导出CSV</el-button>
+        <el-button
+          :loading="loading"
+          @click="fetchData"
+        >
+          刷新
+        </el-button>
+        <el-button @click="exportCSV">
+          导出CSV
+        </el-button>
       </div>
     </div>
 
     <!-- 统计卡片 4x2 -->
-    <el-row :gutter="20" class="stats-row" v-if="data">
-      <el-col v-for="card in cards" :key="card.label" :xs="24" :sm="12" :md="6">
-        <div class="stat-card" @click="onCardClick(card)">
+    <el-row
+      v-if="data"
+      :gutter="20"
+      class="stats-row"
+    >
+      <el-col
+        v-for="card in cards"
+        :key="card.label"
+        :xs="24"
+        :sm="12"
+        :md="6"
+      >
+        <div
+          class="stat-card"
+          @click="onCardClick(card)"
+        >
           <div class="stat-card__top">
             <span class="stat-card__label">{{ card.label }}</span>
             <div class="stat-card__icon">
-              <el-icon :size="18"><component :is="card.icon" /></el-icon>
+              <el-icon :size="18">
+                <component :is="card.icon" />
+              </el-icon>
             </div>
           </div>
           <div class="stat-card__value">
-            <template v-if="card.prefix">{{ card.prefix }}{{ card.value.toLocaleString() }}</template>
-            <template v-else>{{ card.value.toLocaleString() }}</template>
+            <template v-if="card.prefix">
+              {{ card.prefix }}{{ card.value.toLocaleString() }}
+            </template>
+            <template v-else>
+              {{ card.value.toLocaleString() }}
+            </template>
           </div>
         </div>
       </el-col>
     </el-row>
 
     <!-- 用户增长趋势折线图 -->
-    <el-row :gutter="20" class="charts-row" v-if="data">
-      <el-col :xs="24" :md="24">
-        <ChartCard title="用户增长趋势 · 近30天" :option="chartOption" :height="320" />
+    <el-row
+      v-if="data"
+      :gutter="20"
+      class="charts-row"
+    >
+      <el-col
+        :xs="24"
+        :md="24"
+      >
+        <ChartCard
+          title="用户增长趋势 · 近30天"
+          :option="chartOption"
+          :height="320"
+        />
       </el-col>
     </el-row>
 
     <!-- TOP10 内容排行 -->
-    <div class="section-card" v-if="topArticles.length">
-      <div class="section-card__title">内容排行 TOP10</div>
-      <el-table :data="topArticles" stripe style="width:100%">
-        <el-table-column type="index" label="排名" width="64" />
-        <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="pageViews" label="浏览量" width="120" align="right" sortable />
-        <el-table-column prop="likes" label="点赞" width="100" align="right" sortable />
-        <el-table-column prop="comments" label="评论" width="100" align="right" sortable />
+    <div
+      v-if="topArticles.length"
+      class="section-card"
+    >
+      <div class="section-card__title">
+        内容排行 TOP10
+      </div>
+      <el-table
+        :data="topArticles"
+        stripe
+        style="width:100%"
+      >
+        <el-table-column
+          type="index"
+          label="排名"
+          width="64"
+        />
+        <el-table-column
+          prop="title"
+          label="标题"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="pageViews"
+          label="浏览量"
+          width="120"
+          align="right"
+          sortable
+        />
+        <el-table-column
+          prop="likes"
+          label="点赞"
+          width="100"
+          align="right"
+          sortable
+        />
+        <el-table-column
+          prop="comments"
+          label="评论"
+          width="100"
+          align="right"
+          sortable
+        />
       </el-table>
     </div>
 
-    <el-empty v-if="!data && !loading" description="加载中..." :image-size="48" />
+    <el-empty
+      v-if="!data && !loading"
+      description="加载中..."
+      :image-size="48"
+    />
   </div>
 </template>
 

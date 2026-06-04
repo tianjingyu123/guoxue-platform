@@ -2,37 +2,101 @@
   <div class="page">
     <div class="header">
       <h2>租户管理</h2>
-      <el-button type="primary" @click="openAddDialog">添加租户</el-button>
+      <el-button
+        type="primary"
+        @click="openAddDialog"
+      >
+        添加租户
+      </el-button>
     </div>
 
-    <el-form :inline="true" :model="searchForm" class="search-bar">
+    <el-form
+      :inline="true"
+      :model="searchForm"
+      class="search-bar"
+    >
       <el-form-item label="租户名称">
-        <el-input v-model="searchForm.name" placeholder="搜索租户名称" clearable />
+        <el-input
+          v-model="searchForm.name"
+          placeholder="搜索租户名称"
+          clearable
+        />
       </el-form-item>
       <el-form-item label="状态">
-        <el-select v-model="searchForm.status" placeholder="全部" clearable>
-          <el-option label="启用" value="ACTIVE" />
-          <el-option label="禁用" value="DISABLED" />
-          <el-option label="过期" value="EXPIRED" />
+        <el-select
+          v-model="searchForm.status"
+          placeholder="全部"
+          clearable
+        >
+          <el-option
+            label="启用"
+            value="ACTIVE"
+          />
+          <el-option
+            label="禁用"
+            value="DISABLED"
+          />
+          <el-option
+            label="过期"
+            value="EXPIRED"
+          />
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="fetchList">搜索</el-button>
-        <el-button @click="resetSearch">重置</el-button>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          搜索
+        </el-button>
+        <el-button @click="resetSearch">
+          重置
+        </el-button>
       </el-form-item>
     </el-form>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="name" label="租户名称" min-width="140" />
-      <el-table-column prop="apiKey" label="API Key" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="plan" label="套餐" width="100">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="name"
+        label="租户名称"
+        min-width="140"
+      />
+      <el-table-column
+        prop="apiKey"
+        label="API Key"
+        min-width="180"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="plan"
+        label="套餐"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="planTag(row.plan)">{{ row.plan }}</el-tag>
+          <el-tag :type="planTag(row.plan)">
+            {{ row.plan }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="quotaTotal" label="总配额" width="100" />
-      <el-table-column prop="quotaUsed" label="已使用" width="100" />
-      <el-table-column label="配额占比" width="120">
+      <el-table-column
+        prop="quotaTotal"
+        label="总配额"
+        width="100"
+      />
+      <el-table-column
+        prop="quotaUsed"
+        label="已使用"
+        width="100"
+      />
+      <el-table-column
+        label="配额占比"
+        width="120"
+      >
         <template #default="{ row }">
           <el-progress
             :percentage="row.quotaTotal ? Math.round((row.quotaUsed / row.quotaTotal) * 100) : 0"
@@ -40,17 +104,48 @@
           />
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="90">
+      <el-table-column
+        prop="status"
+        label="状态"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)">{{ statusLabel(row.status) }}</el-tag>
+          <el-tag :type="statusTag(row.status)">
+            {{ statusLabel(row.status) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="expireAt" label="过期时间" width="170" />
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column
+        prop="expireAt"
+        label="过期时间"
+        width="170"
+      />
+      <el-table-column
+        label="操作"
+        width="220"
+        fixed="right"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openEditDialog(row)">编辑</el-button>
-          <el-button size="small" type="warning" @click="openRechargeDialog(row)">充值</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button
+            size="small"
+            @click="openEditDialog(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="warning"
+            @click="openRechargeDialog(row)"
+          >
+            充值
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -66,33 +161,86 @@
     />
 
     <!-- 添加/编辑租户对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑租户' : '添加租户'" width="500px">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="租户名称" prop="name">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? '编辑租户' : '添加租户'"
+      width="500px"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="租户名称"
+          prop="name"
+        >
           <el-input v-model="form.name" />
         </el-form-item>
-        <el-form-item label="套餐" prop="plan">
-          <el-select v-model="form.plan" style="width:100%">
-            <el-option label="基础版" value="BASIC" />
-            <el-option label="专业版" value="PRO" />
-            <el-option label="企业版" value="ENTERPRISE" />
+        <el-form-item
+          label="套餐"
+          prop="plan"
+        >
+          <el-select
+            v-model="form.plan"
+            style="width:100%"
+          >
+            <el-option
+              label="基础版"
+              value="BASIC"
+            />
+            <el-option
+              label="专业版"
+              value="PRO"
+            />
+            <el-option
+              label="企业版"
+              value="ENTERPRISE"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="总配额" prop="quotaTotal">
-          <el-input-number v-model="form.quotaTotal" :min="0" style="width:100%" />
+        <el-form-item
+          label="总配额"
+          prop="quotaTotal"
+        >
+          <el-input-number
+            v-model="form.quotaTotal"
+            :min="0"
+            style="width:100%"
+          />
         </el-form-item>
-        <el-form-item label="过期时间" prop="expireAt">
-          <el-date-picker v-model="form.expireAt" type="datetime" style="width:100%" />
+        <el-form-item
+          label="过期时间"
+          prop="expireAt"
+        >
+          <el-date-picker
+            v-model="form.expireAt"
+            type="datetime"
+            style="width:100%"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">确认</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="handleSubmit"
+        >
+          确认
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 充值对话框 -->
-    <el-dialog v-model="rechargeVisible" title="充值配额" width="400px">
+    <el-dialog
+      v-model="rechargeVisible"
+      title="充值配额"
+      width="400px"
+    >
       <el-form label-width="100px">
         <el-form-item label="租户名称">
           <span>{{ currentRow?.name }}</span>
@@ -100,13 +248,28 @@
         <el-form-item label="当前配额">
           <span>{{ currentRow?.quotaTotal }}</span>
         </el-form-item>
-        <el-form-item label="充值数量" prop="amount">
-          <el-input-number v-model="rechargeAmount" :min="1" style="width:100%" />
+        <el-form-item
+          label="充值数量"
+          prop="amount"
+        >
+          <el-input-number
+            v-model="rechargeAmount"
+            :min="1"
+            style="width:100%"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rechargeVisible = false">取消</el-button>
-        <el-button type="primary" :loading="recharging" @click="handleRecharge">确认充值</el-button>
+        <el-button @click="rechargeVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="recharging"
+          @click="handleRecharge"
+        >
+          确认充值
+        </el-button>
       </template>
     </el-dialog>
   </div>

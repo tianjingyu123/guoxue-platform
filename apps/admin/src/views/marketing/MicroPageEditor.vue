@@ -2,218 +2,651 @@
   <div class="page">
     <div class="toolbar">
       <h3>微页面管理</h3>
-      <el-button type="primary" @click="openCreate">创建微页面</el-button>
+      <el-button
+        type="primary"
+        @click="openCreate"
+      >
+        创建微页面
+      </el-button>
     </div>
-    <el-alert type="info" :closable="false" show-icon style="margin-bottom:12px">
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
       <template #title>
         <span style="font-size:13px">展示位置：通过路径（如 <b>/promo/spring</b>）在小程序中独立展示。可嵌入轮播、秒杀、拼团、商品等组件。发布后用户可见。</span>
       </template>
     </el-alert>
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="title" label="页面标题" min-width="150" />
-      <el-table-column label="组件数" width="80">
-        <template #default="{ row }">{{ row.components?.length || 0 }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="90">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="title"
+        label="页面标题"
+        min-width="150"
+      />
+      <el-table-column
+        label="组件数"
+        width="80"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'PUBLISHED' ? 'success' : 'info'" size="small">
+          {{ row.components?.length || 0 }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
+        width="90"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="row.status === 'PUBLISHED' ? 'success' : 'info'"
+            size="small"
+          >
             {{ row.status === 'PUBLISHED' ? '已发布' : '草稿' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="版本" width="70">
-        <template #default="{ row }">v{{ row.version || 1 }}</template>
-      </el-table-column>
-      <el-table-column label="创建时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="400" fixed="right">
+      <el-table-column
+        label="版本"
+        width="70"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="primary" @click="openVisualEditor(row)">编辑</el-button>
-          <el-button v-if="row.status === 'PUBLISHED'" size="small" type="warning" @click="openPreview(row)">预览</el-button>
-          <el-button size="small" @click="openVersions(row)">版本</el-button>
-          <el-button v-if="row.status !== 'PUBLISHED'" size="small" type="success" @click="doPublish(row)">发布</el-button>
-          <el-popconfirm title="确定删除此页面？" @confirm="del(row.id)">
-            <template #reference><el-button size="small" type="danger">删除</el-button></template>
+          v{{ row.version || 1 }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="创建时间"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="400"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            @click="openVisualEditor(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-if="row.status === 'PUBLISHED'"
+            size="small"
+            type="warning"
+            @click="openPreview(row)"
+          >
+            预览
+          </el-button>
+          <el-button
+            size="small"
+            @click="openVersions(row)"
+          >
+            版本
+          </el-button>
+          <el-button
+            v-if="row.status !== 'PUBLISHED'"
+            size="small"
+            type="success"
+            @click="doPublish(row)"
+          >
+            发布
+          </el-button>
+          <el-popconfirm
+            title="确定删除此页面？"
+            @confirm="del(row.id)"
+          >
+            <template #reference>
+              <el-button
+                size="small"
+                type="danger"
+              >
+                删除
+              </el-button>
+            </template>
           </el-popconfirm>
         </template>
       </el-table-column>
     </el-table>
 
-    <div v-if="total > 20" style="margin-top:16px;display:flex;justify-content:flex-end">
-      <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="fetchList" />
+    <div
+      v-if="total > 20"
+      style="margin-top:16px;display:flex;justify-content:flex-end"
+    >
+      <el-pagination
+        v-model:current-page="page"
+        :total="total"
+        :page-size="20"
+        layout="total, prev, pager, next"
+        @current-change="fetchList"
+      />
     </div>
 
     <!-- 页面编辑弹窗 -->
-    <el-dialog v-model="vis" :title="editingId ? '编辑微页面' : '创建微页面'" width="600px">
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="名称" required><el-input v-model="form.name" placeholder="如：春季促销活动" /></el-form-item>
-        <el-form-item label="路由路径" required><el-select v-model="form.route" filterable allow-create placeholder="选择或输入路径，用户通过此路径访问" style="width:100%"><el-option v-for="r in routePresets" :key="r.value" :label="r.label" :value="r.value" /></el-select><div style="font-size:12px;color:#999;margin-top:4px">用户在小程序中访问 <b>/promo/xxx</b> 即可看到此页面</div></el-form-item>
-        <el-form-item label="描述"><el-input v-model="form.description" type="textarea" :rows="2" placeholder="内部备注，不出现在用户端" /></el-form-item>
-        <el-divider content-position="left" style="margin:12px 0"><span style="font-size:12px;color:#8b4513">入口配置</span></el-divider>
+    <el-dialog
+      v-model="vis"
+      :title="editingId ? '编辑微页面' : '创建微页面'"
+      width="600px"
+    >
+      <el-form
+        :model="form"
+        label-width="80px"
+      >
+        <el-form-item
+          label="名称"
+          required
+        >
+          <el-input
+            v-model="form.name"
+            placeholder="如：春季促销活动"
+          />
+        </el-form-item>
+        <el-form-item
+          label="路由路径"
+          required
+        >
+          <el-select
+            v-model="form.route"
+            filterable
+            allow-create
+            placeholder="选择或输入路径，用户通过此路径访问"
+            style="width:100%"
+          >
+            <el-option
+              v-for="r in routePresets"
+              :key="r.value"
+              :label="r.label"
+              :value="r.value"
+            />
+          </el-select><div style="font-size:12px;color:#999;margin-top:4px">
+            用户在小程序中访问 <b>/promo/xxx</b> 即可看到此页面
+          </div>
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="2"
+            placeholder="内部备注，不出现在用户端"
+          />
+        </el-form-item>
+        <el-divider
+          content-position="left"
+          style="margin:12px 0"
+        >
+          <span style="font-size:12px;color:#8b4513">入口配置</span>
+        </el-divider>
         <el-form-item label="入口可见">
-          <el-switch v-model="form.entryVisible" active-text="在首页等入口展示" inactive-text="仅通过路径访问" />
+          <el-switch
+            v-model="form.entryVisible"
+            active-text="在首页等入口展示"
+            inactive-text="仅通过路径访问"
+          />
         </el-form-item>
         <template v-if="form.entryVisible">
-          <el-form-item label="入口标题"><el-input v-model="form.entryTitle" placeholder="入口展示标题，如：限时秒杀" /></el-form-item>
-          <el-form-item label="入口图标"><el-input v-model="form.entryIcon" placeholder="emoji或图标URL" style="width:200px" /><span style="margin-left:8px;font-size:20px">{{ form.entryIcon || '🎯' }}</span></el-form-item>
-          <el-form-item label="排序权重"><el-input-number v-model="form.entrySort" :min="0" :max="999" style="width:150px" /><span style="font-size:12px;color:#999;margin-left:8px">越小越靠前</span></el-form-item>
+          <el-form-item label="入口标题">
+            <el-input
+              v-model="form.entryTitle"
+              placeholder="入口展示标题，如：限时秒杀"
+            />
+          </el-form-item>
+          <el-form-item label="入口图标">
+            <el-input
+              v-model="form.entryIcon"
+              placeholder="emoji或图标URL"
+              style="width:200px"
+            /><span style="margin-left:8px;font-size:20px">{{ form.entryIcon || '🎯' }}</span>
+          </el-form-item>
+          <el-form-item label="排序权重">
+            <el-input-number
+              v-model="form.entrySort"
+              :min="0"
+              :max="999"
+              style="width:150px"
+            /><span style="font-size:12px;color:#999;margin-left:8px">越小越靠前</span>
+          </el-form-item>
         </template>
       </el-form>
-      <template #footer><el-button @click="vis = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
+      <template #footer>
+        <el-button @click="vis = false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
+      </template>
     </el-dialog>
 
     <!-- 组件管理弹窗（列表模式） -->
-    <el-dialog v-model="compVis" title="页面组件" width="750px">
+    <el-dialog
+      v-model="compVis"
+      title="页面组件"
+      width="750px"
+    >
       <div style="margin-bottom:12px;display:flex;gap:8px">
-        <el-button size="small" type="primary" @click="openCompCreate">添加组件</el-button>
-        <el-button size="small" :disabled="components.length < 2" @click="doSort">保存排序</el-button>
+        <el-button
+          size="small"
+          type="primary"
+          @click="openCompCreate"
+        >
+          添加组件
+        </el-button>
+        <el-button
+          size="small"
+          :disabled="components.length < 2"
+          @click="doSort"
+        >
+          保存排序
+        </el-button>
       </div>
-      <el-table :data="components" stripe max-height="400" row-key="id">
-        <el-table-column label="排序" width="70">
+      <el-table
+        :data="components"
+        stripe
+        max-height="400"
+        row-key="id"
+      >
+        <el-table-column
+          label="排序"
+          width="70"
+        >
           <template #default="{ $index }">
             <el-button-group size="small">
-              <el-button :disabled="$index === 0" @click="moveComp($index, -1)">↑</el-button>
-              <el-button :disabled="$index === components.length - 1" @click="moveComp($index, 1)">↓</el-button>
+              <el-button
+                :disabled="$index === 0"
+                @click="moveComp($index, -1)"
+              >
+                ↑
+              </el-button>
+              <el-button
+                :disabled="$index === components.length - 1"
+                @click="moveComp($index, 1)"
+              >
+                ↓
+              </el-button>
             </el-button-group>
           </template>
         </el-table-column>
-        <el-table-column prop="type" label="组件类型" width="110">
-          <template #default="{ row }">{{ compTypeMap[row.type] || row.type }}</template>
-        </el-table-column>
-        <el-table-column prop="title" label="标题" min-width="120" />
-        <el-table-column label="展示时段" min-width="170">
+        <el-table-column
+          prop="type"
+          label="组件类型"
+          width="110"
+        >
           <template #default="{ row }">
-            <span v-if="row.startTime || row.endTime">{{ row.startTime ? formatDate(row.startTime) : '不限' }} ~ {{ row.endTime ? formatDate(row.endTime) : '不限' }}</span>
-            <span v-else style="color:#ccc">一直展示</span>
+            {{ compTypeMap[row.type] || row.type }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140">
+        <el-table-column
+          prop="title"
+          label="标题"
+          min-width="120"
+        />
+        <el-table-column
+          label="展示时段"
+          min-width="170"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="openCompEdit(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="delComp(row.id)">删除</el-button>
+            <span v-if="row.startTime || row.endTime">{{ row.startTime ? formatDate(row.startTime) : '不限' }} ~ {{ row.endTime ? formatDate(row.endTime) : '不限' }}</span>
+            <span
+              v-else
+              style="color:#ccc"
+            >一直展示</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="140"
+        >
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              @click="openCompEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="delComp(row.id)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
-      <div v-if="components.length === 0" style="text-align:center;padding:40px;color:#ccc">暂无组件，点击"添加组件"开始</div>
+      <div
+        v-if="components.length === 0"
+        style="text-align:center;padding:40px;color:#ccc"
+      >
+        暂无组件，点击"添加组件"开始
+      </div>
     </el-dialog>
 
     <!-- 组件编辑弹窗 -->
-    <el-dialog v-model="compFormVis" :title="compEditingId ? '编辑组件' : '添加组件'" width="550px">
-      <el-form :model="compForm" label-width="80px">
-        <el-form-item label="类型" required>
-          <el-select v-model="compForm.type" style="width:100%" @change="onCompTypeChange">
-            <el-option v-for="(label, value) in compTypeMap" :key="value" :label="label" :value="value" />
+    <el-dialog
+      v-model="compFormVis"
+      :title="compEditingId ? '编辑组件' : '添加组件'"
+      width="550px"
+    >
+      <el-form
+        :model="compForm"
+        label-width="80px"
+      >
+        <el-form-item
+          label="类型"
+          required
+        >
+          <el-select
+            v-model="compForm.type"
+            style="width:100%"
+            @change="onCompTypeChange"
+          >
+            <el-option
+              v-for="(label, value) in compTypeMap"
+              :key="value"
+              :label="label"
+              :value="value"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="标题"><el-input v-model="compForm.title" :placeholder="compTitlePlaceholder" /></el-form-item>
+        <el-form-item label="标题">
+          <el-input
+            v-model="compForm.title"
+            :placeholder="compTitlePlaceholder"
+          />
+        </el-form-item>
 
         <!-- 秒杀专区：选择已有秒杀活动 -->
-        <el-form-item v-if="compForm.type === 'FLASHSALE'" label="选择秒杀">
-          <el-select v-model="compForm.activityIds" multiple placeholder="选择要展示的秒杀活动" style="width:100%">
-            <el-option v-for="f in flashSaleOptions" :key="f.id" :label="`${f.name} (¥${Number(f.items?.[0]?.flashPrice||0).toFixed(2)})`" :value="f.id" />
+        <el-form-item
+          v-if="compForm.type === 'FLASHSALE'"
+          label="选择秒杀"
+        >
+          <el-select
+            v-model="compForm.activityIds"
+            multiple
+            placeholder="选择要展示的秒杀活动"
+            style="width:100%"
+          >
+            <el-option
+              v-for="f in flashSaleOptions"
+              :key="f.id"
+              :label="`${f.name} (¥${Number(f.items?.[0]?.flashPrice||0).toFixed(2)})`"
+              :value="f.id"
+            />
           </el-select>
-          <div style="font-size:12px;color:#999;margin-top:4px">选择已有的秒杀活动，留空则自动展示所有进行中的秒杀</div>
+          <div style="font-size:12px;color:#999;margin-top:4px">
+            选择已有的秒杀活动，留空则自动展示所有进行中的秒杀
+          </div>
         </el-form-item>
 
         <!-- 拼团专区：选择已有拼团活动 -->
-        <el-form-item v-if="compForm.type === 'GROUPBUY'" label="选择拼团">
-          <el-select v-model="compForm.activityIds" multiple placeholder="选择要展示的拼团活动" style="width:100%">
-            <el-option v-for="g in groupBuyOptions" :key="g.id" :label="`${g.name || g.productTitle || '拼团'} (${g.groupSize || g.minMembers}人团)`" :value="g.id" />
+        <el-form-item
+          v-if="compForm.type === 'GROUPBUY'"
+          label="选择拼团"
+        >
+          <el-select
+            v-model="compForm.activityIds"
+            multiple
+            placeholder="选择要展示的拼团活动"
+            style="width:100%"
+          >
+            <el-option
+              v-for="g in groupBuyOptions"
+              :key="g.id"
+              :label="`${g.name || g.productTitle || '拼团'} (${g.groupSize || g.minMembers}人团)`"
+              :value="g.id"
+            />
           </el-select>
-          <div style="font-size:12px;color:#999;margin-top:4px">选择已有的拼团活动，留空则自动展示所有进行中的拼团</div>
+          <div style="font-size:12px;color:#999;margin-top:4px">
+            选择已有的拼团活动，留空则自动展示所有进行中的拼团
+          </div>
         </el-form-item>
 
         <!-- 优惠券：选择已有优惠券 -->
-        <el-form-item v-if="compForm.type === 'COUPON'" label="选择优惠券">
-          <el-select v-model="compForm.activityIds" multiple placeholder="选择要展示的优惠券" style="width:100%">
-            <el-option v-for="c in couponOptions" :key="c.id" :label="`${c.name} (满${c.threshold}减${c.reduction})`" :value="c.id" />
+        <el-form-item
+          v-if="compForm.type === 'COUPON'"
+          label="选择优惠券"
+        >
+          <el-select
+            v-model="compForm.activityIds"
+            multiple
+            placeholder="选择要展示的优惠券"
+            style="width:100%"
+          >
+            <el-option
+              v-for="c in couponOptions"
+              :key="c.id"
+              :label="`${c.name} (满${c.threshold}减${c.reduction})`"
+              :value="c.id"
+            />
           </el-select>
-          <div style="font-size:12px;color:#999;margin-top:4px">选择已有的优惠券，留空则自动展示所有可用优惠券</div>
+          <div style="font-size:12px;color:#999;margin-top:4px">
+            选择已有的优惠券，留空则自动展示所有可用优惠券
+          </div>
         </el-form-item>
 
         <!-- 商品列表：选择商品 -->
-        <el-form-item v-if="compForm.type === 'PRODUCT_LIST'" label="选择商品">
-          <ProductPicker v-model="compForm.productIds" multiple placeholder="选择要展示的商品" />
-          <div style="font-size:12px;color:#999;margin-top:4px">留空则自动展示推荐商品</div>
+        <el-form-item
+          v-if="compForm.type === 'PRODUCT_LIST'"
+          label="选择商品"
+        >
+          <ProductPicker
+            v-model="compForm.productIds"
+            multiple
+            placeholder="选择要展示的商品"
+          />
+          <div style="font-size:12px;color:#999;margin-top:4px">
+            留空则自动展示推荐商品
+          </div>
         </el-form-item>
 
         <!-- 独立秒杀：直接配置商品+价格 -->
         <template v-if="compForm.type === 'FLASHSALE_INDEPENDENT'">
-          <el-form-item label="选择商品" required>
-            <ProductPicker v-model="compForm.independentProductId" placeholder="选择秒杀商品" />
+          <el-form-item
+            label="选择商品"
+            required
+          >
+            <ProductPicker
+              v-model="compForm.independentProductId"
+              placeholder="选择秒杀商品"
+            />
           </el-form-item>
-          <el-form-item label="秒杀价" required>
-            <el-input-number v-model="compForm.independentPrice" :min="0.01" :precision="2" style="width:100%" />
+          <el-form-item
+            label="秒杀价"
+            required
+          >
+            <el-input-number
+              v-model="compForm.independentPrice"
+              :min="0.01"
+              :precision="2"
+              style="width:100%"
+            />
           </el-form-item>
           <el-form-item label="秒杀库存">
-            <el-input-number v-model="compForm.independentStock" :min="1" :max="99999" style="width:100%" />
+            <el-input-number
+              v-model="compForm.independentStock"
+              :min="1"
+              :max="99999"
+              style="width:100%"
+            />
           </el-form-item>
           <el-form-item label="每人限购">
-            <el-input-number v-model="compForm.independentLimit" :min="1" :max="99" style="width:100%" />
+            <el-input-number
+              v-model="compForm.independentLimit"
+              :min="1"
+              :max="99"
+              style="width:100%"
+            />
           </el-form-item>
-          <el-alert type="info" :closable="false" style="margin-bottom:12px" show-icon>
-            <template #title><span style="font-size:12px">独立秒杀不依赖全局秒杀活动，价格和库存仅在当前微页面生效</span></template>
+          <el-alert
+            type="info"
+            :closable="false"
+            style="margin-bottom:12px"
+            show-icon
+          >
+            <template #title>
+              <span style="font-size:12px">独立秒杀不依赖全局秒杀活动，价格和库存仅在当前微页面生效</span>
+            </template>
           </el-alert>
         </template>
 
         <!-- 独立拼团：直接配置商品+价格 -->
         <template v-if="compForm.type === 'GROUPBUY_INDEPENDENT'">
-          <el-form-item label="选择商品" required>
-            <ProductPicker v-model="compForm.independentProductId" placeholder="选择拼团商品" />
+          <el-form-item
+            label="选择商品"
+            required
+          >
+            <ProductPicker
+              v-model="compForm.independentProductId"
+              placeholder="选择拼团商品"
+            />
           </el-form-item>
-          <el-form-item label="拼团价" required>
-            <el-input-number v-model="compForm.independentPrice" :min="0.01" :precision="2" style="width:100%" />
+          <el-form-item
+            label="拼团价"
+            required
+          >
+            <el-input-number
+              v-model="compForm.independentPrice"
+              :min="0.01"
+              :precision="2"
+              style="width:100%"
+            />
           </el-form-item>
           <el-form-item label="成团人数">
-            <el-input-number v-model="compForm.independentLimit" :min="2" :max="999" style="width:100%" />
+            <el-input-number
+              v-model="compForm.independentLimit"
+              :min="2"
+              :max="999"
+              style="width:100%"
+            />
           </el-form-item>
           <el-form-item label="拼团库存">
-            <el-input-number v-model="compForm.independentStock" :min="1" :max="99999" style="width:100%" />
+            <el-input-number
+              v-model="compForm.independentStock"
+              :min="1"
+              :max="99999"
+              style="width:100%"
+            />
           </el-form-item>
-          <el-alert type="info" :closable="false" style="margin-bottom:12px" show-icon>
-            <template #title><span style="font-size:12px">独立拼团不依赖全局拼团活动，价格和库存仅在当前微页面生效</span></template>
+          <el-alert
+            type="info"
+            :closable="false"
+            style="margin-bottom:12px"
+            show-icon
+          >
+            <template #title>
+              <span style="font-size:12px">独立拼团不依赖全局拼团活动，价格和库存仅在当前微页面生效</span>
+            </template>
           </el-alert>
         </template>
 
         <!-- 其他组件：保留JSON配置 -->
-        <el-form-item v-if="!['FLASHSALE','GROUPBUY','COUPON','PRODUCT_LIST','FLASHSALE_INDEPENDENT','GROUPBUY_INDEPENDENT'].includes(compForm.type)" label="配置JSON">
-          <el-input v-model="compForm.configStr" type="textarea" :rows="4" :placeholder="compConfigPlaceholder" />
+        <el-form-item
+          v-if="!['FLASHSALE','GROUPBUY','COUPON','PRODUCT_LIST','FLASHSALE_INDEPENDENT','GROUPBUY_INDEPENDENT'].includes(compForm.type)"
+          label="配置JSON"
+        >
+          <el-input
+            v-model="compForm.configStr"
+            type="textarea"
+            :rows="4"
+            :placeholder="compConfigPlaceholder"
+          />
         </el-form-item>
 
         <el-form-item label="开始时间">
-          <el-date-picker v-model="compForm.startTime" type="datetime" placeholder="选择开始时间（可选）" style="width:100%" value-format="YYYY-MM-DD HH:mm:ss" />
+          <el-date-picker
+            v-model="compForm.startTime"
+            type="datetime"
+            placeholder="选择开始时间（可选）"
+            style="width:100%"
+            value-format="YYYY-MM-DD HH:mm:ss"
+          />
         </el-form-item>
         <el-form-item label="结束时间">
-          <el-date-picker v-model="compForm.endTime" type="datetime" placeholder="选择结束时间（可选）" style="width:100%" value-format="YYYY-MM-DD HH:mm:ss" />
+          <el-date-picker
+            v-model="compForm.endTime"
+            type="datetime"
+            placeholder="选择结束时间（可选）"
+            style="width:100%"
+            value-format="YYYY-MM-DD HH:mm:ss"
+          />
         </el-form-item>
         <el-form-item label="定向人群">
-          <el-input v-model="compForm.audienceStr" type="textarea" :rows="2" placeholder='可选，如 {"userTags":["vip"],"memberLevels":[2,3]}' />
+          <el-input
+            v-model="compForm.audienceStr"
+            type="textarea"
+            :rows="2"
+            placeholder="可选，如 {&quot;userTags&quot;:[&quot;vip&quot;],&quot;memberLevels&quot;:[2,3]}"
+          />
         </el-form-item>
       </el-form>
-      <template #footer><el-button @click="compFormVis = false">取消</el-button><el-button type="primary" :loading="compSaving" @click="saveComp">保存</el-button></template>
+      <template #footer>
+        <el-button @click="compFormVis = false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="compSaving"
+          @click="saveComp"
+        >
+          保存
+        </el-button>
+      </template>
     </el-dialog>
 
     <!-- ═══════════════════════════════════════ -->
     <!-- 可视化编辑器（全屏对话框） -->
     <!-- ═══════════════════════════════════════ -->
-    <el-dialog v-model="veVis" title="" fullscreen destroy-on-close class="visual-editor-dlg">
+    <el-dialog
+      v-model="veVis"
+      title=""
+      fullscreen
+      destroy-on-close
+      class="visual-editor-dlg"
+    >
       <!-- 顶部工具栏 -->
       <div class="ve-toolbar">
         <div class="ve-tbar-left">
-          <el-button text @click="veVis = false">← 返回列表</el-button>
+          <el-button
+            text
+            @click="veVis = false"
+          >
+            ← 返回列表
+          </el-button>
           <span class="ve-page-name">{{ vePageTitle || '未命名页面' }}</span>
         </div>
         <div class="ve-tbar-right">
-          <el-button :loading="veSaving" @click="veSave">保存</el-button>
-          <el-button type="success" @click="vePublish">发布</el-button>
+          <el-button
+            :loading="veSaving"
+            @click="veSave"
+          >
+            保存
+          </el-button>
+          <el-button
+            type="success"
+            @click="vePublish"
+          >
+            发布
+          </el-button>
         </div>
       </div>
 
       <div class="ve-body">
         <!-- 左侧：组件库 -->
         <div class="ve-left">
-          <div class="ve-left-title">组件库</div>
+          <div class="ve-left-title">
+            组件库
+          </div>
           <div class="ve-comp-lib">
             <div
               v-for="(label, type) in compTypeMap"
@@ -232,17 +665,22 @@
         <!-- 中间：手机预览 -->
         <div class="ve-center">
           <div class="ve-phone-frame">
-            <div class="ve-phone-status">微页面预览</div>
+            <div class="ve-phone-status">
+              微页面预览
+            </div>
             <div
               class="ve-phone-body"
+              :class="{ 've-drag-over': dragOver }"
               @drop="onDrop"
               @dragover.prevent
               @dragenter="dragOver = true"
               @dragleave="dragOver = false"
-              :class="{ 've-drag-over': dragOver }"
             >
               <!-- 拖入此处提示 -->
-              <div v-if="!veComponents.length" class="ve-drop-hint">
+              <div
+                v-if="!veComponents.length"
+                class="ve-drop-hint"
+              >
                 <span>从左侧拖入组件到此处<br>或点击组件库中的组件添加</span>
               </div>
 
@@ -262,11 +700,21 @@
                 <div class="ve-comp-actions">
                   <span class="ve-comp-idx">{{ idx + 1 }}</span>
                   <span class="ve-comp-type-tag">{{ compTypeMap[comp.type] || comp.type }}</span>
-                  <el-button size="small" type="danger" circle :icon="'Delete'" @click.stop="veDeleteComp(idx)" style="width:22px;height:22px" />
+                  <el-button
+                    size="small"
+                    type="danger"
+                    circle
+                    :icon="'Delete'"
+                    style="width:22px;height:22px"
+                    @click.stop="veDeleteComp(idx)"
+                  />
                 </div>
                 <!-- 组件可视化渲染 -->
                 <div class="ve-comp-body">
-                  <component :is="veRenderComp(comp)" :comp="comp" />
+                  <component
+                    :is="veRenderComp(comp)"
+                    :comp="comp"
+                  />
                 </div>
               </div>
             </div>
@@ -276,11 +724,25 @@
         <!-- 右侧：属性面板 -->
         <div class="ve-right">
           <template v-if="veSelectedIdx !== null && veComponents[veSelectedIdx]">
-            <div class="ve-right-title">组件属性</div>
-            <el-form :model="vePropForm" label-width="70px" size="small">
+            <div class="ve-right-title">
+              组件属性
+            </div>
+            <el-form
+              :model="vePropForm"
+              label-width="70px"
+              size="small"
+            >
               <el-form-item label="类型">
-                <el-select v-model="vePropForm.type" style="width:100%">
-                  <el-option v-for="(label, value) in compTypeMap" :key="value" :label="label" :value="value" />
+                <el-select
+                  v-model="vePropForm.type"
+                  style="width:100%"
+                >
+                  <el-option
+                    v-for="(label, value) in compTypeMap"
+                    :key="value"
+                    :label="label"
+                    :value="value"
+                  />
                 </el-select>
               </el-form-item>
               <el-form-item label="标题">
@@ -288,163 +750,486 @@
               </el-form-item>
 
               <!-- 秒杀/拼团/优惠券：选择已有活动 -->
-              <el-form-item v-if="vePropForm.type === 'FLASHSALE'" label="秒杀活动">
-                <el-select v-model="vePropForm.activityIds" multiple placeholder="选择秒杀" size="small" style="width:100%">
-                  <el-option v-for="f in flashSaleOptions" :key="f.id" :label="f.name" :value="f.id" />
+              <el-form-item
+                v-if="vePropForm.type === 'FLASHSALE'"
+                label="秒杀活动"
+              >
+                <el-select
+                  v-model="vePropForm.activityIds"
+                  multiple
+                  placeholder="选择秒杀"
+                  size="small"
+                  style="width:100%"
+                >
+                  <el-option
+                    v-for="f in flashSaleOptions"
+                    :key="f.id"
+                    :label="f.name"
+                    :value="f.id"
+                  />
                 </el-select>
               </el-form-item>
-              <el-form-item v-if="vePropForm.type === 'GROUPBUY'" label="拼团活动">
-                <el-select v-model="vePropForm.activityIds" multiple placeholder="选择拼团" size="small" style="width:100%">
-                  <el-option v-for="g in groupBuyOptions" :key="g.id" :label="g.name || g.productTitle" :value="g.id" />
+              <el-form-item
+                v-if="vePropForm.type === 'GROUPBUY'"
+                label="拼团活动"
+              >
+                <el-select
+                  v-model="vePropForm.activityIds"
+                  multiple
+                  placeholder="选择拼团"
+                  size="small"
+                  style="width:100%"
+                >
+                  <el-option
+                    v-for="g in groupBuyOptions"
+                    :key="g.id"
+                    :label="g.name || g.productTitle"
+                    :value="g.id"
+                  />
                 </el-select>
               </el-form-item>
-              <el-form-item v-if="vePropForm.type === 'COUPON'" label="优惠券">
-                <el-select v-model="vePropForm.activityIds" multiple placeholder="选择优惠券" size="small" style="width:100%">
-                  <el-option v-for="c in couponOptions" :key="c.id" :label="c.name" :value="c.id" />
+              <el-form-item
+                v-if="vePropForm.type === 'COUPON'"
+                label="优惠券"
+              >
+                <el-select
+                  v-model="vePropForm.activityIds"
+                  multiple
+                  placeholder="选择优惠券"
+                  size="small"
+                  style="width:100%"
+                >
+                  <el-option
+                    v-for="c in couponOptions"
+                    :key="c.id"
+                    :label="c.name"
+                    :value="c.id"
+                  />
                 </el-select>
               </el-form-item>
-              <el-form-item v-if="vePropForm.type === 'PRODUCT_LIST'" label="选择商品">
-                <ProductPicker v-model="vePropForm.productIds" multiple placeholder="选择商品" />
+              <el-form-item
+                v-if="vePropForm.type === 'PRODUCT_LIST'"
+                label="选择商品"
+              >
+                <ProductPicker
+                  v-model="vePropForm.productIds"
+                  multiple
+                  placeholder="选择商品"
+                />
               </el-form-item>
 
               <!-- 独立秒杀 -->
-              <el-form-item v-if="vePropForm.type === 'FLASHSALE_INDEPENDENT'" label="选择商品">
-                <ProductPicker v-model="vePropForm.independentProductId" placeholder="选择秒杀商品" />
+              <el-form-item
+                v-if="vePropForm.type === 'FLASHSALE_INDEPENDENT'"
+                label="选择商品"
+              >
+                <ProductPicker
+                  v-model="vePropForm.independentProductId"
+                  placeholder="选择秒杀商品"
+                />
               </el-form-item>
-              <el-form-item v-if="vePropForm.type === 'FLASHSALE_INDEPENDENT'" label="秒杀价">
-                <el-input-number v-model="vePropForm.independentPrice" :min="0.01" :precision="2" style="width:100%" size="small" />
+              <el-form-item
+                v-if="vePropForm.type === 'FLASHSALE_INDEPENDENT'"
+                label="秒杀价"
+              >
+                <el-input-number
+                  v-model="vePropForm.independentPrice"
+                  :min="0.01"
+                  :precision="2"
+                  style="width:100%"
+                  size="small"
+                />
               </el-form-item>
-              <el-form-item v-if="vePropForm.type === 'FLASHSALE_INDEPENDENT'" label="库存">
-                <el-input-number v-model="vePropForm.independentStock" :min="1" :max="99999" style="width:100%" size="small" />
+              <el-form-item
+                v-if="vePropForm.type === 'FLASHSALE_INDEPENDENT'"
+                label="库存"
+              >
+                <el-input-number
+                  v-model="vePropForm.independentStock"
+                  :min="1"
+                  :max="99999"
+                  style="width:100%"
+                  size="small"
+                />
               </el-form-item>
-              <el-form-item v-if="vePropForm.type === 'FLASHSALE_INDEPENDENT'" label="限购">
-                <el-input-number v-model="vePropForm.independentLimit" :min="1" :max="99" style="width:100%" size="small" />
+              <el-form-item
+                v-if="vePropForm.type === 'FLASHSALE_INDEPENDENT'"
+                label="限购"
+              >
+                <el-input-number
+                  v-model="vePropForm.independentLimit"
+                  :min="1"
+                  :max="99"
+                  style="width:100%"
+                  size="small"
+                />
               </el-form-item>
 
               <!-- 独立拼团 -->
-              <el-form-item v-if="vePropForm.type === 'GROUPBUY_INDEPENDENT'" label="选择商品">
-                <ProductPicker v-model="vePropForm.independentProductId" placeholder="选择拼团商品" />
+              <el-form-item
+                v-if="vePropForm.type === 'GROUPBUY_INDEPENDENT'"
+                label="选择商品"
+              >
+                <ProductPicker
+                  v-model="vePropForm.independentProductId"
+                  placeholder="选择拼团商品"
+                />
               </el-form-item>
-              <el-form-item v-if="vePropForm.type === 'GROUPBUY_INDEPENDENT'" label="拼团价">
-                <el-input-number v-model="vePropForm.independentPrice" :min="0.01" :precision="2" style="width:100%" size="small" />
+              <el-form-item
+                v-if="vePropForm.type === 'GROUPBUY_INDEPENDENT'"
+                label="拼团价"
+              >
+                <el-input-number
+                  v-model="vePropForm.independentPrice"
+                  :min="0.01"
+                  :precision="2"
+                  style="width:100%"
+                  size="small"
+                />
               </el-form-item>
-              <el-form-item v-if="vePropForm.type === 'GROUPBUY_INDEPENDENT'" label="成团人数">
-                <el-input-number v-model="vePropForm.independentLimit" :min="2" :max="999" style="width:100%" size="small" />
+              <el-form-item
+                v-if="vePropForm.type === 'GROUPBUY_INDEPENDENT'"
+                label="成团人数"
+              >
+                <el-input-number
+                  v-model="vePropForm.independentLimit"
+                  :min="2"
+                  :max="999"
+                  style="width:100%"
+                  size="small"
+                />
               </el-form-item>
-              <el-form-item v-if="vePropForm.type === 'GROUPBUY_INDEPENDENT'" label="库存">
-                <el-input-number v-model="vePropForm.independentStock" :min="1" :max="99999" style="width:100%" size="small" />
+              <el-form-item
+                v-if="vePropForm.type === 'GROUPBUY_INDEPENDENT'"
+                label="库存"
+              >
+                <el-input-number
+                  v-model="vePropForm.independentStock"
+                  :min="1"
+                  :max="99999"
+                  style="width:100%"
+                  size="small"
+                />
               </el-form-item>
 
               <!-- 其他类型：保留JSON配置 -->
-              <el-form-item v-if="!['FLASHSALE','GROUPBUY','COUPON','PRODUCT_LIST','FLASHSALE_INDEPENDENT','GROUPBUY_INDEPENDENT'].includes(vePropForm.type)" label="配置JSON">
-                <el-input v-model="vePropForm.configStr" type="textarea" :rows="4" />
+              <el-form-item
+                v-if="!['FLASHSALE','GROUPBUY','COUPON','PRODUCT_LIST','FLASHSALE_INDEPENDENT','GROUPBUY_INDEPENDENT'].includes(vePropForm.type)"
+                label="配置JSON"
+              >
+                <el-input
+                  v-model="vePropForm.configStr"
+                  type="textarea"
+                  :rows="4"
+                />
               </el-form-item>
 
               <el-form-item label="开始时间">
-                <el-date-picker v-model="vePropForm.startTime" type="datetime" style="width:100%" value-format="YYYY-MM-DD HH:mm:ss" placeholder="可选" />
+                <el-date-picker
+                  v-model="vePropForm.startTime"
+                  type="datetime"
+                  style="width:100%"
+                  value-format="YYYY-MM-DD HH:mm:ss"
+                  placeholder="可选"
+                />
               </el-form-item>
               <el-form-item label="结束时间">
-                <el-date-picker v-model="vePropForm.endTime" type="datetime" style="width:100%" value-format="YYYY-MM-DD HH:mm:ss" placeholder="可选" />
+                <el-date-picker
+                  v-model="vePropForm.endTime"
+                  type="datetime"
+                  style="width:100%"
+                  value-format="YYYY-MM-DD HH:mm:ss"
+                  placeholder="可选"
+                />
               </el-form-item>
               <el-form-item label="定向人群">
-                <el-input v-model="vePropForm.audienceStr" type="textarea" :rows="2" placeholder='可选JSON' />
+                <el-input
+                  v-model="vePropForm.audienceStr"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="可选JSON"
+                />
               </el-form-item>
             </el-form>
-            <el-alert title="属性实时生效，点击上方保存按钮提交" type="info" :closable="false" style="margin-top:12px" />
+            <el-alert
+              title="属性实时生效，点击上方保存按钮提交"
+              type="info"
+              :closable="false"
+              style="margin-top:12px"
+            />
           </template>
-          <div v-else class="ve-right-hint">点击预览中的组件<br>编辑其属性</div>
+          <div
+            v-else
+            class="ve-right-hint"
+          >
+            点击预览中的组件<br>编辑其属性
+          </div>
         </div>
       </div>
     </el-dialog>
 
     <!-- 版本历史弹窗 -->
-    <el-dialog v-model="verVis" title="版本历史" width="700px">
-      <el-table :data="versions" stripe max-height="400">
-        <el-table-column label="版本号" width="80"><template #default="{ row }">v{{ row.version }}</template></el-table-column>
-        <el-table-column prop="comment" label="说明" min-width="150" />
-        <el-table-column label="时间" width="170"><template #default="{ row }">{{ formatDate(row.createdAt) }}</template></el-table-column>
-        <el-table-column label="操作" width="180">
+    <el-dialog
+      v-model="verVis"
+      title="版本历史"
+      width="700px"
+    >
+      <el-table
+        :data="versions"
+        stripe
+        max-height="400"
+      >
+        <el-table-column
+          label="版本号"
+          width="80"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="previewVersion(row)">预览</el-button>
-            <el-popconfirm title="确认回滚到此版本？" @confirm="doRollback(row.id)">
-              <template #reference><el-button size="small" type="warning">回滚</el-button></template>
+            v{{ row.version }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="comment"
+          label="说明"
+          min-width="150"
+        />
+        <el-table-column
+          label="时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="180"
+        >
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              @click="previewVersion(row)"
+            >
+              预览
+            </el-button>
+            <el-popconfirm
+              title="确认回滚到此版本？"
+              @confirm="doRollback(row.id)"
+            >
+              <template #reference>
+                <el-button
+                  size="small"
+                  type="warning"
+                >
+                  回滚
+                </el-button>
+              </template>
             </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
-      <div v-if="versions.length === 0" style="text-align:center;padding:40px;color:#ccc">暂无历史版本</div>
+      <div
+        v-if="versions.length === 0"
+        style="text-align:center;padding:40px;color:#ccc"
+      >
+        暂无历史版本
+      </div>
     </el-dialog>
 
     <!-- 版本预览 -->
-    <el-dialog v-model="prevVis" title="版本预览" width="600px">
-      <div style="margin-bottom:12px;color:#8b4513">版本 v{{ previewVer?.version }} — {{ previewVer?.comment }}</div>
-      <el-table :data="previewComponents" stripe max-height="400" size="small">
-        <el-table-column label="#" width="50"><template #default="{ $index }">{{ $index + 1 }}</template></el-table-column>
-        <el-table-column label="类型" width="110"><template #default="{ row }">{{ compTypeMap[row.type] || row.type }}</template></el-table-column>
-        <el-table-column prop="title" label="标题" min-width="120" />
+    <el-dialog
+      v-model="prevVis"
+      title="版本预览"
+      width="600px"
+    >
+      <div style="margin-bottom:12px;color:#8b4513">
+        版本 v{{ previewVer?.version }} — {{ previewVer?.comment }}
+      </div>
+      <el-table
+        :data="previewComponents"
+        stripe
+        max-height="400"
+        size="small"
+      >
+        <el-table-column
+          label="#"
+          width="50"
+        >
+          <template #default="{ $index }">
+            {{ $index + 1 }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="类型"
+          width="110"
+        >
+          <template #default="{ row }">
+            {{ compTypeMap[row.type] || row.type }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="title"
+          label="标题"
+          min-width="120"
+        />
       </el-table>
-      <div v-if="previewComponents.length === 0" style="text-align:center;padding:40px;color:#ccc">此版本无组件</div>
+      <div
+        v-if="previewComponents.length === 0"
+        style="text-align:center;padding:40px;color:#ccc"
+      >
+        此版本无组件
+      </div>
     </el-dialog>
 
     <!-- ═══════════════════════════════════════ -->
     <!-- 用户端预览（手机框） -->
     <!-- ═══════════════════════════════════════ -->
-    <el-dialog v-model="previewPageVis" title="用户端预览" width="460px" destroy-on-close>
+    <el-dialog
+      v-model="previewPageVis"
+      title="用户端预览"
+      width="460px"
+      destroy-on-close
+    >
       <div style="text-align:center;margin-bottom:8px;color:#8b4513;font-size:13px">
         微信小程序中展示效果（{{ previewPageTitle }}）
       </div>
       <div class="pp-phone-frame">
-        <div class="pp-phone-status-bar">微页面预览</div>
+        <div class="pp-phone-status-bar">
+          微页面预览
+        </div>
         <div class="pp-phone-content">
-          <div v-if="!previewPageComps.length" style="text-align:center;padding:60px 20px;color:#ccc">
+          <div
+            v-if="!previewPageComps.length"
+            style="text-align:center;padding:60px 20px;color:#ccc"
+          >
             该页面暂无组件，请先编辑添加内容
           </div>
-          <div v-for="(comp, idx) in previewPageComps" :key="idx" class="pp-preview-comp">
-            <div class="pp-comp-badge">{{ compTypeMap[comp.type] || comp.type }}</div>
-            <div v-if="comp.title" class="pp-comp-title">{{ comp.title }}</div>
+          <div
+            v-for="(comp, idx) in previewPageComps"
+            :key="idx"
+            class="pp-preview-comp"
+          >
+            <div class="pp-comp-badge">
+              {{ compTypeMap[comp.type] || comp.type }}
+            </div>
+            <div
+              v-if="comp.title"
+              class="pp-comp-title"
+            >
+              {{ comp.title }}
+            </div>
             <div class="pp-comp-mock">
               <!-- 轮播图 -->
-              <div v-if="comp.type === 'CAROUSEL'" class="pp-mock-carousel">📷 轮播图 Banner</div>
+              <div
+                v-if="comp.type === 'CAROUSEL'"
+                class="pp-mock-carousel"
+              >
+                📷 轮播图 Banner
+              </div>
               <!-- 倒计时 -->
-              <div v-else-if="comp.type === 'COUNTDOWN'" class="pp-mock-countdown">⏰ 距活动结束 <b>23:59:59</b></div>
+              <div
+                v-else-if="comp.type === 'COUNTDOWN'"
+                class="pp-mock-countdown"
+              >
+                ⏰ 距活动结束 <b>23:59:59</b>
+              </div>
               <!-- 秒杀 -->
-              <div v-else-if="comp.type === 'FLASHSALE'" class="pp-mock-flashsale">
+              <div
+                v-else-if="comp.type === 'FLASHSALE'"
+                class="pp-mock-flashsale"
+              >
                 <div style="display:flex;gap:8px">
-                  <div v-for="i in 3" :key="i" class="pp-mock-product-card">
-                    <div class="pp-mock-product-img"></div>
-                    <div class="pp-mock-product-name">商品{{ i }}</div>
-                    <div class="pp-mock-product-price">¥9.9</div>
+                  <div
+                    v-for="i in 3"
+                    :key="i"
+                    class="pp-mock-product-card"
+                  >
+                    <div class="pp-mock-product-img" />
+                    <div class="pp-mock-product-name">
+                      商品{{ i }}
+                    </div>
+                    <div class="pp-mock-product-price">
+                      ¥9.9
+                    </div>
                   </div>
                 </div>
               </div>
               <!-- 拼团 -->
-              <div v-else-if="comp.type === 'GROUPBUY'" class="pp-mock-groupbuy">👥 2人拼团 ¥19.9</div>
+              <div
+                v-else-if="comp.type === 'GROUPBUY'"
+                class="pp-mock-groupbuy"
+              >
+                👥 2人拼团 ¥19.9
+              </div>
               <!-- 优惠券 -->
-              <div v-else-if="comp.type === 'COUPON'" class="pp-mock-coupon">🎫 满100减20</div>
+              <div
+                v-else-if="comp.type === 'COUPON'"
+                class="pp-mock-coupon"
+              >
+                🎫 满100减20
+              </div>
               <!-- 商品列表 -->
-              <div v-else-if="comp.type === 'PRODUCT_LIST'" class="pp-mock-productlist">🛍️ 精选商品网格</div>
+              <div
+                v-else-if="comp.type === 'PRODUCT_LIST'"
+                class="pp-mock-productlist"
+              >
+                🛍️ 精选商品网格
+              </div>
               <!-- 图片 -->
-              <div v-else-if="comp.type === 'IMAGE'" class="pp-mock-image">📷 {{ comp.title || '图片展示' }}</div>
+              <div
+                v-else-if="comp.type === 'IMAGE'"
+                class="pp-mock-image"
+              >
+                📷 {{ comp.title || '图片展示' }}
+              </div>
               <!-- 文本 -->
-              <div v-else-if="comp.type === 'TEXT'" class="pp-mock-textblock">📝 {{ comp.title || '文本内容区域' }}</div>
+              <div
+                v-else-if="comp.type === 'TEXT'"
+                class="pp-mock-textblock"
+              >
+                📝 {{ comp.title || '文本内容区域' }}
+              </div>
               <!-- 推荐 -->
-              <div v-else-if="comp.type === 'RECOMMEND'" class="pp-mock-recommend">⭐ 为您推荐</div>
+              <div
+                v-else-if="comp.type === 'RECOMMEND'"
+                class="pp-mock-recommend"
+              >
+                ⭐ 为您推荐
+              </div>
               <!-- 选项卡 -->
-              <div v-else-if="comp.type === 'TABS'" class="pp-mock-tabs">📑 选项卡内容</div>
+              <div
+                v-else-if="comp.type === 'TABS'"
+                class="pp-mock-tabs"
+              >
+                📑 选项卡内容
+              </div>
               <!-- 独立秒杀 -->
-              <div v-else-if="comp.type === 'FLASHSALE_INDEPENDENT'" class="pp-mock-flashsale">
+              <div
+                v-else-if="comp.type === 'FLASHSALE_INDEPENDENT'"
+                class="pp-mock-flashsale"
+              >
                 <div style="display:flex;gap:8px">
                   <div class="pp-mock-product-card">
-                    <div class="pp-mock-product-img"></div>
-                    <div class="pp-mock-product-name">{{ comp.title || '独立秒杀商品' }}</div>
-                    <div class="pp-mock-product-price">¥{{ comp.config?.flashPrice || '9.9' }}</div>
+                    <div class="pp-mock-product-img" />
+                    <div class="pp-mock-product-name">
+                      {{ comp.title || '独立秒杀商品' }}
+                    </div>
+                    <div class="pp-mock-product-price">
+                      ¥{{ comp.config?.flashPrice || '9.9' }}
+                    </div>
                   </div>
                 </div>
               </div>
               <!-- 独立拼团 -->
-              <div v-else-if="comp.type === 'GROUPBUY_INDEPENDENT'" class="pp-mock-groupbuy">👥 {{ comp.config?.minMembers || 2 }}人拼团 ¥{{ comp.config?.groupPrice || '19.9' }}</div>
+              <div
+                v-else-if="comp.type === 'GROUPBUY_INDEPENDENT'"
+                class="pp-mock-groupbuy"
+              >
+                👥 {{ comp.config?.minMembers || 2 }}人拼团 ¥{{ comp.config?.groupPrice || '19.9' }}
+              </div>
               <!-- 通用 -->
-              <div v-else>📦 {{ compTypeMap[comp.type] || comp.type }}</div>
+              <div v-else>
+                📦 {{ compTypeMap[comp.type] || comp.type }}
+              </div>
             </div>
           </div>
         </div>

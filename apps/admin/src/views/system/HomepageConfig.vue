@@ -3,8 +3,16 @@
     <div class="page-header">
       <h3>首页模块配置</h3>
       <div>
-        <el-button type="primary" :loading="saving" @click="saveAll">保存配置</el-button>
-        <el-button @click="refresh">重置/刷新</el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="saveAll"
+        >
+          保存配置
+        </el-button>
+        <el-button @click="refresh">
+          重置/刷新
+        </el-button>
       </div>
     </div>
 
@@ -15,11 +23,19 @@
           <template #header>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span>首页模块排序（拖拽调整）</span>
-              <el-button size="small" @click="addModule">+ 添加模块</el-button>
+              <el-button
+                size="small"
+                @click="addModule"
+              >
+                + 添加模块
+              </el-button>
             </div>
           </template>
 
-          <div v-if="modules.length === 0" style="color:#909399;text-align:center;padding:40px">
+          <div
+            v-if="modules.length === 0"
+            style="color:#909399;text-align:center;padding:40px"
+          >
             暂无已启用的首页模块，请添加
           </div>
 
@@ -31,22 +47,67 @@
               :class="{ disabled: !element.enabled }"
             >
               <div class="sort-btns">
-                <el-button size="small" circle :disabled="index === 0" @click="moveUp(index)">↑</el-button>
-                <el-button size="small" circle :disabled="index === modules.length - 1" @click="moveDown(index)">↓</el-button>
+                <el-button
+                  size="small"
+                  circle
+                  :disabled="index === 0"
+                  @click="moveUp(index)"
+                >
+                  ↑
+                </el-button>
+                <el-button
+                  size="small"
+                  circle
+                  :disabled="index === modules.length - 1"
+                  @click="moveDown(index)"
+                >
+                  ↓
+                </el-button>
               </div>
               <div class="module-info">
                 <div class="module-header">
                   <span class="module-type">{{ TYPE_LABELS[element.type] || element.type }}</span>
                   <span class="module-key">{{ element.key }}</span>
-                  <el-tag v-if="element.enabled" type="success" size="small">启用</el-tag>
-                  <el-tag v-else type="info" size="small">禁用</el-tag>
+                  <el-tag
+                    v-if="element.enabled"
+                    type="success"
+                    size="small"
+                  >
+                    启用
+                  </el-tag>
+                  <el-tag
+                    v-else
+                    type="info"
+                    size="small"
+                  >
+                    禁用
+                  </el-tag>
                 </div>
-                <div class="module-desc" v-if="element.description">{{ element.description }}</div>
+                <div
+                  v-if="element.description"
+                  class="module-desc"
+                >
+                  {{ element.description }}
+                </div>
               </div>
               <div class="module-actions">
-                <el-switch v-model="element.enabled" size="small" />
-                <el-button size="small" @click="editModule(element, index)">配置</el-button>
-                <el-button size="small" type="danger" @click="removeModule(index)">移除</el-button>
+                <el-switch
+                  v-model="element.enabled"
+                  size="small"
+                />
+                <el-button
+                  size="small"
+                  @click="editModule(element, index)"
+                >
+                  配置
+                </el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  @click="removeModule(index)"
+                >
+                  移除
+                </el-button>
               </div>
             </div>
           </div>
@@ -56,37 +117,73 @@
       <!-- 右侧：发现页配置 + 排盘入口 -->
       <el-col :span="10">
         <el-card style="margin-bottom:16px">
-          <template #header><span>发现页 - 品类栏目</span></template>
+          <template #header>
+            <span>发现页 - 品类栏目</span>
+          </template>
           <div style="margin-bottom:8px">
             <el-checkbox-group v-model="discoveryCategories">
-              <el-checkbox v-for="cat in allCategories" :key="cat" :label="cat" style="margin:4px 12px 4px 0">
+              <el-checkbox
+                v-for="cat in allCategories"
+                :key="cat"
+                :label="cat"
+                style="margin:4px 12px 4px 0"
+              >
                 {{ cat }}
               </el-checkbox>
             </el-checkbox-group>
           </div>
-          <el-input-number v-model="discoveryCols" :min="2" :max="5" size="small" style="width:120px" />
+          <el-input-number
+            v-model="discoveryCols"
+            :min="2"
+            :max="5"
+            size="small"
+            style="width:120px"
+          />
           <span style="margin-left:8px;font-size:13px;color:#909399">每行列数</span>
         </el-card>
 
         <el-card style="margin-bottom:16px">
-          <template #header><span>排盘工具入口</span></template>
-          <el-form label-width="100px" size="small">
+          <template #header>
+            <span>排盘工具入口</span>
+          </template>
+          <el-form
+            label-width="100px"
+            size="small"
+          >
             <el-form-item label="入口位置">
-              <el-input-number v-model="paipanSlot" :min="1" :max="20" />
+              <el-input-number
+                v-model="paipanSlot"
+                :min="1"
+                :max="20"
+              />
               <span style="margin-left:8px;font-size:12px;color:#909399">第N个模块位置</span>
             </el-form-item>
             <el-form-item label="展示工具">
               <el-checkbox-group v-model="paipanTools">
-                <el-checkbox label="bazi" style="margin-right:12px">八字排盘</el-checkbox>
-                <el-checkbox label="ziwei" style="margin-right:12px">紫微排盘</el-checkbox>
-                <el-checkbox label="qimen">奇门遁甲</el-checkbox>
+                <el-checkbox
+                  label="bazi"
+                  style="margin-right:12px"
+                >
+                  八字排盘
+                </el-checkbox>
+                <el-checkbox
+                  label="ziwei"
+                  style="margin-right:12px"
+                >
+                  紫微排盘
+                </el-checkbox>
+                <el-checkbox label="qimen">
+                  奇门遁甲
+                </el-checkbox>
               </el-checkbox-group>
             </el-form-item>
           </el-form>
         </el-card>
 
         <el-card>
-          <template #header><span>精选标签</span></template>
+          <template #header>
+            <span>精选标签</span>
+          </template>
           <div style="margin-bottom:8px">
             <el-tag
               v-for="(tag, idx) in featuredTags"
@@ -100,39 +197,95 @@
             </el-tag>
           </div>
           <div style="display:flex;gap:8px">
-            <el-input v-model="newTag" size="small" placeholder="输入标签名" style="width:160px" @keyup.enter="addTag" />
-            <el-button size="small" @click="addTag">添加</el-button>
+            <el-input
+              v-model="newTag"
+              size="small"
+              placeholder="输入标签名"
+              style="width:160px"
+              @keyup.enter="addTag"
+            />
+            <el-button
+              size="small"
+              @click="addTag"
+            >
+              添加
+            </el-button>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 编辑模块对话框 -->
-    <el-dialog v-model="editDialog" title="配置首页模块" width="550px">
-      <el-form :model="editTarget" label-width="90px" v-if="editTarget">
-        <el-form-item label="模块类型" required>
-          <el-select v-model="editTarget.type" style="width:100%" @change="onTypeChange">
-            <el-option-group v-for="grp in availableModuleGroups" :key="grp.label" :label="grp.label">
-              <el-option v-for="t in grp.options" :key="t.value" :label="t.label" :value="t.value" />
+    <el-dialog
+      v-model="editDialog"
+      title="配置首页模块"
+      width="550px"
+    >
+      <el-form
+        v-if="editTarget"
+        :model="editTarget"
+        label-width="90px"
+      >
+        <el-form-item
+          label="模块类型"
+          required
+        >
+          <el-select
+            v-model="editTarget.type"
+            style="width:100%"
+            @change="onTypeChange"
+          >
+            <el-option-group
+              v-for="grp in availableModuleGroups"
+              :key="grp.label"
+              :label="grp.label"
+            >
+              <el-option
+                v-for="t in grp.options"
+                :key="t.value"
+                :label="t.label"
+                :value="t.value"
+              />
             </el-option-group>
           </el-select>
         </el-form-item>
         <el-form-item label="唯一标识">
-          <el-input v-model="editTarget.key" placeholder="如 banner_top, category_nav" />
+          <el-input
+            v-model="editTarget.key"
+            placeholder="如 banner_top, category_nav"
+          />
         </el-form-item>
         <el-form-item label="说明">
-          <el-input v-model="editTarget.description" placeholder="模块用途描述" />
+          <el-input
+            v-model="editTarget.description"
+            placeholder="模块用途描述"
+          />
         </el-form-item>
         <el-form-item label="配置数据">
-          <el-input v-model="editTarget.configJson" type="textarea" :rows="5" placeholder='JSON配置，如 {"maxItems": 6, "sortBy": "hot"}' />
+          <el-input
+            v-model="editTarget.configJson"
+            type="textarea"
+            :rows="5"
+            placeholder="JSON配置，如 {&quot;maxItems&quot;: 6, &quot;sortBy&quot;: &quot;hot&quot;}"
+          />
         </el-form-item>
         <el-form-item label="展示条件">
-          <el-input v-model="editTarget.condition" placeholder="留空表示始终展示；如 role:vip" />
+          <el-input
+            v-model="editTarget.condition"
+            placeholder="留空表示始终展示；如 role:vip"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editDialog = false">取消</el-button>
-        <el-button type="primary" @click="confirmEdit">确认</el-button>
+        <el-button @click="editDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="confirmEdit"
+        >
+          确认
+        </el-button>
       </template>
     </el-dialog>
 
@@ -141,15 +294,37 @@
       <template #header>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span>首页预览（共 {{ enabledModules.length }} 个模块）</span>
-          <el-button size="small" @click="showPreview = !showPreview">{{ showPreview ? '收起' : '展开' }}</el-button>
+          <el-button
+            size="small"
+            @click="showPreview = !showPreview"
+          >
+            {{ showPreview ? '收起' : '展开' }}
+          </el-button>
         </div>
       </template>
-      <div v-if="showPreview" class="preview-phone">
-        <div v-for="(m, i) in enabledModules" :key="m.key" class="preview-block" :style="{ background: PREVIEW_COLORS[i % PREVIEW_COLORS.length] }">
-          <div class="preview-label">{{ TYPE_LABELS[m.type] || m.type }}</div>
-          <div class="preview-key">{{ m.description || m.key }}</div>
+      <div
+        v-if="showPreview"
+        class="preview-phone"
+      >
+        <div
+          v-for="(m, i) in enabledModules"
+          :key="m.key"
+          class="preview-block"
+          :style="{ background: PREVIEW_COLORS[i % PREVIEW_COLORS.length] }"
+        >
+          <div class="preview-label">
+            {{ TYPE_LABELS[m.type] || m.type }}
+          </div>
+          <div class="preview-key">
+            {{ m.description || m.key }}
+          </div>
         </div>
-        <div v-if="enabledModules.length === 0" style="color:#909399;text-align:center;padding:40px">暂无启用模块</div>
+        <div
+          v-if="enabledModules.length === 0"
+          style="color:#909399;text-align:center;padding:40px"
+        >
+          暂无启用模块
+        </div>
       </div>
     </el-card>
   </div>

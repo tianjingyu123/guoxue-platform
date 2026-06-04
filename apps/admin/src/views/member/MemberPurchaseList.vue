@@ -1,29 +1,80 @@
 <template>
   <div class="page">
-    <div class="toolbar"><h3>会员购买记录</h3></div>
+    <div class="toolbar">
+      <h3>会员购买记录</h3>
+    </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="user.nickname" label="用户" width="140" />
-      <el-table-column prop="user.phone" label="手机号" width="140" />
-      <el-table-column label="类型" width="100">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="user.nickname"
+        label="用户"
+        width="140"
+      />
+      <el-table-column
+        prop="user.phone"
+        label="手机号"
+        width="140"
+      />
+      <el-table-column
+        label="类型"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.memberType === 'LIFETIME' ? 'danger' : row.memberType === 'YEARLY' ? 'warning' : ''" size="small">
+          <el-tag
+            :type="row.memberType === 'LIFETIME' ? 'danger' : row.memberType === 'YEARLY' ? 'warning' : ''"
+            size="small"
+          >
             {{ row.memberType === 'MONTHLY' ? '月卡' : row.memberType === 'YEARLY' ? '年卡' : row.memberType === 'LIFETIME' ? '永久' : row.memberType }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="金额" width="100">
-        <template #default="{ row }">{{ row.amount > 0 ? '¥' + Number(row.amount).toFixed(2) : '手动授予' }}</template>
+      <el-table-column
+        label="金额"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ row.amount > 0 ? '¥' + Number(row.amount).toFixed(2) : '手动授予' }}
+        </template>
       </el-table-column>
-      <el-table-column label="到期时间" width="180">
-        <template #default="{ row }">{{ row.expireAt ? formatDate(row.expireAt) : '永久有效' }}</template>
+      <el-table-column
+        label="到期时间"
+        width="180"
+      >
+        <template #default="{ row }">
+          {{ row.expireAt ? formatDate(row.expireAt) : '永久有效' }}
+        </template>
       </el-table-column>
-      <el-table-column label="购买时间" width="180"><template #default="{ row }">{{ formatDate(row.paidAt) }}</template></el-table-column>
-      <el-table-column prop="id" label="订单ID" min-width="200" show-overflow-tooltip />
+      <el-table-column
+        label="购买时间"
+        width="180"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.paidAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="id"
+        label="订单ID"
+        min-width="200"
+        show-overflow-tooltip
+      />
     </el-table>
 
-    <div v-if="total > 20" style="margin-top:16px;display:flex;justify-content:flex-end">
-      <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="fetchList" />
+    <div
+      v-if="total > 20"
+      style="margin-top:16px;display:flex;justify-content:flex-end"
+    >
+      <el-pagination
+        v-model:current-page="page"
+        :total="total"
+        :page-size="20"
+        layout="total, prev, pager, next"
+        @current-change="fetchList"
+      />
     </div>
   </div>
 </template>

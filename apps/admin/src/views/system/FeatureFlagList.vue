@@ -87,31 +87,87 @@ async function del(id: string) {
 
 <template>
   <div class="page">
-    <div class="toolbar"><h3>功能开关管理</h3><el-button type="primary" @click="openCreate">添加开关</el-button></div>
+    <div class="toolbar">
+      <h3>功能开关管理</h3><el-button
+        type="primary"
+        @click="openCreate"
+      >
+        添加开关
+      </el-button>
+    </div>
 
-    <el-table v-loading="loading" :data="list" stripe empty-text=" ">
-      <template #empty><el-empty description="暂无功能开关" /></template>
-      <el-table-column prop="name" label="功能名称" min-width="150" />
-      <el-table-column prop="key" label="标识键" min-width="180" />
-      <el-table-column label="当前值" width="100">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+      empty-text=" "
+    >
+      <template #empty>
+        <el-empty description="暂无功能开关" />
+      </template>
+      <el-table-column
+        prop="name"
+        label="功能名称"
+        min-width="150"
+      />
+      <el-table-column
+        prop="key"
+        label="标识键"
+        min-width="180"
+      />
+      <el-table-column
+        label="当前值"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-switch :model-value="row.enabled" @change="toggleEnabled(row)" />
+          <el-switch
+            :model-value="row.enabled"
+            @change="toggleEnabled(row)"
+          />
           <span :style="{ color: row.enabled ? '#67c23a' : '#f56c6c', marginLeft: '6px', fontSize: '12px' }">{{ row.enabled ? 'ON' : 'OFF' }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="描述" min-width="220" show-overflow-tooltip />
-      <el-table-column label="更新时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.updatedAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
+      <el-table-column
+        prop="description"
+        label="描述"
+        min-width="220"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="更新时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="del(row.id || row.key)">删除</el-button>
+          {{ formatDate(row.updatedAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="140"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="del(row.id || row.key)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <div v-if="total > 0" style="display:flex;justify-content:flex-end;margin-top:16px">
+    <div
+      v-if="total > 0"
+      style="display:flex;justify-content:flex-end;margin-top:16px"
+    >
       <el-pagination
         v-model:current-page="page"
         :total="total"
@@ -121,24 +177,63 @@ async function del(id: string) {
       />
     </div>
 
-    <el-dialog v-model="vis" :title="editingId ? '编辑开关' : '添加开关'" width="500px">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="标识键" required>
-          <el-input v-model="form.key" :disabled="!!editingId" placeholder="如: feature_chat" />
+    <el-dialog
+      v-model="vis"
+      :title="editingId ? '编辑开关' : '添加开关'"
+      width="500px"
+    >
+      <el-form
+        :model="form"
+        label-width="100px"
+      >
+        <el-form-item
+          label="标识键"
+          required
+        >
+          <el-input
+            v-model="form.key"
+            :disabled="!!editingId"
+            placeholder="如: feature_chat"
+          />
         </el-form-item>
-        <el-form-item label="功能名称" required>
-          <el-input v-model="form.name" placeholder="如: AI聊天功能" />
+        <el-form-item
+          label="功能名称"
+          required
+        >
+          <el-input
+            v-model="form.name"
+            placeholder="如: AI聊天功能"
+          />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="功能描述说明" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="3"
+            placeholder="功能描述说明"
+          />
         </el-form-item>
         <el-form-item label="初始值">
-          <el-switch v-model="form.enabled" :active-value="true" :inactive-value="false" active-text="开启" inactive-text="关闭" />
+          <el-switch
+            v-model="form.enabled"
+            :active-value="true"
+            :inactive-value="false"
+            active-text="开启"
+            inactive-text="关闭"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="vis = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        <el-button @click="vis = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

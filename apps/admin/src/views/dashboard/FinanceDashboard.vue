@@ -143,19 +143,45 @@ onMounted(async () => {
     <GreetingHeader :username="username" />
 
     <!-- 报警行 -->
-    <div class="alerts-row" v-if="alerts.length">
-      <AnomalyAlert v-for="a in alerts" :key="a.text" v-bind="a" />
+    <div
+      v-if="alerts.length"
+      class="alerts-row"
+    >
+      <AnomalyAlert
+        v-for="a in alerts"
+        :key="a.text"
+        v-bind="a"
+      />
     </div>
 
     <!-- 统计卡片 4×2 -->
-    <el-row :gutter="20" class="stats-row">
-      <el-col v-for="card in cards" :key="card.label" :xs="24" :sm="12" :md="6">
-        <div class="stat-card" @click="onCardClick(card)">
+    <el-row
+      :gutter="20"
+      class="stats-row"
+    >
+      <el-col
+        v-for="card in cards"
+        :key="card.label"
+        :xs="24"
+        :sm="12"
+        :md="6"
+      >
+        <div
+          class="stat-card"
+          @click="onCardClick(card)"
+        >
           <div class="stat-card__top">
             <span class="stat-card__label">{{ card.label }}</span>
-            <div class="stat-card__icon"><el-icon :size="18"><component :is="card.icon" /></el-icon></div>
+            <div class="stat-card__icon">
+              <el-icon :size="18">
+                <component :is="card.icon" />
+              </el-icon>
+            </div>
           </div>
-          <div class="stat-card__value" :class="{ 'stat-card__value--alert': card.label === '退款率' && card.value > 5 }">
+          <div
+            class="stat-card__value"
+            :class="{ 'stat-card__value--alert': card.label === '退款率' && card.value > 5 }"
+          >
             <AnimatedCounter :value="card.value" />
           </div>
         </div>
@@ -163,9 +189,19 @@ onMounted(async () => {
     </el-row>
 
     <!-- 月度营收柱状图 -->
-    <el-row :gutter="20" class="charts-row">
-      <el-col :xs="24" :md="24">
-        <ChartCard title="月度营收" :option="monthRevenueOption" :height="320" />
+    <el-row
+      :gutter="20"
+      class="charts-row"
+    >
+      <el-col
+        :xs="24"
+        :md="24"
+      >
+        <ChartCard
+          title="月度营收"
+          :option="monthRevenueOption"
+          :height="320"
+        />
       </el-col>
     </el-row>
   </div>

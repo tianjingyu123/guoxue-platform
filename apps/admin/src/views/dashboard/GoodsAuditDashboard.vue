@@ -116,23 +116,63 @@ onMounted(async () => {
 <template>
   <div class="dashboard">
     <GreetingHeader :username="username" />
-    <div class="alerts-row" v-if="alerts.length">
-      <AnomalyAlert v-for="a in alerts" :key="a.text" v-bind="a" />
+    <div
+      v-if="alerts.length"
+      class="alerts-row"
+    >
+      <AnomalyAlert
+        v-for="a in alerts"
+        :key="a.text"
+        v-bind="a"
+      />
     </div>
-    <el-row :gutter="20" class="stats-row">
-      <el-col v-for="card in cards" :key="card.label" :xs="24" :sm="12" :md="6">
-        <div class="stat-card" @click="onCardClick(card)">
+    <el-row
+      :gutter="20"
+      class="stats-row"
+    >
+      <el-col
+        v-for="card in cards"
+        :key="card.label"
+        :xs="24"
+        :sm="12"
+        :md="6"
+      >
+        <div
+          class="stat-card"
+          @click="onCardClick(card)"
+        >
           <div class="stat-card__top">
             <span class="stat-card__label">{{ card.label }}</span>
-            <div class="stat-card__icon"><el-icon :size="18"><component :is="card.icon" /></el-icon></div>
+            <div class="stat-card__icon">
+              <el-icon :size="18">
+                <component :is="card.icon" />
+              </el-icon>
+            </div>
           </div>
-          <div class="stat-card__value"><AnimatedCounter :value="card.value" :highlight="card.highlight" /></div>
+          <div class="stat-card__value">
+            <AnimatedCounter
+              :value="card.value"
+              :highlight="card.highlight"
+            />
+          </div>
         </div>
       </el-col>
     </el-row>
-    <el-row :gutter="20" class="charts-row">
-      <el-col v-for="ch in charts" :key="ch.title" :xs="24" :md="24">
-        <ChartCard :title="ch.title" :option="ch.option" :height="320" />
+    <el-row
+      :gutter="20"
+      class="charts-row"
+    >
+      <el-col
+        v-for="ch in charts"
+        :key="ch.title"
+        :xs="24"
+        :md="24"
+      >
+        <ChartCard
+          :title="ch.title"
+          :option="ch.option"
+          :height="320"
+        />
       </el-col>
     </el-row>
   </div>

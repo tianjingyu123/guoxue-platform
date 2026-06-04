@@ -2,79 +2,176 @@
   <div class="payment-page">
     <div class="toolbar">
       <h3>支付流水</h3>
-      <el-button @click="handleExport">导出CSV</el-button>
+      <el-button @click="handleExport">
+        导出CSV
+      </el-button>
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="4">
-        <div class="stat-card"><span class="value">¥{{ fmt(stats.todayAmount) }}</span><span class="label">今日交易额</span></div>
+        <div class="stat-card">
+          <span class="value">¥{{ fmt(stats.todayAmount) }}</span><span class="label">今日交易额</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.todayCount }}</span><span class="label">今日笔数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.todayCount }}</span><span class="label">今日笔数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">¥{{ fmt(stats.yesterdayAmount) }}</span><span class="label">昨日交易额</span></div>
+        <div class="stat-card">
+          <span class="value">¥{{ fmt(stats.yesterdayAmount) }}</span><span class="label">昨日交易额</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">¥{{ fmt(stats.monthAmount) }}</span><span class="label">本月累计</span></div>
+        <div class="stat-card">
+          <span class="value">¥{{ fmt(stats.monthAmount) }}</span><span class="label">本月累计</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.monthCount }}</span><span class="label">本月笔数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.monthCount }}</span><span class="label">本月笔数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">¥{{ fmt(stats.totalAmount) }}</span><span class="label">历史累计</span></div>
+        <div class="stat-card">
+          <span class="value">¥{{ fmt(stats.totalAmount) }}</span><span class="label">历史累计</span>
+        </div>
       </el-col>
     </el-row>
 
-    <el-row :gutter="12" class="filter-row">
+    <el-row
+      :gutter="12"
+      class="filter-row"
+    >
       <el-col :span="6">
-        <el-input v-model="filters.orderNo" placeholder="订单号" clearable />
+        <el-input
+          v-model="filters.orderNo"
+          placeholder="订单号"
+          clearable
+        />
       </el-col>
       <el-col :span="6">
-        <el-input v-model="filters.userId" placeholder="用户ID/手机号" clearable />
+        <el-input
+          v-model="filters.userId"
+          placeholder="用户ID/手机号"
+          clearable
+        />
       </el-col>
       <el-col :span="4">
-        <el-select v-model="filters.status" placeholder="状态" clearable style="width:100%">
-          <el-option label="已支付" value="PAID" />
-          <el-option label="已退款" value="REFUNDED" />
+        <el-select
+          v-model="filters.status"
+          placeholder="状态"
+          clearable
+          style="width:100%"
+        >
+          <el-option
+            label="已支付"
+            value="PAID"
+          />
+          <el-option
+            label="已退款"
+            value="REFUNDED"
+          />
         </el-select>
       </el-col>
       <el-col :span="4">
-        <el-date-picker v-model="filters.dateRange" type="daterange" range-separator="~" start-placeholder="开始" end-placeholder="结束" value-format="YYYY-MM-DD" style="width:100%" />
+        <el-date-picker
+          v-model="filters.dateRange"
+          type="daterange"
+          range-separator="~"
+          start-placeholder="开始"
+          end-placeholder="结束"
+          value-format="YYYY-MM-DD"
+          style="width:100%"
+        />
       </el-col>
       <el-col :span="4">
-        <el-button type="primary" @click="fetchList">查询</el-button>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          查询
+        </el-button>
       </el-col>
     </el-row>
 
-    <el-table v-loading="loading" :data="list" stripe style="margin-top:12px">
-      <el-table-column label="订单号" prop="orderNo" width="190" />
-      <el-table-column label="用户" width="120">
-        <template #default="{ row }">{{ row.user?.nickname || row.user?.phone || row.userId }}</template>
-      </el-table-column>
-      <el-table-column label="类型" width="100">
-        <template #default="{ row }">{{ typeLabel(row.type || row.orderType) }}</template>
-      </el-table-column>
-      <el-table-column label="金额" width="100">
-        <template #default="{ row }">¥{{ Number(row.amount || row.totalAmount).toFixed(2) }}</template>
-      </el-table-column>
-      <el-table-column label="支付方式" width="100">
-        <template #default="{ row }">{{ row.payMethod || row.paymentMethod || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="90">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+      style="margin-top:12px"
+    >
+      <el-table-column
+        label="订单号"
+        prop="orderNo"
+        width="190"
+      />
+      <el-table-column
+        label="用户"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'PAID' ? 'success' : 'info'" size="small">{{ row.status === 'PAID' ? '已支付' : row.status }}</el-tag>
+          {{ row.user?.nickname || row.user?.phone || row.userId }}
         </template>
       </el-table-column>
-      <el-table-column label="支付时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.paidAt || row.createdAt) }}</template>
+      <el-table-column
+        label="类型"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ typeLabel(row.type || row.orderType) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="金额"
+        width="100"
+      >
+        <template #default="{ row }">
+          ¥{{ Number(row.amount || row.totalAmount).toFixed(2) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="支付方式"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ row.payMethod || row.paymentMethod || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
+        width="90"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="row.status === 'PAID' ? 'success' : 'info'"
+            size="small"
+          >
+            {{ row.status === 'PAID' ? '已支付' : row.status }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="支付时间"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.paidAt || row.createdAt) }}
+        </template>
       </el-table-column>
     </el-table>
 
     <el-pagination
-      v-model:current-page="page" :total="total" :page-size="20"
-      layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end"
+      v-model:current-page="page"
+      :total="total"
+      :page-size="20"
+      layout="total, prev, pager, next"
+      style="margin-top:16px;justify-content:flex-end"
       @current-change="fetchList"
     />
   </div>

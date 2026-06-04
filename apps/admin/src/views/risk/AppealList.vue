@@ -108,23 +108,71 @@ function showDetail(row: any) {
     </div>
 
     <div class="filters">
-      <el-select v-model="typeFilter" placeholder="申诉类型" clearable style="width:160px" @change="fetchList">
-        <el-option v-for="t in appealTypeOptions" :key="t.value" :label="t.label" :value="t.value" />
+      <el-select
+        v-model="typeFilter"
+        placeholder="申诉类型"
+        clearable
+        style="width:160px"
+        @change="fetchList"
+      >
+        <el-option
+          v-for="t in appealTypeOptions"
+          :key="t.value"
+          :label="t.label"
+          :value="t.value"
+        />
       </el-select>
-      <el-select v-model="statusFilter" placeholder="状态" clearable style="width:120px" @change="fetchList">
-        <el-option label="待处理" value="PENDING" />
-        <el-option label="已通过" value="APPROVED" />
-        <el-option label="已驳回" value="REJECTED" />
+      <el-select
+        v-model="statusFilter"
+        placeholder="状态"
+        clearable
+        style="width:120px"
+        @change="fetchList"
+      >
+        <el-option
+          label="待处理"
+          value="PENDING"
+        />
+        <el-option
+          label="已通过"
+          value="APPROVED"
+        />
+        <el-option
+          label="已驳回"
+          value="REJECTED"
+        />
       </el-select>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="applicant" label="申诉人" width="120" show-overflow-tooltip />
-      <el-table-column label="申诉类型" width="120">
-        <template #default="{ row }">{{ getTypeLabel(row.type || row.appealType) }}</template>
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="applicant"
+        label="申诉人"
+        width="120"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="申诉类型"
+        width="120"
+      >
+        <template #default="{ row }">
+          {{ getTypeLabel(row.type || row.appealType) }}
+        </template>
       </el-table-column>
-      <el-table-column prop="content" label="申诉内容" min-width="240" show-overflow-tooltip />
-      <el-table-column label="状态" width="100">
+      <el-table-column
+        prop="content"
+        label="申诉内容"
+        min-width="240"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="状态"
+        width="100"
+      >
         <template #default="{ row }">
           <el-tag
             :type="row.status === 'APPROVED' ? 'success' : row.status === 'REJECTED' ? 'danger' : 'warning'"
@@ -134,16 +182,41 @@ function showDetail(row: any) {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="提交时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="230" fixed="right">
+      <el-table-column
+        label="提交时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="primary" @click="showDetail(row)">详情</el-button>
-          <el-button size="small" type="success" :disabled="row.status !== 'PENDING'" @click="approve(row.id)">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="230"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            @click="showDetail(row)"
+          >
+            详情
+          </el-button>
+          <el-button
+            size="small"
+            type="success"
+            :disabled="row.status !== 'PENDING'"
+            @click="approve(row.id)"
+          >
             通过
           </el-button>
-          <el-button size="small" type="danger" :disabled="row.status !== 'PENDING'" @click="openReject(row.id)">
+          <el-button
+            size="small"
+            type="danger"
+            :disabled="row.status !== 'PENDING'"
+            @click="openReject(row.id)"
+          >
             驳回
           </el-button>
         </template>
@@ -159,11 +232,22 @@ function showDetail(row: any) {
       @current-change="fetchList"
     />
 
-    <el-dialog v-model="detailDialogVisible" title="申诉详情" width="600px">
+    <el-dialog
+      v-model="detailDialogVisible"
+      title="申诉详情"
+      width="600px"
+    >
       <template v-if="detailData">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="申诉人">{{ detailData.applicant || detailData.userId || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="申诉类型">{{ getTypeLabel(detailData.type || detailData.appealType) }}</el-descriptions-item>
+        <el-descriptions
+          :column="2"
+          border
+        >
+          <el-descriptions-item label="申诉人">
+            {{ detailData.applicant || detailData.userId || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="申诉类型">
+            {{ getTypeLabel(detailData.type || detailData.appealType) }}
+          </el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag
               :type="detailData.status === 'APPROVED' ? 'success' : detailData.status === 'REJECTED' ? 'danger' : 'warning'"
@@ -172,36 +256,77 @@ function showDetail(row: any) {
               {{ getStatusLabel(detailData.status) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="提交时间">{{ formatDate(detailData.createdAt) }}</el-descriptions-item>
-          <el-descriptions-item label="驳回理由" :span="2" v-if="detailData.status === 'REJECTED' && detailData.reason">
+          <el-descriptions-item label="提交时间">
+            {{ formatDate(detailData.createdAt) }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailData.status === 'REJECTED' && detailData.reason"
+            label="驳回理由"
+            :span="2"
+          >
             {{ detailData.reason }}
           </el-descriptions-item>
         </el-descriptions>
 
-        <h4 style="margin:16px 0 8px;color:#8b4513">申诉内容</h4>
+        <h4 style="margin:16px 0 8px;color:#8b4513">
+          申诉内容
+        </h4>
         <div style="padding:12px;background:#fafafa;border-radius:4px;line-height:1.8;white-space:pre-wrap">
           {{ detailData.content || '暂无内容' }}
         </div>
 
-        <h4 style="margin:16px 0 8px;color:#8b4513" v-if="detailData.reply">回复内容</h4>
-        <div style="padding:12px;background:#f0f9eb;border-radius:4px;line-height:1.8;white-space:pre-wrap" v-if="detailData.reply">
+        <h4
+          v-if="detailData.reply"
+          style="margin:16px 0 8px;color:#8b4513"
+        >
+          回复内容
+        </h4>
+        <div
+          v-if="detailData.reply"
+          style="padding:12px;background:#f0f9eb;border-radius:4px;line-height:1.8;white-space:pre-wrap"
+        >
           {{ detailData.reply }}
         </div>
       </template>
       <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
+        <el-button @click="detailDialogVisible = false">
+          关闭
+        </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="rejectDialogVisible" title="驳回申诉" width="450px">
-      <el-form :model="rejectForm" label-width="80px">
-        <el-form-item label="驳回理由" required>
-          <el-input v-model="rejectForm.reason" type="textarea" :rows="5" placeholder="请输入驳回理由，将通知申诉人" />
+    <el-dialog
+      v-model="rejectDialogVisible"
+      title="驳回申诉"
+      width="450px"
+    >
+      <el-form
+        :model="rejectForm"
+        label-width="80px"
+      >
+        <el-form-item
+          label="驳回理由"
+          required
+        >
+          <el-input
+            v-model="rejectForm.reason"
+            type="textarea"
+            :rows="5"
+            placeholder="请输入驳回理由，将通知申诉人"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rejectDialogVisible = false">取消</el-button>
-        <el-button type="danger" :loading="saving" @click="reject">确认驳回</el-button>
+        <el-button @click="rejectDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="danger"
+          :loading="saving"
+          @click="reject"
+        >
+          确认驳回
+        </el-button>
       </template>
     </el-dialog>
   </div>

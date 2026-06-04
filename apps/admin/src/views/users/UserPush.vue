@@ -1,61 +1,164 @@
 <template>
   <div class="push-page">
-    <div class="toolbar"><h3>用户分群推送</h3></div>
+    <div class="toolbar">
+      <h3>用户分群推送</h3>
+    </div>
 
     <el-card>
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="推送标题" required>
-          <el-input v-model="form.title" placeholder="通知标题" />
+      <el-form
+        :model="form"
+        label-width="100px"
+      >
+        <el-form-item
+          label="推送标题"
+          required
+        >
+          <el-input
+            v-model="form.title"
+            placeholder="通知标题"
+          />
         </el-form-item>
-        <el-form-item label="推送内容" required>
-          <el-input v-model="form.content" type="textarea" :rows="4" placeholder="通知内容（支持小程序模板消息变量）" />
+        <el-form-item
+          label="推送内容"
+          required
+        >
+          <el-input
+            v-model="form.content"
+            type="textarea"
+            :rows="4"
+            placeholder="通知内容（支持小程序模板消息变量）"
+          />
         </el-form-item>
         <el-form-item label="筛选条件">
-          <el-row :gutter="12" style="width:100%">
+          <el-row
+            :gutter="12"
+            style="width:100%"
+          >
             <el-col :span="6">
-              <el-select v-model="form.memberLevel" placeholder="会员等级" clearable style="width:100%">
-                <el-option label="全部" value="" />
-                <el-option label="非会员" value="NONE" />
-                <el-option label="月卡" value="MONTHLY" />
-                <el-option label="年卡" value="YEARLY" />
-                <el-option label="终身" value="LIFETIME" />
+              <el-select
+                v-model="form.memberLevel"
+                placeholder="会员等级"
+                clearable
+                style="width:100%"
+              >
+                <el-option
+                  label="全部"
+                  value=""
+                />
+                <el-option
+                  label="非会员"
+                  value="NONE"
+                />
+                <el-option
+                  label="月卡"
+                  value="MONTHLY"
+                />
+                <el-option
+                  label="年卡"
+                  value="YEARLY"
+                />
+                <el-option
+                  label="终身"
+                  value="LIFETIME"
+                />
               </el-select>
             </el-col>
             <el-col :span="6">
-              <el-select v-model="form.tag" placeholder="用户标签" clearable style="width:100%">
-                <el-option label="全部" value="" />
-                <el-option label="高活跃" value="high_active" />
-                <el-option label="付费用户" value="paid" />
-                <el-option label="新注册" value="new_register" />
-                <el-option label="沉默用户" value="silent" />
+              <el-select
+                v-model="form.tag"
+                placeholder="用户标签"
+                clearable
+                style="width:100%"
+              >
+                <el-option
+                  label="全部"
+                  value=""
+                />
+                <el-option
+                  label="高活跃"
+                  value="high_active"
+                />
+                <el-option
+                  label="付费用户"
+                  value="paid"
+                />
+                <el-option
+                  label="新注册"
+                  value="new_register"
+                />
+                <el-option
+                  label="沉默用户"
+                  value="silent"
+                />
               </el-select>
             </el-col>
             <el-col :span="6">
-              <el-input-number v-model="form.minActiveDays" :min="0" placeholder="最少活跃天数" style="width:100%" />
+              <el-input-number
+                v-model="form.minActiveDays"
+                :min="0"
+                placeholder="最少活跃天数"
+                style="width:100%"
+              />
             </el-col>
             <el-col :span="6">
-              <el-button type="primary" :loading="counting" @click="countUsers">预估人数</el-button>
+              <el-button
+                type="primary"
+                :loading="counting"
+                @click="countUsers"
+              >
+                预估人数
+              </el-button>
             </el-col>
           </el-row>
         </el-form-item>
         <el-form-item>
-          <div v-if="estimatedCount > 0" class="estimate">
+          <div
+            v-if="estimatedCount > 0"
+            class="estimate"
+          >
             预计推送 <b>{{ estimatedCount }}</b> 人
-            <el-button type="danger" :loading="sending" style="margin-left:16px" @click="sendPush">确认发送</el-button>
+            <el-button
+              type="danger"
+              :loading="sending"
+              style="margin-left:16px"
+              @click="sendPush"
+            >
+              确认发送
+            </el-button>
           </div>
         </el-form-item>
       </el-form>
     </el-card>
 
     <el-card style="margin-top:16px">
-      <template #header><b>推送历史</b></template>
-      <el-table :data="history" stripe size="small">
-        <el-table-column prop="title" label="标题" min-width="160" />
-        <el-table-column label="目标人数" width="90">
-          <template #default="{ row }">{{ row.targetCount || '-' }}</template>
+      <template #header>
+        <b>推送历史</b>
+      </template>
+      <el-table
+        :data="history"
+        stripe
+        size="small"
+      >
+        <el-table-column
+          prop="title"
+          label="标题"
+          min-width="160"
+        />
+        <el-table-column
+          label="目标人数"
+          width="90"
+        >
+          <template #default="{ row }">
+            {{ row.targetCount || '-' }}
+          </template>
         </el-table-column>
-        <el-table-column label="发送时间" width="170">
-          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+        <el-table-column
+          label="发送时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.createdAt) }}
+          </template>
         </el-table-column>
       </el-table>
     </el-card>

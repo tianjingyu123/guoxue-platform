@@ -43,7 +43,10 @@
       size="small"
     >
       <template #empty>
-        <el-empty description="暂无审计日志" :image-size="80" />
+        <el-empty
+          description="暂无审计日志"
+          :image-size="80"
+        />
       </template>
       <el-table-column
         label="时间"

@@ -1,79 +1,182 @@
 <template>
-  <div class="cockpit" v-loading="loading">
+  <div
+    v-loading="loading"
+    class="cockpit"
+  >
     <!-- 页面头部 -->
     <div class="page-header">
       <h2>📊 管理驾驶舱</h2>
       <div class="header-actions">
-        <span v-if="lastRefreshTime" style="font-size:12px;color:#999">{{ lastRefreshTime }} 更新</span>
-        <el-switch v-model="autoRefresh" active-text="自动刷新" inactive-text="" size="small" />
-        <el-tag type="warning" size="small">老板专属</el-tag>
-        <el-button @click="refreshAll" :loading="loading">刷新数据</el-button>
+        <span
+          v-if="lastRefreshTime"
+          style="font-size:12px;color:#999"
+        >{{ lastRefreshTime }} 更新</span>
+        <el-switch
+          v-model="autoRefresh"
+          active-text="自动刷新"
+          inactive-text=""
+          size="small"
+        />
+        <el-tag
+          type="warning"
+          size="small"
+        >
+          老板专属
+        </el-tag>
+        <el-button
+          :loading="loading"
+          @click="refreshAll"
+        >
+          刷新数据
+        </el-button>
       </div>
     </div>
 
     <!-- 核心指标卡片 -->
-    <el-row :gutter="16" class="kpi-row">
-      <el-col :span="6" v-for="card in kpiCards" :key="card.label">
-        <el-card class="kpi-card" shadow="hover">
-          <div class="kpi-label">{{ card.label }}</div>
-          <div class="kpi-value" :style="{ color: card.color }">{{ card.value }}</div>
-          <div class="kpi-sub" v-if="card.sub">{{ card.sub }}</div>
+    <el-row
+      :gutter="16"
+      class="kpi-row"
+    >
+      <el-col
+        v-for="card in kpiCards"
+        :key="card.label"
+        :span="6"
+      >
+        <el-card
+          class="kpi-card"
+          shadow="hover"
+        >
+          <div class="kpi-label">
+            {{ card.label }}
+          </div>
+          <div
+            class="kpi-value"
+            :style="{ color: card.color }"
+          >
+            {{ card.value }}
+          </div>
+          <div
+            v-if="card.sub"
+            class="kpi-sub"
+          >
+            {{ card.sub }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 图表区：收入构成 + 用户增长 -->
-    <el-row :gutter="16" class="chart-row">
+    <el-row
+      :gutter="16"
+      class="chart-row"
+    >
       <el-col :span="12">
         <el-card shadow="hover">
-          <template #header><h3>💰 本月收入构成</h3></template>
-          <div ref="revenueChartRef" style="height:320px"></div>
+          <template #header>
+            <h3>💰 本月收入构成</h3>
+          </template>
+          <div
+            ref="revenueChartRef"
+            style="height:320px"
+          />
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card shadow="hover">
-          <template #header><h3>📈 用户增长与获客成本</h3></template>
-          <div ref="userGrowthChartRef" style="height:320px"></div>
+          <template #header>
+            <h3>📈 用户增长与获客成本</h3>
+          </template>
+          <div
+            ref="userGrowthChartRef"
+            style="height:320px"
+          />
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 业务趋势 + 预警 -->
-    <el-row :gutter="16" class="chart-row">
+    <el-row
+      :gutter="16"
+      class="chart-row"
+    >
       <el-col :span="16">
         <el-card shadow="hover">
-          <template #header><h3>📉 近30天业务线收入趋势</h3></template>
-          <div ref="businessTrendRef" style="height:340px"></div>
+          <template #header>
+            <h3>📉 近30天业务线收入趋势</h3>
+          </template>
+          <div
+            ref="businessTrendRef"
+            style="height:340px"
+          />
         </el-card>
       </el-col>
       <el-col :span="8">
-        <el-card shadow="hover" class="alert-panel">
+        <el-card
+          shadow="hover"
+          class="alert-panel"
+        >
           <template #header>
             <div style="display:flex;justify-content:space-between;align-items:center">
               <h3>⚠️ 异常预警</h3>
-              <el-tag :type="alertSummary.hasRisk ? 'danger' : 'success'" size="small">
+              <el-tag
+                :type="alertSummary.hasRisk ? 'danger' : 'success'"
+                size="small"
+              >
                 {{ alertSummary.hasRisk ? `${alertSummary.count} 条待处理` : '正常' }}
               </el-tag>
             </div>
           </template>
-          <div class="alert-list" v-if="alertData.systemAlerts?.length || alertData.riskAlerts?.length">
-            <div v-for="a in alertData.systemAlerts" :key="a.message" class="alert-item" :class="a.level">
-              <span class="alert-dot" :class="a.level"></span>
+          <div
+            v-if="alertData.systemAlerts?.length || alertData.riskAlerts?.length"
+            class="alert-list"
+          >
+            <div
+              v-for="a in alertData.systemAlerts"
+              :key="a.message"
+              class="alert-item"
+              :class="a.level"
+            >
+              <span
+                class="alert-dot"
+                :class="a.level"
+              />
               <div>
-                <div class="alert-type">{{ a.type }}</div>
-                <div class="alert-msg">{{ a.message }}</div>
+                <div class="alert-type">
+                  {{ a.type }}
+                </div>
+                <div class="alert-msg">
+                  {{ a.message }}
+                </div>
               </div>
             </div>
-            <div v-for="a in alertData.riskAlerts" :key="a.id" class="alert-item">
-              <span class="alert-dot" :class="a.level?.toLowerCase()"></span>
+            <div
+              v-for="a in alertData.riskAlerts"
+              :key="a.id"
+              class="alert-item"
+            >
+              <span
+                class="alert-dot"
+                :class="a.level?.toLowerCase()"
+              />
               <div>
-                <div class="alert-type">{{ a.type }}</div>
-                <div class="alert-msg">{{ a.title }}</div>
+                <div class="alert-type">
+                  {{ a.type }}
+                </div>
+                <div class="alert-msg">
+                  {{ a.title }}
+                </div>
               </div>
             </div>
           </div>
-          <el-empty v-else description="暂无异常" :image-size="80" />
-          <div class="refund-stats" v-if="alertData.refundStats">
+          <el-empty
+            v-else
+            description="暂无异常"
+            :image-size="80"
+          />
+          <div
+            v-if="alertData.refundStats"
+            class="refund-stats"
+          >
             <el-divider />
             <div class="refund-row">
               <span>今日退款：</span>
@@ -89,57 +192,124 @@
     </el-row>
 
     <!-- 排行榜 -->
-    <el-row :gutter="16" class="chart-row">
+    <el-row
+      :gutter="16"
+      class="chart-row"
+    >
       <el-col :span="6">
         <el-card shadow="hover">
-          <template #header><h4>🔥 热门课程 Top5</h4></template>
-          <div class="rank-list" v-if="rankingData.topCourses?.length">
-            <div v-for="(item, i) in rankingData.topCourses" :key="item.id" class="rank-item">
-              <span class="rank-num" :class="'top' + (i + 1)">{{ i + 1 }}</span>
+          <template #header>
+            <h4>🔥 热门课程 Top5</h4>
+          </template>
+          <div
+            v-if="rankingData.topCourses?.length"
+            class="rank-list"
+          >
+            <div
+              v-for="(item, i) in rankingData.topCourses"
+              :key="item.id"
+              class="rank-item"
+            >
+              <span
+                class="rank-num"
+                :class="'top' + (i + 1)"
+              >{{ i + 1 }}</span>
               <span class="rank-name">{{ item.title }}</span>
               <span class="rank-val">{{ item.studentCount }}人</span>
             </div>
           </div>
-          <el-empty v-else description="暂无数据" :image-size="60" />
+          <el-empty
+            v-else
+            description="暂无数据"
+            :image-size="60"
+          />
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="hover">
-          <template #header><h4>💬 活跃圈子 Top5</h4></template>
-          <div class="rank-list" v-if="rankingData.topCircles?.length">
-            <div v-for="(item, i) in rankingData.topCircles" :key="item.id" class="rank-item">
-              <span class="rank-num" :class="'top' + (i + 1)">{{ i + 1 }}</span>
+          <template #header>
+            <h4>💬 活跃圈子 Top5</h4>
+          </template>
+          <div
+            v-if="rankingData.topCircles?.length"
+            class="rank-list"
+          >
+            <div
+              v-for="(item, i) in rankingData.topCircles"
+              :key="item.id"
+              class="rank-item"
+            >
+              <span
+                class="rank-num"
+                :class="'top' + (i + 1)"
+              >{{ i + 1 }}</span>
               <span class="rank-name">{{ item.name }}</span>
               <span class="rank-val">{{ item.memberCount }}人</span>
             </div>
           </div>
-          <el-empty v-else description="暂无数据" :image-size="60" />
+          <el-empty
+            v-else
+            description="暂无数据"
+            :image-size="60"
+          />
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="hover">
-          <template #header><h4>🏆 推广达人 Top5</h4></template>
-          <div class="rank-list" v-if="rankingData.topPromoters?.length">
-            <div v-for="(item, i) in rankingData.topPromoters" :key="item.stationId" class="rank-item">
-              <span class="rank-num" :class="'top' + (i + 1)">{{ i + 1 }}</span>
+          <template #header>
+            <h4>🏆 推广达人 Top5</h4>
+          </template>
+          <div
+            v-if="rankingData.topPromoters?.length"
+            class="rank-list"
+          >
+            <div
+              v-for="(item, i) in rankingData.topPromoters"
+              :key="item.stationId"
+              class="rank-item"
+            >
+              <span
+                class="rank-num"
+                :class="'top' + (i + 1)"
+              >{{ i + 1 }}</span>
               <span class="rank-name">{{ item.name }}</span>
               <span class="rank-val">¥{{ item.monthEarned }}</span>
             </div>
           </div>
-          <el-empty v-else description="暂无数据" :image-size="60" />
+          <el-empty
+            v-else
+            description="暂无数据"
+            :image-size="60"
+          />
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="hover">
-          <template #header><h4>🆕 新入驻分站</h4></template>
-          <div class="rank-list" v-if="rankingData.topNewStations?.length">
-            <div v-for="(item, i) in rankingData.topNewStations" :key="item.id" class="rank-item">
-              <span class="rank-num" :class="'top' + (i + 1)">{{ i + 1 }}</span>
+          <template #header>
+            <h4>🆕 新入驻分站</h4>
+          </template>
+          <div
+            v-if="rankingData.topNewStations?.length"
+            class="rank-list"
+          >
+            <div
+              v-for="(item, i) in rankingData.topNewStations"
+              :key="item.id"
+              class="rank-item"
+            >
+              <span
+                class="rank-num"
+                :class="'top' + (i + 1)"
+              >{{ i + 1 }}</span>
               <span class="rank-name">{{ item.name }}</span>
               <span class="rank-val">{{ formatDate(item.createdAt) }}</span>
             </div>
           </div>
-          <el-empty v-else description="暂无数据" :image-size="60" />
+          <el-empty
+            v-else
+            description="暂无数据"
+            :image-size="60"
+          />
         </el-card>
       </el-col>
     </el-row>

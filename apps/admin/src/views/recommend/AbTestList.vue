@@ -3,57 +3,200 @@
     <div class="toolbar">
       <h3>A/B 实验管理</h3>
       <div class="toolbar-right">
-        <el-button @click="fetchReport">最新报告</el-button>
-        <el-button @click="generateReport">生成报告</el-button>
-        <el-button type="primary" @click="openCreate">新建实验</el-button>
+        <el-button @click="fetchReport">
+          最新报告
+        </el-button>
+        <el-button @click="generateReport">
+          生成报告
+        </el-button>
+        <el-button
+          type="primary"
+          @click="openCreate"
+        >
+          新建实验
+        </el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="name" label="实验名称" min-width="180" />
-      <el-table-column prop="scene" label="场景" width="120" />
-      <el-table-column prop="controlGroup" label="对照组" width="100" />
-      <el-table-column prop="experimentGroup" label="实验组" width="100" />
-      <el-table-column label="状态" width="90">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="name"
+        label="实验名称"
+        min-width="180"
+      />
+      <el-table-column
+        prop="scene"
+        label="场景"
+        width="120"
+      />
+      <el-table-column
+        prop="controlGroup"
+        label="对照组"
+        width="100"
+      />
+      <el-table-column
+        prop="experimentGroup"
+        label="实验组"
+        width="100"
+      />
+      <el-table-column
+        label="状态"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+          <el-tag
+            :type="statusTag(row.status)"
+            size="small"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" width="160">
-        <template #default="{ row }">{{ fmt(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="240" fixed="right">
+      <el-table-column
+        label="创建时间"
+        width="160"
+      >
         <template #default="{ row }">
-          <el-button v-if="row.status === 'DRAFT'" size="small" text type="success" @click="action(row.id, 'start')">启动</el-button>
-          <el-button v-if="row.status === 'RUNNING'" size="small" text type="warning" @click="action(row.id, 'pause')">暂停</el-button>
-          <el-button v-if="row.status === 'RUNNING' || row.status === 'PAUSED'" size="small" text type="primary" @click="action(row.id, 'complete')">完成</el-button>
-          <el-button size="small" text type="primary" @click="viewMetrics(row)">指标</el-button>
-          <el-button size="small" text type="danger" @click="del(row.id)">删除</el-button>
+          {{ fmt(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="240"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            v-if="row.status === 'DRAFT'"
+            size="small"
+            text
+            type="success"
+            @click="action(row.id, 'start')"
+          >
+            启动
+          </el-button>
+          <el-button
+            v-if="row.status === 'RUNNING'"
+            size="small"
+            text
+            type="warning"
+            @click="action(row.id, 'pause')"
+          >
+            暂停
+          </el-button>
+          <el-button
+            v-if="row.status === 'RUNNING' || row.status === 'PAUSED'"
+            size="small"
+            text
+            type="primary"
+            @click="action(row.id, 'complete')"
+          >
+            完成
+          </el-button>
+          <el-button
+            size="small"
+            text
+            type="primary"
+            @click="viewMetrics(row)"
+          >
+            指标
+          </el-button>
+          <el-button
+            size="small"
+            text
+            type="danger"
+            @click="del(row.id)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑实验' : '新建实验'" width="600px">
-      <el-form :model="form" label-width="90px">
-        <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="场景" required><el-input v-model="form.scene" /></el-form-item>
-        <el-form-item label="对照组策略"><el-input v-model="form.controlGroup" /></el-form-item>
-        <el-form-item label="实验组策略"><el-input v-model="form.experimentGroup" /></el-form-item>
-        <el-form-item label="流量比例(%)"><el-input-number v-model="form.trafficSplit" :min="1" :max="100" style="width:100%" /></el-form-item>
-        <el-form-item label="描述"><el-input v-model="form.description" type="textarea" :rows="3" /></el-form-item>
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editingId ? '编辑实验' : '新建实验'"
+      width="600px"
+    >
+      <el-form
+        :model="form"
+        label-width="90px"
+      >
+        <el-form-item
+          label="名称"
+          required
+        >
+          <el-input v-model="form.name" />
+        </el-form-item>
+        <el-form-item
+          label="场景"
+          required
+        >
+          <el-input v-model="form.scene" />
+        </el-form-item>
+        <el-form-item label="对照组策略">
+          <el-input v-model="form.controlGroup" />
+        </el-form-item>
+        <el-form-item label="实验组策略">
+          <el-input v-model="form.experimentGroup" />
+        </el-form-item>
+        <el-form-item label="流量比例(%)">
+          <el-input-number
+            v-model="form.trafficSplit"
+            :min="1"
+            :max="100"
+            style="width:100%"
+          />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="3"
+          />
+        </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 指标查看对话框 -->
-    <el-dialog v-model="metricsDialog" title="实验指标" width="500px">
-      <el-descriptions v-if="metricsData" :column="2" border>
-        <el-descriptions-item v-for="(v, k) in metricsData" :key="k" :label="k">{{ v }}</el-descriptions-item>
+    <el-dialog
+      v-model="metricsDialog"
+      title="实验指标"
+      width="500px"
+    >
+      <el-descriptions
+        v-if="metricsData"
+        :column="2"
+        border
+      >
+        <el-descriptions-item
+          v-for="(v, k) in metricsData"
+          :key="k"
+          :label="k"
+        >
+          {{ v }}
+        </el-descriptions-item>
       </el-descriptions>
-      <el-empty v-else description="暂无数据" />
+      <el-empty
+        v-else
+        description="暂无数据"
+      />
     </el-dialog>
   </div>
 </template>

@@ -3,31 +3,59 @@
     <div class="page-header">
       <h3>品类标签管理</h3>
       <div>
-        <el-button type="success" :loading="autoFilling" @click="autoFillAll">一键填充空品类</el-button>
-        <el-button type="primary" @click="openEditTree">编辑品类树</el-button>
-        <el-button @click="refresh">刷新</el-button>
+        <el-button
+          type="success"
+          :loading="autoFilling"
+          @click="autoFillAll"
+        >
+          一键填充空品类
+        </el-button>
+        <el-button
+          type="primary"
+          @click="openEditTree"
+        >
+          编辑品类树
+        </el-button>
+        <el-button @click="refresh">
+          刷新
+        </el-button>
       </div>
     </div>
 
     <!-- 总览卡片 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.totalCategories }}</span><span class="label">二级品类总数</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.totalCategories }}</span><span class="label">二级品类总数</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card warn"><span class="value">{{ stats.emptyCategories }}</span><span class="label">空品类</span></div>
+        <div class="stat-card warn">
+          <span class="value">{{ stats.emptyCategories }}</span><span class="label">空品类</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card info"><span class="value">{{ stats.lowContentCategories }}</span><span class="label">低内容(&lt;5篇)</span></div>
+        <div class="stat-card info">
+          <span class="value">{{ stats.lowContentCategories }}</span><span class="label">低内容(&lt;5篇)</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ totalPublished }}</span><span class="label">已发布内容</span></div>
+        <div class="stat-card">
+          <span class="value">{{ totalPublished }}</span><span class="label">已发布内容</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ totalDraft }}</span><span class="label">草稿内容</span></div>
+        <div class="stat-card">
+          <span class="value">{{ totalDraft }}</span><span class="label">草稿内容</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ Object.keys(categoryTree).length }}</span><span class="label">一级品类</span></div>
+        <div class="stat-card">
+          <span class="value">{{ Object.keys(categoryTree).length }}</span><span class="label">一级品类</span>
+        </div>
       </el-col>
     </el-row>
 
@@ -36,17 +64,44 @@
       <template #header>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span>品类健康度一览</span>
-          <el-input v-model="search" placeholder="搜索品类" size="small" style="width:240px" clearable />
+          <el-input
+            v-model="search"
+            placeholder="搜索品类"
+            size="small"
+            style="width:240px"
+            clearable
+          />
         </div>
       </template>
-      <el-table :data="filteredStats" stripe size="small" v-loading="loading" row-key="key">
-        <el-table-column label="一级品类" width="120">
+      <el-table
+        v-loading="loading"
+        :data="filteredStats"
+        stripe
+        size="small"
+        row-key="key"
+      >
+        <el-table-column
+          label="一级品类"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag type="primary" size="small">{{ row.level1 }}</el-tag>
+            <el-tag
+              type="primary"
+              size="small"
+            >
+              {{ row.level1 }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="二级品类" width="140" prop="level2" />
-        <el-table-column label="健康度" width="200">
+        <el-table-column
+          label="二级品类"
+          width="140"
+          prop="level2"
+        />
+        <el-table-column
+          label="健康度"
+          width="200"
+        >
           <template #default="{ row }">
             <div style="display:flex;align-items:center;gap:8px">
               <el-progress
@@ -55,32 +110,98 @@
                 :stroke-width="16"
                 style="flex:1"
               />
-              <el-tag v-if="row.total === 0" type="danger" size="small">空</el-tag>
-              <el-tag v-else-if="row.total < 5" type="warning" size="small">不足</el-tag>
-              <el-tag v-else type="success" size="small">健康</el-tag>
+              <el-tag
+                v-if="row.total === 0"
+                type="danger"
+                size="small"
+              >
+                空
+              </el-tag>
+              <el-tag
+                v-else-if="row.total < 5"
+                type="warning"
+                size="small"
+              >
+                不足
+              </el-tag>
+              <el-tag
+                v-else
+                type="success"
+                size="small"
+              >
+                健康
+              </el-tag>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="已发布" width="90" prop="published" sortable />
-        <el-table-column label="草稿" width="90" prop="draft" sortable />
-        <el-table-column label="合计" width="90" prop="total" sortable />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column
+          label="已发布"
+          width="90"
+          prop="published"
+          sortable
+        />
+        <el-table-column
+          label="草稿"
+          width="90"
+          prop="draft"
+          sortable
+        />
+        <el-table-column
+          label="合计"
+          width="90"
+          prop="total"
+          sortable
+        />
+        <el-table-column
+          label="操作"
+          width="200"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button size="small" type="primary" @click="generateFor(row)" :loading="genLoading === rowKey(row)">
+            <el-button
+              size="small"
+              type="primary"
+              :loading="genLoading === rowKey(row)"
+              @click="generateFor(row)"
+            >
               生成内容
             </el-button>
-            <el-button size="small" @click="viewContent(row)">查看内容</el-button>
+            <el-button
+              size="small"
+              @click="viewContent(row)"
+            >
+              查看内容
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     <!-- 编辑品类树对话框 -->
-    <el-dialog v-model="showEditTree" title="编辑品类标签树" width="700px">
-      <div v-for="(subs, level1) in editTree" :key="level1" style="margin-bottom:16px;padding:12px;background:#f5f7fa;border-radius:8px">
+    <el-dialog
+      v-model="showEditTree"
+      title="编辑品类标签树"
+      width="700px"
+    >
+      <div
+        v-for="(subs, level1) in editTree"
+        :key="level1"
+        style="margin-bottom:16px;padding:12px;background:#f5f7fa;border-radius:8px"
+      >
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <el-input v-model="editLevel1Names[level1]" size="small" style="width:140px;font-weight:600" />
-          <el-button size="small" type="danger" circle @click="deleteLevel1(level1)">✕</el-button>
+          <el-input
+            v-model="editLevel1Names[level1]"
+            size="small"
+            style="width:140px;font-weight:600"
+          />
+          <el-button
+            size="small"
+            type="danger"
+            circle
+            @click="deleteLevel1(level1)"
+          >
+            ✕
+          </el-button>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
           <el-tag
@@ -90,38 +211,92 @@
             size="small"
             @close="removeSub(level1, idx)"
           >
-            <el-input v-model="editTree[level1][idx]" size="small" style="width:100px;border:none" />
+            <el-input
+              v-model="editTree[level1][idx]"
+              size="small"
+              style="width:100px;border:none"
+            />
           </el-tag>
-          <el-button size="small" type="primary" circle @click="addSub(level1)">+</el-button>
+          <el-button
+            size="small"
+            type="primary"
+            circle
+            @click="addSub(level1)"
+          >
+            +
+          </el-button>
         </div>
       </div>
       <div style="margin-top:12px">
-        <el-button size="small" @click="addLevel1">+ 添加一级品类</el-button>
+        <el-button
+          size="small"
+          @click="addLevel1"
+        >
+          + 添加一级品类
+        </el-button>
       </div>
       <template #footer>
-        <el-button @click="showEditTree = false">取消</el-button>
-        <el-button type="primary" :loading="savingTree" @click="saveTree">保存品类树</el-button>
+        <el-button @click="showEditTree = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="savingTree"
+          @click="saveTree"
+        >
+          保存品类树
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 生成内容对话框 -->
-    <el-dialog v-model="showGenDialog" title="触发生成内容" width="500px">
-      <el-descriptions :column="2" border size="small">
-        <el-descriptions-item label="一级品类">{{ genTarget?.level1 }}</el-descriptions-item>
-        <el-descriptions-item label="二级品类">{{ genTarget?.level2 }}</el-descriptions-item>
-        <el-descriptions-item label="已发布">{{ genTarget?.published }}</el-descriptions-item>
-        <el-descriptions-item label="草稿">{{ genTarget?.draft }}</el-descriptions-item>
+    <el-dialog
+      v-model="showGenDialog"
+      title="触发生成内容"
+      width="500px"
+    >
+      <el-descriptions
+        :column="2"
+        border
+        size="small"
+      >
+        <el-descriptions-item label="一级品类">
+          {{ genTarget?.level1 }}
+        </el-descriptions-item>
+        <el-descriptions-item label="二级品类">
+          {{ genTarget?.level2 }}
+        </el-descriptions-item>
+        <el-descriptions-item label="已发布">
+          {{ genTarget?.published }}
+        </el-descriptions-item>
+        <el-descriptions-item label="草稿">
+          {{ genTarget?.draft }}
+        </el-descriptions-item>
       </el-descriptions>
       <div style="margin-top:16px">
         <el-checkbox-group v-model="genTypes">
-          <el-checkbox label="knowledge">基础知识库（3篇）</el-checkbox>
-          <el-checkbox label="classics">经典精华库（5条）</el-checkbox>
-          <el-checkbox label="tutorial">玩法教程库（2篇）</el-checkbox>
+          <el-checkbox label="knowledge">
+            基础知识库（3篇）
+          </el-checkbox>
+          <el-checkbox label="classics">
+            经典精华库（5条）
+          </el-checkbox>
+          <el-checkbox label="tutorial">
+            玩法教程库（2篇）
+          </el-checkbox>
         </el-checkbox-group>
       </div>
       <template #footer>
-        <el-button @click="showGenDialog = false">取消</el-button>
-        <el-button type="primary" :loading="genLoading === 'target'" @click="doGenerate">开始生成</el-button>
+        <el-button @click="showGenDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="genLoading === 'target'"
+          @click="doGenerate"
+        >
+          开始生成
+        </el-button>
       </template>
     </el-dialog>
   </div>

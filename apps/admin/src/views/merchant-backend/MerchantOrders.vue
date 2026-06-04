@@ -2,63 +2,197 @@
   <div class="page">
     <div class="page-header">
       <h3>订单管理</h3>
-      <el-select v-model="filterStatus" placeholder="全部状态" clearable style="width:140px" @change="fetchList">
-        <el-option label="待付款" value="PENDING_PAY" />
-        <el-option label="已付款" value="PAID" />
-        <el-option label="已发货" value="SHIPPED" />
-        <el-option label="已完成" value="COMPLETED" />
-        <el-option label="退款中" value="REFUNDING" />
-        <el-option label="已退款" value="REFUNDED" />
+      <el-select
+        v-model="filterStatus"
+        placeholder="全部状态"
+        clearable
+        style="width:140px"
+        @change="fetchList"
+      >
+        <el-option
+          label="待付款"
+          value="PENDING_PAY"
+        />
+        <el-option
+          label="已付款"
+          value="PAID"
+        />
+        <el-option
+          label="已发货"
+          value="SHIPPED"
+        />
+        <el-option
+          label="已完成"
+          value="COMPLETED"
+        />
+        <el-option
+          label="退款中"
+          value="REFUNDING"
+        />
+        <el-option
+          label="已退款"
+          value="REFUNDED"
+        />
       </el-select>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
       <el-table-column type="expand">
         <template #default="{ row }">
           <div class="order-detail">
-            <el-descriptions :column="3" border size="small">
-              <el-descriptions-item label="订单号">{{ row.orderNo }}</el-descriptions-item>
-              <el-descriptions-item label="买家">{{ row.buyerName }}</el-descriptions-item>
-              <el-descriptions-item label="金额">¥{{ Number(row.totalAmount || 0).toFixed(2) }}</el-descriptions-item>
-              <el-descriptions-item label="收件人">{{ row.receiverName }}</el-descriptions-item>
-              <el-descriptions-item label="手机号">{{ row.receiverPhone }}</el-descriptions-item>
-              <el-descriptions-item label="地址" :span="1">{{ row.receiverAddress }}</el-descriptions-item>
-              <el-descriptions-item v-if="row.trackingNo" label="物流">{{ row.shipCompany }} / {{ row.trackingNo }}</el-descriptions-item>
+            <el-descriptions
+              :column="3"
+              border
+              size="small"
+            >
+              <el-descriptions-item label="订单号">
+                {{ row.orderNo }}
+              </el-descriptions-item>
+              <el-descriptions-item label="买家">
+                {{ row.buyerName }}
+              </el-descriptions-item>
+              <el-descriptions-item label="金额">
+                ¥{{ Number(row.totalAmount || 0).toFixed(2) }}
+              </el-descriptions-item>
+              <el-descriptions-item label="收件人">
+                {{ row.receiverName }}
+              </el-descriptions-item>
+              <el-descriptions-item label="手机号">
+                {{ row.receiverPhone }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="地址"
+                :span="1"
+              >
+                {{ row.receiverAddress }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                v-if="row.trackingNo"
+                label="物流"
+              >
+                {{ row.shipCompany }} / {{ row.trackingNo }}
+              </el-descriptions-item>
             </el-descriptions>
-            <div v-if="row.items?.length" style="margin-top:12px">
-              <h5 style="margin:0 0 8px">商品明细</h5>
-              <el-table :data="row.items" size="small" border>
-                <el-table-column prop="productTitle" label="商品" />
-                <el-table-column prop="price" label="单价" width="100">
-                  <template #default="{ row: item }">¥{{ Number(item.price || 0).toFixed(2) }}</template>
+            <div
+              v-if="row.items?.length"
+              style="margin-top:12px"
+            >
+              <h5 style="margin:0 0 8px">
+                商品明细
+              </h5>
+              <el-table
+                :data="row.items"
+                size="small"
+                border
+              >
+                <el-table-column
+                  prop="productTitle"
+                  label="商品"
+                />
+                <el-table-column
+                  prop="price"
+                  label="单价"
+                  width="100"
+                >
+                  <template #default="{ row: item }">
+                    ¥{{ Number(item.price || 0).toFixed(2) }}
+                  </template>
                 </el-table-column>
-                <el-table-column prop="quantity" label="数量" width="70" />
-                <el-table-column label="小计" width="100">
-                  <template #default="{ row: item }">¥{{ (Number(item.price || 0) * Number(item.quantity || 0)).toFixed(2) }}</template>
+                <el-table-column
+                  prop="quantity"
+                  label="数量"
+                  width="70"
+                />
+                <el-table-column
+                  label="小计"
+                  width="100"
+                >
+                  <template #default="{ row: item }">
+                    ¥{{ (Number(item.price || 0) * Number(item.quantity || 0)).toFixed(2) }}
+                  </template>
                 </el-table-column>
               </el-table>
             </div>
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="orderNo" label="订单号" width="180" show-overflow-tooltip />
-      <el-table-column label="金额" width="100">
-        <template #default="{ row }">¥{{ Number(row.totalAmount || 0).toFixed(2) }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="90">
+      <el-table-column
+        prop="orderNo"
+        label="订单号"
+        width="180"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="金额"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+          ¥{{ Number(row.totalAmount || 0).toFixed(2) }}
         </template>
       </el-table-column>
-      <el-table-column prop="buyerName" label="买家" width="100" />
-      <el-table-column label="下单时间" width="160">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column
+        label="状态"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-button v-if="row.status === 'PAID'" size="small" text type="primary" @click="openShip(row)">发货</el-button>
-          <el-button v-if="row.status === 'REFUNDING'" size="small" text type="success" @click="doApproveRefund(row)">同意退款</el-button>
-          <el-button v-if="row.status === 'REFUNDING'" size="small" text type="danger" @click="openRejectRefund(row)">拒绝退款</el-button>
+          <el-tag
+            :type="statusType(row.status)"
+            size="small"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="buyerName"
+        label="买家"
+        width="100"
+      />
+      <el-table-column
+        label="下单时间"
+        width="160"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="200"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            v-if="row.status === 'PAID'"
+            size="small"
+            text
+            type="primary"
+            @click="openShip(row)"
+          >
+            发货
+          </el-button>
+          <el-button
+            v-if="row.status === 'REFUNDING'"
+            size="small"
+            text
+            type="success"
+            @click="doApproveRefund(row)"
+          >
+            同意退款
+          </el-button>
+          <el-button
+            v-if="row.status === 'REFUNDING'"
+            size="small"
+            text
+            type="danger"
+            @click="openRejectRefund(row)"
+          >
+            拒绝退款
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -68,44 +202,110 @@
       :total="total"
       :page-size="20"
       layout="total, prev, pager, next"
-      @current-change="fetchList"
       style="margin-top:16px;justify-content:flex-end"
+      @current-change="fetchList"
     />
 
     <!-- 发货 -->
-    <el-dialog v-model="shipDialog" title="发货" width="450px">
+    <el-dialog
+      v-model="shipDialog"
+      title="发货"
+      width="450px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="物流公司" required>
-          <el-select v-model="shipForm.company" placeholder="选择物流公司" style="width:100%">
-            <el-option label="顺丰速运" value="顺丰速运" />
-            <el-option label="中通快递" value="中通快递" />
-            <el-option label="圆通速递" value="圆通速递" />
-            <el-option label="申通快递" value="申通快递" />
-            <el-option label="韵达快递" value="韵达快递" />
-            <el-option label="EMS" value="EMS" />
-            <el-option label="京东物流" value="京东物流" />
+        <el-form-item
+          label="物流公司"
+          required
+        >
+          <el-select
+            v-model="shipForm.company"
+            placeholder="选择物流公司"
+            style="width:100%"
+          >
+            <el-option
+              label="顺丰速运"
+              value="顺丰速运"
+            />
+            <el-option
+              label="中通快递"
+              value="中通快递"
+            />
+            <el-option
+              label="圆通速递"
+              value="圆通速递"
+            />
+            <el-option
+              label="申通快递"
+              value="申通快递"
+            />
+            <el-option
+              label="韵达快递"
+              value="韵达快递"
+            />
+            <el-option
+              label="EMS"
+              value="EMS"
+            />
+            <el-option
+              label="京东物流"
+              value="京东物流"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="快递单号" required>
-          <el-input v-model="shipForm.trackingNo" placeholder="请输入快递单号" />
+        <el-form-item
+          label="快递单号"
+          required
+        >
+          <el-input
+            v-model="shipForm.trackingNo"
+            placeholder="请输入快递单号"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="shipDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doShip">确认发货</el-button>
+        <el-button @click="shipDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doShip"
+        >
+          确认发货
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 拒绝退款 -->
-    <el-dialog v-model="rejectDialog" title="拒绝退款" width="450px">
+    <el-dialog
+      v-model="rejectDialog"
+      title="拒绝退款"
+      width="450px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="拒绝原因" required>
-          <el-input v-model="rejectReason" type="textarea" :rows="3" placeholder="请输入拒绝退款原因" />
+        <el-form-item
+          label="拒绝原因"
+          required
+        >
+          <el-input
+            v-model="rejectReason"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入拒绝退款原因"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rejectDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doRejectRefund">确认拒绝</el-button>
+        <el-button @click="rejectDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doRejectRefund"
+        >
+          确认拒绝
+        </el-button>
       </template>
     </el-dialog>
   </div>

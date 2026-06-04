@@ -3,79 +3,255 @@
     <!-- 页头 -->
     <div class="page-header">
       <div class="header-left">
-        <el-button size="small" @click="router.back()">← 返回</el-button>
+        <el-button
+          size="small"
+          @click="router.back()"
+        >
+          ← 返回
+        </el-button>
         <h3>{{ detail?.name || '加载中...' }}</h3>
-        <el-tag v-if="detail" :type="typeTagType" size="small">{{ typeLabel }}</el-tag>
-        <el-tag v-if="detail" :type="statusTagType" size="small" style="margin-left:4px">{{ statusLabel }}</el-tag>
+        <el-tag
+          v-if="detail"
+          :type="typeTagType"
+          size="small"
+        >
+          {{ typeLabel }}
+        </el-tag>
+        <el-tag
+          v-if="detail"
+          :type="statusTagType"
+          size="small"
+          style="margin-left:4px"
+        >
+          {{ statusLabel }}
+        </el-tag>
       </div>
       <div class="header-actions">
-        <el-button size="small" @click="refreshDetail">刷新</el-button>
-        <el-button size="small" type="primary" @click="openEdit">编辑信息</el-button>
-        <el-button v-if="detail?.status === 'ACTIVE'" size="small" type="danger" @click="disableCircle">封禁</el-button>
-        <el-button v-else size="small" type="success" @click="enableCircle">解封</el-button>
+        <el-button
+          size="small"
+          @click="refreshDetail"
+        >
+          刷新
+        </el-button>
+        <el-button
+          size="small"
+          type="primary"
+          @click="openEdit"
+        >
+          编辑信息
+        </el-button>
+        <el-button
+          v-if="detail?.status === 'ACTIVE'"
+          size="small"
+          type="danger"
+          @click="disableCircle"
+        >
+          封禁
+        </el-button>
+        <el-button
+          v-else
+          size="small"
+          type="success"
+          @click="enableCircle"
+        >
+          解封
+        </el-button>
       </div>
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="12" class="stat-row" v-if="detail">
-      <el-col :span="3"><div class="stat-card"><span class="value">{{ detail.memberCount || 0 }}</span><span class="label">成员</span></div></el-col>
-      <el-col :span="3"><div class="stat-card"><span class="value">{{ detail.postCount || 0 }}</span><span class="label">帖子</span></div></el-col>
-      <el-col :span="3"><div class="stat-card"><span class="value">{{ detail.articleCount || dashData?.articleCount || 0 }}</span><span class="label">文章</span></div></el-col>
-      <el-col :span="3"><div class="stat-card"><span class="value">{{ detail.courseCount || dashData?.courseCount || 0 }}</span><span class="label">课程</span></div></el-col>
-      <el-col :span="3"><div class="stat-card"><span class="value">{{ dashData?.totalRevenue || 0 }}</span><span class="label">总收益(元)</span></div></el-col>
-      <el-col :span="3"><div class="stat-card"><span class="value">{{ dashData?.questionCount || 0 }}</span><span class="label">问答</span></div></el-col>
-      <el-col :span="3"><div class="stat-card"><span class="value">{{ dashData?.liveCount || 0 }}</span><span class="label">直播</span></div></el-col>
-      <el-col :span="3"><div class="stat-card"><span class="value" :class="detail.status === 'ACTIVE' ? '' : 'warn'">{{ statusLabel }}</span><span class="label">状态</span></div></el-col>
+    <el-row
+      v-if="detail"
+      :gutter="12"
+      class="stat-row"
+    >
+      <el-col :span="3">
+        <div class="stat-card">
+          <span class="value">{{ detail.memberCount || 0 }}</span><span class="label">成员</span>
+        </div>
+      </el-col>
+      <el-col :span="3">
+        <div class="stat-card">
+          <span class="value">{{ detail.postCount || 0 }}</span><span class="label">帖子</span>
+        </div>
+      </el-col>
+      <el-col :span="3">
+        <div class="stat-card">
+          <span class="value">{{ detail.articleCount || dashData?.articleCount || 0 }}</span><span class="label">文章</span>
+        </div>
+      </el-col>
+      <el-col :span="3">
+        <div class="stat-card">
+          <span class="value">{{ detail.courseCount || dashData?.courseCount || 0 }}</span><span class="label">课程</span>
+        </div>
+      </el-col>
+      <el-col :span="3">
+        <div class="stat-card">
+          <span class="value">{{ dashData?.totalRevenue || 0 }}</span><span class="label">总收益(元)</span>
+        </div>
+      </el-col>
+      <el-col :span="3">
+        <div class="stat-card">
+          <span class="value">{{ dashData?.questionCount || 0 }}</span><span class="label">问答</span>
+        </div>
+      </el-col>
+      <el-col :span="3">
+        <div class="stat-card">
+          <span class="value">{{ dashData?.liveCount || 0 }}</span><span class="label">直播</span>
+        </div>
+      </el-col>
+      <el-col :span="3">
+        <div class="stat-card">
+          <span
+            class="value"
+            :class="detail.status === 'ACTIVE' ? '' : 'warn'"
+          >{{ statusLabel }}</span><span class="label">状态</span>
+        </div>
+      </el-col>
     </el-row>
 
     <!-- Tab 管理 -->
-    <el-card v-if="detail" class="main-tabs">
-      <el-tabs v-model="activeTab" @tab-change="onTabChange">
-        <el-tab-pane label="概览" name="overview" />
-        <el-tab-pane label="成员管理" name="members" />
-        <el-tab-pane label="帖子管理" name="posts" />
-        <el-tab-pane label="文章管理" name="articles" />
-        <el-tab-pane label="课程管理" name="courses" />
-        <el-tab-pane label="付费问答" name="questions" />
-        <el-tab-pane label="直播管理" name="lives" />
-        <el-tab-pane label="达人管理" name="experts" />
-        <el-tab-pane label="收益记录" name="revenue" />
-        <el-tab-pane label="知识库" name="knowledge" />
-        <el-tab-pane label="排行榜" name="ranking" />
-        <el-tab-pane label="设置" name="settings" />
+    <el-card
+      v-if="detail"
+      class="main-tabs"
+    >
+      <el-tabs
+        v-model="activeTab"
+        @tab-change="onTabChange"
+      >
+        <el-tab-pane
+          label="概览"
+          name="overview"
+        />
+        <el-tab-pane
+          label="成员管理"
+          name="members"
+        />
+        <el-tab-pane
+          label="帖子管理"
+          name="posts"
+        />
+        <el-tab-pane
+          label="文章管理"
+          name="articles"
+        />
+        <el-tab-pane
+          label="课程管理"
+          name="courses"
+        />
+        <el-tab-pane
+          label="付费问答"
+          name="questions"
+        />
+        <el-tab-pane
+          label="直播管理"
+          name="lives"
+        />
+        <el-tab-pane
+          label="达人管理"
+          name="experts"
+        />
+        <el-tab-pane
+          label="收益记录"
+          name="revenue"
+        />
+        <el-tab-pane
+          label="知识库"
+          name="knowledge"
+        />
+        <el-tab-pane
+          label="排行榜"
+          name="ranking"
+        />
+        <el-tab-pane
+          label="设置"
+          name="settings"
+        />
       </el-tabs>
 
       <!-- ====== 概览 ====== -->
       <template v-if="activeTab === 'overview'">
         <el-row :gutter="16">
           <el-col :span="12">
-            <div class="section-title">基础信息</div>
-            <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="ID">{{ detail.id }}</el-descriptions-item>
-              <el-descriptions-item label="圈主">{{ detail.owner?.nickname || detail.ownerId }}</el-descriptions-item>
-              <el-descriptions-item label="类型">{{ typeLabel }}</el-descriptions-item>
-              <el-descriptions-item label="价格">¥{{ detail.price || 0 }}</el-descriptions-item>
-              <el-descriptions-item label="押金">¥{{ detail.depositAmount || 0 }}</el-descriptions-item>
-              <el-descriptions-item label="标签">{{ (detail.tags || []).join(' / ') || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="品类">{{ detail.categoryLevel1 || '-' }} / {{ detail.categoryLevel2 || '-' }}</el-descriptions-item>
-              <el-descriptions-item label="分站">{{ detail.stationId || '平台级' }}</el-descriptions-item>
-              <el-descriptions-item label="创建时间">{{ fmtDate(detail.createdAt) }}</el-descriptions-item>
-              <el-descriptions-item label="简介">{{ detail.intro || '-' }}</el-descriptions-item>
+            <div class="section-title">
+              基础信息
+            </div>
+            <el-descriptions
+              :column="1"
+              border
+              size="small"
+            >
+              <el-descriptions-item label="ID">
+                {{ detail.id }}
+              </el-descriptions-item>
+              <el-descriptions-item label="圈主">
+                {{ detail.owner?.nickname || detail.ownerId }}
+              </el-descriptions-item>
+              <el-descriptions-item label="类型">
+                {{ typeLabel }}
+              </el-descriptions-item>
+              <el-descriptions-item label="价格">
+                ¥{{ detail.price || 0 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="押金">
+                ¥{{ detail.depositAmount || 0 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="标签">
+                {{ (detail.tags || []).join(' / ') || '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="品类">
+                {{ detail.categoryLevel1 || '-' }} / {{ detail.categoryLevel2 || '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="分站">
+                {{ detail.stationId || '平台级' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="创建时间">
+                {{ fmtDate(detail.createdAt) }}
+              </el-descriptions-item>
+              <el-descriptions-item label="简介">
+                {{ detail.intro || '-' }}
+              </el-descriptions-item>
             </el-descriptions>
           </el-col>
           <el-col :span="12">
-            <div class="section-title">运营数据</div>
-            <el-descriptions :column="1" border size="small">
-              <el-descriptions-item label="总成员">{{ detail.memberCount || 0 }}</el-descriptions-item>
-              <el-descriptions-item label="总帖子">{{ detail.postCount || 0 }}</el-descriptions-item>
-              <el-descriptions-item label="总文章">{{ dashData?.articleCount || 0 }}</el-descriptions-item>
-              <el-descriptions-item label="总课程">{{ dashData?.courseCount || 0 }}</el-descriptions-item>
-              <el-descriptions-item label="总问答">{{ dashData?.questionCount || 0 }}</el-descriptions-item>
-              <el-descriptions-item label="总收益">¥{{ dashData?.totalRevenue || 0 }}</el-descriptions-item>
-              <el-descriptions-item label="近7日新增">{{ dashData?.recentMembers || 0 }} 成员</el-descriptions-item>
-              <el-descriptions-item label="流失预警">{{ dashData?.churnCount || 0 }} 人</el-descriptions-item>
-              <el-descriptions-item label="待处理提问">{{ dashData?.pendingQuestions || 0 }} 条</el-descriptions-item>
-              <el-descriptions-item label="候选知识">{{ dashData?.knowledgeCandidates || 0 }} 条</el-descriptions-item>
+            <div class="section-title">
+              运营数据
+            </div>
+            <el-descriptions
+              :column="1"
+              border
+              size="small"
+            >
+              <el-descriptions-item label="总成员">
+                {{ detail.memberCount || 0 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="总帖子">
+                {{ detail.postCount || 0 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="总文章">
+                {{ dashData?.articleCount || 0 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="总课程">
+                {{ dashData?.courseCount || 0 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="总问答">
+                {{ dashData?.questionCount || 0 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="总收益">
+                ¥{{ dashData?.totalRevenue || 0 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="近7日新增">
+                {{ dashData?.recentMembers || 0 }} 成员
+              </el-descriptions-item>
+              <el-descriptions-item label="流失预警">
+                {{ dashData?.churnCount || 0 }} 人
+              </el-descriptions-item>
+              <el-descriptions-item label="待处理提问">
+                {{ dashData?.pendingQuestions || 0 }} 条
+              </el-descriptions-item>
+              <el-descriptions-item label="候选知识">
+                {{ dashData?.knowledgeCandidates || 0 }} 条
+              </el-descriptions-item>
             </el-descriptions>
           </el-col>
         </el-row>
@@ -84,240 +260,930 @@
       <!-- ====== 成员管理 ====== -->
       <template v-if="activeTab === 'members'">
         <div class="toolbar-row">
-          <el-input v-model="memberSearch" placeholder="搜索成员昵称/ID" size="small" style="width:200px" clearable @change="fetchMembers" />
-          <el-select v-model="memberRoleFilter" size="small" style="width:120px" clearable @change="fetchMembers" placeholder="角色筛选">
-            <el-option label="圈主" value="OWNER" /><el-option label="合伙人" value="PARTNER" />
-            <el-option label="管理员" value="ADMIN" /><el-option label="嘉宾" value="GUEST" />
-            <el-option label="志愿者" value="VOLUNTEER" /><el-option label="成员" value="MEMBER" />
+          <el-input
+            v-model="memberSearch"
+            placeholder="搜索成员昵称/ID"
+            size="small"
+            style="width:200px"
+            clearable
+            @change="fetchMembers"
+          />
+          <el-select
+            v-model="memberRoleFilter"
+            size="small"
+            style="width:120px"
+            clearable
+            placeholder="角色筛选"
+            @change="fetchMembers"
+          >
+            <el-option
+              label="圈主"
+              value="OWNER"
+            /><el-option
+              label="合伙人"
+              value="PARTNER"
+            />
+            <el-option
+              label="管理员"
+              value="ADMIN"
+            /><el-option
+              label="嘉宾"
+              value="GUEST"
+            />
+            <el-option
+              label="志愿者"
+              value="VOLUNTEER"
+            /><el-option
+              label="成员"
+              value="MEMBER"
+            />
           </el-select>
-          <el-select v-model="memberExpireFilter" size="small" style="width:120px" clearable @change="fetchMembers" placeholder="过期筛选">
-            <el-option label="正常" value="active" /><el-option label="已过期" value="expired" />
+          <el-select
+            v-model="memberExpireFilter"
+            size="small"
+            style="width:120px"
+            clearable
+            placeholder="过期筛选"
+            @change="fetchMembers"
+          >
+            <el-option
+              label="正常"
+              value="active"
+            /><el-option
+              label="已过期"
+              value="expired"
+            />
           </el-select>
-          <el-button size="small" @click="fetchMembers">查询</el-button>
-          <el-button size="small" type="primary" @click="showAddMemberDialog">添加成员</el-button>
+          <el-button
+            size="small"
+            @click="fetchMembers"
+          >
+            查询
+          </el-button>
+          <el-button
+            size="small"
+            type="primary"
+            @click="showAddMemberDialog"
+          >
+            添加成员
+          </el-button>
         </div>
-        <el-table :data="members" stripe size="small" v-loading="memberLoading">
-          <el-table-column label="用户" min-width="160">
-            <template #default="{ row }"><div>{{ row.user?.nickname || '-' }}</div><div class="text-muted" style="font-size:11px">{{ row.userId }}</div></template>
-          </el-table-column>
-          <el-table-column label="角色" width="110">
+        <el-table
+          v-loading="memberLoading"
+          :data="members"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            label="用户"
+            min-width="160"
+          >
             <template #default="{ row }">
-              <el-select :model-value="row.role" size="small" @change="(v: string) => changeRole(row, v)" :disabled="row.role === 'OWNER'">
-                <el-option v-for="r in memberRoles" :key="r.value" :label="r.label" :value="r.value" />
+              <div>{{ row.user?.nickname || '-' }}</div><div
+                class="text-muted"
+                style="font-size:11px"
+              >
+                {{ row.userId }}
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="角色"
+            width="110"
+          >
+            <template #default="{ row }">
+              <el-select
+                :model-value="row.role"
+                size="small"
+                :disabled="row.role === 'OWNER'"
+                @change="(v: string) => changeRole(row, v)"
+              >
+                <el-option
+                  v-for="r in memberRoles"
+                  :key="r.value"
+                  :label="r.label"
+                  :value="r.value"
+                />
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="到期时间" width="160">
+          <el-table-column
+            label="到期时间"
+            width="160"
+          >
             <template #default="{ row }">
-              <span v-if="row.expireAt" :class="{ 'text-danger': new Date(row.expireAt) < new Date() }">{{ fmtDate(row.expireAt) }}</span>
-              <span v-else class="text-muted">永久</span>
+              <span
+                v-if="row.expireAt"
+                :class="{ 'text-danger': new Date(row.expireAt) < new Date() }"
+              >{{ fmtDate(row.expireAt) }}</span>
+              <span
+                v-else
+                class="text-muted"
+              >永久</span>
             </template>
           </el-table-column>
-          <el-table-column label="提问价格" width="100">
-            <template #default="{ row }">{{ row.questionPriceCoin > 0 ? row.questionPriceCoin + '币' : '-' }}</template>
-          </el-table-column>
-          <el-table-column label="连麦价格" width="100">
-            <template #default="{ row }">{{ row.callPricePerMinuteCoin > 0 ? row.callPricePerMinuteCoin + '币/分' : '-' }}</template>
-          </el-table-column>
-          <el-table-column label="加入时间" width="160"><template #default="{ row }">{{ fmtDate(row.joinedAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="150" fixed="right">
+          <el-table-column
+            label="提问价格"
+            width="100"
+          >
             <template #default="{ row }">
-              <el-button size="small" @click="showMemberGroups(row)">分组</el-button>
-              <el-button v-if="row.role !== 'OWNER'" size="small" type="danger" @click="removeMember(row)">移除</el-button>
+              {{ row.questionPriceCoin > 0 ? row.questionPriceCoin + '币' : '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="连麦价格"
+            width="100"
+          >
+            <template #default="{ row }">
+              {{ row.callPricePerMinuteCoin > 0 ? row.callPricePerMinuteCoin + '币/分' : '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="加入时间"
+            width="160"
+          >
+            <template #default="{ row }">
+              {{ fmtDate(row.joinedAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="150"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                @click="showMemberGroups(row)"
+              >
+                分组
+              </el-button>
+              <el-button
+                v-if="row.role !== 'OWNER'"
+                size="small"
+                type="danger"
+                @click="removeMember(row)"
+              >
+                移除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
-        <el-pagination v-model:current-page="memberPage" :total="memberTotal" :page-size="20" layout="total, prev, pager, next" style="margin-top:12px;justify-content:flex-end" @change="fetchMembers" />
+        <el-pagination
+          v-model:current-page="memberPage"
+          :total="memberTotal"
+          :page-size="20"
+          layout="total, prev, pager, next"
+          style="margin-top:12px;justify-content:flex-end"
+          @change="fetchMembers"
+        />
       </template>
 
       <!-- ====== 帖子管理 ====== -->
       <template v-if="activeTab === 'posts'">
         <div class="toolbar-row">
-          <el-select v-model="postFilter" size="small" style="width:120px" @change="fetchPosts" placeholder="类型筛选">
-            <el-option label="全部" value="" /><el-option label="精华帖" value="essence" />
-            <el-option label="置顶帖" value="top" /><el-option label="审核中" value="auditing" />
+          <el-select
+            v-model="postFilter"
+            size="small"
+            style="width:120px"
+            placeholder="类型筛选"
+            @change="fetchPosts"
+          >
+            <el-option
+              label="全部"
+              value=""
+            /><el-option
+              label="精华帖"
+              value="essence"
+            />
+            <el-option
+              label="置顶帖"
+              value="top"
+            /><el-option
+              label="审核中"
+              value="auditing"
+            />
           </el-select>
-          <el-input v-model="postKeyword" size="small" style="width:180px" placeholder="搜索标题/内容" clearable @change="fetchPosts" />
+          <el-input
+            v-model="postKeyword"
+            size="small"
+            style="width:180px"
+            placeholder="搜索标题/内容"
+            clearable
+            @change="fetchPosts"
+          />
         </div>
-        <el-table :data="posts" stripe size="small" v-loading="postLoading">
-          <el-table-column label="标题" min-width="200" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.title || row.content?.slice(0, 50) || '-' }}</template>
-          </el-table-column>
-          <el-table-column label="作者" width="110"><template #default="{ row }">{{ row.user?.nickname || '-' }}</template></el-table-column>
-          <el-table-column label="类型" width="90">
+        <el-table
+          v-loading="postLoading"
+          :data="posts"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            label="标题"
+            min-width="200"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
-              <el-tag size="small" :type="postTypeColor(row.type)">{{ postTypeLabel(row.type) }}</el-tag>
+              {{ row.title || row.content?.slice(0, 50) || '-' }}
             </template>
           </el-table-column>
-          <el-table-column label="状态" width="90">
+          <el-table-column
+            label="作者"
+            width="110"
+          >
             <template #default="{ row }">
-              <el-tag size="small" :type="row.status === 'PUBLISHED' ? 'success' : row.status === 'AUDITING' ? 'warning' : 'info'">{{ row.status === 'PUBLISHED' ? '已发布' : row.status === 'AUDITING' ? '审核中' : row.status === 'DRAFT' ? '草稿' : row.status }}</el-tag>
+              {{ row.user?.nickname || '-' }}
             </template>
           </el-table-column>
-          <el-table-column label="精华/置顶" width="140">
+          <el-table-column
+            label="类型"
+            width="90"
+          >
             <template #default="{ row }">
-              <el-tag v-if="row.isEssence" type="warning" size="small">精华</el-tag>
-              <el-tag v-if="row.isTop" type="danger" size="small" style="margin-left:2px">置顶</el-tag>
-              <span v-if="!row.isEssence && !row.isTop" class="text-muted">-</span>
+              <el-tag
+                size="small"
+                :type="postTypeColor(row.type)"
+              >
+                {{ postTypeLabel(row.type) }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="互动" width="100"><template #default="{ row }">{{ row.likeCount || 0 }}赞 {{ row.commentCount || 0 }}评</template></el-table-column>
-          <el-table-column label="时间" width="150"><template #default="{ row }">{{ fmtDate(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="220" fixed="right">
+          <el-table-column
+            label="状态"
+            width="90"
+          >
             <template #default="{ row }">
-              <el-button size="small" @click="toggleEssence(row)">{{ row.isEssence ? '取消精华' : '精华' }}</el-button>
-              <el-button size="small" @click="toggleTop(row)">{{ row.isTop ? '取消置顶' : '置顶' }}</el-button>
-              <el-button size="small" type="danger" @click="deletePost(row)">删除</el-button>
+              <el-tag
+                size="small"
+                :type="row.status === 'PUBLISHED' ? 'success' : row.status === 'AUDITING' ? 'warning' : 'info'"
+              >
+                {{ row.status === 'PUBLISHED' ? '已发布' : row.status === 'AUDITING' ? '审核中' : row.status === 'DRAFT' ? '草稿' : row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="精华/置顶"
+            width="140"
+          >
+            <template #default="{ row }">
+              <el-tag
+                v-if="row.isEssence"
+                type="warning"
+                size="small"
+              >
+                精华
+              </el-tag>
+              <el-tag
+                v-if="row.isTop"
+                type="danger"
+                size="small"
+                style="margin-left:2px"
+              >
+                置顶
+              </el-tag>
+              <span
+                v-if="!row.isEssence && !row.isTop"
+                class="text-muted"
+              >-</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="互动"
+            width="100"
+          >
+            <template #default="{ row }">
+              {{ row.likeCount || 0 }}赞 {{ row.commentCount || 0 }}评
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="时间"
+            width="150"
+          >
+            <template #default="{ row }">
+              {{ fmtDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="220"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                @click="toggleEssence(row)"
+              >
+                {{ row.isEssence ? '取消精华' : '精华' }}
+              </el-button>
+              <el-button
+                size="small"
+                @click="toggleTop(row)"
+              >
+                {{ row.isTop ? '取消置顶' : '置顶' }}
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                @click="deletePost(row)"
+              >
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
-        <el-pagination v-model:current-page="postPage" :total="postTotal" :page-size="20" layout="total, prev, pager, next" style="margin-top:12px;justify-content:flex-end" @change="fetchPosts" />
+        <el-pagination
+          v-model:current-page="postPage"
+          :total="postTotal"
+          :page-size="20"
+          layout="total, prev, pager, next"
+          style="margin-top:12px;justify-content:flex-end"
+          @change="fetchPosts"
+        />
       </template>
 
       <!-- ====== 文章管理 ====== -->
       <template v-if="activeTab === 'articles'">
         <div class="toolbar-row">
-          <el-select v-model="articleAuditFilter" size="small" style="width:120px" @change="fetchArticles" clearable placeholder="审核筛选">
-            <el-option label="全部" value="" /><el-option label="待审核" value="PENDING" /><el-option label="已通过" value="APPROVED" /><el-option label="已拒绝" value="REJECTED" />
+          <el-select
+            v-model="articleAuditFilter"
+            size="small"
+            style="width:120px"
+            clearable
+            placeholder="审核筛选"
+            @change="fetchArticles"
+          >
+            <el-option
+              label="全部"
+              value=""
+            /><el-option
+              label="待审核"
+              value="PENDING"
+            /><el-option
+              label="已通过"
+              value="APPROVED"
+            /><el-option
+              label="已拒绝"
+              value="REJECTED"
+            />
           </el-select>
         </div>
-        <el-table :data="articles" stripe size="small" v-loading="articleLoading">
-          <el-table-column label="标题" prop="title" min-width="200" show-overflow-tooltip />
-          <el-table-column label="作者" width="110"><template #default="{ row }">{{ row.user?.nickname || '-' }}</template></el-table-column>
-          <el-table-column label="审核" width="90">
+        <el-table
+          v-loading="articleLoading"
+          :data="articles"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            label="标题"
+            prop="title"
+            min-width="200"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="作者"
+            width="110"
+          >
             <template #default="{ row }">
-              <el-tag size="small" :type="row.auditStatus === 'APPROVED' ? 'success' : row.auditStatus === 'REJECTED' ? 'danger' : 'warning'">{{ row.auditStatus === 'APPROVED' ? '通过' : row.auditStatus === 'REJECTED' ? '拒绝' : '待审' }}</el-tag>
+              {{ row.user?.nickname || '-' }}
             </template>
           </el-table-column>
-          <el-table-column label="推首页" width="80"><template #default="{ row }">{{ row.isPushHome ? '是' : '否' }}</template></el-table-column>
-          <el-table-column label="阅读/赞" width="100"><template #default="{ row }">{{ row.viewCount || 0 }} / {{ row.likeCount || 0 }}</template></el-table-column>
-          <el-table-column label="时间" width="150"><template #default="{ row }">{{ fmtDate(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="180" fixed="right">
+          <el-table-column
+            label="审核"
+            width="90"
+          >
             <template #default="{ row }">
-              <el-button v-if="row.auditStatus === 'PENDING'" size="small" type="success" @click="auditArticle(row, 'APPROVED')">通过</el-button>
-              <el-button v-if="row.auditStatus === 'PENDING'" size="small" type="danger" @click="auditArticle(row, 'REJECTED')">拒绝</el-button>
-              <el-button size="small" type="danger" @click="deleteArticle(row)">删除</el-button>
+              <el-tag
+                size="small"
+                :type="row.auditStatus === 'APPROVED' ? 'success' : row.auditStatus === 'REJECTED' ? 'danger' : 'warning'"
+              >
+                {{ row.auditStatus === 'APPROVED' ? '通过' : row.auditStatus === 'REJECTED' ? '拒绝' : '待审' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="推首页"
+            width="80"
+          >
+            <template #default="{ row }">
+              {{ row.isPushHome ? '是' : '否' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="阅读/赞"
+            width="100"
+          >
+            <template #default="{ row }">
+              {{ row.viewCount || 0 }} / {{ row.likeCount || 0 }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="时间"
+            width="150"
+          >
+            <template #default="{ row }">
+              {{ fmtDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="180"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                v-if="row.auditStatus === 'PENDING'"
+                size="small"
+                type="success"
+                @click="auditArticle(row, 'APPROVED')"
+              >
+                通过
+              </el-button>
+              <el-button
+                v-if="row.auditStatus === 'PENDING'"
+                size="small"
+                type="danger"
+                @click="auditArticle(row, 'REJECTED')"
+              >
+                拒绝
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                @click="deleteArticle(row)"
+              >
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
-        <el-pagination v-model:current-page="articlePage" :total="articleTotal" :page-size="20" layout="total, prev, pager, next" style="margin-top:12px;justify-content:flex-end" @change="fetchArticles" />
+        <el-pagination
+          v-model:current-page="articlePage"
+          :total="articleTotal"
+          :page-size="20"
+          layout="total, prev, pager, next"
+          style="margin-top:12px;justify-content:flex-end"
+          @change="fetchArticles"
+        />
       </template>
 
       <!-- ====== 课程管理 ====== -->
       <template v-if="activeTab === 'courses'">
         <div class="toolbar-row">
-          <el-select v-model="courseTypeFilter" size="small" style="width:120px" @change="fetchCourses" clearable placeholder="课程类型">
-            <el-option label="全部" value="" /><el-option label="视频课" value="VIDEO" /><el-option label="音频课" value="AUDIO" />
-            <el-option label="图文课" value="TEXT" /><el-option label="电子书" value="EBOOK" /><el-option label="组合课" value="COMBO" />
+          <el-select
+            v-model="courseTypeFilter"
+            size="small"
+            style="width:120px"
+            clearable
+            placeholder="课程类型"
+            @change="fetchCourses"
+          >
+            <el-option
+              label="全部"
+              value=""
+            /><el-option
+              label="视频课"
+              value="VIDEO"
+            /><el-option
+              label="音频课"
+              value="AUDIO"
+            />
+            <el-option
+              label="图文课"
+              value="TEXT"
+            /><el-option
+              label="电子书"
+              value="EBOOK"
+            /><el-option
+              label="组合课"
+              value="COMBO"
+            />
           </el-select>
-          <el-select v-model="courseAuditFilter" size="small" style="width:100px" @change="fetchCourses" clearable placeholder="审核">
-            <el-option label="全部" value="" /><el-option label="待审" value="PENDING" /><el-option label="通过" value="APPROVED" />
+          <el-select
+            v-model="courseAuditFilter"
+            size="small"
+            style="width:100px"
+            clearable
+            placeholder="审核"
+            @change="fetchCourses"
+          >
+            <el-option
+              label="全部"
+              value=""
+            /><el-option
+              label="待审"
+              value="PENDING"
+            /><el-option
+              label="通过"
+              value="APPROVED"
+            />
           </el-select>
         </div>
-        <el-table :data="courses" stripe size="small" v-loading="courseLoading">
-          <el-table-column label="标题" prop="title" min-width="180" show-overflow-tooltip />
-          <el-table-column label="类型" width="90">
-            <template #default="{ row }">{{ ({ VIDEO: '视频', AUDIO: '音频', TEXT: '图文', EBOOK: '电子书', COMBO: '组合' } as Record<string, string>)[row.type] || row.type }}</template>
-          </el-table-column>
-          <el-table-column label="价格" width="100"><template #default="{ row }">¥{{ row.price || 0 }}</template></el-table-column>
-          <el-table-column label="学生数" width="80"><template #default="{ row }">{{ row.studentCount || 0 }}</template></el-table-column>
-          <el-table-column label="审核" width="80">
-            <template #default="{ row }"><el-tag size="small" :type="row.auditStatus === 'APPROVED' ? 'success' : 'warning'">{{ row.auditStatus === 'APPROVED' ? '通过' : '待审' }}</el-tag></template>
-          </el-table-column>
-          <el-table-column label="时间" width="150"><template #default="{ row }">{{ fmtDate(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="100" fixed="right">
+        <el-table
+          v-loading="courseLoading"
+          :data="courses"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            label="标题"
+            prop="title"
+            min-width="180"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="类型"
+            width="90"
+          >
             <template #default="{ row }">
-              <el-button size="small" type="danger" @click="deleteCourse(row)">删除</el-button>
+              {{ ({ VIDEO: '视频', AUDIO: '音频', TEXT: '图文', EBOOK: '电子书', COMBO: '组合' } as Record<string, string>)[row.type] || row.type }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="价格"
+            width="100"
+          >
+            <template #default="{ row }">
+              ¥{{ row.price || 0 }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="学生数"
+            width="80"
+          >
+            <template #default="{ row }">
+              {{ row.studentCount || 0 }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="审核"
+            width="80"
+          >
+            <template #default="{ row }">
+              <el-tag
+                size="small"
+                :type="row.auditStatus === 'APPROVED' ? 'success' : 'warning'"
+              >
+                {{ row.auditStatus === 'APPROVED' ? '通过' : '待审' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="时间"
+            width="150"
+          >
+            <template #default="{ row }">
+              {{ fmtDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="100"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                type="danger"
+                @click="deleteCourse(row)"
+              >
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
-        <el-pagination v-model:current-page="coursePage" :total="courseTotal" :page-size="20" layout="total, prev, pager, next" style="margin-top:12px;justify-content:flex-end" @change="fetchCourses" />
+        <el-pagination
+          v-model:current-page="coursePage"
+          :total="courseTotal"
+          :page-size="20"
+          layout="total, prev, pager, next"
+          style="margin-top:12px;justify-content:flex-end"
+          @change="fetchCourses"
+        />
       </template>
 
       <!-- ====== 付费问答 ====== -->
       <template v-if="activeTab === 'questions'">
         <div class="toolbar-row">
-          <el-select v-model="questionFilter" size="small" style="width:120px" @change="fetchQuestions" clearable placeholder="状态筛选">
-            <el-option label="全部" value="" /><el-option label="待回答" value="PENDING" />
-            <el-option label="已回答" value="ANSWERED" /><el-option label="已拒绝" value="REJECTED" />
-            <el-option label="已退款" value="REFUNDED" /><el-option label="已过期" value="EXPIRED" />
+          <el-select
+            v-model="questionFilter"
+            size="small"
+            style="width:120px"
+            clearable
+            placeholder="状态筛选"
+            @change="fetchQuestions"
+          >
+            <el-option
+              label="全部"
+              value=""
+            /><el-option
+              label="待回答"
+              value="PENDING"
+            />
+            <el-option
+              label="已回答"
+              value="ANSWERED"
+            /><el-option
+              label="已拒绝"
+              value="REJECTED"
+            />
+            <el-option
+              label="已退款"
+              value="REFUNDED"
+            /><el-option
+              label="已过期"
+              value="EXPIRED"
+            />
           </el-select>
         </div>
-        <el-table :data="questions" stripe size="small" v-loading="questionLoading">
-          <el-table-column label="问题" min-width="200" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.questionTitle || row.question?.slice(0, 60) }}</template>
-          </el-table-column>
-          <el-table-column label="提问者" width="110"><template #default="{ row }">{{ row.asker?.nickname || '-' }}</template></el-table-column>
-          <el-table-column label="回答者" width="110"><template #default="{ row }">{{ row.answerer?.nickname || '-' }}</template></el-table-column>
-          <el-table-column label="价格" width="80"><template #default="{ row }">{{ row.priceCoin }}币</template></el-table-column>
-          <el-table-column label="围观" width="80"><template #default="{ row }">{{ row.peekPriceCoin > 0 ? row.peekPriceCoin + '币/' + (row.peekCount||0) + '人' : '不可围观' }}</template></el-table-column>
-          <el-table-column label="状态" width="90">
-            <template #default="{ row }"><el-tag size="small" :type="questionStatusColor(row.status)">{{ questionStatusLabel(row.status) }}</el-tag></template>
-          </el-table-column>
-          <el-table-column label="时间" width="150"><template #default="{ row }">{{ fmtDate(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="100" fixed="right">
+        <el-table
+          v-loading="questionLoading"
+          :data="questions"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            label="问题"
+            min-width="200"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
-              <el-button v-if="row.status === 'PENDING'" size="small" type="danger" @click="refundQuestion(row)">退款</el-button>
+              {{ row.questionTitle || row.question?.slice(0, 60) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="提问者"
+            width="110"
+          >
+            <template #default="{ row }">
+              {{ row.asker?.nickname || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="回答者"
+            width="110"
+          >
+            <template #default="{ row }">
+              {{ row.answerer?.nickname || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="价格"
+            width="80"
+          >
+            <template #default="{ row }">
+              {{ row.priceCoin }}币
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="围观"
+            width="80"
+          >
+            <template #default="{ row }">
+              {{ row.peekPriceCoin > 0 ? row.peekPriceCoin + '币/' + (row.peekCount||0) + '人' : '不可围观' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-tag
+                size="small"
+                :type="questionStatusColor(row.status)"
+              >
+                {{ questionStatusLabel(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="时间"
+            width="150"
+          >
+            <template #default="{ row }">
+              {{ fmtDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="100"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                v-if="row.status === 'PENDING'"
+                size="small"
+                type="danger"
+                @click="refundQuestion(row)"
+              >
+                退款
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
-        <el-pagination v-model:current-page="questionPage" :total="questionTotal" :page-size="20" layout="total, prev, pager, next" style="margin-top:12px;justify-content:flex-end" @change="fetchQuestions" />
+        <el-pagination
+          v-model:current-page="questionPage"
+          :total="questionTotal"
+          :page-size="20"
+          layout="total, prev, pager, next"
+          style="margin-top:12px;justify-content:flex-end"
+          @change="fetchQuestions"
+        />
       </template>
 
       <!-- ====== 直播管理 ====== -->
       <template v-if="activeTab === 'lives'">
         <div class="toolbar-row">
-          <el-select v-model="liveStatusFilter" size="small" style="width:120px" @change="fetchLives" clearable placeholder="状态筛选">
-            <el-option label="全部" value="" /><el-option label="进行中" value="LIVE" />
-            <el-option label="已结束" value="ENDED" /><el-option label="预约中" value="SCHEDULED" />
+          <el-select
+            v-model="liveStatusFilter"
+            size="small"
+            style="width:120px"
+            clearable
+            placeholder="状态筛选"
+            @change="fetchLives"
+          >
+            <el-option
+              label="全部"
+              value=""
+            /><el-option
+              label="进行中"
+              value="LIVE"
+            />
+            <el-option
+              label="已结束"
+              value="ENDED"
+            /><el-option
+              label="预约中"
+              value="SCHEDULED"
+            />
           </el-select>
         </div>
-        <el-table :data="lives" stripe size="small" v-loading="liveLoading">
-          <el-table-column label="标题" prop="title" min-width="180" show-overflow-tooltip />
-          <el-table-column label="主播" width="110"><template #default="{ row }">{{ row.host?.nickname || '-' }}</template></el-table-column>
-          <el-table-column label="类型" width="90">
-            <template #default="{ row }"><el-tag size="small">{{ row.liveType === 'PAID' ? '付费' : row.liveType === 'VIP' ? 'VIP' : '免费' }}</el-tag></template>
-          </el-table-column>
-          <el-table-column label="状态" width="90">
-            <template #default="{ row }"><el-tag size="small" :type="row.status === 'LIVE' ? 'danger' : row.status === 'SCHEDULED' ? 'warning' : 'info'">{{ ({ LIVE: '进行中', ENDED: '已结束', SCHEDULED: '预约中' } as Record<string, string>)[row.status] || row.status }}</el-tag></template>
-          </el-table-column>
-          <el-table-column label="观看" width="80"><template #default="{ row }">{{ row.viewCount || 0 }}</template></el-table-column>
-          <el-table-column label="时间" width="150"><template #default="{ row }">{{ fmtDate(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="100" fixed="right">
+        <el-table
+          v-loading="liveLoading"
+          :data="lives"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            label="标题"
+            prop="title"
+            min-width="180"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="主播"
+            width="110"
+          >
             <template #default="{ row }">
-              <el-button size="small" type="danger" @click="deleteLive(row)">删除</el-button>
+              {{ row.host?.nickname || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="类型"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-tag size="small">
+                {{ row.liveType === 'PAID' ? '付费' : row.liveType === 'VIP' ? 'VIP' : '免费' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-tag
+                size="small"
+                :type="row.status === 'LIVE' ? 'danger' : row.status === 'SCHEDULED' ? 'warning' : 'info'"
+              >
+                {{ ({ LIVE: '进行中', ENDED: '已结束', SCHEDULED: '预约中' } as Record<string, string>)[row.status] || row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="观看"
+            width="80"
+          >
+            <template #default="{ row }">
+              {{ row.viewCount || 0 }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="时间"
+            width="150"
+          >
+            <template #default="{ row }">
+              {{ fmtDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="100"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                type="danger"
+                @click="deleteLive(row)"
+              >
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
-        <el-pagination v-model:current-page="livePage" :total="liveTotal" :page-size="20" layout="total, prev, pager, next" style="margin-top:12px;justify-content:flex-end" @change="fetchLives" />
+        <el-pagination
+          v-model:current-page="livePage"
+          :total="liveTotal"
+          :page-size="20"
+          layout="total, prev, pager, next"
+          style="margin-top:12px;justify-content:flex-end"
+          @change="fetchLives"
+        />
       </template>
 
       <!-- ====== 达人管理 ====== -->
       <template v-if="activeTab === 'experts'">
-        <el-table :data="experts" stripe size="small" v-loading="expertLoading">
-          <el-table-column label="达人" min-width="150">
-            <template #default="{ row }"><div>{{ row.user?.nickname || '-' }}</div><div class="text-muted" style="font-size:11px">{{ row.userId }}</div></template>
-          </el-table-column>
-          <el-table-column label="角色" width="90"><template #default="{ row }">{{ memberRoleLabel(row.role) }}</template></el-table-column>
-          <el-table-column label="提问价格" width="120">
+        <el-table
+          v-loading="expertLoading"
+          :data="experts"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            label="达人"
+            min-width="150"
+          >
             <template #default="{ row }">
-              <el-input-number v-model="row.questionPriceCoin" :min="0" size="small" style="width:100px" @change="(v: number) => updateExpertPrice(row, 'question', v)" />
+              <div>{{ row.user?.nickname || '-' }}</div><div
+                class="text-muted"
+                style="font-size:11px"
+              >
+                {{ row.userId }}
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="角色"
+            width="90"
+          >
+            <template #default="{ row }">
+              {{ memberRoleLabel(row.role) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="提问价格"
+            width="120"
+          >
+            <template #default="{ row }">
+              <el-input-number
+                v-model="row.questionPriceCoin"
+                :min="0"
+                size="small"
+                style="width:100px"
+                @change="(v: number) => updateExpertPrice(row, 'question', v)"
+              />
               <span style="margin-left:4px">币</span>
             </template>
           </el-table-column>
-          <el-table-column label="超时(小时)" width="120">
+          <el-table-column
+            label="超时(小时)"
+            width="120"
+          >
             <template #default="{ row }">
-              <el-input-number v-model="row.questionTimeoutHours" :min="1" :max="720" size="small" style="width:100px" @change="(v: number) => updateExpertPrice(row, 'timeout', v)" />
+              <el-input-number
+                v-model="row.questionTimeoutHours"
+                :min="1"
+                :max="720"
+                size="small"
+                style="width:100px"
+                @change="(v: number) => updateExpertPrice(row, 'timeout', v)"
+              />
             </template>
           </el-table-column>
-          <el-table-column label="连麦价格" width="120">
+          <el-table-column
+            label="连麦价格"
+            width="120"
+          >
             <template #default="{ row }">
-              <el-input-number v-model="row.callPricePerMinuteCoin" :min="0" size="small" style="width:100px" @change="(v: number) => updateExpertPrice(row, 'call', v)" />
+              <el-input-number
+                v-model="row.callPricePerMinuteCoin"
+                :min="0"
+                size="small"
+                style="width:100px"
+                @change="(v: number) => updateExpertPrice(row, 'call', v)"
+              />
               <span style="margin-left:4px">币/分</span>
             </template>
           </el-table-column>
-          <el-table-column label="可接时段" width="200">
-            <template #default="{ row }">{{ row.callAvailableHours?.length ? row.callAvailableHours.length + '个时段' : '未设置' }}</template>
+          <el-table-column
+            label="可接时段"
+            width="200"
+          >
+            <template #default="{ row }">
+              {{ row.callAvailableHours?.length ? row.callAvailableHours.length + '个时段' : '未设置' }}
+            </template>
           </el-table-column>
         </el-table>
       </template>
@@ -325,46 +1191,215 @@
       <!-- ====== 收益记录 ====== -->
       <template v-if="activeTab === 'revenue'">
         <div class="toolbar-row">
-          <el-select v-model="revenueTypeFilter" size="small" style="width:130px" @change="fetchRevenue" clearable placeholder="收益类型">
-            <el-option label="全部" value="" /><el-option label="入圈费" value="circle_join" />
-            <el-option label="课程" value="course" /><el-option label="商品" value="product" />
-            <el-option label="礼物" value="gift" /><el-option label="知识付费" value="knowledge_revenue" />
+          <el-select
+            v-model="revenueTypeFilter"
+            size="small"
+            style="width:130px"
+            clearable
+            placeholder="收益类型"
+            @change="fetchRevenue"
+          >
+            <el-option
+              label="全部"
+              value=""
+            /><el-option
+              label="入圈费"
+              value="circle_join"
+            />
+            <el-option
+              label="课程"
+              value="course"
+            /><el-option
+              label="商品"
+              value="product"
+            />
+            <el-option
+              label="礼物"
+              value="gift"
+            /><el-option
+              label="知识付费"
+              value="knowledge_revenue"
+            />
           </el-select>
         </div>
-        <el-table :data="revenues" stripe size="small" v-loading="revenueLoading">
-          <el-table-column label="类型" width="100"><template #default="{ row }">{{ revenueTypeLabel(row.type) }}</template></el-table-column>
-          <el-table-column label="来源ID" width="150" show-overflow-tooltip><template #default="{ row }">{{ row.sourceId }}</template></el-table-column>
-          <el-table-column label="原始金额" width="100"><template #default="{ row }">¥{{ row.amount }}</template></el-table-column>
-          <el-table-column label="平台抽成" width="100"><template #default="{ row }">¥{{ row.platformFee }}</template></el-table-column>
-          <el-table-column label="圈主实得" width="100"><template #default="{ row }"><b>¥{{ row.ownerShare }}</b></template></el-table-column>
-          <el-table-column label="分成比例" width="90"><template #default="{ row }">{{ (Number(row.splitRate) * 100).toFixed(0) }}%</template></el-table-column>
-          <el-table-column label="结算" width="80"><template #default="{ row }"><el-tag :type="row.settled ? 'success' : 'warning'" size="small">{{ row.settled ? '已结算' : '未结算' }}</el-tag></template></el-table-column>
-          <el-table-column label="时间" width="150"><template #default="{ row }">{{ fmtDate(row.createdAt) }}</template></el-table-column>
+        <el-table
+          v-loading="revenueLoading"
+          :data="revenues"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            label="类型"
+            width="100"
+          >
+            <template #default="{ row }">
+              {{ revenueTypeLabel(row.type) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="来源ID"
+            width="150"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              {{ row.sourceId }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="原始金额"
+            width="100"
+          >
+            <template #default="{ row }">
+              ¥{{ row.amount }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="平台抽成"
+            width="100"
+          >
+            <template #default="{ row }">
+              ¥{{ row.platformFee }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="圈主实得"
+            width="100"
+          >
+            <template #default="{ row }">
+              <b>¥{{ row.ownerShare }}</b>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="分成比例"
+            width="90"
+          >
+            <template #default="{ row }">
+              {{ (Number(row.splitRate) * 100).toFixed(0) }}%
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="结算"
+            width="80"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.settled ? 'success' : 'warning'"
+                size="small"
+              >
+                {{ row.settled ? '已结算' : '未结算' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="时间"
+            width="150"
+          >
+            <template #default="{ row }">
+              {{ fmtDate(row.createdAt) }}
+            </template>
+          </el-table-column>
         </el-table>
-        <el-pagination v-model:current-page="revenuePage" :total="revenueTotal" :page-size="20" layout="total, prev, pager, next" style="margin-top:12px;justify-content:flex-end" @change="fetchRevenue" />
+        <el-pagination
+          v-model:current-page="revenuePage"
+          :total="revenueTotal"
+          :page-size="20"
+          layout="total, prev, pager, next"
+          style="margin-top:12px;justify-content:flex-end"
+          @change="fetchRevenue"
+        />
       </template>
 
       <!-- ====== 知识库 ====== -->
       <template v-if="activeTab === 'knowledge'">
         <div class="toolbar-row">
-          <el-button size="small" type="primary" @click="syncCircleKnowledge">同步精华帖到知识库</el-button>
-          <el-button size="small" @click="fetchKnowledgeCandidates">刷新候选列表</el-button>
+          <el-button
+            size="small"
+            type="primary"
+            @click="syncCircleKnowledge"
+          >
+            同步精华帖到知识库
+          </el-button>
+          <el-button
+            size="small"
+            @click="fetchKnowledgeCandidates"
+          >
+            刷新候选列表
+          </el-button>
         </div>
-        <el-tabs v-model="knowledgeSubTab" type="card" size="small">
-          <el-tab-pane label="已入库" name="indexed" />
-          <el-tab-pane label="候选中" name="candidates" />
+        <el-tabs
+          v-model="knowledgeSubTab"
+          type="card"
+          size="small"
+        >
+          <el-tab-pane
+            label="已入库"
+            name="indexed"
+          />
+          <el-tab-pane
+            label="候选中"
+            name="candidates"
+          />
         </el-tabs>
-        <el-table :data="knowledgeSubTab === 'candidates' ? knowledgeCandidates : knowledgeItems" stripe size="small" v-loading="knowledgeLoading">
-          <el-table-column label="标题" min-width="200" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.title || row.content?.slice(0, 60) }}</template>
-          </el-table-column>
-          <el-table-column label="来源" width="90"><template #default="{ row }">{{ row.sourceType || '-' }}</template></el-table-column>
-          <el-table-column label="质量分" width="80"><template #default="{ row }">{{ row.qualityScore || row.similarityScore || '-' }}</template></el-table-column>
-          <el-table-column label="时间" width="150"><template #default="{ row }">{{ fmtDate(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="操作" width="140" fixed="right" v-if="knowledgeSubTab === 'candidates'">
+        <el-table
+          v-loading="knowledgeLoading"
+          :data="knowledgeSubTab === 'candidates' ? knowledgeCandidates : knowledgeItems"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            label="标题"
+            min-width="200"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
-              <el-button size="small" type="success" @click="confirmKnowledge(row)">入库</el-button>
-              <el-button size="small" type="danger" @click="rejectKnowledge(row)">拒绝</el-button>
+              {{ row.title || row.content?.slice(0, 60) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="来源"
+            width="90"
+          >
+            <template #default="{ row }">
+              {{ row.sourceType || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="质量分"
+            width="80"
+          >
+            <template #default="{ row }">
+              {{ row.qualityScore || row.similarityScore || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="时间"
+            width="150"
+          >
+            <template #default="{ row }">
+              {{ fmtDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            v-if="knowledgeSubTab === 'candidates'"
+            label="操作"
+            width="140"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                type="success"
+                @click="confirmKnowledge(row)"
+              >
+                入库
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                @click="rejectKnowledge(row)"
+              >
+                拒绝
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -374,22 +1409,92 @@
       <template v-if="activeTab === 'ranking'">
         <el-row :gutter="16">
           <el-col :span="12">
-            <div class="section-title">成员贡献榜</div>
-            <el-table :data="leaderboard" stripe size="small" max-height="450">
-              <el-table-column label="排名" width="60" align="center"><template #default="{ $index }">{{ $index + 1 }}</template></el-table-column>
-              <el-table-column label="成员" min-width="150"><template #default="{ row }">{{ row.nickname || row.userId }}</template></el-table-column>
-              <el-table-column label="发帖" prop="postCount" width="80" align="center" />
-              <el-table-column label="贡献" prop="contributionScore" width="80" align="center" />
+            <div class="section-title">
+              成员贡献榜
+            </div>
+            <el-table
+              :data="leaderboard"
+              stripe
+              size="small"
+              max-height="450"
+            >
+              <el-table-column
+                label="排名"
+                width="60"
+                align="center"
+              >
+                <template #default="{ $index }">
+                  {{ $index + 1 }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                label="成员"
+                min-width="150"
+              >
+                <template #default="{ row }">
+                  {{ row.nickname || row.userId }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                label="发帖"
+                prop="postCount"
+                width="80"
+                align="center"
+              />
+              <el-table-column
+                label="贡献"
+                prop="contributionScore"
+                width="80"
+                align="center"
+              />
             </el-table>
           </el-col>
           <el-col :span="12">
-            <div class="section-title">热门内容</div>
-            <el-table :data="hotContent" stripe size="small" max-height="450">
-              <el-table-column label="排名" width="60" align="center"><template #default="{ $index }">{{ $index + 1 }}</template></el-table-column>
-              <el-table-column label="标题" min-width="180" show-overflow-tooltip><template #default="{ row }">{{ row.title || row.id }}</template></el-table-column>
-              <el-table-column label="点赞" prop="likeCount" width="70" align="center" />
-              <el-table-column label="评论" prop="commentCount" width="70" align="center" />
-              <el-table-column label="热度" prop="hotScore" width="70" align="center" />
+            <div class="section-title">
+              热门内容
+            </div>
+            <el-table
+              :data="hotContent"
+              stripe
+              size="small"
+              max-height="450"
+            >
+              <el-table-column
+                label="排名"
+                width="60"
+                align="center"
+              >
+                <template #default="{ $index }">
+                  {{ $index + 1 }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                label="标题"
+                min-width="180"
+                show-overflow-tooltip
+              >
+                <template #default="{ row }">
+                  {{ row.title || row.id }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                label="点赞"
+                prop="likeCount"
+                width="70"
+                align="center"
+              />
+              <el-table-column
+                label="评论"
+                prop="commentCount"
+                width="70"
+                align="center"
+              />
+              <el-table-column
+                label="热度"
+                prop="hotScore"
+                width="70"
+                align="center"
+              />
             </el-table>
           </el-col>
         </el-row>
@@ -397,106 +1502,286 @@
 
       <!-- ====== 设置 ====== -->
       <template v-if="activeTab === 'settings'">
-        <el-form :model="settingsForm" label-width="120px" size="small">
-          <el-divider content-position="left">基本信息</el-divider>
-          <el-form-item label="圈子名称"><el-input v-model="settingsForm.name" style="width:300px" /></el-form-item>
-          <el-form-item label="封面URL"><el-input v-model="settingsForm.cover" style="width:400px" /></el-form-item>
-          <el-form-item label="简介"><el-input v-model="settingsForm.intro" type="textarea" :rows="3" style="width:400px" /></el-form-item>
+        <el-form
+          :model="settingsForm"
+          label-width="120px"
+          size="small"
+        >
+          <el-divider content-position="left">
+            基本信息
+          </el-divider>
+          <el-form-item label="圈子名称">
+            <el-input
+              v-model="settingsForm.name"
+              style="width:300px"
+            />
+          </el-form-item>
+          <el-form-item label="封面URL">
+            <el-input
+              v-model="settingsForm.cover"
+              style="width:400px"
+            />
+          </el-form-item>
+          <el-form-item label="简介">
+            <el-input
+              v-model="settingsForm.intro"
+              type="textarea"
+              :rows="3"
+              style="width:400px"
+            />
+          </el-form-item>
           <el-form-item label="类型">
             <el-select v-model="settingsForm.type">
-              <el-option label="免费" value="FREE" /><el-option label="一次性付费" value="PAID" /><el-option label="年费制" value="YEARLY" />
+              <el-option
+                label="免费"
+                value="FREE"
+              /><el-option
+                label="一次性付费"
+                value="PAID"
+              /><el-option
+                label="年费制"
+                value="YEARLY"
+              />
             </el-select>
           </el-form-item>
-          <el-form-item v-if="settingsForm.type !== 'FREE'" label="价格(元)">
-            <el-input-number v-model="settingsForm.price" :min="0" :precision="2" />
+          <el-form-item
+            v-if="settingsForm.type !== 'FREE'"
+            label="价格(元)"
+          >
+            <el-input-number
+              v-model="settingsForm.price"
+              :min="0"
+              :precision="2"
+            />
           </el-form-item>
           <el-form-item label="押金(元)">
-            <el-input-number v-model="settingsForm.depositAmount" :min="0" :precision="2" />
+            <el-input-number
+              v-model="settingsForm.depositAmount"
+              :min="0"
+              :precision="2"
+            />
           </el-form-item>
           <el-form-item label="品类">
-            <el-input v-model="settingsForm.categoryLevel1" placeholder="一级品类" style="width:150px" />
-            <el-input v-model="settingsForm.categoryLevel2" placeholder="二级品类" style="width:150px;margin-left:8px" />
+            <el-input
+              v-model="settingsForm.categoryLevel1"
+              placeholder="一级品类"
+              style="width:150px"
+            />
+            <el-input
+              v-model="settingsForm.categoryLevel2"
+              placeholder="二级品类"
+              style="width:150px;margin-left:8px"
+            />
           </el-form-item>
           <el-form-item label="标签">
-            <el-input v-model="settingsForm.tagsStr" placeholder="逗号分隔" style="width:300px" />
+            <el-input
+              v-model="settingsForm.tagsStr"
+              placeholder="逗号分隔"
+              style="width:300px"
+            />
           </el-form-item>
 
-          <el-divider content-position="left">公告</el-divider>
+          <el-divider content-position="left">
+            公告
+          </el-divider>
           <el-form-item label="圈子公告">
-            <el-input v-model="settingsForm.announcement" type="textarea" :rows="3" style="width:400px" placeholder="圈子公告内容，对所有成员展示" />
+            <el-input
+              v-model="settingsForm.announcement"
+              type="textarea"
+              :rows="3"
+              style="width:400px"
+              placeholder="圈子公告内容，对所有成员展示"
+            />
           </el-form-item>
 
-          <el-divider content-position="left">审核设置</el-divider>
+          <el-divider content-position="left">
+            审核设置
+          </el-divider>
           <el-form-item label="发帖审核">
-            <el-switch v-model="settingsForm.postAudit" active-text="先审后发" inactive-text="先发后审" />
+            <el-switch
+              v-model="settingsForm.postAudit"
+              active-text="先审后发"
+              inactive-text="先发后审"
+            />
           </el-form-item>
           <el-form-item label="评论审核">
-            <el-switch v-model="settingsForm.commentAudit" active-text="开启" inactive-text="关闭" />
+            <el-switch
+              v-model="settingsForm.commentAudit"
+              active-text="开启"
+              inactive-text="关闭"
+            />
           </el-form-item>
           <el-form-item label="发言频率限制">
-            <el-input-number v-model="settingsForm.postRateLimit" :min="0" /> 条/小时（0=不限制）
+            <el-input-number
+              v-model="settingsForm.postRateLimit"
+              :min="0"
+            /> 条/小时（0=不限制）
           </el-form-item>
 
-          <el-divider content-position="left">AI 助理</el-divider>
+          <el-divider content-position="left">
+            AI 助理
+          </el-divider>
           <el-form-item label="启用AI助理">
             <el-switch v-model="settingsForm.botEnabled" />
           </el-form-item>
-          <el-form-item v-if="settingsForm.botEnabled" label="助理欢迎语">
-            <el-input v-model="settingsForm.botWelcome" style="width:400px" placeholder="你好，我是圈子的AI助理..." />
+          <el-form-item
+            v-if="settingsForm.botEnabled"
+            label="助理欢迎语"
+          >
+            <el-input
+              v-model="settingsForm.botWelcome"
+              style="width:400px"
+              placeholder="你好，我是圈子的AI助理..."
+            />
           </el-form-item>
 
           <el-form-item>
-            <el-button type="primary" :loading="saving" @click="saveSettings">保存设置</el-button>
+            <el-button
+              type="primary"
+              :loading="saving"
+              @click="saveSettings"
+            >
+              保存设置
+            </el-button>
           </el-form-item>
         </el-form>
       </template>
     </el-card>
 
     <!-- 编辑弹窗（快速编辑） -->
-    <el-dialog v-model="editVisible" title="编辑圈子" width="500px">
-      <el-form :model="editForm" label-width="80px">
-        <el-form-item label="名称"><el-input v-model="editForm.name" /></el-form-item>
-        <el-form-item label="封面URL"><el-input v-model="editForm.cover" /></el-form-item>
-        <el-form-item label="简介"><el-input v-model="editForm.intro" type="textarea" :rows="3" /></el-form-item>
+    <el-dialog
+      v-model="editVisible"
+      title="编辑圈子"
+      width="500px"
+    >
+      <el-form
+        :model="editForm"
+        label-width="80px"
+      >
+        <el-form-item label="名称">
+          <el-input v-model="editForm.name" />
+        </el-form-item>
+        <el-form-item label="封面URL">
+          <el-input v-model="editForm.cover" />
+        </el-form-item>
+        <el-form-item label="简介">
+          <el-input
+            v-model="editForm.intro"
+            type="textarea"
+            :rows="3"
+          />
+        </el-form-item>
         <el-form-item label="类型">
           <el-select v-model="editForm.type">
-            <el-option label="免费" value="FREE" /><el-option label="一次性付费" value="PAID" /><el-option label="年费制" value="YEARLY" />
+            <el-option
+              label="免费"
+              value="FREE"
+            /><el-option
+              label="一次性付费"
+              value="PAID"
+            /><el-option
+              label="年费制"
+              value="YEARLY"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="editForm.type !== 'FREE'" label="价格"><el-input-number v-model="editForm.price" :min="0" :precision="2" /></el-form-item>
-        <el-form-item label="押金"><el-input-number v-model="editForm.depositAmount" :min="0" :precision="2" /></el-form-item>
+        <el-form-item
+          v-if="editForm.type !== 'FREE'"
+          label="价格"
+        >
+          <el-input-number
+            v-model="editForm.price"
+            :min="0"
+            :precision="2"
+          />
+        </el-form-item>
+        <el-form-item label="押金">
+          <el-input-number
+            v-model="editForm.depositAmount"
+            :min="0"
+            :precision="2"
+          />
+        </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveEdit">保存</el-button>
+        <el-button @click="editVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="saveEdit"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 成员分组弹窗 -->
-    <el-dialog v-model="groupVisible" title="成员分组管理" width="500px">
-      <div class="section-title">{{ groupTargetUser?.nickname || groupTargetUser?.userId }}</div>
+    <el-dialog
+      v-model="groupVisible"
+      title="成员分组管理"
+      width="500px"
+    >
+      <div class="section-title">
+        {{ groupTargetUser?.nickname || groupTargetUser?.userId }}
+      </div>
       <el-checkbox-group v-model="groupSelected">
-        <el-checkbox v-for="g in memberGroups" :key="g.id" :label="g.id">{{ g.name }} <span :style="{color: g.color}">●</span> ({{ g._count?.members || 0 }}人)</el-checkbox>
+        <el-checkbox
+          v-for="g in memberGroups"
+          :key="g.id"
+          :label="g.id"
+        >
+          {{ g.name }} <span :style="{color: g.color}">●</span> ({{ g._count?.members || 0 }}人)
+        </el-checkbox>
       </el-checkbox-group>
       <template #footer>
-        <el-button @click="groupVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveMemberGroups">保存</el-button>
+        <el-button @click="groupVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="saveMemberGroups"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 添加成员弹窗 -->
-    <el-dialog v-model="addMemberVisible" title="添加成员" width="400px">
+    <el-dialog
+      v-model="addMemberVisible"
+      title="添加成员"
+      width="400px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="用户ID"><el-input v-model="addMemberForm.userId" placeholder="输入用户ID" /></el-form-item>
+        <el-form-item label="用户ID">
+          <el-input
+            v-model="addMemberForm.userId"
+            placeholder="输入用户ID"
+          />
+        </el-form-item>
         <el-form-item label="角色">
           <el-select v-model="addMemberForm.role">
-            <el-option v-for="r in memberRoles" :key="r.value" :label="r.label" :value="r.value" />
+            <el-option
+              v-for="r in memberRoles"
+              :key="r.value"
+              :label="r.label"
+              :value="r.value"
+            />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="addMemberVisible = false">取消</el-button>
-        <el-button type="primary" @click="addMember">添加</el-button>
+        <el-button @click="addMemberVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="addMember"
+        >
+          添加
+        </el-button>
       </template>
     </el-dialog>
   </div>

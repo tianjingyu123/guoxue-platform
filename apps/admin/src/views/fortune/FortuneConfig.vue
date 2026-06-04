@@ -2,46 +2,109 @@
   <div class="page">
     <div class="header">
       <h2>运势推送配置</h2>
-      <el-button type="primary" @click="handlePushAll" :loading="pushingAll">
+      <el-button
+        type="primary"
+        :loading="pushingAll"
+        @click="handlePushAll"
+      >
         {{ pushingAll ? '推送中...' : '推送全部' }}
       </el-button>
     </div>
 
-    <el-form :inline="true" class="search-bar">
+    <el-form
+      :inline="true"
+      class="search-bar"
+    >
       <el-form-item label="运势类型">
-        <el-select v-model="filterType" placeholder="全部" clearable>
-          <el-option label="每日运势" value="DAILY" />
-          <el-option label="每周运势" value="WEEKLY" />
-          <el-option label="每月运势" value="MONTHLY" />
-          <el-option label="年度运势" value="YEARLY" />
+        <el-select
+          v-model="filterType"
+          placeholder="全部"
+          clearable
+        >
+          <el-option
+            label="每日运势"
+            value="DAILY"
+          />
+          <el-option
+            label="每周运势"
+            value="WEEKLY"
+          />
+          <el-option
+            label="每月运势"
+            value="MONTHLY"
+          />
+          <el-option
+            label="年度运势"
+            value="YEARLY"
+          />
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="fetchList">搜索</el-button>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          搜索
+        </el-button>
       </el-form-item>
     </el-form>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="userId" label="用户ID" width="200" />
-      <el-table-column prop="fortuneType" label="运势类型" width="110">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="userId"
+        label="用户ID"
+        width="200"
+      />
+      <el-table-column
+        prop="fortuneType"
+        label="运势类型"
+        width="110"
+      >
         <template #default="{ row }">
           <el-tag>{{ fortuneTypeLabel(row.fortuneType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="pushChannel" label="推送渠道" width="120">
+      <el-table-column
+        prop="pushChannel"
+        label="推送渠道"
+        width="120"
+      >
         <template #default="{ row }">
           <el-tag>{{ row.pushChannel }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="pushTime" label="推送时间" width="170" />
-      <el-table-column prop="isActive" label="启用状态" width="100">
+      <el-table-column
+        prop="pushTime"
+        label="推送时间"
+        width="170"
+      />
+      <el-table-column
+        prop="isActive"
+        label="启用状态"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.isActive ? 'success' : 'info'">{{ row.isActive ? '启用' : '禁用' }}</el-tag>
+          <el-tag :type="row.isActive ? 'success' : 'info'">
+            {{ row.isActive ? '启用' : '禁用' }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column
+        label="操作"
+        width="120"
+        fixed="right"
+      >
         <template #default="{ row }">
-          <el-button size="small" :type="row.isActive ? 'warning' : 'success'" @click="toggleActive(row)">
+          <el-button
+            size="small"
+            :type="row.isActive ? 'warning' : 'success'"
+            @click="toggleActive(row)"
+          >
             {{ row.isActive ? '禁用' : '启用' }}
           </el-button>
         </template>

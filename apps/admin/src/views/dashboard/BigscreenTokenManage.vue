@@ -2,7 +2,12 @@
   <div class="bigscreen-token">
     <div class="page-header">
       <h2>🔐 对外大屏 Token 管理</h2>
-      <el-button type="primary" @click="showCreate = true">生成新 Token</el-button>
+      <el-button
+        type="primary"
+        @click="showCreate = true"
+      >
+        生成新 Token
+      </el-button>
     </div>
 
     <p class="desc">
@@ -14,91 +19,259 @@
       <template #header>
         <div class="card-header">
           <span>Token 列表</span>
-          <el-button size="small" @click="fetchTokens" :loading="loading">刷新</el-button>
+          <el-button
+            size="small"
+            :loading="loading"
+            @click="fetchTokens"
+          >
+            刷新
+          </el-button>
         </div>
       </template>
-      <el-table :data="tokens" stripe>
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="type" label="大屏类型" width="130">
+      <el-table
+        :data="tokens"
+        stripe
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="60"
+        />
+        <el-table-column
+          prop="type"
+          label="大屏类型"
+          width="130"
+        >
           <template #default="{ row }">
-            <el-tag size="small">{{ TYPE_LABELS[row.type] || row.type }}</el-tag>
+            <el-tag size="small">
+              {{ TYPE_LABELS[row.type] || row.type }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="token" label="Token" min-width="200">
+        <el-table-column
+          prop="token"
+          label="Token"
+          min-width="200"
+        >
           <template #default="{ row }">
             <div class="token-cell">
               <code>{{ row.token?.slice(0, 24) }}...</code>
-              <el-button size="small" text @click="copyToken(row.token)">复制</el-button>
+              <el-button
+                size="small"
+                text
+                @click="copyToken(row.token)"
+              >
+                复制
+              </el-button>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">{{ STATUS_LABELS[row.status] || row.status }}</el-tag>
+            <el-tag
+              :type="statusType(row.status)"
+              size="small"
+            >
+              {{ STATUS_LABELS[row.status] || row.status }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="validHours" label="有效期(h)" width="90" />
-        <el-table-column prop="validFrom" label="生效时间" width="160">
-          <template #default="{ row }">{{ row.validFrom ? formatTime(row.validFrom) : '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="validTo" label="过期时间" width="160">
-          <template #default="{ row }">{{ row.validTo ? formatTime(row.validTo) : '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="ipWhitelist" label="IP白名单" width="140">
-          <template #default="{ row }">{{ row.ipWhitelist || '不限' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column
+          prop="validHours"
+          label="有效期(h)"
+          width="90"
+        />
+        <el-table-column
+          prop="validFrom"
+          label="生效时间"
+          width="160"
+        >
           <template #default="{ row }">
-            <el-button v-if="row.status === 'PENDING'" size="small" type="success" @click="approve(row.id)">审核通过</el-button>
-            <el-button v-if="row.status === 'ACTIVE'" size="small" type="warning" @click="revoke(row.id)">撤销</el-button>
-            <el-button size="small" type="danger" @click="del(row.id)">删除</el-button>
+            {{ row.validFrom ? formatTime(row.validFrom) : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="validTo"
+          label="过期时间"
+          width="160"
+        >
+          <template #default="{ row }">
+            {{ row.validTo ? formatTime(row.validTo) : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="ipWhitelist"
+          label="IP白名单"
+          width="140"
+        >
+          <template #default="{ row }">
+            {{ row.ipWhitelist || '不限' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="200"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              v-if="row.status === 'PENDING'"
+              size="small"
+              type="success"
+              @click="approve(row.id)"
+            >
+              审核通过
+            </el-button>
+            <el-button
+              v-if="row.status === 'ACTIVE'"
+              size="small"
+              type="warning"
+              @click="revoke(row.id)"
+            >
+              撤销
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="del(row.id)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="!loading && tokens.length === 0" description="暂无 Token，请点击「生成新 Token」创建" />
+      <el-empty
+        v-if="!loading && tokens.length === 0"
+        description="暂无 Token，请点击「生成新 Token」创建"
+      />
     </el-card>
 
     <!-- 访问日志 -->
     <el-card style="margin-top:16px">
-      <template #header><span>访问日志</span></template>
-      <el-table :data="logs" stripe size="small" max-height="400">
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="tokenId" label="Token ID" width="80" />
-        <el-table-column prop="ip" label="访问IP" width="140" />
-        <el-table-column prop="userAgent" label="UA" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="duration" label="停留时长(s)" width="100" />
-        <el-table-column prop="createdAt" label="访问时间" width="160">
-          <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
+      <template #header>
+        <span>访问日志</span>
+      </template>
+      <el-table
+        :data="logs"
+        stripe
+        size="small"
+        max-height="400"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="60"
+        />
+        <el-table-column
+          prop="tokenId"
+          label="Token ID"
+          width="80"
+        />
+        <el-table-column
+          prop="ip"
+          label="访问IP"
+          width="140"
+        />
+        <el-table-column
+          prop="userAgent"
+          label="UA"
+          min-width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="duration"
+          label="停留时长(s)"
+          width="100"
+        />
+        <el-table-column
+          prop="createdAt"
+          label="访问时间"
+          width="160"
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.createdAt) }}
+          </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     <!-- 创建对话框 -->
-    <el-dialog v-model="showCreate" title="生成对外大屏 Token" width="520px">
-      <el-form :model="createForm" label-width="100px">
-        <el-form-item label="大屏类型" required>
-          <el-select v-model="createForm.type" style="width:100%">
-            <el-option v-for="t in bigscreenTypes" :key="t.value" :label="t.label" :value="t.value" />
+    <el-dialog
+      v-model="showCreate"
+      title="生成对外大屏 Token"
+      width="520px"
+    >
+      <el-form
+        :model="createForm"
+        label-width="100px"
+      >
+        <el-form-item
+          label="大屏类型"
+          required
+        >
+          <el-select
+            v-model="createForm.type"
+            style="width:100%"
+          >
+            <el-option
+              v-for="t in bigscreenTypes"
+              :key="t.value"
+              :label="t.label"
+              :value="t.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="有效期">
-          <el-select v-model="createForm.validHours" style="width:100%">
-            <el-option label="1 小时" :value="1" />
-            <el-option label="6 小时" :value="6" />
-            <el-option label="12 小时" :value="12" />
-            <el-option label="24 小时" :value="24" />
+          <el-select
+            v-model="createForm.validHours"
+            style="width:100%"
+          >
+            <el-option
+              label="1 小时"
+              :value="1"
+            />
+            <el-option
+              label="6 小时"
+              :value="6"
+            />
+            <el-option
+              label="12 小时"
+              :value="12"
+            />
+            <el-option
+              label="24 小时"
+              :value="24"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="IP白名单">
-          <el-input v-model="createForm.ipWhitelist" placeholder="可选，多个用逗号分隔" />
+          <el-input
+            v-model="createForm.ipWhitelist"
+            placeholder="可选，多个用逗号分隔"
+          />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="createForm.remark" placeholder="用途说明" />
+          <el-input
+            v-model="createForm.remark"
+            placeholder="用途说明"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showCreate = false">取消</el-button>
-        <el-button type="primary" :loading="creating" @click="doCreate">生成</el-button>
+        <el-button @click="showCreate = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="creating"
+          @click="doCreate"
+        >
+          生成
+        </el-button>
       </template>
     </el-dialog>
   </div>

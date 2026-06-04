@@ -1,11 +1,24 @@
 <template>
   <div class="greeting-header">
     <div class="greeting-main">
-      <h2 class="greeting-text">{{ greeting }}，{{ username || '管理员' }}</h2>
-      <p class="greeting-date">{{ dateStr }}</p>
+      <h2 class="greeting-text">
+        {{ greeting }}，{{ username || '管理员' }}
+      </h2>
+      <p class="greeting-date">
+        {{ dateStr }}
+      </p>
     </div>
-    <div class="greeting-extra" v-if="solarTerm">
-      <el-tag type="warning" effect="plain" size="large">今日{{ solarTerm }}</el-tag>
+    <div
+      v-if="solarTerm"
+      class="greeting-extra"
+    >
+      <el-tag
+        type="warning"
+        effect="plain"
+        size="large"
+      >
+        今日{{ solarTerm }}
+      </el-tag>
     </div>
   </div>
 </template>

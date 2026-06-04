@@ -1,36 +1,66 @@
 <template>
   <div class="bigscreen offline">
     <header class="bs-header">
-      <div class="bs-title">线下驿站分布数据大屏</div>
-      <div class="bs-time">{{ nowStr }}</div>
+      <div class="bs-title">
+        线下驿站分布数据大屏
+      </div>
+      <div class="bs-time">
+        {{ nowStr }}
+      </div>
     </header>
 
     <div class="bs-body">
       <!-- 核心指标 -->
       <div class="kpi-bar">
-        <div class="kpi-item"><span class="kpi-label">全国驿站</span><span class="kpi-value blue">{{ data.totalStations || 0 }}</span></div>
-        <div class="kpi-item"><span class="kpi-label">线下课程</span><span class="kpi-value green">{{ data.totalCourses || 0 }}</span></div>
-        <div class="kpi-item"><span class="kpi-label">学员总数</span><span class="kpi-value orange">{{ fmt(data.totalStudents) }}</span></div>
-        <div class="kpi-item"><span class="kpi-label">营收总额</span><span class="kpi-value cyan">¥{{ fmt(data.totalRevenue) }}</span></div>
-        <div class="kpi-item"><span class="kpi-label">订单总数</span><span class="kpi-value purple">{{ data.totalOrders || 0 }}</span></div>
+        <div class="kpi-item">
+          <span class="kpi-label">全国驿站</span><span class="kpi-value blue">{{ data.totalStations || 0 }}</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">线下课程</span><span class="kpi-value green">{{ data.totalCourses || 0 }}</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">学员总数</span><span class="kpi-value orange">{{ fmt(data.totalStudents) }}</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">营收总额</span><span class="kpi-value cyan">¥{{ fmt(data.totalRevenue) }}</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">订单总数</span><span class="kpi-value purple">{{ data.totalOrders || 0 }}</span>
+        </div>
       </div>
 
       <div class="bs-grid-2">
         <!-- 城市分布 -->
         <div class="bs-panel">
           <h3>🏙️ 城市驿站分布</h3>
-          <div ref="cityChartRef" style="height:320px"></div>
+          <div
+            ref="cityChartRef"
+            style="height:320px"
+          />
         </div>
         <!-- 驿站列表 -->
         <div class="bs-panel">
           <h3>📍 驿站列表</h3>
           <div class="station-scroll">
-            <div v-for="s in (data.stations || [])" :key="s.id" class="station-row">
+            <div
+              v-for="s in (data.stations || [])"
+              :key="s.id"
+              class="station-row"
+            >
               <span class="s-name">{{ s.name }}</span>
-              <el-tag size="small" effect="dark">{{ s.city }}</el-tag>
+              <el-tag
+                size="small"
+                effect="dark"
+              >
+                {{ s.city }}
+              </el-tag>
               <span class="s-addr">{{ s.address }}</span>
             </div>
-            <el-empty v-if="!(data.stations?.length)" description="暂无驿站" :image-size="60" />
+            <el-empty
+              v-if="!(data.stations?.length)"
+              description="暂无驿站"
+              :image-size="60"
+            />
           </div>
         </div>
       </div>

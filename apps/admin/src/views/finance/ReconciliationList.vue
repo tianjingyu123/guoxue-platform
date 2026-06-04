@@ -93,93 +93,234 @@ function handleExport() {
     <div class="toolbar">
       <h3>对账记录</h3>
       <div class="toolbar-right">
-        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width:130px" @change="fetchList">
-          <el-option label="全部" value="" />
-          <el-option label="待处理" value="PENDING" />
-          <el-option label="已完成" value="COMPLETED" />
-          <el-option label="失败" value="FAILED" />
+        <el-select
+          v-model="statusFilter"
+          placeholder="状态筛选"
+          clearable
+          style="width:130px"
+          @change="fetchList"
+        >
+          <el-option
+            label="全部"
+            value=""
+          />
+          <el-option
+            label="待处理"
+            value="PENDING"
+          />
+          <el-option
+            label="已完成"
+            value="COMPLETED"
+          />
+          <el-option
+            label="失败"
+            value="FAILED"
+          />
         </el-select>
-        <el-button type="primary" @click="openGenerate">生成对账</el-button>
-        <el-button @click="handleExport">导出CSV</el-button>
+        <el-button
+          type="primary"
+          @click="openGenerate"
+        >
+          生成对账
+        </el-button>
+        <el-button @click="handleExport">
+          导出CSV
+        </el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column label="对账月份" width="120">
-        <template #default="{ row }">{{ row.period || '-' }}</template>
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        label="对账月份"
+        width="120"
+      >
+        <template #default="{ row }">
+          {{ row.period || '-' }}
+        </template>
       </el-table-column>
-      <el-table-column label="总收入" width="130">
-        <template #default="{ row }"><span style="font-weight:600;color:#409eff">{{ formatMoney(row.totalIncome) }}</span></template>
+      <el-table-column
+        label="总收入"
+        width="130"
+      >
+        <template #default="{ row }">
+          <span style="font-weight:600;color:#409eff">{{ formatMoney(row.totalIncome) }}</span>
+        </template>
       </el-table-column>
-      <el-table-column label="平台收入" width="130">
-        <template #default="{ row }">{{ formatMoney(row.platformIncome) }}</template>
+      <el-table-column
+        label="平台收入"
+        width="130"
+      >
+        <template #default="{ row }">
+          {{ formatMoney(row.platformIncome) }}
+        </template>
       </el-table-column>
-      <el-table-column label="分站收入" width="130">
-        <template #default="{ row }">{{ formatMoney(row.stationIncome) }}</template>
+      <el-table-column
+        label="分站收入"
+        width="130"
+      >
+        <template #default="{ row }">
+          {{ formatMoney(row.stationIncome) }}
+        </template>
       </el-table-column>
-      <el-table-column label="差额" width="120">
+      <el-table-column
+        label="差额"
+        width="120"
+      >
         <template #default="{ row }">
           <span :style="{ color: Number(row.difference || 0) !== 0 ? '#f56c6c' : '#67c23a', fontWeight: Number(row.difference || 0) !== 0 ? '600' : 'normal' }">
             {{ formatMoney(row.difference) }}
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="100">
+      <el-table-column
+        label="状态"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+          <el-tag
+            :type="statusTagType(row.status)"
+            size="small"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="生成时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column
+        label="生成时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="viewDetail(row)">详情</el-button>
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="100"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="viewDetail(row)"
+          >
+            详情
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-empty v-if="!loading && list.length === 0" description="暂无对账记录" style="margin-top:40px" />
+    <el-empty
+      v-if="!loading && list.length === 0"
+      description="暂无对账记录"
+      style="margin-top:40px"
+    />
 
     <el-pagination
-      v-model:current-page="page" :total="total" :page-size="pageSize"
-      layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end"
+      v-model:current-page="page"
+      :total="total"
+      :page-size="pageSize"
+      layout="total, prev, pager, next"
+      style="margin-top:16px;justify-content:flex-end"
       @current-change="fetchList"
     />
 
     <!-- 生成对账弹窗 -->
-    <el-dialog v-model="generateVisible" title="生成对账" width="450px">
+    <el-dialog
+      v-model="generateVisible"
+      title="生成对账"
+      width="450px"
+    >
       <el-form label-width="90px">
-        <el-form-item label="对账月份" required>
-          <el-date-picker v-model="form.period" type="month" value-format="YYYY-MM" placeholder="选择对账月份" style="width:100%" />
+        <el-form-item
+          label="对账月份"
+          required
+        >
+          <el-date-picker
+            v-model="form.period"
+            type="month"
+            value-format="YYYY-MM"
+            placeholder="选择对账月份"
+            style="width:100%"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="generateVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doGenerate">生成对账</el-button>
+        <el-button @click="generateVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doGenerate"
+        >
+          生成对账
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="对账详情" width="600px">
-      <el-descriptions v-if="detailData" :column="2" border>
-        <el-descriptions-item label="对账月份" :span="2">{{ detailData.period || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="总收入"><span style="font-weight:600;color:#409eff">{{ formatMoney(detailData.totalIncome) }}</span></el-descriptions-item>
-        <el-descriptions-item label="平台收入">{{ formatMoney(detailData.platformIncome) }}</el-descriptions-item>
-        <el-descriptions-item label="分站收入">{{ formatMoney(detailData.stationIncome) }}</el-descriptions-item>
+    <el-dialog
+      v-model="detailVisible"
+      title="对账详情"
+      width="600px"
+    >
+      <el-descriptions
+        v-if="detailData"
+        :column="2"
+        border
+      >
+        <el-descriptions-item
+          label="对账月份"
+          :span="2"
+        >
+          {{ detailData.period || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="总收入">
+          <span style="font-weight:600;color:#409eff">{{ formatMoney(detailData.totalIncome) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="平台收入">
+          {{ formatMoney(detailData.platformIncome) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="分站收入">
+          {{ formatMoney(detailData.stationIncome) }}
+        </el-descriptions-item>
         <el-descriptions-item label="差额">
           <span :style="{ color: Number(detailData.difference || 0) !== 0 ? '#f56c6c' : '#67c23a', fontWeight: '600' }">{{ formatMoney(detailData.difference) }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="statusTagType(detailData.status)" size="small">{{ statusLabel(detailData.status) }}</el-tag>
+          <el-tag
+            :type="statusTagType(detailData.status)"
+            size="small"
+          >
+            {{ statusLabel(detailData.status) }}
+          </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="订单总数">{{ detailData.orderCount ?? '-' }}</el-descriptions-item>
-        <el-descriptions-item label="对账订单数">{{ detailData.matchedCount ?? '-' }}</el-descriptions-item>
+        <el-descriptions-item label="订单总数">
+          {{ detailData.orderCount ?? '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="对账订单数">
+          {{ detailData.matchedCount ?? '-' }}
+        </el-descriptions-item>
         <el-descriptions-item label="异常订单数">
           <span :style="{ color: (detailData.mismatchCount || 0) > 0 ? '#f56c6c' : '#333' }">{{ detailData.mismatchCount ?? 0 }}</span>
         </el-descriptions-item>
-        <el-descriptions-item label="生成时间" :span="2">{{ formatDate(detailData.createdAt) }}</el-descriptions-item>
-        <el-descriptions-item v-if="detailData.remark" label="备注" :span="2">{{ detailData.remark }}</el-descriptions-item>
+        <el-descriptions-item
+          label="生成时间"
+          :span="2"
+        >
+          {{ formatDate(detailData.createdAt) }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="detailData.remark"
+          label="备注"
+          :span="2"
+        >
+          {{ detailData.remark }}
+        </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
   </div>

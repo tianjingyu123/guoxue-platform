@@ -1,12 +1,27 @@
 <template>
   <div class="error-page">
-    <div class="error-icon">🔒</div>
-    <h1 class="error-code">403</h1>
-    <p class="error-desc">抱歉，您没有权限访问此页面</p>
-    <p class="error-hint">如需开通权限，请联系超级管理员</p>
+    <div class="error-icon">
+      🔒
+    </div>
+    <h1 class="error-code">
+      403
+    </h1>
+    <p class="error-desc">
+      抱歉，您没有权限访问此页面
+    </p>
+    <p class="error-hint">
+      如需开通权限，请联系超级管理员
+    </p>
     <div class="error-actions">
-      <el-button type="primary" @click="$router.push('/dashboard')">返回首页</el-button>
-      <el-button @click="$router.back()">返回上页</el-button>
+      <el-button
+        type="primary"
+        @click="$router.push('/dashboard')"
+      >
+        返回首页
+      </el-button>
+      <el-button @click="$router.back()">
+        返回上页
+      </el-button>
     </div>
   </div>
 </template>

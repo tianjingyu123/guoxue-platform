@@ -1,102 +1,292 @@
 <template>
-  <div class="live-dashboard" v-loading="loading">
+  <div
+    v-loading="loading"
+    class="live-dashboard"
+  >
     <div class="page-header">
       <div>
-        <el-button text @click="$router.back()">← 返回</el-button>
-        <h2 style="display:inline-block;margin:0 0 0 8px;vertical-align:middle">📡 直播间数据大屏</h2>
-        <el-tag v-if="overview.liveStatus" :type="overview.liveStatus === 'LIVING' ? 'danger' : 'info'" size="small" style="margin-left:12px">
+        <el-button
+          text
+          @click="$router.back()"
+        >
+          ← 返回
+        </el-button>
+        <h2 style="display:inline-block;margin:0 0 0 8px;vertical-align:middle">
+          📡 直播间数据大屏
+        </h2>
+        <el-tag
+          v-if="overview.liveStatus"
+          :type="overview.liveStatus === 'LIVING' ? 'danger' : 'info'"
+          size="small"
+          style="margin-left:12px"
+        >
           {{ overview.liveStatus === 'LIVING' ? '直播中' : '已结束' }}
         </el-tag>
       </div>
       <div>
-        <el-button @click="refreshAll" :loading="loading">刷新</el-button>
-        <el-button type="primary" @click="openReport">复盘报告</el-button>
+        <el-button
+          :loading="loading"
+          @click="refreshAll"
+        >
+          刷新
+        </el-button>
+        <el-button
+          type="primary"
+          @click="openReport"
+        >
+          复盘报告
+        </el-button>
       </div>
     </div>
 
     <!-- 核心指标卡片 -->
-    <el-row :gutter="12" class="kpi-row">
-      <el-col :span="4" v-for="card in kpiCards" :key="card.label">
-        <el-card class="kpi-card" shadow="hover">
-          <div class="kpi-label">{{ card.label }}</div>
-          <div class="kpi-value" :style="{ color: card.color }">{{ card.value }}</div>
+    <el-row
+      :gutter="12"
+      class="kpi-row"
+    >
+      <el-col
+        v-for="card in kpiCards"
+        :key="card.label"
+        :span="4"
+      >
+        <el-card
+          class="kpi-card"
+          shadow="hover"
+        >
+          <div class="kpi-label">
+            {{ card.label }}
+          </div>
+          <div
+            class="kpi-value"
+            :style="{ color: card.color }"
+          >
+            {{ card.value }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     <!-- Tab 面板 -->
-    <el-tabs v-model="activeTab" type="border-card">
-      <el-tab-pane label="实时趋势" name="trends">
-        <div class="tab-chart" ref="trendsChartRef" style="height:360px"></div>
+    <el-tabs
+      v-model="activeTab"
+      type="border-card"
+    >
+      <el-tab-pane
+        label="实时趋势"
+        name="trends"
+      >
+        <div
+          ref="trendsChartRef"
+          class="tab-chart"
+          style="height:360px"
+        />
       </el-tab-pane>
-      <el-tab-pane label="商品转化" name="products">
-        <el-table :data="productData" stripe size="small">
-          <el-table-column prop="name" label="商品名称" min-width="160" />
-          <el-table-column prop="price" label="价格" width="100">
-            <template #default="{ row }">¥{{ row.price }}</template>
+      <el-tab-pane
+        label="商品转化"
+        name="products"
+      >
+        <el-table
+          :data="productData"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            prop="name"
+            label="商品名称"
+            min-width="160"
+          />
+          <el-table-column
+            prop="price"
+            label="价格"
+            width="100"
+          >
+            <template #default="{ row }">
+              ¥{{ row.price }}
+            </template>
           </el-table-column>
-          <el-table-column prop="clicks" label="点击次数" width="100" />
-          <el-table-column prop="orders" label="成交订单" width="100" />
-          <el-table-column label="转化率" width="100">
-            <template #default="{ row }">{{ row.clicks > 0 ? (row.orders / row.clicks * 100).toFixed(1) + '%' : '0%' }}</template>
+          <el-table-column
+            prop="clicks"
+            label="点击次数"
+            width="100"
+          />
+          <el-table-column
+            prop="orders"
+            label="成交订单"
+            width="100"
+          />
+          <el-table-column
+            label="转化率"
+            width="100"
+          >
+            <template #default="{ row }">
+              {{ row.clicks > 0 ? (row.orders / row.clicks * 100).toFixed(1) + '%' : '0%' }}
+            </template>
           </el-table-column>
-          <el-table-column prop="revenue" label="成交额" width="120">
-            <template #default="{ row }">¥{{ row.revenue || 0 }}</template>
+          <el-table-column
+            prop="revenue"
+            label="成交额"
+            width="120"
+          >
+            <template #default="{ row }">
+              ¥{{ row.revenue || 0 }}
+            </template>
           </el-table-column>
         </el-table>
-        <el-empty v-if="!productData.length" description="暂无商品数据" />
+        <el-empty
+          v-if="!productData.length"
+          description="暂无商品数据"
+        />
       </el-tab-pane>
-      <el-tab-pane label="观众画像" name="audience">
-        <el-descriptions :column="3" border v-if="audienceData">
-          <el-descriptions-item label="性别分布">{{ audienceData.gender || '--' }}</el-descriptions-item>
-          <el-descriptions-item label="年龄分布">{{ audienceData.age || '--' }}</el-descriptions-item>
-          <el-descriptions-item label="地域分布">{{ audienceData.region || '--' }}</el-descriptions-item>
-          <el-descriptions-item label="兴趣标签">{{ audienceData.interests || '--' }}</el-descriptions-item>
+      <el-tab-pane
+        label="观众画像"
+        name="audience"
+      >
+        <el-descriptions
+          v-if="audienceData"
+          :column="3"
+          border
+        >
+          <el-descriptions-item label="性别分布">
+            {{ audienceData.gender || '--' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="年龄分布">
+            {{ audienceData.age || '--' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="地域分布">
+            {{ audienceData.region || '--' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="兴趣标签">
+            {{ audienceData.interests || '--' }}
+          </el-descriptions-item>
         </el-descriptions>
-        <el-empty v-else description="暂无观众画像" />
+        <el-empty
+          v-else
+          description="暂无观众画像"
+        />
       </el-tab-pane>
-      <el-tab-pane label="互动打赏" name="interactions">
-        <div class="tab-chart" ref="interChartRef" style="height:280px"></div>
+      <el-tab-pane
+        label="互动打赏"
+        name="interactions"
+      >
+        <div
+          ref="interChartRef"
+          class="tab-chart"
+          style="height:280px"
+        />
         <el-divider />
         <h4>打赏排行</h4>
-        <div v-for="(g, i) in (giftRanking || [])" :key="i" class="gift-row">
+        <div
+          v-for="(g, i) in (giftRanking || [])"
+          :key="i"
+          class="gift-row"
+        >
           <span class="g-rank">{{ i + 1 }}</span>
           <span class="g-user">{{ g.userName || g.userId }}</span>
           <span class="g-amount">{{ g.totalCoin || 0 }} 币</span>
         </div>
-        <el-empty v-if="!(giftRanking?.length)" description="暂无打赏" :image-size="60" />
+        <el-empty
+          v-if="!(giftRanking?.length)"
+          description="暂无打赏"
+          :image-size="60"
+        />
       </el-tab-pane>
-      <el-tab-pane label="主播表现" name="host">
-        <el-descriptions :column="2" border v-if="hostData">
-          <el-descriptions-item label="累计讲解时长">{{ hostData.totalDuration || '--' }}</el-descriptions-item>
-          <el-descriptions-item label="讲解商品数">{{ hostData.productCount || 0 }}</el-descriptions-item>
-          <el-descriptions-item label="商品讲解覆盖率">{{ hostData.coverage || '0%' }}</el-descriptions-item>
-          <el-descriptions-item label="平均停留时长">{{ hostData.avgStayDuration || '--' }}</el-descriptions-item>
+      <el-tab-pane
+        label="主播表现"
+        name="host"
+      >
+        <el-descriptions
+          v-if="hostData"
+          :column="2"
+          border
+        >
+          <el-descriptions-item label="累计讲解时长">
+            {{ hostData.totalDuration || '--' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="讲解商品数">
+            {{ hostData.productCount || 0 }}
+          </el-descriptions-item>
+          <el-descriptions-item label="商品讲解覆盖率">
+            {{ hostData.coverage || '0%' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="平均停留时长">
+            {{ hostData.avgStayDuration || '--' }}
+          </el-descriptions-item>
         </el-descriptions>
-        <el-empty v-else description="暂无主播数据" />
+        <el-empty
+          v-else
+          description="暂无主播数据"
+        />
       </el-tab-pane>
     </el-tabs>
 
     <!-- 复盘报告对话框 -->
-    <el-dialog v-model="showReport" title="📋 直播复盘报告" width="720px">
+    <el-dialog
+      v-model="showReport"
+      title="📋 直播复盘报告"
+      width="720px"
+    >
       <div v-if="reportData">
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item v-for="item in reportItems" :key="item.label" :label="item.label">
+        <el-descriptions
+          :column="2"
+          border
+          size="small"
+        >
+          <el-descriptions-item
+            v-for="item in reportItems"
+            :key="item.label"
+            :label="item.label"
+          >
             {{ item.value }}
           </el-descriptions-item>
         </el-descriptions>
         <div style="margin-top:16px;display:flex;gap:8px">
-          <el-button type="primary" size="small" @click="exportReport('pdf')">导出 PDF</el-button>
-          <el-button type="success" size="small" @click="exportReport('excel')">导出 Excel</el-button>
-          <el-button size="small" @click="fetchCompare">与上一场对比</el-button>
+          <el-button
+            type="primary"
+            size="small"
+            @click="exportReport('pdf')"
+          >
+            导出 PDF
+          </el-button>
+          <el-button
+            type="success"
+            size="small"
+            @click="exportReport('excel')"
+          >
+            导出 Excel
+          </el-button>
+          <el-button
+            size="small"
+            @click="fetchCompare"
+          >
+            与上一场对比
+          </el-button>
         </div>
-        <div v-if="compareData" style="margin-top:12px">
+        <div
+          v-if="compareData"
+          style="margin-top:12px"
+        >
           <el-divider>与上一场对比</el-divider>
-          <el-table :data="compareRows" size="small">
-            <el-table-column prop="label" label="指标" width="140" />
-            <el-table-column prop="current" label="本场" />
-            <el-table-column prop="previous" label="上一场" />
-            <el-table-column prop="diff" label="变化" />
+          <el-table
+            :data="compareRows"
+            size="small"
+          >
+            <el-table-column
+              prop="label"
+              label="指标"
+              width="140"
+            />
+            <el-table-column
+              prop="current"
+              label="本场"
+            />
+            <el-table-column
+              prop="previous"
+              label="上一场"
+            />
+            <el-table-column
+              prop="diff"
+              label="变化"
+            />
           </el-table>
         </div>
       </div>

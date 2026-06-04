@@ -2,22 +2,38 @@
   <div class="sms-page">
     <div class="page-header">
       <h3>短信管理</h3>
-      <el-button size="small" @click="refresh">刷新</el-button>
+      <el-button
+        size="small"
+        @click="refresh"
+      >
+        刷新
+      </el-button>
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.total }}</span><span class="label">累计发送</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.total }}</span><span class="label">累计发送</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.today.total }}</span><span class="label">今日发送</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.today.total }}</span><span class="label">今日发送</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.yesterday }}</span><span class="label">昨日发送</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.yesterday }}</span><span class="label">昨日发送</span>
+        </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card"><span class="value">{{ stats.thisMonth }}</span><span class="label">本月发送</span></div>
+        <div class="stat-card">
+          <span class="value">{{ stats.thisMonth }}</span><span class="label">本月发送</span>
+        </div>
       </el-col>
       <el-col :span="4">
         <div class="stat-card success">
@@ -26,7 +42,10 @@
         </div>
       </el-col>
       <el-col :span="4">
-        <div class="stat-card" :class="stats.today.fail > 0 ? 'warn' : ''">
+        <div
+          class="stat-card"
+          :class="stats.today.fail > 0 ? 'warn' : ''"
+        >
           <span class="value">{{ stats.today.fail }}</span>
           <span class="label">今日失败</span>
         </div>
@@ -39,34 +58,87 @@
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span>发送日志</span>
           <div>
-            <el-select v-model="filterStatus" placeholder="状态筛选" clearable size="small" style="width:120px;margin-right:8px" @change="fetchLogs">
-              <el-option label="成功" value="SUCCESS" />
-              <el-option label="失败" value="FAIL" />
+            <el-select
+              v-model="filterStatus"
+              placeholder="状态筛选"
+              clearable
+              size="small"
+              style="width:120px;margin-right:8px"
+              @change="fetchLogs"
+            >
+              <el-option
+                label="成功"
+                value="SUCCESS"
+              />
+              <el-option
+                label="失败"
+                value="FAIL"
+              />
             </el-select>
-            <el-button size="small" @click="fetchLogs">查询</el-button>
+            <el-button
+              size="small"
+              @click="fetchLogs"
+            >
+              查询
+            </el-button>
           </div>
         </div>
       </template>
-      <el-table v-loading="loading" :data="logs" stripe size="small">
-        <el-table-column label="手机号" prop="phone" width="160" />
-        <el-table-column label="场景" width="120">
-          <template #default="{ row }">{{ sceneLabel(row.scene) }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="100">
+      <el-table
+        v-loading="loading"
+        :data="logs"
+        stripe
+        size="small"
+      >
+        <el-table-column
+          label="手机号"
+          prop="phone"
+          width="160"
+        />
+        <el-table-column
+          label="场景"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.status === 'SUCCESS' ? 'success' : 'danger'" size="small">
+            {{ sceneLabel(row.scene) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="状态"
+          width="100"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="row.status === 'SUCCESS' ? 'success' : 'danger'"
+              size="small"
+            >
               {{ row.status === 'SUCCESS' ? '成功' : '失败' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="失败原因" min-width="200" show-overflow-tooltip>
+        <el-table-column
+          label="失败原因"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <span v-if="row.errorMsg" class="text-danger">{{ row.errorMsg }}</span>
-            <span v-else class="text-muted">-</span>
+            <span
+              v-if="row.errorMsg"
+              class="text-danger"
+            >{{ row.errorMsg }}</span>
+            <span
+              v-else
+              class="text-muted"
+            >-</span>
           </template>
         </el-table-column>
-        <el-table-column label="发送时间" width="170">
-          <template #default="{ row }">{{ fmtDate(row.createdAt) }}</template>
+        <el-table-column
+          label="发送时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ fmtDate(row.createdAt) }}
+          </template>
         </el-table-column>
       </el-table>
       <el-pagination

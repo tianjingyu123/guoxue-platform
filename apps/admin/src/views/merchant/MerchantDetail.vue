@@ -1,122 +1,331 @@
 <template>
   <div class="page">
     <div class="header">
-      <el-button text @click="$router.back()"><el-icon><ArrowLeft /></el-icon> 返回</el-button>
-      <h3 v-if="merchant">{{ merchant.shopName }} — 商家详情</h3>
+      <el-button
+        text
+        @click="$router.back()"
+      >
+        <el-icon><ArrowLeft /></el-icon> 返回
+      </el-button>
+      <h3 v-if="merchant">
+        {{ merchant.shopName }} — 商家详情
+      </h3>
     </div>
 
-    <el-tabs v-model="activeTab" v-loading="loading">
+    <el-tabs
+      v-model="activeTab"
+      v-loading="loading"
+    >
       <!-- 标签1: 店铺信息 -->
-      <el-tab-pane label="店铺信息" name="info">
+      <el-tab-pane
+        label="店铺信息"
+        name="info"
+      >
         <el-card v-if="merchant">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="店铺名称">{{ merchant.shopName }}</el-descriptions-item>
-            <el-descriptions-item label="店铺状态">
-              <el-tag :type="statusTagType(merchant.status)">{{ statusLabel(merchant.status) }}</el-tag>
+          <el-descriptions
+            :column="2"
+            border
+          >
+            <el-descriptions-item label="店铺名称">
+              {{ merchant.shopName }}
             </el-descriptions-item>
-            <el-descriptions-item label="联系人">{{ merchant.contactName }}</el-descriptions-item>
-            <el-descriptions-item label="联系电话">{{ merchant.contactPhone }}</el-descriptions-item>
-            <el-descriptions-item label="经营类目">{{ merchant.categoryIds?.join(', ') || '未选择' }}</el-descriptions-item>
-            <el-descriptions-item label="店铺评分">{{ Number(merchant.rating).toFixed(1) }}</el-descriptions-item>
-            <el-descriptions-item label="入驻时间">{{ formatDate(merchant.createdAt) }}</el-descriptions-item>
-            <el-descriptions-item label="开通时间">{{ formatDate(merchant.openedAt) }}</el-descriptions-item>
-            <el-descriptions-item label="店铺简介" :span="2">{{ merchant.shopIntro || '暂无' }}</el-descriptions-item>
-            <el-descriptions-item label="驳回原因" :span="2" v-if="merchant.rejectReason">
+            <el-descriptions-item label="店铺状态">
+              <el-tag :type="statusTagType(merchant.status)">
+                {{ statusLabel(merchant.status) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="联系人">
+              {{ merchant.contactName }}
+            </el-descriptions-item>
+            <el-descriptions-item label="联系电话">
+              {{ merchant.contactPhone }}
+            </el-descriptions-item>
+            <el-descriptions-item label="经营类目">
+              {{ merchant.categoryIds?.join(', ') || '未选择' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="店铺评分">
+              {{ Number(merchant.rating).toFixed(1) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="入驻时间">
+              {{ formatDate(merchant.createdAt) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="开通时间">
+              {{ formatDate(merchant.openedAt) }}
+            </el-descriptions-item>
+            <el-descriptions-item
+              label="店铺简介"
+              :span="2"
+            >
+              {{ merchant.shopIntro || '暂无' }}
+            </el-descriptions-item>
+            <el-descriptions-item
+              v-if="merchant.rejectReason"
+              label="驳回原因"
+              :span="2"
+            >
               <span style="color:red">{{ merchant.rejectReason }}</span>
             </el-descriptions-item>
-            <el-descriptions-item label="审核人">{{ merchant.reviewedBy || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="审核时间">{{ formatDate(merchant.reviewedAt) }}</el-descriptions-item>
-            <el-descriptions-item label="保证金">{{ merchant.depositAmount ? '¥' + Number(merchant.depositAmount).toFixed(2) : '未设置' }}</el-descriptions-item>
-            <el-descriptions-item label="分佣比例">{{ merchant.commissionRate ? (Number(merchant.commissionRate) * 100).toFixed(1) + '%' : '默认' }}</el-descriptions-item>
+            <el-descriptions-item label="审核人">
+              {{ merchant.reviewedBy || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="审核时间">
+              {{ formatDate(merchant.reviewedAt) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="保证金">
+              {{ merchant.depositAmount ? '¥' + Number(merchant.depositAmount).toFixed(2) : '未设置' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="分佣比例">
+              {{ merchant.commissionRate ? (Number(merchant.commissionRate) * 100).toFixed(1) + '%' : '默认' }}
+            </el-descriptions-item>
           </el-descriptions>
 
-          <h4 style="margin:20px 0 12px">资质材料</h4>
-          <el-descriptions :column="3" border>
+          <h4 style="margin:20px 0 12px">
+            资质材料
+          </h4>
+          <el-descriptions
+            :column="3"
+            border
+          >
             <el-descriptions-item label="身份证正面">
-              <el-image v-if="merchant.idCardFront" :src="merchant.idCardFront" style="width:200px;height:120px" fit="contain" preview-teleported />
-              <span v-else class="text-muted">未上传</span>
+              <el-image
+                v-if="merchant.idCardFront"
+                :src="merchant.idCardFront"
+                style="width:200px;height:120px"
+                fit="contain"
+                preview-teleported
+              />
+              <span
+                v-else
+                class="text-muted"
+              >未上传</span>
             </el-descriptions-item>
             <el-descriptions-item label="身份证反面">
-              <el-image v-if="merchant.idCardBack" :src="merchant.idCardBack" style="width:200px;height:120px" fit="contain" preview-teleported />
-              <span v-else class="text-muted">未上传</span>
+              <el-image
+                v-if="merchant.idCardBack"
+                :src="merchant.idCardBack"
+                style="width:200px;height:120px"
+                fit="contain"
+                preview-teleported
+              />
+              <span
+                v-else
+                class="text-muted"
+              >未上传</span>
             </el-descriptions-item>
             <el-descriptions-item label="营业执照">
-              <el-image v-if="merchant.businessLicense" :src="merchant.businessLicense" style="width:200px;height:120px" fit="contain" preview-teleported />
-              <span v-else class="text-muted">未上传</span>
+              <el-image
+                v-if="merchant.businessLicense"
+                :src="merchant.businessLicense"
+                style="width:200px;height:120px"
+                fit="contain"
+                preview-teleported
+              />
+              <span
+                v-else
+                class="text-muted"
+              >未上传</span>
             </el-descriptions-item>
             <el-descriptions-item label="品牌授权书">
-              <el-image v-if="merchant.brandAuth" :src="merchant.brandAuth" style="width:200px;height:120px" fit="contain" preview-teleported />
-              <span v-else class="text-muted">未上传</span>
+              <el-image
+                v-if="merchant.brandAuth"
+                :src="merchant.brandAuth"
+                style="width:200px;height:120px"
+                fit="contain"
+                preview-teleported
+              />
+              <span
+                v-else
+                class="text-muted"
+              >未上传</span>
             </el-descriptions-item>
             <el-descriptions-item label="已签协议">
-              <el-image v-if="merchant.agreementUrl" :src="merchant.agreementUrl" style="width:200px;height:120px" fit="contain" preview-teleported />
-              <span v-else class="text-muted">未签署</span>
+              <el-image
+                v-if="merchant.agreementUrl"
+                :src="merchant.agreementUrl"
+                style="width:200px;height:120px"
+                fit="contain"
+                preview-teleported
+              />
+              <span
+                v-else
+                class="text-muted"
+              >未签署</span>
             </el-descriptions-item>
           </el-descriptions>
 
-          <h4 style="margin:20px 0 12px">关联用户</h4>
-          <el-descriptions v-if="merchant.user" :column="2" border>
-            <el-descriptions-item label="用户昵称">{{ merchant.user.nickname }}</el-descriptions-item>
-            <el-descriptions-item label="手机号">{{ merchant.user.phone || '-' }}</el-descriptions-item>
+          <h4 style="margin:20px 0 12px">
+            关联用户
+          </h4>
+          <el-descriptions
+            v-if="merchant.user"
+            :column="2"
+            border
+          >
+            <el-descriptions-item label="用户昵称">
+              {{ merchant.user.nickname }}
+            </el-descriptions-item>
+            <el-descriptions-item label="手机号">
+              {{ merchant.user.phone || '-' }}
+            </el-descriptions-item>
           </el-descriptions>
 
           <div style="margin-top:20px">
             <template v-if="merchant.status === 'PENDING_REVIEW'">
-              <el-button type="success" @click="openApprove">审核通过</el-button>
-              <el-button type="danger" @click="openReject">审核驳回</el-button>
+              <el-button
+                type="success"
+                @click="openApprove"
+              >
+                审核通过
+              </el-button>
+              <el-button
+                type="danger"
+                @click="openReject"
+              >
+                审核驳回
+              </el-button>
             </template>
             <template v-else-if="merchant.status === 'ACTIVE'">
-              <el-button type="warning" @click="changeStatus('SUSPENDED')">暂停经营</el-button>
-              <el-button type="danger" @click="changeStatus('CLOSED')">关闭店铺</el-button>
+              <el-button
+                type="warning"
+                @click="changeStatus('SUSPENDED')"
+              >
+                暂停经营
+              </el-button>
+              <el-button
+                type="danger"
+                @click="changeStatus('CLOSED')"
+              >
+                关闭店铺
+              </el-button>
             </template>
             <template v-else-if="merchant.status === 'SUSPENDED'">
-              <el-button type="success" @click="changeStatus('ACTIVE')">恢复经营</el-button>
+              <el-button
+                type="success"
+                @click="changeStatus('ACTIVE')"
+              >
+                恢复经营
+              </el-button>
             </template>
-            <el-button @click="openCommission">设置分佣比例</el-button>
+            <el-button @click="openCommission">
+              设置分佣比例
+            </el-button>
           </div>
         </el-card>
       </el-tab-pane>
 
       <!-- 标签2: 经营数据 -->
-      <el-tab-pane label="经营数据" name="stats">
-        <div class="stats-row" v-if="stats">
-          <el-statistic title="累计销售额" :value="Number(stats.totalSales)" prefix="¥" :precision="2" />
-          <el-statistic title="累计订单数" :value="stats.totalOrders" />
-          <el-statistic title="违规次数" :value="stats.violationCount" />
+      <el-tab-pane
+        label="经营数据"
+        name="stats"
+      >
+        <div
+          v-if="stats"
+          class="stats-row"
+        >
+          <el-statistic
+            title="累计销售额"
+            :value="Number(stats.totalSales)"
+            prefix="¥"
+            :precision="2"
+          />
+          <el-statistic
+            title="累计订单数"
+            :value="stats.totalOrders"
+          />
+          <el-statistic
+            title="违规次数"
+            :value="stats.violationCount"
+          />
         </div>
-        <el-empty v-else description="暂无数据" />
+        <el-empty
+          v-else
+          description="暂无数据"
+        />
       </el-tab-pane>
 
       <!-- 标签3: 违规记录 -->
-      <el-tab-pane label="违规记录" name="violations">
+      <el-tab-pane
+        label="违规记录"
+        name="violations"
+      >
         <div style="margin-bottom:12px">
-          <el-button type="primary" size="small" @click="openViolationDialog">新建违规</el-button>
+          <el-button
+            type="primary"
+            size="small"
+            @click="openViolationDialog"
+          >
+            新建违规
+          </el-button>
         </div>
-        <el-table :data="violations" stripe>
-          <el-table-column label="程度" width="80">
+        <el-table
+          :data="violations"
+          stripe
+        >
+          <el-table-column
+            label="程度"
+            width="80"
+          >
             <template #default="{ row }">
-              <el-tag :type="violationTagType(row.type)">{{ violationTypeLabel(row.type) }}</el-tag>
+              <el-tag :type="violationTagType(row.type)">
+                {{ violationTypeLabel(row.type) }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="title" label="标题" min-width="150" />
-          <el-table-column label="处罚金额" width="100">
-            <template #default="{ row }">{{ row.penalty ? '¥' + Number(row.penalty).toFixed(2) : '-' }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="90">
+          <el-table-column
+            prop="title"
+            label="标题"
+            min-width="150"
+          />
+          <el-table-column
+            label="处罚金额"
+            width="100"
+          >
             <template #default="{ row }">
-              <el-tag :type="row.status === 'CONFIRMED' ? 'danger' : row.status === 'DISMISSED' ? 'info' : 'warning'" size="small">
+              {{ row.penalty ? '¥' + Number(row.penalty).toFixed(2) : '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.status === 'CONFIRMED' ? 'danger' : row.status === 'DISMISSED' ? 'info' : 'warning'"
+                size="small"
+              >
                 {{ row.status === 'CONFIRMED' ? '已确认' : row.status === 'DISMISSED' ? '已驳回' : '待处理' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="创建时间" width="160">
-            <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+          <el-table-column
+            label="创建时间"
+            width="160"
+          >
+            <template #default="{ row }">
+              {{ formatDate(row.createdAt) }}
+            </template>
           </el-table-column>
-          <el-table-column label="操作" width="160" v-if="violations.some(v => v.status === 'PENDING')">
+          <el-table-column
+            v-if="violations.some(v => v.status === 'PENDING')"
+            label="操作"
+            width="160"
+          >
             <template #default="{ row }">
               <template v-if="row.status === 'PENDING'">
-                <el-button type="success" size="small" @click="handleViolationAction(row.id, 'CONFIRMED')">确认</el-button>
-                <el-button type="info" size="small" @click="handleViolationAction(row.id, 'DISMISSED')">驳回</el-button>
+                <el-button
+                  type="success"
+                  size="small"
+                  @click="handleViolationAction(row.id, 'CONFIRMED')"
+                >
+                  确认
+                </el-button>
+                <el-button
+                  type="info"
+                  size="small"
+                  @click="handleViolationAction(row.id, 'DISMISSED')"
+                >
+                  驳回
+                </el-button>
               </template>
             </template>
           </el-table-column>
@@ -124,69 +333,178 @@
       </el-tab-pane>
 
       <!-- 标签4: 保证金 -->
-      <el-tab-pane label="保证金记录" name="deposits">
+      <el-tab-pane
+        label="保证金记录"
+        name="deposits"
+      >
         <div style="margin-bottom:12px">
-          <el-button type="primary" size="small" @click="openRefund">退还保证金</el-button>
-          <el-button size="small" @click="openAdjust">调整保证金</el-button>
+          <el-button
+            type="primary"
+            size="small"
+            @click="openRefund"
+          >
+            退还保证金
+          </el-button>
+          <el-button
+            size="small"
+            @click="openAdjust"
+          >
+            调整保证金
+          </el-button>
         </div>
-        <el-table :data="deposits" stripe>
-          <el-table-column label="类型" width="90">
-            <template #default="{ row }">{{ depositTypeLabel(row.type) }}</template>
-          </el-table-column>
-          <el-table-column label="金额" width="120">
-            <template #default="{ row }">¥{{ Number(row.amount).toFixed(2) }}</template>
-          </el-table-column>
-          <el-table-column prop="payMethod" label="支付方式" width="100" />
-          <el-table-column label="状态" width="90">
+        <el-table
+          :data="deposits"
+          stripe
+        >
+          <el-table-column
+            label="类型"
+            width="90"
+          >
             <template #default="{ row }">
-              <el-tag :type="row.status === 'SUCCESS' ? 'success' : row.status === 'FAILED' ? 'danger' : 'warning'" size="small">
+              {{ depositTypeLabel(row.type) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="金额"
+            width="120"
+          >
+            <template #default="{ row }">
+              ¥{{ Number(row.amount).toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="payMethod"
+            label="支付方式"
+            width="100"
+          />
+          <el-table-column
+            label="状态"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.status === 'SUCCESS' ? 'success' : row.status === 'FAILED' ? 'danger' : 'warning'"
+                size="small"
+              >
                 {{ row.status === 'SUCCESS' ? '成功' : row.status === 'FAILED' ? '失败' : '处理中' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="remark" label="备注" min-width="150" />
-          <el-table-column label="时间" width="160">
-            <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+          <el-table-column
+            prop="remark"
+            label="备注"
+            min-width="150"
+          />
+          <el-table-column
+            label="时间"
+            width="160"
+          >
+            <template #default="{ row }">
+              {{ formatDate(row.createdAt) }}
+            </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
       <!-- 标签5: 结算记录 -->
-      <el-tab-pane label="结算记录" name="settlements">
+      <el-tab-pane
+        label="结算记录"
+        name="settlements"
+      >
         <div style="margin-bottom:12px">
-          <el-button type="primary" size="small" @click="openSettleDialog">生成结算单</el-button>
+          <el-button
+            type="primary"
+            size="small"
+            @click="openSettleDialog"
+          >
+            生成结算单
+          </el-button>
         </div>
-        <el-table :data="settlements" stripe>
-          <el-table-column label="结算周期" min-width="200">
-            <template #default="{ row }">{{ formatDate(row.periodStart) }} ~ {{ formatDate(row.periodEnd) }}</template>
-          </el-table-column>
-          <el-table-column label="订单数" width="80">
-            <template #default="{ row }">{{ row.orderCount }}</template>
-          </el-table-column>
-          <el-table-column label="总营收" width="110">
-            <template #default="{ row }">¥{{ (row.totalRevenue / 100).toFixed(2) }}</template>
-          </el-table-column>
-          <el-table-column label="平台抽成" width="110">
-            <template #default="{ row }">¥{{ (row.commission / 100).toFixed(2) }}</template>
-          </el-table-column>
-          <el-table-column label="结算金额" width="110">
-            <template #default="{ row }">¥{{ (row.settlementAmount / 100).toFixed(2) }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="90">
+        <el-table
+          :data="settlements"
+          stripe
+        >
+          <el-table-column
+            label="结算周期"
+            min-width="200"
+          >
             <template #default="{ row }">
-              <el-tag :type="row.status === 'PAID' ? 'success' : row.status === 'CANCELLED' ? 'info' : 'warning'" size="small">
+              {{ formatDate(row.periodStart) }} ~ {{ formatDate(row.periodEnd) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="订单数"
+            width="80"
+          >
+            <template #default="{ row }">
+              {{ row.orderCount }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="总营收"
+            width="110"
+          >
+            <template #default="{ row }">
+              ¥{{ (row.totalRevenue / 100).toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="平台抽成"
+            width="110"
+          >
+            <template #default="{ row }">
+              ¥{{ (row.commission / 100).toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="结算金额"
+            width="110"
+          >
+            <template #default="{ row }">
+              ¥{{ (row.settlementAmount / 100).toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.status === 'PAID' ? 'success' : row.status === 'CANCELLED' ? 'info' : 'warning'"
+                size="small"
+              >
                 {{ row.status === 'PAID' ? '已支付' : row.status === 'CANCELLED' ? '已取消' : '待支付' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="支付时间" width="160">
-            <template #default="{ row }">{{ formatDate(row.paidAt) }}</template>
+          <el-table-column
+            label="支付时间"
+            width="160"
+          >
+            <template #default="{ row }">
+              {{ formatDate(row.paidAt) }}
+            </template>
           </el-table-column>
-          <el-table-column label="操作" width="160">
+          <el-table-column
+            label="操作"
+            width="160"
+          >
             <template #default="{ row }">
               <template v-if="row.status === 'PENDING'">
-                <el-button type="success" size="small" @click="openPaySettle(row.id)">标记支付</el-button>
-                <el-button type="info" size="small" @click="doCancelSettlement(row.id)">取消</el-button>
+                <el-button
+                  type="success"
+                  size="small"
+                  @click="openPaySettle(row.id)"
+                >
+                  标记支付
+                </el-button>
+                <el-button
+                  type="info"
+                  size="small"
+                  @click="doCancelSettlement(row.id)"
+                >
+                  取消
+                </el-button>
               </template>
             </template>
           </el-table-column>
@@ -195,141 +513,348 @@
     </el-tabs>
 
     <!-- 审核通过对话框 -->
-    <el-dialog v-model="approveDialog" title="审核通过" width="500px">
-      <el-form :model="approveForm" label-width="100px">
+    <el-dialog
+      v-model="approveDialog"
+      title="审核通过"
+      width="500px"
+    >
+      <el-form
+        :model="approveForm"
+        label-width="100px"
+      >
         <el-form-item label="保证金金额">
-          <el-input-number v-model="approveForm.depositAmount" :min="0" :precision="2" style="width:100%" />
+          <el-input-number
+            v-model="approveForm.depositAmount"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+          />
         </el-form-item>
         <el-form-item label="分佣比例">
-          <el-input-number v-model="approveForm.commissionRate" :min="0" :max="1" :step="0.01" :precision="4" style="width:100%" />
+          <el-input-number
+            v-model="approveForm.commissionRate"
+            :min="0"
+            :max="1"
+            :step="0.01"
+            :precision="4"
+            style="width:100%"
+          />
         </el-form-item>
         <el-form-item label="内部备注">
-          <el-input v-model="approveForm.remark" type="textarea" :rows="2" />
+          <el-input
+            v-model="approveForm.remark"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="approveDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doApprove">确认通过</el-button>
+        <el-button @click="approveDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doApprove"
+        >
+          确认通过
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 驳回对话框 -->
-    <el-dialog v-model="rejectDialog" title="审核驳回" width="500px">
+    <el-dialog
+      v-model="rejectDialog"
+      title="审核驳回"
+      width="500px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="驳回原因" required>
-          <el-input v-model="rejectReason" type="textarea" :rows="3" />
+        <el-form-item
+          label="驳回原因"
+          required
+        >
+          <el-input
+            v-model="rejectReason"
+            type="textarea"
+            :rows="3"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rejectDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doReject">确认驳回</el-button>
+        <el-button @click="rejectDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doReject"
+        >
+          确认驳回
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 违规对话框 -->
-    <el-dialog v-model="violationDialog" title="新建违规记录" width="500px">
-      <el-form :model="violationForm" label-width="80px">
-        <el-form-item label="违规程度" required>
-          <el-select v-model="violationForm.type" style="width:100%">
-            <el-option label="轻微" value="MINOR" />
-            <el-option label="中等" value="MODERATE" />
-            <el-option label="严重" value="SEVERE" />
+    <el-dialog
+      v-model="violationDialog"
+      title="新建违规记录"
+      width="500px"
+    >
+      <el-form
+        :model="violationForm"
+        label-width="80px"
+      >
+        <el-form-item
+          label="违规程度"
+          required
+        >
+          <el-select
+            v-model="violationForm.type"
+            style="width:100%"
+          >
+            <el-option
+              label="轻微"
+              value="MINOR"
+            />
+            <el-option
+              label="中等"
+              value="MODERATE"
+            />
+            <el-option
+              label="严重"
+              value="SEVERE"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="违规标题" required>
+        <el-form-item
+          label="违规标题"
+          required
+        >
           <el-input v-model="violationForm.title" />
         </el-form-item>
-        <el-form-item label="违规描述" required>
-          <el-input v-model="violationForm.description" type="textarea" :rows="3" />
+        <el-form-item
+          label="违规描述"
+          required
+        >
+          <el-input
+            v-model="violationForm.description"
+            type="textarea"
+            :rows="3"
+          />
         </el-form-item>
         <el-form-item label="罚款金额">
-          <el-input-number v-model="violationForm.penalty" :min="0" :precision="2" style="width:100%" />
+          <el-input-number
+            v-model="violationForm.penalty"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+          />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="violationForm.remark" type="textarea" :rows="2" />
+          <el-input
+            v-model="violationForm.remark"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="violationDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doCreateViolation">确认</el-button>
+        <el-button @click="violationDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doCreateViolation"
+        >
+          确认
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 保证金退还对话框 -->
-    <el-dialog v-model="refundDialog" title="退还保证金" width="400px">
+    <el-dialog
+      v-model="refundDialog"
+      title="退还保证金"
+      width="400px"
+    >
       <el-form label-width="80px">
         <el-form-item label="退还金额">
-          <el-input-number v-model="refundAmount" :min="0" :precision="2" style="width:100%" />
+          <el-input-number
+            v-model="refundAmount"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+          />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="refundRemark" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="refundDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doRefund">确认退还</el-button>
+        <el-button @click="refundDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doRefund"
+        >
+          确认退还
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 保证金调整对话框 -->
-    <el-dialog v-model="adjustDialog" title="调整保证金" width="400px">
+    <el-dialog
+      v-model="adjustDialog"
+      title="调整保证金"
+      width="400px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="新金额" required>
-          <el-input-number v-model="adjustAmount" :min="0" :precision="2" style="width:100%" />
+        <el-form-item
+          label="新金额"
+          required
+        >
+          <el-input-number
+            v-model="adjustAmount"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+          />
         </el-form-item>
         <el-form-item label="调整原因">
-          <el-input v-model="adjustReason" type="textarea" :rows="2" />
+          <el-input
+            v-model="adjustReason"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="adjustDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doAdjust">确认调整</el-button>
+        <el-button @click="adjustDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doAdjust"
+        >
+          确认调整
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 生成结算单对话框 -->
-    <el-dialog v-model="settleDialog" title="生成结算单" width="450px">
+    <el-dialog
+      v-model="settleDialog"
+      title="生成结算单"
+      width="450px"
+    >
       <el-form label-width="100px">
-        <el-form-item label="结算周期起始" required>
-          <el-date-picker v-model="settleForm.periodStart" type="date" placeholder="选择起始日期" style="width:100%" />
+        <el-form-item
+          label="结算周期起始"
+          required
+        >
+          <el-date-picker
+            v-model="settleForm.periodStart"
+            type="date"
+            placeholder="选择起始日期"
+            style="width:100%"
+          />
         </el-form-item>
-        <el-form-item label="结算周期截止" required>
-          <el-date-picker v-model="settleForm.periodEnd" type="date" placeholder="选择截止日期" style="width:100%" />
+        <el-form-item
+          label="结算周期截止"
+          required
+        >
+          <el-date-picker
+            v-model="settleForm.periodEnd"
+            type="date"
+            placeholder="选择截止日期"
+            style="width:100%"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="settleDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doGenerateSettlement">生成</el-button>
+        <el-button @click="settleDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doGenerateSettlement"
+        >
+          生成
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 标记结算支付对话框 -->
-    <el-dialog v-model="paySettleDialog" title="标记结算已支付" width="400px">
+    <el-dialog
+      v-model="paySettleDialog"
+      title="标记结算已支付"
+      width="400px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="支付金额" required>
-          <el-input-number v-model="paySettleAmount" :min="0" :precision="2" style="width:100%" />
+        <el-form-item
+          label="支付金额"
+          required
+        >
+          <el-input-number
+            v-model="paySettleAmount"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+          />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="paySettleRemark" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="paySettleDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doPaySettlement">确认</el-button>
+        <el-button @click="paySettleDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doPaySettlement"
+        >
+          确认
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 分佣比例对话框 -->
-    <el-dialog v-model="commissionDialog" title="设置分佣比例" width="400px">
+    <el-dialog
+      v-model="commissionDialog"
+      title="设置分佣比例"
+      width="400px"
+    >
       <el-form label-width="100px">
         <el-form-item label="商家分佣比例">
-          <el-input-number v-model="commissionRate" :min="0" :max="1" :step="0.01" :precision="4" style="width:100%" />
+          <el-input-number
+            v-model="commissionRate"
+            :min="0"
+            :max="1"
+            :step="0.01"
+            :precision="4"
+            style="width:100%"
+          />
           <span style="margin-left:8px;color:#999">商家得 {{ (commissionRate * 100).toFixed(1) }}%</span>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="commissionDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doSetCommission">确认</el-button>
+        <el-button @click="commissionDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doSetCommission"
+        >
+          确认
+        </el-button>
       </template>
     </el-dialog>
   </div>

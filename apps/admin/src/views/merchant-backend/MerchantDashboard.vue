@@ -2,18 +2,40 @@
   <div class="page">
     <div class="page-header">
       <h3>数据概览</h3>
-      <span class="shop-name" v-if="shopName">{{ shopName }}</span>
+      <span
+        v-if="shopName"
+        class="shop-name"
+      >{{ shopName }}</span>
     </div>
 
-    <el-row :gutter="16" v-loading="loading">
-      <el-col :span="4" v-for="card in cards" :key="card.label">
-        <el-card class="stat-card" shadow="hover">
-          <div class="stat-icon" :style="{ background: card.bg }">
-            <el-icon :size="24"><component :is="card.icon" /></el-icon>
+    <el-row
+      v-loading="loading"
+      :gutter="16"
+    >
+      <el-col
+        v-for="card in cards"
+        :key="card.label"
+        :span="4"
+      >
+        <el-card
+          class="stat-card"
+          shadow="hover"
+        >
+          <div
+            class="stat-icon"
+            :style="{ background: card.bg }"
+          >
+            <el-icon :size="24">
+              <component :is="card.icon" />
+            </el-icon>
           </div>
           <div class="stat-body">
-            <div class="stat-value">{{ card.value }}</div>
-            <div class="stat-label">{{ card.label }}</div>
+            <div class="stat-value">
+              {{ card.value }}
+            </div>
+            <div class="stat-label">
+              {{ card.label }}
+            </div>
           </div>
         </el-card>
       </el-col>

@@ -3,17 +3,34 @@
     <div class="page-header">
       <h2>运营机器人管理</h2>
       <div>
-        <el-button type="primary" :loading="initializing" @click="doInit">重新初始化</el-button>
-        <el-button @click="fetchStatus">刷新</el-button>
+        <el-button
+          type="primary"
+          :loading="initializing"
+          @click="doInit"
+        >
+          重新初始化
+        </el-button>
+        <el-button @click="fetchStatus">
+          刷新
+        </el-button>
       </div>
     </div>
 
-    <p class="desc">虚拟运营机器人用于自动化社区互动维护，包括内容点赞、评论互动、圈子签到、付费提问等。请根据需要管理各机器人的开关状态。</p>
+    <p class="desc">
+      虚拟运营机器人用于自动化社区互动维护，包括内容点赞、评论互动、圈子签到、付费提问等。请根据需要管理各机器人的开关状态。
+    </p>
 
     <!-- 机器人卡片 -->
     <el-row :gutter="16">
-      <el-col v-for="bot in bots" :key="bot.role" :span="6">
-        <el-card class="bot-card" :class="{ disabled: !bot.enabled }">
+      <el-col
+        v-for="bot in bots"
+        :key="bot.role"
+        :span="6"
+      >
+        <el-card
+          class="bot-card"
+          :class="{ disabled: !bot.enabled }"
+        >
           <template #header>
             <div class="bot-header">
               <span class="bot-icon">{{ ROLE_ICONS[bot.role] || '🤖' }}</span>
@@ -22,19 +39,27 @@
           </template>
 
           <div class="bot-body">
-            <div class="bot-role-tag">{{ ROLE_LABELS[bot.role] || bot.role }}</div>
-            <div class="bot-desc">{{ bot.description }}</div>
+            <div class="bot-role-tag">
+              {{ ROLE_LABELS[bot.role] || bot.role }}
+            </div>
+            <div class="bot-desc">
+              {{ bot.description }}
+            </div>
 
             <el-divider />
 
             <div class="bot-status">
               <span class="label">当前状态：</span>
-              <el-tag :type="bot.enabled ? 'success' : 'info'">{{ bot.enabled ? '运行中' : '已关闭' }}</el-tag>
+              <el-tag :type="bot.enabled ? 'success' : 'info'">
+                {{ bot.enabled ? '运行中' : '已关闭' }}
+              </el-tag>
             </div>
 
             <div class="bot-status">
               <span class="label">执行频率：</span>
-              <el-tag size="small">{{ FREQ_MAP[bot.frequency] || bot.frequency }}</el-tag>
+              <el-tag size="small">
+                {{ FREQ_MAP[bot.frequency] || bot.frequency }}
+              </el-tag>
             </div>
 
             <div class="bot-status">
@@ -57,14 +82,37 @@
 
     <!-- 使用说明 -->
     <el-card class="usage-card">
-      <template #header><h3>📖 机器人机制说明</h3></template>
-      <el-table :data="mechanismData" size="small">
-        <el-table-column prop="role" label="机器人" width="160">
-          <template #default="{ row }">{{ ROLE_ICONS[row.role] }} {{ row.name }}</template>
+      <template #header>
+        <h3>📖 机器人机制说明</h3>
+      </template>
+      <el-table
+        :data="mechanismData"
+        size="small"
+      >
+        <el-table-column
+          prop="role"
+          label="机器人"
+          width="160"
+        >
+          <template #default="{ row }">
+            {{ ROLE_ICONS[row.role] }} {{ row.name }}
+          </template>
         </el-table-column>
-        <el-table-column prop="trigger" label="触发条件" min-width="250" />
-        <el-table-column prop="action" label="执行动作" min-width="200" />
-        <el-table-column prop="impact" label="影响范围" width="180" />
+        <el-table-column
+          prop="trigger"
+          label="触发条件"
+          min-width="250"
+        />
+        <el-table-column
+          prop="action"
+          label="执行动作"
+          min-width="200"
+        />
+        <el-table-column
+          prop="impact"
+          label="影响范围"
+          width="180"
+        />
       </el-table>
     </el-card>
   </div>

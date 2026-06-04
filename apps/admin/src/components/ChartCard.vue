@@ -4,8 +4,16 @@
       <span class="chart-card__title">{{ title }}</span>
       <slot name="extra" />
     </div>
-    <div ref="chartRef" class="chart-card__body" :style="{ height: height + 'px' }" />
-    <el-empty v-if="!hasData" description="暂无数据" :image-size="48" />
+    <div
+      ref="chartRef"
+      class="chart-card__body"
+      :style="{ height: height + 'px' }"
+    />
+    <el-empty
+      v-if="!hasData"
+      description="暂无数据"
+      :image-size="48"
+    />
   </div>
 </template>
 

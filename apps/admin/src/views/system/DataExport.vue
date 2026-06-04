@@ -61,28 +61,52 @@ function downloadBlob(data: Blob, filename: string) {
     </div>
 
     <el-row :gutter="16">
-      <el-col v-for="t in exportTypes" :key="t.key" :span="8" style="margin-bottom:16px">
+      <el-col
+        v-for="t in exportTypes"
+        :key="t.key"
+        :span="8"
+        style="margin-bottom:16px"
+      >
         <el-card shadow="hover">
           <template #header>
             <span>{{ t.icon }} {{ t.label }}</span>
           </template>
-          <p style="color:#909399;font-size:13px;min-height:36px">{{ t.desc }}</p>
-          <el-button type="primary" :loading="exporting === t.key" @click="exportCsv(t.key)" style="width:100%">
+          <p style="color:#909399;font-size:13px;min-height:36px">
+            {{ t.desc }}
+          </p>
+          <el-button
+            type="primary"
+            :loading="exporting === t.key"
+            style="width:100%"
+            @click="exportCsv(t.key)"
+          >
             导出 CSV
           </el-button>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-divider content-position="left">Excel 导出</el-divider>
+    <el-divider content-position="left">
+      Excel 导出
+    </el-divider>
 
     <el-row :gutter="16">
-      <el-col v-for="t in excelTypes" :key="t.key" :span="8" style="margin-bottom:16px">
+      <el-col
+        v-for="t in excelTypes"
+        :key="t.key"
+        :span="8"
+        style="margin-bottom:16px"
+      >
         <el-card shadow="hover">
           <template #header>
             <span>{{ t.icon }} {{ t.label }}</span>
           </template>
-          <el-button type="success" :loading="exporting === t.key" @click="exportExcel(t.key)" style="width:100%">
+          <el-button
+            type="success"
+            :loading="exporting === t.key"
+            style="width:100%"
+            @click="exportExcel(t.key)"
+          >
             导出 Excel
           </el-button>
         </el-card>

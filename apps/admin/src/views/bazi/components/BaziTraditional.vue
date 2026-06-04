@@ -37,24 +37,40 @@ const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXian
     />
 
     <!-- 格局（如果有） -->
-    <div v-if="geJu" class="geju-card">
+    <div
+      v-if="geJu"
+      class="geju-card"
+    >
       <div class="geju-header">
         <span class="geju-name">{{ geJu.name }}</span>
         <span :class="['geju-badge', geJu.type === 'zheng' ? 'badge-zheng' : 'badge-bian']">
           {{ geJu.type === 'zheng' ? '正格' : '变格' }}
         </span>
       </div>
-      <p class="geju-desc">{{ geJu.desc }}</p>
+      <p class="geju-desc">
+        {{ geJu.desc }}
+      </p>
       <div class="yongji-row">
         <span class="yongji-tag tag-yong">用神：{{ geJu.yongShen }}</span>
-        <span v-if="geJu.xiShen" class="yongji-tag tag-xi">喜神：{{ geJu.xiShen }}</span>
-        <span v-if="geJu.jiShen" class="yongji-tag tag-ji">忌神：{{ geJu.jiShen }}</span>
+        <span
+          v-if="geJu.xiShen"
+          class="yongji-tag tag-xi"
+        >喜神：{{ geJu.xiShen }}</span>
+        <span
+          v-if="geJu.jiShen"
+          class="yongji-tag tag-ji"
+        >忌神：{{ geJu.jiShen }}</span>
       </div>
     </div>
 
     <!-- 神煞 -->
-    <div v-if="shenSha?.length" class="section">
-      <h3 class="section-title">神煞</h3>
+    <div
+      v-if="shenSha?.length"
+      class="section"
+    >
+      <h3 class="section-title">
+        神煞
+      </h3>
       <ShenShaList
         :shen-sha="shenSha"
         mode="compact"
@@ -64,7 +80,9 @@ const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXian
 
     <!-- 大运时间轴 -->
     <div class="section">
-      <h3 class="section-title">大运</h3>
+      <h3 class="section-title">
+        大运
+      </h3>
       <DaYunTimeline
         :da-yun="qiYun.daYun"
         :start-age="qiYun.startAge"
@@ -73,49 +91,82 @@ const { siZhu, qiYun, kongWang, shengXiao, taiYuan, mingGong, shenGong, wangXian
     </div>
 
     <!-- 合冲刑害 -->
-    <div v-if="fenXiTiShi" class="section">
-      <h3 class="section-title">合冲刑害</h3>
+    <div
+      v-if="fenXiTiShi"
+      class="section"
+    >
+      <h3 class="section-title">
+        合冲刑害
+      </h3>
       <div class="fenxi-grid">
         <template v-if="fenXiTiShi.ganHe?.length">
           <span class="fx-label">天干合</span>
           <div class="fx-tags">
-            <span v-for="h in fenXiTiShi.ganHe" :key="h" class="fx-tag tag-he">{{ h }}</span>
+            <span
+              v-for="h in fenXiTiShi.ganHe"
+              :key="h"
+              class="fx-tag tag-he"
+            >{{ h }}</span>
           </div>
         </template>
         <template v-if="fenXiTiShi.liuHe?.length">
           <span class="fx-label">地支合</span>
           <div class="fx-tags">
-            <span v-for="h in fenXiTiShi.liuHe" :key="h" class="fx-tag tag-he">{{ h }}</span>
+            <span
+              v-for="h in fenXiTiShi.liuHe"
+              :key="h"
+              class="fx-tag tag-he"
+            >{{ h }}</span>
           </div>
         </template>
         <template v-if="fenXiTiShi.sanHe?.length">
           <span class="fx-label">三合</span>
           <div class="fx-tags">
-            <span v-for="h in fenXiTiShi.sanHe" :key="h" class="fx-tag tag-sanhe">{{ h }}</span>
+            <span
+              v-for="h in fenXiTiShi.sanHe"
+              :key="h"
+              class="fx-tag tag-sanhe"
+            >{{ h }}</span>
           </div>
         </template>
         <template v-if="fenXiTiShi.sanHui?.length">
           <span class="fx-label">三会</span>
           <div class="fx-tags">
-            <span v-for="h in fenXiTiShi.sanHui" :key="h" class="fx-tag tag-sanhui">{{ h }}</span>
+            <span
+              v-for="h in fenXiTiShi.sanHui"
+              :key="h"
+              class="fx-tag tag-sanhui"
+            >{{ h }}</span>
           </div>
         </template>
         <template v-if="fenXiTiShi.liuChong?.length">
           <span class="fx-label">六冲</span>
           <div class="fx-tags">
-            <span v-for="h in fenXiTiShi.liuChong" :key="h" class="fx-tag tag-chong">{{ h }}</span>
+            <span
+              v-for="h in fenXiTiShi.liuChong"
+              :key="h"
+              class="fx-tag tag-chong"
+            >{{ h }}</span>
           </div>
         </template>
         <template v-if="fenXiTiShi.liuHai?.length">
           <span class="fx-label">六害</span>
           <div class="fx-tags">
-            <span v-for="h in fenXiTiShi.liuHai" :key="h" class="fx-tag tag-hai">{{ h }}</span>
+            <span
+              v-for="h in fenXiTiShi.liuHai"
+              :key="h"
+              class="fx-tag tag-hai"
+            >{{ h }}</span>
           </div>
         </template>
         <template v-if="fenXiTiShi.sanXing?.length">
           <span class="fx-label">三刑</span>
           <div class="fx-tags">
-            <span v-for="h in fenXiTiShi.sanXing" :key="h" class="fx-tag tag-xing">{{ h }}</span>
+            <span
+              v-for="h in fenXiTiShi.sanXing"
+              :key="h"
+              class="fx-tag tag-xing"
+            >{{ h }}</span>
           </div>
         </template>
       </div>

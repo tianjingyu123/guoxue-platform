@@ -93,41 +93,107 @@ async function del(id: string) {
 
 <template>
   <div class="page">
-    <div class="toolbar"><h3>会员等级配置</h3><el-button type="primary" @click="openCreate">添加等级</el-button></div>
+    <div class="toolbar">
+      <h3>会员等级配置</h3><el-button
+        type="primary"
+        @click="openCreate"
+      >
+        添加等级
+      </el-button>
+    </div>
 
-    <el-table v-loading="loading" :data="sortedList" stripe empty-text=" ">
-      <template #empty><el-empty description="暂无会员等级配置" /></template>
-      <el-table-column label="等级名称" min-width="160">
+    <el-table
+      v-loading="loading"
+      :data="sortedList"
+      stripe
+      empty-text=" "
+    >
+      <template #empty>
+        <el-empty description="暂无会员等级配置" />
+      </template>
+      <el-table-column
+        label="等级名称"
+        min-width="160"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.name === 'DIAMOND' ? 'danger' : row.name === 'PLATINUM' ? 'warning' : row.name === 'GOLD' ? '' : row.name === 'SILVER' ? 'info' : 'info'" size="small">{{ row.name }}</el-tag>
+          <el-tag
+            :type="row.name === 'DIAMOND' ? 'danger' : row.name === 'PLATINUM' ? 'warning' : row.name === 'GOLD' ? '' : row.name === 'SILVER' ? 'info' : 'info'"
+            size="small"
+          >
+            {{ row.name }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="价格" width="120">
-        <template #default="{ row }">{{ row.price != null ? '¥' + Number(row.price).toFixed(2) : '-' }}</template>
-      </el-table-column>
-      <el-table-column label="时长（天）" width="100">
-        <template #default="{ row }">{{ row.durationDays ?? '-' }}</template>
-      </el-table-column>
-      <el-table-column prop="benefits" label="权益描述" min-width="240" show-overflow-tooltip />
-      <el-table-column label="状态" width="90">
+      <el-table-column
+        label="价格"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" size="small">
+          {{ row.price != null ? '¥' + Number(row.price).toFixed(2) : '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="时长（天）"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ row.durationDays ?? '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="benefits"
+        label="权益描述"
+        min-width="240"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="状态"
+        width="90"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="row.status === 'ACTIVE' ? 'success' : 'danger'"
+            size="small"
+          >
             {{ row.status === 'ACTIVE' ? '启用' : '停用' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="更新时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.updatedAt || row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
+      <el-table-column
+        label="更新时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="del(row.id)">删除</el-button>
+          {{ formatDate(row.updatedAt || row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="140"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="del(row.id)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <div v-if="total > 0" style="display:flex;justify-content:flex-end;margin-top:16px">
+    <div
+      v-if="total > 0"
+      style="display:flex;justify-content:flex-end;margin-top:16px"
+    >
       <el-pagination
         v-model:current-page="page"
         :total="total"
@@ -137,31 +203,81 @@ async function del(id: string) {
       />
     </div>
 
-    <el-dialog v-model="vis" :title="editingId ? '编辑等级' : '添加等级'" width="520px">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="等级名称" required>
-          <el-select v-model="form.name" style="width:100%">
-            <el-option v-for="opt in levelOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+    <el-dialog
+      v-model="vis"
+      :title="editingId ? '编辑等级' : '添加等级'"
+      width="520px"
+    >
+      <el-form
+        :model="form"
+        label-width="100px"
+      >
+        <el-form-item
+          label="等级名称"
+          required
+        >
+          <el-select
+            v-model="form.name"
+            style="width:100%"
+          >
+            <el-option
+              v-for="opt in levelOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="价格">
-          <el-input-number v-model="form.price" :min="0" :precision="2" :step="10" style="width:100%">
-            <template #prefix>¥</template>
+          <el-input-number
+            v-model="form.price"
+            :min="0"
+            :precision="2"
+            :step="10"
+            style="width:100%"
+          >
+            <template #prefix>
+              ¥
+            </template>
           </el-input-number>
         </el-form-item>
         <el-form-item label="时长（天）">
-          <el-input-number v-model="form.durationDays" :min="1" :step="30" style="width:100%" />
+          <el-input-number
+            v-model="form.durationDays"
+            :min="1"
+            :step="30"
+            style="width:100%"
+          />
         </el-form-item>
         <el-form-item label="权益描述">
-          <el-input v-model="form.benefits" type="textarea" :rows="3" placeholder="描述该等级会员享有的权益" />
+          <el-input
+            v-model="form.benefits"
+            type="textarea"
+            :rows="3"
+            placeholder="描述该等级会员享有的权益"
+          />
         </el-form-item>
         <el-form-item label="状态">
-          <el-switch v-model="form.status" active-value="ACTIVE" inactive-value="INACTIVE" active-text="启用" inactive-text="停用" />
+          <el-switch
+            v-model="form.status"
+            active-value="ACTIVE"
+            inactive-value="INACTIVE"
+            active-text="启用"
+            inactive-text="停用"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="vis = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        <el-button @click="vis = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

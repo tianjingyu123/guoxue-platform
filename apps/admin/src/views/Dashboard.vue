@@ -37,13 +37,27 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div v-loading="loading" style="min-height:300px">
-    <component v-if="dashComp" :is="dashComp" />
-    <div v-else-if="error" class="dashboard-error">
+  <div
+    v-loading="loading"
+    style="min-height:300px"
+  >
+    <component
+      :is="dashComp"
+      v-if="dashComp"
+    />
+    <div
+      v-else-if="error"
+      class="dashboard-error"
+    >
       <p>仪表盘加载失败：{{ error }}</p>
     </div>
-    <div v-else class="dashboard-fallback">
-      <div class="fallback-icon">🏮</div>
+    <div
+      v-else
+      class="dashboard-fallback"
+    >
+      <div class="fallback-icon">
+        🏮
+      </div>
       <h2>热卜国学管理后台</h2>
       <p>欢迎使用管理后台，请通过左侧菜单导航。</p>
     </div>

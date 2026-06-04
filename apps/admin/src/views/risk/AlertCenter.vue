@@ -110,24 +110,57 @@ async function processAlert() {
     <div class="toolbar">
       <h3>预警中心</h3>
       <div>
-        <el-button :type="autoRefresh ? 'warning' : 'default'" @click="toggleAutoRefresh">
+        <el-button
+          :type="autoRefresh ? 'warning' : 'default'"
+          @click="toggleAutoRefresh"
+        >
           {{ autoRefresh ? '关闭自动刷新' : '开启自动刷新' }}
         </el-button>
       </div>
     </div>
 
     <div class="filters">
-      <el-select v-model="levelFilter" placeholder="预警级别" clearable style="width:160px" @change="fetchList">
-        <el-option v-for="l in levelOptions" :key="l.value" :label="l.label" :value="l.value" />
+      <el-select
+        v-model="levelFilter"
+        placeholder="预警级别"
+        clearable
+        style="width:160px"
+        @change="fetchList"
+      >
+        <el-option
+          v-for="l in levelOptions"
+          :key="l.value"
+          :label="l.label"
+          :value="l.value"
+        />
       </el-select>
-      <el-select v-model="statusFilter" placeholder="状态" clearable style="width:120px" @change="fetchList">
-        <el-option label="待处理" value="OPEN" />
-        <el-option label="已处理" value="PROCESSED" />
+      <el-select
+        v-model="statusFilter"
+        placeholder="状态"
+        clearable
+        style="width:120px"
+        @change="fetchList"
+      >
+        <el-option
+          label="待处理"
+          value="OPEN"
+        />
+        <el-option
+          label="已处理"
+          value="PROCESSED"
+        />
       </el-select>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column label="预警级别" width="100">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        label="预警级别"
+        width="100"
+      >
         <template #default="{ row }">
           <el-tag
             :type="row.level === 'CRITICAL' ? 'danger' : row.level === 'DANGER' ? 'warning' : ''"
@@ -137,22 +170,55 @@ async function processAlert() {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="预警标题" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="targetType" label="目标类型" width="100" />
-      <el-table-column prop="targetId" label="目标ID" width="120" />
-      <el-table-column label="状态" width="100">
+      <el-table-column
+        prop="title"
+        label="预警标题"
+        min-width="160"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="targetType"
+        label="目标类型"
+        width="100"
+      />
+      <el-table-column
+        prop="targetId"
+        label="目标ID"
+        width="120"
+      />
+      <el-table-column
+        label="状态"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'OPEN' ? 'danger' : 'success'" size="small">
+          <el-tag
+            :type="row.status === 'OPEN' ? 'danger' : 'success'"
+            size="small"
+          >
             {{ row.status === 'OPEN' ? '待处理' : '已处理' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="触发时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column
+        label="触发时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="primary" :disabled="row.status !== 'OPEN'" @click="openProcess(row)">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="100"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            :disabled="row.status !== 'OPEN'"
+            @click="openProcess(row)"
+          >
             处理
           </el-button>
         </template>
@@ -168,20 +234,51 @@ async function processAlert() {
       @current-change="fetchList"
     />
 
-    <el-dialog v-model="dialogVisible" title="处理预警" width="450px">
-      <el-form :model="processForm" label-width="90px">
-        <el-form-item label="处置动作" required>
-          <el-select v-model="processForm.action" style="width:100%">
-            <el-option v-for="a in actionOptions" :key="a.value" :label="a.label" :value="a.value" />
+    <el-dialog
+      v-model="dialogVisible"
+      title="处理预警"
+      width="450px"
+    >
+      <el-form
+        :model="processForm"
+        label-width="90px"
+      >
+        <el-form-item
+          label="处置动作"
+          required
+        >
+          <el-select
+            v-model="processForm.action"
+            style="width:100%"
+          >
+            <el-option
+              v-for="a in actionOptions"
+              :key="a.value"
+              :label="a.label"
+              :value="a.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="备注说明">
-          <el-input v-model="processForm.remark" type="textarea" :rows="4" placeholder="选填，输入备注信息" />
+          <el-input
+            v-model="processForm.remark"
+            type="textarea"
+            :rows="4"
+            placeholder="选填，输入备注信息"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="processAlert">确认处理</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="processAlert"
+        >
+          确认处理
+        </el-button>
       </template>
     </el-dialog>
   </div>

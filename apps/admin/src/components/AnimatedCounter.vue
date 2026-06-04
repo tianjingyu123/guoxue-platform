@@ -1,5 +1,8 @@
 <template>
-  <span class="animated-counter" :class="{ 'pulse': highlight }">{{ displayValue }}</span>
+  <span
+    class="animated-counter"
+    :class="{ 'pulse': highlight }"
+  >{{ displayValue }}</span>
 </template>
 
 <script setup lang="ts">

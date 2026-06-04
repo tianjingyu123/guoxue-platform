@@ -3,26 +3,56 @@
     <div class="page-header">
       <h3>文章管理</h3>
       <div>
-        <el-button type="primary" size="small" @click="showCreate">新建文章</el-button>
-        <el-button size="small" @click="exportCSV">导出CSV</el-button>
+        <el-button
+          type="primary"
+          size="small"
+          @click="showCreate"
+        >
+          新建文章
+        </el-button>
+        <el-button
+          size="small"
+          @click="exportCSV"
+        >
+          导出CSV
+        </el-button>
       </div>
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="16" style="margin-bottom:16px">
-      <el-col :span="6"><div class="stat-card"><span class="value">{{ stats.total }}</span><span class="label">文章总数</span></div></el-col>
-      <el-col :span="6"><div class="stat-card"><span class="value">{{ stats.published }}</span><span class="label">已发布</span></div></el-col>
-      <el-col :span="6"><div class="stat-card"><span class="value">{{ stats.pending }}</span><span class="label">待审核</span></div></el-col>
-      <el-col :span="6"><div class="stat-card"><span class="value">{{ stats.pushHome }}</span><span class="label">推送首页</span></div></el-col>
+    <el-row
+      :gutter="16"
+      style="margin-bottom:16px"
+    >
+      <el-col :span="6">
+        <div class="stat-card">
+          <span class="value">{{ stats.total }}</span><span class="label">文章总数</span>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card">
+          <span class="value">{{ stats.published }}</span><span class="label">已发布</span>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card">
+          <span class="value">{{ stats.pending }}</span><span class="label">待审核</span>
+        </div>
+      </el-col>
+      <el-col :span="6">
+        <div class="stat-card">
+          <span class="value">{{ stats.pushHome }}</span><span class="label">推送首页</span>
+        </div>
+      </el-col>
     </el-row>
 
     <DataTable
+      v-model:page="page"
+      v-model:page-size="pageSize"
       :columns="columns"
       :data="list"
       :loading="loading"
       :total="total"
-      v-model:page="page"
-      v-model:page-size="pageSize"
       :page-sizes="[10, 20, 50]"
       actions-width="280"
       @change="fetchList"
@@ -37,79 +67,293 @@
         />
       </template>
 
-      <template #author="{ row }">{{ row.author?.nickname || row.authorId || '-' }}</template>
-      <template #circle="{ row }">{{ row.circle?.name || '-' }}</template>
-      <template #tagLabel="{ row }">{{ row.tag || '-' }}</template>
+      <template #author="{ row }">
+        {{ row.author?.nickname || row.authorId || '-' }}
+      </template>
+      <template #circle="{ row }">
+        {{ row.circle?.name || '-' }}
+      </template>
+      <template #tagLabel="{ row }">
+        {{ row.tag || '-' }}
+      </template>
       <template #status="{ row }">
-        <el-tag :type="statusTag(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+        <el-tag
+          :type="statusTag(row.status)"
+          size="small"
+        >
+          {{ statusText(row.status) }}
+        </el-tag>
       </template>
       <template #isPushHome="{ row }">
-        <el-tag v-if="row.isPushHome" type="success" size="small">已推</el-tag>
-        <span v-else class="text-muted">-</span>
+        <el-tag
+          v-if="row.isPushHome"
+          type="success"
+          size="small"
+        >
+          已推
+        </el-tag>
+        <span
+          v-else
+          class="text-muted"
+        >-</span>
       </template>
-      <template #createdAt="{ row }">{{ fmtDate(row.createdAt) }}</template>
+      <template #createdAt="{ row }">
+        {{ fmtDate(row.createdAt) }}
+      </template>
       <template #actions="{ row }">
-        <el-button size="small" @click="showDetail(row)">详情</el-button>
-        <el-button size="small" type="primary" @click="showEdit(row)">编辑</el-button>
-        <el-button v-if="row.status === 'PENDING_AUDIT'" size="small" type="success" @click="auditArticle(row, 'PUBLISHED')">通过</el-button>
-        <el-button v-if="row.status === 'PENDING_AUDIT'" size="small" type="danger" @click="auditArticle(row, 'REJECTED')">拒绝</el-button>
-        <el-button size="small" type="warning" @click="showRecommend(row)">推荐</el-button>
-        <el-button size="small" type="danger" @click="deleteArticle(row)">删除</el-button>
+        <el-button
+          size="small"
+          @click="showDetail(row)"
+        >
+          详情
+        </el-button>
+        <el-button
+          size="small"
+          type="primary"
+          @click="showEdit(row)"
+        >
+          编辑
+        </el-button>
+        <el-button
+          v-if="row.status === 'PENDING_AUDIT'"
+          size="small"
+          type="success"
+          @click="auditArticle(row, 'PUBLISHED')"
+        >
+          通过
+        </el-button>
+        <el-button
+          v-if="row.status === 'PENDING_AUDIT'"
+          size="small"
+          type="danger"
+          @click="auditArticle(row, 'REJECTED')"
+        >
+          拒绝
+        </el-button>
+        <el-button
+          size="small"
+          type="warning"
+          @click="showRecommend(row)"
+        >
+          推荐
+        </el-button>
+        <el-button
+          size="small"
+          type="danger"
+          @click="deleteArticle(row)"
+        >
+          删除
+        </el-button>
       </template>
     </DataTable>
 
     <!-- 创建/编辑弹窗 -->
-    <el-dialog v-model="editVisible" :title="editingId ? '编辑文章' : '新建文章'" width="700px" @closed="resetForm">
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="标题" required><el-input v-model="form.title" /></el-form-item>
-        <el-form-item label="圈子" required><el-select v-model="form.circleId" style="width:100%"><el-option v-for="c in circles" :key="c.id" :label="c.name" :value="c.id" /></el-select></el-form-item>
-        <el-form-item label="标签"><el-input v-model="form.tag" placeholder="如：命理、风水" /></el-form-item>
-        <el-form-item label="摘要"><el-input v-model="form.excerpt" type="textarea" :rows="2" /></el-form-item>
-        <el-form-item label="内容" required><el-input v-model="form.body" type="textarea" :rows="8" placeholder="支持Markdown" /></el-form-item>
-        <el-form-item label="封面图"><el-input v-model="form.coverUrl" placeholder="图片URL" /></el-form-item>
+    <el-dialog
+      v-model="editVisible"
+      :title="editingId ? '编辑文章' : '新建文章'"
+      width="700px"
+      @closed="resetForm"
+    >
+      <el-form
+        :model="form"
+        label-width="80px"
+      >
+        <el-form-item
+          label="标题"
+          required
+        >
+          <el-input v-model="form.title" />
+        </el-form-item>
+        <el-form-item
+          label="圈子"
+          required
+        >
+          <el-select
+            v-model="form.circleId"
+            style="width:100%"
+          >
+            <el-option
+              v-for="c in circles"
+              :key="c.id"
+              :label="c.name"
+              :value="c.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="标签">
+          <el-input
+            v-model="form.tag"
+            placeholder="如：命理、风水"
+          />
+        </el-form-item>
+        <el-form-item label="摘要">
+          <el-input
+            v-model="form.excerpt"
+            type="textarea"
+            :rows="2"
+          />
+        </el-form-item>
+        <el-form-item
+          label="内容"
+          required
+        >
+          <el-input
+            v-model="form.body"
+            type="textarea"
+            :rows="8"
+            placeholder="支持Markdown"
+          />
+        </el-form-item>
+        <el-form-item label="封面图">
+          <el-input
+            v-model="form.coverUrl"
+            placeholder="图片URL"
+          />
+        </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitForm">保存</el-button>
+        <el-button @click="editVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="submitForm"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="文章详情" width="700px">
-      <el-descriptions :column="2" border size="small" v-if="detail">
-        <el-descriptions-item label="标题">{{ detail.title }}</el-descriptions-item>
-        <el-descriptions-item label="作者">{{ detail.author?.nickname || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="圈子">{{ detail.circle?.name || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="标签">{{ detail.tag || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="状态">{{ statusText(detail.status) }}</el-descriptions-item>
-        <el-descriptions-item label="阅读量">{{ detail.viewCount }}</el-descriptions-item>
-        <el-descriptions-item label="首页推送">{{ detail.isPushHome ? '是' : '否' }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ fmtDate(detail.createdAt) }}</el-descriptions-item>
-        <el-descriptions-item label="摘要" :span="2">{{ detail.excerpt || '-' }}</el-descriptions-item>
+    <el-dialog
+      v-model="detailVisible"
+      title="文章详情"
+      width="700px"
+    >
+      <el-descriptions
+        v-if="detail"
+        :column="2"
+        border
+        size="small"
+      >
+        <el-descriptions-item label="标题">
+          {{ detail.title }}
+        </el-descriptions-item>
+        <el-descriptions-item label="作者">
+          {{ detail.author?.nickname || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="圈子">
+          {{ detail.circle?.name || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="标签">
+          {{ detail.tag || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="状态">
+          {{ statusText(detail.status) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="阅读量">
+          {{ detail.viewCount }}
+        </el-descriptions-item>
+        <el-descriptions-item label="首页推送">
+          {{ detail.isPushHome ? '是' : '否' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">
+          {{ fmtDate(detail.createdAt) }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          label="摘要"
+          :span="2"
+        >
+          {{ detail.excerpt || '-' }}
+        </el-descriptions-item>
       </el-descriptions>
-      <div v-if="detail" style="margin-top:12px; background:#f8f9fb; padding:16px; border-radius:8px; max-height:300px; overflow:auto">
+      <div
+        v-if="detail"
+        style="margin-top:12px; background:#f8f9fb; padding:16px; border-radius:8px; max-height:300px; overflow:auto"
+      >
         <div v-html="sanitize(renderedBody)" />
       </div>
     </el-dialog>
 
     <!-- 推荐管理弹窗 -->
-    <el-dialog v-model="recommendVisible" title="推荐文章" width="500px">
-      <div v-if="recommendTarget" style="margin-bottom:12px"><strong>为「{{ recommendTarget.title }}」添加推荐</strong></div>
+    <el-dialog
+      v-model="recommendVisible"
+      title="推荐文章"
+      width="500px"
+    >
+      <div
+        v-if="recommendTarget"
+        style="margin-bottom:12px"
+      >
+        <strong>为「{{ recommendTarget.title }}」添加推荐</strong>
+      </div>
       <el-form inline>
         <el-form-item label="推荐类型">
-          <el-select v-model="recForm.type" style="width:140px">
-            <el-option label="课程" value="COURSE" /><el-option label="圈子" value="CIRCLE" />
-            <el-option label="商品" value="PRODUCT" /><el-option label="文章" value="ARTICLE" />
+          <el-select
+            v-model="recForm.type"
+            style="width:140px"
+          >
+            <el-option
+              label="课程"
+              value="COURSE"
+            /><el-option
+              label="圈子"
+              value="CIRCLE"
+            />
+            <el-option
+              label="商品"
+              value="PRODUCT"
+            /><el-option
+              label="文章"
+              value="ARTICLE"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="推荐ID"><el-input v-model="recForm.itemId" placeholder="输入ID" style="width:160px" /></el-form-item>
-        <el-form-item><el-button type="primary" @click="addRecommend">添加</el-button></el-form-item>
+        <el-form-item label="推荐ID">
+          <el-input
+            v-model="recForm.itemId"
+            placeholder="输入ID"
+            style="width:160px"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button
+            type="primary"
+            @click="addRecommend"
+          >
+            添加
+          </el-button>
+        </el-form-item>
       </el-form>
-      <el-table :data="recommendList" size="small" max-height="200">
-        <el-table-column label="类型" prop="itemType" width="90" />
-        <el-table-column label="关联ID" prop="itemId" width="200" />
-        <el-table-column label="操作" width="80">
-          <template #default="{ row }"><el-button size="small" type="danger" @click="removeRecommend(row)">移除</el-button></template>
+      <el-table
+        :data="recommendList"
+        size="small"
+        max-height="200"
+      >
+        <el-table-column
+          label="类型"
+          prop="itemType"
+          width="90"
+        />
+        <el-table-column
+          label="关联ID"
+          prop="itemId"
+          width="200"
+        />
+        <el-table-column
+          label="操作"
+          width="80"
+        >
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              type="danger"
+              @click="removeRecommend(row)"
+            >
+              移除
+            </el-button>
+          </template>
         </el-table-column>
       </el-table>
     </el-dialog>

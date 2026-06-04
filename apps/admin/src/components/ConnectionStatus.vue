@@ -1,5 +1,8 @@
 <template>
-  <div class="conn-status" :class="status">
+  <div
+    class="conn-status"
+    :class="status"
+  >
     <span class="conn-dot" />
     <span class="conn-text">{{ statusText }}</span>
     <el-button
@@ -8,7 +11,9 @@
       text
       class="retry-btn"
       @click="check"
-    >重试</el-button>
+    >
+      重试
+    </el-button>
   </div>
 </template>
 

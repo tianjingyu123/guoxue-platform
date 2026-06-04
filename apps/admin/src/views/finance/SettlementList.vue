@@ -111,80 +111,257 @@ function handleExport() {
     <div class="toolbar">
       <h3>结算单管理</h3>
       <div class="toolbar-right">
-        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width:130px" @change="fetchList">
-          <el-option label="全部" value="" />
-          <el-option label="待处理" value="PENDING" />
-          <el-option label="处理中" value="PROCESSING" />
-          <el-option label="已完成" value="COMPLETED" />
-          <el-option label="失败" value="FAILED" />
+        <el-select
+          v-model="statusFilter"
+          placeholder="状态筛选"
+          clearable
+          style="width:130px"
+          @change="fetchList"
+        >
+          <el-option
+            label="全部"
+            value=""
+          />
+          <el-option
+            label="待处理"
+            value="PENDING"
+          />
+          <el-option
+            label="处理中"
+            value="PROCESSING"
+          />
+          <el-option
+            label="已完成"
+            value="COMPLETED"
+          />
+          <el-option
+            label="失败"
+            value="FAILED"
+          />
         </el-select>
-        <el-button type="primary" @click="openGenerate">生成结算单</el-button>
-        <el-button @click="handleExport">导出CSV</el-button>
+        <el-button
+          type="primary"
+          @click="openGenerate"
+        >
+          生成结算单
+        </el-button>
+        <el-button @click="handleExport">
+          导出CSV
+        </el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="settlementNo" label="结算单号" width="180" show-overflow-tooltip />
-      <el-table-column label="结算周期" width="220">
-        <template #default="{ row }">{{ row.startDate && row.endDate ? `${row.startDate} ~ ${row.endDate}` : row.period || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="金额" width="130">
-        <template #default="{ row }"><span style="font-weight:600">{{ formatMoney(row.amount) }}</span></template>
-      </el-table-column>
-      <el-table-column label="状态" width="100">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="settlementNo"
+        label="结算单号"
+        width="180"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="结算周期"
+        width="220"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+          {{ row.startDate && row.endDate ? `${row.startDate} ~ ${row.endDate}` : row.period || '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="生成时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="240" fixed="right">
+      <el-table-column
+        label="金额"
+        width="130"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="viewDetail(row)">详情</el-button>
-          <el-button v-if="row.status === 'PENDING'" size="small" type="success" @click="doApprove(row)">审批</el-button>
-          <el-button v-if="row.status === 'APPROVED' || row.status === 'PROCESSING'" size="small" type="primary" @click="doPay(row)">打款</el-button>
-          <span v-if="row.status === 'COMPLETED'" style="color:#67c23a;font-size:12px">✓ 已完成</span>
+          <span style="font-weight:600">{{ formatMoney(row.amount) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
+        width="100"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="statusTagType(row.status)"
+            size="small"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="生成时间"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="240"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="viewDetail(row)"
+          >
+            详情
+          </el-button>
+          <el-button
+            v-if="row.status === 'PENDING'"
+            size="small"
+            type="success"
+            @click="doApprove(row)"
+          >
+            审批
+          </el-button>
+          <el-button
+            v-if="row.status === 'APPROVED' || row.status === 'PROCESSING'"
+            size="small"
+            type="primary"
+            @click="doPay(row)"
+          >
+            打款
+          </el-button>
+          <span
+            v-if="row.status === 'COMPLETED'"
+            style="color:#67c23a;font-size:12px"
+          >✓ 已完成</span>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-empty v-if="!loading && list.length === 0" description="暂无结算单" style="margin-top:40px" />
+    <el-empty
+      v-if="!loading && list.length === 0"
+      description="暂无结算单"
+      style="margin-top:40px"
+    />
 
     <el-pagination
-      v-model:current-page="page" :total="total" :page-size="pageSize"
-      layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end"
+      v-model:current-page="page"
+      :total="total"
+      :page-size="pageSize"
+      layout="total, prev, pager, next"
+      style="margin-top:16px;justify-content:flex-end"
       @current-change="fetchList"
     />
 
     <!-- 生成结算单弹窗 -->
-    <el-dialog v-model="generateVisible" title="生成结算单" width="500px">
+    <el-dialog
+      v-model="generateVisible"
+      title="生成结算单"
+      width="500px"
+    >
       <el-form label-width="90px">
-        <el-form-item label="开始日期" required>
-          <el-date-picker v-model="form.startDate" type="date" value-format="YYYY-MM-DD" placeholder="选择开始日期" style="width:100%" />
+        <el-form-item
+          label="开始日期"
+          required
+        >
+          <el-date-picker
+            v-model="form.startDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择开始日期"
+            style="width:100%"
+          />
         </el-form-item>
-        <el-form-item label="结束日期" required>
-          <el-date-picker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" placeholder="选择结束日期" style="width:100%" />
+        <el-form-item
+          label="结束日期"
+          required
+        >
+          <el-date-picker
+            v-model="form.endDate"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="选择结束日期"
+            style="width:100%"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="generateVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doGenerate">生成结算单</el-button>
+        <el-button @click="generateVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doGenerate"
+        >
+          生成结算单
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="结算单详情" width="550px">
-      <el-descriptions v-if="detailData" :column="2" border>
-        <el-descriptions-item label="结算单号" :span="2">{{ detailData.settlementNo || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="结算周期" :span="2">{{ detailData.startDate && detailData.endDate ? `${detailData.startDate} ~ ${detailData.endDate}` : detailData.period || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="金额"><span style="font-weight:600;color:#e6a23c">{{ formatMoney(detailData.amount) }}</span></el-descriptions-item>
-        <el-descriptions-item label="状态"><el-tag :type="statusTagType(detailData.status)" size="small">{{ statusLabel(detailData.status) }}</el-tag></el-descriptions-item>
-        <el-descriptions-item v-if="detailData.orderCount" label="订单数">{{ detailData.orderCount }}</el-descriptions-item>
-        <el-descriptions-item v-if="detailData.userName" label="结算对象">{{ detailData.userName }}</el-descriptions-item>
-        <el-descriptions-item label="生成时间" :span="2">{{ formatDate(detailData.createdAt) }}</el-descriptions-item>
-        <el-descriptions-item v-if="detailData.approvedAt" label="审批时间" :span="2">{{ formatDate(detailData.approvedAt) }}</el-descriptions-item>
-        <el-descriptions-item v-if="detailData.paidAt" label="打款时间" :span="2">{{ formatDate(detailData.paidAt) }}</el-descriptions-item>
+    <el-dialog
+      v-model="detailVisible"
+      title="结算单详情"
+      width="550px"
+    >
+      <el-descriptions
+        v-if="detailData"
+        :column="2"
+        border
+      >
+        <el-descriptions-item
+          label="结算单号"
+          :span="2"
+        >
+          {{ detailData.settlementNo || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          label="结算周期"
+          :span="2"
+        >
+          {{ detailData.startDate && detailData.endDate ? `${detailData.startDate} ~ ${detailData.endDate}` : detailData.period || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="金额">
+          <span style="font-weight:600;color:#e6a23c">{{ formatMoney(detailData.amount) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag
+            :type="statusTagType(detailData.status)"
+            size="small"
+          >
+            {{ statusLabel(detailData.status) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="detailData.orderCount"
+          label="订单数"
+        >
+          {{ detailData.orderCount }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="detailData.userName"
+          label="结算对象"
+        >
+          {{ detailData.userName }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          label="生成时间"
+          :span="2"
+        >
+          {{ formatDate(detailData.createdAt) }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="detailData.approvedAt"
+          label="审批时间"
+          :span="2"
+        >
+          {{ formatDate(detailData.approvedAt) }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="detailData.paidAt"
+          label="打款时间"
+          :span="2"
+        >
+          {{ formatDate(detailData.paidAt) }}
+        </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
   </div>

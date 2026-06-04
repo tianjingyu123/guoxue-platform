@@ -57,36 +57,103 @@ function formatTime(v: any) {
     </div>
 
     <div class="search-bar">
-      <el-input v-model="searchUserId" placeholder="用户ID" clearable style="width:240px" @clear="onSearch" />
-      <el-select v-model="filterType" placeholder="类型" clearable style="width:120px;margin-left:12px" @change="onSearch">
-        <el-option v-for="(label, key) in typeLabels" :key="key" :label="label" :value="key" />
+      <el-input
+        v-model="searchUserId"
+        placeholder="用户ID"
+        clearable
+        style="width:240px"
+        @clear="onSearch"
+      />
+      <el-select
+        v-model="filterType"
+        placeholder="类型"
+        clearable
+        style="width:120px;margin-left:12px"
+        @change="onSearch"
+      >
+        <el-option
+          v-for="(label, key) in typeLabels"
+          :key="key"
+          :label="label"
+          :value="key"
+        />
       </el-select>
-      <el-button type="primary" @click="onSearch" style="margin-left:12px">搜索</el-button>
+      <el-button
+        type="primary"
+        style="margin-left:12px"
+        @click="onSearch"
+      >
+        搜索
+      </el-button>
     </div>
 
-    <el-table v-loading="loading" :data="list" border stripe style="margin-top:12px">
-      <el-table-column label="用户" width="120">
-        <template #default="{ row }">{{ row.user?.nickname || row.userId?.substring(0, 8) || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="类型" width="90">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+      style="margin-top:12px"
+    >
+      <el-table-column
+        label="用户"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-tag size="small">{{ typeLabels[row.type] || row.type }}</el-tag>
+          {{ row.user?.nickname || row.userId?.substring(0, 8) || '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="金额" width="100">
-        <template #default="{ row }">{{ formatCurrency(row.amount) }}</template>
+      <el-table-column
+        label="类型"
+        width="90"
+      >
+        <template #default="{ row }">
+          <el-tag size="small">
+            {{ typeLabels[row.type] || row.type }}
+          </el-tag>
+        </template>
       </el-table-column>
-      <el-table-column prop="balanceAfter" label="余额" width="100">
-        <template #default="{ row }">{{ row.balanceAfter ?? '-' }}</template>
+      <el-table-column
+        label="金额"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ formatCurrency(row.amount) }}
+        </template>
       </el-table-column>
-      <el-table-column prop="scene" label="场景" width="100">
-        <template #default="{ row }">{{ row.scene || '-' }}</template>
+      <el-table-column
+        prop="balanceAfter"
+        label="余额"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ row.balanceAfter ?? '-' }}
+        </template>
       </el-table-column>
-      <el-table-column prop="description" label="备注" min-width="200">
-        <template #default="{ row }">{{ row.description || row.remark || '-' }}</template>
+      <el-table-column
+        prop="scene"
+        label="场景"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ row.scene || '-' }}
+        </template>
       </el-table-column>
-      <el-table-column label="时间" width="170">
-        <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
+      <el-table-column
+        prop="description"
+        label="备注"
+        min-width="200"
+      >
+        <template #default="{ row }">
+          {{ row.description || row.remark || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="时间"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ formatTime(row.createdAt) }}
+        </template>
       </el-table-column>
     </el-table>
 

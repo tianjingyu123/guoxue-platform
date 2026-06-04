@@ -3,54 +3,181 @@
     <div class="toolbar">
       <h3>商家管理</h3>
       <div class="toolbar-right">
-        <el-select v-model="filterStatus" placeholder="全部状态" clearable style="width:180px" @change="fetchList">
-          <el-option label="待审核" value="PENDING_REVIEW" />
-          <el-option label="审核驳回" value="REVIEW_FAILED" />
-          <el-option label="待缴保证金" value="DEPOSIT_PENDING" />
-          <el-option label="待签署协议" value="AGREEMENT_PENDING" />
-          <el-option label="已开通" value="ACTIVE" />
-          <el-option label="已暂停" value="SUSPENDED" />
-          <el-option label="已关闭" value="CLOSED" />
+        <el-select
+          v-model="filterStatus"
+          placeholder="全部状态"
+          clearable
+          style="width:180px"
+          @change="fetchList"
+        >
+          <el-option
+            label="待审核"
+            value="PENDING_REVIEW"
+          />
+          <el-option
+            label="审核驳回"
+            value="REVIEW_FAILED"
+          />
+          <el-option
+            label="待缴保证金"
+            value="DEPOSIT_PENDING"
+          />
+          <el-option
+            label="待签署协议"
+            value="AGREEMENT_PENDING"
+          />
+          <el-option
+            label="已开通"
+            value="ACTIVE"
+          />
+          <el-option
+            label="已暂停"
+            value="SUSPENDED"
+          />
+          <el-option
+            label="已关闭"
+            value="CLOSED"
+          />
         </el-select>
-        <el-input v-model="keyword" placeholder="搜索店铺名称" clearable style="width:220px" @clear="fetchList" @keyup.enter="fetchList">
-          <template #prefix><el-icon><Search /></el-icon></template>
+        <el-input
+          v-model="keyword"
+          placeholder="搜索店铺名称"
+          clearable
+          style="width:220px"
+          @clear="fetchList"
+          @keyup.enter="fetchList"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
         </el-input>
-        <el-button type="primary" @click="fetchList">查询</el-button>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          查询
+        </el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="shopName" label="店铺名称" min-width="150" />
-      <el-table-column prop="contactName" label="联系人" width="100" />
-      <el-table-column prop="contactPhone" label="手机号" width="130" />
-      <el-table-column label="状态" width="120">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="shopName"
+        label="店铺名称"
+        min-width="150"
+      />
+      <el-table-column
+        prop="contactName"
+        label="联系人"
+        width="100"
+      />
+      <el-table-column
+        prop="contactPhone"
+        label="手机号"
+        width="130"
+      />
+      <el-table-column
+        label="状态"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+          <el-tag :type="statusTagType(row.status)">
+            {{ statusLabel(row.status) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="累计销售额" width="120">
-        <template #default="{ row }">¥{{ Number(row.totalSales).toFixed(2) }}</template>
-      </el-table-column>
-      <el-table-column prop="totalOrders" label="累计订单" width="90" />
-      <el-table-column label="评分" width="70">
-        <template #default="{ row }">{{ Number(row.rating).toFixed(1) }}</template>
-      </el-table-column>
-      <el-table-column label="入驻时间" width="160">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="240" fixed="right">
+      <el-table-column
+        label="累计销售额"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-button size="small" text type="primary" @click="goDetail(row.id)">详情</el-button>
+          ¥{{ Number(row.totalSales).toFixed(2) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="totalOrders"
+        label="累计订单"
+        width="90"
+      />
+      <el-table-column
+        label="评分"
+        width="70"
+      >
+        <template #default="{ row }">
+          {{ Number(row.rating).toFixed(1) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="入驻时间"
+        width="160"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="240"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            text
+            type="primary"
+            @click="goDetail(row.id)"
+          >
+            详情
+          </el-button>
           <template v-if="row.status === 'PENDING_REVIEW'">
-            <el-button size="small" text type="success" @click="openApprove(row)">通过</el-button>
-            <el-button size="small" text type="danger" @click="openReject(row)">驳回</el-button>
+            <el-button
+              size="small"
+              text
+              type="success"
+              @click="openApprove(row)"
+            >
+              通过
+            </el-button>
+            <el-button
+              size="small"
+              text
+              type="danger"
+              @click="openReject(row)"
+            >
+              驳回
+            </el-button>
           </template>
           <template v-else-if="row.status === 'ACTIVE'">
-            <el-button size="small" text type="warning" @click="changeStatus(row, 'SUSPENDED')">暂停</el-button>
-            <el-button size="small" text type="danger" @click="changeStatus(row, 'CLOSED')">关闭</el-button>
+            <el-button
+              size="small"
+              text
+              type="warning"
+              @click="changeStatus(row, 'SUSPENDED')"
+            >
+              暂停
+            </el-button>
+            <el-button
+              size="small"
+              text
+              type="danger"
+              @click="changeStatus(row, 'CLOSED')"
+            >
+              关闭
+            </el-button>
           </template>
           <template v-else-if="row.status === 'SUSPENDED'">
-            <el-button size="small" text type="success" @click="changeStatus(row, 'ACTIVE')">恢复</el-button>
+            <el-button
+              size="small"
+              text
+              type="success"
+              @click="changeStatus(row, 'ACTIVE')"
+            >
+              恢复
+            </el-button>
           </template>
         </template>
       </el-table-column>
@@ -61,40 +188,91 @@
       :total="total"
       :page-size="20"
       layout="total, prev, pager, next"
-      @current-change="fetchList"
       style="margin-top:16px;justify-content:flex-end"
+      @current-change="fetchList"
     />
 
     <!-- 审核通过对话框 -->
-    <el-dialog v-model="approveDialog" title="审核通过" width="500px">
-      <el-form :model="approveForm" label-width="100px">
+    <el-dialog
+      v-model="approveDialog"
+      title="审核通过"
+      width="500px"
+    >
+      <el-form
+        :model="approveForm"
+        label-width="100px"
+      >
         <el-form-item label="保证金金额">
-          <el-input-number v-model="approveForm.depositAmount" :min="0" :precision="2" style="width:100%" />
+          <el-input-number
+            v-model="approveForm.depositAmount"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+          />
         </el-form-item>
         <el-form-item label="分佣比例">
-          <el-input-number v-model="approveForm.commissionRate" :min="0" :max="1" :step="0.01" :precision="4" style="width:100%" />
+          <el-input-number
+            v-model="approveForm.commissionRate"
+            :min="0"
+            :max="1"
+            :step="0.01"
+            :precision="4"
+            style="width:100%"
+          />
           <span style="margin-left:8px;color:#999">商家得 {{ ((approveForm.commissionRate || 0) * 100).toFixed(1) }}%</span>
         </el-form-item>
         <el-form-item label="内部备注">
-          <el-input v-model="approveForm.remark" type="textarea" :rows="2" />
+          <el-input
+            v-model="approveForm.remark"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="approveDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doApprove">确认通过</el-button>
+        <el-button @click="approveDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doApprove"
+        >
+          确认通过
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 审核驳回对话框 -->
-    <el-dialog v-model="rejectDialog" title="审核驳回" width="500px">
+    <el-dialog
+      v-model="rejectDialog"
+      title="审核驳回"
+      width="500px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="驳回原因" required>
-          <el-input v-model="rejectReason" type="textarea" :rows="3" placeholder="请填写驳回原因" />
+        <el-form-item
+          label="驳回原因"
+          required
+        >
+          <el-input
+            v-model="rejectReason"
+            type="textarea"
+            :rows="3"
+            placeholder="请填写驳回原因"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rejectDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doReject">确认驳回</el-button>
+        <el-button @click="rejectDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doReject"
+        >
+          确认驳回
+        </el-button>
       </template>
     </el-dialog>
   </div>

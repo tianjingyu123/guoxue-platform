@@ -1,10 +1,19 @@
 <template>
   <el-container class="layout">
     <ConnectionStatus />
-    <el-aside :width="isCollapse ? '64px' : '220px'" class="aside">
+    <el-aside
+      :width="isCollapse ? '64px' : '220px'"
+      class="aside"
+    >
       <div class="logo">
-        <span v-if="!isCollapse" class="logo-full">🏮 热卜国学</span>
-        <span v-else class="logo-icon">🏮</span>
+        <span
+          v-if="!isCollapse"
+          class="logo-full"
+        >🏮 热卜国学</span>
+        <span
+          v-else
+          class="logo-icon"
+        >🏮</span>
       </div>
       <div class="menu-scroll">
         <el-menu
@@ -23,12 +32,19 @@
     <el-container>
       <el-header>
         <div class="header-left">
-          <el-button text @click="isCollapse = !isCollapse">
+          <el-button
+            text
+            @click="isCollapse = !isCollapse"
+          >
             {{ isCollapse ? '☰' : '✕' }}
           </el-button>
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/dashboard' }">首页</el-breadcrumb-item>
-            <el-breadcrumb-item v-if="route.meta.title">{{ route.meta.title }}</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: '/dashboard' }">
+              首页
+            </el-breadcrumb-item>
+            <el-breadcrumb-item v-if="route.meta.title">
+              {{ route.meta.title }}
+            </el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <div class="header-right">
@@ -41,16 +57,35 @@
           >
             {{ label }}
           </el-tag>
-          <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
-            <el-button text @click="goNotifications" style="font-size:18px">🔔</el-button>
+          <el-badge
+            :value="unreadCount"
+            :hidden="unreadCount === 0"
+            :max="99"
+          >
+            <el-button
+              text
+              style="font-size:18px"
+              @click="goNotifications"
+            >
+              🔔
+            </el-button>
           </el-badge>
           <span class="nickname">{{ auth.user?.nickname }}</span>
-          <el-button text type="danger" @click="logout">退出</el-button>
+          <el-button
+            text
+            type="danger"
+            @click="logout"
+          >
+            退出
+          </el-button>
         </div>
       </el-header>
       <el-main>
         <router-view v-slot="{ Component }">
-          <transition name="fade-slide" mode="out-in">
+          <transition
+            name="fade-slide"
+            mode="out-in"
+          >
             <component :is="Component" />
           </transition>
         </router-view>

@@ -1,6 +1,9 @@
 <template>
   <div class="data-table-wrap">
-    <div v-if="$slots.toolbar" class="data-table__toolbar">
+    <div
+      v-if="$slots.toolbar"
+      class="data-table__toolbar"
+    >
       <slot name="toolbar" />
     </div>
     <el-table
@@ -55,7 +58,10 @@
       </el-table-column>
     </el-table>
     <div class="data-table__footer">
-      <div v-if="$slots.batch" class="data-table__batch">
+      <div
+        v-if="$slots.batch"
+        class="data-table__batch"
+      >
         <slot name="batch" />
       </div>
       <div

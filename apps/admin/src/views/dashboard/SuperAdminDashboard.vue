@@ -162,21 +162,51 @@ onBeforeUnmount(() => {
     <GreetingHeader :username="username" />
 
     <!-- 报警行 -->
-    <div class="alerts-row" v-if="alerts.length">
-      <AnomalyAlert v-for="a in alerts" :key="a.text" v-bind="a" />
+    <div
+      v-if="alerts.length"
+      class="alerts-row"
+    >
+      <AnomalyAlert
+        v-for="a in alerts"
+        :key="a.text"
+        v-bind="a"
+      />
     </div>
 
     <!-- 统计卡片 4×2 -->
-    <el-row :gutter="20" class="stats-row">
-      <el-col v-for="card in cards" :key="card.label" :xs="24" :sm="12" :md="6">
-        <div class="stat-card" @click="onCardClick(card)">
+    <el-row
+      :gutter="20"
+      class="stats-row"
+    >
+      <el-col
+        v-for="card in cards"
+        :key="card.label"
+        :xs="24"
+        :sm="12"
+        :md="6"
+      >
+        <div
+          class="stat-card"
+          @click="onCardClick(card)"
+        >
           <div class="stat-card__top">
             <span class="stat-card__label">{{ card.label }}</span>
-            <div class="stat-card__icon"><el-icon :size="18"><component :is="card.icon" /></el-icon></div>
+            <div class="stat-card__icon">
+              <el-icon :size="18">
+                <component :is="card.icon" />
+              </el-icon>
+            </div>
           </div>
-          <div class="stat-card__value" :class="{ 'stat-card__value--alert': card.label === '待处理举报' && card.value > 0 }">
+          <div
+            class="stat-card__value"
+            :class="{ 'stat-card__value--alert': card.label === '待处理举报' && card.value > 0 }"
+          >
             <template v-if="card.label === '系统健康'">
-              <el-tag :type="card.value === 1 ? 'success' : 'danger'" size="small" effect="dark">
+              <el-tag
+                :type="card.value === 1 ? 'success' : 'danger'"
+                size="small"
+                effect="dark"
+              >
                 {{ card.value === 1 ? '正常' : '异常' }}
               </el-tag>
             </template>
@@ -189,12 +219,25 @@ onBeforeUnmount(() => {
     </el-row>
 
     <!-- 服务健康状态 -->
-    <div class="section-card" v-if="healthList.length">
-      <div class="section-card__title">第三方服务状态</div>
+    <div
+      v-if="healthList.length"
+      class="section-card"
+    >
+      <div class="section-card__title">
+        第三方服务状态
+      </div>
       <div class="health-grid">
-        <div class="health-item" v-for="h in healthList" :key="h.name">
+        <div
+          v-for="h in healthList"
+          :key="h.name"
+          class="health-item"
+        >
           <span class="health-name">{{ h.label }}</span>
-          <el-tag :type="statusType(h.status)" size="small" effect="light">
+          <el-tag
+            :type="statusType(h.status)"
+            size="small"
+            effect="light"
+          >
             {{ h.status === 'ok' ? '正常' : h.status === 'error' ? '异常' : '降级' }}
           </el-tag>
         </div>
@@ -202,9 +245,19 @@ onBeforeUnmount(() => {
     </div>
 
     <!-- 营收趋势折线图 -->
-    <el-row :gutter="20" class="charts-row">
-      <el-col :xs="24" :md="24">
-        <ChartCard title="营收趋势" :option="revenueOption" :height="320" />
+    <el-row
+      :gutter="20"
+      class="charts-row"
+    >
+      <el-col
+        :xs="24"
+        :md="24"
+      >
+        <ChartCard
+          title="营收趋势"
+          :option="revenueOption"
+          :height="320"
+        />
       </el-col>
     </el-row>
   </div>

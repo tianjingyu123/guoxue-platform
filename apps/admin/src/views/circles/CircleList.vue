@@ -17,7 +17,10 @@
       stripe
     >
       <template #empty>
-        <el-empty description="暂无圈子" :image-size="80" />
+        <el-empty
+          description="暂无圈子"
+          :image-size="80"
+        />
       </template>
       <el-table-column
         prop="name"

@@ -97,70 +97,178 @@ const filteredList = computed(() => {
     <div class="toolbar">
       <h3>用户协议管理</h3>
       <div style="display:flex;gap:8px">
-        <el-select v-model="typeFilter" placeholder="类型" clearable style="width:130px" @change="fetchList">
-          <el-option label="用户协议" value="agreement" />
-          <el-option label="隐私政策" value="privacy" />
-          <el-option label="社区规范" value="community" />
+        <el-select
+          v-model="typeFilter"
+          placeholder="类型"
+          clearable
+          style="width:130px"
+          @change="fetchList"
+        >
+          <el-option
+            label="用户协议"
+            value="agreement"
+          />
+          <el-option
+            label="隐私政策"
+            value="privacy"
+          />
+          <el-option
+            label="社区规范"
+            value="community"
+          />
         </el-select>
-        <el-button type="primary" @click="openCreate">新建文件</el-button>
+        <el-button
+          type="primary"
+          @click="openCreate"
+        >
+          新建文件
+        </el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe empty-text=" ">
-      <template #empty><el-empty description="暂无法律文件" /></template>
-      <el-table-column label="类型" width="110">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+      empty-text=" "
+    >
+      <template #empty>
+        <el-empty description="暂无法律文件" />
+      </template>
+      <el-table-column
+        label="类型"
+        width="110"
+      >
         <template #default="{ row }">
-          <el-tag size="small">{{ typeLabel[row.type] ?? row.type }}</el-tag>
+          <el-tag size="small">
+            {{ typeLabel[row.type] ?? row.type }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" min-width="200" />
-      <el-table-column prop="version" label="版本" width="100" />
-      <el-table-column label="状态" width="100">
+      <el-table-column
+        prop="title"
+        label="标题"
+        min-width="200"
+      />
+      <el-table-column
+        prop="version"
+        label="版本"
+        width="100"
+      />
+      <el-table-column
+        label="状态"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'PUBLISHED' ? 'success' : 'info'" size="small">
+          <el-tag
+            :type="row.status === 'PUBLISHED' ? 'success' : 'info'"
+            size="small"
+          >
             {{ row.status === 'PUBLISHED' ? '已发布' : '草稿' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="发布时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.publishedAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
+      <el-table-column
+        label="发布时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button type="danger" size="small" @click="del(row.id, row.title)">删除</el-button>
+          {{ formatDate(row.publishedAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="160"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            type="primary"
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            type="danger"
+            size="small"
+            @click="del(row.id, row.title)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="vis" :title="editingId ? '编辑文件' : '新建文件'" width="700px" :close-on-click-modal="false">
+    <el-dialog
+      v-model="vis"
+      :title="editingId ? '编辑文件' : '新建文件'"
+      width="700px"
+      :close-on-click-modal="false"
+    >
       <el-form label-width="90px">
         <el-form-item label="类型">
-          <el-select v-model="form.type" class="w-full" :disabled="!!editingId">
-            <el-option label="用户协议" value="agreement" />
-            <el-option label="隐私政策" value="privacy" />
-            <el-option label="社区规范" value="community" />
+          <el-select
+            v-model="form.type"
+            class="w-full"
+            :disabled="!!editingId"
+          >
+            <el-option
+              label="用户协议"
+              value="agreement"
+            />
+            <el-option
+              label="隐私政策"
+              value="privacy"
+            />
+            <el-option
+              label="社区规范"
+              value="community"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="版本号">
-          <el-input v-model="form.version" placeholder="v1.0" />
+          <el-input
+            v-model="form.version"
+            placeholder="v1.0"
+          />
         </el-form-item>
         <el-form-item label="标题">
-          <el-input v-model="form.title" placeholder="用户服务协议" />
+          <el-input
+            v-model="form.title"
+            placeholder="用户服务协议"
+          />
         </el-form-item>
         <el-form-item label="状态">
           <el-radio-group v-model="form.status">
-            <el-radio value="PUBLISHED">发布</el-radio>
-            <el-radio value="DRAFT">草稿</el-radio>
+            <el-radio value="PUBLISHED">
+              发布
+            </el-radio>
+            <el-radio value="DRAFT">
+              草稿
+            </el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="正文内容">
-          <el-input v-model="form.content" type="textarea" :rows="16" placeholder="支持 Markdown 格式..." />
+          <el-input
+            v-model="form.content"
+            type="textarea"
+            :rows="16"
+            placeholder="支持 Markdown 格式..."
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="vis = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        <el-button @click="vis = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

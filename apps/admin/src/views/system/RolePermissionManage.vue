@@ -150,21 +150,40 @@ async function savePermissions() {
 
 <template>
   <div class="page">
-    <div class="toolbar"><h3>角色权限管理</h3></div>
+    <div class="toolbar">
+      <h3>角色权限管理</h3>
+    </div>
 
     <div class="layout">
       <div class="left-panel">
-        <div class="panel-title">角色列表</div>
-        <el-radio-group v-model="selectedRole" vertical style="width:100%" @change="handleRoleChange">
-          <el-radio-button v-for="role in roleList" :key="role.value" :value="role.value" style="display:block;margin-bottom:8px">
+        <div class="panel-title">
+          角色列表
+        </div>
+        <el-radio-group
+          v-model="selectedRole"
+          vertical
+          style="width:100%"
+          @change="handleRoleChange"
+        >
+          <el-radio-button
+            v-for="role in roleList"
+            :key="role.value"
+            :value="role.value"
+            style="display:block;margin-bottom:8px"
+          >
             {{ role.label }}
           </el-radio-button>
         </el-radio-group>
       </div>
 
       <div class="right-panel">
-        <div class="panel-title">权限分配 — {{ roleList.find(r => r.value === selectedRole)?.label }}</div>
-        <div v-loading="loading" class="tree-wrapper">
+        <div class="panel-title">
+          权限分配 — {{ roleList.find(r => r.value === selectedRole)?.label }}
+        </div>
+        <div
+          v-loading="loading"
+          class="tree-wrapper"
+        >
           <el-tree
             ref="treeRef"
             :data="treeData"
@@ -178,7 +197,13 @@ async function savePermissions() {
           />
         </div>
         <div style="margin-top:16px;text-align:right">
-          <el-button type="primary" :loading="saving" @click="savePermissions">保存权限</el-button>
+          <el-button
+            type="primary"
+            :loading="saving"
+            @click="savePermissions"
+          >
+            保存权限
+          </el-button>
         </div>
       </div>
     </div>

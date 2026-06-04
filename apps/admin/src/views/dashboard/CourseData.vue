@@ -141,39 +141,89 @@ function exportCSV() {
     <div class="toolbar">
       <h3>课程数据看板</h3>
       <div class="toolbar-right">
-        <el-input v-model="entityId" placeholder="输入课程ID" style="width:200px" clearable @keyup.enter="fetchData" />
-        <el-button type="primary" @click="fetchData" :loading="loading">查询</el-button>
-        <el-button @click="exportCSV" :disabled="!data">导出CSV</el-button>
+        <el-input
+          v-model="entityId"
+          placeholder="输入课程ID"
+          style="width:200px"
+          clearable
+          @keyup.enter="fetchData"
+        />
+        <el-button
+          type="primary"
+          :loading="loading"
+          @click="fetchData"
+        >
+          查询
+        </el-button>
+        <el-button
+          :disabled="!data"
+          @click="exportCSV"
+        >
+          导出CSV
+        </el-button>
       </div>
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stats-row" v-if="data">
-      <el-col v-for="card in cards" :key="card.label" :xs="24" :sm="12" :md="8">
+    <el-row
+      v-if="data"
+      :gutter="20"
+      class="stats-row"
+    >
+      <el-col
+        v-for="card in cards"
+        :key="card.label"
+        :xs="24"
+        :sm="12"
+        :md="8"
+      >
         <div class="stat-card">
           <div class="stat-card__top">
             <span class="stat-card__label">{{ card.label }}</span>
             <div class="stat-card__icon">
-              <el-icon :size="18"><component :is="card.icon" /></el-icon>
+              <el-icon :size="18">
+                <component :is="card.icon" />
+              </el-icon>
             </div>
           </div>
           <div class="stat-card__value">
-            <template v-if="card.prefix">{{ card.prefix }}{{ typeof card.value === 'number' ? card.value.toLocaleString() : card.value }}</template>
-            <template v-else-if="card.suffix">{{ card.value }}{{ card.suffix }}</template>
-            <template v-else>{{ card.value }}</template>
+            <template v-if="card.prefix">
+              {{ card.prefix }}{{ typeof card.value === 'number' ? card.value.toLocaleString() : card.value }}
+            </template>
+            <template v-else-if="card.suffix">
+              {{ card.value }}{{ card.suffix }}
+            </template>
+            <template v-else>
+              {{ card.value }}
+            </template>
           </div>
         </div>
       </el-col>
     </el-row>
 
     <!-- 章节完课漏斗图 -->
-    <el-row :gutter="20" class="charts-row" v-if="data && chartOption?.series?.[0]?.data?.length">
-      <el-col :xs="24" :md="24">
-        <ChartCard title="章节完课漏斗" :option="chartOption" :height="400" />
+    <el-row
+      v-if="data && chartOption?.series?.[0]?.data?.length"
+      :gutter="20"
+      class="charts-row"
+    >
+      <el-col
+        :xs="24"
+        :md="24"
+      >
+        <ChartCard
+          title="章节完课漏斗"
+          :option="chartOption"
+          :height="400"
+        />
       </el-col>
     </el-row>
 
-    <el-empty v-if="!data && !loading" description="请输入课程ID查询" :image-size="48" />
+    <el-empty
+      v-if="!data && !loading"
+      description="请输入课程ID查询"
+      :image-size="48"
+    />
   </div>
 </template>
 

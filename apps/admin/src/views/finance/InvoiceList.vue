@@ -107,78 +107,248 @@ function handleExport() {
     <div class="toolbar">
       <h3>发票管理</h3>
       <div class="toolbar-right">
-        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width:130px" @change="fetchList">
-          <el-option label="全部" value="" />
-          <el-option label="待处理" value="PENDING" />
-          <el-option label="已开票" value="ISSUED" />
-          <el-option label="已拒绝" value="REJECTED" />
+        <el-select
+          v-model="statusFilter"
+          placeholder="状态筛选"
+          clearable
+          style="width:130px"
+          @change="fetchList"
+        >
+          <el-option
+            label="全部"
+            value=""
+          />
+          <el-option
+            label="待处理"
+            value="PENDING"
+          />
+          <el-option
+            label="已开票"
+            value="ISSUED"
+          />
+          <el-option
+            label="已拒绝"
+            value="REJECTED"
+          />
         </el-select>
-        <el-button @click="handleExport">导出CSV</el-button>
+        <el-button @click="handleExport">
+          导出CSV
+        </el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="invoiceNo" label="发票号" width="160" show-overflow-tooltip />
-      <el-table-column prop="userName" label="申请人" width="120" show-overflow-tooltip />
-      <el-table-column label="金额" width="110">
-        <template #default="{ row }"><span style="font-weight:600">{{ formatMoney(row.amount) }}</span></template>
-      </el-table-column>
-      <el-table-column label="类型" width="80">
-        <template #default="{ row }">{{ row.type === 'COMPANY' ? '企业' : row.type === 'PERSONAL' ? '个人' : row.type || '-' }}</template>
-      </el-table-column>
-      <el-table-column prop="title" label="抬头" min-width="160" show-overflow-tooltip />
-      <el-table-column label="状态" width="100">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="invoiceNo"
+        label="发票号"
+        width="160"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="userName"
+        label="申请人"
+        width="120"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="金额"
+        width="110"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+          <span style="font-weight:600">{{ formatMoney(row.amount) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="申请时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column
+        label="类型"
+        width="80"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="viewDetail(row)">详情</el-button>
-          <el-button v-if="row.status === 'PENDING'" size="small" type="success" @click="doIssue(row)">开票</el-button>
-          <el-button v-if="row.status === 'PENDING'" size="small" type="danger" @click="openReject(row)">拒开</el-button>
-          <el-button v-if="row.status === 'ISSUED'" size="small" @click="doMail(row)">标记邮寄</el-button>
-          <span v-else-if="row.status === 'MAILED'" style="color:#67c23a;font-size:12px">✓ 已邮寄</span>
+          {{ row.type === 'COMPANY' ? '企业' : row.type === 'PERSONAL' ? '个人' : row.type || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="title"
+        label="抬头"
+        min-width="160"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="状态"
+        width="100"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="statusTagType(row.status)"
+            size="small"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="申请时间"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="220"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="viewDetail(row)"
+          >
+            详情
+          </el-button>
+          <el-button
+            v-if="row.status === 'PENDING'"
+            size="small"
+            type="success"
+            @click="doIssue(row)"
+          >
+            开票
+          </el-button>
+          <el-button
+            v-if="row.status === 'PENDING'"
+            size="small"
+            type="danger"
+            @click="openReject(row)"
+          >
+            拒开
+          </el-button>
+          <el-button
+            v-if="row.status === 'ISSUED'"
+            size="small"
+            @click="doMail(row)"
+          >
+            标记邮寄
+          </el-button>
+          <span
+            v-else-if="row.status === 'MAILED'"
+            style="color:#67c23a;font-size:12px"
+          >✓ 已邮寄</span>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-empty v-if="!loading && list.length === 0" description="暂无发票记录" style="margin-top:40px" />
+    <el-empty
+      v-if="!loading && list.length === 0"
+      description="暂无发票记录"
+      style="margin-top:40px"
+    />
 
     <el-pagination
-      v-model:current-page="page" :total="total" :page-size="pageSize"
-      layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end"
+      v-model:current-page="page"
+      :total="total"
+      :page-size="pageSize"
+      layout="total, prev, pager, next"
+      style="margin-top:16px;justify-content:flex-end"
       @current-change="fetchList"
     />
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="发票详情" width="500px">
-      <el-descriptions v-if="detailData" :column="2" border>
-        <el-descriptions-item label="发票号" :span="2">{{ detailData.invoiceNo || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="申请人">{{ detailData.userName || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="金额"><span style="font-weight:600">{{ formatMoney(detailData.amount) }}</span></el-descriptions-item>
-        <el-descriptions-item label="类型">{{ detailData.type === 'COMPANY' ? '企业' : detailData.type === 'PERSONAL' ? '个人' : detailData.type || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="状态"><el-tag :type="statusTagType(detailData.status)" size="small">{{ statusLabel(detailData.status) }}</el-tag></el-descriptions-item>
-        <el-descriptions-item label="抬头" :span="2">{{ detailData.title || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="税号" :span="2">{{ detailData.taxNo || '-' }}</el-descriptions-item>
-        <el-descriptions-item v-if="detailData.expressNo" label="快递单号" :span="2">{{ detailData.expressNo }}</el-descriptions-item>
-        <el-descriptions-item label="申请时间" :span="2">{{ formatDate(detailData.createdAt) }}</el-descriptions-item>
+    <el-dialog
+      v-model="detailVisible"
+      title="发票详情"
+      width="500px"
+    >
+      <el-descriptions
+        v-if="detailData"
+        :column="2"
+        border
+      >
+        <el-descriptions-item
+          label="发票号"
+          :span="2"
+        >
+          {{ detailData.invoiceNo || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="申请人">
+          {{ detailData.userName || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="金额">
+          <span style="font-weight:600">{{ formatMoney(detailData.amount) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="类型">
+          {{ detailData.type === 'COMPANY' ? '企业' : detailData.type === 'PERSONAL' ? '个人' : detailData.type || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag
+            :type="statusTagType(detailData.status)"
+            size="small"
+          >
+            {{ statusLabel(detailData.status) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item
+          label="抬头"
+          :span="2"
+        >
+          {{ detailData.title || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          label="税号"
+          :span="2"
+        >
+          {{ detailData.taxNo || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="detailData.expressNo"
+          label="快递单号"
+          :span="2"
+        >
+          {{ detailData.expressNo }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          label="申请时间"
+          :span="2"
+        >
+          {{ formatDate(detailData.createdAt) }}
+        </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
 
     <!-- 拒绝弹窗 -->
-    <el-dialog v-model="rejectVisible" title="拒绝开票" width="450px">
+    <el-dialog
+      v-model="rejectVisible"
+      title="拒绝开票"
+      width="450px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="拒绝原因" required>
-          <el-input v-model="rejectForm.reason" type="textarea" :rows="4" placeholder="请输入拒绝原因（必填）" maxlength="200" show-word-limit />
+        <el-form-item
+          label="拒绝原因"
+          required
+        >
+          <el-input
+            v-model="rejectForm.reason"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入拒绝原因（必填）"
+            maxlength="200"
+            show-word-limit
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="rejectVisible = false">取消</el-button>
-        <el-button type="danger" :loading="saving" @click="reject">确认拒绝</el-button>
+        <el-button @click="rejectVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="danger"
+          :loading="saving"
+          @click="reject"
+        >
+          确认拒绝
+        </el-button>
       </template>
     </el-dialog>
   </div>

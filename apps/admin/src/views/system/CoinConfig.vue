@@ -1,51 +1,263 @@
 <template>
   <div class="page">
     <el-tabs v-model="activeTab">
-      <el-tab-pane label="充值档位" name="tiers">
-        <div class="toolbar"><h3>充值档位</h3><el-button type="primary" @click="openCreateTier">添加档位</el-button></div>
-        <el-table v-loading="loading" :data="tierList" stripe>
-          <el-table-column prop="name" label="档位名称" min-width="120" />
-          <el-table-column prop="amount" label="金额(元)" width="120" />
-          <el-table-column prop="presentedCoins" label="赠送(国学币)" width="140" />
-          <el-table-column prop="coins" label="国学币数" width="120" />
-          <el-table-column label="操作" width="160" fixed="right">
-            <template #default="{ row }"><el-button size="small" @click="openEditTier(row)">编辑</el-button><el-button size="small" type="danger" @click="delTier(row)">删除</el-button></template>
+      <el-tab-pane
+        label="充值档位"
+        name="tiers"
+      >
+        <div class="toolbar">
+          <h3>充值档位</h3><el-button
+            type="primary"
+            @click="openCreateTier"
+          >
+            添加档位
+          </el-button>
+        </div>
+        <el-table
+          v-loading="loading"
+          :data="tierList"
+          stripe
+        >
+          <el-table-column
+            prop="name"
+            label="档位名称"
+            min-width="120"
+          />
+          <el-table-column
+            prop="amount"
+            label="金额(元)"
+            width="120"
+          />
+          <el-table-column
+            prop="presentedCoins"
+            label="赠送(国学币)"
+            width="140"
+          />
+          <el-table-column
+            prop="coins"
+            label="国学币数"
+            width="120"
+          />
+          <el-table-column
+            label="操作"
+            width="160"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                @click="openEditTier(row)"
+              >
+                编辑
+              </el-button><el-button
+                size="small"
+                type="danger"
+                @click="delTier(row)"
+              >
+                删除
+              </el-button>
+            </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
-      <el-tab-pane label="礼物管理" name="gifts">
-        <div class="toolbar"><h3>礼物管理</h3><el-button type="primary" @click="openCreateGift">添加礼物</el-button></div>
-        <el-table v-loading="loading" :data="giftList" stripe>
-          <el-table-column prop="name" label="礼物名" min-width="120" />
-          <el-table-column prop="iconUrl" label="图标" width="80"><template #default="{ row }"><el-image v-if="row.iconUrl" :src="row.iconUrl" style="width:40px;height:40px" fit="cover" /></template></el-table-column>
-          <el-table-column prop="price" label="价格(国学币)" width="140" />
-          <el-table-column prop="animationType" label="动画类型" width="120" />
-          <el-table-column label="操作" width="160" fixed="right">
-            <template #default="{ row }"><el-button size="small" @click="openEditGift(row)">编辑</el-button><el-button size="small" type="danger" @click="del(row.id)">删除</el-button></template>
+      <el-tab-pane
+        label="礼物管理"
+        name="gifts"
+      >
+        <div class="toolbar">
+          <h3>礼物管理</h3><el-button
+            type="primary"
+            @click="openCreateGift"
+          >
+            添加礼物
+          </el-button>
+        </div>
+        <el-table
+          v-loading="loading"
+          :data="giftList"
+          stripe
+        >
+          <el-table-column
+            prop="name"
+            label="礼物名"
+            min-width="120"
+          />
+          <el-table-column
+            prop="iconUrl"
+            label="图标"
+            width="80"
+          >
+            <template #default="{ row }">
+              <el-image
+                v-if="row.iconUrl"
+                :src="row.iconUrl"
+                style="width:40px;height:40px"
+                fit="cover"
+              />
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="price"
+            label="价格(国学币)"
+            width="140"
+          />
+          <el-table-column
+            prop="animationType"
+            label="动画类型"
+            width="120"
+          />
+          <el-table-column
+            label="操作"
+            width="160"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                @click="openEditGift(row)"
+              >
+                编辑
+              </el-button><el-button
+                size="small"
+                type="danger"
+                @click="del(row.id)"
+              >
+                删除
+              </el-button>
+            </template>
           </el-table-column>
         </el-table>
-        <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end" @current-change="fetchGifts" />
+        <el-pagination
+          v-model:current-page="page"
+          :total="total"
+          :page-size="20"
+          layout="total, prev, pager, next"
+          style="margin-top:16px;justify-content:flex-end"
+          @current-change="fetchGifts"
+        />
       </el-tab-pane>
     </el-tabs>
 
-    <el-dialog v-model="vis" :title="dialogTitle" width="500px">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="档位名称" required><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="金额" required><el-input-number v-model="form.amount" :min="0" :precision="2" style="width:100%" /></el-form-item>
-        <el-form-item label="国学币数" required><el-input-number v-model="form.coins" :min="0" style="width:100%" /></el-form-item>
-        <el-form-item label="赠送数量"><el-input-number v-model="form.presentedCoins" :min="0" style="width:100%" /></el-form-item>
+    <el-dialog
+      v-model="vis"
+      :title="dialogTitle"
+      width="500px"
+    >
+      <el-form
+        :model="form"
+        label-width="100px"
+      >
+        <el-form-item
+          label="档位名称"
+          required
+        >
+          <el-input v-model="form.name" />
+        </el-form-item>
+        <el-form-item
+          label="金额"
+          required
+        >
+          <el-input-number
+            v-model="form.amount"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+          />
+        </el-form-item>
+        <el-form-item
+          label="国学币数"
+          required
+        >
+          <el-input-number
+            v-model="form.coins"
+            :min="0"
+            style="width:100%"
+          />
+        </el-form-item>
+        <el-form-item label="赠送数量">
+          <el-input-number
+            v-model="form.presentedCoins"
+            :min="0"
+            style="width:100%"
+          />
+        </el-form-item>
       </el-form>
-      <template #footer><el-button @click="vis = false">取消</el-button><el-button type="primary" :loading="saving" @click="saveTier">保存</el-button></template>
+      <template #footer>
+        <el-button @click="vis = false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="saving"
+          @click="saveTier"
+        >
+          保存
+        </el-button>
+      </template>
     </el-dialog>
 
-    <el-dialog v-model="giftVis" :title="giftDialogTitle" width="500px">
-      <el-form :model="giftForm" label-width="100px">
-        <el-form-item label="礼物名" required><el-input v-model="giftForm.name" /></el-form-item>
-        <el-form-item label="图标URL"><el-input v-model="giftForm.iconUrl" placeholder="礼物图标地址" /></el-form-item>
-        <el-form-item label="价格(国学币)" required><el-input-number v-model="giftForm.price" :min="0" style="width:100%" /></el-form-item>
-        <el-form-item label="动画类型"><el-select v-model="giftForm.animationType" style="width:100%"><el-option label="无" value="" /><el-option label="飞入" value="fly" /><el-option label="旋转" value="rotate" /><el-option label="闪烁" value="sparkle" /></el-select></el-form-item>
+    <el-dialog
+      v-model="giftVis"
+      :title="giftDialogTitle"
+      width="500px"
+    >
+      <el-form
+        :model="giftForm"
+        label-width="100px"
+      >
+        <el-form-item
+          label="礼物名"
+          required
+        >
+          <el-input v-model="giftForm.name" />
+        </el-form-item>
+        <el-form-item label="图标URL">
+          <el-input
+            v-model="giftForm.iconUrl"
+            placeholder="礼物图标地址"
+          />
+        </el-form-item>
+        <el-form-item
+          label="价格(国学币)"
+          required
+        >
+          <el-input-number
+            v-model="giftForm.price"
+            :min="0"
+            style="width:100%"
+          />
+        </el-form-item>
+        <el-form-item label="动画类型">
+          <el-select
+            v-model="giftForm.animationType"
+            style="width:100%"
+          >
+            <el-option
+              label="无"
+              value=""
+            /><el-option
+              label="飞入"
+              value="fly"
+            /><el-option
+              label="旋转"
+              value="rotate"
+            /><el-option
+              label="闪烁"
+              value="sparkle"
+            />
+          </el-select>
+        </el-form-item>
       </el-form>
-      <template #footer><el-button @click="giftVis = false">取消</el-button><el-button type="primary" :loading="saving" @click="saveGift">保存</el-button></template>
+      <template #footer>
+        <el-button @click="giftVis = false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="saving"
+          @click="saveGift"
+        >
+          保存
+        </el-button>
+      </template>
     </el-dialog>
   </div>
 </template>

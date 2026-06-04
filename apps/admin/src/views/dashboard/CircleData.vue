@@ -199,30 +199,78 @@ function exportCSV() {
     <div class="toolbar">
       <h3>圈子数据看板</h3>
       <div class="toolbar-right">
-        <el-input v-model="entityId" placeholder="输入圈子ID" style="width:200px" clearable @keyup.enter="fetchData" />
-        <el-button type="primary" @click="fetchData">查询</el-button>
-        <el-button @click="exportCSV" :disabled="!data">导出CSV</el-button>
+        <el-input
+          v-model="entityId"
+          placeholder="输入圈子ID"
+          style="width:200px"
+          clearable
+          @keyup.enter="fetchData"
+        />
+        <el-button
+          type="primary"
+          @click="fetchData"
+        >
+          查询
+        </el-button>
+        <el-button
+          :disabled="!data"
+          @click="exportCSV"
+        >
+          导出CSV
+        </el-button>
       </div>
     </div>
-    <div v-if="data" v-loading="loading">
-      <el-row :gutter="20" class="stats-row">
-        <el-col v-for="card in cards" :key="card.label" :xs="24" :sm="12" :md="6">
+    <div
+      v-if="data"
+      v-loading="loading"
+    >
+      <el-row
+        :gutter="20"
+        class="stats-row"
+      >
+        <el-col
+          v-for="card in cards"
+          :key="card.label"
+          :xs="24"
+          :sm="12"
+          :md="6"
+        >
           <div class="stat-card">
             <div class="stat-card__top">
               <span class="stat-card__label">{{ card.label }}</span>
-              <div class="stat-card__icon"><el-icon :size="18"><component :is="card.icon" /></el-icon></div>
+              <div class="stat-card__icon">
+                <el-icon :size="18">
+                  <component :is="card.icon" />
+                </el-icon>
+              </div>
             </div>
-            <div class="stat-card__value">{{ card.value }}</div>
+            <div class="stat-card__value">
+              {{ card.value }}
+            </div>
           </div>
         </el-col>
       </el-row>
-      <el-row :gutter="20" class="charts-row">
-        <el-col :xs="24" :md="24">
-          <ChartCard title="成员增长趋势" :option="chartOption" :height="320" />
+      <el-row
+        :gutter="20"
+        class="charts-row"
+      >
+        <el-col
+          :xs="24"
+          :md="24"
+        >
+          <ChartCard
+            title="成员增长趋势"
+            :option="chartOption"
+            :height="320"
+          />
         </el-col>
       </el-row>
     </div>
-    <el-empty v-if="!data && !loading" description="请输入圈子ID查询数据" :image-size="48" />
+    <el-empty
+      v-if="!data && !loading"
+      description="请输入圈子ID查询数据"
+      :image-size="48"
+    />
   </div>
 </template>
 

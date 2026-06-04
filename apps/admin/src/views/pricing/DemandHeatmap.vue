@@ -2,50 +2,137 @@
   <div class="page">
     <div class="header">
       <h2>需求热度分析</h2>
-      <el-button type="primary" @click="fetchData">刷新</el-button>
+      <el-button
+        type="primary"
+        @click="fetchData"
+      >
+        刷新
+      </el-button>
     </div>
 
-    <el-form :inline="true" class="search-bar">
+    <el-form
+      :inline="true"
+      class="search-bar"
+    >
       <el-form-item label="目标类型">
-        <el-select v-model="filterType" placeholder="全部" clearable>
-          <el-option label="商品" value="PRODUCT" />
-          <el-option label="课程" value="COURSE" />
-          <el-option label="会员" value="MEMBERSHIP" />
-          <el-option label="电子书" value="EBOOK" />
+        <el-select
+          v-model="filterType"
+          placeholder="全部"
+          clearable
+        >
+          <el-option
+            label="商品"
+            value="PRODUCT"
+          />
+          <el-option
+            label="课程"
+            value="COURSE"
+          />
+          <el-option
+            label="会员"
+            value="MEMBERSHIP"
+          />
+          <el-option
+            label="电子书"
+            value="EBOOK"
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="需求等级">
-        <el-select v-model="filterLevel" placeholder="全部" clearable>
-          <el-option label="高需求" value="HIGH" />
-          <el-option label="中等需求" value="MEDIUM" />
-          <el-option label="低需求" value="LOW" />
+        <el-select
+          v-model="filterLevel"
+          placeholder="全部"
+          clearable
+        >
+          <el-option
+            label="高需求"
+            value="HIGH"
+          />
+          <el-option
+            label="中等需求"
+            value="MEDIUM"
+          />
+          <el-option
+            label="低需求"
+            value="LOW"
+          />
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="fetchData">搜索</el-button>
-        <el-button @click="resetFilter">重置</el-button>
+        <el-button
+          type="primary"
+          @click="fetchData"
+        >
+          搜索
+        </el-button>
+        <el-button @click="resetFilter">
+          重置
+        </el-button>
       </el-form-item>
     </el-form>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="targetType" label="目标类型" width="110">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="targetType"
+        label="目标类型"
+        width="110"
+      >
         <template #default="{ row }">
           <el-tag>{{ typeLabel(row.targetType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="targetId" label="目标ID" width="200" />
-      <el-table-column prop="targetName" label="目标名称" min-width="160" />
-      <el-table-column prop="viewCount24h" label="24h浏览" width="110" sortable />
-      <el-table-column prop="purchaseCount24h" label="24h购买" width="110" sortable />
-      <el-table-column prop="viewToPurchaseRate" label="转化率" width="100">
-        <template #default="{ row }">{{ (row.viewToPurchaseRate * 100).toFixed(1) }}%</template>
-      </el-table-column>
-      <el-table-column prop="demandLevel" label="需求等级" width="110">
+      <el-table-column
+        prop="targetId"
+        label="目标ID"
+        width="200"
+      />
+      <el-table-column
+        prop="targetName"
+        label="目标名称"
+        min-width="160"
+      />
+      <el-table-column
+        prop="viewCount24h"
+        label="24h浏览"
+        width="110"
+        sortable
+      />
+      <el-table-column
+        prop="purchaseCount24h"
+        label="24h购买"
+        width="110"
+        sortable
+      />
+      <el-table-column
+        prop="viewToPurchaseRate"
+        label="转化率"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="demandTag(row.demandLevel)">{{ demandLabel(row.demandLevel) }}</el-tag>
+          {{ (row.viewToPurchaseRate * 100).toFixed(1) }}%
         </template>
       </el-table-column>
-      <el-table-column prop="updatedAt" label="更新时间" width="170" />
+      <el-table-column
+        prop="demandLevel"
+        label="需求等级"
+        width="110"
+      >
+        <template #default="{ row }">
+          <el-tag :type="demandTag(row.demandLevel)">
+            {{ demandLabel(row.demandLevel) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="updatedAt"
+        label="更新时间"
+        width="170"
+      />
     </el-table>
 
     <el-pagination

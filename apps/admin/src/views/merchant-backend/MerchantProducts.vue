@@ -3,42 +3,134 @@
     <div class="page-header">
       <h3>商品管理</h3>
       <div class="header-right">
-        <el-select v-model="filterStatus" placeholder="全部状态" clearable style="width:130px" @change="fetchList">
-          <el-option label="在售" value="ON_SALE" />
-          <el-option label="已下架" value="OFF_SHELF" />
+        <el-select
+          v-model="filterStatus"
+          placeholder="全部状态"
+          clearable
+          style="width:130px"
+          @change="fetchList"
+        >
+          <el-option
+            label="在售"
+            value="ON_SALE"
+          />
+          <el-option
+            label="已下架"
+            value="OFF_SHELF"
+          />
         </el-select>
-        <el-button type="primary" @click="openCreate">发布商品</el-button>
+        <el-button
+          type="primary"
+          @click="openCreate"
+        >
+          发布商品
+        </el-button>
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column label="图片" width="80">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        label="图片"
+        width="80"
+      >
         <template #default="{ row }">
-          <img v-if="row.images?.[0]" :src="row.images[0]" class="prod-img" />
-          <div v-else class="prod-img-placeholder">无图</div>
+          <img
+            v-if="row.images?.[0]"
+            :src="row.images[0]"
+            class="prod-img"
+          >
+          <div
+            v-else
+            class="prod-img-placeholder"
+          >
+            无图
+          </div>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="商品名称" min-width="180" show-overflow-tooltip />
-      <el-table-column label="价格" width="100">
-        <template #default="{ row }">¥{{ Number(row.price || 0).toFixed(2) }}</template>
-      </el-table-column>
-      <el-table-column label="库存" width="70" prop="stock" />
-      <el-table-column label="状态" width="80">
+      <el-table-column
+        prop="title"
+        label="商品名称"
+        min-width="180"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="价格"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.status === 'ON_SALE' ? 'success' : 'info'" size="small">
+          ¥{{ Number(row.price || 0).toFixed(2) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="库存"
+        width="70"
+        prop="stock"
+      />
+      <el-table-column
+        label="状态"
+        width="80"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="row.status === 'ON_SALE' ? 'success' : 'info'"
+            size="small"
+          >
             {{ row.status === "ON_SALE" ? "在售" : "已下架" }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" width="160">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column
+        label="创建时间"
+        width="160"
+      >
         <template #default="{ row }">
-          <el-button size="small" text type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button v-if="row.status === 'ON_SALE'" size="small" text type="warning" @click="toggleStatus(row, 'unlist')">下架</el-button>
-          <el-button v-else size="small" text type="success" @click="toggleStatus(row, 'list')">上架</el-button>
-          <el-button size="small" text type="danger" @click="handleDelete(row)">删除</el-button>
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="220"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            text
+            type="primary"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-if="row.status === 'ON_SALE'"
+            size="small"
+            text
+            type="warning"
+            @click="toggleStatus(row, 'unlist')"
+          >
+            下架
+          </el-button>
+          <el-button
+            v-else
+            size="small"
+            text
+            type="success"
+            @click="toggleStatus(row, 'list')"
+          >
+            上架
+          </el-button>
+          <el-button
+            size="small"
+            text
+            type="danger"
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -48,58 +140,158 @@
       :total="total"
       :page-size="20"
       layout="total, prev, pager, next"
-      @current-change="fetchList"
       style="margin-top:16px;justify-content:flex-end"
+      @current-change="fetchList"
     />
 
     <!-- 新建/编辑 dialog -->
-    <el-dialog v-model="dialogVisible" :title="editingId ? '编辑商品' : '发布商品'" width="650px" destroy-on-close>
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="商品名称" prop="title">
-          <el-input v-model="form.title" maxlength="100" placeholder="请输入商品名称" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editingId ? '编辑商品' : '发布商品'"
+      width="650px"
+      destroy-on-close
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="80px"
+      >
+        <el-form-item
+          label="商品名称"
+          prop="title"
+        >
+          <el-input
+            v-model="form.title"
+            maxlength="100"
+            placeholder="请输入商品名称"
+          />
         </el-form-item>
         <el-form-item label="简介">
-          <el-input v-model="form.intro" type="textarea" :rows="2" maxlength="200" placeholder="简短介绍" />
+          <el-input
+            v-model="form.intro"
+            type="textarea"
+            :rows="2"
+            maxlength="200"
+            placeholder="简短介绍"
+          />
         </el-form-item>
-        <el-form-item label="商品详情" prop="detail">
-          <el-input v-model="form.detail" type="textarea" :rows="5" placeholder="商品详情（支持HTML）" />
+        <el-form-item
+          label="商品详情"
+          prop="detail"
+        >
+          <el-input
+            v-model="form.detail"
+            type="textarea"
+            :rows="5"
+            placeholder="商品详情（支持HTML）"
+          />
         </el-form-item>
         <el-form-item label="商品图片">
           <div class="images-section">
-            <div v-for="(url, idx) in form.images" :key="idx" class="image-item">
-              <img :src="url" />
-              <el-button size="small" type="danger" class="img-remove" @click="form.images.splice(idx, 1)">×</el-button>
+            <div
+              v-for="(url, idx) in form.images"
+              :key="idx"
+              class="image-item"
+            >
+              <img :src="url">
+              <el-button
+                size="small"
+                type="danger"
+                class="img-remove"
+                @click="form.images.splice(idx, 1)"
+              >
+                ×
+              </el-button>
             </div>
             <div class="image-add">
-              <el-input v-model="imageUrl" placeholder="图片URL" size="small" style="width:200px" />
-              <el-button size="small" @click="addImage">添加</el-button>
+              <el-input
+                v-model="imageUrl"
+                placeholder="图片URL"
+                size="small"
+                style="width:200px"
+              />
+              <el-button
+                size="small"
+                @click="addImage"
+              >
+                添加
+              </el-button>
             </div>
           </div>
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="价格" prop="price">
-              <el-input-number v-model="form.price" :min="0" :precision="2" style="width:100%" />
+            <el-form-item
+              label="价格"
+              prop="price"
+            >
+              <el-input-number
+                v-model="form.price"
+                :min="0"
+                :precision="2"
+                style="width:100%"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="库存" prop="stock">
-              <el-input-number v-model="form.stock" :min="0" style="width:100%" />
+            <el-form-item
+              label="库存"
+              prop="stock"
+            >
+              <el-input-number
+                v-model="form.stock"
+                :min="0"
+                style="width:100%"
+              />
             </el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="分类">
-          <el-input v-model="form.categoryId" placeholder="商品分类ID（可选）" />
+          <el-input
+            v-model="form.categoryId"
+            placeholder="商品分类ID（可选）"
+          />
         </el-form-item>
         <el-form-item label="标签">
-          <el-tag v-for="(tag, idx) in form.tags" :key="idx" closable style="margin-right:4px" @close="form.tags.splice(idx, 1)">{{ tag }}</el-tag>
-          <el-input v-if="tagInputVisible" ref="tagInputRef" v-model="tagInputValue" size="small" style="width:80px" @keyup.enter="addTag" @blur="addTag" />
-          <el-button v-else size="small" @click="showTagInput">+ 标签</el-button>
+          <el-tag
+            v-for="(tag, idx) in form.tags"
+            :key="idx"
+            closable
+            style="margin-right:4px"
+            @close="form.tags.splice(idx, 1)"
+          >
+            {{ tag }}
+          </el-tag>
+          <el-input
+            v-if="tagInputVisible"
+            ref="tagInputRef"
+            v-model="tagInputValue"
+            size="small"
+            style="width:80px"
+            @keyup.enter="addTag"
+            @blur="addTag"
+          />
+          <el-button
+            v-else
+            size="small"
+            @click="showTagInput"
+          >
+            + 标签
+          </el-button>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">{{ editingId ? "保存" : "发布" }}</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          {{ editingId ? "保存" : "发布" }}
+        </el-button>
       </template>
     </el-dialog>
   </div>

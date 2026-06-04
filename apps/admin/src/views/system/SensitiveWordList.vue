@@ -3,50 +3,146 @@
     <div class="toolbar">
       <h3>敏感词管理</h3>
       <div class="toolbar-right">
-        <el-button @click="openCheck">文本检测</el-button>
-        <el-button type="primary" @click="openAdd">添加敏感词</el-button>
+        <el-button @click="openCheck">
+          文本检测
+        </el-button>
+        <el-button
+          type="primary"
+          @click="openAdd"
+        >
+          添加敏感词
+        </el-button>
       </div>
     </div>
 
-    <el-input v-model="searchWord" placeholder="搜索敏感词" clearable style="width:300px;margin-bottom:16px" />
+    <el-input
+      v-model="searchWord"
+      placeholder="搜索敏感词"
+      clearable
+      style="width:300px;margin-bottom:16px"
+    />
 
-    <el-table v-loading="loading" :data="filteredWords" stripe>
-      <el-table-column prop="word" label="敏感词" min-width="200" />
-      <el-table-column label="操作" width="100" fixed="right">
+    <el-table
+      v-loading="loading"
+      :data="filteredWords"
+      stripe
+    >
+      <el-table-column
+        prop="word"
+        label="敏感词"
+        min-width="200"
+      />
+      <el-table-column
+        label="操作"
+        width="100"
+        fixed="right"
+      >
         <template #default="{ row }">
-          <el-button size="small" text type="danger" @click="del(row)">删除</el-button>
+          <el-button
+            size="small"
+            text
+            type="danger"
+            @click="del(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <div style="margin-top:12px;color:#999">共 {{ words.length }} 个敏感词</div>
+    <div style="margin-top:12px;color:#999">
+      共 {{ words.length }} 个敏感词
+    </div>
 
     <!-- 添加对话框 -->
-    <el-dialog v-model="addDialog" title="添加敏感词" width="500px">
-      <el-radio-group v-model="addMode" style="margin-bottom:12px">
-        <el-radio value="single">单个添加</el-radio>
-        <el-radio value="batch">批量添加</el-radio>
+    <el-dialog
+      v-model="addDialog"
+      title="添加敏感词"
+      width="500px"
+    >
+      <el-radio-group
+        v-model="addMode"
+        style="margin-bottom:12px"
+      >
+        <el-radio value="single">
+          单个添加
+        </el-radio>
+        <el-radio value="batch">
+          批量添加
+        </el-radio>
       </el-radio-group>
-      <el-input v-if="addMode === 'single'" v-model="addWord" placeholder="输入敏感词" />
-      <el-input v-else v-model="addWords" type="textarea" :rows="5" placeholder="每行一个敏感词" />
+      <el-input
+        v-if="addMode === 'single'"
+        v-model="addWord"
+        placeholder="输入敏感词"
+      />
+      <el-input
+        v-else
+        v-model="addWords"
+        type="textarea"
+        :rows="5"
+        placeholder="每行一个敏感词"
+      />
       <template #footer>
-        <el-button @click="addDialog = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doAdd">确认</el-button>
+        <el-button @click="addDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doAdd"
+        >
+          确认
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 检测对话框 -->
-    <el-dialog v-model="checkDialog" title="敏感词检测" width="600px">
-      <el-input v-model="checkText" type="textarea" :rows="5" placeholder="输入要检测的文本" />
-      <div v-if="checkResult" style="margin-top:12px">
-        <el-alert :type="checkResult.hasSensitive ? 'warning' : 'success'" :title="checkResult.hasSensitive ? '检测到敏感词' : '未检测到敏感词'" show-icon />
-        <div v-if="checkResult.hasSensitive" style="margin-top:8px">
-          <el-tag v-for="h in checkResult.hits" :key="h" type="danger" style="margin:4px">{{ h }}</el-tag>
+    <el-dialog
+      v-model="checkDialog"
+      title="敏感词检测"
+      width="600px"
+    >
+      <el-input
+        v-model="checkText"
+        type="textarea"
+        :rows="5"
+        placeholder="输入要检测的文本"
+      />
+      <div
+        v-if="checkResult"
+        style="margin-top:12px"
+      >
+        <el-alert
+          :type="checkResult.hasSensitive ? 'warning' : 'success'"
+          :title="checkResult.hasSensitive ? '检测到敏感词' : '未检测到敏感词'"
+          show-icon
+        />
+        <div
+          v-if="checkResult.hasSensitive"
+          style="margin-top:8px"
+        >
+          <el-tag
+            v-for="h in checkResult.hits"
+            :key="h"
+            type="danger"
+            style="margin:4px"
+          >
+            {{ h }}
+          </el-tag>
         </div>
       </div>
       <template #footer>
-        <el-button @click="checkDialog = false">关闭</el-button>
-        <el-button type="primary" :loading="saving" @click="doCheck">检测</el-button>
+        <el-button @click="checkDialog = false">
+          关闭
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doCheck"
+        >
+          检测
+        </el-button>
       </template>
     </el-dialog>
   </div>

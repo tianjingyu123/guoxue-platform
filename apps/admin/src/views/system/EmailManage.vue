@@ -1,11 +1,22 @@
 <template>
   <div class="page">
-    <div class="toolbar"><h3>邮件管理</h3></div>
+    <div class="toolbar">
+      <h3>邮件管理</h3>
+    </div>
 
     <el-tabs v-model="activeTab">
-      <el-tab-pane label="发送邮件" name="send" />
-      <el-tab-pane label="模板管理" name="templates" />
-      <el-tab-pane label="发送历史" name="history" />
+      <el-tab-pane
+        label="发送邮件"
+        name="send"
+      />
+      <el-tab-pane
+        label="模板管理"
+        name="templates"
+      />
+      <el-tab-pane
+        label="发送历史"
+        name="history"
+      />
     </el-tabs>
 
     <!-- 发送邮件 -->
@@ -13,38 +24,102 @@
       <el-row :gutter="16">
         <el-col :span="12">
           <el-card>
-            <template #header>发送单封邮件</template>
-            <el-form :model="emailForm" label-width="80px">
-              <el-form-item label="收件人" required><el-input v-model="emailForm.to" placeholder="user@example.com" /></el-form-item>
-              <el-form-item label="主题" required><el-input v-model="emailForm.subject" /></el-form-item>
+            <template #header>
+              发送单封邮件
+            </template>
+            <el-form
+              :model="emailForm"
+              label-width="80px"
+            >
+              <el-form-item
+                label="收件人"
+                required
+              >
+                <el-input
+                  v-model="emailForm.to"
+                  placeholder="user@example.com"
+                />
+              </el-form-item>
+              <el-form-item
+                label="主题"
+                required
+              >
+                <el-input v-model="emailForm.subject" />
+              </el-form-item>
               <el-form-item label="使用模板">
-                <el-select v-model="selectedTemplate" placeholder="选择已保存的模板" clearable style="width:100%" @change="applyTemplate">
-                  <el-option v-for="t in templates" :key="t.id" :label="t.name" :value="t.id" />
+                <el-select
+                  v-model="selectedTemplate"
+                  placeholder="选择已保存的模板"
+                  clearable
+                  style="width:100%"
+                  @change="applyTemplate"
+                >
+                  <el-option
+                    v-for="t in templates"
+                    :key="t.id"
+                    :label="t.name"
+                    :value="t.id"
+                  />
                 </el-select>
               </el-form-item>
-              <el-form-item label="内容(HTML)" required>
-                <el-input v-model="emailForm.html" type="textarea" :rows="8" placeholder="HTML 格式邮件内容，支持变量 {{ username }} {{ siteName }}" />
+              <el-form-item
+                label="内容(HTML)"
+                required
+              >
+                <el-input
+                  v-model="emailForm.html"
+                  type="textarea"
+                  :rows="8"
+                  placeholder="HTML 格式邮件内容，支持变量 {{ username }} {{ siteName }}"
+                />
               </el-form-item>
               <el-form-item>
-                <el-button type="primary" :loading="sending" @click="sendEmail">发送邮件</el-button>
+                <el-button
+                  type="primary"
+                  :loading="sending"
+                  @click="sendEmail"
+                >
+                  发送邮件
+                </el-button>
               </el-form-item>
             </el-form>
           </el-card>
         </el-col>
         <el-col :span="12">
           <el-card>
-            <template #header>邮件配置测试</template>
-            <p style="color:#999;margin-bottom:16px">测试当前 SMTP 邮件服务配置是否正常</p>
+            <template #header>
+              邮件配置测试
+            </template>
+            <p style="color:#999;margin-bottom:16px">
+              测试当前 SMTP 邮件服务配置是否正常
+            </p>
             <el-form label-width="80px">
-              <el-form-item label="邮箱地址" required>
-                <el-input v-model="verifyEmail" placeholder="user@example.com" />
+              <el-form-item
+                label="邮箱地址"
+                required
+              >
+                <el-input
+                  v-model="verifyEmail"
+                  placeholder="user@example.com"
+                />
               </el-form-item>
               <el-form-item>
-                <el-button :loading="sending" @click="sendVerifyCode">发送测试验证码</el-button>
+                <el-button
+                  :loading="sending"
+                  @click="sendVerifyCode"
+                >
+                  发送测试验证码
+                </el-button>
               </el-form-item>
             </el-form>
             <el-divider />
-            <el-button type="primary" :loading="sending" @click="testEmail">测试 SMTP 连接</el-button>
+            <el-button
+              type="primary"
+              :loading="sending"
+              @click="testEmail"
+            >
+              测试 SMTP 连接
+            </el-button>
           </el-card>
         </el-col>
       </el-row>
@@ -52,45 +127,174 @@
 
     <!-- 模板管理 -->
     <div v-if="activeTab === 'templates'">
-      <div style="margin-bottom:12px"><el-button type="primary" size="small" @click="openTemplateCreate">新建模板</el-button></div>
-      <el-table v-if="templates.length > 0" :data="templates" stripe>
-        <el-table-column prop="name" label="模板名称" min-width="150" />
-        <el-table-column prop="subject" label="默认主题" min-width="150" />
-        <el-table-column label="上次更新" width="170"><template #default="{ row }">{{ formatDate(row.updatedAt) }}</template></el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+      <div style="margin-bottom:12px">
+        <el-button
+          type="primary"
+          size="small"
+          @click="openTemplateCreate"
+        >
+          新建模板
+        </el-button>
+      </div>
+      <el-table
+        v-if="templates.length > 0"
+        :data="templates"
+        stripe
+      >
+        <el-table-column
+          prop="name"
+          label="模板名称"
+          min-width="150"
+        />
+        <el-table-column
+          prop="subject"
+          label="默认主题"
+          min-width="150"
+        />
+        <el-table-column
+          label="上次更新"
+          width="170"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="openTemplateEdit(row)">编辑</el-button>
-            <el-button size="small" type="primary" @click="useTemplate(row)">使用</el-button>
-            <el-button size="small" type="danger" @click="delTemplate(row.id)">删除</el-button>
+            {{ formatDate(row.updatedAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="200"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              @click="openTemplateEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="useTemplate(row)"
+            >
+              使用
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="delTemplate(row.id)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-else description="暂无模板 — 模板保存在浏览器本地存储" />
+      <el-empty
+        v-else
+        description="暂无模板 — 模板保存在浏览器本地存储"
+      />
 
-      <el-dialog v-model="tVis" :title="tEditingId ? '编辑模板' : '新建模板'" width="550px">
-        <el-form :model="tForm" label-width="80px">
-          <el-form-item label="名称" required><el-input v-model="tForm.name" /></el-form-item>
-          <el-form-item label="默认主题"><el-input v-model="tForm.subject" placeholder="可以为空，使用时手动填写" /></el-form-item>
-          <el-form-item label="内容(HTML)" required>
-            <el-input v-model="tForm.html" type="textarea" :rows="10" placeholder="支持变量 {{ username }} {{ siteName }} {{ date }}" />
+      <el-dialog
+        v-model="tVis"
+        :title="tEditingId ? '编辑模板' : '新建模板'"
+        width="550px"
+      >
+        <el-form
+          :model="tForm"
+          label-width="80px"
+        >
+          <el-form-item
+            label="名称"
+            required
+          >
+            <el-input v-model="tForm.name" />
+          </el-form-item>
+          <el-form-item label="默认主题">
+            <el-input
+              v-model="tForm.subject"
+              placeholder="可以为空，使用时手动填写"
+            />
+          </el-form-item>
+          <el-form-item
+            label="内容(HTML)"
+            required
+          >
+            <el-input
+              v-model="tForm.html"
+              type="textarea"
+              :rows="10"
+              placeholder="支持变量 {{ username }} {{ siteName }} {{ date }}"
+            />
           </el-form-item>
         </el-form>
-        <template #footer><el-button @click="tVis = false">取消</el-button><el-button type="primary" :loading="tSaving" @click="saveTemplate">保存模板</el-button></template>
+        <template #footer>
+          <el-button @click="tVis = false">
+            取消
+          </el-button><el-button
+            type="primary"
+            :loading="tSaving"
+            @click="saveTemplate"
+          >
+            保存模板
+          </el-button>
+        </template>
       </el-dialog>
     </div>
 
     <!-- 发送历史 -->
     <div v-if="activeTab === 'history'">
-      <el-table v-if="sendHistory.length > 0" :data="sendHistory" stripe>
-        <el-table-column prop="to" label="收件人" min-width="160" />
-        <el-table-column prop="subject" label="主题" min-width="160" show-overflow-tooltip />
-        <el-table-column label="状态" width="90">
-          <template #default="{ row }"><el-tag :type="row.status === 'ok' ? 'success' : 'danger'" size="small">{{ row.status === 'ok' ? '成功' : '失败' }}</el-tag></template>
+      <el-table
+        v-if="sendHistory.length > 0"
+        :data="sendHistory"
+        stripe
+      >
+        <el-table-column
+          prop="to"
+          label="收件人"
+          min-width="160"
+        />
+        <el-table-column
+          prop="subject"
+          label="主题"
+          min-width="160"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="状态"
+          width="90"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="row.status === 'ok' ? 'success' : 'danger'"
+              size="small"
+            >
+              {{ row.status === 'ok' ? '成功' : '失败' }}
+            </el-tag>
+          </template>
         </el-table-column>
-        <el-table-column label="发送时间" width="170"><template #default="{ row }">{{ formatDate(row.sentAt) }}</template></el-table-column>
+        <el-table-column
+          label="发送时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.sentAt) }}
+          </template>
+        </el-table-column>
       </el-table>
-      <el-empty v-else description="暂无发送历史" />
-      <div v-if="sendHistory.length > 0" style="margin-top:12px"><el-button size="small" @click="clearHistory">清空历史</el-button></div>
+      <el-empty
+        v-else
+        description="暂无发送历史"
+      />
+      <div
+        v-if="sendHistory.length > 0"
+        style="margin-top:12px"
+      >
+        <el-button
+          size="small"
+          @click="clearHistory"
+        >
+          清空历史
+        </el-button>
+      </div>
     </div>
   </div>
 </template>

@@ -1,50 +1,216 @@
 <template>
   <div class="page">
-    <div class="toolbar"><h3>秒杀活动</h3><el-button type="primary" @click="openCreate">创建活动</el-button></div>
-    <el-alert type="info" :closable="false" show-icon style="margin-bottom:12px">
+    <div class="toolbar">
+      <h3>秒杀活动</h3><el-button
+        type="primary"
+        @click="openCreate"
+      >
+        创建活动
+      </el-button>
+    </div>
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
       <template #title>
         <span style="font-size:13px">展示位置：<b>商城首页秒杀专区</b>、<b>微页面秒杀组件</b>。创建后需点击"开始"才在用户端生效。</span>
       </template>
     </el-alert>
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="name" label="活动名称" min-width="150" />
-      <el-table-column label="商品" min-width="140" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.items?.map((i:any) => i.product?.title || i.productId).join(', ') || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="秒杀价" width="100">
-        <template #default="{ row }">¥{{ Number(row.items?.[0]?.flashPrice || 0).toFixed(2) }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="90">
-        <template #default="{ row }"><el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'" size="small">{{ row.status === 'ACTIVE' ? '进行中' : row.status === 'ENDED' ? '已结束' : '未开始' }}</el-tag></template>
-      </el-table-column>
-      <el-table-column label="活动时间" width="300">
-        <template #default="{ row }">{{ formatDate(row.startTime) }} ~ {{ formatDate(row.endTime) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="name"
+        label="活动名称"
+        min-width="150"
+      />
+      <el-table-column
+        label="商品"
+        min-width="140"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button v-if="row.status !== 'ACTIVE'" size="small" type="success" @click="startActivity(row)">开始</el-button>
-          <el-button v-if="row.status === 'ACTIVE'" size="small" type="warning" @click="endActivity(row)">结束</el-button>
-          <el-button size="small" type="danger" @click="del(row.id)">删除</el-button>
+          {{ row.items?.map((i:any) => i.product?.title || i.productId).join(', ') || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="秒杀价"
+        width="100"
+      >
+        <template #default="{ row }">
+          ¥{{ Number(row.items?.[0]?.flashPrice || 0).toFixed(2) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
+        width="90"
+      >
+        <template #default="{ row }">
+          <el-tag
+            :type="row.status === 'ACTIVE' ? 'success' : 'info'"
+            size="small"
+          >
+            {{ row.status === 'ACTIVE' ? '进行中' : row.status === 'ENDED' ? '已结束' : '未开始' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="活动时间"
+        width="300"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.startTime) }} ~ {{ formatDate(row.endTime) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="220"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            v-if="row.status !== 'ACTIVE'"
+            size="small"
+            type="success"
+            @click="startActivity(row)"
+          >
+            开始
+          </el-button>
+          <el-button
+            v-if="row.status === 'ACTIVE'"
+            size="small"
+            type="warning"
+            @click="endActivity(row)"
+          >
+            结束
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="del(row.id)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <div v-if="total > 20" style="margin-top:16px;display:flex;justify-content:flex-end">
-      <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" @current-change="fetchList" />
+    <div
+      v-if="total > 20"
+      style="margin-top:16px;display:flex;justify-content:flex-end"
+    >
+      <el-pagination
+        v-model:current-page="page"
+        :total="total"
+        :page-size="20"
+        layout="total, prev, pager, next"
+        @current-change="fetchList"
+      />
     </div>
 
-    <el-dialog v-model="vis" :title="editingId ? '编辑秒杀' : '创建秒杀'" width="550px">
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="选择商品"><ProductPicker v-model="form.productId" /></el-form-item>
-        <el-form-item label="秒杀价"><el-input-number v-model="form.flashPrice" :min="0.01" :precision="2" style="width:100%" /></el-form-item>
-        <el-form-item label="限购数"><el-input-number v-model="form.limitPerUser" :min="1" style="width:100%" /></el-form-item>
-        <el-row :gutter="16"><el-col :span="12"><el-form-item label="开始时间"><el-date-picker v-model="form.startTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col><el-col :span="12"><el-form-item label="结束时间"><el-date-picker v-model="form.endTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" /></el-form-item></el-col></el-row>
-        <el-form-item label="展示范围"><el-radio-group v-model="form.scope"><el-radio value="GLOBAL">全平台</el-radio><el-radio value="PAGE_ONLY">仅指定微页面</el-radio></el-radio-group></el-form-item>
-        <el-form-item v-if="form.scope === 'PAGE_ONLY'" label="关联微页面"><el-select v-model="form.scopePageId" placeholder="选择微页面" clearable style="width:100%"><el-option v-for="p in pages" :key="p.id" :label="p.name" :value="p.id" /></el-select></el-form-item>
+    <el-dialog
+      v-model="vis"
+      :title="editingId ? '编辑秒杀' : '创建秒杀'"
+      width="550px"
+    >
+      <el-form
+        :model="form"
+        label-width="80px"
+      >
+        <el-form-item
+          label="名称"
+          required
+        >
+          <el-input v-model="form.name" />
+        </el-form-item>
+        <el-form-item label="选择商品">
+          <ProductPicker v-model="form.productId" />
+        </el-form-item>
+        <el-form-item label="秒杀价">
+          <el-input-number
+            v-model="form.flashPrice"
+            :min="0.01"
+            :precision="2"
+            style="width:100%"
+          />
+        </el-form-item>
+        <el-form-item label="限购数">
+          <el-input-number
+            v-model="form.limitPerUser"
+            :min="1"
+            style="width:100%"
+          />
+        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="开始时间">
+              <el-date-picker
+                v-model="form.startTime"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                style="width:100%"
+              />
+            </el-form-item>
+          </el-col><el-col :span="12">
+            <el-form-item label="结束时间">
+              <el-date-picker
+                v-model="form.endTime"
+                type="datetime"
+                value-format="YYYY-MM-DD HH:mm:ss"
+                style="width:100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="展示范围">
+          <el-radio-group v-model="form.scope">
+            <el-radio value="GLOBAL">
+              全平台
+            </el-radio><el-radio value="PAGE_ONLY">
+              仅指定微页面
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item
+          v-if="form.scope === 'PAGE_ONLY'"
+          label="关联微页面"
+        >
+          <el-select
+            v-model="form.scopePageId"
+            placeholder="选择微页面"
+            clearable
+            style="width:100%"
+          >
+            <el-option
+              v-for="p in pages"
+              :key="p.id"
+              :label="p.name"
+              :value="p.id"
+            />
+          </el-select>
+        </el-form-item>
       </el-form>
-      <template #footer><el-button @click="vis = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
+      <template #footer>
+        <el-button @click="vis = false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
+      </template>
     </el-dialog>
   </div>
 </template>

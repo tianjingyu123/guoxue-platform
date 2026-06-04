@@ -3,67 +3,204 @@
     <div class="toolbar">
       <h3>内容审核中心</h3>
       <div>
-        <el-button type="success" :disabled="selected.length === 0" @click="batchApprove">批量通过</el-button>
-        <el-button type="danger" :disabled="selected.length === 0" @click="batchReject">批量拒绝</el-button>
+        <el-button
+          type="success"
+          :disabled="selected.length === 0"
+          @click="batchApprove"
+        >
+          批量通过
+        </el-button>
+        <el-button
+          type="danger"
+          :disabled="selected.length === 0"
+          @click="batchReject"
+        >
+          批量拒绝
+        </el-button>
       </div>
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="12" style="margin-bottom:12px">
-      <el-col :span="4"><div class="stat-mini"><span class="v">{{ stats.pending }}</span><span class="l">待审核</span></div></el-col>
-      <el-col :span="4"><div class="stat-mini"><span class="v">{{ stats.aiGenerated }}</span><span class="l">AI生成</span></div></el-col>
-      <el-col :span="4"><div class="stat-mini"><span class="v">{{ stats.approvedToday }}</span><span class="l">今日通过</span></div></el-col>
-      <el-col :span="4"><div class="stat-mini"><span class="v">{{ stats.rejectedToday }}</span><span class="l">今日拒绝</span></div></el-col>
+    <el-row
+      :gutter="12"
+      style="margin-bottom:12px"
+    >
+      <el-col :span="4">
+        <div class="stat-mini">
+          <span class="v">{{ stats.pending }}</span><span class="l">待审核</span>
+        </div>
+      </el-col>
+      <el-col :span="4">
+        <div class="stat-mini">
+          <span class="v">{{ stats.aiGenerated }}</span><span class="l">AI生成</span>
+        </div>
+      </el-col>
+      <el-col :span="4">
+        <div class="stat-mini">
+          <span class="v">{{ stats.approvedToday }}</span><span class="l">今日通过</span>
+        </div>
+      </el-col>
+      <el-col :span="4">
+        <div class="stat-mini">
+          <span class="v">{{ stats.rejectedToday }}</span><span class="l">今日拒绝</span>
+        </div>
+      </el-col>
       <el-col :span="8">
         <div style="display:flex;gap:8px;align-items:center;height:100%">
-          <el-select v-model="filterCategory" placeholder="按品类筛选" size="small" clearable style="width:150px" @change="fetchList">
-            <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+          <el-select
+            v-model="filterCategory"
+            placeholder="按品类筛选"
+            size="small"
+            clearable
+            style="width:150px"
+            @change="fetchList"
+          >
+            <el-option
+              v-for="c in categories"
+              :key="c"
+              :label="c"
+              :value="c"
+            />
           </el-select>
-          <el-switch v-model="filterAiOnly" size="small" active-text="仅看AI" @change="fetchList" />
+          <el-switch
+            v-model="filterAiOnly"
+            size="small"
+            active-text="仅看AI"
+            @change="fetchList"
+          />
         </div>
       </el-col>
     </el-row>
 
-    <el-tabs v-model="activeTab" @tab-change="fetchList">
-      <el-tab-pane label="待审核" name="PENDING" />
-      <el-tab-pane label="AI生成" name="AI_GENERATED" />
-      <el-tab-pane label="已通过" name="APPROVED" />
-      <el-tab-pane label="已拒绝" name="REJECTED" />
+    <el-tabs
+      v-model="activeTab"
+      @tab-change="fetchList"
+    >
+      <el-tab-pane
+        label="待审核"
+        name="PENDING"
+      />
+      <el-tab-pane
+        label="AI生成"
+        name="AI_GENERATED"
+      />
+      <el-tab-pane
+        label="已通过"
+        name="APPROVED"
+      />
+      <el-tab-pane
+        label="已拒绝"
+        name="REJECTED"
+      />
     </el-tabs>
 
-    <el-table v-loading="loading" :data="list" stripe @selection-change="handleSelection">
-      <el-table-column type="selection" width="45" />
-      <el-table-column label="类型" width="90">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+      @selection-change="handleSelection"
+    >
+      <el-table-column
+        type="selection"
+        width="45"
+      />
+      <el-table-column
+        label="类型"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-tag size="small" :type="typeTag(row.type)">{{ typeLabel(row.type) }}</el-tag>
+          <el-tag
+            size="small"
+            :type="typeTag(row.type)"
+          >
+            {{ typeLabel(row.type) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="AI" width="55">
+      <el-table-column
+        label="AI"
+        width="55"
+      >
         <template #default="{ row }">
-          <el-tag v-if="isAiContent(row)" type="warning" size="small" effect="dark">AI</el-tag>
-          <span v-else style="color:#c0c4cc">-</span>
+          <el-tag
+            v-if="isAiContent(row)"
+            type="warning"
+            size="small"
+            effect="dark"
+          >
+            AI
+          </el-tag>
+          <span
+            v-else
+            style="color:#c0c4cc"
+          >-</span>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-      <el-table-column label="品类" width="100">
+      <el-table-column
+        prop="title"
+        label="标题"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="品类"
+        width="100"
+      >
         <template #default="{ row }">
-          <span v-if="row.categoryLevel1" style="font-size:12px">{{ row.categoryLevel1 }}</span>
-          <span v-else style="color:#c0c4cc">-</span>
+          <span
+            v-if="row.categoryLevel1"
+            style="font-size:12px"
+          >{{ row.categoryLevel1 }}</span>
+          <span
+            v-else
+            style="color:#c0c4cc"
+          >-</span>
         </template>
       </el-table-column>
-      <el-table-column label="作者" width="120">
-        <template #default="{ row }">{{ row.author?.nickname || row.user?.nickname || '-' }}</template>
+      <el-table-column
+        label="作者"
+        width="120"
+      >
+        <template #default="{ row }">
+          {{ row.author?.nickname || row.user?.nickname || '-' }}
+        </template>
       </el-table-column>
-      <el-table-column label="提交时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+      <el-table-column
+        label="提交时间"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ formatDate(row.createdAt) }}
+        </template>
       </el-table-column>
-      <el-table-column label="操作" width="240" fixed="right">
+      <el-table-column
+        label="操作"
+        width="240"
+        fixed="right"
+      >
         <template #default="{ row }">
           <template v-if="activeTab === 'PENDING'">
-            <el-button size="small" type="success" @click="approveOne(row)">通过</el-button>
-            <el-button size="small" type="danger" @click="rejectOne(row)">拒绝</el-button>
+            <el-button
+              size="small"
+              type="success"
+              @click="approveOne(row)"
+            >
+              通过
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="rejectOne(row)"
+            >
+              拒绝
+            </el-button>
           </template>
-          <el-button size="small" @click="preview(row)">查看</el-button>
+          <el-button
+            size="small"
+            @click="preview(row)"
+          >
+            查看
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -78,20 +215,49 @@
     />
 
     <!-- 拒绝原因对话框 -->
-    <el-dialog v-model="rejectVisible" title="拒绝原因" width="450px">
-      <el-input v-model="rejectReason" type="textarea" :rows="3" placeholder="请填写拒绝原因（必填）" />
+    <el-dialog
+      v-model="rejectVisible"
+      title="拒绝原因"
+      width="450px"
+    >
+      <el-input
+        v-model="rejectReason"
+        type="textarea"
+        :rows="3"
+        placeholder="请填写拒绝原因（必填）"
+      />
       <template #footer>
-        <el-button @click="rejectVisible = false">取消</el-button>
-        <el-button type="danger" :disabled="!rejectReason.trim()" @click="confirmReject">确认拒绝</el-button>
+        <el-button @click="rejectVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="danger"
+          :disabled="!rejectReason.trim()"
+          @click="confirmReject"
+        >
+          确认拒绝
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 预览抽屉 -->
-    <el-drawer v-model="drawerVisible" title="内容预览" size="600px">
-      <div v-if="currentItem" class="preview-body">
+    <el-drawer
+      v-model="drawerVisible"
+      title="内容预览"
+      size="600px"
+    >
+      <div
+        v-if="currentItem"
+        class="preview-body"
+      >
         <h2>{{ currentItem.title }}</h2>
-        <p class="meta">作者：{{ currentItem.author?.nickname || currentItem.user?.nickname || '-' }} | {{ formatDate(currentItem.createdAt) }}</p>
-        <div class="content" v-html="sanitize(currentItem.content || currentItem.intro || currentItem.detail || '暂无内容')" />
+        <p class="meta">
+          作者：{{ currentItem.author?.nickname || currentItem.user?.nickname || '-' }} | {{ formatDate(currentItem.createdAt) }}
+        </p>
+        <div
+          class="content"
+          v-html="sanitize(currentItem.content || currentItem.intro || currentItem.detail || '暂无内容')"
+        />
       </div>
     </el-drawer>
   </div>

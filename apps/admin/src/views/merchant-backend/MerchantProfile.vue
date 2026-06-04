@@ -4,26 +4,73 @@
       <h3>店铺设置</h3>
     </div>
 
-    <el-card v-loading="loading" style="max-width:600px">
-      <el-form ref="formRef" :model="form" label-width="100px">
+    <el-card
+      v-loading="loading"
+      style="max-width:600px"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        label-width="100px"
+      >
         <el-form-item label="店铺名称">
-          <el-input v-model="form.shopName" maxlength="50" />
+          <el-input
+            v-model="form.shopName"
+            maxlength="50"
+          />
         </el-form-item>
         <el-form-item label="店铺Logo">
           <div class="logo-section">
-            <img v-if="form.shopLogo" :src="form.shopLogo" class="logo-preview" />
-            <el-input v-model="logoUrl" placeholder="图片URL" size="small" style="width:260px" />
-            <el-button size="small" @click="form.shopLogo = logoUrl">设置</el-button>
-            <el-upload :show-file-list="false" :http-request="handleUpload" accept="image/*" style="display:inline-block;margin-left:8px">
-              <el-button size="small" type="primary" :loading="uploading">本地上传</el-button>
+            <img
+              v-if="form.shopLogo"
+              :src="form.shopLogo"
+              class="logo-preview"
+            >
+            <el-input
+              v-model="logoUrl"
+              placeholder="图片URL"
+              size="small"
+              style="width:260px"
+            />
+            <el-button
+              size="small"
+              @click="form.shopLogo = logoUrl"
+            >
+              设置
+            </el-button>
+            <el-upload
+              :show-file-list="false"
+              :http-request="handleUpload"
+              accept="image/*"
+              style="display:inline-block;margin-left:8px"
+            >
+              <el-button
+                size="small"
+                type="primary"
+                :loading="uploading"
+              >
+                本地上传
+              </el-button>
             </el-upload>
           </div>
         </el-form-item>
         <el-form-item label="店铺简介">
-          <el-input v-model="form.shopIntro" type="textarea" :rows="4" maxlength="500" show-word-limit />
+          <el-input
+            v-model="form.shopIntro"
+            type="textarea"
+            :rows="4"
+            maxlength="500"
+            show-word-limit
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+          <el-button
+            type="primary"
+            :loading="saving"
+            @click="save"
+          >
+            保存
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>

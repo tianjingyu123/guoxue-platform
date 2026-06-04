@@ -107,14 +107,28 @@
           >
             删除
           </el-button>
-          <el-button size="small" type="info" @click="viewStationData(row)">运营数据</el-button>
+          <el-button
+            size="small"
+            type="info"
+            @click="viewStationData(row)"
+          >
+            运营数据
+          </el-button>
           <el-dropdown trigger="click">
-            <el-button size="small">更多 ▾</el-button>
+            <el-button size="small">
+              更多 ▾
+            </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="openBrandEdit(row)">编辑品牌</el-dropdown-item>
-                <el-dropdown-item @click="openTemplate(row)">选择模版</el-dropdown-item>
-                <el-dropdown-item @click="toggleOperators(row)">运营商管理</el-dropdown-item>
+                <el-dropdown-item @click="openBrandEdit(row)">
+                  编辑品牌
+                </el-dropdown-item>
+                <el-dropdown-item @click="openTemplate(row)">
+                  选择模版
+                </el-dropdown-item>
+                <el-dropdown-item @click="toggleOperators(row)">
+                  运营商管理
+                </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -407,7 +421,10 @@
       title="选择分站模版"
       width="680px"
     >
-      <div v-loading="templateLoading" class="template-grid">
+      <div
+        v-loading="templateLoading"
+        class="template-grid"
+      >
         <div
           v-for="tpl in templates"
           :key="tpl.id"
@@ -424,14 +441,18 @@
               <span class="tpl-card__name">{{ tpl.name }}</span>
             </el-radio>
           </div>
-          <div class="tpl-card__desc">{{ tpl.desc }}</div>
+          <div class="tpl-card__desc">
+            {{ tpl.desc }}
+          </div>
           <div class="tpl-card__tags">
             <el-tag
               v-for="tab in (tpl.preview?.tabs || [])"
               :key="tab"
               size="small"
               type="info"
-            >{{ tab }}</el-tag>
+            >
+              {{ tab }}
+            </el-tag>
           </div>
           <div class="tpl-card__modules">
             <span class="tpl-card__modules-label">模块：</span>
@@ -441,14 +462,28 @@
               size="small"
               type=""
               effect="plain"
-            >{{ mod }}</el-tag>
+            >
+              {{ mod }}
+            </el-tag>
           </div>
         </div>
-        <el-empty v-if="!templateLoading && templates.length === 0" description="暂无可选模版" :image-size="48" />
+        <el-empty
+          v-if="!templateLoading && templates.length === 0"
+          description="暂无可选模版"
+          :image-size="48"
+        />
       </div>
       <template #footer>
-        <el-button @click="templateDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="templateSaving" @click="saveTemplate">应用模版</el-button>
+        <el-button @click="templateDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="templateSaving"
+          @click="saveTemplate"
+        >
+          应用模版
+        </el-button>
       </template>
     </el-dialog>
   </div>

@@ -5,42 +5,91 @@
     </div>
 
     <DataTable
+      v-model:page="page"
+      v-model:page-size="pageSize"
       :columns="columns"
       :data="list"
       :loading="loading"
       :total="total"
-      v-model:page="page"
-      v-model:page-size="pageSize"
       actions-width="180"
       @change="fetchList"
     >
       <template #toolbar>
-        <el-radio-group v-model="filterStatus" @change="onFilterChange">
-          <el-radio-button value="">全部</el-radio-button>
-          <el-radio-button value="PENDING">待审核</el-radio-button>
-          <el-radio-button value="APPROVED">已通过</el-radio-button>
-          <el-radio-button value="PAID">已打款</el-radio-button>
-          <el-radio-button value="REJECTED">已拒绝</el-radio-button>
+        <el-radio-group
+          v-model="filterStatus"
+          @change="onFilterChange"
+        >
+          <el-radio-button value="">
+            全部
+          </el-radio-button>
+          <el-radio-button value="PENDING">
+            待审核
+          </el-radio-button>
+          <el-radio-button value="APPROVED">
+            已通过
+          </el-radio-button>
+          <el-radio-button value="PAID">
+            已打款
+          </el-radio-button>
+          <el-radio-button value="REJECTED">
+            已拒绝
+          </el-radio-button>
         </el-radio-group>
-        <el-button @click="exportData">导出CSV</el-button>
+        <el-button @click="exportData">
+          导出CSV
+        </el-button>
       </template>
 
-      <template #user="{ row }">{{ row.user?.nickname || "--" }}</template>
-      <template #phone="{ row }">{{ row.user?.phone || "--" }}</template>
-      <template #station="{ row }">{{ row.station?.name || "--" }}</template>
-      <template #amount="{ row }">¥{{ Number(row.amount).toFixed(2) }}</template>
-      <template #method="{ row }">{{ row.alipayAccount ? "支付宝" : row.bankName ? "银行卡" : "未指定" }}</template>
-      <template #account="{ row }">{{ row.alipayAccount || row.bankAccount || "--" }}</template>
-      <template #status="{ row }">
-        <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+      <template #user="{ row }">
+        {{ row.user?.nickname || "--" }}
       </template>
-      <template #createdAt="{ row }">{{ row.createdAt?.slice(0, 16).replace("T", " ") }}</template>
+      <template #phone="{ row }">
+        {{ row.user?.phone || "--" }}
+      </template>
+      <template #station="{ row }">
+        {{ row.station?.name || "--" }}
+      </template>
+      <template #amount="{ row }">
+        ¥{{ Number(row.amount).toFixed(2) }}
+      </template>
+      <template #method="{ row }">
+        {{ row.alipayAccount ? "支付宝" : row.bankName ? "银行卡" : "未指定" }}
+      </template>
+      <template #account="{ row }">
+        {{ row.alipayAccount || row.bankAccount || "--" }}
+      </template>
+      <template #status="{ row }">
+        <el-tag
+          :type="statusType(row.status)"
+          size="small"
+        >
+          {{ statusLabel(row.status) }}
+        </el-tag>
+      </template>
+      <template #createdAt="{ row }">
+        {{ row.createdAt?.slice(0, 16).replace("T", " ") }}
+      </template>
       <template #actions="{ row }">
         <template v-if="row.status === 'PENDING'">
-          <el-button type="success" size="small" @click="audit(row, 'APPROVED')">通过</el-button>
-          <el-button type="danger" size="small" @click="audit(row, 'REJECTED')">拒绝</el-button>
+          <el-button
+            type="success"
+            size="small"
+            @click="audit(row, 'APPROVED')"
+          >
+            通过
+          </el-button>
+          <el-button
+            type="danger"
+            size="small"
+            @click="audit(row, 'REJECTED')"
+          >
+            拒绝
+          </el-button>
         </template>
-        <span v-else style="color:#999">--</span>
+        <span
+          v-else
+          style="color:#999"
+        >--</span>
       </template>
     </DataTable>
   </div>

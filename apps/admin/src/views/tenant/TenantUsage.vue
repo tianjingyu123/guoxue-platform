@@ -2,30 +2,87 @@
   <div class="page">
     <div class="header">
       <h2>租户使用记录 - {{ tenantName }}</h2>
-      <el-button @click="$router.back()">返回</el-button>
+      <el-button @click="$router.back()">
+        返回
+      </el-button>
     </div>
 
-    <el-form :inline="true" class="search-bar">
+    <el-form
+      :inline="true"
+      class="search-bar"
+    >
       <el-form-item label="开始日期">
-        <el-date-picker v-model="dateRangeStart" type="date" placeholder="选择开始日期" />
+        <el-date-picker
+          v-model="dateRangeStart"
+          type="date"
+          placeholder="选择开始日期"
+        />
       </el-form-item>
       <el-form-item label="结束日期">
-        <el-date-picker v-model="dateRangeEnd" type="date" placeholder="选择结束日期" />
+        <el-date-picker
+          v-model="dateRangeEnd"
+          type="date"
+          placeholder="选择结束日期"
+        />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="fetchData">搜索</el-button>
-        <el-button @click="resetFilter">重置</el-button>
+        <el-button
+          type="primary"
+          @click="fetchData"
+        >
+          搜索
+        </el-button>
+        <el-button @click="resetFilter">
+          重置
+        </el-button>
       </el-form-item>
     </el-form>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="date" label="日期" width="120" />
-      <el-table-column prop="apiCalls" label="API调用次数" width="130" sortable />
-      <el-table-column prop="quotaConsumed" label="配额消耗" width="110" sortable />
-      <el-table-column prop="distinctUsers" label="活跃用户数" width="120" sortable />
-      <el-table-column prop="avgResponseTime" label="平均响应(ms)" width="130" sortable />
-      <el-table-column prop="peakConcurrent" label="峰值并发" width="110" />
-      <el-table-column prop="errorCount" label="错误数" width="90" />
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="date"
+        label="日期"
+        width="120"
+      />
+      <el-table-column
+        prop="apiCalls"
+        label="API调用次数"
+        width="130"
+        sortable
+      />
+      <el-table-column
+        prop="quotaConsumed"
+        label="配额消耗"
+        width="110"
+        sortable
+      />
+      <el-table-column
+        prop="distinctUsers"
+        label="活跃用户数"
+        width="120"
+        sortable
+      />
+      <el-table-column
+        prop="avgResponseTime"
+        label="平均响应(ms)"
+        width="130"
+        sortable
+      />
+      <el-table-column
+        prop="peakConcurrent"
+        label="峰值并发"
+        width="110"
+      />
+      <el-table-column
+        prop="errorCount"
+        label="错误数"
+        width="90"
+      />
     </el-table>
 
     <el-pagination

@@ -102,23 +102,69 @@ function getScoreStatus(score: number) {
   <div class="page">
     <div class="toolbar">
       <h3>刷单识别</h3>
-      <el-button type="warning" :loading="scanning" @click="triggerScan">手动触发扫描</el-button>
+      <el-button
+        type="warning"
+        :loading="scanning"
+        @click="triggerScan"
+      >
+        手动触发扫描
+      </el-button>
     </div>
 
     <div class="filters">
-      <el-select v-model="statusFilter" placeholder="状态" clearable style="width:120px" @change="fetchList">
-        <el-option label="待确认" value="PENDING" />
-        <el-option label="已确认" value="CONFIRMED" />
-        <el-option label="已忽略" value="DISMISSED" />
+      <el-select
+        v-model="statusFilter"
+        placeholder="状态"
+        clearable
+        style="width:120px"
+        @change="fetchList"
+      >
+        <el-option
+          label="待确认"
+          value="PENDING"
+        />
+        <el-option
+          label="已确认"
+          value="CONFIRMED"
+        />
+        <el-option
+          label="已忽略"
+          value="DISMISSED"
+        />
       </el-select>
     </div>
 
-    <el-table v-loading="loading" :data="list" stripe>
-      <el-table-column prop="userId" label="用户ID" width="120" />
-      <el-table-column prop="username" label="用户名" width="120" show-overflow-tooltip />
-      <el-table-column prop="orderCount" label="关联订单数" width="100" />
-      <el-table-column prop="suspiciousBehavior" label="可疑行为描述" min-width="200" show-overflow-tooltip />
-      <el-table-column label="风险分数" width="160">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+    >
+      <el-table-column
+        prop="userId"
+        label="用户ID"
+        width="120"
+      />
+      <el-table-column
+        prop="username"
+        label="用户名"
+        width="120"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="orderCount"
+        label="关联订单数"
+        width="100"
+      />
+      <el-table-column
+        prop="suspiciousBehavior"
+        label="可疑行为描述"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="风险分数"
+        width="160"
+      >
         <template #default="{ row }">
           <div style="display:flex;align-items:center;gap:8px">
             <el-progress
@@ -133,7 +179,10 @@ function getScoreStatus(score: number) {
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="100">
+      <el-table-column
+        label="状态"
+        width="100"
+      >
         <template #default="{ row }">
           <el-tag
             :type="row.status === 'CONFIRMED' ? 'danger' : row.status === 'DISMISSED' ? 'info' : 'warning'"
@@ -143,16 +192,40 @@ function getScoreStatus(score: number) {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="检测时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.detectedAt || row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column
+        label="检测时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="primary" @click="showDetail(row)">详情</el-button>
-          <el-button size="small" type="danger" :disabled="row.status !== 'PENDING'" @click="confirmFraud(row.id)">
+          {{ formatDate(row.detectedAt || row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="220"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            @click="showDetail(row)"
+          >
+            详情
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            :disabled="row.status !== 'PENDING'"
+            @click="confirmFraud(row.id)"
+          >
             确认刷单
           </el-button>
-          <el-button size="small" :disabled="row.status !== 'PENDING'" @click="dismissFraud(row.id)">
+          <el-button
+            size="small"
+            :disabled="row.status !== 'PENDING'"
+            @click="dismissFraud(row.id)"
+          >
             忽略
           </el-button>
         </template>
@@ -168,18 +241,37 @@ function getScoreStatus(score: number) {
       @current-change="fetchList"
     />
 
-    <el-dialog v-model="detailDialogVisible" title="刷单详情" width="600px">
+    <el-dialog
+      v-model="detailDialogVisible"
+      title="刷单详情"
+      width="600px"
+    >
       <template v-if="detailData">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="用户ID">{{ detailData.userId }}</el-descriptions-item>
-          <el-descriptions-item label="用户名">{{ detailData.username || '-' }}</el-descriptions-item>
+        <el-descriptions
+          :column="2"
+          border
+        >
+          <el-descriptions-item label="用户ID">
+            {{ detailData.userId }}
+          </el-descriptions-item>
+          <el-descriptions-item label="用户名">
+            {{ detailData.username || '-' }}
+          </el-descriptions-item>
           <el-descriptions-item label="风险分数">
-            <el-tag :type="getScoreStatus(detailData.riskScore ?? 0).type" size="small">
+            <el-tag
+              :type="getScoreStatus(detailData.riskScore ?? 0).type"
+              size="small"
+            >
               {{ detailData.riskScore ?? 0 }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="检测时间">{{ formatDate(detailData.detectedAt || detailData.createdAt) }}</el-descriptions-item>
-          <el-descriptions-item label="状态" :span="2">
+          <el-descriptions-item label="检测时间">
+            {{ formatDate(detailData.detectedAt || detailData.createdAt) }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            label="状态"
+            :span="2"
+          >
             <el-tag
               :type="detailData.status === 'CONFIRMED' ? 'danger' : detailData.status === 'DISMISSED' ? 'info' : 'warning'"
               size="small"
@@ -189,25 +281,56 @@ function getScoreStatus(score: number) {
           </el-descriptions-item>
         </el-descriptions>
 
-        <h4 style="margin:16px 0 8px;color:#8b4513">可疑行为描述</h4>
+        <h4 style="margin:16px 0 8px;color:#8b4513">
+          可疑行为描述
+        </h4>
         <p style="margin:0 0 16px;padding:12px;background:#fafafa;border-radius:4px;line-height:1.6">
           {{ detailData.suspiciousBehavior || '暂无描述' }}
         </p>
 
-        <h4 style="margin:0 0 8px;color:#8b4513">关联订单</h4>
-        <el-table :data="detailData.orders || []" stripe size="small" v-if="(detailData.orders || []).length > 0">
-          <el-table-column prop="orderId" label="订单号" min-width="140" />
-          <el-table-column prop="amount" label="金额" width="100">
-            <template #default="{ row }">{{ row.amount ? '¥' + Number(row.amount).toFixed(2) : '-' }}</template>
+        <h4 style="margin:0 0 8px;color:#8b4513">
+          关联订单
+        </h4>
+        <el-table
+          v-if="(detailData.orders || []).length > 0"
+          :data="detailData.orders || []"
+          stripe
+          size="small"
+        >
+          <el-table-column
+            prop="orderId"
+            label="订单号"
+            min-width="140"
+          />
+          <el-table-column
+            prop="amount"
+            label="金额"
+            width="100"
+          >
+            <template #default="{ row }">
+              {{ row.amount ? '¥' + Number(row.amount).toFixed(2) : '-' }}
+            </template>
           </el-table-column>
-          <el-table-column prop="createdAt" label="下单时间" width="170">
-            <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+          <el-table-column
+            prop="createdAt"
+            label="下单时间"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ formatDate(row.createdAt) }}
+            </template>
           </el-table-column>
         </el-table>
-        <el-empty v-else description="暂无关联订单" :image-size="80" />
+        <el-empty
+          v-else
+          description="暂无关联订单"
+          :image-size="80"
+        />
       </template>
       <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
+        <el-button @click="detailDialogVisible = false">
+          关闭
+        </el-button>
       </template>
     </el-dialog>
   </div>

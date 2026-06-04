@@ -1,48 +1,88 @@
 <template>
   <div class="bigscreen platform">
     <header class="bs-header">
-      <div class="bs-title">国学传统文化综合平台 · 实时数据大屏</div>
-      <div class="bs-time">{{ nowStr }}</div>
+      <div class="bs-title">
+        国学传统文化综合平台 · 实时数据大屏
+      </div>
+      <div class="bs-time">
+        {{ nowStr }}
+      </div>
     </header>
 
     <div class="bs-body">
       <!-- 核心数字 -->
       <div class="stat-grid">
         <div class="stat-card">
-          <div class="stat-label">累计用户</div>
-          <div class="stat-value blue">{{ fmt(data.totalUsers) }}</div>
+          <div class="stat-label">
+            累计用户
+          </div>
+          <div class="stat-value blue">
+            {{ fmt(data.totalUsers) }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">今日新增</div>
-          <div class="stat-value green">{{ fmt(data.todayNewUsers) }}</div>
+          <div class="stat-label">
+            今日新增
+          </div>
+          <div class="stat-value green">
+            {{ fmt(data.todayNewUsers) }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">当前在线</div>
-          <div class="stat-value orange">{{ fmt(data.dailyActiveUsers) }}</div>
+          <div class="stat-label">
+            当前在线
+          </div>
+          <div class="stat-value orange">
+            {{ fmt(data.dailyActiveUsers) }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">课程总数</div>
-          <div class="stat-value cyan">{{ fmt(data.totalCourses) }}</div>
+          <div class="stat-label">
+            课程总数
+          </div>
+          <div class="stat-value cyan">
+            {{ fmt(data.totalCourses) }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">圈子总数</div>
-          <div class="stat-value purple">{{ fmt(data.totalCircles) }}</div>
+          <div class="stat-label">
+            圈子总数
+          </div>
+          <div class="stat-value purple">
+            {{ fmt(data.totalCircles) }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">商品总数</div>
-          <div class="stat-value blue">{{ fmt(data.totalProducts) }}</div>
+          <div class="stat-label">
+            商品总数
+          </div>
+          <div class="stat-value blue">
+            {{ fmt(data.totalProducts) }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">古籍总数</div>
-          <div class="stat-value green">{{ fmt(data.totalClassicBooks) }}</div>
+          <div class="stat-label">
+            古籍总数
+          </div>
+          <div class="stat-value green">
+            {{ fmt(data.totalClassicBooks) }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">文章总数</div>
-          <div class="stat-value orange">{{ fmt(data.totalArticles) }}</div>
+          <div class="stat-label">
+            文章总数
+          </div>
+          <div class="stat-value orange">
+            {{ fmt(data.totalArticles) }}
+          </div>
         </div>
         <div class="stat-card accent">
-          <div class="stat-label">累计交易额</div>
-          <div class="stat-value gold">¥{{ (data.totalGmv || 0).toLocaleString() }}</div>
+          <div class="stat-label">
+            累计交易额
+          </div>
+          <div class="stat-value gold">
+            ¥{{ (data.totalGmv || 0).toLocaleString() }}
+          </div>
         </div>
       </div>
     </div>

@@ -1,8 +1,15 @@
 <template>
-  <div class="anomaly-alert" :class="'anomaly-' + level" v-if="visible">
+  <div
+    v-if="visible"
+    class="anomaly-alert"
+    :class="'anomaly-' + level"
+  >
     <span class="anomaly-dot" />
     <span class="anomaly-text"><slot />{{ text }}</span>
-    <span class="anomaly-count" v-if="count > 0">{{ count > 99 ? '99+' : count }}</span>
+    <span
+      v-if="count > 0"
+      class="anomaly-count"
+    >{{ count > 99 ? '99+' : count }}</span>
   </div>
 </template>
 

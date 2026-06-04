@@ -2,28 +2,52 @@
   <div class="task-pool">
     <div class="page-header">
       <h2>任务池管理</h2>
-      <el-button type="primary" @click="showCreate = true">+ 创建任务</el-button>
+      <el-button
+        type="primary"
+        @click="showCreate = true"
+      >
+        + 创建任务
+      </el-button>
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
-        <div class="stat-card" :class="{ active: !filters.status }" @click="filters.status = ''">
+        <div
+          class="stat-card"
+          :class="{ active: !filters.status }"
+          @click="filters.status = ''"
+        >
           <span class="value">{{ stats.total }}</span><span class="label">全部任务</span>
         </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card pending" :class="{ active: filters.status === 'PENDING' }" @click="filters.status = 'PENDING'">
+        <div
+          class="stat-card pending"
+          :class="{ active: filters.status === 'PENDING' }"
+          @click="filters.status = 'PENDING'"
+        >
           <span class="value">{{ stats.pending }}</span><span class="label">待处理</span>
         </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card in-progress" :class="{ active: filters.status === 'IN_PROGRESS' }" @click="filters.status = 'IN_PROGRESS'">
+        <div
+          class="stat-card in-progress"
+          :class="{ active: filters.status === 'IN_PROGRESS' }"
+          @click="filters.status = 'IN_PROGRESS'"
+        >
           <span class="value">{{ stats.inProgress }}</span><span class="label">进行中</span>
         </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card review" :class="{ active: filters.status === 'NEEDS_REVIEW' }" @click="filters.status = 'NEEDS_REVIEW'">
+        <div
+          class="stat-card review"
+          :class="{ active: filters.status === 'NEEDS_REVIEW' }"
+          @click="filters.status = 'NEEDS_REVIEW'"
+        >
           <span class="value">{{ stats.needsReview }}</span><span class="label">待审批</span>
         </div>
       </el-col>
@@ -31,25 +55,87 @@
 
     <!-- 筛选栏 -->
     <div class="filter-bar">
-      <el-select v-model="filters.type" placeholder="任务类型" clearable style="width:150px" @change="fetchList">
-        <el-option v-for="t in TASK_TYPES" :key="t.value" :label="t.label" :value="t.value" />
+      <el-select
+        v-model="filters.type"
+        placeholder="任务类型"
+        clearable
+        style="width:150px"
+        @change="fetchList"
+      >
+        <el-option
+          v-for="t in TASK_TYPES"
+          :key="t.value"
+          :label="t.label"
+          :value="t.value"
+        />
       </el-select>
-      <el-select v-model="filters.status" placeholder="状态" clearable style="width:120px" @change="fetchList">
-        <el-option label="待处理" value="PENDING" />
-        <el-option label="进行中" value="IN_PROGRESS" />
-        <el-option label="已完成" value="COMPLETED" />
-        <el-option label="待审批" value="NEEDS_REVIEW" />
-        <el-option label="已取消" value="CANCELLED" />
+      <el-select
+        v-model="filters.status"
+        placeholder="状态"
+        clearable
+        style="width:120px"
+        @change="fetchList"
+      >
+        <el-option
+          label="待处理"
+          value="PENDING"
+        />
+        <el-option
+          label="进行中"
+          value="IN_PROGRESS"
+        />
+        <el-option
+          label="已完成"
+          value="COMPLETED"
+        />
+        <el-option
+          label="待审批"
+          value="NEEDS_REVIEW"
+        />
+        <el-option
+          label="已取消"
+          value="CANCELLED"
+        />
       </el-select>
-      <el-select v-model="filters.priority" placeholder="优先级" clearable style="width:120px" @change="fetchList">
-        <el-option label="低" value="LOW" />
-        <el-option label="中" value="MEDIUM" />
-        <el-option label="高" value="HIGH" />
-        <el-option label="紧急" value="CRITICAL" />
+      <el-select
+        v-model="filters.priority"
+        placeholder="优先级"
+        clearable
+        style="width:120px"
+        @change="fetchList"
+      >
+        <el-option
+          label="低"
+          value="LOW"
+        />
+        <el-option
+          label="中"
+          value="MEDIUM"
+        />
+        <el-option
+          label="高"
+          value="HIGH"
+        />
+        <el-option
+          label="紧急"
+          value="CRITICAL"
+        />
       </el-select>
-      <el-select v-model="filters.executorType" placeholder="执行者" clearable style="width:120px" @change="fetchList">
-        <el-option label="Claude" value="CLAUDE" />
-        <el-option label="人工" value="HUMAN" />
+      <el-select
+        v-model="filters.executorType"
+        placeholder="执行者"
+        clearable
+        style="width:120px"
+        @change="fetchList"
+      >
+        <el-option
+          label="Claude"
+          value="CLAUDE"
+        />
+        <el-option
+          label="人工"
+          value="HUMAN"
+        />
       </el-select>
       <el-switch
         v-model="filters.needsApproval"
@@ -58,50 +144,152 @@
         style="margin-left:12px"
         @change="fetchList"
       />
-      <el-button @click="resetFilters">重置</el-button>
+      <el-button @click="resetFilters">
+        重置
+      </el-button>
     </div>
 
     <!-- 任务列表 -->
-    <el-table :data="list" stripe v-loading="loading" @row-click="openDetail">
-      <el-table-column prop="id" label="ID" width="80" :show-overflow-tooltip="true" />
-      <el-table-column label="优先级" width="80">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      stripe
+      @row-click="openDetail"
+    >
+      <el-table-column
+        prop="id"
+        label="ID"
+        width="80"
+        :show-overflow-tooltip="true"
+      />
+      <el-table-column
+        label="优先级"
+        width="80"
+      >
         <template #default="{ row }">
-          <el-tag :type="priorityTag(row.priority)" size="small">{{ PRIORITY_MAP[row.priority] || row.priority }}</el-tag>
+          <el-tag
+            :type="priorityTag(row.priority)"
+            size="small"
+          >
+            {{ PRIORITY_MAP[row.priority] || row.priority }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="类型" width="130">
+      <el-table-column
+        label="类型"
+        width="130"
+      >
         <template #default="{ row }">
-          <el-tag size="small">{{ TYPE_MAP[row.type] || row.type }}</el-tag>
+          <el-tag size="small">
+            {{ TYPE_MAP[row.type] || row.type }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-      <el-table-column label="状态" width="90">
+      <el-table-column
+        prop="title"
+        label="标题"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="状态"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)" size="small">{{ STATUS_MAP[row.status] || row.status }}</el-tag>
+          <el-tag
+            :type="statusTag(row.status)"
+            size="small"
+          >
+            {{ STATUS_MAP[row.status] || row.status }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="执行者" width="150">
+      <el-table-column
+        label="执行者"
+        width="150"
+      >
         <template #default="{ row }">
           <span v-if="row.executorType">
-            <el-tag :type="row.executorType === 'CLAUDE' ? '' : 'success'" size="small" effect="plain">
+            <el-tag
+              :type="row.executorType === 'CLAUDE' ? '' : 'success'"
+              size="small"
+              effect="plain"
+            >
               {{ row.executorType === 'CLAUDE' ? '🤖 Claude' : '👤 人工' }}
             </el-tag>
             {{ row.executorId || '-' }}
           </span>
-          <span v-else class="text-muted">-</span>
+          <span
+            v-else
+            class="text-muted"
+          >-</span>
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="创建时间" width="170">
-        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="240" fixed="right">
+      <el-table-column
+        prop="createdAt"
+        label="创建时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button v-if="row.status === 'PENDING'" type="primary" size="small" link @click.stop="claimTask(row)">认领</el-button>
-          <el-button v-if="row.status === 'IN_PROGRESS'" size="small" link @click.stop="showTransfer(row)">转交</el-button>
-          <el-button v-if="row.status === 'NEEDS_REVIEW'" type="warning" size="small" link @click.stop="showApprove(row)">审批</el-button>
-          <el-button v-if="row.status === 'IN_PROGRESS' || row.status === 'PENDING'" size="small" link @click.stop="completeTask(row)">完成</el-button>
-          <el-button v-if="row.rollbackData" size="small" link @click.stop="rollbackTask(row)">回滚</el-button>
-          <el-button type="danger" size="small" link @click.stop="cancelTask(row)">取消</el-button>
+          {{ formatDate(row.createdAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="240"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            v-if="row.status === 'PENDING'"
+            type="primary"
+            size="small"
+            link
+            @click.stop="claimTask(row)"
+          >
+            认领
+          </el-button>
+          <el-button
+            v-if="row.status === 'IN_PROGRESS'"
+            size="small"
+            link
+            @click.stop="showTransfer(row)"
+          >
+            转交
+          </el-button>
+          <el-button
+            v-if="row.status === 'NEEDS_REVIEW'"
+            type="warning"
+            size="small"
+            link
+            @click.stop="showApprove(row)"
+          >
+            审批
+          </el-button>
+          <el-button
+            v-if="row.status === 'IN_PROGRESS' || row.status === 'PENDING'"
+            size="small"
+            link
+            @click.stop="completeTask(row)"
+          >
+            完成
+          </el-button>
+          <el-button
+            v-if="row.rollbackData"
+            size="small"
+            link
+            @click.stop="rollbackTask(row)"
+          >
+            回滚
+          </el-button>
+          <el-button
+            type="danger"
+            size="small"
+            link
+            @click.stop="cancelTask(row)"
+          >
+            取消
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -118,73 +306,173 @@
     </div>
 
     <!-- 创建任务弹窗 -->
-    <el-dialog v-model="showCreate" title="创建任务" width="600px" :close-on-click-modal="false">
-      <el-form :model="createForm" label-width="90px">
-        <el-form-item label="任务标题" required>
-          <el-input v-model="createForm.title" placeholder="输入任务标题" />
+    <el-dialog
+      v-model="showCreate"
+      title="创建任务"
+      width="600px"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        :model="createForm"
+        label-width="90px"
+      >
+        <el-form-item
+          label="任务标题"
+          required
+        >
+          <el-input
+            v-model="createForm.title"
+            placeholder="输入任务标题"
+          />
         </el-form-item>
         <el-form-item label="任务类型">
-          <el-select v-model="createForm.type" style="width:100%">
-            <el-option v-for="t in TASK_TYPES" :key="t.value" :label="t.label" :value="t.value" />
+          <el-select
+            v-model="createForm.type"
+            style="width:100%"
+          >
+            <el-option
+              v-for="t in TASK_TYPES"
+              :key="t.value"
+              :label="t.label"
+              :value="t.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="优先级">
           <el-radio-group v-model="createForm.priority">
-            <el-radio-button value="LOW">低</el-radio-button>
-            <el-radio-button value="MEDIUM">中</el-radio-button>
-            <el-radio-button value="HIGH">高</el-radio-button>
-            <el-radio-button value="CRITICAL">紧急</el-radio-button>
+            <el-radio-button value="LOW">
+              低
+            </el-radio-button>
+            <el-radio-button value="MEDIUM">
+              中
+            </el-radio-button>
+            <el-radio-button value="HIGH">
+              高
+            </el-radio-button>
+            <el-radio-button value="CRITICAL">
+              紧急
+            </el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="执行者">
           <el-radio-group v-model="createForm.executorType">
-            <el-radio-button value="CLAUDE">🤖 Claude</el-radio-button>
-            <el-radio-button value="HUMAN">👤 人工</el-radio-button>
+            <el-radio-button value="CLAUDE">
+              🤖 Claude
+            </el-radio-button>
+            <el-radio-button value="HUMAN">
+              👤 人工
+            </el-radio-button>
           </el-radio-group>
-          <el-input v-if="createForm.executorType === 'HUMAN'" v-model="createForm.executorId" placeholder="指定执行者ID（选填）" style="margin-top:8px" />
+          <el-input
+            v-if="createForm.executorType === 'HUMAN'"
+            v-model="createForm.executorId"
+            placeholder="指定执行者ID（选填）"
+            style="margin-top:8px"
+          />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="createForm.description" type="textarea" :rows="3" placeholder="任务详细描述" />
+          <el-input
+            v-model="createForm.description"
+            type="textarea"
+            :rows="3"
+            placeholder="任务详细描述"
+          />
         </el-form-item>
         <el-form-item label="需审批">
           <el-switch v-model="createForm.needsApproval" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showCreate = false">取消</el-button>
-        <el-button type="primary" :loading="creating" @click="doCreate">创建</el-button>
+        <el-button @click="showCreate = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="creating"
+          @click="doCreate"
+        >
+          创建
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 任务详情弹窗 -->
-    <el-dialog v-model="showDetail" title="任务详情" width="700px">
+    <el-dialog
+      v-model="showDetail"
+      title="任务详情"
+      width="700px"
+    >
       <template v-if="current">
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="ID">{{ current.id }}</el-descriptions-item>
-          <el-descriptions-item label="标题">{{ current.title }}</el-descriptions-item>
-          <el-descriptions-item label="类型">{{ TYPE_MAP[current.type] || current.type }}</el-descriptions-item>
+        <el-descriptions
+          :column="2"
+          border
+          size="small"
+        >
+          <el-descriptions-item label="ID">
+            {{ current.id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="标题">
+            {{ current.title }}
+          </el-descriptions-item>
+          <el-descriptions-item label="类型">
+            {{ TYPE_MAP[current.type] || current.type }}
+          </el-descriptions-item>
           <el-descriptions-item label="优先级">
-            <el-tag :type="priorityTag(current.priority)" size="small">{{ PRIORITY_MAP[current.priority] }}</el-tag>
+            <el-tag
+              :type="priorityTag(current.priority)"
+              size="small"
+            >
+              {{ PRIORITY_MAP[current.priority] }}
+            </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="statusTag(current.status)" size="small">{{ STATUS_MAP[current.status] }}</el-tag>
+            <el-tag
+              :type="statusTag(current.status)"
+              size="small"
+            >
+              {{ STATUS_MAP[current.status] }}
+            </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="执行者">
             {{ current.executorType === 'CLAUDE' ? '🤖 Claude' : '👤 人工' }} {{ current.executorId || '-' }}
           </el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ formatDate(current.createdAt) }}</el-descriptions-item>
-          <el-descriptions-item label="完成时间">{{ formatDate(current.completedAt) || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="描述" :span="2">{{ current.description || '无' }}</el-descriptions-item>
-          <el-descriptions-item v-if="current.result" label="执行结果" :span="2">
+          <el-descriptions-item label="创建时间">
+            {{ formatDate(current.createdAt) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="完成时间">
+            {{ formatDate(current.completedAt) || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            label="描述"
+            :span="2"
+          >
+            {{ current.description || '无' }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="current.result"
+            label="执行结果"
+            :span="2"
+          >
             <pre class="json-preview">{{ JSON.stringify(current.result, null, 2) }}</pre>
           </el-descriptions-item>
-          <el-descriptions-item v-if="current.errorLog" label="错误日志" :span="2">
-            <el-alert type="error" :closable="false">{{ current.errorLog }}</el-alert>
+          <el-descriptions-item
+            v-if="current.errorLog"
+            label="错误日志"
+            :span="2"
+          >
+            <el-alert
+              type="error"
+              :closable="false"
+            >
+              {{ current.errorLog }}
+            </el-alert>
           </el-descriptions-item>
         </el-descriptions>
 
         <!-- 流转日志 -->
-        <h4 style="margin-top:20px">流转日志</h4>
+        <h4 style="margin-top:20px">
+          流转日志
+        </h4>
         <el-timeline v-if="current.transferLogs?.length">
           <el-timeline-item
             v-for="log in current.transferLogs"
@@ -193,56 +481,121 @@
             placement="top"
           >
             {{ log.fromType }}:{{ log.fromId || '-' }} → {{ log.toType }}:{{ log.toId || '-' }}
-            <span v-if="log.reason" class="text-muted"> — {{ log.reason }}</span>
+            <span
+              v-if="log.reason"
+              class="text-muted"
+            > — {{ log.reason }}</span>
           </el-timeline-item>
         </el-timeline>
-        <div v-else class="text-muted">暂无流转记录</div>
+        <div
+          v-else
+          class="text-muted"
+        >
+          暂无流转记录
+        </div>
       </template>
       <template #footer>
-        <el-button @click="showDetail = false">关闭</el-button>
-        <el-button v-if="current?.status === 'IN_PROGRESS'" type="primary" @click="showDetail = false; forceReclaim(current!)">强制收回</el-button>
+        <el-button @click="showDetail = false">
+          关闭
+        </el-button>
+        <el-button
+          v-if="current?.status === 'IN_PROGRESS'"
+          type="primary"
+          @click="showDetail = false; forceReclaim(current!)"
+        >
+          强制收回
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 转交弹窗 -->
-    <el-dialog v-model="showTransferDialog" title="转交任务" width="450px">
+    <el-dialog
+      v-model="showTransferDialog"
+      title="转交任务"
+      width="450px"
+    >
       <el-form label-width="80px">
         <el-form-item label="目标类型">
           <el-radio-group v-model="transferForm.toType">
-            <el-radio-button value="CLAUDE">🤖 Claude</el-radio-button>
-            <el-radio-button value="HUMAN">👤 人工</el-radio-button>
+            <el-radio-button value="CLAUDE">
+              🤖 Claude
+            </el-radio-button>
+            <el-radio-button value="HUMAN">
+              👤 人工
+            </el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="transferForm.toType === 'HUMAN'" label="目标ID">
-          <el-input v-model="transferForm.toId" placeholder="输入目标执行者ID" />
+        <el-form-item
+          v-if="transferForm.toType === 'HUMAN'"
+          label="目标ID"
+        >
+          <el-input
+            v-model="transferForm.toId"
+            placeholder="输入目标执行者ID"
+          />
         </el-form-item>
-        <el-form-item label="转交原因" required>
-          <el-input v-model="transferForm.reason" type="textarea" :rows="2" placeholder="必填" />
+        <el-form-item
+          label="转交原因"
+          required
+        >
+          <el-input
+            v-model="transferForm.reason"
+            type="textarea"
+            :rows="2"
+            placeholder="必填"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showTransferDialog = false">取消</el-button>
-        <el-button type="primary" @click="doTransfer">确认转交</el-button>
+        <el-button @click="showTransferDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="doTransfer"
+        >
+          确认转交
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 审批弹窗 -->
-    <el-dialog v-model="showApproveDialog" title="审批任务" width="450px">
+    <el-dialog
+      v-model="showApproveDialog"
+      title="审批任务"
+      width="450px"
+    >
       <p>任务：<strong>{{ approveTarget?.title }}</strong></p>
       <el-form label-width="80px">
         <el-form-item label="审批结果">
           <el-radio-group v-model="approveForm.approved">
-            <el-radio-button :value="true">✅ 通过</el-radio-button>
-            <el-radio-button :value="false">❌ 驳回</el-radio-button>
+            <el-radio-button :value="true">
+              ✅ 通过
+            </el-radio-button>
+            <el-radio-button :value="false">
+              ❌ 驳回
+            </el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="approveForm.remark" type="textarea" :rows="2" placeholder="审批意见" />
+          <el-input
+            v-model="approveForm.remark"
+            type="textarea"
+            :rows="2"
+            placeholder="审批意见"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showApproveDialog = false">取消</el-button>
-        <el-button type="primary" @click="doApprove">确认</el-button>
+        <el-button @click="showApproveDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="doApprove"
+        >
+          确认
+        </el-button>
       </template>
     </el-dialog>
   </div>

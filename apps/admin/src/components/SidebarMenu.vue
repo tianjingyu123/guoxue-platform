@@ -1,5 +1,8 @@
 <template>
-  <template v-for="item in items" :key="item.path || item.title">
+  <template
+    v-for="item in items"
+    :key="item.path || item.title"
+  >
     <el-sub-menu
       v-if="item.children && item.children.length"
       :index="item.path || item.title"

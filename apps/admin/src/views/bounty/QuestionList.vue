@@ -4,55 +4,153 @@
       <h2>赏金问题管理</h2>
     </div>
 
-    <el-form :inline="true" class="search-bar">
+    <el-form
+      :inline="true"
+      class="search-bar"
+    >
       <el-form-item label="分类">
-        <el-select v-model="filterCategory" placeholder="全部" clearable>
-          <el-option label="八字" value="BAZI" />
-          <el-option label="紫微" value="ZIWEI" />
-          <el-option label="六爻" value="LIUYAO" />
-          <el-option label="风水" value="FENGSHUI" />
-          <el-option label="综合" value="GENERAL" />
+        <el-select
+          v-model="filterCategory"
+          placeholder="全部"
+          clearable
+        >
+          <el-option
+            label="八字"
+            value="BAZI"
+          />
+          <el-option
+            label="紫微"
+            value="ZIWEI"
+          />
+          <el-option
+            label="六爻"
+            value="LIUYAO"
+          />
+          <el-option
+            label="风水"
+            value="FENGSHUI"
+          />
+          <el-option
+            label="综合"
+            value="GENERAL"
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="状态">
-        <el-select v-model="filterStatus" placeholder="全部" clearable>
-          <el-option label="待回答" value="PENDING" />
-          <el-option label="已回答" value="ANSWERED" />
-          <el-option label="已采纳" value="ACCEPTED" />
-          <el-option label="已关闭" value="CLOSED" />
+        <el-select
+          v-model="filterStatus"
+          placeholder="全部"
+          clearable
+        >
+          <el-option
+            label="待回答"
+            value="PENDING"
+          />
+          <el-option
+            label="已回答"
+            value="ANSWERED"
+          />
+          <el-option
+            label="已采纳"
+            value="ACCEPTED"
+          />
+          <el-option
+            label="已关闭"
+            value="CLOSED"
+          />
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="fetchList">搜索</el-button>
-        <el-button @click="resetFilter">重置</el-button>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          搜索
+        </el-button>
+        <el-button @click="resetFilter">
+          重置
+        </el-button>
       </el-form-item>
     </el-form>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="title" label="问题标题" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="category" label="分类" width="90">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="title"
+        label="问题标题"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="category"
+        label="分类"
+        width="90"
+      >
         <template #default="{ row }">
           <el-tag>{{ categoryLabel(row.category) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="bountyCoin" label="赏金" width="90" sortable>
-        <template #default="{ row }">{{ row.bountyCoin }} 币</template>
-      </el-table-column>
-      <el-table-column prop="asker" label="提问者" width="130">
-        <template #default="{ row }">{{ row.asker?.nickname || row.askerId }}</template>
-      </el-table-column>
-      <el-table-column prop="answerer" label="回答者" width="130">
-        <template #default="{ row }">{{ row.answerer?.nickname || row.answererId || '-' }}</template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
+      <el-table-column
+        prop="bountyCoin"
+        label="赏金"
+        width="90"
+        sortable
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)">{{ statusLabel(row.status) }}</el-tag>
+          {{ row.bountyCoin }} 币
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="创建时间" width="170" />
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column
+        prop="asker"
+        label="提问者"
+        width="130"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="danger" @click="handleClose(row)">关闭</el-button>
+          {{ row.asker?.nickname || row.askerId }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="answerer"
+        label="回答者"
+        width="130"
+      >
+        <template #default="{ row }">
+          {{ row.answerer?.nickname || row.answererId || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="status"
+        label="状态"
+        width="100"
+      >
+        <template #default="{ row }">
+          <el-tag :type="statusTag(row.status)">
+            {{ statusLabel(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="createdAt"
+        label="创建时间"
+        width="170"
+      />
+      <el-table-column
+        label="操作"
+        width="120"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            type="danger"
+            @click="handleClose(row)"
+          >
+            关闭
+          </el-button>
         </template>
       </el-table-column>
     </el-table>

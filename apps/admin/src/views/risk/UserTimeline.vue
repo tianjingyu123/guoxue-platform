@@ -112,7 +112,12 @@ function exportTimeline() {
   <div class="page">
     <div class="toolbar">
       <h3>用户行为轨迹</h3>
-      <el-button :disabled="!searched || list.length === 0" @click="exportTimeline">导出</el-button>
+      <el-button
+        :disabled="!searched || list.length === 0"
+        @click="exportTimeline"
+      >
+        导出
+      </el-button>
     </div>
 
     <div class="search-bar">
@@ -132,26 +137,58 @@ function exportTimeline() {
         style="width:260px"
         clearable
       />
-      <el-select v-model="actionType" placeholder="行为类型" clearable style="width:140px">
-        <el-option v-for="a in actionTypeOptions" :key="a.value" :label="a.label" :value="a.value" />
+      <el-select
+        v-model="actionType"
+        placeholder="行为类型"
+        clearable
+        style="width:140px"
+      >
+        <el-option
+          v-for="a in actionTypeOptions"
+          :key="a.value"
+          :label="a.label"
+          :value="a.value"
+        />
       </el-select>
-      <el-button type="primary" :loading="loading" @click="searchTimeline">查询</el-button>
+      <el-button
+        type="primary"
+        :loading="loading"
+        @click="searchTimeline"
+      >
+        查询
+      </el-button>
     </div>
 
     <!-- 用户信息卡片 -->
-    <div v-if="userInfo" class="user-card">
-      <el-descriptions :column="4" border size="small">
+    <div
+      v-if="userInfo"
+      class="user-card"
+    >
+      <el-descriptions
+        :column="4"
+        border
+        size="small"
+      >
         <el-descriptions-item label="用户ID">
           <span style="font-weight:600">{{ userInfo.userId || searchUserId }}</span>
         </el-descriptions-item>
-        <el-descriptions-item label="昵称">{{ userInfo.nickname || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="手机号">{{ maskPhone(userInfo.phone) }}</el-descriptions-item>
-        <el-descriptions-item label="会员等级">{{ userInfo.memberLevel || '普通' }}</el-descriptions-item>
+        <el-descriptions-item label="昵称">
+          {{ userInfo.nickname || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="手机号">
+          {{ maskPhone(userInfo.phone) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="会员等级">
+          {{ userInfo.memberLevel || '普通' }}
+        </el-descriptions-item>
       </el-descriptions>
     </div>
 
     <!-- 时间线 -->
-    <div v-if="searched && list.length > 0" class="timeline-container">
+    <div
+      v-if="searched && list.length > 0"
+      class="timeline-container"
+    >
       <el-timeline>
         <el-timeline-item
           v-for="(item, index) in list"
@@ -161,22 +198,37 @@ function exportTimeline() {
         >
           <div class="timeline-item">
             <div class="timeline-header">
-              <el-tag size="small" :type="item.action === 'LOGIN' || item.action === 'LOGOUT' ? '' : item.action === 'ORDER' || item.action === 'PAYMENT' ? 'success' : 'warning'">
+              <el-tag
+                size="small"
+                :type="item.action === 'LOGIN' || item.action === 'LOGOUT' ? '' : item.action === 'ORDER' || item.action === 'PAYMENT' ? 'success' : 'warning'"
+              >
                 {{ item.action }}
               </el-tag>
               <span class="timeline-desc">{{ item.description || item.detail || '-' }}</span>
             </div>
             <div class="timeline-meta">
-              <span v-if="item.ip" class="meta-tag">IP: {{ item.ip }}</span>
-              <span v-if="item.deviceInfo" class="meta-tag">设备: {{ item.deviceInfo }}</span>
-              <span v-if="item.location" class="meta-tag">位置: {{ item.location }}</span>
+              <span
+                v-if="item.ip"
+                class="meta-tag"
+              >IP: {{ item.ip }}</span>
+              <span
+                v-if="item.deviceInfo"
+                class="meta-tag"
+              >设备: {{ item.deviceInfo }}</span>
+              <span
+                v-if="item.location"
+                class="meta-tag"
+              >位置: {{ item.location }}</span>
             </div>
           </div>
         </el-timeline-item>
       </el-timeline>
     </div>
 
-    <el-empty v-else-if="!loading && searched" description="未查询到该用户的行为记录" />
+    <el-empty
+      v-else-if="!loading && searched"
+      description="未查询到该用户的行为记录"
+    />
   </div>
 </template>
 

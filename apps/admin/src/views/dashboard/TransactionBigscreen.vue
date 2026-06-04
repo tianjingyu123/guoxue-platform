@@ -1,35 +1,61 @@
 <template>
   <div class="bigscreen transaction">
     <header class="bs-header">
-      <div class="bs-title">实时交易数据大屏</div>
-      <div class="bs-time">{{ nowStr }}</div>
+      <div class="bs-title">
+        实时交易数据大屏
+      </div>
+      <div class="bs-time">
+        {{ nowStr }}
+      </div>
     </header>
 
     <div class="bs-body">
       <!-- 指标栏 -->
       <div class="kpi-bar">
-        <div class="kpi-item"><span class="kpi-label">今日订单</span><span class="kpi-value blue">{{ data.todayOrders || 0 }}</span></div>
-        <div class="kpi-item"><span class="kpi-label">今日营收</span><span class="kpi-value green">¥{{ fmt(data.todayRevenue) }}</span></div>
-        <div class="kpi-item"><span class="kpi-label">近1小时</span><span class="kpi-value orange">{{ data.hourOrders || 0 }}单</span></div>
+        <div class="kpi-item">
+          <span class="kpi-label">今日订单</span><span class="kpi-value blue">{{ data.todayOrders || 0 }}</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">今日营收</span><span class="kpi-value green">¥{{ fmt(data.todayRevenue) }}</span>
+        </div>
+        <div class="kpi-item">
+          <span class="kpi-label">近1小时</span><span class="kpi-value orange">{{ data.hourOrders || 0 }}单</span>
+        </div>
       </div>
 
       <div class="bs-grid-2">
         <!-- 品类占比 -->
         <div class="bs-panel">
           <h3>📊 今日品类交易占比</h3>
-          <div ref="pieChartRef" style="height:300px"></div>
+          <div
+            ref="pieChartRef"
+            style="height:300px"
+          />
         </div>
         <!-- 最近订单滚动 -->
         <div class="bs-panel">
           <h3>📋 最近成交订单</h3>
           <div class="order-scroll">
-            <div v-for="o in data.recentOrders || []" :key="o.id" class="order-row">
+            <div
+              v-for="o in data.recentOrders || []"
+              :key="o.id"
+              class="order-row"
+            >
               <span class="order-id">#{{ o.id?.slice(-8) }}</span>
-              <el-tag size="small" effect="dark">{{ typeLabel(o.type) }}</el-tag>
+              <el-tag
+                size="small"
+                effect="dark"
+              >
+                {{ typeLabel(o.type) }}
+              </el-tag>
               <span class="order-amount">¥{{ Number(o.amount).toFixed(2) }}</span>
               <span class="order-time">{{ fmtTime(o.at) }}</span>
             </div>
-            <el-empty v-if="!(data.recentOrders?.length)" description="暂无订单" :image-size="60" />
+            <el-empty
+              v-if="!(data.recentOrders?.length)"
+              description="暂无订单"
+              :image-size="60"
+            />
           </div>
         </div>
       </div>

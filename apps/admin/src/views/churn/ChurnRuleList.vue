@@ -2,32 +2,86 @@
   <div class="page">
     <div class="header">
       <h2>流失规则管理</h2>
-      <el-button type="primary" @click="openAddDialog">添加规则</el-button>
+      <el-button
+        type="primary"
+        @click="openAddDialog"
+      >
+        添加规则
+      </el-button>
     </div>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column prop="name" label="规则名称" min-width="140" />
-      <el-table-column prop="riskLevel" label="风险等级" width="110">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        prop="name"
+        label="规则名称"
+        min-width="140"
+      />
+      <el-table-column
+        prop="riskLevel"
+        label="风险等级"
+        width="110"
+      >
         <template #default="{ row }">
-          <el-tag :type="riskTag(row.riskLevel)">{{ riskLabel(row.riskLevel) }}</el-tag>
+          <el-tag :type="riskTag(row.riskLevel)">
+            {{ riskLabel(row.riskLevel) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="scoreThreshold" label="评分阈值" width="110" sortable />
-      <el-table-column prop="daysThreshold" label="天数阈值" width="110" />
-      <el-table-column prop="actionType" label="动作类型" width="120">
+      <el-table-column
+        prop="scoreThreshold"
+        label="评分阈值"
+        width="110"
+        sortable
+      />
+      <el-table-column
+        prop="daysThreshold"
+        label="天数阈值"
+        width="110"
+      />
+      <el-table-column
+        prop="actionType"
+        label="动作类型"
+        width="120"
+      >
         <template #default="{ row }">
           <el-tag>{{ row.actionType }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="isActive" label="启用状态" width="100">
+      <el-table-column
+        prop="isActive"
+        label="启用状态"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.isActive ? 'success' : 'info'">{{ row.isActive ? '启用' : '禁用' }}</el-tag>
+          <el-tag :type="row.isActive ? 'success' : 'info'">
+            {{ row.isActive ? '启用' : '禁用' }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column
+        label="操作"
+        width="180"
+        fixed="right"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openEditDialog(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-button
+            size="small"
+            @click="openEditDialog(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -41,40 +95,119 @@
       @size-change="fetchList"
     />
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑规则' : '添加规则'" width="550px">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
-        <el-form-item label="规则名称" prop="name">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? '编辑规则' : '添加规则'"
+      width="550px"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="120px"
+      >
+        <el-form-item
+          label="规则名称"
+          prop="name"
+        >
           <el-input v-model="form.name" />
         </el-form-item>
-        <el-form-item label="风险等级" prop="riskLevel">
-          <el-select v-model="form.riskLevel" style="width:100%">
-            <el-option label="低风险" value="LOW" />
-            <el-option label="中风险" value="MEDIUM" />
-            <el-option label="高风险" value="HIGH" />
-            <el-option label="严重风险" value="CRITICAL" />
+        <el-form-item
+          label="风险等级"
+          prop="riskLevel"
+        >
+          <el-select
+            v-model="form.riskLevel"
+            style="width:100%"
+          >
+            <el-option
+              label="低风险"
+              value="LOW"
+            />
+            <el-option
+              label="中风险"
+              value="MEDIUM"
+            />
+            <el-option
+              label="高风险"
+              value="HIGH"
+            />
+            <el-option
+              label="严重风险"
+              value="CRITICAL"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="评分阈值" prop="scoreThreshold">
-          <el-input-number v-model="form.scoreThreshold" :min="0" :max="100" style="width:100%" />
+        <el-form-item
+          label="评分阈值"
+          prop="scoreThreshold"
+        >
+          <el-input-number
+            v-model="form.scoreThreshold"
+            :min="0"
+            :max="100"
+            style="width:100%"
+          />
         </el-form-item>
-        <el-form-item label="天数阈值" prop="daysThreshold">
-          <el-input-number v-model="form.daysThreshold" :min="1" style="width:100%" />
+        <el-form-item
+          label="天数阈值"
+          prop="daysThreshold"
+        >
+          <el-input-number
+            v-model="form.daysThreshold"
+            :min="1"
+            style="width:100%"
+          />
         </el-form-item>
-        <el-form-item label="动作类型" prop="actionType">
-          <el-select v-model="form.actionType" style="width:100%">
-            <el-option label="发送通知" value="NOTIFY" />
-            <el-option label="发送优惠券" value="COUPON" />
-            <el-option label="标记关注" value="FLAG" />
-            <el-option label="客服介入" value="SERVICE" />
+        <el-form-item
+          label="动作类型"
+          prop="actionType"
+        >
+          <el-select
+            v-model="form.actionType"
+            style="width:100%"
+          >
+            <el-option
+              label="发送通知"
+              value="NOTIFY"
+            />
+            <el-option
+              label="发送优惠券"
+              value="COUPON"
+            />
+            <el-option
+              label="标记关注"
+              value="FLAG"
+            />
+            <el-option
+              label="客服介入"
+              value="SERVICE"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="动作配置" prop="actionConfig">
-          <el-input v-model="form.actionConfig" type="textarea" :rows="3" placeholder="JSON格式配置" />
+        <el-form-item
+          label="动作配置"
+          prop="actionConfig"
+        >
+          <el-input
+            v-model="form.actionConfig"
+            type="textarea"
+            :rows="3"
+            placeholder="JSON格式配置"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">确认</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="handleSubmit"
+        >
+          确认
+        </el-button>
       </template>
     </el-dialog>
   </div>
