@@ -1,4 +1,5 @@
-FROM node:20.19-alpine AS builder
+FROM node:20.19-slim AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 
