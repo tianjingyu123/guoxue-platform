@@ -429,26 +429,6 @@ export class OfflineController {
     return this.svc.cancelBooking(bookingId);
   }
 
-  // ───────── 结算详情 ─────────
-
-  @Get("settlements/:id")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "结算详情" })
-  @ApiBearerAuth()
-  getSettlementDetail(@Req() req: Request, @Param("id") id: string) {
-    return this.svc.getSettlementDetail(id);
-  }
-
-  // ───────── 签到记录 ─────────
-
-  @Get("stations/:id/checkins")
-  @ApiOperation({ summary: "驿站签到记录" })
-  @ApiQuery({ name: "page", required: false, type: Number })
-  @ApiQuery({ name: "pageSize", required: false, type: Number })
-  getCheckinRecords(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.svc.listCheckinRecords(id, +page, +pageSize);
-  }
-
   // ───────── 研究院管理 ─────────
 
   @Get("institute/members")
