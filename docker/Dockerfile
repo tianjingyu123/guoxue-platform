@@ -6,6 +6,7 @@ WORKDIR /app
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/server/package.json apps/server/
 COPY apps/admin/package.json apps/admin/
+COPY apps/mobile/package.json apps/mobile/
 COPY packages/shared/package.json packages/shared/
 COPY packages/bazi-engine/package.json packages/bazi-engine/
 COPY packages/ziwei-engine/package.json packages/ziwei-engine/
