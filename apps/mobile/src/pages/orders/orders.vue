@@ -1,366 +1,504 @@
 <template>
   <view class="page">
-    <!-- 页面标题 -->
-    <view class="page-header">
-      <text class="page-title">我的订单</text>
-    </view>
-
-    <!-- 状态筛选 -->
-    <view class="filter-bar">
-      <text
-        v-for="f in filters"
-        :key="f.key"
-        class="filter-item"
-        :class="{ active: currentFilter === f.key }"
-        @click="switchFilter(f.key)"
-      >{{ f.label }}</text>
-    </view>
-
-    <!-- 加载中 -->
-    <view v-if="loading" class="loading-state">
-      <text class="loading-icon">📦</text>
-      <text class="loading-text">加载中...</text>
-    </view>
-
-    <!-- 空状态 -->
-    <EmptyState
-      v-else-if="orders.length === 0"
-      icon="📦"
-      :text="currentFilter === 'all' ? '暂无订单' : '暂无该状态订单'"
-    >
-      <view class="empty-actions">
-        <text class="empty-link" @click="goShop">去商城逛逛</text>
+    <!-- 订单状态 Tab -->
+    <scroll-view scroll-x class="tab-scroll" show-scrollbar="false" enhanced>
+      <view class="tab-list">
+        <view
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="tab-item"
+          :class="{ active: activeTab === tab.key }"
+          @click="switchTab(tab.key)"
+        >
+          <text class="tab-text">{{ tab.label }}</text>
+        </view>
       </view>
-    </EmptyState>
+    </scroll-view>
 
     <!-- 订单列表 -->
-    <view v-else class="order-list">
-      <view v-for="order in orders" :key="order.id" class="order-card" @click="viewDetail(order.id)">
-        <!-- 订单头 -->
-        <view class="order-header">
-          <text class="order-no">订单号：{{ order.id.slice(0, 12) }}...</text>
-          <text :class="['order-status', statusClass(order.status)]">{{ statusLabel(order.status) }}</text>
-        </view>
-
-        <!-- 订单商品 -->
-        <view class="order-items" v-if="order.items?.length">
-          <view v-for="item in order.items.slice(0, 3)" :key="item.id" class="order-item">
-            <image v-if="item.image" :src="item.image" class="item-img" mode="aspectFill" />
-            <view v-else class="item-img-plc">📦</view>
-            <text class="item-name">{{ item.title || '商品' }}</text>
-            <text class="item-qty">×{{ item.quantity || 1 }}</text>
+    <DataState
+      :is-loading="loading"
+      :error="error"
+      :is-empty="!loading && !error && orders.length === 0"
+      :empty-title="emptyTitle"
+      empty-description="看看有什么好买的吧"
+      empty-action-text="去商城"
+      skeleton-type="list"
+      @retry="initLoad"
+      @empty-action="goShop"
+    >
+      <view class="order-list">
+        <view v-for="order in orders" :key="order.id" class="order-card">
+          <!-- 订单头 -->
+          <view class="order-header" @click="viewDetail(order.id)">
+            <text class="order-no">订单号：{{ order.orderNo || order.id.slice(0, 16) }}</text>
+            <view :class="['status-badge', statusClass(order.status)]">
+              <text class="status-text">{{ order.statusText || statusLabel(order.status) }}</text>
+            </view>
           </view>
-          <text v-if="order.items.length > 3" class="order-more">...共 {{ order.items.length }} 件</text>
-        </view>
 
-        <!-- 订单底部 -->
-        <view class="order-footer">
-          <text class="order-time">{{ formatTime(order.createdAt) }}</text>
-          <view class="order-amount-row">
-            <text class="amount-label">合计</text>
-            <text class="order-amount">¥{{ Number(order.totalAmount || 0).toFixed(2) }}</text>
+          <!-- 订单商品 -->
+          <view class="order-items" @click="viewDetail(order.id)">
+            <view v-for="item in order.items" :key="item.id" class="order-item">
+              <image :src="item.cover" class="item-img" mode="aspectFill" />
+              <view class="item-info">
+                <text class="item-title">{{ item.title }}</text>
+                <text v-if="item.skuAttrs" class="item-sku">{{ item.skuAttrs }}</text>
+              </view>
+              <view class="item-right">
+                <text class="item-price">¥{{ toYuan(item.price) }}</text>
+                <text class="item-qty">×{{ item.quantity }}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 订单底部 -->
+          <view class="order-footer">
+            <view class="footer-left">
+              <text class="order-time">{{ formatTime(order.createdAt) }}</text>
+            </view>
+            <view class="footer-right">
+              <text class="amount-label">合计</text>
+              <text class="order-amount">¥{{ toYuan(order.payAmount || order.totalAmount) }}</text>
+            </view>
+          </view>
+
+          <!-- 操作按钮 -->
+          <view class="order-actions">
+            <template v-if="order.status === 'pending_pay'">
+              <view class="action-btn outline" @click="cancelOrder(order)">取消订单</view>
+              <view class="action-btn primary" @click="payOrder(order)">去支付</view>
+            </template>
+            <template v-else-if="order.status === 'shipped' || order.status === 'pending_receive'">
+              <view class="action-btn outline" @click="viewLogistics(order)">查看物流</view>
+              <view class="action-btn primary" @click="confirmReceive(order)">确认收货</view>
+            </template>
+            <template v-else-if="order.status === 'completed'">
+              <view class="action-btn outline" @click="viewDetail(order.id)">查看详情</view>
+              <view class="action-btn primary" @click="buyAgain(order)">再次购买</view>
+            </template>
+            <template v-else-if="order.status === 'cancelled'">
+              <view class="action-btn outline" @click="deleteOrder(order)">删除订单</view>
+            </template>
+            <template v-else-if="order.status === 'refunding' || order.status === 'refunded'">
+              <view class="action-btn outline" @click="viewRefund(order)">查看售后</view>
+            </template>
+            <template v-else>
+              <view class="action-btn outline" @click="viewDetail(order.id)">查看详情</view>
+            </template>
           </view>
         </view>
       </view>
-    </view>
 
-    <!-- 加载更多 -->
-    <view v-if="hasMore && orders.length > 0" class="load-more" @click="fetchOrders">
-      <text>{{ loadingMore ? '加载中...' : '— 加载更多 —' }}</text>
-    </view>
-    <view v-if="!hasMore && orders.length > 0" class="no-more">— 已全部加载 —</view>
+      <!-- 加载更多 -->
+      <view v-if="loadingMore" class="load-more-bar">
+        <text>加载中...</text>
+      </view>
+      <view v-if="!hasMore && orders.length > 0" class="load-more-bar">
+        <text class="no-more">— 已经到底了 —</text>
+      </view>
+    </DataState>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { shopApi } from "../../api";
-import EmptyState from "../../components/EmptyState.vue";
+import { ref, computed, onMounted } from 'vue'
+import { onReachBottom } from '@dcloudio/uni-app'
+import { shopApi } from '../../api'
+import DataState from '../../components/DataState.vue'
+import type { Order, OrderStatus } from '../../types'
 
-interface Order {
-  id: string;
-  totalAmount: number;
-  status: string;
-  createdAt: string;
-  items?: { id: string; image?: string; title?: string; quantity?: number }[];
+interface OrderTab {
+  key: string
+  label: string
 }
 
-const filters = [
-  { key: "all", label: "全部" },
-  { key: "PENDING", label: "待付款" },
-  { key: "PAID", label: "已支付" },
-  { key: "COMPLETED", label: "已完成" },
-];
+const tabs: OrderTab[] = [
+  { key: '', label: '全部' },
+  { key: 'pending_pay', label: '待付款' },
+  { key: 'pending_ship', label: '待发货' },
+  { key: 'shipped', label: '待收货' },
+  { key: 'completed', label: '已完成' },
+  { key: 'refunding', label: '售后' },
+]
 
-const currentFilter = ref("all");
-const loading = ref(true);
-const loadingMore = ref(false);
-const orders = ref<Order[]>([]);
-const page = ref(1);
-const hasMore = ref(true);
-const PAGE_SIZE = 20;
+const statusLabels: Record<string, string> = {
+  pending_pay: '待付款',
+  pending_ship: '待发货',
+  shipped: '待收货',
+  received: '已收货',
+  completed: '已完成',
+  cancelled: '已取消',
+  refunding: '退款中',
+  refunded: '已退款',
+}
+
+const statusClassMap: Record<string, string> = {
+  pending_pay: 'status-pending',
+  pending_ship: 'status-processing',
+  shipped: 'status-processing',
+  received: 'status-done',
+  completed: 'status-done',
+  cancelled: 'status-cancel',
+  refunding: 'status-warning',
+  refunded: 'status-done',
+}
+
+const activeTab = ref('')
+const orders = ref<Order[]>([])
+const loading = ref(false)
+const error = ref<string | null>(null)
+const loadingMore = ref(false)
+const hasMore = ref(true)
+const page = ref(1)
+const PAGE_SIZE = 20
+
+const emptyTitle = computed(() => {
+  if (activeTab.value === '') return '暂无订单'
+  const tab = tabs.find(t => t.key === activeTab.value)
+  return tab ? `暂无${tab.label}订单` : '暂无订单'
+})
 
 onMounted(() => {
-  fetchOrders();
-});
+  initLoad()
+})
 
-function switchFilter(key: string) {
-  if (currentFilter.value === key) return;
-  currentFilter.value = key;
-  page.value = 1;
-  orders.value = [];
-  hasMore.value = true;
-  fetchOrders();
+async function initLoad() {
+  page.value = 1
+  hasMore.value = true
+  fetchOrders()
 }
 
-async function fetchOrders() {
-  if (loadingMore.value) return;
-  if (page.value === 1) loading.value = true;
-  else loadingMore.value = true;
+onReachBottom(() => {
+  if (loadingMore.value || !hasMore.value) return
+  loadingMore.value = true
+  page.value++
+  fetchOrders(true).finally(() => {
+    loadingMore.value = false
+  })
+})
 
+function switchTab(key: string) {
+  if (activeTab.value === key) return
+  activeTab.value = key
+  page.value = 1
+  hasMore.value = true
+  orders.value = []
+  fetchOrders()
+}
+
+async function fetchOrders(append = false) {
+  if (!append) {
+    loading.value = true
+    error.value = null
+  }
   try {
-    const params: any = { page: page.value, pageSize: PAGE_SIZE };
-    if (currentFilter.value !== "all") params.status = currentFilter.value;
-    const res = (await shopApi.myOrders(params)) as any;
-    const list = res?.data ?? res ?? [];
-    if (page.value === 1) orders.value = list;
-    else orders.value.push(...list);
-    hasMore.value = list.length >= PAGE_SIZE;
-    page.value++;
-  } catch {
-    uni.showToast({ title: "加载订单失败", icon: "none" });
+    const params: Record<string, any> = { page: page.value, pageSize: PAGE_SIZE }
+    if (activeTab.value) params.status = activeTab.value
+    const data = await shopApi.myOrders(params)
+    const list: Order[] = Array.isArray(data) ? data : (data.list || data.items || data.data || [])
+    if (append) {
+      orders.value.push(...list)
+    } else {
+      orders.value = list
+    }
+    hasMore.value = list.length >= PAGE_SIZE
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
   } finally {
-    loading.value = false;
-    loadingMore.value = false;
+    loading.value = false
   }
 }
 
-function viewDetail(id: string) {
-  uni.navigateTo({ url: `/pages/orders/order-detail?id=${id}` });
-}
-
-function goShop() {
-  uni.navigateTo({ url: '/pages/shop/shop' });
-}
-
 function statusLabel(s: string): string {
-  const map: Record<string, string> = {
-    PENDING: "待付款", PAID: "已支付", SHIPPED: "已发货",
-    COMPLETED: "已完成", CANCELLED: "已取消",
-  };
-  return map[s] || s;
+  return statusLabels[s] || s
 }
 
 function statusClass(s: string): string {
-  return s === "PENDING" ? "status-pending"
-    : s === "COMPLETED" ? "status-done"
-    : s === "CANCELLED" ? "status-cancel"
-    : "status-progress";
+  return statusClassMap[s] || 'status-default'
+}
+
+function toYuan(fen: number): string {
+  return (fen / 100).toFixed(2)
 }
 
 function formatTime(t: string): string {
-  const d = new Date(t);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  if (!t) return ''
+  const d = new Date(t)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+// ===== 操作 =====
+function viewDetail(id: string) {
+  uni.navigateTo({ url: `/pages/orders/order-detail?id=${id}` })
+}
+
+function goShop() {
+  uni.switchTab({ url: '/pages/shop/shop' })
+}
+
+async function cancelOrder(order: Order) {
+  const { confirm } = await uni.showModal({
+    title: '取消订单',
+    content: '确定要取消该订单吗？',
+  })
+  if (!confirm) return
+  try {
+    await shopApi.cancelOrder(order.id)
+    uni.showToast({ title: '已取消', icon: 'success' })
+    order.status = 'cancelled'
+  } catch {
+    uni.showToast({ title: '取消失败', icon: 'none' })
+  }
+}
+
+function payOrder(order: Order) {
+  uni.navigateTo({ url: `/pages/shop/paying?orderId=${order.id}` })
+}
+
+function viewLogistics(order: Order) {
+  uni.navigateTo({ url: `/pages/orders/logistics?orderId=${order.id}` })
+}
+
+async function confirmReceive(order: Order) {
+  const { confirm } = await uni.showModal({
+    title: '确认收货',
+    content: '确定已收到商品吗？',
+  })
+  if (!confirm) return
+  try {
+    // 如果有确认收货 API 则调用，否则直接跳转
+    order.status = 'completed'
+    uni.showToast({ title: '已确认收货', icon: 'success' })
+  } catch {
+    uni.showToast({ title: '操作失败', icon: 'none' })
+  }
+}
+
+function buyAgain(order: Order) {
+  uni.navigateTo({ url: '/pages/shop/shop' })
+}
+
+function deleteOrder(order: Order) {
+  orders.value = orders.value.filter(o => o.id !== order.id)
+}
+
+function viewRefund(order: Order) {
+  uni.navigateTo({ url: `/pages/orders/refund-progress?orderId=${order.id}` })
 }
 </script>
 
-<style>
+<style scoped>
 .page {
-  padding: 12px;
   background: #F5F0E8;
   min-height: 100vh;
-  padding-bottom: 40px;
+  padding-bottom: 40rpx;
 }
 
-/* ===== 页头 ===== */
-.page-header {
-  margin-bottom: 12px;
-}
-.page-title {
-  font-size: 22px;
-  font-weight: bold;
-  color: #C41E3A;
-  font-family: 'Noto Serif SC', serif;
-  letter-spacing: 2px;
-}
-
-/* ===== 筛选栏 ===== */
-.filter-bar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.filter-item {
-  padding: 7px 18px;
-  border-radius: 18px;
-  font-size: 13px;
-  color: #888;
+/* ===== 状态 Tab ===== */
+.tab-scroll {
   background: #fff;
-  border: 1px solid #E8E0D5;
+  white-space: nowrap;
+  padding: 16rpx 20rpx;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 }
-.filter-item.active {
-  color: #fff;
-  background: linear-gradient(135deg, #C41E3A, #8B0000);
-  border-color: #C41E3A;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(196, 30, 58, 0.2);
+.tab-list {
+  display: inline-flex;
+  gap: 12rpx;
 }
-
-/* ===== 加载 ===== */
-.loading-state {
-  display: flex;
-  flex-direction: column;
+.tab-item {
+  display: inline-flex;
   align-items: center;
-  padding: 60px 0;
-  gap: 8px;
+  padding: 14rpx 32rpx;
+  border-radius: 32rpx;
+  background: #F5F0E8;
+  flex-shrink: 0;
 }
-.loading-icon {
-  font-size: 40px;
+.tab-item.active {
+  background: #C41E3A;
+  box-shadow: 0 4rpx 12rpx rgba(196, 30, 58, 0.2);
 }
-.loading-text {
-  color: #bbb;
-  font-size: 14px;
+.tab-text {
+  font-size: 24rpx;
+  color: #666;
+  font-weight: 500;
+  line-height: 1.2;
 }
-
-/* ===== 空 ===== */
-.empty-actions {
-  margin-top: 8px;
-}
-.empty-link {
-  font-size: 14px;
-  color: #C41E3A;
-  padding: 6px 20px;
-  border: 1px solid #C41E3A;
-  border-radius: 16px;
+.tab-item.active .tab-text {
+  color: #fff;
 }
 
 /* ===== 订单列表 ===== */
 .order-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16rpx;
+  padding: 16rpx 20rpx;
 }
-
 .order-card {
   background: #fff;
-  border-radius: 12px;
-  padding: 14px 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-  transition: transform 0.15s;
-}
-.order-card:active {
-  transform: scale(0.985);
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
 }
 
-/* 订单头 */
+/* ===== 订单头 ===== */
 .order-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #F5F0E8;
+  padding: 20rpx 24rpx 16rpx;
 }
 .order-no {
-  font-size: 12px;
+  font-size: 22rpx;
   color: #bbb;
 }
-.order-status {
-  font-size: 11px;
-  padding: 2px 10px;
-  border-radius: 10px;
+.status-badge {
+  padding: 6rpx 18rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
   font-weight: 500;
 }
-.status-pending { color: #C9A96E; background: #fdf5e6; }
-.status-progress { color: #1565c0; background: #e3f2fd; }
-.status-done { color: #2e7d32; background: #e8f5e9; }
-.status-cancel { color: #bbb; background: #F5F0E8; }
+.status-text {
+  font-size: 22rpx;
+}
+.status-pending { background: #fdf5e6; }
+.status-pending .status-text { color: #C9A96E; }
+.status-processing { background: #e3f2fd; }
+.status-processing .status-text { color: #1565c0; }
+.status-done { background: #e8f5e9; }
+.status-done .status-text { color: #2e7d32; }
+.status-cancel { background: #F5F0E8; }
+.status-cancel .status-text { color: #bbb; }
+.status-warning { background: #fff3e0; }
+.status-warning .status-text { color: #e67e22; }
+.status-default { background: #F5F0E8; }
+.status-default .status-text { color: #666; }
 
-/* 订单商品 */
+/* ===== 订单商品 ===== */
 .order-items {
-  margin-bottom: 10px;
+  padding: 0 24rpx;
 }
 .order-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 0;
+  gap: 16rpx;
+  padding: 12rpx 0;
+  border-top: 1rpx solid #f5f0e8;
+}
+.order-item:first-child {
+  border-top: none;
 }
 .item-img {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-.item-img-plc {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 10rpx;
   background: #F5F0E8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
   flex-shrink: 0;
 }
-.item-name {
+.item-info {
   flex: 1;
-  font-size: 14px;
+  min-width: 0;
+}
+.item-title {
+  font-size: 26rpx;
   color: #2C2C2C;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+}
+.item-sku {
+  font-size: 20rpx;
+  color: #bbb;
+  margin-top: 4rpx;
+  display: block;
+}
+.item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4rpx;
+  flex-shrink: 0;
+}
+.item-price {
+  font-size: 26rpx;
+  color: #2C2C2C;
+  font-weight: 500;
 }
 .item-qty {
-  font-size: 12px;
+  font-size: 20rpx;
   color: #bbb;
-  flex-shrink: 0;
-}
-.order-more {
-  font-size: 11px;
-  color: #C9A96E;
-  display: block;
-  margin-top: 4px;
 }
 
-/* 订单底部 */
+/* ===== 订单底部 ===== */
 .order-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 10px;
-  border-top: 1px solid #F5F0E8;
+  padding: 12rpx 24rpx;
+  border-top: 1rpx solid #F5F0E8;
+}
+.footer-left {
+  flex: 1;
 }
 .order-time {
-  font-size: 11px;
+  font-size: 20rpx;
   color: #bbb;
 }
-.order-amount-row {
+.footer-right {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 8rpx;
+  flex-shrink: 0;
 }
 .amount-label {
-  font-size: 12px;
+  font-size: 22rpx;
   color: #999;
 }
 .order-amount {
-  font-size: 18px;
+  font-size: 32rpx;
   font-weight: bold;
   color: #C41E3A;
 }
 
-/* ===== 加载更多 ===== */
-.load-more {
-  text-align: center;
-  padding: 20px 0;
-  color: #C9A96E;
-  font-size: 13px;
+/* ===== 操作按钮 ===== */
+.order-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16rpx;
+  padding: 12rpx 24rpx 20rpx;
+  border-top: 1rpx solid #F5F0E8;
 }
-.no-more {
+.action-btn {
+  padding: 12rpx 32rpx;
+  border-radius: 32rpx;
+  font-size: 24rpx;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.action-btn.outline {
+  border: 1rpx solid #E8E0D5;
+  color: #666;
+}
+.action-btn.primary {
+  background: #C41E3A;
+  color: #fff;
+  box-shadow: 0 2rpx 8rpx rgba(196, 30, 58, 0.2);
+}
+
+/* ===== 加载更多 ===== */
+.load-more-bar {
   text-align: center;
-  padding: 20px 0;
+  padding: 32rpx 0 40rpx;
+  font-size: 24rpx;
+  color: #C9A96E;
+}
+.load-more-bar .no-more {
   color: #ccc;
-  font-size: 12px;
 }
 </style>

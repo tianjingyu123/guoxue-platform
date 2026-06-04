@@ -1,60 +1,215 @@
 <template>
   <view class="page">
-    <LoadingSkeleton v-if="loading" />
-    <view v-else class="container">
-      <scroll-view scroll-y class="left-menu">
-        <view v-for="cat in categories" :key="cat.id" class="menu-item" :class="{ active: activeCat === cat.id }" @click="activeCat = cat.id; fetchRight()">
-          <text>{{ cat.name }}</text>
+    <template v-if="loading">
+      <view class="sk-top">
+        <view class="sk-line mx-auto" style="width:192rpx;height:48rpx" />
+      </view>
+      <view class="flex h-[calc(100vh-112rpx)]">
+        <view class="sk-sidebar">
+          <view v-for="i in 8" :key="i" class="sk-bar-item" />
         </view>
-      </scroll-view>
-      <scroll-view scroll-y class="right-grid">
-        <view v-for="sub in subCategories" :key="sub.id" class="sub-item" @click="goProducts(sub)">
-          <image :src="sub.icon || ''" class="sub-icon" mode="aspectFill" />
-          <text class="sub-name">{{ sub.name }}</text>
+        <view class="sk-content">
+          <view class="grid grid-cols-2 gap-6">
+            <view v-for="i in 6" :key="i" class="sk-product" />
+          </view>
         </view>
-        <EmptyState v-if="!subCategories.length" text="暂无分类" />
-      </scroll-view>
-    </view>
+      </view>
+    </template>
+
+    <template v-else>
+      <!-- 顶部导航 -->
+      <view class="nav-bar">
+        <view class="nav-left" @click="goBack">
+          <text class="nav-icon">←</text>
+        </view>
+        <text class="nav-title">商品分类</text>
+        <view class="nav-right" @click="goSearch">
+          <text class="nav-icon">🔍</text>
+        </view>
+      </view>
+
+      <!-- 双栏布局 -->
+      <view class="main-layout">
+        <!-- 左侧一级分类 -->
+        <scroll-view class="left-sidebar" scroll-y>
+          <view v-for="cat in categories" :key="cat.id" class="cat-item" :class="{ active: selectedCategory === cat.id }" @click="handleCategoryClick(cat.id)">
+            <view v-if="selectedCategory === cat.id" class="cat-indicator" />
+            <text class="cat-icon">{{ cat.icon || '⊞' }}</text>
+            <text class="cat-name">{{ cat.name }}</text>
+          </view>
+        </scroll-view>
+
+        <!-- 右侧 -->
+        <scroll-view class="right-panel" scroll-y>
+          <!-- 二级分类 -->
+          <view v-if="currentCategory?.children?.length" class="sub-tab-bar">
+            <scroll-view scroll-x show-scrollbar="false">
+              <view class="sub-tab-list">
+                <view v-for="sub in currentCategory.children" :key="sub.id" class="sub-tab" :class="{ active: selectedSubCategory === sub.id }" @click="selectedSubCategory = sub.id">
+                  <text>{{ sub.name }}</text>
+                </view>
+              </view>
+            </scroll-view>
+          </view>
+
+          <!-- 商品列表 -->
+          <view class="product-area">
+            <template v-if="productsLoading">
+              <view class="product-grid">
+                <view v-for="i in 6" :key="i" class="sk-product-item">
+                  <view class="sk-product-img" />
+                  <view class="sk-product-name" />
+                  <view class="sk-product-price" />
+                </view>
+              </view>
+            </template>
+            <template v-else-if="products.length > 0">
+              <view class="product-grid">
+                <view v-for="product in products" :key="product.id" class="product-card" @click="goProduct(product.id)">
+                  <view class="product-img-wrap">
+                    <image :src="product.cover || ''" class="product-img" mode="aspectFill" />
+                  </view>
+                  <text class="product-title">{{ product.name }}</text>
+                  <view class="product-price-row">
+                    <text class="product-price">¥{{ product.price }}</text>
+                    <text v-if="product.originalPrice > product.price" class="product-original">¥{{ product.originalPrice }}</text>
+                  </view>
+                  <text class="product-sales">已售 {{ product.sales }}</text>
+                </view>
+              </view>
+            </template>
+            <template v-else>
+              <view class="empty-state">
+                <view class="empty-icon-wrap"><text class="empty-icon">🔍</text></view>
+                <text class="empty-text">暂无商品</text>
+              </view>
+            </template>
+          </view>
+        </scroll-view>
+      </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
-import EmptyState from '../../components/EmptyState.vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { shopApi } from '../../api'
 
+interface ProductCategory { id: string; name: string; icon: string; children?: ProductCategory[] }
+interface Product { id: string; name: string; cover: string; price: number; originalPrice: number; sales: number; rating: number; category: string }
+
+const mockCategories: ProductCategory[] = [
+  { id: '1', name: '国学书籍', icon: '📚', children: [{ id: '1-1', name: '经典原著', icon: '' }, { id: '1-2', name: '注解版本', icon: '' }, { id: '1-3', name: '入门读物', icon: '' }] },
+  { id: '2', name: '文房用品', icon: '✒️', children: [{ id: '2-1', name: '毛笔', icon: '' }, { id: '2-2', name: '宣纸', icon: '' }, { id: '2-3', name: '墨砚', icon: '' }] },
+  { id: '3', name: '香道用品', icon: '🪔', children: [{ id: '3-1', name: '线香', icon: '' }, { id: '3-2', name: '香炉', icon: '' }, { id: '3-3', name: '沉香', icon: '' }] },
+  { id: '4', name: '茶道用品', icon: '🍵', children: [{ id: '4-1', name: '茶具套装', icon: '' }, { id: '4-2', name: '茶叶', icon: '' }, { id: '4-3', name: '茶盘', icon: '' }] },
+  { id: '5', name: '养生保健', icon: '🏥', children: [{ id: '5-1', name: '艾灸用品', icon: '' }, { id: '5-2', name: '按摩器具', icon: '' }, { id: '5-3', name: '养生食材', icon: '' }] },
+  { id: '6', name: '风水摆件', icon: '🏺', children: [{ id: '6-1', name: '招财摆件', icon: '' }, { id: '6-2', name: '化煞物品', icon: '' }, { id: '6-3', name: '水晶', icon: '' }] },
+  { id: '7', name: '佛道用品', icon: '🙏', children: [{ id: '7-1', name: '佛像', icon: '' }, { id: '7-2', name: '念珠', icon: '' }, { id: '7-3', name: '供品', icon: '' }] },
+  { id: '8', name: '乐器', icon: '🎸', children: [{ id: '8-1', name: '古琴', icon: '' }, { id: '8-2', name: '箫笛', icon: '' }, { id: '8-3', name: '古筝', icon: '' }] },
+]
+
+const mockProducts: Product[] = Array.from({ length: 12 }, (_, i) => ({
+  id: `p${i+1}`, name: ['易经全解','毛笔套装','沉香线香','紫砂茶壶','艾灸盒','招财貔貅','小叶紫檀念珠','古琴入门'][i%8],
+  cover: '', price: [128,89,168,299,68,388,258,1999][i%8],
+  originalPrice: [168,128,218,399,98,488,328,2599][i%8],
+  sales: Math.floor(Math.random()*1000)+100, rating: 4.5+Math.random()*0.5,
+  category: ['1-1','2-1','3-1','4-1','5-1','6-1','7-2','8-1'][i%8],
+}))
+
+const categories = ref<ProductCategory[]>([])
+const products = ref<Product[]>([])
+const selectedCategory = ref('')
+const selectedSubCategory = ref('')
 const loading = ref(true)
-const activeCat = ref('')
-const categories = ref<any[]>([])
-const subCategories = ref<any[]>([])
+const productsLoading = ref(false)
 
-onMounted(async () => {
+onMounted(() => { loadCategories() })
+
+watch(selectedSubCategory, (nv) => { if (nv) loadProducts(nv) })
+
+async function loadCategories() {
   try {
-    const res: any = await shopApi.categoryTree()
-    categories.value = Array.isArray(res) ? res : res?.data || res?.list || []
-    if (categories.value.length) { activeCat.value = categories.value[0].id; updateSubs() }
-  } catch {} finally { loading.value = false }
-})
+    const data = await shopApi.categoryTree()
+    categories.value = data
+    if (data.length > 0) {
+      selectedCategory.value = data[0].id
+      if (data[0].children?.length) selectedSubCategory.value = data[0].children[0].id
+    }
+  } catch {
+    categories.value = mockCategories; selectedCategory.value = mockCategories[0].id
+    if (mockCategories[0].children?.length) selectedSubCategory.value = mockCategories[0].children[0].id
+  } finally { loading.value = false }
+}
 
-function updateSubs() {
-  const cat = categories.value.find(c => c.id === activeCat.value)
-  subCategories.value = cat?.children || cat?.subCategories || []
+async function loadProducts(categoryId: string) {
+  productsLoading.value = true
+  try {
+    const res = await shopApi.categoryProducts(categoryId)
+    products.value = res?.data || res || []
+  } catch {
+    products.value = mockProducts.filter(p => p.category === categoryId).slice(0, 6)
+  } finally { productsLoading.value = false }
 }
-function fetchRight() { updateSubs() }
-function goProducts(sub: any) {
-  uni.navigateTo({ url: `/pages/shop/shop?categoryId=${sub.id}` })
+
+const currentCategory = computed(() => categories.value.find(c => c.id === selectedCategory.value))
+
+function handleCategoryClick(categoryId: string) {
+  selectedCategory.value = categoryId
+  const cat = categories.value.find(c => c.id === categoryId)
+  if (cat?.children?.length) selectedSubCategory.value = cat.children[0].id
 }
+
+function goBack() { uni.navigateBack() }
+function goSearch() { uni.navigateTo({ url: '/pages/shop/search' }) }
+function goProduct(id: string) { uni.navigateTo({ url: `/pages/shop/product-detail?id=${id}` }) }
 </script>
 
-<style>
-.page { background: #F5F0E8; min-height: 100vh; }
-.container { display: flex; height: 100vh; }
-.left-menu { width: 100px; background: #fff; }
-.menu-item { padding: 16px 10px; text-align: center; font-size: 13px; color: #666; border-left: 3px solid transparent; }
-.menu-item.active { color: #C41E3A; border-left-color: #C41E3A; background: #FFF0F0; font-weight: 500; }
-.right-grid { flex: 1; background: #fff; padding: 12px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 10px; }
-.sub-item { width: calc(33.33% - 7px); text-align: center; }
-.sub-icon { width: 50px; height: 50px; border-radius: 50%; background: #eee; margin: 0 auto; }
-.sub-name { font-size: 12px; display: block; margin-top: 6px; }
+<style scoped>
+.page { background: #FAF8F5; min-height: 100vh; }
+.sk-top { background: #fff; padding: 24rpx; border-bottom: 2rpx solid #E8E3DB; }
+.sk-line { background: #E8E3DB; border-radius: 8rpx; }
+.sk-sidebar { width: 192rpx; background: #F5F2EF; padding: 12rpx; }
+.sk-bar-item { height: 96rpx; background: #E8E3DB; border-radius: 8rpx; margin-bottom: 12rpx; }
+.sk-content { flex: 1; padding: 24rpx; }
+.sk-product { background: #fff; border-radius: 16rpx; padding: 24rpx; }
+.sk-product-item { background: #fff; border-radius: 16rpx; padding: 20rpx; }
+.sk-product-img { aspect-ratio: 1; background: #E8E3DB; border-radius: 12rpx; margin-bottom: 12rpx; }
+.sk-product-name { height: 32rpx; background: #E8E3DB; border-radius: 8rpx; width: 75%; margin-bottom: 8rpx; }
+.sk-product-price { height: 32rpx; background: #E8E3DB; border-radius: 8rpx; width: 50%; }
+.flex { display: flex; }
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: 1fr 1fr; }
+.gap-6 { gap: 24rpx; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+.nav-bar { position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 2rpx solid #E8E3DB; display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; }
+.nav-left, .nav-right { padding: 8rpx; }
+.nav-icon { font-size: 40rpx; color: #2C2C2C; }
+.nav-title { font-size: 30rpx; font-weight: 600; color: #2C2C2C; }
+.main-layout { display: flex; height: calc(100vh - 112rpx); }
+.left-sidebar { width: 192rpx; background: #F5F2EF; border-right: 2rpx solid #E8E3DB; flex-shrink: 0; overflow-y: auto; }
+.cat-item { padding: 32rpx 16rpx; text-align: center; font-size: 26rpx; position: relative; transition: all 0.2s; color: #666; }
+.cat-item.active { background: #fff; color: #C41E3A; font-weight: 500; }
+.cat-indicator { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 8rpx; height: 64rpx; background: #C41E3A; border-radius: 0 8rpx 8rpx 0; }
+.cat-icon { display: block; font-size: 36rpx; margin-bottom: 8rpx; }
+.cat-name { display: block; line-height: 1.3; }
+.right-panel { flex: 1; overflow-y: auto; }
+.sub-tab-bar { position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 2rpx solid #E8E3DB; padding: 20rpx 24rpx; white-space: nowrap; }
+.sub-tab-list { display: flex; gap: 16rpx; }
+.sub-tab { padding: 10rpx 24rpx; border-radius: 50rpx; font-size: 26rpx; background: #F5F2EF; color: #666; flex-shrink: 0; }
+.sub-tab.active { background: #C41E3A; color: #fff; }
+.product-area { padding: 20rpx; }
+.product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
+.product-card { background: #fff; border-radius: 16rpx; padding: 20rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04); }
+.product-img-wrap { aspect-ratio: 1; border-radius: 12rpx; overflow: hidden; background: #F5F2EF; margin-bottom: 12rpx; }
+.product-img { width: 100%; height: 100%; }
+.product-title { font-size: 26rpx; color: #2C2C2C; font-weight: 500; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin-bottom: 8rpx; }
+.product-price-row { display: flex; align-items: baseline; gap: 8rpx; }
+.product-price { font-size: 28rpx; color: #C41E3A; font-weight: bold; }
+.product-original { font-size: 20rpx; color: #999; text-decoration: line-through; }
+.product-sales { font-size: 20rpx; color: #999; margin-top: 6rpx; display: block; }
+.empty-state { display: flex; flex-direction: column; align-items: center; padding: 160rpx 0; }
+.empty-icon-wrap { width: 160rpx; height: 160rpx; border-radius: 50%; background: #F5F2EF; display: flex; align-items: center; justify-content: center; margin-bottom: 32rpx; }
+.empty-icon { font-size: 56rpx; }
+.empty-text { font-size: 28rpx; color: #999; }
 </style>

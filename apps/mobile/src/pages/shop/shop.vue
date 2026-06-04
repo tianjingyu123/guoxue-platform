@@ -1,446 +1,359 @@
 <template>
   <view class="page">
-    <!-- 顶部横幅 -->
-    <swiper class="banner-swiper" autoplay circular interval="3000" v-if="banners.length">
-      <swiper-item v-for="(b, i) in banners" :key="i">
-        <image :src="b.image" class="banner-img" mode="aspectFill" @click="goDetail(b.productId)" />
-        <view class="banner-tag">{{ b.tag }}</view>
-      </swiper-item>
-    </swiper>
-
-    <!-- 快捷入口 -->
-    <view class="quick-row">
-      <view class="quick-item" @click="goCoupons">
-        <text class="quick-icon">🎫</text>
-        <text class="quick-label">领券中心</text>
-      </view>
-      <view class="quick-item" @click="goCart">
-        <text class="quick-icon">🛒</text>
-        <text class="quick-label">购物车</text>
-      </view>
-      <view class="quick-item" @click="goOrders">
-        <text class="quick-icon">📦</text>
-        <text class="quick-label">我的订单</text>
-      </view>
-      <view class="quick-item" @click="goVip">
-        <text class="quick-icon">👑</text>
-        <text class="quick-label">会员中心</text>
-      </view>
-      <view class="quick-item" @click="goEarnings">
-        <text class="quick-icon">💰</text>
-        <text class="quick-label">推广收益</text>
-      </view>
-    </view>
-
-    <!-- 营销活动入口 -->
-    <view class="marketing-row">
-      <view class="marketing-item flash" @click="goFlashSale">
-        <text class="mk-icon">⚡</text>
-        <text class="mk-label">限时秒杀</text>
-      </view>
-      <view class="marketing-item group" @click="goGroupBuy">
-        <text class="mk-icon">👥</text>
-        <text class="mk-label">拼团优惠</text>
-      </view>
-    </view>
-
     <!-- 搜索栏 -->
     <view class="search-bar">
-      <input class="search-input" v-model="keyword" placeholder="搜索国学好物..." @confirm="onSearch" />
-      <text class="search-btn" @click="onSearch">搜索</text>
+      <view class="search-inner" @click="goSearch">
+        <text class="search-icon">🔍</text>
+        <text class="search-placeholder">搜索国学好物...</text>
+      </view>
+      <text class="search-btn" @click="goSearch">搜索</text>
     </view>
 
-    <!-- 分类标签 -->
-    <scroll-view scroll-x class="tags-row">
-      <text
-        v-for="t in tags"
-        :key="t.value"
-        class="tag"
-        :class="{ active: activeTag === t.value }"
-        @click="switchTag(t.value)"
-      >{{ t.label }}</text>
+    <!-- 分类 Tab（水平滚动） -->
+    <scroll-view scroll-x class="category-scroll" show-scrollbar="false" enhanced>
+      <view class="category-list">
+        <view
+          v-for="cat in categories"
+          :key="cat.id"
+          class="category-item"
+          :class="{ active: activeCategory === cat.id }"
+          @click="switchCategory(cat.id)"
+        >
+          <text class="category-name">{{ cat.name }}</text>
+        </view>
+      </view>
     </scroll-view>
 
-    <!-- 商品网格 -->
-    <view class="product-grid" v-if="products.length">
-      <view v-for="p in products" :key="p.id" class="product-card" @click="goDetail(p.id)">
-        <view class="p-cover-wrap">
-          <image :src="p.cover || p.images?.[0]" class="p-cover" mode="aspectFill" />
-          <view v-if="p.tag" class="p-tag">{{ p.tag }}</view>
-        </view>
-        <view class="p-info">
-          <text class="p-title">{{ p.title }}</text>
-          <view class="p-tags-row" v-if="p.labels?.length">
-            <text v-for="lb in p.labels" :key="lb" class="p-label">{{ lb }}</text>
+    <!-- 商品瀑布流 -->
+    <DataState
+      :is-loading="loading"
+      :error="error"
+      :is-empty="!loading && !error && products.length === 0"
+      empty-title="暂无商品"
+      empty-description="看看其他分类吧"
+      skeleton-type="card"
+      @retry="initLoad"
+    >
+      <view class="product-grid">
+        <view
+          v-for="p in products"
+          :key="p.id"
+          class="product-card"
+          @click="goProduct(p.id)"
+        >
+          <view class="p-cover-wrap">
+            <image
+              :src="p.cover"
+              class="p-cover"
+              mode="aspectFill"
+              lazy-load
+            />
+            <view v-if="p.tag" class="p-tag">{{ p.tag }}</view>
+            <view v-if="p.isPresale" class="p-tag presale">预售</view>
           </view>
-          <view class="p-price-row">
-            <text class="p-price">¥{{ p.effectivePrice ?? p.price }}</text>
-            <text v-if="p.effectivePrice && p.originalPrice && p.originalPrice > p.effectivePrice" class="p-original">¥{{ p.originalPrice }}</text>
-            <text v-if="p.promotionTag" class="p-promo-tag">{{ p.promotionTag }}</text>
-          </view>
-          <view class="p-meta">
-            <text class="p-sales">{{ p.soldCount || 0 }}人已购</text>
-            <text class="p-rating" v-if="p.rating">★ {{ p.rating }}</text>
+          <view class="p-info">
+            <text class="p-title">{{ p.title }}</text>
+            <view class="p-price-row">
+              <text class="p-price">¥{{ toYuan(p.price) }}</text>
+              <text v-if="p.originalPrice && p.originalPrice > p.price" class="p-original">¥{{ toYuan(p.originalPrice) }}</text>
+            </view>
+            <view class="p-meta">
+              <text class="p-sales">已售 {{ formatSales(p.sales || 0) }}</text>
+            </view>
           </view>
         </view>
       </view>
-    </view>
 
-    <view v-if="!loading && products.length === 0" class="empty">
-      <text class="empty-icon">📭</text>
-      <text>暂无商品</text>
-    </view>
-
-    <!-- 加载状态 -->
-    <view v-if="loading" class="loading">
-      <text>加载中...</text>
-    </view>
-    <view v-if="loadingMore" class="loading">
-      <text>加载更多...</text>
-    </view>
+      <!-- 加载更多 -->
+      <view v-if="loadingMore" class="load-more-bar">
+        <text class="load-more-text">加载中...</text>
+      </view>
+      <view v-if="!hasMore && products.length > 0" class="load-more-bar">
+        <text class="load-more-text no-more">— 已经到底了 —</text>
+      </view>
+    </DataState>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { shopApi } from "../../api";
+import { ref, onMounted } from 'vue'
+import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
+import { shopApi } from '../../api'
+import DataState from '../../components/DataState.vue'
+import type { ProductCategory, ProductItem } from '../../types'
 
-const products = ref<any[]>([]);
-const keyword = ref("");
-const activeTag = ref("all");
-const loading = ref(false);
-const loadingMore = ref(false);
-const page = ref(1);
-const totalPages = ref(1);
-
-const tags = ref<{ label: string; value: string }[]>([]);
-
-const banners = [
-  { image: "/static/banner-shop-1.png", tag: "限时特惠", productId: "" },
-  { image: "/static/banner-shop-2.png", tag: "新品上市", productId: "" },
-];
+const products = ref<ProductItem[]>([])
+const categories = ref<{ id: string; name: string }[]>([{ id: 'all', name: '全部' }])
+const activeCategory = ref('all')
+const loading = ref(false)
+const error = ref<string | null>(null)
+const loadingMore = ref(false)
+const hasMore = ref(true)
+const page = ref(1)
+const PAGE_SIZE = 12
 
 onMounted(() => {
-  fetchProducts();
-  fetchCategories();
-});
+  initLoad()
+})
+
+async function initLoad() {
+  page.value = 1
+  hasMore.value = true
+  products.value = []
+  await Promise.all([fetchCategories(), fetchProducts()])
+}
+
+// 下拉刷新
+onPullDownRefresh(() => {
+  page.value = 1
+  hasMore.value = true
+  fetchProducts().finally(() => {
+    uni.stopPullDownRefresh()
+  })
+})
+
+// 上拉加载
+onReachBottom(() => {
+  if (loadingMore.value || !hasMore.value) return
+  loadingMore.value = true
+  page.value++
+  fetchProducts(true).finally(() => {
+    loadingMore.value = false
+  })
+})
 
 async function fetchCategories() {
   try {
-    const tree = await shopApi.categoryTree();
-    const list: { label: string; value: string }[] = [{ label: "全部", value: "all" }];
+    const tree = await shopApi.categoryTree()
     if (Array.isArray(tree)) {
-      for (const node of tree) {
-        if (node.id) list.push({ label: node.name, value: node.id });
-        if (node.children) {
-          for (const child of node.children) {
-            if (child.id) list.push({ label: child.name, value: child.id });
-          }
+      const flat: { id: string; name: string }[] = [{ id: 'all', name: '全部' }]
+      const flatten = (nodes: ProductCategory[]) => {
+        for (const n of nodes) {
+          if (n.id) flat.push({ id: n.id, name: n.name })
+          if (n.children?.length) flatten(n.children)
         }
       }
+      flatten(tree)
+      if (flat.length > 1) categories.value = flat
     }
-    if (list.length > 1) tags.value = list;
-    else throw new Error("empty");
   } catch {
-    tags.value = [
-      { label: "全部", value: "all" },
-      { label: "开运好物", value: "kaiyun" },
-      { label: "文房雅器", value: "wenfang" },
-      { label: "茶道香道", value: "chaxiang" },
-      { label: "国学书籍", value: "books" },
-      { label: "服装饰品", value: "clothing" },
-    ];
+    // 使用默认分类
   }
 }
 
 async function fetchProducts(append = false) {
-  if (!append) loading.value = true;
-  else loadingMore.value = true;
+  if (!append) {
+    loading.value = true
+    error.value = null
+  }
   try {
-    const params: any = { page: page.value, limit: 12 };
-    if (keyword.value) params.keyword = keyword.value;
-    if (activeTag.value !== "all") {
-      // 如果是UUID格式则用categoryId，否则用tag
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(activeTag.value)) {
-        params.categoryId = activeTag.value;
-      } else {
-        params.tag = activeTag.value;
-      }
+    const params: Record<string, any> = { page: page.value, pageSize: PAGE_SIZE }
+    if (activeCategory.value !== 'all') {
+      params.categoryId = activeCategory.value
     }
-    const data = await shopApi.products(params);
-    const list = data.products || data.data || [];
-    totalPages.value = data.totalPages || 1;
+    const data = await shopApi.products(params)
+    const list: ProductItem[] = Array.isArray(data) ? data : (data.list || data.items || data.data || [])
     if (append) {
-      products.value = [...products.value, ...list];
+      products.value.push(...list)
     } else {
-      products.value = list;
+      products.value = list
     }
+    hasMore.value = list.length >= PAGE_SIZE
+  } catch (e: any) {
+    error.value = e.message || '加载失败'
   } finally {
-    loading.value = false;
-    loadingMore.value = false;
+    loading.value = false
   }
 }
 
-function switchTag(v: string) {
-  activeTag.value = v;
-  page.value = 1;
-  fetchProducts();
+function switchCategory(id: string) {
+  if (activeCategory.value === id) return
+  activeCategory.value = id
+  page.value = 1
+  hasMore.value = true
+  fetchProducts()
 }
 
-function onSearch() {
-  page.value = 1;
-  fetchProducts();
+function toYuan(fen: number): string {
+  return (fen / 100).toFixed(2)
 }
 
-function goDetail(id: string) {
-  uni.navigateTo({ url: `/pages/shop/product-detail?id=${id}` });
+function formatSales(n: number): string {
+  if (n >= 10000) return (n / 10000).toFixed(1).replace(/\.0$/, '') + '万'
+  return String(n)
 }
 
-function goCoupons() {
-  uni.navigateTo({ url: "/pages/shop/coupons" });
+function goProduct(id: string) {
+  uni.navigateTo({ url: `/pages/shop/product-detail?id=${id}` })
 }
 
-function goCart() {
-  uni.navigateTo({ url: "/pages/shop/cart" });
-}
-
-function goOrders() {
-  uni.navigateTo({ url: "/pages/orders/orders" });
-}
-
-function goVip() {
-  uni.navigateTo({ url: "/pages/vip/vip" });
-}
-
-function goEarnings() {
-  uni.navigateTo({ url: "/pages/station/earnings" });
-}
-
-function goFlashSale() {
-  uni.navigateTo({ url: "/pages/shop/flash-sale" });
-}
-
-function goGroupBuy() {
-  uni.navigateTo({ url: "/pages/shop/group-buy" });
+function goSearch() {
+  uni.navigateTo({ url: '/pages/search/search' })
 }
 </script>
 
 <style scoped>
 .page {
-  padding: 0;
   background: #F5F0E8;
   min-height: 100vh;
+  padding-bottom: 20rpx;
 }
 
-/* 横幅 */
-.banner-swiper {
-  width: 100%;
-  height: 160px;
-}
-.banner-img {
-  width: 100%;
-  height: 100%;
-}
-.banner-tag {
-  position: absolute;
-  bottom: 10px;
-  left: 12px;
-  background: rgba(0,0,0,0.5);
-  color: #fff;
-  font-size: 12px;
-  padding: 2px 10px;
-  border-radius: 10px;
-}
-
-/* 快捷入口 */
-.quick-row {
-  display: flex;
-  justify-content: space-around;
-  padding: 14px 8px;
-  background: #fff;
-  margin: 0 0 8px;
-}
-.quick-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-.quick-icon {
-  font-size: 28px;
-}
-.quick-label {
-  font-size: 12px;
-  color: #666;
-}
-
-/* 营销活动入口 */
-.marketing-row {
-  display: flex; gap: 8px; padding: 0 12px; margin-bottom: 8px;
-}
-.marketing-item {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  gap: 6px; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 500;
-}
-.marketing-item.flash { background: linear-gradient(135deg, #fff5f5, #ffe8e8); color: #C41E3A; }
-.marketing-item.group { background: linear-gradient(135deg, #fff8f0, #ffeedd); color: #e67e22; }
-.mk-icon { font-size: 18px; }
-.mk-label { font-size: 13px; }
-
-/* 搜索栏 */
+/* ===== 搜索栏 ===== */
 .search-bar {
   display: flex;
-  gap: 8px;
-  padding: 8px 12px;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 24rpx;
   background: #fff;
-  margin-bottom: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
-.search-input {
+.search-inner {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
   background: #F5F0E8;
-  border-radius: 20px;
-  padding: 8px 16px;
-  font-size: 14px;
-  border: 1px solid #E8E0D5;
+  border-radius: 40rpx;
+  padding: 16rpx 24rpx;
+}
+.search-icon {
+  font-size: 28rpx;
+}
+.search-placeholder {
+  font-size: 26rpx;
+  color: #bbb;
 }
 .search-btn {
-  background: #C41E3A;
-  color: #fff;
-  padding: 8px 18px;
-  border-radius: 20px;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 26rpx;
+  color: #C41E3A;
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
-/* 分类标签 */
-.tags-row {
+/* ===== 分类 Tab ===== */
+.category-scroll {
   white-space: nowrap;
-  padding: 8px 12px;
   background: #fff;
-  margin-bottom: 8px;
-  display: flex;
-  gap: 8px;
+  padding: 0 24rpx 16rpx;
 }
-.tag {
-  display: inline-block;
-  padding: 5px 14px;
-  border-radius: 14px;
+.category-list {
+  display: inline-flex;
+  gap: 12rpx;
+}
+.category-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 10rpx 28rpx;
+  border-radius: 28rpx;
   background: #F5F0E8;
-  font-size: 13px;
+  font-size: 26rpx;
   color: #666;
+  flex-shrink: 0;
 }
-.tag.active {
+.category-item.active {
   background: #C41E3A;
   color: #fff;
+  font-weight: 600;
+}
+.category-name {
+  line-height: 1.2;
 }
 
-/* 商品网格 */
+/* ===== 商品瀑布流 ===== */
 .product-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 0 8px;
+  gap: 12rpx;
+  padding: 16rpx 20rpx;
 }
 .product-card {
-  width: calc(50% - 4px);
+  width: calc(50% - 6rpx);
   background: #fff;
-  border-radius: 10px;
+  border-radius: 16rpx;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  transition: transform 0.15s;
 }
+.product-card:active {
+  transform: scale(0.97);
+}
+
 .p-cover-wrap {
   position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background: #F2EFEA;
+  overflow: hidden;
 }
 .p-cover {
   width: 100%;
-  height: 180px;
+  height: 100%;
 }
 .p-tag {
   position: absolute;
-  top: 6px;
-  left: 6px;
+  top: 10rpx;
+  left: 10rpx;
   background: #C41E3A;
   color: #fff;
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 3px;
+  font-size: 20rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 6rpx;
+  font-weight: 500;
 }
+.p-tag.presale {
+  background: #C9A96E;
+}
+
 .p-info {
-  padding: 10px;
+  padding: 16rpx 14rpx 18rpx;
 }
 .p-title {
-  font-size: 14px;
-  color: #333;
+  font-size: 26rpx;
+  color: #2C2C2C;
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
-  line-height: 1.4;
-}
-.p-tags-row {
-  display: flex;
-  gap: 4px;
-  margin-top: 4px;
-}
-.p-label {
-  font-size: 10px;
-  color: #C9A96E;
-  border: 1px solid #C9A96E;
-  border-radius: 3px;
-  padding: 0 4px;
+  font-weight: 500;
 }
 .p-price-row {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  margin-top: 6px;
+  gap: 8rpx;
+  margin-top: 10rpx;
 }
 .p-price {
-  font-size: 18px;
+  font-size: 30rpx;
   font-weight: bold;
   color: #C41E3A;
 }
 .p-original {
-  font-size: 12px;
-  color: #999;
+  font-size: 22rpx;
+  color: #bbb;
   text-decoration: line-through;
 }
-.p-promo-tag {
-  font-size: 10px;
-  color: #fff;
-  background: #C41E3A;
-  padding: 1px 6px;
-  border-radius: 3px;
-}
 .p-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 4px;
+  margin-top: 6rpx;
 }
 .p-sales {
-  font-size: 11px;
-  color: #999;
-}
-.p-rating {
-  font-size: 11px;
-  color: #e6a23c;
+  font-size: 22rpx;
+  color: #bbb;
 }
 
-.empty {
+/* ===== 加载更多 ===== */
+.load-more-bar {
   text-align: center;
-  padding: 60px 0;
-  color: #999;
+  padding: 24rpx 0 40rpx;
 }
-.empty-icon {
-  font-size: 40px;
-  display: block;
-  margin-bottom: 8px;
+.load-more-text {
+  font-size: 24rpx;
+  color: #C9A96E;
 }
-.loading {
-  text-align: center;
-  padding: 20px;
-  color: #999;
-  font-size: 13px;
+.load-more-text.no-more {
+  color: #ccc;
 }
 </style>
