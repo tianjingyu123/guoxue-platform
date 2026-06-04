@@ -1307,6 +1307,8 @@ export class CircleService {
     });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "达人不存在或未开通咨询");
 
+    await this.ensureMember(member.circleId, bookerUserId);
+
     // 检查冲突
     const conflict = await this.prisma.circleExpertBooking.findFirst({
       where: {

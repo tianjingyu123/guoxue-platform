@@ -311,7 +311,7 @@ export class CompetitionService {
   }
 
   /** 获取待评审作品列表（评委视角） */
-  async getJudgeSubmissions(_graderId: string, competitionId?: string) {
+  async getJudgeSubmissions(graderId: string, competitionId?: string) {
     const where: Record<string, unknown> = { score: null };
     if (competitionId) {
       where.registration = { competitionId };
@@ -363,9 +363,12 @@ export class CompetitionService {
     };
   }
 
-  /** 评委提交评分（按作品/答案ID） */
+  /** 评委提交评分（按作品/答案ID）。需调用方已通过 @Roles 守卫校验评委身份 */
   async submitScore(submissionId: string, score: number, graderId: string, comment?: string, dimScores?: number[]) {
-    const answer = await this.prisma.competitionAnswer.findUnique({ where: { id: submissionId } });
+    const answer = await this.prisma.competitionAnswer.findUnique({
+      where: { id: submissionId },
+      include: { registration: { select: { id: true, competitionId: true } } },
+    });
     if (!answer) throw new NotFoundException("作品不存在");
 
     const answerData: any = { ...(answer.answer as object) };
