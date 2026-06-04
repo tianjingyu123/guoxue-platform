@@ -177,6 +177,19 @@ export class NotificationService {
     }
   }
 
+  /** 获取单条通知详情 */
+  async getById(id: string, userId: string) {
+    const notification = await this.prisma.notification.findFirst({
+      where: { id, userId },
+    });
+    if (!notification) throw new BusinessException(ErrorCode.NOT_FOUND, "通知不存在");
+    // 自动标记已读
+    if (!notification.isRead) {
+      await this.prisma.notification.update({ where: { id }, data: { isRead: true } });
+    }
+    return notification;
+  }
+
   /** 获取用户通知列表 */
   async getUserNotifications(userId: string, page = 1, pageSize = 20) {
     const where = { userId };

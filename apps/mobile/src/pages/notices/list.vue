@@ -122,7 +122,7 @@ onMounted(() => loadData(true))
 async function loadData(reset = false) {
   if (reset) { loading.value = true; page.value = 1 }
   try {
-    const res = await notifyApi.notices({ page: page.value, type: filter.value === 'all' ? undefined : filter.value }) as any
+    const res = await notifyApi.list({ page: page.value, type: filter.value === 'all' ? undefined : filter.value }) as any
     const items: NoticeItem[] = Array.isArray(res) ? res : res?.list || res?.data || []
     if (reset) notices.value = items; else notices.value.push(...items)
     hasMore.value = items.length >= 10

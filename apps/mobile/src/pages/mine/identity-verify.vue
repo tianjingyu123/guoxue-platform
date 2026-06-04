@@ -166,7 +166,7 @@ const canSubmit = computed(() => name.value.length >= 2 && idCard.value.length =
 
 onMounted(async () => {
   try {
-    const res: any = await identityApi.getStatus()
+    const res: any = await identityApi.myStatus()
     verifyStatus.value = res?.status || 'none'
     profile.value = res || {}
     if (res?.rejectReason) rejectReason.value = res.rejectReason
@@ -181,7 +181,10 @@ function maskIdCard(card: string): string {
 
 async function faceVerify() {
   try {
-    await identityApi.faceVerify()
+    const faceRes: any = await identityApi.getFaceToken({ name: name.value, idCard: idCard.value, returnUrl: window.location.href })
+if (faceRes?.url) { window.location.href = faceRes.url; return }
+// fallback: 直接核验
+await identityApi.verify({ name: name.value, idCard: idCard.value })
     uni.showToast({ title: '人脸识别成功', icon: 'success' })
   } catch {
     uni.showToast({ title: '人脸识别失败，请重试', icon: 'none' })

@@ -53,6 +53,15 @@ export class NotificationController {
     return this.svc.getUnreadCount(req.user.id);
   }
 
+  /** 通知详情 */
+  @Get(":id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取通知详情" })
+  @ApiBearerAuth()
+  getDetail(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.getById(id, req.user.id);
+  }
+
   /** 标记已读 */
   @Put(":id/read")
   @UseGuards(JwtAuthGuard)

@@ -404,9 +404,14 @@ export const checkinApi = {
 export const notifyApi = {
   list: (params?: { type?: string; page?: number; pageSize?: number }) =>
     api.get("/notifications", params),
+  detail: (id: string) => api.get(`/notifications/${id}`),
   unreadCount: () => api.get("/notifications/unread-count"),
   readAll: () => api.put("/notifications/read-all"),
   markRead: (id: string) => api.put(`/notifications/${id}/read`),
+  /** 最新版本升级通知 */
+  latestUpgrade: () => api.get("/system/version/check"),
+  /** 标记升级通知已读 */
+  markUpgradeRead: (id: string) => api.put(`/notifications/${id}/read`),
 };
 
 // 古籍阅读
@@ -644,6 +649,8 @@ export const coinApi = {
 export const stationApi = {
   /** 通过推广码获取品牌配置 */
   getBrand: (code: string) => api.get(`/station/brand/${code}`),
+  /** 通过推广码获取分站配置（别名） */
+  getConfig: (code: string) => api.get(`/station/brand/${code}`),
   /** 分站收益明细（分页） */
   getEarnings: (stationId: string, page?: number, pageSize?: number) =>
     api.get(`/station/${stationId}/earnings`, { page, pageSize }),
@@ -655,9 +662,17 @@ export const stationApi = {
   teamLeaderboard: (params?: any) => api.get("/station/team/leaderboard", params),
   teamActivity: (params?: any) => api.get("/station/team/activity", params),
   teamSuccessCases: (params?: any) => api.get("/station/team/success-cases", params),
+  /** 团队活动（别名） */
+  getActivities: (params?: any) => api.get("/station/team/activity", params),
+  /** 成功案例（别名） */
+  getSuccessCases: (params?: any) => api.get("/station/team/success-cases", params),
   promotionMaterials: () => api.get("/station/promotion/materials"),
   promotionMaterialDetail: (id: string) => api.get(`/station/promotion/materials/${id}`),
   usePromotionMaterial: (id: string) => api.post(`/station/promotion/materials/${id}/use`),
+  /** 推广素材列表（别名） */
+  getMaterials: (params?: any) => api.get("/station/promotion/materials", params),
+  /** 使用推广素材（别名） */
+  useMaterial: (id: string,) => api.post(`/station/promotion/materials/${id}/use`),
   dashboardOverview: () => api.get("/station/dashboard/overview"),
   dashboardTrends: () => api.get("/station/dashboard/trends"),
   dashboardLinkRanking: () => api.get("/station/dashboard/link-ranking"),
@@ -666,6 +681,24 @@ export const stationApi = {
   operatorDashboardOverview: () => api.get("/station/operator-dashboard/overview"),
   operatorDashboardTeamRanking: () => api.get("/station/operator-dashboard/team-ranking"),
   operatorDashboardQuotaUsage: () => api.get("/station/operator-dashboard/quota-usage"),
+  /** 站内直播列表 */
+  getLives: (params?: any) => api.get("/live/rooms", params),
+  /** 分站直播列表 */
+  getStationLiveRooms: (params?: any) => api.get("/live/rooms", params),
+  /** 分站智能助手配置 */
+  getStationAssistantConfig: () => api.get("/station/dashboard/overview"),
+  /** 助手会话 */
+  getAssistantSession: () => api.get("/station/dashboard/overview"),
+  /** 发送助手消息 */
+  sendAssistantMessage: (content: string) => api.post("/ai/chat", { scene: "station_assistant", messages: [{ role: "user", content }] }),
+  /** 清除助手会话 */
+  clearAssistantSession: () => api.post("/ai/chat", { scene: "station_assistant_clear", messages: [] }),
+  /** 上传分站图片 */
+  uploadImage: (filePath: string) => uploadApi.image(filePath),
+  /** 更新分站配置 */
+  updateConfig: (code: string, data: any) => api.put(`/station/brand/${code}`, data),
+  /** 团队成员详情 */
+  getMemberDetail: (id: string) => api.get(`/station/team/members/${id}`),
 };
 
 // 付费问答
@@ -894,6 +927,9 @@ export const marketingApi = {
   /** 参与拼团 */
   joinGroupBuy: (groupBuyId: string, data?: { groupId?: string }) =>
     api.post(`/marketing/group-buys/${groupBuyId}/join`, data),
+  /** 发起拼团 */
+  createGroupBuy: (itemId: number) =>
+    api.post("/marketing/group-buys", { productId: itemId }),
   /** 我的拼团 */
   myGroupBuys: () => api.get("/marketing/group-buys/my"),
   /** 折扣活动列表 */
@@ -902,6 +938,8 @@ export const marketingApi = {
   pageByRoute: (route: string) => api.get("/marketing/pages/by-route", { route }),
   getFullReductions: (params?: any) => api.get("/marketing/full-reductions", params),
   activityDetail: (id: string) => api.get(`/marketing/activities/${id}`),
+  /** 三张表优惠券列表（含领取/使用状态） */
+  listCoupons: (params?: any) => api.get("/marketing/coupons", params),
 };
 
 // ==================== AI 智能体增强 ====================
@@ -1035,6 +1073,8 @@ export const competitionApi = {
   /** 提交评分（评委） */
   submitScore: (data: { submissionId: string; score: number; comment?: string; dimScores?: number[] }) =>
     api.post(`/competitions/judge/submissions/${data.submissionId}/score`, { score: data.score, comment: data.comment, dimScores: data.dimScores }),
+  /** 获取竞赛分享海报数据 */
+  getPoster: (id: string) => api.get(`/competitions/${id}/poster`),
 };
 
 // ==================== 小程序首页 ====================

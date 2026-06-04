@@ -375,7 +375,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
-import { marketingApi } from "../../api";
+import { marketingApi, shopApi } from "../../api";
 
 const loading = ref(true);
 const pageData = ref<any>(null);
@@ -441,7 +441,7 @@ async function fetchPage(route: string) {
           break;
         case "COUPON":
           try {
-            const r = await marketingApi.coupons({ page: 1, pageSize: 20 });
+            const r = await shopApi.listCoupons({ page: 1, pageSize: 20 });
             coupons.value = r?.coupons || r?.data || [];
           } catch { /* */ }
           break;
