@@ -133,21 +133,13 @@ export class PrismaService
       });
     }
 
-    // 将扩展客户端的模型委托复制到当前实例（仅复制属性，不复制构造函数和私有属性）
-    // 使用 Object.assign 替代 for-in 反射，更明确且 TypeScript 友好
-    const delegatedKeys = Object.keys(extended).filter(
-      (k) => k !== "constructor" && !k.startsWith("_") && !k.startsWith("$"),
-    );
-    for (const key of delegatedKeys) {
+    // 将扩展客户端的模型委托复制到当前实例
+    // 用直接赋值而非 defineProperty getter，避免与 Prisma 6.x 内部 proxy 冲突
+    for (const key of Object.keys(extended)) {
+      if (key === "constructor" || key.startsWith("_") || key.startsWith("$")) continue;
       try {
-        Object.defineProperty(this, key, {
-          get: () => (extended as any)[key],
-          enumerable: true,
-          configurable: true,
-        });
-      } catch {
-        // Prisma 内部属性可能不可重定义，跳过
-      }
+        (this as any)[key] = (extended as any)[key];
+      } catch { /* 只读属性跳过 */ }
     }
   }
 
