@@ -1,7 +1,6 @@
-FROM node:20.19-slim AS builder
+FROM node:20-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ ca-certificates curl && rm -rf /var/lib/apt/lists/*
-# 直接用 npm 安装 pnpm，避免 corepack 兼容性问题
-RUN npm install -g pnpm@10.33.3
+RUN npm install -g pnpm@latest
 WORKDIR /app
 
 # 依赖缓存层
@@ -13,31 +12,30 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/bazi-engine/package.json packages/bazi-engine/
 COPY packages/ziwei-engine/package.json packages/ziwei-engine/
 
-RUN pnpm install --frozen-lockfile --filter '!@guoxue/mobile'
+RUN pnpm install --frozen-lockfile --filter "!@guoxue/mobile" 2>&1 || (echo "pnpm install 失败，查看详情..." && exit 1)
 
-# 源代码 + 构建（排除 node_modules 避免覆盖）
+# 源代码 + 构建
 COPY . .
 RUN pnpm --filter @guoxue/server exec prisma generate
 RUN pnpm --filter @guoxue/shared build
 RUN pnpm --filter @guoxue/bazi-engine build
 RUN pnpm --filter @guoxue/ziwei-engine build
 RUN pnpm build:server
-RUN pnpm build:admin || true
+RUN (pnpm build:admin || echo "admin build skipped")
 
-# ── 运行阶段（Debian-slim 确保与 builder 平台一致，Prisma 引擎兼容）──
-FROM node:20.19-slim
-RUN npm install -g pnpm@10.33.3
+# ── 运行阶段 ──
+FROM node:20-slim
+RUN npm install -g pnpm@latest
 WORKDIR /app
 
-# 安装运行时依赖（wget 用于健康检查）
 RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# 仅复制运行时依赖
+# 运行时依赖
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/server/node_modules ./apps/server/node_modules
 COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_modules
 
-# Prisma 生成产物 + dist + 构建后的 workspace 包
+# 构建产物
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
 COPY --from=builder /app/apps/server/package.json ./apps/server/
@@ -49,7 +47,7 @@ COPY --from=builder /app/packages/ziwei-engine/dist ./packages/ziwei-engine/dist
 COPY --from=builder /app/packages/ziwei-engine/package.json ./packages/ziwei-engine/
 COPY --from=builder /app/package.json ./
 
-# 管理后台前端构建产物
+# 管理后台
 COPY --from=builder /app/apps/admin/dist ./admin-dist
 
 COPY docker/entrypoint.sh /entrypoint.sh
