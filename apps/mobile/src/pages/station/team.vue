@@ -589,6 +589,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { stationApi } from '../../api'
 import DataState from '../../components/DataState.vue'
 
 const loading = ref(true)
