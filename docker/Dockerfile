@@ -1,6 +1,7 @@
 FROM node:20.19-slim AS builder
-RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ ca-certificates && rm -rf /var/lib/apt/lists/*
-RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ ca-certificates curl && rm -rf /var/lib/apt/lists/*
+# 直接用 npm 安装 pnpm，避免 corepack 兼容性问题
+RUN npm install -g pnpm@10.33.3
 WORKDIR /app
 
 # 依赖缓存层
@@ -25,7 +26,7 @@ RUN pnpm build:admin || true
 
 # ── 运行阶段（Debian-slim 确保与 builder 平台一致，Prisma 引擎兼容）──
 FROM node:20.19-slim
-RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
+RUN npm install -g pnpm@10.33.3
 WORKDIR /app
 
 # 安装运行时依赖（wget 用于健康检查）
