@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Request } from "express";
 import { InstituteService } from "./institute.service";
-import { JoinInstituteDto, CreateTaskDto, VerifyTaskDto, CreateEventDto, UpdateEventDto, UpdateLecturerLevelDto, CreateTaskTemplateDto, CreateDividendDto, ApproveMemberDto, AssignRoleDto, UpdateMemberDto, RecommendToTalentDto } from "./institute.dto";
+import { JoinInstituteDto, CreateTaskDto, CreateEventDto, UpdateEventDto, UpdateLecturerLevelDto, CreateTaskTemplateDto, CreateDividendDto, ApproveMemberDto, AssignRoleDto, UpdateMemberDto, RecommendToTalentDto } from "./institute.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";

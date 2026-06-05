@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Delete, Body, Param, Query, UseGuards, UsePipes, Req, BadRequestException, Logger } from "@nestjs/common";
+import { Controller, Post, Get, Put, Body, Param, Query, UseGuards, UsePipes, Req, BadRequestException, Logger } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
 import { WechatService } from "./wechat.service";

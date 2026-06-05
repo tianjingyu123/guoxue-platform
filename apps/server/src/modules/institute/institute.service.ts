@@ -233,7 +233,7 @@ export class InstituteService {
     });
   }
 
-  async approveMember(userId: string, memberId: string, status: string, reason?: string) {
+  async approveMember(userId: string, memberId: string, status: string, _reason?: string) {
     await this.assertManagement(userId);
     const member = await this.prisma.instituteMember.findUnique({ where: { id: memberId } });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
