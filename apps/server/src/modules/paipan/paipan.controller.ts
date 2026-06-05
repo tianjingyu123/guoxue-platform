@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import { Request } from "express";
 import type { BaziResult } from "@guoxue/bazi-engine";
+import type { ZiweiResult } from "@guoxue/ziwei-engine";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
@@ -19,6 +20,9 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { PrismaService } from "../../prisma/prisma.service";
 
 @ApiTags("排盘")
 @Controller("paipan")
@@ -26,6 +30,7 @@ export class PaipanController {
   constructor(
     private paipan: PaipanService,
     private paipanAi: PaipanAiService,
+    private prisma: PrismaService,
   ) {}
 
   /** 八字排盘预览（不登录也可用） */
@@ -193,6 +198,81 @@ export class PaipanController {
       q.page || 1,
       q.pageSize || 20,
     );
+  }
+
+  // ────────── 管理员端点 ──────────
+
+  // ────────── 紫微斗数 AI 分析 ──────────
+
+  /** 对已保存的紫微排盘记录进行 AI 分析 */
+  @Post("ziwei/analyze")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "AI分析紫微斗数排盘" })
+  @ApiBearerAuth()
+  async ziweiAnalyze(@Req() req: Request, @Body() dto: AnalyzeDto) {
+    const record = await this.paipan.getZiweiRecord(dto.recordId, req.user.id);
+    return this.paipanAi.analyzeZiwei(
+      req.user.id,
+      dto.recordId,
+      record.resultData as unknown as ZiweiResult,
+    );
+  }
+
+  /** 获取紫微排盘记录的 AI 分析结果 */
+  @Get("ziwei/:id/analysis")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取紫微AI分析结果" })
+  @ApiBearerAuth()
+  ziweiGetAnalysis(@Param("id") id: string, @Req() req: Request) {
+    return this.paipanAi.getAnalysisByPaipanRecord(id, req.user.id);
+  }
+
+  /** 紫微 AI 分析历史 */
+  @Get("ziwei/analysis/history")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取紫微AI分析历史" })
+  @ApiBearerAuth()
+  ziweiAnalysisHistory(@Req() req: Request, @Query() q: AnalysisQueryDto) {
+    return this.paipanAi.getUserAnalysisHistory(req.user.id, q.page || 1, q.pageSize || 20, "ZIWEI");
+  }
+
+  // ────────── 合婚 ──────────
+
+  /** 八字合婚 */
+  @Post("hehun")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "八字合婚（两人八字配对分析）" })
+  @ApiBearerAuth()
+  async hehun(@Req() req: Request, @Body() dto: { male: string; female: string }) {
+    const [maleRecord, femaleRecord] = await Promise.all([
+      this.paipan.getBaziRecord(dto.male, req.user.id),
+      this.paipan.getBaziRecord(dto.female, req.user.id),
+    ]);
+    return this.paipanAi.analyzeHehun(
+      req.user.id,
+      maleRecord.resultData as unknown as BaziResult,
+      femaleRecord.resultData as unknown as BaziResult,
+    );
+  }
+
+  // ────────── 分享 ──────────
+
+  /** 排盘结果公开分享 */
+  @Get("record/:id/share")
+  @ApiOperation({ summary: "排盘结果公开分享（无需登录）" })
+  async shareRecord(@Param("id") id: string) {
+    const record = await this.prisma.paipanRecord.findUnique({
+      where: { id },
+      select: { id: true, paipanType: true, resultData: true, inputParams: true, createdAt: true },
+    });
+    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "记录不存在");
+    const input = (record.inputParams as any) || {};
+    return {
+      type: record.paipanType,
+      createdAt: record.createdAt,
+      gender: input.gender,
+      result: record.resultData,
+    };
   }
 
   // ────────── 管理员端点 ──────────

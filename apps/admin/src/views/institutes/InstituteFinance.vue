@@ -1,0 +1,128 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <h2>研究院财务概览</h2>
+      <el-select v-model="period" placeholder="周期" style="width:140px" @change="fetchFinance">
+        <el-option label="全部" value="" />
+        <el-option label="2026-Q1" value="2026-Q1" />
+        <el-option label="2026-Q2" value="2026-Q2" />
+        <el-option label="2026-Q3" value="2026-Q3" />
+        <el-option label="2026-Q4" value="2026-Q4" />
+      </el-select>
+    </div>
+
+    <el-row v-loading="loading" :gutter="16" class="overview-row">
+      <el-col :span="6"><el-card shadow="never"><div class="stat-label">总收入</div><div class="stat-value">¥{{ finance.totalRevenue || 0 }}</div></el-card></el-col>
+      <el-col :span="6"><el-card shadow="never"><div class="stat-label">研究院分成</div><div class="stat-value" style="color:#409eff">¥{{ finance.instituteShare || 0 }}</div></el-card></el-col>
+      <el-col :span="6"><el-card shadow="never"><div class="stat-label">已发放分红</div><div class="stat-value" style="color:#e6a23c">¥{{ finance.totalDividends || 0 }}</div></el-card></el-col>
+      <el-col :span="6"><el-card shadow="never"><div class="stat-label">剩余可分</div><div class="stat-value" style="color:#67c23a">¥{{ finance.remaining || 0 }}</div></el-card></el-col>
+    </el-row>
+
+    <!-- 发放分红 -->
+    <el-card class="section-card" shadow="never">
+      <template #header><span style="font-weight:600">发放分红/奖励</span>
+        <el-button type="primary" size="small" style="float:right" @click="showDividendDialog = true">+ 发放</el-button>
+      </template>
+      <el-table v-loading="loading" :data="finance.dividends || []" border stripe>
+        <el-table-column label="成员" width="120" prop="user.nickname" />
+        <el-table-column label="类型" width="120">
+          <template #default="{ row }"><el-tag size="small" :type="row.type === 'MGMT_BONUS' ? 'warning' : row.type === 'TEACHER_AWARD' ? 'success' : ''">
+            {{ dividendTypeLabel(row.type) }}
+          </el-tag></template>
+        </el-table-column>
+        <el-table-column label="金额" width="120" align="right">
+          <template #default="{ row }">¥{{ row.amount }}</template>
+        </el-table-column>
+        <el-table-column label="说明" min-width="200" prop="description" />
+        <el-table-column label="周期" width="100" prop="period" />
+        <el-table-column label="时间" width="170">
+          <template #default="{ row }">{{ row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '-' }}</template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
+    <!-- 发放分红弹窗 -->
+    <el-dialog v-model="showDividendDialog" title="发放分红/奖励" width="500px">
+      <el-form :model="dividendForm" label-width="80px">
+        <el-form-item label="成员" required>
+          <el-select v-model="dividendForm.userId" placeholder="选择成员" filterable style="width:100%">
+            <el-option v-for="m in memberOptions" :key="m.id" :label="m.user?.nickname || m.id" :value="m.userId" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="类型" required>
+          <el-select v-model="dividendForm.type" style="width:100%">
+            <el-option label="管理层分红" value="MGMT_BONUS" />
+            <el-option label="优秀老师奖励" value="TEACHER_AWARD" />
+            <el-option label="运营费用" value="OPERATION" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="金额" required><el-input-number v-model="dividendForm.amount" :min="0" :precision="2" style="width:100%" /></el-form-item>
+        <el-form-item label="周期"><el-input v-model="dividendForm.period" placeholder="如2026-Q2" /></el-form-item>
+        <el-form-item label="说明"><el-input v-model="dividendForm.description" type="textarea" :rows="2" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showDividendDialog = false">取消</el-button>
+        <el-button type="primary" :loading="savingDividend" @click="submitDividend">确认发放</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from "vue";
+import { ElMessage } from "element-plus";
+import { instituteApi } from "@/api";
+
+const loading = ref(false);
+const period = ref("");
+const finance = ref<any>({});
+
+const showDividendDialog = ref(false);
+const savingDividend = ref(false);
+const dividendForm = ref({ userId: "", type: "MGMT_BONUS", amount: 0, period: "", description: "" });
+const memberOptions = ref<any[]>([]);
+
+function dividendTypeLabel(t: string) {
+  const m: Record<string,string> = { MGMT_BONUS: "管理层分红", TEACHER_AWARD: "优秀老师奖励", OPERATION: "运营费用" };
+  return m[t] || t;
+}
+
+onMounted(() => { fetchFinance(); fetchMembers(); });
+
+async function fetchFinance() {
+  loading.value = true;
+  try {
+    const { data } = await instituteApi.getFinance(period.value || undefined);
+    finance.value = data;
+  } catch {} finally { loading.value = false; }
+}
+
+async function fetchMembers() {
+  try {
+    const { data } = await instituteApi.listMembers({ pageSize: 200 });
+    memberOptions.value = data.members || data.data || [];
+  } catch {}
+}
+
+async function submitDividend() {
+  savingDividend.value = true;
+  try {
+    await instituteApi.createDividend(dividendForm.value);
+    ElMessage.success("已发放");
+    showDividendDialog.value = false;
+    dividendForm.value = { userId: "", type: "MGMT_BONUS", amount: 0, period: "", description: "" };
+    fetchFinance();
+  } catch { ElMessage.error("发放失败"); }
+  finally { savingDividend.value = false; }
+}
+</script>
+
+<style scoped>
+.page { padding: 20px; }
+.header { margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
+.overview-row { margin-bottom: 16px; }
+.stat-label { font-size: 13px; color: #999; }
+.stat-value { font-size: 22px; font-weight: 600; color: #333; margin-top: 4px; }
+.section-card { margin-bottom: 16px; }
+</style>

@@ -468,3 +468,45 @@ export class UpdateLogisticsDto {
   @IsOptional() @IsString()
   remark?: string;
 }
+
+// ── 购物车 / 支付 / 退款补充 DTO ──
+
+export class AddToCartDto {
+  @ApiProperty({ description: "商品ID" })
+  @IsString()
+  productId: string;
+
+  @ApiPropertyOptional({ description: "SKU ID" })
+  @IsOptional() @IsString()
+  skuId?: string;
+
+  @ApiPropertyOptional({ description: "数量", default: 1 })
+  @IsOptional() @IsInt() @Min(1)
+  @Type(() => Number)
+  quantity?: number;
+}
+
+export class AdminPayOrderDto {
+  @ApiProperty({ description: "实际支付流水号" })
+  @IsString()
+  payTransactionId: string;
+}
+
+export class AlipayRefundDto {
+  @ApiProperty({ description: "商户订单号" })
+  @IsString()
+  outTradeNo: string;
+
+  @ApiProperty({ description: "退款金额（元）" })
+  @IsNumber()
+  @Type(() => Number)
+  refundAmount: number;
+
+  @ApiProperty({ description: "退款单号" })
+  @IsString()
+  outRefundNo: string;
+
+  @ApiPropertyOptional({ description: "退款原因" })
+  @IsOptional() @IsString()
+  reason?: string;
+}

@@ -157,7 +157,12 @@ function calcXingYun(riGan: Gan, zhi: Zhi): string {
   const changShengZhi = CHANG_SHENG[riGan]
   const csIdx = ZHI.indexOf(changShengZhi)
   const targetIdx = ZHI.indexOf(zhi)
-  const offset = ((targetIdx - csIdx) % 12 + 12) % 12
+  const riIdx = GAN.indexOf(riGan)
+  const isYang = riIdx % 2 === 0
+  // 阳干顺行（顺时针数十二长生），阴干逆行（逆时针数十二长生）
+  const offset = isYang
+    ? ((targetIdx - csIdx) % 12 + 12) % 12
+    : ((csIdx - targetIdx) % 12 + 12) % 12
   return DI_SHI[offset]
 }
 

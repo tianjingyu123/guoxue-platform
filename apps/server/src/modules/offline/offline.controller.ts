@@ -447,4 +447,50 @@ export class OfflineController {
   updateInstituteMember(@Param("id") id: string, @Body() dto: UpdateMemberDto) {
     return this.svc.updateMember(id, dto);
   }
+
+  // ── 驿站-老师双向选择 ──
+
+  @Post("stations/:id/teacher-requests")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "驿站发起老师邀约" })
+  @ApiBearerAuth()
+  createTeacherRequest(@Req() req: Request, @Param("id") stationId: string, @Body() body: {
+    teacherId?: string; courseTitle?: string; courseIntro?: string; proposedFee?: number; proposeDate?: string;
+  }) {
+    return this.svc.createTeacherRequest(stationId, req.user.id, body);
+  }
+
+  @Get("stations/:id/teacher-requests")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "驿站邀约列表" })
+  @ApiBearerAuth()
+  listTeacherRequests(@Req() req: Request, @Param("id") stationId: string, @Query("status") status?: string) {
+    return this.svc.listTeacherRequests(stationId, req.user.id, status);
+  }
+
+  @Put("teacher-requests/:id/respond")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "老师响应邀约（接受/拒绝）" })
+  @ApiBearerAuth()
+  respondTeacherRequest(@Req() req: Request, @Param("id") id: string, @Body() body: { status: string }) {
+    return this.svc.respondTeacherRequest(id, req.user.id, body.status);
+  }
+
+  // ── 管理员：教师邀约总览 ──
+
+  @Get("admin/teacher-requests")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理员查看所有教师邀约" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "status", required: false })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  adminTeacherRequests(
+    @Query("status") status?: string,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.adminListTeacherRequests(status, +page, +pageSize);
+  }
 }

@@ -104,38 +104,40 @@ describe('getGongGan - 宫干', () => {
 
 describe('calcDaXian - 大限计算', () => {
   it('阳年男(顺行) 命宫在寅', () => {
-    // 庚年=阳年，男→顺行
-    // 命宫在寅, zhiIdx=2
+    // 庚年=阳年，男→顺行 命宫在寅 zhiIdx=2
     const result = calcDaXian(2, '庚', '男', 3) // 木三局值=3
     expect(result).toHaveLength(12)
-    expect(result[0].start).toBe(3) // 五行局值=3
+    // 命宫始终最年轻
+    expect(result[0].start).toBe(3)   // 命宫=最年轻
     expect(result[0].end).toBe(12)
-    expect(result[1].start).toBe(13)
-    expect(result[1].end).toBe(22)
-    expect(result[11].start).toBe(113)
-    expect(result[11].end).toBe(122)
+    // 顺行：命宫(0)→父母(11)→福德(10)→...
+    expect(result[11].start).toBe(13)  // 父母=次年轻
+    expect(result[11].end).toBe(22)
+    expect(result[1].start).toBe(113)  // 兄弟=最年老
+    expect(result[1].end).toBe(122)
   })
 
   it('阳年女(逆行) 命宫在寅', () => {
-    // 庚年=阳年，女→逆行（大限反转）
+    // 庚年=阳年，女→逆行 命宫在寅 zhiIdx=2
     const result = calcDaXian(2, '庚', '女', 3)
     expect(result).toHaveLength(12)
-    // 倒数第一变为第一
-    expect(result[0].start).toBe(113)
-    expect(result[0].end).toBe(122)
-    expect(result[11].start).toBe(3)
-    expect(result[11].end).toBe(12)
+    // 逆行：命宫(0)→兄弟(1)→夫妻(2)→...顺时针
+    expect(result[0].start).toBe(3)   // 命宫=最年轻
+    expect(result[0].end).toBe(12)
+    expect(result[1].start).toBe(13)  // 兄弟
+    expect(result[1].end).toBe(22)
+    expect(result[11].start).toBe(113) // 父母=最年老
+    expect(result[11].end).toBe(122)
   })
 
   it('阴年男(逆行)', () => {
     // 乙年=阴年，男→逆行
     const result = calcDaXian(2, '乙', '男', 2) // 水二局值=2
-    expect(result[0].start).toBe(112) // 逆行: 命宫从大限值开始，但逆行要先reverse
-    // 实际上逆行: daXian先正向生成再reverse
-    // 正向[0]=(2,11)[1]=(12,21)...[11]=(112,121)
-    // reverse后[0]=(112,121)
-    expect(result[0].start).toBe(112)
-    expect(result[0].end).toBe(121)
+    // 逆行：命宫(0)→兄弟(1)→夫妻(2)→...顺时针
+    expect(result[0].start).toBe(2)   // 命宫=最年轻
+    expect(result[0].end).toBe(11)
+    expect(result[1].start).toBe(12)  // 兄弟
+    expect(result[1].end).toBe(21)
   })
 
   it('五行局值决定起运年龄', () => {

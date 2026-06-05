@@ -1,5 +1,5 @@
 import { Test } from "@nestjs/testing";
-import { HttpException, HttpStatus } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 import { CustomerServiceController } from "./customer-service.controller";
 import { CustomerServiceService } from "./customer-service.service";
 import { StreamUnifierService } from "./stream-unifier.service";
@@ -69,9 +69,7 @@ describe("CustomerServiceController", () => {
     it("service 抛出「未配置」错误时转为 503", async () => {
       svc.ask.mockRejectedValue(new Error("AI未配置"));
 
-      await expect(ctrl.ask({ question: "q" } as any, mockReq)).rejects.toThrow(
-        new HttpException("AI未配置", HttpStatus.SERVICE_UNAVAILABLE),
-      );
+      await expect(ctrl.ask({ question: "q" } as any, mockReq)).rejects.toThrow(BusinessException);
     });
 
     it("service 抛出其他错误时透传", async () => {

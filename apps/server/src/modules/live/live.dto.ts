@@ -142,3 +142,46 @@ export class FlashSaleDto {
   @MinLength(1)
   endTime: string;
 }
+
+// ── 礼物 / 评论 / 秒杀补充 DTO ──
+
+export class CreateGiftDto {
+  @ApiProperty({ description: "礼物名称" })
+  @IsString() @MinLength(1)
+  name: string;
+
+  @ApiPropertyOptional({ description: "礼物图标" })
+  @IsOptional() @IsString()
+  icon?: string;
+
+  @ApiProperty({ description: "价格（平台币）" })
+  @IsNumber()
+  @Type(() => Number)
+  priceCoin: number;
+
+  @ApiPropertyOptional({ description: "等级" })
+  @IsOptional() @IsString()
+  level?: string;
+
+  @ApiPropertyOptional({ description: "排序" })
+  @IsOptional() @IsInt()
+  @Type(() => Number)
+  sortOrder?: number;
+}
+
+export class SendGiftDto {
+  @ApiProperty({ description: "礼物ID" })
+  @IsString()
+  giftId: string;
+
+  @ApiPropertyOptional({ description: "数量", default: 1 })
+  @IsOptional() @IsInt() @Min(1)
+  @Type(() => Number)
+  quantity?: number;
+}
+
+export class SendCommentDto {
+  @ApiProperty({ description: "评论内容" })
+  @IsString() @MinLength(1)
+  content: string;
+}

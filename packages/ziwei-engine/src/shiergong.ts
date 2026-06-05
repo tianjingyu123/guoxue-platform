@@ -90,17 +90,24 @@ export function calcDaXian(
   const startAge = wuXingJuValue
 
   for (let i = 0; i < 12; i++) {
-    const ageStart = startAge + i * 10
     daXian.push({
-      start: ageStart,
-      end: ageStart + 9,
+      start: startAge + i * 10,
+      end: startAge + i * 10 + 9,
     })
   }
 
-  // 如果是逆行，反转大限数组
-  if (!isShun) {
-    daXian.reverse()
+  // 命宫始终对应第0个大限（最年轻），顺行/逆行决定后续大限的宫位走向
+  // 顺行（阳男阴女）：命宫→父母→福德→田宅→...（宫位数组逆时针索引）
+  // 逆行（阴男阳女）：命宫→兄弟→夫妻→子女→...（宫位数组顺时针索引）
+  const result: { start: number; end: number }[] = new Array(12)
+  for (let i = 0; i < 12; i++) {
+    if (isShun) {
+      const gongIdx = i === 0 ? 0 : (12 - i) % 12
+      result[gongIdx] = daXian[i]
+    } else {
+      result[i] = daXian[i]
+    }
   }
 
-  return daXian
+  return result
 }

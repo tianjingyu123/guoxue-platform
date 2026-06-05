@@ -3,7 +3,7 @@ import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { LiveService } from "./live.service";
-import { CreateRoomDto, UpdateRoomDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto } from "./live.dto";
+import { CreateRoomDto, UpdateRoomDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -303,7 +303,7 @@ export class LiveController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建礼物（管理员）" })
   @ApiBearerAuth()
-  createGift(@Body() dto: { name: string; icon?: string; priceCoin: number; level?: string; sortOrder?: number }) {
+  createGift(@Body() dto: CreateGiftDto) {
     return this.svc.createGift(dto);
   }
 
@@ -332,7 +332,7 @@ export class LiveController {
   sendGift(
     @Param("id") id: string,
     @Req() req: AuthRequest,
-    @Body() dto: { giftId: string; quantity?: number },
+    @Body() dto: SendGiftDto,
   ) {
     return this.svc.sendGift(id, req.user.id, dto.giftId, dto.quantity || 1);
   }
@@ -352,7 +352,7 @@ export class LiveController {
   sendComment(
     @Param("id") id: string,
     @Req() req: AuthRequest,
-    @Body() dto: { content: string },
+    @Body() dto: SendCommentDto,
   ) {
     return this.svc.sendComment(id, req.user.id, dto.content);
   }

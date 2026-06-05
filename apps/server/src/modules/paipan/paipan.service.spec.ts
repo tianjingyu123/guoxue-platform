@@ -20,7 +20,7 @@ const mockCalcBazi = calcBazi as jest.Mock;
 const mockCalcZiwei = calcZiwei as jest.Mock;
 
 const mockPrisma = {
-  paipanRecord: { create: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+  paipanRecord: { create: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(), count: jest.fn() },
 };
 
 const mockRedis = {
@@ -99,7 +99,7 @@ describe("PaipanService", () => {
 
   describe("getBaziRecord", () => {
     it("返回排盘记录", async () => {
-      mockPrisma.paipanRecord.findUnique.mockResolvedValue({
+      mockPrisma.paipanRecord.findFirst.mockResolvedValue({
         id: "rec-1", clientName: "张三", clientBirth: "2000-1-15 8:0",
         inputParams: {}, resultData: {}, createdAt: new Date(),
       });
@@ -107,7 +107,7 @@ describe("PaipanService", () => {
       expect(result.id).toBe("rec-1");
     });
     it("记录不存在抛出 NotFoundException", async () => {
-      mockPrisma.paipanRecord.findUnique.mockResolvedValue(null);
+      mockPrisma.paipanRecord.findFirst.mockResolvedValue(null);
       await expect(svc.getBaziRecord("invalid", "user-1")).rejects.toThrow(BusinessException);
     });
   });
@@ -168,12 +168,12 @@ describe("PaipanService", () => {
 
   describe("getZiweiRecord", () => {
     it("返回紫微排盘记录", async () => {
-      mockPrisma.paipanRecord.findUnique.mockResolvedValue({ id: "zw-rec-1", clientName: "张三" });
+      mockPrisma.paipanRecord.findFirst.mockResolvedValue({ id: "zw-rec-1", clientName: "张三" });
       const result = await svc.getZiweiRecord("zw-rec-1", "user-1");
       expect(result.id).toBe("zw-rec-1");
     });
     it("记录不存在抛出 NotFoundException", async () => {
-      mockPrisma.paipanRecord.findUnique.mockResolvedValue(null);
+      mockPrisma.paipanRecord.findFirst.mockResolvedValue(null);
       await expect(svc.getZiweiRecord("invalid", "user-1")).rejects.toThrow(BusinessException);
     });
   });

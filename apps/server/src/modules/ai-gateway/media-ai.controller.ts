@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Req, UseGuards, Query, HttpException, HttpStatus } from "@nestjs/common";
+import { Controller, Post, Get, Body, Req, UseGuards, Query } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Request } from "express";
 import { MediaAiService } from "./media-ai.service";
@@ -8,6 +8,8 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 @ApiTags("AI媒体处理")
 @Controller("ai/media")
@@ -25,7 +27,7 @@ export class MediaAiController {
   async auditImage(@Body() dto: ImageAuditDto, @Req() req: Request) {
     const userId = req.user?.id;
     if (!dto.imageUrl) {
-      throw new HttpException("imageUrl 不能为空", HttpStatus.BAD_REQUEST);
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "imageUrl 不能为空");
     }
     return this.mediaAi.auditImage({ imageUrl: dto.imageUrl, context: dto.context, userId });
   }

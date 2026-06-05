@@ -238,6 +238,41 @@ const routes = [
         component: () => import("@/views/users/UserDetail.vue"),
         meta: { hidden: true, title: "用户详情", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
       },
+      // === 课程组合包 ===
+      {
+        path: "bundles",
+        name: "BundleList",
+        component: () => import("@/views/bundles/BundleList.vue"),
+        meta: { title: "课程组合包", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      // === 统一订单中心 ===
+      {
+        path: "orders/center",
+        name: "OrderCenter",
+        component: () => import("@/views/orders/OrderCenter.vue"),
+        meta: { title: "统一订单中心", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      },
+      // === 续费管理 ===
+      {
+        path: "renewal",
+        name: "RenewalManage",
+        component: () => import("@/views/renewal/RenewalManage.vue"),
+        meta: { title: "续费管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+      },
+      // === 驿站老师邀约 ===
+      {
+        path: "teacher-requests",
+        name: "TeacherRequests",
+        component: () => import("@/views/offline/TeacherRequests.vue"),
+        meta: { title: "教师邀约管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      // === 圈子后台 ===
+      {
+        path: "circle-backend",
+        name: "CircleBackend",
+        component: () => import("@/views/circles/CircleBackend.vue"),
+        meta: { title: "圈子后台管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       // === 交易 ===
       {
         path: "products",
@@ -895,6 +930,18 @@ const routes = [
         component: () => import("@/views/institutes/InstituteList.vue"),
         meta: { title: "研究院管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
+      {
+        path: "institutes/finance",
+        name: "InstituteFinance",
+        component: () => import("@/views/institutes/InstituteFinance.vue"),
+        meta: { title: "研究院财务", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
+        path: "institutes/task-templates",
+        name: "InstituteTaskTemplates",
+        component: () => import("@/views/institutes/InstituteTaskTemplates.vue"),
+        meta: { title: "任务模板", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
       // === 商家管理 ===
       {
         path: "merchants",
@@ -1145,6 +1192,20 @@ const routes = [
         name: "MerchantProfile",
         component: () => import("@/views/merchant-backend/MerchantProfile.vue"),
         meta: { title: "店铺设置" },
+      },
+      // === 分站后台（站长自管理）===
+      {
+        path: "station-backend",
+        name: "StationBackend",
+        component: () => import("@/views/station-backend/StationDashboard.vue"),
+        meta: { title: "分站权益中心" },
+      },
+      // === 运营商后台（运营商自管理）===
+      {
+        path: "operator-backend",
+        name: "OperatorBackend",
+        component: () => import("@/views/operator-backend/OperatorDashboard.vue"),
+        meta: { title: "运营商权益中心" },
       },
       // === 403 ===
       {

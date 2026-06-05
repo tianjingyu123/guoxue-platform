@@ -36,7 +36,7 @@ export const WU_XING_JU_TABLE: string[][] = [
   // 辰巳组
   ['火六局', '土五局', '木三局', '金四局', '水二局'],
   // 午未组
-  ['土五局', '木三局', '水二局', '水二局', '火六局'],
+  ['火六局', '土五局', '木三局', '金四局', '水二局'],
   // 申酉组
   ['木三局', '金四局', '水二局', '火六局', '土五局'],
   // 戌亥组
@@ -145,14 +145,186 @@ export const LIU_FU_XING: Record<string, (month: number, hourIdx: number, yearGa
  * 紫微神煞列表
  */
 export const ZIWEI_SHEN_SHA: Record<string, (month: number, hourIdx: number, yearGan: Gan, yearZhi: Zhi) => number> = {
-  // 天刑：正月起酉，顺数到生月
-  '天刑': (month: number) => { return (9 + month - 1) % 12 },  // 酉=9
-  // 天姚：正月起丑，顺数到生月
-  '天姚': (month: number) => { return (1 + month - 1) % 12 },  // 丑=1
-  // 解神：正月起申，顺数到生月
-  '解神': (month: number) => { return (8 + month - 1) % 12 },  // 申=8
-  // 天巫：正月起巳，顺数到生月
-  '天巫': (month: number) => { return (5 + month - 1) % 12 },  // 巳=5
+  // ─── 月支系神煞（正月起X，顺数至生月）───
+  '天刑': (month: number) => (9 + month - 1) % 12,   // 正月起酉
+  '天姚': (month: number) => (1 + month - 1) % 12,   // 正月起丑
+  '解神': (month: number) => (8 + month - 1) % 12,   // 正月起申
+  '天巫': (month: number) => (5 + month - 1) % 12,   // 正月起巳
+  '天月': (month: number) => [1,5,8,10,1,5,8,10,1,5,8,10][month-1], // 与天刑同宫(简化按五行局起)
+  '阴煞': (month: number) => (2 + month - 1) % 12,   // 正月起寅(2)
+
+  // ─── 年支系神煞 ───
+  // 红鸾：卯上起子年，逆数至生年
+  '红鸾': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const zhiIdx = ZHI.indexOf(yearZhi)
+    return (3 - zhiIdx + 12) % 12  // 卯=3, 逆数
+  },
+  // 天喜：红鸾的对宫
+  '天喜': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const zhiIdx = ZHI.indexOf(yearZhi)
+    return (3 - zhiIdx + 6 + 12) % 12  // 红鸾+6
+  },
+  // 天马：申子辰在寅，巳酉丑在亥，寅午戌在申，亥卯未在巳
+  '天马': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    if ([0,4,8].includes(idx)) return 2    // 申子辰→寅(2)
+    if ([1,5,9].includes(idx)) return 11   // 巳酉丑→亥(11)
+    if ([2,6,10].includes(idx)) return 8   // 寅午戌→申(8)
+    return 5                                // 亥卯未→巳(5)
+  },
+  // 华盖：申子辰在辰，巳酉丑在丑，寅午戌在戌，亥卯未在未
+  '华盖': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    if ([0,4,8].includes(idx)) return 4    // 申子辰→辰
+    if ([1,5,9].includes(idx)) return 1    // 巳酉丑→丑
+    if ([2,6,10].includes(idx)) return 10  // 寅午戌→戌
+    return 7                                // 亥卯未→未
+  },
+  // 咸池（桃花）：申子辰在酉，巳酉丑在午，寅午戌在卯，亥卯未在子
+  '咸池': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    if ([0,4,8].includes(idx)) return 9    // 申子辰→酉
+    if ([1,5,9].includes(idx)) return 6    // 巳酉丑→午
+    if ([2,6,10].includes(idx)) return 3   // 寅午戌→卯
+    return 0                                // 亥卯未→子
+  },
+  // 劫煞：申子辰在巳，巳酉丑在寅，寅午戌在亥，亥卯未在申
+  '劫煞': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    if ([0,4,8].includes(idx)) return 5    // 申子辰→巳
+    if ([1,5,9].includes(idx)) return 2    // 巳酉丑→寅
+    if ([2,6,10].includes(idx)) return 11  // 寅午戌→亥
+    return 8                                // 亥卯未→申
+  },
+  // 灾煞：劫煞的对宫（冲位）
+  '灾煞': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    if ([0,4,8].includes(idx)) return 6    // 申子辰→午(劫煞巳的对宫)
+    if ([1,5,9].includes(idx)) return 3    // 巳酉丑→卯(劫煞寅的对宫)
+    if ([2,6,10].includes(idx)) return 0   // 寅午戌→子(劫煞亥的对宫)
+    return 9                                // 亥卯未→酉(劫煞申的对宫)
+  },
+  // 孤辰：亥子丑年在寅，寅卯辰年在巳，巳午未年在申，申酉戌年在亥
+  '孤辰': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    if ([0,1,11].includes(idx)) return 2  // 亥子丑→寅
+    if ([2,3,4].includes(idx)) return 5   // 寅卯辰→巳
+    if ([5,6,7].includes(idx)) return 8   // 巳午未→申
+    return 11                              // 申酉戌→亥
+  },
+  // 寡宿：戌亥子年在丑，丑寅卯年在辰，辰巳午年在未，未申酉年在戌
+  '寡宿': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    if ([10,11,0].includes(idx)) return 1   // 戌亥子→丑
+    if ([1,2,3].includes(idx)) return 4     // 丑寅卯→辰
+    if ([4,5,6].includes(idx)) return 7     // 辰巳午→未
+    return 10                                // 未申酉→戌
+  },
+  // 龙池：辰上起子年，顺数至生年
+  '龙池': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const zhiIdx = ZHI.indexOf(yearZhi)
+    return (4 + zhiIdx) % 12  // 辰=4, 顺数
+  },
+  // 凤阁：戌上起子年，逆数至生年
+  '凤阁': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const zhiIdx = ZHI.indexOf(yearZhi)
+    return (10 - zhiIdx + 12) % 12  // 戌=10, 逆数
+  },
+  // 将星：申子辰在子，巳酉丑在酉，寅午戌在午，亥卯未在卯
+  '将星': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    if ([0,4,8].includes(idx)) return 0    // 申子辰→子
+    if ([1,5,9].includes(idx)) return 9    // 巳酉丑→酉
+    if ([2,6,10].includes(idx)) return 6   // 寅午戌→午
+    return 3                                // 亥卯未→卯
+  },
+  // 亡神：申子辰在亥，巳酉丑在申，寅午戌在巳，亥卯未在寅
+  '亡神': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    if ([0,4,8].includes(idx)) return 11   // 申子辰→亥
+    if ([1,5,9].includes(idx)) return 8    // 巳酉丑→申
+    if ([2,6,10].includes(idx)) return 5   // 寅午戌→巳
+    return 2                                // 亥卯未→寅
+  },
+  // 攀鞍：驿马后一位
+  '攀鞍': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    let tianMa: number
+    if ([0,4,8].includes(idx)) tianMa = 2    // 申子辰→天马寅(2)
+    else if ([1,5,9].includes(idx)) tianMa = 11  // 巳酉丑→天马亥(11)
+    else if ([2,6,10].includes(idx)) tianMa = 8  // 寅午戌→天马申(8)
+    else tianMa = 5                               // 亥卯未→天马巳(5)
+    return (tianMa - 1 + 12) % 12
+  },
+  // 指背：劫煞前一位
+  '指背': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    let jieSha: number
+    if ([0,4,8].includes(idx)) jieSha = 5    // 申子辰→劫煞巳(5)
+    else if ([1,5,9].includes(idx)) jieSha = 2   // 巳酉丑→劫煞寅(2)
+    else if ([2,6,10].includes(idx)) jieSha = 11  // 寅午戌→劫煞亥(11)
+    else jieSha = 8                               // 亥卯未→劫煞申(8)
+    return (jieSha + 1) % 12
+  },
+  // 天煞：劫煞前两位
+  '天煞': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const idx = ZHI.indexOf(yearZhi)
+    let jieSha: number
+    if ([0,4,8].includes(idx)) jieSha = 5
+    else if ([1,5,9].includes(idx)) jieSha = 2
+    else if ([2,6,10].includes(idx)) jieSha = 11
+    else jieSha = 8
+    return (jieSha + 2) % 12
+  },
+
+  // ─── 年干系神煞 ───
+  // 文昌：甲在巳，乙在午，丙在申，丁在酉，戊在申，己在酉，庚在亥，辛在子，壬在寅，癸在卯
+  '文昌': (_m: number, _h: number, yearGan: Gan, _z: Zhi) => {
+    const map: Record<string, number> = { '甲':5,'乙':6,'丙':8,'丁':9,'戊':8,'己':9,'庚':11,'辛':0,'壬':2,'癸':3 }
+    return map[yearGan] || 0
+  },
+  // 文曲：甲在亥，乙在子，丙在寅，丁在卯，戊在寅，己在卯，庚在巳，辛在午，壬在申，癸在酉
+  '文曲': (_m: number, _h: number, yearGan: Gan, _z: Zhi) => {
+    const map: Record<string, number> = { '甲':11,'乙':0,'丙':2,'丁':3,'戊':2,'己':3,'庚':5,'辛':6,'壬':8,'癸':9 }
+    return map[yearGan] || 0
+  },
+  // 学堂：甲在亥，乙在午，丙在寅，丁在酉，戊在寅，己在酉，庚在巳，辛在子，壬在申，癸在卯
+  '学堂': (_m: number, _h: number, yearGan: Gan, _z: Zhi) => {
+    const map: Record<string, number> = { '甲':11,'乙':6,'丙':2,'丁':9,'戊':2,'己':9,'庚':5,'辛':0,'壬':8,'癸':3 }
+    return map[yearGan] || 0
+  },
+
+  // ─── 时支系神煞 ───
+  // 台辅：与生时相合的地支
+  '台辅': (_m: number, hourIdx: number) => hourIdx, // 台辅与时支同位(简化)
+  // 封诰：台辅的对宫
+  '封诰': (_m: number, hourIdx: number) => (hourIdx + 6) % 12,
+
+  // ─── 其他神煞 ───
+  // 天哭：卯上起子年，逆数至生年（与红鸾同）
+  '天哭': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const zhiIdx = ZHI.indexOf(yearZhi)
+    return (3 - zhiIdx + 12) % 12
+  },
+  // 天虚：午上起子年，顺数至生年
+  '天虚': (_m: number, _h: number, _g: Gan, yearZhi: Zhi) => {
+    const zhiIdx = ZHI.indexOf(yearZhi)
+    return (6 + zhiIdx) % 12
+  },
+  // 三台：辰上起正月，顺数至生月；或依生时
+  '三台': (month: number) => (4 + month - 1) % 12,
+  // 八座：戌上起正月，逆数至生月
+  '八座': (month: number) => (10 - (month - 1) + 12) % 12,
+  // 恩光：同文昌取法（简化）
+  '恩光': (_m: number, _h: number, yearGan: Gan, _z: Zhi) => {
+    const map: Record<string, number> = { '甲':5,'乙':6,'丙':8,'丁':9,'戊':8,'己':9,'庚':11,'辛':0,'壬':2,'癸':3 }
+    return (map[yearGan] + 3) % 12
+  },
+  // 天贵：同文曲取法（简化）
+  '天贵': (_m: number, _h: number, yearGan: Gan, _z: Zhi) => {
+    const map: Record<string, number> = { '甲':11,'乙':0,'丙':2,'丁':3,'戊':2,'己':3,'庚':5,'辛':6,'壬':8,'癸':9 }
+    return (map[yearGan] + 3) % 12
+  },
 }
 
 /** 地支对应的五行：寅卯=木, 巳午=火, 申酉=金, 亥子=水, 辰戌丑未=土 */

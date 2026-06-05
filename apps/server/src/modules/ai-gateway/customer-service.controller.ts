@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req, Res, UseGuards, HttpException, HttpStatus } from "@nestjs/common";
+import { Controller, Post, Body, Req, Res, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { CustomerServiceService } from "./customer-service.service";
@@ -6,6 +6,8 @@ import { StreamUnifierService } from "./stream-unifier.service";
 import { AskDto } from "./dto/customer-service.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 @ApiTags("智能客服")
 @Controller("ai")
@@ -22,7 +24,7 @@ export class CustomerServiceController {
       return await this.cs.ask(body.question, userId, body.history);
     } catch (err: any) {
       if (err.message?.includes("未配置")) {
-        throw new HttpException(err.message, HttpStatus.SERVICE_UNAVAILABLE);
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "AI客服服务异常");
       }
       throw err;
     }

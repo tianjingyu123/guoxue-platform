@@ -12,7 +12,8 @@ export class RolesGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (!requiredRoles) return true;
+    // 缺 @Roles() 装饰器时拒绝访问 — deny-by-default，防止漏加鉴权导致越权
+    if (!requiredRoles || requiredRoles.length === 0) return false;
 
     const { user } = context.switchToHttp().getRequest();
     return requiredRoles.some((role) => user.roles?.includes(role));

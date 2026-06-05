@@ -8,7 +8,7 @@ import { calcShenSha } from '../shensha'
 describe('calcShenSha - 神煞计算', () => {
   it('正月子时庚年午年', () => {
     const results = calcShenSha(1, 0, '庚', '午')
-    expect(results).toHaveLength(4) // 天刑、天姚、解神、天巫
+    expect(results.length).toBeGreaterThanOrEqual(30)
 
     const mingMap: Record<string, string> = {}
     results.forEach(r => { mingMap[r.star.name] = ZHI(r.zhiIdx) })

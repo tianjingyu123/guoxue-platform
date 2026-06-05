@@ -84,13 +84,13 @@ describe('calcBazi - 完整八字排盘集成测试', () => {
       expect(result.taiYuan.zhi).toBe('辰')
     })
 
-    it('命宫为壬午', () => {
-      expect(result.mingGong.gan).toBe('壬')
+    it('命宫为戊午', () => {
+      expect(result.mingGong.gan).toBe('戊')
       expect(result.mingGong.zhi).toBe('午')
     })
 
-    it('身宫为壬申', () => {
-      expect(result.shenGong.gan).toBe('壬')
+    it('身宫为庚申', () => {
+      expect(result.shenGong.gan).toBe('庚')
       expect(result.shenGong.zhi).toBe('申')
     })
 

@@ -17,6 +17,7 @@ import {
   CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
   ProductListQueryDto, OrderListQueryDto,
   CreateSkuDto, JsapiPayDto, NativePayDto, RefundOrderDto,
+  AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
 } from "./shop.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -207,7 +208,7 @@ export class ShopController {
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "管理员确认支付（需提供实际支付流水号）" })
   @ApiBearerAuth()
-  adminPayOrder(@Req() req: AuthRequest, @Param("id") id: string, @Body() body: { payTransactionId: string }) {
+  adminPayOrder(@Req() req: AuthRequest, @Param("id") id: string, @Body() body: AdminPayOrderDto) {
     const u = req.user;
     return this.shop.adminPayOrder(id, body.payTransactionId, u.nickname || u.id);
   }
@@ -325,7 +326,7 @@ export class ShopController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "支付宝退款" })
   @ApiBearerAuth()
-  alipayRefund(@Body() body: { outTradeNo: string; refundAmount: number; outRefundNo: string; reason?: string }) {
+  alipayRefund(@Body() body: AlipayRefundDto) {
     return this.shop.alipayRefund(body);
   }
 
@@ -611,7 +612,7 @@ export class ShopController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "加入购物车" })
   @ApiBearerAuth()
-  addToCart(@Req() req: AuthRequest, @Body() body: { productId: string; skuId?: string; quantity?: number }) {
+  addToCart(@Req() req: AuthRequest, @Body() body: AddToCartDto) {
     return this.shop.addToCart(req.user.id, body.productId, body.skuId, body.quantity || 1);
   }
 

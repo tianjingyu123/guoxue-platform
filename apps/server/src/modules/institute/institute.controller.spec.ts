@@ -6,7 +6,7 @@ import { RolesGuard } from "../../common/roles.guard";
 
 const mockInstituteSvc = {
   join: jest.fn().mockResolvedValue({ id: "m1", status: "PENDING" }),
-  getMyMembership: jest.fn().mockResolvedValue({ id: "m1", role: "LECTURER" }),
+  getMyDashboard: jest.fn().mockResolvedValue({ id: "m1", role: "LECTURER" }),
   listMembers: jest.fn().mockResolvedValue([{ id: "m1", name: "张老师" }]),
   getMember: jest.fn().mockResolvedValue({ id: "m1", name: "张老师", bio: "..." }),
   updateLecturerLevel: jest.fn().mockResolvedValue({ id: "m1", lecturerLevel: 3 }),
@@ -47,7 +47,7 @@ describe("InstituteController", () => {
     const req: any = { user: { id: "u1" } };
     const result: any = await ctrl.myMembership(req);
     expect(result.role).toBe("LECTURER");
-    expect(mockInstituteSvc.getMyMembership).toHaveBeenCalledWith("u1");
+    expect(mockInstituteSvc.getMyDashboard).toHaveBeenCalledWith("u1");
   });
 
   it("GET /institute/members — 成员列表", async () => {
@@ -84,7 +84,7 @@ describe("InstituteController", () => {
 
   it("POST /institute/tasks/:id/complete — 完成任务", async () => {
     const req: any = { user: { id: "u1" } };
-    const result: any = await ctrl.completeTask("t1", req);
+    const result: any = await ctrl.completeMyTask("t1", req);
     expect(result.status).toBe("COMPLETED");
     expect(mockInstituteSvc.completeTask).toHaveBeenCalledWith("t1", "u1");
   });
@@ -98,9 +98,10 @@ describe("InstituteController", () => {
 
   it("POST /institute/events — 创建活动", async () => {
     const dto: any = { title: "学术讲座", type: "LECTURE", date: "2025-06-01" };
-    const result: any = await ctrl.createEvent(dto);
+    const req: any = { user: { id: "admin1" } };
+    const result: any = await ctrl.createEvent(req, dto);
     expect(result.title).toBe("学术讲座");
-    expect(mockInstituteSvc.createEvent).toHaveBeenCalledWith(dto);
+    expect(mockInstituteSvc.createEvent).toHaveBeenCalledWith("admin1", dto);
   });
 
   it("GET /institute/events — 活动列表", async () => {

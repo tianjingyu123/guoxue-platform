@@ -7,6 +7,7 @@ import { CircleAssistantService } from "./circle-assistant.service";
 import { CircleAssistantController } from "./circle-assistant.controller";
 import { CircleDashboardController } from "./circle-dashboard.controller";
 import { CircleDashboardService } from "./circle-dashboard.service";
+import { CircleBackendController } from "./circle-backend.controller";
 import { CircleKnowledgeTask } from "./circle-knowledge.task";
 import { UgcKnowledgeService } from "./ugc-knowledge.service";
 import { UgcKnowledgeTask } from "./ugc-knowledge.task";
@@ -24,6 +25,7 @@ import { PricingModule } from "../pricing/pricing.module";
     CircleKnowledgeController,
     CircleAssistantController,
     CircleDashboardController,
+    CircleBackendController,
   ],
   providers: [
     CircleService,

@@ -3,12 +3,12 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger"
 import { QualityScorerService, QualityScore, ScoreRequest } from "./quality-scorer.service";
 import { ScoreDto, ScoreBatchDto } from "./dto/quality-scorer.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
-import { RolesGuard } from "../../common/roles.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 @ApiTags("🤖 AI质量评分")
 @Controller("ai/quality")
-@UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
+// 仅需登录即可使用质量评分功能，无需特定角色限制
+@UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
 @ApiBearerAuth()
 export class QualityScorerController {
   constructor(private readonly scorer: QualityScorerService) {}

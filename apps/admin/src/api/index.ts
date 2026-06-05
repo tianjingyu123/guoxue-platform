@@ -467,6 +467,22 @@ export const instituteApi = {
   verifyTask: (taskId: string) => api.post(`/institute/tasks/${taskId}/verify`),
   createEvent: (data: any) => api.post("/institute/events", data),
   updateEvent: (id: string, data: any) => api.put(`/institute/events/${id}`, data),
+  // 管理层
+  getOverview: () => api.get("/institute/manage/overview"),
+  getPendingMembers: () => api.get("/institute/manage/pending-members"),
+  approveMember: (id: string, data: any) => api.put(`/institute/manage/members/${id}/approve`, data),
+  assignRole: (id: string, data: any) => api.put(`/institute/manage/members/${id}/role`, data),
+  getFinance: (period?: string) => api.get("/institute/manage/finance", { params: { period } }),
+  createDividend: (data: any) => api.post("/institute/manage/dividends", data),
+  recommendToTalent: (id: string, lecturerLevel: string) => api.put(`/institute/manage/members/${id}/recommend`, { lecturerLevel }),
+  // 任务模板
+  listTaskTemplates: () => api.get("/institute/task-templates"),
+  createTaskTemplate: (data: any) => api.post("/institute/task-templates", data),
+  updateTaskTemplate: (id: string, data: any) => api.put(`/institute/task-templates/${id}`, data),
+  deleteTaskTemplate: (id: string) => api.delete(`/institute/task-templates/${id}`),
+  // 人才库
+  getCandidates: () => api.get("/institute/candidates"),
+  // 内容
   listContents: (params?: any) => api.get("/admin/institute/contents", { params }),
   createContent: (data: any) => api.post("/admin/institute/contents", data),
   getContent: (id: string) => api.get(`/admin/institute/contents/${id}`),
@@ -474,6 +490,8 @@ export const instituteApi = {
   deleteContent: (id: string) => api.delete(`/admin/institute/contents/${id}`),
   getContentStats: () => api.get("/admin/institute/contents/stats"),
   getContentPurchases: (id: string, params?: any) => api.get(`/admin/institute/contents/${id}/purchases`, { params }),
+  // 分红
+  getDividends: (params?: any) => api.get("/institute/my/dividends", { params }),
 };
 
 // 分站管理（推广分站）
@@ -1580,6 +1598,52 @@ export const aiAnomalyApi = {
 export const aiDataExplorerApi = {
   ask: (question: string) => api.post("/ai/data-explorer/ask", { question }),
   getSchema: () => api.get("/ai/data-explorer/schema"),
+};
+
+// ───────── 课程组合包 ─────────
+export const bundleApi = {
+  list: (params?: any) => api.get("/bundles", { params }),
+  getById: (id: string) => api.get(`/bundles/${id}`),
+  create: (data: any) => api.post("/bundles", data),
+  update: (id: string, data: any) => api.put(`/bundles/${id}`, data),
+  delete: (id: string) => api.delete(`/bundles/${id}`),
+};
+
+// ───────── 续费管理 ─────────
+export const renewalApi = {
+  getEntitlements: (params?: any) => api.get("/renewal/my/entitlements", { params }),
+  getHistory: (params?: any) => api.get("/renewal/my/history", { params }),
+  // 管理员
+  getExpiringUsers: (days?: number) => api.get("/renewal/admin/expiring-users", { params: { days } }),
+  getAdminHistory: (params?: any) => api.get("/renewal/admin/history", { params }),
+};
+
+// ───────── 统一订单中心 ─────────
+export const orderCenterApi = {
+  list: (params?: any) => api.get("/orders/my", { params }),
+  // 管理员
+  adminList: (params?: any) => api.get("/orders/admin/all", { params }),
+};
+
+// ───────── 驿站老师邀约 ─────────
+export const teacherRequestApi = {
+  create: (stationId: string, data: any) => api.post(`/offline/stations/${stationId}/teacher-requests`, data),
+  list: (stationId: string, params?: any) => api.get(`/offline/stations/${stationId}/teacher-requests`, { params }),
+  respond: (id: string, data: any) => api.put(`/offline/teacher-requests/${id}/respond`, data),
+  // 管理员
+  adminList: (params?: any) => api.get("/offline/admin/teacher-requests", { params }),
+};
+
+// ───────── 圈子后台管理 ─────────
+export const circleBackendApi = {
+  overview: () => api.get("/circle-backend/overview"),
+  members: (params?: any) => api.get("/circle-backend/members", { params }),
+  guests: () => api.get("/circle-backend/guests"),
+  setGuestShareRate: (userId: string, shareRate: number) => api.put(`/circle-backend/guests/${userId}/share-rate`, { shareRate }),
+  revenue: (period?: string) => api.get("/circle-backend/revenue", { params: { period } }),
+  // 管理员
+  adminCircles: (params?: any) => api.get("/circle-backend/admin/circles", { params }),
+  adminOverview: (circleId: string) => api.get(`/circle-backend/admin/circles/${circleId}/overview`),
 };
 
 export default api;

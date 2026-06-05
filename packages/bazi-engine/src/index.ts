@@ -7,6 +7,7 @@ import type { BaziInput, BaziResult } from './types'
 import { NA_YIN, getKongWang } from './constants'
 import { calcSiZhu, calcShengXiao, calcZiZuo } from './sizhu'
 import { calcQiYun, fillDaYunShiShen } from './dayun'
+import { fillLiuNianLiuYue, getLiuShiList } from './liunian'
 import { calcFenXiTiShi, calcTaiYuan, calcMingGong, calcShenGong, calcWangXiang } from './shensha'
 import { calcAllShenSha } from './shensha-db'
 import { calcGeJu, calcWuXingEnergy } from './geju'
@@ -68,17 +69,21 @@ export function calcBazi(input: BaziInput): BaziResult {
   )
   // 填充大运十神和流年
   qiYun.daYun = fillDaYunShiShen(qiYun.daYun, siZhu.ri.gan)
+  // 填充每个流年的流月
+  for (const step of qiYun.daYun) {
+    step.liuNian = step.liuNian.map(ln => fillLiuNianLiuYue(ln, siZhu.ri.gan))
+  }
 
   // 5. 胎元
   const taiYuan = calcTaiYuan(siZhu.yue.gan, siZhu.yue.zhi, siZhu.ri.gan)
   taiYuan.nayin = NA_YIN[taiYuan.gan + taiYuan.zhi] || ''
 
   // 6. 命宫
-  const mingGong = calcMingGong(siZhu.yue.zhi, siZhu.shi.zhi, siZhu.ri.gan)
+  const mingGong = calcMingGong(siZhu.yue.zhi, siZhu.shi.zhi, siZhu.nian.gan, siZhu.ri.gan)
   mingGong.nayin = NA_YIN[mingGong.gan + mingGong.zhi] || ''
 
   // 7. 身宫
-  const shenGong = calcShenGong(siZhu.yue.zhi, siZhu.shi.zhi, siZhu.ri.gan)
+  const shenGong = calcShenGong(siZhu.yue.zhi, siZhu.shi.zhi, siZhu.nian.gan, siZhu.ri.gan)
   shenGong.nayin = NA_YIN[shenGong.gan + shenGong.zhi] || ''
 
   // 8. 旺相休囚死
@@ -102,6 +107,9 @@ export function calcBazi(input: BaziInput): BaziResult {
   // 14. 自坐
   const ziZuo = calcZiZuo(siZhu.ri.gan, siZhu.ri.zhi)
 
+  // 15. 流时列表（十二时辰）
+  const liuShiList = getLiuShiList(siZhu.ri.gan)
+
   return {
     input,
     siZhu,
@@ -118,6 +126,7 @@ export function calcBazi(input: BaziInput): BaziResult {
     geJu,
     wuXingEnergy,
     ziZuo,
+    liuShiList,
     ...(solar ? {
       taiYangShi: {
         adjustedHour: solar.adjustedHour,
@@ -145,7 +154,7 @@ export {
   GAN, ZHI, NA_YIN, SHENG_XIAO,
   GAN_HE_PAIRS, ZHI_HE_PAIRS, ZHI_CHONG_PAIRS, ZHI_HAI_PAIRS,
   ZHI_SAN_HE, ZHI_SAN_HUI, ZHI_SAN_XING, ZHI_ZI_XING,
-  ZHI_AN_HE, ZHI_XIANG_PO,
+  ZHI_AN_HE, ZHI_XIANG_PO, ZHI_AN_JUE,
   CHANG_SHENG, DI_SHI,
 } from './constants'
 export { applyDaylightSaving, getDaylightSavingOffset } from './xialingshi'

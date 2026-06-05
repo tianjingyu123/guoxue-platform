@@ -1,5 +1,5 @@
 import { Test } from "@nestjs/testing";
-import { HttpException, HttpStatus } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
 import { AiGatewayController } from "./ai-gateway.controller";
 import { AiGatewayService } from "./ai-gateway.service";
 import { ModelRouterService } from "./model-router.service";
@@ -108,9 +108,7 @@ describe("AiGatewayController", () => {
     it("service 抛出「未配置」错误时转为 503", async () => {
       gateway.chat.mockRejectedValue(new Error("场景未配置"));
 
-      await expect(ctrl.chat(chatDto, mockReq)).rejects.toThrow(
-        new HttpException("场景未配置", HttpStatus.SERVICE_UNAVAILABLE),
-      );
+      await expect(ctrl.chat(chatDto, mockReq)).rejects.toThrow(BusinessException);
     });
 
     it("service 抛出其他错误时透传", async () => {

@@ -145,15 +145,15 @@ export function calculateMeiHua(input: Record<string, unknown>): MeiHuaResult {
   const bianGuaName = getGuaName(bianUpper, bianLower);
 
   // ── 互卦：取本卦中间四爻（2,3,4爻为下卦，3,4,5爻为上卦）──
-  // 六爻排列 fullYao = [上卦上,上卦中,上卦下, 下卦上,下卦中,下卦下]
-  //              = [pos6, pos5, pos4, pos3, pos2, pos1]
+  // fullYao = [上卦上爻,上卦中爻,上卦下爻, 下卦上爻,下卦中爻,下卦下爻]
+  //          = [pos6,     pos5,     pos4,     pos3,     pos2,     pos1]
   const upperYao = guaNumToYao(upperNum);
   const lowerYao = guaNumToYao(lowerNum);
   const fullYao = [...upperYao, ...lowerYao];
-  // 互卦下卦 = 本卦第2,3,4爻 = fullYao[4],fullYao[3],fullYao[2]
-  // 互卦上卦 = 本卦第3,4,5爻 = fullYao[3],fullYao[2],fullYao[1]
-  const huUpper = yaoToGuaNum([fullYao[3], fullYao[2], fullYao[1]]);
-  const huLower = yaoToGuaNum([fullYao[4], fullYao[3], fullYao[2]]);
+  // 互卦下卦 = 本卦第2,3,4爻，[上=pos4, 中=pos3, 下=pos2]
+  // 互卦上卦 = 本卦第3,4,5爻，[上=pos5, 中=pos4, 下=pos3]
+  const huUpper = yaoToGuaNum([fullYao[1], fullYao[2], fullYao[3]]);
+  const huLower = yaoToGuaNum([fullYao[2], fullYao[3], fullYao[4]]);
   const huGuaName = getGuaName(huUpper, huLower);
 
   // 体用

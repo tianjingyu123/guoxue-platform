@@ -89,6 +89,7 @@ export class StationService {
     // 清除品牌缓存
     await this.redis.del(`station:brand:id:${id}`);
     await this.redis.del(`station:brand:code:${updated.code}`);
+    await this.redis.del(`station:brand:template:code:${updated.code}`);
     return updated;
   }
 
@@ -97,6 +98,7 @@ export class StationService {
     if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
     await this.redis.del(`station:brand:id:${id}`);
     await this.redis.del(`station:brand:code:${station.code}`);
+    await this.redis.del(`station:brand:template:code:${station.code}`);
     return this.prisma.station.delete({ where: { id } });
   }
 
@@ -107,6 +109,35 @@ export class StationService {
     });
     if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在");
     return station;
+  }
+
+  /** 通过用户ID获取分站（自服务用） */
+  async getStationByUserId(userId: string) {
+    return this.prisma.station.findFirst({
+      where: { userId },
+      include: { user: { select: { id: true, nickname: true, avatar: true } } },
+    });
+  }
+
+  /** 统计分站锁定的用户数 */
+  async countLockedUsers(stationId: string) {
+    const station = await this.prisma.station.findUnique({ where: { id: stationId }, select: { userId: true } });
+    if (!station) return 0;
+    return this.prisma.referralRelation.count({ where: { referrerId: station.userId, referrerType: "STATION_MASTER" } });
+  }
+
+  /** 统计分站当月订单数 */
+  async countMonthOrders(stationId: string, monthStart: Date) {
+    return this.prisma.stationEarning.count({ where: { stationId, createdAt: { gte: monthStart } } });
+  }
+
+  /** 统计分站当月佣金总和 */
+  async sumMonthEarnings(stationId: string, monthStart: Date) {
+    const agg = await this.prisma.stationEarning.aggregate({
+      where: { stationId, createdAt: { gte: monthStart } },
+      _sum: { earned: true },
+    });
+    return agg._sum.earned || 0;
   }
 
   /** 通过推广码获取分站品牌配置（公开接口，千人千面渲染，10分钟缓存） */
@@ -358,6 +389,7 @@ export class StationService {
     // 清除缓存
     await this.redis.del(`station:brand:id:${stationId}`);
     await this.redis.del(`station:brand:code:${updated.code}`);
+    await this.redis.del(`station:brand:template:code:${updated.code}`);
 
     return {
       stationId,
@@ -368,7 +400,7 @@ export class StationService {
 
   /** 获取分站品牌+模版配置（含缓存） */
   async getBrandWithTemplate(code: string) {
-    const cacheKey = `station:brand:code:${code}`;
+    const cacheKey = `station:brand:template:code:${code}`;
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) return cached;
 
@@ -486,9 +518,9 @@ export class StationService {
   async getTeamActivity(userId: string) {
     const stations = await this.prisma.station.findMany({
       where: { userId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, totalEarning: true },
     });
-    const totalEarning = stations.reduce((sum, _s) => sum + 0, 0); // 简化统计
+    const totalEarning = stations.reduce((sum, s) => sum + Number(s.totalEarning || 0), 0);
 
     return {
       stationCount: stations.length,

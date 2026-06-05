@@ -15,6 +15,45 @@ import { ErrorCode } from "../../common/error-codes";
 export class StationController {
   constructor(private svc: StationService) {}
 
+  // ───────── 自服务（站长管理自己的分站） ─────────
+
+  @Get("my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取当前用户的分站信息（含月度统计）" })
+  async getMyStation(@Req() req: Request) {
+    const station = await this.svc.getStationByUserId(req.user.id);
+    if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "你还没有开通分站");
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [lockedUsers, monthOrders, monthEarning] = await Promise.all([
+      this.svc.countLockedUsers(station.id),
+      this.svc.countMonthOrders(station.id, monthStart),
+      this.svc.sumMonthEarnings(station.id, monthStart),
+    ]);
+
+    return { ...station, lockedUsers, monthOrders, monthEarning };
+  }
+
+  @Put("my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "更新自己的分站信息（自服务）" })
+  async updateMyStation(@Req() req: Request, @Body() dto: UpdateStationDto) {
+    const station = await this.svc.getStationByUserId(req.user.id);
+    if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "你还没有开通分站");
+    return this.svc.updateStation(station.id, dto);
+  }
+
+  @Get("my/earnings")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的分站收益明细（自服务）" })
+  async getMyEarnings(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    const station = await this.svc.getStationByUserId(req.user.id);
+    if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "你还没有开通分站");
+    return this.svc.getStationEarnings(station.id, +page, +pageSize);
+  }
+
   // ───────── 品牌配置（公开 + 管理员） ─────────
 
   /** 通过推广码获取分站品牌配置（公开，千人千面渲染入口） */

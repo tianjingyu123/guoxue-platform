@@ -110,6 +110,8 @@ export interface FenXiTiShi {
   anHe: string[]
   /** 地支相破 */
   xiangPo: string[]
+  /** 地支暗绝 */
+  anJue: string[]
 }
 
 /** 格局分析 */
@@ -195,4 +197,5 @@ export interface BaziResult {
   taiYangShi?: TaiYangShi  // 真太阳时校正信息
   daylightSaving?: DaylightSaving // 夏令时校正信息
   ziZuo?: ZiZuo            // 自坐：日干对日支的关系
+  liuShiList?: LiuShi[]    // 十二时辰流时列表（日干定）
 }

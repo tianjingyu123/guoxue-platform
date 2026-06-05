@@ -1,5 +1,5 @@
-import { Controller, Get, Req, UseGuards, NotFoundException, ForbiddenException } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { Controller, Get, Put, Body, Req, Query, UseGuards, NotFoundException, ForbiddenException } from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Request } from "express";
 import { StationDashboardService } from "./station-dashboard.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -110,5 +110,129 @@ export class OperatorDashboardController {
   async getQuotaUsage(@Req() req: Request) {
     const { operator, stations } = await this.getOperatorStations(req);
     return { used: stations.length, total: operator?.containQuota || 0 };
+  }
+
+  // ───────── 自服务 API ─────────
+
+  @Get("my")
+  @ApiOperation({ summary: "获取当前运营商完整信息（自服务）" })
+  async getMyOperator(@Req() req: Request) {
+    const userId = (req.user as any).id;
+    const operator = await this.prisma.operator.findFirst({
+      where: { userId },
+      include: { user: { select: { id: true, nickname: true, avatar: true, station: true } } },
+    });
+    if (!operator) throw new ForbiddenException("当前用户不是运营商");
+
+    const stations = await this.prisma.station.findMany({
+      where: { operatorId: operator.id },
+      select: { id: true, name: true, code: true, totalEarning: true, status: true, createdAt: true },
+    });
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const stationIds = stations.map(s => s.id);
+    const monthEarnings = await this.prisma.stationEarning.aggregate({
+      where: { stationId: { in: stationIds }, createdAt: { gte: monthStart } },
+      _sum: { earned: true },
+    });
+
+    return {
+      ...operator,
+      stationCount: stations.length,
+      monthNewStations: stations.filter(s => new Date(s.createdAt) >= monthStart).length,
+      monthEarning: monthEarnings._sum.earned || 0,
+      usedQuota: stations.length,
+      fullRebateSlots: 5, // 默认5个全返名额
+      usedRebateSlots: 0, // TODO: 跟踪全返名额使用
+    };
+  }
+
+  @Put("my")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "更新运营商品牌信息（自服务）" })
+  async updateMyOperator(@Req() req: Request, @Body() body: Record<string, unknown>) {
+    const userId = (req.user as any).id;
+    const operator = await this.prisma.operator.findFirst({ where: { userId } });
+    if (!operator) throw new ForbiddenException("当前用户不是运营商");
+
+    const allowed = ["brandName", "brandLogo", "brandThemeColor"];
+    const data: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (body[key] !== undefined) data[key] = body[key];
+    }
+
+    return this.prisma.operator.update({ where: { id: operator.id }, data });
+  }
+
+  @Get("my/earnings")
+  @ApiOperation({ summary: "运营商收益明细（自服务）" })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  async getMyEarnings(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    const userId = (req.user as any).id;
+    const operator = await this.prisma.operator.findFirst({ where: { userId } });
+    if (!operator) throw new ForbiddenException("当前用户不是运营商");
+
+    const stations = await this.prisma.station.findMany({
+      where: { operatorId: operator.id },
+      select: { id: true },
+    });
+    const stationIds = stations.map(s => s.id);
+
+    const [operatorEarnings, stationEarnings] = await Promise.all([
+      this.prisma.operatorEarning.findMany({
+        where: { operatorId: operator.id },
+        orderBy: { createdAt: "desc" },
+        take: +pageSize,
+        skip: (+page - 1) * +pageSize,
+      }),
+      this.prisma.stationEarning.findMany({
+        where: { stationId: { in: stationIds } },
+        orderBy: { createdAt: "desc" },
+        take: +pageSize,
+        skip: (+page - 1) * +pageSize,
+      }),
+    ]);
+
+    // 合并，管理奖标记 source=MGMT_BONUS
+    const merged = [
+      ...operatorEarnings.map(e => ({ ...e, source: "MGMT_BONUS", earned: e.earned, amount: e.amount, rate: e.rate })),
+      ...stationEarnings.map(e => ({ ...e, source: "COMMISSION", earned: e.earned, amount: e.amount, rate: e.rate })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    return { list: merged.slice(0, +pageSize), total: merged.length };
+  }
+
+  @Get("my/stations")
+  @ApiOperation({ summary: "名下站长列表（自服务）" })
+  async getMyStations(@Req() req: Request) {
+    const userId = (req.user as any).id;
+    const operator = await this.prisma.operator.findFirst({ where: { userId } });
+    if (!operator) throw new ForbiddenException("当前用户不是运营商");
+
+    const stations = await this.prisma.station.findMany({
+      where: { operatorId: operator.id },
+      select: { id: true, name: true, code: true, totalEarning: true, status: true, createdAt: true },
+      orderBy: { totalEarning: "desc" },
+    });
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const stationIds = stations.map(s => s.id);
+
+    const monthEarnings = await this.prisma.stationEarning.groupBy({
+      by: ["stationId"],
+      where: { stationId: { in: stationIds }, createdAt: { gte: monthStart } },
+      _sum: { earned: true },
+    });
+    const earningsMap = new Map(monthEarnings.map(e => [e.stationId, e._sum.earned || 0]));
+
+    // 管理奖估算（当月站长佣金 * 5%）
+    return stations.map(s => ({
+      ...s,
+      monthEarning: earningsMap.get(s.id) || 0,
+      mgmtBonus: Math.round(Number(earningsMap.get(s.id) ?? 0) * 0.05 * 100) / 100,
+    }));
   }
 }

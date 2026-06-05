@@ -1,6 +1,7 @@
 import { Injectable, Inject, Optional } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import type { BaziResult } from "@guoxue/bazi-engine";
+import type { ZiweiResult } from "@guoxue/ziwei-engine";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
@@ -133,8 +134,10 @@ export class PaipanAiService {
     userId: string,
     page = 1,
     pageSize = 20,
+    type?: string,
   ) {
-    const where = { userId };
+    const where: any = { userId };
+    if (type) where.paipanRecord = { type };
 
     const [records, total] = await Promise.all([
       this.prisma.aiAnalysisRecord.findMany({
@@ -154,6 +157,106 @@ export class PaipanAiService {
     ]);
 
     return { records, total, page, pageSize };
+  }
+
+  /**
+   * 对紫微斗数排盘结果进行 AI 分析
+   */
+  async analyzeZiwei(
+    userId: string,
+    paipanRecordId: string,
+    ziweiResult: ZiweiResult,
+  ) {
+    const existing = await this.prisma.aiAnalysisRecord.findFirst({
+      where: { userId, paipanRecordId, analyzeType: "ZIWEI_GENERAL" },
+    });
+    if (existing) {
+      return {
+        id: existing.id,
+        analysisContent: existing.analysisContent,
+        createdAt: existing.createdAt,
+        isCached: true,
+      };
+    }
+
+    if (!this.apiKey) {
+      const record = await this.prisma.aiAnalysisRecord.create({
+        data: {
+          userId,
+          paipanRecordId,
+          analyzeType: "ZIWEI_GENERAL",
+          analysisContent: "AI解析服务暂未配置，请联系管理员",
+          isCached: false,
+        },
+      });
+      return { id: record.id, analysisContent: record.analysisContent, createdAt: record.createdAt, isCached: false };
+    }
+
+    const prompt = this.buildZiweiPrompt(ziweiResult);
+    const { content, tokenUsage } = await this.callDeepSeek(prompt);
+
+    const record = await this.prisma.aiAnalysisRecord.create({
+      data: {
+        userId,
+        paipanRecordId,
+        analyzeType: "ZIWEI_GENERAL",
+        analysisContent: content,
+        tokenUsage: tokenUsage as any,
+        isCached: false,
+      },
+    });
+
+    return { id: record.id, analysisContent: record.analysisContent, createdAt: record.createdAt, isCached: false };
+  }
+
+  /** 构建紫微斗数专业分析 prompt */
+  private buildZiweiPrompt(result: ZiweiResult): string {
+    const { input, wuXingJu, mingGong, gongWei, siHua, shenGong, geShi } = result;
+
+    const gongLines = gongWei.map((g) => {
+      const stars = g.stars.map((s) => `${s.name}(${s.wuXing}${s.liangJi === "吉" ? "吉" : s.liangJi === "凶" ? "凶" : ""})`).join("、");
+      return `${g.name}（${g.gan}${g.zhi}）：${stars || "无主星"} | 大限 ${g.daXianStart}-${g.daXianEnd}岁`;
+    });
+
+    const prompt = `你是精通中国传统紫微斗数的资深命理专家，请根据以下排盘数据进行详细专业的紫微斗数分析。
+
+## 出生信息
+- 姓名：${input.name || "未知"}
+- 性别：${input.gender}
+- 出生时间：${input.year}年${input.month}月${input.day}日 ${input.hour}时
+- 农历：${input.lunarYearGan}${input.lunarYearZhi}年${input.lunarMonth}月${input.lunarDay}日 ${input.lunarHour}时
+- 五行局：${wuXingJu}
+- 命宫：${mingGong.name}（${mingGong.gan}${mingGong.zhi}）
+- 身宫：${shenGong}
+
+## 四化
+- 化禄：${siHua.huaLu}
+- 化权：${siHua.huaQuan}
+- 化科：${siHua.huaKe}
+- 化忌：${siHua.huaJi}
+
+## 十二宫
+${gongLines.join("\n")}
+
+## 格局
+${geShi.length > 0 ? geShi.join("、") : "无特殊格局"}
+
+---
+
+请从以下 8 个方面进行详细分析，每个方面 2-4 句话，总篇幅约 1500-2000 字：
+
+1. **命宫与性格**：命宫主星特质、性格优势与不足、行为模式。
+2. **事业发展**：官禄宫分析、适合行业、职场贵人与发展方向。
+3. **财运分析**：财帛宫解读、正财偏财运、财富积累建议。
+4. **婚姻感情**：夫妻宫分析、姻缘特征、感情相处要点。
+5. **健康状况**：疾厄宫解读、先天体质、易患疾病与养生建议。
+6. **家庭与田宅**：田宅宫、父母宫、子女宫综合分析。
+7. **人际与迁移**：迁移宫、交友宫分析，人际关系与外出发展。
+8. **大限运势**：当前大限所处宫位的影响、各阶段运势要点与发展建议。
+
+要求：语言专业但不晦涩，结合星曜五行属性给出具体分析，避免空泛套话。`;
+
+    return prompt;
   }
 
   /** 构建专业八字分析 prompt */
@@ -261,8 +364,71 @@ ${fenXiLines.join("\n") || "无显著合冲刑害关系"}
     return prompt;
   }
 
+  /**
+   * 八字合婚分析
+   */
+  async analyzeHehun(
+    userId: string,
+    maleResult: BaziResult,
+    femaleResult: BaziResult,
+  ) {
+    if (!this.apiKey) {
+      return { analysisContent: "AI解析服务暂未配置，请联系管理员" };
+    }
+
+    const prompt = this.buildHehunPrompt(maleResult, femaleResult);
+    const { content, tokenUsage } = await this.callDeepSeek(prompt);
+
+    const record = await this.prisma.aiAnalysisRecord.create({
+      data: {
+        userId,
+        paipanRecordId: "hehun",
+        analyzeType: "HEHUN",
+        analysisContent: content,
+        tokenUsage: tokenUsage as any,
+        isCached: false,
+      },
+    });
+
+    return { id: record.id, analysisContent: record.analysisContent, createdAt: record.createdAt, isCached: false };
+  }
+
+  /** 构建合婚分析 prompt */
+  private buildHehunPrompt(male: BaziResult, female: BaziResult): string {
+    const fmt = (p: typeof male.siZhu.nian) => `${p.gan}${p.zhi}（${p.nayin}）`;
+    const m = male;
+    const f = female;
+
+    return `你是精通中国传统八字合婚的资深命理专家，请根据以下两人的八字排盘进行合婚分析。
+
+## 男方八字
+- 出生：${m.input.year}年${m.input.month}月${m.input.day}日 ${m.input.hour}时
+- 四柱：${fmt(m.siZhu.nian)} ${fmt(m.siZhu.yue)} ${fmt(m.siZhu.ri)} ${fmt(m.siZhu.shi)}
+- 日主：${m.siZhu.ri.gan}
+- 格局：${m.geJu?.name || "未定"}  用神：${m.geJu?.yongShen || "未定"}
+- 五行：木${m.wuXingEnergy?.mu || 0}% 火${m.wuXingEnergy?.huo || 0}% 土${m.wuXingEnergy?.tu || 0}% 金${m.wuXingEnergy?.jin || 0}% 水${m.wuXingEnergy?.shui || 0}%
+
+## 女方八字
+- 出生：${f.input.year}年${f.input.month}月${f.input.day}日 ${f.input.hour}时
+- 四柱：${fmt(f.siZhu.nian)} ${fmt(f.siZhu.yue)} ${fmt(f.siZhu.ri)} ${fmt(f.siZhu.shi)}
+- 日主：${f.siZhu.ri.gan}
+- 格局：${f.geJu?.name || "未定"}  用神：${f.geJu?.yongShen || "未定"}
+- 五行：木${f.wuXingEnergy?.mu || 0}% 火${f.wuXingEnergy?.huo || 0}% 土${f.wuXingEnergy?.tu || 0}% 金${f.wuXingEnergy?.jin || 0}% 水${f.wuXingEnergy?.shui || 0}%
+
+---
+
+请从以下 6 个方面进行合婚分析，总篇幅约 1000-1500 字：
+
+1. **年柱纳音配对**：纳音相生相克关系、年柱天干地支合冲。
+2. **日主五行互补**：双方日主五行强弱、喜用神互补程度。
+3. **十神互动**：双方八字的十神关系、夫妻宫配合度。
+4. **合冲刑害**：双方地支的六合/三合/六冲/六害/三刑关系。
+5. **大运同步性**：双方大运走势是否同步、关键年龄段匹配度。
+6. **综合建议**：配对总分（满分100）、相处注意事项、最佳婚配时机。`;
+  }
+
   /** 调用 DeepSeek API */
-  private async callDeepSeek(prompt: string): Promise<{ content: string; tokenUsage: { promptTokens: number; completionTokens: number } }> {
+  async callDeepSeek(prompt: string): Promise<{ content: string; tokenUsage: { promptTokens: number; completionTokens: number } }> {
     const start = Date.now();
     try {
       const response = await fetch("https://api.deepseek.com/v1/chat/completions", {

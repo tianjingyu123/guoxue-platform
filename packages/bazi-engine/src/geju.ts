@@ -124,7 +124,7 @@ export function calcGeJu(siZhu: SiZhu): GeJu {
     patternGan = yueGan
   }
   // 再看年月时干
-  const otherGans = [siZhu.nian.gan, siZhu.ri.gan, siZhu.shi.gan]
+  const otherGans = [siZhu.nian.gan, siZhu.shi.gan]
   if (!patternGan) {
     for (const g of otherGans) {
       if (monthGans.includes(g)) {

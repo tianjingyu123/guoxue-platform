@@ -383,6 +383,68 @@ export class AuthService {
     return { success: true };
   }
 
+  // ── 设备管理 ──
+
+  async registerDevice(userId: string, deviceName?: string, deviceType?: string, ip?: string) {
+    await this.prisma.loginDevice.updateMany({ where: { userId }, data: { isCurrent: false } });
+    return this.prisma.loginDevice.create({
+      data: { userId, deviceName: deviceName || "未知设备", deviceType: deviceType || "WEB", ipAddress: ip, isCurrent: true },
+    });
+  }
+
+  async listDevices(userId: string) {
+    return this.prisma.loginDevice.findMany({
+      where: { userId },
+      orderBy: { lastLogin: "desc" },
+      select: { id: true, deviceName: true, deviceType: true, ipAddress: true, location: true, isCurrent: true, lastLogin: true, createdAt: true },
+    });
+  }
+
+  async removeDevice(userId: string, deviceId: string) {
+    await this.prisma.loginDevice.deleteMany({ where: { id: deviceId, userId } });
+    return { success: true };
+  }
+
+  // ── 绑定 ──
+
+  async bindPhone(userId: string, phone: string, code: string) {
+    await this.sms.verifyCode(phone, code);
+
+    // 检查手机号是否已被其他用户占用
+    const phoneTaken = await this.prisma.user.findUnique({ where: { phone } });
+    if (phoneTaken && phoneTaken.id !== userId) {
+      throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已被其他账号绑定");
+    }
+
+    // 检查 openId 是否已被其他 Auth 记录占用
+    const openIdTaken = await this.prisma.auth.findUnique({ where: { openId: phone } });
+    if (openIdTaken && openIdTaken.userId !== userId) {
+      throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已被其他账号绑定");
+    }
+
+    // Auth: openId存手机号作为唯一标识
+    const existing = await this.prisma.auth.findFirst({ where: { userId, provider: "PHONE" } });
+    if (existing) {
+      await this.prisma.auth.update({ where: { id: existing.id }, data: { openId: phone, credential: phone } });
+    } else {
+      await this.prisma.auth.create({ data: { userId, provider: "PHONE", openId: phone, credential: phone } });
+    }
+    await this.prisma.user.update({ where: { id: userId }, data: { phone } });
+    return { success: true };
+  }
+
+  async bindWechat(userId: string, code: string) {
+    const wxUser = await this.wechat.exchangeOAuthCode(code);
+    if (!wxUser?.openId) throw new BusinessException(ErrorCode.BAD_REQUEST, "获取微信信息失败");
+    const existing = await this.prisma.auth.findFirst({ where: { userId, provider: "WECHAT" } });
+    if (existing) {
+      await this.prisma.auth.update({ where: { id: existing.id }, data: { openId: wxUser.openId, unionId: wxUser.unionId } });
+    } else {
+      await this.prisma.auth.create({ data: { userId, provider: "WECHAT", openId: wxUser.openId, unionId: wxUser.unionId } });
+    }
+    return { success: true };
+  }
+
   // ───────── 私有方法 ─────────
 
   /** 触发用户注册 Webhook（异步，失败不影响注册流程） */

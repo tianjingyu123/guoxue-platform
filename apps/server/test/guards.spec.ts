@@ -17,10 +17,10 @@ function mockContext(user?: any) {
 }
 
 describe("RolesGuard", () => {
-  it("无 requiredRoles 时放行", () => {
+  it("无 requiredRoles 时拒绝（deny-by-default 防越权）", () => {
     const reflector = { getAllAndOverride: () => undefined } as any;
     const guard = new RolesGuard(reflector);
-    expect(guard.canActivate(mockContext())).toBe(true);
+    expect(guard.canActivate(mockContext())).toBe(false);
   });
 
   it("用户有对应角色时放行", () => {

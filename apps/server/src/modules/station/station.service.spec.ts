@@ -46,7 +46,7 @@ describe("StationService", () => {
       mockRedis.del.mockResolvedValue(undefined);
       const result = await svc.updateStation("s-1", { name: "新名称" });
       expect(result.name).toBe("新名称");
-      expect(mockRedis.del).toHaveBeenCalledTimes(2);
+      expect(mockRedis.del).toHaveBeenCalledTimes(3);
     });
   });
 

@@ -33,25 +33,23 @@ export function calcQiYun(
   const startAge = Math.floor(totalMonths / 12)
   const remainMonths = Math.round(totalMonths % 12)
 
-  // 起运年月
-  let startYear = year + startAge
-  let startMonth = month + remainMonths
-  if (startMonth > 12) {
-    startYear += Math.floor(startMonth / 12)
-    startMonth = startMonth % 12 || 12
-  }
-
-  // 交运日（简化：用出生日）
-  const jiaoYunDay = day
+  // 交运日期 = 出生日期 + 起运总月数（3天折1岁 = 1天折4个月）
+  const totalQiYunMonths = Math.round(dayCount * 4)
+  const birthDate = new Date(year, month - 1, day, hour)
+  const jiaoYunDate = new Date(birthDate)
+  jiaoYunDate.setMonth(jiaoYunDate.getMonth() + totalQiYunMonths)
+  const jiaoYunYear = jiaoYunDate.getFullYear()
+  const jiaoYunMonth = jiaoYunDate.getMonth() + 1
+  const jiaoYunDay = jiaoYunDate.getDate()
 
   // 生成大运步骤
-  const daYun = buildDaYun(yueGanZhi, startYear, startAge, forward)
+  const daYun = buildDaYun(yueGanZhi, jiaoYunYear, startAge, forward)
 
   return {
-    startYear,
+    startYear: jiaoYunYear,
     startAge,
     jiaoYunGan: daYun[0]?.tianGan || '甲',
-    jiaoYunMonth: startMonth,
+    jiaoYunMonth,
     jiaoYunDay,
     dayCount,
     desc: `${direction === 'forward' ? '顺' : '逆'}排，距${direction === 'forward' ? '下一' : '上一'}个节${dayCount}天，${startAge}岁${remainMonths}个月起运`,

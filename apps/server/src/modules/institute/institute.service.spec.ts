@@ -9,6 +9,9 @@ describe("InstituteService", () => {
 
   beforeEach(async () => {
     prisma = {
+      institute: {
+        findFirst: jest.fn().mockResolvedValue({ id: "i1", name: "国学研究院" }),
+      },
       instituteMember: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
@@ -119,27 +122,30 @@ describe("InstituteService", () => {
   });
 
   describe("verifyTask", () => {
-    it("任务完成达标后退还保证金", async () => {
+    it("验证已完成任务", async () => {
       prisma.instituteTask.findUnique.mockResolvedValue({
         id: "t1", memberId: "m1", status: "COMPLETED",
         member: { userId: "u1" },
       });
-      prisma.instituteTask.update.mockResolvedValue({ id: "t1", status: "VERIFIED" });
-      prisma.instituteMember.findUnique.mockResolvedValue({
-        id: "m1", tasksRequired: 1,
-        tasks: [{ id: "t1", status: "VERIFIED" }],
+      prisma.instituteTask.update.mockResolvedValue({ id: "t1", status: "VERIFIED", verifiedBy: "v1" });
+      const result = await svc.verifyTask("t1", "v1");
+      expect(result.status).toBe("VERIFIED");
+    });
+
+    it("未完成任务无法验证", async () => {
+      prisma.instituteTask.findUnique.mockResolvedValue({
+        id: "t1", memberId: "m1", status: "PENDING",
+        member: { userId: "u1" },
       });
-      await svc.verifyTask("t1", "v1");
-      expect(prisma.instituteMember.update).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ depositRefunded: true, status: "GRADUATED" }),
-      }));
+      await expect(svc.verifyTask("t1", "v1")).rejects.toThrow("任务尚未完成");
     });
   });
 
   describe("createEvent / listEvents", () => {
     it("创建活动", async () => {
+      prisma.instituteMember.findUnique.mockResolvedValue({ id: "m1", instituteId: "i1", role: "PRESIDENT" });
       prisma.instituteEvent.create.mockResolvedValue({ id: "e1", title: "讲座" });
-      const result = await svc.createEvent({ title: "讲座", type: "LECTURE", scheduleAt: new Date().toISOString() });
+      const result = await svc.createEvent("u1", { title: "讲座", type: "LECTURE", scheduleAt: new Date().toISOString() });
       expect(result.id).toBe("e1");
     });
 

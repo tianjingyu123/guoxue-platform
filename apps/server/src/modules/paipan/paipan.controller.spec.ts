@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { PaipanController } from "./paipan.controller";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
+import { PrismaService } from "../../prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
@@ -33,6 +34,7 @@ describe("PaipanController", () => {
       providers: [
         { provide: PaipanService, useValue: mockPaipanSvc },
         { provide: PaipanAiService, useValue: mockPaipanAiSvc },
+        { provide: PrismaService, useValue: {} },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })

@@ -1,5 +1,6 @@
 import { Test } from "@nestjs/testing";
-import { HttpException, HttpStatus } from "@nestjs/common";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "@guoxue/shared";
 import { MediaAiController } from "./media-ai.controller";
 import { MediaAiService } from "./media-ai.service";
 import { AiLoggerService } from "./ai-logger.service";
@@ -94,7 +95,7 @@ describe("MediaAiController", () => {
       await expect(
         ctrl.auditImage({ imageUrl: "" }, mockReq),
       ).rejects.toThrow(
-        new HttpException("imageUrl 不能为空", HttpStatus.BAD_REQUEST),
+        new BusinessException(ErrorCode.BAD_REQUEST, "imageUrl 不能为空"),
       );
     });
   });

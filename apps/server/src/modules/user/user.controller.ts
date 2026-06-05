@@ -188,6 +188,31 @@ export class UserController {
     return this.user.isFollowing(req.user.id, id);
   }
 
+  // ── 黑名单 ──
+
+  @Get("blacklist/list")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的黑名单" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  getBlacklist(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
+    return this.user.getBlacklist(req.user.id, +page, +pageSize);
+  }
+
+  @Post(":id/block")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "拉黑用户" })
+  blockUser(@Req() req: Request, @Param("id") blockedUserId: string) {
+    return this.user.blockUser(req.user.id, blockedUserId);
+  }
+
+  @Delete(":id/block")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "取消拉黑" })
+  unblockUser(@Req() req: Request, @Param("id") blockedUserId: string) {
+    return this.user.unblockUser(req.user.id, blockedUserId);
+  }
+
   // ───────── 用户分群推送 ─────────
 
   @Post("push/by-tag")

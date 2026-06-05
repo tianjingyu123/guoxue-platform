@@ -6,8 +6,8 @@ import {
   GAN, ZHI,
   GAN_HE_PAIRS, ZHI_HE_PAIRS, ZHI_CHONG_PAIRS, ZHI_HAI_PAIRS,
   ZHI_SAN_HE, ZHI_SAN_HUI, ZHI_SAN_XING, ZHI_ZI_XING,
-  ZHI_AN_HE, ZHI_XIANG_PO,
-  CHANG_SHENG, DI_SHI,
+  ZHI_AN_HE, ZHI_XIANG_PO, ZHI_AN_JUE,
+  CHANG_SHENG, DI_SHI, WU_HU_DUN,
 } from './constants'
 import { calcShiShen } from './sizhu'
 
@@ -160,6 +160,21 @@ export function detectXiangPo(zhis: Zhi[]): string[] {
   return results
 }
 
+/** 地支暗绝检测 */
+export function detectAnJue(zhis: Zhi[]): string[] {
+  const results: string[] = []
+  for (let i = 0; i < zhis.length; i++) {
+    for (let j = i + 1; j < zhis.length; j++) {
+      for (const [a, b, desc] of ZHI_AN_JUE) {
+        if ((zhis[i] === a && zhis[j] === b) || (zhis[i] === b && zhis[j] === a)) {
+          results.push(desc)
+        }
+      }
+    }
+  }
+  return results
+}
+
 /** 完整合冲刑害检测 */
 export function calcFenXiTiShi(siZhu: SiZhu): FenXiTiShi {
   const gans: Gan[] = [siZhu.nian.gan, siZhu.yue.gan, siZhu.ri.gan, siZhu.shi.gan]
@@ -176,6 +191,7 @@ export function calcFenXiTiShi(siZhu: SiZhu): FenXiTiShi {
     ziXing: detectZiXing(zhis),
     anHe: detectAnHe(zhis),
     xiangPo: detectXiangPo(zhis),
+    anJue: detectAnJue(zhis),
   }
 }
 
@@ -197,18 +213,17 @@ export function calcTaiYuan(yueGan: Gan, yueZhi: Zhi, riGan: Gan): Pillar {
 }
 
 // ---------- 命宫 ----------
-/** 命宫：以月支为子时，顺数到出生时辰 */
-export function calcMingGong(yueZhi: Zhi, shiZhi: Zhi, riGan: Gan): Pillar {
+/** 命宫：以月支为子时，顺数到出生时辰，天干用五虎遁（年上起月法） */
+export function calcMingGong(yueZhi: Zhi, shiZhi: Zhi, nianGan: Gan, riGan: Gan): Pillar {
   const yueIdx = ZHI.indexOf(yueZhi)
   const shiIdx = ZHI.indexOf(shiZhi)
-  // 从月支数到时辰，命宫地支 = (月支 + 时支 - 子时) % 12
   const mingZhiIdx = (yueIdx + shiIdx) % 12
   const zhi = ZHI[mingZhiIdx]
 
-  // 命宫天干：用年上起月法（五虎遁），以命宫地支定天干
-  // 简化：直接用丙寅为基准
-  const WU_HU_DUN: Gan[] = ['丙','戊','庚','壬','甲','丙','戊','庚','壬','甲']
-  const ganIdx = (GAN.indexOf(WU_HU_DUN[0]) + mingZhiIdx) % 10
+  // 命宫天干用五虎遁：年干定寅月天干，命宫地支定偏移
+  const dunIdx = Math.floor(GAN.indexOf(nianGan) % 5)
+  const yinGanIdx = GAN.indexOf(WU_HU_DUN[dunIdx])
+  const ganIdx = (yinGanIdx + ((mingZhiIdx - 2) % 12 + 12) % 12) % 10
   const gan = GAN[ganIdx]
 
   return {
@@ -222,15 +237,17 @@ export function calcMingGong(yueZhi: Zhi, shiZhi: Zhi, riGan: Gan): Pillar {
 }
 
 // ---------- 身宫 ----------
-/** 身宫：以月支为子时，逆数到出生时辰 */
-export function calcShenGong(yueZhi: Zhi, shiZhi: Zhi, riGan: Gan): Pillar {
+/** 身宫：以月支为子时，逆数到出生时辰，天干用五虎遁（年上起月法） */
+export function calcShenGong(yueZhi: Zhi, shiZhi: Zhi, nianGan: Gan, riGan: Gan): Pillar {
   const yueIdx = ZHI.indexOf(yueZhi)
   const shiIdx = ZHI.indexOf(shiZhi)
-  // 从月支逆数到时辰
   const shenZhiIdx = ((yueIdx - shiIdx) % 12 + 12) % 12
   const zhi = ZHI[shenZhiIdx]
 
-  const ganIdx = shenZhiIdx % 10
+  // 身宫天干用五虎遁
+  const dunIdx = Math.floor(GAN.indexOf(nianGan) % 5)
+  const yinGanIdx = GAN.indexOf(WU_HU_DUN[dunIdx])
+  const ganIdx = (yinGanIdx + ((shenZhiIdx - 2) % 12 + 12) % 12) % 10
   const gan = GAN[ganIdx]
 
   return {
@@ -250,7 +267,12 @@ export function calcDiShi(gan: Gan, zhi: Zhi): string {
   if (!changShengZhi) return ''
   const csIdx = ZHI.indexOf(changShengZhi)
   const zhiIdx = ZHI.indexOf(zhi)
-  const offset = ((zhiIdx - csIdx) % 12 + 12) % 12
+  const ganIdx = GAN.indexOf(gan)
+  const isYang = ganIdx % 2 === 0
+  // 阳干顺行，阴干逆行
+  const offset = isYang
+    ? ((zhiIdx - csIdx) % 12 + 12) % 12
+    : ((csIdx - zhiIdx) % 12 + 12) % 12
   return DI_SHI[offset]
 }
 

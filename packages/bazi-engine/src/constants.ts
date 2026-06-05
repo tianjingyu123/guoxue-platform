@@ -126,6 +126,14 @@ export const ZHI_XIANG_PO: [Zhi, Zhi, string][] = [
   ['戌', '未', '戌未破'],
 ]
 
+/** 地支暗绝 */
+export const ZHI_AN_JUE: [Zhi, Zhi, string][] = [
+  ['酉', '寅', '酉寅绝'],
+  ['子', '巳', '子巳绝'],
+  ['卯', '申', '卯申绝'],
+  ['午', '亥', '午亥绝'],
+]
+
 /** 空亡表（日柱旬空） */
 export function getKongWang(riGanZhi: string): string {
   const riIndex = GAN.indexOf(riGanZhi[0] as Gan)

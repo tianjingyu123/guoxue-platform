@@ -65,6 +65,16 @@ function getShiGan(riGan: string, shiZhi: string): string {
   return TIAN_GAN[(baseGan + zhiIdx) % 10];
 }
 
+// 旬首地支→九宫起始索引
+const XUN_SHOU_GONG: Record<string, number> = {
+  "子": 0, "戌": 5, "申": 1, "午": 8, "辰": 3, "寅": 7,
+};
+
+// 旬空对照表
+const XUN_KONG_GONG: Record<string, number[]> = {
+  "子": [5], "戌": [1, 6], "申": [8, 1], "午": [3], "辰": [7, 2], "寅": [0, 7],
+};
+
 /** 阴盘奇门排盘 */
 export function calculateQimenYin(input: Record<string, unknown>): QimenResult {
   const datetime = (input.datetime as string) ?? new Date().toISOString();
@@ -111,11 +121,12 @@ export function calculateQimenYin(input: Record<string, unknown>): QimenResult {
   const zhiFuXing = JIU_XING[zhiFuGongIdx];
 
   // ── 第3步：值使门 ──
+  // 从旬首地支所在宫起数，阴遁逆数至时支
   const shiZhiIdx = DI_ZHI.indexOf(shiZhi);
   const xunShouZhiIdx = DI_ZHI.indexOf(xunShouZhi);
   const zhiBuShu = (shiZhiIdx - xunShouZhiIdx + 12) % 12;
-  // 阴盘默认阴遁方向
-  const zhiShiMenGongIdx = (9 - zhiBuShu % 9) % 9;
+  const xunShouGongIdx = XUN_SHOU_GONG[xunShouZhi] ?? 0;
+  const zhiShiMenGongIdx = (xunShouGongIdx - zhiBuShu % 9 + 9) % 9;
   const zhiShiMen = BA_MEN[zhiShiMenGongIdx];
 
   // ── 第4步：排天盘干（值符星落时干宫驱动） ──
@@ -140,20 +151,41 @@ export function calculateQimenYin(input: Record<string, unknown>): QimenResult {
   }
 
   // ── 第7步：排隐干（阴盘特有） ──
-  // 隐干排列规则：时干起，按宫位顺序飞布
+  // 时干起于值符宫，阴遁逆飞九宫
   const shiGanIdx = TIAN_GAN.indexOf(shiGan);
-  const yinGanArr: string[] = [];
+  const yinGanArr: string[] = new Array(9).fill("甲");
   for (let i = 0; i < 9; i++) {
-    yinGanArr.push(TIAN_GAN[(shiGanIdx + i) % 10]);
+    const gongOffset = (zhiFuGongIdx - i + 9) % 9; // 阴遁：值符宫→逆数
+    yinGanArr[i] = TIAN_GAN[(shiGanIdx + gongOffset) % 10];
   }
 
   // ── 第8步：排八神 ──
-  const shenArr = BA_SHEN;
+  // 阴盘八神：值符领头，始终此序转。旋转使值符落在值符宫
+  const nonZhongIdx = [0, 1, 2, 3, 5, 6, 7, 8];
+  const zhiFuShenOffset = zhiFuGongIdx === 4 ? 1 : (nonZhongIdx.indexOf(zhiFuGongIdx)); // 中5寄坤2
+  const shenArr: string[] = [];
+  for (let i = 0; i < 8; i++) {
+    shenArr.push(BA_SHEN[(i - zhiFuShenOffset + 8) % 8]);
+  }
 
   // ── 第9步：构建九宫 ──
   const gongs: QimenGong[] = [];
-  // 非中宫索引映射
-  const nonZhongIdx = [0, 1, 2, 3, 5, 6, 7, 8];
+
+  // 空亡：根据旬首查表
+  const kongWangGongs = XUN_KONG_GONG[xunShouZhi] ?? [];
+
+  // 马星：日支三合局→马星宫
+  const maXingGroups = ["寅午戌", "申子辰", "巳酉丑", "亥卯未"];
+  const maXingGongByGroup = [1, 7, 5, 3]; // 申坤2, 寅艮8, 亥乾6, 巳巽4
+  let maXingGong = -1;
+  for (let g = 0; g < 4; g++) {
+    if (maXingGroups[g].includes(riZhi)) { maXingGong = maXingGongByGroup[g]; break; }
+  }
+
+  // 入墓：天干→墓库宫（甲乙墓未坤2, 丙丁墓戌乾6, 戊己墓戌乾6, 庚辛墓丑艮8, 壬癸墓辰巽4）
+  const ganRuMu: Record<string, number> = {
+    "甲":1,"乙":1,"丙":5,"丁":5,"戊":5,"己":5,"庚":7,"辛":7,"壬":3,"癸":3,
+  };
 
   for (let gi = 0; gi < 9; gi++) {
     const gongName = GONG_NAMES[gi];
@@ -172,27 +204,11 @@ export function calculateQimenYin(input: Record<string, unknown>): QimenResult {
     }
 
     const shenIdx = nonZhongIdx.indexOf(gi);
+    const isKongWang = kongWangGongs.includes(gi);
+    const isMaXing = gi === maXingGong;
 
-    // 空亡：旬首地支的绝地
-    const isKongWang = (DI_ZHI.indexOf(xunShouZhi) + 1) % 12 === gi % 12;
-
-    // 马星：日支三合局马星
-    const maXingZhiMap: Record<string, string> = {
-      "子":"寅","丑":"亥","寅":"申","卯":"巳",
-      "辰":"寅","巳":"亥","午":"申","未":"巳",
-      "申":"寅","酉":"亥","戌":"申","亥":"巳",
-    };
-    const maZhi = maXingZhiMap[riZhi] ?? "寅";
-    const isMaXing = DI_ZHI.indexOf(maZhi) % 4 === gi % 4; // 简化
-
-    // 入墓：天干入墓
-    const ganRuMu: Record<string, number> = {
-      "甲":1,"乙":1,"丙":8,"丁":8,"戊":8,"己":8,
-      "庚":2,"辛":2,"壬":6,"癸":6,
-    };
-    const tianPanGan = tianPan[gi];
-    const tianPanGanWuXing = ganRuMu[tianPanGan];
-    const isRuMu = tianPanGanWuXing !== undefined && tianPanGanWuXing === GONG_INDEXES[gi];
+    const tg = tianPan[gi];
+    const isRuMu = ganRuMu[tg] === GONG_INDEXES[gi];
 
     gongs.push({
       index: GONG_INDEXES[gi],

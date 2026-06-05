@@ -114,21 +114,21 @@ describe('calcTaiYuan - 胎元计算', () => {
 
 describe('calcMingGong - 命宫计算', () => {
   it('寅月巳时 → 未宫（癸未）', () => {
-    const result = calcMingGong('寅', '巳', '庚')
+    const result = calcMingGong('寅', '巳', '庚', '庚')
     expect(result.gan).toBe('癸')
     expect(result.zhi).toBe('未')
   })
 
   it('子月子时 → 子宫', () => {
-    const result = calcMingGong('子', '子', '甲')
+    const result = calcMingGong('子', '子', '甲', '甲')
     expect(result.zhi).toBe('子')
   })
 })
 
 describe('calcShenGong - 身宫计算', () => {
   it('寅月巳时g → 酉宫（癸酉）', () => {
-    const result = calcShenGong('寅', '巳', '庚')
-    expect(result.gan).toBe('癸')
+    const result = calcShenGong('寅', '巳', '庚', '庚')
+    expect(result.gan).toBe('乙')
     expect(result.zhi).toBe('酉')
   })
 })

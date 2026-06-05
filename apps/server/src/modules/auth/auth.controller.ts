@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body, Query, UseGuards, UsePipes, Req, BadRequestException, Logger } from "@nestjs/common";
+import { Controller, Post, Get, Put, Delete, Body, Param, Query, UseGuards, UsePipes, Req, BadRequestException, Logger } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
 import { WechatService } from "./wechat.service";
@@ -161,5 +161,47 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   changePassword(@Req() req: Request, @Body() dto: ChangePasswordDto) {
     return this.auth.changePassword(req.user.id, dto);
+  }
+
+  // ── 账号安全 ──
+
+  @Post("devices/register")
+  @ApiOperation({ summary: "注册当前登录设备" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  registerDevice(@Req() req: Request, @Body() body: { deviceName?: string; deviceType?: string }) {
+    return this.auth.registerDevice(req.user.id, body.deviceName, body.deviceType, req.ip || undefined);
+  }
+
+  @Get("devices")
+  @ApiOperation({ summary: "登录设备列表" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  listDevices(@Req() req: Request) {
+    return this.auth.listDevices(req.user.id);
+  }
+
+  @Post("devices/:id/logout")
+  @ApiOperation({ summary: "踢出指定设备" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  removeDevice(@Req() req: Request, @Param("id") id: string) {
+    return this.auth.removeDevice(req.user.id, id);
+  }
+
+  @Post("bind/phone")
+  @ApiOperation({ summary: "绑定手机号" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  bindPhone(@Req() req: Request, @Body() body: { phone: string; code: string }) {
+    return this.auth.bindPhone(req.user.id, body.phone, body.code);
+  }
+
+  @Post("bind/wechat")
+  @ApiOperation({ summary: "绑定微信" })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  bindWechat(@Req() req: Request, @Body("code") code: string) {
+    return this.auth.bindWechat(req.user.id, code);
   }
 }

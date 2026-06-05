@@ -73,9 +73,9 @@ export class PaipanService {
   }
 
   /** 获取单条排盘记录 */
-  async getBaziRecord(id: string, _userId: string) {
-    const record = await this.prisma.paipanRecord.findUnique({
-      where: { id },
+  async getBaziRecord(id: string, userId: string) {
+    const record = await this.prisma.paipanRecord.findFirst({
+      where: { id, userId },
       select: {
         id: true,
         clientName: true,
@@ -165,9 +165,9 @@ export class PaipanService {
   }
 
   /** 获取单条紫微排盘记录 */
-  async getZiweiRecord(id: string, _userId: string) {
-    const record = await this.prisma.paipanRecord.findUnique({
-      where: { id },
+  async getZiweiRecord(id: string, userId: string) {
+    const record = await this.prisma.paipanRecord.findFirst({
+      where: { id, userId },
       select: {
         id: true,
         clientName: true,

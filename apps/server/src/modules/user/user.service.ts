@@ -265,6 +265,40 @@ export class UserService {
     return { following: !!follow };
   }
 
+  // ───────── 黑名单 ─────────
+
+  async getBlacklist(userId: string, page = 1, pageSize = 20) {
+    const where = { userId };
+    const [blocks, total] = await Promise.all([
+      this.prisma.blacklist.findMany({
+        where,
+        include: { blockedUser: { select: { id: true, nickname: true, avatar: true } } },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.blacklist.count({ where }),
+    ]);
+    return { blocks, total, page, pageSize };
+  }
+
+  async blockUser(userId: string, blockedUserId: string) {
+    if (userId === blockedUserId) throw new BusinessException(ErrorCode.BAD_REQUEST, "不能拉黑自己");
+    await this.prisma.blacklist.upsert({
+      where: { userId_blockedUserId: { userId, blockedUserId } },
+      create: { userId, blockedUserId },
+      update: {},
+    });
+    await this.prisma.follow.deleteMany({ where: { userId, followedUserId: blockedUserId } });
+    await this.prisma.follow.deleteMany({ where: { userId: blockedUserId, followedUserId: userId } });
+    return { success: true };
+  }
+
+  async unblockUser(userId: string, blockedUserId: string) {
+    await this.prisma.blacklist.deleteMany({ where: { userId, blockedUserId } });
+    return { success: true };
+  }
+
   // ───────── 用户分群推送 ─────────
 
   async pushByTag(

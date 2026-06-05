@@ -116,6 +116,26 @@ function getXunShouZhi(shiChenGanZhi: string): string {
   return DI_ZHI[jiaZhiIdx];
 }
 
+// 旬首地支→九宫起始索引（六甲旬首对应的地盘宫位）
+const XUN_SHOU_GONG: Record<string, number> = {
+  "子": 0,  // 甲子戊→坎1宫
+  "戌": 5,  // 甲戌己→乾6宫
+  "申": 1,  // 甲申庚→坤2宫
+  "午": 8,  // 甲午辛→离9宫
+  "辰": 3,  // 甲辰壬→巽4宫
+  "寅": 7,  // 甲寅癸→艮8宫
+};
+
+// 旬空对照表（六甲旬 → 空亡地支 → 空亡宫位）
+const XUN_KONG_GONG: Record<string, number[]> = {
+  "子": [5],       // 戌亥空→乾6
+  "戌": [1, 6],    // 申酉空→坤2+兑7
+  "申": [8, 1],    // 午未空→离9+坤2
+  "午": [3],       // 辰巳空→巽4
+  "辰": [7, 2],    // 寅卯空→艮8+震3
+  "寅": [0, 7],    // 子丑空→坎1+艮8
+};
+
 /** 阳盘奇门排盘（转盘法） */
 export function calculateQimenYang(input: Record<string, unknown>): QimenResult {
   const datetime = (input.datetime as string) ?? new Date().toISOString();
@@ -170,17 +190,16 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
   const zhiFuXing = JIU_XING[zhiFuGongIdx];
 
   // ── 第3步：确定值使门 ──
-  // 旬首地支→时支飞布，落宫的地门=值使门
+  // 旬首地支→时支飞布，从旬首地支所在宫起数，阳顺阴逆数至时支
   const xunShouZhiIdx = DI_ZHI.indexOf(xunShouZhi);
   const shiZhiIdx = DI_ZHI.indexOf(shiZhi);
-  // 从旬首地支开始，按阳顺阴倒数到时支，共数 (shiZhiIdx - xunShouZhiIdx + 12) % 12 步
   const zhiBuShu = (shiZhiIdx - xunShouZhiIdx + 12) % 12;
-  // 从坎1宫开始，阳顺阴逆飞布
+  const xunShouGongIdx = XUN_SHOU_GONG[xunShouZhi] ?? 0;
   let zhiShiMenGongIdx: number;
   if (isYangDun) {
-    zhiShiMenGongIdx = zhiBuShu % 9; // 坎1=0步, 坤2=1步, ...
+    zhiShiMenGongIdx = (xunShouGongIdx + zhiBuShu) % 9;
   } else {
-    zhiShiMenGongIdx = (9 - zhiBuShu % 9) % 9;
+    zhiShiMenGongIdx = (xunShouGongIdx - zhiBuShu % 9 + 9) % 9;
   }
   const zhiShiMen = BA_MEN[zhiShiMenGongIdx];
 
@@ -217,13 +236,34 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
   }
 
   // ── 第7步：排八神 ──
-  // 值符领头，阳遁顺排，阴遁逆排
-  const shenArr = isYangDun ? BA_SHEN_YANG : BA_SHEN_YIN;
+  // 值符领头，阳遁顺排阴遁逆排，值符落在值符宫
+  const shenBase = isYangDun ? BA_SHEN_YANG : BA_SHEN_YIN;
+  // 旋转使值符(数组[0])落在值符宫对应的非中宫序列位置
+  const nonZhongIdx = [0, 1, 2, 3, 5, 6, 7, 8];
+  const zhiFuShenOffset = zhiFuGongIdx === 4 ? 1 : (nonZhongIdx.indexOf(zhiFuGongIdx)); // 中5寄坤2
+  const shenArr: string[] = [];
+  for (let i = 0; i < 8; i++) {
+    shenArr.push(shenBase[(i - zhiFuShenOffset + 8) % 8]);
+  }
 
   // ── 第8步：构建九宫 ──
   const gongs: QimenGong[] = [];
-  // 非中宫的八宫映射：坎0,坤1,震2,巽3,乾5,兑6,艮7,离8
-  const nonZhongIdx = [0, 1, 2, 3, 5, 6, 7, 8]; // 跳过中5(index=4)
+
+  // 空亡：根据旬首查表
+  const kongWangGongs = XUN_KONG_GONG[xunShouZhi] ?? [];
+
+  // 马星：日支三合局→马星地支→马星宫
+  const maXingGroups = ["寅午戌", "申子辰", "巳酉丑", "亥卯未"];
+  const maXingGongByGroup = [1, 7, 5, 3]; // 申坤2, 寅艮8, 亥乾6, 巳巽4
+  let maXingGong = -1;
+  for (let g = 0; g < 4; g++) {
+    if (maXingGroups[g].includes(riZhi)) { maXingGong = maXingGongByGroup[g]; break; }
+  }
+
+  // 入墓：天干→墓库宫（甲乙墓未坤2, 丙丁墓戌乾6, 戊己墓戌乾6, 庚辛墓丑艮8, 壬癸墓辰巽4）
+  const ganRuMuGong: Record<string, number> = {
+    "甲":1,"乙":1,"丙":5,"丁":5,"戊":5,"己":5,"庚":7,"辛":7,"壬":3,"癸":3,
+  };
 
   for (let gi = 0; gi < 9; gi++) {
     const gongName = GONG_NAMES[gi];
@@ -244,23 +284,16 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
       continue;
     }
 
-    // 八神循环（只排8个宫，中宫跳过）
+    // 八神（已在上面旋转，值符在值符宫）
     const shenIdx = nonZhongIdx.indexOf(gi);
     const shen = shenIdx >= 0 ? shenArr[shenIdx % 8] : shenArr[0];
 
-    // 空亡：旬首地支所在宫
-    const kongWangZhiIdx = DI_ZHI.indexOf(xunShouZhi);
-    const kongWangGongIdx = (10 - kongWangZhiIdx / 2 * 2) % 10; // 干支相冲
-    const isKongWang = gi === (kongWangGongIdx % 9);
+    const isKongWang = kongWangGongs.includes(gi);
+    const isMaXing = gi === maXingGong;
 
-    // 马星：日支对冲宫（寅午戌马在申, 申子辰马在寅, 巳酉丑马在亥, 亥卯未马在巳）
-    const riZhiIdx = DI_ZHI.indexOf(riZhi);
-    const maXingMap: Record<string, string> = {
-      "申":"寅","寅":"申","亥":"巳","巳":"亥",
-    };
-    const maZhi = maXingMap[DI_ZHI[riZhiIdx]] ?? "寅";
-    const maZhiIdx = DI_ZHI.indexOf(maZhi);
-    const isMaXing = (maZhiIdx % 4) === (gi % 4); // 简化马星判断
+    // 入墓：天盘干入墓
+    const tg = tianPan[gi];
+    const isRuMu = ganRuMuGong[tg] === gi;
 
     gongs.push({
       index: gongIdx,
@@ -271,7 +304,7 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
       star: starArr[gi],
       men: gi === 4 ? BA_MEN[4] : menArr[shenIdx % 8],
       shen,
-      isRuMu: false,
+      isRuMu,
       isJiXing: false,
       isMenPo: false,
       kongWang: isKongWang,

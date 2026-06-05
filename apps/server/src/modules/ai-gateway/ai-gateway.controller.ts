@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Req, Res, UseGuards, Logger, HttpException, HttpStatus } from "@nestjs/common";
+import { Controller, Post, Get, Body, Req, Res, UseGuards, Logger } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { AiGatewayService } from "./ai-gateway.service";
@@ -9,6 +9,8 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 /**
  * AI 网关控制器
@@ -56,7 +58,7 @@ export class AiGatewayController {
       });
     } catch (err: any) {
       if (err.message?.includes("未配置")) {
-        throw new HttpException(err.message, HttpStatus.SERVICE_UNAVAILABLE);
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "AI对话服务异常");
       }
       throw err;
     }

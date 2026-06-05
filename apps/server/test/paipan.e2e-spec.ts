@@ -101,7 +101,7 @@ describe("Paipan E2E", () => {
     it("返回排盘记录详情", async () => {
       const token = jwt.sign({ sub: "u1" })
       prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
-      prisma.paipanRecord.findUnique.mockResolvedValue({
+      prisma.paipanRecord.findFirst.mockResolvedValue({
         id: "pp1", userId: "u1", paipanType: "BAZI", clientName: "测试",
         inputParams: { year: 1984, month: 11, day: 15, hour: 8 },
         resultData: { bazi: "甲子 乙亥 丙子 丁卯" },
