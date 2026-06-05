@@ -36,23 +36,22 @@
 import { ref } from 'vue'
 
 const tools = ref([
-  { id: 'bazi', name: '八字排盘', desc: '四柱八字命运分析', icon: '🔮', path: '/pages/bazi/bazi' },
-  { id: 'ziwei', name: '紫微斗数', desc: '十二宫命盘解析', icon: '⭐', path: '/pages/ziwei/ziwei' },
-  { id: 'qimen', name: '奇门遁甲', desc: '天时地利人和', icon: '🚪', path: '' },
-  { id: 'liuyao', name: '六爻预测', desc: '摇卦断事解惑', icon: '🪙', path: '' },
-  { id: 'fengshui', name: '风水堪舆', desc: '地理环境吉凶', icon: '🧭', path: '' },
-  { id: 'hehun', name: '八字合婚', desc: '两人八字相合', icon: '💑', path: '' },
-  { id: 'chenggu', name: '称骨算命', desc: '生辰骨重批命', icon: '⚖️', path: '' },
-  { id: 'huangli', name: '每日黄历', desc: '今日宜忌吉凶', icon: '📅', path: '' },
-  { id: 'jiemeng', name: '周公解梦', desc: '梦境解析查询', icon: '💤', path: '' },
-  { id: 'lingqian', name: '灵签', desc: '寺庙灵签占卜', icon: '🏮', path: '' },
-  { id: 'zeri', name: '择日大全', desc: '婚嫁开业吉日', icon: '🗓️', path: '' },
-  { id: 'yizhangjing', name: '达摩一掌经', desc: '前世今生因果', icon: '✋', path: '' },
+  { id: 'bazi', name: '八字排盘', desc: '四柱八字命运分析', icon: '🔮' },
+  { id: 'ziwei', name: '紫微斗数', desc: '十二宫命盘解析', icon: '⭐' },
+  { id: 'qimen-yang', name: '奇门遁甲', desc: '天时地利人和', icon: '🚪' },
+  { id: 'liuyao', name: '六爻预测', desc: '摇卦断事解惑', icon: '🪙' },
+  { id: 'meihua', name: '梅花易数', desc: '体用生克断卦', icon: '🌸' },
+  { id: 'bazi-hehun', name: '八字合婚', desc: '两人八字相合', icon: '💑' },
+  { id: 'chenggu', name: '称骨算命', desc: '生辰骨重批命', icon: '⚖️' },
+  { id: 'huangli', name: '每日黄历', desc: '今日宜忌吉凶', icon: '📅' },
+  { id: 'jiemeng', name: '周公解梦', desc: '梦境解析查询', icon: '💤' },
+  { id: 'lingqian', name: '灵签', desc: '寺庙灵签占卜', icon: '🏮' },
+  { id: 'zeri', name: '择日大全', desc: '婚嫁开业吉日', icon: '🗓️' },
+  { id: 'yizhangjing', name: '达摩一掌经', desc: '前世今生因果', icon: '✋' },
 ])
 
 function goTool(tool: any) {
-  if (tool.path) { uni.navigateTo({ url: tool.path }) }
-  else { uni.showToast({ title: '即将上线', icon: 'none' }) }
+  uni.navigateTo({ url: `/pages/tools/calculate?toolId=${tool.id}` })
 }
 </script>
 

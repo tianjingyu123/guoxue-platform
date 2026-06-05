@@ -1311,6 +1311,13 @@
       }
     },
     {
+      "path": "pages/tools/calculate",
+      "style": {
+        "navigationBarTitleText": "排盘计算",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/topics/topic",
       "style": {
         "navigationBarTitleText": "话题页"
