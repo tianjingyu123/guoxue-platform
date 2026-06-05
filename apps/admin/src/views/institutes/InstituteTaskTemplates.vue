@@ -2,42 +2,149 @@
   <div class="page">
     <div class="header">
       <h2>研究院任务模板管理</h2>
-      <el-button type="primary" @click="openCreate">新增模板</el-button>
+      <el-button
+        type="primary"
+        @click="openCreate"
+      >
+        新增模板
+      </el-button>
     </div>
 
-    <el-table v-loading="loading" :data="list" border stripe>
-      <el-table-column label="任务名称" min-width="180" prop="name" />
-      <el-table-column label="类型" width="120">
-        <template #default="{ row }"><el-tag size="small">{{ row.taskType || '-' }}</el-tag></template>
-      </el-table-column>
-      <el-table-column label="分值" width="80" align="center" prop="score" />
-      <el-table-column label="截止天数" width="100" align="center">
-        <template #default="{ row }">{{ row.deadlineDays || '-' }}天</template>
-      </el-table-column>
-      <el-table-column label="保证金门槛" width="120" align="right">
-        <template #default="{ row }">¥{{ row.depositThreshold || 0 }}</template>
-      </el-table-column>
-      <el-table-column label="描述" min-width="200" prop="description" />
-      <el-table-column label="操作" width="160" fixed="right">
+    <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      stripe
+    >
+      <el-table-column
+        label="任务名称"
+        min-width="180"
+        prop="name"
+      />
+      <el-table-column
+        label="类型"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+          <el-tag size="small">
+            {{ row.taskType || '-' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="分值"
+        width="80"
+        align="center"
+        prop="score"
+      />
+      <el-table-column
+        label="截止天数"
+        width="100"
+        align="center"
+      >
+        <template #default="{ row }">
+          {{ row.deadlineDays || '-' }}天
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="保证金门槛"
+        width="120"
+        align="right"
+      >
+        <template #default="{ row }">
+          ¥{{ row.depositThreshold || 0 }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="描述"
+        min-width="200"
+        prop="description"
+      />
+      <el-table-column
+        label="操作"
+        width="160"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑模板' : '新增模板'" width="500px">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="任务名称" required><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="类型"><el-input v-model="form.taskType" placeholder="如 CONTENT/COURSE/INVITE" /></el-form-item>
-        <el-form-item label="分值"><el-input-number v-model="form.score" :min="0" style="width:100%" /></el-form-item>
-        <el-form-item label="截止天数"><el-input-number v-model="form.deadlineDays" :min="1" style="width:100%" /></el-form-item>
-        <el-form-item label="保证金门槛"><el-input-number v-model="form.depositThreshold" :min="0" :precision="2" style="width:100%" /></el-form-item>
-        <el-form-item label="描述"><el-input v-model="form.description" type="textarea" :rows="2" /></el-form-item>
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? '编辑模板' : '新增模板'"
+      width="500px"
+    >
+      <el-form
+        :model="form"
+        label-width="100px"
+      >
+        <el-form-item
+          label="任务名称"
+          required
+        >
+          <el-input v-model="form.name" />
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-input
+            v-model="form.taskType"
+            placeholder="如 CONTENT/COURSE/INVITE"
+          />
+        </el-form-item>
+        <el-form-item label="分值">
+          <el-input-number
+            v-model="form.score"
+            :min="0"
+            style="width:100%"
+          />
+        </el-form-item>
+        <el-form-item label="截止天数">
+          <el-input-number
+            v-model="form.deadlineDays"
+            :min="1"
+            style="width:100%"
+          />
+        </el-form-item>
+        <el-form-item label="保证金门槛">
+          <el-input-number
+            v-model="form.depositThreshold"
+            :min="0"
+            :precision="2"
+            style="width:100%"
+          />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="2"
+          />
+        </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

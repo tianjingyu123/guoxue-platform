@@ -341,8 +341,6 @@ async function fetchList() {
     // AI生成筛选
     if (activeTab.value === 'AI_GENERATED' || filterAiOnly.value) {
       items = items.filter(isAiContent);
-    } else if (filterAiOnly.value) {
-      items = items.filter(isAiContent);
     }
 
     // 品类筛选

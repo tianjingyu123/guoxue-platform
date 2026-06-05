@@ -15,6 +15,21 @@
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended"
   ],
+  "globals": {
+    "uni": "readonly",
+    "getCurrentPages": "readonly",
+    "getApp": "readonly",
+    "onShow": "readonly",
+    "onHide": "readonly",
+    "onLoad": "readonly",
+    "onReady": "readonly",
+    "onUnload": "readonly",
+    "onPullDownRefresh": "readonly",
+    "onReachBottom": "readonly",
+    "wx": "readonly",
+    "plus": "readonly",
+    "uniCloud": "readonly"
+  },
   "rules": {
     "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
     "@typescript-eslint/no-explicit-any": "warn",
@@ -22,7 +37,8 @@
     "no-console": ["error", { "allow": ["warn", "error"] }],
     "no-debugger": "error",
     "no-var": "error",
-    "prefer-const": "error"
+    "prefer-const": "error",
+    "no-empty": "warn"
   },
   "ignorePatterns": [
     "node_modules",
@@ -42,7 +58,9 @@
       ],
       "rules": {
         "vue/multi-word-component-names": "off",
-        "vue/require-default-prop": "off"
+        "vue/require-default-prop": "off",
+        "@typescript-eslint/no-unused-vars": "warn",
+        "no-empty": "off"
       }
     },
     {

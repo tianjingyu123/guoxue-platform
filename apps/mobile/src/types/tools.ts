@@ -336,6 +336,7 @@ export interface QimenYinInput {
 }
 
 /** 阴盘奇门结果（同阳盘，增加 yinGan 隐干字段） */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface QimenYinResult extends QimenYangResult {
   // 继承阳盘结构，gongs 中 yinGan 字段会填充，九星/八门/八神逆排
 }
@@ -353,6 +354,7 @@ export interface QimenYinMingliInput {
 }
 
 /** 阴盘命理奇门结果（结构同阳盘命理，使用阴盘排盘算法） */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface QimenYinMingliResult extends QimenYangMingliResult {
   // 同阳盘命理结构，九星/八门/八神逆排、隐干
 }

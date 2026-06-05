@@ -1,10 +1,16 @@
 <template>
   <div class="station-dashboard">
     <!-- 顶部品牌卡片 -->
-    <el-card class="brand-card" shadow="hover">
+    <el-card
+      class="brand-card"
+      shadow="hover"
+    >
       <div class="brand-header">
         <div class="brand-info">
-          <el-avatar :size="64" :src="station.logo" />
+          <el-avatar
+            :size="64"
+            :src="station.logo"
+          />
           <div class="brand-text">
             <h2>{{ station.name || '我的分站' }}</h2>
             <el-tag :type="station.status === 'ACTIVE' ? 'success' : 'warning'">
@@ -14,35 +20,70 @@
           </div>
         </div>
         <div class="brand-actions">
-          <el-button type="primary" @click="showProfileEdit = true">编辑分站信息</el-button>
-          <el-button @click="copyShareLink">复制推广链接</el-button>
+          <el-button
+            type="primary"
+            @click="showProfileEdit = true"
+          >
+            编辑分站信息
+          </el-button>
+          <el-button @click="copyShareLink">
+            复制推广链接
+          </el-button>
         </div>
       </div>
     </el-card>
 
     <!-- 核心数据 -->
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
-        <el-statistic title="累计收益（元）" :value="station.totalEarning" :precision="2" />
+        <el-statistic
+          title="累计收益（元）"
+          :value="station.totalEarning"
+          :precision="2"
+        />
       </el-col>
       <el-col :span="6">
-        <el-statistic title="锁定用户数" :value="station.lockedUsers || 0" />
+        <el-statistic
+          title="锁定用户数"
+          :value="station.lockedUsers || 0"
+        />
       </el-col>
       <el-col :span="6">
-        <el-statistic title="本月订单" :value="station.monthOrders || 0" />
+        <el-statistic
+          title="本月订单"
+          :value="station.monthOrders || 0"
+        />
       </el-col>
       <el-col :span="6">
-        <el-statistic title="本月佣金（元）" :value="station.monthEarning || 0" :precision="2" />
+        <el-statistic
+          title="本月佣金（元）"
+          :value="station.monthEarning || 0"
+          :precision="2"
+        />
       </el-col>
     </el-row>
 
     <!-- 权益卡片 -->
-    <h3 class="section-title">我的权益</h3>
+    <h3 class="section-title">
+      我的权益
+    </h3>
     <el-row :gutter="16">
-      <el-col v-for="benefit in stationBenefits" :key="benefit.title" :span="6">
-        <el-card class="benefit-card" shadow="hover">
+      <el-col
+        v-for="benefit in stationBenefits"
+        :key="benefit.title"
+        :span="6"
+      >
+        <el-card
+          class="benefit-card"
+          shadow="hover"
+        >
           <div class="benefit-icon">
-            <el-icon :size="32"><component :is="benefit.icon" /></el-icon>
+            <el-icon :size="32">
+              <component :is="benefit.icon" />
+            </el-icon>
           </div>
           <h4>{{ benefit.title }}</h4>
           <p>{{ benefit.desc }}</p>
@@ -59,10 +100,16 @@
     </el-row>
 
     <!-- 专属权益详情 -->
-    <el-row :gutter="16" class="detail-row">
+    <el-row
+      :gutter="16"
+      class="detail-row"
+    >
       <!-- 分享赚 / 自购省 -->
       <el-col :span="12">
-        <el-card class="detail-card" shadow="hover">
+        <el-card
+          class="detail-card"
+          shadow="hover"
+        >
           <template #header>
             <div class="card-header">
               <el-icon><Share /></el-icon>
@@ -71,25 +118,47 @@
           </template>
           <div class="commission-rules">
             <div class="rule-item">
-              <el-tag type="success">分享赚</el-tag>
+              <el-tag type="success">
+                分享赚
+              </el-tag>
               <span>通过分享链接或他人主动进入分站，购买站内付费服务、会员权益、商品及课程，购买成功即获佣金</span>
             </div>
             <div class="rule-item">
-              <el-tag type="warning">自购省</el-tag>
+              <el-tag type="warning">
+                自购省
+              </el-tag>
               <span>自己购买站内排盘、会员权益、商品及课程，购买成功即获佣金返还</span>
             </div>
           </div>
-          <el-table :data="commissionRates" size="small" class="rate-table">
-            <el-table-column prop="type" label="消费类型" width="120" />
-            <el-table-column prop="rate" label="佣金比例" width="100" />
-            <el-table-column prop="desc" label="说明" />
+          <el-table
+            :data="commissionRates"
+            size="small"
+            class="rate-table"
+          >
+            <el-table-column
+              prop="type"
+              label="消费类型"
+              width="120"
+            />
+            <el-table-column
+              prop="rate"
+              label="佣金比例"
+              width="100"
+            />
+            <el-table-column
+              prop="desc"
+              label="说明"
+            />
           </el-table>
         </el-card>
       </el-col>
 
       <!-- 赠送福利 -->
       <el-col :span="12">
-        <el-card class="detail-card" shadow="hover">
+        <el-card
+          class="detail-card"
+          shadow="hover"
+        >
           <template #header>
             <div class="card-header">
               <el-icon><Present /></el-icon>
@@ -97,12 +166,27 @@
             </div>
           </template>
           <div class="gift-list">
-            <div class="gift-item" v-for="gift in freeGifts" :key="gift.title">
-              <el-image :src="gift.cover" style="width:80px;height:60px;border-radius:4px" fit="cover" />
+            <div
+              v-for="gift in freeGifts"
+              :key="gift.title"
+              class="gift-item"
+            >
+              <el-image
+                :src="gift.cover"
+                style="width:80px;height:60px;border-radius:4px"
+                fit="cover"
+              />
               <div class="gift-info">
                 <h4>{{ gift.title }}</h4>
                 <p>{{ gift.desc }}</p>
-                <el-button size="small" type="primary" link @click="viewGift(gift)">查看详情</el-button>
+                <el-button
+                  size="small"
+                  type="primary"
+                  link
+                  @click="viewGift(gift)"
+                >
+                  查看详情
+                </el-button>
               </div>
             </div>
           </div>
@@ -111,23 +195,57 @@
     </el-row>
 
     <!-- 收益明细 -->
-    <h3 class="section-title">收益明细</h3>
+    <h3 class="section-title">
+      收益明细
+    </h3>
     <el-card shadow="hover">
-      <el-table :data="earnings" v-loading="loading" stripe>
-        <el-table-column prop="createdAt" label="时间" width="180">
-          <template #default="{ row }">{{ new Date(row.createdAt).toLocaleString() }}</template>
+      <el-table
+        v-loading="loading"
+        :data="earnings"
+        stripe
+      >
+        <el-table-column
+          prop="createdAt"
+          label="时间"
+          width="180"
+        >
+          <template #default="{ row }">
+            {{ new Date(row.createdAt).toLocaleString() }}
+          </template>
         </el-table-column>
-        <el-table-column prop="type" label="类型" width="120">
+        <el-table-column
+          prop="type"
+          label="类型"
+          width="120"
+        >
           <template #default="{ row }">
             <el-tag>{{ earningTypeMap[row.type] || row.type }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="orderId" label="订单号" width="200" />
-        <el-table-column prop="amount" label="订单金额（元）" width="120" />
-        <el-table-column prop="rate" label="佣金比例" width="100">
-          <template #default="{ row }">{{ (row.rate * 100).toFixed(1) }}%</template>
+        <el-table-column
+          prop="orderId"
+          label="订单号"
+          width="200"
+        />
+        <el-table-column
+          prop="amount"
+          label="订单金额（元）"
+          width="120"
+        />
+        <el-table-column
+          prop="rate"
+          label="佣金比例"
+          width="100"
+        >
+          <template #default="{ row }">
+            {{ (row.rate * 100).toFixed(1) }}%
+          </template>
         </el-table-column>
-        <el-table-column prop="earned" label="佣金（元）" width="120">
+        <el-table-column
+          prop="earned"
+          label="佣金（元）"
+          width="120"
+        >
           <template #default="{ row }">
             <span class="earned-amount">¥{{ row.earned }}</span>
           </template>
@@ -136,27 +254,65 @@
     </el-card>
 
     <!-- 编辑分站弹窗 -->
-    <el-dialog v-model="showProfileEdit" title="编辑分站信息" width="500px">
-      <el-form :model="editForm" label-width="100px">
+    <el-dialog
+      v-model="showProfileEdit"
+      title="编辑分站信息"
+      width="500px"
+    >
+      <el-form
+        :model="editForm"
+        label-width="100px"
+      >
         <el-form-item label="分站名称">
-          <el-input v-model="editForm.name" placeholder="如：青云国学小站" maxlength="20" show-word-limit />
+          <el-input
+            v-model="editForm.name"
+            placeholder="如：青云国学小站"
+            maxlength="20"
+            show-word-limit
+          />
         </el-form-item>
         <el-form-item label="分站Logo">
-          <el-upload action="/api/v1/upload" :show-file-list="false" :on-success="onLogoUploaded">
-            <el-avatar :size="64" :src="editForm.logo" />
-            <el-button type="primary" link>更换Logo</el-button>
+          <el-upload
+            action="/api/v1/upload"
+            :show-file-list="false"
+            :on-success="onLogoUploaded"
+          >
+            <el-avatar
+              :size="64"
+              :src="editForm.logo"
+            />
+            <el-button
+              type="primary"
+              link
+            >
+              更换Logo
+            </el-button>
           </el-upload>
         </el-form-item>
         <el-form-item label="主题色">
           <el-color-picker v-model="editForm.themeColor" />
         </el-form-item>
         <el-form-item label="分站介绍">
-          <el-input v-model="editForm.intro" type="textarea" :rows="3" maxlength="200" show-word-limit />
+          <el-input
+            v-model="editForm.intro"
+            type="textarea"
+            :rows="3"
+            maxlength="200"
+            show-word-limit
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="showProfileEdit = false">取消</el-button>
-        <el-button type="primary" @click="saveProfile" :loading="saving">保存</el-button>
+        <el-button @click="showProfileEdit = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="saveProfile"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

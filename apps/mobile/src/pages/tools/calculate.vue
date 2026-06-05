@@ -1,7 +1,10 @@
 <template>
   <view class="page">
     <!-- 加载态 -->
-    <DataState v-if="schemaLoading" state="loading" />
+    <DataState
+      v-if="schemaLoading"
+      state="loading"
+    />
 
     <!-- 错误态 -->
     <DataState
@@ -15,8 +18,15 @@
     <template v-else>
       <!-- 工具头 -->
       <view class="tool-header">
-        <text class="tool-title">{{ toolName }}</text>
-        <text class="tool-desc" v-if="toolDesc">{{ toolDesc }}</text>
+        <text class="tool-title">
+          {{ toolName }}
+        </text>
+        <text
+          v-if="toolDesc"
+          class="tool-desc"
+        >
+          {{ toolDesc }}
+        </text>
       </view>
 
       <!-- 输入表单（动态渲染） -->
@@ -26,10 +36,15 @@
           :key="field.key"
           class="form-item"
         >
-          <text class="form-label">{{ field.label }}</text>
+          <text class="form-label">
+            {{ field.label }}
+          </text>
 
           <!-- 枚举/选择器 -->
-          <view v-if="field.type === 'enum'" class="enum-group">
+          <view
+            v-if="field.type === 'enum'"
+            class="enum-group"
+          >
             <view
               v-for="opt in field.values"
               :key="opt"
@@ -44,22 +59,22 @@
           <!-- 数字输入 -->
           <input
             v-else-if="field.type === 'number'"
+            v-model.number="formData[field.key]"
             class="field-input"
             type="number"
             :placeholder="field.placeholder || '请输入'"
-            v-model.number="formData[field.key]"
             :min="field.min"
             :max="field.max"
-          />
+          >
 
           <!-- 文本输入 -->
           <input
             v-else-if="field.type === 'string'"
+            v-model="formData[field.key]"
             class="field-input"
             type="text"
             :placeholder="field.placeholder || '请输入'"
-            v-model="formData[field.key]"
-          />
+          >
 
           <!-- 日期选择 -->
           <picker
@@ -86,22 +101,34 @@
       </view>
 
       <!-- 计算结果 -->
-      <view v-if="result" class="result-section">
+      <view
+        v-if="result"
+        class="result-section"
+      >
         <view class="result-header">
-          <text class="result-title">排盘结果</text>
-          <text class="result-time">耗时 {{ durationMs }}ms</text>
+          <text class="result-title">
+            排盘结果
+          </text>
+          <text class="result-time">
+            耗时 {{ durationMs }}ms
+          </text>
         </view>
 
         <!-- 八字结果 -->
         <template v-if="toolId === 'bazi' && baziResult">
-          <SiZhuDisplay :siZhu="baziResult.siZhu" />
+          <SiZhuDisplay :si-zhu="baziResult.siZhu" />
           <ShenShaList :items="baziResult.shenSha" />
-          <DaYunTimeline :daYun="baziResult.qiYun?.daYun" />
+          <DaYunTimeline :da-yun="baziResult.qiYun?.daYun" />
         </template>
 
         <!-- 通用结果：JSON 展示 -->
-        <view v-else class="result-json">
-          <text class="json-text">{{ JSON.stringify(result, null, 2) }}</text>
+        <view
+          v-else
+          class="result-json"
+        >
+          <text class="json-text">
+            {{ JSON.stringify(result, null, 2) }}
+          </text>
         </view>
       </view>
 
