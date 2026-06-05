@@ -23,10 +23,13 @@ RUN pnpm --filter @guoxue/ziwei-engine build
 RUN pnpm build:server
 RUN pnpm build:admin || true
 
-# ── 运行阶段 ──
-FROM node:20.19-alpine
+# ── 运行阶段（Debian-slim 确保与 builder 平台一致，Prisma 引擎兼容）──
+FROM node:20.19-slim
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
+
+# 安装运行时依赖（wget 用于健康检查）
+RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # 仅复制运行时依赖
 COPY --from=builder /app/node_modules ./node_modules
