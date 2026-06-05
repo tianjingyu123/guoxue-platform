@@ -9,3 +9,8 @@ coverage
 .backup
 temp_*
 *.bak
+.pm2-logs
+output
+.claude
+__pycache__
+*.pyc
