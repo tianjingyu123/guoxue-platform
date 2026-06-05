@@ -180,6 +180,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { browseHistoryApi } from '../../api'
 import DataState from '../../components/DataState.vue'
 
 interface HistoryItem {
@@ -227,35 +228,31 @@ async function loadData() {
   loading.value = true
   loadError.value = null
   try {
-    await new Promise((r) => setTimeout(r, 600))
-    historyGroups.value = [
-      {
-        date: '2026-06-04', label: '今天',
-        items: [
-          { id: '1', type: 'course', title: '周易入门：从零开始学习易经', cover: '', progress: 45, duration: 3600, viewedAt: '14:30' },
-          { id: '2', type: 'video', title: '梅花易数实战案例分析', cover: '', progress: 100, duration: 1200, viewedAt: '12:15' },
-          { id: '3', type: 'article', title: '八字命理中的十神详解', viewedAt: '10:20' },
-        ],
-      },
-      {
-        date: '2026-06-03', label: '昨天',
-        items: [
-          { id: '4', type: 'live', title: '风水布局直播答疑', cover: '', viewedAt: '20:00' },
-          { id: '5', type: 'product', title: '开光铜葫芦摆件', cover: '', viewedAt: '16:45' },
-        ],
-      },
-      {
-        date: '2026-06-01', label: '6月1日',
-        items: [
-          { id: '6', type: 'course', title: '六爻预测高级班', cover: '', progress: 30, duration: 7200, viewedAt: '19:30' },
-        ],
-      },
-    ]
+    const res = await browseHistoryApi.getList()
+    const items: HistoryItem[] = (res as any)?.list || (res as any)?.data || []
+    // 按日期分组
+    const grouped: Record<string, HistoryGroup> = {}
+    items.forEach((item) => {
+      const dateKey = item.viewedAt?.slice(0, 10) || 'unknown'
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = { date: dateKey, label: formatDateLabel(dateKey), items: [] }
+      }
+      grouped[dateKey].items.push(item)
+    })
+    historyGroups.value = Object.values(grouped)
   } catch (e: any) {
     loadError.value = e?.errMsg || e?.message || '加载失败'
   } finally {
     loading.value = false
   }
+}
+
+function formatDateLabel(dateKey: string): string {
+  const today = new Date().toISOString().slice(0, 10)
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+  if (dateKey === today) return '今天'
+  if (dateKey === yesterday) return '昨天'
+  return dateKey
 }
 
 function handleDelete(itemId: string) {
