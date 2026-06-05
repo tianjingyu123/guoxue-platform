@@ -109,6 +109,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { userApi } from '../../api'
 import DataState from '../../components/DataState.vue'
 
 interface FollowUser {
@@ -146,21 +147,10 @@ async function loadData() {
   loading.value = true
   loadError.value = null
   try {
-    await new Promise((r) => setTimeout(r, 600))
-    followingList.value = [
-      { id: '1', name: '易学大师王老师', avatar: '', bio: '专注易经研究30年，擅长八字命理与风水布局', followers: 12580, isFollowing: true, isFollowedBy: true },
-      { id: '2', name: '道法自然', avatar: '', bio: '传播传统文化，弘扬国学智慧', followers: 8920, isFollowing: true, isFollowedBy: false },
-      { id: '3', name: '玄学研究院', avatar: '', bio: '专业玄学研究机构官方账号', followers: 45600, isFollowing: true, isFollowedBy: true },
-      { id: '4', name: '风水师李明', avatar: '', bio: '阳宅风水、办公室布局、家居环境优化', followers: 6780, isFollowing: true, isFollowedBy: false },
-      { id: '5', name: '命理学堂', avatar: '', bio: '八字命理入门到精通，系统学习命理知识', followers: 23400, isFollowing: true, isFollowedBy: true },
-    ]
-    followersList.value = [
-      { id: '6', name: '学习者小王', avatar: '', bio: '国学爱好者，正在学习易经', followers: 128, isFollowing: false, isFollowedBy: true },
-      { id: '7', name: '传统文化粉', avatar: '', bio: '热爱传统文化', followers: 256, isFollowing: true, isFollowedBy: true },
-      { id: '8', name: '易学初学者', avatar: '', bio: '刚开始接触易学，求指导', followers: 45, isFollowing: false, isFollowedBy: true },
-      { id: '9', name: '风水研究者', avatar: '', bio: '从事风水研究5年', followers: 890, isFollowing: true, isFollowedBy: true },
-      { id: '10', name: '命理爱好者', avatar: '', bio: '对八字命理很感兴趣', followers: 320, isFollowing: false, isFollowedBy: true },
-    ]
+    const res = await userApi.getFollowers('me')
+    const items = (res as any)?.list || (res as any)?.data || []
+    followingList.value = items.filter((u: any) => u.isFollowing)
+    followersList.value = items.filter((u: any) => u.isFollowedBy)
     followingCount.value = followingList.value.length
     followersCount.value = followersList.value.length
   } catch (e: any) {

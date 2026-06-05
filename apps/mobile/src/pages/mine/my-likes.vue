@@ -112,6 +112,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { interactApi } from '../../api'
 import DataState from '../../components/DataState.vue'
 
 interface LikeAuthor {
@@ -168,29 +169,8 @@ async function loadData() {
   loading.value = true
   loadError.value = null
   try {
-    await new Promise((r) => setTimeout(r, 500))
-    likes.value = [
-      {
-        id: 1,
-        target: { id: 'c1', type: 'course', title: '周易入门：从零开始学习易经', author: { nickname: '易学大师王老师', avatar: '' } },
-        createdAt: '2026-06-03',
-      },
-      {
-        id: 2,
-        target: { id: 'a1', type: 'article', title: '八字命理中的十神详解', author: { nickname: '道法自然', avatar: '' } },
-        createdAt: '2026-06-02',
-      },
-      {
-        id: 3,
-        target: { id: 'v1', type: 'video', title: '梅花易数实战案例分析', author: { nickname: '玄学研究院', avatar: '' } },
-        createdAt: '2026-06-01',
-      },
-      {
-        id: 4,
-        target: { id: 'p1', type: 'product', title: '开光铜葫芦摆件' },
-        createdAt: '2026-05-30',
-      },
-    ]
+    const res = await interactApi.getMyLikes()
+    likes.value = (res as any)?.list || (res as any)?.data || []
   } catch (e: any) {
     loadError.value = e?.errMsg || e?.message || '加载失败'
   } finally {
@@ -200,7 +180,7 @@ async function loadData() {
 
 async function handleUnlike(item: LikeItem) {
   unlikingId.value = item.id
-  await new Promise((r) => setTimeout(r, 300))
+  await interactApi.unlike(item.id as any)
   likes.value = likes.value.filter((l) => l.id !== item.id)
   unlikingId.value = null
   uni.showToast({ title: '已取消点赞', icon: 'none' })

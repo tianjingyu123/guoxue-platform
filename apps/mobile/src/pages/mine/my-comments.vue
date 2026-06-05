@@ -168,6 +168,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { interactApi } from '../../api'
 import DataState from '../../components/DataState.vue'
 
 interface CommentTarget {
@@ -208,24 +209,8 @@ async function loadData() {
   loading.value = true
   loadError.value = null
   try {
-    await new Promise((r) => setTimeout(r, 500))
-    comments.value = [
-      {
-        id: 1, content: '老师讲得非常好，深入浅出，让我这个初学者也能听懂易经的基本原理。特别是对阴阳五行的解释非常透彻。',
-        target: { id: 'c1', type: 'course', title: '周易入门：从零开始学习易经' },
-        createdAt: '2026-06-03 14:30', likeCount: 12, replyCount: 3, hasReply: true,
-      },
-      {
-        id: 2, content: '这篇文章对八字十神的解读很到位，收藏了！',
-        target: { id: 'a1', type: 'article', title: '八字命理中的十神详解' },
-        createdAt: '2026-06-02 10:15', likeCount: 5, replyCount: 0, hasReply: false,
-      },
-      {
-        id: 3, content: '有没有人知道这个葫芦的尺寸是多少？',
-        target: { id: 'p1', type: 'product', title: '开光铜葫芦摆件', cover: '' },
-        createdAt: '2026-06-01 20:00', likeCount: 2, replyCount: 1, hasReply: true,
-      },
-    ]
+    const res = await interactApi.getMyComments()
+    comments.value = (res as any)?.list || (res as any)?.data || []
   } catch (e: any) {
     loadError.value = e?.errMsg || e?.message || '加载失败'
   } finally {
