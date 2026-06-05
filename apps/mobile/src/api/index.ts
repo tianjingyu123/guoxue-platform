@@ -626,6 +626,15 @@ export const commissionApi = {
   referralLinks: () => api.get("/commission/referral-links"),
 };
 
+// 每日运势
+export const fortuneApi = {
+  getDaily: (shengxiao: string) => api.get("/fortune/daily", { shengxiao }),
+  getWeekly: (shengxiao: string) => api.get("/fortune/weekly", { shengxiao }),
+  getMonthly: (shengxiao: string) => api.get("/fortune/monthly", { shengxiao }),
+  subscribe: (shengxiao: string) => api.post("/fortune/subscribe", { shengxiao }),
+  unsubscribe: () => api.delete("/fortune/subscribe"),
+};
+
 // 系统配置（公开）
 export const systemApi = {
   getBanners: () => api.get("/system/public/banners"),

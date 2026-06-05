@@ -186,39 +186,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { fortuneApi } from '../../api'
 
+const loading = ref(true)
 const today = ref(new Date().toISOString().slice(0, 10))
-const lunarDate = ref('农历四月廿八')
+const lunarDate = ref('加载中...')
 const levelKey = ref('good'); const levelText = ref('大吉'); const levelIcon = ref('🌟')
-const score = ref(92); const stars = ref('★★★★★')
+const score = ref(0); const stars = ref('')
 
-const aspects = ref([
-  { key: 'love', label: '爱情运势', value: '渐入佳境', percent: 85, color: '#e91e63' },
-  { key: 'career', label: '事业运势', value: '顺利', percent: 90, color: '#C41E3A' },
-  { key: 'wealth', label: '财运运势', value: '平稳', percent: 75, color: '#C9A96E' },
-  { key: 'health', label: '健康运势', value: '良好', percent: 88, color: '#4CAF50' },
-])
+const aspects = ref<any[]>([])
+const lucky = ref<any>({})
+const advice = ref('')
+const yi = ref<string[]>([])
+const ji = ref<string[]>([])
 
-const lucky = { number: '6, 8', color: '红色、金色', direction: '东南', item: '玉佩' }
-const advice = '今日运势总体向好，适合开展新的计划和项目。工作中可能会有贵人相助，把握机会。财运平稳，不宜冲动消费。感情方面有望收获惊喜，多与伴侣沟通交流。健康方面注意饮食规律。'
-const yi = ['嫁娶', '开市', '出行', '签约', '祈福']
-const ji = ['破土', '安葬', '诉讼', '求医']
+const shichen = ref<any[]>([])
 
-const shichen = ref([
-  { name: '子时', time: '23:00-01:00', desc: '运势平稳，宜静不宜动', luck: '吉' },
-  { name: '丑时', time: '01:00-03:00', desc: '财运上升，利于思考', luck: '吉' },
-  { name: '寅时', time: '03:00-05:00', desc: '注意口舌是非', luck: '凶' },
-  { name: '卯时', time: '05:00-07:00', desc: '贵人相助，事务顺利', luck: '大吉' },
-  { name: '辰时', time: '07:00-09:00', desc: '利于社交和洽谈', luck: '吉' },
-  { name: '巳时', time: '09:00-11:00', desc: '小有波折，注意细节', luck: '平' },
-  { name: '午时', time: '11:00-13:00', desc: '事业运旺盛', luck: '大吉' },
-  { name: '未时', time: '13:00-15:00', desc: '注意休息', luck: '平' },
-  { name: '申时', time: '15:00-17:00', desc: '工作效率高', luck: '吉' },
-  { name: '酉时', time: '17:00-19:00', desc: '避免冲动决策', luck: '凶' },
-  { name: '戌时', time: '19:00-21:00', desc: '适合学习思考', luck: '吉' },
-  { name: '亥时', time: '21:00-23:00', desc: '放松身心', luck: '平' },
-])
+onMounted(async () => {
+  try {
+    const res: any = await fortuneApi.getDaily('')
+    const data = res?.data || res
+    if (data) {
+      lunarDate.value = data.lunarDate || lunarDate.value
+      levelText.value = data.levelText || levelText.value
+      levelKey.value = data.levelKey || levelKey.value
+      levelIcon.value = data.levelIcon || levelIcon.value
+      score.value = data.score || score.value
+      stars.value = data.stars || stars.value
+      aspects.value = data.aspects || aspects.value
+      lucky.value = data.lucky || lucky.value
+      advice.value = data.advice || advice.value
+      yi.value = data.yi || yi.value
+      ji.value = data.ji || ji.value
+      shichen.value = data.shichen || shichen.value
+    }
+  } catch {
+    // 保持默认值作为降级
+  } finally {
+    loading.value = false
+  }
+})
 
 function goBack() { uni.navigateBack() }
 </script>
