@@ -72,3 +72,18 @@ $tabbar-height: 50px;
 $header-bazi: linear-gradient(135deg, #8b4513, #a0522d);
 $header-bot: linear-gradient(135deg, #6b5b95, #8b7bb5);
 $header-primary: linear-gradient(135deg, $primary, $primary-dark);
+
+/* ── V0 设计系统对齐：角色专属色 ── */
+$station: #52C41A;      /* 分站站长 */
+$operator: #722ED1;     /* 运营商 */
+$institute: #13C2C2;    /* 研究院 */
+$live-color: #E74C3C;   /* 直播红 */
+$success: #52C41A;      /* 成功绿 */
+$warning: #FA8C16;      /* 警告橙 */
+$danger: #FF4D4F;       /* 错误红 */
+$info: #4A90D9;         /* 信息蓝 */
+
+/* ── V0 对齐：补充语义令牌 ── */
+$bg-secondary: #F5F1EB; /* 次级背景（V0 secondary） */
+$text-muted: #999999;   /* 辅助文字（V0 muted-foreground） */
+$border-v0: #E8E3DB;    /* 标准边框（V0 border） */
