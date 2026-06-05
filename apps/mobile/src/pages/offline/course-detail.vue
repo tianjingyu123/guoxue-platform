@@ -613,7 +613,7 @@ async function handleCancel() {
   cancelling.value = true
   try {
     const res: any = await offlineApi.cancelCourse(String(courseId))
-    if (res?.success || true) {
+    if (res?.success !== false) {
       uni.showToast({ title: '取消成功', icon: 'none' })
       if (course.value) {
         course.value.myEnrollment = undefined

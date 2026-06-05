@@ -426,7 +426,7 @@ function selectCoupon(c: Coupon) { config.couponId = c.id; showCouponSelect.valu
 function toggleLevel(lv: string) {
   if (!config.userFilter.levels) config.userFilter.levels = []
   const idx = config.userFilter.levels.indexOf(lv)
-  idx >= 0 ? config.userFilter.levels.splice(idx, 1) : config.userFilter.levels.push(lv)
+  void (idx >= 0 ? config.userFilter.levels.splice(idx, 1) : config.userFilter.levels.push(lv))
 }
 function handlePreview() {
   if (!config.couponId) return

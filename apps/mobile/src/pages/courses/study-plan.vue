@@ -236,7 +236,7 @@
           class="course-list"
         >
           <view
-            v-for="(c, idx) in courses"
+            v-for="c in courses"
             :key="c.id"
             class="course-item"
             :class="{ 'course-dragging': draggingId === c.id }"

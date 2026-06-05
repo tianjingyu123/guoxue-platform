@@ -290,7 +290,7 @@ function startPolling() {
 async function checkPayment(): Promise<string> {
   if (!orderId.value) return 'pending'
   try {
-    const result = await payApi.queryPaymentStatus(orderId.value)
+    const result = await shopApi.queryPaymentStatus(orderId.value)
     if (result.status === 'paid') {
       status.value = 'success'
       setTimeout(() => {

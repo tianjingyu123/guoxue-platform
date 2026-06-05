@@ -121,7 +121,7 @@
       class="log-list"
     >
       <view
-        v-for="(log, idx) in filteredLogs"
+        v-for="log in filteredLogs"
         :key="log.id"
         class="log-item"
         :class="{ abnormal: log.isAbnormal }"

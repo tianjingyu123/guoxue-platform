@@ -202,7 +202,7 @@ async function loadFavorites(reset = false) {
 function switchTab(tab: string) { activeTab.value = tab; loadFavorites(true) }
 function toggleSelect(id: number) {
   const idx = selectedIds.value.indexOf(id)
-  idx >= 0 ? selectedIds.value.splice(idx, 1) : selectedIds.value.push(id)
+  void (idx >= 0 ? selectedIds.value.splice(idx, 1) : selectedIds.value.push(id))
 }
 function selectAll() {
   selectedIds.value = selectedIds.value.length === favorites.value.length ? [] : favorites.value.map(f => f.id)

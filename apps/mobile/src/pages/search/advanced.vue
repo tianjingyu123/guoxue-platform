@@ -346,7 +346,7 @@ function toggleFilter(f: string) { activeFilter.value = activeFilter.value === f
 function selectFilter(key: string, value: string) { (filters.value as any)[key] = value; activeFilter.value = null }
 function toggleContentType(type: string) {
   const idx = filters.value.contentType.indexOf(type)
-  idx >= 0 ? filters.value.contentType.splice(idx, 1) : filters.value.contentType.push(type)
+  void (idx >= 0 ? filters.value.contentType.splice(idx, 1) : filters.value.contentType.push(type))
 }
 function removeFilter(tag: any) {
   if (tag.key === 'timeRange') filters.value.timeRange = 'all'

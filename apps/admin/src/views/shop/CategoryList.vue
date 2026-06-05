@@ -178,6 +178,7 @@ async function fetchList() {
     const { data } = await api.get("/shop/categories/tree");
     // 展平树
     const flat: any[] = [];
+    // eslint-disable-next-line no-inner-declarations
     function walk(items: any[], level = 1) {
       for (const item of items) {
         flat.push({ ...item, level });
