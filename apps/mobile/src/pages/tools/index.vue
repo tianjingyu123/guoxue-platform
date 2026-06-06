@@ -40,6 +40,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { systemApi } from '../../api'
 
 const tools = ref([
   { id: 'bazi', name: '八字排盘', desc: '四柱八字命运分析', icon: '🔮' },
@@ -62,8 +63,8 @@ onMounted(async () => {
   // 小程序审核模式：显示引导 H5 提示
   // #ifdef MP-WEIXIN
   try {
-    const res = await uni.request({ url: '/api/v1/system/public/miniapp-config', method: 'GET' })
-    const data = (res.data as any)?.data || res.data
+    const res: any = await systemApi.getMiniappConfig()
+    const data = res?.data || res
     if (data?.mode === 'review') reviewBanner = data.notice || ''
   } catch { }
   // #endif

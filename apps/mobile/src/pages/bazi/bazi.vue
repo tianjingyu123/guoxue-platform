@@ -1062,16 +1062,7 @@ async function doAiAnalyze() {
   if (!requireLogin('AI深度解读')) return
   aiLoading.value = true
   try {
-    const res = await uni.request({
-      url: 'http://localhost:3000/api/v1/paipan/bazi/analyze',
-      method: 'POST',
-      data: { baziResult: result.value },
-      header: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${uni.getStorageSync('token')}`,
-      },
-    })
-    const d = res.data as any
+    const d: any = await paipanApi.analyze({ baziResult: result.value })
     aiResult.value = d?.analysis || d?.data?.analysis || 'AI 分析暂不可用'
   } catch {
     aiResult.value = 'AI 分析服务暂未配置，请联系管理员。'

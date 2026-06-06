@@ -291,6 +291,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { api } from '../../api'
 import { useUserStore } from '../../store/user'
 
 const userStore = useUserStore()
@@ -350,25 +351,15 @@ onMounted(() => {
 
 async function loadSecurityStatus() {
   try {
-    // 检查支付密码
-    const pwdRes: any = await uni.request({
-      url: '/api/v1/users/me/payment-password/status',
-      method: 'GET',
-    })
-    const pwdData = (pwdRes as any).data?.data || (pwdRes as any).data
-    hasPaymentPwd.value = pwdData?.hasPassword ?? false
+    const res: any = await api.get('/users/me/payment-password/status')
+    hasPaymentPwd.value = res?.data?.hasPassword ?? res?.hasPassword ?? false
   } catch {
     hasPaymentPwd.value = false
   }
 
   try {
-    // 检查实名认证
-    const idRes: any = await uni.request({
-      url: '/api/v1/identity/my',
-      method: 'GET',
-    })
-    const idData = (idRes as any).data?.data || (idRes as any).data
-    isVerified.value = idData?.verified ?? idData?.status === 'VERIFIED' ?? false
+    const res: any = await api.get('/identity/my')
+    isVerified.value = res?.data?.verified ?? res?.data?.status === 'VERIFIED' ?? false
   } catch {
     isVerified.value = false
   }

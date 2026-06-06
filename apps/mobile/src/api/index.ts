@@ -351,6 +351,7 @@ export const paipanApi = {
   preview: (data: any) => api.post("/paipan/bazi/preview", data),
   save: (data: any) => api.post("/paipan/bazi", data),
   history: () => api.get("/paipan/bazi"),
+  analyze: (data: any) => api.post("/paipan/bazi/analyze", data),
   ziweiPreview: (data: any) => api.post("/paipan/ziwei/preview", data),
   ziweiSave: (data: any) => api.post("/paipan/ziwei", data),
   ziweiHistory: () => api.get("/paipan/ziwei"),
@@ -638,6 +639,8 @@ export const fortuneApi = {
 // 系统配置（公开）
 export const systemApi = {
   getBanners: () => api.get("/system/public/banners"),
+  getHomeConfig: () => api.get("/system/public/home-config"),
+  getMiniappConfig: () => api.get("/system/public/miniapp-config"),
 };
 
 // ==================== 虚拟币钱包 ====================

@@ -174,7 +174,7 @@
           <div
             class="markdown-body"
             style="min-height:40px"
-            v-html="detail?.description || '暂无描述'"
+            v-html="sanitize(detail?.description || '暂无描述')"
           />
 
           <el-divider v-if="detail?.rules">
@@ -183,7 +183,7 @@
           <div
             v-if="detail?.rules"
             class="markdown-body"
-            v-html="detail?.rules"
+            v-html="sanitize(detail?.rules || '')"
           />
         </el-card>
       </el-tab-pane>
@@ -1039,6 +1039,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { sanitize } from "@/utils/sanitize";
 import { competitionApi, api } from "@/api";
 
 const route = useRoute();

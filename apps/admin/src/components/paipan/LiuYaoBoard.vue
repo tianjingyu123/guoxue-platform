@@ -36,7 +36,7 @@ const dongYaoCount = computed(() => props.yaos.filter((y) => y.isDongYao).length
 
 /** 五行色 */
 function wuXingColor(wx: string): string {
-  const m: Record<string, string> = { '木': UI_COLORS.success || '#52C41A', '火': UI_COLORS.brand || '#C41E3A', '土': '#C9A96E', '金': '#FA8C16', '水': '#4A90D9' }
+  const m: Record<string, string> = { '木': '#52C41A', '火': UI_COLORS.brand || '#C41E3A', '土': '#C9A96E', '金': '#FA8C16', '水': '#4A90D9' }
   return m[wx] || UI_COLORS.textSecondary
 }
 
