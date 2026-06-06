@@ -1,190 +1,227 @@
 #!/bin/bash
-# 国学平台服务器一键安装脚本
+# ═══════════════════════════════════════════════════════════════
+# 热卜国学 — 服务器一键部署脚本
 # 适用: Ubuntu 22.04+ / Debian 12+
-# 用法: chmod +x server-setup.sh && sudo bash server-setup.sh
-
+# 用法:
+#   scp scripts/server-setup.sh root@你的IP:/root/
+#   ssh root@你的IP "bash /root/server-setup.sh"
+# ═══════════════════════════════════════════════════════════════
 set -e
 
-echo "=== 国学平台服务器部署 ==="
+RED='\033[0;31m'; GREEN='\033[0;32m'; BLUE='\033[0;34m'; NC='\033[0m'
+log() { echo -e "${BLUE}[setup]${NC} $1"; }
+ok()  { echo -e "${GREEN}[  ok]${NC} $1"; }
+err() { echo -e "${RED}[fail]${NC} $1"; exit 1; }
 
-# 1. 基础依赖
-apt update && apt install -y curl git nginx certbot python3-certbot-nginx ufw
+echo "╔══════════════════════════════════════════════╗"
+echo "║  热卜国学平台 — 服务器一键部署              ║"
+echo "╚══════════════════════════════════════════════╝"
+echo ""
 
-# 2. Node.js 22
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt install -y nodejs
+# ═══════════════════════════════════════════════════════════════
+# 1. 基础环境
+# ═══════════════════════════════════════════════════════════════
+log "更新系统..."
+apt-get update -qq && apt-get upgrade -y -qq && ok "系统更新完成"
 
-# 3. Claude Code CLI
-npm install -g @anthropic-ai/claude-code
+log "安装基础工具..."
+apt-get install -y -qq curl wget git vim htop nginx certbot python3-certbot-nginx ufw jq rsync
+ok "基础工具安装完成"
 
-# 4. PM2
-npm install -g pm2
+log "安装 Docker..."
+curl -fsSL https://get.docker.com | bash 2>&1 | tail -1
+systemctl enable --now docker
+ok "Docker $(docker -v 2>/dev/null | grep -o '[0-9]*\.[0-9]*\.[0-9]*')"
 
-# 5. 克隆项目 (替换为你的实际仓库地址)
-# git clone <你的仓库> /opt/guoxue-platform
-# cd /opt/guoxue-platform && pnpm install
+log "安装 Node.js 20..."
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash - &> /dev/null
+apt-get install -y -qq nodejs
+ok "Node $(node -v)"
 
-# 6. 防火墙
-ufw allow 22
-ufw allow 80
-ufw allow 443
-ufw allow 3000
+log "安装 pnpm..."
+npm install -g pnpm@latest &> /dev/null
+ok "pnpm $(pnpm -v)"
+
+# ═══════════════════════════════════════════════════════════════
+# 2. 目录结构
+# ═══════════════════════════════════════════════════════════════
+log "创建目录..."
+mkdir -p /opt/guoxue/{h5,backup,logs,uploads,static}
+ok "目录创建完成"
+
+# ═══════════════════════════════════════════════════════════════
+# 3. 防火墙
+# ═══════════════════════════════════════════════════════════════
+log "配置防火墙..."
 ufw --force enable
+ufw allow 22/tcp
+ufw allow 80/tcp
+ufw allow 443/tcp
+# API 端口仅内网
+ufw allow from 127.0.0.1 to any port 3000
+ok "防火墙配置完成"
 
-# 7. 移动端聊天桥接服务
-mkdir -p /opt/claude-bridge
-cat > /opt/claude-bridge/server.mjs << 'BRIDGE_EOF'
-import http from "http";
-import { spawn } from "child_process";
-import { readFile } from "fs/promises";
-
-const PORT = process.env.PORT || 3456;
-const SESSIONS = new Map();
-
-const HTML = `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>国学平台 · 远程对话</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#1a1a2e;color:#e0e0e0;height:100dvh;display:flex;flex-direction:column}
-.header{background:#16213e;padding:12px 16px;text-align:center;font-size:14px;font-weight:600;border-bottom:1px solid #0f3460;flex-shrink:0}
-.messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
-.msg{max-width:85%;padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.6;word-break:break-word}
-.msg.user{align-self:flex-end;background:#0f3460;color:#e0e0e0}
-.msg.assistant{align-self:flex-start;background:#16213e;color:#d0d0d0}
-.msg.assistant pre{background:#0a0a1a;padding:8px;border-radius:6px;overflow-x:auto;font-size:12px;margin:8px 0}
-.msg.assistant code{font-size:12px;background:#0a0a1a;padding:2px 4px;border-radius:3px}
-.msg .time{font-size:10px;color:#888;margin-top:4px}
-.loading{align-self:flex-start;padding:10px 14px}
-.loading span{animation:blink 1.4s infinite}
-@keyframes blink{0%{opacity:0.2}20%{opacity:1}100%{opacity:1}}
-.input-area{display:flex;padding:12px;gap:8px;border-top:1px solid #0f3460;background:#16213e;flex-shrink:0}
-.input-area textarea{flex:1;background:#1a1a2e;border:1px solid #0f3460;border-radius:8px;color:#e0e0e0;padding:10px;font-size:14px;resize:none;min-height:44px;max-height:120px;font-family:inherit}
-.input-area button{background:#e94560;color:white;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;flex-shrink:0}
-.input-area button:active{background:#c73e54}
-</style>
-</head>
-<body>
-<div class="header">国学平台 · 远程对话</div>
-<div class="messages" id="msgs">
-<div class="msg assistant">你好！我是 Claude。输入任务指令，我会在服务器上执行并反馈结果。<br><br>支持的操作：代码开发、文件操作、服务器管理、数据库查询等。</div>
-</div>
-<div class="input-area">
-<textarea id="input" rows="1" placeholder="输入任务指令..."></textarea>
-<button onclick="send()">发送</button>
-</div>
-<script>
-const msgs=document.getElementById("msgs"),input=document.getElementById("input");
-function addMsg(role,text){
-  const d=document.createElement("div");
-  d.className="msg "+role;
-  d.innerHTML=text+"<div class=time>"+new Date().toLocaleTimeString()+"</div>";
-  msgs.appendChild(d);
-  msgs.scrollTop=msgs.scrollHeight;
-}
-async function send(){
-  const t=input.value.trim();
-  if(!t)return;
-  addMsg("user",t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"));
-  input.value="";
-  const load=document.createElement("div");
-  load.className="loading";
-  load.innerHTML="<span>...</span> 思考中";
-  msgs.appendChild(load);
-  msgs.scrollTop=msgs.scrollHeight;
-  try{
-    const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:t})});
-    load.remove();
-    if(!r.ok){addMsg("assistant","错误: "+(await r.text()));return}
-    const j=await r.json();
-    addMsg("assistant",j.reply.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/```(\w*)\n([\\s\\S]*?)```/g,(_,lang,code)=>'<pre><code>'+code.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")+'</code></pre>'));
-  }catch(e){load.remove();addMsg("assistant","连接失败: "+e.message)}
-}
-input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});
-</script>
-</body>
-</html>`;
-
-http.createServer(async (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") { res.writeHead(204); res.end(); return; }
-
-  if (req.method === "GET" && req.url === "/") {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(HTML);
-    return;
+# ═══════════════════════════════════════════════════════════════
+# 4. 拉取代码
+# ═══════════════════════════════════════════════════════════════
+REPO_URL="https://github.com/tianjingyu123/guoxue-platform.git"
+log "拉取代码..."
+if [ -d "/opt/guoxue/.git" ]; then
+  cd /opt/guoxue && git pull origin master 2>/dev/null && ok "代码已更新"
+else
+  git clone --depth 1 "$REPO_URL" /opt/guoxue 2>/dev/null || {
+    echo "  ⚠ GitHub 克隆失败，请手动上传代码到 /opt/guoxue"
   }
+  ok "代码已克隆"
+fi
 
-  if (req.method === "POST" && req.url === "/api/chat") {
-    let body = "";
-    req.on("data", c => body += c);
-    req.on("end", async () => {
-      try {
-        const { message } = JSON.parse(body);
-        // 调用 Claude CLI（非交互模式）
-        const claude = spawn("claude", ["-p", message], {
-          env: { ...process.env, HOME: process.env.HOME },
-          cwd: "/opt/guoxue-platform",
-          timeout: 300000,
-        });
-        let output = "";
-        claude.stdout.on("data", d => output += d);
-        claude.stderr.on("data", d => output += d);
-        claude.on("close", () => {
-          res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ reply: output || "(无输出)" }));
-        });
-        claude.on("error", () => {
-          res.writeHead(500);
-          res.end(JSON.stringify({ reply: "Claude CLI 执行失败，请检查服务状态" }));
-        });
-      } catch (e) {
-        res.writeHead(400);
-        res.end(JSON.stringify({ reply: "请求解析失败: " + e.message }));
-      }
-    });
-    return;
-  }
+# ═══════════════════════════════════════════════════════════════
+# 5. 配置环境变量
+# ═══════════════════════════════════════════════════════════════
+log "配置环境变量..."
+ENV_FILE="/opt/guoxue/docker/.env.production"
 
-  res.writeHead(404);
-  res.end("Not Found");
-}).listen(PORT, () => {
-  console.log(`Claude Bridge running on http://localhost:${PORT}`);
-});
-BRIDGE_EOF
+if [ ! -f "$ENV_FILE" ]; then
+  echo ""
+  echo "  ╔══════════════════════════════════════╗"
+  echo "  ║  请输入生产环境配置                  ║"
+  echo "  ╚══════════════════════════════════════╝"
+  echo ""
 
-# 8. 配置 Nginx 反向代理
-cat > /etc/nginx/sites-available/claude-bridge << 'NGINX_EOF'
+  read -p "  PostgreSQL 连接: " DATABASE_URL
+  read -p "  JWT 密钥: " JWT_SECRET
+  read -p "  加密密钥: " ENCRYPTION_KEY
+  read -p "  Redis 密码 (留空无密码): " REDIS_PASSWORD
+  read -p "  DeepSeek Key (留空跳过): " DEEPSEEK_KEY
+  read -p "  大屏密钥: " BIGSCREEN_SECRET
+
+  cat > "$ENV_FILE" << ENVEOF
+NODE_ENV=production
+PORT=3000
+DATABASE_URL=${DATABASE_URL}
+REDIS_URL=redis://${REDIS_PASSWORD:+default:${REDIS_PASSWORD}@}127.0.0.1:6379
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_PASSWORD=${REDIS_PASSWORD:-}
+JWT_SECRET=${JWT_SECRET}
+ENCRYPTION_KEY=${ENCRYPTION_KEY}
+DEEPSEEK_API_KEY=${DEEPSEEK_KEY:-}
+BIGSCREEN_SECRET=${BIGSCREEN_SECRET:-}
+DOMAIN=guoxue.ac.cn
+CORS_ORIGIN=https://guoxue.ac.cn,https://m.guoxue.ac.cn,https://admin.guoxue.ac.cn
+PRISMA_SLOW_QUERY_MS=500
+ENVEOF
+  ok "环境变量已生成"
+fi
+
+# ═══════════════════════════════════════════════════════════════
+# 6. 启动 Redis (Docker)
+# ═══════════════════════════════════════════════════════════════
+log "启动 Redis..."
+docker rm -f guoxue-redis 2>/dev/null || true
+docker network create guoxue-net 2>/dev/null || true
+docker run -d \
+  --name guoxue-redis \
+  --restart unless-stopped \
+  --network guoxue-net \
+  -p 127.0.0.1:6379:6379 \
+  redis:7-alpine \
+  redis-server ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD} --appendonly yes
+ok "Redis 已启动"
+
+# ═══════════════════════════════════════════════════════════════
+# 7. 构建并启动
+# ═══════════════════════════════════════════════════════════════
+log "构建 Docker 镜像（约 3-5 分钟）..."
+cd /opt/guoxue
+docker build -f docker/Dockerfile -t guoxue-server:latest . 2>&1 | tail -3
+ok "镜像构建完成"
+
+log "执行数据库迁移..."
+docker run --rm \
+  --network guoxue-net \
+  -e DATABASE_URL="$DATABASE_URL" \
+  guoxue-server:latest \
+  npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma 2>&1 | tail -3
+ok "数据库迁移完成"
+
+log "启动服务..."
+docker rm -f guoxue-server 2>/dev/null || true
+docker run -d \
+  --name guoxue-server \
+  --restart unless-stopped \
+  --network guoxue-net \
+  -p 127.0.0.1:3000:3000 \
+  --env-file "$ENV_FILE" \
+  --memory 1G \
+  guoxue-server:latest
+ok "服务已启动"
+
+# ═══════════════════════════════════════════════════════════════
+# 8. Nginx 配置
+# ═══════════════════════════════════════════════════════════════
+log "配置 Nginx..."
+cat > /etc/nginx/sites-available/guoxue << 'NGINX'
 server {
     listen 80;
     server_name _;
-    location / {
-        proxy_pass http://127.0.0.1:3456;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_read_timeout 600s;
-        proxy_send_timeout 600s;
-    }
-}
-NGINX_EOF
 
-ln -sf /etc/nginx/sites-available/claude-bridge /etc/nginx/sites-enabled/
+    # API
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # H5 移动端
+    root /opt/guoxue/h5;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~* \.(js|css|png|jpg|svg|woff2)$ {
+        expires 30d;
+        add_header Cache-Control "public";
+    }
+
+    gzip on;
+    gzip_types text/css application/javascript application/json;
+    gzip_min_length 256;
+}
+NGINX
+
+ln -sf /etc/nginx/sites-available/guoxue /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
+ok "Nginx 配置完成"
 
-# 9. 启动服务
-pm2 start /opt/claude-bridge/server.mjs --name claude-bridge
-pm2 save
-pm2 startup
+# ═══════════════════════════════════════════════════════════════
+# 9. SSL 证书（如果有域名）
+# ═══════════════════════════════════════════════════════════════
+if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "_" ]; then
+  log "申请 SSL 证书..."
+  certbot --nginx -d "$DOMAIN" -d "www.$DOMAIN" -d "m.$DOMAIN" --non-interactive --agree-tos --email admin@${DOMAIN} 2>/dev/null || echo "  ⚠ SSL 待手动申请：certbot --nginx"
+fi
 
-echo ""
-echo "=== 部署完成 ==="
-echo "访问 http://$(hostname -I | awk '{print $1}'):3456 即可开始远程对话"
-echo "或通过 Nginx: http://$(hostname -I | awk '{print $1}')"
-echo ""
-echo "如需 HTTPS: certbot --nginx"
+# ═══════════════════════════════════════════════════════════════
+# 10. 健康检查
+# ═══════════════════════════════════════════════════════════════
+log "健康检查..."
+sleep 10
+HEALTH=$(curl -s http://127.0.0.1:3000/api/v1/health/live 2>/dev/null || echo 'fail')
+if echo "$HEALTH" | grep -q "alive"; then
+  ok "✅ 服务健康 — 部署成功！"
+  echo ""
+  echo "  ╔══════════════════════════════════════════════╗"
+  echo "  ║  热卜国学平台 — 部署成功！                   ║"
+  echo "  ╠══════════════════════════════════════════════╣"
+  echo "  ║  API:    内网 127.0.0.1:3000                ║"
+  echo "  ║  健康:   /api/v1/health                     ║"
+  echo "  ║  H5:     通过 Nginx 端口 80                 ║"
+  echo "  ╚══════════════════════════════════════════════╝"
+else
+  echo "  ⚠ 服务启动中，查看日志: docker logs guoxue-server"
+fi
