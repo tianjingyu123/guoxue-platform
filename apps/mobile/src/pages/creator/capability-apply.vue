@@ -79,6 +79,7 @@ const CAPS = [
   { type: 'VIDEO_CALL', name: '视频连麦', desc: '与学员视频面对面交流', icon: '📹' },
   { type: 'PAID_QA', name: '付费问答', desc: '接受学员付费提问', icon: '💬' },
   { type: 'VOICE_QA', name: '语音问答', desc: '接受学员语音提问', icon: '🎙️' },
+  { type: 'BOT', name: '圈主助理机器人', desc: 'AI智能客服自动回复学员提问', icon: '🤖' },
 ]
 
 const selectedType = ref('')

@@ -61,6 +61,7 @@ const TYPE_LABELS: Record<string, string> = {
   LIVE: '直播功能', VIDEO_UPLOAD: '视频上传',
   AUDIO_CALL: '语音连麦', VIDEO_CALL: '视频连麦',
   PAID_QA: '付费问答', VOICE_QA: '语音问答',
+  BOT: '圈主助理机器人',
 }
 function typeLabel(t: string) { return TYPE_LABELS[t] || t }
 

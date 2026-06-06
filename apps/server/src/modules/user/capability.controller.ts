@@ -7,7 +7,7 @@ import { Roles } from "../../common/roles.decorator";
 import { PrismaService } from "../../prisma/prisma.service";
 
 /** 可申请的功能权限类型 */
-const CAPABILITY_TYPES = ["LIVE", "VIDEO_UPLOAD", "AUDIO_CALL", "VIDEO_CALL", "PAID_QA", "VOICE_QA"] as const;
+const CAPABILITY_TYPES = ["LIVE", "VIDEO_UPLOAD", "AUDIO_CALL", "VIDEO_CALL", "PAID_QA", "VOICE_QA", "BOT"] as const;
 
 @ApiTags("功能权限")
 @Controller("capabilities")
