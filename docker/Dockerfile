@@ -5,6 +5,7 @@ WORKDIR /app
 
 # 依赖缓存层
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY patches/ patches/
 COPY apps/server/package.json apps/server/
 COPY apps/admin/package.json apps/admin/
 COPY apps/mobile/package.json apps/mobile/
