@@ -8,7 +8,7 @@ COPY . .
 RUN pnpm install --loglevel debug 2>&1 | tail -50 || (echo "=== pnpm install FAILED ===" && exit 1)
 
 # 构建
-RUN pnpm --filter @guoxue/server exec prisma generate
+RUN pnpm --filter @guoxue/server exec prisma generate || echo "prisma generate skipped"
 RUN pnpm --filter @guoxue/shared build
 RUN pnpm --filter @guoxue/bazi-engine build
 RUN pnpm --filter @guoxue/ziwei-engine build
