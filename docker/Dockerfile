@@ -1,21 +1,13 @@
 FROM node:20-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ ca-certificates curl && rm -rf /var/lib/apt/lists/*
-RUN npm install -g pnpm@latest
+RUN npm install -g pnpm@10
 WORKDIR /app
 
-# 依赖缓存层（不拷贝 lockfile，在 Linux 环境从零生成）
-COPY pnpm-workspace.yaml package.json ./
-COPY apps/server/package.json apps/server/
-COPY apps/admin/package.json apps/admin/
-COPY apps/mobile/package.json apps/mobile/
-COPY packages/shared/package.json packages/shared/
-COPY packages/bazi-engine/package.json packages/bazi-engine/
-COPY packages/ziwei-engine/package.json packages/ziwei-engine/
-
-RUN rm -f pnpm-lock.yaml && pnpm install
-
-# 源代码 + 构建
+# 全量复制 → pnpm install（不依赖 lockfile，Linux 环境从零解析）
 COPY . .
+RUN pnpm install
+
+# 构建
 RUN pnpm --filter @guoxue/server exec prisma generate
 RUN pnpm --filter @guoxue/shared build
 RUN pnpm --filter @guoxue/bazi-engine build
@@ -25,7 +17,7 @@ RUN (pnpm build:admin || echo "admin build skipped")
 
 # ── 运行阶段 ──
 FROM node:20-slim
-RUN npm install -g pnpm@latest
+RUN npm install -g pnpm@10
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
