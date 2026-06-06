@@ -427,6 +427,12 @@
       }
     },
     {
+      "path": "pages/creator/publish-course",
+      "style": {
+        "navigationBarTitleText": "发布课程"
+      }
+    },
+    {
       "path": "pages/customer-service/index",
       "style": {
         "navigationBarTitleText": "智能客服"
