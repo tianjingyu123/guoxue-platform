@@ -222,6 +222,12 @@
       }
     },
     {
+      "path": "pages/circles/revenue-splits",
+      "style": {
+        "navigationBarTitleText": "分账管理"
+      }
+    },
+    {
       "path": "pages/classics/ai-assistant",
       "style": {
         "navigationBarTitleText": "AI助手"
