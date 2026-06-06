@@ -258,6 +258,9 @@ export class VodService {
       ];
     }
 
+    // 视频 AI 智能审核：自动检测色情/暴恐/涉政内容
+    mediaProcessTask.AiContentReviewTask = { Definition: 10 };
+
     if (options?.snapshotDefinition || transcodeDefs.length > 0) {
       mediaProcessTask.CoverBySnapshotTaskSet = [
         { Definition: options?.snapshotDefinition || 10 },
