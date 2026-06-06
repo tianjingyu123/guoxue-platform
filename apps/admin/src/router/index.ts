@@ -215,6 +215,12 @@ const routes = [
         meta: { title: "实名审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
+        path: "users/capabilities",
+        name: "CapabilityAudit",
+        component: () => import("@/views/user/CapabilityAudit.vue"),
+        meta: { title: "功能权限审批", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
         path: "users/push",
         name: "UserPush",
         component: () => import("@/views/users/UserPush.vue"),
