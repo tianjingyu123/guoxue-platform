@@ -1,11 +1,11 @@
 FROM node:20-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ ca-certificates curl && rm -rf /var/lib/apt/lists/*
-RUN npm install -g pnpm@10
+RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 
-# 全量复制 → pnpm install（不依赖 lockfile，Linux 环境从零解析）
+# 全量复制 → pnpm install
 COPY . .
-RUN pnpm install
+RUN pnpm install --loglevel debug 2>&1 | tail -50 || (echo "=== pnpm install FAILED ===" && exit 1)
 
 # 构建
 RUN pnpm --filter @guoxue/server exec prisma generate
@@ -17,7 +17,7 @@ RUN (pnpm build:admin || echo "admin build skipped")
 
 # ── 运行阶段 ──
 FROM node:20-slim
-RUN npm install -g pnpm@10
+RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
