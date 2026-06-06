@@ -143,6 +143,38 @@ export class SystemController {
     return this.systemService.getHomeConfig();
   }
 
+  /**
+   * 公开接口：小程序合规配置
+   *
+   * 小程序启动时调用此接口，获取当前可用的功能列表。
+   * 审核期间通过后台关闭排盘/算命等敏感功能，审核通过后开启。
+   * H5/APP 不受此限制，永远返回全部功能。
+   */
+  @Get("public/miniapp-config")
+  @ApiOperation({ summary: "获取小程序合规配置（公开）" })
+  async getMiniappConfig() {
+    return {
+      /** 小程序模式下可用的排盘工具 ID 列表（为空则全部隐藏） */
+      paipanTools: [] as string[],
+      /** 排盘入口是否显示 */
+      paipanEntry: false,
+      /** 算命/运势是否显示 */
+      fortuneEnabled: false,
+      /** 风水是否显示 */
+      fengshuiEnabled: false,
+      /** 解梦是否显示 */
+      jiemengEnabled: false,
+      /** 合婚/起名是否显示 */
+      namingEnabled: false,
+      /** 当前模式: 'review'(审核中) | 'normal'(正常) */
+      mode: 'review' as 'review' | 'normal',
+      /** 审核期间展示的公告文案 */
+      notice: '更多精彩功能，请在浏览器中打开热卜国学 H5 版本体验',
+      /** 跳转到 H5 完整版的链接 */
+      h5Url: 'https://m.guoxue.ac.cn',
+    };
+  }
+
   // ── 审计日志 ──
 
   @Get("audit-logs")

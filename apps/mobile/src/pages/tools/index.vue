@@ -8,6 +8,12 @@
         传统智慧，现代计算
       </text>
     </view>
+
+    <!-- 小程序审核模式：引导到 H5 完整版 -->
+    <view v-if="reviewBanner" class="review-banner" @click="goH5">
+      <text class="review-text">{{ reviewBanner }}</text>
+      <text class="review-link">立即前往 →</text>
+    </view>
     <view class="tool-grid">
       <view
         v-for="tool in tools"
@@ -33,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const tools = ref([
   { id: 'bazi', name: '八字排盘', desc: '四柱八字命运分析', icon: '🔮' },
@@ -50,8 +56,27 @@ const tools = ref([
   { id: 'yizhangjing', name: '达摩一掌经', desc: '前世今生因果', icon: '✋' },
 ])
 
+const reviewBanner = ref('')
+
+onMounted(async () => {
+  // 小程序审核模式：显示引导 H5 提示
+  // #ifdef MP-WEIXIN
+  try {
+    const res = await uni.request({ url: '/api/v1/system/public/miniapp-config', method: 'GET' })
+    const data = (res.data as any)?.data || res.data
+    if (data?.mode === 'review') reviewBanner = data.notice || ''
+  } catch { }
+  // #endif
+})
+
 function goTool(tool: any) {
   uni.navigateTo({ url: `/pages/tools/calculate?toolId=${tool.id}` })
+}
+
+function goH5() {
+  // #ifdef MP-WEIXIN
+  uni.navigateTo({ url: '/pages/common/webview?url=https://m.guoxue.ac.cn' })
+  // #endif
 }
 </script>
 
@@ -73,4 +98,8 @@ function goTool(tool: any) {
   position: absolute; top: 6px; right: 6px; background: #C41E3A; color: #fff;
   font-size: 10px; padding: 1px 6px; border-radius: 8px;
 }
+
+.review-banner { margin: 12px 16px; padding: 14px 16px; background: linear-gradient(135deg, #FEF3C7, #FDE68A); border-radius: 12px; display: flex; align-items: center; justify-content: space-between; }
+.review-text { font-size: 13px; color: #92400E; flex: 1; }
+.review-link { font-size: 13px; color: #C41E3A; font-weight: 600; white-space: nowrap; margin-left: 8px; }
 </style>
