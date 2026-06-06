@@ -13,7 +13,7 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/bazi-engine/package.json packages/bazi-engine/
 COPY packages/ziwei-engine/package.json packages/ziwei-engine/
 
-RUN pnpm install --no-frozen-lockfile --filter "!@guoxue/mobile"
+RUN pnpm install --no-frozen-lockfile || pnpm install --no-frozen-lockfile --filter "!@guoxue/mobile"
 
 # 源代码 + 构建
 COPY . .
