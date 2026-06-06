@@ -297,6 +297,43 @@ export class CozeService {
     return data.data as Record<string, unknown>;
   }
 
+  /** 在 Coze 平台创建智能体 + 自动发布 */
+  async createBot(params: {
+    apiKey: string;
+    name: string;
+    description?: string;
+    prompt?: string;
+    spaceId?: string;
+  }) {
+    const body: Record<string, unknown> = {
+      name: params.name,
+      description: params.description || "",
+      prompt_info: params.prompt || `你是热卜国学平台的${params.name}，请根据用户需求提供专业服务。`,
+    };
+    if (params.spaceId) body.space_id = params.spaceId;
+
+    const resp = await fetch("https://api.coze.cn/v1/bot/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${params.apiKey}` },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json() as Record<string, unknown>;
+    if (data.code !== 0) {
+      this.logger.error("Coze 创建智能体失败", data);
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `创建智能体失败: ${data.msg}`);
+    }
+    const botData = data.data as Record<string, unknown>;
+    // 创建后自动发布
+    try {
+      await fetch("https://api.coze.cn/v1/bot/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${params.apiKey}` },
+        body: JSON.stringify({ bot_id: botData.bot_id }),
+      });
+    } catch { /* 发布失败不影响创建 */ }
+    return botData;
+  }
+
   // ───────── 语音通话 ─────────
 
   /** 创建 RTC 语音通话房间 */

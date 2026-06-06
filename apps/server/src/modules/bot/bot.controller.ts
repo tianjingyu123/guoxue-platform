@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGu
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { BotService } from "./bot.service";
+import { CozeService } from "./coze.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDto, AddBotKnowledgeItemDto, UpdateBotKnowledgeItemDto, RunWorkflowDto } from "./bot.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -30,7 +31,7 @@ import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 @Controller("bots")
 export class BotController {
   private readonly logger = new Logger(BotController.name);
-  constructor(private svc: BotService, private sse: StreamUnifierService) {}
+  constructor(private svc: BotService, private cozeSvc: CozeService, private sse: StreamUnifierService) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -39,6 +40,38 @@ export class BotController {
   @ApiBearerAuth()
   create(@Body() dto: CreateBotDto) {
     return this.svc.create(dto);
+  }
+
+  /** 通过 Coze API 一键创建+发布智能体，并同步到本地 BotConfig */
+  @Post("create-coze")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "Coze 创建智能体并同步" })
+  @ApiBearerAuth()
+  async createOnCoze(@Body() body: { name: string; description?: string; prompt?: string; type?: string; isFree?: boolean; dailyLimit?: number }) {
+    const apiKey = process.env.COZE_API_KEY || "";
+    if (!apiKey) throw new Error("COZE_API_KEY 未配置");
+
+    // 1. 在 Coze 平台创建智能体
+    const botData = await this.cozeSvc.createBot({
+      apiKey,
+      name: body.name,
+      description: body.description,
+      prompt: body.prompt,
+    });
+
+    // 2. 同步到本地 BotConfig
+    const bot = await this.svc.create({
+      name: body.name,
+      type: body.type || "CUSTOMER_SERVICE",
+      botId: botData.bot_id as string,
+      apiKey,
+      intro: body.description || "",
+      isFree: body.isFree ?? true,
+      dailyLimit: body.dailyLimit ?? 10,
+    });
+
+    return { code: 200, data: bot, message: "智能体已创建并发布" };
   }
 
   @Get()
