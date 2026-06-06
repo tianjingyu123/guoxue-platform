@@ -30,8 +30,8 @@ export class MemberService {
     const now = new Date();
     let expireAt: Date | null = null;
     switch (plan.level) {
-      case "MONTHLY": expireAt = new Date(now.getTime() + 30 * 86400000); break;
-      case "YEARLY":  expireAt = new Date(now.getTime() + 365 * 86400000); break;
+      case "MONTHLY": expireAt = new Date(now); expireAt.setMonth(expireAt.getMonth() + 1); break;
+      case "YEARLY":  expireAt = new Date(now); expireAt.setFullYear(expireAt.getFullYear() + 1); break;
       case "LIFETIME": expireAt = null; break;
     }
 
@@ -89,8 +89,8 @@ export class MemberService {
     const baseDate = user.memberExpire && user.memberExpire > now ? user.memberExpire : now;
     let expireAt: Date | null = null;
     switch (plan.level) {
-      case "MONTHLY": expireAt = new Date(baseDate.getTime() + 30 * 86400000); break;
-      case "YEARLY":  expireAt = new Date(baseDate.getTime() + 365 * 86400000); break;
+      case "MONTHLY": expireAt = new Date(baseDate); expireAt.setMonth(expireAt.getMonth() + 1); break;
+      case "YEARLY":  expireAt = new Date(baseDate); expireAt.setFullYear(expireAt.getFullYear() + 1); break;
       case "LIFETIME": expireAt = null; break;
     }
 

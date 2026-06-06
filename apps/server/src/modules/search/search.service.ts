@@ -169,6 +169,13 @@ export class SearchService {
     const cfg = configs[entityType];
     if (!cfg) return [];
 
+    // 防御：表名白名单校验（cfg 来自硬编码常量，但此处为未来配置化留防线）
+    const ALLOWED_TABLES = ["Article","Course","Product","Circle","Video","User","ClassicBook","Content","Ebook"];
+    if (!ALLOWED_TABLES.includes(cfg.table)) {
+      this.logger.warn(`搜索拒绝非白名单表: ${cfg.table}`);
+      return [];
+    }
+
     try {
       return await this.prisma.$queryRawUnsafe<any[]>(
         `SELECT ${cfg.select},
