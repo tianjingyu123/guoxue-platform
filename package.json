@@ -48,9 +48,6 @@
       "@intlify/message-compiler": "9.14.5",
       "@intlify/shared": "9.14.5"
     },
-    "patchedDependencies": {
-      "@dcloudio/uni-cli-shared@3.0.0-alpha-5000820260430001": "patches/@dcloudio__uni-cli-shared@3.0.0-alpha-5000820260430001.patch"
-    }
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",

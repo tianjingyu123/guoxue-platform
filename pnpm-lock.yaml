@@ -17,10 +17,6 @@ overrides:
   '@intlify/message-compiler': 9.14.5
   '@intlify/shared': 9.14.5
 
-patchedDependencies:
-  '@dcloudio/uni-cli-shared@3.0.0-alpha-5000820260430001':
-    hash: 7572fc15ac1bf0cffe321b9801bdce385950a36d026905ff8b8f78cdaf02de6b
-    path: patches/@dcloudio__uni-cli-shared@3.0.0-alpha-5000820260430001.patch
 
 importers:
 
