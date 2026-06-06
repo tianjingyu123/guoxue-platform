@@ -1318,6 +1318,13 @@
       }
     },
     {
+      "path": "pages/tools/legacy",
+      "style": {
+        "navigationBarTitleText": "排盘",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/topics/topic",
       "style": {
         "navigationBarTitleText": "话题页"

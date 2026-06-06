@@ -70,7 +70,9 @@ onMounted(async () => {
 })
 
 function goTool(tool: any) {
-  uni.navigateTo({ url: `/pages/tools/calculate?toolId=${tool.id}` })
+  // 过渡期：全部跳转到旧 H5
+  // 后期切换：八字/紫微走 calculate，其余走 legacy
+  uni.navigateTo({ url: `/pages/tools/legacy?toolId=${tool.id}` })
 }
 
 function goH5() {
