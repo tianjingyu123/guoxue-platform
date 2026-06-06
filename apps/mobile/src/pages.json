@@ -433,6 +433,12 @@
       }
     },
     {
+      "path": "pages/creator/capability-apply",
+      "style": {
+        "navigationBarTitleText": "申请功能"
+      }
+    },
+    {
       "path": "pages/customer-service/index",
       "style": {
         "navigationBarTitleText": "智能客服"
