@@ -12,6 +12,9 @@ const STATION_SCOPED_MODELS = new Set([
   "BotConfig", "CircleBot", "BotKnowledgeBase", "BotChatLog",
   "LiveRoom", "Checkin", "Bounty", "FraudDetection", "RiskAlert",
   "ChurnPrediction", "ChurnAction", "BrowseHistory",
+  "DiscountActivity", "Withdrawal", "MarketingPage",
+  "StationOrder", "StationProduct", "StationEarning",
+  "StationSettlement", "StationTeacher",
 ]);
 
 /**
