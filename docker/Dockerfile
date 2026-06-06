@@ -3,9 +3,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 make g+
 RUN npm install -g pnpm@latest
 WORKDIR /app
 
-# 依赖缓存层
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY patches/ patches/
+# 依赖缓存层（不拷贝 lockfile，在 Linux 环境从零生成）
+COPY pnpm-workspace.yaml package.json ./
 COPY apps/server/package.json apps/server/
 COPY apps/admin/package.json apps/admin/
 COPY apps/mobile/package.json apps/mobile/
@@ -13,7 +12,7 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/bazi-engine/package.json packages/bazi-engine/
 COPY packages/ziwei-engine/package.json packages/ziwei-engine/
 
-RUN pnpm install --no-frozen-lockfile || pnpm install --no-frozen-lockfile --filter "!@guoxue/mobile"
+RUN rm -f pnpm-lock.yaml && pnpm install
 
 # 源代码 + 构建
 COPY . .
