@@ -28,6 +28,12 @@ export default defineConfig(({ command }) => ({
     },
   },
   build: {
+    // 生产环境：代码压缩 + 混淆 + 去除 console
+    minify: "terser",
+    terserOptions: {
+      compress: { drop_console: true, drop_debugger: true },
+      mangle: { safari10: true },
+    },
     rollupOptions: {
       output: {
         manualChunks: {
