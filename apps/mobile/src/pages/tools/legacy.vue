@@ -39,14 +39,31 @@ const props = defineProps<{
 const loading = ref(true)
 const url = ref('')
 
-onMounted(() => {
-  // 从全局配置读取旧 H5 地址
-  const base = 'https://paipan.rebu.com' // ← 改成你的旧 H5 地址
+onMounted(async () => {
+  let base = 'https://paipan.rebu.com' // ← 默认旧 H5 地址
+
+  // 如果当前有分站，优先用分站的专属排盘链接
+  const stationCode = uni.getStorageSync('stationCode') || ''
+  if (stationCode) {
+    try {
+      const res = await uni.request({
+        url: `/api/v1/station/brand/${stationCode}`,
+        method: 'GET',
+      })
+      const data = (res.data as any)?.data || res.data
+      // 分站有专属排盘链接就用它，否则用默认地址+推广码
+      if (data?.paipanLink) {
+        url.value = data.paipanLink
+        loading.value = false
+        return
+      }
+    } catch { /* 兜底 */ }
+  }
+
+  // 兜底：用默认地址 + 参数
   const params = new URLSearchParams()
   params.set('from', 'app')
   params.set('token', uni.getStorageSync('token') || '')
-  // 分站推广码 —— 传给旧排盘系统，用于佣金归属
-  const stationCode = uni.getStorageSync('stationCode') || ''
   if (stationCode) params.set('stationCode', stationCode)
   if (props.toolId) params.set('tool', props.toolId)
   url.value = `${base}/?${params.toString()}`

@@ -1758,6 +1758,8 @@ model Station {
   // 模版系统
   templateId     String?  @default("default") // 模版ID: default/paipan/lecturer/ecommerce/minimal
   templateConfig Json? // 模版个性化参数 { modules, order, hero, tabs, showSections }
+  paipanLink     String? // 分站在旧排盘系统的专属推广链接（含分站ID参数）
+  paipanUserId   String? // 分站在旧排盘系统的用户ID（用于佣金结算同步）
   expireAt       DateTime? // 分站年费到期时间
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
