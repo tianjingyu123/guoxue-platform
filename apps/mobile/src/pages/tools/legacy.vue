@@ -45,6 +45,9 @@ onMounted(() => {
   const params = new URLSearchParams()
   params.set('from', 'app')
   params.set('token', uni.getStorageSync('token') || '')
+  // 分站推广码 —— 传给旧排盘系统，用于佣金归属
+  const stationCode = uni.getStorageSync('stationCode') || ''
+  if (stationCode) params.set('stationCode', stationCode)
   if (props.toolId) params.set('tool', props.toolId)
   url.value = `${base}/?${params.toString()}`
 })
