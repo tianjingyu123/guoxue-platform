@@ -48,7 +48,12 @@ export class BotController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "Coze 创建智能体并同步" })
   @ApiBearerAuth()
-  async createOnCoze(@Body() body: { name: string; description?: string; prompt?: string; type?: string; isFree?: boolean; dailyLimit?: number }) {
+  async createOnCoze(@Body() body: {
+    name: string; description?: string; prompt?: string; type?: string;
+    isFree?: boolean; dailyLimit?: number;
+    modelConfig?: Record<string, unknown>; pluginIds?: string[]; workflowIds?: string[];
+    onboarding?: Record<string, unknown>; voiceId?: string;
+  }) {
     const apiKey = process.env.COZE_API_KEY || "";
     if (!apiKey) throw new Error("COZE_API_KEY 未配置");
 
@@ -58,6 +63,11 @@ export class BotController {
       name: body.name,
       description: body.description,
       prompt: body.prompt,
+      modelConfig: body.modelConfig,
+      pluginIds: body.pluginIds,
+      workflowIds: body.workflowIds,
+      onboarding: body.onboarding,
+      voiceId: body.voiceId,
     });
 
     // 2. 同步到本地 BotConfig

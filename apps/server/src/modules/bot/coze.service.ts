@@ -297,20 +297,46 @@ export class CozeService {
     return data.data as Record<string, unknown>;
   }
 
-  /** 在 Coze 平台创建智能体 + 自动发布 */
+  /**
+   * 在 Coze 平台创建智能体 + 自动发布（完整能力版）
+   *
+   * 支持 Coze REST API v1 全部字段：
+   *   prompt_info          — 人设提示词（支持模板变量）
+   *   model_info_config    — 大模型选择（如 deepseek-r1-0528）
+   *   plugin_id_list       — 绑定的插件ID列表
+   *   workflow_id_list     — 绑定的工作流ID列表
+   *   onboarding_info      — 开场白配置（prologue + suggested_questions）
+   *   voice_id             — 语音音色ID
+   */
   async createBot(params: {
     apiKey: string;
     name: string;
     description?: string;
     prompt?: string;
     spaceId?: string;
+    /** 大模型配置 { model: "deepseek-r1-0528", temperature: 0.7, maxTokens: 4096 } */
+    modelConfig?: Record<string, unknown>;
+    /** 插件ID列表，如 ["plugin_abc", "plugin_xyz"] */
+    pluginIds?: string[];
+    /** 工作流ID列表 */
+    workflowIds?: string[];
+    /** 开场白 { prologue: "你好！", suggestedQuestions: ["什么是八字？"] } */
+    onboarding?: Record<string, unknown>;
+    /** 语音音色ID */
+    voiceId?: string;
   }) {
     const body: Record<string, unknown> = {
       name: params.name,
       description: params.description || "",
       prompt_info: params.prompt || `你是热卜国学平台的${params.name}，请根据用户需求提供专业服务。`,
     };
-    if (params.spaceId) body.space_id = params.spaceId;
+
+    if (params.spaceId)               body.space_id = params.spaceId;
+    if (params.modelConfig)           body.model_info_config = params.modelConfig;
+    if (params.pluginIds?.length)     body.plugin_id_list = params.pluginIds;
+    if (params.workflowIds?.length)   body.workflow_id_list = params.workflowIds;
+    if (params.onboarding)            body.onboarding_info = params.onboarding;
+    if (params.voiceId)               body.voice_id = params.voiceId;
 
     const resp = await fetch("https://api.coze.cn/v1/bot/create", {
       method: "POST",
@@ -328,7 +354,7 @@ export class CozeService {
       await fetch("https://api.coze.cn/v1/bot/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${params.apiKey}` },
-        body: JSON.stringify({ bot_id: botData.bot_id }),
+        body: JSON.stringify({ bot_id: botData.bot_id, connector_ids: [1024] }),
       });
     } catch { /* 发布失败不影响创建 */ }
     return botData;
