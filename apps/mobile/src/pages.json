@@ -1423,16 +1423,22 @@
         "selectedIconPath": "static/tabbar/home-active.png"
       },
       {
+        "pagePath": "pages/tools/index",
+        "text": "排盘",
+        "iconPath": "static/tabbar/paipan.png",
+        "selectedIconPath": "static/tabbar/paipan-active.png"
+      },
+      {
         "pagePath": "pages/courses/courses",
         "text": "课程",
         "iconPath": "static/tabbar/course.png",
         "selectedIconPath": "static/tabbar/course-active.png"
       },
       {
-        "pagePath": "pages/search/search",
-        "text": "搜索",
-        "iconPath": "static/tabbar/search.png",
-        "selectedIconPath": "static/tabbar/search-active.png"
+        "pagePath": "pages/circles/circles",
+        "text": "圈子",
+        "iconPath": "static/tabbar/circle.png",
+        "selectedIconPath": "static/tabbar/circle-active.png"
       },
       {
         "pagePath": "pages/mine/mine",
