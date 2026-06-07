@@ -8,11 +8,12 @@ import { AdminReferralService } from "./admin-referral.service";
 import { PromotionController } from "./promotion.controller";
 import { PromotionService } from "./promotion.service";
 import { StationPaipanSyncService } from "./station-paipan-sync.service";
+import { TenantController } from "./tenant.controller";
 import { RedisModule } from "../../redis/redis.module";
 
 @Module({
   imports: [RedisModule],
-  controllers: [StationController, AdminReferralController, PromotionController, StationDashboardController, OperatorDashboardController],
+  controllers: [StationController, AdminReferralController, PromotionController, StationDashboardController, OperatorDashboardController, TenantController],
   providers: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService],
   exports: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService],
 })

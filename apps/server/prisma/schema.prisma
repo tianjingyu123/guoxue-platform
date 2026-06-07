@@ -1760,11 +1760,45 @@ model Station {
   templateConfig Json? // 模版个性化参数 { modules, order, hero, tabs, showSections }
   paipanLink     String? // 分站在旧排盘系统的专属推广链接（含分站ID参数）
   paipanUserId   String? // 分站在旧排盘系统的用户ID（用于佣金结算同步）
-  expireAt       DateTime? // 分站年费到期时间
+  expireAt       DateTime? // 到期时间
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   operatorId String? // 归属运营商ID
+
+  // ═══════════════════════════════════════════
+  // 多租户 SaaS 扩展字段（预留）
+  // ═══════════════════════════════════════════
+
+  /** 租户类型：
+   *  INTERNAL — 内部租户（分站/运营商），共享主数据库，共享小程序
+   *  SAAS     — 外部购买客户，独立 schema，独立小程序，品牌完全自定义
+   *  HOLDING  — 控股租户（战略合作方），独立 schema，独立小程序，平台有监督权
+   */
+  tenantType    String   @default("INTERNAL") // INTERNAL / SAAS / HOLDING
+
+  /** SAAS/HOLDING 租户的独立 PostgreSQL schema 名称（tenantType=INTERNAL 时为空） */
+  schemaName    String?
+
+  /** 独立数据库连接字符串（预留，当前用同一数据库的不同 schema 隔离） */
+  dbConnString  String?
+
+  /** 租户级别的功能开关 JSON（可配置每个租户开放的功能模块）
+   *  如: { "paipan": true, "course": true, "live": false, "shop": true } */
+  featureFlags  Json?
+
+  /** API 每日调用配额（0=不限制），防止单个租户占用过多资源 */
+  apiDailyQuota Int      @default(0)
+
+  /** 到期后数据保留天数（默认 90 天，到期后自动软删除） */
+  dataRetentionDays Int   @default(90)
+
+  /** 独立支付配置 JSON（SAAS/HOLDING 可配自己的商户号）
+   *  如: { "wechatMchId": "xxx", "wechatApiKey": "xxx", "alipayAppId": "xxx" } */
+  paymentConfig Json?
+
+  /** 是否到期自动停用 */
+  autoSuspendOnExpiry Boolean @default(true)
 
   user            User                @relation(fields: [userId], references: [id])
   operator        Operator?           @relation("OperatorStations", fields: [operatorId], references: [id])
