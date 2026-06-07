@@ -4,7 +4,7 @@ import { resolve } from "path";
 
 export default defineConfig(({ command }) => ({
   // 生产构建时部署在 /admin/ 子路径下，开发时用根路径
-  base: command === "build" ? "/admin/" : "/",
+  base: "/",
   plugins: [vue()],
   resolve: {
     alias: {
