@@ -52,3 +52,5 @@ failing-tests.txt
 
 # 古籍采集临时数据（不可提交到 git，太大）
 temp_*
+.backup
+dist/
