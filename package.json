@@ -47,7 +47,7 @@
       "@intlify/core-base": "9.14.5",
       "@intlify/message-compiler": "9.14.5",
       "@intlify/shared": "9.14.5"
-    },
+    }
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",
