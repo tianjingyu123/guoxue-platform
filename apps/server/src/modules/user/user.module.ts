@@ -7,12 +7,11 @@ import { PointsController } from "./points.controller";
 import { PointsService } from "./points.service";
 import { TeenModeController } from "./teen-mode.controller";
 import { TeenModeService } from "./teen-mode.service";
-import { CapabilityController } from "./capability.controller";
 import { SystemModule } from "../system/system.module";
 
 @Module({
   imports: [SystemModule],
-  controllers: [UserController, PaymentPasswordController, PointsController, TeenModeController, CapabilityController],
+  controllers: [UserController, PaymentPasswordController, PointsController, TeenModeController],
   providers: [UserService, PaymentPasswordService, PointsService, TeenModeService],
   exports: [UserService, PointsService],
 })
