@@ -371,3 +371,24 @@ export class QueryRankingDto {
   @IsInt()
   pageSize?: number = 50;
 }
+
+export class UpdateRegistrationDto {
+  @IsOptional() @IsString()
+  status?: string;
+}
+
+export class RegisterCompetitionDto {
+  @IsOptional() @IsString()
+  inviterId?: string;
+
+  @IsOptional() @IsString()
+  inviteCode?: string;
+}
+
+export class BatchSubmitAnswerDto {
+  @IsString()
+  registrationId!: string;
+
+  @IsArray()
+  answers!: { questionId: string; answer: Record<string, any>; duration?: number }[];
+}

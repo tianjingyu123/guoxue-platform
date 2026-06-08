@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { ProductCategoryService } from "./product-category.service";
+import { CreateCategoryDto, UpdateCategoryDto } from "./shop.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -29,7 +30,7 @@ export class ProductCategoryController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "新增商品分类" })
-  adminCreate(@Body() body: { name: string; parentId?: string; level?: number; sortOrder?: number; icon?: string }) {
+  adminCreate(@Body() body: CreateCategoryDto) {
     return this.svc.adminCreate(body);
   }
 

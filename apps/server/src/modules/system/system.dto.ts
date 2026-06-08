@@ -1,4 +1,27 @@
-import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsObject, MinLength } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsBoolean, IsObject, IsArray, MinLength } from "class-validator";
+
+export class CreateConfigDto {
+  @IsString()
+  @MinLength(1)
+  key: string;
+
+  @IsString()
+  @MinLength(1)
+  value: string;
+
+  @IsOptional() @IsString()
+  description?: string;
+}
+
+export class ToggleMaintenanceDto {
+  @IsBoolean()
+  enabled: boolean;
+}
+
+export class ToggleAutomationDto {
+  @IsBoolean()
+  enabled: boolean;
+}
 
 export class SetConfigDto {
   @IsString()
@@ -146,6 +169,12 @@ export class ExportExcelDto {
 
   @IsOptional()
   filters?: Record<string, any>;
+}
+
+export class SetPermissionsDto {
+  @IsArray()
+  @IsString({ each: true })
+  permissions: string[];
 }
 
 export class UpsertMemberConfigDto {

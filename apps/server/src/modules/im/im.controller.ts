@@ -15,6 +15,8 @@ import {
   FriendDto,
   UpdateImProfileDto,
   SendImGroupMsgDto,
+  SendImageDto,
+  SendCustomDto,
 } from "./im.dto";
 
 @ApiTags("IM 即时通讯")
@@ -261,7 +263,7 @@ export class ImController {
   @UseGuards(JwtAuthGuard)
   sendC2CImage(
     @Req() req: Request,
-    @Body() dto: { toUserId: string; imageUrl: string; width?: number; height?: number },
+    @Body() dto: SendImageDto,
   ) {
     return this.im.sendC2CImage(req.user.id, dto.toUserId, dto.imageUrl, dto.width, dto.height);
   }
@@ -272,7 +274,7 @@ export class ImController {
   @UseGuards(JwtAuthGuard)
   sendCustomMsg(
     @Req() req: Request,
-    @Body() dto: { toUserId: string; data: Record<string, unknown>; desc?: string },
+    @Body() dto: SendCustomDto,
   ) {
     return this.im.sendCustomMsg(req.user.id, dto.toUserId, dto.data, dto.desc);
   }

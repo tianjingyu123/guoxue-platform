@@ -227,7 +227,7 @@ export function getYueZhiIndex(month: number, day: number, year?: number): numbe
   for (let i = 0; i < 12; i++) {
     const jieName = JIE_NAMES[i]
     const jie = allJieQi.get(jieName)!
-    const jieValue = jie.month * 1000000 + jie.day * 10000 + jie.hour * 100 + jie.minute
+    let jieValue = jie.month * 1000000 + jie.day * 10000 + jie.hour * 100 + jie.minute
 
     // 上一个节的索引
     const prevIdx = (i + 11) % 12
@@ -239,6 +239,7 @@ export function getYueZhiIndex(month: number, day: number, year?: number): numbe
     if (prevJie.month > jie.month) {
       // 上一年
       prevValue = (prevJie.month) * 1000000 - 12000000 + prevJie.day * 10000 + prevJie.hour * 100 + prevJie.minute
+	      jieValue = jieValue + 12000000
     } else {
       prevValue = prevJie.month * 1000000 + prevJie.day * 10000 + prevJie.hour * 100 + prevJie.minute
     }

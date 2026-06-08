@@ -3,7 +3,7 @@ import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { LiveService } from "./live.service";
-import { CreateRoomDto, UpdateRoomDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
+import { CreateRoomDto, UpdateRoomDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -312,7 +312,7 @@ export class LiveController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新礼物（管理员）" })
   @ApiBearerAuth()
-  updateGift(@Param("giftId") giftId: string, @Body() dto: { name?: string; icon?: string; priceCoin?: number; level?: string; status?: string; sortOrder?: number }) {
+  updateGift(@Param("giftId") giftId: string, @Body() dto: UpdateGiftDto) {
     return this.svc.updateGift(giftId, dto);
   }
 

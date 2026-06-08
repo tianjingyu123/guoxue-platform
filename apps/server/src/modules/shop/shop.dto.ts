@@ -510,3 +510,69 @@ export class AlipayRefundDto {
   @IsOptional() @IsString()
   reason?: string;
 }
+
+// ── 银联退款 ──
+
+export class UnionpayRefundDto {
+  @ApiProperty({ description: "商户订单号" })
+  outTradeNo: string;
+  @ApiProperty({ description: "商户退款单号" })
+  outRefundNo: string;
+  @ApiProperty({ description: "退款金额(分)" })
+  amount: number;
+  @ApiProperty({ description: "原交易查询ID", required: false })
+  origQryId?: string;
+}
+
+// ── 售后 ──
+
+export class ApplyAfterSaleDto {
+  @ApiProperty({ description: "售后类型" })
+  type: string;
+  @ApiProperty({ description: "售后原因" })
+  reason: string;
+  @ApiProperty({ description: "退款金额", required: false })
+  amount?: number;
+}
+
+// ── 商品分类 DTO ──
+
+export class CreateCategoryDto {
+  @ApiProperty({ description: "分类名称" })
+  @IsString() @MinLength(1)
+  name: string;
+
+  @ApiPropertyOptional({ description: "父分类ID" })
+  @IsOptional() @IsString()
+  parentId?: string;
+
+  @ApiPropertyOptional({ description: "层级" })
+  @IsOptional() @IsInt()
+  level?: number;
+
+  @ApiPropertyOptional({ description: "排序" })
+  @IsOptional() @IsInt()
+  sortOrder?: number;
+
+  @ApiPropertyOptional({ description: "图标" })
+  @IsOptional() @IsString()
+  icon?: string;
+}
+
+export class UpdateCategoryDto {
+  @ApiPropertyOptional({ description: "分类名称" })
+  @IsOptional() @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ description: "排序" })
+  @IsOptional() @IsInt()
+  sortOrder?: number;
+
+  @ApiPropertyOptional({ description: "图标" })
+  @IsOptional() @IsString()
+  icon?: string;
+
+  @ApiPropertyOptional({ description: "状态" })
+  @IsOptional() @IsString()
+  status?: string;
+}

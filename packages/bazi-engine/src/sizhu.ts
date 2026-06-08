@@ -61,14 +61,27 @@ const MONTH_DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 /** 从 1900-01-01 起算的天数（纯数学计算，无时区依赖） */
 function daysSince1900(year: number, month: number, day: number): number {
-  let total = 0
-  for (let y = 1900; y < year; y++) {
-    total += isLeapYear(y) ? 366 : 365
+  if (year >= 1900) {
+    let total = 0
+    for (let y = 1900; y < year; y++) {
+      total += isLeapYear(y) ? 366 : 365
+    }
+    for (let m = 1; m < month; m++) {
+      total += MONTH_DAYS[m] + (m === 2 && isLeapYear(year) ? 1 : 0)
+    }
+    return total + day - 1
   }
-  for (let m = 1; m < month; m++) {
+  // 1900年之前：反向计算到 1900-01-01，取负数
+  let total = 0
+  const md = MONTH_DAYS[month] + (month === 2 && isLeapYear(year) ? 1 : 0)
+  total += md - day + 1
+  for (let m = month + 1; m <= 12; m++) {
     total += MONTH_DAYS[m] + (m === 2 && isLeapYear(year) ? 1 : 0)
   }
-  return total + day - 1
+  for (let y = year + 1; y < 1900; y++) {
+    total += isLeapYear(y) ? 366 : 365
+  }
+  return -total
 }
 
 /**

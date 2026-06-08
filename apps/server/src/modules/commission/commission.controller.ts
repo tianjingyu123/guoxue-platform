@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody } from "@nestjs/swagger";
 import { Request } from "express";
 import { CommissionService } from "./commission.service";
-import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, CreateReferralDto } from "./commission.dto";
+import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, CreateReferralDto, CommissionRateDto } from "./commission.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { ActiveUserGuard } from "../../common/active-user.guard";
@@ -183,7 +183,7 @@ export class CommissionController {
   @ApiOperation({ summary: "更新分佣配置比例" })
   @ApiBearerAuth()
   @ApiBody({ schema: { properties: { type: { type: "string" }, rate: { type: "number" } } } })
-  updateCommissionConfig(@Body() dto: { type: string; rate: number }) {
+  updateCommissionConfig(@Body() dto: CommissionRateDto) {
     return this.svc.updateCommissionConfig(dto.type, dto.rate);
   }
 

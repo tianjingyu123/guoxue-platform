@@ -348,3 +348,45 @@ export function calculateWanNianLi(input: Record<string, unknown>): WanNianLiRes
     jieQiList,
   };
 }
+
+// ═══ 基于中央数据层的计算（预计算查表 + 算法推导） ═══
+
+import type { WannianliService } from "../../wannianli/wannianli.service";
+
+/**
+ * 使用中央数据层计算结果（优先使用此函数）
+ *
+ * 查表获取：节气、农历、日干支、年干支、月干支、二十八宿、生肖、星期
+ * 算法推导：建除、纳音、时辰干支、彭祖百忌、黄历宜忌
+ */
+export async function calculateWanNianLiFromDb(
+  input: Record<string, unknown>,
+  svc: WannianliService,
+): Promise<WanNianLiResult> {
+  const dateStr = (input.date as string)?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
+  const endDateStr = (input.endDate as string)?.slice(0, 10) ?? dateStr;
+
+  const start = new Date(dateStr + "T00:00:00Z");
+  const end = new Date(endDateStr + "T00:00:00Z");
+
+  // 限制最大62天（与旧版一致）
+  const maxEnd = new Date(start);
+  maxEnd.setDate(maxEnd.getDate() + 61);
+  const effectiveEnd = end > maxEnd ? maxEnd : end;
+
+  // 查表获取日期范围数据
+  const rows = await svc.getByDateRange(start, effectiveEnd);
+
+  // 算法推导单日详情
+  const days = rows.map(row => svc.buildDayDetail(row) as any);
+
+  // 节气列表
+  const year = start.getFullYear();
+  const jieQiList = await svc.getJieQiByYear(year);
+
+  return {
+    input: input as any,
+    days,
+    jieQiList,
+  };
+}

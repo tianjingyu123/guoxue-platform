@@ -1,222 +1,208 @@
 <template>
   <view class="page">
-    <view class="header">
-      <text class="title">
-        悬赏问答
-      </text>
-      <text class="subtitle">
-        帮人解答，赚取赏金
-      </text>
+    <view class="v0-header">
+      <text class="v0-title">悬赏</text>
+      <text class="v0-route">V0: bounty</text>
     </view>
-
-    <view class="filter-tabs">
-      <text
-        v-for="t in tabs"
-        :key="t.value"
-        :class="['tab', { active: activeTab === t.value }]"
-        @click="switchTab(t.value)"
-      >
-        {{ t.label }}
-      </text>
-    </view>
-
-    <LoadingSkeleton
-      v-if="loading && list.length === 0"
-      type="list"
-    />
-    <EmptyState
-      v-else-if="!loading && list.length === 0"
-      icon="💰"
-      text="暂无悬赏"
-    />
-
-    <view
-      v-else
-      class="bounty-list"
-    >
-      <view
-        v-for="item in list"
-        :key="item.id"
-        class="bounty-card"
-        @click="goDetail(item.id)"
-      >
-        <view class="card-top">
-          <view class="user-info">
-            <image
-              class="avatar"
-              :src="item.asker?.avatar || '/static/default-avatar.png'"
-              mode="aspectFill"
-            />
-            <text class="nickname">
-              {{ item.asker?.nickname || '匿名' }}
-            </text>
+        <view class="min-h-screen bg-background pb-20">
+          <!--   -->
+          <view class="sticky top-0 z-10 bg-background border-b border-border">
+            <view class="flex items-center justify-between px-4 py-3">
+              <view class="flex items-center gap-3">
+                <view class="v0-btn" @click={() => router.back()} class="p-1 -ml-1">
+                  <ChevronLeft class="w-6 h-6" />
+                </view>
+                <text class="text-lg font-semibold">悬赏广场</text>
+              </view>
+              <view class="v0-btn"
+                @click={() => router.push('/bounty/create')}
+                class="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-full text-sm font-medium"
+              >
+                <Plus class="w-4 h-4" />
+                发布悬赏
+              </view>
+            </view>
+    
+            <!--   -->
+            <view class="flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
+              
+    <view v-for="(tab, index) in STATUS_TABS" :key="index"> (
+                <view class="v0-btn"
+                  key={{ tab.key }}
+                  @click={() => setActiveTab(tab.key)}
+                  class={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
+                    activeTab === tab.key
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {{ tab.label }}
+                </view>
+              ))}
+            </view>
           </view>
-          <view
-            class="status-badge"
-            :class="'status-' + item.status"
-          >
-            <text>{{ statusMap[item.status] || item.status }}</text>
+    
+          <!--   -->
+          <view class="p-4 space-y-4">
+            {loading ? (
+              // Skeleton
+              Array.from({ length: 3 }).map((_, i) => (
+                <view key={{ i }} class="bg-card rounded-2xl p-4 animate-pulse">
+                  <view class="flex items-start gap-3">
+                    <view class="w-10 h-10 rounded-full bg-muted" />
+                    <view class="flex-1 space-y-2">
+                      <view class="h-4 bg-muted rounded w-1/4" />
+                      <view class="h-5 bg-muted rounded w-3/4" />
+                      <view class="h-4 bg-muted rounded w-full" />
+                    </view>
+                  </view>
+                </view>
+              ))
+            ) : bounties.length === 0 ? (
+              <view class="text-center py-20">
+                <view class="w-20 h-20 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                  <MessageSquare class="w-10 h-10 text-muted-foreground" />
+                </view>
+                <text class="text-muted-foreground mb-4">暂无悬赏问题</text>
+                <view class="v0-btn"
+                  @click={() => router.push('/bounty/create')}
+                  class="px-6 py-2 bg-primary text-primary-foreground rounded-full text-sm"
+                >
+                  发布悬赏
+                </view>
+              </view>
+            ) : (
+              bounties.map(bounty => {{ const statusConfig = STATUS_CONFIG[bounty.status]
+                return (
+                  <view
+                    key={bounty.id }}
+                    @click={() => router.push(`/bounty/${bounty.id}`)}
+                    class="bg-card rounded-2xl p-4 shadow-sm active:scale-[0.98] transition-transform cursor-pointer"
+                  >
+                    <!--   -->
+                    <view class="flex items-start gap-3 mb-3">
+                      <image
+                        src={{ bounty.poster.avatar }}
+                        alt={{ bounty.poster.name }}
+                        class="w-10 h-10 rounded-full object-cover"
+                      />
+                      <view class="flex-1 min-w-0">
+                        <view class="flex items-center gap-2">
+                          <text class="text-sm font-medium">{{ bounty.poster.name }}</text>
+                          <text class="text-xs text-muted-foreground">{{ formatTime(bounty.createdAt) }}</text>
+                        </view>
+                        {bounty.category && (
+                          <text class="text-xs text-muted-foreground">{{ bounty.category }}</text>
+                        )}
+                      </view>
+                      <view class={`px-2 py-0.5 rounded-full text-xs ${statusConfig.bg} ${{ statusConfig.color }}`}>
+                        {{ statusConfig.label }}
+                      </view>
+                    </view>
+    
+                    <!--   -->
+                    <text class="font-medium mb-2 line-clamp-2">{{ bounty.title }}</text>
+                    <text class="text-sm text-muted-foreground line-clamp-2 mb-3">{{ bounty.description }}</text>
+    
+                    <!--   -->
+                    {bounty.tags && bounty.tags.length > 0 && (
+                      <view class="flex flex-wrap gap-2 mb-3">
+                        {bounty.tags.map(tag => (
+                          <text key={tag} class="px-2 py-0.5 bg-muted rounded text-xs text-muted-foreground">
+                            #{{ tag }}
+                          </text>
+                        ))}
+                      </view>
+                    )}
+    
+                    <!--   -->
+                    <view class="flex items-center justify-between pt-3 border-t border-border">
+                      <view class="flex items-center gap-4 text-xs text-muted-foreground">
+                        <view class="flex items-center gap-1">
+                          <Eye class="w-3.5 h-3.5" />
+                          <text>{{ bounty.viewCount }}</text>
+                        </view>
+                        <view class="flex items-center gap-1">
+                          <MessageSquare class="w-3.5 h-3.5" />
+                          <text>{{ bounty.answerCount }}个回答</text>
+                        </view>
+                        {bounty.status === 'open' && (
+                          <view class="flex items-center gap-1 text-orange-500">
+                            <Clock class="w-3.5 h-3.5" />
+                            <text>{{ getRemainingTime(bounty.expireAt) }}</text>
+                          </view>
+                        )}
+                      </view>
+                      <view class="flex items-center gap-1 text-primary font-semibold">
+                        <Coins class="w-4 h-4" />
+                        <text>¥{{ bounty.amount }}</text>
+                      </view>
+                    </view>
+                  </view>
+                )
+              })
+            )}
           </view>
         </view>
-        <text class="card-title">
-          {{ item.title }}
-        </text>
-        <view class="card-tags">
-          <text class="tag">
-            {{ categoryLabel(item.category) }}
-          </text>
-        </view>
-        <view class="card-footer">
-          <text class="bounty-amount">
-            💰 {{ item.bountyCoin }} 币
-          </text>
-          <text class="answer-count">
-            {{ item.answerCount || 0 }} 个回答
-          </text>
-        </view>
-      </view>
-    </view>
-
-    <view
-      v-if="total > pageSize"
-      class="pagination"
-    >
-      <text
-        class="load-more"
-        @click="loadMore"
-      >
-        {{ list.length >= total ? '没有更多了' : '加载更多' }}
-      </text>
-    </view>
-
-    <view
-      class="fab"
-      @click="goCreate"
-    >
-      <text class="fab-icon">
-        +
-      </text>
-      <text class="fab-label">
-        发布悬赏
-      </text>
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { api } from '../../api'
-import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
-import EmptyState from '../../components/EmptyState.vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 
-const list = ref<any[]>([])
-const loading = ref(false)
-const page = ref(1)
-const pageSize = ref(20)
-const total = ref(0)
-const activeTab = ref('')
+const loading = ref(true)
+const error = ref<string | null>(null)
 
-const tabs = [
-  { label: '全部', value: '' },
-  { label: '八字', value: 'BAZI' },
-  { label: '紫微', value: 'ZIWEI' },
-  { label: '风水', value: 'FENGSHUI' },
-  { label: '事业', value: 'CAREER' },
-  { label: '情感', value: 'LOVE' },
-  { label: '通用', value: 'GENERAL' },
-]
+// V0 原始数据
+const STATUS_TABS = [
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+    const mockBounties: Bounty[] = [
 
-const statusMap: Record<string, string> = {
-  OPEN: '待解答',
-  ANSWERED: '已解答',
-  SATISFIED: '已采纳',
-  CLOSED: '已关闭',
-}
-
-const categoryMap: Record<string, string> = {
-  BAZI: '八字',
-  ZIWEI: '紫微',
-  FENGSHUI: '风水',
-  CAREER: '事业',
-  LOVE: '情感',
-  GENERAL: '通用',
-}
-
-function categoryLabel(cat: string): string {
-  return categoryMap[cat] || cat || '通用'
-}
-
-onMounted(() => {
-  fetchList()
-})
-
-async function fetchList() {
+async function fetchData() {
   loading.value = true
-  try {
-    const params: any = { page: page.value, pageSize: pageSize.value }
-    if (activeTab.value) params.category = activeTab.value
-    const data: any = await api.get('/bounty', params)
-    const items = data?.list || data?.items || data?.data || data || []
-    if (page.value === 1) {
-      list.value = Array.isArray(items) ? items : []
-    } else {
-      list.value.push(...(Array.isArray(items) ? items : []))
-    }
-    total.value = data?.total || list.value.length
-  } catch { /* */ } finally {
-    loading.value = false
-  }
+  try { loading.value = false } catch (e: any) { error.value = e.message }
 }
 
-function switchTab(tab: string) {
-  activeTab.value = tab
-  page.value = 1
-  fetchList()
-}
-
-function loadMore() {
-  if (list.value.length >= total.value) return
-  page.value++
-  fetchList()
-}
-
-function goDetail(id: string) {
-  uni.navigateTo({ url: `/pages/bounty/detail?id=${id}` })
-}
-
-function goCreate() {
-  uni.navigateTo({ url: '/pages/bounty/create' })
-}
+onMounted(() => fetchData())
+onPullDownRefresh(() => fetchData().finally(() => uni.stopPullDownRefresh()))
 </script>
 
 <style scoped>
-.page { padding: 12px; background: #F5F0E8; min-height: 100vh; padding-bottom: 100px; }
-.header { margin-bottom: 12px; }
-.title { font-size: 20px; font-weight: bold; color: #C41E3A; }
-.subtitle { font-size: 13px; color: #999; margin-left: 8px; }
-.filter-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
-.tab { padding: 6px 14px; border-radius: 16px; font-size: 13px; background: #fff; color: #666; }
-.tab.active { background: #C41E3A; color: #fff; }
-.bounty-list { display: flex; flex-direction: column; gap: 10px; }
-.bounty-card { background: #fff; border-radius: 10px; padding: 14px; }
-.card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.user-info { display: flex; align-items: center; gap: 6px; flex: 1; }
-.avatar { width: 28px; height: 28px; border-radius: 50%; }
-.nickname { font-size: 13px; color: #333; font-weight: 500; }
-.status-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
-.status-OPEN { background: #fff3cd; color: #856404; }
-.status-ANSWERED { background: #d4edda; color: #155724; }
-.status-SATISFIED { background: #cce5ff; color: #004085; }
-.status-CLOSED { background: #f8f9fa; color: #6c757d; }
-.card-title { font-size: 15px; color: #333; font-weight: 500; display: block; margin-bottom: 8px; line-height: 1.4; }
-.card-tags { display: flex; gap: 6px; margin-bottom: 8px; }
-.tag { font-size: 11px; color: #C41E3A; background: #F5F0E8; padding: 2px 10px; border-radius: 10px; }
-.card-footer { display: flex; align-items: center; gap: 16px; }
-.bounty-amount { font-size: 14px; color: #C41E3A; font-weight: bold; }
-.answer-count { font-size: 12px; color: #999; }
-.pagination { text-align: center; margin-top: 20px; }
-.load-more { font-size: 13px; color: #C41E3A; }
-.fab { position: fixed; bottom: 40px; right: 20px; display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 99; }
-.fab-icon { width: 48px; height: 48px; border-radius: 50%; background: #C41E3A; color: #fff; font-size: 28px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(139,69,19,0.3); line-height: 1; }
-.fab-label { font-size: 11px; color: #666; background: rgba(255,255,255,0.9); padding: 2px 8px; border-radius: 8px; }
+.page {
+  background: #FAF8F5;
+  min-height: 100vh;
+}
+.v0-header {
+  padding: 24rpx 32rpx;
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
+  margin-bottom: 24rpx;
+}
+.v0-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  display: block;
+}
+.v0-route {
+  font-size: 20rpx;
+  color: rgba(255,255,255,0.6);
+  margin-top: 4rpx;
+  display: block;
+}
+.v0-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 32rpx;
+  border-radius: 12rpx;
+  background: #C41E3A;
+  color: #FFFFFF;
+  font-size: 28rpx;
+}
+.v0-hr {
+  height: 1px;
+  background: #E8E0D5;
+  margin: 24rpx 0;
+}
 </style>

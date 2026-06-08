@@ -33,6 +33,17 @@ export class CreatePricingRuleDto {
   @IsOptional() @IsBoolean() isActive?: boolean;
 }
 
+export class BatchUnifiedPriceDto {
+  @IsArray()
+  items: { productId: string; skuId?: string }[];
+
+  @IsOptional() @IsString()
+  pageId?: string;
+
+  @IsOptional() @IsString()
+  scene?: string;
+}
+
 export class UpdatePricingRuleDto {
   @ApiPropertyOptional({ description: "规则名称" })
   @IsOptional() @IsString() name?: string;

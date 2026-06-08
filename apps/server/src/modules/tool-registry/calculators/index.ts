@@ -10,7 +10,7 @@ export { calculateBaZhai } from "./bazhai.calculator";
 export { calculateLuoPan } from "./luopan.calculator";
 export { calculateWuYunLiuQi } from "./wuyunliuqi.calculator";
 export { calculateWuGe } from "./wuge.calculator";
-export { calculateWanNianLi } from "./wannianli.calculator";
+export { calculateWanNianLi, calculateWanNianLiFromDb } from "./wannianli.calculator";
 export { calculateLiuYao } from "./liuyao.calculator";
 export { calculateMeiHua } from "./meihua.calculator";
 export { calculateJinQianKe } from "./jinqianke.calculator";

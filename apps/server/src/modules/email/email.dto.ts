@@ -82,6 +82,30 @@ export class UpdateEmailTemplateDto {
   description?: string;
 }
 
+export class SendTemplateDto {
+  @IsString() @MinLength(1)
+  templateId: string;
+
+  @Validate(IsStringOrStringArray)
+  to: string | string[];
+
+  @IsOptional()
+  vars?: Record<string, string>;
+}
+
+export class UnsubscribeDto {
+  @IsString() @MinLength(1)
+  email: string;
+
+  @IsOptional() @IsString()
+  reason?: string;
+}
+
+export class ResubscribeDto {
+  @IsString() @MinLength(1)
+  email: string;
+}
+
 export class TestEmailDto {
   @ApiProperty({ description: "测试收件人邮箱", example: "admin@example.com" })
   @IsString()

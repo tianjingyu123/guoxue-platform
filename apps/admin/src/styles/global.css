@@ -87,6 +87,7 @@ html, body, #app {
 }
 .el-pager li.is-active {
   background-color: #C41E3A !important;
+  color: #fff !important;
   border-radius: 4px !important;
 }
 .el-pager li:hover { color: #C41E3A !important; }

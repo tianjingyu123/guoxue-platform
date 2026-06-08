@@ -8,7 +8,7 @@ import { MerchantGuard } from "./merchant.guard";
 import {
   UpdateMerchantProfileDto, ProductQueryDto, MerchantOrderQueryDto,
   ShipOrderDto, RejectRefundDto, ReviewQueryDto, ReplyReviewDto,
-  PaginationDto, AppealViolationDto, MerchantProductDto,
+  PaginationDto, AppealViolationDto, MerchantProductDto, ProcessAfterSaleDto,
 } from "./merchant.dto";
 
 type AuthRequest = Omit<Request, "user"> & { user: { id: string; [key: string]: unknown } };
@@ -196,7 +196,7 @@ export class MerchantBackendController {
   processAfterSale(
     @Req() req: AuthRequest,
     @Param("id") id: string,
-    @Body() dto: { action: string; remark?: string },
+    @Body() dto: ProcessAfterSaleDto,
   ) {
     return this.merchantService.processAfterSale(this.getMerchant(req).id, id, dto);
   }

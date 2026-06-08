@@ -1,4 +1,5 @@
-import { MinLength,  IsOptional, IsString, IsNumber, IsIn } from "class-validator";
+import { MinLength, IsOptional, IsString, IsNumber, IsIn } from "class-validator";
+import { ApiProperty } from "@nestjs/swagger";
 
 export class ConfigUpdateDto {
   @IsOptional() @IsNumber()
@@ -53,4 +54,14 @@ export class CreateReferralDto {
 
   @IsOptional() @IsString()
   channel?: string;
+}
+
+export class CommissionRateDto {
+  @ApiProperty({ description: "分佣类型", example: "direct" })
+  @IsString()
+  type: string;
+
+  @ApiProperty({ description: "分佣比例", example: 0.1 })
+  @IsNumber()
+  rate: number;
 }

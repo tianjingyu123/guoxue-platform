@@ -24,6 +24,11 @@ export class CreateBountyDto {
   @IsOptional() @IsArray() images?: string[];
 }
 
+export class RejectReviewDto {
+  @IsOptional() @IsString()
+  reason?: string;
+}
+
 export class AnswerBountyDto {
   @ApiProperty({ description: "回答内容" })
   @IsString() answer: string;

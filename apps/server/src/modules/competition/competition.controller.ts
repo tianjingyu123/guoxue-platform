@@ -8,6 +8,7 @@ import {
   CreateCompetitionDto, UpdateCompetitionDto, CreateRoundDto, CreateQuestionDto,
   BatchCreateQuestionDto, SubmitAnswerDto, GradeAnswerDto, SubmitScoreDto,
   QueryCompetitionDto, QueryRankingDto,
+  UpdateRegistrationDto, RegisterCompetitionDto, BatchSubmitAnswerDto,
 } from "./competition.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -136,7 +137,7 @@ export class CompetitionAdminController {
   updateRegistration(
     @Param("id") id: string,
     @Param("regId") regId: string,
-    @Body() body: { status?: string },
+    @Body() body: UpdateRegistrationDto,
   ) {
     return this.service.updateRegistration(regId, body.status);
   }
@@ -226,7 +227,7 @@ export class CompetitionPublicController {
   @ApiOperation({ summary: "报名参赛" })
   register(
     @Param("id") id: string,
-    @Body() body: { inviterId?: string; inviteCode?: string },
+    @Body() body: RegisterCompetitionDto,
     @Req() req: any,
   ) {
     return this.service.register(id, req.user.id, body.inviterId, body.inviteCode);
@@ -262,7 +263,7 @@ export class CompetitionPublicController {
   @ApiOperation({ summary: "批量提交答题（整卷）" })
   batchSubmit(
     @Param("roundId") roundId: string,
-    @Body() dto: { registrationId: string; answers: { questionId: string; answer: Record<string, any>; duration?: number }[] },
+    @Body() dto: BatchSubmitAnswerDto,
     @Req() req: any,
   ) {
     return this.service.batchSubmitAnswers({ ...dto, roundId }, req.user.id);

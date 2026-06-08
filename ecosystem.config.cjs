@@ -36,5 +36,23 @@ module.exports = {
       restart_delay: 5000,
       kill_timeout: 10000,
     },
+    {
+      name: "guoxue-mobile",
+      script: "scripts/pm2-mobile-v0.js",
+      cwd: "C:/Users/Administrator/Desktop/guoxue-platform",
+      env: {
+        NODE_ENV: "development",
+      },
+      watch: false,
+      max_memory_restart: "1G",
+      error_file: "C:/Users/Administrator/Desktop/guoxue-platform/.pm2-logs/mobile-error.log",
+      out_file: "C:/Users/Administrator/Desktop/guoxue-platform/.pm2-logs/mobile-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+      merge_logs: true,
+      autorestart: true,
+      max_restarts: 10,
+      restart_delay: 5000,
+      kill_timeout: 10000,
+    },
   ],
 };

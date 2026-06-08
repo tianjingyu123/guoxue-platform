@@ -80,6 +80,20 @@
       }
     },
     {
+      "path": "pages/ai/chat",
+      "style": {
+        "navigationBarTitleText": "AI智能解盘",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/agents/index",
+      "style": {
+        "navigationBarTitleText": "AI智能体",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/articles/article-detail",
       "style": {
         "navigationBarTitleText": "文章详情"
@@ -869,6 +883,12 @@
       }
     },
     {
+      "path": "pages/mine/points-center",
+      "style": {
+        "navigationBarTitleText": "积分中心"
+      }
+    },
+    {
       "path": "pages/mine/privacy-authorization",
       "style": {
         "navigationBarTitleText": "隐私授权"
@@ -908,6 +928,36 @@
       "path": "pages/mine/settings",
       "style": {
         "navigationBarTitleText": "设置"
+      }
+    },
+    {
+      "path": "pages/mine/settings-notification",
+      "style": {
+        "navigationBarTitleText": "通知设置"
+      }
+    },
+    {
+      "path": "pages/mine/settings-privacy",
+      "style": {
+        "navigationBarTitleText": "隐私设置"
+      }
+    },
+    {
+      "path": "pages/mine/settings-display",
+      "style": {
+        "navigationBarTitleText": "显示设置"
+      }
+    },
+    {
+      "path": "pages/mine/settings-cache",
+      "style": {
+        "navigationBarTitleText": "缓存管理"
+      }
+    },
+    {
+      "path": "pages/mine/settings-about",
+      "style": {
+        "navigationBarTitleText": "关于我们"
       }
     },
     {
@@ -1251,6 +1301,18 @@
       }
     },
     {
+      "path": "pages/shop/payment",
+      "style": {
+        "navigationBarTitleText": "确认支付"
+      }
+    },
+    {
+      "path": "pages/shop/payment-success",
+      "style": {
+        "navigationBarTitleText": "支付成功"
+      }
+    },
+    {
       "path": "pages/shop/product-detail",
       "style": {
         "navigationBarTitleText": "商品详情"
@@ -1343,6 +1405,12 @@
       }
     },
     {
+      "path": "pages/tools/history",
+      "style": {
+        "navigationBarTitleText": "排盘记录"
+      }
+    },
+    {
       "path": "pages/topics/topic",
       "style": {
         "navigationBarTitleText": "话题页"
@@ -1407,6 +1475,4026 @@
       "path": "pages/ziwei/ziwei",
       "style": {
         "navigationBarTitleText": "紫微斗数"
+      }
+    },
+    {
+      "path": "pages/merchant/dashboard",
+      "style": {
+        "navigationBarTitleText": "商家后台"
+      }
+    },
+    {
+      "path": "pages/merchant/apply",
+      "style": {
+        "navigationBarTitleText": "商家入驻"
+      }
+    },
+    {
+      "path": "pages/merchant/status",
+      "style": {
+        "navigationBarTitleText": "入驻进度"
+      }
+    },
+    {
+      "path": "pages/merchant/products",
+      "style": {
+        "navigationBarTitleText": "商品管理"
+      }
+    },
+    {
+      "path": "pages/merchant/product-form",
+      "style": {
+        "navigationBarTitleText": "编辑商品"
+      }
+    },
+    {
+      "path": "pages/merchant/orders",
+      "style": {
+        "navigationBarTitleText": "订单管理"
+      }
+    },
+    {
+      "path": "pages/merchant/order-detail",
+      "style": {
+        "navigationBarTitleText": "订单详情"
+      }
+    },
+    {
+      "path": "pages/merchant/reviews",
+      "style": {
+        "navigationBarTitleText": "评价管理"
+      }
+    },
+    {
+      "path": "pages/merchant/violations",
+      "style": {
+        "navigationBarTitleText": "违规记录"
+      }
+    },
+    {
+      "path": "pages/merchant/settlements",
+      "style": {
+        "navigationBarTitleText": "结算记录"
+      }
+    },
+    {
+      "path": "pages/merchant/revenue",
+      "style": {
+        "navigationBarTitleText": "收入概览"
+      }
+    },
+    {
+      "path": "pages/merchant/profile",
+      "style": {
+        "navigationBarTitleText": "店铺信息"
+      }
+    },
+    {
+      "path": "pages/merchant/after-sales",
+      "style": {
+        "navigationBarTitleText": "售后管理"
+      }
+    },
+    {
+      "path": "pages/merchant/customers",
+      "style": {
+        "navigationBarTitleText": "客户管理"
+      }
+    },
+    {
+      "path": "pages/about/index",
+      "style": {
+        "navigationBarTitleText": "关于我们",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/activity/calendar/index",
+      "style": {
+        "navigationBarTitleText": "活动",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/activity/landing/index",
+      "style": {
+        "navigationBarTitleText": "活动",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/activity/detail/index",
+      "style": {
+        "navigationBarTitleText": "活动",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/address/index",
+      "style": {
+        "navigationBarTitleText": "地址管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/admin/batch-coupon-send/index",
+      "style": {
+        "navigationBarTitleText": "batch-coupon-send",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/admin/user-audit/index",
+      "style": {
+        "navigationBarTitleText": "user-audit",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/aftersale/order-detail/index",
+      "style": {
+        "navigationBarTitleText": "售后服务",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/agent/customer-service/index",
+      "style": {
+        "navigationBarTitleText": "客服中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/agent/history/index",
+      "style": {
+        "navigationBarTitleText": "智能体",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/agent/main/index",
+      "style": {
+        "navigationBarTitleText": "智能体",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/agent/detail/index",
+      "style": {
+        "navigationBarTitleText": "智能体",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/agents/history/index",
+      "style": {
+        "navigationBarTitleText": "AI智能体",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/agents/questions/index",
+      "style": {
+        "navigationBarTitleText": "AI智能体",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/agents/ranking/index",
+      "style": {
+        "navigationBarTitleText": "AI智能体",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/agreement/operator/index",
+      "style": {
+        "navigationBarTitleText": "协议",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/agreement/station/index",
+      "style": {
+        "navigationBarTitleText": "分站管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/ai/cover-generate/index",
+      "style": {
+        "navigationBarTitleText": "AI工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/announcements/index",
+      "style": {
+        "navigationBarTitleText": "公告",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/appeal/index",
+      "style": {
+        "navigationBarTitleText": "申诉",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/article/detail/index",
+      "style": {
+        "navigationBarTitleText": "文章详情",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/articles/index",
+      "style": {
+        "navigationBarTitleText": "文章",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/articles/create/index",
+      "style": {
+        "navigationBarTitleText": "文章",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/articles/detail/index",
+      "style": {
+        "navigationBarTitleText": "文章",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/auth/recover/index",
+      "style": {
+        "navigationBarTitleText": "认证",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/auth/recover/email/index",
+      "style": {
+        "navigationBarTitleText": "认证",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/auth/recover/phone/index",
+      "style": {
+        "navigationBarTitleText": "认证",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/authors/index",
+      "style": {
+        "navigationBarTitleText": "作者",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/bazi/index",
+      "style": {
+        "navigationBarTitleText": "八字排盘",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/bazi/history/index",
+      "style": {
+        "navigationBarTitleText": "八字排盘",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/bazi/history/celebrities/index",
+      "style": {
+        "navigationBarTitleText": "八字排盘",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/bazi/history/groups/index",
+      "style": {
+        "navigationBarTitleText": "八字排盘",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/become-partner/index",
+      "style": {
+        "navigationBarTitleText": "成为合作伙伴",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/booking/expert-detail/index",
+      "style": {
+        "navigationBarTitleText": "预约",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/bots/index",
+      "style": {
+        "navigationBarTitleText": "AI助手",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/bots/chat/detail/index",
+      "style": {
+        "navigationBarTitleText": "聊天",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/bounty/answer/index",
+      "style": {
+        "navigationBarTitleText": "悬赏",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/bounty/create/index",
+      "style": {
+        "navigationBarTitleText": "悬赏",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/bounty/my/index",
+      "style": {
+        "navigationBarTitleText": "悬赏",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/bounty/detail/index",
+      "style": {
+        "navigationBarTitleText": "悬赏",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/call/detail/index",
+      "style": {
+        "navigationBarTitleText": "通话",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/cart/index",
+      "style": {
+        "navigationBarTitleText": "购物车",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/chat/index",
+      "style": {
+        "navigationBarTitleText": "聊天",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/chat/new/index",
+      "style": {
+        "navigationBarTitleText": "聊天",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/chat/detail/index",
+      "style": {
+        "navigationBarTitleText": "聊天",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/check-in/index",
+      "style": {
+        "navigationBarTitleText": "签到",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/checkout/index",
+      "style": {
+        "navigationBarTitleText": "结算",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circle/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circle/detail/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circle/detail/analytics/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circle/detail/consult/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circle/detail/earnings/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circle/detail/home/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circle/detail/members/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circle/detail/qa/index",
+      "style": {
+        "navigationBarTitleText": "问答",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circle/detail/settings/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/activities/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/badges/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/bots/index",
+      "style": {
+        "navigationBarTitleText": "AI助手",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/calendar/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/create/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/mine/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/ranking/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/search/index",
+      "style": {
+        "navigationBarTitleText": "搜索",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/stats/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/analytics/contents/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/announcements/announcement-detail/index",
+      "style": {
+        "navigationBarTitleText": "公告",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/booking/index",
+      "style": {
+        "navigationBarTitleText": "预约",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/bots/index",
+      "style": {
+        "navigationBarTitleText": "AI助手",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/checkin/activity-detail/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/consult/ask/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/consult/experts/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/consult/my-calls/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/consult/my-questions/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/consult/orders/index",
+      "style": {
+        "navigationBarTitleText": "订单",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/dashboard/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/distribution/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/earnings/detail/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/guests/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/invite-codes/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/join-requests/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/knowledge/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/level/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/manage/index",
+      "style": {
+        "navigationBarTitleText": "管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/posts/post-detail/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/preview/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/publish/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/circles/detail/settings/knowledge/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/index",
+      "style": {
+        "navigationBarTitleText": "古籍",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/ai-assistant/index",
+      "style": {
+        "navigationBarTitleText": "古籍",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/audiobooks/index",
+      "style": {
+        "navigationBarTitleText": "古籍",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/bookmarks/index",
+      "style": {
+        "navigationBarTitleText": "古籍",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/bookshelf/index",
+      "style": {
+        "navigationBarTitleText": "古籍",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/collection/detail/index",
+      "style": {
+        "navigationBarTitleText": "古籍",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/collections/index",
+      "style": {
+        "navigationBarTitleText": "合集",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/home/index",
+      "style": {
+        "navigationBarTitleText": "古籍",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/lists/index",
+      "style": {
+        "navigationBarTitleText": "古籍",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/notes/index",
+      "style": {
+        "navigationBarTitleText": "古籍",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/ranking/index",
+      "style": {
+        "navigationBarTitleText": "古籍",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/search/index",
+      "style": {
+        "navigationBarTitleText": "搜索",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/classics/detail/index",
+      "style": {
+        "navigationBarTitleText": "古籍",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/common/image-viewer/index",
+      "style": {
+        "navigationBarTitleText": "image-viewer",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/common/legal-doc/index",
+      "style": {
+        "navigationBarTitleText": "legal-doc",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/common/scan/index",
+      "style": {
+        "navigationBarTitleText": "scan",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/common/share-poster/index",
+      "style": {
+        "navigationBarTitleText": "share-poster",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/archive/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/detail/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/detail/certificate/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/detail/dashboard/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/detail/judge/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/detail/poster/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/detail/promotion-notice/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/detail/quiz/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/detail/register/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/detail/result/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/competition/detail/score-detail/index",
+      "style": {
+        "navigationBarTitleText": "比赛",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/contacts/index",
+      "style": {
+        "navigationBarTitleText": "contacts",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/content/community-rules/index",
+      "style": {
+        "navigationBarTitleText": "community-rules",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/content/slug-detail/index",
+      "style": {
+        "navigationBarTitleText": "content",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/coupons/index",
+      "style": {
+        "navigationBarTitleText": "优惠券",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/coupons/center/index",
+      "style": {
+        "navigationBarTitleText": "优惠券",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/course/detail/index",
+      "style": {
+        "navigationBarTitleText": "course",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/course/detail/complete/index",
+      "style": {
+        "navigationBarTitleText": "complete",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses/certificate/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses/flash-sale/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses/purchase-confirm/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses/study-plan/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses/work-result/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses/work-review/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses/work-submit/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses/detail/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses/detail/chapters/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses/detail/learn/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses/detail/player/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/courses-list/index",
+      "style": {
+        "navigationBarTitleText": "courses-list",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/creator/live/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/creator/live/analytics/detail/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/creator/live/console/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/creator/live/create/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/creator/live/obs/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/creator/live/schedule/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/creator/live/team/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/creator/live/theme/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/creator/revenue/index",
+      "style": {
+        "navigationBarTitleText": "创作者中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/demo/captcha/index",
+      "style": {
+        "navigationBarTitleText": "演示",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/demo/cards/index",
+      "style": {
+        "navigationBarTitleText": "演示",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/demo/feature-guide/index",
+      "style": {
+        "navigationBarTitleText": "演示",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/demo/image-viewer/index",
+      "style": {
+        "navigationBarTitleText": "演示",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/demo/permission/index",
+      "style": {
+        "navigationBarTitleText": "演示",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/demo/progress/index",
+      "style": {
+        "navigationBarTitleText": "演示",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/demo/splash/index",
+      "style": {
+        "navigationBarTitleText": "启动页",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/demo/update/index",
+      "style": {
+        "navigationBarTitleText": "演示",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/design/illustrations/index",
+      "style": {
+        "navigationBarTitleText": "设计规范",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/detail/index",
+      "style": {
+        "navigationBarTitleText": "detail",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/downloads/index",
+      "style": {
+        "navigationBarTitleText": "downloads",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/drafts/index",
+      "style": {
+        "navigationBarTitleText": "drafts",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/earnings/index",
+      "style": {
+        "navigationBarTitleText": "earnings",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/earnings/breakdown/index",
+      "style": {
+        "navigationBarTitleText": "breakdown",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/earnings/records/index",
+      "style": {
+        "navigationBarTitleText": "records",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/earnings/withdraw/index",
+      "style": {
+        "navigationBarTitleText": "提现",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/ebook/index",
+      "style": {
+        "navigationBarTitleText": "电子书",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/ebook/reader/detail/index",
+      "style": {
+        "navigationBarTitleText": "电子书",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/ebook/detail/index",
+      "style": {
+        "navigationBarTitleText": "电子书",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/editor/index",
+      "style": {
+        "navigationBarTitleText": "editor",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/error/forbidden/index",
+      "style": {
+        "navigationBarTitleText": "错误页面",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/error/maintenance/index",
+      "style": {
+        "navigationBarTitleText": "错误页面",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/error/network-error/index",
+      "style": {
+        "navigationBarTitleText": "错误页面",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/error/not-found/index",
+      "style": {
+        "navigationBarTitleText": "错误页面",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/error-pages/index",
+      "style": {
+        "navigationBarTitleText": "error-pages",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/expert/detail/index",
+      "style": {
+        "navigationBarTitleText": "expert",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/experts/index",
+      "style": {
+        "navigationBarTitleText": "experts",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/favorites/index",
+      "style": {
+        "navigationBarTitleText": "收藏",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/feedback/index",
+      "style": {
+        "navigationBarTitleText": "feedback",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/follows/index",
+      "style": {
+        "navigationBarTitleText": "follows",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/forgot-password/index",
+      "style": {
+        "navigationBarTitleText": "forgot-password",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/fortune/daily/index",
+      "style": {
+        "navigationBarTitleText": "运势",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/fortune/subscribe/index",
+      "style": {
+        "navigationBarTitleText": "运势",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/help/index",
+      "style": {
+        "navigationBarTitleText": "帮助中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/help/guoxue-design/index",
+      "style": {
+        "navigationBarTitleText": "帮助中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/help/list-demo/index",
+      "style": {
+        "navigationBarTitleText": "帮助中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/help/media-guidelines/index",
+      "style": {
+        "navigationBarTitleText": "帮助中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/history/index",
+      "style": {
+        "navigationBarTitleText": "history",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/im/add-friend/index",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/im/chat/detail/index",
+      "style": {
+        "navigationBarTitleText": "聊天",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/im/contacts/index",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/im/conversations/index",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/im/create-group/index",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/im/friend-requests/index",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/im/group-chat/detail/index",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/im/group-detail/detail/index",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/im/group-list/index",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/im/invite/index",
+      "style": {
+        "navigationBarTitleText": "邀请有礼",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/im/messages/index",
+      "style": {
+        "navigationBarTitleText": "消息",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/institute/activities/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/institute/apply/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/institute/demands/create/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/institute/events/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/institute/member/detail/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/institute/member-apply/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/institute/members/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/institute/my-tasks/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/institute/teacher-demand/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/institute/teacher-demand/create/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/institute/teacher-pool/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/interests-guide/index",
+      "style": {
+        "navigationBarTitleText": "兴趣引导",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/invite/index",
+      "style": {
+        "navigationBarTitleText": "邀请有礼",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/invite/history/index",
+      "style": {
+        "navigationBarTitleText": "邀请有礼",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/join/operator/index",
+      "style": {
+        "navigationBarTitleText": "operator",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/join/station/index",
+      "style": {
+        "navigationBarTitleText": "分站管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/learn/detail/index",
+      "style": {
+        "navigationBarTitleText": "learn",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/learning/index",
+      "style": {
+        "navigationBarTitleText": "learning",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/learning/achievements/index",
+      "style": {
+        "navigationBarTitleText": "achievements",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/learning/history/index",
+      "style": {
+        "navigationBarTitleText": "history",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/legal/child-privacy/index",
+      "style": {
+        "navigationBarTitleText": "法律条款",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/legal/data-collection-list/index",
+      "style": {
+        "navigationBarTitleText": "法律条款",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/legal/privacy-policy/index",
+      "style": {
+        "navigationBarTitleText": "法律条款",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/legal/teen-mode-intro/index",
+      "style": {
+        "navigationBarTitleText": "法律条款",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/legal/third-party-sdk/index",
+      "style": {
+        "navigationBarTitleText": "法律条款",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/legal/user-agreement/index",
+      "style": {
+        "navigationBarTitleText": "法律条款",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/likes/index",
+      "style": {
+        "navigationBarTitleText": "likes",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/create/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/end/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/horizontal/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/host-data/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/hosts/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/obs-guide/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/preview/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/replay/detail/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/replay-home/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/replays/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/stream-config/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/vertical/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/live/detail/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/login/forgot-password/index",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mall/index",
+      "style": {
+        "navigationBarTitleText": "商城",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mall/category/index",
+      "style": {
+        "navigationBarTitleText": "商城",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mall/product/detail/index",
+      "style": {
+        "navigationBarTitleText": "商城",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mall/product/detail/reviews/index",
+      "style": {
+        "navigationBarTitleText": "商城",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/manage/checkin/courseId-detail/index",
+      "style": {
+        "navigationBarTitleText": "管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/manage/course/detail/analytics/index",
+      "style": {
+        "navigationBarTitleText": "管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/manage/course/detail/reviews/index",
+      "style": {
+        "navigationBarTitleText": "管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/manage/live/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/manage/live/create/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/manage/live/detail/analytics/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/analytics/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/application-status/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/apply/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/circle-bindding/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/content-stats/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/dashboard/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/edit-application/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/inquiries/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/join/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/notices/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/order-detail/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/orders/index",
+      "style": {
+        "navigationBarTitleText": "订单",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/pay-deposit/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/product-edit/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/products/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/profile/index",
+      "style": {
+        "navigationBarTitleText": "个人中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/revenue/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/reviews/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/shop-preview/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/sign-agreement/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/merchant/violations/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/messages/index",
+      "style": {
+        "navigationBarTitleText": "messages",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/achievements/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/bind-accounts/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/blacklist/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/bookings/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/change-password/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/change-phone/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/data-export/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/delete-account/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/delete-account-result/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/downloads/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/edit-profile/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/follows/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/heritage-verify/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/history/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/identity-switch/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/institute/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/institute/admin/index",
+      "style": {
+        "navigationBarTitleText": "研究院",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/invite-records/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/learning-dashboard/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/memberships/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/my-comments/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/my-courses/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/my-likes/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/payment-password/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/points/index",
+      "style": {
+        "navigationBarTitleText": "积分中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/privacy-authorization/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/received-comments/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/role-panels/admin-panel/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/role-panels/operator-panel/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/role-panels/station-master-panel/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/security/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/settings/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/submissions/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/teen-mode/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/mine/wallet/index",
+      "style": {
+        "navigationBarTitleText": "钱包",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/my-circles/index",
+      "style": {
+        "navigationBarTitleText": "my-circles",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/notice/index",
+      "style": {
+        "navigationBarTitleText": "notice",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/notice/detail/index",
+      "style": {
+        "navigationBarTitleText": "notice",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/notices/index",
+      "style": {
+        "navigationBarTitleText": "notices",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/notices/upgrade/index",
+      "style": {
+        "navigationBarTitleText": "upgrade",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/notices/detail/index",
+      "style": {
+        "navigationBarTitleText": "notices",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/notifications/index",
+      "style": {
+        "navigationBarTitleText": "通知",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline/checkin/index",
+      "style": {
+        "navigationBarTitleText": "线下",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline/courses/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline/courses/detail/index",
+      "style": {
+        "navigationBarTitleText": "课程",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline/events/index",
+      "style": {
+        "navigationBarTitleText": "线下",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline/orders/index",
+      "style": {
+        "navigationBarTitleText": "订单",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline/products/index",
+      "style": {
+        "navigationBarTitleText": "线下",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline/settlements/index",
+      "style": {
+        "navigationBarTitleText": "线下",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline/stations/index",
+      "style": {
+        "navigationBarTitleText": "线下",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline/stations/detail/index",
+      "style": {
+        "navigationBarTitleText": "线下",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline/teacher-booking/index",
+      "style": {
+        "navigationBarTitleText": "线下",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline-course/reviews/index",
+      "style": {
+        "navigationBarTitleText": "reviews",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/offline-course/detail/index",
+      "style": {
+        "navigationBarTitleText": "offline-course",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/operator/dashboard/index",
+      "style": {
+        "navigationBarTitleText": "dashboard",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/operator/invite/index",
+      "style": {
+        "navigationBarTitleText": "邀请有礼",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/operator/quota/index",
+      "style": {
+        "navigationBarTitleText": "quota",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/operator/settings/index",
+      "style": {
+        "navigationBarTitleText": "settings",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/orders/index",
+      "style": {
+        "navigationBarTitleText": "订单",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/orders/center/index",
+      "style": {
+        "navigationBarTitleText": "订单",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/orders/dispute/index",
+      "style": {
+        "navigationBarTitleText": "订单",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/orders/invoice/index",
+      "style": {
+        "navigationBarTitleText": "订单",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/orders/logistics/index",
+      "style": {
+        "navigationBarTitleText": "订单",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/orders/refund-progress/index",
+      "style": {
+        "navigationBarTitleText": "订单",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/orders/detail/index",
+      "style": {
+        "navigationBarTitleText": "订单",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/bazi/index",
+      "style": {
+        "navigationBarTitleText": "八字排盘",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/bazi/history/index",
+      "style": {
+        "navigationBarTitleText": "八字排盘",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/bazi/history/celebrities/index",
+      "style": {
+        "navigationBarTitleText": "八字排盘",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/bazi/history/groups/index",
+      "style": {
+        "navigationBarTitleText": "八字排盘",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/bazi/result/index",
+      "style": {
+        "navigationBarTitleText": "八字排盘",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/qimen/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/qimen/history/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/qimen/history/groups/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/qimen/result/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/tools/coming-soon/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/yangpan/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/yangpan/history/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/yangpan/history/groups/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/yangpan/result/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/paipan/tool-detail/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/payment/result/index",
+      "style": {
+        "navigationBarTitleText": "支付",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/payment/success/index",
+      "style": {
+        "navigationBarTitleText": "支付",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/poetry/index",
+      "style": {
+        "navigationBarTitleText": "诗词",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/poetry/categories/index",
+      "style": {
+        "navigationBarTitleText": "诗词",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/poetry/collections/index",
+      "style": {
+        "navigationBarTitleText": "合集",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/poetry/detail/index",
+      "style": {
+        "navigationBarTitleText": "诗词",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/points/index",
+      "style": {
+        "navigationBarTitleText": "积分中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/points/exchange/index",
+      "style": {
+        "navigationBarTitleText": "积分中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/points/history/index",
+      "style": {
+        "navigationBarTitleText": "积分中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/points/tasks/index",
+      "style": {
+        "navigationBarTitleText": "日常任务",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/policy/privacy/index",
+      "style": {
+        "navigationBarTitleText": "privacy",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/policy/privacy-policy/index",
+      "style": {
+        "navigationBarTitleText": "privacy-policy",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/policy/user/index",
+      "style": {
+        "navigationBarTitleText": "user",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/policy/user-agreement/index",
+      "style": {
+        "navigationBarTitleText": "user-agreement",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/policy/type-detail/index",
+      "style": {
+        "navigationBarTitleText": "policy",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/post/detail/index",
+      "style": {
+        "navigationBarTitleText": "post",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/poster/index",
+      "style": {
+        "navigationBarTitleText": "poster",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/privacy/index",
+      "style": {
+        "navigationBarTitleText": "privacy",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "个人中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/profile/edit/index",
+      "style": {
+        "navigationBarTitleText": "个人中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/publish/index",
+      "style": {
+        "navigationBarTitleText": "publish",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/publish/video/index",
+      "style": {
+        "navigationBarTitleText": "video",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/qa/index",
+      "style": {
+        "navigationBarTitleText": "问答",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/qa/ask/index",
+      "style": {
+        "navigationBarTitleText": "问答",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/qa/pending/index",
+      "style": {
+        "navigationBarTitleText": "问答",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/qa/detail/index",
+      "style": {
+        "navigationBarTitleText": "问答",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/qimen/index",
+      "style": {
+        "navigationBarTitleText": "qimen",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/qimen/history/index",
+      "style": {
+        "navigationBarTitleText": "history",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/qimen/history/groups/index",
+      "style": {
+        "navigationBarTitleText": "groups",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/ranking/index",
+      "style": {
+        "navigationBarTitleText": "ranking",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/rankings/index",
+      "style": {
+        "navigationBarTitleText": "rankings",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/reader/detail/index",
+      "style": {
+        "navigationBarTitleText": "reader",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/register/index",
+      "style": {
+        "navigationBarTitleText": "register",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/renew/index",
+      "style": {
+        "navigationBarTitleText": "renew",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/report/result/index",
+      "style": {
+        "navigationBarTitleText": "数据报告",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/report/result/detail/index",
+      "style": {
+        "navigationBarTitleText": "数据报告",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/reservations/index",
+      "style": {
+        "navigationBarTitleText": "reservations",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/result/index",
+      "style": {
+        "navigationBarTitleText": "result",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/same-city/feed/index",
+      "style": {
+        "navigationBarTitleText": "同城",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/same-city/nearby-users/index",
+      "style": {
+        "navigationBarTitleText": "同城",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/search/index",
+      "style": {
+        "navigationBarTitleText": "搜索",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/search/advanced/index",
+      "style": {
+        "navigationBarTitleText": "搜索",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/search/history/index",
+      "style": {
+        "navigationBarTitleText": "搜索",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/search/result/index",
+      "style": {
+        "navigationBarTitleText": "搜索",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/search/trending/index",
+      "style": {
+        "navigationBarTitleText": "搜索",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/search/voice/index",
+      "style": {
+        "navigationBarTitleText": "搜索",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/seckill/index",
+      "style": {
+        "navigationBarTitleText": "秒杀",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/seckill/rules/index",
+      "style": {
+        "navigationBarTitleText": "秒杀",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/settings/index",
+      "style": {
+        "navigationBarTitleText": "settings",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/settings/bindaccount/index",
+      "style": {
+        "navigationBarTitleText": "bindaccount",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/settings/blacklist/index",
+      "style": {
+        "navigationBarTitleText": "blacklist",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/settings/delete-account/index",
+      "style": {
+        "navigationBarTitleText": "delete-account",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/settings/notifications/index",
+      "style": {
+        "navigationBarTitleText": "通知",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/settings/password/index",
+      "style": {
+        "navigationBarTitleText": "password",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/settings/payment-password/index",
+      "style": {
+        "navigationBarTitleText": "payment-password",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/settings/phone/index",
+      "style": {
+        "navigationBarTitleText": "phone",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/settings/privacy/index",
+      "style": {
+        "navigationBarTitleText": "privacy",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/share/landing/index",
+      "style": {
+        "navigationBarTitleText": "分享",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/index",
+      "style": {
+        "navigationBarTitleText": "shop",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/addresses/index",
+      "style": {
+        "navigationBarTitleText": "addresses",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/addresses/edit/index",
+      "style": {
+        "navigationBarTitleText": "edit",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/after-sale/index",
+      "style": {
+        "navigationBarTitleText": "after-sale",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/after-sale/detail/index",
+      "style": {
+        "navigationBarTitleText": "after-sale",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/after-sale-rejected/index",
+      "style": {
+        "navigationBarTitleText": "after-sale-rejected",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/cart/index",
+      "style": {
+        "navigationBarTitleText": "购物车",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/categories/index",
+      "style": {
+        "navigationBarTitleText": "categories",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/checkout/index",
+      "style": {
+        "navigationBarTitleText": "结算",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/compare/index",
+      "style": {
+        "navigationBarTitleText": "compare",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/coupon-detail/index",
+      "style": {
+        "navigationBarTitleText": "coupon-detail",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/coupons/index",
+      "style": {
+        "navigationBarTitleText": "优惠券",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/exchange/index",
+      "style": {
+        "navigationBarTitleText": "exchange",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/flash-sale/index",
+      "style": {
+        "navigationBarTitleText": "flash-sale",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/group-buy/index",
+      "style": {
+        "navigationBarTitleText": "拼团",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/group-buy/detail/index",
+      "style": {
+        "navigationBarTitleText": "拼团",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/group-buy-fail/index",
+      "style": {
+        "navigationBarTitleText": "group-buy-fail",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/group-buy-success/index",
+      "style": {
+        "navigationBarTitleText": "group-buy-success",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/my-after-sales/index",
+      "style": {
+        "navigationBarTitleText": "my-after-sales",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/pay-fail/index",
+      "style": {
+        "navigationBarTitleText": "pay-fail",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/pay-success/index",
+      "style": {
+        "navigationBarTitleText": "pay-success",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/paying/index",
+      "style": {
+        "navigationBarTitleText": "paying",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/payment-methods/index",
+      "style": {
+        "navigationBarTitleText": "payment-methods",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/reviews/index",
+      "style": {
+        "navigationBarTitleText": "reviews",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/shop/detail/index",
+      "style": {
+        "navigationBarTitleText": "shop",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/splash/index",
+      "style": {
+        "navigationBarTitleText": "启动页",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/station/assistant/index",
+      "style": {
+        "navigationBarTitleText": "分站管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/station/config/index",
+      "style": {
+        "navigationBarTitleText": "分站管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/station/earnings/index",
+      "style": {
+        "navigationBarTitleText": "分站管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/station/home/index",
+      "style": {
+        "navigationBarTitleText": "分站管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/station/live/index",
+      "style": {
+        "navigationBarTitleText": "直播",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/station/manage/index",
+      "style": {
+        "navigationBarTitleText": "管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/station/materials/index",
+      "style": {
+        "navigationBarTitleText": "分站管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/station/team/index",
+      "style": {
+        "navigationBarTitleText": "分站管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/station/detail/index",
+      "style": {
+        "navigationBarTitleText": "分站管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/station/detail/home/index",
+      "style": {
+        "navigationBarTitleText": "分站管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/station/detail/teachers/index",
+      "style": {
+        "navigationBarTitleText": "分站管理",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/store/detail/index",
+      "style": {
+        "navigationBarTitleText": "store",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/submissions/index",
+      "style": {
+        "navigationBarTitleText": "submissions",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/substation/dashboard/index",
+      "style": {
+        "navigationBarTitleText": "dashboard",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/substation/settings/index",
+      "style": {
+        "navigationBarTitleText": "settings",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/substation/share/index",
+      "style": {
+        "navigationBarTitleText": "分享",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/substation/detail/index",
+      "style": {
+        "navigationBarTitleText": "substation",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/substation/detail/poster/index",
+      "style": {
+        "navigationBarTitleText": "poster",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/tasks/daily/index",
+      "style": {
+        "navigationBarTitleText": "日常任务",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/teacher/dashboard/index",
+      "style": {
+        "navigationBarTitleText": "讲师",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/teacher-certification/index",
+      "style": {
+        "navigationBarTitleText": "teacher-certification",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/terms/index",
+      "style": {
+        "navigationBarTitleText": "terms",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/terms/merchant/index",
+      "style": {
+        "navigationBarTitleText": "商家中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/terms/service/index",
+      "style": {
+        "navigationBarTitleText": "service",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/topic/tag-detail/index",
+      "style": {
+        "navigationBarTitleText": "topic",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/topics/detail/index",
+      "style": {
+        "navigationBarTitleText": "话题",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/user/detail/index",
+      "style": {
+        "navigationBarTitleText": "user",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/user/detail/following/index",
+      "style": {
+        "navigationBarTitleText": "following",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/verification/index",
+      "style": {
+        "navigationBarTitleText": "verification",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/video/detail/index",
+      "style": {
+        "navigationBarTitleText": "video",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/videos/index",
+      "style": {
+        "navigationBarTitleText": "短视频",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/videos/creator/index",
+      "style": {
+        "navigationBarTitleText": "创作者中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/videos/creator/analytics/index",
+      "style": {
+        "navigationBarTitleText": "创作者中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/videos/creator/earnings/history/index",
+      "style": {
+        "navigationBarTitleText": "创作者中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/videos/creator/products/add/index",
+      "style": {
+        "navigationBarTitleText": "创作者中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/videos/creator/sales/index",
+      "style": {
+        "navigationBarTitleText": "创作者中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/videos/creator/settings/index",
+      "style": {
+        "navigationBarTitleText": "创作者中心",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/videos/creator/withdraw/index",
+      "style": {
+        "navigationBarTitleText": "提现",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/videos/publish/index",
+      "style": {
+        "navigationBarTitleText": "短视频",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/videos/search/index",
+      "style": {
+        "navigationBarTitleText": "搜索",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/videos/detail/index",
+      "style": {
+        "navigationBarTitleText": "短视频",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/vip/index",
+      "style": {
+        "navigationBarTitleText": "会员",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/vip/records/index",
+      "style": {
+        "navigationBarTitleText": "会员",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/wallet/index",
+      "style": {
+        "navigationBarTitleText": "钱包",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/wallet/bank-cards/index",
+      "style": {
+        "navigationBarTitleText": "钱包",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/wallet/bill/index",
+      "style": {
+        "navigationBarTitleText": "钱包",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/wallet/recharge/index",
+      "style": {
+        "navigationBarTitleText": "钱包",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/wallet/transactions/index",
+      "style": {
+        "navigationBarTitleText": "钱包",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/wallet/withdraw/index",
+      "style": {
+        "navigationBarTitleText": "提现",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/welcome/index",
+      "style": {
+        "navigationBarTitleText": "欢迎页",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/withdraw/index",
+      "style": {
+        "navigationBarTitleText": "提现",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/withdraw/records/index",
+      "style": {
+        "navigationBarTitleText": "提现",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/yangpan/index",
+      "style": {
+        "navigationBarTitleText": "yangpan",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/yangpan/history/index",
+      "style": {
+        "navigationBarTitleText": "history",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/yangpan/history/celebrities/index",
+      "style": {
+        "navigationBarTitleText": "celebrities",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/yangpan/history/groups/index",
+      "style": {
+        "navigationBarTitleText": "groups",
+        "navigationBarBackgroundColor": "#FAF8F5",
+        "navigationBarTextStyle": "black"
       }
     }
   ],

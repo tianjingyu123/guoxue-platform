@@ -169,6 +169,21 @@ export class CreateGiftDto {
   sortOrder?: number;
 }
 
+export class UpdateGiftDto {
+  @ApiProperty({ description: "礼物名称", required: false })
+  name?: string;
+  @ApiProperty({ description: "礼物图标", required: false })
+  icon?: string;
+  @ApiProperty({ description: "价格(金币)", required: false })
+  priceCoin?: number;
+  @ApiProperty({ description: "礼物等级", required: false })
+  level?: string;
+  @ApiProperty({ description: "状态", required: false })
+  status?: string;
+  @ApiProperty({ description: "排序", required: false })
+  sortOrder?: number;
+}
+
 export class SendGiftDto {
   @ApiProperty({ description: "礼物ID" })
   @IsString()

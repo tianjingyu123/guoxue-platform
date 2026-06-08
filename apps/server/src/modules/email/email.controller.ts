@@ -6,7 +6,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
-import { SendEmailDto, SendVerifyCodeDto, TestEmailDto, CreateEmailTemplateDto, UpdateEmailTemplateDto } from "./email.dto";
+import { SendEmailDto, SendVerifyCodeDto, TestEmailDto, CreateEmailTemplateDto, UpdateEmailTemplateDto, SendTemplateDto, UnsubscribeDto, ResubscribeDto } from "./email.dto";
 
 @ApiTags("邮件")
 @Controller("email")
@@ -87,7 +87,7 @@ export class EmailController {
   @ApiOperation({ summary: "使用模板发送邮件" })
   @ApiBearerAuth()
   sendWithTemplate(
-    @Body() body: { templateId: string; to: string | string[]; vars?: Record<string, string> },
+    @Body() body: SendTemplateDto,
   ) {
     return this.email.sendWithTemplate(body.templateId, body.to, body.vars);
   }
@@ -96,7 +96,7 @@ export class EmailController {
 
   @Post("unsubscribe")
   @ApiOperation({ summary: "退订邮件" })
-  unsubscribe(@Body() body: { email: string; reason?: string }) {
+  unsubscribe(@Body() body: UnsubscribeDto) {
     return this.email.unsubscribe(body.email, body.reason);
   }
 
@@ -105,7 +105,7 @@ export class EmailController {
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "重新订阅（管理员）" })
   @ApiBearerAuth()
-  resubscribe(@Body() body: { email: string }) {
+  resubscribe(@Body() body: ResubscribeDto) {
     return this.email.resubscribe(body.email);
   }
 

@@ -100,6 +100,37 @@ export class SendImGroupMsgDto {
   text: string;
 }
 
+export class SendImageDto {
+  @ApiProperty({ description: "接收者用户ID" })
+  @IsString() @MinLength(1)
+  toUserId: string;
+
+  @ApiProperty({ description: "图片URL" })
+  @IsString() @MinLength(1)
+  imageUrl: string;
+
+  @ApiPropertyOptional({ description: "图片宽度" })
+  @IsOptional() @IsString()
+  width?: number;
+
+  @ApiPropertyOptional({ description: "图片高度" })
+  @IsOptional() @IsString()
+  height?: number;
+}
+
+export class SendCustomDto {
+  @ApiProperty({ description: "接收者用户ID" })
+  @IsString() @MinLength(1)
+  toUserId: string;
+
+  @IsOptional()
+  data: Record<string, unknown>;
+
+  @ApiPropertyOptional({ description: "描述" })
+  @IsOptional() @IsString()
+  desc?: string;
+}
+
 export class FriendDto {
   @ApiProperty({ description: "目标用户ID" })
   @IsString()

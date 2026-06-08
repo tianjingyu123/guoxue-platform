@@ -12,6 +12,7 @@ import {
   CreateTeacherBookingDto,
   CreateStationOrderDto, CreateSettlementDto,
   AuditCourseDto,
+  UpdateOrderStatusDto, CreateTeacherRequestDto, RespondTeacherRequestDto,
 } from "./offline.dto";
 import { CreateTeacherDto, UpdateTeacherDto, SetAvailabilityDto } from "./dto/teacher.dto";
 
@@ -290,7 +291,7 @@ export class OfflineController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新订单状态" })
   @ApiBearerAuth()
-  updateOrderStatus(@Param("orderId") orderId: string, @Body() dto: { status: string }) {
+  updateOrderStatus(@Param("orderId") orderId: string, @Body() dto: UpdateOrderStatusDto) {
     return this.svc.updateOrderStatus(orderId, dto.status);
   }
 
@@ -454,10 +455,8 @@ export class OfflineController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "驿站发起老师邀约" })
   @ApiBearerAuth()
-  createTeacherRequest(@Req() req: Request, @Param("id") stationId: string, @Body() body: {
-    teacherId?: string; courseTitle?: string; courseIntro?: string; proposedFee?: number; proposeDate?: string;
-  }) {
-    return this.svc.createTeacherRequest(stationId, req.user.id, body);
+  createTeacherRequest(@Req() req: Request, @Param("id") stationId: string, @Body() dto: CreateTeacherRequestDto) {
+    return this.svc.createTeacherRequest(stationId, req.user.id, dto);
   }
 
   @Get("stations/:id/teacher-requests")
@@ -472,8 +471,8 @@ export class OfflineController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "老师响应邀约（接受/拒绝）" })
   @ApiBearerAuth()
-  respondTeacherRequest(@Req() req: Request, @Param("id") id: string, @Body() body: { status: string }) {
-    return this.svc.respondTeacherRequest(id, req.user.id, body.status);
+  respondTeacherRequest(@Req() req: Request, @Param("id") id: string, @Body() dto: RespondTeacherRequestDto) {
+    return this.svc.respondTeacherRequest(id, req.user.id, dto.status);
   }
 
   // ── 管理员：教师邀约总览 ──

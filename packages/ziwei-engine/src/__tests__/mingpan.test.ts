@@ -87,10 +87,10 @@ describe('calcWuXingJu - 定五行局', () => {
     expect(calcWuXingJu('丁', '卯')).toBe('火六局')
   })
 
-  it('戊申 → 水二局', () => {
+  it('戊申 → 土五局', () => {
     // 申→getZhiGroupIndex=Math.floor(8/2)=4, 戊→getGanGroupIndex=Math.floor(4/2)=2
-    // WU_XING_JU_TABLE[4][2] = '水二局'
-    expect(calcWuXingJu('戊', '申')).toBe('水二局')
+    // 戊申纳音=大驿土→土五局
+    expect(calcWuXingJu('戊', '申')).toBe('土五局')
   })
 })
 

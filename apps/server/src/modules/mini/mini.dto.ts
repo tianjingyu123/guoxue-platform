@@ -39,6 +39,32 @@ export class MiniContentQueryDto {
   pageSize: number = 10;
 }
 
+export class CreateMiniAppDto {
+  @ApiProperty({ description: "小程序AppId" })
+  @IsString() @MinLength(1)
+  appId: string;
+
+  @ApiProperty({ description: "小程序名称" })
+  @IsString() @MinLength(1)
+  appName: string;
+
+  @ApiPropertyOptional({ description: "类型" })
+  @IsOptional() @IsString()
+  type?: string;
+
+  @ApiPropertyOptional({ description: "域名" })
+  @IsOptional() @IsString()
+  domain?: string;
+
+  @ApiPropertyOptional({ description: "H5域名" })
+  @IsOptional() @IsString()
+  h5Domain?: string;
+
+  @ApiPropertyOptional({ description: "路径映射" })
+  @IsOptional()
+  pathMappings?: Record<string, string>;
+}
+
 export class MiniShareQueryDto {
   @ApiProperty({ description: "分享目标类型", example: "CONTENT" })
   @IsString()

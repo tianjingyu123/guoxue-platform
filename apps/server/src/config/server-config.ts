@@ -22,6 +22,7 @@ class ServerConfig {
   get isProduction(): boolean { return this.nodeEnv === "production"; }
   get isTest(): boolean { return this.nodeEnv === "test"; }
   get port(): number { return parseInt(process.env.PORT || "3000", 10); }
+  get host(): string { return process.env.HOST || "0.0.0.0"; }
 
   // ─── 大屏 ───
   get bigscreenSecret(): string { return process.env.BIGSCREEN_SECRET || this.required("BIGSCREEN_SECRET"); }
@@ -141,6 +142,7 @@ export class ServerConfigService {
   get nodeEnv() { return serverConfig.nodeEnv; }
   get isProduction() { return serverConfig.isProduction; }
   get port() { return serverConfig.port; }
+  get host() { return serverConfig.host; }
   // 业务
   get bigscreenSecret() { return serverConfig.bigscreenSecret; }
   get corsOrigin() { return serverConfig.corsOrigin; }

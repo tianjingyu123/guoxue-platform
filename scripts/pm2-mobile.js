@@ -1,10 +1,10 @@
-// PM2 wrapper: 启动 UniApp 移动端 H5 开发服务器
+// PM2 wrapper: 启动 V0 前端完整版 Next.js 开发服务器
 const { spawn } = require("child_process");
 const path = require("path");
 
-const cwd = path.resolve(__dirname, "..", "apps", "mobile");
+const cwd = "C:/Users/Administrator/Desktop/V0前端完整版6.6日";
 
-const child = spawn("npx", ["uni", "--port", "5174", "--host", "0.0.0.0"], {
+const child = spawn("npx", ["next", "dev", "-p", "5174", "-H", "0.0.0.0"], {
   cwd,
   stdio: "inherit",
   shell: true,

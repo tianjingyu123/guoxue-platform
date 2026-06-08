@@ -5375,3 +5375,49 @@ model DailyTask {
 // 国际化配置（预留）
 // ─────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────
+// 万年历中央数据层（1900-2100 预计算表）
+// 天文计算入表，干支推导留算法
+// — 所有排盘工具统一从此表读取基础数据 —
+// ─────────────────────────────────────────────────
+
+model WanNianLiDay {
+  solarDate    DateTime @db.Date @id  // 公历日期 PK
+
+  // 农历基础
+  lunarYear    Int                     // 农历年（如 2024）
+  lunarMonth   Int                     // 农历月 1-12
+  lunarDay     Int                     // 农历日 1-30
+  isLeap       Boolean @default(false) // 是否闰月
+
+  // 干支（核心：所有排盘工具共用）
+  nianGan      String                  // 年干 甲乙丙丁戊己庚辛壬癸
+  nianZhi      String                  // 年支 子丑寅卯辰巳午未申酉戌亥
+  yueGan       String                  // 月干（按节气）
+  yueZhi       String                  // 月支（寅=正月）
+  riGan        String                  // 日干
+  riZhi        String                  // 日支
+
+  // 农历完整干支名
+  lunarYearGZ  String                  // 如"甲辰"
+  lunarMonthGZ String                  // 如"丙寅"
+  lunarDayGZ   String                  // 如"庚午"
+
+  // 节气（当日有节气时记录，否则 null）
+  jieQi        String?
+
+  // 二十八宿值日
+  erShiBaXiu   String
+
+  // 生肖（按立春分界）
+  shengXiao    String
+
+  // 星期（0=周日）
+  weekDay      Int
+
+  @@index([lunarYear, lunarMonth])
+  @@index([nianGan, nianZhi])
+  @@index([riGan, riZhi])
+  @@index([jieQi])
+}
+

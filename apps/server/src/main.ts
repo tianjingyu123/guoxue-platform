@@ -106,8 +106,9 @@ async function bootstrap() {
   }));
 
   const port = serverConfig.port;
-  await app.listen(port);
-  logger.raw().info({ port }, `Server running on http://localhost:${port}`);
+  const host = serverConfig.host;
+  await app.listen(port, host);
+  logger.raw().info({ host, port }, `Server running on http://${host}:${port}`);
 
   // 优雅关闭：捕获 SIGTERM/SIGINT，先关 HTTP 再断数据库
   const signals = ["SIGTERM", "SIGINT"];

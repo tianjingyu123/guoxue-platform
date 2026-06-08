@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, UseP
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { Request } from "express";
 import { CommentService } from "./comment.service";
-import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from "./comment.dto";
+import { CreateCommentDto, UpdateCommentDto, CommentQueryDto, BatchHideDto } from "./comment.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -102,7 +102,7 @@ export class CommentController {
   @Roles(RoleType.SUPER_ADMIN, RoleType.OPERATION_ADMIN)
   @ApiOperation({ summary: "批量隐藏评论" })
   @ApiBearerAuth()
-  batchHide(@Body() dto: { ids: string[] }) {
+  batchHide(@Body() dto: BatchHideDto) {
     return this.comment.batchHide(dto.ids);
   }
 

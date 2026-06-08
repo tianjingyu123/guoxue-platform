@@ -80,7 +80,7 @@ export class ToolRegistryService {
     try {
       const mockPath = path.resolve(
         __dirname,
-        "../../../../../../packages/shared/src/mock",
+        "../../../../../packages/shared/src/mock",
         fileName,
       );
       const raw = fs.readFileSync(mockPath, "utf-8");

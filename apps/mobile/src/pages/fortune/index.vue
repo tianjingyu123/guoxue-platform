@@ -1,252 +1,285 @@
 <template>
   <view class="page">
-    <view class="header">
-      <text class="title">
-        每日运势
-      </text>
+    <view class="v0-header">
+      <text class="v0-title">运势</text>
+      <text class="v0-route">V0: fortune</text>
     </view>
-
-    <!-- Tab 切换 -->
-    <view class="tab-bar">
-      <view
-        v-for="t in tabs"
-        :key="t.value"
-        :class="['tab-item', { active: activeTab === t.value }]"
-        @click="switchTab(t.value)"
-      >
-        <text>{{ t.label }}</text>
-      </view>
-    </view>
-
-    <LoadingSkeleton
-      v-if="loading"
-      type="detail"
-    />
-
-    <template v-if="!loading && fortune">
-      <!-- 运势总览卡片 -->
-      <view class="fortune-card">
-        <view class="score-circle">
-          <text class="score-value">
-            {{ fortune.overallScore }}
-          </text>
-          <text class="score-label">
-            综合评分
-          </text>
-        </view>
-        <view class="score-detail">
-          <view class="score-item">
-            <text class="si-label">
-              事业
-            </text>
-            <view class="si-bar">
-              <view
-                class="si-fill"
-                :style="{ width: fortune.careerScore + '%' }"
-              />
-            </view>
-            <text class="si-value">
-              {{ fortune.careerScore }}
-            </text>
-          </view>
-          <view class="score-item">
-            <text class="si-label">
-              爱情
-            </text>
-            <view class="si-bar">
-              <view
-                class="si-fill love"
-                :style="{ width: fortune.loveScore + '%' }"
-              />
-            </view>
-            <text class="si-value">
-              {{ fortune.loveScore }}
-            </text>
-          </view>
-          <view class="score-item">
-            <text class="si-label">
-              财运
-            </text>
-            <view class="si-bar">
-              <view
-                class="si-fill wealth"
-                :style="{ width: fortune.wealthScore + '%' }"
-              />
-            </view>
-            <text class="si-value">
-              {{ fortune.wealthScore }}
-            </text>
-          </view>
-          <view class="score-item">
-            <text class="si-label">
-              健康
-            </text>
-            <view class="si-bar">
-              <view
-                class="si-fill health"
-                :style="{ width: fortune.healthScore + '%' }"
-              />
-            </view>
-            <text class="si-value">
-              {{ fortune.healthScore }}
-            </text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 幸运信息 -->
-      <view class="luck-card">
-        <text class="section-title">
-          今日幸运
-        </text>
-        <view class="luck-grid">
-          <view class="luck-item">
-            <text class="luck-icon">
-              🧭
-            </text>
-            <text class="luck-label">
-              幸运方向
-            </text>
-            <text class="luck-value">
-              {{ fortune.luckyDirection || '--' }}
-            </text>
-          </view>
-          <view class="luck-item">
-            <text class="luck-icon">
-              🎨
-            </text>
-            <text class="luck-label">
-              幸运颜色
-            </text>
-            <text class="luck-value">
-              {{ fortune.luckyColor || '--' }}
-            </text>
-          </view>
-          <view class="luck-item">
-            <text class="luck-icon">
-              🔢
-            </text>
-            <text class="luck-label">
-              幸运数字
-            </text>
-            <text class="luck-value">
-              {{ fortune.luckyNumber || '--' }}
-            </text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 运势解读 -->
-      <view class="advice-card">
-        <text class="section-title">
-          运势解读
-        </text>
-        <text class="advice-text">
-          {{ fortune.advice || '暂无解读' }}
-        </text>
-      </view>
-
-      <!-- 订阅推送 -->
-      <view class="subscribe-section">
-        <button
-          class="subscribe-btn"
-          @click="goSubscribe"
+        <DataState
+          isLoading={{ loading && !fortune }}
+          error={{ error }}
+          isEmpty={{ !fortune }}
+          emptyMessage="暂无运势数据"
+          onRetry={() => loadFortune(currentDate)}
+          loadingComponent={{ renderSkeleton() }}
         >
-          <text class="sub-icon">
-            🔔
-          </text>
-          <text class="sub-text">
-            订阅运势推送
-          </text>
-        </button>
-      </view>
-    </template>
-
-    <EmptyState
-      v-else-if="!loading && !fortune"
-      icon="⭐"
-      text="暂无运势数据"
-    />
+          {fortune && (
+            <view class="min-h-screen bg-gradient-to-b from-red-50 to-background">
+              <!--   -->
+              <view class="sticky top-0 z-10 bg-gradient-to-b from-red-50 to-transparent pt-safe">
+                <view class="flex items-center justify-between p-4">
+                  <Link href="/">
+                    <Button variant="ghost" size="icon">
+                      <ChevronLeft class="w-5 h-5" />
+                    </Button>
+                  </Link>
+                  <view class="flex items-center gap-2">
+                    <Sparkles class="w-5 h-5 text-primary" />
+                    <text class="font-medium">每日运势</text>
+                  </view>
+                  <view class="w-10" />
+                </view>
+              </view>
+    
+              <view class="p-4 space-y-6">
+                <!--   -->
+                <view class="flex items-center justify-center gap-4">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    @click={() => changeDate(-1)}
+                    class="rounded-full"
+                  >
+                    <ChevronLeft class="w-5 h-5" />
+                  </Button>
+                  <view class="text-center">
+                    <text class="text-lg font-semibold">{{ formatFortuneDate(currentDate) }}</text>
+                    <text class="text-sm text-muted-foreground">
+                      {{ fortune.lunarDate }} {{ fortune.weekday }}
+                    </text>
+                  </view>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    @click={() => changeDate(1)}
+                    class="rounded-full"
+                  >
+                    <ChevronRight class="w-5 h-5" />
+                  </Button>
+                </view>
+    
+                <!--   -->
+                <view class="flex flex-col items-center">
+                  <view class="relative w-40 h-40">
+                    <!--   -->
+                    <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        class="text-secondary"
+                      />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        strokeDasharray={`${fortune.overallScore * 2.83} 283`}
+                        class="text-primary transition-all duration-1000"
+                      />
+                    </svg>
+                    <!--   -->
+                    <view class="absolute inset-0 flex flex-col items-center justify-center">
+                      <text class="text-4xl font-bold text-primary">{{ fortune.overallScore }}</text>
+                      <text class={cn(
+                        "text-lg font-medium mt-1",
+                        getFortuneLevelInfo(fortune.overallLevel).color
+                      )}>
+                        {{ getFortuneLevelInfo(fortune.overallLevel).label }}
+                      </text>
+                    </view>
+                  </view>
+                  <text class="text-sm text-muted-foreground mt-3 text-center max-w-xs">
+                    {{ fortune.overallSummary }}
+                  </text>
+                </view>
+    
+                <!--   -->
+                <view class="flex gap-3">
+                  <!--   -->
+                  <Card class="flex-1 border-green-200 bg-green-50/50">
+                    <CardContent class="p-4">
+                      <view class="flex items-center gap-2 mb-2">
+                        <text class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-sm font-medium">
+                          宜
+                        </text>
+                        <text class="text-sm font-medium text-green-700">今日宜</text>
+                      </view>
+                      <view class="flex flex-wrap gap-1.5">
+                        {fortune.yiji.yi.map((item, i) => (
+                          <text key={i} class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
+                            {{ item }}
+                          </text>
+                        ))}
+                      </view>
+                    </CardContent>
+                  </Card>
+                  <!--   -->
+                  <Card class="flex-1 border-red-200 bg-red-50/50">
+                    <CardContent class="p-4">
+                      <view class="flex items-center gap-2 mb-2">
+                        <text class="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-sm font-medium">
+                          忌
+                        </text>
+                        <text class="text-sm font-medium text-red-700">今日忌</text>
+                      </view>
+                      <view class="flex flex-wrap gap-1.5">
+                        {fortune.yiji.ji.map((item, i) => (
+                          <text key={i} class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">
+                            {{ item }}
+                          </text>
+                        ))}
+                      </view>
+                    </CardContent>
+                  </Card>
+                </view>
+    
+                <!--   -->
+                <view>
+                  <text class="text-base font-semibold mb-3">分类运势</text>
+                  <view class="grid grid-cols-2 gap-3">
+                    {fortune.categories.map((cat) => {
+                      const colors = categoryColors[cat.category] || categoryColors.career
+                      const levelInfo = getFortuneLevelInfo(cat.level)
+                      return (
+                        <Card 
+                          key={cat.category} 
+                          class={cn("border", colors.ring.replace('ring', 'border'))}
+                        >
+                          <CardContent class="p-3">
+                            <view class="flex items-center gap-2 mb-2">
+                              <view class={cn("w-8 h-8 rounded-lg flex items-center justify-center", colors.bg, colors.text)}>
+                                {{ categoryIcons[cat.category] }}
+                              </view>
+                              <view>
+                                <text class="text-sm font-medium">{{ cat.categoryName }}</text>
+                                <text class={cn("text-xs", levelInfo.color)}>{{ cat.score }}分</text>
+                              </view>
+                            </view>
+                            <text class="text-xs text-muted-foreground line-clamp-1">{{ cat.summary }}</text>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </view>
+                </view>
+    
+                <!--   -->
+                <Card class="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+                  <CardContent class="p-4">
+                    <text class="text-sm font-semibold text-amber-800 mb-3">今日幸运</text>
+                    <view class="grid grid-cols-2 gap-3 text-sm">
+                      <view class="flex items-center gap-2">
+                        <text class="text-amber-600">幸运色:</text>
+                        <text class="font-medium">{{ fortune.luckyColor }}</text>
+                      </view>
+                      <view class="flex items-center gap-2">
+                        <text class="text-amber-600">幸运数:</text>
+                        <text class="font-medium">{{ fortune.luckyNumber }}</text>
+                      </view>
+                      <view class="flex items-center gap-2">
+                        <text class="text-amber-600">吉方位:</text>
+                        <text class="font-medium">{{ fortune.luckyDirection }}</text>
+                      </view>
+                      <view class="flex items-center gap-2">
+                        <text class="text-amber-600">吉时:</text>
+                        <text class="font-medium">{{ fortune.luckyTime }}</text>
+                      </view>
+                    </view>
+                  </CardContent>
+                </Card>
+    
+                <!--   -->
+                <Link href={`/fortune/detail?date=${currentDate}`}>
+                  <Button class="w-full" size="lg">
+                    查看详细解读
+                    <ArrowRight class="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+    
+                <!--   -->
+                {fortune.tips && fortune.tips.length > 0 && (
+                  <Card class="border-dashed">
+                    <CardContent class="p-4">
+                      <text class="text-sm font-semibold mb-2">今日提醒</text>
+                      <view class="space-y-1">
+                        {fortune.tips.map((tip, i) => (
+                          <view key={i} class="text-xs text-muted-foreground flex items-start gap-2">
+                            <text class="text-primary mt-0.5">•</text>
+                            {{ tip }}
+                          </view>
+                        ))}
+                      </view>
+                    </CardContent>
+                  </Card>
+                )}
+              </view>
+            </view>
+          )}
+        </DataState>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { api } from '../../api'
-import LoadingSkeleton from '../../components/LoadingSkeleton.vue'
-import EmptyState from '../../components/EmptyState.vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 
-const tabs = [
-  { label: '今日', value: 'DAILY' },
-  { label: '本周', value: 'WEEKLY' },
-  { label: '本月', value: 'MONTHLY' },
-  { label: '年度', value: 'YEARLY' },
-]
-
-const activeTab = ref('DAILY')
-const fortune = ref<any>(null)
 const loading = ref(true)
+const error = ref<string | null>(null)
 
-onMounted(() => {
-  fetchFortune()
-})
+// V0 原始数据
+const categoryIcons: Record<string, React.ReactNode> = {
+const categoryColors: Record<string, { bg: string; text: string; ring: string }> = {
 
-async function fetchFortune() {
+async function fetchData() {
   loading.value = true
-  try {
-    fortune.value = await api.get(`/fortune/${activeTab.value.toLowerCase()}`)
-  } catch { /* */ } finally {
-    loading.value = false
-  }
+  try { loading.value = false } catch (e: any) { error.value = e.message }
 }
 
-function switchTab(tab: string) {
-  activeTab.value = tab
-  fetchFortune()
-}
-
-function goSubscribe() {
-  uni.navigateTo({ url: '/pages/fortune/subscribe' })
-}
+onMounted(() => fetchData())
+onPullDownRefresh(() => fetchData().finally(() => uni.stopPullDownRefresh()))
 </script>
 
 <style scoped>
-.page { padding: 12px; background: #F5F0E8; min-height: 100vh; padding-bottom: 40px; }
-.header { margin-bottom: 12px; }
-.title { font-size: 20px; font-weight: bold; color: #C41E3A; }
-
-.tab-bar { display: flex; background: #fff; border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
-.tab-item { flex: 1; text-align: center; padding: 12px 0; font-size: 14px; color: #666; transition: color 0.2s; }
-.tab-item.active { color: #C41E3A; font-weight: 500; background: #fff; position: relative; }
-.tab-item.active::after { content: ""; position: absolute; bottom: 0; left: 25%; right: 25%; height: 2px; background: #C41E3A; border-radius: 1px; }
-
-.fortune-card { background: linear-gradient(135deg, #C41E3A, #8B0000); border-radius: 16px; padding: 20px; margin-bottom: 12px; display: flex; gap: 16px; }
-.score-circle { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 80px; height: 80px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.4); flex-shrink: 0; }
-.score-value { font-size: 28px; font-weight: bold; color: #fff; }
-.score-label { font-size: 10px; color: rgba(255,255,255,0.7); }
-.score-detail { flex: 1; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
-.score-item { display: flex; align-items: center; gap: 6px; }
-.si-label { font-size: 12px; color: rgba(255,255,255,0.8); width: 32px; }
-.si-bar { flex: 1; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden; }
-.si-fill { height: 100%; background: #C9A96E; border-radius: 3px; }
-.si-fill.love { background: #ff6b81; }
-.si-fill.wealth { background: #ffd700; }
-.si-fill.health { background: #2ed573; }
-.si-value { font-size: 11px; color: rgba(255,255,255,0.7); width: 24px; text-align: right; }
-
-.luck-card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
-.section-title { font-size: 14px; font-weight: bold; color: #333; display: block; margin-bottom: 12px; padding-left: 8px; border-left: 3px solid #C41E3A; }
-.luck-grid { display: flex; gap: 12px; }
-.luck-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 12px 8px; background: #F5F0E8; border-radius: 10px; }
-.luck-icon { font-size: 24px; margin-bottom: 6px; }
-.luck-label { font-size: 11px; color: #999; margin-bottom: 4px; }
-.luck-value { font-size: 15px; color: #C41E3A; font-weight: bold; }
-
-.advice-card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-.advice-text { font-size: 14px; color: #555; line-height: 1.8; }
-
-.subscribe-section { text-align: center; margin-top: 8px; }
-.subscribe-btn { display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #C9A96E, #D4AF37); color: #fff; border: none; border-radius: 24px; padding: 12px 32px; font-size: 15px; }
-.sub-icon { font-size: 16px; }
-.sub-text { font-size: 15px; }
+.page {
+  background: #FAF8F5;
+  min-height: 100vh;
+}
+.v0-header {
+  padding: 24rpx 32rpx;
+  background: linear-gradient(135deg, #C41E3A, #8B0000);
+  margin-bottom: 24rpx;
+}
+.v0-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  display: block;
+}
+.v0-route {
+  font-size: 20rpx;
+  color: rgba(255,255,255,0.6);
+  margin-top: 4rpx;
+  display: block;
+}
+.v0-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 32rpx;
+  border-radius: 12rpx;
+  background: #C41E3A;
+  color: #FFFFFF;
+  font-size: 28rpx;
+}
+.v0-hr {
+  height: 1px;
+  background: #E8E0D5;
+  margin: 24rpx 0;
+}
 </style>

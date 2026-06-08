@@ -153,6 +153,24 @@ export class DeleteAccountDto {
   reason?: string;
 }
 
+export class RegisterDeviceDto {
+  @IsOptional() @IsString()
+  deviceName?: string;
+
+  @IsOptional() @IsString()
+  deviceType?: string;
+}
+
+export class BindPhoneDto {
+  @IsString()
+  @MinLength(1)
+  phone: string;
+
+  @IsString()
+  @MinLength(1)
+  code: string;
+}
+
 export class ChangePhoneDto {
   @ApiProperty({ description: "旧手机号验证码" })
   @IsString()

@@ -5,7 +5,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const V0_DIR = "C:/Users/Administrator/Desktop/v0-project-bw-temp/app";
+const V0_DIR = "C:/Users/Administrator/Desktop/V0前端完整版6.6日/app";
 const VUE_PAGES_DIR = "C:/Users/Administrator/Desktop/guoxue-platform/apps/mobile/src/pages";
 
 // V0 路由 → 目标 vue 文件映射
@@ -234,6 +234,82 @@ const ROUTE_MAP = {
   "help/page": null,
   "learn/page": null,
   "learning/page": null,
+  // === P0 排盘模块 ===
+  "paipan/page": "pages/tools/paipan",
+  "paipan/bazi/page": "pages/tools/bazi-input",
+  "paipan/bazi/result/page": "pages/tools/bazi-result",
+  "paipan/bazi/history/page": "pages/tools/bazi-history",
+  "paipan/bazi/history/groups/page": "pages/tools/bazi-history-groups",
+  "paipan/bazi/history/celebrities/page": "pages/tools/bazi-celebrities",
+  "paipan/qimen/page": "pages/tools/qimen-input",
+  "paipan/qimen/result/page": "pages/tools/qimen-result",
+  "paipan/qimen/history/page": "pages/tools/qimen-history",
+  "paipan/qimen/history/groups/page": "pages/tools/qimen-history-groups",
+  "paipan/yangpan/page": "pages/tools/yangpan-input",
+  "paipan/yangpan/result/page": "pages/tools/yangpan-result",
+  "paipan/yangpan/history/page": "pages/tools/yangpan-history",
+  "paipan/yangpan/history/groups/page": "pages/tools/yangpan-history-groups",
+  "paipan/tools/coming-soon/page": "pages/tools/coming-soon",
+  "paipan/[toolId]/page": "pages/tools/tool-detail",
+  // === P0 商户模块 ===
+  "merchant/page": "pages/merchant/index",
+  "merchant/dashboard/page": "pages/merchant/dashboard",
+  "merchant/products/page": "pages/merchant/products",
+  "merchant/orders/page": "pages/merchant/orders",
+  "merchant/revenue/page": "pages/merchant/revenue",
+  "merchant/settings/page": "pages/merchant/settings",
+  // === P0 设置模块 ===
+  "settings/page": "pages/mine/settings",
+  "settings/notification/page": "pages/mine/settings-notification",
+  "settings/privacy/page": "pages/mine/settings-privacy",
+  "settings/display/page": "pages/mine/settings-display",
+  "settings/cache/page": "pages/mine/settings-cache",
+  "settings/about/page": "pages/mine/settings-about",
+  // === P1 商城扩展 ===
+  "mall/page": "pages/shop/mall",
+  "mall/categories/page": "pages/shop/mall-categories",
+  "mall/brand/page": "pages/shop/mall-brand",
+  "mall/ranking/page": "pages/shop/mall-ranking",
+  // === P1 积分 ===
+  "points/page": "pages/mine/points-center",
+  "points/history/page": "pages/mine/points-history",
+  "points/exchange/page": "pages/mine/points-exchange",
+  "points/rules/page": "pages/mine/points-rules",
+  // === P1 帮助 ===
+  "help/page": "pages/help/index",
+  "help/faq/page": "pages/help/faq",
+  "help/feedback/page": "pages/help/feedback",
+  "help/contact/page": "pages/help/contact",
+  // === P1 收益 ===
+  "earnings/page": "pages/creator/earnings",
+  "earnings/withdraw/page": "pages/creator/withdraw",
+  "earnings/history/page": "pages/creator/earnings-history",
+  "earnings/settlement/page": "pages/creator/settlement",
+  // === P2 其他 ===
+  "agents/page": "pages/agents/index",
+  "agents/questions/page": "pages/agents/questions",
+  "agents/ranking/page": "pages/agents/ranking",
+  "agents/history/page": "pages/agents/history",
+  "chats/page": "pages/im/chats",
+  "chats/[id]/page": "pages/im/chat-detail",
+  "manage/page": "pages/admin/manage",
+  "manage/content/page": "pages/admin/content-manage",
+  "manage/users/page": "pages/admin/user-manage",
+  "yangpan/page": "pages/tools/yangpan",
+  "yangpan/history/page": "pages/tools/yangpan-history",
+  "yangpan/history/groups/page": "pages/tools/yangpan-history-groups",
+  "yangpan/history/celebrities/page": "pages/tools/yangpan-celebrities",
+  "qimen/page": "pages/tools/qimen",
+  "qimen/history/page": "pages/tools/qimen-history",
+  "qimen/history/groups/page": "pages/tools/qimen-history-groups",
+  "payment/page": "pages/shop/payment",
+  "payment/success/page": "pages/shop/payment-success",
+  "profile/page": "pages/mine/profile",
+  "profile/edit/page": "pages/mine/profile-edit",
+  "invite/page": "pages/share/invite",
+  "invite/rewards/page": "pages/share/invite-rewards",
+  "withdraw/page": "pages/wallet/withdraw",
+  "withdraw/history/page": "pages/wallet/withdraw-history",
 };
 
 // React hooks → Vue Composition API
@@ -507,7 +583,7 @@ let skipped = 0;
 for (const [v0Route, vueRelPath] of Object.entries(ROUTE_MAP)) {
   if (!vueRelPath) { skipped++; continue; }
 
-  const v0Path = path.join(V0_DIR, ...v0Route.split("/"));
+  const v0Path = path.join(V0_DIR, ...v0Route.split("/")) + ".tsx";
   const vuePath = path.join(VUE_PAGES_DIR, vueRelPath + ".vue");
 
   if (convertFile(v0Path, vuePath)) {

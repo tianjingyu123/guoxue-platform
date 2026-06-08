@@ -12,7 +12,7 @@ import { SystemService } from "./system.service";
 import { ExportService } from "./export.service";
 import { Response, Request } from "express";
 import * as fs from "fs";
-import { SetConfigDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, ExportExcelDto } from "./system.dto";
+import { SetConfigDto, CreateConfigDto, ToggleMaintenanceDto, ToggleAutomationDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, ExportExcelDto } from "./system.dto";
 
 @ApiTags("系统配置")
 @Controller("system")
@@ -41,7 +41,7 @@ export class SystemController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建系统配置" })
   @ApiBearerAuth()
-  async createConfig(@Body() body: { key: string; value: string; description?: string }, @Req() req: Request) {
+  async createConfig(@Body() body: CreateConfigDto, @Req() req: Request) {
     const u = req.user as { nickname?: string; id?: string } | undefined;
     const updatedBy = u?.nickname || u?.id;
     return this.systemService.setConfig(body.key, body.value, body.description, updatedBy);
@@ -103,7 +103,7 @@ export class SystemController {
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "切换维护模式" })
   @ApiBearerAuth()
-  async toggleMaintenance(@Body() body: { enabled: boolean }) {
+  async toggleMaintenance(@Body() body: ToggleMaintenanceDto) {
     return this.systemService.toggleMaintenance(body.enabled);
   }
 
@@ -123,7 +123,7 @@ export class SystemController {
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "一键接管 — 开/关自动化（关闭后 Claude 权限降为只读）" })
   @ApiBearerAuth()
-  async toggleAutomation(@Body() body: { enabled: boolean }, @Req() req: Request) {
+  async toggleAutomation(@Body() body: ToggleAutomationDto, @Req() req: Request) {
     const u = req.user as { nickname?: string; id?: string } | undefined;
     const operator = u?.nickname || u?.id || "ADMIN";
     return this.systemService.toggleAutomation(body.enabled, operator);

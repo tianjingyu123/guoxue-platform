@@ -277,6 +277,10 @@ export class PaipanService {
       hour: dto.hour,
       minute: dto.minute || 0,
       city: dto.city || "",
+      useTrueSolarTime: dto.useTrueSolarTime === true,
+      useDaylightSaving: dto.useDaylightSaving === true,
+      ziShiMode: (dto.ziShiMode as "traditional" | "modern") || "traditional",
+      longitude: dto.longitude,
     };
   }
 

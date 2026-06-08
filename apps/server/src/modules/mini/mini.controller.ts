@@ -5,7 +5,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { MiniService } from "./mini.service";
-import { MiniHomeQueryDto, MiniContentQueryDto, MiniShareQueryDto } from "./mini.dto";
+import { MiniHomeQueryDto, MiniContentQueryDto, MiniShareQueryDto, CreateMiniAppDto } from "./mini.dto";
 
 @ApiTags("小程序")
 @Controller("mini")
@@ -69,7 +69,7 @@ export class MiniController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "创建小程序配置" })
-  createMiniApp(@Body() body: { appId: string; appName: string; type?: string; domain?: string; h5Domain?: string; pathMappings?: Record<string, string> }) {
+  createMiniApp(@Body() body: CreateMiniAppDto) {
     return this.mini.createMiniAppConfig(body);
   }
 

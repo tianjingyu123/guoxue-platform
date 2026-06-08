@@ -86,6 +86,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     const traceId = RequestContext.traceId();
+    if (response.headersSent) return;
+    response.setHeader("X-Trace-Id", traceId || "N/A");
     response.status(status).json({
       code: status,
       errorCode: errorCode ?? status,
@@ -94,6 +96,5 @@ export class AllExceptionsFilter implements ExceptionFilter {
       timestamp: Date.now(),
       path: request.url,
     });
-    response.setHeader("X-Trace-Id", traceId || "N/A");
   }
 }

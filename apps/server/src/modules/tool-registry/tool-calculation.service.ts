@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import type { JinKouJueInput } from "@guoxue/shared";
+import { WannianliService } from "../wannianli/wannianli.service";
 import {
   calculateBaZi,
   calculateZiWei,
@@ -13,7 +14,6 @@ import {
   calculateBaZhai,
   calculateLuoPan,
   calculateWuYunLiuQi,
-  calculateWanNianLi,
   calculateLiuYao,
   calculateMeiHua,
   calculateJinQianKe,
@@ -47,6 +47,7 @@ import {
   calculateYangGong,
   calculateJinSuo,
   calculateZiweiHePan,
+  calculateWanNianLiFromDb,
 } from "./calculators";
 
 /** 统一排盘/计算请求 */
@@ -74,11 +75,13 @@ export interface CalculateResponse {
 export class ToolCalculationService {
   private readonly logger = new Logger(ToolCalculationService.name);
 
+  constructor(private readonly wannianli: WannianliService) {}
+
   /** 执行排盘/计算 */
-  calculate(req: CalculateRequest): CalculateResponse {
+  async calculate(req: CalculateRequest): Promise<CalculateResponse> {
     const start = Date.now();
 
-    const result = this.dispatch(req.toolId, req.input) as Record<string, unknown>;
+    const result = await this.dispatch(req.toolId, req.input) as Record<string, unknown>;
 
     const durationMs = Date.now() - start;
     this.logger.log(`${req.toolId} 计算完成，耗时 ${durationMs}ms`);
@@ -93,7 +96,7 @@ export class ToolCalculationService {
 
   /** 按 toolId 分发 */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private dispatch(toolId: string, input: Record<string, unknown>): any {
+  private async dispatch(toolId: string, input: Record<string, unknown>): Promise<any> {
     switch (toolId) {
       case "bazi":              return calculateBaZi(input);
       case "ziwei":             return calculateZiWei(input);
@@ -110,7 +113,7 @@ export class ToolCalculationService {
       case "wuyun-liuqi":       return calculateWuYunLiuQi(input);
       case "qiming":
       case "xingming-jiexi":    return calculateXingmingJiexi(input);
-      case "wannianli":         return calculateWanNianLi(input);
+      case "wannianli":         return calculateWanNianLiFromDb(input, this.wannianli);
       case "liuyao":            return calculateLiuYao(input);
       case "meihua":            return calculateMeiHua(input);
       case "jinqianke":         return calculateJinQianKe(input);

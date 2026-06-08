@@ -12,6 +12,8 @@ import {
   MiniPhoneLoginDto,
   UpdateProfileDto,
   ChangePasswordDto,
+  RegisterDeviceDto,
+  BindPhoneDto,
 } from "./auth.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
@@ -169,7 +171,7 @@ export class AuthController {
   @ApiOperation({ summary: "注册当前登录设备" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  registerDevice(@Req() req: Request, @Body() body: { deviceName?: string; deviceType?: string }) {
+  registerDevice(@Req() req: Request, @Body() body: RegisterDeviceDto) {
     return this.auth.registerDevice(req.user.id, body.deviceName, body.deviceType, req.ip || undefined);
   }
 
@@ -193,7 +195,7 @@ export class AuthController {
   @ApiOperation({ summary: "绑定手机号" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  bindPhone(@Req() req: Request, @Body() body: { phone: string; code: string }) {
+  bindPhone(@Req() req: Request, @Body() body: BindPhoneDto) {
     return this.auth.bindPhone(req.user.id, body.phone, body.code);
   }
 

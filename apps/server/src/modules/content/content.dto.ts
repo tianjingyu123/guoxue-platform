@@ -90,6 +90,15 @@ export class UpdateContentDto {
   auditReason?: string;
 }
 
+export class BatchUpdateStatusDto {
+  @IsArray()
+  @IsString({ each: true })
+  ids: string[];
+
+  @IsString()
+  status: string;
+}
+
 export class ContentListQueryDto {
   @ApiPropertyOptional({ description: "页码", default: 1 })
   @IsOptional() @Type(() => Number) @IsInt() @Min(1)

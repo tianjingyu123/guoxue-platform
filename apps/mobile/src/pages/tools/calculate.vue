@@ -1,170 +1,164 @@
 <template>
   <view class="page">
     <!-- 加载态 -->
-    <DataState
-      v-if="schemaLoading"
-      state="loading"
-    />
+    <view v-if="schemaLoading" class="loading-wrap">
+      <text class="loading-text">加载工具信息...</text>
+    </view>
 
     <!-- 错误态 -->
-    <DataState
-      v-else-if="schemaError"
-      state="error"
-      :message="schemaError"
-      @retry="fetchSchema"
-    />
+    <view v-else-if="schemaError" class="error-wrap">
+      <text class="error-icon">⚠️</text>
+      <text class="error-text">{{ schemaError }}</text>
+      <view class="retry-btn" @click="fetchSchema"><text>重试</text></view>
+    </view>
 
     <!-- 主内容 -->
     <template v-else>
       <!-- 工具头 -->
       <view class="tool-header">
-        <text class="tool-title">
-          {{ toolName }}
-        </text>
-        <text
-          v-if="toolDesc"
-          class="tool-desc"
-        >
-          {{ toolDesc }}
-        </text>
+        <view class="header-top">
+          <view class="back-btn" @click="goBack"><text class="back-arrow">←</text></view>
+          <text class="tool-title">{{ toolName }}</text>
+          <view class="header-spacer" />
+        </view>
+        <text v-if="toolDesc" class="tool-desc">{{ toolDesc }}</text>
       </view>
 
-      <!-- 输入表单（动态渲染） -->
+      <!-- 输入表单（API Schema 动态渲染） -->
       <view class="form-section">
-        <view
-          v-for="field in formFields"
-          :key="field.key"
-          class="form-item"
-        >
-          <text class="form-label">
-            {{ field.label }}
-          </text>
+        <view v-for="field in formFields" :key="field.key" class="form-item">
+          <view class="form-label-row">
+            <text class="form-label">{{ field.label }}</text>
+            <text v-if="!field.required" class="form-optional">选填</text>
+          </view>
 
-          <!-- 枚举/选择器 -->
-          <view
-            v-if="field.type === 'enum'"
-            class="enum-group"
-          >
+          <!-- 枚举选择 -->
+          <view v-if="field.type === 'enum'" class="enum-group">
             <view
               v-for="opt in field.values"
               :key="opt"
               class="enum-item"
               :class="{ active: formData[field.key] === opt }"
               @click="formData[field.key] = opt"
-            >
-              <text>{{ opt }}</text>
+            ><text>{{ opt }}</text></view>
+          </view>
+
+          <!-- 布尔开关 -->
+          <view v-else-if="field.type === 'boolean'" class="switch-row" @click="formData[field.key] = !formData[field.key]">
+            <text class="switch-label">{{ formData[field.key] ? '是' : '否' }}</text>
+            <view class="switch-track" :class="{ on: formData[field.key] }">
+              <view class="switch-thumb" :class="{ on: formData[field.key] }" />
             </view>
           </view>
 
           <!-- 数字输入 -->
-          <input
-            v-else-if="field.type === 'number'"
-            v-model.number="formData[field.key]"
-            class="field-input"
-            type="number"
-            :placeholder="field.placeholder || '请输入'"
-            :min="field.min"
-            :max="field.max"
-          >
+          <view v-else-if="field.type === 'number'" class="input-wrap">
+            <input
+              v-model.number="formData[field.key]"
+              class="field-input"
+              type="number"
+              :placeholder="fieldPlaceholder(field)"
+            >
+            <text v-if="field.unit" class="input-unit">{{ field.unit }}</text>
+          </view>
 
           <!-- 文本输入 -->
-          <input
-            v-else-if="field.type === 'string'"
-            v-model="formData[field.key]"
-            class="field-input"
-            type="text"
-            :placeholder="field.placeholder || '请输入'"
-          >
-
-          <!-- 日期选择 -->
-          <picker
-            v-else-if="field.type === 'date'"
-            mode="date"
-            :value="formData[field.key]"
-            @change="(e: any) => formData[field.key] = e.detail.value"
-          >
-            <view class="field-input picker">
-              {{ formData[field.key] || field.placeholder || '请选择日期' }}
-            </view>
-          </picker>
+          <view v-else class="input-wrap">
+            <input
+              v-model="formData[field.key]"
+              class="field-input"
+              type="text"
+              :placeholder="fieldPlaceholder(field)"
+            >
+          </view>
         </view>
 
         <!-- 计算按钮 -->
-        <button
-          class="calc-btn"
-          :loading="calculating"
-          :disabled="calculating"
-          @click="doCalculate"
-        >
-          {{ calculating ? '计算中...' : '开始排盘' }}
+        <button class="calc-btn" :loading="calculating" :disabled="calculating" @click="doCalculate">
+          <text>{{ calculating ? '计算中...' : '开始排盘' }}</text>
         </button>
+        <text class="calc-hint">使用示例数据预览，登录后可保存排盘记录</text>
       </view>
 
       <!-- 计算结果 -->
-      <view
-        v-if="result"
-        class="result-section"
-      >
+      <view v-if="result" class="result-section">
         <view class="result-header">
-          <text class="result-title">
-            排盘结果
-          </text>
-          <text class="result-time">
-            耗时 {{ durationMs }}ms
-          </text>
+          <text class="result-title">排盘结果</text>
+          <text class="result-time">耗时 {{ durationMs }}ms</text>
         </view>
 
-        <!-- 八字结果 -->
-        <template v-if="toolId === 'bazi' && baziResult">
-          <SiZhuDisplay :si-zhu="baziResult.siZhu" />
-          <ShenShaList :items="baziResult.shenSha" />
-          <DaYunTimeline :da-yun="baziResult.qiYun?.daYun" />
-        </template>
+        <!-- 八字排盘 -->
+        <BaziResultCard v-if="isBaziResult" :data="result" />
 
-        <!-- 通用结果：JSON 展示 -->
-        <view
-          v-else
-          class="result-json"
-        >
-          <text class="json-text">
-            {{ JSON.stringify(result, null, 2) }}
-          </text>
+        <!-- 紫微斗数 -->
+        <ZiweiResultCard v-else-if="isZiweiResult" :data="result" />
+
+        <!-- 通用 JSON 展示 -->
+        <view v-else class="result-json">
+          <text class="json-text">{{ JSON.stringify(result, null, 2) }}</text>
         </view>
+
+        <!-- AI分析按钮 -->
+        <button v-if="result" class="ai-btn" @click="goAiAnalyze">
+          <text>AI 智能解读</text>
+        </button>
       </view>
 
       <!-- 计算错误 -->
-      <DataState
-        v-if="calcError"
-        state="error"
-        :message="calcError"
-        @retry="doCalculate"
-      />
+      <view v-if="calcError" class="error-wrap">
+        <text class="error-icon">⚠️</text>
+        <text class="error-text">{{ calcError }}</text>
+        <view class="retry-btn" @click="doCalculate"><text>重试</text></view>
+      </view>
     </template>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { paipanApi } from '../../api'
-import DataState from '../../components/DataState.vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { toolRegistryApi } from '../../api'
+import BaziResultCard from '../../components/bazi/BaziResultCard.vue'
+import ZiweiResultCard from '../../components/ziwei/ZiweiResultCard.vue'
 
-const props = defineProps<{ toolId?: string }>()
+interface SchemaProp {
+  type: string
+  label: string
+  values?: string[]
+  min?: number
+  max?: number
+  required?: boolean
+  default?: any
+  unit?: string
+}
 
-const toolId = ref(props.toolId || '')
+interface FormField {
+  key: string
+  label: string
+  type: string
+  values?: string[]
+  min?: number
+  max?: number
+  required: boolean
+  default?: any
+  unit?: string
+}
+
+const toolId = ref('')
 const toolName = ref('')
 const toolDesc = ref('')
 const schemaLoading = ref(true)
 const schemaError = ref('')
-const formFields = ref<any[]>([])
+const formFields = ref<FormField[]>([])
 const formData = reactive<Record<string, any>>({})
 const calculating = ref(false)
 const result = ref<any>(null)
 const durationMs = ref(0)
 const calcError = ref('')
-const baziResult = ref<any>(null)
+
+const isBaziResult = computed(() => (toolId.value === 'bazi' || toolId.value === 'bazi-ziwei') && result.value?.siZhu)
+const isZiweiResult = computed(() => toolId.value === 'ziwei' && result.value?.gongWei)
 
 onMounted(() => {
-  // 从 URL 参数获取 toolId
   const pages = getCurrentPages()
   const page = pages[pages.length - 1] as any
   if (page?.options?.toolId) {
@@ -177,148 +171,141 @@ async function fetchSchema() {
   schemaLoading.value = true
   schemaError.value = ''
   try {
-    // 获取工具输入 schema
-    const res = await paipanApi.preview({}) // 占位
-    // 实际应调用 GET /api/v1/tools/:toolId/input-schema
-    // 暂时用已知字段构建表单
-    buildFormFromToolId(toolId.value)
+    const res: any = await toolRegistryApi.getById(toolId.value)
+    const tool = res?.data || res
+    if (!tool) { schemaError.value = '工具不存在'; schemaLoading.value = false; return }
+
+    toolName.value = tool.name || toolId.value
+    toolDesc.value = tool.subtitle || tool.description || ''
+    buildFormFromSchema(tool.inputSchema)
     schemaLoading.value = false
   } catch (e: any) {
-    schemaError.value = e.message || '加载失败'
+    // 降级：使用内置模板
+    buildFallbackForm(toolId.value)
     schemaLoading.value = false
   }
 }
 
-/** 根据 toolId 构建表单（后续替换为 API schema 驱动） */
-function buildFormFromToolId(id: string) {
-  const toolMap: Record<string, any> = {
-    bazi: {
-      name: '八字排盘', desc: '四柱八字命运分析',
-      fields: [
-        { key: 'gender', label: '性别', type: 'enum', values: ['男', '女'] },
-        { key: 'year', label: '出生年', type: 'number', min: 1900, max: 2100, placeholder: '如 1984' },
-        { key: 'month', label: '出生月', type: 'number', min: 1, max: 12, placeholder: '1-12' },
-        { key: 'day', label: '出生日', type: 'number', min: 1, max: 31, placeholder: '1-31' },
-        { key: 'hour', label: '出生时', type: 'number', min: 0, max: 23, placeholder: '0-23' },
-      ],
-    },
-    ziwei: {
-      name: '紫微斗数', desc: '十二宫命盘解析',
-      fields: [
-        { key: 'gender', label: '性别', type: 'enum', values: ['男', '女'] },
-        { key: 'year', label: '出生年', type: 'number', min: 1900, max: 2100 },
-        { key: 'month', label: '出生月', type: 'number', min: 1, max: 12 },
-        { key: 'day', label: '出生日', type: 'number', min: 1, max: 31 },
-        { key: 'hour', label: '出生时', type: 'number', min: 0, max: 23 },
-      ],
-    },
-    chenggu: {
-      name: '称骨算命', desc: '生辰骨重批命',
-      fields: [
-        { key: 'year', label: '出生年', type: 'number', min: 1900, max: 2100 },
-        { key: 'month', label: '出生月', type: 'number', min: 1, max: 12 },
-        { key: 'day', label: '出生日', type: 'number', min: 1, max: 31 },
-        { key: 'hour', label: '出生时辰', type: 'enum', values: ['子时','丑时','寅时','卯时','辰时','巳时','午时','未时','申时','酉时','戌时','亥时'] },
-      ],
-    },
-    'bazi-hehun': {
-      name: '八字合婚', desc: '两人八字相合分析',
-      fields: [
-        { key: 'gender1', label: '男方性别', type: 'enum', values: ['男'] },
-        { key: 'year1', label: '男方出生年', type: 'number', min: 1900, max: 2100 },
-        { key: 'month1', label: '男方出生月', type: 'number', min: 1, max: 12 },
-        { key: 'day1', label: '男方出生日', type: 'number', min: 1, max: 31 },
-        { key: 'hour1', label: '男方出生时', type: 'number', min: 0, max: 23 },
-        { key: 'gender2', label: '女方性别', type: 'enum', values: ['女'] },
-        { key: 'year2', label: '女方出生年', type: 'number', min: 1900, max: 2100 },
-        { key: 'month2', label: '女方出生月', type: 'number', min: 1, max: 12 },
-        { key: 'day2', label: '女方出生日', type: 'number', min: 1, max: 31 },
-        { key: 'hour2', label: '女方出生时', type: 'number', min: 0, max: 23 },
-      ],
-    },
-    huangli: {
-      name: '每日黄历', desc: '今日宜忌吉凶',
-      fields: [
-        { key: 'date', label: '日期', type: 'date' },
-      ],
-    },
-    jiemeng: {
-      name: '周公解梦', desc: '梦境解析查询',
-      fields: [
-        { key: 'keyword', label: '梦境关键词', type: 'string', placeholder: '如 水、蛇、飞' },
-      ],
-    },
-    liuyao: {
-      name: '六爻预测', desc: '摇卦断事解惑',
-      fields: [
-        { key: 'question', label: '所问何事', type: 'string', placeholder: '简要描述您的问题' },
-      ],
-    },
-    meihua: {
-      name: '梅花易数', desc: '体用生克断卦',
-      fields: [
-        { key: 'question', label: '所问何事', type: 'string' },
-      ],
-    },
-    'qimen-yang': {
-      name: '阳盘奇门', desc: '天时地利人和',
-      fields: [
-        { key: 'year', label: '年份', type: 'number', min: 1900, max: 2100 },
-        { key: 'month', label: '月份', type: 'number', min: 1, max: 12 },
-        { key: 'day', label: '日期', type: 'number', min: 1, max: 31 },
-        { key: 'hour', label: '时辰', type: 'number', min: 0, max: 23 },
-      ],
-    },
-    qiming: {
-      name: '起名工具', desc: '多流派起名',
-      fields: [
-        { key: 'surname', label: '姓氏', type: 'string', placeholder: '如 张' },
-        { key: 'gender', label: '性别', type: 'enum', values: ['男', '女'] },
-        { key: 'year', label: '出生年', type: 'number', min: 1900, max: 2100 },
-        { key: 'month', label: '出生月', type: 'number', min: 1, max: 12 },
-        { key: 'day', label: '出生日', type: 'number', min: 1, max: 31 },
-      ],
-    },
-    'xingming-jiexi': {
-      name: '姓名解析', desc: '五格数理分析',
-      fields: [
-        { key: 'name', label: '姓名', type: 'string', placeholder: '如 张三' },
-        { key: 'gender', label: '性别', type: 'enum', values: ['男', '女'] },
-      ],
-    },
-    'shengxiao-yunshi': {
-      name: '生肖运势', desc: '十二生肖流年运程',
-      fields: [
-        { key: 'shengxiao', label: '生肖', type: 'enum', values: ['鼠','牛','虎','兔','龙','蛇','马','羊','猴','鸡','狗','猪'] },
-        { key: 'year', label: '年份', type: 'number', min: 2020, max: 2040 },
-      ],
-    },
-    'xingzuo-yunshi': {
-      name: '星座运势', desc: '十二星座运程',
-      fields: [
-        { key: 'xingzuo', label: '星座', type: 'enum', values: ['白羊座','金牛座','双子座','巨蟹座','狮子座','处女座','天秤座','天蝎座','射手座','摩羯座','水瓶座','双鱼座'] },
-      ],
-    },
+function buildFormFromSchema(schema: any) {
+  if (!schema?.properties) { buildFallbackForm(toolId.value); return }
+
+  const required: string[] = schema.required || []
+  const fields: FormField[] = []
+
+  for (const [key, prop] of Object.entries(schema.properties as Record<string, SchemaProp>)) {
+    fields.push({
+      key,
+      label: prop.label || key,
+      type: prop.type || 'string',
+      values: prop.values,
+      min: prop.min,
+      max: prop.max,
+      required: required.includes(key),
+      default: prop.default,
+      unit: key === 'minute' ? '分' : key === 'hour' ? '时' : undefined,
+    })
+
+    // 初始化默认值
+    if (prop.default !== undefined) {
+      formData[key] = prop.default
+    } else if (prop.type === 'enum' && prop.values?.length) {
+      formData[key] = prop.values[0]
+    } else if (prop.type === 'boolean') {
+      formData[key] = false
+    } else if (prop.type === 'number') {
+      formData[key] = key.includes('year') ? 1990 : key.includes('hour') ? 12 : 1
+    } else {
+      formData[key] = ''
+    }
   }
 
-  const tool = toolMap[id]
-  if (tool) {
-    toolName.value = tool.name
-    toolDesc.value = tool.desc
-    formFields.value = tool.fields
-    // 初始化表单数据
-    tool.fields.forEach((f: any) => {
-      if (f.type === 'enum' && f.values?.length) {
-        formData[f.key] = f.values[0]
-      } else if (f.type === 'number') {
-        formData[f.key] = f.key.includes('year') ? 1990 : f.key.includes('hour') ? 12 : 1
-      }
+  formFields.value = fields
+}
+
+function buildFallbackForm(id: string) {
+  const quickMap: Record<string, { name: string; desc: string; fields: FormField[] }> = {
+    bazi: { name: '八字排盘', desc: '四柱八字命运分析', fields: [
+      { key: 'gender', label: '性别', type: 'enum', values: ['男','女'], required: true },
+      { key: 'year', label: '出生年', type: 'number', min: 1900, max: 2100, required: true },
+      { key: 'month', label: '出生月', type: 'number', min: 1, max: 12, required: true },
+      { key: 'day', label: '出生日', type: 'number', min: 1, max: 31, required: true },
+      { key: 'hour', label: '出生时', type: 'number', min: 0, max: 23, required: true },
+      { key: 'minute', label: '出生分', type: 'number', min: 0, max: 59, required: false },
+      { key: 'city', label: '出生城市', type: 'string', required: false },
+      { key: 'trueSolar', label: '真太阳时', type: 'boolean', default: false, required: false },
+      { key: 'daylightSaving', label: '夏令时校正', type: 'boolean', default: false, required: false },
+      { key: 'ziShiMode', label: '早晚子时', type: 'enum', values: ['traditional', 'early-late'], default: 'traditional', required: false },
+    ]},
+    ziwei: { name: '紫微斗数', desc: '十二宫命盘', fields: [
+      { key: 'gender', label: '性别', type: 'enum', values: ['男','女'], required: true },
+      { key: 'year', label: '出生年', type: 'number', min: 1900, max: 2100, required: true },
+      { key: 'month', label: '出生月', type: 'number', min: 1, max: 12, required: true },
+      { key: 'day', label: '出生日', type: 'number', min: 1, max: 31, required: true },
+      { key: 'hour', label: '出生时', type: 'number', min: 0, max: 23, required: true },
+    ]},
+    'bazi-hehun': { name: '八字合婚', desc: '两人八字相合', fields: [
+      { key: 'gender1', label: '男方性别', type: 'enum', values: ['男'], required: true },
+      { key: 'year1', label: '男方年', type: 'number', min: 1900, max: 2100, required: true },
+      { key: 'month1', label: '男方月', type: 'number', min: 1, max: 12, required: true },
+      { key: 'day1', label: '男方日', type: 'number', min: 1, max: 31, required: true },
+      { key: 'hour1', label: '男方时', type: 'number', min: 0, max: 23, required: true },
+      { key: 'gender2', label: '女方性别', type: 'enum', values: ['女'], required: true },
+      { key: 'year2', label: '女方年', type: 'number', min: 1900, max: 2100, required: true },
+      { key: 'month2', label: '女方月', type: 'number', min: 1, max: 12, required: true },
+      { key: 'day2', label: '女方日', type: 'number', min: 1, max: 31, required: true },
+      { key: 'hour2', label: '女方时', type: 'number', min: 0, max: 23, required: true },
+    ]},
+    'qimen-yang': { name: '阳盘奇门', desc: '天时地利人和', fields: [
+      { key: 'year', label: '年份', type: 'number', min: 1900, max: 2100, required: true },
+      { key: 'month', label: '月份', type: 'number', min: 1, max: 12, required: true },
+      { key: 'day', label: '日期', type: 'number', min: 1, max: 31, required: true },
+      { key: 'hour', label: '时辰', type: 'number', min: 0, max: 23, required: true },
+    ]},
+    liuyao: { name: '六爻预测', desc: '摇卦断事', fields: [
+      { key: 'question', label: '所问何事', type: 'string', required: true },
+    ]},
+    meihua: { name: '梅花易数', desc: '体用生克', fields: [
+      { key: 'question', label: '所问何事', type: 'string', required: false },
+    ]},
+    jiemeng: { name: '周公解梦', desc: '梦境解析', fields: [
+      { key: 'keyword', label: '梦境关键词', type: 'string', required: true },
+    ]},
+    huangli: { name: '每日黄历', desc: '今日宜忌', fields: [
+      { key: 'date', label: '日期', type: 'string', required: false },
+    ]},
+  }
+
+  const t = quickMap[id]
+  if (t) {
+    toolName.value = t.name
+    toolDesc.value = t.desc
+    formFields.value = t.fields
+    t.fields.forEach(f => {
+      if (f.type === 'enum' && f.values?.length) formData[f.key] = f.values[0]
+      else if (f.type === 'number') formData[f.key] = f.key.includes('year') ? 1990 : f.key.includes('hour') ? 12 : 1
+      else formData[f.key] = ''
     })
   } else {
-    // 通用工具：从 tools-catalog 推断简单表单
-    toolName.value = id || '未知工具'
-    formFields.value = []
+    toolName.value = id || '工具'
+    formFields.value = [
+      { key: 'input', label: '输入', type: 'string', required: false },
+    ]
+    formData['input'] = ''
   }
+}
+
+function fieldPlaceholder(field: FormField): string {
+  if (field.min !== undefined && field.max !== undefined) return `${field.min}-${field.max}`
+  if (field.key === 'year') return '如 1990'
+  if (field.key === 'month') return '1-12'
+  if (field.key === 'day') return '1-31'
+  if (field.key === 'hour') return '0-23'
+  return '请输入'
+}
+
+function keyLabel(key: string): string {
+  const map: Record<string, string> = { year: '年柱', month: '月柱', day: '日柱', hour: '时柱' }
+  return map[key] || key
 }
 
 async function doCalculate() {
@@ -327,89 +314,140 @@ async function doCalculate() {
   result.value = null
   try {
     const start = Date.now()
-    const res = await paipanApi.preview({ toolId: toolId.value, input: { ...formData } })
-    durationMs.value = Date.now() - start
-    result.value = res
-    if (toolId.value === 'bazi') {
-      baziResult.value = res.result || res
+    const token = uni.getStorageSync('token')
+    let res: any
+    if (token) {
+      res = await toolRegistryApi.calculate(toolId.value, { input: { ...formData } })
+    } else {
+      const mockRes = await toolRegistryApi.getById(toolId.value + '/mock')
+      // mock 数据可能是 { samples: [...] } 结构，取第一个匹配的样本
+      if (mockRes?.samples?.length) {
+        const match = mockRes.samples.find((s: any) => {
+          const sInput = s.input
+          return sInput && Object.entries(formData).every(([k, v]) => {
+            if (v === '' || v === undefined || v === null) return true
+            return String(sInput[k]) === String(v)
+          })
+        })
+        res = (match || mockRes.samples[0]).result
+      } else {
+        res = mockRes
+      }
     }
+    durationMs.value = Date.now() - start
+    result.value = res?.data || res?.result || res
   } catch (e: any) {
     calcError.value = e.message || '计算失败，请稍后重试'
   } finally {
     calculating.value = false
   }
 }
+
+function goAiAnalyze() {
+  uni.navigateTo({ url: `/pages/ai/chat?scene=paipan&toolId=${toolId.value}` })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
 </script>
 
 <style scoped>
-.page { min-height: 100vh; background: #F5F0E8; padding-bottom: 40px; }
+.page { min-height: 100vh; background: #F5F0E8; padding-bottom: 120rpx; }
 
+/* 工具头 */
 .tool-header {
-  padding: 24px 16px 16px;
-  background: linear-gradient(135deg, #C41E3A, #8B0000);
+  padding: 24rpx 32rpx 20rpx;
+  background: linear-gradient(135deg, #5a3a1a, #8b6914);
   color: #fff;
 }
-.tool-title { font-size: 22px; font-weight: 700; display: block; }
-.tool-desc { font-size: 14px; opacity: 0.85; margin-top: 6px; display: block; }
+.header-top { display: flex; align-items: center; }
+.back-btn { padding: 8rpx 16rpx 8rpx 0; }
+.back-arrow { font-size: 40rpx; color: rgba(255,255,255,0.85); }
+.tool-title { flex: 1; font-size: 36rpx; font-weight: bold; text-align: center; }
+.header-spacer { width: 60rpx; }
+.tool-desc { font-size: 24rpx; opacity: 0.8; margin-top: 8rpx; display: block; text-align: center; }
 
-.form-section { padding: 20px 16px; }
-.form-item { margin-bottom: 16px; }
-.form-label { font-size: 14px; color: #2C2C2C; font-weight: 500; margin-bottom: 8px; display: block; }
+/* 表单 */
+.form-section { padding: 24rpx 32rpx; }
+.form-item { margin-bottom: 24rpx; }
+.form-label-row { display: flex; align-items: center; gap: 12rpx; margin-bottom: 10rpx; }
+.form-label { font-size: 28rpx; color: #3C2415; font-weight: 500; }
+.form-optional { font-size: 20rpx; color: #C9A96E; background: #FEF3C7; padding: 2rpx 12rpx; border-radius: 8rpx; }
 
-.enum-group { display: flex; flex-wrap: wrap; gap: 8px; }
+/* 枚举 */
+.enum-group { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .enum-item {
-  padding: 8px 16px;
-  background: #fff;
-  border: 1px solid #E8E0D5;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #666;
+  padding: 14rpx 28rpx; background: #fff; border: 2rpx solid #E8E0D5;
+  border-radius: 12rpx; font-size: 26rpx; color: #666;
 }
-.enum-item.active {
-  background: #C41E3A;
-  color: #fff;
-  border-color: #C41E3A;
-}
+.enum-item.active { background: #5a3a1a; color: #fff; border-color: #5a3a1a; }
 
+/* 开关 */
+.switch-row { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 0; }
+.switch-label { font-size: 26rpx; color: #666; }
+.switch-track { width: 88rpx; height: 48rpx; border-radius: 24rpx; background: #ddd; transition: all 0.2s; position: relative; }
+.switch-track.on { background: #5a3a1a; }
+.switch-thumb { width: 40rpx; height: 40rpx; border-radius: 50%; background: #fff; position: absolute; top: 4rpx; left: 4rpx; transition: all 0.2s; box-shadow: 0 2rpx 4rpx rgba(0,0,0,0.1); }
+.switch-thumb.on { left: 44rpx; }
+
+/* 输入框 */
+.input-wrap { display: flex; align-items: center; }
 .field-input {
-  width: 100%;
-  height: 44px;
-  background: #fff;
-  border: 1px solid #E8E0D5;
-  border-radius: 8px;
-  padding: 0 12px;
-  font-size: 15px;
-  box-sizing: border-box;
+  flex: 1; height: 80rpx; background: #fff; border: 2rpx solid #E8E0D5;
+  border-radius: 12rpx; padding: 0 24rpx; font-size: 28rpx; box-sizing: border-box;
 }
-.field-input.picker { line-height: 44px; color: #666; }
+.field-input:focus { border-color: #8b6914; }
+.input-unit { font-size: 24rpx; color: #999; margin-left: 12rpx; }
 
+/* 按钮 */
 .calc-btn {
-  margin-top: 24px;
-  width: 100%;
-  height: 48px;
-  background: linear-gradient(135deg, #C41E3A, #8B0000);
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  font-size: 17px;
-  font-weight: 600;
+  margin-top: 32rpx; width: 100%; height: 88rpx;
+  background: linear-gradient(135deg, #5a3a1a, #8b6914);
+  color: #fff; border: none; border-radius: 16rpx;
+  font-size: 32rpx; font-weight: 600; display: flex; align-items: center; justify-content: center;
+}
+.calc-btn:active { opacity: 0.9; }
+.calc-hint { font-size: 22rpx; color: #C9A96E; text-align: center; margin-top: 12rpx; display: block; }
+
+/* 结果 */
+.result-section { padding: 24rpx 32rpx; }
+.result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24rpx; }
+.result-title { font-size: 32rpx; font-weight: 600; color: #3C2415; }
+.result-time { font-size: 22rpx; color: #999; }
+
+.sizhu-card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; }
+.sizhu-title { font-size: 28rpx; font-weight: 600; color: #3C2415; margin-bottom: 16rpx; }
+.sizhu-grid { display: flex; }
+.sizhu-col { flex: 1; text-align: center; }
+.sizhu-label { font-size: 22rpx; color: #999; display: block; }
+.sizhu-ganzhi { font-size: 40rpx; font-weight: bold; color: #3C2415; display: block; margin: 8rpx 0; font-family: 'Noto Serif SC', serif; }
+.sizhu-canggan { font-size: 20rpx; color: #8b6914; display: block; }
+
+.shensha-card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 16rpx; }
+.card-title { font-size: 28rpx; font-weight: 600; color: #3C2415; margin-bottom: 16rpx; display: block; }
+.shensha-list { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.shensha-tag {
+  font-size: 22rpx; padding: 8rpx 16rpx; border-radius: 16rpx;
+  background: #FEF3C7; color: #8b6914;
 }
 
-.result-section { padding: 16px; }
-.result-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-.result-title { font-size: 18px; font-weight: 600; color: #2C2C2C; }
-.result-time { font-size: 12px; color: #999; }
+.result-json { background: #2C2C2C; border-radius: 12rpx; padding: 24rpx; overflow-x: auto; }
+.json-text { font-size: 22rpx; font-family: monospace; white-space: pre-wrap; color: #A8D8A8; }
 
-.result-json {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
-  overflow-x: auto;
+.ai-btn {
+  margin-top: 24rpx; width: 100%; height: 80rpx;
+  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  color: #fff; border: none; border-radius: 16rpx; font-size: 28rpx;
+  display: flex; align-items: center; justify-content: center;
 }
-.json-text { font-size: 12px; font-family: monospace; white-space: pre-wrap; color: #666; }
+
+/* 状态 */
+.loading-wrap { display: flex; align-items: center; justify-content: center; height: 400rpx; }
+.loading-text { font-size: 28rpx; color: #999; }
+.error-wrap { display: flex; flex-direction: column; align-items: center; padding: 80rpx 32rpx; }
+.error-icon { font-size: 64rpx; margin-bottom: 16rpx; }
+.error-text { font-size: 28rpx; color: #999; text-align: center; }
+.retry-btn { margin-top: 24rpx; padding: 16rpx 48rpx; background: #5a3a1a; border-radius: 32rpx; }
+.retry-btn text { color: #fff; font-size: 26rpx; }
 </style>

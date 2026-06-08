@@ -213,3 +213,30 @@ export class AuditCourseDto {
   @IsOptional() @IsString()
   reason?: string;
 }
+
+// ───────── 订单状态更新 ─────────
+
+export class UpdateOrderStatusDto {
+  @ApiProperty({ description: "订单状态" })
+  status: string;
+}
+
+// ───────── 老师邀约 ─────────
+
+export class CreateTeacherRequestDto {
+  @ApiProperty({ description: "教师ID", required: false })
+  teacherId?: string;
+  @ApiProperty({ description: "课程标题", required: false })
+  courseTitle?: string;
+  @ApiProperty({ description: "课程简介", required: false })
+  courseIntro?: string;
+  @ApiProperty({ description: "建议费用", required: false })
+  proposedFee?: number;
+  @ApiProperty({ description: "建议日期", required: false })
+  proposeDate?: string;
+}
+
+export class RespondTeacherRequestDto {
+  @ApiProperty({ description: "响应状态" })
+  status: string;
+}

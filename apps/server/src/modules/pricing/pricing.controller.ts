@@ -2,6 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } fro
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
 import { PricingService } from "./pricing.service";
 import { UnifiedPricingService } from "./unified-pricing.service";
+import { BatchUnifiedPriceDto } from "./pricing.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -34,7 +35,7 @@ export class PricingController {
   @Post("unified-price/batch")
   @ApiOperation({ summary: "批量计算商品统一价格" })
   async batchUnifiedPrice(
-    @Body() body: { items: { productId: string; skuId?: string }[]; pageId?: string; scene?: string },
+    @Body() body: BatchUnifiedPriceDto,
   ) {
     const results = await this.unified.batchCalculateEffectivePrice(
       body.items,

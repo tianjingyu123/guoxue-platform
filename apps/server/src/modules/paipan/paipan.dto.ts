@@ -48,6 +48,27 @@ export class BaziInputDto {
   @IsOptional()
   @IsString()
   city?: string;
+
+  @ApiPropertyOptional({ description: "是否启用真太阳时校正（需city或longitude）" })
+  @IsOptional()
+  @Type(() => Boolean)
+  useTrueSolarTime?: boolean;
+
+  @ApiPropertyOptional({ description: "是否启用夏令时校正（1986-1991年出生建议开启）" })
+  @IsOptional()
+  @Type(() => Boolean)
+  useDaylightSaving?: boolean;
+
+  @ApiPropertyOptional({ description: "早晚子时模式", enum: ["traditional", "modern"], default: "traditional" })
+  @IsOptional()
+  @IsString()
+  @IsIn(["traditional", "modern"])
+  ziShiMode?: string;
+
+  @ApiPropertyOptional({ description: "手动指定出生地经度（可选，优先级高于city）" })
+  @IsOptional()
+  @Type(() => Number)
+  longitude?: number;
 }
 
 /** 紫微斗数排盘输入 DTO */

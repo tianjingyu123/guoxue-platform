@@ -6,7 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { Request } from "express";
 import { ContentService } from "./content.service";
 import { SystemService } from "../system/system.service";
-import { CreateContentDto, UpdateContentDto, ContentListQueryDto } from "./content.dto";
+import { CreateContentDto, UpdateContentDto, ContentListQueryDto, BatchUpdateStatusDto } from "./content.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { ActiveUserGuard } from "../../common/active-user.guard";
@@ -124,7 +124,7 @@ export class ContentController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量更新内容状态" })
   @ApiBearerAuth()
-  async batchUpdateStatus(@Body() dto: { ids: string[]; status: string }, @Req() req: Request) {
+  async batchUpdateStatus(@Body() dto: BatchUpdateStatusDto, @Req() req: Request) {
     const result = await this.content.batchUpdateStatus(dto.ids, dto.status);
     this.systemService.logAudit({
       userId: req.user?.id,

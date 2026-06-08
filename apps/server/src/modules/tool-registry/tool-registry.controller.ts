@@ -55,7 +55,7 @@ export class ToolRegistryController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "执行工具计算/排盘" })
-  calculate(
+  async calculate(
     @Param("id") toolId: string,
     @Body() body: { input: Record<string, unknown> },
   ) {

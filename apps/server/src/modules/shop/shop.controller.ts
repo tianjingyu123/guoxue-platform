@@ -18,6 +18,7 @@ import {
   ProductListQueryDto, OrderListQueryDto,
   CreateSkuDto, JsapiPayDto, NativePayDto, RefundOrderDto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
+  UnionpayRefundDto, ApplyAfterSaleDto,
 } from "./shop.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -344,8 +345,8 @@ export class ShopController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "银联退款" })
   @ApiBearerAuth()
-  unionpayRefund(@Body() body: { outTradeNo: string; outRefundNo: string; amount: number; origQryId?: string }) {
-    return this.shop.unionpayRefund(body);
+  unionpayRefund(@Body() dto: UnionpayRefundDto) {
+    return this.shop.unionpayRefund(dto);
   }
 
   @Put("orders/:id/cancel")
@@ -547,8 +548,8 @@ export class ShopController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "申请售后" })
   @ApiBearerAuth()
-  applyAfterSale(@Req() req: AuthRequest, @Param("id") orderId: string, @Body() body: { type: string; reason: string; amount?: number }) {
-    return this.couponSvc.applyAfterSale(req.user.id, orderId, body.type, body.reason, body.amount);
+  applyAfterSale(@Req() req: AuthRequest, @Param("id") orderId: string, @Body() dto: ApplyAfterSaleDto) {
+    return this.couponSvc.applyAfterSale(req.user.id, orderId, dto.type, dto.reason, dto.amount);
   }
 
   @Get("after-sales")

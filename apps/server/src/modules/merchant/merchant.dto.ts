@@ -435,6 +435,16 @@ export class ReplyReviewDto {
   reply: string;
 }
 
+export class ProcessAfterSaleDto {
+  @ApiProperty({ description: "处理动作", enum: ["approve", "reject", "complete"] })
+  @IsString() @IsIn(["approve", "reject", "complete"])
+  action: string;
+
+  @ApiPropertyOptional({ description: "备注" })
+  @IsOptional() @IsString()
+  remark?: string;
+}
+
 export class MerchantProductDto {
   @ApiProperty({ description: "商品标题" })
   @IsString()

@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { BountyService } from "./bounty.service";
+import { RejectReviewDto } from "./bounty.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -47,7 +48,7 @@ export class BountyAdminController {
 
   @Put("reviews/:id/reject")
   @ApiOperation({ summary: "拒绝审核" })
-  rejectReview(@Param("id") id: string, @Body() body: { reason?: string }) {
+  rejectReview(@Param("id") id: string, @Body() body: RejectReviewDto) {
     return this.svc.rejectReview(id, body?.reason || "");
   }
 }

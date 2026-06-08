@@ -8,7 +8,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
-import { CreateBookDto, UpdateBookDto, CreateChapterDto, UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, UpdateBookmarkDto, BookListQueryDto, DictionaryLookupDto, TranslateDto, ContinueReadingQueryDto, CreateAnnotationDto } from "./classic.dto";
+import { CreateBookDto, UpdateBookDto, CreateChapterDto, UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, UpdateBookmarkDto, BookListQueryDto, DictionaryLookupDto, TranslateDto, ContinueReadingQueryDto, CreateAnnotationDto, CreateNoteDto, UpdateNoteDto } from "./classic.dto";
 
 @ApiTags("经典")
 @Controller("classic")
@@ -299,7 +299,7 @@ export class ClassicController {
   @ApiBearerAuth()
   @Post("notes/:bookId")
   @ApiOperation({ summary: "创建读书笔记" })
-  createNote(@Req() req: Request, @Param("bookId") bookId: string, @Body() dto: { chapterId: string; content: string }) {
+  createNote(@Req() req: Request, @Param("bookId") bookId: string, @Body() dto: CreateNoteDto) {
     return this.svc.createNote(req.user.id, bookId, dto);
   }
 
@@ -307,7 +307,7 @@ export class ClassicController {
   @ApiBearerAuth()
   @Put("notes/:id")
   @ApiOperation({ summary: "更新读书笔记" })
-  updateNote(@Req() req: Request, @Param("id") id: string, @Body() dto: { content: string }) {
+  updateNote(@Req() req: Request, @Param("id") id: string, @Body() dto: UpdateNoteDto) {
     return this.svc.updateNote(id, req.user.id, dto.content);
   }
 

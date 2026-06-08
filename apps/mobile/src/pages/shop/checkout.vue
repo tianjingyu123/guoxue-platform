@@ -383,34 +383,93 @@ async function submitOrder() {
 
   uni.showLoading({ title: "提交中..." });
   try {
-    // 为每个商品创建订单
+    const orderIds: string[] = []
     for (const item of checkoutItems.value) {
       const orderData: any = {
         type: "PRODUCT",
         targetId: item.productId,
         amount: item.quantity || 1,
       };
-      if (item.skuId) {
-        orderData.skuId = item.skuId;
-      }
-      if (selectedCoupon.value?.userCouponId) {
-        orderData.couponId = selectedCoupon.value.userCouponId;
-      }
-      await shopApi.createOrder(orderData);
+      if (item.skuId) orderData.skuId = item.skuId;
+      if (selectedCoupon.value?.userCouponId) orderData.couponId = selectedCoupon.value.userCouponId;
+      const res: any = await shopApi.createOrder(orderData);
+      const oid = res?.id || res?.data?.id
+      if (oid) orderIds.push(oid)
     }
 
-    // 仅移除已结算的商品，不清空整个购物车
+    // 清除购物车已结商品
     await Promise.all(checkoutItems.value.map((item: any) => shopApi.removeCartItem(item.id)));
 
-    uni.hideLoading();
-    uni.showToast({ title: "下单成功", icon: "success" });
-    setTimeout(() => {
-      uni.redirectTo({ url: "/pages/orders/orders" });
-    }, 1500);
+    if (orderIds.length === 0) {
+      uni.hideLoading()
+      uni.showToast({ title: "订单创建失败", icon: "none" })
+      return
+    }
+
+    // 根据支付方式触发支付
+    const totalAmount = parseFloat(finalAmount.value)
+    if (payMethod.value === 'wechat') {
+      await triggerWechatPay(orderIds, totalAmount)
+    } else if (payMethod.value === 'alipay') {
+      await triggerAlipay(orderIds, totalAmount)
+    } else {
+      uni.hideLoading()
+      uni.redirectTo({ url: "/pages/orders/orders" })
+    }
   } catch (e: any) {
     uni.hideLoading();
     uni.showToast({ title: e?.message || "提交失败", icon: "none" });
   }
+}
+
+async function triggerWechatPay(orderIds: string[], amount: number) {
+  // #ifdef MP-WEIXIN
+  try {
+    const res: any = await shopApi.jsapiPay(orderIds[0], { openid: '', notifyUrl: '' })
+    const paymentParams = res?.data || res
+    uni.hideLoading()
+    uni.requestPayment({
+      provider: 'wxpay',
+      timeStamp: paymentParams.timeStamp || '',
+      nonceStr: paymentParams.nonceStr || '',
+      package: paymentParams.package || '',
+      signType: paymentParams.signType || 'RSA',
+      paySign: paymentParams.paySign || '',
+      success: () => {
+        uni.redirectTo({ url: `/pages/shop/payment?status=success&orderId=${orderIds[0]}&amount=${amount}` })
+      },
+      fail: () => {
+        uni.redirectTo({ url: `/pages/shop/payment?status=fail&orderId=${orderIds[0]}&reason=支付取消或失败` })
+      },
+    })
+  } catch {
+    uni.hideLoading()
+    uni.redirectTo({ url: `/pages/orders/orders` })
+  }
+  // #endif
+  // #ifdef H5
+  uni.hideLoading()
+  uni.showToast({ title: "模拟支付成功", icon: "success" })
+  setTimeout(() => {
+    uni.redirectTo({ url: `/pages/shop/payment?status=success&orderId=${orderIds[0]}&amount=${amount}` })
+  }, 1000)
+  // #endif
+  // #ifndef MP-WEIXIN
+  // #ifndef H5
+  uni.hideLoading()
+  uni.showToast({ title: "下单成功", icon: "success" })
+  setTimeout(() => { uni.redirectTo({ url: "/pages/orders/orders" }) }, 1000)
+  // #endif
+  // #endif
+}
+
+async function triggerAlipay(orderIds: string[], amount: number) {
+  // H5 环境模拟支付，实际需要跳转支付宝收银台
+  uni.hideLoading()
+  uni.showToast({ title: "模拟支付成功", icon: "success" })
+  setTimeout(() => {
+    uni.redirectTo({ url: `/pages/shop/payment?status=success&orderId=${orderIds[0]}&amount=${amount}` })
+  }, 1000)
 }
 </script>
 

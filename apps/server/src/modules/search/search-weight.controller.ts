@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
 import { SearchWeightService } from "./search-weight.service";
+import { UpsertSearchWeightDto } from "./dto/search-weight.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -21,7 +22,7 @@ export class SearchWeightController {
 
   @Post()
   @ApiOperation({ summary: "创建/更新搜索权重" })
-  upsert(@Body() body: { entityType: string; fieldName: string; weight: number; enabled?: boolean }) {
+  upsert(@Body() body: UpsertSearchWeightDto) {
     return this.svc.upsert(body);
   }
 

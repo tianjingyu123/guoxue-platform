@@ -358,6 +358,16 @@ export const paipanApi = {
   ziweiRecord: (id: string) => api.get(`/paipan/ziwei/${id}`),
 };
 
+// 工具注册中心
+export const toolRegistryApi = {
+  list: () => api.get("/tools"),
+  directory: () => api.get("/tools/directory"),
+  getById: (id: string) => api.get(`/tools/${id}`),
+  getByCategory: (category: string) => api.get(`/tools/category/${category}`),
+  getInputSchema: (id: string) => api.get(`/tools/${id}/input-schema`),
+  calculate: (id: string, data: any) => api.post(`/tools/${id}/calculate`, data),
+};
+
 // 用户（他人主页等）
 export const userApi = {
   getProfile: (userId: string) => api.get(`/users/${userId}`),
@@ -1109,6 +1119,55 @@ export const identityApi = {
   faceResult: (token: string) => api.get(`/identity/face/result/${token}`),
   /** 获取我的认证状态 */
   myStatus: () => api.get("/identity/my"),
+};
+
+// ==================== 商家入驻 ====================
+export const merchantApi = {
+  // 入驻申请
+  apply: (data: any) => api.post("/merchant/apply", data),
+  getApplication: () => api.get("/merchant/application"),
+  updateApplication: (data: any) => api.put("/merchant/application", data),
+  submitForReview: () => api.post("/merchant/submit"),
+  // 保证金
+  getDepositInfo: () => api.get("/merchant/deposit-info"),
+  payDeposit: (data: { payMethod: string; openid?: string }) => api.post("/merchant/pay-deposit", data),
+  // 协议
+  previewAgreement: () => api.get("/merchant/agreement-preview"),
+  signAgreement: (data: { version: string; agreed: boolean }) => api.post("/merchant/sign-agreement", data),
+  // 商家后台
+  dashboard: () => api.get("/merchant-backend/dashboard"),
+  getProfile: () => api.get("/merchant-backend/profile"),
+  updateProfile: (data: any) => api.put("/merchant-backend/profile", data),
+  // 商品管理
+  listProducts: (params?: any) => api.get("/merchant-backend/products", params),
+  createProduct: (data: any) => api.post("/merchant-backend/products", data),
+  getProduct: (id: string) => api.get(`/merchant-backend/products/${id}`),
+  updateProduct: (id: string, data: any) => api.put(`/merchant-backend/products/${id}`, data),
+  deleteProduct: (id: string) => api.delete(`/merchant-backend/products/${id}`),
+  listProduct: (id: string) => api.post(`/merchant-backend/products/${id}/list`),
+  unlistProduct: (id: string) => api.post(`/merchant-backend/products/${id}/unlist`),
+  // 订单管理
+  listOrders: (params?: any) => api.get("/merchant-backend/orders", params),
+  getOrder: (id: string) => api.get(`/merchant-backend/orders/${id}`),
+  shipOrder: (id: string, data: { company: string; trackingNo: string }) => api.put(`/merchant-backend/orders/${id}/ship`, data),
+  approveRefund: (id: string) => api.post(`/merchant-backend/orders/${id}/refund/approve`),
+  rejectRefund: (id: string, data: { reason: string }) => api.post(`/merchant-backend/orders/${id}/refund/reject`, data),
+  // 评价管理
+  listReviews: (params?: any) => api.get("/merchant-backend/reviews", params),
+  replyReview: (id: string, data: { reply: string }) => api.post(`/merchant-backend/reviews/${id}/reply`, data),
+  // 收入 & 结算
+  getRevenue: () => api.get("/merchant-backend/revenue"),
+  listSettlements: (params?: any) => api.get("/merchant-backend/settlements", params),
+  getSettlement: (id: string) => api.get(`/merchant-backend/settlements/${id}`),
+  // 违规
+  listViolations: (params?: any) => api.get("/merchant-backend/violations", params),
+  appealViolation: (id: string, data: { appeal: string }) => api.post(`/merchant-backend/violations/${id}/appeal`, data),
+  // 售后
+  listAfterSales: (params?: any) => api.get("/merchant-backend/after-sales", params),
+  getAfterSale: (id: string) => api.get(`/merchant-backend/after-sales/${id}`),
+  processAfterSale: (id: string, data: { action: string; remark?: string }) => api.put(`/merchant-backend/after-sales/${id}/process`, data),
+  // 客户
+  listCustomers: (params?: any) => api.get("/merchant-backend/customers", params),
 };
 
 // ==================== 分享配置 ====================

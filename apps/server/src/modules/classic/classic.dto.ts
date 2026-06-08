@@ -156,3 +156,20 @@ export class ContinueReadingQueryDto {
   @Max(50)
   limit?: number;
 }
+
+// ── 读书笔记 ──
+export class CreateNoteDto {
+  @ApiProperty({ description: "章节ID" })
+  @IsString()
+  chapterId: string;
+
+  @ApiProperty({ description: "笔记内容" })
+  @IsString()
+  content: string;
+}
+
+export class UpdateNoteDto {
+  @ApiProperty({ description: "笔记内容" })
+  @IsString()
+  content: string;
+}

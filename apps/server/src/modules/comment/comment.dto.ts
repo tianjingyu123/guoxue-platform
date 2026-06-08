@@ -1,4 +1,4 @@
-import { MinLength,  IsString, IsOptional, IsInt, Min, Max } from "class-validator";
+import { MinLength, IsString, IsOptional, IsInt, IsArray, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateCommentDto {
@@ -23,6 +23,12 @@ export class UpdateCommentDto {
   @IsString()
   @MinLength(1)
   content: string;
+}
+
+export class BatchHideDto {
+  @IsArray()
+  @IsString({ each: true })
+  ids: string[];
 }
 
 export class CommentQueryDto {
