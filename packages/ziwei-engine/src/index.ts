@@ -16,4 +16,4 @@ export function calcZiwei(input: ZiweiInput): ZiweiResult {
 }
 
 // 仅导出外部实际使用的类型
-export type { ZiweiInput, ZiweiResult } from './types'
+export type { ZiweiInput, ZiweiResult, GongWei, SiHua } from './types'
