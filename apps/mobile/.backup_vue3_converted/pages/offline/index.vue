@@ -1,0 +1,198 @@
+<template>
+  <!-- 线下活动列表 -->
+  <view class="min-h-screen bg-background flex flex-col">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-40 bg-white border-b border-border">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view class="flex items-center gap-3">
+          <view class="p-1" @click="goBack">
+            <text class="text-lg text-foreground">←</text>
+          </view>
+          <text class="text-lg font-semibold text-foreground">线下活动</text>
+        </view>
+      </view>
+      <!-- 搜索栏 -->
+      <view class="px-4 pb-3">
+        <view class="h-10 bg-secondary rounded-xl px-3.5 flex items-center gap-2">
+          <text class="text-sm text-muted-foreground"></text>
+          <input
+            v-model="searchKeyword"
+            class="flex-1 text-xs text-foreground outline-none"
+            placeholder="搜索活动..."
+            placeholder-class="text-[#ccc]"
+          />
+          <text v-if="searchKeyword" class="text-base text-muted-foreground" @click="searchKeyword = ''">✕</text>
+        </view>
+      </view>
+      <!-- 分类筛选 -->
+      <scroll-view scroll-x class="px-4 pb-3" show-scrollbar="false">
+        <view class="flex gap-2">
+          <view
+            v-for="cat in categories"
+            :key="cat"
+            class="px-3.5 py-1.5 rounded-lg text-xs whitespace-nowrap"
+            :class="selectedCategory === cat ? 'bg-primary text-white' : 'bg-secondary text-muted-foreground'"
+            @click="selectedCategory = cat"
+          >
+            {{ cat }}
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="isLoading" class="flex-1 p-4">
+      <view v-for="i in 3" :key="i" class="bg-white rounded-2xl overflow-hidden mb-4 animate-pulse shadow-sm">
+        <view class="h-36 bg-[#E8E0D5]" />
+        <view class="p-4 space-y-2">
+          <view class="h-5 w-48 bg-[#E8E0D5] rounded" />
+          <view class="h-4 w-36 bg-[#E8E0D5] rounded" />
+          <view class="flex gap-4">
+            <view class="h-4 w-28 bg-[#E8E0D5] rounded" />
+            <view class="h-4 w-20 bg-[#E8E0D5] rounded" />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="isError" class="flex-1 flex flex-col items-center justify-center p-8">
+      <text class="text-5xl mb-4">⚠</text>
+      <text class="text-base text-foreground font-medium mb-2">加载失败</text>
+      <text class="text-sm text-muted-foreground mb-4">无法加载活动列表</text>
+      <view class="px-6 py-2 bg-primary text-white rounded-2xl text-sm" @click="loadData">重新加载</view>
+    </view>
+
+    <!-- 空状态 -->
+    <view v-else-if="filteredEvents.length === 0" class="flex-1 flex flex-col items-center justify-center p-8">
+      <text class="text-6xl mb-4"></text>
+      <text class="text-base text-foreground font-medium mb-2">暂无活动</text>
+      <text class="text-sm text-muted-foreground">没有找到匹配的活动</text>
+    </view>
+
+    <!-- 活动列表 -->
+    <scroll-view v-else scroll-y class="flex-1 p-4" @scrolltolower="loadMore">
+      <view
+        v-for="ev in filteredEvents"
+        :key="ev.id"
+        class="bg-white rounded-2xl overflow-hidden mb-4 shadow-sm"
+        @click="goEventDetail(ev)"
+      >
+        <!-- 活动海报 -->
+        <view class="h-36 bg-gradient-to-br relative flex items-center justify-center text-5xl" :style="{ background: ev.coverBg }">
+          {{ ev.coverEmoji }}
+          <view class="absolute top-3 left-3 px-2.5 py-0.5 bg-black/40 rounded-lg">
+            <text class="text-[10px] text-white">{{ ev.category }}</text>
+          </view>
+          <view class="absolute top-3 right-3 px-2.5 py-0.5 rounded-lg text-[10px]" :class="ev.isFree ? 'bg-green-500/80 text-white' : 'bg-primary/80 text-white'">
+            {{ ev.isFree ? '免费' : '¥' + ev.price }}
+          </view>
+        </view>
+        <!-- 活动信息 -->
+        <view class="p-4">
+          <text class="text-sm font-semibold text-foreground block leading-5">{{ ev.title }}</text>
+          <view class="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+            <text>🕐</text>
+            <text>{{ ev.date }} {{ ev.time }}</text>
+          </view>
+          <view class="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
+            <text>📍</text>
+            <text class="flex-1 truncate">{{ ev.location }}</text>
+          </view>
+          <view class="flex items-center justify-between mt-3 pt-3 border-t border-border">
+            <view class="flex items-center gap-1 text-xs text-muted-foreground">
+              <text></text>
+              <text>{{ ev.registered }}/{{ ev.maxCount }}人</text>
+            </view>
+            <text class="text-xs text-primary font-medium" @click.stop="goEventDetail(ev)">查看详情 ›</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 加载更多 -->
+      <view class="flex items-center justify-center py-4">
+        <text class="text-xs text-muted-foreground">{{ isLoadingMore ? '加载中...' : (hasMore ? '上拉加载更多' : '已经到底了') }}</text>
+      </view>
+
+      <view class="h-6" />
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface EventItem {
+  id: string
+  title: string
+  category: string
+  coverEmoji: string
+  coverBg: string
+  date: string
+  time: string
+  location: string
+  price: number
+  isFree: boolean
+  registered: number
+  maxCount: number
+}
+
+const isLoading = ref(true)
+const isError = ref(false)
+const isLoadingMore = ref(false)
+const searchKeyword = ref('')
+const selectedCategory = ref('全部')
+const hasMore = ref(true)
+
+const categories = ['全部', '国学讲座', '线下课程', '文化交流', '亲子国学', '读书会', '体验活动', '学术研讨']
+
+const events = ref<EventItem[]>([
+  { id: '1', title: '易经智慧与企业管理高端论坛', category: '国学讲座', coverEmoji: '🏛️', coverBg: 'linear-gradient(135deg, rgba(196,30,58,0.12), rgba(201,169,110,0.08))', date: '2026-07-15', time: '14:00-17:00', location: '北京国家会议中心·308厅', price: 0, isFree: true, registered: 128, maxCount: 200 },
+  { id: '2', title: '亲子国学夏令营——论语诵读', category: '亲子国学', coverEmoji: '‍‍👧‍👦', coverBg: 'linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.05))', date: '2026-07-20', time: '09:00-16:00', location: '杭州西湖国学馆', price: 299, isFree: false, registered: 35, maxCount: 50 },
+  { id: '3', title: '道德经读书分享会', category: '读书会', coverEmoji: '', coverBg: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.05))', date: '2026-07-08', time: '19:00-21:00', location: '上海市静安区文化馆·3楼', price: 0, isFree: true, registered: 56, maxCount: 80 },
+  { id: '4', title: '汉服文化节——传统礼仪体验', category: '文化交流', coverEmoji: '', coverBg: 'linear-gradient(135deg, rgba(236,72,153,0.12), rgba(236,72,153,0.05))', date: '2026-07-22', time: '10:00-18:00', location: '西安大唐不夜城·广场', price: 128, isFree: false, registered: 280, maxCount: 500 },
+  { id: '5', title: '中医养生基础班', category: '线下课程', coverEmoji: '🌿', coverBg: 'linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.05))', date: '2026-07-12', time: '14:00-16:00', location: '成都武侯区国学中心', price: 199, isFree: false, registered: 22, maxCount: 30 },
+  { id: '6', title: '书法艺术入门体验', category: '体验活动', coverEmoji: '🖌️', coverBg: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.05))', date: '2026-07-18', time: '09:30-11:30', location: '苏州园林博物馆·体验厅', price: 0, isFree: true, registered: 18, maxCount: 25 },
+])
+
+const filteredEvents = computed(() => {
+  return events.value.filter(ev => {
+    const matchCat = selectedCategory.value === '全部' || ev.category === selectedCategory.value
+    const matchSearch = !searchKeyword.value.trim() || ev.title.includes(searchKeyword.value) || ev.location.includes(searchKeyword.value)
+    return matchCat && matchSearch
+  })
+})
+
+function goEventDetail(ev: EventItem) {
+  uni.navigateTo({ url: `/pages/offline/event-detail/index?id=${ev.id}` })
+}
+
+function loadMore() {
+  if (isLoadingMore.value || !hasMore.value) return
+  isLoadingMore.value = true
+  setTimeout(() => {
+    hasMore.value = false
+    isLoadingMore.value = false
+  }, 800)
+}
+
+function loadData() {
+  isLoading.value = true
+  isError.value = false
+  setTimeout(() => {
+    isLoading.value = false
+  }, 600)
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+onMounted(() => {
+  loadData()
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

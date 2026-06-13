@@ -1,0 +1,359 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 顶部导航栏 -->
+    <view class="sticky top-0 z-50 bg-primary text-white">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view class="p-1" @click="goBack">
+          <text class="text-white text-lg">◀</text>
+        </view>
+        <text class="text-lg font-semibold">收到的评论</text>
+        <view class="relative p-1" @click="showFilterMenu = !showFilterMenu">
+          <text class="text-white text-lg">🔽</text>
+          <text v-if="filter === 'unreplied'" class="absolute -top-1 -right-1 w-2 h-2 bg-accent rounded-full" />
+          <!-- 筛选下拉菜单 -->
+          <view v-if="showFilterMenu" class="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-lg z-50 min-w-[120px] overflow-hidden">
+            <view class="px-4 py-3 text-sm" :class="filter === 'all' ? 'text-primary font-medium' : 'text-foreground'" @click.stop="setFilter('all')">
+              <text>全部评论</text>
+            </view>
+            <view class="px-4 py-3 text-sm border-t border-border" :class="filter === 'unreplied' ? 'text-primary font-medium' : 'text-foreground'" @click.stop="setFilter('unreplied')">
+              <text>未回复{{ unrepliedCount > 0 ? ' (' + unrepliedCount + ')' : '' }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 筛选标签 -->
+      <view class="flex gap-2 px-4 pb-3">
+        <view
+          :class="['px-3 py-1 rounded-full text-sm cursor-pointer', filter === 'all' ? 'bg-white text-primary' : 'bg-transparent border border-white/50 text-white/80']"
+          @click="filter = 'all'"
+        >
+          <text>全部</text>
+        </view>
+        <view
+          :class="['px-3 py-1 rounded-full text-sm cursor-pointer', filter === 'unreplied' ? 'bg-white text-primary' : 'bg-transparent border border-white/50 text-white/80']"
+          @click="filter = 'unreplied'"
+        >
+          <text>待回复{{ unrepliedCount > 0 ? ' (' + unrepliedCount + ')' : '' }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="p-4 space-y-4">
+      <view v-for="i in 5" :key="i" class="bg-white rounded-lg p-4 animate-pulse">
+        <view class="flex gap-3">
+          <view class="w-10 h-10 bg-gray-200 rounded-full flex-shrink-0" />
+          <view class="flex-1 space-y-2">
+            <view class="flex items-center gap-2">
+              <view class="h-4 w-20 bg-gray-200 rounded" />
+              <view class="h-4 w-12 bg-gray-200 rounded" />
+            </view>
+            <view class="h-4 w-full bg-gray-200 rounded" />
+            <view class="h-4 w-3/4 bg-gray-200 rounded" />
+            <view class="h-3 w-32 bg-gray-200 rounded mt-2" />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="flex flex-col items-center justify-center py-20">
+      <text class="text-4xl mb-4">😵</text>
+      <text class="text-sm text-muted-foreground mb-4">{{ error }}</text>
+      <view class="px-6 py-2 bg-primary text-white rounded-full text-sm" @click="fetchComments(1)">
+        <text>重新加载</text>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view v-else-if="comments.length === 0" class="flex flex-col items-center py-20">
+      <view class="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
+        <text class="text-muted-foreground text-3xl"></text>
+      </view>
+      <text class="text-muted-foreground text-sm">{{ filter === 'unreplied' ? '暂无待回复的评论' : '暂无新评论' }}</text>
+    </view>
+
+    <!-- 评论列表 -->
+    <view v-else class="p-4 space-y-3 pb-20">
+      <view
+        v-for="comment in displayComments"
+        :key="comment.id"
+        :class="['bg-white rounded-lg p-4', !comment.isReplied ? 'border-l-4 border-primary' : 'border border-border']"
+      >
+        <!-- 评论者信息 -->
+        <view class="flex gap-3">
+          <view class="w-10 h-10 rounded-full overflow-hidden flex-shrink-0" style="background-color:rgba(196,30,58,0.1)">
+            <image v-if="comment.commenter?.avatar" :src="comment.commenter.avatar" mode="aspectFill" class="w-full h-full" />
+            <text v-else class="text-primary text-sm font-semibold flex items-center justify-center w-full h-full">{{ (comment.commenter?.nickname || '?')[0] }}</text>
+          </view>
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center gap-2 flex-wrap">
+              <text class="font-medium text-foreground">{{ comment.commenter?.nickname || comment.nickname }}</text>
+              <text v-if="comment.commenter?.level" class="text-xs px-1.5 py-0.5 rounded border border-accent/30 text-accent">Lv.{{ comment.commenter.level }}</text>
+              <text v-if="!comment.isReplied" class="px-2 py-0.5 bg-primary text-white text-[10px] rounded-full">待回复</text>
+            </view>
+
+            <!-- 评论内容 -->
+            <text class="text-muted-foreground text-sm mt-2 block leading-relaxed">{{ comment.content }}</text>
+
+            <!-- 评论时间 -->
+            <text class="text-xs text-gray-400 mt-2 block">{{ comment.createdAt }}</text>
+
+            <!-- 我的内容 -->
+            <view class="mt-3 p-3 bg-gray-50 rounded-lg" @click="handleGoToContent(comment)">
+              <text class="text-xs text-gray-500 mb-1 block">评论了我的{{ comment.myContent?.typeLabel || comment.targetLabel || '内容' }}</text>
+              <text class="text-sm text-gray-700 line-clamp-1 block">{{ comment.myContent?.title || comment.targetTitle }}</text>
+            </view>
+
+            <!-- 我的回复 -->
+            <view v-if="comment.myReply" class="mt-3 p-3 rounded-lg border-l-2 border-primary" style="background-color:rgba(196,30,58,0.05)">
+              <text class="text-xs text-primary mb-1 block">我的回复</text>
+              <text class="text-sm text-gray-700 block">{{ comment.myReply.content }}</text>
+              <text class="text-xs text-gray-400 mt-1 block">{{ comment.myReply.createdAt }}</text>
+            </view>
+
+            <!-- 操作按钮 -->
+            <view class="flex gap-2 mt-3">
+              <view v-if="!comment.isReplied" class="px-4 py-1.5 bg-primary text-white text-sm rounded-lg flex items-center gap-1" @click="handleOpenReply(comment)">
+                <text class="text-sm"></text>
+                <text>回复</text>
+              </view>
+              <view class="px-4 py-1.5 border border-accent text-accent text-sm rounded-lg" @click="handleGoToContent(comment)">
+                <text>查看原文</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 加载更多 -->
+      <view v-if="hasMore" class="flex justify-center pt-4">
+        <view
+          class="px-6 py-2 border border-primary text-primary text-sm rounded-lg"
+          @click="handleLoadMore"
+        >
+          <text>{{ loadingMore ? '加载中...' : '加载更多' }}</text>
+        </view>
+      </view>
+
+      <!-- 全部显示 -->
+      <view v-if="!hasMore && displayComments.length > 0" class="text-center text-gray-400 text-sm py-4">
+        <text>已显示全部评论</text>
+      </view>
+    </view>
+
+    <!-- 回复弹窗 -->
+    <view v-if="replyDialogOpen && replyingComment" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click="closeReplyDialog">
+      <view class="w-full max-w-md mx-4 bg-background rounded-2xl overflow-hidden max-h-[85vh] overflow-y-auto" @click.stop>
+        <!-- 弹窗标题 -->
+        <view class="flex items-center justify-between px-6 pt-6 pb-2">
+          <text class="text-lg font-semibold text-foreground">回复评论</text>
+          <view @click="closeReplyDialog" class="text-gray-400">
+            <text class="text-lg">✕</text>
+          </view>
+        </view>
+
+        <view class="p-6 space-y-4">
+          <!-- 原评论 -->
+          <view class="p-3 bg-gray-50 rounded-lg">
+            <view class="flex items-center gap-2 mb-2">
+              <view class="w-6 h-6 rounded-full overflow-hidden" style="background-color:rgba(196,30,58,0.1)">
+                <text class="text-primary text-xs flex items-center justify-center w-full h-full">{{ (replyingComment.commenter?.nickname || replyingComment.nickname || '?')[0] }}</text>
+              </view>
+              <text class="text-sm font-medium">{{ replyingComment.commenter?.nickname || replyingComment.nickname }}</text>
+            </view>
+            <text class="text-sm text-gray-600 line-clamp-3 block">{{ replyingComment.content }}</text>
+          </view>
+
+          <!-- 回复输入 -->
+          <view>
+            <textarea
+              v-model="replyContent"
+              placeholder="写下你的回复..."
+              class="w-full h-24 p-3 border border-border rounded-xl text-sm resize-none"
+              maxlength="500"
+            />
+            <text class="text-xs text-gray-400 text-right block mt-1">{{ replyContent.length }}/500</text>
+          </view>
+
+          <!-- 操作按钮 -->
+          <view class="flex gap-3 pt-2">
+            <view class="flex-1 h-11 border border-border rounded-xl text-sm flex items-center justify-center text-muted-foreground" @click="closeReplyDialog">
+              <text>取消</text>
+            </view>
+            <view
+              class="flex-1 h-11 rounded-xl text-sm flex items-center justify-center text-white"
+              :style="!replyContent.trim() || replying ? 'background-color:#ccc' : 'background-color:#C41E3A'"
+              @click="handleSubmitReply"
+            >
+              <text>{{ replying ? '发送中...' : '发送' }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+// 类型定义
+interface Commenter {
+  avatar: string
+  nickname: string
+  level?: string
+}
+
+interface MyContent {
+  type: string
+  typeLabel: string
+  id: string
+  title: string
+}
+
+interface MyReply {
+  content: string
+  createdAt: string
+}
+
+interface ReceivedCommentItem {
+  id: number
+  commenter: Commenter
+  nickname?: string
+  content: string
+  createdAt: string
+  isReplied: boolean
+  myContent?: MyContent
+  targetLabel?: string
+  targetTitle?: string
+  myReply?: MyReply | null
+}
+
+// Mock 数据
+const mockComments: ReceivedCommentItem[] = [
+  { id: 1, commenter: { avatar: '', nickname: '易学爱好者', level: 'VIP会员' }, content: '老师讲得非常好，深入浅出，受益匪浅！希望以后能多出这样的好课程。', createdAt: '今天 14:30', isReplied: false, myContent: { type: 'course', typeLabel: '课程', id: 'C1001', title: '八字命理入门到精通' } },
+  { id: 2, commenter: { avatar: '', nickname: '张明远', level: '' }, content: '感谢您的提问，这个问题很有代表性。很多初学者都会有类似的困惑，建议先理解基础概念。', createdAt: '昨天 10:15', isReplied: true, myContent: { type: 'qa', typeLabel: '问答', id: 'Q1002', title: '八字排盘问题解答' }, myReply: { content: '不客气，欢迎继续交流', createdAt: '昨天 11:00' } },
+  { id: 3, commenter: { avatar: '', nickname: '传统文化传承者', level: '圈主' }, content: '写得很好，对易经的理解很深刻。建议可以结合更多的实际案例进行分析。', createdAt: '01月12日', isReplied: false, myContent: { type: 'article', typeLabel: '文章', id: 'A1003', title: '易经六十四卦解读' } },
+  { id: 4, commenter: { avatar: '', nickname: '风水爱好者', level: '讲师' }, content: '这篇文章对我很有启发，特别是关于风水布局的部分，一定要去实践一下。', createdAt: '01月10日', isReplied: true, myContent: { type: 'article', typeLabel: '文章', id: 'A1004', title: '家居风水布局指南' }, myReply: { content: '感谢支持，有任何问题欢迎随时交流', createdAt: '01月11日' } },
+  { id: 5, commenter: { avatar: '', nickname: '命理学徒', level: '' }, content: '请问这门课需要什么基础吗？完全零基础能跟上吗？', createdAt: '前天 09:20', isReplied: false, myContent: { type: 'course', typeLabel: '课程', id: 'C1005', title: '紫微斗数精讲班' } },
+]
+
+// 状态
+const loading = ref(true)
+const error = ref<string | null>(null)
+const filter = ref<'all' | 'unreplied'>('all')
+const comments = ref<ReceivedCommentItem[]>([])
+const page = ref(1)
+const hasMore = ref(false)
+const loadingMore = ref(false)
+const showFilterMenu = ref(false)
+
+// 回复弹窗状态
+const replyDialogOpen = ref(false)
+const replyingComment = ref<ReceivedCommentItem | null>(null)
+const replyContent = ref('')
+const replying = ref(false)
+
+// 计算属性
+const unrepliedCount = computed(() => comments.value.filter(c => !c.isReplied).length)
+
+const displayComments = computed(() => {
+  if (filter.value === 'all') return comments.value
+  return comments.value.filter(c => !c.isReplied)
+})
+
+// 加载数据
+function fetchComments(pageNum: number = 1, isLoadMore: boolean = false) {
+  if (isLoadMore) {
+    loadingMore.value = true
+  } else {
+    loading.value = true
+    error.value = null
+  }
+
+  setTimeout(() => {
+    try {
+      if (isLoadMore) {
+        comments.value = [...comments.value, ...mockComments]
+      } else {
+        comments.value = mockComments
+      }
+      hasMore.value = false
+      page.value = pageNum
+    } catch {
+      error.value = '网络错误，请重试'
+    } finally {
+      loading.value = false
+      loadingMore.value = false
+    }
+  }, 500)
+}
+
+// 初始化
+setTimeout(() => {
+  fetchComments(1)
+}, 300)
+
+// 设置筛选
+function setFilter(val: 'all' | 'unreplied') {
+  filter.value = val
+  showFilterMenu.value = false
+  fetchComments(1)
+}
+
+// 打开回复弹窗
+function handleOpenReply(comment: ReceivedCommentItem) {
+  replyingComment.value = comment
+  replyContent.value = ''
+  replyDialogOpen.value = true
+}
+
+// 关闭回复弹窗
+function closeReplyDialog() {
+  replyDialogOpen.value = false
+  replyingComment.value = null
+  replyContent.value = ''
+}
+
+// 提交回复
+function handleSubmitReply() {
+  if (!replyingComment.value || !replyContent.value.trim()) return
+
+  replying.value = true
+  setTimeout(() => {
+    const idx = comments.value.findIndex(c => c.id === replyingComment.value!.id)
+    if (idx >= 0) {
+      comments.value[idx].isReplied = true
+      comments.value[idx].myReply = {
+        content: replyContent.value.trim(),
+        createdAt: '刚刚',
+      }
+    }
+    replyDialogOpen.value = false
+    replying.value = false
+    replyingComment.value = null
+    replyContent.value = ''
+    uni.showToast({ title: '回复成功', icon: 'success' })
+  }, 500)
+}
+
+// 跳转到内容页
+function handleGoToContent(comment: ReceivedCommentItem) {
+  uni.showToast({ title: comment.myContent?.title || comment.targetTitle || '详情', icon: 'none' })
+}
+
+// 加载更多
+function handleLoadMore() {
+  if (!loadingMore.value && hasMore.value) {
+    fetchComments(page.value + 1, true)
+  }
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

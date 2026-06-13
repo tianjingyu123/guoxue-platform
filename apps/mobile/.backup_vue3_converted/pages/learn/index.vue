@@ -1,0 +1,235 @@
+<template>
+  <!-- 学习中心 -->
+  <view class="min-h-screen bg-background flex flex-col">
+    <!-- 导航栏 -->
+    <view class="flex items-center justify-between px-4 h-12 bg-white border-b border-border shrink-0">
+      <view class="p-1" @click="goBack"><text class="text-xl text-foreground">←</text></view>
+      <text class="text-base font-semibold text-foreground">学习中心</text>
+      <view class="w-7" />
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="isLoading" class="flex-1 p-4">
+      <!-- 统计骨架 -->
+      <view class="flex gap-3 mb-4">
+        <view v-for="i in 3" :key="i" class="flex-1 bg-white rounded-xl p-5 animate-pulse shadow-sm">
+          <view class="h-8 w-full bg-[#E8E0D5] rounded mb-2" />
+          <view class="h-3 w-12 bg-[#E8E0D5] rounded mx-auto" />
+        </view>
+      </view>
+      <!-- 今日进度骨架 -->
+      <view class="bg-white rounded-xl p-5 mb-4 animate-pulse shadow-sm">
+        <view class="flex items-center gap-6">
+          <view class="w-24 h-24 bg-[#E8E0D5] rounded-full shrink-0" />
+          <view class="flex-1 space-y-2">
+            <view class="h-4 w-32 bg-[#E8E0D5] rounded" />
+            <view class="h-4 w-24 bg-[#E8E0D5] rounded" />
+            <view class="h-4 w-28 bg-[#E8E0D5] rounded" />
+          </view>
+        </view>
+      </view>
+      <!-- 课程列表骨架 -->
+      <view v-for="i in 3" :key="i" class="flex gap-3 bg-white rounded-xl p-4 mb-3 animate-pulse shadow-sm">
+        <view class="w-16 h-16 bg-[#E8E0D5] rounded-xl shrink-0" />
+        <view class="flex-1 space-y-2">
+          <view class="h-4 w-36 bg-[#E8E0D5] rounded" />
+          <view class="h-3 w-24 bg-[#E8E0D5] rounded" />
+          <view class="h-2 w-full bg-[#E8E0D5] rounded" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="isError" class="flex-1 flex flex-col items-center justify-center p-8">
+      <text class="text-5xl mb-4">⚠</text>
+      <text class="text-base text-foreground font-medium mb-2">加载失败</text>
+      <text class="text-sm text-muted-foreground mb-4">无法获取学习数据</text>
+      <view class="px-6 py-2 bg-primary text-white rounded-2xl text-sm" @click="loadData">重新加载</view>
+    </view>
+
+    <!-- 主体内容 -->
+    <scroll-view v-else scroll-y class="flex-1">
+      <!-- 学习统计卡片 -->
+      <view class="flex gap-3 mx-4 mt-4">
+        <view class="flex-1 bg-white rounded-xl p-4 text-center shadow-sm">
+          <text class="text-xl font-bold text-primary block">{{ stats.totalHours }}</text>
+          <text class="text-xs text-muted-foreground mt-1">学习时长(h)</text>
+        </view>
+        <view class="flex-1 bg-white rounded-xl p-4 text-center shadow-sm">
+          <text class="text-xl font-bold text-primary block">{{ stats.completedCourses }}</text>
+          <text class="text-xs text-muted-foreground mt-1">完成课程</text>
+        </view>
+        <view class="flex-1 bg-white rounded-xl p-4 text-center shadow-sm">
+          <text class="text-xl font-bold text-primary block">{{ stats.points }}</text>
+          <text class="text-xs text-muted-foreground mt-1">获得积分</text>
+        </view>
+      </view>
+
+      <!-- 今日学习进度 -->
+      <view class="bg-white mx-4 mt-3 rounded-xl p-5 shadow-sm">
+        <text class="text-sm font-semibold text-foreground block mb-4">今日学习进度</text>
+        <view class="flex items-center gap-6">
+          <!-- 环形进度 -->
+          <view class="w-24 h-24 rounded-full bg-[#E8E0D5] relative shrink-0 flex items-center justify-center">
+            <view class="w-20 h-20 rounded-full bg-white flex items-center justify-center z-10">
+              <text class="text-lg font-bold text-primary">{{ todayProgress }}%</text>
+            </view>
+            <!-- 进度环装饰 -->
+            <view
+              class="absolute inset-0 rounded-full border-4 border-transparent"
+              :style="{
+                borderTopColor: '#C41E3A',
+                borderRightColor: todayProgress > 25 ? '#C41E3A' : 'transparent',
+                borderBottomColor: todayProgress > 50 ? '#C41E3A' : 'transparent',
+                borderLeftColor: todayProgress > 75 ? '#C41E3A' : 'transparent',
+                transform: 'rotate(-90deg)',
+              }"
+            />
+          </view>
+          <view class="flex-1">
+            <text class="text-sm text-foreground font-medium block">今日目标 {{ todayGoal }} 分钟</text>
+            <text class="text-xs text-muted-foreground block mt-1">已完成 {{ todayDone }} 分钟</text>
+            <view class="h-1.5 bg-[#E8E0D5] rounded-full mt-2 overflow-hidden">
+              <view class="h-full bg-primary rounded-full" :style="{ width: todayProgress + '%' }" />
+            </view>
+            <text class="text-xs text-primary mt-2 block" @click="continueStudy">
+              {{ todayDone < todayGoal ? '继续学习 ›' : '今日目标已完成 ✓' }}
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 继续学习 -->
+      <view class="mx-4 mt-4">
+        <text class="text-sm font-semibold text-foreground block mb-3">继续学习</text>
+        <view
+          v-for="c in ongoingCourses"
+          :key="c.id"
+          class="flex items-center gap-3 bg-white rounded-xl p-4 mb-2 shadow-sm"
+          @click="goCourseDetail(c)"
+        >
+          <view class="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shrink-0" :style="{ background: c.bg }">
+            {{ c.icon }}
+          </view>
+          <view class="flex-1 min-w-0">
+            <text class="text-sm font-medium text-foreground block truncate">{{ c.title }}</text>
+            <text class="text-xs text-muted-foreground block mt-0.5">{{ c.teacher }} · 第{{ c.lesson }}/{{ c.totalLessons }}讲</text>
+            <view class="h-1.5 bg-[#E8E0D5] rounded-full mt-2 overflow-hidden">
+              <view class="h-full bg-primary rounded-full" :style="{ width: c.progress + '%' }" />
+            </view>
+          </view>
+          <text class="text-xs text-muted-foreground shrink-0">{{ c.progress }}%</text>
+        </view>
+      </view>
+
+      <!-- 推荐课程 -->
+      <view class="mx-4 mt-4 pb-4">
+        <view class="flex items-center justify-between mb-3">
+          <text class="text-sm font-semibold text-foreground">推荐课程</text>
+          <text class="text-xs text-muted-foreground" @click="viewAllCourses">查看全部 ›</text>
+        </view>
+        <scroll-view scroll-x class="flex-row -mx-4 px-4" show-scrollbar="false">
+          <view class="flex gap-3">
+            <view
+              v-for="rc in recommendedCourses"
+              :key="rc.id"
+              class="w-36 bg-white rounded-xl p-3 shadow-sm shrink-0"
+              @click="goCourseDetail(rc)"
+            >
+              <view class="w-full h-20 rounded-lg flex items-center justify-center text-3xl mb-2" :style="{ background: rc.bg }">
+                {{ rc.icon }}
+              </view>
+              <text class="text-xs font-medium text-foreground block truncate">{{ rc.title }}</text>
+              <text class="text-[10px] text-muted-foreground block mt-0.5">{{ rc.teacher }}</text>
+              <text class="text-xs font-semibold text-primary block mt-1">{{ rc.isFree ? '免费' : '¥' + rc.price }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <view class="h-6" />
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+interface Course {
+  id: string
+  title: string
+  teacher: string
+  icon: string
+  bg: string
+  progress?: number
+  lesson?: number
+  totalLessons?: number
+  price?: number
+  isFree?: boolean
+}
+
+interface Stats {
+  totalHours: number
+  completedCourses: number
+  points: number
+}
+
+const isLoading = ref(true)
+const isError = ref(false)
+
+const todayGoal = 60
+const todayDone = 38
+const todayProgress = Math.round((todayDone / todayGoal) * 100)
+
+const stats = ref<Stats>({
+  totalHours: 128,
+  completedCourses: 5,
+  points: 2360,
+})
+
+const ongoingCourses = ref<Course[]>([
+  { id: '1', title: '八字命理入门', teacher: '李老师', icon: '🔮', bg: 'rgba(196,30,58,0.08)', progress: 65, lesson: 8, totalLessons: 12 },
+  { id: '2', title: '紫微斗数精讲', teacher: '王老师', icon: '', bg: 'rgba(201,169,110,0.08)', progress: 24, lesson: 3, totalLessons: 16 },
+  { id: '3', title: '周易六爻预测', teacher: '张老师', icon: '', bg: 'rgba(59,130,246,0.08)', progress: 42, lesson: 5, totalLessons: 10 },
+])
+
+const recommendedCourses = ref<Course[]>([
+  { id: '4', title: '道德经智慧解读', teacher: '曾教授', icon: '📜', bg: 'rgba(34,197,94,0.08)', isFree: true },
+  { id: '5', title: '风水基础入门', teacher: '陈老师', icon: '🏠', bg: 'rgba(245,158,11,0.08)', price: 299 },
+  { id: '6', title: '梅花易数实战', teacher: '刘老师', icon: '🌸', bg: 'rgba(168,85,247,0.08)', price: 399 },
+  { id: '7', title: '论语精读', teacher: '钱教授', icon: '', bg: 'rgba(236,72,153,0.08)', isFree: true },
+  { id: '8', title: '奇门遁甲入门', teacher: '赵老师', icon: '⚔️', bg: 'rgba(14,165,233,0.08)', price: 499 },
+])
+
+function continueStudy() {
+  uni.showToast({ title: '继续学习', icon: 'none' })
+}
+
+function goCourseDetail(c: Course) {
+  uni.navigateTo({ url: `/pages/course/detail/index?id=${c.id}` })
+}
+
+function viewAllCourses() {
+  uni.navigateTo({ url: '/pages/course/list/index' })
+}
+
+function loadData() {
+  isLoading.value = true
+  isError.value = false
+  setTimeout(() => {
+    isLoading.value = false
+  }, 800)
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+onMounted(() => {
+  loadData()
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

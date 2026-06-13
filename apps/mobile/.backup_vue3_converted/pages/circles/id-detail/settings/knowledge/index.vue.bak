@@ -1,0 +1,249 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <!-- 骨架屏 -->
+    <template v-if="loading">
+      <view class="flex items-center justify-between px-4 h-12 bg-white border-b border-[#E8E0D5] flex-shrink-0">
+        <view class="w-7 h-7 bg-gray-200 rounded" />
+        <view class="w-24 h-4 bg-gray-200 rounded" />
+        <view class="w-7" />
+      </view>
+      <view class="flex-1 p-4 overflow-y-auto">
+        <view v-for="i in 4" :key="i" class="bg-white rounded-xl p-4 mb-3 shadow-sm">
+          <view class="w-3/4 h-4 bg-gray-200 rounded mb-2" />
+          <view class="w-1/2 h-3 bg-gray-200 rounded" />
+        </view>
+      </view>
+    </template>
+
+    <template v-else>
+      <!-- 顶部导航 -->
+      <view class="flex items-center justify-between px-4 h-12 bg-white border-b border-[#E8E0D5] flex-shrink-0">
+        <view class="p-1" @click="goBack"><text class="text-xl text-[#2C2C2C]">←</text></view>
+        <text class="text-base font-semibold text-[#2C2C2C]">知识库管理</text>
+        <view class="w-7" />
+      </view>
+
+      <!-- 搜索栏 -->
+      <view class="px-4 py-3 bg-white border-b border-[#E8E0D5]">
+        <view class="relative">
+          <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#999] z-10">🔍</text>
+          <input v-model="keyword" placeholder="搜索知识库..."
+            class="w-full h-9 pl-9 pr-3 text-sm bg-[#FAF8F5] rounded-lg border border-[#E8E0D5] box-border placeholder:text-[#999]" />
+        </view>
+      </view>
+
+      <!-- 添加按钮 -->
+      <view class="px-4 pt-3 pb-1">
+        <view @click="showAddModal = true"
+          class="flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-[#E8E0D5] bg-white">
+          <text class="text-lg text-[#C41E3A]">✚</text>
+          <text class="text-sm text-[#C41E3A] font-medium">添加知识库</text>
+        </view>
+      </view>
+
+      <!-- 统计信息 -->
+      <view class="px-4 py-2 flex items-center gap-2">
+        <text class="text-xs text-[#999]">共 {{ filteredList.length }} 个知识库</text>
+        <text class="text-xs text-green-600">● {{ filteredList.filter(k => k.enabled).length }} 个已启用</text>
+      </view>
+
+      <!-- 知识库列表 -->
+      <scroll-view scroll-y class="flex-1 px-4 overflow-y-auto pb-4">
+        <view v-for="k in filteredList" :key="k.id"
+          class="bg-white rounded-xl p-4 mb-3 shadow-sm border border-[#E8E0D5]">
+          <view class="flex items-start justify-between gap-3">
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-2 mb-1">
+                <text class="text-[15px] font-medium text-[#2C2C2C] truncate">{{ k.title }}</text>
+                <text v-if="k.docCount > 0"
+                  class="text-[10px] px-1.5 py-0.5 bg-[#C41E3A]/10 text-[#C41E3A] rounded-full flex-shrink-0">
+                  {{ k.docCount }} 文档
+                </text>
+              </view>
+              <text class="text-[12px] text-[#999] block">📂 {{ k.category }}</text>
+              <text class="text-[11px] text-[#BBB] block mt-1">更新于 {{ k.updatedAt }}</text>
+              <!-- 标签 -->
+              <view v-if="k.tags && k.tags.length" class="flex gap-1 mt-1.5 flex-wrap">
+                <text v-for="tag in k.tags" :key="tag"
+                  class="text-[10px] bg-[#F0EBE5] text-[#999] px-1.5 py-0.5 rounded-full">{{ tag }}</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-2 flex-shrink-0">
+              <view class="px-2.5 py-1 rounded-lg text-xs"
+                :class="k.enabled ? 'bg-green-50 text-green-600 border border-green-200' : 'bg-[#FAF8F5] text-[#999] border border-[#E8E0D5]'"
+                @click="toggleEnabled(k.id)">
+                <text>{{ k.enabled ? '已启用' : '已禁用' }}</text>
+              </view>
+              <view class="w-8 h-7 rounded-lg bg-[#FAF8F5] flex items-center justify-center border border-[#E8E0D5]"
+                @click="confirmDelete(k)">
+                <text class="text-xs text-red-400">🗑</text>
+              </view>
+            </view>
+          </view>
+          <!-- 最近使用 -->
+          <view v-if="k.lastUsed"
+            class="mt-3 pt-2.5 border-t border-[#F5F1EB] flex items-center gap-1 text-[11px] text-[#BBB]">
+            <text>🕐</text>
+            <text>最近使用：{{ k.lastUsed }}</text>
+          </view>
+        </view>
+
+        <!-- 空状态 -->
+        <view v-if="filteredList.length === 0 && !keyword"
+          class="flex flex-col items-center justify-center py-16">
+          <text class="text-5xl mb-4">📚</text>
+          <text class="text-[#999] text-sm mb-1">知识库为空</text>
+          <text class="text-[#BBB] text-xs">点击上方按钮添加你的第一个知识库</text>
+        </view>
+        <view v-if="filteredList.length === 0 && keyword"
+          class="flex flex-col items-center justify-center py-16">
+          <text class="text-4xl mb-4">🔍</text>
+          <text class="text-[#999] text-sm">未找到匹配的知识库</text>
+        </view>
+      </scroll-view>
+    </template>
+
+    <!-- 添加知识库弹窗 -->
+    <view v-if="showAddModal"
+      class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-6">
+      <view class="bg-white w-full max-w-sm rounded-2xl p-5" @click.stop>
+        <view class="flex items-center justify-between mb-4">
+          <text class="text-base font-semibold text-[#2C2C2C]">添加知识库</text>
+          <view @click="showAddModal = false" class="w-7 h-7 rounded-full bg-[#FAF8F5] flex items-center justify-center">
+            <text class="text-sm text-[#999]">✕</text>
+          </view>
+        </view>
+        <view class="mb-3">
+          <text class="text-sm text-[#2C2C2C] block mb-1.5">名称 <text class="text-red-400">*</text></text>
+          <input v-model="newForm.title" placeholder="请输入知识库名称"
+            class="w-full h-10 px-3 bg-[#FAF8F5] rounded-lg text-sm border border-[#E8E0D5] box-border" />
+        </view>
+        <view class="mb-3">
+          <text class="text-sm text-[#2C2C2C] block mb-1.5">分类</text>
+          <view class="flex gap-2 flex-wrap">
+            <text v-for="cat in categories" :key="cat"
+              @click="newForm.category = cat"
+              class="px-3 py-1.5 rounded-full text-xs border"
+              :class="newForm.category === cat ? 'bg-[#C41E3A] text-white border-[#C41E3A]' : 'bg-[#FAF8F5] text-[#999] border-[#E8E0D5]'">
+              {{ cat }}
+            </text>
+          </view>
+        </view>
+        <view @click="addKnowledge"
+          class="w-full py-2.5 bg-[#C41E3A] text-white rounded-xl text-center text-sm font-semibold">
+          确认添加
+        </view>
+      </view>
+    </view>
+
+    <!-- 删除确认弹窗 -->
+    <view v-if="deleteTarget"
+      class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-6">
+      <view class="bg-white w-72 rounded-2xl p-5 text-center" @click.stop>
+        <text class="text-3xl block mb-3">🗑</text>
+        <text class="text-base font-semibold text-[#2C2C2C] block mb-1">确认删除</text>
+        <text class="text-sm text-[#999] block mb-4">确定要删除「{{ deleteTarget.title }}」吗？</text>
+        <view class="flex gap-3">
+          <view @click="deleteTarget = null"
+            class="flex-1 py-2.5 bg-[#FAF8F5] rounded-xl text-sm text-[#999] font-medium">取消</view>
+          <view @click="doDelete"
+            class="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium">删除</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const loading = ref(true)
+const keyword = ref('')
+const showAddModal = ref(false)
+const deleteTarget = ref<any>(null)
+
+const categories = ['易经', '八字', '紫微斗数', '风水', '奇门遁甲', '六爻', '梅花易数', '大六壬']
+
+const newForm = ref({
+  title: '',
+  category: '易经'
+})
+
+interface KnowledgeItem {
+  id: string
+  title: string
+  category: string
+  docCount: number
+  updatedAt: string
+  enabled: boolean
+  tags: string[]
+  lastUsed: string
+}
+
+const knowledge = ref<KnowledgeItem[]>([
+  { id: '1', title: '易经乾卦深度解读', category: '易经', docCount: 12, updatedAt: '2024-06-01', enabled: true, tags: ['乾卦', '六爻', '象传'], lastUsed: '3天前' },
+  { id: '2', title: '八字排盘基础教程', category: '八字', docCount: 8, updatedAt: '2024-06-05', enabled: true, tags: ['排盘', '十神', '大运'], lastUsed: '1天前' },
+  { id: '3', title: '紫微斗数十二宫位含义', category: '紫微斗数', docCount: 15, updatedAt: '2024-06-08', enabled: true, tags: ['十二宫', '主星', '辅星'], lastUsed: '1周前' },
+  { id: '4', title: '风水基础知识入门', category: '风水', docCount: 6, updatedAt: '2024-06-10', enabled: false, tags: ['阳宅', '阴宅', '理气'], lastUsed: '' },
+  { id: '5', title: '梅花易数起卦方法详解', category: '梅花易数', docCount: 10, updatedAt: '2024-06-12', enabled: true, tags: ['起卦', '体用', '应期'], lastUsed: '5天前' },
+  { id: '6', title: '奇门遁甲排盘规则', category: '奇门遁甲', docCount: 20, updatedAt: '2024-06-15', enabled: false, tags: ['排盘', '八门', '九星'], lastUsed: '' },
+])
+
+const filteredList = computed(() => {
+  if (!keyword.value) return knowledge.value
+  return knowledge.value.filter(k =>
+    k.title.includes(keyword.value) || k.category.includes(keyword.value)
+  )
+})
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 400)
+})
+
+function goBack() { uni.navigateBack() }
+
+function toggleEnabled(id: string) {
+  const k = knowledge.value.find(k => k.id === id)
+  if (k) {
+    k.enabled = !k.enabled
+    uni.showToast({ title: k.enabled ? '已启用' : '已禁用', icon: 'success' })
+  }
+}
+
+function confirmDelete(k: KnowledgeItem) {
+  deleteTarget.value = k
+}
+
+function doDelete() {
+  if (deleteTarget.value) {
+    knowledge.value = knowledge.value.filter(k => k.id !== deleteTarget.value.id)
+    deleteTarget.value = null
+    uni.showToast({ title: '已删除', icon: 'success' })
+  }
+}
+
+function addKnowledge() {
+  if (!newForm.value.title.trim()) {
+    uni.showToast({ title: '请输入名称', icon: 'none' })
+    return
+  }
+  const newItem: KnowledgeItem = {
+    id: Date.now().toString(),
+    title: newForm.value.title,
+    category: newForm.value.category,
+    docCount: 0,
+    updatedAt: new Date().toISOString().slice(0, 10),
+    enabled: true,
+    tags: [],
+    lastUsed: ''
+  }
+  knowledge.value.unshift(newItem)
+  showAddModal.value = false
+  newForm.value.title = ''
+  uni.showToast({ title: '添加成功', icon: 'success' })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

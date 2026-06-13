@@ -1,0 +1,200 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <!-- 导航栏 -->
+    <view class="flex items-center justify-between px-4 h-12 bg-white border-b border-[#E8E0D5] shrink-0">
+      <view class="p-1" @click="goBack">
+        <text class="text-xl text-[#2C2C2C]">←</text>
+      </view>
+      <text class="text-base font-semibold text-[#2C2C2C]">政策中心</text>
+      <view class="w-7" />
+    </view>
+
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="flex-1 p-4">
+      <view v-for="i in 4" :key="i" class="mb-4">
+        <view class="h-5 w-24 bg-[#F0EBE5] rounded mb-3 skeleton-pulse" />
+        <view v-for="j in 2" :key="j" class="bg-white rounded-xl p-3.5 mb-2 skeleton-pulse">
+          <view class="flex items-center gap-3">
+            <view class="w-9 h-9 rounded-full bg-[#F0EBE5] skeleton-pulse" />
+            <view class="flex-1 space-y-1.5">
+              <view class="h-4 w-28 bg-[#F0EBE5] rounded skeleton-pulse" />
+              <view class="h-3 w-full bg-[#F0EBE5] rounded skeleton-pulse" />
+              <view class="h-3 w-20 bg-[#F0EBE5] rounded skeleton-pulse" />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view v-else-if="groups.length === 0" class="flex-1 flex flex-col items-center justify-center p-8">
+      <text class="text-5xl mb-4">📋</text>
+      <text class="text-sm text-[#999] mb-2">暂无政策文档</text>
+      <text class="text-xs text-[#bbb]">相关政策正在制定中</text>
+    </view>
+
+    <!-- 主内容 -->
+    <scroll-view v-else scroll-y class="flex-1 overflow-y-auto">
+      <view class="p-4 pb-6">
+        <!-- 搜索框 -->
+        <view class="flex items-center gap-2 bg-white rounded-xl px-3.5 h-10 border border-[#E8E0D5] mb-4">
+          <text class="text-base text-[#999]">🔍</text>
+          <input v-model="keyword" placeholder="搜索政策名称" placeholder-class="text-xs text-[#bbb]" class="flex-1 text-sm text-[#2C2C2C]" />
+        </view>
+
+        <!-- 政策统计头部 -->
+        <view class="flex items-center justify-between bg-white rounded-xl p-3.5 mb-4 shadow-sm">
+          <view class="flex items-center gap-2">
+            <text class="text-xl">📋</text>
+            <text class="text-sm text-[#2C2C2C]">共 {{ totalPolicyCount }} 项政策文档</text>
+          </view>
+          <text class="text-xs text-[#C9A96E]" @click="onFeedback">意见反馈 ›</text>
+        </view>
+        <!-- 政策分类分组 -->
+        <view v-for="group in groups" :key="group.label" class="mb-5">
+          <view class="flex items-center gap-2 mb-2.5">
+            <text class="text-sm font-semibold text-[#2C2C2C]">{{ group.icon }} {{ group.label }}</text>
+            <text class="text-xs text-[#999]">{{ group.items.length }}项</text>
+          </view>
+
+          <view v-for="item in group.items" :key="item.title" class="bg-white rounded-xl p-3.5 mb-2 shadow-sm active:opacity-80" @click="goDetail(item.title)">
+            <view class="flex items-start gap-3">
+              <view class="w-9 h-9 rounded-full bg-[#F5F1EB] flex items-center justify-center text-lg shrink-0">
+                <text>{{ item.icon }}</text>
+              </view>
+              <view class="flex-1 min-w-0">
+                <view class="flex items-center gap-1.5">
+                  <text class="text-sm font-medium text-[#2C2C2C]">{{ item.title }}</text>
+                  <text v-if="item.isNew" class="text-[10px] bg-[#C41E3A] text-white px-1.5 py-0.5 rounded-full">NEW</text>
+                </view>
+                <text class="text-[12px] text-[#666] block mt-0.5 leading-relaxed">{{ item.desc }}</text>
+                <view class="flex items-center gap-2 mt-1.5">
+                  <text class="text-[11px] text-[#999]">📅 更新于 {{ item.updateTime }}</text>
+                  <text v-if="item.version" class="text-[11px] text-[#999]">v{{ item.version }}</text>
+                </view>
+              </view>
+              <text class="text-base text-[#ccc] self-center">›</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 反馈入口 -->
+        <view class="mt-2 bg-white rounded-xl p-4 shadow-sm">
+          <view class="flex items-center gap-3">
+            <text class="text-2xl">💬</text>
+            <view class="flex-1">
+              <text class="text-sm font-medium text-[#2C2C2C] block">有疑问？反馈给我们</text>
+              <text class="text-xs text-[#999]">如对政策内容有疑问，欢迎反馈</text>
+            </view>
+            <text class="text-sm text-[#C9A96E] font-medium" @click="onFeedback">反馈 ›</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const keyword = ref('')
+const loading = ref(true)
+
+interface PolicyItem {
+  title: string
+  icon: string
+  desc: string
+  updateTime: string
+  version?: string
+  isNew?: boolean
+}
+
+interface PolicyGroup {
+  label: string
+  icon: string
+  items: PolicyItem[]
+}
+
+const groups = ref<PolicyGroup[]>([
+  {
+    label: '用户协议',
+    icon: '📝',
+    items: [
+      { title: '用户服务协议', icon: '📄', desc: '平台服务条款、用户权利与义务、账号使用规则等', updateTime: '2024-05-20', version: '2.3.0' },
+      { title: '会员服务协议', icon: '⭐', desc: '会员权益说明、订阅规则、自动续费条款', updateTime: '2024-05-15', version: '1.5.0', isNew: true },
+      { title: '知识付费协议', icon: '💰', desc: '课程购买、内容付费、退款政策说明', updateTime: '2024-04-28', version: '1.2.0' },
+    ],
+  },
+  {
+    label: '隐私政策',
+    icon: '🔒',
+    items: [
+      { title: '隐私政策', icon: '🔐', desc: '个人信息收集、使用、存储和保护规则', updateTime: '2024-06-01', version: '3.0.0', isNew: true },
+      { title: '儿童隐私保护', icon: '👶', desc: '未成年人个人信息保护特别条款', updateTime: '2024-05-10', version: '1.1.0' },
+      { title: 'Cookie政策', icon: '🍪', desc: 'Cookie及同类技术使用说明', updateTime: '2024-04-15', version: '1.0.0' },
+    ],
+  },
+  {
+    label: '社区规范',
+    icon: '📋',
+    items: [
+      { title: '社区管理规定', icon: '📏', desc: '社区内容发布规范、行为准则与处罚措施', updateTime: '2024-05-25', version: '2.1.0' },
+      { title: '内容审核标准', icon: '🔍', desc: '内容审核流程、违规内容判定标准', updateTime: '2024-05-12', version: '1.8.0' },
+      { title: '知识产权保护', icon: '©️', desc: '原创内容保护、侵权投诉处理流程', updateTime: '2024-04-20', version: '1.3.0' },
+    ],
+  },
+  {
+    label: '交易规则',
+    icon: '📊',
+    items: [
+      { title: '交易争议处理规则', icon: '⚖️', desc: '交易纠纷处理流程、举证规则与裁决标准', updateTime: '2024-05-30', version: '2.0.0', isNew: true },
+      { title: '退款与售后政策', icon: '🔄', desc: '退款条件、流程及时效说明', updateTime: '2024-05-18', version: '1.6.0' },
+      { title: '商家入驻协议', icon: '🏪', desc: '商家入驻条件、经营规范与违规处罚', updateTime: '2024-04-22', version: '1.4.0' },
+    ],
+  },
+  {
+    label: '版权声明',
+    icon: '©️',
+    items: [
+      { title: '版权保护政策', icon: '📜', desc: '平台内容版权归属、授权使用范围与侵权处罚', updateTime: '2024-05-28', version: '2.0.0', isNew: true },
+      { title: '信息网络传播权', icon: '🌐', desc: '网络信息传播相关权利与使用规范', updateTime: '2024-05-10', version: '1.1.0' },
+      { title: '商标使用规范', icon: '®️', desc: '平台商标标识的正确使用方式与保护条款', updateTime: '2024-04-15', version: '1.0.0' },
+    ],
+  },
+  {
+    label: '安全须知',
+    icon: '⚠️',
+    items: [
+      { title: '账号安全指南', icon: '🔑', desc: '账号密码设置、防钓鱼与安全认证建议', updateTime: '2024-06-05', version: '1.3.0', isNew: true },
+      { title: '反诈骗声明', icon: '🚨', desc: '常见诈骗手段识别与防范建议', updateTime: '2024-05-22', version: '1.2.0' },
+      { title: '数据安全承诺', icon: '🛡️', desc: '用户数据安全保障措施与技术说明', updateTime: '2024-05-08', version: '1.1.0' },
+    ],
+  },
+])
+
+function goDetail(title: string) {
+  uni.navigateTo({ url: `/pages/policy/detail/index?title=${encodeURIComponent(title)}` })
+}
+
+/** 计算政策总数量 */
+const totalPolicyCount = computed(() => groups.value.reduce((sum, g) => sum + g.items.length, 0))
+
+function onFeedback() {
+  uni.showToast({ title: '反馈功能即将开放', icon: 'none' })
+}
+
+function goBack() { uni.navigateBack() }
+
+setTimeout(() => { loading.value = false }, 1000)
+</script>
+
+<style scoped>
+.skeleton-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+/* 样式由 Tailwind 处理 */
+</style>

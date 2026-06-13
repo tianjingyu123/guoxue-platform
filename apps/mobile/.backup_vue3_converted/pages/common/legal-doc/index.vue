@@ -1,0 +1,192 @@
+<template>
+  <view class="min-h-screen bg-background flex flex-col">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-20 bg-white border-b border-border">
+      <view class="flex items-center justify-between h-12 px-4">
+        <view class="p-1 -ml-1" @click="goBack">
+          <text class="text-xl text-foreground">←</text>
+        </view>
+        <text class="font-semibold text-base text-foreground">{{ document ? document.title : '加载中...' }}</text>
+        <view v-if="toc.length > 0" @click="showToc = !showToc">
+          <text class="text-sm text-primary">目录</text>
+        </view>
+        <view v-else class="w-9" />
+      </view>
+    </view>
+
+    <!-- 文档信息 -->
+    <view v-if="document" class="px-4 py-2.5 border-b border-border bg-[#F2EFEA]/50">
+      <view class="flex items-center gap-4 text-[10px] text-muted-foreground">
+        <text>返回</text>
+        <text>生效日期：{{ document.effectiveDate }}</text>
+        <text>更新时间：{{ document.updatedAt }}</text>
+      </view>
+      <view v-if="document.hasConfirmed" class="mt-1 flex items-center gap-1 text-[10px] text-green-600">
+        <text>✓</text>
+        <text>您已于 {{ document.confirmedAt || '之前' }} 确认</text>
+      </view>
+    </view>
+
+    <!-- 加载中 -->
+    <view v-if="isLoading" class="flex-1 flex items-center justify-center">
+      <view class="text-center">
+        <text class="text-4xl block mb-3 animate-spin"></text>
+        <text class="text-sm text-muted-foreground">加载中...</text>
+      </view>
+    </view>
+
+    <!-- 文档不存在 -->
+    <view v-else-if="!document" class="flex-1 flex flex-col items-center justify-center gap-4">
+      <text class="text-5xl text-muted-foreground"></text>
+      <text class="text-sm text-muted-foreground">文档不存在</text>
+      <view class="px-6 py-2 bg-[#F2EFEA] text-foreground text-sm rounded-xl" @click="goBack">
+        <text>返回</text>
+      </view>
+    </view>
+
+    <!-- 正文内容 -->
+    <scroll-view v-else scroll-y class="scroll-content flex-1 px-4 py-4" @scroll="onScroll" :scroll-top="scrollTo">
+      <view v-for="section in sections" :key="section.title">
+        <text class="text-base font-semibold text-foreground block mt-6 mb-3 pb-1 border-b border-border">{{ section.title }}</text>
+        <text v-for="(p, pi) in section.paragraphs" :key="pi" class="text-xs text-ink-soft block leading-relaxed my-2">{{ p }}</text>
+      </view>
+      <view class="h-16" />
+    </scroll-view>
+
+    <!-- 目录遮罩 -->
+    <view v-if="showToc && toc.length > 0" class="fixed inset-0 z-30 bg-black/30" @click="showToc = false" />
+
+    <!-- 目录侧栏 -->
+    <view v-if="showToc && toc.length > 0" class="fixed top-12 right-0 bottom-0 w-64 bg-white z-40 border-l border-border shadow-lg overflow-y-auto">
+      <view class="p-4">
+        <text class="font-semibold text-foreground block mb-3 text-sm">目录</text>
+        <view class="space-y-1">
+          <view v-for="item in toc" :key="item.id" class="py-2 px-3 rounded-lg text-xs text-foreground flex items-center gap-2" @click="scrollToSection(item.id)">
+            <text class="text-muted-foreground text-[10px]">›</text>
+            <text>{{ item.title }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部按钮 -->
+    <view v-if="needConfirm" class="border-t border-border bg-white p-4">
+      <view
+        :class="['w-full h-12 rounded-xl font-medium flex items-center justify-center gap-2', hasScrolledToBottom && !isConfirming ? 'bg-primary text-white' : 'bg-[#F2EFEA] text-muted-foreground']"
+        @click="handleConfirm"
+      >
+        <text v-if="isConfirming">确认中...</text>
+        <text v-else-if="hasScrolledToBottom">✓ 我已阅读并同意</text>
+        <text v-else>请阅读完整内容</text>
+      </view>
+      <text v-if="!hasScrolledToBottom" class="text-[10px] text-center text-muted-foreground block mt-2">请滚动到页面底部后确认</text>
+    </view>
+    <view v-else class="border-t border-border bg-white p-4">
+      <view class="w-full h-12 rounded-xl font-medium flex items-center justify-center bg-[#F2EFEA] text-foreground" @click="goBack">
+        <text>返回</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, nextTick } from 'vue'
+
+interface SectionData { id: number; title: string; paragraphs: string[] }
+
+const docTypeMap: Record<string, { title: string; sections: SectionData[] }> = {
+  'user-agreement': {
+    title: '用户协议',
+    sections: [
+      { id: 1, title: '第一条 总则', paragraphs: ['欢迎使用热卜国学平台（以下简称"本平台"）。本协议是用户（以下简称"您"）与本平台之间关于使用平台服务的法律协议。', '在注册、使用本平台前，请您仔细阅读并充分理解本协议的全部内容。如您不同意本协议的任何条款，请立即停止注册或使用本平台。', '您一旦注册或使用本平台，即表示您已充分阅读、理解并同意接受本协议的全部内容。'] },
+      { id: 2, title: '第二条 用户注册', paragraphs: ['您在注册时应提供真实、准确、完整的个人信息，包括但不限于手机号码、电子邮箱等。', '注册成功后，您将获得一个账号和密码，应妥善保管，并对账号下的所有行为负责。', '如发现任何未经授权使用您账号的情况，应立即通知本平台。'] },
+      { id: 3, title: '第三条 用户行为规范', paragraphs: ['您承诺在使用本平台服务时遵守国家法律法规，不得利用本平台从事违法违规活动。', '不得发布含有淫秽、色情、赌博、暴力、凶杀、恐怖或者教唆犯罪的信息。', '不得侵犯他人知识产权、商业秘密或其他合法权益。'] },
+      { id: 4, title: '第四条 知识产权', paragraphs: ['本平台提供的所有内容，包括但不限于课程、文章、图片、音频、视频等，均受知识产权法保护。', '未经本平台书面许可，任何人不得以任何方式复制、传播、展示、镜像、上载、下载本平台的内容。'] },
+      { id: 5, title: '第五条 隐私保护', paragraphs: ['本平台重视用户隐私保护，将按照隐私政策收集、使用和保护您的个人信息。', '未经您的明确同意，本平台不会向第三方披露您的个人信息，法律法规另有规定的除外。'] },
+      { id: 6, title: '第六条 免责声明', paragraphs: ['本平台对由于不可抗力或无法控制的原因造成的服务中断或其他缺陷不承担责任。', '本平台保留根据实际情况调整服务内容、暂停或终止服务的权利。'] },
+      { id: 7, title: '第七条 法律适用', paragraphs: ['本协议的订立、执行和解释及争议的解决均适用中华人民共和国法律。', '因本协议引起的或与本协议有关的任何争议，双方应首先友好协商解决；协商不成的，任何一方均可提交本平台所在地有管辖权的人民法院诉讼解决。'] },
+    ],
+  },
+  'privacy-policy': {
+    title: '隐私政策',
+    sections: [
+      { id: 1, title: '第一条 信息收集', paragraphs: ['我们在您注册账号时收集您的手机号码、昵称、头像等基本信息。', '在您使用课程学习、圈子交流等功能时，我们会收集您的学习记录、互动数据。'] },
+      { id: 2, title: '第二条 信息使用', paragraphs: ['收集的信息用于为您提供个性化的学习推荐和服务。', '用于改进我们的产品和服务质量。'] },
+      { id: 3, title: '第三条 信息保护', paragraphs: ['我们采用行业标准的安全措施保护您的个人信息。', '我们定期审查数据处理和存储流程，防止未经授权的访问。'] },
+      { id: 4, title: '第四条 用户权利', paragraphs: ['您有权访问、更正和删除您的个人信息。', '您有权撤回对个人信息使用的同意。'] },
+    ],
+  },
+}
+
+const isLoading = ref(true)
+const document = ref<{ title: string; version: string; effectiveDate: string; updatedAt: string; hasConfirmed: boolean; requireConfirm: boolean; confirmedAt: string | null } | null>(null)
+const toc = ref<{ id: number; title: string }[]>([])
+const sections = ref<SectionData[]>([])
+const needConfirm = computed(() => document.value ? document.value.requireConfirm && !document.value.hasConfirmed : false)
+const hasScrolledToBottom = ref(false)
+const isConfirming = ref(false)
+const showToc = ref(false)
+const scrollTo = ref(0)
+const scrollViewHeight = ref(600)
+
+onMounted(() => {
+  // 获取路由参数
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1] as any
+  const type = currentPage?.$page?.options?.type || currentPage?.options?.type || 'user-agreement'
+
+  // 获取scroll-view高度
+  nextTick(() => {
+    uni.createSelectorQuery().select('.scroll-content').boundingClientRect((data: any) => {
+      if (data) scrollViewHeight.value = data.height
+    }).exec()
+  })
+
+  setTimeout(() => {
+    const docConfig = docTypeMap[type] || docTypeMap['user-agreement']
+    document.value = { title: docConfig.title, version: 'v2.1', effectiveDate: '2024-01-01', updatedAt: '2024-06-01', hasConfirmed: false, requireConfirm: true, confirmedAt: null }
+    sections.value = docConfig.sections
+    toc.value = docConfig.sections.map(s => ({ id: s.id, title: s.title }))
+    isLoading.value = false
+  }, 600)
+})
+
+function onScroll(e: any) {
+  const detail = e.detail
+  if (!detail) return
+  const { scrollHeight, scrollTop } = detail
+  if (scrollHeight - scrollTop - scrollViewHeight.value < 50) {
+    hasScrolledToBottom.value = true
+  }
+}
+
+function scrollToSection(id: number) {
+  showToc.value = false
+  // Calculate approximate scroll position based on section index
+  const idx = sections.value.findIndex(s => s.id === id)
+  if (idx > -1) {
+    // Each section header ~40px + paragraphs ~20px each + margins ~24px
+    let pos = 0
+    for (let i = 0; i < idx; i++) {
+      pos += 40 + sections.value[i].paragraphs.length * 28 + 24
+    }
+    scrollTo.value = pos
+  }
+}
+
+async function handleConfirm() {
+  if (!hasScrolledToBottom.value || isConfirming.value || !document.value) return
+  isConfirming.value = true
+  await new Promise(resolve => setTimeout(resolve, 800))
+  document.value.hasConfirmed = true
+  isConfirming.value = false
+  uni.showToast({ title: '已确认', icon: 'success' })
+  setTimeout(() => uni.navigateBack(), 500)
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

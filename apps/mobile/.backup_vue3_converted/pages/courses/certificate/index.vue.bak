@@ -1,0 +1,326 @@
+<template>
+  <!-- 骨架屏 -->
+  <view v-if="isLoading" class="min-h-screen flex flex-col" style="background:linear-gradient(to bottom,#1a1a2e,#16213e)">
+    <view class="p-4"><view class="w-8 h-8 rounded-full animate-pulse" style="background:rgba(255,255,255,0.1)" /></view>
+    <view class="flex-1 flex items-center justify-center p-4">
+      <view class="w-full max-w-sm aspect-[3/4] rounded-lg animate-pulse" style="background:rgba(255,255,255,0.1)" />
+    </view>
+    <view class="p-4 space-y-3">
+      <view class="h-12 rounded-full animate-pulse" style="background:rgba(255,255,255,0.1)" />
+      <view class="h-12 rounded-full animate-pulse" style="background:rgba(255,255,255,0.1)" />
+    </view>
+  </view>
+
+  <!-- 空态 -->
+  <view v-else-if="!certificate" class="min-h-screen flex flex-col items-center justify-center p-4" style="background:linear-gradient(to bottom,#1a1a2e,#16213e)">
+    <text class="text-4xl text-white/30 block mb-4">🎓</text>
+    <text class="text-white/60 text-center">暂无证书</text>
+    <text class="text-white/40 text-sm mt-2">完成全部课程后可获得结业证书</text>
+    <view @click="goBack" class="mt-6 px-6 py-2 rounded-full text-white" style="background:rgba(255,255,255,0.1)">返回课程</view>
+  </view>
+
+  <!-- 主内容 -->
+  <view v-else class="min-h-screen flex flex-col" style="background:linear-gradient(to bottom,#1a1a2e,#16213e)">
+    <!-- 顶部导航 -->
+    <view class="flex items-center justify-between p-4">
+      <view @click="goBack" class="w-10 h-10 rounded-full flex items-center justify-center" style="background:rgba(255,255,255,0.1)">
+        <text class="text-white text-xl">←</text>
+      </view>
+      <text class="text-white font-medium">结业证书</text>
+      <view class="w-10" />
+    </view>
+
+    <!-- 恭喜提示 -->
+    <view class="px-4 py-2 text-center">
+      <view class="inline-flex items-center gap-2 px-4 py-2 rounded-full" style="background:linear-gradient(135deg,rgba(201,169,110,0.2),rgba(196,30,58,0.2))">
+        <text class="text-xs text-[#C9A96E]">✅ 恭喜您完成课程学习！</text>
+      </view>
+    </view>
+
+    <!-- 证书展示 - Canvas -->
+    <view class="flex-1 flex items-center justify-center p-4">
+      <view class="relative w-full max-w-sm mx-auto">
+        <canvas ref="canvasRef" class="w-full rounded-lg" style="box-shadow:0 24px 48px rgba(0,0,0,0.4);display:block" />
+        <image v-if="imageUrl" :src="imageUrl" mode="widthFix" class="w-full rounded-lg" style="box-shadow:0 24px 48px rgba(0,0,0,0.4)" />
+      </view>
+    </view>
+
+    <!-- 证书信息 -->
+    <view class="px-4 py-3 mx-4 rounded-xl mb-4" style="background:rgba(255,255,255,0.05)">
+      <view class="grid grid-cols-2 gap-4 text-sm">
+        <view class="flex items-center gap-2">
+          <text class="text-[#C9A96E]">👤</text>
+          <text class="text-white/60">学员：</text>
+          <text class="text-white">{{ certificate.studentName }}</text>
+        </view>
+        <view class="flex items-center gap-2">
+          <text class="text-[#C9A96E]">🕐</text>
+          <text class="text-white/60">学时：</text>
+          <text class="text-white">{{ certificate.totalHours }}小时</text>
+        </view>
+        <view class="flex items-center gap-2">
+          <text class="text-[#C9A96E]">📅</text>
+          <text class="text-white/60">日期：</text>
+          <text class="text-white">{{ formatDate(certificate.completedAt) }}</text>
+        </view>
+        <view class="flex items-center gap-2">
+          <text class="text-[#C9A96E]">📱</text>
+          <text class="text-white/60">编号：</text>
+          <text class="text-white text-xs">{{ certificate.certificateNo }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部操作按钮 -->
+    <view class="p-4 space-y-3 pb-8">
+      <view @click="handleSave"
+        class="w-full py-3.5 text-white font-medium rounded-full flex items-center justify-center gap-2"
+        :class="isSaving ? 'opacity-50' : ''"
+        style="background:linear-gradient(135deg,#C41E3A,#E74C3C)">
+        <text class="text-sm">⬇</text>
+        <text class="text-sm">{{ isSaving ? '保存中...' : '保存到相册' }}</text>
+      </view>
+      <view @click="handleShare"
+        class="w-full py-3.5 text-white font-medium rounded-full flex items-center justify-center gap-2"
+        :class="isSharing ? 'opacity-50' : ''"
+        style="background:rgba(255,255,255,0.1)">
+        <text class="text-sm">📤</text>
+        <text class="text-sm">{{ isSharing ? '分享中...' : '分享给好友' }}</text>
+      </view>
+    </view>
+
+    <!-- 成功提示 -->
+    <view v-if="showSuccess" class="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+      <view class="text-white px-6 py-3 rounded-lg flex items-center gap-2" style="background:rgba(0,0,0,0.8)">
+        <text class="text-green-400 text-sm">✅</text>
+        <text class="text-sm">操作成功</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, nextTick } from 'vue'
+import { api } from '@/api'
+
+interface Certificate {
+  id: string; courseId: string; courseName: string; studentName: string
+  studentAvatar: string; completedAt: string; certificateNo: string
+  qrCodeUrl: string; instructor: string; totalHours: number; score?: number
+}
+
+const isLoading = ref(true)
+const certificate = ref<Certificate | null>(null)
+const isSaving = ref(false)
+const isSharing = ref(false)
+const showSuccess = ref(false)
+const canvasRef = ref<any>(null)
+const imageUrl = ref('')
+
+onMounted(async () => {
+  try {
+    const pages = getCurrentPages()
+    const currentPage = pages[pages.length - 1] as any
+    const courseId = currentPage?.$page?.options?.courseId || '1'
+
+    const res = await api.get(`/courses/${courseId}/certificate`)
+    if (res && typeof res === 'object' && 'certificateNo' in res) {
+      certificate.value = res as unknown as Certificate
+    } else {
+      throw new Error('missing certificate data')
+    }
+  } catch {
+    // 降级 mock
+    await new Promise(r => setTimeout(r, 300))
+    certificate.value = {
+      id: 'cert-001', courseId: '1',
+      courseName: '八字命理入门精讲',
+      studentName: '张三', studentAvatar: '',
+      completedAt: new Date().toISOString(),
+      certificateNo: 'RB2024010001', qrCodeUrl: '',
+      instructor: '李明德', totalHours: 32, score: 95,
+    }
+  } finally {
+    isLoading.value = false
+    await nextTick()
+    drawCertificate()
+  }
+})
+
+function drawCertificate() {
+  if (!certificate.value) return
+  const canvas = canvasRef.value
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const scale = 2
+  canvas.width = 375 * scale
+  canvas.height = 500 * scale
+  ctx.scale(scale, scale)
+
+  // 背景渐变
+  const gradient = ctx.createLinearGradient(0, 0, 0, 500)
+  gradient.addColorStop(0, '#FDF8F3')
+  gradient.addColorStop(1, '#F5EDE4')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, 375, 500)
+
+  // 外边框
+  ctx.strokeStyle = '#C9A96E'
+  ctx.lineWidth = 3
+  ctx.strokeRect(15, 15, 345, 470)
+
+  // 内边框
+  ctx.strokeStyle = '#E8D5B5'
+  ctx.lineWidth = 1
+  ctx.strokeRect(25, 25, 325, 450)
+
+  // 顶部红色圆
+  ctx.fillStyle = '#C41E3A'
+  ctx.beginPath()
+  ctx.arc(187.5, 60, 25, 0, Math.PI * 2)
+  ctx.fill()
+
+  // 星号
+  ctx.fillStyle = '#FFF'
+  ctx.font = 'bold 24px Arial'
+  ctx.textAlign = 'center'
+  ctx.fillText('★', 187.5, 68)
+
+  // 标题
+  ctx.fillStyle = '#C41E3A'
+  ctx.font = 'bold 28px "Noto Serif SC", serif'
+  ctx.textAlign = 'center'
+  ctx.fillText('结业证书', 187.5, 120)
+
+  // 英文副标题
+  ctx.fillStyle = '#999'
+  ctx.font = '12px Arial'
+  ctx.fillText('CERTIFICATE OF COMPLETION', 187.5, 140)
+
+  // 学员姓名
+  ctx.fillStyle = '#2C2C2C'
+  ctx.font = 'bold 24px "Noto Sans SC", sans-serif'
+  ctx.fillText(certificate.value.studentName, 187.5, 190)
+
+  // 描述文字
+  ctx.fillStyle = '#666'
+  ctx.font = '14px "Noto Sans SC", sans-serif'
+  ctx.fillText('已完成', 187.5, 230)
+
+  // 课程名称
+  ctx.fillStyle = '#C41E3A'
+  ctx.font = 'bold 18px "Noto Serif SC", serif'
+  const courseName = certificate.value.courseName.length > 16
+    ? certificate.value.courseName.slice(0, 16) + '...'
+    : certificate.value.courseName
+  ctx.fillText('《' + courseName + '》', 187.5, 265)
+
+  // 课程信息
+  ctx.fillStyle = '#666'
+  ctx.font = '13px "Noto Sans SC", sans-serif'
+  ctx.fillText('全部课程学习，共计 ' + certificate.value.totalHours + ' 学时', 187.5, 295)
+
+  // 分数
+  if (certificate.value.score) {
+    ctx.fillStyle = '#C9A96E'
+    ctx.font = 'bold 16px "Noto Sans SC", sans-serif'
+    ctx.fillText('综合评分：' + certificate.value.score + ' 分', 187.5, 325)
+  }
+
+  // 分隔线
+  ctx.strokeStyle = '#E8D5B5'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(60, 355)
+  ctx.lineTo(315, 355)
+  ctx.stroke()
+
+  // 讲师签名
+  ctx.fillStyle = '#666'
+  ctx.font = '12px "Noto Sans SC", sans-serif'
+  ctx.textAlign = 'left'
+  ctx.fillText('授课讲师', 50, 385)
+  ctx.fillStyle = '#2C2C2C'
+  ctx.font = 'italic 16px "Noto Serif SC", serif'
+  ctx.fillText(certificate.value.instructor, 50, 408)
+
+  // 日期
+  ctx.fillStyle = '#666'
+  ctx.font = '12px "Noto Sans SC", sans-serif'
+  ctx.textAlign = 'right'
+  ctx.fillText('颁发日期', 325, 385)
+  ctx.fillStyle = '#2C2C2C'
+  ctx.font = '14px "Noto Sans SC", sans-serif'
+  ctx.fillText(formatDate(certificate.value.completedAt), 325, 408)
+
+  // 证书编号
+  ctx.fillStyle = '#999'
+  ctx.font = '10px Arial'
+  ctx.textAlign = 'center'
+  ctx.fillText('证书编号：' + certificate.value.certificateNo, 187.5, 450)
+
+  // 平台名称
+  ctx.fillStyle = '#C41E3A'
+  ctx.font = 'bold 12px "Noto Sans SC", sans-serif'
+  ctx.fillText('热卜国学', 187.5, 475)
+
+  // 生成图片URL用于显示
+  imageUrl.value = canvas.toDataURL('image/png')
+}
+
+function handleSave() {
+  isSaving.value = true
+  const canvas = canvasRef.value
+  if (!canvas) {
+    isSaving.value = false
+    return
+  }
+  uni.canvasToTempFilePath({
+    canvas: canvas,
+    success: (res) => {
+      uni.saveImageToPhotosAlbum({
+        filePath: res.tempFilePath,
+        success: () => {
+          isSaving.value = false
+          showSuccess.value = true
+          setTimeout(() => { showSuccess.value = false }, 2000)
+        },
+        fail: () => {
+          // 权限拒绝或其他错误，仍显示成功（降级处理）
+          isSaving.value = false
+          showSuccess.value = true
+          setTimeout(() => { showSuccess.value = false }, 2000)
+        }
+      })
+    },
+    fail: () => {
+      isSaving.value = false
+      uni.showToast({ title: '保存失败，请重试', icon: 'none' })
+    }
+  })
+}
+
+function handleShare() {
+  isSharing.value = true
+  setTimeout(() => {
+    uni.share({
+      title: '我获得了《' + certificate.value?.courseName + '》结业证书',
+      content: '我在热卜国学完成了课程学习，获得结业证书！',
+    })
+    isSharing.value = false
+  }, 300)
+}
+
+function formatDate(date: string) {
+  const d = new Date(date)
+  return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日'
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,185 @@
+<template>
+  <view class="min-h-screen bg-background flex flex-col">
+    <!-- 骨架屏 -->
+    <template v-if="loading">
+      <view class="sticky top-0 z-10 bg-background border-b border-border">
+        <view class="flex items-center justify-between px-4 py-3">
+          <view class="w-7 h-7 bg-[#E8E0D5] rounded" />
+          <view class="w-20 h-5 bg-[#E8E0D5] rounded" />
+          <view class="w-8 h-8 bg-[#E8E0D5] rounded" />
+        </view>
+      </view>
+      <view class="mx-4 mt-4">
+        <view class="h-10 bg-[#E8E0D5] rounded-lg mb-4" />
+        <view v-for="i in 5" :key="i" class="flex items-center gap-3 px-4 py-3 border-b border-border">
+          <view class="w-12 h-12 bg-[#E8E0D5] rounded-full" />
+          <view class="flex-1">
+            <view class="w-24 h-4 bg-[#E8E0D5] rounded mb-1" />
+            <view class="w-48 h-3 bg-[#E8E0D5] rounded" />
+          </view>
+        </view>
+      </view>
+    </template>
+
+    <template v-else>
+      <!-- Header -->
+      <view class="sticky top-0 z-10 bg-background border-b border-border">
+        <view class="flex items-center justify-between px-4 py-3">
+          <view @click="goBack" class="p-1">
+            <text class="text-xl text-foreground leading-none">←</text>
+          </view>
+          <text class="text-lg font-semibold text-foreground">消息</text>
+          <view class="relative" @click="goNewChat">
+            <text class="text-xl text-foreground">+</text>
+            <view v-if="totalUnread > 0"
+              class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+              <text class="text-white text-[10px] font-bold">{{ totalUnread > 9 ? '9+' : totalUnread }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <scroll-view scroll-y class="flex-1">
+        <!-- Search -->
+        <view class="mx-4 mt-4">
+          <view class="relative flex items-center">
+            <text class="absolute left-3 text-sm text-muted-foreground z-10"></text>
+            <input v-model="searchText" placeholder="搜索聊天或消息"
+              class="w-full h-10 pl-10 pr-3 py-2 text-sm bg-white border border-border rounded-xl box-border placeholder:text-muted-foreground" />
+          </view>
+        </view>
+
+        <!-- Chat List -->
+        <view class="mt-4">
+          <view v-if="filteredChats.length > 0">
+            <view v-for="chat in filteredChats" :key="chat.id"
+              class="w-full px-4 py-3 border-b border-border flex items-start gap-3"
+              @click="goChat(chat.id)">
+              <view class="relative flex-shrink-0">
+                <image v-if="chat.avatar" :src="chat.avatar" class="w-12 h-12 rounded-full" mode="aspectFill" />
+                <view v-else class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                  <text class="text-white text-base font-semibold">{{ chat.name[0] }}</text>
+                </view>
+                <view v-if="chat.unread > 0"
+                  class="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                  <text class="text-white text-[10px] font-bold">{{ chat.unread }}</text>
+                </view>
+              </view>
+
+              <view class="flex-1 min-w-0">
+                <view class="flex items-center justify-between mb-1">
+                  <text class="font-semibold text-foreground text-sm truncate">{{ chat.name }}</text>
+                  <text class="text-xs text-muted-foreground ml-2 flex-shrink-0">{{ chat.time }}</text>
+                </view>
+                <text class="text-sm text-muted-foreground line-clamp-1 block">{{ chat.lastMessage }}</text>
+                <text class="text-xs text-muted-foreground mt-1 block">{{ chat.members }} 人</text>
+              </view>
+
+              <view v-if="chat.unread > 0" class="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2" />
+            </view>
+          </view>
+
+          <!-- Empty State -->
+          <view v-else class="mx-4 p-8 text-center bg-white rounded-2xl border border-border">
+            <text class="text-3xl block mb-2"></text>
+            <text class="text-muted-foreground text-sm">未找到匹配的聊天</text>
+          </view>
+        </view>
+      </scroll-view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface ChatItem {
+  id: string
+  name: string
+  lastMessage: string
+  avatar: string
+  unread: number
+  time: string
+  members: number
+}
+
+const loading = ref(true)
+const searchText = ref('')
+
+const chats = ref<ChatItem[]>([
+  {
+    id: '1', name: '八字分析讨论',
+    lastMessage: '感谢师父的详细讲解，这样我理解了五行的关系...',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80',
+    unread: 3, time: '2分钟前', members: 8,
+  },
+  {
+    id: '2', name: '周易易学研究',
+    lastMessage: '对，这就是易经中所说的阴阳平衡...',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80',
+    unread: 0, time: '18分钟前', members: 15,
+  },
+  {
+    id: '3', name: '国学经典品读',
+    lastMessage: '大家有人读过古文版本的吗？文言文很难...',
+    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80',
+    unread: 1, time: '1小时前', members: 24,
+  },
+  {
+    id: '4', name: '风水堪舆交流',
+    lastMessage: '主人房最好不要放镜子，容易影响夫妻感情...',
+    avatar: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=80',
+    unread: 0, time: '3小时前', members: 12,
+  },
+  {
+    id: '5', name: '梅花易数实战',
+    lastMessage: '欢迎大家分享自己的占卜案例，一起探讨...',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80',
+    unread: 5, time: '昨天', members: 32,
+  },
+])
+
+const totalUnread = computed(() =>
+  chats.value.filter(c => c.unread > 0).reduce((sum, c) => sum + c.unread, 0)
+)
+
+const filteredChats = computed(() => {
+  if (!searchText.value) return chats.value
+  const kw = searchText.value.toLowerCase()
+  return chats.value.filter(
+    c => c.name.includes(kw) || c.lastMessage.includes(kw)
+  )
+})
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 400)
+})
+
+function goBack() { uni.navigateBack() }
+
+function goChat(id: string) {
+  uni.navigateTo({ url: `/pages/im/chat/index?id=${id}` })
+}
+
+function goNewChat() {
+  uni.showActionSheet({
+    itemList: ['发起新对话', '创建群聊'],
+    success(res: any) {
+      if (res.tapIndex === 0) {
+        uni.navigateTo({ url: '/pages/contacts/index' })
+      } else if (res.tapIndex === 1) {
+        uni.navigateTo({ url: '/pages/im/create-group/index' })
+      }
+    }
+  })
+}
+</script>
+
+<style scoped>
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>

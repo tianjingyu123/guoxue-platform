@@ -1,0 +1,356 @@
+<template>
+  <view class="min-h-screen bg-background pb-24">
+    <!-- 响应式布局容器 -->
+    <view class="lg:flex lg:max-w-6xl lg:mx-auto lg:gap-6 lg:p-6">
+      <!-- 左侧主内容区 -->
+      <view class="lg:flex-1 lg:min-w-0">
+        <!-- 封面图轮播 -->
+        <view class="lg:rounded-xl lg:overflow-hidden">
+          <view class="relative w-full aspect-video bg-gradient-to-br from-primary/20 to-accent/20">
+            <image :src="course.images[activeImage]" mode="aspectFill" class="w-full h-full" />
+            <view class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            <!-- 返回/分享/收藏按钮 -->
+            <view class="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
+              <view class="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center" @click="goBack">
+                <text class="text-white text-xl">←</text>
+              </view>
+              <view class="flex items-center gap-2">
+                <view class="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center" @click="handleShare">
+                  <text class="text-white text-lg"></text>
+                </view>
+                <view class="w-10 h-10 rounded-full bg-black/30 flex items-center justify-center" @click="handleFavorite">
+                  <text :class="['text-lg', isFavorited ? 'text-primary' : 'text-white']"></text>
+                </view>
+              </view>
+            </view>
+            <!-- 图片指示器 -->
+            <view v-if="course.images.length > 1" class="absolute bottom-3 right-3 px-2 py-1 bg-black/40 rounded-full">
+              <text class="text-white text-xs">{{ activeImage + 1 }}/{{ course.images.length }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 营销位：限时优惠倒计时横幅 -->
+        <view v-if="!isPurchased" class="px-4 py-2 lg:px-0 lg:mt-4">
+          <view class="bg-gradient-to-r from-primary to-primary/70 rounded-xl px-4 py-3 flex items-center justify-between">
+            <view class="flex items-center gap-2">
+              <text class="text-yellow-300"></text>
+              <view>
+                <text class="text-white text-sm font-medium">限时特惠</text>
+                <text class="text-white/80 text-xs block">省¥{{ course.originalPrice - course.currentPrice }}</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-1">
+              <text class="bg-white/20 text-white text-xs px-2 py-1 rounded font-mono">{{ pad(timeLeft.h) }}</text>
+              <text class="text-white text-xs">:</text>
+              <text class="bg-white/20 text-white text-xs px-2 py-1 rounded font-mono">{{ pad(timeLeft.m) }}</text>
+              <text class="text-white text-xs">:</text>
+              <text class="bg-white/20 text-white text-xs px-2 py-1 rounded font-mono">{{ pad(timeLeft.s) }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 课程基本信息 - 移动端 -->
+        <view class="lg:hidden">
+          <view class="bg-white px-4 py-4">
+            <text class="text-lg font-bold text-foreground leading-tight block">{{ course.title }}</text>
+            <view class="flex items-center gap-2 mt-2 mb-3">
+              <view v-for="tag in course.tags" :key="tag" class="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary">{{ tag }}</view>
+            </view>
+            <view class="flex items-baseline gap-2 mb-2">
+              <text class="text-3xl font-bold text-primary"><text class="text-lg">¥</text>{{ course.currentPrice }}</text>
+              <text class="text-sm text-muted-foreground line-through">¥{{ course.originalPrice }}</text>
+              <text class="text-xs text-green-500 font-medium">省¥{{ course.originalPrice - course.currentPrice }}</text>
+            </view>
+            <text class="text-sm text-muted-foreground">{{ course.studentsCount.toLocaleString() }} 人已学习</text>
+          </view>
+        </view>
+
+        <!-- 讲师信息 -->
+        <view class="lg:mt-4 lg:rounded-xl lg:overflow-hidden">
+          <view class="bg-white px-4 py-4 lg:rounded-xl">
+            <view class="flex items-center gap-3">
+              <view class="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
+                <text class="text-lg font-medium text-primary">{{ course.instructor.name.charAt(0) }}</text>
+              </view>
+              <view class="flex-1">
+                <view class="flex items-center gap-2">
+                  <text class="text-base font-semibold text-foreground">{{ course.instructor.name }}</text>
+                  <text v-if="course.instructor.isVerified" class="text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded">✓ 认证</text>
+                </view>
+                <text class="text-sm text-accent">{{ course.instructor.title }}</text>
+                <text class="text-xs text-muted-foreground block">{{ course.instructor.description }}</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-4 mt-3 pt-3 border-t border-[#F2EFEA] text-xs text-muted-foreground">
+              <text> {{ course.instructor.coursesCount }} 课程</text>
+              <text> {{ course.instructor.studentsCount }} 学员</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 营销位：优惠券领取卡片 -->
+        <view v-if="!isPurchased" class="px-4 py-2 lg:px-0 lg:mt-4">
+          <view class="bg-gradient-to-r from-accent/10 to-accent/5 border border-accent/30 rounded-xl px-4 py-3 flex items-center justify-between">
+            <view class="flex items-center gap-3">
+              <view class="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                <text class="text-lg">️</text>
+              </view>
+              <view>
+                <text class="text-sm font-medium text-foreground">满199减30</text>
+                <text class="text-xs text-muted-foreground">限时领取优惠券</text>
+              </view>
+            </view>
+            <view class="px-4 py-1.5 bg-primary text-white text-sm rounded-full">领取</view>
+          </view>
+        </view>
+
+        <!-- 课程介绍 -->
+        <view class="lg:mt-4">
+          <view class="bg-white px-4 py-4 lg:rounded-xl">
+            <text class="text-base font-bold text-foreground mb-3 block">课程介绍</text>
+            <view class="flex flex-wrap gap-2 mb-4">
+              <view v-for="h in course.highlights" :key="h" class="px-3 py-1 bg-primary/5 text-primary text-xs rounded-full">{{ h }}</view>
+            </view>
+            <text class="text-sm text-ink-soft leading-relaxed whitespace-pre-line">{{ course.description }}</text>
+          </view>
+        </view>
+
+        <!-- 课程目录 -->
+        <view class="lg:mt-4">
+          <view class="bg-white lg:rounded-xl overflow-hidden">
+            <view class="px-4 py-4 border-b border-[#F2EFEA] flex items-center justify-between">
+              <text class="text-base font-bold text-foreground">课程目录</text>
+              <text class="text-xs text-muted-foreground">{{ sections.flatMap(s => s.chapters).length }}节课</text>
+            </view>
+            <view v-for="section in sections" :key="section.id" class="border-b border-[#F2EFEA] last:border-b-0">
+              <view class="px-4 py-3 bg-background flex items-center justify-between" @click="toggleSection(section.id)">
+                <text class="text-sm font-medium text-foreground">{{ section.title }}</text>
+                <text :class="['text-xs text-muted-foreground transition-transform', expandedSections.has(section.id) ? 'rotate-180' : '']">▾</text>
+              </view>
+              <view v-if="expandedSections.has(section.id)">
+                <view v-for="ch in section.chapters" :key="ch.id" class="px-4 py-3 flex items-center gap-3 border-b border-[#F2EFEA] last:border-b-0" @click="handlePlayChapter(ch.id)">
+                  <text :class="['text-xs', ch.isFree ? 'text-accent' : 'text-muted-foreground']">▶</text>
+                  <text class="flex-1 text-sm text-foreground">{{ ch.title }}</text>
+                  <text class="text-xs text-muted-foreground">{{ ch.duration }}</text>
+                  <text v-if="ch.isFree" class="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded">免费</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 学员评价 -->
+        <view class="lg:mt-4 lg:mb-6">
+          <view class="bg-white lg:rounded-xl overflow-hidden">
+            <view class="px-4 py-4 border-b border-[#F2EFEA]">
+              <view class="flex items-center justify-between mb-3">
+                <text class="text-base font-bold text-foreground">学员评价</text>
+                <text class="text-xs text-muted-foreground">{{ course.totalReviews }}条</text>
+              </view>
+              <view class="flex items-center gap-2">
+                <text class="text-3xl font-bold text-foreground">{{ course.averageRating }}</text>
+                <view class="flex items-center gap-0.5">
+                  <text v-for="s in 5" :key="s" :class="[s <= Math.round(course.averageRating) ? 'text-yellow-400' : 'text-[#E8E0D5]']">★</text>
+                </view>
+                <text class="text-xs text-muted-foreground">综合评分</text>
+              </view>
+            </view>
+            <view v-for="review in course.reviews" :key="review.id" class="px-4 py-4 border-b border-[#F2EFEA] last:border-b-0">
+              <view class="flex items-center gap-3 mb-2">
+                <view class="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                  <text class="text-xs font-medium text-primary">{{ review.userName.charAt(0) }}</text>
+                </view>
+                <view class="flex-1">
+                  <text class="text-sm font-medium text-foreground">{{ review.userName }}</text>
+                  <view class="flex items-center gap-1">
+                    <text v-for="s in 5" :key="s" :class="['text-xs', s <= review.rating ? 'text-yellow-400' : 'text-[#E8E0D5]']">★</text>
+                  </view>
+                </view>
+                <text class="text-[10px] text-muted-foreground">{{ review.date }}</text>
+              </view>
+              <text class="text-sm text-ink-soft leading-relaxed">{{ review.content }}</text>
+              <text class="text-xs text-muted-foreground mt-1 block"> {{ review.likes }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 右侧购买卡片 - 仅PC端 -->
+      <view class="hidden lg:block lg:w-80 lg:flex-shrink-0">
+        <view class="sticky top-6">
+          <view class="bg-white rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.06)] p-4 mb-4">
+            <text class="text-lg font-bold text-foreground leading-tight mb-3 block">{{ course.title }}</text>
+            <view class="flex flex-wrap gap-2 mb-4">
+              <view v-for="tag in course.tags" :key="tag" class="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary">{{ tag }}</view>
+            </view>
+            <view class="flex items-baseline gap-2 mb-4">
+              <text class="text-3xl font-bold text-primary"><text class="text-lg">¥</text>{{ course.currentPrice }}</text>
+              <text class="text-sm text-muted-foreground line-through">¥{{ course.originalPrice }}</text>
+              <text class="text-xs text-green-500 font-medium">省¥{{ course.originalPrice - course.currentPrice }}</text>
+            </view>
+            <text class="text-sm text-muted-foreground mb-4 block">{{ course.studentsCount.toLocaleString() }} 人已学习</text>
+            <view v-if="isPurchased">
+              <view class="w-full py-3 rounded-lg bg-green-500 text-white font-semibold text-center" @click="handleStartLearning">继续学习</view>
+            </view>
+            <view v-else class="space-y-3">
+              <view class="w-full py-3 rounded-lg bg-primary text-white font-semibold text-center shadow-lg" @click="handleBuy">立即购买</view>
+              <view class="w-full py-3 rounded-lg bg-accent/20 text-accent font-semibold text-center" @click="handleAddToCart">加入购物车</view>
+            </view>
+            <view class="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-[#F2EFEA] text-xs text-muted-foreground">
+              <text>7天无理由</text>
+              <text>•</text>
+              <text>永久回看</text>
+              <text>•</text>
+              <text>品质保障</text>
+            </view>
+          </view>
+          <view class="flex items-center justify-center gap-4">
+            <view class="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#F2EFEA] text-sm" @click="handleFavorite">
+              <text>{{ isFavorited ? '已收藏' : '收藏' }}</text>
+            </view>
+            <view class="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#F2EFEA] text-sm" @click="handleShare">
+              <text>分享</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部固定栏 - 仅移动端 -->
+    <view class="lg:hidden">
+      <view class="fixed bottom-0 left-0 right-0 bg-white border-t border-border px-4 py-3 z-50" style="padding-bottom: calc(12px + env(safe-area-inset-bottom))">
+        <view class="flex items-center justify-between">
+          <view class="flex items-center gap-3">
+            <text class="text-2xl font-bold text-primary"><text class="text-sm">¥</text>{{ course.currentPrice }}</text>
+            <text class="text-xs text-muted-foreground line-through">¥{{ course.originalPrice }}</text>
+          </view>
+          <view class="flex items-center gap-2">
+            <view class="w-10 h-10 rounded-full bg-[#F2EFEA] flex items-center justify-center" @click="handleFavorite">
+              <text :class="[isFavorited ? 'text-primary' : 'text-muted-foreground']"></text>
+            </view>
+            <view class="w-10 h-10 rounded-full bg-[#F2EFEA] flex items-center justify-center" @click="handleShare">
+              <text class="text-muted-foreground"></text>
+            </view>
+            <template v-if="isPurchased">
+              <view class="px-6 py-2.5 bg-green-500 text-white rounded-full text-sm font-medium" @click="handleStartLearning">继续学习</view>
+            </template>
+            <template v-else>
+              <view class="px-6 py-2.5 bg-gradient-to-r from-primary to-[#E74C3C] text-white rounded-full text-sm font-medium shadow-lg" @click="handleBuy">立即购买</view>
+            </template>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+
+interface Chapter { id: string; title: string; duration: string; isFree: boolean }
+interface Section { id: string; title: string; chapters: Chapter[] }
+interface Review {
+  id: string; userName: string; userAvatar: string
+  rating: number; content: string; date: string; likes: number
+}
+interface Instructor {
+  name: string; avatar: string; title: string; description: string
+  coursesCount: number; studentsCount: number; isVerified: boolean
+}
+
+const course = {
+  title: '八字命理学入门到精通：从基础理论到实战应用',
+  images: [
+    'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=450&fit=crop',
+    'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&h=450&fit=crop',
+    'https://images.unsplash.com/photo-1454496522488-7a8e488e8606?w=800&h=450&fit=crop',
+  ],
+  currentPrice: 199, originalPrice: 599, studentsCount: 3286,
+  tags: ['八字入门', '命理学', '实战案例'],
+  instructor: {
+    name: '李易轩', avatar: '', title: '命理大师',
+    description: '20年命理学研究，著有《八字精解》等多部著作',
+    coursesCount: 12, studentsCount: 28600, isVerified: true,
+  } as Instructor,
+  description: `本课程是一套系统的八字命理学习课程，从零基础入门到高级实战，帮助学员全面掌握八字命理的核心知识。
+
+课程内容涵盖：
+• 八字基础理论：天干地支、阴阳五行、十神关系
+• 命局分析方法：格局判断、喜忌分析、大运流年
+• 实战案例解析：婚姻感情、事业财运、健康寿元
+• 高级技法：神煞应用、纳音断命、特殊格局
+
+学完本课程，你将能够独立分析八字命盘，准确判断人生各方面的吉凶祸福。`,
+  highlights: ['系统教学', '案例实操', '一对一答疑', '永久回看'],
+  reviews: [
+    { id: 'r1', userName: '易学爱好者', userAvatar: '', rating: 5, content: '讲得非常清晰，从零基础到能看懂命盘，大概学了一个月。老师的讲解很有耐心，案例分析特别实用。', date: '2024-01-15', likes: 128 },
+    { id: 'r2', userName: '命理初学者', userAvatar: '', rating: 5, content: '一直想系统学习八字，这个课程正好满足需求。内容由浅入深，适合入门学习。', date: '2024-01-10', likes: 86 },
+    { id: 'r3', userName: '周易研习', userAvatar: '', rating: 4, content: '整体不错，就是希望能多一些实战案例。理论部分讲得很透彻，期待出进阶课程。', date: '2024-01-05', likes: 52 },
+  ] as Review[],
+  averageRating: 4.8, totalReviews: 326,
+}
+
+const sections: Section[] = [
+  { id: 's1', title: '第一章 八字命理基础', chapters: [
+    { id: 'c1', title: '1.1 什么是八字命理', duration: '12分钟', isFree: true },
+    { id: 'c2', title: '1.2 天干地支详解', duration: '18分钟', isFree: true },
+    { id: 'c3', title: '1.3 阴阳五行理论', duration: '25分钟', isFree: false },
+    { id: 'c4', title: '1.4 十神关系入门', duration: '22分钟', isFree: false },
+  ]},
+  { id: 's2', title: '第二章 命局分析方法', chapters: [
+    { id: 'c5', title: '2.1 八字格局判断', duration: '28分钟', isFree: false },
+    { id: 'c6', title: '2.2 喜用神分析', duration: '32分钟', isFree: false },
+    { id: 'c7', title: '2.3 大运流年解读', duration: '35分钟', isFree: false },
+  ]},
+  { id: 's3', title: '第三章 实战案例解析', chapters: [
+    { id: 'c8', title: '3.1 婚姻感情案例', duration: '40分钟', isFree: false },
+    { id: 'c9', title: '3.2 事业财运案例', duration: '38分钟', isFree: false },
+    { id: 'c10', title: '3.3 健康寿元案例', duration: '30分钟', isFree: false },
+  ]},
+  { id: 's4', title: '第四章 高级进阶技法', chapters: [
+    { id: 'c11', title: '4.1 神煞的实战应用', duration: '45分钟', isFree: false },
+    { id: 'c12', title: '4.2 纳音断命法', duration: '35分钟', isFree: false },
+    { id: 'c13', title: '4.3 特殊格局详解', duration: '42分钟', isFree: false },
+  ]},
+]
+
+const activeImage = ref(0)
+const isPurchased = ref(false)
+const isFavorited = ref(false)
+const expandedSections = ref<Set<string>>(new Set(['s1']))
+const timeLeft = ref({ h: 2, m: 35, s: 0 })
+let timer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  timer = setInterval(() => {
+    const t = timeLeft.value
+    if (t.s > 0) t.s--
+    else if (t.m > 0) { t.m--; t.s = 59 }
+    else if (t.h > 0) { t.h--; t.m = 59; t.s = 59 }
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
+
+function pad(n: number) { return String(n).padStart(2, '0') }
+function goBack() { uni.navigateBack() }
+function handleFavorite() { isFavorited.value = !isFavorited.value }
+function handleShare() { uni.showToast({ title: '分享已开启', icon: 'none' }) }
+function handleAddToCart() { uni.showToast({ title: '已加入购物车', icon: 'success' }) }
+function handleBuy() { uni.navigateTo({ url: '/pages/courses/purchase-confirm/index' }) }
+function handleStartLearning() { uni.navigateTo({ url: `/pages/courses/id-detail/learn/index?id=1` }) }
+function handlePlayChapter(chapterId: string) {
+  uni.navigateTo({ url: `/pages/courses/id-detail/player/index?chapterId=${chapterId}` })
+}
+function toggleSection(id: string) {
+  if (expandedSections.value.has(id)) expandedSections.value.delete(id)
+  else expandedSections.value.add(id)
+}
+</script>
+
+<style scoped>
+.line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+</style>

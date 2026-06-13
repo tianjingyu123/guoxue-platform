@@ -1,0 +1,163 @@
+<template>
+  <view class="flex flex-col h-screen bg-[#FAF8F5]">
+    <!-- 顶部栏 -->
+    <view class="flex-shrink-0 sticky top-0 z-10 bg-[#FAF8F5] border-b border-[#E8E0D5] flex items-center px-4 h-12 gap-3">
+      <view @click="goBack"><text class="text-lg">←</text></view>
+      <view class="flex items-center gap-2 flex-1">
+        <view class="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center">
+          <text class="text-sm">🎧</text>
+        </view>
+        <text class="text-base font-semibold">智能客服</text>
+        <text class="text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">在线</text>
+      </view>
+      <view class="p-1" @click="resetChat">
+        <text>🔄</text>
+      </view>
+    </view>
+
+    <!-- 消息列表 -->
+    <scroll-view scroll-y class="flex-1 px-4 py-4 space-y-4" :scroll-into-view="scrollToId">
+      <view v-for="msg in messages" :key="msg.id" :class="['flex gap-3 mb-4', msg.role === 'user' ? 'flex-row-reverse' : '']">
+        <view v-if="msg.role === 'assistant'" class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-1">
+          <text class="text-sm">🎧</text>
+        </view>
+        <view
+          class="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed"
+          :class="msg.role === 'assistant' ? 'bg-white border border-[#E8E0D5] rounded-tl-sm' : 'bg-[#C41E3A] text-white rounded-tr-sm'"
+        >
+          <template v-for="(seg, si) in parseBold(msg.content)" :key="si">
+            <text v-if="seg.bold" class="font-bold">{{ seg.text }}</text>
+            <text v-else class="whitespace-pre-wrap">{{ seg.text }}</text>
+          </template>
+          <text :class="['text-[10px] mt-1 block', msg.role === 'assistant' ? 'text-[#999]' : 'text-white/70']">{{ msg.time }}</text>
+        </view>
+      </view>
+
+      <!-- 加载指示器 -->
+      <view v-if="loading" class="flex gap-3 mb-4">
+        <view class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-1">
+          <text class="text-sm">🎧</text>
+        </view>
+        <view class="bg-white border border-[#E8E0D5] rounded-2xl rounded-tl-sm px-4 py-3">
+          <view class="flex gap-1">
+            <view class="w-1.5 h-1.5 rounded-full bg-[#C41E3A]/60 animate-bounce" />
+            <view class="w-1.5 h-1.5 rounded-full bg-[#C41E3A]/60 animate-bounce" style="animation-delay: 0.15s" />
+            <view class="w-1.5 h-1.5 rounded-full bg-[#C41E3A]/60 animate-bounce" style="animation-delay: 0.3s" />
+          </view>
+        </view>
+      </view>
+
+      <view id="msg-bottom" />
+    </scroll-view>
+
+    <!-- 快捷问题 -->
+    <view class="flex-shrink-0 px-4 py-2 flex gap-2 overflow-x-auto">
+      <view
+        v-for="q in quickQuestions"
+        :key="q"
+        class="shrink-0 text-xs px-3 py-1.5 rounded-full border border-[#E8E0D5] bg-[#F0EBE5]/50"
+        @click="send(q)"
+      >
+        <text>{{ q }}</text>
+      </view>
+    </view>
+
+    <!-- 输入区域 -->
+    <view class="flex-shrink-0 px-4 pb-6 pt-2 border-t border-[#E8E0D5] flex items-end gap-2">
+      <textarea
+        v-model="inputText"
+        class="flex-1 resize-none rounded-2xl border border-[#E8E0D5] bg-[#F0EBE5]/30 px-4 py-2.5 text-sm max-h-32"
+        :rows="1"
+        placeholder="描述您的问题…"
+        @confirm="send(inputText)"
+      />
+      <view
+        class="w-10 h-10 rounded-full bg-[#C41E3A] flex items-center justify-center shrink-0"
+        :class="!inputText.trim() || loading ? 'opacity-50' : ''"
+        @click="send(inputText)"
+      >
+        <text class="text-white text-sm">📨</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, nextTick } from 'vue'
+
+function goBack() { uni.navigateBack() }
+
+const quickQuestions = ['课程退款', 'VIP开通', '账号问题', '内容举报', '联系人工客服']
+
+const autoReplies: Record<string, string> = {
+  '课程退款': '退款申请流程：进入「我的订单」→ 找到对应课程 → 点击「申请退款」。购买7日内且观看进度低于30%可申请退款，退款将在3个工作日内原路退回。',
+  'VIP开通': 'VIP会员开通方式：进入「VIP中心」→ 选择套餐 → 完成支付即可立即生效。如遇支付问题请联系人工客服。',
+  '账号问题': '常见账号问题：\n• 忘记密码：点击登录页「忘记密码」通过手机或邮箱重置\n• 账号被封：请说明详细情况，我们将为您核查处理',
+  '内容举报': '如发现违规内容，请在内容详情页点击右上角「…」选择「举报」，填写举报原因提交。我们将在24小时内处理。',
+  '联系人工客服': '人工客服服务时间：周一至周日 9:00-21:00\n工作时间内将在5分钟内响应，非工作时间请留言，我们将在次日处理。',
+}
+
+function nowTime() {
+  return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+function parseBold(content: string): { text: string; bold: boolean }[] {
+  const segments: { text: string; bold: boolean }[] = []
+  const parts = content.split(/(\*\*.*?\*\*)/g)
+  for (const part of parts) {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      segments.push({ text: part.slice(2, -2), bold: true })
+    } else if (part) {
+      segments.push({ text: part, bold: false })
+    }
+  }
+  return segments
+}
+
+function isInServiceHours(): boolean {
+  const hour = new Date().getHours()
+  return hour >= 9 && hour < 21
+}
+
+const welcomeMsg = '您好，欢迎联系智玄客服！\n\n我可以帮您解决：\n• 账号注册与登录问题\n• 课程购买与退款申请\n• VIP 会员开通与续费\n• 内容投诉与举报\n• 其他使用问题\n\n请描述您的问题，我们将尽快为您解答。'
+
+interface Message {
+  id: string
+  role: 'assistant' | 'user'
+  content: string
+  time: string
+}
+
+const messages = ref<Message[]>([{ id: '0', role: 'assistant', content: welcomeMsg, time: nowTime() }])
+const inputText = ref('')
+const loading = ref(false)
+const scrollToId = ref('')
+
+function resetChat() {
+  messages.value = [{ id: '0', role: 'assistant', content: welcomeMsg, time: nowTime() }]
+}
+
+async function send(text: string) {
+  if (!text.trim() || loading.value) return
+  const userMsg: Message = { id: Date.now().toString(), role: 'user', content: text, time: nowTime() }
+  messages.value.push(userMsg)
+  inputText.value = ''
+  loading.value = true
+
+  await new Promise((r) => setTimeout(r, 800))
+
+  const reply = autoReplies[text] || (isInServiceHours()
+    ? '感谢您的反馈！我已记录您的问题，客服人员将尽快跟进处理。如需紧急帮助，可拨打客服热线 400-XXX-XXXX。'
+    : '感谢您的反馈！当前为非工作时间（每日9:00-21:00），客服将在次日工作时间尽快回复您。如需紧急帮助，可拨打客服热线 400-XXX-XXXX。')
+  const assistantMsg: Message = { id: (Date.now() + 1).toString(), role: 'assistant', content: reply, time: nowTime() }
+  messages.value.push(assistantMsg)
+  loading.value = false
+
+  await nextTick()
+  scrollToId.value = 'msg-bottom'
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

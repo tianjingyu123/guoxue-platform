@@ -1,0 +1,329 @@
+<template>
+  <view class="min-h-screen bg-background pb-20">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-white border-b border-border">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view class="flex items-center gap-3">
+          <view @click="goBack" class="p-1"><text class="text-xl text-foreground">←</text></view>
+          <text class="text-lg font-semibold text-foreground">主播团队管理</text>
+        </view>
+        <view @click="showAddDialog = true" class="px-3 py-1.5 rounded-lg bg-primary text-white text-xs flex items-center gap-1"><text></text> 添加成员</view>
+      </view>
+    </view>
+
+    <view class="p-4 space-y-4">
+      <!-- 统计卡片 -->
+      <view class="grid grid-cols-3 gap-3">
+        <view class="bg-white rounded-xl p-3 text-center border border-border">
+          <text class="text-2xl font-bold text-red-500 block">{{ mockTeamMembers.filter(m => m.role === 'host').length }}</text>
+          <text class="text-xs text-muted-foreground mt-1 block">主播</text>
+        </view>
+        <view class="bg-white rounded-xl p-3 text-center border border-border">
+          <text class="text-2xl font-bold text-orange-500 block">{{ mockTeamMembers.filter(m => m.role === 'cohost').length }}</text>
+          <text class="text-xs text-muted-foreground mt-1 block">副播</text>
+        </view>
+        <view class="bg-white rounded-xl p-3 text-center border border-border">
+          <text class="text-2xl font-bold text-blue-500 block">{{ mockTeamMembers.filter(m => m.role === 'operator').length }}</text>
+          <text class="text-xs text-muted-foreground mt-1 block">运营</text>
+        </view>
+      </view>
+
+      <!-- 权限说明卡片 -->
+      <view @click="showPermissions = !showPermissions" class="p-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+        <view class="flex items-center justify-between">
+          <view class="flex items-center gap-2">
+            <text class="text-amber-600">🛡</text>
+            <text class="text-sm font-medium text-foreground">角色权限说明</text>
+          </view>
+          <text :class="['text-sm text-muted-foreground transition-transform', showPermissions ? 'rotate-90' : '']">›</text>
+        </view>
+        <view v-if="showPermissions" class="mt-3 space-y-3 pt-3 border-t border-amber-500/20">
+          <view v-for="(perms, role) in permissions" :key="role">
+            <view class="mb-2">
+              <text :class="['text-xs px-2 py-0.5 rounded text-white', roleConfig[role as keyof typeof roleConfig]?.color || 'bg-gray-500']">{{ roleConfig[role as keyof typeof roleConfig]?.label || role }}</text>
+            </view>
+            <view class="grid grid-cols-2 gap-2">
+              <view v-for="(perm, idx) in perms" :key="idx" class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <text>{{ perm.icon }}</text>
+                <text>{{ perm.label }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 搜索和筛选 -->
+      <view class="space-y-3">
+        <view class="relative">
+          <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"></text>
+          <input v-model="searchQuery" placeholder="搜索成员姓名或擅长领域" class="w-full pl-9 h-10 text-sm bg-white border border-border rounded-lg outline-none px-3" />
+        </view>
+        <view class="flex gap-2">
+          <view v-for="t in tabFilters" :key="t.key" @click="activeTab = t.key" :class="['flex-1 py-2 rounded-lg text-xs font-medium text-center', activeTab === t.key ? 'bg-primary text-white' : 'bg-[#F5F5F5] text-muted-foreground']">
+            <text>{{ t.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 成员列表 -->
+      <view class="space-y-3">
+        <view v-if="filteredMembers.length === 0" class="bg-white rounded-xl p-8 text-center border border-border">
+          <text class="text-3xl text-muted-foreground/30 block mb-3"></text>
+          <text class="text-sm text-muted-foreground block">暂无成员</text>
+          <view @click="showAddDialog = true" class="inline-block mt-3 px-3 py-1.5 border border-border rounded-lg text-xs">添加成员</view>
+        </view>
+        <view v-for="member in filteredMembers" :key="member.id" class="bg-white rounded-xl p-4 border border-border">
+          <view class="flex items-start gap-3">
+            <view class="relative w-12 h-12 rounded-full bg-gradient-to-br from-primary to-[#E74C3C] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+              {{ member.name[0] }}
+              <view :class="['absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white', member.status === 'online' ? 'bg-green-500' : 'bg-gray-400']" />
+            </view>
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-2 flex-wrap">
+                <text class="font-semibold text-foreground">{{ member.name }}</text>
+                <text :class="['text-xs px-1.5 py-0.5 rounded text-white', roleConfig[member.role].color]">{{ roleConfig[member.role].label }}</text>
+                <text v-if="member.hasActiveLive" class="text-[10px] px-1.5 py-0.5 rounded border border-red-500 text-red-500">直播中</text>
+              </view>
+              <view class="flex flex-wrap gap-1 mt-1.5">
+                <text v-for="exp in member.expertise" :key="exp" class="px-1.5 py-0.5 rounded bg-[#F5F5F5] text-[10px] text-muted-foreground">{{ exp }}</text>
+              </view>
+              <view class="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                <text class="flex items-center gap-1"><text>📞</text> {{ member.phone }}</text>
+                <text>已直播 {{ member.liveCount }} 场</text>
+              </view>
+            </view>
+            <view class="relative">
+              <view @click="toggleMenu(member.id)" class="w-8 h-8 rounded-full flex items-center justify-center"><text>⋮</text></view>
+              <view v-if="openMenuId === member.id" class="fixed inset-0 z-40" @click="openMenuId = null" />
+              <view v-if="openMenuId === member.id" class="absolute right-0 top-full mt-1 z-50 w-28 bg-white border border-border rounded-lg shadow-lg overflow-hidden">
+                <view @click="editMember(member)" class="px-3 py-2 text-xs flex items-center gap-2 hover:bg-[#F5F5F5]"><text>✏</text> 编辑信息</view>
+                <view class="h-px bg-[#E8E0D5]" />
+                <view @click="confirmRemove(member)" class="px-3 py-2 text-xs flex items-center gap-2 text-red-600 hover:bg-red-50"><text>🗑</text> 移除成员</view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 添加成员对话框 -->
+    <view v-if="showAddDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <view class="mx-4 w-[340px] bg-white rounded-2xl max-h-[80vh] overflow-y-auto">
+        <view class="p-4 border-b border-border">
+          <text class="text-base font-semibold text-foreground block">添加团队成员</text>
+          <text class="text-xs text-muted-foreground block mt-1">从签约讲师或圈内成员中搜索添加</text>
+        </view>
+        <view class="p-4 space-y-4">
+          <view class="relative">
+            <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"></text>
+            <input v-model="addSearchQuery" placeholder="搜索姓名或擅长领域" class="w-full pl-9 h-10 text-sm bg-[#F5F5F5] rounded-lg outline-none px-3" />
+          </view>
+          <view>
+            <text class="text-xs text-muted-foreground mb-1.5 block">分配角色</text>
+            <view class="flex gap-2">
+              <view v-for="r in addRoles" :key="r.key" @click="selectedRole = r.key" :class="['flex-1 py-2 rounded-lg text-xs text-center', selectedRole === r.key ? 'bg-primary text-white' : 'bg-[#F5F5F5] text-muted-foreground']">{{ r.label }}</view>
+            </view>
+          </view>
+          <view>
+            <text class="text-xs text-muted-foreground mb-2 block">搜索结果</text>
+            <view v-for="m in filteredAvailable" :key="m.id" class="flex items-center gap-3 p-3 rounded-lg border border-border mb-2">
+              <view class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-sm text-ink-soft flex-shrink-0">{{ m.name[0] }}</view>
+              <view class="flex-1 min-w-0">
+                <view class="flex items-center gap-2">
+                  <text class="font-medium text-sm text-foreground">{{ m.name }}</text>
+                  <text class="text-[10px] px-1 py-0.5 rounded border border-border text-muted-foreground">{{ m.type === 'lecturer' ? '签约讲师' : '圈内成员' }}</text>
+                </view>
+                <text class="text-xs text-muted-foreground block truncate">{{ m.expertise.join('、') }}</text>
+              </view>
+              <view @click="addMember(m)" class="px-2.5 py-1.5 border border-border rounded-lg text-xs flex items-center gap-1"><text></text> 添加</view>
+            </view>
+          </view>
+        </view>
+        <view @click="showAddDialog = false" class="py-3 border-t border-border text-center text-sm text-muted-foreground">取消</view>
+      </view>
+    </view>
+
+    <!-- 编辑成员对话框 -->
+    <view v-if="showEditDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <view class="mx-4 w-[320px] bg-white rounded-2xl">
+        <view class="p-4 border-b border-border">
+          <text class="text-base font-semibold text-foreground">编辑成员信息</text>
+        </view>
+        <view v-if="selectedMember" class="p-4 space-y-4">
+          <view class="flex items-center gap-3">
+            <view class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-[#E74C3C] flex items-center justify-center text-white text-sm font-medium flex-shrink-0">{{ selectedMember.name[0] }}</view>
+            <view>
+              <text class="font-semibold text-foreground block">{{ selectedMember.name }}</text>
+              <text class="text-xs text-muted-foreground">加入时间：{{ selectedMember.joinDate }}</text>
+            </view>
+          </view>
+          <view>
+            <text class="text-xs text-muted-foreground mb-1.5 block">角色</text>
+            <view class="flex gap-2">
+              <view v-for="r in addRoles" :key="r.key" @click="selectedRole = r.key" :class="['flex-1 py-2 rounded-lg text-xs text-center', selectedRole === r.key ? 'bg-primary text-white' : 'bg-[#F5F5F5] text-muted-foreground']">{{ r.label }}</view>
+            </view>
+          </view>
+          <view class="p-3 bg-[#F5F5F5] rounded-lg">
+            <text class="text-xs text-muted-foreground mb-2 block">当前角色权限</text>
+            <view class="flex flex-wrap gap-2">
+              <view v-for="perm in permissions[selectedRole as keyof typeof permissions]" :key="perm.label" class="flex items-center gap-1 text-xs">
+                <text class="text-green-500">✓</text>
+                {{ perm.label }}
+              </view>
+            </view>
+          </view>
+        </view>
+        <view class="flex border-t border-border">
+          <view @click="showEditDialog = false" class="flex-1 py-3 text-center text-sm border-r border-border text-foreground">取消</view>
+          <view @click="saveEdit" class="flex-1 py-3 text-center text-sm text-primary">保存</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 移除确认对话框 -->
+    <view v-if="showRemoveDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <view class="mx-4 w-[300px] bg-white rounded-2xl">
+        <view v-if="selectedMember" class="p-6">
+          <view v-if="selectedMember.hasActiveLive" class="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <view class="flex items-start gap-3">
+              <text class="text-red-500 flex-shrink-0 mt-0.5">⚠</text>
+              <view>
+                <text class="font-medium text-red-600 block">无法移除</text>
+                <text class="text-sm text-muted-foreground block mt-1">该成员当前有进行中的直播，请在直播结束后再进行移除操作。</text>
+              </view>
+            </view>
+          </view>
+          <view v-else class="text-center">
+            <view class="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-[#E74C3C] flex items-center justify-center text-white text-lg font-medium mx-auto mb-3">{{ selectedMember.name[0] }}</view>
+            <text class="text-sm text-muted-foreground block">确定要移除 <text class="font-medium text-foreground">{{ selectedMember.name }}</text> 吗？</text>
+            <text class="text-xs text-muted-foreground block mt-1">移除后该成员将无法参与直播管理</text>
+          </view>
+        </view>
+        <view class="flex border-t border-border">
+          <view @click="showRemoveDialog = false" class="flex-1 py-3 text-center text-sm border-r border-border text-foreground">取消</view>
+          <view v-if="selectedMember && !selectedMember.hasActiveLive" @click="handleRemove" class="flex-1 py-3 text-center text-sm text-red-600">确认移除</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface TeamMember {
+  id: number; name: string; role: string; expertise: string[]
+  phone: string; joinDate: string; liveCount: number
+  hasActiveLive: boolean; status: string
+}
+interface AvailableMember { id: number; name: string; expertise: string[]; type: string }
+
+const roleConfig: Record<string, { label: string; color: string; icon: string }> = {
+  host: { label: '主播', color: 'bg-red-500', icon: '👑' },
+  cohost: { label: '副播', color: 'bg-orange-500', icon: '' },
+  operator: { label: '场控/运营', color: 'bg-blue-500', icon: '' },
+  guest: { label: '嘉宾', color: 'bg-green-500', icon: '' },
+}
+
+const permissions: Record<string, { icon: string; label: string; desc: string }[]> = {
+  host: [
+    { icon: '👑', label: '创建/编辑/删除直播', desc: '完全管理直播内容和设置' },
+    { icon: '', label: '管理所有成员', desc: '添加、编辑、移除团队成员' },
+    { icon: '🛡', label: '获取推流码', desc: '获取OBS推流地址和密钥' },
+    { icon: '', label: '开启/关闭直播', desc: '控制直播开始和结束' },
+    { icon: '', label: '推送商品', desc: '在直播间推送商品讲解' },
+    { icon: '🎁', label: '发放优惠券', desc: '向观众发放优惠券' },
+    { icon: '', label: '评论管理', desc: '置顶/删除评论、禁言/踢人' },
+  ],
+  cohost: [
+    { icon: '', label: '推送商品', desc: '在直播间推送商品讲解' },
+    { icon: '🎁', label: '发放优惠券', desc: '向观众发放优惠券' },
+    { icon: '', label: '发起抽奖', desc: '创建抽奖并查看中奖名单' },
+    { icon: '', label: '弹幕管理', desc: '置顶/删除评论、禁言用户' },
+  ],
+  operator: [
+    { icon: '🛡', label: '后台活动配置', desc: '配置营销活动和商品' },
+    { icon: '', label: '直播监控', desc: '查看直播间实时数据' },
+    { icon: '', label: '数据复盘', desc: '查看直播数据报告' },
+  ],
+  guest: [
+    { icon: '', label: '连麦互动', desc: '参与连麦与主播互动' },
+  ],
+}
+
+const mockTeamMembers: TeamMember[] = [
+  { id: 1, name: '易道先生', role: 'host', expertise: ['八字命理', '紫微斗数'], phone: '138****8888', joinDate: '2024-01-15', liveCount: 56, hasActiveLive: true, status: 'online' },
+  { id: 2, name: '紫微大师', role: 'host', expertise: ['紫微斗数', '风水堪舆'], phone: '139****6666', joinDate: '2024-02-20', liveCount: 32, hasActiveLive: false, status: 'offline' },
+  { id: 3, name: '小雅助理', role: 'cohost', expertise: ['商品讲解', '互动管理'], phone: '137****5555', joinDate: '2024-03-10', liveCount: 28, hasActiveLive: true, status: 'online' },
+  { id: 4, name: '运营小李', role: 'operator', expertise: ['数据分析', '活动策划'], phone: '136****4444', joinDate: '2024-04-05', liveCount: 15, hasActiveLive: false, status: 'online' },
+]
+
+const mockAvailableMembers: AvailableMember[] = [
+  { id: 101, name: '风水堂主', expertise: ['风水堪舆', '择日择吉'], type: 'lecturer' },
+  { id: 102, name: '起名大师', expertise: ['姓名学', '五行分析'], type: 'lecturer' },
+  { id: 103, name: '周易研究', expertise: ['周易', '梅花易数'], type: 'member' },
+  { id: 104, name: '命理助手', expertise: ['八字入门', '流年运势'], type: 'member' },
+]
+
+const tabFilters = [{ key: 'all', label: '全部' }, { key: 'host', label: '主播' }, { key: 'cohost', label: '副播' }, { key: 'operator', label: '运营' }]
+const addRoles = [{ key: 'host', label: '主播' }, { key: 'cohost', label: '副播' }, { key: 'operator', label: '运营' }]
+
+const activeTab = ref('all')
+const searchQuery = ref('')
+const openMenuId = ref<number | null>(null)
+const showAddDialog = ref(false)
+const showEditDialog = ref(false)
+const showRemoveDialog = ref(false)
+const showPermissions = ref(false)
+const selectedMember = ref<TeamMember | null>(null)
+const selectedRole = ref('cohost')
+const addSearchQuery = ref('')
+
+const filteredMembers = computed(() => {
+  return mockTeamMembers.filter(m => {
+    const matchTab = activeTab.value === 'all' || m.role === activeTab.value
+    const matchSearch = !searchQuery.value || m.name.includes(searchQuery.value) || m.expertise.some(e => e.includes(searchQuery.value))
+    return matchTab && matchSearch
+  })
+})
+
+const filteredAvailable = computed(() => {
+  return mockAvailableMembers.filter(m =>
+    !addSearchQuery.value || m.name.includes(addSearchQuery.value) || m.expertise.some(e => e.includes(addSearchQuery.value))
+  )
+})
+
+function toggleMenu(id: number) {
+  openMenuId.value = openMenuId.value === id ? null : id
+}
+
+function editMember(member: TeamMember) {
+  selectedMember.value = member
+  selectedRole.value = member.role
+  openMenuId.value = null
+  showEditDialog.value = true
+}
+
+function confirmRemove(member: TeamMember) {
+  selectedMember.value = member
+  openMenuId.value = null
+  showRemoveDialog.value = true
+}
+
+function handleRemove() {
+  showRemoveDialog.value = false
+  selectedMember.value = null
+  uni.showToast({ title: '已移除', icon: 'none' })
+}
+
+function saveEdit() {
+  showEditDialog.value = false
+  uni.showToast({ title: '保存成功', icon: 'none' })
+}
+
+function addMember(m: AvailableMember) {
+  uni.showToast({ title: '已添加 ' + m.name, icon: 'none' })
+}
+
+function goBack() { uni.navigateBack() }
+</script>

@@ -1,0 +1,492 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-20">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view class="flex items-center gap-3">
+          <view class="p-1" @click="goBack">
+            <text>‹</text>
+          </view>
+          <view>
+            <text class="font-semibold text-sm line-clamp-1 block">{{ liveData.title }}</text>
+            <text class="text-xs text-[#999]">{{ liveData.startTime }}</text>
+          </view>
+        </view>
+        <view class="flex items-center gap-2">
+          <view class="h-8 text-xs px-3 rounded-lg border border-[#E8E0D5] flex items-center">
+            <text>⬇ 导出报告</text>
+          </view>
+          <view class="h-8 text-xs px-3 rounded-lg border border-[#E8E0D5] flex items-center">
+            <text>📤 分享</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Tab切换 -->
+    <view class="w-full">
+      <scroll-view scroll-x class="w-full px-4 h-10 bg-transparent border-b border-[#E8E0D5] flex items-center gap-0">
+        <view
+          v-for="tab in tabs"
+          :key="tab.value"
+          class="text-xs px-3 py-2 whitespace-nowrap"
+          :class="activeTab === tab.value ? 'text-[#C41E3A] font-medium border-b-2 border-primary' : 'text-[#999]'"
+          @click="activeTab = tab.value"
+        >
+          <text>{{ tab.label }}</text>
+        </view>
+      </scroll-view>
+
+      <!-- 数据总览 Tab -->
+      <view v-if="activeTab === 'overview'" class="px-4 py-4 space-y-4">
+        <!-- 直播信息卡片 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <view class="flex gap-3">
+            <view class="w-24 h-16 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+              <text class="text-white text-xl">▶</text>
+            </view>
+            <view class="flex-1">
+              <view class="flex items-center gap-2">
+                <text class="text-[10px] bg-[#F5F1EB] px-1.5 py-0.5 rounded">
+                  {{ liveData.type === 'knowledge' ? '知识授课' : '电商带货' }}
+                </text>
+                <text class="text-[10px] bg-gray-500 text-white px-1.5 py-0.5 rounded">已结束</text>
+              </view>
+              <text class="text-sm font-medium mt-1 line-clamp-1 block">{{ liveData.title }}</text>
+              <text class="text-xs text-[#999] mt-0.5 block">时长：{{ liveData.duration }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 核心数据卡片 -->
+        <view class="grid grid-cols-2 gap-3">
+          <view v-for="stat in coreStats" :key="stat.label" class="p-3 bg-white rounded-xl border border-[#E8E0D5]">
+            <view class="flex items-start justify-between">
+              <view>
+                <text class="text-xs text-[#999]">{{ stat.label }}</text>
+                <text class="text-xl font-bold mt-1 block">{{ stat.value }}</text>
+              </view>
+              <view class="w-8 h-8 rounded-lg flex items-center justify-center" :class="stat.trend === 'up' ? 'bg-green-500/10' : stat.trend === 'down' ? 'bg-red-500/10' : 'bg-gray-500/10'">
+                <text>🔷</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-1 mt-2 text-xs" :class="stat.trend === 'up' ? 'text-green-500' : stat.trend === 'down' ? 'text-red-500' : 'text-[#999]'">
+              <text>{{ stat.trend === 'up' ? '↑' : stat.trend === 'down' ? '↓' : '−' }}</text>
+              <text>较上场 {{ stat.change }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- AI复盘洞察 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <view class="font-semibold text-sm flex items-center gap-2 mb-3">
+            <text>⚡</text>
+            <text>AI复盘洞察</text>
+          </view>
+          <view class="space-y-2">
+            <view class="flex items-start gap-2 p-2.5 rounded-lg bg-green-500/5 border border-green-500/20">
+              <text class="text-green-500 mt-0.5 flex-shrink-0">⭐</text>
+              <text class="text-xs text-green-700">本场直播观看量较上场增长23%，20:15达到峰值3256人，建议在此时间段安排重点内容。</text>
+            </view>
+            <view class="flex items-start gap-2 p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/20">
+              <text class="text-blue-500 mt-0.5 flex-shrink-0">🎯</text>
+              <text class="text-xs text-blue-700">关注转化率达3.4%，高于平台均值2.1%。25-44岁用户占比66%，建议针对此人群优化内容。</text>
+            </view>
+            <view class="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20">
+              <text class="text-amber-500 mt-0.5 flex-shrink-0">📈</text>
+              <text class="text-xs text-amber-700">弹幕高频词"八字""命理"说明用户对核心主题高度关注，可考虑开设进阶系列课程。</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 流量分析 Tab -->
+      <view v-if="activeTab === 'traffic'" class="px-4 py-4 space-y-4">
+        <!-- 流量趋势图 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <view class="flex items-center justify-between mb-4">
+            <view class="font-semibold text-sm flex items-center gap-2">
+              <text>📊</text>
+              <text>在线人数趋势</text>
+            </view>
+            <text class="text-[10px] text-[#999]">峰值 3,256</text>
+          </view>
+          <view class="h-40 flex items-end gap-1.5">
+            <view v-for="(item, index) in trafficData" :key="index" class="flex-1 flex flex-col items-center gap-1">
+              <view class="w-full rounded-t transition-all" :class="item.value === maxTraffic ? 'bg-[#C41E3A]' : 'bg-[#C41E3A]/40'" :style="{ height: (item.value / maxTraffic) * 100 + '%' }" />
+              <text class="text-[9px] text-[#999]">{{ item.time.split(':')[1] }}</text>
+            </view>
+          </view>
+          <view class="flex justify-between mt-4 text-xs text-[#999]">
+            <text>19:00</text><text>20:00</text><text>21:00</text><text>21:35</text>
+          </view>
+        </view>
+
+        <!-- 关键时刻 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <text class="font-semibold text-sm mb-3 block">关键时刻</text>
+          <view class="space-y-3">
+            <view v-for="(item, index) in keyMoments" :key="index" class="flex gap-3">
+              <view class="flex flex-col items-center">
+                <view class="w-2 h-2 rounded-full bg-[#C41E3A]" />
+                <view v-if="index < keyMoments.length - 1" class="w-px flex-1 bg-border" />
+              </view>
+              <view class="flex-1 pb-3">
+                <view class="flex items-center gap-2">
+                  <text class="text-xs font-medium">{{ item.time }}</text>
+                  <text class="text-[10px] bg-[#F5F1EB] px-1.5 py-0.5 rounded">{{ item.event }}</text>
+                </view>
+                <text class="text-xs text-[#999] mt-1 block">{{ item.desc }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 观众画像 Tab -->
+      <view v-if="activeTab === 'audience'" class="px-4 py-4 space-y-4">
+        <!-- 性别分布 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <view class="font-semibold text-sm flex items-center gap-2 mb-3">
+            <text>📊</text>
+            <text>性别分布</text>
+          </view>
+          <view class="flex items-center gap-4">
+            <view class="w-20 h-20 rounded-full bg-gradient-to-r from-blue-500 via-pink-500 to-pink-500 p-1 relative">
+              <view class="w-full h-full rounded-full bg-white flex items-center justify-center">
+                <text>👤</text>
+              </view>
+            </view>
+            <view class="flex-1 space-y-2">
+              <view v-for="item in audienceGender" :key="item.label" class="flex items-center gap-2">
+                <view class="w-3 h-3 rounded-full" :class="item.color" />
+                <text class="text-xs flex-1">{{ item.label }}</text>
+                <text class="text-xs font-medium">{{ item.value }}%</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 年龄分布 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <text class="font-semibold text-sm mb-3 block">年龄分布</text>
+          <view class="space-y-3">
+            <view v-for="item in audienceAge" :key="item.label" class="space-y-1">
+              <view class="flex justify-between text-xs">
+                <text>{{ item.label }}岁</text>
+                <text class="font-medium">{{ item.value }}%</text>
+              </view>
+              <progress :percent="item.value" stroke-width="8" activeColor="#c41e3a" backgroundColor="#f0ebe3" />
+            </view>
+          </view>
+        </view>
+
+        <!-- 地域Top5 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <view class="font-semibold text-sm flex items-center gap-2 mb-3">
+            <text>📍</text>
+            <text>地域Top5</text>
+          </view>
+          <view class="space-y-2">
+            <view v-for="(item, index) in audienceRegion.slice(0, 5)" :key="item.name" class="flex items-center gap-3">
+              <view class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white" :class="index === 0 ? 'bg-amber-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-amber-700' : 'bg-[#F5F1EB] text-[#999]'">
+                <text>{{ index + 1 }}</text>
+              </view>
+              <text class="text-sm flex-1">{{ item.name }}</text>
+              <text class="text-sm font-medium">{{ item.value }}%</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 来源渠道 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <text class="font-semibold text-sm mb-3 block">来源渠道</text>
+          <view class="grid grid-cols-2 gap-2">
+            <view v-for="item in audienceSource" :key="item.label" class="flex items-center gap-2 p-2.5 rounded-lg bg-[#F5F1EB]/50">
+              <text class="text-lg">{{ item.icon }}</text>
+              <view class="flex-1 min-w-0">
+                <text class="text-xs truncate block">{{ item.label }}</text>
+                <text class="text-sm font-bold block">{{ item.value }}%</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 互动分析 Tab -->
+      <view v-if="activeTab === 'interaction'" class="px-4 py-4 space-y-4">
+        <!-- 互动数据概览 -->
+        <view class="grid grid-cols-4 gap-2">
+          <view class="p-2.5 text-center bg-white rounded-xl border border-[#E8E0D5]">
+            <text>💬</text>
+            <text class="text-sm font-bold mt-1 block">{{ interactionData.danmaku.toLocaleString() }}</text>
+            <text class="text-[10px] text-[#999]">弹幕</text>
+          </view>
+          <view class="p-2.5 text-center bg-white rounded-xl border border-[#E8E0D5]">
+            <text>❤️</text>
+            <text class="text-sm font-bold mt-1 block">{{ interactionData.likes.toLocaleString() }}</text>
+            <text class="text-[10px] text-[#999]">点赞</text>
+          </view>
+          <view class="p-2.5 text-center bg-white rounded-xl border border-[#E8E0D5]">
+            <text>💭</text>
+            <text class="text-sm font-bold mt-1 block">{{ interactionData.comments.toLocaleString() }}</text>
+            <text class="text-[10px] text-[#999]">评论</text>
+          </view>
+          <view class="p-2.5 text-center bg-white rounded-xl border border-[#E8E0D5]">
+            <text>📤</text>
+            <text class="text-sm font-bold mt-1 block">{{ interactionData.shares.toLocaleString() }}</text>
+            <text class="text-[10px] text-[#999]">分享</text>
+          </view>
+        </view>
+
+        <!-- 弹幕热词 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <text class="font-semibold text-sm mb-3 block">弹幕热词</text>
+          <view class="flex flex-wrap gap-2 justify-center py-4">
+            <text v-for="(item, index) in wordCloud" :key="index" class="font-medium" :class="[item.size, item.color]">{{ item.word }}</text>
+          </view>
+        </view>
+
+        <!-- 打赏明细 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <view class="font-semibold text-sm flex items-center gap-2 mb-3">
+            <text>🎁</text>
+            <text>打赏明细</text>
+          </view>
+          <view class="space-y-2">
+            <view v-for="(gift, index) in interactionData.gifts" :key="gift.name" class="flex items-center gap-3 p-2 rounded-lg bg-[#F5F1EB]/50">
+              <view class="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-xs text-white">
+                <text>{{ index + 1 }}</text>
+              </view>
+              <text class="text-sm flex-1">{{ gift.name }}</text>
+              <text class="text-xs text-[#999]">{{ gift.count }}个</text>
+              <text class="text-sm font-bold text-amber-500">¥{{ gift.amount }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 商品数据Top3 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <view class="font-semibold text-sm flex items-center gap-2 mb-3">
+            <text>🛍</text>
+            <text>商品数据Top3</text>
+          </view>
+          <view class="space-y-3">
+            <view v-for="(product, index) in productStats" :key="product.id" class="p-3 rounded-lg border border-[#E8E0D5]">
+              <view class="flex items-center gap-2 mb-2">
+                <view class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white" :class="index === 0 ? 'bg-amber-500' : index === 1 ? 'bg-gray-400' : 'bg-amber-700'">
+                  <text>{{ index + 1 }}</text>
+                </view>
+                <text class="text-sm font-medium flex-1 truncate">{{ product.name }}</text>
+              </view>
+              <view class="grid grid-cols-4 gap-2 text-center">
+                <view>
+                  <text class="text-xs text-[#999] block">点击</text>
+                  <text class="text-sm font-medium">{{ product.clicks }}</text>
+                </view>
+                <view>
+                  <text class="text-xs text-[#999] block">下单</text>
+                  <text class="text-sm font-medium">{{ product.orders }}</text>
+                </view>
+                <view>
+                  <text class="text-xs text-[#999] block">成交</text>
+                  <text class="text-sm font-medium text-[#C41E3A]">¥{{ product.amount }}</text>
+                </view>
+                <view>
+                  <text class="text-xs text-[#999] block">转化率</text>
+                  <text class="text-sm font-medium">{{ product.conversion }}%</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 回放管理 Tab -->
+      <view v-if="activeTab === 'replay'" class="px-4 py-4 space-y-4">
+        <!-- 回放数据 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5]">
+          <view class="font-semibold text-sm flex items-center gap-2 mb-3">
+            <text>▶</text>
+            <text>回放数据</text>
+          </view>
+          <view class="grid grid-cols-3 gap-3 text-center">
+            <view class="p-3 rounded-lg bg-[#F5F1EB]/50">
+              <text class="text-xl font-bold block">{{ replayStats.playCount.toLocaleString() }}</text>
+              <text class="text-xs text-[#999]">播放次数</text>
+            </view>
+            <view class="p-3 rounded-lg bg-[#F5F1EB]/50">
+              <text class="text-xl font-bold block">{{ replayStats.playDuration }}</text>
+              <text class="text-xs text-[#999]">平均时长</text>
+            </view>
+            <view class="p-3 rounded-lg bg-[#F5F1EB]/50">
+              <text class="text-xl font-bold block">¥{{ replayStats.revenue }}</text>
+              <text class="text-xs text-[#999]">回放收益</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 回放设置 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5] space-y-4">
+          <text class="font-semibold text-sm block">回放设置</text>
+          <view class="flex items-center justify-between">
+            <view>
+              <text class="text-sm font-medium block">公开回放</text>
+              <text class="text-xs text-[#999]">允许所有用户观看直播回放</text>
+            </view>
+            <switch :checked="replayPublic" @change="replayPublic = $event.detail.value" />
+          </view>
+          <view class="flex items-center justify-between">
+            <view>
+              <text class="text-sm font-medium block">付费观看</text>
+              <text class="text-xs text-[#999]">设置回放为付费内容</text>
+            </view>
+            <switch :checked="replayPaid" @change="replayPaid = $event.detail.value" />
+          </view>
+          <view v-if="replayPaid" class="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <text class="text-xs text-amber-700">付费价格将在保存后设置，建议定价区间：9.9-99元</text>
+          </view>
+        </view>
+
+        <!-- 上架操作 -->
+        <view class="p-4 bg-white rounded-2xl border border-[#E8E0D5] space-y-3">
+          <text class="font-semibold text-sm block">上架至</text>
+          <view class="w-full p-3 rounded-xl border border-[#E8E0D5] flex items-center">
+            <view class="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center mr-3">
+              <text>⬆</text>
+            </view>
+            <view>
+              <text class="text-sm font-medium block">上架为付费课程</text>
+              <text class="text-xs text-[#999]">将回放转为独立课程销售</text>
+            </view>
+          </view>
+          <view class="w-full p-3 rounded-xl border border-[#E8E0D5] flex items-center">
+            <view class="w-10 h-10 rounded-lg bg-[#C41E3A]/10 flex items-center justify-center mr-3">
+              <text>🔒</text>
+            </view>
+            <view>
+              <text class="text-sm font-medium block">设为圈子专属</text>
+              <text class="text-xs text-[#999]">仅圈子成员可观看回放</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 回放预览 -->
+        <view class="bg-white rounded-2xl border border-[#E8E0D5] overflow-hidden">
+          <view class="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center relative">
+            <text class="text-white/50 text-3xl">▶</text>
+            <text class="absolute top-2 left-2 text-white text-[10px]">回放</text>
+            <text class="absolute bottom-2 right-2 text-xs text-white/70">{{ liveData.duration }}</text>
+          </view>
+          <view class="p-3">
+            <text class="text-sm font-medium line-clamp-1 block">{{ liveData.title }}</text>
+            <text class="text-xs text-[#999] mt-1 block">{{ liveData.startTime }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+function goBack() { uni.navigateBack() }
+
+const tabs = [
+  { value: 'overview', label: '数据总览' },
+  { value: 'traffic', label: '流量分析' },
+  { value: 'audience', label: '观众画像' },
+  { value: 'interaction', label: '互动分析' },
+  { value: 'replay', label: '回放管理' },
+]
+
+const liveData = {
+  id: '1', title: '八字命理入门：如何快速解读四柱八字', cover: '', type: 'knowledge',
+  startTime: '2024-01-15 19:00', endTime: '2024-01-15 21:35', duration: '2小时35分钟', status: 'ended',
+}
+
+const coreStats = [
+  { label: '总观看人数', value: '12,580', change: '+23%', trend: 'up' },
+  { label: '峰值在线', value: '3,256', change: '+15%', trend: 'up' },
+  { label: '平均观看时长', value: '18分32秒', change: '+8%', trend: 'up' },
+  { label: '新增关注', value: '428', change: '+45%', trend: 'up' },
+  { label: '加入圈子', value: '156', change: '+32%', trend: 'up' },
+  { label: '打赏收入', value: '¥2,680', change: '+18%', trend: 'up' },
+]
+
+const trafficData = [
+  { time: '19:00', value: 120 }, { time: '19:15', value: 580 }, { time: '19:30', value: 1200 },
+  { time: '19:45', value: 2100 }, { time: '20:00', value: 2850 }, { time: '20:15', value: 3256 },
+  { time: '20:30', value: 2980 }, { time: '20:45', value: 2650 }, { time: '21:00', value: 2200 },
+  { time: '21:15', value: 1800 }, { time: '21:30', value: 1200 },
+]
+
+const keyMoments = [
+  { time: '19:05', event: '直播开始', desc: '120人进入直播间' },
+  { time: '20:15', event: '峰值在线', desc: '在线人数达到3256人，正在讲解八字排盘基础' },
+  { time: '20:45', event: '互动高峰', desc: '弹幕数量达到峰值，观众提问活跃' },
+  { time: '21:30', event: '直播结束', desc: '累计观看12580人，平均时长18分32秒' },
+]
+
+const audienceGender = [
+  { label: '男性', value: 42, color: 'bg-blue-500' },
+  { label: '女性', value: 55, color: 'bg-pink-500' },
+  { label: '未知', value: 3, color: 'bg-gray-400' },
+]
+
+const audienceAge = [
+  { label: '18-24', value: 15 }, { label: '25-34', value: 38 }, { label: '35-44', value: 28 },
+  { label: '45-54', value: 14 }, { label: '55+', value: 5 },
+]
+
+const audienceRegion = [
+  { name: '广东', value: 18 }, { name: '北京', value: 15 }, { name: '浙江', value: 12 },
+  { name: '江苏', value: 10 }, { name: '上海', value: 8 }, { name: '其他', value: 37 },
+]
+
+const audienceSource = [
+  { label: '首页推荐', value: 35, icon: '🏠' }, { label: '关注列表', value: 28, icon: '❤️' },
+  { label: '直播广场', value: 18, icon: '📺' }, { label: '分享链接', value: 12, icon: '🔗' },
+  { label: '搜索', value: 7, icon: '🔍' },
+]
+
+const interactionData = {
+  danmaku: 8650, likes: 58600, comments: 1280, shares: 456,
+  gifts: [
+    { name: '太极', count: 2580, amount: 2580 }, { name: '梅花', count: 156, amount: 1560 },
+    { name: '竹简', count: 28, amount: 1456 }, { name: '罗盘', count: 12, amount: 1188 },
+  ],
+}
+
+const wordCloud = [
+  { word: '八字', size: 'text-2xl', color: 'text-[#C41E3A]' },
+  { word: '命理', size: 'text-xl', color: 'text-violet-500' },
+  { word: '四柱', size: 'text-lg', color: 'text-blue-500' },
+  { word: '干货', size: 'text-base', color: 'text-amber-500' },
+  { word: '老师好', size: 'text-lg', color: 'text-green-500' },
+  { word: '学到了', size: 'text-xl', color: 'text-pink-500' },
+  { word: '感谢', size: 'text-base', color: 'text-cyan-500' },
+  { word: '收藏', size: 'text-sm', color: 'text-orange-500' },
+  { word: '精彩', size: 'text-base', color: 'text-red-500' },
+  { word: '厉害', size: 'text-sm', color: 'text-indigo-500' },
+]
+
+const productStats = [
+  { id: 1, name: '渊海子平精装版', clicks: 3560, orders: 128, amount: 6272, conversion: 3.6 },
+  { id: 2, name: '专业罗盘', clicks: 2890, orders: 45, amount: 8910, conversion: 1.6 },
+  { id: 3, name: '五帝钱套装', clicks: 2150, orders: 89, amount: 3382, conversion: 4.1 },
+]
+
+const replayStats = { playCount: 2580, playDuration: '平均12分钟', revenue: 0 }
+
+const activeTab = ref('overview')
+const replayPublic = ref(true)
+const replayPaid = ref(false)
+
+const maxTraffic = computed(() => Math.max(...trafficData.map((d) => d.value)))
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,119 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <view class="sticky top-0 z-10 bg-background border-b border-border flex items-center px-4 h-12 gap-3">
+      <view @click="goBack"><text class="text-xl text-foreground">←</text></view>
+      <text class="text-base font-semibold text-foreground">专家列表</text>
+    </view>
+
+    <view class="px-4 pt-4 pb-20">
+      <!-- Search -->
+      <view class="relative mb-4">
+        <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"></text>
+        <input type="text" placeholder="搜索专家或专长" v-model="search"
+          class="w-full pl-9 pr-4 py-2.5 bg-white border border-border rounded-full text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary" />
+      </view>
+
+      <!-- Filter buttons -->
+      <view class="flex gap-2 mb-4">
+        <view v-for="f in filterOptions" :key="f.key"
+          @click="filter = f.key"
+          :class="['px-3 py-1.5 rounded-full text-sm font-medium transition-colors', filter === f.key ? 'bg-primary text-white' : 'bg-muted text-foreground']">
+          <text>{{ f.label }}</text>
+        </view>
+      </view>
+
+      <!-- Expert list -->
+      <view class="space-y-3">
+        <view v-for="expert in filtered" :key="expert.id" class="p-4 bg-white border border-border rounded-xl">
+          <view class="flex gap-3 mb-3">
+            <view class="relative flex-shrink-0">
+              <image :src="expert.avatar" mode="aspectFill" class="w-14 h-14 rounded-full" />
+              <view v-if="expert.online" class="absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white" />
+            </view>
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-1.5 mb-0.5">
+                <text class="text-sm font-semibold text-foreground">{{ expert.name }}</text>
+                <text v-if="expert.verified" class="text-yellow-500 text-sm"></text>
+                <text v-if="expert.online" class="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">在线</text>
+                <text v-else class="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">离线</text>
+              </view>
+              <text class="text-xs text-primary mb-1 block">{{ expert.specialty }}</text>
+              <view class="flex items-center gap-2 text-xs text-muted-foreground">
+                <text class="flex items-center gap-0.5"> {{ expert.rating }}</text>
+                <text>{{ expert.reviewCount }} 评价</text>
+                <text>{{ expert.answerCount }} 次咨询</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- Tags -->
+          <view class="flex gap-1.5 mb-3 flex-wrap">
+            <text v-for="tag in expert.tags" :key="tag" class="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{{ tag }}</text>
+          </view>
+
+          <!-- Pricing -->
+          <view class="flex items-center justify-between mb-3">
+            <view class="flex gap-4 text-xs text-muted-foreground">
+              <text class="flex items-center gap-0.5">📞 ¥{{ expert.callPrice }}/分钟</text>
+              <text class="flex items-center gap-0.5"> ¥{{ expert.textPrice }}/次</text>
+            </view>
+            <text class="flex items-center gap-0.5 text-xs text-green-600">
+              <text class="text-sm">🕐</text>{{ expert.responseTime }}响应
+            </text>
+          </view>
+
+          <!-- Actions -->
+          <view class="flex gap-2">
+            <view class="flex-1 py-2.5 rounded-xl border border-primary text-primary text-sm font-medium flex items-center justify-center gap-1">
+              <text class="text-sm">📞</text>电话咨询
+            </view>
+            <view class="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-medium flex items-center justify-center gap-1">
+              <text class="text-sm"></text>图文咨询
+            </view>
+          </view>
+        </view>
+
+        <view v-if="filtered.length === 0" class="text-center text-sm text-muted-foreground py-16">
+          暂无符合条件的专家
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface Expert {
+  id: string; name: string; avatar: string; specialty: string
+  tags: string[]; rating: number; reviewCount: number
+  callPrice: number; textPrice: number; responseTime: string
+  online: boolean; verified: boolean; answerCount: number
+}
+
+const experts: Expert[] = [
+  { id: '1', name: '周易大师', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80', specialty: '八字命理', tags: ['四柱', '流年', '大运'], rating: 4.9, reviewCount: 1256, callPrice: 3, textPrice: 50, responseTime: '5分钟内', online: true, verified: true, answerCount: 3860 },
+  { id: '2', name: '张玄风', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80', specialty: '紫微斗数', tags: ['命宫', '四化', '格局'], rating: 4.8, reviewCount: 980, callPrice: 3, textPrice: 30, responseTime: '10分钟内', online: true, verified: true, answerCount: 2540 },
+  { id: '3', name: '李玄机', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80', specialty: '易经占卜', tags: ['六十四卦', '梅花', '起卦'], rating: 4.7, reviewCount: 742, callPrice: 2, textPrice: 30, responseTime: '15分钟内', online: false, verified: true, answerCount: 1980 },
+  { id: '4', name: '王德华', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80', specialty: '风水堪舆', tags: ['阳宅', '阴宅', '布局'], rating: 4.8, reviewCount: 624, callPrice: 4, textPrice: 80, responseTime: '30分钟内', online: true, verified: true, answerCount: 1560 },
+  { id: '5', name: '林奇门', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80', specialty: '奇门遁甲', tags: ['起局', '决策', '事业'], rating: 4.6, reviewCount: 468, callPrice: 2, textPrice: 30, responseTime: '20分钟内', online: false, verified: false, answerCount: 1240 },
+]
+
+const search = ref('')
+const filter = ref<'all' | 'online'>('all')
+const filterOptions = [
+  { key: 'all', label: '全部' },
+  { key: 'online', label: '在线' },
+]
+
+const filtered = computed(() =>
+  experts.filter(e => {
+    const matchOnline = filter.value === 'all' || e.online
+    const matchSearch = !search.value || e.name.includes(search.value) || e.specialty.includes(search.value) || e.tags.some(t => t.includes(search.value))
+    return matchOnline && matchSearch
+  })
+)
+
+function goBack() { uni.navigateBack() }
+</script>
+<style scoped>/* 样式由 Tailwind 处理 */</style>

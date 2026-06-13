@@ -1,311 +1,365 @@
 <template>
-  <view class="page">
-    <view class="v0-header">
-      <text class="v0-title">订单</text>
-      <text class="v0-route">V0: orders</text>
-    </view>
-        <view class="min-h-screen bg-[#FAF8F5] pb-20">
-          <!--   -->
-          <view class="sticky top-0 z-20 bg-white border-b border-[#E8E3DB]">
-            <view class="px-4 py-3 flex items-center gap-3">
-              <view class="v0-btn" @click={() => router.back()} class="p-1 -ml-1">
-                <ChevronLeft class="w-6 h-6 text-[#2C2C2C]" />
-              </view>
-              <text class="text-lg font-semibold text-[#2C2C2C]">我的订单</text>
-            </view>
-            
-            <!--   -->
-            <view class="flex overflow-x-auto scrollbar-hide">
-              
-    <view v-for="(tab, index) in statusTabs" :key="index"> (
-                <view class="v0-btn"
-                  key={{ tab.key }}
-                  @click={() => setActiveTab(tab.key)}
-                  class={`flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.key
-                      ? "text-[#C41E3A] border-[#C41E3A]"
-                      : "text-[#666666] border-transparent"
-                  }`}
-                >
-                  {{ tab.label }}
-                </view>
-              ))}
-            </view>
-          </view>
-    
-          <!--   -->
-          <view class="p-4 space-y-4">
-            {loading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <view key={{ i }} class="bg-white rounded-2xl p-4 animate-pulse">
-                  <view class="flex justify-between mb-3">
-                    <view class="h-4 w-32 bg-gray-200 rounded" />
-                    <view class="h-4 w-16 bg-gray-200 rounded" />
-                  </view>
-                  <view class="flex gap-3">
-                    <view class="w-20 h-20 bg-gray-200 rounded-lg" />
-                    <view class="flex-1 space-y-2">
-                      <view class="h-4 w-full bg-gray-200 rounded" />
-                      <view class="h-3 w-20 bg-gray-200 rounded" />
-                      <view class="h-4 w-16 bg-gray-200 rounded" />
-                    </view>
-                  </view>
-                </view>
-              ))
-            ) : filteredOrders.length === 0 ? (
-              <view class="flex flex-col items-center justify-center py-20">
-                <Package class="w-16 h-16 text-[#E8E3DB] mb-4" />
-                <text class="text-[#999999] mb-4">暂无订单</text>
-                <view class="v0-btn"
-                  @click={() => router.push("/shop")}
-                  class="px-6 py-2 bg-[#C41E3A] text-white text-sm font-medium rounded-full"
-                >
-                  去逛逛
-                </view>
-              </view>
-            ) : (
-              filteredOrders.map(order => {{ const config = statusConfig[order.status] || statusConfig.completed
-                return (
-                  <view
-                    key={order.id }}
-                    class="bg-white rounded-2xl overflow-hidden"
-                    @click={() => router.push(`/orders/${order.id}`)}
-                  >
-                    <!--   -->
-                    <view class="px-4 py-3 border-b border-[#E8E3DB] flex items-center justify-between">
-                      <view class="flex items-center gap-2 text-sm text-[#666666]">
-                        <text>订单号: {{ order.orderNo }}</text>
-                        <view class="v0-btn"
-                          @click={(e) => { e.stopPropagation(); copyOrderNo(order.orderNo); }}
-                          class="p-1"
-                        >
-                          <Copy class="w-3.5 h-3.5" />
-                        </view>
-                      </view>
-                      <view class={`flex items-center gap-1 text-sm font-medium ${config.color}`}>
-                        {{ config.icon }}
-                        <text>{{ config.label }}</text>
-                      </view>
-                    </view>
-    
-                    <!--   -->
-                    <view class="p-4">
-                      {order.products.slice(0, 2).map((product, idx) => (
-                        <view key={product.id} class={`flex gap-3 ${idx > 0 ? "mt-3 pt-3 border-t border-[#E8E3DB]" : ""}`}>
-                          <image
-                            src={{ product.cover }}
-                            alt={{ product.name }}
-                            class="w-20 h-20 object-cover rounded-lg bg-[#FAF8F5]"
-                          />
-                          <view class="flex-1 min-w-0">
-                            <text class="text-sm font-medium text-[#2C2C2C] line-clamp-2">{{ product.name }}</text>
-                            <text class="text-xs text-[#999999] mt-1">{{ product.skuName }}</text>
-                            <view class="flex items-center justify-between mt-2">
-                              <text class="text-sm font-semibold text-[#C41E3A]">¥{{ product.price }}</text>
-                              <text class="text-xs text-[#999999]">x{{ product.quantity }}</text>
-                            </view>
-                          </view>
-                        </view>
-                      ))}
-                      {order.products.length > 2 && (
-                        <text class="text-xs text-[#999999] mt-3 text-center">
-                          共 {{ order.products.length }} 件商品
-                        </text>
-                      )}
-                    </view>
-    
-                    <!--   -->
-                    <view class="px-4 py-3 border-t border-[#E8E3DB] flex items-center justify-between">
-                      <view class="text-sm">
-                        <text class="text-[#666666]">实付: </text>
-                        <text class="text-[#C41E3A] font-semibold">¥{{ order.payAmount }}</text>
-                      </view>
-                      <view class="flex items-center gap-2" @click={e => e.stopPropagation()}>
-                        {order.status === "pending_pay" && (
-                          
-                            <view class="v0-btn"
-                              @click={() => { setCancelOrderId(order.id); setShowCancelModal(true); }}
-                              class="px-4 py-1.5 text-sm text-[#666666] border border-[#E8E3DB] rounded-full"
-                            >
-                              取消订单
-                            </view>
-                            <view class="v0-btn"
-                              @click={() => router.push(`/shop/paying?orderId=${order.id}`)}
-                              class="px-4 py-1.5 text-sm text-white bg-[#C41E3A] rounded-full"
-                            >
-                              去支付
-                            </view>
-                          
-                        )}
-                        {order.status === "pending_ship" && order.canCancel && (
-                          <view class="v0-btn"
-                            @click={() => { setCancelOrderId(order.id); setShowCancelModal(true); }}
-                            class="px-4 py-1.5 text-sm text-[#666666] border border-[#E8E3DB] rounded-full"
-                          >
-                            取消订单
-                          </view>
-                        )}
-                        {order.status === "pending_receive" && (
-                          
-                            <view class="v0-btn"
-                              @click={() => router.push(`/orders/logistics?orderId=${order.id}`)}
-                              class="px-4 py-1.5 text-sm text-[#666666] border border-[#E8E3DB] rounded-full"
-                            >
-                              查看物流
-                            </view>
-                            {order.canConfirm && (
-                              <view class="v0-btn"
-                                @click={() => handleConfirmReceive(order.id)}
-                                class="px-4 py-1.5 text-sm text-white bg-[#C41E3A] rounded-full"
-                              >
-                                确认收货
-                              </view>
-                            )}
-                          
-                        )}
-                        {order.status === "completed" && (
-                          
-                            {order.canReview && (
-                              <view class="v0-btn"
-                                @click={() => router.push(`/orders/${order.id}/review`)}
-                                class="px-4 py-1.5 text-sm text-[#C41E3A] border border-[#C41E3A] rounded-full"
-                              >
-                                去评价
-                              </view>
-                            )}
-                            <view class="v0-btn"
-                              @click={() => handleBuyAgain(order.id)}
-                              class="px-4 py-1.5 text-sm text-white bg-[#C41E3A] rounded-full"
-                            >
-                              再次购买
-                            </view>
-                          
-                        )}
-                        {order.hasAfterSale && (
-                          <view class="v0-btn"
-                            @click={() => router.push("/shop/my-after-sales")}
-                            class="px-4 py-1.5 text-sm text-[#666666] border border-[#E8E3DB] rounded-full"
-                          >
-                            查看售后
-                          </view>
-                        )}
-                        {!order.hasAfterSale && order.status === "completed" && (
-                          <view class="v0-btn"
-                            @click={() => router.push(`/shop/after-sale?orderId=${order.id}`)}
-                            class="px-4 py-1.5 text-sm text-[#666666] border border-[#E8E3DB] rounded-full"
-                          >
-                            申请售后
-                          </view>
-                        )}
-                      </view>
-                    </view>
-                  </view>
-                )
-              })
-            )}
-          </view>
-    
-          <!--   -->
-          {showCancelModal && (
-            <view class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-              <view class="bg-white rounded-2xl w-[85%] max-w-sm overflow-hidden">
-                <view class="p-4 border-b border-[#E8E3DB]">
-                  <text class="text-lg font-semibold text-[#2C2C2C] text-center">取消订单</text>
-                </view>
-                <view class="p-4">
-                  <text class="text-sm text-[#666666] mb-3">请选择取消原因：</text>
-                  {["不想要了", "信息填写错误", "重复下单", "其他原因"].map(reason => (
-                    <view class="v0-btn"
-                      key={{ reason }}
-                      @click={() => setCancelReason(reason)}
-                      class={`w-full text-left px-4 py-3 rounded-lg mb-2 text-sm transition-colors ${
-                        cancelReason === reason
-                          ? "bg-[#C41E3A]/10 text-[#C41E3A] border border-[#C41E3A]"
-                          : "bg-[#FAF8F5] text-[#2C2C2C]"
-                      }`}
-                    >
-                      {{ reason }}
-                    </view>
-                  ))}
-                </view>
-                <view class="p-4 border-t border-[#E8E3DB] flex gap-3">
-                  <view class="v0-btn"
-                    @click={() => { setShowCancelModal(false); setCancelOrderId(null); setCancelReason(""); }}
-                    class="flex-1 py-2.5 text-sm text-[#666666] border border-[#E8E3DB] rounded-full"
-                  >
-                    暂不取消
-                  </view>
-                  <view class="v0-btn"
-                    @click={{ handleCancelOrder }}
-                    :disabled={{ !cancelReason }}
-                    class="flex-1 py-2.5 text-sm text-white bg-[#C41E3A] rounded-full disabled:opacity-50"
-                  >
-                    确认取消
-                  </view>
-                </view>
-              </view>
-            </view>
-          )}
+  <view class="min-h-screen bg-background pb-20">
+
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-20 bg-background border-b border-border">
+      <view class="flex items-center gap-3 px-4 py-3">
+        <view
+          class="w-9 h-9 flex items-center justify-center rounded-full -ml-1"
+          @tap="goBack"
+        >
+          <svg class="w-6 h-6 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
         </view>
+        <text class="text-lg font-semibold text-foreground">我的订单</text>
+      </view>
+
+      <!-- 状态 Tab -->
+      <scroll-view scroll-x show-scrollbar="false" class="border-t border-border">
+        <view class="flex whitespace-nowrap">
+          <view
+            v-for="tab in statusTabs"
+            :key="tab.key"
+            :class="[
+              'flex-shrink-0 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+              activeTab === tab.key
+                ? 'text-primary border-primary'
+                : 'text-muted-foreground border-transparent'
+            ]"
+            @tap="activeTab = tab.key; loadOrders()"
+          >
+            <text>{{ tab.label }}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 内容区 -->
+    <scroll-view scroll-y class="flex-1">
+      <view class="p-4 space-y-4">
+
+        <!-- 骨架屏 -->
+        <view v-if="loading">
+          <view v-for="i in 3" :key="i" class="bg-card rounded-2xl p-4 animate-pulse mb-4">
+            <view class="flex justify-between mb-3">
+              <view class="h-4 w-32 bg-muted rounded" />
+              <view class="h-4 w-16 bg-muted rounded" />
+            </view>
+            <view class="flex gap-3">
+              <view class="w-20 h-20 bg-muted rounded-lg flex-shrink-0" />
+              <view class="flex-1 space-y-2">
+                <view class="h-4 w-full bg-muted rounded" />
+                <view class="h-3 w-20 bg-muted rounded" />
+                <view class="h-4 w-16 bg-muted rounded" />
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 空状态 -->
+        <view v-else-if="filteredOrders.length === 0" class="flex flex-col items-center justify-center py-20">
+          <svg class="w-16 h-16 text-border mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <path d="M16 10a4 4 0 0 1-8 0"/>
+          </svg>
+          <text class="text-muted-foreground mb-4">暂无订单</text>
+          <view
+            class="px-6 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-full"
+            @tap="navigateTo('/pages/mall/index')"
+          >
+            <text>去逛逛</text>
+          </view>
+        </view>
+
+        <!-- 订单列表 -->
+        <view v-else>
+          <view
+            v-for="order in filteredOrders"
+            :key="order.id"
+            class="bg-card rounded-2xl overflow-hidden mb-4"
+            @tap="navigateTo(`/pages/orders/detail?id=${order.id}`)"
+          >
+            <!-- 订单头 -->
+            <view class="px-4 py-3 border-b border-border flex items-center justify-between">
+              <view class="flex items-center gap-2 text-sm text-muted-foreground">
+                <text>订单号: {{ order.orderNo }}</text>
+                <view
+                  class="p-1"
+                  @tap.stop="copyOrderNo(order.orderNo)"
+                >
+                  <svg class="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                </view>
+              </view>
+              <view :class="['flex items-center gap-1 text-sm font-medium', statusConfig[order.status]?.color]">
+                <view v-html="statusConfig[order.status]?.icon" class="w-4 h-4" />
+                <text>{{ statusConfig[order.status]?.label }}</text>
+              </view>
+            </view>
+
+            <!-- 商品列表 -->
+            <view class="p-4">
+              <view
+                v-for="(product, idx) in order.products.slice(0, 2)"
+                :key="product.id"
+                :class="['flex gap-3', idx > 0 ? 'mt-3 pt-3 border-t border-border' : '']"
+              >
+                <view class="w-20 h-20 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <image
+                    v-if="product.cover && product.cover !== '/placeholder.svg'"
+                    :src="product.cover"
+                    mode="aspectFill"
+                    class="w-full h-full"
+                  />
+                  <svg v-else class="w-8 h-8 text-muted-foreground/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                </view>
+                <view class="flex-1 min-w-0">
+                  <text class="text-sm font-medium text-foreground line-clamp-2">{{ product.name }}</text>
+                  <text class="text-xs text-muted-foreground mt-1">{{ product.skuName }}</text>
+                  <view class="flex items-center justify-between mt-2">
+                    <text class="text-sm font-semibold text-primary">¥{{ product.price }}</text>
+                    <text class="text-xs text-muted-foreground">x{{ product.quantity }}</text>
+                  </view>
+                </view>
+              </view>
+              <text v-if="order.products.length > 2" class="text-xs text-muted-foreground mt-3 text-center block">
+                共 {{ order.products.length }} 件商品
+              </text>
+            </view>
+
+            <!-- 底部操作栏 -->
+            <view class="px-4 py-3 border-t border-border flex items-center justify-between" @tap.stop>
+              <view class="text-sm">
+                <text class="text-muted-foreground">实付: </text>
+                <text class="text-primary font-semibold">¥{{ order.payAmount }}</text>
+              </view>
+              <view class="flex items-center gap-2">
+                <!-- 待付款 -->
+                <template v-if="order.status === 'pending_pay'">
+                  <view
+                    class="px-4 py-1.5 text-sm text-muted-foreground border border-border rounded-full"
+                    @tap="showCancelModal(order.id)"
+                  >
+                    <text>取消订单</text>
+                  </view>
+                  <view
+                    class="px-4 py-1.5 text-sm text-primary-foreground bg-primary rounded-full"
+                    @tap="navigateTo(`/pages/orders/paying?orderId=${order.id}`)"
+                  >
+                    <text>去支付</text>
+                  </view>
+                </template>
+                <!-- 待发货 -->
+                <template v-else-if="order.status === 'pending_ship' && order.canCancel">
+                  <view
+                    class="px-4 py-1.5 text-sm text-muted-foreground border border-border rounded-full"
+                    @tap="showCancelModal(order.id)"
+                  >
+                    <text>取消订单</text>
+                  </view>
+                </template>
+                <!-- 待收货 -->
+                <template v-else-if="order.status === 'pending_receive'">
+                  <view
+                    class="px-4 py-1.5 text-sm text-muted-foreground border border-border rounded-full"
+                    @tap="navigateTo(`/pages/orders/logistics?orderId=${order.id}`)"
+                  >
+                    <text>查看物流</text>
+                  </view>
+                  <view
+                    v-if="order.canConfirm"
+                    class="px-4 py-1.5 text-sm text-primary-foreground bg-primary rounded-full"
+                    @tap="confirmReceive(order.id)"
+                  >
+                    <text>确认收货</text>
+                  </view>
+                </template>
+                <!-- 已完成 -->
+                <template v-else-if="order.status === 'completed'">
+                  <view
+                    v-if="order.canReview"
+                    class="px-4 py-1.5 text-sm text-primary border border-primary rounded-full"
+                    @tap="navigateTo(`/pages/orders/review?orderId=${order.id}`)"
+                  >
+                    <text>去评价</text>
+                  </view>
+                  <view
+                    class="px-4 py-1.5 text-sm text-primary-foreground bg-primary rounded-full"
+                    @tap="buyAgain(order.id)"
+                  >
+                    <text>再次购买</text>
+                  </view>
+                </template>
+              </view>
+            </view>
+          </view>
+        </view>
+
+      </view>
+    </scroll-view>
+
+    <!-- 取消订单弹窗 -->
+    <view
+      v-if="cancelModalVisible"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      @tap="cancelModalVisible = false"
+    >
+      <view class="bg-card rounded-2xl w-[85%] max-w-sm overflow-hidden" @tap.stop>
+        <view class="p-4 border-b border-border">
+          <text class="text-lg font-semibold text-foreground text-center block">取消订单</text>
+        </view>
+        <view class="p-4">
+          <text class="text-sm text-muted-foreground mb-3 block">请选择取消原因：</text>
+          <view
+            v-for="reason in cancelReasons"
+            :key="reason"
+            :class="[
+              'w-full text-left px-4 py-3 rounded-lg mb-2 text-sm transition-colors',
+              selectedReason === reason
+                ? 'bg-primary/10 text-primary border border-primary'
+                : 'bg-muted text-foreground'
+            ]"
+            @tap="selectedReason = reason"
+          >
+            <text>{{ reason }}</text>
+          </view>
+        </view>
+        <view class="p-4 border-t border-border flex gap-3">
+          <view
+            class="flex-1 py-2.5 text-sm text-muted-foreground border border-border rounded-full text-center"
+            @tap="cancelModalVisible = false; cancelTargetId = ''; selectedReason = ''"
+          >
+            <text>暂不取消</text>
+          </view>
+          <view
+            :class="[
+              'flex-1 py-2.5 text-sm text-center rounded-full transition-opacity',
+              selectedReason
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-primary/40 text-primary-foreground/60'
+            ]"
+            @tap="doCancel"
+          >
+            <text>确认取消</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { onPullDownRefresh } from '@dcloudio/uni-app'
+import { ref, computed, onMounted } from 'vue'
 
+interface Product {
+  id: string; name: string; cover: string
+  skuName: string; price: number; quantity: number
+}
+interface Order {
+  id: string; orderNo: string; status: string
+  totalAmount: number; payAmount: number; createdAt: string
+  products: Product[]; canCancel: boolean; canConfirm: boolean
+  canReview: boolean; hasAfterSale: boolean
+}
+
+const activeTab = ref('')
 const loading = ref(true)
-const error = ref<string | null>(null)
+const cancelModalVisible = ref(false)
+const cancelTargetId = ref('')
+const selectedReason = ref('')
+const cancelReasons = ['不想要了', '信息填写错误', '重复下单', '其他原因']
+const orders = ref<Order[]>([])
 
-// V0 原始数据
-const mockOrders: OrderListItem[] = [
 const statusTabs = [
-const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  { key: '', label: '全部' },
+  { key: 'pending_pay', label: '待付款' },
+  { key: 'pending_ship', label: '待发货' },
+  { key: 'pending_receive', label: '待收货' },
+  { key: 'completed', label: '已完成' },
+  { key: 'after_sale', label: '售后' },
+]
 
-async function fetchData() {
+const statusConfig: Record<string, { label: string; color: string; icon: string }> = {
+  pending_pay: {
+    label: '待付款', color: 'text-primary',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+  },
+  pending_ship: {
+    label: '待发货', color: 'text-accent',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>'
+  },
+  pending_receive: {
+    label: '待收货', color: 'text-blue-500',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>'
+  },
+  completed: {
+    label: '已完成', color: 'text-chart-4',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+  },
+  cancelled: {
+    label: '已取消', color: 'text-muted-foreground',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+  },
+  after_sale: {
+    label: '售后中', color: 'text-orange-500',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+  },
+}
+
+const mockOrders: Order[] = [
+  { id: '1', orderNo: '202401150001', status: 'pending_pay', totalAmount: 256, payAmount: 256, createdAt: '2024-01-15 14:30', products: [{ id: 'p1', name: '周易六十四卦详解（精装典藏版）', cover: '/placeholder.svg', skuName: '精装版', price: 168, quantity: 1 }, { id: 'p2', name: '紫微斗数入门教程', cover: '/placeholder.svg', skuName: '平装版', price: 88, quantity: 1 }], canCancel: true, canConfirm: false, canReview: false, hasAfterSale: false },
+  { id: '2', orderNo: '202401140002', status: 'pending_ship', totalAmount: 168, payAmount: 158, createdAt: '2024-01-14 10:20', products: [{ id: 'p3', name: '八字命理学基础', cover: '/placeholder.svg', skuName: '标准版', price: 168, quantity: 1 }], canCancel: true, canConfirm: false, canReview: false, hasAfterSale: false },
+  { id: '3', orderNo: '202401130003', status: 'pending_receive', totalAmount: 299, payAmount: 279, createdAt: '2024-01-13 09:15', products: [{ id: 'p4', name: '风水布局实战指南', cover: '/placeholder.svg', skuName: '精装版', price: 299, quantity: 1 }], canCancel: false, canConfirm: true, canReview: false, hasAfterSale: false },
+  { id: '4', orderNo: '202401100004', status: 'completed', totalAmount: 128, payAmount: 128, createdAt: '2024-01-10 16:40', products: [{ id: 'p5', name: '梅花易数速成', cover: '/placeholder.svg', skuName: '电子版', price: 128, quantity: 1 }], canCancel: false, canConfirm: false, canReview: true, hasAfterSale: false },
+]
+
+const filteredOrders = computed(() =>
+  activeTab.value ? orders.value.filter(o => o.status === activeTab.value) : orders.value
+)
+
+async function loadOrders() {
   loading.value = true
-  try { loading.value = false } catch (e: any) { error.value = e.message }
+  await new Promise(r => setTimeout(r, 400))
+  orders.value = mockOrders
+  loading.value = false
 }
 
-onMounted(() => fetchData())
-onPullDownRefresh(() => fetchData().finally(() => uni.stopPullDownRefresh()))
+function showCancelModal(id: string) {
+  cancelTargetId.value = id
+  selectedReason.value = ''
+  cancelModalVisible.value = true
+}
+
+function doCancel() {
+  if (!selectedReason.value) return
+  orders.value = orders.value.map(o =>
+    o.id === cancelTargetId.value ? { ...o, status: 'cancelled', canCancel: false } : o
+  )
+  cancelModalVisible.value = false
+  cancelTargetId.value = ''
+  selectedReason.value = ''
+}
+
+function confirmReceive(id: string) {
+  orders.value = orders.value.map(o =>
+    o.id === id ? { ...o, status: 'completed', canConfirm: false, canReview: true } : o
+  )
+}
+
+function buyAgain(id: string) { navigateTo('/pages/shop/cart') }
+function copyOrderNo(no: string) {
+  uni.setClipboardData({ data: no })
+  uni.showToast({ title: '已复制', icon: 'none' })
+}
+function goBack() { uni.navigateBack() }
+function navigateTo(url: string) { uni.navigateTo({ url }) }
+onMounted(loadOrders)
 </script>
-
-<style scoped>
-.page {
-  background: #FAF8F5;
-  min-height: 100vh;
-}
-.v0-header {
-  padding: 24rpx 32rpx;
-  background: linear-gradient(135deg, #C41E3A, #8B0000);
-  margin-bottom: 24rpx;
-}
-.v0-title {
-  font-size: 36rpx;
-  font-weight: 700;
-  color: #FFFFFF;
-  display: block;
-}
-.v0-route {
-  font-size: 20rpx;
-  color: rgba(255,255,255,0.6);
-  margin-top: 4rpx;
-  display: block;
-}
-.v0-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16rpx 32rpx;
-  border-radius: 12rpx;
-  background: #C41E3A;
-  color: #FFFFFF;
-  font-size: 28rpx;
-}
-.v0-hr {
-  height: 1px;
-  background: #E8E0D5;
-  margin: 24rpx 0;
-}
-</style>

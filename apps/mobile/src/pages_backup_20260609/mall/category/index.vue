@@ -1,0 +1,15 @@
+<template>
+  <view class="page">
+    <view class="nav"><text class="nav-back" @click="goBack">←</text><text class="nav-title">商品分类</text><text class="nav-search" @click="goSearch">🔍</text></view>
+    <view class="body">
+      <scroll-view scroll-y class="left-panel"><view v-for="c in categories" :key="c.id" class="l-item" :class="{act:activeCat===c.id}" @click="activeCat=c.id"><text>{{c.name}}</text></view></scroll-view>
+      <scroll-view scroll-y class="right-panel" v-if="currentCat">
+        <view class="rp-sub"><text v-for="s in currentCat.sub" :key="s" class="rps-tag">{{s}}</text></view>
+        <view class="rp-grid"><view v-for="p in currentCat.products" :key="p.id" class="rp-item"><view class="rpi-cover">🛍️</view><text class="rpi-name">{{p.name}}</text><text class="rpi-price">¥{{p.price}}</text></view></view>
+      </scroll-view>
+    </view>
+  </view>
+</template>
+<script setup lang="ts">import {ref,computed} from 'vue';import {onPullDownRefresh} from '@dcloudio/uni-app';const activeCat=ref(1);const categories=ref([{id:1,name:'全部',sub:['热门','新品','推荐'],products:[{id:1,name:'渊海子平精装版',price:98},{id:2,name:'紫微斗数全书',price:128},{id:3,name:'专业罗盘',price:398},{id:4,name:'五帝钱套装',price:88}]},{id:2,name:'书籍',sub:['经典','入门','进阶'],products:[{id:5,name:'八字入门',price:68},{id:6,name:'风水大全',price:158}]},{id:3,name:'文创',sub:['摆件','文房','茶具'],products:[{id:7,name:'开光貔貅',price:168},{id:8,name:'书法套装',price:288}]},{id:4,name:'饰品',sub:['手链','吊坠','戒指'],products:[{id:9,name:'红绳手链',price:38},{id:10,name:'翡翠吊坠',price:588}]}]);const currentCat=computed(()=>categories.value.find(c=>c.id===activeCat.value));function goSearch(){};function goBack(){uni.navigateBack()};onPullDownRefresh(()=>setTimeout(()=>uni.stopPullDownRefresh(),500))</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nav-back{font-size:36rpx;color:#2C2C2C}.nav-title{font-size:32rpx;font-weight:600}.nav-search{font-size:32rpx}.body{display:flex;height:calc(100vh - 56px)}.left-panel{width:200rpx;background:#fff;border-right:1px solid #E8E0D5}.l-item{padding:28rpx 24rpx;font-size:26rpx;color:#999;border-left:4rpx solid transparent}.l-item.act{color:#C41E3A;font-weight:500;border-left-color:#C41E3A;background:#FFF5F5}.right-panel{flex:1;padding:20rpx}.rp-sub{display:flex;flex-wrap:wrap;gap:8rpx;margin-bottom:20rpx}.rps-tag{padding:8rpx 16rpx;background:#F5F1EB;border-radius:20rpx;font-size:20rpx;color:#999}.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12rpx}.rp-item{background:#fff;border-radius:16rpx;overflow:hidden;box-shadow:0 2rpx 8rpx rgba(0,0,0,.03)}.rpi-cover{aspect-ratio:1;background:#F5F1EB;display:flex;align-items:center;justify-content:center;font-size:48rpx}.rpi-name{font-size:24rpx;color:#2C2C2C;padding:12rpx 12rpx 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.rpi-price{font-size:26rpx;font-weight:600;color:#C41E3A;padding:8rpx 12rpx 16rpx}
+</style>

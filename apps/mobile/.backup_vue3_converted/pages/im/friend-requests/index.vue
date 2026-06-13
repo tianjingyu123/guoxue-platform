@@ -1,0 +1,331 @@
+<template>
+  <view class="min-h-screen" style="background-color: #FAF8F5;">
+    <!-- 导航栏 -->
+    <view class="sticky top-0 z-20" style="background-color: #FFFFFF; border-bottom: 2rpx solid #E8E0D5;">
+      <view class="flex items-center justify-between" style="padding: 0 32rpx; height: 112rpx;">
+        <view @click="goBack" style="padding: 16rpx;">
+          <text style="font-size: 36rpx; color: #2C2C2C;">←</text>
+        </view>
+        <text style="font-size: 30rpx; font-weight: 500; color: #2C2C2C;">好友请求</text>
+        <view style="width: 72rpx;" />
+      </view>
+    </view>
+
+    <!-- 骨架屏加载态 -->
+    <view v-if="loading" style="position: absolute; inset: 0; top: 112rpx; background-color: #FAF8F5;">
+      <view style="padding: 24rpx 32rpx; background-color: rgba(245,245,245,0.5);">
+        <view style="width: 160rpx; height: 32rpx; border-radius: 8rpx; background-color: rgba(200,200,200,0.5);" />
+      </view>
+      <view v-for="i in 3" :key="i" class="flex items-start" style="gap: 24rpx; padding: 32rpx;">
+        <view style="width: 96rpx; height: 96rpx; border-radius: 50%; flex-shrink: 0; background-color: rgba(200,200,200,0.5);" />
+        <view style="flex: 1;">
+          <view style="width: 192rpx; height: 32rpx; border-radius: 8rpx; margin-bottom: 16rpx; background-color: rgba(200,200,200,0.5);" />
+          <view style="width: 256rpx; height: 24rpx; border-radius: 8rpx; margin-bottom: 16rpx; background-color: rgba(200,200,200,0.5);" />
+          <view style="width: 384rpx; height: 24rpx; border-radius: 8rpx; background-color: rgba(200,200,200,0.5);" />
+        </view>
+        <view class="flex" style="gap: 16rpx;">
+          <view style="width: 64rpx; height: 64rpx; border-radius: 8rpx; background-color: rgba(200,200,200,0.5);" />
+          <view style="width: 64rpx; height: 64rpx; border-radius: 8rpx; background-color: rgba(200,200,200,0.5);" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 主内容 -->
+    <template v-else>
+      <!-- 错误态 -->
+      <view v-if="error" class="flex flex-col items-center" style="padding: 160rpx 32rpx;">
+        <text style="font-size: 64rpx; color: #E8E0D5; margin-bottom: 32rpx;"></text>
+        <text style="font-size: 26rpx; color: #999999; margin-bottom: 32rpx;">{{ error }}</text>
+        <view @click="loadData" style="padding: 16rpx 48rpx; background-color: #C41E3A; color: #FFFFFF; font-size: 26rpx; border-radius: 999rpx;">重试</view>
+      </view>
+
+      <view v-else style="padding-bottom: 48rpx;">
+        <!-- ====== 待处理请求 ====== -->
+        <view v-if="data && data.pending.length > 0" style="margin-bottom: 32rpx;">
+          <view class="flex items-center justify-between" style="padding: 24rpx 32rpx; background-color: rgba(245,241,235,0.3);">
+            <text style="font-size: 26rpx; color: #999999;">待处理 ({{ data.pending.length }})</text>
+            <view @click="handleApproveAll" style="font-size: 26rpx; color: #C41E3A;">
+              <text>{{ approveAllLoading ? '处理中...' : '全部同意' }}</text>
+            </view>
+          </view>
+
+          <view style="background-color: #FFFFFF;">
+            <view v-for="req in data.pending" :key="req.id" class="flex items-start" style="gap: 24rpx; padding: 32rpx; border-bottom: 2rpx solid #E8E0D5;">
+              <!-- 头像（可点击） -->
+              <view @click="goTo('/pages/user/' + req.fromUser.id + '/index')" style="flex-shrink: 0;">
+                <image :src="req.fromUser.avatar || defaultAvatar" mode="aspectFill"
+                  style="width: 96rpx; height: 96rpx; border-radius: 50%; background-color: #F5F1EB;" />
+              </view>
+
+              <!-- 信息 -->
+              <view style="flex: 1; min-width: 0;">
+                <text style="font-size: 28rpx; font-weight: 500; color: #2C2C2C; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ req.fromUser.nickname }}
+                </text>
+                <text v-if="req.fromUser.signature" style="font-size: 22rpx; color: #999999; margin-top: 8rpx; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ req.fromUser.signature }}
+                </text>
+                <text v-if="req.message" style="font-size: 26rpx; color: rgba(44,44,44,0.8); margin-top: 8rpx; display: block;">
+                  {{ req.message }}
+                </text>
+                <text style="font-size: 22rpx; color: #999999; margin-top: 8rpx; display: block;">{{ req.createdAt }}</text>
+              </view>
+
+              <!-- 操作按钮 -->
+              <view class="flex items-center" style="gap: 16rpx; flex-shrink: 0;">
+                <!-- 拒绝 -->
+                <view @click="openRejectDialog(req)"
+                  style="width: 64rpx; height: 64rpx; border-radius: 50%; background-color: #F5F1EB; display: flex; align-items: center; justify-content: center;">
+                  <text style="font-size: 28rpx; color: #2C2C2C;">✕</text>
+                </view>
+                <!-- 同意 -->
+                <view @click="handleApprove(req)"
+                  :style="{
+                    width: '64rpx',
+                    height: '64rpx',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: processingIds.includes(req.id) ? '#E8E0D5' : '#C41E3A'
+                  }">
+                  <text v-if="processingIds.includes(req.id)" style="font-size: 24rpx; color: #FFFFFF;">...</text>
+                  <text v-else style="font-size: 28rpx; color: #FFFFFF;">✓</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- ====== 已处理请求 ====== -->
+        <view v-if="data && data.processed.length > 0">
+          <view @click="showProcessed = !showProcessed" class="flex items-center justify-between"
+            style="padding: 24rpx 32rpx; background-color: rgba(245,241,235,0.3);">
+            <text style="font-size: 26rpx; color: #999999;">已处理 ({{ data.processed.length }})</text>
+            <text style="font-size: 28rpx; color: #999999;">{{ showProcessed ? '▲' : '▼' }}</text>
+          </view>
+
+          <view v-if="showProcessed" style="background-color: #FFFFFF; opacity: 0.7;">
+            <view v-for="req in data.processed" :key="req.id" class="flex items-start" style="gap: 24rpx; padding: 32rpx; border-bottom: 2rpx solid #E8E0D5;">
+              <!-- 头像 -->
+              <image :src="req.fromUser.avatar || defaultAvatar" mode="aspectFill"
+                style="width: 80rpx; height: 80rpx; border-radius: 50%; flex-shrink: 0; background-color: #F5F1EB;" />
+
+              <!-- 信息 -->
+              <view style="flex: 1; min-width: 0;">
+                <view class="flex items-center" style="gap: 16rpx;">
+                  <text style="font-size: 26rpx; color: #2C2C2C; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ req.fromUser.nickname }}
+                  </text>
+                  <view class="flex items-center" style="gap: 8rpx;">
+                    <text :style="{ fontSize: '24rpx', color: statusColors[req.status] || '#999999' }">
+                      {{ statusIcons[req.status] || '' }}
+                    </text>
+                    <text :style="{ fontSize: '22rpx', color: statusColors[req.status] || '#999999' }">
+                      {{ statusTexts[req.status] || '待处理' }}
+                    </text>
+                  </view>
+                </view>
+                <text v-if="req.message" style="font-size: 22rpx; color: #999999; margin-top: 8rpx; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  {{ req.message }}
+                </text>
+                <text style="font-size: 22rpx; color: #999999; margin-top: 8rpx; display: block;">
+                  {{ req.processedAt || req.createdAt }}
+                </text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- ====== 完全空态 ====== -->
+        <view v-if="!data || (data.pending.length === 0 && data.processed.length === 0)" class="flex flex-col items-center" style="padding: 160rpx 0;">
+          <text style="font-size: 80rpx; color: #E8E0D5; margin-bottom: 32rpx;"></text>
+          <text style="font-size: 26rpx; color: #999999;">暂无好友请求</text>
+        </view>
+
+        <!-- ====== 仅待处理为空 ====== -->
+        <view v-if="data && data.pending.length === 0 && data.processed.length > 0" class="flex flex-col items-center" style="padding: 96rpx 32rpx;">
+          <text style="font-size: 64rpx; color: #E8E0D5; margin-bottom: 32rpx;"></text>
+          <text style="font-size: 26rpx; color: #999999; text-align: center;">暂无待处理的好友请求</text>
+        </view>
+      </view>
+    </template>
+
+    <!-- ====== 拒绝确认弹窗 ====== -->
+    <view v-if="rejectDialogOpen" style="position: fixed; inset: 0; z-index: 999; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 32rpx;">
+      <view style="width: 100%; max-width: 600rpx; background-color: #FFFFFF; border-radius: 24rpx; padding: 48rpx;">
+        <text style="font-size: 32rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 16rpx; display: block;">拒绝好友请求</text>
+        <text style="font-size: 26rpx; color: #999999; margin-bottom: 32rpx; display: block;">
+          确定要拒绝 {{ rejectUserName }} 的好友请求吗？
+        </text>
+        <textarea v-model="rejectReason" placeholder="可选：填写拒绝理由"
+          style="width: 100%; padding: 24rpx; background-color: #F5F1EB; border-radius: 16rpx; font-size: 26rpx; color: #2C2C2C; min-height: 120rpx; margin-bottom: 32rpx; border: 2rpx solid rgba(232,224,213,0.6);"
+          placeholder-style="color: #999999;" />
+        <view class="flex" style="gap: 24rpx;">
+          <view @click="closeRejectDialog" style="flex: 1; padding: 24rpx 0; border: 2rpx solid #E8E0D5; border-radius: 16rpx; text-align: center; font-size: 26rpx; color: #2C2C2C;">取消</view>
+          <view @click="confirmReject" style="flex: 1; padding: 24rpx 0; background-color: #DC2626; color: #FFFFFF; border-radius: 16rpx; text-align: center; font-size: 26rpx;">拒绝</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+interface FriendRequestItem {
+  id: number
+  fromUser: { id: number; nickname: string; avatar: string; signature?: string }
+  message?: string
+  createdAt: string
+  status: string
+  processedAt?: string
+  rejectReason?: string
+}
+
+interface FriendRequestsResponse {
+  pending: FriendRequestItem[]
+  processed: FriendRequestItem[]
+  totalPending: number
+}
+
+const defaultAvatar = ''
+
+const loading = ref(true)
+const error = ref<string | null>(null)
+const data = ref<FriendRequestsResponse | null>(null)
+
+const showProcessed = ref(false)
+const processingIds = ref<number[]>([])
+const approveAllLoading = ref(false)
+const rejectDialogOpen = ref(false)
+const rejectRequestId = ref<number | null>(null)
+const rejectUserName = ref('')
+const rejectReason = ref('')
+
+const statusIcons: Record<string, string> = {
+  approved: '',
+  rejected: '',
+  expired: '',
+}
+
+const statusTexts: Record<string, string> = {
+  approved: '已同意',
+  rejected: '已拒绝',
+  expired: '已过期',
+}
+
+const statusColors: Record<string, string> = {
+  approved: '#16A34A',
+  rejected: '#DC2626',
+}
+
+// Mock 数据（结构与 V0 一致）
+const mockData: FriendRequestsResponse = {
+  pending: [
+    { id: 1, fromUser: { id: 101, nickname: '易学爱好者', avatar: '', signature: '八字命理初学' }, message: '老师您好，想跟您学习八字命理', createdAt: '2024-01-15 14:30', status: 'pending' },
+    { id: 2, fromUser: { id: 102, nickname: '风水小白', avatar: '', signature: '风水爱好者' }, message: '请加我', createdAt: '2024-01-14 09:20', status: 'pending' },
+    { id: 3, fromUser: { id: 103, nickname: '国学传承人', avatar: '', signature: '易学讲师' }, message: '希望交流命理心得', createdAt: '2024-01-13 16:45', status: 'pending' },
+  ],
+  processed: [
+    { id: 4, fromUser: { id: 104, nickname: '玄学爱好者', avatar: '' }, createdAt: '2024-01-10', status: 'approved', processedAt: '2024-01-10 15:00' },
+    { id: 5, fromUser: { id: 105, nickname: '匿名用户', avatar: '' }, createdAt: '2024-01-08', status: 'rejected', processedAt: '2024-01-08 12:30', rejectReason: '不熟悉' },
+  ],
+  totalPending: 3,
+}
+
+onMounted(() => {
+  loadData()
+})
+
+function loadData() {
+  loading.value = true
+  error.value = null
+  setTimeout(() => {
+    data.value = mockData
+    loading.value = false
+  }, 600)
+}
+
+function handleApprove(req: FriendRequestItem) {
+  processingIds.value.push(req.id)
+  setTimeout(() => {
+    if (!data.value) return
+    data.value.pending = data.value.pending.filter(r => r.id !== req.id)
+    data.value.processed.unshift({
+      ...req,
+      status: 'approved',
+      processedAt: new Date().toLocaleString(),
+    } as FriendRequestItem)
+    data.value.totalPending -= 1
+    processingIds.value = processingIds.value.filter(id => id !== req.id)
+    uni.showToast({ title: '已添加 ' + req.fromUser.nickname + ' 为好友', icon: 'success' })
+  }, 500)
+}
+
+function openRejectDialog(req: FriendRequestItem) {
+  rejectRequestId.value = req.id
+  rejectUserName.value = req.fromUser.nickname
+  rejectReason.value = ''
+  rejectDialogOpen.value = true
+}
+
+function closeRejectDialog() {
+  rejectDialogOpen.value = false
+  rejectRequestId.value = null
+}
+
+function confirmReject() {
+  if (!rejectRequestId.value || !data.value) return
+  const id = rejectRequestId.value
+  const req = data.value.pending.find(r => r.id === id)
+  if (req) {
+    data.value.pending = data.value.pending.filter(r => r.id !== id)
+    data.value.processed.unshift({
+      ...req,
+      status: 'rejected',
+      processedAt: new Date().toLocaleString(),
+      rejectReason: rejectReason.value || undefined,
+    } as FriendRequestItem)
+    data.value.totalPending -= 1
+  }
+  rejectDialogOpen.value = false
+  rejectRequestId.value = null
+  uni.showToast({ title: '已拒绝请求', icon: 'success' })
+}
+
+function handleApproveAll() {
+  if (!data.value || data.value.pending.length === 0) return
+  approveAllLoading.value = true
+  setTimeout(() => {
+    if (!data.value) return
+    const now = new Date().toLocaleString()
+    const approved = data.value.pending.map(r => ({
+      ...r,
+      status: 'approved',
+      processedAt: now,
+    } as FriendRequestItem))
+    data.value.processed.unshift(...approved)
+    data.value.pending = []
+    data.value.totalPending = 0
+    approveAllLoading.value = false
+    uni.showToast({ title: `已添加${approved.length}位好友`, icon: 'success' })
+  }, 800)
+}
+
+function goTo(url: string) {
+  uni.navigateTo({ url })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.items-start { align-items: flex-start; }
+.flex-col { flex-direction: column; }
+</style>

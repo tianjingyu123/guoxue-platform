@@ -1,0 +1,169 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="p-4 space-y-3">
+      <view class="h-12 bg-muted rounded-lg" />
+      <view class="h-10 bg-muted rounded-full" />
+      <view v-for="i in 4" :key="i" class="h-20 bg-muted rounded-xl" />
+    </view>
+
+    <template v-else>
+      <!-- 顶部导航 -->
+      <view class="sticky top-0 z-10 bg-background border-b border-border flex items-center px-4 h-12 gap-3">
+        <view @click="goBack">
+          <text class="text-xl text-foreground">←</text>
+        </view>
+        <text class="text-base font-semibold text-foreground">我的通话</text>
+        <view class="flex-1" />
+        <text class="text-xs text-muted-foreground">共 {{ filtered.length }} 条</text>
+      </view>
+
+      <!-- 统计概览 -->
+      <view class="mx-4 mt-3 grid grid-cols-3 gap-2">
+        <view class="bg-white rounded-xl p-3 text-center border border-border">
+          <text class="text-lg font-bold text-foreground block">{{ mockCalls.length }}</text>
+          <text class="text-[10px] text-muted-foreground">全部</text>
+        </view>
+        <view class="bg-white rounded-xl p-3 text-center border border-border">
+          <text class="text-lg font-bold text-green-600 block">{{ mockCalls.filter(c => c.type === 'incoming').length + mockCalls.filter(c => c.type === 'outgoing').length }}</text>
+          <text class="text-[10px] text-muted-foreground">已接通</text>
+        </view>
+        <view class="bg-white rounded-xl p-3 text-center border border-border">
+          <text class="text-lg font-bold text-red-500 block">{{ mockCalls.filter(c => c.type === 'missed').length }}</text>
+          <text class="text-[10px] text-muted-foreground">未接</text>
+        </view>
+      </view>
+
+      <!-- 筛选标签 -->
+      <view class="flex gap-2 px-4 pt-3 pb-2 overflow-x-auto">
+        <view
+          v-for="f in filterOptions" :key="f.key"
+          @click="filter = f.key"
+          :class="['px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors', filter === f.key ? 'bg-primary text-white' : 'bg-muted text-foreground']"
+        >
+          <text>{{ f.label }}</text>
+        </view>
+      </view>
+
+      <!-- 通话列表 -->
+      <view class="px-4 pb-24 space-y-2 pt-2">
+        <view
+          v-for="call in filtered"
+          :key="call.id"
+          class="flex items-center gap-3 p-3.5 bg-white border border-border rounded-xl"
+        >
+          <image :src="call.avatar" mode="aspectFill" class="w-12 h-12 rounded-full flex-shrink-0" />
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center gap-1.5">
+              <text class="text-sm font-medium text-foreground">{{ call.expert }}</text>
+              <text class="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded-full">{{ call.specialty }}</text>
+            </view>
+            <view class="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+              <text :class="[call.type === 'missed' ? 'text-red-500' : call.type === 'outgoing' ? 'text-blue-500' : 'text-green-600', 'flex items-center gap-0.5']">
+                <text>{{ call.type === 'incoming' ? '📲' : call.type === 'outgoing' ? '📞' : '📵' }}</text>
+                <text>{{ call.type === 'incoming' ? '接入' : call.type === 'outgoing' ? '拨出' : '未接' }}</text>
+              </text>
+              <text class="flex items-center gap-0.5">
+                <text>🕐</text>{{ call.duration }}
+              </text>
+              <text class="flex items-center gap-0.5">
+                <text></text>{{ call.time }}
+              </text>
+            </view>
+          </view>
+          <view class="text-right flex-shrink-0">
+            <text class="text-sm font-bold text-primary block">{{ call.cost }}</text>
+            <view
+              v-if="call.type === 'missed'"
+              @click="callBack(call)"
+              class="mt-1.5 px-3 py-1 bg-primary text-white text-[10px] rounded-full text-center"
+            >
+              回拨
+            </view>
+            <view
+              v-else
+              @click="callAgain(call)"
+              class="mt-1.5 px-3 py-1 bg-primary/10 text-primary text-[10px] rounded-full text-center"
+            >
+              再咨询
+            </view>
+          </view>
+        </view>
+
+        <!-- 空状态 -->
+        <view v-if="filtered.length === 0" class="flex flex-col items-center justify-center py-20">
+          <text class="text-5xl mb-4">📞</text>
+          <text class="text-sm text-muted-foreground mb-2">暂无通话记录</text>
+          <text class="text-xs text-[#ccc]">去首页找专家咨询吧</text>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const loading = ref(true)
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 600)
+})
+
+type CallType = 'all' | 'incoming' | 'outgoing' | 'missed'
+
+interface CallRecord {
+  id: string
+  expert: string
+  avatar: string
+  specialty: string
+  type: 'incoming' | 'outgoing' | 'missed'
+  duration: string
+  time: string
+  cost: string
+  rating?: number
+}
+
+const mockCalls: CallRecord[] = [
+  { id: '1', expert: '周易大师', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80', specialty: '八字命理', type: 'outgoing', duration: '28分钟', time: '今天 14:35', cost: '¥84.00', rating: 5 },
+  { id: '2', expert: '张玄风', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80', specialty: '紫微斗数', type: 'incoming', duration: '15分钟', time: '昨天 20:12', cost: '¥45.00', rating: 4 },
+  { id: '3', expert: '李玄机', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80', specialty: '易经', type: 'missed', duration: '--', time: '昨天 09:30', cost: '¥0.00' },
+  { id: '4', expert: '王德华', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80', specialty: '风水', type: 'outgoing', duration: '42分钟', time: '2024-01-10', cost: '¥126.00', rating: 5 },
+  { id: '5', expert: '林奇门', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80', specialty: '奇门遁甲', type: 'missed', duration: '--', time: '2024-01-08', cost: '¥0.00' },
+  { id: '6', expert: '陈紫微', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80', specialty: '紫微斗数', type: 'incoming', duration: '22分钟', time: '2024-01-05', cost: '¥66.00', rating: 4 },
+  { id: '7', expert: '刘太乙', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80', specialty: '太乙神数', type: 'outgoing', duration: '18分钟', time: '2024-01-03', cost: '¥54.00', rating: 5 },
+  { id: '8', expert: '赵六爻', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80', specialty: '六爻', type: 'missed', duration: '--', time: '2024-01-01', cost: '¥0.00' },
+]
+
+const filter = ref<CallType>('all')
+const filterOptions = [
+  { key: 'all', label: '全部' },
+  { key: 'outgoing', label: '拨出' },
+  { key: 'incoming', label: '接入' },
+  { key: 'missed', label: '未接' },
+]
+
+const filtered = computed(() => filter.value === 'all' ? mockCalls : mockCalls.filter(c => c.type === filter.value))
+
+function goBack() { uni.navigateBack() }
+
+function callBack(call: CallRecord) {
+  uni.showModal({
+    title: '回拨确认',
+    content: '确定要回拨给 ' + call.expert + ' 吗？',
+    success: (res) => {
+      if (res.confirm) {
+        uni.showToast({ title: '正在呼叫 ' + call.expert, icon: 'none' })
+      }
+    }
+  })
+}
+
+function callAgain(call: CallRecord) {
+  uni.showToast({ title: '正在连接 ' + call.expert, icon: 'none' })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

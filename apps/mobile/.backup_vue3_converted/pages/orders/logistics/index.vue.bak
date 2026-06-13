@@ -1,0 +1,187 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-20">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-10 bg-white border-b border-[#E8E0D5] px-4 py-3 flex items-center gap-3">
+      <view @click="goBack" class="p-1 -ml-1">
+        <text class="text-[#2C2C2C] text-xl">←</text>
+      </view>
+      <text class="text-lg font-semibold text-[#2C2C2C]">物流详情</text>
+    </view>
+
+    <!-- Loading -->
+    <view v-if="loading">
+      <view class="p-4 space-y-4">
+        <view v-for="i in 3" :key="i" class="bg-white rounded-2xl h-32 animate-pulse" />
+      </view>
+    </view>
+
+    <view v-else-if="!logistics" class="flex flex-col items-center justify-center pt-32">
+      <text class="text-[#999] text-4xl mb-4">📦</text>
+      <text class="text-[#666]">暂无物流信息</text>
+    </view>
+
+    <view v-else>
+      <!-- 物流状态卡片 -->
+      <view class="mx-4 mt-4 bg-gradient-to-r from-[#C41E3A] to-[#E8546A] rounded-2xl p-4 text-white">
+        <view class="flex items-center gap-3 mb-3">
+          <view class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <text class="text-white text-2xl">🚚</text>
+          </view>
+          <view class="flex-1">
+            <view class="flex items-center gap-2">
+              <text class="font-semibold">{{ logistics.company }}</text>
+              <text class="text-xs bg-white/20 px-2 py-0.5 rounded-full">{{ statusInfo.label }}</text>
+            </view>
+            <text class="text-sm text-white/80 mt-0.5 block">运单号：{{ logistics.trackingNo }}</text>
+          </view>
+          <view @click="handleCopy(logistics.trackingNo)" class="p-2 bg-white/20 rounded-lg">
+            <text>{{ copied ? '✓' : '📋' }}</text>
+          </view>
+        </view>
+        <view v-if="logistics.estimatedDelivery" class="flex items-center gap-2 text-sm text-white/90 bg-white/10 rounded-lg px-3 py-2">
+          <text>🕓</text>
+          <text>预计送达：{{ logistics.estimatedDelivery }}</text>
+        </view>
+      </view>
+
+      <!-- 快递员信息 -->
+      <view v-if="logistics.courierName" class="mx-4 mt-4 bg-white rounded-2xl p-4">
+        <view class="flex items-center justify-between">
+          <view class="flex items-center gap-3">
+            <view class="w-10 h-10 bg-[#FAF8F5] rounded-full flex items-center justify-center">
+              <text class="text-[#C41E3A] text-lg">📦</text>
+            </view>
+            <view>
+              <text class="font-medium text-[#2C2C2C] block">快递员：{{ logistics.courierName }}</text>
+              <text class="text-sm text-[#999]">正在为您派送</text>
+            </view>
+          </view>
+          <view v-if="logistics.courierPhone" @click="handleCall(logistics.courierPhone)" class="flex items-center gap-1 px-4 py-2 bg-[#C41E3A] text-white rounded-full text-sm">
+            <text>📞</text>
+            <text>联系</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 收货地址 -->
+      <view class="mx-4 mt-4 bg-white rounded-2xl p-4">
+        <view class="flex items-start gap-3">
+          <view class="w-10 h-10 bg-[#FAF8F5] rounded-full flex items-center justify-center flex-shrink-0">
+            <text class="text-[#C41E3A] text-lg">📍</text>
+          </view>
+          <view class="flex-1">
+            <view class="flex items-center gap-2 mb-1">
+              <text class="font-medium text-[#2C2C2C]">{{ logistics.receiver.name }}</text>
+              <text class="text-[#666]">{{ logistics.receiver.phone }}</text>
+            </view>
+            <text class="text-sm text-[#666] leading-relaxed block">{{ logistics.receiver.address }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 物流轨迹 -->
+      <view class="mx-4 mt-4 bg-white rounded-2xl p-4">
+        <text class="font-semibold text-[#2C2C2C] block mb-4">物流轨迹</text>
+        <view class="relative">
+          <view v-for="(track, index) in logistics.tracks" :key="index" class="flex gap-4 pb-6 last:pb-0">
+            <view class="flex flex-col items-center">
+              <view :class="['w-3 h-3 rounded-full', track.isCurrent ? 'bg-[#C41E3A] ring-4 ring-[#C41E3A]/20' : 'bg-[#E8E0D5]']" />
+              <view v-if="index < logistics.tracks.length - 1" class="w-0.5 flex-1 bg-[#E8E0D5] mt-1" />
+            </view>
+            <view class="flex-1 -mt-1">
+              <text :class="['text-sm leading-relaxed block', track.isCurrent ? 'text-[#2C2C2C] font-medium' : 'text-[#666]']">{{ track.description }}</text>
+              <view class="flex items-center gap-2 mt-1">
+                <text class="text-xs text-[#999]">{{ track.time }}</text>
+                <text v-if="track.location" class="text-xs text-[#999]">· {{ track.location }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部操作 -->
+      <view class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E8E0D5] px-4 py-3">
+        <view class="flex gap-3">
+          <view v-if="logistics.companyPhone" @click="handleCall(logistics.companyPhone)" class="flex-1 flex items-center justify-center gap-2 py-3 border border-[#E8E0D5] rounded-xl text-[#666]">
+            <text>📞</text>
+            <text>联系物流公司</text>
+          </view>
+          <view @click="goOrder" class="flex-1 py-3 bg-[#C41E3A] text-white rounded-xl font-medium text-center">查看订单</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface TrackPoint {
+  status: string; description: string; time: string; location: string; isCurrent: boolean
+}
+
+interface LogisticsDetail {
+  orderId: string; orderNo: string; company: string; trackingNo: string
+  status: string; estimatedDelivery?: string
+  courierName?: string; courierPhone?: string
+  companyPhone?: string
+  receiver: { name: string; phone: string; address: string }
+  tracks: TrackPoint[]
+}
+
+const mockLogistics: LogisticsDetail = {
+  orderId: 'o1', orderNo: '202412010001', company: '顺丰速运',
+  companyPhone: '95338', trackingNo: 'SF1234567890123',
+  status: 'in_transit', estimatedDelivery: '2024-12-03 18:00',
+  courierName: '张师傅', courierPhone: '13800138000',
+  receiver: { name: '张三', phone: '138****8888', address: '北京市朝阳区建国路88号SOHO现代城A座1201' },
+  tracks: [
+    { status: 'in_transit', description: '快件已到达【北京朝阳营业点】，正在派送中', time: '2024-12-02 14:30', location: '北京市朝阳区', isCurrent: true },
+    { status: 'in_transit', description: '快件已到达【北京转运中心】', time: '2024-12-02 08:15', location: '北京市顺义区', isCurrent: false },
+    { status: 'in_transit', description: '快件已从【上海转运中心】发出', time: '2024-12-01 22:00', location: '上海市青浦区', isCurrent: false },
+    { status: 'picked', description: '已揽收', time: '2024-12-01 15:20', location: '上海市浦东新区', isCurrent: false },
+  ],
+}
+
+const statusMap: Record<string, { label: string; color: string }> = {
+  pending: { label: '待揽收', color: 'bg-gray-500' },
+  picked: { label: '已揽收', color: 'bg-blue-500' },
+  in_transit: { label: '运输中', color: 'bg-[#C41E3A]' },
+  delivering: { label: '派送中', color: 'bg-orange-500' },
+  delivered: { label: '已送达', color: 'bg-green-500' },
+  signed: { label: '已签收', color: 'bg-green-600' },
+}
+
+const logistics = ref<LogisticsDetail | null>(null)
+const loading = ref(true)
+const copied = ref(false)
+
+const statusInfo = computed(() => {
+  const s = logistics.value?.status || 'pending'
+  return statusMap[s] || { label: '未知', color: 'bg-gray-500' }
+})
+
+onMounted(() => {
+  setTimeout(() => {
+    logistics.value = mockLogistics
+    loading.value = false
+  }, 300)
+})
+
+function handleCopy(text: string) {
+  uni.setClipboardData({ data: text })
+  copied.value = true
+  setTimeout(() => copied.value = false, 2000)
+}
+
+function handleCall(phone?: string) {
+  if (phone) uni.makePhoneCall({ phoneNumber: phone })
+}
+
+function goBack() { uni.navigateBack() }
+function goOrder() { uni.navigateTo({ url: `/pages/orders/id-detail/index?orderId=${logistics.value?.orderId}` }) }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

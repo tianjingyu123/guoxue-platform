@@ -1,0 +1,181 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-10 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view class="flex items-center gap-3">
+          <view @click="goBack" class="p-1 -ml-1">
+            <text class="text-lg text-[#2C2C2C]">&#8592;</text>
+          </view>
+          <text class="text-lg font-semibold text-[#2C2C2C]">隐私设置</text>
+        </view>
+      </view>
+    </header>
+
+    <view class="p-4 space-y-4">
+      <!-- 面包屑导航 -->
+      <view class="flex items-center gap-1 text-xs text-[#999] mb-1">
+        <text>设置</text>
+        <text>&#8250;</text>
+        <text class="text-[#2C2C2C]">隐私设置</text>
+      </view>
+
+      <!-- 个人信息可见性 -->
+      <view class="bg-white rounded-xl overflow-hidden">
+        <view class="px-4 py-2.5 border-b border-[#E8E0D5]">
+          <text class="text-xs text-[#999] font-medium">个人信息可见性</text>
+        </view>
+        <view class="divide-y divide-[#E8E0D5]">
+          <view v-for="item in visibilityItems" :key="item.id" class="px-4 py-3 flex items-center justify-between">
+            <view class="flex items-center gap-3">
+              <view class="w-8 h-8 rounded-lg bg-[#C41E3A]/10 flex items-center justify-center">
+                <text class="text-sm text-[#C41E3A]">{{ item.icon }}</text>
+              </view>
+              <view>
+                <text class="text-sm font-medium text-[#2C2C2C] block">{{ item.title }}</text>
+                <text class="text-[10px] text-[#999] block">{{ item.desc }}</text>
+              </view>
+            </view>
+            <view @click="item.checked = !item.checked" :class="['w-11 h-6 rounded-full relative transition-colors', item.checked ? 'bg-[#C41E3A]' : 'bg-[#E8E0D5]']">
+              <view :class="['w-5 h-5 rounded-full bg-white absolute top-0.5 shadow transition-transform', item.checked ? 'translate-x-[1.375rem]' : 'translate-x-0.5']" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 互动权限 -->
+      <view class="bg-white rounded-xl overflow-hidden">
+        <view class="px-4 py-2.5 border-b border-[#E8E0D5]">
+          <text class="text-xs text-[#999] font-medium">互动权限</text>
+        </view>
+        <view class="divide-y divide-[#E8E0D5]">
+          <view v-for="item in selectItems" :key="item.id" class="px-4 py-3">
+            <view class="flex items-center justify-between">
+              <view class="flex items-center gap-3">
+                <view class="w-8 h-8 rounded-lg bg-[#C41E3A]/10 flex items-center justify-center">
+                  <text class="text-sm text-[#C41E3A]">{{ item.icon }}</text>
+                </view>
+                <text class="text-sm font-medium text-[#2C2C2C]">{{ item.title }}</text>
+              </view>
+              <view @click="item.open = !item.open" class="text-xs text-[#999] flex items-center gap-1">
+                <text>{{ getOptionLabel(item) }}</text>
+                <text :class="['text-xs transition-transform duration-200', item.open ? 'rotate-90' : '-rotate-90']">&#8250;</text>
+              </view>
+            </view>
+            <view v-if="item.open" class="mt-2 ml-11 flex flex-wrap gap-2">
+              <text v-for="opt in item.options" :key="opt.value"
+                @click="selectOption(item, opt.value)"
+                :class="['px-3 py-1.5 rounded-full text-xs transition-colors', item.value === opt.value ? 'bg-[#C41E3A] text-white' : 'bg-[#F5F1EB] text-[#999]']">
+                {{ opt.label }}
+              </text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 黑名单管理 -->
+      <view class="bg-white rounded-xl overflow-hidden">
+        <view @click="goBlacklist" class="px-4 py-3 flex items-center justify-between">
+          <view class="flex items-center gap-3">
+            <view class="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+              <text class="text-sm text-red-500">&#128683;</text>
+            </view>
+            <view>
+              <text class="text-sm font-medium text-[#2C2C2C] block">黑名单管理</text>
+              <text class="text-[10px] text-[#999]">已拉黑 3 人</text>
+            </view>
+          </view>
+          <text class="text-sm text-[#999]">&#8250;</text>
+        </view>
+      </view>
+
+      <!-- 其他 -->
+      <view class="bg-white rounded-xl overflow-hidden">
+        <view class="px-4 py-2.5 border-b border-[#E8E0D5]">
+          <text class="text-xs text-[#999] font-medium">其他</text>
+        </view>
+        <view class="divide-y divide-[#E8E0D5]">
+          <view v-for="item in otherItems" :key="item.id" class="px-4 py-3 flex items-center justify-between">
+            <view class="flex items-center gap-3">
+              <view class="w-8 h-8 rounded-lg bg-[#C41E3A]/10 flex items-center justify-center">
+                <text class="text-sm text-[#C41E3A]">{{ item.icon }}</text>
+              </view>
+              <view>
+                <text class="text-sm font-medium text-[#2C2C2C] block">{{ item.title }}</text>
+                <text class="text-[10px] text-[#999] block">{{ item.desc }}</text>
+              </view>
+            </view>
+            <view @click="item.checked = !item.checked" :class="['w-11 h-6 rounded-full relative transition-colors', item.checked ? 'bg-[#C41E3A]' : 'bg-[#E8E0D5]']">
+              <view :class="['w-5 h-5 rounded-full bg-white absolute top-0.5 shadow transition-transform', item.checked ? 'translate-x-[1.375rem]' : 'translate-x-0.5']" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 提示 -->
+      <text class="text-[10px] text-[#999] text-center block px-4 leading-relaxed">
+        隐私设置修改后立即生效，部分设置可能需要刷新页面查看效果
+      </text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+interface SwitchItem {
+  id: string
+  icon: string
+  title: string
+  desc: string
+  checked: boolean
+}
+
+interface SelectItem {
+  id: string
+  icon: string
+  title: string
+  value: string
+  options: { label: string; value: string }[]
+  open: boolean
+}
+
+const visibilityItems = ref<SwitchItem[]>([
+  { id: 'online', icon: '&#127760;', title: '显示在线状态', desc: '其他用户可以看到您是否在线', checked: true },
+  { id: 'lastSeen', icon: '&#9200;', title: '显示最后上线时间', desc: '其他用户可以看到您的最后活跃时间', checked: true },
+  { id: 'location', icon: '&#128205;', title: '显示位置信息', desc: '在内容中显示您的地理位置', checked: false },
+  { id: 'favorites', icon: '&#10084;&#65039;', title: '公开收藏夹', desc: '其他用户可以查看您的收藏内容', checked: true },
+  { id: 'following', icon: '&#128101;', title: '公开关注列表', desc: '其他用户可以查看您关注的人', checked: true },
+])
+
+const selectItems = ref<SelectItem[]>([
+  { id: 'message', icon: '&#128172;', title: '谁可以私信我', value: 'everyone', options: [{ label: '所有人', value: 'everyone' }, { label: '仅关注的人', value: 'following' }, { label: '关闭私信', value: 'none' }], open: false },
+  { id: 'comment', icon: '&#128172;', title: '谁可以评论我', value: 'everyone', options: [{ label: '所有人', value: 'everyone' }, { label: '仅关注的人', value: 'following' }, { label: '关闭评论', value: 'none' }], open: false },
+  { id: 'circle', icon: '&#128101;', title: '我加入的圈子', value: 'members', options: [{ label: '所有人可见', value: 'everyone' }, { label: '仅成员可见', value: 'members' }, { label: '仅自己可见', value: 'private' }], open: false },
+])
+
+const otherItems = ref<SwitchItem[]>([
+  { id: 'history', icon: '&#9200;', title: '记录浏览历史', desc: '记录您浏览过的内容，方便回顾', checked: true },
+  { id: 'recommend', icon: '&#128065;', title: '个性化推荐', desc: '基于您的兴趣推荐相关内容', checked: true },
+])
+
+const getOptionLabel = (item: SelectItem) => {
+  return item.options.find(o => o.value === item.value)?.label || ''
+}
+
+const selectOption = (item: SelectItem, value: string) => {
+  item.value = value
+  item.open = false
+}
+
+const goBlacklist = () => {
+  uni.navigateTo({ url: '/pages/settings/blacklist/index' })
+}
+
+const goBack = () => {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+</style>

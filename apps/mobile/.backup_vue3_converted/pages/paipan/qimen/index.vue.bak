@@ -1,0 +1,270 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-10 bg-[#FAF8F5] border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 h-12">
+        <view @click="goBack" class="p-1 -ml-1">
+          <text class="text-2xl leading-none text-[#2C2C2C]">←</text>
+        </view>
+        <text class="text-base font-bold text-[#2C2C2C]">热卜奇门遁甲</text>
+        <view class="w-6" />
+      </view>
+    </header>
+
+    <!-- 标题横幅 -->
+    <view class="bg-[#C41E3A] px-4 py-6 flex items-center justify-between">
+      <text class="text-2xl font-bold text-white tracking-wide">奇门遁甲</text>
+      <view class="flex items-center gap-1 text-white/90">
+        <text class="text-sm">📤</text>
+        <text class="text-sm">分享</text>
+      </view>
+    </view>
+
+    <!-- 表单卡片 -->
+    <main class="flex-1 px-4" style="margin-top:-8px">
+      <view class="bg-white rounded-2xl shadow-sm" style="border:1px solid rgba(232,224,213,0.6);overflow:hidden">
+        <!-- 事项内容 -->
+        <view class="px-4 py-4" style="border-bottom:1px solid rgba(232,224,213,0.6)">
+          <view class="flex items-center justify-between">
+            <text class="text-sm font-medium text-[#2C2C2C] shrink-0">事项内容</text>
+            <input
+              type="text"
+              :value="matter"
+              @input="(e:any) => { matter = e.detail.value }"
+              placeholder="请输入事项(选填)"
+              class="text-right text-sm text-[#999] placeholder:text-[#999]/50 bg-transparent flex-1 ml-4 box-border"
+            />
+          </view>
+        </view>
+
+        <!-- 排盘时间 -->
+        <view class="px-4 py-4" style="border-bottom:1px solid rgba(232,224,213,0.6)">
+          <view class="flex items-center justify-between">
+            <view class="flex items-center gap-2">
+              <text class="text-sm font-medium text-[#2C2C2C]">排盘时间</text>
+              <view @click.stop="refreshTime" class="p-1">
+                <text class="text-sm text-[#999]">🔄</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-1">
+              <text class="text-sm text-[#2C2C2C]">{{ formatDateTime() }}</text>
+              <text class="text-sm text-[#999]">▼</text>
+            </view>
+          </view>
+          <!-- 时间选择行 -->
+          <view class="flex gap-2 mt-2">
+            <picker mode="date" :value="dateStr" @change="onDateChange">
+              <view class="flex-1 px-3 py-2 bg-[#F1EDE8]/40 rounded-lg text-sm text-center">{{ dateStr }}</view>
+            </picker>
+            <picker mode="time" :value="timeStr" @change="onTimeChange">
+              <view class="flex-1 px-3 py-2 bg-[#F1EDE8]/40 rounded-lg text-sm text-center">{{ timeStr }}</view>
+            </picker>
+          </view>
+        </view>
+
+        <!-- 排盘方式 -->
+        <view class="px-4 py-4" style="border-bottom:1px solid rgba(232,224,213,0.6)">
+          <view class="flex items-center justify-between">
+            <text class="text-sm font-medium text-[#2C2C2C] shrink-0">排盘方式</text>
+            <view class="flex items-center gap-2">
+              <view @click="panMethod = 'zhuan'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="panMethod === 'zhuan' ? 'bg-[#C41E3A] text-white shadow-sm' : 'bg-[#F1EDE8]/40 text-[#2C2C2C]'"
+              >转盘</view>
+              <view @click="panMethod = 'fei'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="panMethod === 'fei' ? 'bg-[#C41E3A] text-white shadow-sm' : 'bg-[#F1EDE8]/40 text-[#2C2C2C]'"
+              >飞盘</view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 飞宫方式 -->
+        <view class="px-4 py-4" style="border-bottom:1px solid rgba(232,224,213,0.6)">
+          <view class="flex items-center justify-between">
+            <text class="text-sm font-medium text-[#2C2C2C] shrink-0">飞宫方式</text>
+            <view class="flex items-center gap-2">
+              <view @click="flyMethod = 'yangshun'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="flyMethod === 'yangshun' ? 'bg-[#C41E3A] text-white shadow-sm' : 'bg-[#F1EDE8]/40 text-[#2C2C2C]'"
+              >阳顺阴逆</view>
+              <view @click="flyMethod = 'yinyang'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="flyMethod === 'yinyang' ? 'bg-[#C41E3A] text-white shadow-sm' : 'bg-[#F1EDE8]/40 text-[#2C2C2C]'"
+              >阴阳皆顺</view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 起局方式 -->
+        <view class="px-4 py-4" style="border-bottom:1px solid rgba(232,224,213,0.6)">
+          <view class="flex flex-col gap-3">
+            <text class="text-sm font-medium text-[#2C2C2C]">起局方式</text>
+            <view class="flex flex-wrap gap-2">
+              <view @click="startMethod = 'chaibu'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="startMethod === 'chaibu' ? 'bg-[#C41E3A] text-white shadow-sm' : 'bg-[#F1EDE8]/40 text-[#2C2C2C]'"
+              >拆补</view>
+              <view @click="startMethod = 'maoshan'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="startMethod === 'maoshan' ? 'bg-[#C41E3A] text-white shadow-sm' : 'bg-[#F1EDE8]/40 text-[#2C2C2C]'"
+              >茅山</view>
+              <view @click="startMethod = 'zhirun'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="startMethod === 'zhirun' ? 'bg-[#C41E3A] text-white shadow-sm' : 'bg-[#F1EDE8]/40 text-[#2C2C2C]'"
+              >置闰</view>
+              <view @click="startMethod = 'custom'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="startMethod === 'custom' ? 'bg-[#C41E3A] text-white shadow-sm' : 'bg-[#F1EDE8]/40 text-[#2C2C2C]'"
+              >自选局数</view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 自选局数 -->
+        <view v-if="startMethod === 'custom'" class="px-4 py-3" style="border-bottom:1px solid rgba(232,224,213,0.6);background:rgba(250,248,245,0.5)">
+          <view @click="showJuSheet = true" class="w-full flex items-center justify-between bg-white rounded-lg px-4 py-3" style="border:1px solid rgba(232,224,213,0.6)">
+            <text class="text-sm text-[#2C2C2C]">{{ customJu }}</text>
+            <text class="text-sm text-[#999]">▼</text>
+          </view>
+        </view>
+
+        <!-- 局数选择底部弹窗 -->
+        <view v-if="showJuSheet" class="fixed inset-0 z-50" @click="showJuSheet = false">
+          <view class="absolute inset-0 bg-black/50" />
+          <view @click.stop class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl animate-slide-up">
+            <view class="flex items-center justify-between px-4 py-3 border-b border-[#E8E0D5]">
+              <text class="text-sm text-[#999]" @click="showJuSheet = false">取消</text>
+              <text class="text-sm font-medium text-[#2C2C2C]">选择局数</text>
+              <text class="text-sm text-[#C41E3A]" @click="showJuSheet = false">确定</text>
+            </view>
+            <view class="p-4">
+              <text class="text-xs text-[#999] mb-3 block">阳遁</text>
+              <view class="grid grid-cols-3 gap-2 mb-4">
+                <view v-for="i in 9" :key="'yang'+i" @click="customJu = '阳遁'+i+'局'; showJuSheet = false"
+                  :class="['px-3 py-2.5 rounded-lg text-sm text-center', customJu === '阳遁'+i+'局' ? 'bg-[#C41E3A] text-white' : 'bg-[#FAF8F5] text-[#2C2C2C]']">
+                  <text>阳遁{{ i }}局</text>
+                </view>
+              </view>
+              <text class="text-xs text-[#999] mb-3 block">阴遁</text>
+              <view class="grid grid-cols-3 gap-2">
+                <view v-for="i in 9" :key="'yin'+i" @click="customJu = '阴遁'+i+'局'; showJuSheet = false"
+                  :class="['px-3 py-2.5 rounded-lg text-sm text-center', customJu === '阴遁'+i+'局' ? 'bg-[#C41E3A] text-white' : 'bg-[#FAF8F5] text-[#2C2C2C]']">
+                  <text>阴遁{{ i }}局</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 暗干起法 -->
+        <view class="px-4 py-4" style="border-bottom:1px solid rgba(232,224,213,0.6)">
+          <view class="flex items-center justify-between">
+            <text class="text-sm font-medium text-[#2C2C2C] shrink-0">暗干起法</text>
+            <view class="flex items-center gap-2">
+              <view @click="anganMethod = 'zhishi'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="anganMethod === 'zhishi' ? 'bg-[#C41E3A] text-white shadow-sm' : 'bg-[#F1EDE8]/40 text-[#2C2C2C]'"
+              >值使门起</view>
+              <view @click="anganMethod = 'dipan'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                :class="anganMethod === 'dipan' ? 'bg-[#C41E3A] text-white shadow-sm' : 'bg-[#F1EDE8]/40 text-[#2C2C2C]'"
+              >门地盘起</view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 时间类型 -->
+        <view class="px-4 py-4">
+          <view class="flex items-center justify-between">
+            <text class="text-sm font-medium text-[#2C2C2C] shrink-0">时间类型</text>
+            <view class="flex items-center gap-2">
+              <text v-if="useTrueSolar" class="text-xs text-[#999]">北纬{{ coordinates.lat }}东经{{ coordinates.lng }}</text>
+              <view @click="useTrueSolar = !useTrueSolar" class="flex items-center gap-2">
+                <text class="text-sm text-[#2C2C2C]">真太阳时</text>
+                <view class="w-10 h-5 rounded-full transition-all flex items-center px-0.5"
+                  :class="useTrueSolar ? 'bg-[#C41E3A]' : 'bg-[#F1EDE8]'"
+                >
+                  <view class="w-4 h-4 rounded-full bg-white shadow-sm transition-all"
+                    :class="useTrueSolar ? 'translate-x-5' : 'translate-x-0'"
+                  />
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部按钮 -->
+      <view class="mt-6 space-y-3 pb-8">
+        <view @click="handleSubmit"
+          class="w-full py-4 bg-gradient-to-r from-primary to-primary/90 text-white font-bold text-base rounded-xl text-center"
+          style="box-shadow:0 4px 14px rgba(196,30,58,0.3)"
+        >
+          <text>开始排盘</text>
+        </view>
+        <view @click="goHistory"
+          class="block w-full py-4 bg-white text-[#C41E3A] font-bold text-base rounded-xl text-center"
+          style="border:1px solid rgba(196,30,58,0.3)"
+        >
+          <text>排盘记录</text>
+        </view>
+      </view>
+    </main>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+type PanMethod = 'zhuan' | 'fei'
+type FlyMethod = 'yangshun' | 'yinyang'
+type StartMethod = 'chaibu' | 'maoshan' | 'zhirun' | 'custom'
+type AnganMethod = 'zhishi' | 'dipan'
+
+const juOptions = [
+  '阳遁1局', '阳遁2局', '阳遁3局', '阳遁4局', '阳遁5局',
+  '阳遁6局', '阳遁7局', '阳遁8局', '阳遁9局',
+  '阴遁1局', '阴遁2局', '阴遁3局', '阴遁4局', '阴遁5局',
+  '阴遁6局', '阴遁7局', '阴遁8局', '阴遁9局',
+]
+
+const matter = ref('')
+const panMethod = ref<PanMethod>('fei')
+const flyMethod = ref<FlyMethod>('yinyang')
+const startMethod = ref<StartMethod>('chaibu')
+const customJu = ref('阳遁1局')
+const showJuSheet = ref(false)
+const anganMethod = ref<AnganMethod>('dipan')
+const useTrueSolar = ref(false)
+const coordinates = ref({ lat: 38.93, lng: 115.42 })
+
+// 时间
+const now = new Date()
+const dateStr = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`)
+const timeStr = ref(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`)
+
+function onDateChange(e: any) { dateStr.value = e.detail.value }
+function onTimeChange(e: any) { timeStr.value = e.detail.value }
+function onJuChange(e: any) { customJu.value = juOptions[e.detail.value] }
+
+function refreshTime() {
+  const n = new Date()
+  dateStr.value = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+  timeStr.value = `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`
+}
+
+function formatDateTime() {
+  const parts = dateStr.value.split('-')
+  const y = parts[0], m = parts[1], d = parts[2]
+  const timeParts = timeStr.value.split(':')
+  return `${y}年${m}月${d}日 ${timeParts[0]}时${timeParts[1]}分`
+}
+
+function handleSubmit() {
+  uni.navigateTo({
+    url: `/pages/paipan/qimen/result/index?matter=${encodeURIComponent(matter.value)}&date=${dateStr.value}&time=${timeStr.value}&panMethod=${panMethod.value}&flyMethod=${flyMethod.value}&startMethod=${startMethod.value}&customJu=${encodeURIComponent(customJu.value)}&anganMethod=${anganMethod.value}&trueSolar=${useTrueSolar.value}&lat=${coordinates.value.lat}&lng=${coordinates.value.lng}`
+  })
+}
+
+function goBack() { uni.navigateBack() }
+function goHistory() { uni.navigateTo({ url: '/pages/paipan/qimen/history/index' }) }
+</script>
+
+<style scoped>
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 0.3s ease-out; }
+</style>

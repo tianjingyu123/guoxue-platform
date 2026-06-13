@@ -1,0 +1,455 @@
+<template>
+  <view class="min-h-screen" style="background-color: #FAF8F5; padding-bottom: 160rpx;">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-10" style="background-color: #FFFFFF; border-bottom: 2rpx solid #E8E0D5;">
+      <view class="flex items-center justify-between" style="padding: 0 32rpx; height: 112rpx;">
+        <view @click="goBack" style="padding: 16rpx;">
+          <text style="font-size: 36rpx; color: #2C2C2C;">←</text>
+        </view>
+        <text style="font-size: 32rpx; font-weight: 600; color: #2C2C2C;">创作者中心</text>
+        <view @click="handleRefresh" :style="{ padding: '16rpx' }">
+          <text :style="{ fontSize: '36rpx', color: '#666666', animation: refreshing ? 'spin 1s linear infinite' : 'none' }">🔄</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 骨架屏 -->
+    <template v-if="loading">
+      <view style="padding: 32rpx;">
+        <view style="display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx;">
+          <view v-for="i in 4" :key="i" style="height: 192rpx; background-color: #FFFFFF; border-radius: 16rpx;" />
+        </view>
+        <view style="height: 96rpx; background-color: #FFFFFF; border-radius: 16rpx; margin-top: 32rpx;" />
+        <view style="display: flex; flex-direction: column; gap: 24rpx; margin-top: 24rpx;">
+          <view v-for="i in 3" :key="i" style="height: 192rpx; background-color: #FFFFFF; border-radius: 16rpx;" />
+        </view>
+      </view>
+    </template>
+
+    <template v-else>
+      <!-- 概览卡片 -->
+      <view style="padding: 32rpx; display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx;">
+        <view v-for="(card, idx) in overviewCards" :key="idx"
+          :style="{
+            background: `linear-gradient(135deg, ${card.gradientFrom}, ${card.gradientTo})`,
+            borderRadius: '16rpx',
+            padding: '32rpx',
+            border: '2rpx solid rgba(255,255,255,0.5)'
+          }">
+          <view class="flex items-center justify-between" style="margin-bottom: 16rpx;">
+            <text style="font-size: 36rpx; color: #666666;">{{ card.icon }}</text>
+            <view class="flex items-center" :style="{ fontSize: '20rpx', color: card.growth >= 0 ? '#16A34A' : '#DC2626' }">
+              <text style="font-size: 18rpx; margin-right: 4rpx;">{{ card.growth >= 0 ? '📈' : '📉' }}</text>
+              <text>{{ Math.abs(card.growth) }}%</text>
+            </view>
+          </view>
+          <text style="font-size: 40rpx; font-weight: 700; color: #2C2C2C; display: block;">
+            {{ card.type === 'currency' ? '¥' : '' }}{{ formatNumber(card.value) }}
+          </text>
+          <text style="font-size: 22rpx; color: #999999; margin-top: 8rpx; display: block;">{{ card.label }}</text>
+        </view>
+      </view>
+
+      <!-- Tab 切换 -->
+      <view style="margin: 0 32rpx; background-color: #FFFFFF; border-radius: 16rpx; padding: 8rpx; display: flex;">
+        <view v-for="t in tabs" :key="t.key" @click="activeTab = t.key"
+          :style="{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12rpx',
+            padding: '20rpx 0',
+            borderRadius: '12rpx',
+            fontSize: '26rpx',
+            fontWeight: 500,
+            backgroundColor: activeTab === t.key ? '#C41E3A' : 'transparent',
+            color: activeTab === t.key ? '#FFFFFF' : '#666666'
+          }">
+          <text :style="{ fontSize: activeTab === t.key ? '28rpx' : '28rpx' }">{{ t.icon }}</text>
+          <text>{{ t.label }}</text>
+        </view>
+      </view>
+
+      <!-- ====== 内容管理 Tab ====== -->
+      <view v-if="activeTab === 'content'" style="padding: 32rpx;">
+        <view v-for="content in mockContents" :key="content.id" style="background-color: #FFFFFF; border-radius: 16rpx; padding: 32rpx; margin-bottom: 24rpx; position: relative;">
+          <view class="flex" style="gap: 24rpx;">
+            <!-- 封面 -->
+            <view v-if="content.cover" style="width: 160rpx; height: 160rpx; border-radius: 16rpx; flex-shrink: 0; overflow: hidden;">
+              <view style="width: 100%; height: 100%; background: linear-gradient(135deg, rgba(196,30,58,0.2), rgba(201,169,110,0.2));" />
+            </view>
+            <view style="flex: 1; min-width: 0;">
+              <view class="flex items-start justify-between">
+                <text style="font-size: 26rpx; font-weight: 500; color: #2C2C2C; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; padding-right: 48rpx;">
+                  {{ content.title }}
+                </text>
+                <!-- 三点菜单按钮 -->
+                <view @click="toggleMenu(content.id)" style="padding: 8rpx; flex-shrink: 0;">
+                  <text style="font-size: 28rpx; color: #999999;">⋮</text>
+                </view>
+              </view>
+              <!-- 状态 + 类型 -->
+              <view class="flex items-center" style="gap: 16rpx; margin-top: 16rpx;">
+                <text :style="{
+                  padding: '4rpx 12rpx',
+                  borderRadius: '8rpx',
+                  fontSize: '20rpx',
+                  backgroundColor: getStatusStyle(content.status).bg,
+                  color: getStatusStyle(content.status).color
+                }">{{ getStatusStyle(content.status).text }}</text>
+                <text style="font-size: 22rpx; color: #999999;">{{ content.type === 'article' ? '文章' : '帖子' }}</text>
+              </view>
+              <!-- 统计 -->
+              <view v-if="content.status === 'published'" class="flex items-center" style="gap: 32rpx; margin-top: 16rpx; font-size: 22rpx; color: #999999;">
+                <text class="flex items-center" style="gap: 8rpx;">
+                  <text style="font-size: 20rpx;">👁</text>
+                  {{ content.views }}
+                </text>
+                <text class="flex items-center" style="gap: 8rpx;">
+                  <text style="font-size: 20rpx;">❤️</text>
+                  {{ content.likes }}
+                </text>
+                <text class="flex items-center" style="gap: 8rpx;">
+                  <text style="font-size: 20rpx;">💬</text>
+                  {{ content.comments }}
+                </text>
+                <text v-if="content.revenue > 0" style="color: #C9A96E;">¥{{ content.revenue }}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 下拉菜单 -->
+          <view v-if="showMenu === content.id" style="position: absolute; right: 32rpx; top: 96rpx; background-color: #FFFFFF; border-radius: 12rpx; border: 2rpx solid #E8E0D5; padding: 8rpx 0; z-index: 10; box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.1);">
+            <view @click="handleEdit(content.id)" class="flex items-center" style="gap: 16rpx; padding: 16rpx 32rpx; font-size: 24rpx; color: #2C2C2C;">
+              <text style="font-size: 28rpx;">✏️</text>
+              <text>编辑</text>
+            </view>
+            <view @click="handleDelete(content.id)" class="flex items-center" style="gap: 16rpx; padding: 16rpx 32rpx; font-size: 24rpx; color: #DC2626;">
+              <text style="font-size: 28rpx;">🗑️</text>
+              <text>删除</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ====== 数据分析 Tab ====== -->
+      <view v-if="activeTab === 'analytics'" style="padding: 32rpx;">
+        <!-- 近30天阅读趋势 -->
+        <view style="background-color: #FFFFFF; border-radius: 16rpx; padding: 32rpx; margin-bottom: 32rpx;">
+          <text style="font-size: 28rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 32rpx; display: block;">近30天阅读趋势</text>
+          <view class="flex items-end" style="gap: 4rpx; height: 320rpx;">
+            <view v-for="(day, i) in chartDays30" :key="i" style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+              <view :style="{
+                width: '100%',
+                borderRadius: '4rpx 4rpx 0 0',
+                height: (day / maxChart30) * 300 + 'rpx',
+                backgroundColor: i === 29 ? '#C41E3A' : 'rgba(196,30,58,0.3)'
+              }" />
+            </view>
+          </view>
+          <view class="flex justify-between" style="margin-top: 16rpx; font-size: 20rpx; color: #999999;">
+            <text>30天前</text>
+            <text>今天</text>
+          </view>
+        </view>
+
+        <!-- 内容表现 TOP5 -->
+        <view style="background-color: #FFFFFF; border-radius: 16rpx; padding: 32rpx;">
+          <text style="font-size: 28rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 32rpx; display: block;">内容表现 TOP5</text>
+          <view v-for="(item, idx) in topContents" :key="item.id" class="flex items-center" style="gap: 24rpx; margin-bottom: 24rpx;">
+            <view :style="{
+              width: '48rpx',
+              height: '48rpx',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '22rpx',
+              fontWeight: 700,
+              backgroundColor: idx === 0 ? '#C9A96E' : idx === 1 ? '#9CA3AF' : idx === 2 ? '#D97706' : '#E8E0D5',
+              color: idx < 3 ? '#FFFFFF' : '#999999'
+            }">
+              <text>{{ idx + 1 }}</text>
+            </view>
+            <view style="flex: 1; min-width: 0;">
+              <text style="font-size: 26rpx; color: #2C2C2C; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ item.title }}</text>
+              <text style="font-size: 22rpx; color: #999999;">{{ item.views.toLocaleString() }} 阅读</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ====== 收益 Tab ====== -->
+      <view v-if="activeTab === 'revenue'" style="padding: 32rpx;">
+        <!-- 收益总览卡片 -->
+        <view style="background: linear-gradient(135deg, #C9A96E, #B8956A); border-radius: 16rpx; padding: 32rpx; margin-bottom: 32rpx;">
+          <text style="font-size: 26rpx; color: rgba(255,255,255,0.8); display: block;">累计收益</text>
+          <text style="font-size: 60rpx; font-weight: 700; color: #FFFFFF; margin-top: 8rpx; display: block;">¥{{ mockOverview.totalRevenue.toFixed(2) }}</text>
+          <view class="flex items-center" style="gap: 32rpx; margin-top: 32rpx; font-size: 26rpx;">
+            <view>
+              <text style="color: rgba(255,255,255,0.8); display: block;">可提现</text>
+              <text style="color: #FFFFFF; font-weight: 600;">¥2,180.00</text>
+            </view>
+            <view>
+              <text style="color: rgba(255,255,255,0.8); display: block;">待结算</text>
+              <text style="color: #FFFFFF; font-weight: 600;">¥1,500.50</text>
+            </view>
+          </view>
+          <view style="margin-top: 32rpx; width: 100%; padding: 20rpx 0; background-color: rgba(255,255,255,0.2); border-radius: 12rpx; text-align: center; font-size: 26rpx; font-weight: 500; color: #FFFFFF;">
+            提现
+          </view>
+        </view>
+
+        <!-- 收益趋势 -->
+        <view style="background-color: #FFFFFF; border-radius: 16rpx; padding: 32rpx; margin-bottom: 32rpx;">
+          <text style="font-size: 28rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 32rpx; display: block;">收益趋势</text>
+          <view class="flex items-end" style="gap: 4rpx; height: 256rpx;">
+            <view v-for="(item, i) in revenueChart14" :key="i" style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+              <view :style="{
+                width: '100%',
+                backgroundColor: '#C9A96E',
+                borderRadius: '4rpx 4rpx 0 0',
+                height: (item / maxRevenue14) * 240 + 'rpx'
+              }" />
+            </view>
+          </view>
+        </view>
+
+        <!-- 收益构成 -->
+        <view style="background-color: #FFFFFF; border-radius: 16rpx; padding: 32rpx;">
+          <text style="font-size: 28rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 32rpx; display: block;">收益构成</text>
+          <view v-for="src in revenueSources" :key="src.name" style="margin-bottom: 24rpx;">
+            <view class="flex justify-between" style="font-size: 26rpx; margin-bottom: 8rpx;">
+              <text style="color: #666666;">{{ src.name }}</text>
+              <text style="color: #2C2C2C; font-weight: 500;">¥{{ src.value }}</text>
+            </view>
+            <view style="height: 16rpx; background-color: #F5F5F5; border-radius: 8rpx; overflow: hidden;">
+              <view :style="{
+                height: '100%',
+                borderRadius: '8rpx',
+                width: src.percent + '%',
+                backgroundColor: src.color
+              }" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ====== 互动 Tab ====== -->
+      <view v-if="activeTab === 'interaction'" style="padding: 32rpx;">
+        <!-- 新增粉丝 -->
+        <view style="background-color: #FFFFFF; border-radius: 16rpx; padding: 32rpx; margin-bottom: 32rpx;">
+          <view class="flex items-center justify-between" style="margin-bottom: 32rpx;">
+            <text style="font-size: 28rpx; font-weight: 500; color: #2C2C2C;">新增粉丝</text>
+            <text style="font-size: 26rpx; color: #C41E3A;">+12 本周</text>
+          </view>
+          <view v-for="follower in mockFollowers" :key="follower.id" class="flex items-center" style="gap: 24rpx; margin-bottom: 24rpx;">
+            <view style="width: 80rpx; height: 80rpx; border-radius: 50%; background: linear-gradient(135deg, rgba(196,30,58,0.2), rgba(201,169,110,0.2));" />
+            <view style="flex: 1;">
+              <text style="font-size: 26rpx; font-weight: 500; color: #2C2C2C; display: block;">{{ follower.name }}</text>
+              <text style="font-size: 22rpx; color: #999999;">{{ follower.followedAt }} 关注</text>
+            </view>
+            <text v-if="follower.hasInteracted" style="padding: 4rpx 16rpx; background-color: rgba(22,163,74,0.1); color: #16A34A; font-size: 20rpx; border-radius: 8rpx;">已互动</text>
+          </view>
+        </view>
+
+        <!-- 互动统计 -->
+        <view style="background-color: #FFFFFF; border-radius: 16rpx; padding: 32rpx;">
+          <text style="font-size: 28rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 32rpx; display: block;">互动统计</text>
+          <view style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 32rpx; text-align: center;">
+            <view>
+              <text style="font-size: 48rpx; font-weight: 700; color: #2C2C2C; display: block;">156</text>
+              <text style="font-size: 22rpx; color: #999999; margin-top: 8rpx;">收到点赞</text>
+            </view>
+            <view>
+              <text style="font-size: 48rpx; font-weight: 700; color: #2C2C2C; display: block;">42</text>
+              <text style="font-size: 22rpx; color: #999999; margin-top: 8rpx;">收到评论</text>
+            </view>
+            <view>
+              <text style="font-size: 48rpx; font-weight: 700; color: #2C2C2C; display: block;">18</text>
+              <text style="font-size: 22rpx; color: #999999; margin-top: 8rpx;">被转发</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+
+    <!-- FAB 新建按钮 -->
+    <view @click="goCreate"
+      style="position: fixed; right: 32rpx; bottom: 160rpx; width: 112rpx; height: 112rpx; background-color: #C41E3A; color: #FFFFFF; border-radius: 50%; box-shadow: 0 8rpx 32rpx rgba(196,30,58,0.3); display: flex; align-items: center; justify-content: center;">
+      <text style="font-size: 48rpx;">+</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+// ===== Mock 数据（与 V0 完全一致） =====
+const mockOverview = {
+  contents: 28,
+  totalViews: 125600,
+  totalRevenue: 3680.50,
+  followers: 1256,
+  contentsGrowth: 12,
+  viewsGrowth: 8.5,
+  revenueGrowth: 15.2,
+  followersGrowth: 5.8,
+}
+
+const mockContents = [
+  {
+    id: '1', type: 'article', title: '八字命理入门：天干地支的基础知识', cover: '/placeholder.svg',
+    status: 'published', publishedAt: '2024-01-15', views: 3280, likes: 156, comments: 42, revenue: 128.5,
+  },
+  {
+    id: '2', type: 'post', title: '今日分享：如何看流年运势',
+    status: 'published', publishedAt: '2024-01-14', views: 1560, likes: 89, comments: 23, revenue: 45.0,
+  },
+  {
+    id: '3', type: 'article', title: '紫微斗数与八字的区别', cover: '/placeholder.svg',
+    status: 'reviewing', views: 0, likes: 0, comments: 0, revenue: 0,
+  },
+  {
+    id: '4', type: 'article', title: '风水布局的基本原则', cover: '/placeholder.svg',
+    status: 'draft', views: 0, likes: 0, comments: 0, revenue: 0,
+  },
+]
+
+const mockRevenueTrends = Array.from({ length: 30 }, (_, i) => ({
+  date: new Date(Date.now() - (29 - i) * 86400000).toISOString().split('T')[0],
+  revenue: Math.floor(Math.random() * 200) + 50,
+  type: ['打赏', '付费内容', '课程分成'][Math.floor(Math.random() * 3)],
+}))
+
+const mockFollowers = [
+  { id: '1', name: '命理爱好者', avatar: '/placeholder.svg', followedAt: '2024-01-15', hasInteracted: true },
+  { id: '2', name: '易学新人', avatar: '/placeholder.svg', followedAt: '2024-01-14', hasInteracted: false },
+  { id: '3', name: '周易研习', avatar: '/placeholder.svg', followedAt: '2024-01-13', hasInteracted: true },
+]
+
+type Tab = 'content' | 'analytics' | 'revenue' | 'interaction'
+
+const loading = ref(true)
+const refreshing = ref(false)
+const activeTab = ref<Tab>('content')
+const showMenu = ref<string | null>(null)
+
+// 30天图表数据（阅读趋势）
+const chartDays30 = ref<number[]>(
+  Array.from({ length: 30 }, () => Math.random() * 100)
+)
+const maxChart30 = Math.max(...chartDays30.value)
+
+// 收益趋势14天
+const revenueChart14 = computed(() =>
+  mockRevenueTrends.slice(-14).map(item => item.revenue)
+)
+const maxRevenue14 = computed(() => Math.max(...revenueChart14.value, 1))
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 800)
+})
+
+const overviewCards = [
+  {
+    label: '内容数', value: mockOverview.contents, growth: mockOverview.contentsGrowth,
+    icon: '📄', type: 'number', gradientFrom: 'rgba(196,30,58,0.1)', gradientTo: 'rgba(196,30,58,0.05)',
+  },
+  {
+    label: '总阅读', value: mockOverview.totalViews, growth: mockOverview.viewsGrowth,
+    icon: '👁', type: 'number', gradientFrom: 'rgba(59,130,246,0.1)', gradientTo: 'rgba(59,130,246,0.05)',
+  },
+  {
+    label: '总收益', value: mockOverview.totalRevenue, growth: mockOverview.revenueGrowth,
+    icon: '💰', type: 'currency', gradientFrom: 'rgba(201,169,110,0.2)', gradientTo: 'rgba(201,169,110,0.05)',
+  },
+  {
+    label: '粉丝数', value: mockOverview.followers, growth: mockOverview.followersGrowth,
+    icon: '👥', type: 'number', gradientFrom: 'rgba(34,197,94,0.1)', gradientTo: 'rgba(34,197,94,0.05)',
+  },
+]
+
+const tabs = [
+  { key: 'content' as Tab, label: '内容', icon: '📄' },
+  { key: 'analytics' as Tab, label: '数据', icon: '📊' },
+  { key: 'revenue' as Tab, label: '收益', icon: '💰' },
+  { key: 'interaction' as Tab, label: '互动', icon: '👥' },
+]
+
+const topContents = computed(() =>
+  mockContents.filter(c => c.status === 'published').slice(0, 5)
+)
+
+const revenueSources = [
+  { name: '打赏收入', value: 1580, percent: 43, color: '#C41E3A' },
+  { name: '付费内容', value: 1200, percent: 33, color: '#C9A96E' },
+  { name: '课程分成', value: 900, percent: 24, color: '#3B82F6' },
+]
+
+function formatNumber(val: number): string {
+  if (val >= 1000) return val.toLocaleString()
+  if (Number.isInteger(val)) return val.toString()
+  return val.toFixed(2)
+}
+
+function getStatusStyle(status: string): { text: string; bg: string; color: string } {
+  const map: Record<string, { text: string; bg: string; color: string }> = {
+    published: { text: '已发布', bg: 'rgba(22,163,74,0.1)', color: '#16A34A' },
+    draft: { text: '草稿', bg: 'rgba(107,114,128,0.1)', color: '#6B7280' },
+    reviewing: { text: '审核中', bg: 'rgba(234,88,12,0.1)', color: '#EA580C' },
+    rejected: { text: '未通过', bg: 'rgba(220,38,38,0.1)', color: '#DC2626' },
+  }
+  return map[status] || { text: status, bg: 'rgba(107,114,128,0.1)', color: '#6B7280' }
+}
+
+function toggleMenu(id: string) {
+  showMenu.value = showMenu.value === id ? null : id
+}
+
+async function handleRefresh() {
+  refreshing.value = true
+  await new Promise(r => setTimeout(r, 1000))
+  refreshing.value = false
+}
+
+function handleEdit(id: string) {
+  showMenu.value = null
+  uni.navigateTo({ url: `/pages/editor/index?id=${id}` })
+}
+
+function handleDelete(id: string) {
+  uni.showModal({
+    title: '提示',
+    content: '确定删除这篇内容吗？',
+    success: (res) => {
+      if (res.confirm) {
+        // contentApi.deleteContent(id)
+        showMenu.value = null
+        uni.showToast({ title: '已删除', icon: 'success' })
+      }
+    },
+  })
+}
+
+function goCreate() {
+  uni.navigateTo({ url: '/pages/editor/index' })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.items-start { align-items: flex-start; }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>

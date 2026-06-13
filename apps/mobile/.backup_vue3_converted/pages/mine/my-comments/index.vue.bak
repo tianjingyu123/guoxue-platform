@@ -1,0 +1,201 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-6">
+    <!-- Header -->
+    <view class="sticky top-0 z-40 bg-[#FAF8F5]/95 border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view @click="goBack" class="p-1">
+          <text class="text-[#2C2C2C] text-lg">←</text>
+        </view>
+        <text class="font-semibold text-base text-[#2C2C2C]">我的评论</text>
+        <view class="flex items-center gap-2">
+          <text v-if="comments.length > 0" @click="toggleEditMode" class="text-sm text-[#C41E3A]">
+            {{ isEditMode ? '完成' : '管理' }}
+          </text>
+          <view v-else class="w-10" />
+        </view>
+      </view>
+    </view>
+
+    <!-- Content -->
+    <view class="p-4">
+      <!-- Loading -->
+      <view v-if="loading" class="space-y-3">
+        <view v-for="i in 3" :key="i" class="bg-white rounded-xl p-4 animate-pulse border border-[#E8E0D5]">
+          <view class="flex gap-3">
+            <view class="flex-1 space-y-2">
+              <view class="h-4 bg-[#F0EBE5] rounded w-3/4" />
+              <view class="h-3 bg-[#F0EBE5] rounded w-1/2" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Empty -->
+      <view v-else-if="comments.length === 0" class="py-16 flex flex-col items-center">
+        <text class="text-4xl text-[#999]/30 mb-4">💬</text>
+        <text class="text-sm text-[#999]">暂无评论记录</text>
+      </view>
+
+      <!-- Comment List -->
+      <view v-else class="space-y-3">
+        <view v-for="c in comments" :key="c.id" class="flex items-stretch gap-3">
+          <!-- Checkbox (Edit Mode) -->
+          <view v-if="isEditMode" @click="toggleSelect(c.id)" :class="['w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 self-center', selectedIds.includes(c.id) ? 'bg-[#C41E3A] border-primary' : 'border-muted-foreground/30']">
+            <text v-if="selectedIds.includes(c.id)" class="text-white text-xs">✓</text>
+          </view>
+
+          <!-- Card -->
+          <view class="flex-1 bg-white rounded-xl p-4 border border-[#E8E0D5]">
+            <!-- Comment Content -->
+            <view class="flex items-center gap-2 mb-2">
+              <text :class="['text-xs px-1.5 py-0.5 rounded', typeColor(c.targetType)]">{{ typeLabel(c.targetType) }}</text>
+              <text class="text-xs text-[#999] ml-auto">{{ c.createdAt }}</text>
+            </view>
+            <text class="text-sm text-[#2C2C2C] mb-3 block leading-relaxed">{{ c.content }}</text>
+
+            <!-- Target Info -->
+            <view class="flex gap-3 p-3 bg-[#F0EBE5]/50 rounded-lg">
+              <view class="w-14 h-14 rounded-lg bg-[#F0EBE5] flex items-center justify-center shrink-0">
+                <text class="text-lg">{{ typeIcon(c.targetType) }}</text>
+              </view>
+              <view class="flex-1 min-w-0">
+                <text class="text-sm font-medium text-[#2C2C2C] line-clamp-1 block">{{ c.targetTitle }}</text>
+                <text class="text-xs text-[#999] mt-1 block">{{ typeLabel(c.targetType) }} · {{ c.targetName }}</text>
+              </view>
+              <text class="text-[#999] text-base self-center">›</text>
+            </view>
+
+            <!-- Bottom Info -->
+            <view class="flex items-center justify-between mt-3 pt-3 border-t border-[#E8E0D5]">
+              <text class="text-xs text-[#999]">{{ c.createdAt }}</text>
+              <view class="flex items-center gap-3">
+                <text class="flex items-center gap-1 text-xs text-[#999]">❤️ {{ c.likeCount }}</text>
+                <text class="flex items-center gap-1 text-xs text-[#999]">💬 {{ c.replyCount }}</text>
+                <text v-if="c.hasReply" class="text-[10px] px-1.5 py-0.5 bg-[#C41E3A]/10 text-[#C41E3A] rounded">有回复</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Bottom Action Bar (Edit Mode) -->
+    <view v-if="isEditMode && selectedIds.length > 0" class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E8E0D5] p-4">
+      <view class="flex items-center justify-between">
+        <text @click="selectAll" class="text-sm text-[#C41E3A]">全选</text>
+        <view @click="handleBatchDelete" class="flex items-center gap-2 px-6 py-2 bg-[#FF4D4F] text-white rounded-full text-sm">
+          <text>删除 ({{ selectedIds.length }})</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Delete Confirm Dialog -->
+    <view v-if="showDeleteConfirm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click="showDeleteConfirm = false">
+      <view class="bg-white rounded-2xl p-6 mx-6 max-w-xs w-full" @click.stop>
+        <text class="text-base font-semibold text-[#2C2C2C] block mb-2">删除评论</text>
+        <text class="text-sm text-[#999] block mb-4">确定要删除选中的评论吗？此操作不可撤销。</text>
+        <view class="flex gap-3">
+          <view @click="showDeleteConfirm = false" class="flex-1 h-11 bg-[#F0EBE5] text-[#2C2C2C] rounded-xl font-medium flex items-center justify-center text-sm">
+            <text>取消</text>
+          </view>
+          <view @click="confirmDeleteComments" class="flex-1 h-11 bg-[#FF4D4F] text-white rounded-xl font-medium flex items-center justify-center text-sm">
+            <text>删除</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const loading = ref(true)
+const isEditMode = ref(false)
+const selectedIds = ref<number[]>([])
+const showDeleteConfirm = ref(false)
+
+const typeConfig: Record<string, { icon: string; label: string; color: string }> = {
+  article: { icon: '📄', label: '文章', color: 'bg-purple-500/10 text-purple-600' },
+  course: { icon: '▶️', label: '课程', color: 'bg-blue-500/10 text-blue-600' },
+  video: { icon: '🎬', label: '视频', color: 'bg-pink-500/10 text-pink-600' },
+  product: { icon: '🛍️', label: '商品', color: 'bg-orange-500/10 text-orange-600' },
+  circle_post: { icon: '👥', label: '帖子', color: 'bg-green-500/10 text-green-600' },
+  question: { icon: '❓', label: '悬赏', color: 'bg-amber-500/10 text-amber-600' },
+}
+
+interface Comment {
+  id: number
+  content: string
+  rating: number
+  createdAt: string
+  targetType: string
+  targetTitle: string
+  targetName: string
+  likeCount: number
+  replyCount: number
+  hasReply: boolean
+}
+
+const comments = ref<Comment[]>([])
+
+function typeIcon(type: string): string {
+  return typeConfig[type]?.icon || '📄'
+}
+
+function typeLabel(type: string): string {
+  return typeConfig[type]?.label || type
+}
+
+function typeColor(type: string): string {
+  return typeConfig[type]?.color || 'bg-[#F0EBE5] text-[#999]'
+}
+
+function toggleSelect(id: number) {
+  if (selectedIds.value.includes(id)) {
+    selectedIds.value = selectedIds.value.filter(i => i !== id)
+  } else {
+    selectedIds.value.push(id)
+  }
+}
+
+function selectAll() {
+  selectedIds.value = comments.value.map(c => c.id)
+}
+
+function toggleEditMode() {
+  isEditMode.value = !isEditMode.value
+  selectedIds.value = []
+}
+
+function handleBatchDelete() {
+  if (selectedIds.value.length === 0) return
+  showDeleteConfirm.value = true
+}
+
+function confirmDeleteComments() {
+  comments.value = comments.value.filter(c => !selectedIds.value.includes(c.id))
+  selectedIds.value = []
+  isEditMode.value = false
+  showDeleteConfirm.value = false
+  uni.showToast({ title: '已删除', icon: 'success' })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+setTimeout(() => {
+  comments.value = [
+    { id: 1, content: '非常专业的课程，讲解深入浅出，受益匪浅！', rating: 5, createdAt: '今天 14:30', targetType: 'course', targetTitle: '八字命理入门到精通', targetName: '八字命理入门到精通', likeCount: 3, replyCount: 1, hasReply: true },
+    { id: 2, content: '包装精美，质量很好', rating: 5, createdAt: '昨天', targetType: 'product', targetTitle: '《渊海子平》精装版', targetName: '《渊海子平》精装版', likeCount: 1, replyCount: 0, hasReply: false },
+    { id: 3, content: '回答很详细，感谢指导', rating: 4, createdAt: '01月12日', targetType: 'question', targetTitle: '八字排盘问题', targetName: '八字排盘问题', likeCount: 2, replyCount: 1, hasReply: true },
+    { id: 4, content: '写得很透彻，对理解易经很有帮助', rating: 5, createdAt: '01月10日', targetType: 'article', targetTitle: '易经六十四卦解读', targetName: '易经六十四卦解读', likeCount: 5, replyCount: 2, hasReply: true },
+  ]
+  loading.value = false
+}, 400)
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

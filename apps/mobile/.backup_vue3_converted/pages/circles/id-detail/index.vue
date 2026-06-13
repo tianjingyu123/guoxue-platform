@@ -1,0 +1,701 @@
+<template>
+  <view class="min-h-screen bg-background pb-24">
+    <!-- Loading skeleton -->
+    <view v-if="isLoading" class="min-h-screen bg-background animate-pulse">
+      <view class="h-48 bg-[#E8E0D5]" />
+      <view class="px-4 -mt-12">
+        <view class="bg-white rounded-2xl p-4 shadow-sm">
+          <view class="flex items-center gap-3 mb-3">
+            <view class="w-16 h-16 rounded-full bg-[#E8E0D5]" />
+            <view class="flex-1">
+              <view class="h-5 bg-[#E8E0D5] rounded w-32 mb-2" />
+              <view class="h-4 bg-[#E8E0D5] rounded w-24" />
+            </view>
+          </view>
+          <view class="h-4 bg-[#E8E0D5] rounded w-full mb-2" />
+          <view class="h-4 bg-[#E8E0D5] rounded w-3/4" />
+        </view>
+      </view>
+    </view>
+
+    <!-- Main content -->
+    <template v-else>
+      <!-- 顶部封面 -->
+      <view class="relative h-48">
+        <image :src="circle.cover" mode="aspectFill" class="w-full h-full absolute inset-0" />
+        <view class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+
+        <!-- 顶部导航 -->
+        <view class="absolute top-0 left-0 right-0 p-4 flex items-center justify-between" style="padding-top:44px">
+          <view class="w-9 h-9 rounded-full bg-black/30 backdrop-blur flex items-center justify-center" @click="goBack">
+            <text class="text-white text-lg">←</text>
+          </view>
+          <view class="flex items-center gap-2">
+            <view class="w-9 h-9 rounded-full bg-black/30 backdrop-blur flex items-center justify-center" @click="goNotifications">
+              <text class="text-white text-sm"></text>
+            </view>
+            <view class="w-9 h-9 rounded-full bg-black/30 backdrop-blur flex items-center justify-center" @click="onShare">
+              <text class="text-white text-sm">↗️</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 圈子等级标识 -->
+        <view class="absolute bottom-3 right-3 px-2.5 py-1 bg-gradient-to-r from-accent to-[#E8D5B5] rounded-full flex items-center gap-1">
+          <text class="text-[11px] text-white font-medium"> 优质圈子</text>
+        </view>
+      </view>
+
+      <!-- 圈子信息卡片 -->
+      <view class="px-4 -mt-12 relative z-10">
+        <view class="bg-white rounded-2xl p-4 shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
+          <view class="flex items-start gap-3">
+            <view class="w-16 h-16 rounded-full bg-background border-4 border-white shadow-md overflow-hidden flex-shrink-0">
+              <image :src="circle.owner.avatar" mode="aspectFill" class="w-full h-full" />
+            </view>
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-2">
+                <text class="text-lg font-bold text-foreground">{{ circle.name }}</text>
+                <text class="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] rounded">付费</text>
+              </view>
+              <view class="flex items-center gap-3 text-[12px] text-muted-foreground mt-1">
+                <text class="flex items-center gap-1"> {{ circle.members.toLocaleString() }} 成员</text>
+                <text class="flex items-center gap-1"> {{ circle.posts.toLocaleString() }} 帖子</text>
+                <text class="flex items-center gap-1"> 今日{{ circle.todayActive }}</text>
+              </view>
+            </view>
+          </view>
+          <text class="text-[13px] text-ink-soft mt-3 block leading-relaxed">{{ circle.description }}</text>
+
+          <!-- 标签 -->
+          <view v-if="circle.tags && circle.tags.length > 0" class="flex flex-wrap gap-2 mt-3">
+            <text v-for="tag in circle.tags" :key="tag" class="px-2 py-0.5 bg-[#F5F0E8] text-muted-foreground text-[11px] rounded-full">#{{ tag }}</text>
+          </view>
+
+          <!-- 圈主信息 -->
+          <view class="flex items-center gap-2 mt-3 pt-3 border-t border-[#F5F0E8]" @click="goUser(circle.owner.id)">
+            <image :src="circle.owner.avatar" mode="aspectFill" class="w-8 h-8 rounded-full" />
+            <view class="flex-1">
+              <view class="flex items-center gap-1">
+                <text class="text-[13px] font-medium text-foreground">{{ circle.owner.name }}</text>
+                <text class="text-accent text-xs">👑</text>
+              </view>
+              <text class="text-[11px] text-muted-foreground">圈主</text>
+            </view>
+            <text class="text-[#CCC] text-lg">›</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 公告栏 -->
+      <view v-if="circle.announcement" class="mx-4 mt-3">
+        <view class="bg-gradient-to-r from-[#FFF8E7] to-[#FFFBF0] rounded-xl border border-[#F0E6D3] overflow-hidden">
+          <view class="w-full px-4 py-3 flex items-center justify-between" @click="showAnnouncement = !showAnnouncement">
+            <view class="flex items-center gap-2">
+              <view class="w-5 h-5 rounded bg-accent flex items-center justify-center">
+                <text class="text-white text-xs"></text>
+              </view>
+              <text class="text-[13px] font-medium text-foreground">圈子公告</text>
+            </view>
+            <text class="text-muted-foreground text-sm">{{ showAnnouncement ? '↑' : '↓' }}</text>
+          </view>
+          <view v-if="showAnnouncement" class="px-4 pb-3">
+            <text class="text-[12px] text-ink-soft block leading-relaxed">{{ circle.announcement }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Tab切换 -->
+      <view class="mt-4 px-4">
+        <view class="flex items-center gap-1 overflow-x-auto border-b border-border" style="scrollbar-width:none">
+          <view
+            v-for="tab in tabs"
+            :key="tab.id"
+            class="px-4 pb-3 text-[14px] font-medium whitespace-nowrap relative"
+            :class="activeTab === tab.id ? 'text-primary' : 'text-muted-foreground'"
+            @click="activeTab = tab.id"
+          >
+            <text>{{ tab.label }}</text>
+            <text v-if="tab.id === 'members'" class="ml-1 text-[12px]">({{ circle.members }})</text>
+            <view v-if="activeTab === tab.id" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-primary rounded-full" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 内容区 -->
+      <view class="px-4 mt-4">
+        <!-- 首页Tab -->
+        <view v-if="activeTab === 'home'" class="space-y-4">
+          <!-- 近期活动 -->
+          <view v-if="activities.length > 0">
+            <view class="flex items-center justify-between mb-3">
+              <view class="flex items-center gap-2">
+                <text class="text-[#FF6B35] text-base">⚡</text>
+                <text class="font-medium text-foreground text-sm">近期活动</text>
+              </view>
+              <view class="text-[12px] text-muted-foreground flex items-center" @click="goActivities">
+                <text>全部</text>
+                <text class="text-lg">›</text>
+              </view>
+            </view>
+            <view class="space-y-2">
+              <view
+                v-for="act in activities.slice(0, 2)"
+                :key="act.id"
+                class="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm"
+                @click="goActivity(act.id)"
+              >
+                <view
+                  class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  :class="act.type === 'live' ? 'bg-red-500/10' : act.type === 'checkin' ? 'bg-green-500/10' : 'bg-orange-500/10'"
+                >
+                  <text
+                    :class="act.type === 'live' ? 'text-red-500' : act.type === 'checkin' ? 'text-green-500' : 'text-orange-500'"
+                    class="text-base"
+                  >
+                    {{ act.type === 'live' ? '▶️' : act.type === 'checkin' ? '' : '' }}
+                  </text>
+                </view>
+                <view class="flex-1 min-w-0">
+                  <text class="text-[13px] font-medium text-foreground block truncate">{{ act.title }}</text>
+                  <view class="flex items-center gap-2 mt-0.5">
+                    <text class="text-[11px] text-muted-foreground">{{ act.time }}</text>
+                    <text v-if="act.participants" class="text-[11px] text-muted-foreground">{{ act.participants }}人参与</text>
+                  </view>
+                </view>
+                <view v-if="act.status === 'upcoming'" class="px-3 py-1.5 bg-primary text-white text-[11px] rounded-full">预约</view>
+                <view v-if="act.status === 'ongoing'" class="px-3 py-1.5 bg-success text-white text-[11px] rounded-full">参与</view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 置顶帖子 -->
+          <view v-if="pinnedPosts.length > 0">
+            <view class="flex items-center gap-2 mb-3">
+              <text class="text-primary text-sm">📌</text>
+              <text class="font-medium text-foreground text-sm">置顶内容</text>
+            </view>
+            <view class="space-y-2">
+              <view
+                v-for="post in pinnedPosts"
+                :key="post.id"
+                class="bg-gradient-to-r from-[#FFF8E7] to-[#FFFBF0] rounded-xl p-3 border border-[#F0E6D3]"
+                @click="goPost(post.id)"
+              >
+                <view class="flex items-start gap-3">
+                  <image :src="post.author.avatar" mode="aspectFill" class="w-10 h-10 rounded-full flex-shrink-0" />
+                  <view class="flex-1 min-w-0">
+                    <view class="flex items-center gap-2 mb-1">
+                      <text class="text-[12px] text-primary font-medium">📌 置顶</text>
+                      <text v-if="post.isEssence" class="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded">精华</text>
+                    </view>
+                    <text class="text-[13px] text-foreground line-clamp-2 block leading-relaxed">{{ post.content }}</text>
+                    <view class="flex items-center gap-4 mt-2 text-[11px] text-muted-foreground">
+                      <text>{{ post.author.name }}</text>
+                      <text class="flex items-center gap-1"> {{ post.likes }}</text>
+                      <text class="flex items-center gap-1"> {{ post.comments }}</text>
+                    </view>
+                  </view>
+                  <image
+                    v-if="post.images && post.images.length > 0"
+                    :src="post.images[0]"
+                    mode="aspectFill"
+                    class="w-16 h-16 rounded-lg flex-shrink-0"
+                  />
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 专栏推荐 -->
+          <view v-if="columns.length > 0">
+            <view class="flex items-center justify-between mb-3">
+              <view class="flex items-center gap-2">
+                <text class="text-accent text-sm"></text>
+                <text class="font-medium text-foreground text-sm">专栏推荐</text>
+              </view>
+              <view class="text-[12px] text-muted-foreground flex items-center" @click="goColumns">
+                <text>全部</text>
+                <text class="text-lg">›</text>
+              </view>
+            </view>
+            <view class="flex gap-3 overflow-x-auto pb-1" style="scrollbar-width:none">
+              <view
+                v-for="col in columns"
+                :key="col.id"
+                class="flex-shrink-0 w-[160px] bg-white rounded-xl overflow-hidden shadow-sm"
+                @click="goColumn(col.id)"
+              >
+                <view class="relative">
+                  <image :src="col.cover" mode="aspectFill" class="w-full h-20" />
+                  <view v-if="col.isPremium" class="absolute top-2 right-2 w-5 h-5 bg-accent rounded-full flex items-center justify-center">
+                    <text class="text-white text-xs"></text>
+                  </view>
+                </view>
+                <view class="p-2.5">
+                  <text class="text-[13px] font-medium text-foreground block truncate">{{ col.title }}</text>
+                  <text class="text-[11px] text-muted-foreground block mt-1">{{ col.articles }}篇 · {{ col.views }}阅读</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 最新帖子 -->
+          <view>
+            <view class="flex items-center justify-between mb-3">
+              <text class="font-medium text-foreground text-sm">最新动态</text>
+            </view>
+            <view class="space-y-3">
+              <view
+                v-for="post in posts.slice(0, 3)"
+                :key="post.id"
+                class="bg-white rounded-xl p-4 shadow-sm"
+                @click="goPost(post.id)"
+              >
+                <!-- 置顶/精华标签 -->
+                <view v-if="post.isPinned || post.isEssence" class="flex items-center gap-2 mb-2">
+                  <view v-if="post.isPinned" class="flex items-center gap-1">
+                    <text class="text-primary text-xs">📌</text>
+                    <text class="text-[11px] text-primary font-medium">置顶</text>
+                  </view>
+                  <text v-if="post.isEssence" class="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded">精华</text>
+                </view>
+                <!-- 作者信息 -->
+                <view class="flex items-center justify-between mb-3">
+                  <view class="flex items-center gap-2">
+                    <image :src="post.author.avatar" mode="aspectFill" class="w-9 h-9 rounded-full" />
+                    <view>
+                      <view class="flex items-center gap-1">
+                        <text class="text-[13px] font-medium text-foreground">{{ post.author.name }}</text>
+                        <text v-if="post.author.title" class="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] rounded">{{ post.author.title }}</text>
+                      </view>
+                      <text class="text-[11px] text-muted-foreground">{{ post.createdAt }}</text>
+                    </view>
+                  </view>
+                  <text class="text-muted-foreground text-lg">⋯</text>
+                </view>
+                <!-- 内容 -->
+                <text class="text-[14px] text-foreground block leading-relaxed mb-3">{{ post.content }}</text>
+                <!-- 图片 -->
+                <view v-if="post.images && post.images.length > 0" class="flex gap-2 mb-3" :class="post.images.length === 1 ? 'flex-col' : 'flex-row'">
+                  <image
+                    v-for="(img, idx) in post.images"
+                    :key="idx"
+                    :src="img"
+                    mode="aspectFill"
+                    class="rounded-lg w-full"
+                    :class="post.images.length === 1 ? 'max-h-60' : 'w-1/2 aspect-square'"
+                  />
+                </view>
+                <!-- 操作栏 -->
+                <view class="flex items-center gap-6 pt-2 border-t border-[#F5F0E8]">
+                  <view class="flex items-center gap-1" @click.stop="handleLikePost(post.id)">
+                    <text :class="likedPosts.has(post.id) ? 'text-primary' : 'text-muted-foreground'"></text>
+                    <text :class="likedPosts.has(post.id) ? 'text-primary' : 'text-muted-foreground'" class="text-[12px]">{{ post.likes }}</text>
+                  </view>
+                  <view class="flex items-center gap-1" @click.stop="goPost(post.id)">
+                    <text class="text-muted-foreground text-sm"></text>
+                    <text class="text-[12px] text-muted-foreground">{{ post.comments }}</text>
+                  </view>
+                  <text class="text-muted-foreground text-sm">🔖</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 帖子列表Tab -->
+        <view v-if="activeTab === 'posts'" class="space-y-3">
+          <view
+            v-for="post in posts"
+            :key="post.id"
+            class="bg-white rounded-xl p-4 shadow-sm"
+            @click="goPost(post.id)"
+          >
+            <view v-if="post.isPinned || post.isEssence" class="flex items-center gap-2 mb-2">
+              <view v-if="post.isPinned" class="flex items-center gap-1">
+                <text class="text-primary text-xs">📌</text>
+                <text class="text-[11px] text-primary font-medium">置顶</text>
+              </view>
+              <text v-if="post.isEssence" class="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded">精华</text>
+            </view>
+            <view class="flex items-center justify-between mb-3">
+              <view class="flex items-center gap-2">
+                <image :src="post.author.avatar" mode="aspectFill" class="w-9 h-9 rounded-full" />
+                <view>
+                  <view class="flex items-center gap-1">
+                    <text class="text-[13px] font-medium text-foreground">{{ post.author.name }}</text>
+                    <text v-if="post.author.title" class="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] rounded">{{ post.author.title }}</text>
+                  </view>
+                  <text class="text-[11px] text-muted-foreground">{{ post.createdAt }}</text>
+                </view>
+              </view>
+              <text class="text-muted-foreground text-lg">⋯</text>
+            </view>
+            <text class="text-[14px] text-foreground block leading-relaxed mb-3">{{ post.content }}</text>
+            <view v-if="post.images && post.images.length > 0" class="flex gap-2 mb-3" :class="post.images.length === 1 ? 'flex-col' : 'flex-row'">
+              <image
+                v-for="(img, idx) in post.images"
+                :key="idx"
+                :src="img"
+                mode="aspectFill"
+                class="rounded-lg w-full"
+                :class="post.images.length === 1 ? 'max-h-60' : 'w-1/2 aspect-square'"
+              />
+            </view>
+            <view class="flex items-center gap-6 pt-2 border-t border-[#F5F0E8]">
+              <view class="flex items-center gap-1" @click.stop="handleLikePost(post.id)">
+                <text :class="likedPosts.has(post.id) ? 'text-primary' : 'text-muted-foreground'"></text>
+                <text :class="likedPosts.has(post.id) ? 'text-primary' : 'text-muted-foreground'" class="text-[12px]">{{ post.likes }}</text>
+              </view>
+              <view class="flex items-center gap-1" @click.stop="goPost(post.id)">
+                <text class="text-muted-foreground text-sm"></text>
+                <text class="text-[12px] text-muted-foreground">{{ post.comments }}</text>
+              </view>
+              <text class="text-muted-foreground text-sm">🔖</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 精华帖子Tab -->
+        <view v-if="activeTab === 'essence'" class="space-y-3">
+          <template v-if="essencePosts.length > 0">
+            <view
+              v-for="post in essencePosts"
+              :key="post.id"
+              class="bg-white rounded-xl p-4 shadow-sm"
+              @click="goPost(post.id)"
+            >
+              <view v-if="post.isPinned || post.isEssence" class="flex items-center gap-2 mb-2">
+                <view v-if="post.isPinned" class="flex items-center gap-1">
+                  <text class="text-primary text-xs">📌</text>
+                  <text class="text-[11px] text-primary font-medium">置顶</text>
+                </view>
+                <text class="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded">精华</text>
+              </view>
+              <view class="flex items-center justify-between mb-3">
+                <view class="flex items-center gap-2">
+                  <image :src="post.author.avatar" mode="aspectFill" class="w-9 h-9 rounded-full" />
+                  <view>
+                    <view class="flex items-center gap-1">
+                      <text class="text-[13px] font-medium text-foreground">{{ post.author.name }}</text>
+                      <text v-if="post.author.title" class="px-1.5 py-0.5 bg-primary/10 text-primary text-[10px] rounded">{{ post.author.title }}</text>
+                    </view>
+                    <text class="text-[11px] text-muted-foreground">{{ post.createdAt }}</text>
+                  </view>
+                </view>
+                <text class="text-muted-foreground text-lg">⋯</text>
+              </view>
+              <text class="text-[14px] text-foreground block leading-relaxed mb-3">{{ post.content }}</text>
+              <view v-if="post.images && post.images.length > 0" class="flex gap-2 mb-3" :class="post.images.length === 1 ? 'flex-col' : 'flex-row'">
+                <image
+                  v-for="(img, idx) in post.images"
+                  :key="idx"
+                  :src="img"
+                  mode="aspectFill"
+                  class="rounded-lg w-full"
+                  :class="post.images.length === 1 ? 'max-h-60' : 'w-1/2 aspect-square'"
+                />
+              </view>
+              <view class="flex items-center gap-6 pt-2 border-t border-[#F5F0E8]">
+                <view class="flex items-center gap-1" @click.stop="handleLikePost(post.id)">
+                  <text :class="likedPosts.has(post.id) ? 'text-primary' : 'text-muted-foreground'"></text>
+                  <text :class="likedPosts.has(post.id) ? 'text-primary' : 'text-muted-foreground'" class="text-[12px]">{{ post.likes }}</text>
+                </view>
+                <view class="flex items-center gap-1" @click.stop="goPost(post.id)">
+                  <text class="text-muted-foreground text-sm"></text>
+                  <text class="text-[12px] text-muted-foreground">{{ post.comments }}</text>
+                </view>
+                <text class="text-muted-foreground text-sm">🔖</text>
+              </view>
+            </view>
+          </template>
+          <template v-else>
+            <view class="flex flex-col items-center justify-center py-16">
+              <text class="text-4xl text-[#E8E0D5] mb-3"></text>
+              <text class="text-muted-foreground text-[14px]">暂无精华内容</text>
+            </view>
+          </template>
+        </view>
+
+        <!-- 专栏列表Tab -->
+        <view v-if="activeTab === 'columns'" class="grid grid-cols-2 gap-3">
+          <view
+            v-for="col in columns"
+            :key="col.id"
+            class="bg-white rounded-xl overflow-hidden shadow-sm"
+            @click="goColumn(col.id)"
+          >
+            <view class="relative">
+              <image :src="col.cover" mode="aspectFill" class="w-full h-24" />
+              <view v-if="col.isPremium" class="absolute top-2 right-2 w-5 h-5 bg-accent rounded-full flex items-center justify-center">
+                <text class="text-white text-xs"></text>
+              </view>
+            </view>
+            <view class="p-3">
+              <text class="text-[14px] font-medium text-foreground block truncate">{{ col.title }}</text>
+              <text class="text-[12px] text-muted-foreground block mt-1">{{ col.articles }}篇文章 · {{ col.views }}阅读</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 成员列表Tab -->
+        <view v-if="activeTab === 'members'" class="space-y-2">
+          <view
+            v-for="member in members"
+            :key="member.id"
+            class="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm"
+            @click="goUser(member.id)"
+          >
+            <image :src="member.avatar" mode="aspectFill" class="w-11 h-11 rounded-full flex-shrink-0" />
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-2">
+                <text class="text-[14px] font-medium text-foreground">{{ member.name }}</text>
+                <view v-if="member.role === 'owner'" class="flex items-center gap-0.5 px-1.5 py-0.5 bg-accent/10 text-accent text-[10px] rounded">
+                  <text class="text-xs">👑</text>
+                  <text>圈主</text>
+                </view>
+                <view v-if="member.role === 'admin'" class="flex items-center gap-0.5 px-1.5 py-0.5 bg-[#4A90D9]/10 text-[#4A90D9] text-[10px] rounded">
+                  <text class="text-xs">🛡</text>
+                  <text>管理员</text>
+                </view>
+              </view>
+              <view class="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <text v-if="member.title">{{ member.title }}</text>
+                <text>发帖 {{ member.posts }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部操作栏 -->
+      <view class="fixed bottom-0 left-0 right-0 bg-white border-t border-border px-4 py-3 flex items-center gap-3 z-50" style="padding-bottom:34px">
+        <view
+          class="flex-1 py-3 rounded-full text-[14px] font-medium text-center transition-all"
+          :class="isJoined ? 'bg-[#F5F0E8] text-ink-soft' : 'bg-gradient-to-r from-primary to-[#E74C3C] text-white shadow-lg'"
+          @click="handleJoin"
+        >
+          <text>{{ isJoined ? '已加入' : '¥199/年 加入圈子' }}</text>
+        </view>
+        <view
+          v-if="isJoined"
+          class="flex-1 py-3 rounded-full bg-gradient-to-r from-primary to-[#E74C3C] text-white text-[14px] font-medium text-center shadow-lg flex items-center justify-center gap-1"
+          @click="goPublish"
+        >
+          <text class="text-base">+</text>
+          <text>发帖</text>
+        </view>
+      </view>
+
+      <!-- 会员权益弹窗 -->
+      <view v-if="showBenefits" class="fixed inset-0 z-50 flex items-end justify-center bg-black/50">
+        <view class="w-full max-w-lg bg-white rounded-t-3xl overflow-hidden">
+          <view class="p-6">
+            <view class="text-center mb-6">
+              <view class="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-accent to-[#E8D5B5] flex items-center justify-center mb-3">
+                <text class="text-3xl text-white"></text>
+              </view>
+              <text class="text-[18px] font-bold text-foreground block">加入「{{ circle.name }}」</text>
+              <text class="text-[14px] text-muted-foreground block mt-1">¥199/年，解锁以下专属权益</text>
+            </view>
+
+            <view class="grid grid-cols-2 gap-3 mb-6">
+              <view v-for="(benefit, idx) in memberBenefits" :key="idx" class="bg-background rounded-xl p-3 flex items-start gap-2">
+                <view class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <text class="text-base">{{ benefit.icon }}</text>
+                </view>
+                <view>
+                  <text class="text-[13px] font-medium text-foreground block">{{ benefit.title }}</text>
+                  <text class="text-[11px] text-muted-foreground block">{{ benefit.desc }}</text>
+                </view>
+              </view>
+            </view>
+
+            <view class="flex gap-3">
+              <view class="flex-1 py-3 rounded-full bg-[#F5F0E8] text-ink-soft text-[14px] font-medium text-center" @click="showBenefits = false">
+                <text>再想想</text>
+              </view>
+              <view class="flex-1 py-3 rounded-full bg-gradient-to-r from-primary to-[#E74C3C] text-white text-[14px] font-medium text-center" @click="confirmJoin">
+                <text>立即加入</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+// Mock数据 - 增强版
+const mockCircle = {
+  id: '1',
+  name: '八字命理研习社',
+  cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=400&fit=crop',
+  description: '探讨八字命理学的专业圈子，汇聚众多命理爱好者和专业人士，共同研习传统命理文化。',
+  category: '命理',
+  members: 12580,
+  posts: 3256,
+  isJoined: false,
+  todayActive: 128,
+  createdAt: '2023-01-15',
+  owner: { id: '1', name: '周易大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=master' },
+  rules: ['禁止发布广告信息', '尊重他人，理性讨论', '禁止人身攻击', '原创内容请标注'],
+  announcement: '欢迎加入八字命理研习社！本圈子致力于传承和发扬中华传统命理文化，定期举办线上交流活动，欢迎各位同好积极参与讨论。近期将举办「八字入门精讲」系列直播，敬请期待！',
+  tags: ['八字', '命理', '国学', '传统文化'],
+}
+
+// 会员权益
+const memberBenefits = [
+  { icon: '', title: '专属内容', desc: '解锁全部精华帖子' },
+  { icon: '', title: '直接提问', desc: '向圈主发起提问' },
+  { icon: '▶️', title: '直播回放', desc: '观看历史直播' },
+  { icon: '🏅', title: '专属勋章', desc: '展示会员身份' },
+]
+
+// 专栏数据
+const columns = [
+  { id: 'col1', title: '八字入门系列', author: '周易大师', cover: 'https://picsum.photos/200/150?random=301', articles: 12, views: 8560, isPremium: true },
+  { id: 'col2', title: '十神详解', author: '周易大师', cover: 'https://picsum.photos/200/150?random=302', articles: 8, views: 5280, isPremium: false },
+  { id: 'col3', title: '实战案例分析', author: '周易大师', cover: 'https://picsum.photos/200/150?random=303', articles: 24, views: 12800, isPremium: true },
+]
+
+// 近期活动
+const activities = [
+  { id: 'act1', type: 'live', title: '八字入门精讲（第3期）', time: '今晚 20:00', status: 'upcoming' },
+  { id: 'act2', type: 'checkin', title: '《滴天髓》共读打卡 Day 15', time: '进行中', status: 'ongoing', participants: 328 },
+  { id: 'act3', type: 'homework', title: '八字案例分析作业', time: '本周日截止', status: 'ongoing', participants: 156 },
+]
+
+const mockPosts = [
+  {
+    id: '1',
+    content: '今天分享一个八字案例分析：某人八字为甲子、丙寅、戊辰、壬戌，这个八字有什么特点？欢迎大家一起探讨。从五行来看...',
+    images: ['https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop'],
+    author: { id: '1', name: '周易大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=master', title: '圈主' },
+    createdAt: '2024-01-15 10:30',
+    likes: 128,
+    comments: 32,
+    isLiked: false,
+    isPinned: true,
+    isEssence: true,
+  },
+  {
+    id: '2',
+    content: '请教各位老师，关于日主强弱的判断，除了看得令、得地、得生、得助之外，还有什么需要注意的要点吗？',
+    images: [],
+    author: { id: '2', name: '命理新手', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=newbie' },
+    createdAt: '2024-01-15 09:15',
+    likes: 45,
+    comments: 18,
+    isLiked: true,
+    isPinned: false,
+    isEssence: false,
+  },
+  {
+    id: '3',
+    content: '分享一本好书《滴天髓》，这是学习八字必读的经典之作，里面的义理非常深刻，推荐给大家。',
+    images: [
+      'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=300&fit=crop',
+      'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=400&h=300&fit=crop',
+    ],
+    author: { id: '3', name: '古籍爱好者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=book' },
+    createdAt: '2024-01-14 16:20',
+    likes: 89,
+    comments: 24,
+    isLiked: false,
+    isPinned: false,
+    isEssence: false,
+  },
+]
+
+const mockMembers = [
+  { id: '1', name: '周易大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=master', title: '资深命理师', role: 'owner', joinedAt: '2023-01-15', posts: 156 },
+  { id: '2', name: '紫微研究者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=ziwei', title: '管理员', role: 'admin', joinedAt: '2023-02-20', posts: 89 },
+  { id: '3', name: '命理新手', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=newbie', role: 'member', joinedAt: '2024-01-10', posts: 12 },
+  { id: '4', name: '古籍爱好者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=book', role: 'member', joinedAt: '2023-12-05', posts: 34 },
+]
+
+// State
+const isLoading = ref(true)
+const circle = ref(mockCircle)
+const posts = ref(mockPosts)
+const members = ref(mockMembers)
+const activeTab = ref('home')
+const showAnnouncement = ref(true)
+const isJoined = ref(false)
+const likedPosts = ref(new Set<string>())
+const showBenefits = ref(false)
+
+const tabs = [
+  { id: 'home', label: '首页' },
+  { id: 'posts', label: '帖子' },
+  { id: 'essence', label: '精华' },
+  { id: 'columns', label: '专栏' },
+  { id: 'members', label: '成员' },
+]
+
+const pinnedPosts = computed(() => posts.value.filter(p => p.isPinned))
+const essencePosts = computed(() => posts.value.filter(p => p.isEssence))
+
+onMounted(() => {
+  setTimeout(() => {
+    isLoading.value = false
+    isJoined.value = mockCircle.isJoined
+    likedPosts.value = new Set(mockPosts.filter(p => p.isLiked).map(p => p.id))
+  }, 400)
+})
+
+function goBack() { uni.navigateBack() }
+function goNotifications() { uni.navigateTo({ url: '/pages/notifications/index' }) }
+function onShare() { uni.showToast({ title: '分享(Mock)', icon: 'none' }) }
+function goOwner() { uni.navigateTo({ url: '/pages/user/profile/index' }) }
+function goActivities() { uni.navigateTo({ url: '/pages/circles/id-detail/activities/index' }) }
+function goActivity(id: string) { uni.navigateTo({ url: `/pages/circles/id-detail/activities/id-detail/index?id=${id}` }) }
+function goPost(id: string) { uni.navigateTo({ url: `/pages/circles/id-detail/posts/postId-detail/index?id=${id}` }) }
+function goColumn(id: string) { uni.navigateTo({ url: `/pages/circles/id-detail/knowledge/index?columnId=${id}` }) }
+function goColumns() { uni.navigateTo({ url: '/pages/circles/id-detail/knowledge/index' }) }
+function goUser(id: string) { uni.navigateTo({ url: `/pages/user/profile/index?id=${id}` }) }
+function goPublish() { uni.navigateTo({ url: '/pages/circles/id-detail/publish/index' }) }
+
+function handleJoin() {
+  if (!isJoined.value) {
+    showBenefits.value = true
+  } else {
+    isJoined.value = false
+    uni.showToast({ title: '已退出圈子', icon: 'none' })
+  }
+}
+
+function confirmJoin() {
+  showBenefits.value = false
+  isJoined.value = true
+  uni.showToast({ title: '已加入圈子', icon: 'success' })
+}
+
+function handleLikePost(postId: string) {
+  const newSet = new Set(likedPosts.value)
+  if (newSet.has(postId)) {
+    newSet.delete(postId)
+  } else {
+    newSet.add(postId)
+  }
+  likedPosts.value = newSet
+  posts.value = posts.value.map(p =>
+    p.id === postId
+      ? { ...p, likes: p.likes + (newSet.has(postId) ? 1 : -1) }
+      : p
+  )
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+</style>

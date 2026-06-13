@@ -1,0 +1,545 @@
+<template>
+  <view class="min-h-screen" style="background-color: #FAF8F5; padding-bottom: 128rpx;">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50" style="background-color: #FFFFFF; border-bottom: 1rpx solid #E8E0D5;">
+      <view class="flex items-center" style="height: 112rpx; padding: 0 32rpx;">
+        <view @click="goBack" style="margin-right: 24rpx;">
+          <text style="font-size: 40rpx; color: #2C2C2C;">←</text>
+        </view>
+        <text style="font-size: 36rpx; font-weight: 600; color: #2C2C2C;">商家入驻申请</text>
+      </view>
+    </view>
+
+    <!-- 进度条 + 完成度 -->
+    <view style="padding: 32rpx; background: linear-gradient(135deg, rgba(196,30,58,0.05) 0%, rgba(196,30,58,0.1) 100%);">
+      <!-- 步骤条 -->
+      <view class="flex items-center" style="justify-content: space-between;">
+        <template v-for="(s, index) in steps" :key="s.id">
+          <view class="flex items-center">
+            <view class="flex flex-col items-center">
+              <view :class="['w-64 h-64 rounded-full flex items-center justify-center text-sm font-medium', currentStep >= s.id ? 'bg-primary text-white' : 'bg-muted text-muted-foreground']"
+                :style="{
+                  width: '64rpx',
+                  height: '64rpx',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '26rpx',
+                  fontWeight: 500,
+                  backgroundColor: currentStep >= s.id ? '#C41E3A' : '#F0EBE5',
+                  color: currentStep >= s.id ? '#FFFFFF' : '#999999'
+                }">
+                <text v-if="currentStep > s.id" style="font-size: 28rpx;">✓</text>
+                <text v-else>{{ s.id }}</text>
+              </view>
+              <text :class="['text-xs mt-1', currentStep >= s.id ? 'text-primary font-medium' : 'text-muted-foreground']"
+                :style="{ fontSize: '22rpx', marginTop: '8rpx', color: currentStep >= s.id ? '#C41E3A' : '#999999', fontWeight: currentStep >= s.id ? 500 : 400 }">
+                {{ s.name }}
+              </text>
+            </view>
+          </view>
+          <view v-if="index < steps.length - 1"
+            :style="{
+              width: '96rpx',
+              height: '4rpx',
+              margin: '0 16rpx',
+              backgroundColor: currentStep > s.id ? '#C41E3A' : '#F0EBE5'
+            }" />
+        </template>
+      </view>
+
+      <!-- 表单完成度 -->
+      <view style="margin-top: 32rpx; padding: 24rpx; background-color: #FFFFFF; border-radius: 16rpx; border: 1rpx solid rgba(232,224,213,0.6);">
+        <view class="flex items-center justify-between" style="margin-bottom: 16rpx;">
+          <text style="font-size: 26rpx; color: #999999;">表单完成度</text>
+          <text style="font-size: 28rpx; font-weight: 500; color: #2C2C2C;">{{ formCompleteness.percentage }}%</text>
+        </view>
+        <view style="height: 16rpx; background-color: #F0EBE5; border-radius: 8rpx; overflow: hidden;">
+          <view style="height: 100%; background-color: #C41E3A; border-radius: 8rpx; transition: width 0.5s;"
+            :style="{ width: formCompleteness.percentage + '%' }" />
+        </view>
+        <text style="font-size: 22rpx; color: #999999; margin-top: 16rpx; display: block;">
+          已填写 {{ formCompleteness.filled }}/{{ formCompleteness.total }} 项必填信息
+        </text>
+      </view>
+    </view>
+
+    <scroll-view scroll-y style="flex: 1; padding: 32rpx;">
+      <view style="display: flex; flex-direction: column; gap: 32rpx;">
+        <!-- ===== 店铺信息 ===== -->
+        <view style="background-color: #FFFFFF; border-radius: 24rpx; padding: 32rpx;">
+          <view class="flex items-center" style="gap: 16rpx; margin-bottom: 32rpx;">
+            <text style="font-size: 40rpx; color: #C41E3A;">🏪</text>
+            <text style="font-size: 32rpx; font-weight: 600; color: #2C2C2C;">店铺信息</text>
+          </view>
+
+          <!-- Logo上传 -->
+          <view class="flex items-center" style="gap: 32rpx; margin-bottom: 32rpx;">
+            <view style="position: relative;">
+              <view style="width: 160rpx; height: 160rpx; border-radius: 24rpx; background-color: #FAF8F5; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 4rpx dashed #E8E0D5;">
+                <text style="font-size: 48rpx; color: #999999;"></text>
+                <text style="font-size: 22rpx; color: #999999; margin-top: 8rpx;">上传Logo</text>
+              </view>
+              <view style="position: absolute; bottom: -8rpx; right: -8rpx; width: 48rpx; height: 48rpx; border-radius: 50%; background-color: #C41E3A; display: flex; align-items: center; justify-content: center;">
+                <text style="font-size: 28rpx; color: #FFFFFF;">+</text>
+              </view>
+            </view>
+            <text style="font-size: 24rpx; color: #999999;">建议尺寸 200x200px</text>
+          </view>
+
+          <!-- 店铺名称 -->
+          <view style="margin-bottom: 24rpx;">
+            <FormField label="店铺名称" :required="true" :error="getFieldError('shopName')">
+              <input v-model="formData.shopName" placeholder="请输入店铺名称（2-20字符）" maxlength="20"
+                :style="['width: 100%; padding: 20rpx 24rpx; background-color: #FAF8F5; border-radius: 16rpx; font-size: 26rpx; border: 2rpx solid; color: #2C2C2C;', getFieldError('shopName') ? 'border-color: #DC2626;' : 'border-color: transparent;']"
+                @blur="markTouched('shopName')" />
+            </FormField>
+            <view style="display: flex; justify-content: flex-end; margin-top: 8rpx;">
+              <text style="font-size: 22rpx; color: #999999;">{{ formData.shopName.length }}/20</text>
+            </view>
+          </view>
+
+          <!-- 店铺简介 -->
+          <view>
+            <text style="font-size: 26rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 16rpx; display: block;">店铺简介</text>
+            <textarea v-model="formData.shopDesc" placeholder="介绍您的店铺特色" maxlength="200"
+              style="width: 100%; padding: 20rpx 24rpx; background-color: #FAF8F5; border-radius: 16rpx; font-size: 26rpx; color: #2C2C2C; min-height: 144rpx;" />
+            <view style="display: flex; justify-content: flex-end; margin-top: 8rpx;">
+              <text style="font-size: 22rpx; color: #999999;">{{ formData.shopDesc.length }}/200</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- ===== 联系人信息 ===== -->
+        <view style="background-color: #FFFFFF; border-radius: 24rpx; padding: 32rpx;">
+          <view class="flex items-center" style="gap: 16rpx; margin-bottom: 32rpx;">
+            <text style="font-size: 40rpx; color: #C41E3A;">📞</text>
+            <text style="font-size: 32rpx; font-weight: 600; color: #2C2C2C;">联系人信息</text>
+          </view>
+
+          <view style="display: flex; flex-direction: column; gap: 32rpx;">
+            <FormField label="联系人姓名" :required="true" :error="getFieldError('contactName')">
+              <input v-model="formData.contactName" placeholder="请输入真实姓名"
+                :style="['width: 100%; padding: 20rpx 24rpx; background-color: #FAF8F5; border-radius: 16rpx; font-size: 26rpx; border: 2rpx solid; color: #2C2C2C;', getFieldError('contactName') ? 'border-color: #DC2626;' : 'border-color: transparent;']"
+                @blur="markTouched('contactName')" />
+            </FormField>
+
+            <FormField label="手机号码" :required="true" :error="getFieldError('contactPhone')">
+              <view class="flex" style="gap: 16rpx;">
+                <input v-model="formData.contactPhone" placeholder="请输入手机号" type="number"
+                  :style="['flex: 1; padding: 20rpx 24rpx; background-color: #FAF8F5; border-radius: 16rpx; font-size: 26rpx; border: 2rpx solid; color: #2C2C2C;', getFieldError('contactPhone') ? 'border-color: #DC2626;' : 'border-color: transparent;']"
+                  @blur="markTouched('contactPhone')" />
+                <view @click="handleSendCode"
+                  :style="{
+                    width: '224rpx',
+                    flexShrink: 0,
+                    textAlign: 'center',
+                    padding: '20rpx 0',
+                    borderRadius: '16rpx',
+                    fontSize: '26rpx',
+                    backgroundColor: countdown > 0 ? '#F0EBE5' : '#C41E3A',
+                    color: countdown > 0 ? '#999999' : '#FFFFFF'
+                  }">
+                  <text>{{ countdown > 0 ? countdown + 's' : '获取验证码' }}</text>
+                </view>
+              </view>
+            </FormField>
+
+            <FormField label="验证码" :required="true" :error="getFieldError('verifyCode')">
+              <input v-model="formData.verifyCode" placeholder="请输入6位验证码" type="number" maxlength="6"
+                :style="['width: 100%; padding: 20rpx 24rpx; background-color: #FAF8F5; border-radius: 16rpx; font-size: 26rpx; border: 2rpx solid; color: #2C2C2C;', getFieldError('verifyCode') ? 'border-color: #DC2626;' : 'border-color: transparent;']"
+                @blur="markTouched('verifyCode')" />
+            </FormField>
+
+            <FormField label="身份证号" :required="true" :error="getFieldError('idNumber')">
+              <input v-model="formData.idNumber" placeholder="请输入身份证号码" maxlength="18"
+                :style="['width: 100%; padding: 20rpx 24rpx; background-color: #FAF8F5; border-radius: 16rpx; font-size: 26rpx; border: 2rpx solid; color: #2C2C2C;', getFieldError('idNumber') ? 'border-color: #DC2626;' : 'border-color: transparent;']"
+                @blur="markTouched('idNumber')" />
+            </FormField>
+
+            <!-- 身份证照片 -->
+            <view>
+              <text style="font-size: 26rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 16rpx; display: block;">
+                身份证照片 <text style="color: #C41E3A;">*</text>
+              </text>
+              <view style="display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx;">
+                <view style="aspect-ratio: 3/2; border-radius: 16rpx; background-color: #FAF8F5; border: 4rpx dashed #E8E0D5; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                  <text style="font-size: 48rpx; color: #999999; margin-bottom: 8rpx;"></text>
+                  <text style="font-size: 22rpx; color: #999999;">人像面</text>
+                </view>
+                <view style="aspect-ratio: 3/2; border-radius: 16rpx; background-color: #FAF8F5; border: 4rpx dashed #E8E0D5; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                  <text style="font-size: 48rpx; color: #999999; margin-bottom: 8rpx;"></text>
+                  <text style="font-size: 22rpx; color: #999999;">国徽面</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- ===== 资质材料 ===== -->
+        <view style="background-color: #FFFFFF; border-radius: 24rpx; padding: 32rpx;">
+          <view class="flex items-center" style="gap: 16rpx; margin-bottom: 32rpx;">
+            <text style="font-size: 40rpx; color: #C41E3A;"></text>
+            <text style="font-size: 32rpx; font-weight: 600; color: #2C2C2C;">资质材料</text>
+          </view>
+          <view>
+            <text style="font-size: 26rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 16rpx; display: block;">
+              营业执照 <text style="color: #C41E3A;">*</text>
+            </text>
+            <view style="aspect-ratio: 4/3; border-radius: 16rpx; background-color: #FAF8F5; border: 4rpx dashed #E8E0D5; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <text style="font-size: 64rpx; color: #999999; margin-bottom: 16rpx;"></text>
+              <text style="font-size: 28rpx; color: #999999;">点击上传营业执照</text>
+              <text style="font-size: 22rpx; color: #999999; margin-top: 8rpx;">支持 jpg、png 格式，小于 5MB</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- ===== 经营类目 ===== -->
+        <view style="background-color: #FFFFFF; border-radius: 24rpx; padding: 32rpx;">
+          <view class="flex items-center justify-between" style="margin-bottom: 32rpx;">
+            <view class="flex items-center" style="gap: 16rpx;">
+              <text style="font-size: 40rpx; color: #C41E3A;">🛡️</text>
+              <text style="font-size: 32rpx; font-weight: 600; color: #2C2C2C;">经营类目</text>
+            </view>
+            <text style="font-size: 22rpx; color: #999999;">已选 {{ formData.categories.length }}/5</text>
+          </view>
+          <view style="display: flex; flex-wrap: wrap; gap: 16rpx;">
+            <view v-for="cat in categories" :key="cat.id" @click="toggleCategory(cat.id)"
+              :style="{
+                padding: '16rpx 24rpx',
+                borderRadius: '16rpx',
+                fontSize: '26rpx',
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12rpx',
+                backgroundColor: formData.categories.includes(cat.id) ? '#C41E3A' : '#F5F1EB',
+                color: formData.categories.includes(cat.id) ? '#FFFFFF' : '#2C2C2C'
+              }">
+              <text>{{ cat.name }}</text>
+              <text v-if="formData.categories.includes(cat.id)" style="font-size: 26rpx;">✓</text>
+            </view>
+          </view>
+          <!-- 类目错误提示 -->
+          <view v-if="getFieldError('categories')" class="flex items-center" style="gap: 8rpx; margin-top: 16rpx;">
+            <text style="font-size: 20rpx; color: #DC2626;">⚠</text>
+            <text style="font-size: 22rpx; color: #DC2626;">{{ getFieldError('categories') }}</text>
+          </view>
+          <!-- 类目上限提示 -->
+          <view v-if="formData.categories.length >= 5" class="flex items-center" style="gap: 8rpx; margin-top: 16rpx;">
+            <text style="font-size: 20rpx; color: #D97706;">⚠</text>
+            <text style="font-size: 22rpx; color: #D97706;">最多选择5个经营类目</text>
+          </view>
+        </view>
+
+        <!-- ===== 协议同意 ===== -->
+        <view class="flex items-start" style="gap: 16rpx; padding: 0 8rpx;" @click="agreedToTerms = !agreedToTerms">
+          <view :style="{
+            width: '40rpx',
+            height: '40rpx',
+            borderRadius: '8rpx',
+            border: '4rpx solid',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            marginTop: '4rpx',
+            backgroundColor: agreedToTerms ? '#C41E3A' : 'transparent',
+            borderColor: agreedToTerms ? '#C41E3A' : '#999999'
+          }">
+            <text v-if="agreedToTerms" style="font-size: 24rpx; color: #FFFFFF;">✓</text>
+          </view>
+          <text style="font-size: 24rpx; color: #999999;">
+            我已阅读并同意<text style="color: #C41E3A; margin: 0 8rpx;" @click.stop="uni.navigateTo({url: '/pages/terms/merchant/index'})">《商家入驻协议》</text>和<text style="color: #C41E3A; margin: 0 8rpx;" @click.stop="uni.navigateTo({url: '/pages/terms/service/index'})">《平台服务条款》</text>
+          </text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 底部提交按钮 -->
+    <view style="position: fixed; bottom: 0; left: 0; right: 0; padding: 32rpx; background-color: #FFFFFF; border-top: 2rpx solid #E8E0D5;">
+      <view class="flex items-center" style="gap: 24rpx;">
+        <view @click="goBack"
+          style="flex: 1; padding: 24rpx 0; border: 2rpx solid #E8E0D5; border-radius: 16rpx; text-align: center; font-size: 28rpx; font-weight: 500; color: #2C2C2C;">
+          返回
+        </view>
+        <view @click="handleSubmit"
+          :style="{
+            flex: 2,
+            padding: '24rpx 0',
+            borderRadius: '16rpx',
+            textAlign: 'center',
+            fontSize: '30rpx',
+            fontWeight: 500,
+            backgroundColor: '#C41E3A',
+            color: '#FFFFFF',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '16rpx',
+            opacity: (isSubmitting || !agreedToTerms) ? 0.5 : 1
+          }">
+          <template v-if="isSubmitting">
+            <text style="font-size: 28rpx;"></text>
+            <text>提交中...</text>
+          </template>
+          <template v-else>
+            <text style="font-size: 28rpx;"></text>
+            <text>提交申请</text>
+          </template>
+        </view>
+      </view>
+    </view>
+
+    <!-- 提交进度弹窗 -->
+    <view v-if="isSubmitting" style="position: fixed; inset: 0; z-index: 999; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 32rpx;">
+      <view style="width: 100%; max-width: 600rpx; background-color: #FFFFFF; border-radius: 24rpx; padding: 48rpx;">
+        <!-- 错误状态 -->
+        <template v-if="submitError">
+          <view style="text-align: center;">
+            <view style="width: 128rpx; height: 128rpx; margin: 0 auto 32rpx; border-radius: 50%; background-color: rgba(220,38,38,0.1); display: flex; align-items: center; justify-content: center;">
+              <text style="font-size: 64rpx; color: #DC2626;">⚠</text>
+            </view>
+            <text style="font-size: 32rpx; font-weight: 600; color: #2C2C2C; margin-bottom: 16rpx; display: block;">提交失败</text>
+            <text style="font-size: 26rpx; color: #999999; margin-bottom: 32rpx; display: block;">{{ submitError }}</text>
+            <view @click="isSubmitting = false"
+              style="width: 100%; padding: 24rpx 0; border: 2rpx solid #E8E0D5; border-radius: 16rpx; text-align: center; font-size: 28rpx; color: #2C2C2C;">
+              重新提交
+            </view>
+          </view>
+        </template>
+        <!-- 进度状态 -->
+        <template v-else>
+          <text style="font-size: 32rpx; font-weight: 600; color: #2C2C2C; text-align: center; margin-bottom: 48rpx; display: block;">正在提交申请</text>
+          <view style="display: flex; flex-direction: column; gap: 32rpx;">
+            <view v-for="(s, index) in progressSteps" :key="s.id" class="flex items-center" style="gap: 24rpx;">
+              <view :style="{
+                width: '64rpx',
+                height: '64rpx',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '26rpx',
+                fontWeight: 500,
+                backgroundColor: submitStep > s.id ? '#22C55E' : submitStep === s.id ? '#C41E3A' : '#F0EBE5',
+                color: '#FFFFFF'
+              }">
+                <text v-if="submitStep > s.id" style="font-size: 28rpx;">✓</text>
+                <text v-else-if="submitStep === s.id" style="font-size: 28rpx;"></text>
+                <text v-else style="color: #999999;">{{ s.id }}</text>
+              </view>
+              <text :style="{
+                fontSize: '26rpx',
+                color: submitStep >= s.id ? '#2C2C2C' : '#999999',
+                fontWeight: submitStep >= s.id ? 500 : 400
+              }">
+                {{ s.name }}
+              </text>
+              <text v-if="submitStep > s.id" style="font-size: 22rpx; color: #22C55E; margin-left: auto;">完成</text>
+            </view>
+          </view>
+          <text style="font-size: 22rpx; color: #999999; text-align: center; margin-top: 48rpx; display: block;">请勿关闭页面，正在处理中...</text>
+        </template>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, onUnmounted } from 'vue'
+
+const categories = [
+  { id: 'guoxue', name: '国学课程' },
+  { id: 'guji', name: '古籍图书' },
+  { id: 'wenchuang', name: '文创用品' },
+  { id: 'wenfang', name: '文房四宝' },
+  { id: 'chadao', name: '茶道用品' },
+  { id: 'mingli', name: '命理咨询' },
+  { id: 'fengshui', name: '风水服务' },
+  { id: 'shufa', name: '书法字画' },
+  { id: 'other', name: '其他' },
+]
+
+const steps = [
+  { id: 1, name: '填写信息' },
+  { id: 2, name: '提交审核' },
+  { id: 3, name: '开通店铺' },
+]
+
+const progressSteps = [
+  { id: 1, name: '校验信息' },
+  { id: 2, name: '上传资料' },
+  { id: 3, name: '提交申请' },
+]
+
+// ===== 校验规则（与V0完全一致） =====
+const validators: Record<string, (value: any) => string | null> = {
+  shopName: (value: string) => {
+    if (!value.trim()) return '请输入店铺名称'
+    if (value.length < 2) return '店铺名称至少2个字符'
+    if (value.length > 20) return '店铺名称不能超过20个字符'
+    return null
+  },
+  contactName: (value: string) => {
+    if (!value.trim()) return '请输入联系人姓名'
+    if (value.length < 2) return '姓名至少2个字符'
+    return null
+  },
+  contactPhone: (value: string) => {
+    if (!value.trim()) return '请输入手机号码'
+    if (!/^1[3-9]\d{9}$/.test(value)) return '请输入正确的手机号码'
+    return null
+  },
+  verifyCode: (value: string) => {
+    if (!value.trim()) return '请输入验证码'
+    if (!/^\d{6}$/.test(value)) return '验证码为6位数字'
+    return null
+  },
+  idNumber: (value: string) => {
+    if (!value.trim()) return '请输入身份证号码'
+    if (!/^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/.test(value)) {
+      return '请输入正确的身份证号码'
+    }
+    return null
+  },
+  categories: (value: string[]) => {
+    if (value.length === 0) return '请至少选择一个经营类目'
+    return null
+  }
+}
+
+const currentStep = ref(1)
+const isSubmitting = ref(false)
+const submitStep = ref(0)
+const submitError = ref<string | null>(null)
+const agreedToTerms = ref(false)
+const countdown = ref(0)
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+const formData = reactive({
+  shopName: '',
+  shopDesc: '',
+  contactName: '',
+  contactPhone: '',
+  verifyCode: '',
+  idNumber: '',
+  categories: [] as string[],
+})
+
+const errors = reactive<Record<string, string | null>>({})
+const touched = reactive<Record<string, boolean>>({})
+
+// 已触碰的字段才显示错误（与V0一致）
+function getFieldError(field: string): string | null {
+  if (!touched[field]) return null
+  return errors[field] ?? null
+}
+
+function markTouched(field: string) {
+  touched[field] = true
+  // 触碰时立即校验
+  const validator = validators[field]
+  if (validator) {
+    errors[field] = validator(formData[field as keyof typeof formData] as never)
+  }
+}
+
+const required = ['shopName', 'contactName', 'contactPhone', 'verifyCode', 'idNumber']
+const formCompleteness = computed(() => {
+  const filled = required.filter(field => {
+    const val = formData[field as keyof typeof formData]
+    return typeof val === 'string' && val.trim() !== ''
+  })
+  return {
+    filled: filled.length,
+    total: required.length,
+    percentage: Math.round((filled.length / required.length) * 100)
+  }
+})
+
+function toggleCategory(id: string) {
+  const idx = formData.categories.indexOf(id)
+  if (idx >= 0) {
+    formData.categories.splice(idx, 1)
+  } else if (formData.categories.length < 5) {
+    formData.categories.push(id)
+  }
+  markTouched('categories')
+}
+
+function handleSendCode() {
+  if (countdown.value > 0) return
+  // 先校验手机号
+  const phoneError = validators.contactPhone(formData.contactPhone)
+  if (phoneError) {
+    markTouched('contactPhone')
+    return
+  }
+  countdown.value = 60
+  countdownTimer = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) {
+      if (countdownTimer) {
+        clearInterval(countdownTimer)
+        countdownTimer = null
+      }
+    }
+  }, 1000)
+}
+
+// 全表单校验（标记所有字段并返回是否通过）
+function validateForm(): boolean {
+  const fields = ['shopName', 'contactName', 'contactPhone', 'verifyCode', 'idNumber', 'categories']
+  fields.forEach(f => markTouched(f))
+  // 检查是否有错误
+  for (const field of fields) {
+    if (errors[field]) return false
+  }
+  return true
+}
+
+async function handleSubmit() {
+  if (!agreedToTerms.value) return
+  if (!validateForm()) return
+
+  isSubmitting.value = true
+  submitError.value = null
+
+  // 模拟多步骤提交（与V0完全一致）
+  submitStep.value = 1
+  await new Promise(r => setTimeout(r, 1000))
+
+  submitStep.value = 2
+  await new Promise(r => setTimeout(r, 1500))
+
+  submitStep.value = 3
+  await new Promise(r => setTimeout(r, 1000))
+
+  isSubmitting.value = false
+  uni.navigateTo({ url: '/pages/merchant/application-status/index' })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+// 清理定时器
+onUnmounted(() => {
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+    countdownTimer = null
+  }
+})
+</script>
+
+<style scoped>
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.items-start { align-items: flex-start; }
+.justify-center { justify-content: center; }
+
+/* 颜色变量对照 primary=#C41E3A muted=#F0EBE5 muted-foreground=#999999 */
+</style>

@@ -1,0 +1,259 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="p-6 space-y-4">
+      <view class="h-12 bg-[#F0EBE5] rounded-lg" />
+      <view class="h-8 w-48 bg-[#F0EBE5] rounded" />
+      <view class="h-6 w-64 bg-[#F0EBE5] rounded" />
+      <view class="space-y-3 mt-6">
+        <view v-for="i in 3" :key="i" class="h-20 bg-[#F0EBE5] rounded-xl" />
+      </view>
+    </view>
+
+    <template v-else>
+      <!-- 顶部导航 -->
+      <view class="sticky top-0 z-40 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5]">
+        <view class="flex items-center gap-3 px-4 h-12">
+          <view @click="goBack">
+            <text class="text-xl text-[#2C2C2C]">←</text>
+          </view>
+          <text class="text-base font-semibold text-[#2C2C2C]">找回密码</text>
+        </view>
+      </view>
+
+      <!-- 步骤指示器 -->
+      <view class="px-4 py-5">
+        <view class="flex items-center justify-center gap-0">
+          <view v-for="(step, idx) in steps" :key="idx" class="flex items-center">
+            <view class="flex flex-col items-center">
+              <view
+                class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors"
+                :class="currentStep > idx ? 'bg-[#C41E3A] text-white' : currentStep === idx ? 'bg-[#C41E3A] text-white' : 'bg-[#F0EBE5] text-[#999]'"
+              >
+                <text v-if="currentStep > idx">✓</text>
+                <text v-else>{{ idx + 1 }}</text>
+              </view>
+              <text class="text-[10px] mt-1.5 whitespace-nowrap" :class="currentStep >= idx ? 'text-[#C41E3A] font-medium' : 'text-[#999]'">
+                {{ step }}
+              </text>
+            </view>
+            <view v-if="idx < steps.length - 1" class="w-16 h-0.5 mx-1 mb-5" :class="currentStep > idx ? 'bg-[#C41E3A]' : 'bg-[#F0EBE5]'" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 步骤 1: 输入手机号 -->
+      <view v-if="currentStep === 0" class="px-6">
+        <view class="mb-6">
+          <text class="text-lg font-bold text-[#2C2C2C] mb-2 block">输入手机号</text>
+          <text class="text-sm text-[#999]">请输入您注册时绑定的手机号码</text>
+        </view>
+        <view class="bg-white border border-[#E8E0D5] rounded-xl px-4 py-3 mb-4 flex items-center gap-3">
+          <text class="text-sm text-[#999]">+86</text>
+          <text class="text-[#E8E0D5]">|</text>
+          <input
+            v-model="phone"
+            type="text"
+            maxlength="11"
+            placeholder="请输入手机号"
+            class="flex-1 text-sm text-[#2C2C2C] placeholder-[#ccc] outline-none"
+          />
+        </view>
+        <view @click="goToStep(1)" class="w-full py-3 rounded-xl bg-[#C41E3A] text-white text-center text-sm font-medium" :class="phone.length !== 11 ? 'opacity-50' : ''">
+          获取验证码
+        </view>
+      </view>
+
+      <!-- 步骤 2: 输入验证码 -->
+      <view v-if="currentStep === 1" class="px-6">
+        <view class="mb-6">
+          <text class="text-lg font-bold text-[#2C2C2C] mb-2 block">验证身份</text>
+          <text class="text-sm text-[#999]">验证码已发送至 {{ phoneMasked }}</text>
+        </view>
+        <view class="flex gap-3 mb-4 justify-center">
+          <input
+            v-for="(_, idx) in 6" :key="idx"
+            v-model="code[idx]"
+            type="text"
+            maxlength="1"
+            class="w-11 h-12 bg-white border border-[#E8E0D5] rounded-xl text-center text-lg font-bold text-[#2C2C2C] outline-none"
+            @input="onCodeInput(idx)"
+          />
+        </view>
+        <view class="flex items-center justify-between mb-6">
+          <text class="text-xs text-[#999]">
+            {{ codeTimer > 0 ? codeTimer + 's 后重新获取' : '' }}
+          </text>
+          <text
+            v-if="codeTimer === 0"
+            @click="resendCode"
+            class="text-xs text-[#C41E3A] font-medium"
+          >
+            重新获取
+          </text>
+        </view>
+        <view @click="goToStep(2)" class="w-full py-3 rounded-xl bg-[#C41E3A] text-white text-center text-sm font-medium">
+          下一步
+        </view>
+        <view @click="goToStep(0)" class="text-center mt-4">
+          <text class="text-xs text-[#999]">更换手机号</text>
+        </view>
+      </view>
+
+      <!-- 步骤 3: 设置新密码 -->
+      <view v-if="currentStep === 2" class="px-6">
+        <view class="mb-6">
+          <text class="text-lg font-bold text-[#2C2C2C] mb-2 block">设置新密码</text>
+          <text class="text-sm text-[#999]">请设置6-20位新密码，包含字母和数字</text>
+        </view>
+        <view class="bg-white border border-[#E8E0D5] rounded-xl px-4 py-3 mb-3 flex items-center gap-3">
+          <text class="text-lg">🔒</text>
+          <input
+            v-model="newPassword"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="请输入新密码"
+            class="flex-1 text-sm text-[#2C2C2C] placeholder-[#ccc] outline-none"
+          />
+          <text @click="showPassword = !showPassword" class="text-xs text-[#999]">{{ showPassword ? '隐藏' : '显示' }}</text>
+        </view>
+        <view class="bg-white border border-[#E8E0D5] rounded-xl px-4 py-3 mb-4 flex items-center gap-3">
+          <text class="text-lg">🔒</text>
+          <input
+            v-model="confirmPassword"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="请确认新密码"
+            class="flex-1 text-sm text-[#2C2C2C] placeholder-[#ccc] outline-none"
+          />
+        </view>
+        <!-- 密码强度 -->
+        <view class="mb-6">
+          <view class="flex gap-1 mb-1">
+            <view v-for="i in 3" :key="i" class="flex-1 h-1 rounded-full" :class="passwordStrength >= i ? strengthColor : 'bg-[#F0EBE5]'" />
+          </view>
+          <text class="text-xs text-[#999]">{{ passwordStrengthText }}</text>
+        </view>
+        <view @click="submitReset" class="w-full py-3 rounded-xl bg-[#C41E3A] text-white text-center text-sm font-medium" :class="!isPasswordValid ? 'opacity-50' : ''">
+          完成重置
+        </view>
+      </view>
+
+      <!-- 步骤 4: 完成 -->
+      <view v-if="currentStep === 3" class="px-6 flex-1 flex flex-col items-center justify-center pb-20">
+        <view class="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mb-6">
+          <text class="text-4xl">✅</text>
+        </view>
+        <text class="text-xl font-bold text-[#2C2C2C] mb-2">密码重置成功</text>
+        <text class="text-sm text-[#999] text-center mb-8">请使用新密码重新登录</text>
+        <view @click="goToLogin" class="w-full py-3 rounded-xl bg-[#C41E3A] text-white text-center text-sm font-medium">
+          去登录
+        </view>
+      </view>
+
+      <!-- 提示 -->
+      <view v-if="currentStep < 3" class="mt-6 mx-6 p-4 bg-[#F5F1EB]/50 rounded-xl">
+        <text class="text-xs text-[#999] leading-relaxed">
+          温馨提示：如果您绑定了多种验证方式，推荐使用手机号找回，速度更快更安全。
+        </text>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const loading = ref(true)
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 500)
+})
+
+const steps = ['验证手机', '输入验证码', '设置密码', '完成']
+const currentStep = ref(0)
+
+const phone = ref('')
+const code = ref(['', '', '', '', '', ''])
+const codeTimer = ref(60)
+const newPassword = ref('')
+const confirmPassword = ref('')
+const showPassword = ref(false)
+
+const phoneMasked = computed(() => {
+  if (phone.value.length < 7) return phone.value
+  return phone.value.slice(0, 3) + '****' + phone.value.slice(7)
+})
+
+const passwordStrength = computed(() => {
+  const pwd = newPassword.value
+  if (pwd.length < 6) return 0
+  let strength = 0
+  if (/[a-z]/.test(pwd)) strength++
+  if (/[0-9]/.test(pwd)) strength++
+  if (/[A-Z]/.test(pwd) || /[^a-zA-Z0-9]/.test(pwd)) strength++
+  return strength
+})
+
+const strengthColor = computed(() => {
+  if (passwordStrength.value <= 1) return 'bg-red-500'
+  if (passwordStrength.value === 2) return 'bg-orange-500'
+  return 'bg-green-500'
+})
+
+const passwordStrengthText = computed(() => {
+  if (passwordStrength.value === 0) return '请输入密码'
+  if (passwordStrength.value <= 1) return '弱'
+  if (passwordStrength.value === 2) return '中'
+  return '强'
+})
+
+const isPasswordValid = computed(() => {
+  return newPassword.value.length >= 6 && newPassword.value === confirmPassword.value
+})
+
+function goBack() { uni.navigateBack() }
+
+function goToStep(step: number) {
+  currentStep.value = step
+  if (step === 1) {
+    startCodeTimer()
+  }
+}
+
+function onCodeInput(idx: number) {
+  if (code.value[idx] && idx < 5) {
+    // 自动跳转到下一个输入框
+    const nextInput = document.querySelectorAll('input')[idx + 1] as HTMLInputElement
+    nextInput?.focus()
+  }
+}
+
+function startCodeTimer() {
+  codeTimer.value = 60
+  const timer = setInterval(() => {
+    codeTimer.value--
+    if (codeTimer.value <= 0) clearInterval(timer)
+  }, 1000)
+}
+
+function resendCode() {
+  codeTimer.value = 60
+  startCodeTimer()
+  uni.showToast({ title: '验证码已发送', icon: 'success' })
+}
+
+function submitReset() {
+  if (!isPasswordValid.value) {
+    uni.showToast({ title: '密码不符合要求', icon: 'none' })
+    return
+  }
+  currentStep.value = 3
+}
+
+function goToLogin() {
+  uni.navigateTo({ url: '/pages/login/index' })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

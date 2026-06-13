@@ -1,0 +1,234 @@
+<template>
+  <view class="min-h-screen" style="background-color: #FAF8F5;">
+    <!-- Header -->
+    <view class="sticky top-0 z-10" style="background-color: #FAF8F5; border-bottom: 1px solid #E8E0D5;">
+      <view class="flex items-center justify-between p-4">
+        <view @click="goBack" class="p-1" style="cursor: pointer;">
+          <text class="text-foreground text-xl leading-none">❮</text>
+        </view>
+        <text class="text-lg font-semibold" style="color: #2C2C2C;">关注与粉丝</text>
+        <view class="w-8" />
+      </view>
+
+      <!-- Tabs -->
+      <view class="flex" style="border-bottom: 1px solid #E8E0D5;">
+        <view
+          @click="switchTab('following')"
+          class="flex-1 py-3 text-center relative"
+          :style="{ color: activeTab === 'following' ? '#C41E3A' : '#999' }"
+        >
+          <text :class="activeTab === 'following' ? 'font-medium' : ''">关注</text>
+          <text class="ml-1 text-xs px-1.5 py-0.5 rounded-full" style="background-color: #F0EBE5; color: #999;">{{ followingCount }}</text>
+          <view v-if="activeTab === 'following'" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 rounded-full" style="background-color: #C41E3A;" />
+        </view>
+        <view
+          @click="switchTab('followers')"
+          class="flex-1 py-3 text-center relative"
+          :style="{ color: activeTab === 'followers' ? '#C41E3A' : '#999' }"
+        >
+          <text :class="activeTab === 'followers' ? 'font-medium' : ''">粉丝</text>
+          <text class="ml-1 text-xs px-1.5 py-0.5 rounded-full" style="background-color: #F0EBE5; color: #999;">{{ followersCount }}</text>
+          <view v-if="activeTab === 'followers'" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 rounded-full" style="background-color: #C41E3A;" />
+        </view>
+      </view>
+    </view>
+
+    <!-- List Content -->
+    <view class="p-4">
+      <!-- Loading State -->
+      <view v-if="loading" class="space-y-4">
+        <view v-for="i in 5" :key="i" class="flex items-center gap-3 pulse">
+          <view class="w-12 h-12 rounded-full" style="background-color: #F0EBE5;" />
+          <view class="flex-1 space-y-2">
+            <view class="h-4 rounded w-24" style="background-color: #F0EBE5;" />
+            <view class="h-3 rounded w-48" style="background-color: #F0EBE5;" />
+          </view>
+          <view class="w-20 h-8 rounded-full" style="background-color: #F0EBE5;" />
+        </view>
+      </view>
+
+      <!-- Empty State -->
+      <view v-else-if="currentList.length === 0" class="flex flex-col items-center justify-center py-20">
+        <text style="font-size: 64px; margin-bottom: 16px; opacity: 0.3;"></text>
+        <text class="text-base mb-2" style="color: #999;">
+          {{ activeTab === 'following' ? '暂无关注' : '暂无粉丝' }}
+        </text>
+        <text class="text-sm" style="color: #999;">
+          {{ activeTab === 'following' ? '去发现更多感兴趣的人吧' : '分享优质内容吸引更多关注' }}
+        </text>
+      </view>
+
+      <!-- User List -->
+      <view v-else class="space-y-1">
+        <view
+          v-for="user in currentList"
+          :key="user.id"
+          @click="goToUser(user.id)"
+          class="flex items-center gap-3 p-3 rounded-xl"
+          hover-class="user-row-hover"
+          style="cursor: pointer;"
+        >
+          <!-- Avatar with mutual follow badge -->
+          <view class="relative">
+            <image
+              :src="user.avatar"
+              mode="aspectFill"
+              class="w-12 h-12 rounded-full"
+              style="border-radius: 50%; width: 48px; height: 48px; background-color: #F0EBE5;"
+              @error="onAvatarError(user)"
+            />
+            <view v-if="!user._avatarError && user.avatar" class="w-12 h-12 rounded-full absolute top-0 left-0" style="border: 1px solid rgba(0,0,0,0.05);" />
+            <!-- Fallback initial -->
+            <view
+              v-if="user._avatarError || !user.avatar"
+              class="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold absolute top-0 left-0"
+              style="border-radius: 50%; width: 48px; height: 48px; background: linear-gradient(135deg, #C41E3A, #8B1528);"
+            >
+              <text>{{ user.name.charAt(0) }}</text>
+            </view>
+            <!-- Mutual follow badge -->
+            <view
+              v-if="user.isFollowing && user.isFollowedBy"
+              class="absolute flex items-center justify-center"
+              style="bottom: -2px; right: -2px; width: 16px; height: 16px; background-color: #C41E3A; border-radius: 50%;"
+            >
+              <text class="text-white" style="font-size: 8px; line-height: 1;"></text>
+            </view>
+          </view>
+
+          <!-- User Info -->
+          <view class="flex-1 min-w-0">
+            <text class="font-medium truncate block" style="color: #2C2C2C;">{{ user.name }}</text>
+            <text class="text-sm truncate block" style="color: #999;">{{ user.bio || user.followers + ' 粉丝' }}</text>
+          </view>
+
+          <!-- Follow Button - 互相关注 -->
+          <view
+            v-if="user.isFollowing && user.isFollowedBy"
+            @click.stop="handleToggleFollow(user)"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs"
+            style="background-color: #F0EBE5; color: #999;"
+          >
+            <text style="font-size: 10px; line-height: 1;"></text>
+            <text>互相关注</text>
+          </view>
+          <!-- Follow Button - 已关注 -->
+          <view
+            v-else-if="user.isFollowing"
+            @click.stop="handleToggleFollow(user)"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs"
+            style="background-color: #F0EBE5; color: #999;"
+          >
+            <text style="font-size: 10px; line-height: 1; font-weight: bold;">✓</text>
+            <text>已关注</text>
+          </view>
+          <!-- Follow Button - 关注 -->
+          <view
+            v-else
+            @click.stop="handleToggleFollow(user)"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs"
+            style="background-color: #C41E3A; color: white;"
+          >
+            <text style="font-size: 12px; line-height: 1; font-weight: bold;">+</text>
+            <text>关注</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+
+interface FollowUser {
+  id: string
+  name: string
+  avatar: string
+  bio?: string
+  followers: number
+  isFollowing: boolean
+  isFollowedBy: boolean
+  _avatarError?: boolean
+}
+
+const activeTab = ref<'following' | 'followers'>('following')
+const loading = ref(true)
+
+const followingList = ref<FollowUser[]>([])
+const followersList = ref<FollowUser[]>([])
+
+const followingCount = computed(() => followingList.value.length)
+const followersCount = computed(() => followersList.value.length)
+
+const currentList = computed(() =>
+  activeTab.value === 'following' ? followingList.value : followersList.value
+)
+
+onLoad((query) => {
+  if (query?.tab === 'followers') {
+    activeTab.value = 'followers'
+  }
+  loadData()
+})
+
+function loadData() {
+  loading.value = true
+
+  setTimeout(() => {
+    followingList.value = [
+      { id: '1', name: '易学大师王老师', avatar: '/placeholder.svg', bio: '专注易经研究30年，擅长八字命理与风水布局', followers: 12580, isFollowing: true, isFollowedBy: true },
+      { id: '2', name: '道法自然', avatar: '/placeholder.svg', bio: '传播传统文化，弘扬国学智慧', followers: 8920, isFollowing: true, isFollowedBy: false },
+      { id: '3', name: '玄学研究院', avatar: '/placeholder.svg', bio: '专业玄学研究机构官方账号', followers: 45600, isFollowing: true, isFollowedBy: true },
+      { id: '4', name: '风水师李明', avatar: '/placeholder.svg', bio: '阳宅风水、办公室布局、家居环境优化', followers: 6780, isFollowing: true, isFollowedBy: false },
+      { id: '5', name: '命理学堂', avatar: '/placeholder.svg', bio: '八字命理入门到精通，系统学习命理知识', followers: 23400, isFollowing: true, isFollowedBy: true },
+    ]
+    followersList.value = [
+      { id: '6', name: '学习者小王', avatar: '/placeholder.svg', bio: '国学爱好者，正在学习易经', followers: 128, isFollowing: false, isFollowedBy: true },
+      { id: '7', name: '传统文化粉', avatar: '/placeholder.svg', bio: '热爱传统文化', followers: 256, isFollowing: true, isFollowedBy: true },
+      { id: '8', name: '易学初学者', avatar: '/placeholder.svg', bio: '刚开始接触易学，求指导', followers: 45, isFollowing: false, isFollowedBy: true },
+      { id: '9', name: '风水研究者', avatar: '/placeholder.svg', bio: '从事风水研究5年', followers: 890, isFollowing: true, isFollowedBy: true },
+      { id: '10', name: '命理爱好者', avatar: '/placeholder.svg', bio: '对八字命理很感兴趣', followers: 320, isFollowing: false, isFollowedBy: true },
+    ]
+    loading.value = false
+  }, 800)
+}
+
+function switchTab(tab: 'following' | 'followers') {
+  activeTab.value = tab
+}
+
+function handleToggleFollow(user: FollowUser) {
+  user.isFollowing = !user.isFollowing
+  uni.showToast({
+    title: user.isFollowing ? '已关注' : '已取消关注',
+    icon: 'none'
+  })
+}
+
+function goToUser(userId: string) {
+  uni.navigateTo({ url: '/pages/mine/user-detail/index?id=' + userId })
+}
+
+function onAvatarError(user: FollowUser) {
+  user._avatarError = true
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.user-row-hover {
+  background-color: rgba(240, 235, 229, 0.5);
+}
+</style>

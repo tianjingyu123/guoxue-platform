@@ -1,0 +1,143 @@
+<template>
+  <!-- V0页面预览入口 -->
+  <view class="min-h-screen bg-background flex flex-col">
+    <!-- 导航栏 -->
+    <view class="flex items-center justify-between px-4 h-12 bg-white border-b border-border shrink-0">
+      <view class="p-1" @click="goBack"><text class="text-xl text-foreground">←</text></view>
+      <text class="text-base font-semibold text-foreground">V0页面预览</text>
+      <view class="w-7" />
+    </view>
+
+    <!-- 统计卡片 -->
+    <view class="bg-white mx-4 mt-4 rounded-xl p-4 shadow-sm">
+      <view class="flex items-center justify-between mb-3">
+        <text class="text-sm font-semibold text-foreground">转换进度</text>
+        <text class="text-xs text-primary">{{ convertedCount }}/{{ totalCount }} 已完成</text>
+      </view>
+      <view class="h-2 bg-[#E8E0D5] rounded-full overflow-hidden">
+        <view
+          class="h-full bg-primary rounded-full transition-all duration-500"
+          :style="{ width: (convertedCount / totalCount * 100) + '%' }"
+        />
+      </view>
+    </view>
+
+    <!-- 搜索框 -->
+    <view class="mx-4 mt-4 bg-white rounded-xl px-3.5 h-10 flex items-center border border-border">
+      <text class="text-base text-muted-foreground"></text>
+      <input
+        v-model="searchKeyword"
+        class="flex-1 ml-2 text-sm text-foreground outline-none"
+        placeholder="搜索页面..."
+        placeholder-class="text-[#ccc]"
+      />
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="isLoading" class="flex-1 p-4">
+      <view v-for="i in 5" :key="i" class="flex items-center gap-3 bg-white rounded-xl p-4 mb-3 animate-pulse shadow-sm">
+        <view class="w-10 h-10 bg-[#E8E0D5] rounded-lg" />
+        <view class="flex-1 space-y-2">
+          <view class="h-4 w-36 bg-[#E8E0D5] rounded" />
+          <view class="h-3 w-24 bg-[#E8E0D5] rounded" />
+        </view>
+        <view class="w-14 h-6 bg-[#E8E0D5] rounded-lg" />
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view v-else-if="filteredPages.length === 0" class="flex-1 flex flex-col items-center justify-center p-8">
+      <text class="text-6xl mb-4"></text>
+      <text class="text-base text-foreground font-medium mb-2">未找到匹配页面</text>
+      <text class="text-sm text-muted-foreground">试试其他关键词</text>
+    </view>
+
+    <!-- 页面列表 -->
+    <scroll-view v-else scroll-y class="flex-1 p-4">
+      <view
+        v-for="page in filteredPages"
+        :key="page.path"
+        class="flex items-center gap-3 bg-white rounded-xl p-4 mb-3 shadow-sm"
+        @click="previewPage(page)"
+      >
+        <view class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" :class="page.bgClass || 'bg-secondary'">
+          <text>{{ page.icon }}</text>
+        </view>
+        <view class="flex-1 min-w-0">
+          <text class="text-sm font-medium text-foreground block truncate">{{ page.name }}</text>
+          <text class="text-xs text-muted-foreground block mt-0.5 truncate">{{ page.path }}</text>
+        </view>
+        <view
+          class="px-2.5 py-1 rounded-lg text-xs font-medium"
+          :class="page.status === 'done' ? 'bg-green-50 text-green-600' : page.status === 'pending' ? 'bg-yellow-50 text-yellow-600' : 'bg-blue-50 text-blue-600'"
+        >
+          {{ page.statusLabel }}
+        </view>
+        <text class="text-base text-[#ccc] ml-1">›</text>
+      </view>
+
+      <view class="h-6" />
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface PreviewPage {
+  name: string
+  path: string
+  icon: string
+  status: 'done' | 'pending' | 'in-progress'
+  statusLabel: string
+  bgClass?: string
+}
+
+const isLoading = ref(true)
+const searchKeyword = ref('')
+
+const pages = ref<PreviewPage[]>([
+  { name: '用户协议', path: '/pages/agreement/index', icon: '', status: 'done', statusLabel: '已完成', bgClass: 'bg-green-50' },
+  { name: '条款列表', path: '/pages/terms/index', icon: '⚖️', status: 'done', statusLabel: '已完成', bgClass: 'bg-green-50' },
+  { name: '加入我们', path: '/pages/join/index', icon: '🤝', status: 'done', statusLabel: '已完成', bgClass: 'bg-green-50' },
+  { name: '通话记录', path: '/pages/call/index', icon: '📞', status: 'done', statusLabel: '已完成', bgClass: 'bg-green-50' },
+  { name: '学习中心', path: '/pages/learn/index', icon: '', status: 'done', statusLabel: '已完成', bgClass: 'bg-green-50' },
+  { name: '设计规范', path: '/pages/design/index', icon: '', status: 'done', statusLabel: '已完成', bgClass: 'bg-green-50' },
+  { name: '专家列表', path: '/pages/expert/index', icon: '', status: 'done', statusLabel: '已完成', bgClass: 'bg-green-50' },
+  { name: '线下课程', path: '/pages/offline-course/index', icon: '', status: 'done', statusLabel: '已完成', bgClass: 'bg-green-50' },
+  { name: '线下服务首页', path: '/pages/offline/index', icon: '🏛️', status: 'done', statusLabel: '已完成', bgClass: 'bg-green-50' },
+  { name: '启动闪屏', path: '/pages/demo/splash/index', icon: '', status: 'done', statusLabel: '已完成', bgClass: 'bg-green-50' },
+  { name: '签到课程详情', path: '/pages/manage/checkin/course-detail/index', icon: '', status: 'done', statusLabel: '已完成', bgClass: 'bg-green-50' },
+  { name: '公告详情', path: '/pages/circles/id-detail/announcements/announcement-detail/index', icon: '', status: 'in-progress', statusLabel: '进行中', bgClass: 'bg-blue-50' },
+  { name: '活动详情', path: '/pages/circles/id-detail/checkin/activity-detail/index', icon: '🎪', status: 'in-progress', statusLabel: '进行中', bgClass: 'bg-blue-50' },
+  { name: '线上课程', path: '/pages/course/list/index', icon: '💻', status: 'pending', statusLabel: '待转换', bgClass: 'bg-yellow-50' },
+  { name: '课程详情', path: '/pages/course/detail/index', icon: '', status: 'pending', statusLabel: '待转换', bgClass: 'bg-yellow-50' },
+])
+
+const totalCount = computed(() => pages.value.length)
+const convertedCount = computed(() => pages.value.filter(p => p.status === 'done').length)
+
+const filteredPages = computed(() => {
+  if (!searchKeyword.value.trim()) return pages.value
+  const kw = searchKeyword.value.toLowerCase()
+  return pages.value.filter(p => p.name.includes(kw) || p.path.toLowerCase().includes(kw))
+})
+
+function previewPage(page: PreviewPage) {
+  uni.navigateTo({ url: page.path })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+onMounted(() => {
+  setTimeout(() => {
+    isLoading.value = false
+  }, 500)
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

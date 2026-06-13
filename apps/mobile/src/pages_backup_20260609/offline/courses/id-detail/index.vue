@@ -1,0 +1,18 @@
+<template>
+  <view class="page">
+    <view class="cover"><view class="cover-img"/><text class="c-back" @click="goBack">←</text></view>
+    <scroll-view scroll-y class="content">
+      <view class="info"><text class="in-title">{{course.title}}</text><view class="in-meta"><text>📍{{course.venue}}</text><text>📅{{course.date}}</text><text>⏰{{course.duration}}</text></view><text class="in-price">¥{{course.price}}</text></view>
+      <view class="card"><text class="ct">课程介绍</text><text class="body">{{course.description}}</text></view>
+      <view class="card"><text class="ct">讲师介绍</text><view class="teacher-row"><text class="tr-avatar">{{course.teacher[0]}}</text><view><text class="tr-name">{{course.teacher}}</text><text class="tr-title">{{course.teacherTitle}}</text></view></view></view>
+      <view class="card"><text class="ct">课程大纲</text>
+        <view v-for="(s,i) in course.syllabus" :key="i" class="sy-item"><text class="si-num">{{i+1}}</text><text>{{s}}</text></view>
+      </view>
+      <view style="height:48rpx"/>
+    </scroll-view>
+    <view class="bb"><view class="bb-price">¥{{course.price}}</view><view class="bb-btn" @click="handleEnroll">立即报名</view></view>
+  </view>
+</template>
+<script setup lang="ts">import {ref} from 'vue';import {onPullDownRefresh} from '@dcloudio/uni-app';const course=ref({title:'八字命理入门线下班',venue:'北京国学馆',date:'2024-03-15',duration:'2天(10:00-17:00)',price:1999,description:'本课程由资深命理师现场授课，为期两天的集中学习，从零基础开始系统讲解八字命理。',teacher:'周易大师',teacherTitle:'资深命理师·从业20年',syllabus:['八字基础概念与天干地支','五行生克与用神取用','排盘方法与实战练习','案例分析与会答疑','结业考核与证书颁发']});function handleEnroll(){uni.showToast({title:'报名成功'})};function goBack(){uni.navigateBack()};onPullDownRefresh(()=>setTimeout(()=>uni.stopPullDownRefresh(),500))</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.cover{position:relative;height:280rpx}.cover-img{width:100%;height:100%;background:linear-gradient(135deg,rgba(196,30,58,.2),rgba(201,169,110,.15))}.c-back{position:absolute;top:20rpx;left:24rpx;width:64rpx;height:64rpx;border-radius:50%;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-size:28rpx}.content{padding:24rpx}.info{margin-top:-60rpx;background:#fff;border-radius:24rpx;padding:28rpx;box-shadow:0 4rpx 24rpx rgba(0,0,0,.08);position:relative;z-index:10;margin-bottom:20rpx}.in-title{font-size:34rpx;font-weight:600;color:#2C2C2C;display:block;margin-bottom:12rpx}.in-meta{display:flex;flex-wrap:wrap;gap:16rpx;font-size:24rpx;color:#999;margin-bottom:16rpx}.in-price{font-size:44rpx;font-weight:700;color:#C41E3A}.card{background:#fff;border-radius:20rpx;padding:24rpx;margin-bottom:20rpx;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}.ct{font-size:28rpx;font-weight:600;color:#2C2C2C;margin-bottom:16rpx;display:block}.body{font-size:26rpx;color:#666;line-height:1.6}.teacher-row{display:flex;align-items:center;gap:16rpx}.tr-avatar{width:72rpx;height:72rpx;border-radius:50%;background:rgba(196,30,58,.1);display:flex;align-items:center;justify-content:center;font-size:28rpx;color:#C41E3A}.tr-name{font-size:26rpx;font-weight:500;color:#2C2C2C;display:block}.tr-title{font-size:22rpx;color:#999}.sy-item{display:flex;gap:16rpx;padding:16rpx 0;font-size:26rpx;color:#666;border-bottom:1px solid #F5F1EB}.si-num{color:#C41E3A;font-weight:600;min-width:40rpx}.bb{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;gap:24rpx;padding:20rpx 24rpx;background:#fff;border-top:1px solid #E8E0D5;z-index:50}.bb-price{font-size:40rpx;font-weight:700;color:#C41E3A}.bb-btn{flex:1;padding:28rpx;text-align:center;background:linear-gradient(90deg,#C41E3A,#E74C3C);color:#fff;border-radius:40rpx;font-size:28rpx;font-weight:600}
+</style>

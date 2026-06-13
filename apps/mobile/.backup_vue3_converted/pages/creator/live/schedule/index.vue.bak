@@ -1,0 +1,492 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-24">
+    <!-- ===== 骨架屏 ===== -->
+    <view v-if="loading" class="min-h-screen bg-[#FAF8F5]">
+      <view class="p-4 border-b border-[#E8E0D5] bg-white">
+        <view class="h-6 bg-[#E8E0D5] rounded w-48 animate-pulse mb-3" />
+        <view class="flex gap-2">
+          <view v-for="i in 4" :key="i" class="h-8 bg-[#E8E0D5] rounded-full animate-pulse" :style="{ width: (40 + i * 10) + 'px' }" />
+        </view>
+      </view>
+      <view class="p-4 space-y-3">
+        <view v-for="i in 4" :key="i" class="h-24 bg-white rounded-xl animate-pulse" />
+      </view>
+    </view>
+
+    <template v-else>
+      <!-- ===== 顶部导航 ===== -->
+      <view class="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-[#E8E0D5]">
+        <view class="flex items-center justify-between px-4 h-14">
+          <view class="flex items-center gap-3">
+            <view @click="goBack" class="p-1 -ml-1 rounded-full active:bg-[#F0EBE5]">
+              <text class="text-xl text-[#2C2C2C] leading-none">←</text>
+            </view>
+            <text class="text-lg font-semibold text-[#2C2C2C]">直播排期管理</text>
+          </view>
+          <view class="flex items-center gap-2">
+            <view @click="showImportDialog = true" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#E8E0D5] text-xs active:bg-[#F5F1EB]">
+              <text>📤</text>
+              <text>导入</text>
+            </view>
+            <view @click="goTo('/pages/creator/live/create/index')" class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#C41E3A] text-white text-xs active:opacity-90">
+              <text>✚</text>
+              <text>新建场次</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ===== 视图切换 & 筛选 ===== -->
+      <view class="px-4 py-3 border-b border-[#E8E0D5] bg-white">
+        <view class="flex items-center justify-between gap-3">
+          <view class="flex items-center gap-1 p-1 bg-[#F5F1EB] rounded-lg">
+            <view @click="viewMode = 'calendar'"
+              :class="['flex items-center gap-1 px-3 py-1.5 rounded-md text-xs transition-colors', viewMode === 'calendar' ? 'bg-white shadow-sm text-[#2C2C2C]' : 'text-[#999]']">
+              <text>📅</text>
+              <text>日历</text>
+            </view>
+            <view @click="viewMode = 'list'"
+              :class="['flex items-center gap-1 px-3 py-1.5 rounded-md text-xs transition-colors', viewMode === 'list' ? 'bg-white shadow-sm text-[#2C2C2C]' : 'text-[#999]']">
+              <text>📋</text>
+              <text>列表</text>
+            </view>
+            <view @click="viewMode = 'series'"
+              :class="['flex items-center gap-1 px-3 py-1.5 rounded-md text-xs transition-colors', viewMode === 'series' ? 'bg-white shadow-sm text-[#2C2C2C]' : 'text-[#999]']">
+              <text>📚</text>
+              <text>系列</text>
+            </view>
+          </view>
+          <view class="flex-1 max-w-[200px] relative">
+            <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#999] pointer-events-none">🔍</text>
+            <input v-model="searchQuery" placeholder="搜索直播..." class="w-full pl-9 h-9 text-xs bg-[#F5F1EB] rounded-lg outline-none px-3 text-[#2C2C2C] placeholder:text-[#999]" />
+          </view>
+        </view>
+        <view class="flex items-center gap-2 mt-3 overflow-x-auto" style="scrollbar-width:none">
+          <view v-for="item in filterTabs" :key="item.key"
+            @click="filterStatus = item.key"
+            :class="['flex-shrink-0 px-3 py-1.5 rounded-full text-xs transition-colors', filterStatus === item.key ? 'bg-[#C41E3A] text-white' : 'bg-[#F5F1EB] text-[#999]']">
+            <text>{{ item.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- ===== 日历视图 ===== -->
+      <view v-if="viewMode === 'calendar'" class="px-4 py-4">
+        <view class="flex items-center justify-between mb-4">
+          <view @click="changeMonth(-1)" class="w-8 h-8 rounded-full flex items-center justify-center text-lg active:bg-[#F5F1EB]">
+            <text class="text-[#2C2C2C] leading-none">‹</text>
+          </view>
+          <text class="text-lg font-semibold text-[#2C2C2C]">{{ year }}年{{ monthNames[month] }}</text>
+          <view @click="changeMonth(1)" class="w-8 h-8 rounded-full flex items-center justify-center text-lg active:bg-[#F5F1EB]">
+            <text class="text-[#2C2C2C] leading-none">›</text>
+          </view>
+        </view>
+
+        <view class="grid grid-cols-7 gap-1 mb-2">
+          <view v-for="day in weekDays" :key="day" class="text-center text-xs text-[#999] py-2">{{ day }}</view>
+        </view>
+
+        <view class="grid grid-cols-7 gap-1">
+          <template v-for="(day, index) in calendarDays" :key="index">
+            <view v-if="day === null" class="aspect-square" />
+            <view v-else @click="toggleSelectedDate(day)"
+              class="aspect-square rounded-lg p-1 flex flex-col items-center justify-start relative transition-colors"
+              :class="[
+                selectedDate === getDateStr(day) ? 'bg-[#C41E3A]/10 ring-2 ring-[#C41E3A]' : 'active:bg-[#F5F1EB]',
+                isToday(day) && selectedDate !== getDateStr(day) ? 'ring-1 ring-[#C9A96E]' : '',
+              ]">
+              <text :class="['text-sm font-medium', isToday(day) ? 'text-[#C41E3A]' : 'text-[#2C2C2C]']">{{ day }}</text>
+              <view v-if="getSchedulesForDate(day).length > 0" class="flex items-center gap-0.5 mt-0.5">
+                <view v-for="(s, si) in getSchedulesForDate(day).slice(0, 3)" :key="si"
+                  :class="['w-1.5 h-1.5 rounded-full', statusColor(s.status)]" />
+                <text v-if="getSchedulesForDate(day).length > 3" class="text-[8px] text-[#999] leading-none">+{{ getSchedulesForDate(day).length - 3 }}</text>
+              </view>
+            </view>
+          </template>
+        </view>
+
+        <!-- 选中日期的场次 -->
+        <view v-if="selectedDate" class="mt-4 pt-4 border-t border-[#E8E0D5]">
+          <text class="text-sm font-medium text-[#2C2C2C] mb-3 block">{{ formatDateLabel(selectedDate) }} 的直播（{{ selectedDateSchedules.length }}场）</text>
+          <view v-if="selectedDateSchedules.length === 0" class="text-center py-8">
+            <text class="text-2xl block mb-2 opacity-30">📅</text>
+            <text class="text-sm text-[#999] block">当日暂无直播排期</text>
+            <view @click="goTo('/pages/creator/live/create/index')" class="inline-block mt-3 px-3 py-1.5 border border-[#E8E0D5] rounded-lg text-xs active:bg-[#F5F1EB]">
+              <text>✚ 新建场次</text>
+            </view>
+          </view>
+          <view v-else class="space-y-3">
+            <view v-for="s in selectedDateSchedules" :key="s.id">
+              <ScheduleCard :schedule="s" :showDate="false"
+                @edit="goTo('/pages/creator/live/create/index?id=' + s.id)"
+                @copy="handleCopy(s)"
+                @delete="handleDelete(s)" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ===== 列表视图 ===== -->
+      <view v-if="viewMode === 'list'" class="px-4 py-4">
+        <view class="grid grid-cols-3 gap-3 mb-4">
+          <view class="bg-white rounded-xl p-3 text-center border border-[#E8E0D5]">
+            <text class="text-xl font-bold text-blue-600 block">{{ stats.scheduled }}</text>
+            <text class="text-xs text-[#999] mt-1 block">待开播</text>
+          </view>
+          <view class="bg-white rounded-xl p-3 text-center border border-[#E8E0D5]">
+            <text class="text-xl font-bold text-red-600 block">{{ stats.live }}</text>
+            <text class="text-xs text-[#999] mt-1 block">直播中</text>
+          </view>
+          <view class="bg-white rounded-xl p-3 text-center border border-[#E8E0D5]">
+            <text class="text-xl font-bold text-gray-600 block">{{ stats.completed }}</text>
+            <text class="text-xs text-[#999] mt-1 block">已结束</text>
+          </view>
+        </view>
+        <view class="bg-[#FFF9E6] rounded-xl p-3 mb-4 flex items-center gap-2">
+          <text>🔥</text>
+          <text class="text-xs text-yellow-800">本周共 {{ stats.weekTotal }} 场直播，{{ formatNumber(stats.weekViewers) }} 人次观看</text>
+        </view>
+
+        <view v-if="filteredList.length === 0" class="text-center py-12">
+          <text class="text-3xl block mb-3 opacity-30">📅</text>
+          <text class="text-sm text-[#999] block">{{ searchQuery ? '未找到匹配的场次' : '暂无直播排期' }}</text>
+          <view v-if="!searchQuery" @click="goTo('/pages/creator/live/create/index')" class="inline-block mt-4 px-4 py-2 bg-[#C41E3A] text-white rounded-lg text-xs active:opacity-90">
+            <text>✚ 创建第一场直播</text>
+          </view>
+        </view>
+        <view v-else class="space-y-3">
+          <view v-for="s in filteredList" :key="s.id">
+            <ScheduleCard :schedule="s" :showDate="true"
+              @edit="goTo('/pages/creator/live/create/index?id=' + s.id)"
+              @copy="handleCopy(s)"
+              @delete="handleDelete(s)" />
+          </view>
+        </view>
+      </view>
+
+      <!-- ===== 系列视图 ===== -->
+      <view v-if="viewMode === 'series'" class="px-4 py-4 space-y-4">
+        <view v-for="series in seriesList" :key="series.name" class="bg-white rounded-xl overflow-hidden border border-[#E8E0D5]">
+          <view class="p-4" style="background:linear-gradient(135deg,rgba(196,30,58,0.05),rgba(201,169,110,0.05))">
+            <view class="flex items-center justify-between mb-1">
+              <text class="font-medium text-[#2C2C2C]">{{ series.name }}</text>
+              <text class="text-xs text-[#C41E3A]">{{ series.done }}/{{ series.total }} 场</text>
+            </view>
+            <view class="h-1.5 bg-[#E8E0D5] rounded-full overflow-hidden mt-2">
+              <view class="h-full bg-[#C41E3A] rounded-full" :style="{ width: (series.done / series.total * 100) + '%' }" />
+            </view>
+          </view>
+          <view v-for="s in series.items" :key="s.id" class="border-t border-[#E8E0D5]">
+            <ScheduleCard :schedule="s" :showDate="true"
+              @edit="goTo('/pages/creator/live/create/index?id=' + s.id)"
+              @copy="handleCopy(s)"
+              @delete="handleDelete(s)" />
+          </view>
+        </view>
+        <view v-if="seriesList.length === 0" class="text-center py-12">
+          <text class="text-3xl block mb-3 opacity-30">📚</text>
+          <text class="text-sm text-[#999] block">暂无系列直播</text>
+        </view>
+      </view>
+
+      <!-- ===== 新建场次对话框 ===== -->
+      <view v-if="showNewDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click="showNewDialog = false">
+        <view class="mx-4 w-[300px] bg-white rounded-2xl overflow-hidden" @click.stop>
+          <view class="p-4 border-b border-[#E8E0D5]">
+            <text class="text-base font-semibold text-[#2C2C2C] block">新建直播场次</text>
+            <text class="text-xs text-[#999] block mt-1">选择创建方式</text>
+          </view>
+          <view class="grid grid-cols-2 gap-3 p-4">
+            <view @click="showNewDialog = false; goTo('/pages/creator/live/create/index')" class="p-4 rounded-xl border border-[#E8E0D5] text-center active:bg-[#F5F1EB]">
+              <text class="text-3xl block mb-2 text-[#C41E3A]">✚</text>
+              <text class="font-medium text-sm text-[#2C2C2C] block">单场直播</text>
+              <text class="text-xs text-[#999] mt-1">创建独立直播场次</text>
+            </view>
+            <view @click="showNewDialog = false; goTo('/pages/creator/live/create/index?series=true')" class="p-4 rounded-xl border border-[#E8E0D5] text-center active:bg-[#F5F1EB]">
+              <text class="text-3xl block mb-2 text-[#C41E3A]">📅</text>
+              <text class="font-medium text-sm text-[#2C2C2C] block">系列直播</text>
+              <text class="text-xs text-[#999] mt-1">批量创建多场直播</text>
+            </view>
+          </view>
+          <view @click="showNewDialog = false" class="py-3 border-t border-[#E8E0D5] text-center text-sm text-[#999] active:bg-[#F5F1EB]">取消</view>
+        </view>
+      </view>
+
+      <!-- ===== 导入对话框 ===== -->
+      <view v-if="showImportDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click="showImportDialog = false">
+        <view class="mx-4 w-[320px] bg-white rounded-2xl overflow-hidden" @click.stop>
+          <view class="p-4 border-b border-[#E8E0D5]">
+            <text class="text-base font-semibold text-[#2C2C2C] block">批量导入场次</text>
+            <text class="text-xs text-[#999] block mt-1">通过Excel文件批量导入直播排期</text>
+          </view>
+          <view class="p-4">
+            <view class="flex items-center justify-between p-3 rounded-lg mb-4" style="background:rgba(245,241,235,0.8)">
+              <view class="flex items-center gap-2">
+                <text class="text-green-600">📊</text>
+                <text class="text-sm">排期导入模板.xlsx</text>
+              </view>
+              <view class="flex items-center gap-1 text-xs active:opacity-70"><text>📥</text> 下载模板</view>
+            </view>
+            <view class="border-2 border-dashed border-[#E8E0D5] rounded-xl p-8 text-center active:bg-[#F5F1EB]/30">
+              <text class="text-2xl block mb-3 text-[#999]">📤</text>
+              <text class="text-sm font-medium text-[#2C2C2C] block mb-1">点击或拖拽文件到此处</text>
+              <text class="text-xs text-[#999]">支持 .xlsx, .xls 格式，单次最多100条</text>
+            </view>
+          </view>
+          <view class="flex border-t border-[#E8E0D5]">
+            <view @click="showImportDialog = false" class="flex-1 py-3 text-center text-sm border-r border-[#E8E0D5] text-[#2C2C2C] active:bg-[#F5F1EB]">取消</view>
+            <view class="flex-1 py-3 text-center text-sm text-[#C41E3A] active:bg-[#F5F1EB]">开始导入</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ===== 删除确认对话框 ===== -->
+      <view v-if="showDeleteDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click="showDeleteDialog = false">
+        <view class="mx-4 w-[300px] bg-white rounded-2xl overflow-hidden" @click.stop>
+          <view class="p-6 text-center">
+            <text class="text-base font-semibold text-[#2C2C2C] block mb-2">确认删除</text>
+            <text class="text-sm text-[#999]">确定要删除直播「{{ selectedSchedule?.title }}」吗？此操作不可恢复。</text>
+          </view>
+          <view class="flex border-t border-[#E8E0D5]">
+            <view @click="showDeleteDialog = false" class="flex-1 py-3 text-center text-sm border-r border-[#E8E0D5] text-[#2C2C2C] active:bg-[#F5F1EB]">取消</view>
+            <view @click="confirmDelete" class="flex-1 py-3 text-center text-sm text-red-600 active:bg-[#F5F1EB]">确认删除</view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { api } from '@/api'
+import ScheduleCard from './ScheduleCard.vue'
+
+// ===== 类型定义 =====
+interface Schedule {
+  id: number
+  title: string
+  date: string
+  time: string
+  duration: number
+  type: 'knowledge' | 'commerce' | 'qa' | 'event'
+  status: 'scheduled' | 'live' | 'completed' | 'cancelled'
+  seriesName: string | null
+  seriesIndex: number | null
+  seriesTotal: number | null
+  viewerEstimate: number
+  actualViewers?: number
+}
+
+interface SeriesGroup {
+  name: string
+  total: number
+  done: number
+  items: Schedule[]
+}
+
+// ===== 常量 =====
+const filterTabs = [
+  { key: 'all', label: '全部' },
+  { key: 'scheduled', label: '待开播' },
+  { key: 'live', label: '直播中' },
+  { key: 'completed', label: '已结束' },
+  { key: 'cancelled', label: '已取消' },
+]
+
+const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
+
+// ===== Mock数据 =====
+const mockList: Schedule[] = [
+  { id: 1, title: '八字命理入门第一课：天干地支基础', date: '2026-06-12', time: '20:00', duration: 90, type: 'knowledge', status: 'scheduled', seriesName: '八字命理入门系列', seriesIndex: 1, seriesTotal: 8, viewerEstimate: 500 },
+  { id: 2, title: '八字命理入门第二课：五行生克制化', date: '2026-06-14', time: '20:00', duration: 90, type: 'knowledge', status: 'scheduled', seriesName: '八字命理入门系列', seriesIndex: 2, seriesTotal: 8, viewerEstimate: 500 },
+  { id: 3, title: '开光吉祥物专场直播', date: '2026-06-15', time: '19:30', duration: 120, type: 'commerce', status: 'scheduled', seriesName: null, seriesIndex: null, seriesTotal: null, viewerEstimate: 800 },
+  { id: 4, title: '八字命理入门第三课：十神详解', date: '2026-06-19', time: '20:00', duration: 90, type: 'knowledge', status: 'scheduled', seriesName: '八字命理入门系列', seriesIndex: 3, seriesTotal: 8, viewerEstimate: 500 },
+  { id: 5, title: '风水布局答疑专场', date: '2026-06-10', time: '20:00', duration: 60, type: 'qa', status: 'completed', seriesName: null, seriesIndex: null, seriesTotal: null, viewerEstimate: 300, actualViewers: 428 },
+  { id: 6, title: '紫微斗数基础课（一）', date: '2026-06-08', time: '19:00', duration: 90, type: 'knowledge', status: 'completed', seriesName: '紫微斗数入门系列', seriesIndex: 1, seriesTotal: 6, viewerEstimate: 400, actualViewers: 512 },
+  { id: 7, title: '紫微斗数基础课（二）', date: '2026-06-10', time: '19:00', duration: 90, type: 'knowledge', status: 'scheduled', seriesName: '紫微斗数入门系列', seriesIndex: 2, seriesTotal: 6, viewerEstimate: 400 },
+  { id: 8, title: '年中大促专场直播', date: '2026-06-18', time: '20:00', duration: 180, type: 'commerce', status: 'scheduled', seriesName: null, seriesIndex: null, seriesTotal: null, viewerEstimate: 2000 },
+  { id: 9, title: '学员答疑：八字排盘常见问题', date: '2026-06-20', time: '20:00', duration: 60, type: 'qa', status: 'scheduled', seriesName: null, seriesIndex: null, seriesTotal: null, viewerEstimate: 200 },
+  { id: 10, title: '八字命理入门第四课：大运流年', date: '2026-06-22', time: '20:00', duration: 90, type: 'knowledge', status: 'scheduled', seriesName: '八字命理入门系列', seriesIndex: 4, seriesTotal: 8, viewerEstimate: 500 },
+  { id: 11, title: '周易讲座：易经的智慧', date: '2026-06-05', time: '14:00', duration: 120, type: 'event', status: 'completed', seriesName: null, seriesIndex: null, seriesTotal: null, viewerEstimate: 600, actualViewers: 856 },
+  { id: 12, title: '端午祈福直播', date: '2026-06-25', time: '10:00', duration: 90, type: 'event', status: 'scheduled', seriesName: null, seriesIndex: null, seriesTotal: null, viewerEstimate: 1500 },
+]
+
+// ===== 状态 =====
+const loading = ref(true)
+const viewMode = ref<'calendar' | 'list' | 'series'>('calendar')
+const currentDate = ref(new Date(2026, 5, 10))
+const selectedDate = ref<string | null>(null)
+const searchQuery = ref('')
+const filterStatus = ref('all')
+const showNewDialog = ref(false)
+const showImportDialog = ref(false)
+const showDeleteDialog = ref(false)
+const selectedSchedule = ref<Schedule | null>(null)
+const scheduleList = ref<Schedule[]>([])
+
+// ===== 计算属性 =====
+const year = computed(() => currentDate.value.getFullYear())
+const month = computed(() => currentDate.value.getMonth())
+
+const calendarDays = computed(() => getCalendarDays(year.value, month.value))
+
+const filteredList = computed(() => {
+  return scheduleList.value.filter(s => {
+    if (filterStatus.value !== 'all' && s.status !== filterStatus.value) return false
+    if (searchQuery.value.trim() && !s.title.toLowerCase().includes(searchQuery.value.toLowerCase().trim())) return false
+    return true
+  }).sort((a, b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime())
+})
+
+const selectedDateSchedules = computed(() => {
+  if (!selectedDate.value) return []
+  return scheduleList.value.filter(s => s.date === selectedDate.value)
+    .sort((a, b) => a.time.localeCompare(b.time))
+})
+
+const stats = computed(() => {
+  const now = new Date()
+  const weekStart = new Date(now)
+  weekStart.setDate(now.getDate() - now.getDay())
+  const weekSchedules = scheduleList.value.filter(s => new Date(s.date) >= weekStart)
+
+  return {
+    scheduled: scheduleList.value.filter(s => s.status === 'scheduled').length,
+    live: scheduleList.value.filter(s => s.status === 'live').length,
+    completed: scheduleList.value.filter(s => s.status === 'completed').length,
+    weekTotal: weekSchedules.length,
+    weekViewers: weekSchedules.reduce((sum, s) => sum + (s.actualViewers || s.viewerEstimate), 0),
+  }
+})
+
+const seriesList = computed(() => {
+  const grouped: Record<string, Schedule[]> = {}
+  scheduleList.value.forEach(s => {
+    if (s.seriesName) {
+      if (!grouped[s.seriesName]) grouped[s.seriesName] = []
+      grouped[s.seriesName].push(s)
+    }
+  })
+
+  return Object.entries(grouped).map(([name, items]) => ({
+    name,
+    total: items[0]?.seriesTotal || items.length,
+    done: items.filter(s => s.status === 'completed').length,
+    items: items.sort((a, b) => (a.seriesIndex || 0) - (b.seriesIndex || 0)),
+  }))
+})
+
+// ===== 工具函数 =====
+function getCalendarDays(y: number, m: number): (number | null)[] {
+  const firstDay = new Date(y, m, 1)
+  const lastDay = new Date(y, m + 1, 0)
+  const startDay = firstDay.getDay()
+  const totalDays = lastDay.getDate()
+  const days: (number | null)[] = []
+  for (let i = 0; i < startDay; i++) days.push(null)
+  for (let i = 1; i <= totalDays; i++) days.push(i)
+  return days
+}
+
+function getDateStr(day: number): string {
+  return `${year.value}-${String(month.value + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function isToday(day: number): boolean {
+  const today = new Date()
+  return today.getFullYear() === year.value && today.getMonth() === month.value && today.getDate() === day
+}
+
+function getSchedulesForDate(day: number): Schedule[] {
+  return scheduleList.value.filter(s => s.date === getDateStr(day))
+}
+
+function toggleSelectedDate(day: number) {
+  const ds = getDateStr(day)
+  selectedDate.value = selectedDate.value === ds ? null : ds
+}
+
+function formatDateLabel(dateStr: string): string {
+  const d = new Date(dateStr)
+  const wd = weekDays[d.getDay()]
+  return `${d.getMonth() + 1}月${d.getDate()}日 星期${wd}`
+}
+
+function changeMonth(delta: number) {
+  currentDate.value = new Date(year.value, month.value + delta, 1)
+  selectedDate.value = null
+}
+
+function statusColor(status: string): string {
+  const map: Record<string, string> = {
+    scheduled: 'bg-blue-500', live: 'bg-red-500',
+    completed: 'bg-gray-400', cancelled: 'bg-gray-300',
+  }
+  return map[status] || 'bg-gray-400'
+}
+
+function formatNumber(n: number): string {
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k'
+  return String(n)
+}
+
+// ===== 生命周期 =====
+onMounted(async () => {
+  loading.value = true
+  try {
+    const res = await api.get('/creator/live/schedules')
+    if (Array.isArray(res)) {
+      scheduleList.value = res as unknown as Schedule[]
+    } else {
+      throw new Error('invalid data')
+    }
+  } catch {
+    await new Promise(r => setTimeout(r, 300))
+    scheduleList.value = mockList
+  } finally {
+    loading.value = false
+  }
+})
+
+// ===== 交互 =====
+function handleCopy(schedule: Schedule) {
+  uni.showToast({ title: '已复制排期', icon: 'success' })
+}
+
+function handleDelete(schedule: Schedule) {
+  selectedSchedule.value = schedule
+  showDeleteDialog.value = true
+}
+
+function confirmDelete() {
+  if (selectedSchedule.value) {
+    const idx = scheduleList.value.findIndex(s => s.id === selectedSchedule.value!.id)
+    if (idx >= 0) scheduleList.value.splice(idx, 1)
+  }
+  showDeleteDialog.value = false
+  selectedSchedule.value = null
+  uni.showToast({ title: '已删除', icon: 'success' })
+}
+
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+</script>
+
+<style scoped>
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.active\:bg-\[\#F5F1EB\]:active { background: #F5F1EB; }
+.active\:bg-\[\#F0EBE5\]:active { background: #F0EBE5; }
+.active\:opacity-70:active { opacity: 0.7; }
+.active\:opacity-90:active { opacity: 0.9; }
+</style>

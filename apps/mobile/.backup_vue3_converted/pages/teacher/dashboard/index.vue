@@ -1,0 +1,245 @@
+<template>
+  <view class="min-h-screen bg-background pb-20">
+    <!-- 头部 -->
+    <header class="sticky top-0 z-10 px-4 py-3" style="background-color:#C41E3A;color:white">
+      <view class="flex items-center justify-between">
+        <view class="flex items-center gap-3">
+          <view @click="goBack" class="p-1 -ml-1 rounded-full" style="background-color:rgba(255,255,255,0.1)">
+            <text class="text-white text-lg">←</text>
+          </view>
+          <text class="text-lg font-semibold text-white">讲师工作台</text>
+        </view>
+        <view class="flex items-center gap-2">
+          <view @click="navigateTo('/pages/notifications/index')" class="p-2 rounded-full relative" style="background-color:rgba(255,255,255,0.1)">
+            <text class="text-white text-lg"></text>
+            <view class="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500" />
+          </view>
+          <view @click="navigateTo('/pages/teacher/settings/index')" class="p-2 rounded-full" style="background-color:rgba(255,255,255,0.1)">
+            <text class="text-white text-lg">⚙️</text>
+          </view>
+        </view>
+      </view>
+    </header>
+
+    <!-- 讲师身份卡片 -->
+    <view class="px-4 pb-6" style="background-color:#C41E3A;color:white">
+      <view class="flex items-center gap-4">
+        <view class="w-16 h-16 rounded-full flex items-center justify-center" style="background-color:rgba(255,255,255,0.2)">
+          <text class="text-white text-2xl"></text>
+        </view>
+        <view class="flex-1">
+          <view class="flex items-center gap-2">
+            <text class="font-semibold text-lg text-white">李明德</text>
+            <text class="px-2 py-0.5 text-xs rounded-full" style="background-color:rgba(201,169,110,0.2);color:#C9A96E">金牌讲师</text>
+          </view>
+          <text class="text-sm text-white/70 mt-1" style="display:block">命理咨询师 · 从业20年</text>
+          <view class="flex items-center gap-1 mt-1">
+            <text class="text-lg" style="color:#C9A96E"></text>
+            <text class="text-sm font-medium text-white">{{stats.rating}}</text>
+            <text class="text-xs text-white/60">({{stats.ratingCount}}评价)</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="px-4 space-y-4" style="margin-top:-12rpx">
+      <!-- 数据概览 -->
+      <view class="grid grid-cols-2 gap-3" style="display:flex;gap:12rpx;flex-wrap:wrap">
+        <view class="flex-1 bg-white rounded-xl p-4 shadow-sm border border-border" style="min-width:calc(50%-12rpx)">
+          <view class="flex items-center gap-2 text-muted-foreground mb-2">
+            <text class="text-sm"></text>
+            <text class="text-sm">累计学员</text>
+          </view>
+          <text class="text-2xl font-bold text-foreground" style="display:block">{{stats.studentCount.toLocaleString()}}</text>
+          <text class="text-xs text-green-600 mt-1" style="display:block">+128 本月新增</text>
+        </view>
+        <view class="flex-1 bg-white rounded-xl p-4 shadow-sm border border-border" style="min-width:calc(50%-12rpx)">
+          <view class="flex items-center gap-2 text-muted-foreground mb-2">
+            <text class="text-sm"></text>
+            <text class="text-sm">课程数量</text>
+          </view>
+          <text class="text-2xl font-bold text-foreground" style="display:block">{{stats.courseCount}}</text>
+          <text class="text-xs text-muted-foreground mt-1" style="display:block">3 门草稿中</text>
+        </view>
+        <view class="flex-1 bg-white rounded-xl p-4 shadow-sm border border-border" style="min-width:calc(50%-12rpx)">
+          <view class="flex items-center gap-2 text-muted-foreground mb-2">
+            <text class="text-sm"></text>
+            <text class="text-sm">累计收入</text>
+          </view>
+          <text class="text-2xl font-bold text-primary" style="display:block">¥{{(stats.totalIncome/10000).toFixed(1)}}万</text>
+          <text class="text-xs text-muted-foreground mt-1" style="display:block">可提现 ¥8,650</text>
+        </view>
+        <view class="flex-1 bg-white rounded-xl p-4 shadow-sm border border-border" style="min-width:calc(50%-12rpx)">
+          <view class="flex items-center gap-2 text-muted-foreground mb-2">
+            <text class="text-sm">📊</text>
+            <text class="text-sm">本月收入</text>
+          </view>
+          <text class="text-2xl font-bold text-foreground" style="display:block">¥{{stats.monthIncome.toLocaleString()}}</text>
+          <text class="text-xs text-green-600 mt-1" style="display:block">+12.5% 环比</text>
+        </view>
+      </view>
+
+      <!-- 待处理事项 -->
+      <view class="bg-white rounded-xl shadow-sm border border-border overflow-hidden">
+        <view class="flex items-center justify-between px-4 py-3 border-b border-border">
+          <text class="font-semibold text-foreground">待处理事项</text>
+          <text class="text-xs text-muted-foreground">共 {{pendingItems.reduce((sum,item)=>sum+item.count,0)}} 项</text>
+        </view>
+        <view class="divide-y divide-border">
+          <view v-for="item in pendingItems" :key="item.id" @click="navigateTo(getPendingPath(item.type))" class="w-full flex items-center gap-3 px-4 py-3" style="text-align:left">
+            <view class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background-color:#F5F1EB">
+              <text class="text-lg">{{getPendingIcon(item.type)}}</text>
+            </view>
+            <view class="flex-1" style="min-width:0">
+              <text class="text-sm font-medium text-foreground" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{item.title}}</text>
+              <text class="text-xs text-muted-foreground" style="display:block">{{item.time}}</text>
+            </view>
+            <view class="flex items-center gap-2">
+              <text class="px-2 py-1 text-xs font-medium rounded-full" style="background-color:#C41E3A/10;color:#C41E3A">{{item.count}}</text>
+              <text class="text-sm text-muted-foreground">›</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 收入趋势 -->
+      <view class="bg-white rounded-xl shadow-sm border border-border p-4">
+        <view class="flex items-center justify-between mb-4">
+          <text class="font-semibold text-foreground">收入趋势</text>
+          <view @click="navigateTo('/pages/teacher/income/index')" class="text-xs text-primary flex items-center gap-1">
+            <text>查看详情 ›</text>
+          </view>
+        </view>
+        <view class="flex items-end gap-2" style="height:256rpx">
+          <view v-for="(item,index) in incomeTrend" :key="item.month" class="flex-1 flex flex-col items-center gap-1">
+            <view :class="'w-full rounded-t transition-all ' + (index===incomeTrend.length-1 ? 'bg-primary' : 'bg-primary/30')" :style="{height:(item.income/maxIncome*100)+'%',minHeight:8}" />
+            <text class="text-xs text-muted-foreground">{{item.month}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 我的课程 -->
+      <view class="bg-white rounded-xl shadow-sm border border-border overflow-hidden">
+        <view class="flex items-center justify-between px-4 py-3 border-b border-border">
+          <text class="font-semibold text-foreground">我的课程</text>
+          <view @click="navigateTo('/pages/teacher/courses/index')" class="text-xs text-primary flex items-center gap-1">
+            <text>全部课程 ›</text>
+          </view>
+        </view>
+        <view class="divide-y divide-border">
+          <view v-for="course in courses" :key="course.id" @click="navigateTo('/pages/teacher/courses/'+course.id+'/index')" class="w-full flex items-center gap-3 px-4 py-3" style="text-align:left">
+            <view class="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background-color:#C41E3A/10">
+              <text class="text-lg text-primary">📹</text>
+            </view>
+            <view class="flex-1" style="min-width:0">
+              <view class="flex items-center gap-2">
+                <text class="text-sm font-medium text-foreground" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{course.title}}</text>
+                <text v-if="course.status==='draft'" class="px-1.5 py-0.5 text-xs rounded" style="background-color:#FFF3E0;color:#F97316">草稿</text>
+              </view>
+              <view class="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                <text class="flex items-center gap-1"> {{course.students}}</text>
+                <text class="flex items-center gap-1"> {{course.rating}}</text>
+              </view>
+            </view>
+            <text class="text-sm text-muted-foreground">›</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 快捷操作 -->
+      <view class="bg-white rounded-xl shadow-sm border border-border p-4">
+        <text class="font-semibold text-foreground mb-3" style="display:block">快捷操作</text>
+        <view class="grid grid-cols-4 gap-3" style="display:flex;gap:12rpx">
+          <view v-for="action in quickActions" :key="action.label" @click="navigateTo(action.path)" class="flex flex-col items-center gap-2 p-3 rounded-lg" style="flex:1">
+            <view class="w-10 h-10 rounded-full flex items-center justify-center" style="background-color:#C41E3A/10">
+              <text class="text-lg text-primary">{{action.icon}}</text>
+            </view>
+            <text class="text-xs text-foreground">{{action.label}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+
+const stats = ref({
+  rating: 4.9,
+  ratingCount: 328,
+  studentCount: 3256,
+  courseCount: 12,
+  totalIncome: 128650,
+  monthIncome: 15680,
+})
+
+const pendingItems = ref([
+  { id: 1, type: 'homework', title: '八字命理入门-第3章作业', count: 8, time: '最近提交: 10分钟前' },
+  { id: 2, type: 'question', title: '学员提问待回答', count: 5, time: '最近提问: 30分钟前' },
+  { id: 3, type: 'booking', title: '预约咨询待确认', count: 2, time: '最近预约: 1小时前' },
+  { id: 4, type: 'review', title: '课程评价待回复', count: 3, time: '最近评价: 2小时前' },
+])
+
+const courses = ref([
+  { id: 1, title: '八字命理入门实战班', students: 1256, rating: 4.9, status: 'active' },
+  { id: 2, title: '紫微斗数进阶课程', students: 890, rating: 4.8, status: 'active' },
+  { id: 3, title: '风水堪舆基础', students: 567, rating: 4.7, status: 'draft' },
+])
+
+const incomeTrend = ref([
+  { month: '1月', income: 12500 },
+  { month: '2月', income: 15200 },
+  { month: '3月', income: 11800 },
+  { month: '4月', income: 18600 },
+  { month: '5月', income: 16400 },
+  { month: '6月', income: 15680 },
+])
+
+const quickActions = [
+  { icon: '✏', label: '发布课程', path: '/pages/teacher/courses/create/index' },
+  { icon: '📹', label: '开始直播', path: '/pages/live/create/index' },
+  { icon: '', label: '发布文章', path: '/pages/teacher/articles/create/index' },
+  { icon: '', label: '预约管理', path: '/pages/teacher/bookings/index' },
+]
+
+const maxIncome = computed(() => Math.max(...incomeTrend.value.map(d => d.income)))
+
+const loading = ref(true)
+
+onMounted(() => {
+  setTimeout(() => loading.value = false, 300)
+})
+
+function getPendingIcon(type: string) {
+  switch (type) {
+    case 'homework': return ''
+    case 'question': return ''
+    case 'booking': return ''
+    case 'review': return ''
+    default: return ''
+  }
+}
+
+function getPendingPath(type: string) {
+  switch (type) {
+    case 'homework': return '/pages/teacher/homework/index'
+    case 'question': return '/pages/teacher/questions/index'
+    case 'booking': return '/pages/teacher/bookings/index'
+    case 'review': return '/pages/teacher/reviews/index'
+    default: return '/pages/teacher/dashboard/index'
+  }
+}
+
+function navigateTo(url: string) {
+  uni.navigateTo({ url })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

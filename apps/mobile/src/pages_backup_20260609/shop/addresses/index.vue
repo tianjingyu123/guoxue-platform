@@ -1,0 +1,10 @@
+<template>
+  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">收货地址</text><text class="na" @click="goAdd">＋</text></view>
+    <scroll-view scroll-y class="c"><view v-for="a in list" :key="a.id" class="card">
+      <view class="ch"><text class="cn">{{a.name}}</text><text class="cp">{{a.phone}}</text><text v-if="a.def" class="cd">默认</text></view>
+      <text class="ca">{{a.region}} {{a.addr}}</text><view class="cf"><text @click="edit(a.id)">编辑</text><text @click="del(a.id)">删除</text></view></view>
+      <view style="height:48rpx"/></scroll-view></view>
+</template>
+<script setup lang="ts">import {ref} from 'vue';import {onPullDownRefresh} from '@dcloudio/uni-app';const list=ref([{id:1,name:'张三',phone:'138****8888',region:'北京市朝阳区',addr:'建国路88号',def:true}]);function goAdd(){uni.navigateTo({url:'/pages/shop/addresses/edit/index'})};function edit(id:number){uni.navigateTo({url:'/pages/shop/addresses/edit/index'})};function del(id:number){list.value=list.value.filter(a=>a.id!==id)};function goBack(){uni.navigateBack()};onPullDownRefresh(()=>setTimeout(()=>uni.stopPullDownRefresh(),500))</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.na{font-size:40rpx;color:#C41E3A}.c{padding:24rpx}.card{background:#fff;border-radius:16rpx;padding:24rpx;margin-bottom:12rpx;box-shadow:0 2rpx 8rpx rgba(0,0,0,.03)}.ch{display:flex;align-items:center;gap:12rpx;margin-bottom:8rpx}.cn{font-size:26rpx;font-weight:500;color:#2C2C2C}.cp{font-size:22rpx;color:#999}.cd{font-size:18rpx;padding:2rpx 10rpx;background:rgba(196,30,58,.1);color:#C41E3A;border-radius:6rpx}.ca{font-size:24rpx;color:#666;display:block;margin-bottom:12rpx}.cf{display:flex;gap:32rpx;font-size:24rpx;color:#999;padding-top:12rpx;border-top:1px solid #F5F1EB}
+</style>

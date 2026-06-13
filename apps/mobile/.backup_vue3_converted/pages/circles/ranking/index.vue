@@ -1,0 +1,197 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- Gradient header -->
+    <view class="px-4 pt-12 pb-16" style="background: linear-gradient(135deg, #C41E3A, #8B0000);">
+      <view class="flex items-center gap-3 mb-6">
+        <view @click="goBack" class="p-1">
+          <text class="text-white text-lg">←</text>
+        </view>
+        <text class="text-xl font-bold text-white flex-1">圈子排行榜</text>
+        <text class="text-amber-300"></text>
+      </view>
+      <!-- Tab -->
+      <view class="flex rounded-xl p-1 gap-1" style="background: rgba(255,255,255,0.1);">
+        <view
+          v-for="tab in tabs"
+          :key="tab.value"
+          @click="activeTab = tab.value"
+          :class="[
+            'flex-1 py-2 rounded-lg text-sm font-medium text-center transition-all',
+            activeTab === tab.value ? 'bg-white text-primary' : 'text-white/80'
+          ]"
+        >
+          <text>{{ tab.label }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Top 3 podium -->
+    <view class="-mt-10 px-4 mb-4">
+      <view class="grid grid-cols-3 gap-2">
+        <!-- 2nd place -->
+        <view class="flex flex-col items-center pt-2 pb-3 bg-white rounded-xl border border-border" style="margin-top: 24px;">
+          <view class="relative mb-2">
+            <view class="w-14 h-14 rounded-xl border-2 border-slate-300 relative overflow-hidden">
+              <view class="absolute inset-0 bg-muted flex items-center justify-center">
+                <text class="text-lg font-bold">{{ top3[1]?.name.slice(0, 2) }}</text>
+              </view>
+              <image :src="top3[1]?.cover" mode="aspectFill" class="w-full h-full relative z-10" />
+            </view>
+            <view class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center">
+              <text>2</text>
+            </view>
+          </view>
+          <text class="text-xs font-medium text-foreground text-center px-1 truncate w-full">{{ top3[1]?.name }}</text>
+          <text class="text-sm font-bold text-primary mt-0.5">{{ top3[1]?.value }}</text>
+          <text class="text-[10px] text-muted-foreground">{{ top3[1]?.subValue }}</text>
+        </view>
+
+        <!-- 1st place -->
+        <view class="flex flex-col items-center pb-3 bg-white rounded-xl border border-amber-200">
+          <view class="w-full py-1 text-center mb-2 rounded-t-xl" style="background: rgba(251,191,36,0.2);">
+            <text class="text-amber-500">👑</text>
+          </view>
+          <view class="relative mb-2">
+            <view class="w-16 h-16 rounded-xl border-2 border-amber-400 relative overflow-hidden">
+              <view class="absolute inset-0 bg-amber-100 flex items-center justify-center">
+                <text class="text-lg font-bold text-amber-800">{{ top3[0]?.name.slice(0, 2) }}</text>
+              </view>
+              <image :src="top3[0]?.cover" mode="aspectFill" class="w-full h-full relative z-10" />
+            </view>
+            <view class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-400 text-amber-900 text-[10px] font-bold flex items-center justify-center">
+              <text>1</text>
+            </view>
+          </view>
+          <text class="text-xs font-semibold text-foreground text-center px-1 truncate w-full">{{ top3[0]?.name }}</text>
+          <text class="text-base font-bold text-amber-600 mt-0.5">{{ top3[0]?.value }}</text>
+          <text class="text-[10px] text-muted-foreground">{{ top3[0]?.subValue }}</text>
+        </view>
+
+        <!-- 3rd place -->
+        <view class="flex flex-col items-center pt-2 pb-3 bg-white rounded-xl border border-border" style="margin-top: 24px;">
+          <view class="relative mb-2">
+            <view class="w-14 h-14 rounded-xl border-2 border-orange-300 relative overflow-hidden">
+              <view class="absolute inset-0 bg-muted flex items-center justify-center">
+                <text class="text-lg font-bold">{{ top3[2]?.name.slice(0, 2) }}</text>
+              </view>
+              <image :src="top3[2]?.cover" mode="aspectFill" class="w-full h-full relative z-10" />
+            </view>
+            <view class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-orange-400 text-white text-[10px] font-bold flex items-center justify-center">
+              <text>3</text>
+            </view>
+          </view>
+          <text class="text-xs font-medium text-foreground text-center px-1 truncate w-full">{{ top3[2]?.name }}</text>
+          <text class="text-sm font-bold text-primary mt-0.5">{{ top3[2]?.value }}</text>
+          <text class="text-[10px] text-muted-foreground">{{ top3[2]?.subValue }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Ranks 4+ list -->
+    <view class="px-4 pb-20 space-y-2">
+      <view
+        v-for="circle in rest"
+        :key="circle.id"
+        @click="goCircle(circle.id)"
+        hover-class="bg-muted/50"
+        class="w-full flex items-center gap-3 p-3 bg-white rounded-xl border border-border transition-all"
+      >
+        <text class="w-8 text-center text-sm font-bold text-muted-foreground flex-shrink-0">{{ circle.rank }}</text>
+        <view class="w-12 h-12 rounded-xl flex-shrink-0 relative overflow-hidden">
+          <view class="absolute inset-0 bg-muted flex items-center justify-center font-bold text-sm">
+            <text>{{ circle.name.slice(0, 2) }}</text>
+          </view>
+          <image :src="circle.cover" mode="aspectFill" class="w-full h-full relative z-10" />
+        </view>
+        <view class="flex-1 min-w-0">
+          <view class="flex items-center gap-2">
+            <text class="font-medium text-foreground truncate text-sm">{{ circle.name }}</text>
+            <text class="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0">{{ circle.category }}</text>
+          </view>
+          <text class="text-xs text-muted-foreground mt-0.5 block">{{ circle.owner }}</text>
+        </view>
+        <view class="text-right flex-shrink-0">
+          <text class="font-bold text-primary text-sm block">{{ circle.value }}</text>
+          <text class="text-[10px] text-muted-foreground block">{{ circle.subValue }}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+type RankTab = 'members' | 'active' | 'quality'
+
+interface RankItem {
+  id: string; rank: number; name: string; cover: string
+  value: string; subValue: string; category: string; owner: string
+}
+
+const COVER_1 = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop"
+const COVER_2 = "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=200&h=200&fit=crop"
+const COVER_3 = "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=200&h=200&fit=crop"
+const COVER_4 = "https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=200&h=200&fit=crop"
+const COVER_5 = "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=200&h=200&fit=crop"
+const COVER_6 = "https://images.unsplash.com/photo-1462275646964-a0e3386b89fa?w=200&h=200&fit=crop"
+const COVER_7 = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=200&h=200&fit=crop"
+const COVER_8 = "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=200&h=200&fit=crop"
+
+const rankData: Record<RankTab, RankItem[]> = {
+  members: [
+    { id: '4', rank: 1, name: '易经研究会', cover: COVER_4, value: '15,200', subValue: '成员', category: '易学', owner: '李玄机' },
+    { id: '1', rank: 2, name: '八字命理研习社', cover: COVER_1, value: '12,580', subValue: '成员', category: '命理', owner: '周易大师' },
+    { id: '2', rank: 3, name: '紫微斗数学院', cover: COVER_2, value: '8,960', subValue: '成员', category: '命理', owner: '张玄风' },
+    { id: '3', rank: 4, name: '风水堪舆交流', cover: COVER_3, value: '6,320', subValue: '成员', category: '风水', owner: '王德华' },
+    { id: '6', rank: 5, name: '国学文化圈', cover: COVER_6, value: '5,870', subValue: '成员', category: '国学', owner: '陈学文' },
+    { id: '5', rank: 6, name: '奇门遁甲精研', cover: COVER_5, value: '4,580', subValue: '成员', category: '命理', owner: '林奇门' },
+    { id: '7', rank: 7, name: '六爻神断', cover: COVER_7, value: '3,920', subValue: '成员', category: '命理', owner: '赵六爻' },
+    { id: '8', rank: 8, name: '梅花易数', cover: COVER_8, value: '3,240', subValue: '成员', category: '易学', owner: '钱梅花' },
+  ],
+  active: [
+    { id: '1', rank: 1, name: '八字命理研习社', cover: COVER_1, value: '3,256', subValue: '今日帖子', category: '命理', owner: '周易大师' },
+    { id: '2', rank: 2, name: '紫微斗数学院', cover: COVER_2, value: '2,890', subValue: '今日帖子', category: '命理', owner: '张玄风' },
+    { id: '4', rank: 3, name: '易经研究会', cover: COVER_4, value: '2,560', subValue: '今日帖子', category: '易学', owner: '李玄机' },
+    { id: '3', rank: 4, name: '风水堪舆交流', cover: COVER_3, value: '1,980', subValue: '今日帖子', category: '风水', owner: '王德华' },
+    { id: '6', rank: 5, name: '国学文化圈', cover: COVER_6, value: '1,750', subValue: '今日帖子', category: '国学', owner: '陈学文' },
+    { id: '5', rank: 6, name: '奇门遁甲精研', cover: COVER_5, value: '1,320', subValue: '今日帖子', category: '命理', owner: '林奇门' },
+    { id: '7', rank: 7, name: '六爻神断', cover: COVER_7, value: '980', subValue: '今日帖子', category: '命理', owner: '赵六爻' },
+    { id: '8', rank: 8, name: '梅花易数', cover: COVER_8, value: '860', subValue: '今日帖子', category: '易学', owner: '钱梅花' },
+  ],
+  quality: [
+    { id: '2', rank: 1, name: '紫微斗数学院', cover: COVER_2, value: '98.5%', subValue: '精华率', category: '命理', owner: '张玄风' },
+    { id: '4', rank: 2, name: '易经研究会', cover: COVER_4, value: '96.2%', subValue: '精华率', category: '易学', owner: '李玄机' },
+    { id: '1', rank: 3, name: '八字命理研习社', cover: COVER_1, value: '95.8%', subValue: '精华率', category: '命理', owner: '周易大师' },
+    { id: '5', rank: 4, name: '奇门遁甲精研', cover: COVER_5, value: '94.1%', subValue: '精华率', category: '命理', owner: '林奇门' },
+    { id: '3', rank: 5, name: '风水堪舆交流', cover: COVER_3, value: '93.5%', subValue: '精华率', category: '风水', owner: '王德华' },
+    { id: '6', rank: 6, name: '国学文化圈', cover: COVER_6, value: '92.0%', subValue: '精华率', category: '国学', owner: '陈学文' },
+    { id: '8', rank: 7, name: '梅花易数', cover: COVER_8, value: '91.3%', subValue: '精华率', category: '易学', owner: '钱梅花' },
+    { id: '7', rank: 8, name: '六爻神断', cover: COVER_7, value: '89.7%', subValue: '精华率', category: '命理', owner: '赵六爻' },
+  ],
+}
+
+const tabs: { value: RankTab; label: string }[] = [
+  { value: 'members', label: '成员数' },
+  { value: 'active', label: '最活跃' },
+  { value: 'quality', label: '高质量' },
+]
+
+const activeTab = ref<RankTab>('members')
+
+const currentList = computed(() => rankData[activeTab.value])
+const top3 = computed(() => currentList.value.slice(0, 3))
+const rest = computed(() => currentList.value.slice(3))
+
+function goBack() {
+  uni.navigateBack()
+}
+
+function goCircle(id: string) {
+  uni.navigateTo({ url: `/pages/circle/id-detail/home/index?id=${id}` })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

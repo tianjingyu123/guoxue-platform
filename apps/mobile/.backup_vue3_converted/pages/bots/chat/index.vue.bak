@@ -1,0 +1,33 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <view class="flex items-center justify-between px-4 h-12 bg-white border-b border-[#E8E0D5] shrink-0">
+      <view class="p-1" @click="goBack"><text class="text-xl text-[#2C2C2C]">←</text></view>
+      <text class="text-base font-semibold text-[#2C2C2C]">AI对话</text>
+      <view class="w-7" />
+    </view>
+    <scroll-view scroll-y class="flex-1 p-4 overflow-y-auto">
+      <view v-for="b in bots" :key="b.id" class="flex items-center gap-3 bg-white rounded-xl p-3.5 mb-2.5 shadow-sm" @click="goChat(b.id)">
+        <text class="text-3xl">{{ b.icon }}</text>
+        <view class="flex-1">
+          <text class="text-sm font-medium text-[#2C2C2C] block">{{ b.name }}</text>
+          <text class="text-xs text-[#999]">{{ b.desc }}</text>
+        </view>
+        <text class="text-lg text-[#ccc]">›</text>
+      </view>
+      <view class="h-5" />
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="ts">
+const bots = [
+  { id: '1', name: '八字命理大师', icon: '🧮', desc: '专业八字排盘与命理解读' },
+  { id: '2', name: '紫微斗数分析师', icon: '⭐', desc: '十二宫四化深度解析' },
+  { id: '3', name: '六爻占卜师', icon: '🪷', desc: '铜钱卦象专业断事' },
+]
+function goBack() { uni.navigateBack() }
+function goChat(id: string) { uni.navigateTo({ url: `/pages/bots/chat/id-detail/index?id=${id}` }) }
+</script>
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

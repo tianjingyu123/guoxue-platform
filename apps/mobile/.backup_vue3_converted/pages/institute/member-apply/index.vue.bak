@@ -1,0 +1,364 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-24">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between h-12 px-4">
+        <view @click="goBack" class="p-1 -ml-1"><text class="text-xl leading-none" style="color:#2C2C2C;">←</text></view>
+        <text class="font-semibold text-base" style="color:#2C2C2C;">申请加入研究院</text>
+        <view class="w-6" />
+      </view>
+      <!-- 步骤指示器 -->
+      <view class="flex items-center justify-between px-8 py-3">
+        <view v-for="(label, i) in steps" :key="i" class="flex flex-col items-center">
+          <view
+            class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors"
+            :class="step > i + 1 ? 'bg-green-500 text-white' : step === i + 1 ? 'bg-[#C41E3A] text-white' : 'bg-[#F0EBE5] text-[#999]'"
+          >
+            <text v-if="step > i + 1">✓</text>
+            <text v-else>{{ i + 1 }}</text>
+          </view>
+          <text class="text-[10px] mt-1" :class="step === i + 1 ? 'text-[#C41E3A] font-medium' : 'text-[#999]'">{{ label }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="p-4 space-y-4">
+      <!-- ========== Step 1: 资格检查 ========== -->
+      <view v-if="step === 1">
+        <!-- 加入门槛检查 -->
+        <view class="bg-white rounded-xl p-4" style="border:1px solid #E8E0D5;">
+          <text class="font-medium mb-3 flex items-center gap-2 block" style="color:#2C2C2C;">
+            <text class="text-base" style="color:#C41E3A;">🛡</text>
+            加入门槛检查
+          </text>
+          <view class="space-y-3">
+            <view v-for="item in requirements" :key="item.id" class="flex items-center gap-3 p-2 rounded-lg" style="background:#FAF8F5;">
+              <view class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(196,30,58,0.1);">
+                <text class="text-sm" style="color:#C41E3A;">{{ item.icon }}</text>
+              </view>
+              <view class="flex-1">
+                <text class="text-sm font-medium block" style="color:#2C2C2C;">{{ item.label }}</text>
+                <text class="text-[10px]" style="color:#999;">{{ item.desc }}</text>
+              </view>
+              <text v-if="item.met" class="text-green-500 text-lg">✓</text>
+              <text v-else class="text-amber-500 text-lg">⚠</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 任务要求承诺 -->
+        <view class="bg-white rounded-xl p-4" style="border:1px solid #E8E0D5;">
+          <text class="font-medium mb-3 flex items-center gap-2 block" style="color:#2C2C2C;">
+            <text class="text-base" style="color:#C41E3A;">📋</text>
+            任务要求承诺
+          </text>
+          <text class="text-xs block mb-3" style="color:#999;">加入研究院后，需完成以下任务方可退还保证金：</text>
+          <view class="space-y-2 mb-4">
+            <view v-for="(task, i) in taskRequirements" :key="i" class="flex items-center gap-3 p-2 rounded-lg" style="background:#FAF8F5;">
+              <view class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(59,130,246,0.1);">
+                <text class="text-sm" style="color:#3B82F6;">{{ task.icon }}</text>
+              </view>
+              <view class="flex-1">
+                <text class="text-sm" style="color:#2C2C2C;">{{ task.label }}</text>
+              </view>
+              <view class="text-[10px] px-2 py-0.5 rounded" style="border:1px solid #E8E0D5;color:#666;">{{ task.period }}</view>
+            </view>
+          </view>
+
+          <!-- 协议确认 -->
+          <view class="space-y-3 pt-3" style="border-top:1px solid #E8E0D5;">
+            <view v-for="(label, key) in agreementLabels" :key="key" class="flex items-start gap-2" @click="toggleAgreement(key as keyof typeof agreements)">
+              <view
+                class="w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5 transition-colors"
+                :class="agreements[key as keyof typeof agreements] ? 'bg-[#C41E3A] text-white' : 'bg-[#F0EBE5]'"
+              >
+                <text v-if="agreements[key as keyof typeof agreements]" class="text-xs">✓</text>
+              </view>
+              <text class="text-xs" style="color:#999;">{{ label }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 提示信息 -->
+        <view class="p-3 rounded-xl flex items-start gap-2" style="background:rgba(251,191,36,0.1);">
+          <text class="text-sm shrink-0 mt-0.5" style="color:#D97706;">ℹ</text>
+          <text class="text-xs" style="color:#92400E;">研究院鼓励成员相互交流分享，本身不收取费用。保证金是为了确保成员积极参与，完成任务要求后可全额退还。</text>
+        </view>
+
+        <!-- 下一步按钮 -->
+        <view
+          @click="goToStep2"
+          class="w-full py-3 text-white rounded-full text-center text-sm font-medium transition-opacity"
+          :class="allMet && allAgreed ? 'bg-[#C41E3A]' : 'bg-[#C41E3A] opacity-50'"
+          style="background:#C41E3A;"
+        >
+          下一步：填写申请资料
+        </view>
+      </view>
+
+      <!-- ========== Step 2: 填写资料 ========== -->
+      <view v-if="step === 2">
+        <!-- 选择关联圈子 -->
+        <view class="bg-white rounded-xl p-4" style="border:1px solid #E8E0D5;">
+          <text class="font-medium mb-3 flex items-center gap-2 block" style="color:#2C2C2C;">
+            <text class="text-base" style="color:#C41E3A;">👑</text>
+            选择关联圈子
+          </text>
+          <view class="space-y-2">
+            <view
+              v-for="circle in userCircles" :key="circle.id"
+              @click="selectedCircle = circle.id"
+              class="flex items-center gap-3 p-3 rounded-xl transition-all"
+              :style="selectedCircle === circle.id ? 'border:2px solid #C41E3A;background:rgba(196,30,58,0.05);' : 'border:2px solid #E8E0D5;background:transparent;'"
+            >
+              <view class="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center" style="background:#F5F1EB;">
+                <text class="text-xl" style="color:#999;">📚</text>
+              </view>
+              <view class="flex-1">
+                <text class="font-medium text-sm block" style="color:#2C2C2C;">{{ circle.name }}</text>
+                <text class="text-[10px]" style="color:#999;">{{ circle.members }}名成员 · 运营{{ circle.days }}天</text>
+              </view>
+              <text v-if="selectedCircle === circle.id" class="text-lg" style="color:#C41E3A;">✓</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 个人信息 -->
+        <view class="bg-white rounded-xl p-4" style="border:1px solid #E8E0D5;">
+          <text class="font-medium mb-3 flex items-center gap-2 block" style="color:#2C2C2C;">
+            <text class="text-base" style="color:#C41E3A;">📄</text>
+            个人信息
+          </text>
+          <view class="space-y-4">
+            <view>
+              <text class="text-xs block mb-1" style="color:#666;">真实姓名 *</text>
+              <input v-model="formData.realName" placeholder="请输入真实姓名" class="w-full h-11 px-3 rounded-xl text-sm" style="border:1px solid #E8E0D5;color:#2C2C2C;background:#FFFFFF;box-sizing:border-box;" />
+            </view>
+            <view>
+              <text class="text-xs block mb-1" style="color:#666;">专业领域 *</text>
+              <input v-model="formData.expertise" placeholder="如：八字命理、紫微斗数、风水堪舆" class="w-full h-11 px-3 rounded-xl text-sm" style="border:1px solid #E8E0D5;color:#2C2C2C;background:#FFFFFF;box-sizing:border-box;" />
+            </view>
+            <view>
+              <text class="text-xs block mb-1" style="color:#666;">个人简介 *</text>
+              <textarea v-model="formData.introduction" placeholder="请简要介绍您的从业经历和专业背景（100-500字）" rows="4" class="w-full px-3 py-2 rounded-xl text-sm" style="border:1px solid #E8E0D5;color:#2C2C2C;background:#FFFFFF;box-sizing:border-box;"></textarea>
+            </view>
+            <view>
+              <text class="text-xs block mb-1" style="color:#666;">申请理由</text>
+              <textarea v-model="formData.reason" placeholder="您希望加入研究院的原因和期望（选填）" rows="3" class="w-full px-3 py-2 rounded-xl text-sm" style="border:1px solid #E8E0D5;color:#2C2C2C;background:#FFFFFF;box-sizing:border-box;"></textarea>
+            </view>
+          </view>
+        </view>
+
+        <!-- 导航按钮 -->
+        <view class="flex gap-3">
+          <view @click="step = 1" class="flex-1 py-2.5 text-center text-sm font-medium rounded-full" style="border:1px solid #E8E0D5;color:#666;">
+            上一步
+          </view>
+          <view
+            @click="handleSubmit"
+            class="flex-1 py-2.5 text-center text-sm font-medium rounded-full transition-opacity"
+            :class="canSubmitStep2 ? 'bg-[#C41E3A] text-white' : 'bg-[#999] text-white'"
+          >
+            下一步：支付保证金
+          </view>
+        </view>
+      </view>
+
+      <!-- ========== Step 3: 支付保证金 ========== -->
+      <view v-if="step === 3">
+        <!-- 保证金金额 -->
+        <view class="rounded-xl p-4 text-center" style="background:linear-gradient(135deg, rgba(196,30,58,0.1), rgba(196,30,58,0.05));">
+          <text class="text-4xl block mb-3">🎓</text>
+          <text class="font-bold text-lg block mb-1" style="color:#2C2C2C;">研究院保证金</text>
+          <text class="text-3xl font-bold block my-4" style="color:#C41E3A;">¥10,000</text>
+          <text class="text-xs" style="color:#999;">完成任务要求后可全额退还</text>
+        </view>
+
+        <!-- 保证金说明 -->
+        <view class="bg-white rounded-xl p-4" style="border:1px solid #E8E0D5;">
+          <text class="font-medium mb-3 block" style="color:#2C2C2C;">保证金说明</text>
+          <view class="space-y-2 text-sm" style="color:#999;">
+            <text class="block">1. 保证金为您加入研究院的诚意金，用于确保成员积极参与交流分享。</text>
+            <text class="block">2. 成功完成全部任务要求后，保证金将在年度周期结束后全额退还。</text>
+            <text class="block">3. 如仅参与学习而不进行分享，保证金将不予退还。</text>
+            <text class="block">4. 保证金有效期为1年，到期后需续费或完成任务申请退还。</text>
+          </view>
+        </view>
+
+        <!-- 申请信息确认 -->
+        <view class="bg-white rounded-xl p-4" style="border:1px solid #E8E0D5;">
+          <text class="font-medium mb-3 block" style="color:#2C2C2C;">申请信息确认</text>
+          <view class="space-y-2 text-sm">
+            <view class="flex justify-between">
+              <text style="color:#999;">申请人</text>
+              <text style="color:#2C2C2C;">{{ formData.realName }}</text>
+            </view>
+            <view class="flex justify-between">
+              <text style="color:#999;">专业领域</text>
+              <text style="color:#2C2C2C;">{{ formData.expertise }}</text>
+            </view>
+            <view class="flex justify-between">
+              <text style="color:#999;">关联圈子</text>
+              <text style="color:#2C2C2C;">{{ selectedCircleName }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 导航按钮 -->
+        <view class="flex gap-3">
+          <view @click="step = 2" class="flex-1 py-2.5 text-center text-sm font-medium rounded-full" style="border:1px solid #E8E0D5;color:#666;">
+            上一步
+          </view>
+          <view @click="showPayDialog = true" class="flex-1 py-2.5 text-center text-sm font-medium rounded-full text-white" style="background:#C41E3A;">
+            <text>💳 支付保证金</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- ========== Step 4: 完成 ========== -->
+      <view v-if="step === 4" class="text-center py-10">
+        <view class="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center" style="background:rgba(34,197,94,0.1);">
+          <text class="text-3xl" style="color:#22C55E;">✓</text>
+        </view>
+        <text class="text-xl font-bold block mb-2" style="color:#2C2C2C;">申请提交成功</text>
+        <text class="block mb-6" style="color:#999;">您的申请已提交，研究院管理层将在3个工作日内审核</text>
+
+        <view class="bg-white rounded-xl p-4 text-left mb-4" style="border:1px solid #E8E0D5;">
+          <text class="font-medium mb-2 block" style="color:#2C2C2C;">接下来...</text>
+          <view class="space-y-2 text-sm" style="color:#999;">
+            <text class="block">1. 审核通过后，您将收到系统通知</text>
+            <text class="block">2. 正式成为研究院成员，可参与内部交流活动</text>
+            <text class="block">3. 请按时完成任务要求，以便退还保证金</text>
+          </view>
+        </view>
+
+        <view class="flex gap-3">
+          <view @click="goToInstitute" class="flex-1 py-2.5 text-center text-sm font-medium rounded-full" style="border:1px solid #E8E0D5;color:#666;">
+            返回研究院
+          </view>
+          <view @click="goToMyApplication" class="flex-1 py-2.5 text-center text-sm font-medium rounded-full text-white" style="background:#C41E3A;">
+            查看我的申请
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 支付确认对话框 -->
+    <view v-if="showPayDialog" class="fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.5);">
+      <view class="mx-4 w-[320px] bg-white rounded-2xl overflow-hidden">
+        <view class="p-5">
+          <text class="text-lg font-bold block mb-1" style="color:#2C2C2C;">确认支付</text>
+          <text class="text-xs block mb-4" style="color:#999;">您即将支付研究院保证金</text>
+          <view class="text-center py-4">
+            <text class="text-3xl font-bold block" style="color:#C41E3A;">¥10,000</text>
+            <text class="text-xs block mt-1" style="color:#999;">完成任务可全额退还</text>
+          </view>
+        </view>
+        <view class="flex" style="border-top:1px solid #E8E0D5;">
+          <view @click="showPayDialog = false" class="flex-1 py-3 text-center text-sm" style="color:#666;border-right:1px solid #E8E0D5;">取消</view>
+          <view
+            @click="handlePay"
+            class="flex-1 py-3 text-center text-sm font-medium transition-opacity"
+            :class="paying ? 'bg-[#999] text-white' : 'bg-[#C41E3A] text-white'"
+          >
+            <text>{{ paying ? '支付中...' : '确认支付' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed } from 'vue'
+
+// 步骤定义
+const steps = ['资格检查', '填写资料', '支付保证金', '申请完成']
+const step = ref(1)
+
+// 加入门槛
+const requirements = [
+  { id: 'circle', icon: '👑', label: '必须是圈主', desc: '拥有自己的圈子', met: true },
+  { id: 'members', icon: '👥', label: '圈成员≥100人', desc: '圈子有一定规模', met: true },
+  { id: 'days', icon: '📅', label: '圈子运营≥90天', desc: '持续运营能力', met: true },
+  { id: 'verified', icon: '🛡', label: '完成实名认证', desc: '身份认证', met: true },
+]
+
+// 任务要求
+const taskRequirements = [
+  { icon: '🎥', label: '每月至少2场线上直播', period: '月度任务' },
+  { icon: '📍', label: '每季度至少1次线下小范围交流分享', period: '季度任务' },
+  { icon: '🎤', label: '每年至少1次大范围交流分享', period: '年度任务' },
+]
+
+// 协议确认
+const agreements = reactive({ tasks: false, refund: false, rules: false })
+const agreementLabels = {
+  tasks: '我承诺按时完成研究院规定的任务要求，积极参与分享交流',
+  refund: '我理解：完成任务可全额退还保证金；仅学习不分享则保证金不予退还',
+  rules: '我已阅读并同意《研究院管理规则》和《保证金退还规则》',
+}
+
+// 圈子列表
+const selectedCircle = ref('')
+const userCircles = [
+  { id: '1', name: '八字命理研习社', members: 1280, days: 365, cover: '' },
+  { id: '2', name: '紫微斗数学习班', members: 560, days: 120, cover: '' },
+]
+
+// 表单数据
+const formData = reactive({ realName: '', expertise: '', introduction: '', reason: '' })
+
+// 支付状态
+const showPayDialog = ref(false)
+const paying = ref(false)
+
+// 计算属性
+const allMet = computed(() => requirements.every(r => r.met))
+const allAgreed = computed(() => Object.values(agreements).every(v => v))
+const canSubmitStep2 = computed(() => {
+  return selectedCircle.value && formData.realName && formData.expertise && formData.introduction
+})
+const selectedCircleName = computed(() => {
+  return userCircles.find(c => c.id === selectedCircle.value)?.name || ''
+})
+
+function toggleAgreement(key: keyof typeof agreements) {
+  agreements[key] = !agreements[key]
+}
+
+function goToStep2() {
+  if (!allMet.value || !allAgreed.value) {
+    uni.showToast({ title: '请先满足条件并同意协议', icon: 'none' })
+    return
+  }
+  step.value = 2
+}
+
+function handleSubmit() {
+  if (!selectedCircle.value || !formData.realName || !formData.expertise || !formData.introduction) {
+    uni.showToast({ title: '请完善申请资料', icon: 'none' })
+    return
+  }
+  step.value = 3
+}
+
+async function handlePay() {
+  if (paying.value) return
+  paying.value = true
+  // Mock 支付
+  await new Promise(resolve => setTimeout(resolve, 2000))
+  paying.value = false
+  showPayDialog.value = false
+  step.value = 4
+  uni.showToast({ title: '支付成功', icon: 'success' })
+}
+
+function goBack() { uni.navigateBack() }
+function goToInstitute() { uni.redirectTo({ url: '/pages/institute/index' }) }
+function goToMyApplication() { uni.navigateTo({ url: '/pages/mine/institute/admin/index' }) }
+</script>
+
+<style scoped>
+/* 样式已由内联 style 和 class 处理 */
+</style>

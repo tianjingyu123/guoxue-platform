@@ -1,0 +1,388 @@
+<template>
+  <!-- 加载状态 -->
+  <view v-if="loading" class="min-h-screen bg-[#FAF8F5]">
+    <view class="sticky top-0 z-10 bg-white border-b border-[#E8E3DB] px-4 py-3 flex items-center gap-3">
+      <view class="w-6 h-6 rounded animate-pulse" style="background:rgba(0,0,0,0.06)" />
+      <view class="w-24 h-5 rounded animate-pulse" style="background:rgba(0,0,0,0.06)" />
+    </view>
+    <view class="p-4 space-y-4">
+      <view v-for="i in 3" :key="i" class="bg-white rounded-2xl p-4 animate-pulse">
+        <view class="h-20 rounded" style="background:rgba(0,0,0,0.04)" />
+      </view>
+    </view>
+  </view>
+
+  <!-- 主内容 -->
+  <view v-else class="min-h-screen bg-[#FAF8F5] pb-24">
+    <!-- 顶部导航 - 含倒计时 -->
+    <view class="sticky top-0 z-10 bg-white border-b border-[#E8E3DB]">
+      <view class="px-4 py-3 flex items-center gap-3">
+        <view @click="goBack" class="p-1">
+          <text class="text-xl text-[#2C2C2C]">←</text>
+        </view>
+        <text class="text-lg font-semibold text-[#2C2C2C]">确认订单</text>
+      </view>
+
+      <!-- 订单超时倒计时条 -->
+      <view :class="['px-4 py-2 flex items-center justify-between text-sm', timeoutSeconds <= 180 ? 'bg-red-50' : 'bg-[#FFF5E6]']">
+        <view class="flex items-center gap-2">
+          <text :class="timeoutSeconds <= 180 ? 'text-red-500' : 'text-[#FF6B35]'">{{ timeoutSeconds <= 180 ? '⏰' : '⏳' }}</text>
+          <text :class="timeoutSeconds <= 180 ? 'text-red-500' : 'text-[#FF6B35]'">
+            请在 {{ Math.floor(timeoutSeconds / 60) }}:{{ String(timeoutSeconds % 60).padStart(2, '0') }} 内完成支付
+          </text>
+        </view>
+        <text v-if="timeoutSeconds <= 180" class="text-red-500 text-xs animate-pulse">即将超时</text>
+      </view>
+    </view>
+
+    <view class="p-4 space-y-4">
+      <!-- 收货地址 -->
+      <view @click="showAddressPanel = true" class="bg-white rounded-2xl p-4">
+        <view v-if="selectedAddress" class="flex items-start gap-3">
+          <text class="text-[#C41E3A] mt-0.5 flex-shrink-0">📍</text>
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center gap-2 mb-1">
+              <text class="font-medium text-[#2C2C2C]">{{ selectedAddress.name }}</text>
+              <text class="text-[#666]">{{ selectedAddress.phone }}</text>
+              <text v-if="selectedAddress.isDefault" class="text-xs px-1.5 py-0.5 bg-red-50 text-[#C41E3A] rounded">默认</text>
+            </view>
+            <text class="text-sm text-[#666] line-clamp-2 block">{{ selectedAddress.province }}{{ selectedAddress.city }}{{ selectedAddress.district }}{{ selectedAddress.address }}</text>
+          </view>
+          <text class="text-[#999] flex-shrink-0">›</text>
+        </view>
+        <view v-else class="flex items-center gap-3 text-[#C41E3A]">
+          <text>＋</text>
+          <text>添加收货地址</text>
+        </view>
+      </view>
+
+      <!-- 商品清单 -->
+      <view class="bg-white rounded-2xl p-4">
+        <text class="font-medium text-[#2C2C2C] block mb-3">商品清单</text>
+        <view class="space-y-3">
+          <view v-for="item in orderItems" :key="item.id" class="flex gap-3">
+            <image :src="item.image" mode="aspectFill" class="w-16 h-16 rounded-lg bg-gray-100 flex-shrink-0" />
+            <view class="flex-1 min-w-0">
+              <text class="text-sm text-[#2C2C2C] line-clamp-1 block">{{ item.name }}</text>
+              <text class="text-xs text-[#999] mt-0.5 block">{{ item.spec }}</text>
+              <view class="flex items-center justify-between mt-1">
+                <text class="text-[#C41E3A] font-medium">¥{{ item.price }}</text>
+                <text class="text-xs text-[#999]">x{{ item.quantity }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 优惠券 -->
+      <view @click="showCouponPanel = true" class="bg-white rounded-2xl p-4 flex items-center justify-between">
+        <view class="flex items-center gap-3">
+          <text class="text-[#C41E3A]">🏷</text>
+          <text class="text-[#2C2C2C]">优惠券</text>
+        </view>
+        <view class="flex items-center gap-2">
+          <text v-if="selectedCoupon" class="text-[#C41E3A]">-¥{{ selectedCoupon.value }}</text>
+          <text v-else-if="availableCoupons.length > 0" class="text-[#C41E3A]">{{ availableCoupons.length }}张可用</text>
+          <text v-else class="text-[#999]">暂无可用</text>
+          <text class="text-[#999]">›</text>
+        </view>
+      </view>
+
+      <!-- 支付方式 -->
+      <view class="bg-white rounded-2xl p-4">
+        <text class="font-medium text-[#2C2C2C] block mb-3">支付方式</text>
+        <view class="space-y-3">
+          <view
+            v-for="method in payMethods" :key="method.id"
+            @click="payMethod = method.id"
+            class="flex items-center justify-between py-2"
+          >
+            <view class="flex items-center gap-3">
+              <text>{{ method.icon }}</text>
+              <text class="text-[#2C2C2C]">{{ method.name }}</text>
+              <text v-if="method.balance !== undefined" class="text-xs text-[#999]">余额: {{ method.balance }}</text>
+            </view>
+            <view :class="['w-5 h-5 rounded-full border-2 flex items-center justify-center', payMethod === method.id ? 'border-[#C41E3A] bg-[#C41E3A]' : 'border-[#E8E3DB]']">
+              <text v-if="payMethod === method.id" class="text-white text-xs">✓</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 订单备注 -->
+      <view class="bg-white rounded-2xl p-4">
+        <text class="font-medium text-[#2C2C2C] block mb-3">订单备注</text>
+        <textarea
+          v-model="orderNote"
+          placeholder="选填，可备注特殊要求"
+          maxlength="100"
+          class="w-full h-20 p-3 bg-[#FAF8F5] rounded-lg text-sm text-[#2C2C2C] resize-none border-none"
+          placeholder-style="color: #999;"
+        />
+      </view>
+
+      <!-- 价格明细 -->
+      <view v-if="priceResult" class="bg-white rounded-2xl p-4">
+        <text class="font-medium text-[#2C2C2C] block mb-3">价格明细</text>
+        <view class="space-y-2 text-sm">
+          <view class="flex justify-between">
+            <text class="text-[#666]">商品金额</text>
+            <text class="text-[#2C2C2C]">¥{{ priceResult.itemsAmount.toFixed(2) }}</text>
+          </view>
+          <view class="flex justify-between">
+            <text class="text-[#666]">运费</text>
+            <text class="text-[#2C2C2C]">{{ priceResult.shippingFee > 0 ? '¥' + priceResult.shippingFee.toFixed(2) : '免运费' }}</text>
+          </view>
+          <view v-if="priceResult.couponDiscount > 0" class="flex justify-between">
+            <text class="text-[#666]">优惠券抵扣</text>
+            <text class="text-[#C41E3A]">-¥{{ priceResult.couponDiscount.toFixed(2) }}</text>
+          </view>
+          <view class="border-t border-[#E8E3DB] pt-2 mt-2 flex justify-between items-center">
+            <text class="text-[#2C2C2C]">实付金额</text>
+            <text class="text-xl font-bold text-[#C41E3A]">¥{{ priceResult.totalAmount.toFixed(2) }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部结算栏 -->
+    <view class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E8E3DB] px-4 py-3 flex items-center justify-between z-20" style="padding-bottom: calc(env(safe-area-inset-bottom) + 12px);">
+      <view>
+        <text class="text-sm text-[#666]">合计:</text>
+        <text class="text-xl font-bold text-[#C41E3A] ml-1">¥{{ priceResult?.totalAmount.toFixed(2) || '0.00' }}</text>
+        <text v-if="priceResult && priceResult.couponDiscount > 0" class="text-xs text-green-600 block">已优惠 ¥{{ priceResult.couponDiscount }}</text>
+      </view>
+      <view
+        @click="handleSubmit"
+        :class="['px-8 py-2.5 text-white rounded-full font-medium text-sm', submitting || !selectedAddress || timeoutSeconds === 0 ? 'opacity-50' : '']"
+        style="background:linear-gradient(to right, #C41E3A, #E85050)"
+      >
+        <text v-if="submitting">⏳ 提交中...</text>
+        <text v-else-if="timeoutSeconds === 0">订单已超时</text>
+        <text v-else>提交订单</text>
+      </view>
+    </view>
+
+    <!-- 超时警告弹窗 -->
+    <view v-if="showTimeoutWarning" class="fixed inset-0 z-50 flex items-center justify-center">
+      <view class="absolute inset-0 bg-black/50" @click="showTimeoutWarning = false" />
+      <view class="relative bg-white rounded-2xl p-6 mx-4 max-w-sm w-full text-center">
+        <view class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+          <text class="text-3xl text-red-500">⚠️</text>
+        </view>
+        <text class="text-lg font-bold text-[#2C2C2C] block mb-2">订单即将超时</text>
+        <text class="text-sm text-[#666] block mb-4">
+          请在 {{ Math.floor(timeoutSeconds / 60) }}:{{ String(timeoutSeconds % 60).padStart(2, '0') }} 内完成支付，超时后订单将自动取消
+        </text>
+        <view @click="showTimeoutWarning = false" class="w-full py-3 bg-[#C41E3A] text-white rounded-full font-medium text-center">
+          <text>我知道了，立即支付</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 地址选择面板 -->
+    <view v-if="showAddressPanel" class="fixed inset-0 z-50">
+      <view class="absolute inset-0 bg-black/50" @click="showAddressPanel = false" />
+      <view class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[70vh] overflow-y-auto">
+        <view class="sticky top-0 bg-white border-b border-[#E8E3DB] px-4 py-3 flex items-center justify-between">
+          <text class="font-medium text-[#2C2C2C]">选择收货地址</text>
+          <view @click="showAddressPanel = false" class="text-[#999]">
+            <text>关闭</text>
+          </view>
+        </view>
+        <view class="p-4 space-y-3">
+          <view
+            v-for="addr in addresses" :key="addr.id"
+            @click="selectAddress(addr)"
+            :class="['p-4 rounded-xl border-2 transition-colors', selectedAddress?.id === addr.id ? 'border-[#C41E3A] bg-red-50/30' : 'border-[#E8E3DB]']"
+          >
+            <view class="flex items-center gap-2 mb-1">
+              <text class="font-medium text-[#2C2C2C]">{{ addr.name }}</text>
+              <text class="text-[#666]">{{ addr.phone }}</text>
+              <text v-if="addr.isDefault" class="text-xs px-1.5 py-0.5 bg-red-50 text-[#C41E3A] rounded">默认</text>
+            </view>
+            <text class="text-sm text-[#666]">{{ addr.province }}{{ addr.city }}{{ addr.district }}{{ addr.address }}</text>
+          </view>
+          <view @click="addNewAddress" class="w-full py-3 border-2 border-dashed border-[#E8E3DB] rounded-xl text-[#C41E3A] flex items-center justify-center gap-2">
+            <text>＋</text>
+            <text>添加新地址</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 优惠券选择面板 -->
+    <view v-if="showCouponPanel" class="fixed inset-0 z-50">
+      <view class="absolute inset-0 bg-black/50" @click="showCouponPanel = false" />
+      <view class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[70vh] overflow-y-auto">
+        <view class="sticky top-0 bg-white border-b border-[#E8E3DB] px-4 py-3 flex items-center justify-between">
+          <text class="font-medium text-[#2C2C2C]">选择优惠券</text>
+          <view @click="showCouponPanel = false" class="text-[#999]">
+            <text>关闭</text>
+          </view>
+        </view>
+        <view class="p-4 space-y-3">
+          <view
+            @click="selectCoupon(null)"
+            :class="['p-4 rounded-xl border-2 transition-colors', !selectedCoupon ? 'border-[#C41E3A] bg-red-50/30' : 'border-[#E8E3DB]']"
+          >
+            <text class="text-[#666]">不使用优惠券</text>
+          </view>
+          <view
+            v-for="coupon in availableCoupons" :key="coupon.id"
+            @click="selectCoupon(coupon)"
+            :class="['p-4 rounded-xl border-2 transition-colors', selectedCoupon?.id === coupon.id ? 'border-[#C41E3A] bg-red-50/30' : 'border-[#E8E3DB]']"
+          >
+            <view class="flex items-center gap-3">
+              <view class="w-16 h-16 rounded-lg flex flex-col items-center justify-center text-white flex-shrink-0" style="background:linear-gradient(to bottom right, #C41E3A, #E85050)">
+                <text class="text-xs">¥</text>
+                <text class="text-xl font-bold">{{ coupon.value }}</text>
+              </view>
+              <view class="flex-1">
+                <text class="font-medium text-[#2C2C2C] block">{{ coupon.name }}</text>
+                <text class="text-xs text-[#999] mt-0.5 block">满{{ coupon.minAmount }}元可用</text>
+                <text class="text-xs text-[#999] block">有效期至 {{ coupon.expireAt }}</text>
+              </view>
+            </view>
+          </view>
+          <view v-if="availableCoupons.length === 0" class="py-8 text-center text-[#999]">
+            <text>暂无可用优惠券</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+
+interface ShippingAddress {
+  id: string
+  name: string
+  phone: string
+  province: string
+  city: string
+  district: string
+  address: string
+  isDefault: boolean
+}
+
+interface Coupon {
+  id: string
+  name: string
+  type: string
+  value: number
+  minAmount: number
+  expireAt: string
+  scope: string[]
+  isAvailable: boolean
+}
+
+interface OrderPriceResult {
+  itemsAmount: number
+  shippingFee: number
+  couponDiscount: number
+  totalAmount: number
+}
+
+// 模拟地址数据
+const addresses: ShippingAddress[] = [
+  { id: '1', name: '张三', phone: '138****8888', province: '北京市', city: '北京市', district: '朝阳区', address: '建国路88号SOHO现代城A座1201', isDefault: true },
+  { id: '2', name: '李四', phone: '139****9999', province: '上海市', city: '上海市', district: '浦东新区', address: '张江高科技园区博云路2号', isDefault: false },
+]
+
+// 模拟商品数据
+const orderItems = [
+  { id: '1', name: '周易六十四卦详解（精装典藏版）', spec: '精装版', price: 168, quantity: 1, image: '/placeholder.svg' },
+  { id: '2', name: '紫微斗数入门教程', spec: '平装版', price: 88, quantity: 2, image: '/placeholder.svg' },
+]
+
+// 模拟优惠券数据
+const availableCoupons: Coupon[] = [
+  { id: '1', name: '新人专享', type: 'amount', value: 50, minAmount: 200, expireAt: '2024-12-31', scope: [], isAvailable: true },
+  { id: '2', name: '满300减30', type: 'amount', value: 30, minAmount: 300, expireAt: '2024-12-31', scope: [], isAvailable: true },
+]
+
+const loading = ref(true)
+const selectedAddress = ref<ShippingAddress | null>(null)
+const selectedCoupon = ref<Coupon | null>(null)
+const payMethod = ref('wechat')
+const orderNote = ref('')
+const submitting = ref(false)
+const showAddressPanel = ref(false)
+const showCouponPanel = ref(false)
+
+// 订单超时倒计时
+const timeoutSeconds = ref(15 * 60)
+const showTimeoutWarning = ref(false)
+let timeoutTimer: ReturnType<typeof setInterval> | null = null
+
+const payMethods = [
+  { id: 'wechat', name: '微信支付', icon: '💳' },
+  { id: 'alipay', name: '支付宝', icon: '💳' },
+  { id: 'coins', name: '学习币', icon: '🪙', balance: 520 },
+]
+
+// 价格计算
+const priceResult = computed<OrderPriceResult>(() => {
+  const itemsAmount = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const shippingFee = itemsAmount >= 99 ? 0 : 10
+  const couponDiscount = selectedCoupon.value ? selectedCoupon.value.value : 0
+  const totalAmount = Math.max(0, itemsAmount + shippingFee - couponDiscount)
+  return { itemsAmount, shippingFee, couponDiscount, totalAmount }
+})
+
+onMounted(() => {
+  setTimeout(() => {
+    selectedAddress.value = addresses.find(a => a.isDefault) || null
+    loading.value = false
+    // 启动倒计时
+    timeoutTimer = setInterval(() => {
+      timeoutSeconds.value--
+      if (timeoutSeconds.value <= 0) {
+        if (timeoutTimer) clearInterval(timeoutTimer)
+        uni.navigateTo({ url: '/pages/shop/pay-timeout/index' })
+      } else if (timeoutSeconds.value === 180) {
+        showTimeoutWarning.value = true
+      }
+    }, 1000)
+  }, 300)
+})
+
+onUnmounted(() => {
+  if (timeoutTimer) clearInterval(timeoutTimer)
+})
+
+function goBack() {
+  uni.navigateBack()
+}
+
+function selectAddress(addr: ShippingAddress) {
+  selectedAddress.value = addr
+  showAddressPanel.value = false
+}
+
+function addNewAddress() {
+  showAddressPanel.value = false
+  uni.navigateTo({ url: '/pages/shop/address/index' })
+}
+
+function selectCoupon(coupon: Coupon | null) {
+  selectedCoupon.value = coupon
+  showCouponPanel.value = false
+}
+
+function handleSubmit() {
+  if (!selectedAddress.value || submitting.value || timeoutSeconds.value === 0) return
+  submitting.value = true
+  if (timeoutTimer) clearInterval(timeoutTimer)
+  setTimeout(() => {
+    submitting.value = false
+    uni.navigateTo({ url: '/pages/shop/payment/result?status=success' })
+  }, 1500)
+}
+</script>
+
+<style scoped>
+</style>

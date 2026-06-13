@@ -1,0 +1,367 @@
+<template>
+  <view class="min-h-screen bg-background" style="max-width:512px;margin:0 auto">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-40" style="background:rgba(250,248,245,0.95);border-bottom:1px solid #E8E0D5">
+      <view class="flex items-center justify-between px-4 h-12">
+        <view @click="goBack" class="p-1"><text class="text-xl text-foreground">←</text></view>
+        <text class="font-semibold text-base text-foreground">圈子成员</text>
+        <view class="w-9" />
+      </view>
+    </view>
+
+    <!-- 搜索栏 -->
+    <view class="sticky z-30 px-4 py-3" style="top:48px;background:rgba(250,248,245,0.95);border-bottom:1px solid #E8E0D5">
+      <view class="relative">
+        <text class="absolute left-3 top-1/2" style="transform:translateY(-50%);font-size:14px;color:#999;z-index:1"></text>
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="搜索成员昵称或编号"
+          class="w-full h-10 pl-10 pr-4 bg-secondary rounded-full text-sm text-foreground"
+          style="placeholder-color:#999;outline:none"
+        />
+        <view v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-1/2" style="transform:translateY(-50%)">
+          <text class="text-xs" style="color:#999">✕</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 角色筛选Tab -->
+    <view class="sticky z-30" style="top:100px;background:rgba(250,248,245,0.95);border-bottom:1px solid #E8E0D5">
+      <scroll-view scroll-x class="px-4 py-2" style="white-space:nowrap">
+        <view class="flex items-center gap-2" style="display:inline-flex">
+          <view
+            v-for="role in roles"
+            :key="role.id"
+            @click="selectedRole = role.id"
+            :class="['flex-shrink-0 inline-flex px-3 py-1.5 rounded-full text-xs font-medium transition-colors', selectedRole === role.id ? 'text-white' : '']"
+            :style="selectedRole === role.id ? { background: '#C41E3A' } : { background: '#F5F1EB', color: '#999' }"
+          >
+            <text>{{ role.label }}</text>
+            <text class="ml-1 opacity-70">{{ role.count }}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 排序选项 -->
+    <view class="flex items-center justify-between px-4 py-2 border-b border-border" style="background:#FAF8F5">
+      <text class="text-xs" style="color:#999">共 {{ filteredMembers.length }} 位成员</text>
+      <view class="relative">
+        <view class="flex items-center gap-1 text-xs" style="color:#999" @click="showSortMenu = !showSortMenu">
+          <text>{{ sortBy === 'time' ? '按加入时间' : '按活跃度' }}</text>
+          <text :class="showSortMenu ? 'rotate-180' : ''" class="inline-block transition-transform" style="font-size:10px">▼</text>
+        </view>
+        <view v-if="showSortMenu">
+          <view class="fixed inset-0 z-40" @click="showSortMenu = false" />
+          <view class="absolute right-0 top-6 z-50 w-28 bg-white rounded-lg shadow-lg border border-border overflow-hidden">
+            <view
+              @click="sortBy = 'time'; showSortMenu = false"
+              class="w-full px-3 py-2 text-xs text-left"
+              :style="{ color: sortBy === 'time' ? '#C41E3A' : '#2C2C2C' }"
+            >
+              <text>按加入时间</text>
+            </view>
+            <view
+              @click="sortBy = 'active'; showSortMenu = false"
+              class="w-full px-3 py-2 text-xs text-left"
+              :style="{ color: sortBy === 'active' ? '#C41E3A' : '#2C2C2C' }"
+            >
+              <text>按活跃度</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 成员列表 -->
+    <view>
+      <view v-if="filteredMembers.length > 0">
+        <view v-for="member in filteredMembers" :key="member.id" class="flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0">
+          <!-- 头像 -->
+          <view class="flex-shrink-0" @click="goToUser(member.id)">
+            <view class="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold" style="background:linear-gradient(135deg,#C41E3A,#E74C3C)">
+              <text>{{ member.name[0] }}</text>
+            </view>
+          </view>
+
+          <!-- 成员信息 -->
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center gap-1.5 flex-wrap">
+              <text class="font-medium text-sm text-foreground" @click="goToUser(member.id)">{{ member.name }}</text>
+              <!-- 认证标识 -->
+              <text v-if="member.isVerified" class="text-[10px] px-1 py-0 inline-block rounded" style="background:rgba(201,169,110,0.2);color:#C9A96E">V</text>
+              <!-- 角色标签 -->
+              <text
+                v-if="member.role !== 'member'"
+                class="text-[10px] px-1.5 py-0 inline-flex items-center gap-0.5 rounded"
+                :style="getRoleBadgeStyle(member.role)"
+              >
+                <text>{{ getRoleIcon(member.role) }}</text>
+                <text>{{ getRoleLabel(member.role) }}</text>
+              </text>
+            </view>
+            <view class="flex items-center gap-2 mt-0.5">
+              <text class="text-xs" style="color:#999">#{{ member.memberNo }}</text>
+              <text class="text-[10px]" style="color:rgba(153,153,153,0.6)">·</text>
+              <text class="text-xs" style="color:rgba(153,153,153,0.7)">{{ member.joinTime }} 加入</text>
+            </view>
+            <text v-if="member.intro" class="text-xs mt-0.5 line-clamp-1 block" style="color:rgba(153,153,153,0.7)">{{ member.intro }}</text>
+          </view>
+
+          <!-- 右侧：活跃时间 + 管理按钮 -->
+          <view class="flex items-center gap-2 flex-shrink-0">
+            <text class="text-[10px]" style="color:rgba(153,153,153,0.6)">{{ member.lastActive }}</text>
+            <view
+              v-if="isAdmin && member.role !== 'owner'"
+              @click.stop="handleManage(member)"
+              class="p-1.5 rounded-full"
+              style="color:#999"
+            >
+              <text class="text-sm font-bold">···</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 空状态 -->
+      <view v-else class="flex flex-col items-center justify-center py-16">
+        <view class="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-3">
+          <text class="text-2xl"></text>
+        </view>
+        <text class="text-sm" style="color:#999">未找到相关成员</text>
+        <text class="text-xs mt-1" style="color:rgba(153,153,153,0.7)">试试其他搜索条件</text>
+      </view>
+    </view>
+
+    <!-- 成员管理弹窗（底部弹出） -->
+    <view v-if="showManageModal && selectedMember" class="fixed inset-0 z-50 flex items-end justify-center" style="background:rgba(0,0,0,0.6)">
+      <view class="absolute inset-0" @click="showManageModal = false" />
+      <view class="relative w-full bg-white rounded-t-2xl overflow-hidden" style="max-width:512px">
+        <!-- 成员信息 -->
+        <view class="flex items-center gap-3 p-4 border-b border-border">
+          <view class="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold" style="background:linear-gradient(135deg,#C41E3A,#E74C3C)">
+            <text>{{ selectedMember.name[0] }}</text>
+          </view>
+          <view>
+            <text class="font-medium text-foreground block">{{ selectedMember.name }}</text>
+            <text class="text-xs" style="color:#999">#{{ selectedMember.memberNo }}</text>
+          </view>
+        </view>
+
+        <!-- 修改角色 -->
+        <view class="p-4 border-b border-border">
+          <text class="text-xs mb-3 block" style="color:#999">修改角色</text>
+          <view class="grid grid-cols-3 gap-2">
+            <view
+              v-for="role in manageableRoles"
+              :key="role.id"
+              @click="handleChangeRole(role.id)"
+              class="px-3 py-2 rounded-lg text-xs font-medium text-center transition-colors"
+              :style="selectedMember.role === role.id ? { background: '#C41E3A', color: 'white' } : { background: '#F5F1EB', color: '#999' }"
+            >
+              <text>{{ role.label }}</text>
+            </view>
+            <view
+              @click="handleChangeRole('member')"
+              class="px-3 py-2 rounded-lg text-xs font-medium text-center transition-colors"
+              :style="selectedMember.role === 'member' ? { background: '#C41E3A', color: 'white' } : { background: '#F5F1EB', color: '#999' }"
+            >
+              <text>普通成员</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 移出圈子 -->
+        <view class="p-4">
+          <view
+            @click="handleRemove"
+            class="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-medium"
+            style="background:rgba(239,68,68,0.1);color:#ef4444"
+          >
+            <text class="text-sm"></text>
+            <text>移出圈子</text>
+          </view>
+        </view>
+
+        <!-- 取消 -->
+        <view class="p-4 pt-0">
+          <view
+            @click="showManageModal = false"
+            class="w-full py-3 rounded-xl text-sm font-medium text-center"
+            style="background:#F5F1EB;color:#2C2C2C"
+          >
+            <text>取消</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 确认弹窗 -->
+    <view v-if="showConfirmModal && selectedMember" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background:rgba(0,0,0,0.6)">
+      <view class="w-full bg-white rounded-xl p-5" style="max-width:384px">
+        <view class="text-center mb-4">
+          <view
+            v-if="confirmAction === 'remove'"
+            class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+            style="background:rgba(239,68,68,0.1)"
+          >
+            <text class="text-xl" style="color:#ef4444"></text>
+          </view>
+          <view
+            v-else
+            class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+            style="background:rgba(196,30,58,0.1)"
+          >
+            <text class="text-xl" style="color:#C41E3A">⚙️</text>
+          </view>
+          <text class="font-semibold text-foreground block">
+            {{ confirmAction === 'remove' ? '确认移出成员?' : '确认修改角色?' }}
+          </text>
+          <text class="text-sm mt-2 block" style="color:#999">
+            {{ confirmAction === 'remove'
+              ? `将 ${selectedMember.name} 移出圈子后，其发布的内容将保留，但无法再访问圈子内容。`
+              : `将 ${selectedMember.name} 的角色修改为「${getRoleLabel(newRole)}」`
+            }}
+          </text>
+        </view>
+        <view class="flex gap-3">
+          <view
+            @click="showConfirmModal = false; selectedMember = null"
+            class="flex-1 py-2.5 rounded-xl text-sm font-medium text-center"
+            style="background:#F5F1EB;color:#2C2C2C"
+          >
+            <text>取消</text>
+          </view>
+          <view
+            @click="confirmActionHandler"
+            class="flex-1 py-2.5 rounded-xl text-sm font-medium text-center text-white"
+            :style="confirmAction === 'remove' ? { background: '#ef4444' } : { background: '#C41E3A' }"
+          >
+            <text>确认</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+const searchQuery = ref('')
+const selectedRole = ref('all')
+const sortBy = ref<'time' | 'active'>('time')
+const showSortMenu = ref(false)
+const showManageModal = ref(false)
+const selectedMember = ref<any>(null)
+const showConfirmModal = ref(false)
+const confirmAction = ref<'remove' | 'changeRole' | null>(null)
+const newRole = ref('')
+const isAdmin = true
+
+// 角色配置
+const roles = [
+  { id: 'all', label: '全部', count: 1280 },
+  { id: 'owner', label: '圈主', count: 1 },
+  { id: 'partner', label: '合伙人', count: 3 },
+  { id: 'admin', label: '管理员', count: 5 },
+  { id: 'guest', label: '嘉宾', count: 12 },
+  { id: 'volunteer', label: '志愿者', count: 8 },
+]
+
+const manageableRoles = computed(() => roles.filter(r => r.id !== 'all' && r.id !== 'owner'))
+
+// 成员数据
+const membersData = [
+  { id: 1, name: '周易大师', avatar: '', memberNo: '001', role: 'owner', joinTime: '2024-01-15', lastActive: '刚刚', isVerified: true, intro: '八字命理资深讲师' },
+  { id: 2, name: '张玄风', avatar: '', memberNo: '002', role: 'partner', joinTime: '2024-01-20', lastActive: '3小时前', isVerified: true, intro: '紫微斗数传承人' },
+  { id: 3, name: '陈风水', avatar: '', memberNo: '003', role: 'partner', joinTime: '2024-02-01', lastActive: '昨天', isVerified: true, intro: '风水堪舆专家' },
+  { id: 4, name: '李易安', avatar: '', memberNo: '008', role: 'admin', joinTime: '2024-02-15', lastActive: '2小时前', isVerified: false, intro: '国学传播者' },
+  { id: 5, name: '王命理', avatar: '', memberNo: '015', role: 'admin', joinTime: '2024-03-01', lastActive: '5分钟前', isVerified: false, intro: '八字爱好者' },
+  { id: 6, name: '赵星辰', avatar: '', memberNo: '023', role: 'guest', joinTime: '2024-03-10', lastActive: '1天前', isVerified: true, intro: '知名命理博主' },
+  { id: 7, name: '孙紫微', avatar: '', memberNo: '056', role: 'volunteer', joinTime: '2024-04-01', lastActive: '3天前', isVerified: false, intro: '热心圈友' },
+  { id: 8, name: '刘八字', avatar: '', memberNo: '128', role: 'member', joinTime: '2024-05-15', lastActive: '1周前', isVerified: false, intro: '命理学习中' },
+  { id: 9, name: '杨天干', avatar: '', memberNo: '256', role: 'member', joinTime: '2024-06-01', lastActive: '2天前', isVerified: false, intro: '新手入门' },
+  { id: 10, name: '吴地支', avatar: '', memberNo: '512', role: 'member', joinTime: '2024-06-20', lastActive: '刚刚', isVerified: false, intro: '' },
+]
+
+// 筛选和排序成员
+const activeOrder = ['刚刚', '5分钟前', '2小时前', '3小时前', '昨天', '1天前', '2天前', '3天前', '1周前']
+
+const filteredMembers = computed(() => {
+  return membersData
+    .filter(m => {
+      const q = searchQuery.value.trim().toLowerCase()
+      const matchSearch = !q || m.name.toLowerCase().includes(q) || m.memberNo.includes(q)
+      const matchRole = selectedRole.value === 'all' || m.role === selectedRole.value
+      return matchSearch && matchRole
+    })
+    .sort((a, b) => {
+      if (sortBy.value === 'time') {
+        return new Date(b.joinTime).getTime() - new Date(a.joinTime).getTime()
+      }
+      return activeOrder.indexOf(a.lastActive) - activeOrder.indexOf(b.lastActive)
+    })
+})
+
+function getRoleLabel(role: string): string {
+  return roles.find(r => r.id === role)?.label || '成员'
+}
+
+function getRoleIcon(role: string): string {
+  switch (role) {
+    case 'owner': return ''
+    case 'partner': return ''
+    case 'admin': return '🛡️'
+    case 'guest': return ''
+    default: return ''
+  }
+}
+
+function getRoleBadgeStyle(role: string): string {
+  switch (role) {
+    case 'owner': return 'background:rgba(201,169,110,0.2);color:#C9A96E'
+    case 'partner': return 'background:rgba(168,85,247,0.2);color:#a855f7'
+    case 'admin': return 'background:rgba(59,130,246,0.2);color:#3b82f6'
+    case 'guest': return 'background:rgba(34,197,94,0.2);color:#22c55e'
+    case 'volunteer': return 'background:rgba(249,115,22,0.2);color:#f97316'
+    default: return 'background:#F5F1EB;color:#999'
+  }
+}
+
+function handleManage(member: any) {
+  selectedMember.value = member
+  showManageModal.value = true
+}
+
+function handleChangeRole(role: string) {
+  newRole.value = role
+  confirmAction.value = 'changeRole'
+  showManageModal.value = false
+  showConfirmModal.value = true
+}
+
+function handleRemove() {
+  confirmAction.value = 'remove'
+  showManageModal.value = false
+  showConfirmModal.value = true
+}
+
+function confirmActionHandler() {
+  showConfirmModal.value = false
+  selectedMember.value = null
+  confirmAction.value = null
+  newRole.value = ''
+}
+
+function goBack() { uni.navigateBack() }
+
+function goToUser(id: number) {
+  uni.navigateTo({ url: '/pages/user/id-detail/index?id=' + id })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

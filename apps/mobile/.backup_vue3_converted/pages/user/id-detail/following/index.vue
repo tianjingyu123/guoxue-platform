@@ -1,0 +1,148 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 加载中 -->
+    <template v-if="loading">
+      <view class="min-h-screen flex items-center justify-center">
+        <text class="text-sm text-muted-foreground animate-pulse">加载中...</text>
+      </view>
+    </template>
+
+    <template v-else>
+      <!-- 顶部导航 -->
+      <header class="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
+        <view class="flex items-center justify-between px-4 h-14">
+          <view @click="goBack" class="p-1 -ml-1">
+            <text class="text-lg text-foreground">&#8592;</text>
+          </view>
+          <text class="font-semibold text-base text-foreground">社交关系</text>
+          <view class="w-9" />
+        </view>
+
+        <!-- Tab 切换 -->
+        <view class="flex border-b border-border">
+          <view @click="activeTab = 'following'"
+            class="flex-1 py-3 text-sm font-medium text-center transition-colors relative"
+            :class="activeTab === 'following' ? 'text-primary' : 'text-muted-foreground'">
+            <text>关注</text>
+            <view v-if="activeTab === 'following'" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
+          </view>
+          <view @click="activeTab = 'followers'"
+            class="flex-1 py-3 text-sm font-medium text-center transition-colors relative"
+            :class="activeTab === 'followers' ? 'text-primary' : 'text-muted-foreground'">
+            <text>粉丝</text>
+            <view v-if="activeTab === 'followers'" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
+          </view>
+        </view>
+      </header>
+
+      <!-- 搜索框 -->
+      <view class="p-4">
+        <view class="relative">
+          <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">&#128269;</text>
+          <input v-model="searchQuery" type="text" placeholder="搜索用户"
+            class="w-full h-10 pl-10 pr-4 rounded-full bg-secondary text-sm text-foreground placeholder:text-muted-foreground focus:outline-none" />
+        </view>
+      </view>
+
+      <!-- 用户列表 -->
+      <view class="divide-y divide-border">
+        <view v-for="user in filteredUsers" :key="user.id" class="flex items-center gap-3 p-4">
+          <!-- 头像 -->
+          <view @click="goUser(user.id)" class="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-medium" style="background:rgba(196,30,58,0.1);color:#C41E3A">
+            <image v-if="user.avatar" :src="user.avatar" mode="aspectFill" class="w-12 h-12 rounded-full" />
+            <text v-else>{{ user.name[0] }}</text>
+          </view>
+
+          <!-- 信息 -->
+          <view class="flex-1 min-w-0" @click="goUser(user.id)">
+            <view class="flex items-center gap-1">
+              <text class="font-medium text-foreground">{{ user.name }}</text>
+              <text v-if="user.isVerified" class="text-sm text-primary">&#10003;</text>
+            </view>
+            <text class="text-sm text-muted-foreground truncate block">{{ user.bio }}</text>
+            <view class="flex items-center gap-1 mt-1">
+              <text v-for="tag in user.tags.slice(0, 2)" :key="tag"
+                class="text-[10px] px-1.5 py-0 rounded" style="background:rgba(196,30,58,0.1);color:#C41E3A">{{ tag }}</text>
+            </view>
+          </view>
+
+          <!-- 关注按钮 -->
+          <view @click="toggleFollow(user.id)"
+            :class="['px-4 py-1.5 rounded-full text-sm font-medium transition-colors', user.isFollowing ? 'bg-secondary text-muted-foreground' : 'bg-primary text-white']">
+            <text>{{ user.isFollowing ? '已关注' : '关注' }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 空状态 -->
+      <view v-if="filteredUsers.length === 0" class="flex flex-col items-center justify-center py-20">
+        <view class="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
+          <text class="text-3xl text-muted-foreground">&#128269;</text>
+        </view>
+        <text class="text-sm text-muted-foreground">暂无{{ activeTab === 'following' ? '关注' : '粉丝' }}</text>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+
+interface User {
+  id: string
+  name: string
+  avatar: string
+  bio: string
+  isVerified: boolean
+  isFollowing: boolean
+  tags: string[]
+}
+
+const loading = ref(true)
+const activeTab = ref<'following' | 'followers'>('following')
+const searchQuery = ref('')
+
+const users = ref<User[]>([
+  { id: '1', name: '王明理', avatar: '', bio: '易学研究者，专注八字命理', isVerified: true, isFollowing: true, tags: ['八字命理', '风水'] },
+  { id: '2', name: '张玄学', avatar: '', bio: '紫微斗数研究十五年', isVerified: false, isFollowing: true, tags: ['紫微斗数'] },
+  { id: '3', name: '李国风', avatar: '', bio: '传统文化推广者，道家文化爱好者', isVerified: true, isFollowing: false, tags: ['道家文化', '易经'] },
+  { id: '4', name: '陈易经', avatar: '', bio: '周易研究会会员，擅长六爻预测', isVerified: false, isFollowing: true, tags: ['六爻', '周易'] },
+  { id: '5', name: '赵风水', avatar: '', bio: '风水堪舆实战派，从业二十年', isVerified: true, isFollowing: false, tags: ['风水堪舆'] },
+])
+
+const filteredUsers = computed(() => {
+  return users.value.filter(user =>
+    user.name.includes(searchQuery.value) || user.bio.includes(searchQuery.value)
+  )
+})
+
+const toggleFollow = (userId: string) => {
+  const user = users.value.find(u => u.id === userId)
+  if (user) {
+    user.isFollowing = !user.isFollowing
+  }
+}
+
+const goBack = () => { uni.navigateBack() }
+const goUser = (id: string) => { uni.navigateTo({ url: `/pages/user/${id}/index` }) }
+
+onLoad((options) => {
+  // userId = options?.id
+  const tabParam = options?.tab
+  if (tabParam === 'followers') {
+    activeTab.value = 'followers'
+  }
+  loading.value = false
+})
+</script>
+
+<style scoped>
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+</style>

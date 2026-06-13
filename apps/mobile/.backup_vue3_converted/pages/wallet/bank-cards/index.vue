@@ -1,0 +1,466 @@
+<template>
+  <view class="min-h-screen bg-background flex flex-col">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-20 bg-background border-b border-accent/20 flex-shrink-0">
+      <view class="flex items-center justify-between h-14 px-4">
+        <view @click="goBack" class="p-2 -ml-2">
+          <text class="text-xl text-[#8B4513]">◀</text>
+        </view>
+        <text class="text-lg font-semibold text-[#8B4513]">银行卡管理</text>
+        <view class="w-9" />
+      </view>
+    </view>
+
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="p-4 space-y-4">
+      <view v-for="i in 2" :key="i" class="h-28 bg-white rounded-xl animate-pulse" />
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="flex flex-col items-center justify-center px-4 pt-20">
+      <text class="text-4xl mb-3"></text>
+      <text class="text-sm text-muted-foreground block mb-4">{{ error }}</text>
+      <view class="inline-block px-6 py-2 rounded-lg text-sm text-white bg-primary" @click="reloadPage">重新加载</view>
+    </view>
+
+    <!-- 内容区域 -->
+    <template v-else>
+      <view class="p-4 space-y-4 flex-1">
+        <!-- 银行卡列表 -->
+        <view v-if="cards.length > 0" class="space-y-4">
+          <view
+            v-for="card in cards"
+            :key="card.id"
+            class="relative overflow-hidden rounded-xl shadow-sm"
+            :style="{ background: getBankGradient(card.bankCode) }"
+          >
+            <!-- 装饰图案 -->
+            <view class="absolute right-0 top-0 w-32 h-32 rounded-full bg-white/10" style="transform: translate(40%, -40%);" />
+            <view class="absolute right-8 bottom-0 w-20 h-20 rounded-full bg-white/5" style="transform: translateY(40%);" />
+
+            <view class="relative p-4">
+              <!-- 银行信息 -->
+              <view class="flex items-center justify-between mb-4">
+                <view class="flex items-center gap-2">
+                  <view class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                    <text class="text-white text-sm">🏦</text>
+                  </view>
+                  <view>
+                    <text class="text-white font-medium block">{{ card.bankName }}</text>
+                    <text class="text-white/70 text-xs">{{ card.cardType === 'debit' ? '储蓄卡' : '信用卡' }}</text>
+                  </view>
+                </view>
+
+                <view class="flex items-center gap-2">
+                  <view v-if="card.isDefault" class="px-2 py-0.5 bg-accent text-white text-xs rounded-full flex items-center gap-1">
+                    <text class="text-xs"></text>
+                    <text>默认</text>
+                  </view>
+                  <!-- 更多操作 -->
+                  <view class="relative" @click.stop="toggleCardMenu(card.id)">
+                    <view class="p-1 rounded" hover-class="bg-white/10">
+                      <text class="text-white/80 text-lg">⋯</text>
+                    </view>
+                    <view v-if="openMenuCardId === card.id" class="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg z-50 min-w-[120px] overflow-hidden">
+                      <view v-if="!card.isDefault" class="flex items-center gap-2 px-4 py-3 text-sm text-foreground" hover-class="bg-secondary" @click.stop="handleSetDefault(card.id)">
+                        <text></text>
+                        <text>设为默认</text>
+                      </view>
+                      <view class="flex items-center gap-2 px-4 py-3 text-sm text-red-500 border-t border-border" hover-class="bg-secondary" @click.stop="handleDeleteConfirm(card)">
+                        <text>🗑️</text>
+                        <text>解除绑定</text>
+                      </view>
+                    </view>
+                  </view>
+                </view>
+              </view>
+
+              <!-- 卡号 -->
+              <text class="text-white text-xl tracking-widest block" style="font-family: monospace;">{{ formatCardDisplay(card.cardNumber) }}</text>
+
+              <!-- 持卡人 -->
+              <view class="flex items-center justify-between mt-3">
+                <text class="text-white/70 text-sm">{{ card.holderName }}</text>
+                <text class="text-white/50 text-xs">绑定于 {{ card.bindTime }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 空状态 -->
+        <view v-if="cards.length === 0 && !loading" class="flex flex-col items-center py-20">
+          <text class="text-5xl mb-3"></text>
+          <text class="text-sm text-[#8B4513]/60">暂未绑定银行卡</text>
+          <view class="mt-4 px-6 py-2 bg-primary text-white rounded-3xl text-sm" @click="showAddSheet = true">添加银行卡</view>
+        </view>
+
+        <!-- 添加银行卡按钮 -->
+        <view
+          class="w-full py-4 border-2 border-dashed border-accent/30 rounded-xl flex items-center justify-center gap-2 text-accent"
+          @click="showAddSheet = true"
+        >
+          <text class="text-lg">+</text>
+          <text class="text-sm">添加银行卡</text>
+        </view>
+
+        <!-- 提示信息 -->
+        <view class="text-center text-xs text-[#8B4513]/60 py-2">
+          <text>为保障资金安全，请绑定本人实名银行卡</text>
+        </view>
+      </view>
+    </template>
+
+    <!-- 添加银行卡弹窗 -->
+    <view v-if="showAddSheet" class="fixed inset-0 z-50 flex items-end justify-center bg-black/40" @click="showAddSheet = false">
+      <view class="w-full max-w-lg bg-background rounded-t-3xl flex flex-col" style="max-height: 85vh;" @click.stop>
+        <!-- 弹窗头部 -->
+        <view class="border-b border-accent/20 pb-4 pt-6 px-6">
+          <view class="flex items-center justify-between">
+            <view @click="showAddSheet = false" class="p-2 -ml-2">
+              <text class="text-xl text-[#8B4513]">✕</text>
+            </view>
+            <text class="text-lg font-semibold text-[#8B4513]">添加银行卡</text>
+            <view class="w-9" />
+          </view>
+        </view>
+
+        <scroll-view scroll-y class="flex-1 px-6 py-4 overflow-y-auto">
+          <!-- 银行卡号 -->
+          <view class="mb-4 space-y-2">
+            <text class="text-sm text-[#8B4513] font-medium">银行卡号</text>
+            <input
+              v-model="formData.cardNumber"
+              placeholder="请输入银行卡号"
+              class="w-full h-11 px-3 bg-white border border-accent/30 rounded-lg text-base tracking-wider"
+              maxlength="23"
+              @input="onCardNumberInput"
+            />
+          </view>
+
+          <!-- 开户银行 -->
+          <view class="mb-4 space-y-2">
+            <text class="text-sm text-[#8B4513] font-medium">开户银行</text>
+            <picker :range="SUPPORTED_BANKS" range-key="name" @change="onBankChange">
+              <view class="w-full h-11 px-3 bg-white border border-accent/30 rounded-lg text-sm flex items-center text-[#333]">
+                <text>{{ formData.bankCode ? (SUPPORTED_BANKS.find((b: any) => b.code === formData.bankCode)?.name || '请选择开户银行') : '请选择开户银行' }}</text>
+              </view>
+            </picker>
+          </view>
+
+          <!-- 持卡人姓名 -->
+          <view class="mb-4 space-y-2">
+            <text class="text-sm text-[#8B4513] font-medium">持卡人姓名</text>
+            <input
+              v-model="formData.holderName"
+              placeholder="请输入持卡人姓名"
+              class="w-full h-11 px-3 bg-white border border-accent/30 rounded-lg text-sm"
+            />
+          </view>
+
+          <!-- 身份证号 -->
+          <view class="mb-4 space-y-2">
+            <text class="text-sm text-[#8B4513] font-medium">身份证号</text>
+            <input
+              v-model="formData.idCard"
+              placeholder="请输入身份证号"
+              class="w-full h-11 px-3 bg-white border border-accent/30 rounded-lg text-sm"
+              maxlength="18"
+            />
+          </view>
+
+          <!-- 预留手机号 -->
+          <view class="mb-4 space-y-2">
+            <text class="text-sm text-[#8B4513] font-medium">预留手机号</text>
+            <input
+              v-model="formData.phone"
+              placeholder="请输入银行预留手机号"
+              class="w-full h-11 px-3 bg-white border border-accent/30 rounded-lg text-sm"
+              maxlength="11"
+              type="number"
+            />
+          </view>
+
+          <!-- 验证码 -->
+          <view class="mb-4 space-y-2">
+            <text class="text-sm text-[#8B4513] font-medium">验证码</text>
+            <view class="flex gap-3">
+              <input
+                v-model="formData.verifyCode"
+                placeholder="请输入验证码"
+                class="flex-1 h-11 px-3 bg-white border border-accent/30 rounded-lg text-sm"
+                maxlength="6"
+                type="number"
+              />
+              <view
+                class="w-28 h-11 rounded-lg text-sm flex items-center justify-center shrink-0 border border-accent text-accent"
+                :class="!formData.phone || formData.phone.length !== 11 || countdown > 0 ? 'opacity-50' : ''"
+                @click="handleSendCode"
+              >
+                <text>{{ countdown > 0 ? countdown + 's' : '获取验证码' }}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 安全提示 -->
+          <view class="bg-accent/10 rounded-lg p-3 text-xs text-[#8B4513]/70">
+            <text>为保障您的资金安全，请确保：</text>
+            <view class="mt-1 space-y-0.5">
+              <text class="block">• 银行卡为本人实名认证的储蓄卡</text>
+              <text class="block">• 手机号为银行预留手机号</text>
+              <text class="block">• 身份信息与银行开户信息一致</text>
+            </view>
+          </view>
+        </scroll-view>
+
+        <!-- 提交按钮 -->
+        <view class="p-4 bg-background border-t border-accent/20">
+          <view
+            class="w-full h-12 rounded-xl flex items-center justify-center text-white text-base"
+            :style="!canSubmit || submitting ? 'background-color:#ccc' : 'background-color:#C41E3A'"
+            @click="handleAddCard"
+          >
+            <text>{{ submitting ? '绑定中...' : '确认绑定' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 删除确认弹窗 -->
+    <view v-if="deleteCard" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" @click="deleteCard = null">
+      <view class="w-full max-w-sm bg-background rounded-2xl overflow-hidden" @click.stop>
+        <view class="p-6">
+          <text class="text-lg font-semibold text-[#8B4513] block mb-2">解除绑定</text>
+          <text class="text-sm text-muted-foreground">确定要解除绑定 {{ deleteCard.bankName }}（尾号 {{ getCardLast4(deleteCard.cardNumber) }}）吗？解除后将无法使用该卡进行提现。</text>
+        </view>
+        <view class="flex border-t border-accent/20">
+          <view class="flex-1 py-3 text-center text-sm text-muted-foreground border-r border-accent/20" @click="deleteCard = null">
+            <text>取消</text>
+          </view>
+          <view
+            class="flex-1 py-3 text-center text-sm font-medium text-white"
+            style="background-color:#C41E3A"
+            @click="handleDelete"
+          >
+            <text>{{ deleting ? '解除中...' : '确认解除' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+
+// 类型定义
+interface BankCardForm {
+  cardNumber: string
+  holderName: string
+  bankCode: string
+  idCard: string
+  phone: string
+  verifyCode: string
+}
+
+interface BankCard {
+  id: number
+  bankName: string
+  bankCode: string
+  cardNumber: string
+  holderName: string
+  cardType: 'debit' | 'credit'
+  isDefault: boolean
+  bindTime: string
+}
+
+// 支持的银行列表
+const SUPPORTED_BANKS = [
+  { code: 'icbc', name: '中国工商银行', color: '#C41E3A' },
+  { code: 'abc', name: '中国农业银行', color: '#2E7D32' },
+  { code: 'ccb', name: '中国建设银行', color: '#1565C0' },
+  { code: 'boc', name: '中国银行', color: '#BF360C' },
+  { code: 'bocom', name: '交通银行', color: '#1565C0' },
+  { code: 'cmb', name: '招商银行', color: '#C41E3A' },
+  { code: 'cib', name: '兴业银行', color: '#1565C0' },
+  { code: 'spdb', name: '浦发银行', color: '#1565C0' },
+  { code: 'ceb', name: '中国光大银行', color: '#C41E3A' },
+  { code: 'psbc', name: '中国邮政储蓄银行', color: '#2E7D32' },
+]
+
+// 银行卡渐变
+function getBankGradient(bankCode: string): string {
+  const gradients: Record<string, string> = {
+    icbc: 'linear-gradient(135deg, #C41E3A 0%, #A01830 100%)',
+    abc: 'linear-gradient(135deg, #2E7D32 0%, #66BB6A 100%)',
+    ccb: 'linear-gradient(135deg, #1565C0 0%, #42A5F5 100%)',
+    boc: 'linear-gradient(135deg, #BF360C 0%, #FF7043 100%)',
+    bocom: 'linear-gradient(135deg, #1565C0 0%, #64B5F6 100%)',
+    cmb: 'linear-gradient(135deg, #C41E3A 0%, #E74C3C 100%)',
+    cib: 'linear-gradient(135deg, #1565C0 0%, #42A5F5 100%)',
+    spdb: 'linear-gradient(135deg, #1565C0 0%, #64B5F6 100%)',
+    ceb: 'linear-gradient(135deg, #C41E3A 0%, #E74C3C 100%)',
+    psbc: 'linear-gradient(135deg, #2E7D32 0%, #66BB6A 100%)',
+  }
+  return gradients[bankCode] || 'linear-gradient(135deg, #2C3E50 0%, #3498DB 100%)'
+}
+
+// 状态
+const loading = ref(true)
+const error = ref<string | null>(null)
+const cards = ref<BankCard[]>([])
+const showAddSheet = ref(false)
+const submitting = ref(false)
+const countdown = ref(0)
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+const formData = ref<BankCardForm>({
+  cardNumber: '',
+  holderName: '',
+  bankCode: '',
+  idCard: '',
+  phone: '',
+  verifyCode: '',
+})
+
+const deleteCard = ref<BankCard | null>(null)
+const deleting = ref(false)
+const openMenuCardId = ref<number | null>(null)
+
+const canSubmit = computed(() =>
+  formData.value.cardNumber.replace(/\s/g, '').length >= 15 &&
+  formData.value.holderName &&
+  formData.value.bankCode &&
+  formData.value.idCard &&
+  formData.value.phone &&
+  formData.value.verifyCode
+)
+
+// 格式化卡号输入
+function onCardNumberInput(e: any) {
+  const value = e.detail.value
+  const numbers = value.replace(/\D/g, '')
+  const groups = numbers.match(/.{1,4}/g) || []
+  formData.value.cardNumber = groups.join(' ').substring(0, 23)
+}
+
+// 格式化卡号展示
+function formatCardDisplay(num: string): string {
+  const numbers = num.replace(/\s/g, '')
+  if (numbers.length < 8) return numbers
+  return '**** **** **** ' + numbers.slice(-4)
+}
+
+function getCardLast4(num: string): string {
+  return num.replace(/\s/g, '').slice(-4)
+}
+
+// 银行选择
+function onBankChange(e: any) {
+  const idx = e.detail.value
+  const bank = SUPPORTED_BANKS[idx]
+  if (bank) {
+    formData.value.bankCode = bank.code
+  }
+}
+
+// 发送验证码
+function handleSendCode() {
+  if (!formData.value.phone || formData.value.phone.length !== 11 || countdown.value > 0) return
+  countdown.value = 60
+  countdownTimer = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0 && countdownTimer) {
+      clearInterval(countdownTimer)
+      countdownTimer = null
+    }
+  }, 1000)
+  uni.showToast({ title: '验证码已发送', icon: 'success' })
+}
+
+// 切换卡片菜单
+function toggleCardMenu(cardId: number) {
+  openMenuCardId.value = openMenuCardId.value === cardId ? null : cardId
+}
+
+// 设为默认
+function handleSetDefault(cardId: number) {
+  cards.value = cards.value.map(c => ({ ...c, isDefault: c.id === cardId }))
+  openMenuCardId.value = null
+  uni.showToast({ title: '已设为默认', icon: 'success' })
+}
+
+// 删除确认
+function handleDeleteConfirm(card: BankCard) {
+  deleteCard.value = card
+  openMenuCardId.value = null
+}
+
+// 删除银行卡
+function handleDelete() {
+  if (!deleteCard.value) return
+  deleting.value = true
+  setTimeout(() => {
+    cards.value = cards.value.filter(c => c.id !== deleteCard.value!.id)
+    deleteCard.value = null
+    deleting.value = false
+    uni.showToast({ title: '已解除绑定', icon: 'success' })
+  }, 500)
+}
+
+// 添加银行卡
+function handleAddCard() {
+  if (!canSubmit.value || submitting.value) return
+  submitting.value = true
+  setTimeout(() => {
+    const newCard: BankCard = {
+      id: Date.now(),
+      bankName: SUPPORTED_BANKS.find(b => b.code === formData.value.bankCode)?.name || '',
+      bankCode: formData.value.bankCode,
+      cardNumber: formData.value.cardNumber,
+      holderName: formData.value.holderName,
+      cardType: 'debit',
+      isDefault: cards.value.length === 0,
+      bindTime: new Date().toISOString().slice(0, 10),
+    }
+    cards.value.push(newCard)
+    showAddSheet.value = false
+    formData.value = { cardNumber: '', holderName: '', bankCode: '', idCard: '', phone: '', verifyCode: '' }
+    submitting.value = false
+    uni.showToast({ title: '绑定成功', icon: 'success' })
+  }, 1000)
+}
+
+function reloadPage() {
+  error.value = null
+  loading.value = true
+  setTimeout(() => {
+    loading.value = false
+    uni.showToast({ title: '刷新成功', icon: 'success' })
+  }, 300)
+}
+
+function goBack() {
+  openMenuCardId.value = null
+  uni.navigateBack()
+}
+
+onMounted(() => {
+  setTimeout(() => {
+    cards.value = [
+      { id: 1, bankName: '中国工商银行', bankCode: 'icbc', cardNumber: '6222021234567890', holderName: '张三', cardType: 'debit', isDefault: true, bindTime: '2024-01-15' },
+      { id: 2, bankName: '招商银行', bankCode: 'cmb', cardNumber: '6225881234567891', holderName: '张三', cardType: 'debit', isDefault: false, bindTime: '2024-03-20' },
+    ]
+    loading.value = false
+  }, 500)
+})
+
+onUnmounted(() => {
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+  }
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

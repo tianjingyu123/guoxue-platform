@@ -1,0 +1,314 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-20 bg-white border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view class="flex items-center gap-3">
+          <view @click="goBack" class="p-1"><text class="text-xl text-[#2C2C2C]">←</text></view>
+          <text class="font-semibold text-[#2C2C2C]">消息中心</text>
+        </view>
+        <view v-if="currentUnread > 0" @click="markAllRead" class="text-sm text-[#C41E3A] flex items-center gap-1">
+          <text class="text-xs">✓✓</text>
+          <text>{{ markingAllRead ? '处理中...' : '全部已读' }}</text>
+        </view>
+      </view>
+
+      <!-- 分类Tab -->
+      <view class="flex border-b border-[#E8E0D5] overflow-x-auto">
+        <view
+          v-for="tab in messageTabs"
+          :key="tab.key"
+          @click="switchTab(tab.key)"
+          :class="['flex-1 min-w-[80px] flex flex-col items-center gap-1 py-3 relative transition-colors', activeTab === tab.key ? 'text-[#C41E3A]' : 'text-[#999]']"
+        >
+          <view class="relative">
+            <text>{{ tab.icon }}</text>
+            <text v-if="getUnreadCount(tab.key) > 0" class="absolute -top-1 -right-2 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+              {{ getUnreadCount(tab.key) > 99 ? '99+' : getUnreadCount(tab.key) }}
+            </text>
+          </view>
+          <text class="text-xs">{{ tab.label }}</text>
+          <view v-if="activeTab === tab.key" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-[#C41E3A] rounded-full" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="p-4 space-y-4">
+      <view v-for="i in 5" :key="i" class="flex gap-3">
+        <view class="w-10 h-10 rounded-full bg-[#F0EBE5] shrink-0 animate-pulse" />
+        <view class="flex-1 space-y-2">
+          <view class="h-4 w-1/3 bg-[#F0EBE5] rounded animate-pulse" />
+          <view class="h-4 w-full bg-[#F0EBE5] rounded animate-pulse" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="flex flex-col items-center py-20">
+      <text class="text-5xl text-[#ccc] block mb-4">😵</text>
+      <text class="text-sm text-[#999] mb-4">{{ error }}</text>
+      <view class="px-6 py-2 bg-[#C41E3A] text-white rounded-full text-sm" hover-class="opacity-80" @click="loadMessages">
+        <text>重新加载</text>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view v-else-if="filteredMessages.length === 0" class="text-center py-20">
+      <text class="text-5xl text-[#E8E0D5] block mb-3">📭</text>
+      <text class="text-sm text-[#999]">当前分类下没有消息</text>
+    </view>
+
+    <!-- 消息列表 -->
+    <view v-else class="divide-y divide-[#E8E0D5]/30">
+      <view
+        v-for="msg in filteredMessages"
+        :key="msg.id"
+        @click="handleRead(msg)"
+        :class="['flex gap-3 p-4 active:bg-gray-50 transition-colors', !msg.isRead ? 'bg-[#C41E3A]/[0.02]' : '']"
+      >
+        <!-- 图标/头像 -->
+        <view class="relative w-11 h-11 rounded-full flex items-center justify-center shrink-0" :style="{ backgroundColor: getCategoryIconBg(msg.type, msg.category) }">
+          <!-- 有头像时显示头像 -->
+          <image v-if="msg.avatarUrl" :src="msg.avatarUrl" mode="aspectFill" class="w-11 h-11 rounded-full absolute inset-0" />
+          <!-- 无头像时显示图标 -->
+          <text v-else class="text-base" :style="{ color: getCategoryIconColor(msg.type, msg.category) }">{{ getCategoryIcon(msg.type, msg.category) }}</text>
+          <!-- 未读红点 -->
+          <text v-if="!msg.isRead" class="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white" />
+        </view>
+
+        <!-- 内容 -->
+        <view class="flex-1 min-w-0">
+          <view class="flex items-start justify-between gap-2">
+            <view class="flex items-center gap-2 min-w-0">
+              <text :class="['text-sm truncate', !msg.isRead ? 'font-medium text-[#2C2C2C]' : 'text-[#999]']">{{ msg.title }}</text>
+              <text class="text-[10px] px-1.5 py-0.5 rounded shrink-0" :style="{ backgroundColor: getCategoryBadgeBg(msg.category), color: getCategoryBadgeColor(msg.category) }">{{ msg.category }}</text>
+            </view>
+            <text class="text-xs text-[#999] shrink-0 whitespace-nowrap">{{ msg.time }}</text>
+          </view>
+          <text :class="['text-sm mt-1 line-clamp-2 block', !msg.isRead ? 'text-[#2C2C2C]' : 'text-[#999]']">{{ msg.content }}</text>
+        </view>
+      </view>
+
+      <!-- 底部提示 -->
+      <view class="py-6 text-center">
+        <text class="text-xs text-[#ccc]">— 已显示全部消息 —</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+// 消息类型
+type MessageType = 'system' | 'interaction' | 'transaction' | 'service'
+
+// 消息未读计数
+interface MessageUnreadCounts {
+  system: number
+  interaction: number
+  transaction: number
+  service: number
+  total: number
+}
+
+interface Message {
+  id: number
+  type: MessageType
+  category: string
+  title: string
+  content: string
+  time: string
+  isRead: boolean
+  link?: string
+  avatarUrl?: string
+}
+
+const messageTabs = [
+  { key: 'system' as MessageType, label: '系统通知', icon: '🔔' },
+  { key: 'interaction' as MessageType, label: '互动消息', icon: '❤️' },
+  { key: 'transaction' as MessageType, label: '交易消息', icon: '💳' },
+  { key: 'service' as MessageType, label: '客服消息', icon: '🎧' },
+]
+
+const allMessages: Message[] = [
+  // 系统通知
+  { id: 1, type: 'system', category: '直播', title: '直播提醒', content: '您关注的"周易六十四卦精讲"即将开始，请准时参加。', time: '10:30', isRead: false, link: '/pages/live/room?id=101' },
+  { id: 2, type: 'system', category: '课程', title: '课程更新', content: '您的课程"八字命理入门"已更新第12课：大运流年分析实战。', time: '昨天', isRead: false, link: '/pages/courses/detail?id=1' },
+  { id: 10, type: 'system', category: '系统', title: '系统维护通知', content: '平台将于明日凌晨2:00-5:00进行系统维护升级，届时部分服务将暂停使用。', time: '前天', isRead: true },
+  // 互动消息
+  { id: 3, type: 'interaction', category: '点赞', title: '收到点赞', content: '张三赞了您的评论："说得好！非常认同您的观点。"', time: '昨天', isRead: true },
+  { id: 4, type: 'interaction', category: '评论', title: '收到评论', content: '李四回复了您的帖子："老师讲得很好！期待更多精彩内容。"', time: '前天', isRead: true, link: '/pages/mine/posts/detail?id=12' },
+  { id: 5, type: 'interaction', category: '关注', title: '新粉丝', content: '王五关注了您，成为您的第108位粉丝。', time: '2024-01-16', isRead: false },
+  { id: 11, type: 'interaction', category: '@我', title: '有人提到您', content: '赵六在帖子中提到了您："@国学大师 来点评一下这个八字格局"', time: '2024-01-15', isRead: false },
+  // 交易消息
+  { id: 6, type: 'transaction', category: '订单', title: '购买成功', content: '您购买的"紫微斗数精讲班"已支付成功，共¥399。点击查看订单详情。', time: '2024-01-15', isRead: true, link: '/pages/orders/detail?id=O20240115001' },
+  { id: 7, type: 'transaction', category: '退款', title: '退款已处理', content: '订单"八字命理课程"退款已处理，¥299将原路返回，请留意查收。', time: '2024-01-14', isRead: true },
+  { id: 12, type: 'transaction', category: '收益', title: '收益到账提醒', content: '您的课程收益¥128.50已转入可提现余额，可在钱包中查看。', time: '2024-01-13', isRead: false },
+  // 客服消息
+  { id: 8, type: 'service', category: '客服', title: '客服回复', content: '您关于课程播放问题的反馈已收到回复："您好，建议您尝试切换网络或清除缓存后重试。"', time: '2024-01-14', isRead: true },
+  { id: 9, type: 'service', category: '客服', title: '工单处理进度', content: '您反馈的支付异常问题已解决，请确认是否恢复正常。如有疑问请联系在线客服。', time: '2024-01-13', isRead: true },
+  { id: 13, type: 'service', category: '客服', title: '服务评价邀请', content: '您与客服的对话已结束，请对我们的服务进行评价，您的反馈将帮助我们持续改进。', time: '2024-01-12', isRead: false },
+]
+
+const activeTab = ref<MessageType>('system')
+const loading = ref(false)
+const error = ref<string | null>(null)
+const markingAllRead = ref(false)
+const messages = ref<Message[]>([])
+
+// 加载消息
+function loadMessages() {
+  loading.value = true
+  error.value = null
+  setTimeout(() => {
+    messages.value = [...allMessages]
+    loading.value = false
+  }, 300)
+}
+
+// 初始化
+loadMessages()
+
+// 切换Tab
+function switchTab(key: MessageType) {
+  activeTab.value = key
+}
+
+// 未读计数
+const unreadCounts = computed<MessageUnreadCounts>(() => {
+  const counts: MessageUnreadCounts = { system: 0, interaction: 0, transaction: 0, service: 0, total: 0 }
+  messages.value.forEach(m => {
+    if (!m.isRead) {
+      counts[m.type] = (counts[m.type] || 0) + 1
+      counts.total++
+    }
+  })
+  return counts
+})
+
+const currentUnread = computed(() => unreadCounts.value[activeTab.value] || 0)
+
+const filteredMessages = computed(() => messages.value.filter(m => m.type === activeTab.value))
+
+function getUnreadCount(key: string): number {
+  return unreadCounts.value[key as MessageType] || 0
+}
+
+// 分类图标颜色（V0风格 — 带颜色区分的图标前景色）
+function getCategoryIconColor(type: MessageType, category: string): string {
+  const map: Record<string, string> = {
+    'interaction-评论': '#3B82F6',
+    'interaction-点赞': '#EF4444',
+    'interaction-关注': '#22C55E',
+    'interaction-@我': '#EC4899',
+    'system-直播': '#A855F7',
+    'system-课程': '#3B82F6',
+    'system-系统': '#F59E0B',
+    'transaction-订单': '#22C55E',
+    'transaction-退款': '#F97316',
+    'transaction-收益': '#10B981',
+    'service-客服': '#C41E3A',
+  }
+  return map[`${type}-${category}`] || '#999'
+}
+
+// 分类图标背景色
+function getCategoryIconBg(type: MessageType, category: string): string {
+  const map: Record<string, string> = {
+    'interaction-评论': '#EFF6FF',
+    'interaction-点赞': '#FDF2F8',
+    'interaction-关注': '#F0FDF4',
+    'interaction-@我': '#FDF2F8',
+    'system-直播': '#FAF5FF',
+    'system-课程': '#EFF6FF',
+    'system-系统': '#FEF3C7',
+    'transaction-订单': '#F0FDF4',
+    'transaction-退款': '#FFF7ED',
+    'transaction-收益': '#ECFDF5',
+    'service-客服': 'rgba(196,30,58,0.1)',
+  }
+  return map[`${type}-${category}`] || '#F3F4F6'
+}
+
+// 分类标签背景色
+function getCategoryBadgeBg(category: string): string {
+  const map: Record<string, string> = {
+    '直播': '#FAF5FF',
+    '课程': '#EFF6FF',
+    '系统': '#FEF3C7',
+    '点赞': '#FDF2F8',
+    '评论': '#EFF6FF',
+    '关注': '#F0FDF4',
+    '@我': '#FDF2F8',
+    '订单': '#F0FDF4',
+    '退款': '#FFF7ED',
+    '收益': '#ECFDF5',
+    '客服': 'rgba(196,30,58,0.08)',
+  }
+  return map[category] || '#F3F4F6'
+}
+
+// 分类标签文字色
+function getCategoryBadgeColor(category: string): string {
+  const map: Record<string, string> = {
+    '直播': '#A855F7',
+    '课程': '#3B82F6',
+    '系统': '#D97706',
+    '点赞': '#EF4444',
+    '评论': '#3B82F6',
+    '关注': '#22C55E',
+    '@我': '#EC4899',
+    '订单': '#22C55E',
+    '退款': '#F97316',
+    '收益': '#10B981',
+    '客服': '#C41E3A',
+  }
+  return map[category] || '#999'
+}
+
+// 分类图标（使用 emoji 映射）
+function getCategoryIcon(type: MessageType, category: string): string {
+  const icons: Record<string, Record<string, string>> = {
+    interaction: { '评论': '💬', '点赞': '👍', '关注': '👤', '@我': '@' },
+    system: { '直播': '🎁', '课程': '🔔', '系统': '⚙️' },
+    transaction: { '订单': '🛒', '退款': '🔄', '收益': '💰' },
+    service: { '客服': '🎧' },
+  }
+  return icons[type]?.[category] || '🔔'
+}
+
+function handleRead(msg: Message) {
+  if (!msg.isRead) {
+    // 标记已读
+    messages.value = messages.value.map(m =>
+      m.id === msg.id ? { ...m, isRead: true } : m
+    )
+  }
+  // 有链接则跳转
+  if (msg.link) {
+    uni.navigateTo({ url: msg.link })
+  }
+}
+
+function markAllRead() {
+  markingAllRead.value = true
+  setTimeout(() => {
+    // 将当前分类下所有消息标记已读
+    messages.value = messages.value.map(m =>
+      m.type === activeTab.value ? { ...m, isRead: true } : m
+    )
+    markingAllRead.value = false
+    uni.showToast({ title: '已全部标为已读', icon: 'success' })
+  }, 300)
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

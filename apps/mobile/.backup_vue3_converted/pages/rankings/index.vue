@@ -1,0 +1,243 @@
+<template>
+  <view class="min-h-screen bg-background pb-20">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+      <view class="flex items-center px-4 h-12">
+        <view @click="goBack" class="p-1 mr-3"><text class="text-white text-xl">←</text></view>
+        <view class="flex items-center gap-2">
+          <text class="text-lg"></text>
+          <text class="font-medium">热卜榜单</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 分类Tab -->
+    <view class="sticky top-12 z-40 bg-white border-b border-border">
+      <scroll-view scroll-x class="flex whitespace-nowrap">
+        <view
+          v-for="cat in categories"
+          :key="cat.id"
+          @click="activeCategory = cat.id"
+          :class="['inline-flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2', activeCategory === cat.id ? 'text-amber-600 border-amber-500' : 'text-muted-foreground border-transparent']"
+        >
+          <text class="text-sm">{{ cat.icon }}</text>
+          <text>{{ cat.label }}</text>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 时间筛选 -->
+    <view class="px-4 py-3 flex justify-end">
+      <view class="flex items-center gap-1 bg-secondary rounded-full p-0.5">
+        <view
+          v-for="item in timeRanges"
+          :key="item.id"
+          @click="timeRange = item.id"
+          :class="['px-3 py-1 text-xs rounded-full', timeRange === item.id ? 'bg-amber-500 text-white' : 'text-muted-foreground']"
+        >
+          <text>{{ item.label }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 排行榜内容 -->
+    <view class="px-4 space-y-3">
+      <!-- 圈子榜 -->
+      <view v-if="activeCategory === 'circles'">
+        <view v-for="(item, index) in circleRanks" :key="item.id" :class="['bg-white rounded-xl p-4', index < 3 ? 'border border-amber-200 bg-amber-50/50' : '']">
+          <view class="flex items-center gap-3">
+            <view :class="['w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm', getRankStyle(index + 1)]">
+              <text>{{ index + 1 }}</text>
+            </view>
+            <view class="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
+              <text class="text-lg">{{ item.name[0] }}</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="text-sm font-medium text-foreground truncate block">{{ item.name }}</text>
+              <text class="text-xs text-muted-foreground">圈主：{{ item.owner }}</text>
+            </view>
+            <view class="text-right">
+              <text class="font-bold text-amber-600 block">{{ (item.members / 1000).toFixed(1) }}k</text>
+              <text class="text-[10px] text-green-500">+{{ item.growth }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 创作者榜 -->
+      <view v-if="activeCategory === 'creators'">
+        <view v-for="(item, index) in creatorRanks" :key="item.id" :class="['bg-white rounded-xl p-4', index < 3 ? 'border border-amber-200 bg-amber-50/50' : '']">
+          <view class="flex items-center gap-3">
+            <view :class="['w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm', getRankStyle(index + 1)]">
+              <text>{{ index + 1 }}</text>
+            </view>
+            <view class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <text class="text-lg text-primary">{{ item.name[0] }}</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="text-sm font-medium text-foreground block">{{ item.name }}</text>
+              <text class="text-xs text-muted-foreground">{{ item.title }}</text>
+              <view class="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
+                <text class="flex items-center gap-0.5"> {{ (item.followers / 1000).toFixed(1) }}k</text>
+                <text class="flex items-center gap-0.5"> {{ (item.likes / 1000).toFixed(1) }}k</text>
+                <text class="flex items-center gap-0.5"> {{ item.articles }}篇</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 课程榜 -->
+      <view v-if="activeCategory === 'courses'">
+        <view v-for="(item, index) in courseRanks" :key="item.id" :class="['bg-white rounded-xl p-4', index < 3 ? 'border border-amber-200 bg-amber-50/50' : '']">
+          <view class="flex items-center gap-3">
+            <view :class="['w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm', getRankStyle(index + 1)]">
+              <text>{{ index + 1 }}</text>
+            </view>
+            <view class="w-16 h-12 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+              <text class="text-lg text-muted-foreground"></text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="text-sm font-medium text-foreground truncate block">{{ item.name }}</text>
+              <text class="text-xs text-muted-foreground">{{ item.teacher }}</text>
+              <view class="flex items-center gap-2 mt-1">
+                <text class="text-[10px] text-muted-foreground">{{ item.students }}人学习</text>
+                <text class="flex items-center gap-0.5 text-[10px] text-amber-500"> {{ item.rating }}</text>
+              </view>
+            </view>
+            <text class="font-bold text-primary">¥{{ item.price }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 商品榜 -->
+      <view v-if="activeCategory === 'products'">
+        <view v-for="(item, index) in productRanks" :key="item.id" :class="['bg-white rounded-xl p-4', index < 3 ? 'border border-amber-200 bg-amber-50/50' : '']">
+          <view class="flex items-center gap-3">
+            <view :class="['w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm', getRankStyle(index + 1)]">
+              <text>{{ index + 1 }}</text>
+            </view>
+            <view class="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+              <text class="text-lg text-muted-foreground"></text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="text-sm font-medium text-foreground truncate block">{{ item.name }}</text>
+              <view class="flex items-center gap-2 mt-1">
+                <text class="text-[10px] text-muted-foreground">{{ item.sales }}人购买</text>
+                <text class="flex items-center gap-0.5 text-[10px] text-amber-500"> {{ item.rating }}</text>
+              </view>
+            </view>
+            <text class="font-bold text-primary">¥{{ item.price }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 新星榜 -->
+      <view v-if="activeCategory === 'rising'">
+        <view v-for="(item, index) in risingRanks" :key="item.id" :class="['bg-white rounded-xl p-4', index < 3 ? 'border border-amber-200 bg-amber-50/50' : '']">
+          <view class="flex items-center gap-3">
+            <view :class="['w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm', getRankStyle(index + 1)]">
+              <text>{{ index + 1 }}</text>
+            </view>
+            <view class="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
+              <text class="text-lg text-green-600">{{ item.name[0] }}</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-2">
+                <text class="text-sm font-medium text-foreground">{{ item.name }}</text>
+                <view class="bg-green-500/10 text-green-600 text-[10px] px-1 py-0.5 rounded flex items-center gap-0.5">
+                  <text class="text-xs"></text>
+                  <text>新星</text>
+                </view>
+              </view>
+              <text class="text-xs text-muted-foreground">入驻{{ item.joinDays }}天</text>
+            </view>
+            <view class="text-right">
+              <text class="font-bold text-green-600 block">+{{ item.growth }}</text>
+              <text class="text-[10px] text-muted-foreground">{{ item.followers }}粉丝</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const categories = [
+  { id: 'circles', label: '圈子榜', icon: '' },
+  { id: 'creators', label: '创作者榜', icon: '👑' },
+  { id: 'courses', label: '课程榜', icon: '' },
+  { id: 'products', label: '商品榜', icon: '' },
+  { id: 'rising', label: '新星榜', icon: '📈' },
+]
+
+const timeRanges = [
+  { id: 'week', label: '本周' },
+  { id: 'month', label: '本月' },
+  { id: 'total', label: '总榜' },
+]
+
+const activeCategory = ref('circles')
+const timeRange = ref<'week' | 'month' | 'total'>('week')
+
+// 圈子排行
+const circleRanks = [
+  { id: 1, name: '八字命理研习社', members: 12680, growth: 1280, owner: '张道源' },
+  { id: 2, name: '紫微斗数交流圈', members: 9856, growth: 856, owner: '李易卿' },
+  { id: 3, name: '风水堪舆实战派', members: 8234, growth: 623, owner: '王文昌' },
+  { id: 4, name: '易经智慧学堂', members: 7156, growth: 512, owner: '陈玄风' },
+  { id: 5, name: '六爻预测研究会', members: 6023, growth: 389, owner: '周易安' },
+]
+
+// 创作者排行
+const creatorRanks = [
+  { id: 1, name: '张道源', title: '八字命理专家', followers: 28600, likes: 156800, articles: 326 },
+  { id: 2, name: '李易卿', title: '紫微斗数研究员', followers: 21500, likes: 128600, articles: 245 },
+  { id: 3, name: '王文昌', title: '风水堪舆大师', followers: 18900, likes: 98500, articles: 189 },
+  { id: 4, name: '陈玄风', title: '易经学者', followers: 15600, likes: 86200, articles: 156 },
+  { id: 5, name: '周易安', title: '六爻占卜师', followers: 12800, likes: 72300, articles: 128 },
+]
+
+// 课程排行
+const courseRanks = [
+  { id: 1, name: '八字入门到精通', teacher: '张道源', students: 12680, rating: 4.9, price: 299 },
+  { id: 2, name: '紫微斗数实战班', teacher: '李易卿', students: 8956, rating: 4.8, price: 399 },
+  { id: 3, name: '阳宅风水精讲', teacher: '王文昌', students: 7234, rating: 4.9, price: 499 },
+  { id: 4, name: '易经六十四卦详解', teacher: '陈玄风', students: 6156, rating: 4.7, price: 199 },
+  { id: 5, name: '六爻预测从零开始', teacher: '周易安', students: 5023, rating: 4.8, price: 249 },
+]
+
+// 商品排行
+const productRanks = [
+  { id: 1, name: '滴天髓精解', sales: 3268, rating: 4.9, price: 68 },
+  { id: 2, name: '子平真诠评注', sales: 2856, rating: 4.8, price: 88 },
+  { id: 3, name: '专业排盘罗盘', sales: 2134, rating: 4.9, price: 298 },
+  { id: 4, name: '穷通宝鉴白话解', sales: 1956, rating: 4.7, price: 58 },
+  { id: 5, name: '三命通会全套', sales: 1623, rating: 4.8, price: 168 },
+]
+
+// 新星榜
+const risingRanks = [
+  { id: 1, name: '小易说命理', joinDays: 30, followers: 3680, growth: 2800 },
+  { id: 2, name: '玄学新视角', joinDays: 45, followers: 2856, growth: 2100 },
+  { id: 3, name: '紫微探秘', joinDays: 28, followers: 2234, growth: 1800 },
+  { id: 4, name: '易学入门君', joinDays: 35, followers: 1956, growth: 1500 },
+  { id: 5, name: '风水小课堂', joinDays: 42, followers: 1623, growth: 1200 },
+]
+
+function getRankStyle(rank: number): string {
+  if (rank === 1) return 'bg-amber-500 text-white'
+  if (rank === 2) return 'bg-gray-400 text-white'
+  if (rank === 3) return 'bg-amber-700 text-white'
+  return 'bg-secondary text-muted-foreground'
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

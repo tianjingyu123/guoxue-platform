@@ -1,0 +1,417 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-20">
+    <!-- 骨架屏 -->
+    <view v-if="isLoading" class="min-h-screen bg-[#FAF8F5]">
+      <view class="h-14 bg-white" />
+      <view class="p-4 space-y-4">
+        <view class="h-10 bg-white rounded-lg animate-pulse" />
+        <view class="grid grid-cols-2 gap-3">
+          <view v-for="i in 4" :key="i" class="h-24 bg-white rounded-xl animate-pulse" />
+        </view>
+        <view class="space-y-3">
+          <view v-for="i in 3" :key="i" class="h-20 bg-white rounded-xl animate-pulse" />
+        </view>
+      </view>
+    </view>
+
+    <template v-else>
+      <!-- 导航栏 -->
+      <view class="sticky top-0 z-40 bg-white border-b border-[#E8E0D5]">
+        <view class="flex items-center h-14 px-4">
+          <view @click="goBack" class="p-2 -ml-2"><text class="text-xl text-[#2C2C2C]">←</text></view>
+          <text class="flex-1 text-center font-semibold text-[#2C2C2C]">圈子管理</text>
+          <view class="w-9" />
+        </view>
+
+        <!-- Tab栏 -->
+        <view class="flex border-t border-[#E8E0D5] relative">
+          <view v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key"
+            class="flex-1 flex flex-col items-center gap-1 py-3 text-xs transition-colors"
+            :class="activeTab === tab.key ? 'text-[#C41E3A]' : 'text-[#666]'">
+            <text>{{ tab.icon }}</text>
+            <text>{{ tab.label }}</text>
+            <view v-if="activeTab === tab.key" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-[#C41E3A] rounded-full" />
+          </view>
+        </view>
+      </view>
+
+      <view class="p-4">
+        <!-- 概览Tab -->
+        <view v-if="activeTab === 'overview' && stats" class="space-y-4">
+          <!-- 统计卡片 -->
+          <view class="grid grid-cols-2 gap-3">
+            <view class="bg-white rounded-xl p-4 shadow-sm">
+              <text class="text-2xl font-bold text-[#C41E3A] block">{{ formatNumber(stats.totalMembers) }}</text>
+              <text class="text-xs text-[#666] mt-1 block">总成员数</text>
+              <text class="text-xs text-green-500 mt-1 block">+{{ stats.newMembersToday }} 今日新增</text>
+            </view>
+            <view class="bg-white rounded-xl p-4 shadow-sm">
+              <text class="text-2xl font-bold text-[#C9A96E] block">{{ formatNumber(stats.totalPosts) }}</text>
+              <text class="text-xs text-[#666] mt-1 block">总帖子数</text>
+              <text class="text-xs text-green-500 mt-1 block">+{{ stats.newPostsToday }} 今日新增</text>
+            </view>
+            <view class="bg-white rounded-xl p-4 shadow-sm">
+              <text class="text-2xl font-bold text-[#2C2C2C] block">{{ formatNumber(stats.activeMembers) }}</text>
+              <text class="text-xs text-[#666] mt-1 block">活跃成员</text>
+            </view>
+            <view class="bg-white rounded-xl p-4 shadow-sm">
+              <text class="text-2xl font-bold text-[#2C2C2C] block">{{ stats.essencePosts }}</text>
+              <text class="text-xs text-[#666] mt-1 block">精华帖子</text>
+            </view>
+          </view>
+
+          <!-- 公告编辑 -->
+          <view class="bg-white rounded-xl p-4 shadow-sm">
+            <view class="flex items-center justify-between mb-3">
+              <view class="flex items-center gap-2">
+                <text class="text-[#C9A96E] text-base">🔔</text>
+                <text class="font-medium text-[#2C2C2C] text-sm">圈子公告</text>
+              </view>
+              <view @click="handleSaveAnnouncement"
+                class="flex items-center gap-1 px-3 py-1.5 bg-[#C41E3A] text-white text-xs rounded-full">
+                <text class="text-xs">💾</text>
+                <text>{{ saving ? '保存中...' : '保存' }}</text>
+              </view>
+            </view>
+            <textarea v-model="announcement" placeholder="输入圈子公告..."
+              class="w-full h-24 p-3 bg-[#FAF8F5] rounded-lg text-sm resize-none outline-none" />
+          </view>
+        </view>
+
+        <!-- 成员Tab -->
+        <view v-if="activeTab === 'members'" class="space-y-3">
+          <!-- 搜索 -->
+          <view class="relative">
+            <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#999]">🔍</text>
+            <input v-model="memberKeyword" type="text" placeholder="搜索成员"
+              class="w-full h-10 pl-10 pr-4 bg-white rounded-lg text-sm outline-none" />
+          </view>
+
+          <!-- 成员列表 -->
+          <view v-for="member in filteredMembers" :key="member.id" class="bg-white rounded-xl p-4 shadow-sm">
+            <view class="flex items-center gap-3">
+              <view class="relative">
+                <image :src="member.avatar" mode="aspectFill" class="w-12 h-12 rounded-full object-cover" />
+                <view v-if="member.role === 'owner'" class="absolute -top-1 -right-1 w-5 h-5 bg-[#C9A96E] rounded-full flex items-center justify-center">
+                  <text class="text-white text-xs">👑</text>
+                </view>
+                <view v-if="member.role === 'admin'" class="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                  <text class="text-white text-xs">🛡</text>
+                </view>
+              </view>
+              <view class="flex-1 min-w-0">
+                <view class="flex items-center gap-2">
+                  <text class="font-medium text-sm text-[#2C2C2C] truncate">{{ member.name }}</text>
+                  <text :class="['text-[10px] px-1.5 py-0.5 rounded', roleStyle(member.role)]">
+                    {{ member.role === 'owner' ? '圈主' : member.role === 'admin' ? '管理员' : '成员' }}
+                  </text>
+                </view>
+                <text class="text-xs text-[#999] mt-1 block">发帖 {{ member.posts }} · 加入于 {{ member.joinedAt }}</text>
+              </view>
+
+              <view v-if="member.role !== 'owner'" class="relative" @click.stop>
+                <view @click="toggleMemberMenu(member.id)" class="p-2 rounded-full active:bg-[#FAF8F5]">
+                  <text class="text-[#666]">⋮</text>
+                </view>
+                <view v-if="activeMemberMenu === member.id" class="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-[#E8E0D5] py-1 min-w-[120px] z-10">
+                  <view v-if="member.role === 'member'" @click="openConfirm('setAdmin', member.id, member.name)"
+                    class="px-4 py-2 text-sm text-[#2C2C2C] active:bg-[#FAF8F5]">设为管理员</view>
+                  <view v-else @click="openConfirm('removeAdmin', member.id, member.name)"
+                    class="px-4 py-2 text-sm text-[#2C2C2C] active:bg-[#FAF8F5]">取消管理员</view>
+                  <view @click="openConfirm('remove', member.id, member.name)"
+                    class="px-4 py-2 text-sm text-red-500 active:bg-red-50">移出圈子</view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 帖子Tab -->
+        <view v-if="activeTab === 'posts'" class="space-y-3">
+          <view v-for="post in posts" :key="post.id" class="bg-white rounded-xl p-4 shadow-sm">
+            <view class="flex items-start gap-3">
+              <image :src="post.author.avatar" mode="aspectFill" class="w-10 h-10 rounded-full object-cover" />
+              <view class="flex-1 min-w-0">
+                <view class="flex items-center gap-2 flex-wrap">
+                  <text class="font-medium text-sm text-[#2C2C2C]">{{ post.author.name }}</text>
+                  <text v-if="post.isPinned" class="text-[10px] px-1.5 py-0.5 rounded" style="background:rgba(196,30,58,0.1);color:#C41E3A">置顶</text>
+                  <text v-if="post.isEssence" class="text-[10px] px-1.5 py-0.5 rounded" style="background:rgba(201,169,110,0.1);color:#C9A96E">精华</text>
+                </view>
+                <text class="text-sm text-[#2C2C2C] mt-1 line-clamp-2 block">{{ post.content }}</text>
+                <view class="flex items-center gap-4 mt-2 text-xs text-[#999]">
+                  <text>{{ post.likes }} 赞</text>
+                  <text>{{ post.comments }} 评论</text>
+                  <text>{{ post.createdAt }}</text>
+                </view>
+              </view>
+            </view>
+
+            <!-- 操作按钮 -->
+            <view class="flex items-center gap-2 mt-3 pt-3 border-t border-[#E8E0D5]">
+              <view @click="handleToggleTop(post.id)"
+                class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs transition-colors"
+                :class="post.isPinned ? 'bg-[#C41E3A] text-white' : 'bg-[#FAF8F5] text-[#666]'">
+                <text>📌</text>
+                <text>{{ post.isPinned ? '取消置顶' : '置顶' }}</text>
+              </view>
+              <view @click="handleToggleEssence(post.id)"
+                class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs transition-colors"
+                :class="post.isEssence ? 'bg-[#C9A96E] text-white' : 'bg-[#FAF8F5] text-[#666]'">
+                <text>⭐</text>
+                <text>{{ post.isEssence ? '取消精华' : '设为精华' }}</text>
+              </view>
+              <view @click="openConfirm('deletePost', post.id, post.content.slice(0, 20))"
+                class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs bg-red-50 text-red-500">
+                <text>🗑</text>
+                <text>删除</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 设置Tab -->
+        <view v-if="activeTab === 'settings' && circle" class="space-y-4">
+          <view class="bg-white rounded-xl p-4 shadow-sm">
+            <text class="font-medium text-[#2C2C2C] text-sm block mb-4">基本信息</text>
+            <view class="space-y-4">
+              <view>
+                <label class="block text-xs text-[#666] mb-1">圈子名称</label>
+                <input v-model="settingsForm.name" type="text"
+                  class="w-full h-10 px-3 bg-[#FAF8F5] rounded-lg text-sm outline-none" />
+              </view>
+              <view>
+                <label class="block text-xs text-[#666] mb-1">圈子简介</label>
+                <textarea v-model="settingsForm.description"
+                  class="w-full h-20 p-3 bg-[#FAF8F5] rounded-lg text-sm resize-none outline-none" />
+              </view>
+              <view>
+                <label class="block text-xs text-[#666] mb-1">圈子分类</label>
+                <picker :value="settingsForm.categoryIndex" :range="categoryOptions" @change="onCategoryChange" class="w-full h-10 px-3 bg-[#FAF8F5] rounded-lg text-sm flex items-center">
+                  <text>{{ categoryOptions[settingsForm.categoryIndex] }}</text>
+                </picker>
+              </view>
+            </view>
+          </view>
+
+          <view class="bg-white rounded-xl p-4 shadow-sm">
+            <text class="font-medium text-[#2C2C2C] text-sm block mb-4">圈规设置</text>
+            <textarea v-model="settingsForm.rules" placeholder="请输入圈规，每行一条"
+              class="w-full h-32 p-3 bg-[#FAF8F5] rounded-lg text-sm resize-none outline-none" />
+          </view>
+
+          <view @click="saveSettings" class="w-full h-12 rounded-xl font-medium text-white flex items-center justify-center" style="background:linear-gradient(135deg,#C41E3A,#E85050)">
+            <text>保存设置</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 确认弹窗 -->
+      <view v-if="showConfirm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click="showConfirm = null">
+        <view class="bg-white rounded-2xl p-6 mx-4 max-w-sm w-full" @click.stop>
+          <view class="w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center" style="background:rgba(251,146,60,0.1)">
+            <text class="text-2xl text-orange-500">⚠️</text>
+          </view>
+          <text class="text-center font-semibold text-[#2C2C2C] block mb-2">
+            {{ confirmTitle }}
+          </text>
+          <text class="text-center text-sm text-[#666] block mb-6">
+            {{ confirmMessage }}
+          </text>
+          <view class="flex gap-3">
+            <view @click="showConfirm = null" class="flex-1 h-10 bg-[#FAF8F5] text-[#666] rounded-lg font-medium flex items-center justify-center text-sm">取消</view>
+            <view @click="handleConfirm"
+              class="flex-1 h-10 rounded-lg font-medium text-white flex items-center justify-center text-sm"
+              :class="showConfirm.type === 'remove' || showConfirm.type === 'deletePost' ? 'bg-red-500' : 'bg-[#C41E3A]'">确定</view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { api } from '@/api'
+
+type TabType = 'overview' | 'members' | 'posts' | 'settings'
+
+interface CircleOwner { id: string; name: string; avatar: string }
+interface CircleDetail { id: string; name: string; cover: string; description: string; category: string; members: number; posts: number; isJoined: boolean; owner: CircleOwner; announcement?: string; rules?: string[] }
+interface CircleStats { totalMembers: number; newMembersToday: number; totalPosts: number; newPostsToday: number; activeMembers: number; essencePosts: number }
+interface CircleMember { id: string; name: string; avatar: string; role: 'owner' | 'admin' | 'member'; joinedAt: string; posts: number }
+interface CirclePost { id: string; content: string; images: string[]; author: { id: string; name: string; avatar: string }; createdAt: string; likes: number; comments: number; isLiked: boolean; isPinned?: boolean; isEssence?: boolean }
+interface ConfirmDialog { type: string; id: string; name: string }
+
+const isLoading = ref(true)
+const activeTab = ref<TabType>('overview')
+const circle = ref<CircleDetail | null>(null)
+const stats = ref<CircleStats | null>(null)
+const members = ref<CircleMember[]>([])
+const posts = ref<(CirclePost & { isEssence?: boolean })[]>([])
+const announcement = ref('')
+const memberKeyword = ref('')
+const showConfirm = ref<ConfirmDialog | null>(null)
+const activeMemberMenu = ref<string | null>(null)
+const saving = ref(false)
+const categoryOptions = ['命理', '风水', '养生', '书法']
+const settingsForm = ref({ name: '', description: '', categoryIndex: 0, rules: '' })
+
+const tabs = [
+  { key: 'overview', label: '概览', icon: '📊' },
+  { key: 'members', label: '成员', icon: '👥' },
+  { key: 'posts', label: '帖子', icon: '📄' },
+  { key: 'settings', label: '设置', icon: '⚙️' },
+]
+
+const filteredMembers = computed(() => {
+  if (!memberKeyword.value) return members.value
+  return members.value.filter(m => m.name.includes(memberKeyword.value))
+})
+
+const confirmTitle = computed(() => {
+  const t = showConfirm.value?.type
+  if (t === 'setAdmin') return '设为管理员'
+  if (t === 'removeAdmin') return '取消管理员'
+  if (t === 'remove') return '移出圈子'
+  if (t === 'deletePost') return '删除帖子'
+  return ''
+})
+
+const confirmMessage = computed(() => {
+  if (!showConfirm.value) return ''
+  const { type, name } = showConfirm.value
+  if (type === 'setAdmin') return `确定将 "${name}" 设为管理员？`
+  if (type === 'removeAdmin') return `确定取消 "${name}" 的管理员权限？`
+  if (type === 'remove') return `确定将 "${name}" 移出圈子？此操作不可撤销。`
+  if (type === 'deletePost') return `确定删除帖子 "${name}..."？此操作不可撤销。`
+  return ''
+})
+
+onMounted(async () => {
+  try {
+    const pages = getCurrentPages()
+    const currentPage = pages[pages.length - 1] as any
+    const circleId = currentPage?.$page?.options?.id || '1'
+
+    const [detailRes, statsRes] = await Promise.all([
+      api.get(`/circles/${circleId}`),
+      api.get(`/circles/${circleId}/dashboard/overview`),
+    ])
+    circle.value = detailRes as unknown as CircleDetail
+    stats.value = statsRes as unknown as CircleStats
+    announcement.value = (detailRes as any)?.announcement || ''
+    settingsForm.value = {
+      name: (detailRes as any)?.name || '',
+      description: (detailRes as any)?.description || '',
+      categoryIndex: 0,
+      rules: ((detailRes as any)?.rules || []).join('\n'),
+    }
+  } catch {
+    // 降级 mock
+    await new Promise(r => setTimeout(r, 300))
+    circle.value = {
+      id: '1', name: '八字命理研习社', cover: '/images/circles/circle-1.jpg',
+      description: '探讨八字命理学问，分享预测心得', category: '命理',
+      members: 12800, posts: 3560, isJoined: true,
+      owner: { id: '1', name: '周易大师', avatar: '/images/experts/expert-1.jpg' },
+      announcement: '欢迎加入圈子！请遵守圈规，友善交流。',
+      rules: ['禁止发布广告', '尊重他人观点', '保持友善交流'],
+    }
+    stats.value = {
+      totalMembers: 12800, newMembersToday: 56, totalPosts: 3560,
+      newPostsToday: 128, activeMembers: 2340, essencePosts: 89,
+    }
+    announcement.value = '欢迎加入圈子！请遵守圈规，友善交流。'
+    settingsForm.value = { name: '八字命理研习社', description: '探讨八字命理学问，分享预测心得', categoryIndex: 0, rules: '禁止发布广告\n尊重他人观点\n保持友善交流' }
+    members.value = [
+      { id: '1', name: '周易大师', avatar: '/images/experts/expert-1.jpg', role: 'owner', joinedAt: '2024-01-01', posts: 568 },
+      { id: '2', name: '紫微真人', avatar: '/images/experts/expert-2.jpg', role: 'admin', joinedAt: '2024-02-15', posts: 234 },
+      { id: '3', name: '命理学徒', avatar: '/images/experts/expert-3.jpg', role: 'member', joinedAt: '2024-06-01', posts: 45 },
+      { id: '4', name: '易学新手', avatar: '/images/experts/expert-4.jpg', role: 'member', joinedAt: '2024-06-10', posts: 12 },
+    ]
+    posts.value = [
+      { id: '1', content: '八字入门必看：如何快速掌握基础知识', images: [], author: { id: '1', name: '周易大师', avatar: '/images/experts/expert-1.jpg' }, createdAt: '2024-06-01', likes: 256, comments: 89, isLiked: false, isPinned: true, isEssence: true },
+      { id: '2', content: '今日分享一个有趣的八字案例分析', images: [], author: { id: '2', name: '紫微真人', avatar: '/images/experts/expert-2.jpg' }, createdAt: '2024-06-02', likes: 128, comments: 45, isLiked: false, isEssence: true },
+      { id: '3', content: '新人报道，请多多指教', images: [], author: { id: '3', name: '命理学徒', avatar: '/images/experts/expert-3.jpg' }, createdAt: '2024-06-03', likes: 34, comments: 12, isLiked: false },
+    ]
+  } finally {
+    isLoading.value = false
+  }
+})
+
+function toggleMemberMenu(id: string) {
+  activeMemberMenu.value = activeMemberMenu.value === id ? null : id
+}
+
+function openConfirm(type: string, id: string, name: string) {
+  showConfirm.value = { type, id, name }
+  activeMemberMenu.value = null
+}
+
+function handleConfirm() {
+  if (!showConfirm.value) return
+  const { type, id } = showConfirm.value
+  if (type === 'setAdmin') handleSetRole(id, 'admin')
+  else if (type === 'removeAdmin') handleSetRole(id, 'member')
+  else if (type === 'remove') handleRemoveMember(id)
+  else if (type === 'deletePost') handleDeletePost(id)
+  showConfirm.value = null
+}
+
+function handleSetRole(memberId: string, role: 'admin' | 'member') {
+  members.value = members.value.map(m => m.id === memberId ? { ...m, role } : m) as CircleMember[]
+  uni.showToast({ title: role === 'admin' ? '已设为管理员' : '已取消管理员', icon: 'success' })
+}
+
+function handleRemoveMember(memberId: string) {
+  members.value = members.value.filter(m => m.id !== memberId)
+  uni.showToast({ title: '已移出圈子', icon: 'success' })
+}
+
+function handleToggleTop(postId: string) {
+  posts.value = posts.value.map(p => p.id === postId ? { ...p, isPinned: !p.isPinned } : p) as (CirclePost & { isEssence?: boolean })[]
+}
+
+function handleToggleEssence(postId: string) {
+  posts.value = posts.value.map(p => p.id === postId ? { ...p, isEssence: !p.isEssence } : p) as (CirclePost & { isEssence?: boolean })[]
+}
+
+function handleDeletePost(postId: string) {
+  posts.value = posts.value.filter(p => p.id !== postId)
+  uni.showToast({ title: '已删除', icon: 'success' })
+}
+
+function handleSaveAnnouncement() {
+  saving.value = true
+  setTimeout(() => {
+    saving.value = false
+    uni.showToast({ title: '保存成功', icon: 'success' })
+  }, 500)
+}
+
+function onCategoryChange(e: any) {
+  settingsForm.value.categoryIndex = e.detail.value
+}
+
+function saveSettings() {
+  uni.showToast({ title: '保存成功', icon: 'success' })
+}
+
+function roleStyle(role: string) {
+  if (role === 'owner') return 'bg-orange-50 text-orange-500'
+  if (role === 'admin') return 'bg-blue-50 text-blue-500'
+  return 'bg-gray-100 text-gray-500'
+}
+
+function formatNumber(n: number): string {
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k'
+  return String(n)
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

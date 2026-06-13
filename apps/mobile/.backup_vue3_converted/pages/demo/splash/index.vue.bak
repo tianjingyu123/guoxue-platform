@@ -1,0 +1,182 @@
+<template>
+  <!-- ==================== 启动闪屏页（演示模式） ==================== -->
+  <view v-if="showSplash" class="fixed inset-0 z-[200]" :style="{ opacity: isExiting ? 0 : 1, transition: 'opacity 0.3s' }">
+    <!-- Logo 阶段 -->
+    <view v-if="phase === 'logo'" class="w-full h-full flex flex-col items-center justify-center relative overflow-hidden"
+      :style="{ background: 'linear-gradient(180deg, #1e293b 0%, #334155 100%)' }"
+    >
+      <!-- Logo 图标 - 太极阴阳鱼 SVG -->
+      <view class="relative mb-8">
+        <view class="w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl overflow-hidden"
+          :style="{ background: 'linear-gradient(135deg, #fbbf24, #f97316, #ef4444)' }"
+        >
+          <svg viewBox="0 0 64 64" class="w-16 h-16">
+            <circle cx="32" cy="32" r="30" fill="none" stroke="white" stroke-width="2" />
+            <path d="M32,2 A30,30 0 0,1 32,62 A15,15 0 0,1 32,32 A15,15 0 0,0 32,2" fill="white" />
+            <circle cx="32" cy="17" r="5" fill="white" />
+            <circle cx="32" cy="47" r="5" fill="#f97316" />
+          </svg>
+        </view>
+        <!-- 光晕效果 -->
+        <view class="absolute inset-0 w-24 h-24 rounded-3xl opacity-50 -z-10"
+          :style="{ background: 'linear-gradient(135deg, #fbbf24, #f97316)', filter: 'blur(24px)' }"
+        />
+      </view>
+
+      <!-- 品牌名称 -->
+      <text class="text-3xl font-bold text-white mb-2 tracking-wider">热卜国学</text>
+      <text class="text-white/60 text-sm">传承智慧 · 启迪人生</text>
+
+      <!-- 加载动画：弹跳小圆点 -->
+      <view class="mt-12 flex gap-1.5">
+        <view
+          v-for="(_, i) in 3"
+          :key="i"
+          class="w-2 h-2 bg-white/60 rounded-full"
+          :style="{ animation: `splash-bounce 1s ease-in-out infinite`, animationDelay: `${i * 0.15}s` }"
+        />
+      </view>
+
+      <!-- 版本号 -->
+      <text class="absolute bottom-8 text-white/40 text-xs">v1.0.0</text>
+    </view>
+
+    <!-- 开屏广告阶段 -->
+    <view v-if="phase === 'ad'" class="w-full h-full relative" style="background: #000;">
+      <image v-if="adImage" :src="adImage" mode="aspectFill" class="w-full h-full absolute inset-0" />
+      <!-- 广告占位 -->
+      <view v-else class="w-full h-full flex items-center justify-center"
+        :style="{ background: 'linear-gradient(180deg, rgba(196,30,58,0.2), rgba(201,169,110,0.2))' }"
+      >
+        <view class="text-center" @click="handleAdClick">
+          <text class="text-2xl font-bold text-white mb-2 block">开屏广告位</text>
+          <text class="text-sm text-white/60">点击了解更多</text>
+        </view>
+      </view>
+
+      <!-- 跳过按钮（含倒计时） -->
+      <view
+        @click="skipSplash"
+        class="absolute top-12 right-4 px-4 py-1.5 text-white text-sm rounded-full"
+        style="background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);"
+      >
+        跳过 {{ countdown }}s
+      </view>
+
+      <!-- 底部品牌标识 -->
+      <view class="absolute bottom-8 left-0 right-0 flex justify-center">
+        <view class="flex items-center gap-2 px-4 py-2 rounded-full"
+          style="background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);"
+        >
+          <view class="w-6 h-6 rounded-lg flex items-center justify-center overflow-hidden"
+            :style="{ background: 'linear-gradient(135deg, #fbbf24, #f97316)' }"
+          >
+            <svg viewBox="0 0 24 24" class="w-4 h-4">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="white" stroke-width="1.5" />
+              <path d="M12,2 A10,10 0 0,1 12,22 A5,5 0 0,1 12,12 A5,5 0 0,0 12,2" fill="white" />
+            </svg>
+          </view>
+          <text class="text-white text-sm font-medium">热卜国学</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ==================== 演示结束页 ==================== -->
+  <view v-else class="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center gap-4 px-4">
+    <text class="text-xl font-semibold text-[#2C2C2C]">启动页演示</text>
+    <text class="text-sm text-[#999] text-center">启动页已完成显示</text>
+    <view class="flex flex-col gap-3 w-full" style="max-width: 320px;">
+      <view
+        @click="restartSplash(false)"
+        class="w-full py-3 bg-[#C41E3A] text-white text-sm font-medium rounded-xl text-center"
+      >
+        重新播放（仅Logo）
+      </view>
+      <view
+        @click="restartSplash(true)"
+        class="w-full py-3 bg-[#F5F1EB] text-[#2C2C2C] text-sm font-medium rounded-xl text-center"
+      >
+        重新播放（含开屏广告）
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+const showSplash = ref(true)
+const phase = ref<'logo' | 'ad' | 'done'>('logo')
+const countdown = ref(5)
+const isExiting = ref(false)
+const showAd = ref(false)
+const adImage = ref('')
+const adLink = ref('')
+
+function handleAdClick() {
+  if (adLink.value) {
+    // #ifdef H5
+    window.open(adLink.value, '_blank')
+    // #endif
+    // #ifdef MP-WEIXIN
+    uni.navigateTo({ url: '/pages/webview/index?url=' + encodeURIComponent(adLink.value) })
+    // #endif
+  }
+}
+
+function handleFinish() {
+  isExiting.value = true
+  setTimeout(() => {
+    phase.value = 'done'
+    showSplash.value = false
+    isExiting.value = false
+  }, 300)
+}
+
+function skipSplash() {
+  handleFinish()
+}
+
+function restartSplash(withAd: boolean) {
+  showSplash.value = true
+  phase.value = 'logo'
+  isExiting.value = false
+  showAd.value = withAd
+  countdown.value = 5
+  startLogoPhase(withAd)
+}
+
+function startLogoPhase(withAd: boolean) {
+  const logoDuration = 2000
+  setTimeout(() => {
+    if (withAd) {
+      phase.value = 'ad'
+      startAdCountdown()
+    } else {
+      handleFinish()
+    }
+  }, logoDuration)
+}
+
+function startAdCountdown() {
+  const timer = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) {
+      clearInterval(timer)
+      handleFinish()
+    }
+  }, 1000)
+}
+
+onMounted(() => {
+  startLogoPhase(false)
+})
+</script>
+
+<style scoped>
+@keyframes splash-bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(-8px); opacity: 1; }
+}
+</style>

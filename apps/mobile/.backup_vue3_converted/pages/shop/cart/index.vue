@@ -1,0 +1,560 @@
+<template>
+  <!-- 加载态骨架屏 -->
+  <view v-if="isLoading" class="min-h-screen bg-background">
+    <header class="sticky top-0 z-50 bg-background/95" style="border-bottom: 1px solid #E8E0D5; backdrop-filter: blur(12px);">
+      <view class="flex items-center justify-between h-12 px-4">
+        <view class="p-1">
+          <text class="text-lg text-foreground">←</text>
+        </view>
+        <text class="font-semibold text-base text-foreground">购物车</text>
+        <view class="w-9" />
+      </view>
+    </header>
+    <view class="p-4 space-y-4">
+      <view v-for="g in 2" :key="g" class="bg-white p-4 animate-pulse">
+        <view class="flex items-center gap-3 mb-4">
+          <view class="w-6 h-6 rounded-full bg-secondary" />
+          <view class="h-4 w-24 bg-secondary rounded" />
+        </view>
+        <view v-for="i in 2" :key="i" class="flex gap-3 py-3" style="border-top: 1px solid rgba(232, 224, 213, 0.5);">
+          <view class="w-5 h-5 rounded bg-secondary" />
+          <view class="w-20 h-20 rounded-lg bg-secondary" />
+          <view class="flex-1 space-y-2">
+            <view class="h-4 w-3/4 bg-secondary rounded" />
+            <view class="h-3 w-1/2 bg-secondary rounded" />
+            <view class="h-4 w-16 bg-secondary rounded" />
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view v-else-if="isEmpty || groups.length === 0" class="min-h-screen bg-background">
+    <header class="sticky top-0 z-50 bg-background/95" style="border-bottom: 1px solid #E8E0D5; backdrop-filter: blur(12px);">
+      <view class="flex items-center justify-between h-12 px-4">
+        <view @click="goBack" class="p-1">
+          <text class="text-lg text-foreground">←</text>
+        </view>
+        <text class="font-semibold text-base text-foreground">购物车</text>
+        <view class="w-9" />
+      </view>
+    </header>
+    <view class="flex flex-col items-center justify-center py-20 px-4">
+      <view class="w-24 h-24 rounded-full bg-secondary/50 flex items-center justify-center mb-4">
+        <text class="text-4xl text-muted-foreground/50"></text>
+      </view>
+      <text class="text-lg font-medium text-foreground mb-1">购物车是空的</text>
+      <text class="text-sm text-muted-foreground mb-6">快去挑选心仪的商品吧</text>
+      <view @click="goTo('/pages/discover/index')" class="px-6 py-2.5 bg-primary text-white text-sm font-medium rounded-full">
+        去逛逛
+      </view>
+
+      <!-- 热门推荐 -->
+      <view class="w-full mt-10">
+        <view class="flex items-center justify-between mb-3">
+          <text class="text-sm font-medium text-foreground">热门推荐</text>
+          <view @click="goTo('/pages/shop/index')" class="text-xs text-primary">更多</view>
+        </view>
+        <view class="grid grid-cols-2 gap-3">
+          <view
+            v-for="product in recommendProducts.slice(0, 4)"
+            :key="product.id"
+            @click="goTo('/pages/shop/product/detail?id=' + product.id)"
+            class="bg-white p-3"
+          >
+            <view class="aspect-square rounded-lg bg-secondary mb-2 flex items-center justify-center">
+              <text class="text-3xl text-muted-foreground/30"></text>
+            </view>
+            <text class="text-sm text-foreground line-clamp-1 block">{{ product.name }}</text>
+            <text class="text-sm text-primary font-medium mt-1 block">¥{{ product.price }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 主内容 -->
+  <view v-else class="min-h-screen bg-background pb-24">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-50 bg-background/95" style="border-bottom: 1px solid #E8E0D5; backdrop-filter: blur(12px);">
+      <view class="flex items-center justify-between h-12 px-4">
+        <view @click="goBack" class="p-1">
+          <text class="text-lg text-foreground">←</text>
+        </view>
+        <text class="font-semibold text-base text-foreground">购物车({{ summary.count }})</text>
+        <view @click="isEditing = !isEditing" class="text-sm text-primary font-medium">
+          <text>{{ isEditing ? '完成' : '编辑' }}</text>
+        </view>
+      </view>
+    </header>
+
+    <!-- 优惠提示 -->
+    <view v-if="summary.saved > 0 && !isEditing" class="mx-4 mt-3 px-3 py-2 flex items-center justify-between" style="background: rgba(196, 30, 58, 0.1); border-radius: 8px;">
+      <text class="text-xs text-primary">已为您节省 ¥{{ summary.saved.toFixed(2) }}</text>
+      <view @click="goTo('/pages/shop/coupons/index')" class="text-xs text-primary flex items-center">
+        领更多优惠券 <text class="text-xs ml-0.5">›</text>
+      </view>
+    </view>
+
+    <!-- 商品列表 -->
+    <view class="p-4 space-y-4">
+      <view v-for="group in groups" :key="group.id" class="bg-white p-4">
+        <!-- 店铺信息 -->
+        <view class="flex items-center gap-2 mb-3 pb-3" style="border-bottom: 1px solid rgba(232, 224, 213, 0.5);">
+          <image :src="group.sellerAvatar" class="w-6 h-6 rounded-full" mode="aspectFill" />
+          <text class="text-sm font-medium text-foreground">{{ group.sellerName }}</text>
+          <view class="text-[10px] px-1.5 py-0.5 rounded text-muted-foreground" style="border: 1px solid #E8E0D5;">
+            <text>{{ group.sellerType === 'circle' ? '圈子' : '驿站' }}</text>
+          </view>
+          <text class="text-sm text-muted-foreground ml-auto">›</text>
+        </view>
+
+        <!-- 商品列表 -->
+        <view class="space-y-3">
+          <view v-for="item in group.items" :key="item.id" class="flex gap-3">
+            <!-- 编辑模式：删除按钮 -->
+            <view v-if="isEditing" @click="removeItem(group.id, item.id)" class="flex-shrink-0 w-5 h-5 mt-7">
+              <text class="text-lg text-red-500">🗑</text>
+            </view>
+            <!-- 正常模式：选择框 -->
+            <view
+              v-else
+              @click="toggleItem(item.id)"
+              :class="[
+                'flex-shrink-0 w-5 h-5 mt-7 rounded-full flex items-center justify-center transition-colors',
+                selectedItems.includes(item.id) ? 'bg-primary' : 'border-2'
+              ]"
+              :style="!selectedItems.includes(item.id) ? 'border-color: rgba(153,153,153,0.3)' : ''"
+            >
+              <text v-if="selectedItems.includes(item.id)" class="text-white text-xs leading-none">✓</text>
+            </view>
+
+            <!-- 商品图片 -->
+            <view class="w-20 h-20 rounded-lg bg-secondary flex-shrink-0 overflow-hidden">
+              <image :src="item.image" :alt="item.name" class="w-full h-full" mode="aspectFill" />
+            </view>
+
+            <!-- 商品信息 -->
+            <view class="flex-1 min-w-0">
+              <text class="text-sm font-medium text-foreground line-clamp-1 block">{{ item.name }}</text>
+              <text class="text-xs text-muted-foreground mt-0.5 block">{{ item.spec }}</text>
+              <view class="flex items-center justify-between mt-2">
+                <view class="flex items-baseline gap-1.5">
+                  <text class="text-base font-semibold text-primary">¥{{ item.price }}</text>
+                  <text v-if="item.originalPrice > item.price" class="text-xs text-muted-foreground line-through">¥{{ item.originalPrice }}</text>
+                </view>
+
+                <!-- 数量控制（仅实物商品） -->
+                <view v-if="item.type === 'product'" class="flex items-center gap-2 bg-secondary rounded-full">
+                  <view
+                    @click="updateQuantity(group.id, item.id, -1)"
+                    :class="['w-7 h-7 flex items-center justify-center', item.quantity <= 1 ? 'opacity-50' : '']"
+                  >
+                    <text class="text-xs text-muted-foreground">−</text>
+                  </view>
+                  <text class="text-sm font-medium text-foreground w-5 text-center select-none">{{ item.quantity }}</text>
+                  <view
+                    @click="updateQuantity(group.id, item.id, 1)"
+                    class="w-7 h-7 flex items-center justify-center"
+                  >
+                    <text class="text-xs text-muted-foreground">+</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 凑单提示 -->
+        <view
+          v-if="calcFreeShippingDiff(group) > 0 && calcGroupTotal(group) > 0"
+          class="mt-3 px-3 py-2 flex items-center justify-between"
+          style="background: rgba(201, 169, 110, 0.1); border-radius: 8px;"
+        >
+          <text class="text-xs text-accent">
+            再买 <text class="font-medium">¥{{ calcFreeShippingDiff(group).toFixed(0) }}</text> 即可享受包邮
+          </text>
+          <view @click="goTo('/pages/shop/index')" class="text-xs text-accent font-medium flex items-center">
+            去凑单 <text class="text-xs ml-0.5">›</text>
+          </view>
+        </view>
+
+        <!-- 店铺小计 -->
+        <view class="mt-3 pt-3 flex justify-end" style="border-top: 1px solid rgba(232, 224, 213, 0.5);">
+          <text class="text-xs text-muted-foreground">
+            小计：
+            <text class="text-sm font-semibold text-foreground ml-1">¥{{ calcGroupTotal(group).toFixed(2) }}</text>
+          </text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 失效商品 -->
+    <view v-if="invalidItems.length > 0" class="mx-4 mb-4">
+      <view class="p-4 bg-white/60 rounded-xl" style="border: 1px dashed #E8E0D5;">
+        <view class="flex items-center justify-between mb-3">
+          <text class="text-sm text-muted-foreground">失效商品({{ invalidItems.length }})</text>
+          <view @click="clearInvalidItems" class="text-xs text-red-500">清空</view>
+        </view>
+        <view class="space-y-3 opacity-60">
+          <view v-for="item in invalidItems" :key="item.id" class="flex gap-3">
+            <view class="w-16 h-16 rounded-lg bg-secondary flex-shrink-0 overflow-hidden relative">
+              <image :src="item.image" :alt="item.name" class="w-full h-full" mode="aspectFill" style="filter: grayscale(1);" />
+              <view class="absolute inset-0 bg-black/30 flex items-center justify-center">
+                <text class="text-[10px] text-white px-1.5 py-0.5 rounded" style="background: rgba(0,0,0,0.5);">失效</text>
+              </view>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="text-sm text-muted-foreground line-clamp-1 block">{{ item.name }}</text>
+              <text class="text-xs text-red-500 mt-0.5 block">{{ item.reason }}</text>
+              <text class="text-xs text-muted-foreground line-through mt-1 block">¥{{ item.price }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 为你推荐 -->
+    <view class="px-4 mt-2">
+      <text class="text-sm font-medium text-foreground mb-3 block">为你推荐</text>
+      <scroll-view scroll-x="true" class="pb-4" show-scrollbar="false">
+        <view class="flex gap-3">
+          <view
+            v-for="product in recommendProducts"
+            :key="product.id"
+            @click="goTo('/pages/shop/product/detail?id=' + product.id)"
+            class="flex-shrink-0 w-28 bg-white p-2"
+          >
+            <view class="aspect-square rounded-lg bg-secondary mb-2 overflow-hidden">
+              <image :src="product.image" :alt="product.name" class="w-full h-full" mode="aspectFill" />
+            </view>
+            <text class="text-xs text-foreground line-clamp-1 block">{{ product.name }}</text>
+            <text class="text-xs text-primary font-medium mt-0.5 block">¥{{ product.price }}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 底部结算栏 -->
+    <view class="fixed bottom-0 left-0 right-0 bg-white/95" style="border-top: 1px solid #E8E0D5; backdrop-filter: blur(12px);">
+      <view class="flex items-center justify-between h-14 px-4" style="max-width: 512px; margin: 0 auto;">
+        <!-- 全选 -->
+        <view class="flex items-center gap-3">
+          <view @click="handleSelectAll" class="flex items-center gap-2">
+            <view
+              :class="[
+                'w-5 h-5 rounded-full flex items-center justify-center transition-colors',
+                isAllSelected() ? 'bg-primary' : 'border-2'
+              ]"
+              :style="!isAllSelected() ? 'border-color: rgba(153,153,153,0.3)' : ''"
+            >
+              <text v-if="isAllSelected()" class="text-white text-xs leading-none">✓</text>
+            </view>
+            <text class="text-sm text-foreground">全选</text>
+          </view>
+        </view>
+
+        <!-- 编辑模式：批量删除 -->
+        <view v-if="isEditing">
+          <view
+            @click="removeSelected"
+            :class="[
+              'px-6 py-2 rounded-full text-sm font-medium transition-colors',
+              selectedItems.length > 0 ? 'bg-red-500 text-white' : 'bg-gray-200 text-muted-foreground'
+            ]"
+          >
+            删除({{ selectedItems.length }})
+          </view>
+        </view>
+
+        <!-- 正常模式：合计 + 结算 -->
+        <view v-else class="flex items-center gap-4">
+          <view class="text-right">
+            <view class="flex items-baseline gap-1">
+              <text class="text-xs text-muted-foreground">合计:</text>
+              <text class="text-lg font-bold text-primary">¥{{ summary.total.toFixed(2) }}</text>
+            </view>
+            <text v-if="summary.saved > 0" class="text-[10px] text-muted-foreground line-through block">¥{{ summary.originalTotal.toFixed(2) }}</text>
+          </view>
+          <view
+            @click="handleCheckout"
+            :class="[
+              'px-6 py-2 rounded-full text-sm font-medium transition-colors',
+              selectedItems.length > 0 ? 'bg-primary text-white' : 'bg-gray-200 text-muted-foreground'
+            ]"
+          >
+            结算({{ summary.count }})
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+
+// ==================== 类型定义 ====================
+interface CartItem {
+  id: number
+  name: string
+  spec: string
+  price: number
+  originalPrice: number
+  quantity: number
+  image: string
+  type: 'product' | 'course'
+}
+
+interface CartGroup {
+  id: number
+  sellerName: string
+  sellerAvatar: string
+  sellerType: 'circle' | 'store'
+  freeShippingThreshold: number
+  items: CartItem[]
+}
+
+interface InvalidItem {
+  id: number
+  name: string
+  spec: string
+  price: number
+  image: string
+  reason: string
+}
+
+interface RecommendProduct {
+  id: number
+  name: string
+  price: number
+  image: string
+}
+
+// ==================== Mock 数据 ====================
+const mockCartGroups: CartGroup[] = [
+  {
+    id: 1,
+    sellerName: '易道书院',
+    sellerAvatar: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=100&q=80',
+    sellerType: 'circle',
+    freeShippingThreshold: 199,
+    items: [
+      {
+        id: 1,
+        name: '《渊海子平》精装典藏版',
+        spec: '精装版 / 全三册',
+        price: 168,
+        originalPrice: 298,
+        quantity: 1,
+        image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&q=80',
+        type: 'product'
+      },
+      {
+        id: 2,
+        name: '八字命理入门到精通',
+        spec: '视频课程 / 共36节',
+        price: 299,
+        originalPrice: 599,
+        quantity: 1,
+        image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=200&q=80',
+        type: 'course'
+      }
+    ]
+  },
+  {
+    id: 2,
+    sellerName: '玄学文创旗舰店',
+    sellerAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80',
+    sellerType: 'store',
+    freeShippingThreshold: 99,
+    items: [
+      {
+        id: 3,
+        name: '天然黑曜石貔貅手链',
+        spec: '14mm / 男款',
+        price: 128,
+        originalPrice: 199,
+        quantity: 2,
+        image: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=200&q=80',
+        type: 'product'
+      }
+    ]
+  }
+]
+
+const mockInvalidItems: InvalidItem[] = [
+  {
+    id: 101,
+    name: '限量版紫水晶摆件',
+    spec: '已下架',
+    price: 388,
+    image: 'https://images.unsplash.com/photo-1600721391689-2564bb8055de?w=200&q=80',
+    reason: '商品已下架'
+  }
+]
+
+const mockRecommendProducts: RecommendProduct[] = [
+  { id: 1, name: '紫微斗数全书', price: 88, image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&q=80' },
+  { id: 2, name: '开光铜钱挂件', price: 68, image: 'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=200&q=80' },
+  { id: 3, name: '风水罗盘专业版', price: 268, image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80' },
+  { id: 4, name: '命理学基础课', price: 199, image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=200&q=80' }
+]
+
+// ==================== 响应式状态 ====================
+const isLoading = ref(true)
+const isEditing = ref(false)
+const groups = ref<CartGroup[]>(JSON.parse(JSON.stringify(mockCartGroups)))
+const selectedItems = ref<number[]>([])
+const isEmpty = ref(false)
+const invalidItems = ref<InvalidItem[]>(JSON.parse(JSON.stringify(mockInvalidItems)))
+const recommendProducts = ref<RecommendProduct[]>(mockRecommendProducts)
+
+let loadTimer: ReturnType<typeof setTimeout> | null = null
+
+// ==================== 计算属性 ====================
+const summary = computed(() => {
+  let total = 0
+  let originalTotal = 0
+  let count = 0
+
+  groups.value.forEach(group => {
+    group.items.forEach(item => {
+      if (selectedItems.value.includes(item.id)) {
+        total += item.price * item.quantity
+        originalTotal += item.originalPrice * item.quantity
+        count += item.quantity
+      }
+    })
+  })
+
+  return { total, originalTotal, count, saved: originalTotal - total }
+})
+
+// ==================== 生命周期 ====================
+onMounted(() => {
+  loadTimer = setTimeout(() => {
+    isLoading.value = false
+    // 初始全选
+    const allIds: number[] = []
+    groups.value.forEach(g => g.items.forEach(item => allIds.push(item.id)))
+    selectedItems.value = allIds
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  if (loadTimer) clearTimeout(loadTimer)
+})
+
+// ==================== 选择逻辑 ====================
+function isAllSelected(): boolean {
+  let totalItems = 0
+  groups.value.forEach(g => { totalItems += g.items.length })
+  return selectedItems.value.length === totalItems && totalItems > 0
+}
+
+function handleSelectAll() {
+  if (isAllSelected()) {
+    selectedItems.value = []
+  } else {
+    const allIds: number[] = []
+    groups.value.forEach(g => g.items.forEach(item => allIds.push(item.id)))
+    selectedItems.value = allIds
+  }
+}
+
+function toggleItem(id: number) {
+  if (selectedItems.value.includes(id)) {
+    selectedItems.value = selectedItems.value.filter(x => x !== id)
+  } else {
+    selectedItems.value = [...selectedItems.value, id]
+  }
+}
+
+// ==================== 数量操作 ====================
+function updateQuantity(groupId: number, itemId: number, delta: number) {
+  groups.value = groups.value.map(group => {
+    if (group.id === groupId) {
+      return {
+        ...group,
+        items: group.items.map(item => {
+          if (item.id === itemId) {
+            const newQty = Math.max(1, item.quantity + delta)
+            return { ...item, quantity: newQty }
+          }
+          return item
+        })
+      }
+    }
+    return group
+  })
+}
+
+// ==================== 删除操作 ====================
+function removeItem(groupId: number, itemId: number) {
+  const newGroups = groups.value.map(group => {
+    if (group.id === groupId) {
+      return { ...group, items: group.items.filter(item => item.id !== itemId) }
+    }
+    return group
+  }).filter(group => group.items.length > 0)
+
+  if (newGroups.length === 0) {
+    isEmpty.value = true
+  }
+  groups.value = newGroups
+  selectedItems.value = selectedItems.value.filter(id => id !== itemId)
+}
+
+function removeSelected() {
+  const newGroups = groups.value.map(group => ({
+    ...group,
+    items: group.items.filter(item => !selectedItems.value.includes(item.id))
+  })).filter(group => group.items.length > 0)
+
+  if (newGroups.length === 0) {
+    isEmpty.value = true
+  }
+  groups.value = newGroups
+  selectedItems.value = []
+  isEditing.value = false
+}
+
+function clearInvalidItems() {
+  invalidItems.value = []
+}
+
+// ==================== 辅助计算 ====================
+function calcGroupTotal(group: CartGroup): number {
+  return group.items.reduce((sum, item) =>
+    selectedItems.value.includes(item.id) ? sum + item.price * item.quantity : sum, 0
+  )
+}
+
+function calcFreeShippingDiff(group: CartGroup): number {
+  const groupTotal = calcGroupTotal(group)
+  const threshold = group.freeShippingThreshold || 0
+  return threshold - groupTotal
+}
+
+// ==================== 结算 ====================
+function handleCheckout() {
+  if (selectedItems.value.length === 0) return
+  uni.navigateTo({ url: '/pages/shop/checkout/index' })
+}
+
+// ==================== 导航 ====================
+function goTo(url: string) {
+  uni.navigateTo({ url })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+@keyframes */
+</style>

@@ -1,0 +1,232 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 已提交成功态 -->
+    <view v-if="submitted" class="min-h-screen bg-background flex flex-col items-center justify-center px-6 text-center gap-4">
+      <view class="w-16 h-16 rounded-full bg-green-500/15 flex items-center justify-center mb-2">
+        <text class="text-green-500 text-3xl"></text>
+      </view>
+      <text class="text-xl font-bold text-foreground">评价成功！</text>
+      <text class="text-sm text-muted-foreground">感谢您的宝贵意见，将帮助更多买家做出选择</text>
+      <view @click="goOrders" class="mt-4 w-full py-3 bg-primary text-white rounded-xl text-sm font-semibold text-center">
+        <text>查看全部订单</text>
+      </view>
+    </view>
+
+    <!-- 主页面 -->
+    <view v-else>
+      <!-- 顶部 -->
+      <view class="sticky top-0 z-10 bg-white border-b border-border">
+        <view class="flex items-center px-4 h-12">
+          <view @click="goBack" class="p-1"><text class="text-xl text-foreground">←</text></view>
+          <text class="text-base font-semibold ml-3 text-foreground">评价订单</text>
+          <text class="ml-1.5 text-xs text-muted-foreground">#{{ id }}</text>
+        </view>
+      </view>
+
+      <!-- 骨架屏加载态 -->
+      <view v-if="loading" class="p-4 space-y-4">
+        <view v-for="i in 2" :key="'p'+i" class="bg-white rounded-xl border border-border overflow-hidden">
+          <view class="flex items-center gap-3 p-4 border-b border-border">
+            <view class="w-14 h-14 rounded-lg bg-[#E8E0D5] animate-pulse" />
+            <view class="flex-1 space-y-1">
+              <view class="h-4 w-32 bg-[#E8E0D5] rounded animate-pulse" />
+              <view class="h-3 w-16 bg-[#E8E0D5] rounded animate-pulse" />
+            </view>
+          </view>
+          <view class="p-4 space-y-4">
+            <view class="h-4 w-20 bg-[#E8E0D5] rounded animate-pulse" />
+            <view class="flex gap-1.5">
+              <view v-for="j in 5" :key="j" class="w-8 h-8 bg-[#E8E0D5] rounded animate-pulse" />
+            </view>
+            <view class="h-20 bg-[#E8E0D5] rounded-lg animate-pulse" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 主内容 -->
+      <view v-else class="p-4 space-y-4">
+        <view v-for="(item, idx) in ITEMS" :key="item.id" class="bg-white rounded-xl border border-border overflow-hidden">
+          <!-- 商品信息 -->
+          <view class="flex items-center gap-3 p-4 border-b border-border">
+            <view class="w-14 h-14 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+              <image :src="item.cover" mode="aspectFill" class="w-full h-full" />
+            </view>
+            <view class="min-w-0 flex-1">
+              <text class="text-sm font-medium text-foreground line-clamp-2 block">{{ item.name }}</text>
+              <text class="text-xs text-muted-foreground block mt-0.5">商品 {{ idx + 1 }}/{{ ITEMS.length }}</text>
+            </view>
+          </view>
+
+          <view class="p-4 space-y-4">
+            <!-- 星级评分 -->
+            <view>
+              <text class="text-xs text-muted-foreground block mb-2">商品评分 <text class="text-red-600">*</text></text>
+              <view class="flex items-center gap-2">
+                <view class="flex gap-1.5">
+                  <view v-for="s in 5" :key="s" @click="setItemRating(item.id, s)" class="transition-transform active:scale-90">
+                    <text :class="['text-2xl transition-colors', s <= getDisplay(item.id) ? 'text-accent' : 'text-muted-foreground']"></text>
+                  </view>
+                </view>
+                <text v-if="reviews[item.id].rating > 0" :class="['text-sm font-semibold ml-1', reviews[item.id].rating >= 4 ? 'text-green-600' : reviews[item.id].rating === 3 ? 'text-muted-foreground' : 'text-red-600']">
+                  {{ ratingLabels[reviews[item.id].rating] }}
+                </text>
+              </view>
+            </view>
+
+            <!-- 标签 -->
+            <view v-if="getTags(item.id).length > 0" class="flex flex-wrap gap-2">
+              <view v-for="tag in getTags(item.id)" :key="tag" @click="toggleItemTag(item.id, tag)" :class="['px-3 py-1.5 rounded-full text-xs font-medium border', reviews[item.id].tags.includes(tag) ? 'bg-primary text-white border-primary' : 'bg-white text-foreground border-border']">
+                <text>{{ tag }}</text>
+              </view>
+            </view>
+
+            <!-- 文字评价 -->
+            <view>
+              <view class="flex items-center justify-between mb-1.5">
+                <text class="text-xs text-muted-foreground">详细评价（选填）</text>
+                <text class="text-xs text-muted-foreground">{{ reviews[item.id].content.length }}/200</text>
+              </view>
+              <textarea
+                :value="reviews[item.id].content"
+                @input="(e: any) => setItemContent(item.id, (e.detail.value as string).slice(0, 200))"
+                placeholder="分享使用感受，帮助更多买家..."
+                class="w-full min-h-[80px] px-3 py-2 text-sm bg-white border border-border rounded-lg resize-none"
+              />
+            </view>
+
+            <!-- 上传图片 -->
+            <view class="flex items-center gap-2">
+              <view @click="handleAddImage(item.id)" class="w-16 h-16 rounded-lg border border-dashed border-border flex flex-col items-center justify-center gap-1 text-muted-foreground">
+                <text class="text-lg"></text>
+                <text class="text-[10px]">添加图片</text>
+              </view>
+              <text class="text-xs text-muted-foreground">最多添加 6 张图片</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 固定提交 -->
+      <view class="fixed bottom-0 left-0 right-0 bg-white/95 border-t border-border pb-safe">
+        <view class="p-4">
+          <text v-if="!allRated" class="text-xs text-muted-foreground text-center block mb-2">请为所有商品打分后提交</text>
+          <view @click="handleSubmit" :class="['w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2', !allRated ? 'bg-muted text-muted-foreground' : 'bg-primary text-white']">
+            <text v-if="submitting"></text>
+            <text>{{ submitting ? '提交中...' : '提交评价' }}</text>
+          </view>
+        </view>
+      </view>
+      <view class="h-20" />
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+
+// 导航辅助
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+
+// Route params
+const id = ref('')
+
+onLoad((options) => {
+  if (options?.id) {
+    id.value = options.id as string
+  }
+})
+
+// 加载态
+const loading = ref(true)
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 600)
+})
+
+// 商品数据
+interface Item {
+  id: string
+  name: string
+  cover: string
+}
+
+interface ItemReview {
+  rating: number
+  tags: string[]
+  content: string
+}
+
+const ITEMS: Item[] = [
+  { id: '1', name: '《渊海子平》精装典藏版', cover: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=200&q=80' },
+  { id: '2', name: '紫微斗数入门教程', cover: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=200&q=80' },
+]
+
+const TAGS_BY_RATING: Record<number, string[]> = {
+  5: ['正品保证', '包装精美', '物流很快', '与描述一致', '非常满意', '强烈推荐'],
+  4: ['商品不错', '物流及时', '整体满意'],
+  3: ['一般般', '与描述基本一致'],
+  2: ['质量较差', '与描述不符'],
+  1: ['质量很差', '货不对板', '不推荐'],
+}
+
+const ratingLabels = ['', '很差', '较差', '一般', '不错', '非常好']
+
+// 状态
+const reviews = reactive<Record<string, ItemReview>>(
+  Object.fromEntries(ITEMS.map(i => [i.id, { rating: 0, tags: [], content: '' }]))
+)
+const submitting = ref(false)
+const submitted = ref(false)
+
+// 计算属性
+const allRated = computed(() => ITEMS.every(i => reviews[i.id].rating > 0))
+
+// 辅助方法
+function getDisplay(itemId: string): number {
+  return reviews[itemId].rating
+}
+
+function getTags(itemId: string): string[] {
+  return TAGS_BY_RATING[reviews[itemId].rating] ?? []
+}
+
+function setItemRating(itemId: string, s: number) {
+  reviews[itemId] = { rating: s, tags: [], content: reviews[itemId].content }
+}
+
+function toggleItemTag(itemId: string, tag: string) {
+  const current = reviews[itemId].tags
+  const idx = current.indexOf(tag)
+  if (idx >= 0) {
+    current.splice(idx, 1)
+  } else {
+    current.push(tag)
+  }
+}
+
+function setItemContent(itemId: string, text: string) {
+  reviews[itemId].content = text.slice(0, 200)
+}
+
+async function handleSubmit() {
+  if (!allRated.value) return
+  submitting.value = true
+  await new Promise(r => setTimeout(r, 900))
+  submitting.value = false
+  submitted.value = true
+}
+
+function handleAddImage(itemId: string) {
+  uni.showToast({ title: '添加图片（Mock）', icon: 'none' })
+}
+
+function goOrders() {
+  goTo('/pages/orders/index')
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

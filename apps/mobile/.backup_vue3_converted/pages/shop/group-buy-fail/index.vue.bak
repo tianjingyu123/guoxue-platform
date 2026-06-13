@@ -1,0 +1,205 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-32">
+    <!-- Loading -->
+    <view v-if="!info" class="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+      <view class="w-8 h-8 border-2 border-[#C41E3A] border-t-transparent rounded-full animate-spin" />
+    </view>
+
+    <template v-else>
+      <!-- Header -->
+      <view class="text-white" style="background: linear-gradient(135deg, #6B7280, #4B5563);">
+        <view class="px-4 py-3 flex items-center gap-3">
+          <view @click="goBack" class="p-1">
+            <text class="text-lg">←</text>
+          </view>
+          <text class="text-lg font-medium">拼团结果</text>
+        </view>
+        <view class="px-4 pb-8 text-center">
+          <view class="w-20 h-20 mx-auto bg-white/20 rounded-full flex items-center justify-center mb-4 animate-pulse">
+            <text class="text-4xl text-white">⚠️</text>
+          </view>
+          <text class="text-2xl font-bold mb-2 block">拼团未成功</text>
+          <text class="text-white/80 text-sm block">{{ getReasonText(info.reason) }}</text>
+        </view>
+      </view>
+
+      <view class="px-4 -mt-4 space-y-4">
+        <!-- Product Card -->
+        <view class="bg-white rounded-2xl p-4 shadow-sm">
+          <view class="flex gap-3">
+            <view class="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <text class="text-2xl text-[#999]">📦</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="font-medium text-[#2C2C2C] line-clamp-2 mb-2 block">{{ info.productName }}</text>
+              <view class="flex items-center gap-2">
+                <text class="text-[#C41E3A] font-bold">¥{{ info.price }}</text>
+              </view>
+            </view>
+          </view>
+          <view class="mt-4 pt-4" style="border-top: 1px solid #E8E0D5;">
+            <view class="flex items-center justify-between text-sm">
+              <text class="text-[#999999]">参团人数</text>
+              <view class="flex items-center gap-2">
+                <view class="flex -space-x-2">
+                  <view v-for="m in info.members" :key="m.id" class="w-6 h-6 rounded-full border-2 border-white bg-[#E8E0D5] flex items-center justify-center">
+                    <text class="text-[10px] text-[#666]">{{ m.name[0] }}</text>
+                  </view>
+                  <view v-for="i in (info.minMembers - info.currentMembers)" :key="'e-' + i" class="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center">
+                    <text class="text-gray-400 text-xs">?</text>
+                  </view>
+                </view>
+                <text class="text-[#666666]">{{ info.currentMembers }}/{{ info.minMembers }}人</text>
+              </view>
+            </view>
+            <view class="flex items-center justify-between text-sm mt-2">
+              <text class="text-[#999999]">失败时间</text>
+              <text class="text-[#666666]">{{ info.failedAt }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Refund Info -->
+        <view class="bg-white rounded-2xl p-4 shadow-sm">
+          <view class="flex items-center gap-2 mb-4">
+            <text class="text-[#C41E3A]">💰</text>
+            <text class="font-medium text-[#2C2C2C]">退款信息</text>
+          </view>
+          <view class="bg-[#FAF8F5] rounded-xl p-4 mb-4">
+            <view class="flex items-center justify-between mb-3">
+              <text class="text-[#666666]">退款金额</text>
+              <text class="text-[#C41E3A] font-bold text-lg">¥{{ info.refundAmount.toFixed(2) }}</text>
+            </view>
+            <view class="flex items-center justify-between text-sm">
+              <text class="text-[#999999]">预计到账</text>
+              <text class="text-[#666666]">{{ info.estimatedRefundTime }}（1-3个工作日）</text>
+            </view>
+          </view>
+          <!-- Refund Progress -->
+          <view class="mb-4">
+            <view class="flex justify-between text-xs text-[#999999] mb-2">
+              <text>申请退款</text>
+              <text>处理中</text>
+              <text>退款完成</text>
+            </view>
+            <view class="h-2 bg-gray-200 rounded-full overflow-hidden">
+              <view class="h-full rounded-full transition-all duration-500" :style="{ width: getRefundProgress() + '%', background: 'linear-gradient(90deg, #C41E3A, #E85A6B)' }" />
+            </view>
+            <view class="flex justify-between mt-2">
+              <view :class="['w-4 h-4 rounded-full flex items-center justify-center', info.refundStatus !== 'pending' ? 'bg-[#C41E3A]' : 'bg-gray-300']">
+                <text v-if="info.refundStatus !== 'pending'" class="text-white text-xs">✓</text>
+              </view>
+              <view :class="['w-4 h-4 rounded-full flex items-center justify-center', info.refundStatus === 'completed' ? 'bg-[#C41E3A]' : info.refundStatus === 'processing' ? 'bg-[#C41E3A] animate-pulse' : 'bg-gray-300']">
+                <text v-if="info.refundStatus === 'completed'" class="text-white text-xs">✓</text>
+              </view>
+              <view :class="['w-4 h-4 rounded-full flex items-center justify-center', info.refundStatus === 'completed' ? 'bg-[#C41E3A]' : 'bg-gray-300']">
+                <text v-if="info.refundStatus === 'completed'" class="text-white text-xs">✓</text>
+              </view>
+            </view>
+          </view>
+          <view class="text-xs text-[#999999] flex items-start gap-2">
+            <text class="flex-shrink-0 mt-0.5">⏰</text>
+            <text>退款将原路返回至您的支付账户，请留意账户变动</text>
+          </view>
+        </view>
+
+        <!-- Order Info -->
+        <view class="bg-white rounded-2xl p-4 shadow-sm">
+          <view class="flex items-center justify-between">
+            <text class="text-[#999999] text-sm">订单编号</text>
+            <view class="flex items-center gap-2">
+              <text class="text-[#2C2C2C] font-mono">{{ info.orderId }}</text>
+              <view @click="handleCopyOrderId" class="p-1">
+                <text v-if="copied" class="text-green-500 text-sm">✓</text>
+                <text v-else class="text-[#999999] text-sm">📋</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- Tips -->
+        <view class="bg-blue-50 rounded-xl p-4">
+          <text class="text-blue-600 text-sm block">温馨提示：拼团失败不影响您再次参与，我们为您推荐了更多热门拼团商品，快去看看吧！</text>
+        </view>
+      </view>
+
+      <!-- Bottom Actions -->
+      <view class="fixed bottom-0 left-0 right-0 bg-white p-4 space-y-3" style="border-top: 1px solid #E8E0D5; padding-bottom: calc(16px + env(safe-area-inset-bottom));">
+        <view class="flex gap-3">
+          <view @click="goTo('/pages/orders/index?refund=' + info.orderId)" class="flex-1 py-3 border border-[#E8E0D5] rounded-xl text-[#666666] font-medium text-center">
+            查看退款
+          </view>
+          <view @click="goTo('/pages/shop/group-buy/id-detail/index?id=' + info.groupId + '&action=create')" class="flex-1 py-3 text-white rounded-xl font-medium flex items-center justify-center gap-2" style="background: linear-gradient(90deg, #C41E3A, #E85A6B);">
+            <text>🔄</text>
+            <text>重新开团</text>
+          </view>
+        </view>
+        <view @click="goTo('/pages/shop/group-buy/index')" class="w-full py-3 bg-[#FAF8F5] rounded-xl text-[#C41E3A] font-medium flex items-center justify-center gap-2">
+          <text>🛍️</text>
+          <text>浏览其他拼团</text>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+interface FailInfo {
+  groupId: string; orderId: string; productName: string; productCover: string
+  price: number; reason: 'timeout' | 'stock' | 'other'
+  members: { id: string; name: string; avatar: string }[]
+  minMembers: number; currentMembers: number; failedAt: string
+  refundStatus: 'pending' | 'processing' | 'completed'; refundAmount: number; estimatedRefundTime: string
+}
+
+const mockInfo: FailInfo = {
+  groupId: 'g123', orderId: '2024010100001',
+  productName: '紫微斗数入门教程（精装版）', productCover: '/placeholder.svg',
+  price: 128, reason: 'timeout',
+  members: [{ id: '1', name: '张三', avatar: '/placeholder.svg' }],
+  minMembers: 3, currentMembers: 1, failedAt: '2024-01-15 18:00:00',
+  refundStatus: 'processing', refundAmount: 128, estimatedRefundTime: '2024-01-18',
+}
+
+const info = ref<FailInfo | null>(null)
+const copied = ref(false)
+
+onMounted(() => {
+  info.value = mockInfo
+})
+
+function getReasonText(reason: string): string {
+  switch (reason) {
+    case 'timeout': return '拼团超时，未能在规定时间内凑齐人数'
+    case 'stock': return '商品库存不足，无法完成拼团'
+    default: return '拼团未能成功，我们正在处理退款'
+  }
+}
+
+function getRefundProgress(): number {
+  if (!info.value) return 0
+  switch (info.value.refundStatus) {
+    case 'pending': return 33
+    case 'processing': return 66
+    case 'completed': return 100
+    default: return 0
+  }
+}
+
+function handleCopyOrderId() {
+  if (info.value) {
+    uni.setClipboardData({ data: info.value.orderId })
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  }
+}
+
+function goTo(url: string) { uni.navigateTo({ url }) }
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

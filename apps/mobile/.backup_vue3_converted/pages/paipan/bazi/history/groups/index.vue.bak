@@ -1,0 +1,173 @@
+<template>
+  <!-- 编辑分组视图 -->
+  <view v-if="editingGroup" class="min-h-screen bg-white flex flex-col">
+    <view class="bg-[#C41E3A] text-white px-4 py-3 flex items-center">
+      <view @click="cancelEdit" class="p-1 -ml-1">
+        <text class="text-2xl leading-none">←</text>
+      </view>
+      <text class="flex-1 text-center text-base font-medium" style="padding-right:1.5rem">编辑分组</text>
+    </view>
+
+    <view class="flex-1 p-4">
+      <input
+        type="text"
+        :value="newGroupName"
+        @input="(e:any) => { newGroupName = e.detail.value }"
+        class="w-full px-4 py-3 bg-gray-50 rounded-xl text-base box-border"
+        placeholder="分组名称"
+        focus
+      />
+    </view>
+
+    <view class="p-4 flex gap-3">
+      <view @click="handleDeleteGroup"
+        class="flex flex-col items-center justify-center px-4 py-2 bg-[#F5F1EB] rounded-2xl text-[#999] hover:bg-secondary/80 transition-colors"
+      >
+        <text class="text-lg">🗑️</text>
+        <text class="text-xs mt-0.5">删除分组</text>
+      </view>
+      <view @click="handleSaveEdit"
+        class="flex-1 py-3 bg-[#C41E3A] text-white rounded-full font-medium text-center"
+        :class="newGroupName.trim() ? '' : 'opacity-50'"
+        :hover-class="newGroupName.trim() ? 'opacity-80' : ''"
+      >
+        <text>完成</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 添加分组视图 -->
+  <view v-else-if="isAdding" class="min-h-screen bg-white flex flex-col">
+    <view class="bg-[#C41E3A] text-white px-4 py-3 flex items-center">
+      <view @click="cancelAdd" class="p-1 -ml-1">
+        <text class="text-2xl leading-none">←</text>
+      </view>
+      <text class="flex-1 text-center text-base font-medium" style="padding-right:1.5rem">添加分组</text>
+    </view>
+
+    <view class="flex-1 p-4">
+      <input
+        type="text"
+        :value="newGroupName"
+        @input="(e:any) => { newGroupName = e.detail.value }"
+        class="w-full px-4 py-3 bg-gray-50 rounded-xl text-base box-border"
+        placeholder="输入分组名称"
+        focus
+      />
+    </view>
+
+    <view class="p-4">
+      <view @click="handleAddGroup"
+        class="w-full py-3 bg-[#C41E3A] text-white rounded-full font-medium text-center"
+        :class="newGroupName.trim() ? '' : 'opacity-50'"
+      >
+        <text>确定</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 分组列表视图 -->
+  <view v-else class="min-h-screen bg-white flex flex-col">
+    <view class="bg-[#C41E3A] text-white px-4 py-3 flex items-center">
+      <view @click="goBack" class="p-1 -ml-1">
+        <text class="text-2xl leading-none">←</text>
+      </view>
+      <text class="flex-1 text-center text-base font-medium" style="padding-right:1.5rem">全部分组</text>
+    </view>
+
+    <view class="px-4 py-3 text-sm text-gray-500 border-b border-gray-100">
+      <text>所有分组（{{ totalGroups }}）</text>
+    </view>
+
+    <scroll-view scroll-y class="flex-1">
+      <view v-for="group in groups" :key="group.id"
+        @click="handleEditGroup(group)"
+        class="w-full px-4 py-3.5 border-b border-gray-100 flex items-center justify-between"
+        :class="group.isDefault ? 'cursor-default' : 'hover:bg-gray-50'"
+      >
+        <text class="text-base text-gray-900">{{ group.name }}</text>
+        <text class="text-gray-400">（{{ group.count }}）</text>
+      </view>
+    </scroll-view>
+
+    <view class="p-4">
+      <view @click="startAdd"
+        class="w-full py-3 bg-[#C41E3A] text-white rounded-full font-medium text-center"
+      >
+        <text>添加</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface Group {
+  id: number; name: string; count: number; isDefault?: boolean
+}
+
+const groups = ref<Group[]>([
+  { id: 0, name: '全部', count: 11, isDefault: true },
+  { id: 1, name: '家人', count: 3 },
+  { id: 2, name: '朋友', count: 5 },
+  { id: 3, name: '客户', count: 3 },
+])
+
+const editingGroup = ref<Group | null>(null)
+const newGroupName = ref('')
+const isAdding = ref(false)
+
+const totalGroups = computed(() => {
+  return groups.value.filter(g => !g.isDefault).length
+})
+
+function handleEditGroup(group: Group) {
+  if (group.isDefault) return
+  editingGroup.value = group
+  newGroupName.value = group.name
+}
+
+function cancelEdit() {
+  editingGroup.value = null
+  newGroupName.value = ''
+}
+
+function handleSaveEdit() {
+  if (!editingGroup.value || !newGroupName.value.trim()) return
+  groups.value = groups.value.map(g =>
+    g.id === editingGroup.value!.id ? { ...g, name: newGroupName.value.trim() } : g
+  )
+  cancelEdit()
+}
+
+function handleDeleteGroup() {
+  if (!editingGroup.value) return
+  groups.value = groups.value.filter(g => g.id !== editingGroup.value!.id)
+  cancelEdit()
+}
+
+function startAdd() {
+  isAdding.value = true
+  newGroupName.value = ''
+}
+
+function cancelAdd() {
+  isAdding.value = false
+  newGroupName.value = ''
+}
+
+function handleAddGroup() {
+  if (!newGroupName.value.trim()) return
+  const newId = Math.max(...groups.value.map(g => g.id)) + 1
+  groups.value.push({ id: newId, name: newGroupName.value.trim(), count: 0 })
+  newGroupName.value = ''
+  isAdding.value = false
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

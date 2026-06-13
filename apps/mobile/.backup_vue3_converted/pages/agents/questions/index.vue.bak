@@ -1,0 +1,289 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <!-- 骨架屏 -->
+    <template v-if="loading">
+      <view class="sticky top-0 z-10 bg-[#FAF8F5] border-b border-[#E8E0D5] flex items-center justify-between px-4 h-12 flex-shrink-0">
+        <view class="w-7 h-7 bg-gray-200 rounded" />
+        <view class="w-20 h-4 bg-gray-200 rounded" />
+        <view class="w-7" />
+      </view>
+      <view class="flex gap-2 px-4 pt-3 pb-2">
+        <view v-for="i in 4" :key="i" class="h-8 w-16 bg-gray-200 rounded-full" />
+      </view>
+      <view class="flex-1 px-4 pt-2">
+        <view v-for="i in 4" :key="i" class="bg-white rounded-xl p-4 mb-3">
+          <view class="w-3/4 h-4 bg-gray-200 rounded mb-2" />
+          <view class="w-1/2 h-3 bg-gray-200 rounded" />
+        </view>
+      </view>
+    </template>
+
+    <template v-else>
+      <!-- 顶部导航 -->
+      <view class="sticky top-0 z-10 bg-[#FAF8F5] border-b border-[#E8E0D5] flex items-center justify-between px-4 h-12 flex-shrink-0">
+        <view @click="goBack" class="p-1">
+          <text class="text-xl text-[#2C2C2C]">←</text>
+        </view>
+        <text class="text-base font-semibold text-[#2C2C2C]">常见问题</text>
+        <view @click="showSubmitModal = true" class="p-1">
+          <text class="text-[#C41E3A] text-lg font-bold">✚</text>
+        </view>
+      </view>
+
+      <!-- 分类Tab -->
+      <view class="flex gap-2 px-4 pt-3 pb-2 overflow-x-auto bg-[#FAF8F5] border-b border-[#E8E0D5]">
+        <view v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id"
+          class="px-3.5 py-1.5 rounded-full text-xs whitespace-nowrap font-medium transition-colors"
+          :class="activeTab === tab.id ? 'bg-[#C41E3A] text-white' : 'bg-[#F0EBE5] text-[#2C2C2C]'">
+          <text>{{ tab.label }}{{ tab.count !== undefined ? ' (' + tab.count + ')' : '' }}</text>
+        </view>
+      </view>
+
+      <!-- 搜索栏 -->
+      <view class="px-4 py-2.5 bg-white border-b border-[#E8E0D5]">
+        <view class="relative">
+          <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#999] z-10">🔍</text>
+          <input v-model="keyword" placeholder="搜索问题..."
+            class="w-full h-9 pl-9 pr-3 text-sm bg-[#FAF8F5] rounded-lg border border-[#E8E0D5] box-border placeholder:text-[#999]" />
+        </view>
+      </view>
+
+      <!-- 问题列表 -->
+      <scroll-view scroll-y class="flex-1 px-4 pt-3 pb-6 overflow-y-auto">
+        <view class="space-y-2.5">
+          <view v-for="q in filteredQuestions" :key="q.id"
+            class="bg-white border border-[#E8E0D5] rounded-xl overflow-hidden">
+            <view class="flex items-center justify-between gap-3 p-4" @click="toggleExpand(q.id)">
+              <view class="flex items-start gap-2.5 flex-1 min-w-0">
+                <view class="w-6 h-6 rounded-full bg-[#C41E3A] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <text class="text-white text-xs font-bold">?</text>
+                </view>
+                <view class="flex-1 min-w-0">
+                  <text class="text-sm font-medium text-[#2C2C2C] block leading-relaxed">{{ q.q }}</text>
+                  <view class="flex items-center gap-2 mt-1">
+                    <text class="text-xs text-[#999]">由 {{ q.agent }} 回答</text>
+                    <text class="text-[10px] px-1.5 py-0.5 bg-[#F0EBE5] text-[#999] rounded-full">{{ q.category }}</text>
+                  </view>
+                </view>
+              </view>
+              <text class="text-[#999] flex-shrink-0 text-lg transition-transform duration-200"
+                :class="expandedId === q.id ? 'rotate-90' : ''">›</text>
+            </view>
+            <!-- 展开的回答 -->
+            <view v-if="expandedId === q.id"
+              class="px-4 pb-4 pt-0 border-t border-[#F5F1EB] mx-4">
+              <view class="pt-3">
+                <text class="text-sm text-[#666] leading-relaxed">{{ q.answer }}</text>
+                <view class="flex items-center justify-between mt-3 pt-2.5 border-t border-[#F5F1EB]">
+                  <view class="flex items-center gap-3 text-xs text-[#999]">
+                    <text>💬 {{ q.commentCount }} 评论</text>
+                    <text>🕐 {{ q.date }}</text>
+                  </view>
+                  <view @click.stop="toggleUseful(q.id)"
+                    class="flex items-center gap-1 px-3 py-1 rounded-full text-xs"
+                    :class="q.isUseful ? 'bg-[#C41E3A]/10 text-[#C41E3A]' : 'bg-[#FAF8F5] text-[#999]'">
+                    <text>👍</text>
+                    <text>{{ q.usefulCount }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 空状态 -->
+        <view v-if="filteredQuestions.length === 0"
+          class="flex flex-col items-center justify-center py-16">
+          <text class="text-4xl mb-4">📝</text>
+          <text class="text-[#999] text-sm mb-1">暂无问题</text>
+          <text class="text-[#BBB] text-xs">点击右上角 + 提交你的问题</text>
+        </view>
+
+        <view class="h-5" />
+      </scroll-view>
+    </template>
+
+    <!-- 提交问题弹窗 -->
+    <view v-if="showSubmitModal"
+      class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-6">
+      <view class="bg-white w-full max-w-sm rounded-2xl p-5" @click.stop>
+        <view class="flex items-center justify-between mb-4">
+          <text class="text-base font-semibold text-[#2C2C2C]">提交问题</text>
+          <view @click="showSubmitModal = false" class="w-7 h-7 rounded-full bg-[#FAF8F5] flex items-center justify-center">
+            <text class="text-sm text-[#999]">✕</text>
+          </view>
+        </view>
+        <view class="mb-3">
+          <text class="text-sm text-[#2C2C2C] block mb-1.5">问题 <text class="text-red-400">*</text></text>
+          <input v-model="submitForm.question" placeholder="请输入你的问题"
+            class="w-full h-10 px-3 bg-[#FAF8F5] rounded-lg text-sm border border-[#E8E0D5] box-border" />
+        </view>
+        <view class="mb-3">
+          <text class="text-sm text-[#2C2C2C] block mb-1.5">分类</text>
+          <view class="flex gap-2 flex-wrap">
+            <text v-for="cat in questionCategories" :key="cat"
+              @click="submitForm.category = cat"
+              class="px-3 py-1.5 rounded-full text-xs border"
+              :class="submitForm.category === cat ? 'bg-[#C41E3A] text-white border-[#C41E3A]' : 'bg-[#FAF8F5] text-[#999] border-[#E8E0D5]'">
+              {{ cat }}
+            </text>
+          </view>
+        </view>
+        <view class="mb-4">
+          <text class="text-sm text-[#2C2C2C] block mb-1.5">补充说明</text>
+          <textarea v-model="submitForm.detail" placeholder="请详细描述你的问题（选填）"
+            class="w-full h-24 px-3 py-2 bg-[#FAF8F5] rounded-lg text-sm border border-[#E8E0D5] box-border resize-none" />
+        </view>
+        <view @click="submitQuestion"
+          class="w-full py-2.5 bg-[#C41E3A] text-white rounded-xl text-center text-sm font-semibold">
+          提交问题
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const loading = ref(true)
+const keyword = ref('')
+const activeTab = ref('all')
+const expandedId = ref<string | null>(null)
+const showSubmitModal = ref(false)
+
+const submitForm = ref({
+  question: '',
+  category: '八字',
+  detail: ''
+})
+
+const questionCategories = ['八字', '紫微斗数', '风水', '易经', '奇门遁甲', '六爻', '梅花易数']
+
+const tabs = [
+  { id: 'all', label: '全部', count: 8 },
+  { id: 'bazi', label: '八字' },
+  { id: 'ziwei', label: '紫微斗数' },
+  { id: 'fengshui', label: '风水' },
+  { id: 'yijing', label: '易经' },
+  { id: 'qimen', label: '奇门遁甲' },
+]
+
+interface Question {
+  id: string
+  q: string
+  answer: string
+  agent: string
+  category: string
+  usefulCount: number
+  commentCount: number
+  date: string
+  isUseful: boolean
+  isExpanded: boolean
+}
+
+const questions = ref<Question[]>([
+  {
+    id: '1', q: '八字命理入门应该怎么学？',
+    answer: '学习八字命理建议从以下步骤开始：首先了解天干地支、五行生克的基础概念；其次学习排盘方法，掌握年柱、月柱、日柱、时柱的计算；然后了解十神含义及其相互关系；最后通过大量案例练习来积累经验。推荐先读《渊海子平》入门，再学习《三命通会》进阶。',
+    agent: '八字命理大师', category: '八字', usefulCount: 45, commentCount: 12, date: '2024-06-01', isUseful: false, isExpanded: false
+  },
+  {
+    id: '2', q: '紫微斗数十二宫分别代表什么？',
+    answer: '紫微斗数十二宫依次为：命宫（个人特质）、兄弟宫（兄弟姐妹）、夫妻宫（婚姻感情）、子女宫（子女子嗣）、财帛宫（财运财富）、疾厄宫（健康状况）、迁移宫（外出运势）、交友宫（人际关系）、官禄宫（事业发展）、田宅宫（房产家业）、福德宫（福气精神）、父母宫（父母长辈）。每宫配合主星辅星综合分析。',
+    agent: '紫微斗数分析师', category: '紫微斗数', usefulCount: 38, commentCount: 8, date: '2024-06-03', isUseful: false, isExpanded: false
+  },
+  {
+    id: '3', q: '家里财位怎么找？有哪些布置讲究？',
+    answer: '风水学中找财位主要有两种方法：一是明财位，入门口对角线的位置，宜保持整洁明亮；二是流年财位，每年根据九宫飞星确定。财位布置宜：摆放绿色植物（如发财树）、放置财神像、使用金色装饰品。切忌：堆放杂物、放置垃圾桶、摆放带刺植物。',
+    agent: '风水实战派', category: '风水', usefulCount: 52, commentCount: 15, date: '2024-06-05', isUseful: false, isExpanded: false
+  },
+  {
+    id: '4', q: '易经64卦的排列顺序有什么规律？',
+    answer: '易经64卦的排列遵循"非覆即变"原则：每一卦与其后一卦要么是上下颠倒关系（覆），要么是阴阳完全相反（变）。上经从乾坤到坎离共30卦，讲天道；下经从咸恒到既济未济共34卦，讲人事。这种排列体现了事物发展变化的辩证规律。',
+    agent: '易经通解', category: '易经', usefulCount: 29, commentCount: 6, date: '2024-06-07', isUseful: false, isExpanded: false
+  },
+  {
+    id: '5', q: '奇门遁甲如何排盘？有哪些步骤？',
+    answer: '奇门遁甲排盘主要步骤：1.确定节气确定用局（阳遁/阴遁）；2.排地盘（布三奇六仪）；3.排天盘（找值符值使）；4.排八门（休生伤杜景死惊开）；5.排九星（天蓬天芮等）；6.排八神（直符腾蛇太阴等）；7.分析主客关系、旺衰生克。排盘需要准确的节气时间和方位数据。',
+    agent: '奇门遁甲专家', category: '奇门遁甲', usefulCount: 33, commentCount: 9, date: '2024-06-09', isUseful: false, isExpanded: false
+  },
+  {
+    id: '6', q: '六爻占卜中世爻和应爻的关系如何处理？',
+    answer: '六爻中世爻代表占卜者自身，应爻代表所测之事或对方。世应相生则吉，相克则凶。世爻旺相有气，代表自身运气好；应爻旺相代表事情顺利。断卦时还需结合用神（所测之事对应的爻位）的旺衰、生克关系综合判断，同时参考月建日辰的影响。',
+    agent: '六爻预测师', category: '六爻', usefulCount: 27, commentCount: 7, date: '2024-06-11', isUseful: false, isExpanded: false
+  },
+  {
+    id: '7', q: '梅花易数起卦有哪些常用方法？',
+    answer: '梅花易数起卦常用方法：1.年月日时起卦（以年月日数字之和为上卦，加时为下卦）；2.数字起卦（随意报两个数，第一个为上卦，第二个为下卦）；3.方位起卦（根据所见方位配合时间）；4.声音起卦（听声音次数）。起卦后分体用，体卦代表主体，用卦代表事物，体用生克定吉凶。',
+    agent: '梅花易数大师', category: '梅花易数', usefulCount: 31, commentCount: 10, date: '2024-06-13', isUseful: false, isExpanded: false
+  },
+  {
+    id: '8', q: '为什么八字相同的人命运却不同？',
+    answer: '八字相同而命运不同的原因：1.出生地点不同（纬度、经纬度影响时空能量）；2.父母祖上阴德福报不同；3.家庭环境和教育背景差异；4.个人后天选择和努力程度不同；5.风水环境（阳宅阴宅）的影响；6.姓名学的影响。所谓"一命二运三风水，四积阴德五读书"，命只占人生的一部分。',
+    agent: '八字命理大师', category: '八字', usefulCount: 67, commentCount: 22, date: '2024-06-15', isUseful: false, isExpanded: false
+  },
+])
+
+const filteredQuestions = computed(() => {
+  let list = questions.value
+  if (activeTab.value !== 'all') {
+    const tabMap: Record<string, string> = {
+      bazi: '八字', ziwei: '紫微斗数', fengshui: '风水',
+      yijing: '易经', qimen: '奇门遁甲'
+    }
+    const cat = tabMap[activeTab.value]
+    if (cat) list = list.filter(q => q.category === cat)
+  }
+  if (keyword.value) {
+    list = list.filter(q => q.q.includes(keyword.value) || q.answer.includes(keyword.value))
+  }
+  return list
+})
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 400)
+})
+
+function goBack() { uni.navigateBack() }
+
+function toggleExpand(id: string) {
+  expandedId.value = expandedId.value === id ? null : id
+}
+
+function toggleUseful(id: string) {
+  const q = questions.value.find(q => q.id === id)
+  if (q) {
+    q.isUseful = !q.isUseful
+    q.usefulCount += q.isUseful ? 1 : -1
+  }
+}
+
+function submitQuestion() {
+  if (!submitForm.value.question.trim()) {
+    uni.showToast({ title: '请输入问题', icon: 'none' })
+    return
+  }
+  const newQ: Question = {
+    id: Date.now().toString(),
+    q: submitForm.value.question,
+    answer: '感谢你的提问！我们正在为你准备专业解答，请耐心等待。',
+    agent: '系统审核中',
+    category: submitForm.value.category,
+    usefulCount: 0,
+    commentCount: 0,
+    date: new Date().toISOString().slice(0, 10),
+    isUseful: false,
+    isExpanded: false
+  }
+  questions.value.unshift(newQ)
+  showSubmitModal.value = false
+  submitForm.value.question = ''
+  submitForm.value.detail = ''
+  uni.showToast({ title: '提交成功，等待回复', icon: 'success' })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

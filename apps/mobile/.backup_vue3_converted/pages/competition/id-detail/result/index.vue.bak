@@ -1,0 +1,176 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-6">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-50 bg-[#C41E3A] text-white">
+      <view class="flex items-center justify-between px-4 h-11">
+        <view @click="goBack" class="flex items-center">
+          <text class="text-white text-lg">←</text>
+        </view>
+        <text class="font-medium">排行榜</text>
+        <view>
+          <text class="text-white text-lg">📤</text>
+        </view>
+      </view>
+    </header>
+
+    <!-- 赛事信息 -->
+    <view class="bg-[#C41E3A] text-white px-4 pb-6 pt-2">
+      <text class="text-white/80 text-sm block mb-1">{{ rankingData.competitionTitle }}</text>
+      <view class="flex items-center gap-3 text-sm">
+        <text class="bg-white/20 text-white text-xs px-2 py-0.5 rounded">{{ rankingData.currentRound }}</text>
+        <text class="text-white/70">参赛 {{ rankingData.totalParticipants }} 人</text>
+        <text class="text-white/70">晋级 {{ rankingData.promotedCount }} 人</text>
+      </view>
+    </view>
+
+    <!-- 前三名展示 -->
+    <view class="px-4 -mt-2">
+      <view class="bg-white rounded-xl p-4 border border-[#E8E0D5]/50">
+        <view class="flex items-end justify-center gap-4">
+          <!-- 亚军 -->
+          <view class="text-center flex-1">
+            <view class="w-14 h-14 rounded-full bg-gray-100 mx-auto mb-2 flex items-center justify-center relative">
+              <text class="text-2xl text-gray-400">👤</text>
+              <view class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center">
+                <text class="text-sm text-white">🥈</text>
+              </view>
+            </view>
+            <text class="font-medium text-sm block">{{ rankingData.topThree[1].name }}</text>
+            <text class="text-lg font-bold text-gray-500 block">{{ rankingData.topThree[1].score }}</text>
+          </view>
+          <!-- 冠军 -->
+          <view class="text-center flex-1">
+            <view class="w-20 h-20 rounded-full bg-amber-100 mx-auto mb-2 flex items-center justify-center relative">
+              <text class="text-3xl text-amber-400">👤</text>
+              <view class="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-amber-400 flex items-center justify-center">
+                <text class="text-lg text-white">👑</text>
+              </view>
+            </view>
+            <text class="font-bold block">{{ rankingData.topThree[0].name }}</text>
+            <text class="text-2xl font-bold text-amber-500 block">{{ rankingData.topThree[0].score }}</text>
+          </view>
+          <!-- 季军 -->
+          <view class="text-center flex-1">
+            <view class="w-14 h-14 rounded-full bg-amber-50 mx-auto mb-2 flex items-center justify-center relative">
+              <text class="text-2xl text-amber-300">👤</text>
+              <view class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-600 flex items-center justify-center">
+                <text class="text-sm text-white">🥉</text>
+              </view>
+            </view>
+            <text class="font-medium text-sm block">{{ rankingData.topThree[2].name }}</text>
+            <text class="text-lg font-bold text-amber-700 block">{{ rankingData.topThree[2].score }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 我的排名 -->
+    <view class="px-4 mt-4">
+      <view :class="['bg-white rounded-xl p-4 border-2', rankingData.myRanking.isPromoted ? 'border-green-300 bg-green-50/50' : 'border-[#E8E0D5]']">
+        <view class="flex items-center gap-3">
+          <view :class="['w-10 h-10 rounded-full flex items-center justify-center font-bold', rankingData.myRanking.rank <= 3 ? 'bg-amber-100 text-amber-600' : rankingData.myRanking.rank <= 10 ? 'bg-[#C41E3A]/10 text-[#C41E3A]' : 'bg-[#F5F1EB] text-[#999]']">
+            {{ rankingData.myRanking.rank }}
+          </view>
+          <view class="w-12 h-12 rounded-full bg-[#C41E3A]/10 flex items-center justify-center">
+            <text class="text-2xl text-[#C41E3A]">👤</text>
+          </view>
+          <view class="flex-1">
+            <text class="font-medium block">我的排名</text>
+            <text class="text-sm text-[#999] block">超越了 {{ Math.round((1 - rankingData.myRanking.rank / rankingData.totalParticipants) * 100) }}% 的选手</text>
+          </view>
+          <view class="text-right">
+            <text class="text-xl font-bold text-[#C41E3A] block">{{ rankingData.myRanking.score }}</text>
+            <text v-if="rankingData.myRanking.isPromoted" class="bg-green-100 text-green-700 text-[10px] px-1.5 py-0.5 rounded">已晋级</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 搜索和筛选 -->
+    <view class="px-4 mt-4 space-y-3">
+      <view class="relative">
+        <text class="absolute left-3 top-1/2 -translate-y-1/2 text-[#999] text-sm">🔍</text>
+        <input v-model="searchQuery" placeholder="搜索选手..." class="w-full pl-9 h-9 border border-[#E8E0D5] rounded-lg text-sm" />
+      </view>
+      <view class="flex bg-[#F5F1EB]/50 rounded-lg p-0.5">
+        <text v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id"
+          :class="['flex-1 text-center py-1.5 text-xs rounded-md transition-colors', activeTab === tab.id ? 'bg-[#FAF8F5] shadow-sm font-medium' : 'text-[#999]']">
+          {{ tab.label }}
+        </text>
+      </view>
+    </view>
+
+    <!-- 排行榜列表 -->
+    <view class="px-4 mt-4">
+      <view class="bg-white rounded-xl border border-[#E8E0D5]/50 overflow-hidden">
+        <view v-for="item in filteredRankings" :key="item.userId" class="flex items-center gap-3 p-3 border-b border-[#E8E0D5]/50 last:border-b-0">
+          <view :class="['w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold',
+            item.rank === 1 ? 'bg-amber-100 text-amber-600' :
+            item.rank === 2 ? 'bg-gray-100 text-gray-600' :
+            item.rank === 3 ? 'bg-amber-50 text-amber-700' :
+            item.rank <= 10 ? 'bg-[#C41E3A]/10 text-[#C41E3A]' : 'bg-[#F5F1EB] text-[#999]']">
+            {{ item.rank }}
+          </view>
+          <view class="w-10 h-10 rounded-full bg-[#F5F1EB] flex items-center justify-center">
+            <text class="text-[#999] text-lg">👤</text>
+          </view>
+          <view class="flex-1">
+            <text class="font-medium text-sm block">{{ item.name }}</text>
+          </view>
+          <view class="text-right">
+            <text class="font-bold block">{{ item.score }}</text>
+            <text :class="['text-xs', item.isPromoted ? 'text-green-600' : 'text-[#999]']">{{ item.isPromoted ? '晋级' : '未晋级' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+const tabs = [{ id: "all", label: "全部" }, { id: "promoted", label: "已晋级" }, { id: "eliminated", label: "未晋级" }]
+
+const rankingData = {
+  competitionTitle: "2024热卜杯·八字命理大赛", currentRound: "初赛",
+  totalParticipants: 1286, promotedCount: 500,
+  myRanking: { rank: 128, userId: "me", name: "我", avatar: "", score: 86, isPromoted: true },
+  topThree: [
+    { rank: 1, userId: "u1", name: "张易学", avatar: "", score: 98, isPromoted: true },
+    { rank: 2, userId: "u2", name: "李命理", avatar: "", score: 96, isPromoted: true },
+    { rank: 3, userId: "u3", name: "王八字", avatar: "", score: 95, isPromoted: true },
+  ],
+  rankings: [
+    { rank: 1, userId: "u1", name: "张易学", avatar: "", score: 98, isPromoted: true },
+    { rank: 2, userId: "u2", name: "李命理", avatar: "", score: 96, isPromoted: true },
+    { rank: 3, userId: "u3", name: "王八字", avatar: "", score: 95, isPromoted: true },
+    { rank: 4, userId: "u4", name: "赵玄机", avatar: "", score: 94, isPromoted: true },
+    { rank: 5, userId: "u5", name: "钱国学", avatar: "", score: 93, isPromoted: true },
+    { rank: 6, userId: "u6", name: "孙易经", avatar: "", score: 92, isPromoted: true },
+    { rank: 7, userId: "u7", name: "周天干", avatar: "", score: 91, isPromoted: true },
+    { rank: 8, userId: "u8", name: "吴地支", avatar: "", score: 90, isPromoted: true },
+    { rank: 9, userId: "u9", name: "郑五行", avatar: "", score: 89, isPromoted: true },
+    { rank: 10, userId: "u10", name: "王十神", avatar: "", score: 88, isPromoted: true },
+  ],
+}
+
+const activeTab = ref("all")
+const searchQuery = ref("")
+
+const filteredRankings = computed(() => {
+  return rankingData.rankings
+    .filter(r => {
+      if (activeTab.value === "promoted") return r.isPromoted
+      if (activeTab.value === "eliminated") return !r.isPromoted
+      return true
+    })
+    .filter(r => r.name.includes(searchQuery.value))
+})
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

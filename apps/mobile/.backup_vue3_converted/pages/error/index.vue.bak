@@ -1,0 +1,30 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <view class="flex items-center justify-between px-4 h-12 bg-white border-b border-[#E8E0D5] shrink-0">
+      <view class="p-1" @click="goBack"><text class="text-xl text-[#2C2C2C]">←</text></view>
+      <text class="text-base font-semibold text-[#2C2C2C]">错误</text>
+      <view class="w-7" />
+    </view>
+    <view class="flex-1 flex items-center justify-center">
+      <view class="text-center">
+        <text class="text-6xl block mb-3">⚠️</text>
+        <text class="text-5xl font-bold text-[#C41E3A] block">{{ code }}</text>
+        <text class="text-sm text-[#999] my-2 block">{{ msg }}</text>
+        <view class="inline-block px-12 py-3 bg-[#C41E3A] text-white rounded-3xl text-sm font-semibold m-1.5" @click="doRetry">重试</view>
+        <view class="inline-block px-12 py-3 bg-[#FAF8F5] text-[#666] rounded-3xl text-sm font-semibold m-1.5" @click="goHome">返回首页</view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+const code = ref('404')
+const msg = ref('页面不存在或已被删除')
+function goBack() { uni.navigateBack() }
+function goHome() { uni.switchTab({ url: '/pages/index/index' }) }
+function doRetry() { uni.navigateBack() }
+</script>
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

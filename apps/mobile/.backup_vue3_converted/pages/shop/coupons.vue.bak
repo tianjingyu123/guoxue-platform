@@ -1,0 +1,194 @@
+<template>
+  <!-- 优惠券列表页 -->
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <!-- 导航栏 -->
+    <view class="flex items-center gap-3 px-6 h-14 bg-white border-b border-[#E8E0D5] sticky top-0 z-40">
+      <text class="text-xl text-[#2C2C2C]" @click="goBack">←</text>
+      <text class="text-base font-semibold text-[#2C2C2C]">我的优惠券</text>
+    </view>
+
+    <!-- Tab切换 -->
+    <view class="flex bg-white px-4 border-b border-[#E8E0D5]">
+      <view
+        v-for="tab in tabs"
+        :key="tab.key"
+        class="flex-1 py-3 text-center text-sm relative"
+        :class="tab.key === activeTab ? 'text-[#C41E3A] font-medium' : 'text-[#999]'"
+        @click="switchTab(tab.key)"
+      >
+        <text>{{ tab.label }}</text>
+        <view
+          v-if="tab.key === activeTab"
+          class="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-[#C41E3A] rounded-full"
+        />
+      </view>
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="isLoading" class="flex-1 p-4">
+      <view v-for="i in 3" :key="i" class="bg-white rounded-xl p-4 mb-3 animate-pulse shadow-sm">
+        <view class="flex gap-4">
+          <view class="w-20 h-20 bg-[#E8E0D5] rounded-lg" />
+          <view class="flex-1 space-y-2">
+            <view class="h-5 w-24 bg-[#E8E0D5] rounded" />
+            <view class="h-4 w-32 bg-[#E8E0D5] rounded" />
+            <view class="h-4 w-28 bg-[#E8E0D5] rounded" />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="isError" class="flex-1 flex flex-col items-center justify-center p-8">
+      <text class="text-5xl mb-4">⚠</text>
+      <text class="text-base text-[#2C2C2C] font-medium mb-2">加载失败</text>
+      <text class="text-sm text-[#999] mb-4">网络开小差了，请稍后重试</text>
+      <view class="px-6 py-2 bg-[#C41E3A] text-white rounded-2xl text-sm" @click="loadData">重新加载</view>
+    </view>
+
+    <!-- 空状态 -->
+    <view v-else-if="filteredCoupons.length === 0" class="flex-1 flex flex-col items-center justify-center p-8">
+      <text class="text-6xl mb-4">🎫</text>
+      <text class="text-base text-[#2C2C2C] font-medium mb-2">暂无优惠券</text>
+      <text class="text-sm text-[#999] mb-4">去逛逛，看看有什么好课程吧</text>
+      <view class="px-6 py-2 bg-[#C41E3A] text-white rounded-2xl text-sm" @click="goShopping">去逛逛</view>
+    </view>
+
+    <!-- 优惠券列表 -->
+    <scroll-view v-else scroll-y class="flex-1 p-4" @scrolltolower="loadMore">
+      <view
+        v-for="item in filteredCoupons"
+        :key="item.id"
+        class="flex bg-white rounded-xl mb-3 overflow-hidden shadow-sm"
+        :class="item.status === 'expired' ? 'opacity-60' : ''"
+      >
+        <!-- 左侧面额区域 -->
+        <view
+          class="w-28 flex flex-col items-center justify-center py-4 relative"
+          :class="item.status === 'used' ? 'bg-[#E8E0D5]' : 'bg-[#C41E3A]'"
+        >
+          <text class="text-2xl font-bold text-white">¥{{ item.amount }}</text>
+          <text class="text-xs text-white/80 mt-1">{{ item.condition }}</text>
+          <!-- 锯齿装饰边 -->
+          <view class="absolute right-0 top-0 w-3 h-full flex flex-col justify-around">
+            <view v-for="i in 6" :key="i" class="w-3 h-3 bg-[#FAF8F5] rounded-l-full" />
+          </view>
+        </view>
+        <!-- 右侧信息 -->
+        <view class="flex-1 p-3.5 flex flex-col justify-between">
+          <view>
+            <text class="text-sm font-medium text-[#2C2C2C] block">{{ item.title }}</text>
+            <text class="text-xs text-[#999] block mt-1">有效期至 {{ item.expire }}</text>
+          </view>
+          <view class="flex items-center justify-between mt-2">
+            <view
+              class="px-2 py-0.5 rounded text-xs"
+              :class="statusClass(item.status)"
+            >
+              {{ statusLabel(item.status) }}
+            </view>
+            <text
+              v-if="item.status === 'unused'"
+              class="text-xs text-[#C41E3A] font-medium"
+              @click="useCoupon(item)"
+            >立即使用 ›</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="h-6" />
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+// 类型定义
+interface Coupon {
+  id: string
+  amount: number
+  condition: string
+  title: string
+  expire: string
+  status: 'unused' | 'used' | 'expired'
+}
+
+// Tab配置
+const tabs = [
+  { key: 'unused', label: '未使用' },
+  { key: 'used', label: '已使用' },
+  { key: 'expired', label: '已过期' },
+]
+const activeTab = ref<string>('unused')
+const isLoading = ref(true)
+const isError = ref(false)
+
+// Mock数据
+const coupons = ref<Coupon[]>([
+  { id: '1', amount: 50, condition: '满200可用', title: '新人专享优惠券', expire: '2026-08-31', status: 'unused' },
+  { id: '2', amount: 100, condition: '满500可用', title: '课程满减券', expire: '2026-07-15', status: 'unused' },
+  { id: '3', amount: 200, condition: '满1000可用', title: 'VIP专享券', expire: '2026-06-20', status: 'used' },
+  { id: '4', amount: 30, condition: '满100可用', title: '体验优惠券', expire: '2026-05-01', status: 'expired' },
+  { id: '5', amount: 80, condition: '满300可用', title: '限时折扣券', expire: '2026-07-31', status: 'unused' },
+  { id: '6', amount: 150, condition: '满800可用', title: '大额优惠券', expire: '2026-06-01', status: 'used' },
+])
+
+const filteredCoupons = computed(() => {
+  return coupons.value.filter(c => c.status === activeTab.value)
+})
+
+function switchTab(key: string) {
+  activeTab.value = key
+}
+
+function statusClass(status: string): string {
+  switch (status) {
+    case 'unused': return 'bg-[#C41E3A]/10 text-[#C41E3A]'
+    case 'used': return 'bg-[#999]/10 text-[#999]'
+    case 'expired': return 'bg-[#E8E0D5] text-[#999]'
+    default: return 'bg-[#E8E0D5] text-[#999]'
+  }
+}
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'unused': return '未使用'
+    case 'used': return '已使用'
+    case 'expired': return '已过期'
+    default: return '未知'
+  }
+}
+
+function useCoupon(item: Coupon) {
+  uni.showToast({ title: '使用优惠券', icon: 'none' })
+}
+
+function goShopping() {
+  uni.navigateTo({ url: '/pages/course/list/index' })
+}
+
+function loadMore() {
+  // 分页加载逻辑
+}
+
+function loadData() {
+  isLoading.value = true
+  isError.value = false
+  setTimeout(() => {
+    isLoading.value = false
+  }, 800)
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+onMounted(() => {
+  loadData()
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

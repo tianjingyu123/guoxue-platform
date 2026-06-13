@@ -1,0 +1,440 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-24">
+    <!-- Header -->
+    <view class="sticky top-0 z-10 bg-[#FAF8F5] border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between h-14 px-4">
+        <view @click="goBack" class="p-2 -ml-2">
+          <text class="text-[#2C2C2C] text-lg">←</text>
+        </view>
+        <text class="font-semibold text-[#2C2C2C]">青少年模式</text>
+        <view @click="showResetModal = true" class="text-sm text-[#C41E3A]">
+          <text>忘记密码</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Loading -->
+    <view v-if="loading" class="animate-pulse p-4 space-y-4">
+      <view class="h-32 bg-[#F0EBE5] rounded-2xl" />
+      <view class="h-64 bg-[#F0EBE5] rounded-2xl" />
+    </view>
+
+    <template v-else>
+      <!-- Banner -->
+      <view class="mx-4 mt-4 p-4 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl text-white">
+        <view class="flex items-start gap-3">
+          <view class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <text class="text-white text-lg">🛡️</text>
+          </view>
+          <view class="flex-1">
+            <text class="font-semibold text-lg block">守护青少年健康成长</text>
+            <text class="text-sm text-white/80 mt-1 block">开启后将限制使用时长、屏蔽不适内容，为青少年营造绿色健康的学习环境</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Main Toggle -->
+      <view class="mx-4 mt-4 bg-white rounded-2xl border border-[#E8E0D5] overflow-hidden">
+        <view class="flex items-center justify-between p-4">
+          <view class="flex items-center gap-3">
+            <view :class="['w-10 h-10 rounded-xl flex items-center justify-center', settings.enabled ? 'bg-blue-100 text-blue-600' : 'bg-[#F0EBE5] text-[#999]']">
+              <text class="text-lg">🛡️</text>
+            </view>
+            <view>
+              <text class="font-medium">青少年模式</text>
+              <text class="text-xs text-[#999] block">{{ settings.enabled ? '已开启保护' : '点击开启' }}</text>
+            </view>
+          </view>
+          <view @click="handleToggleMode" :class="['w-12 h-7 rounded-full transition-colors', settings.enabled ? 'bg-blue-500' : 'bg-[#F0EBE5]']">
+            <view :class="['w-5 h-5 bg-white rounded-full shadow transition-transform', settings.enabled ? 'translate-x-6' : 'translate-x-1']" />
+          </view>
+        </view>
+      </view>
+
+      <!-- Settings -->
+      <view :class="['mx-4 mt-4 space-y-4', settings.enabled ? 'opacity-100' : 'opacity-50 pointer-events-none']">
+        <!-- Time Limit -->
+        <view class="bg-white rounded-2xl border border-[#E8E0D5] overflow-hidden">
+          <view class="p-4 border-b border-[#E8E0D5]">
+            <text class="font-medium text-sm text-[#999]">使用时长限制</text>
+          </view>
+          <view @click="showTimeLimitSheet = true" class="flex items-center justify-between p-4">
+            <view class="flex items-center gap-3">
+              <view class="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center">
+                <text class="text-lg">⏱️</text>
+              </view>
+              <view>
+                <text class="font-medium">每日使用时长</text>
+                <text class="text-xs text-[#999] block">超时后需输入密码继续</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-2">
+              <text class="text-[#C41E3A] font-medium">{{ settings.dailyLimit }}分钟</text>
+              <text class="text-[#999]">›</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Time Range -->
+        <view class="bg-white rounded-2xl border border-[#E8E0D5] overflow-hidden">
+          <view class="p-4 border-b border-[#E8E0D5]">
+            <text class="font-medium text-sm text-[#999]">使用时段限制</text>
+          </view>
+          <view @click="showTimeRangeSheet = true" class="flex items-center justify-between p-4">
+            <view class="flex items-center gap-3">
+              <view class="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center">
+                <text class="text-lg">🌙</text>
+              </view>
+              <view>
+                <text class="font-medium">禁止使用时段</text>
+                <text class="text-xs text-[#999] block">该时段内无法使用App</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-2">
+              <text class="text-[#C41E3A] font-medium">{{ settings.restrictedStartHour }}:00 - {{ settings.restrictedEndHour }}:00</text>
+              <text class="text-[#999]">›</text>
+            </view>
+          </view>
+          <view class="flex items-center justify-between p-4 border-t border-[#E8E0D5]">
+            <text class="text-sm">夜间自动开启深色模式</text>
+            <view @click="settings.autoNightMode = !settings.autoNightMode" :class="['w-12 h-7 rounded-full transition-colors', settings.autoNightMode ? 'bg-blue-500' : 'bg-[#F0EBE5]']">
+              <view :class="['w-5 h-5 bg-white rounded-full shadow transition-transform', settings.autoNightMode ? 'translate-x-6' : 'translate-x-1']" />
+            </view>
+          </view>
+        </view>
+
+        <!-- Content Filter -->
+        <view class="bg-white rounded-2xl border border-[#E8E0D5] overflow-hidden">
+          <view class="p-4 border-b border-[#E8E0D5]">
+            <text class="font-medium text-sm text-[#999]">内容过滤</text>
+          </view>
+          <view @click="showFilterSheet = true" class="flex items-center justify-between p-4">
+            <view class="flex items-center gap-3">
+              <view class="w-10 h-10 bg-green-100 text-green-600 rounded-xl flex items-center justify-center">
+                <text class="text-lg">🔍</text>
+              </view>
+              <view>
+                <text class="font-medium">内容过滤级别</text>
+                <text class="text-xs text-[#999] block">控制可见内容范围</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-2">
+              <text class="text-[#C41E3A] font-medium">{{ settings.filterLevel === 'strict' ? '严格' : '适中' }}</text>
+              <text class="text-[#999]">›</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Password -->
+        <view class="bg-white rounded-2xl border border-[#E8E0D5] overflow-hidden">
+          <view class="p-4 border-b border-[#E8E0D5]">
+            <text class="font-medium text-sm text-[#999]">监护密码</text>
+          </view>
+          <view @click="handlePasswordClick" class="flex items-center justify-between p-4">
+            <view class="flex items-center gap-3">
+              <view class="w-10 h-10 bg-red-100 text-red-600 rounded-xl flex items-center justify-center">
+                <text class="text-lg">🔒</text>
+              </view>
+              <view>
+                <text class="font-medium">修改监护密码</text>
+                <text class="text-xs text-[#999] block">用于关闭模式或延长时间</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-2">
+              <text :class="['text-xs px-2 py-1 rounded-full', settings.hasPassword ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600']">{{ settings.hasPassword ? '已设置' : '未设置' }}</text>
+              <text class="text-[#999]">›</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Tips -->
+        <view class="bg-blue-50 rounded-2xl p-4">
+          <view class="flex items-start gap-3">
+            <text class="text-blue-500 text-lg mt-0.5">💡</text>
+            <view class="flex-1">
+              <text class="font-medium text-blue-900 text-sm block">温馨提示</text>
+              <text class="text-xs text-blue-700 mt-2 block">• 开启后部分功能将受限，如直播打赏、商城购物等</text>
+              <text class="text-xs text-blue-700 block">• 内容将过滤为适合青少年观看的教育类内容</text>
+              <text class="text-xs text-blue-700 block">• 使用时长达到限制后需输入监护密码解锁</text>
+              <text class="text-xs text-blue-700 block">• 忘记密码可通过监护人身份证验证重置</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Bottom Save Button -->
+      <view class="fixed bottom-0 left-0 right-0 p-4 bg-[#FAF8F5] border-t border-[#E8E0D5]">
+        <view @click="handleSave" :class="['w-full h-12 bg-[#C41E3A] text-white rounded-xl font-medium flex items-center justify-center', saving ? 'opacity-50' : '']">
+          <text>{{ saving ? '保存中...' : '保存设置' }}</text>
+        </view>
+      </view>
+    </template>
+
+    <!-- Password Set Modal -->
+    <view v-if="showPasswordModal" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" @click="showPasswordModal = false">
+      <view class="bg-white rounded-2xl w-full max-w-sm p-6" @click.stop>
+        <text class="text-lg font-semibold text-center block">{{ passwordStep === 'set' ? '设置监护密码' : '确认监护密码' }}</text>
+        <text class="text-sm text-[#999] text-center mt-2 block">{{ passwordStep === 'set' ? '请设置4位数字密码' : '请再次输入密码确认' }}</text>
+        <view class="flex justify-center gap-3 mt-6">
+          <view v-for="(d, idx) in 4" :key="idx">
+            <input :id="'pwd-input-' + idx" type="password" inputmode="numeric" maxlength="1" :value="passwordStep === 'set' ? password[idx] : confirmPassword[idx]" @input="handlePwdInput(idx, $event, passwordStep)" class="w-12 h-14 text-center text-2xl font-bold bg-[#F0EBE5] rounded-xl border-2 border-transparent focus:border-primary" />
+          </view>
+        </view>
+        <view @click="showPasswordModal = false; password = ['','','','']; confirmPassword = ['','','','']; passwordStep = 'set'" class="flex-1 h-11 border border-[#E8E0D5] rounded-xl text-sm flex items-center justify-center mt-6">
+          <text>取消</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Verify Modal -->
+    <view v-if="showVerifyModal" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" @click="showVerifyModal = false">
+      <view class="bg-white rounded-2xl w-full max-w-sm p-6" @click.stop>
+        <text class="text-lg font-semibold text-center block">验证监护密码</text>
+        <text class="text-sm text-[#999] text-center mt-2 block">关闭青少年模式需要验证监护密码</text>
+        <view class="flex justify-center gap-3 mt-6">
+          <view v-for="(d, idx) in 4" :key="idx">
+            <input type="password" inputmode="numeric" maxlength="1" :value="verifyPassword[idx]" @input="handleVerifyInput(idx, $event)" class="w-12 h-14 text-center text-2xl font-bold bg-[#F0EBE5] rounded-xl border-2 border-transparent focus:border-primary" />
+          </view>
+        </view>
+        <view @click="showVerifyModal = false; showResetModal = true" class="w-full text-sm text-[#C41E3A] mt-4 text-center">
+          <text>忘记密码？</text>
+        </view>
+        <view @click="showVerifyModal = false; verifyPassword = ['','','','']" class="w-full h-11 mt-4 border border-[#E8E0D5] rounded-xl text-sm flex items-center justify-center">
+          <text>取消</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Reset Modal -->
+    <view v-if="showResetModal" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" @click="showResetModal = false">
+      <view class="bg-white rounded-2xl w-full max-w-sm p-6" @click.stop>
+        <view class="flex items-center gap-2 justify-center">
+          <text class="text-orange-500 text-lg">❓</text>
+          <text class="text-lg font-semibold">身份验证</text>
+        </view>
+        <text class="text-sm text-[#999] text-center mt-2 block">请输入监护人身份证号码重置密码</text>
+        <input type="text" v-model="idCard" placeholder="请输入18位身份证号" maxlength="18" class="w-full h-12 mt-4 px-4 bg-[#F0EBE5] rounded-xl text-sm" />
+        <view class="flex gap-3 mt-6">
+          <view @click="showResetModal = false; idCard = ''" class="flex-1 h-11 border border-[#E8E0D5] rounded-xl text-sm flex items-center justify-center">
+            <text>取消</text>
+          </view>
+          <view @click="handleResetPassword" :class="['flex-1 h-11 bg-[#C41E3A] text-white rounded-xl text-sm flex items-center justify-center', idCard.length !== 18 ? 'opacity-50' : '']">
+            <text>验证并重置</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Time Limit Sheet -->
+    <view v-if="showTimeLimitSheet" class="fixed inset-0 z-50 bg-black/60" @click="showTimeLimitSheet = false">
+      <view class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl" @click.stop>
+        <view class="p-4 border-b border-[#E8E0D5]">
+          <view class="w-10 h-1 bg-[#F0EBE5] rounded-full mx-auto mb-4" />
+          <text class="font-semibold text-center block">选择每日使用时长</text>
+        </view>
+        <view class="p-4 space-y-2 max-h-80 overflow-y-auto">
+          <view v-for="opt in timeLimitOptions" :key="opt.value" @click="selectTimeLimit(opt)" :class="['flex items-center justify-between p-4 rounded-xl', settings.dailyLimit === opt.value ? 'bg-[#C41E3A]/10' : 'bg-[#F0EBE5]']">
+            <text>{{ opt.label }}</text>
+            <text v-if="settings.dailyLimit === opt.value" class="text-[#C41E3A]">✓</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Time Range Sheet -->
+    <view v-if="showTimeRangeSheet" class="fixed inset-0 z-50 bg-black/60" @click="showTimeRangeSheet = false">
+      <view class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl" @click.stop>
+        <view class="p-4 border-b border-[#E8E0D5]">
+          <view class="w-10 h-1 bg-[#F0EBE5] rounded-full mx-auto mb-4" />
+          <text class="font-semibold text-center block">设置禁止使用时段</text>
+        </view>
+        <view class="p-6">
+          <view class="flex items-center justify-center gap-4">
+            <view class="flex-1">
+              <text class="text-sm text-[#999] text-center mb-2 block">开始时间</text>
+              <picker :value="String(settings.restrictedStartHour)" :range="hours" @change="e => settings.restrictedStartHour = parseInt(hours[e.detail.value])" class="w-full h-12 px-4 bg-[#F0EBE5] rounded-xl flex items-center justify-center">
+                <text>{{ String(settings.restrictedStartHour).padStart(2, '0') }}:00</text>
+              </picker>
+            </view>
+            <text class="text-[#999] mt-6">至</text>
+            <view class="flex-1">
+              <text class="text-sm text-[#999] text-center mb-2 block">结束时间</text>
+              <picker :value="String(settings.restrictedEndHour)" :range="hours" @change="e => settings.restrictedEndHour = parseInt(hours[e.detail.value])" class="w-full h-12 px-4 bg-[#F0EBE5] rounded-xl flex items-center justify-center">
+                <text>{{ String(settings.restrictedEndHour).padStart(2, '0') }}:00</text>
+              </picker>
+            </view>
+          </view>
+          <view @click="showTimeRangeSheet = false" class="w-full h-12 mt-6 bg-[#C41E3A] text-white rounded-xl font-medium flex items-center justify-center">
+            <text>确定</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Filter Sheet -->
+    <view v-if="showFilterSheet" class="fixed inset-0 z-50 bg-black/60" @click="showFilterSheet = false">
+      <view class="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl" @click.stop>
+        <view class="p-4 border-b border-[#E8E0D5]">
+          <view class="w-10 h-1 bg-[#F0EBE5] rounded-full mx-auto mb-4" />
+          <text class="font-semibold text-center block">内容过滤级别</text>
+        </view>
+        <view class="p-4 space-y-3">
+          <view v-for="level in filterLevels" :key="level.value" @click="settings.filterLevel = level.value; showFilterSheet = false" :class="['flex items-center justify-between p-4 rounded-xl', settings.filterLevel === level.value ? 'bg-[#C41E3A]/10 border-2 border-primary' : 'bg-[#F0EBE5] border-2 border-transparent']">
+            <view>
+              <text class="font-medium block">{{ level.label }}</text>
+              <text class="text-xs text-[#999] mt-1 block">{{ level.desc }}</text>
+            </view>
+            <text v-if="settings.filterLevel === level.value" class="text-[#C41E3A]">✓</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const loading = ref(true)
+const saving = ref(false)
+const showPasswordModal = ref(false)
+const showVerifyModal = ref(false)
+const showTimeLimitSheet = ref(false)
+const showTimeRangeSheet = ref(false)
+const showFilterSheet = ref(false)
+const showResetModal = ref(false)
+
+const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0') + ':00')
+
+const settings = ref({
+  enabled: false,
+  dailyLimit: 40,
+  restrictedStartHour: 22,
+  restrictedEndHour: 6,
+  autoNightMode: true,
+  filterLevel: 'moderate' as 'strict' | 'moderate',
+  hasPassword: false,
+})
+
+const password = ref(['', '', '', ''])
+const confirmPassword = ref(['', '', '', ''])
+const verifyPassword = ref(['', '', '', ''])
+const passwordStep = ref<'set' | 'confirm'>('set')
+const idCard = ref('')
+
+const timeLimitOptions = [
+  { value: 15, label: '15分钟' },
+  { value: 30, label: '30分钟' },
+  { value: 40, label: '40分钟（默认）' },
+  { value: 60, label: '60分钟' },
+  { value: 90, label: '90分钟' },
+  { value: 120, label: '120分钟' },
+]
+
+const filterLevels = [
+  { value: 'strict', label: '严格', desc: '仅显示适合青少年的教育内容' },
+  { value: 'moderate', label: '适中', desc: '过滤不适内容，保留大部分功能' },
+]
+
+function handleToggleMode() {
+  if (settings.value.enabled) {
+    showVerifyModal.value = true
+  } else {
+    showPasswordModal.value = true
+    passwordStep.value = 'set'
+  }
+}
+
+function selectTimeLimit(opt: { value: number; label: string }) {
+  settings.value.dailyLimit = opt.value
+  showTimeLimitSheet.value = false
+}
+
+function handlePwdInput(idx: number, event: any, step: string) {
+  const val = event.detail.value.replace(/\D/g, '').slice(-1)
+  if (!val) return
+  if (step === 'set') {
+    password.value[idx] = val
+    if (idx < 3) {
+      const next = document.getElementById('pwd-input-' + (idx + 1))
+      next?.focus()
+    } else if (password.value.every(p => p !== '')) {
+      passwordStep.value = 'confirm'
+      confirmPassword.value = ['', '', '', '']
+      setTimeout(() => {
+        const first = document.getElementById('pwd-input-0')
+        first?.focus()
+      }, 100)
+    }
+  } else {
+    confirmPassword.value[idx] = val
+    if (idx < 3) {
+      const next = document.getElementById('pwd-input-' + (idx + 1))
+      next?.focus()
+    } else if (confirmPassword.value.every(p => p !== '')) {
+      if (confirmPassword.value.join('') === password.value.join('')) {
+        settings.value.enabled = true
+        settings.value.hasPassword = true
+        showPasswordModal.value = false
+        password.value = ['', '', '', '']
+        confirmPassword.value = ['', '', '', '']
+        passwordStep.value = 'set'
+      } else {
+        confirmPassword.value = ['', '', '', '']
+        setTimeout(() => {
+          const first = document.getElementById('pwd-input-0')
+          first?.focus()
+        }, 100)
+      }
+    }
+  }
+}
+
+function handleVerifyInput(idx: number, event: any) {
+  const val = event.detail.value.replace(/\D/g, '').slice(-1)
+  if (!val) return
+  verifyPassword.value[idx] = val
+  if (idx < 3) {
+    setTimeout(() => {
+      const next = document.getElementById('pwd-input-' + (idx + 1))
+      next?.focus()
+    }, 50)
+  } else if (verifyPassword.value.every(p => p !== '')) {
+    settings.value.enabled = false
+    showVerifyModal.value = false
+    verifyPassword.value = ['', '', '', '']
+  }
+}
+
+function handlePasswordClick() {
+  showPasswordModal.value = true
+  passwordStep.value = 'set'
+}
+
+function handleResetPassword() {
+  if (idCard.value.length === 18) {
+    settings.value.hasPassword = false
+    showResetModal.value = false
+    idCard.value = ''
+    showPasswordModal.value = true
+    passwordStep.value = 'set'
+  }
+}
+
+function handleSave() {
+  saving.value = true
+  setTimeout(() => {
+    saving.value = false
+    uni.showToast({ title: '保存成功', icon: 'success' })
+    uni.navigateBack()
+  }, 1000)
+}
+
+function goBack() { uni.navigateBack() }
+
+setTimeout(() => { loading.value = false }, 500)
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

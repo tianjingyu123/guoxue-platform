@@ -1,0 +1,298 @@
+<template>
+  <view class="min-h-screen" style="background-color: #FAF8F5;">
+    <!-- 网络错误提示 (对应 V0 networkError 横幅) -->
+    <view v-if="networkError" class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3" style="background-color: #ef4444; color: #FFFFFF;">
+      <view class="flex items-center gap-2">
+        <text style="font-size: 14px;">📶</text>
+        <text class="text-sm">网络异常，请稍后重试</text>
+      </view>
+      <view @click="networkError = false" style="cursor: pointer;">
+        <text style="font-size: 14px;">✕</text>
+      </view>
+    </view>
+
+    <!-- 成功页面 -->
+    <view v-if="isSuccess" class="flex flex-col" style="min-height: 100vh; background-color: #FAF8F5;">
+      <view class="sticky top-0 z-40" style="background-color: rgba(250,248,245,0.95); border-bottom: 1px solid #E8E0D5;">
+        <view class="flex items-center" style="height: 48px; padding: 0 16px;">
+          <view @click="goBack" class="p-1 -ml-1" style="cursor: pointer;">
+            <text style="font-size: 20px; color: #2C2C2C; line-height: 1;">←</text>
+          </view>
+          <text class="flex-1 text-center font-semibold" style="color: #2C2C2C; padding-right: 36px;">修改密码</text>
+        </view>
+      </view>
+
+      <view class="flex-1 flex flex-col items-center justify-center px-6">
+        <view class="w-20 h-20 rounded-full flex items-center justify-center mb-6" style="background-color: rgba(34,197,94,0.2);">
+          <text style="color: #22c55e; font-size: 36px;">✓</text>
+        </view>
+        <text class="text-xl font-semibold block mb-2" style="color: #2C2C2C;">密码修改成功</text>
+        <text class="text-sm text-center block mb-8" style="color: #999;">请重新登录以确保账号安全</text>
+        <view
+          @click="goLogin"
+          class="w-full py-3 rounded-xl text-sm font-medium text-center"
+          style="max-width: 320px; background-color: #C41E3A; color: #FFFFFF; cursor: pointer;"
+        >
+          重新登录
+        </view>
+      </view>
+    </view>
+
+    <!-- 修改密码表单 -->
+    <view v-else>
+      <!-- 顶部导航 -->
+      <view class="sticky top-0 z-40" style="background-color: rgba(250,248,245,0.95); border-bottom: 1px solid #E8E0D5;">
+        <view class="flex items-center" style="height: 48px; padding: 0 16px;">
+          <view @click="goBack" class="p-1 -ml-1" style="cursor: pointer;">
+            <text style="font-size: 20px; color: #2C2C2C; line-height: 1;">←</text>
+          </view>
+          <text class="flex-1 text-center font-semibold" style="color: #2C2C2C; padding-right: 36px;">修改密码</text>
+        </view>
+      </view>
+
+      <view class="p-4 space-y-6">
+        <!-- 旧密码 -->
+        <view>
+          <text class="block text-sm font-medium mb-2" style="color: #2C2C2C;">当前密码</text>
+          <view class="rounded-xl relative" style="background-color: #FFFFFF;">
+            <input
+              :type="showOldPassword ? 'text' : 'password'"
+              v-model="oldPassword"
+              @input="oldPasswordError = ''"
+              placeholder="请输入当前密码"
+              class="w-full bg-transparent px-4 py-3 pr-12 text-sm"
+              style="color: #2C2C2C;"
+              placeholder-style="color: #999;"
+            />
+            <view
+              @click="showOldPassword = !showOldPassword"
+              class="absolute right-3 top-1/2 p-1"
+              style="transform: translateY(-50%); color: #999; cursor: pointer;"
+            >
+              <text style="font-size: 16px;">{{ showOldPassword ? '👁️' : '👁️‍🗨️' }}</text>
+            </view>
+          </view>
+          <view v-if="oldPasswordError" class="mt-1.5 flex items-center gap-1">
+            <text style="color: #ef4444; font-size: 12px;">⚠️</text>
+            <text class="text-xs" style="color: #ef4444;">{{ oldPasswordError }}</text>
+          </view>
+        </view>
+
+        <!-- 新密码 -->
+        <view>
+          <text class="block text-sm font-medium mb-2" style="color: #2C2C2C;">新密码</text>
+          <view class="rounded-xl relative" style="background-color: #FFFFFF;">
+            <input
+              :type="showNewPassword ? 'text' : 'password'"
+              v-model="newPassword"
+              placeholder="请输入新密码"
+              class="w-full bg-transparent px-4 py-3 pr-12 text-sm"
+              style="color: #2C2C2C;"
+              placeholder-style="color: #999;"
+            />
+            <view
+              @click="showNewPassword = !showNewPassword"
+              class="absolute right-3 top-1/2 p-1"
+              style="transform: translateY(-50%); color: #999; cursor: pointer;"
+            >
+              <text style="font-size: 16px;">{{ showNewPassword ? '👁️' : '👁️‍🗨️' }}</text>
+            </view>
+          </view>
+
+          <!-- 密码强度条 -->
+          <view v-if="newPassword" class="mt-3">
+            <view class="flex items-center gap-2 mb-1.5">
+              <text class="text-xs" style="color: #999;">密码强度</text>
+              <text
+                class="text-xs font-medium"
+                :style="{
+                  color: passwordStrength.level === 1 ? '#ef4444' : passwordStrength.level === 2 ? '#eab308' : '#22c55e'
+                }"
+              >
+                {{ passwordStrength.text }}
+              </text>
+            </view>
+            <view class="flex gap-1">
+              <view
+                v-for="level in 3"
+                :key="level"
+                class="h-1 flex-1 rounded-full"
+                :style="{
+                  backgroundColor: level <= passwordStrength.level ? passwordStrength.bgColor : '#F2EFEA'
+                }"
+              />
+            </view>
+          </view>
+
+          <!-- 密码规则 -->
+          <view class="mt-3 space-y-1.5">
+            <text
+              class="text-xs flex items-center gap-1.5"
+              :style="{ color: passwordRules.length ? '#22c55e' : '#999' }"
+            >
+              <text>{{ passwordRules.length ? '✓' : '○' }}</text>
+              <text>6-20位字符</text>
+            </text>
+            <text
+              class="text-xs flex items-center gap-1.5"
+              :style="{ color: passwordRules.hasLetter ? '#22c55e' : '#999' }"
+            >
+              <text>{{ passwordRules.hasLetter ? '✓' : '○' }}</text>
+              <text>包含字母</text>
+            </text>
+            <text
+              class="text-xs flex items-center gap-1.5"
+              :style="{ color: passwordRules.hasNumber ? '#22c55e' : '#999' }"
+            >
+              <text>{{ passwordRules.hasNumber ? '✓' : '○' }}</text>
+              <text>包含数字</text>
+            </text>
+          </view>
+        </view>
+
+        <!-- 确认新密码 -->
+        <view>
+          <text class="block text-sm font-medium mb-2" style="color: #2C2C2C;">确认新密码</text>
+          <view class="rounded-xl relative" style="background-color: #FFFFFF;">
+            <input
+              :type="showConfirmPassword ? 'text' : 'password'"
+              v-model="confirmPassword"
+              placeholder="请再次输入新密码"
+              class="w-full bg-transparent px-4 py-3 pr-12 text-sm"
+              style="color: #2C2C2C;"
+              placeholder-style="color: #999;"
+            />
+            <view
+              @click="showConfirmPassword = !showConfirmPassword"
+              class="absolute right-3 top-1/2 p-1"
+              style="transform: translateY(-50%); color: #999; cursor: pointer;"
+            >
+              <text style="font-size: 16px;">{{ showConfirmPassword ? '👁️' : '👁️‍🗨️' }}</text>
+            </view>
+          </view>
+          <view v-if="confirmPassword && !isConfirmMatch" class="mt-1.5 flex items-center gap-1">
+            <text style="color: #ef4444; font-size: 12px;">⚠️</text>
+            <text class="text-xs" style="color: #ef4444;">两次输入的密码不一致</text>
+          </view>
+          <view v-if="confirmPassword && isConfirmMatch" class="mt-1.5 flex items-center gap-1">
+            <text style="color: #22c55e; font-size: 12px;">✓</text>
+            <text class="text-xs" style="color: #22c55e;">密码一致</text>
+          </view>
+        </view>
+
+        <!-- 提交按钮 -->
+        <view
+          @click="handleSubmit"
+          class="w-full py-3 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+          :style="{
+            backgroundColor: canSubmit ? '#C41E3A' : '#F2EFEA',
+            color: canSubmit ? '#FFFFFF' : '#999',
+            cursor: canSubmit ? 'pointer' : 'not-allowed'
+          }"
+        >
+          <text v-if="isSubmitting" style="font-size: 16px;">⏳</text>
+          <text>{{ isSubmitting ? '提交中...' : '确认修改' }}</text>
+        </view>
+
+        <!-- 忘记密码入口 -->
+        <view class="text-center">
+          <text
+            @click="goForgotPassword"
+            class="text-sm"
+            style="color: #C41E3A; cursor: pointer;"
+          >
+            忘记原密码？
+          </text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+const oldPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+
+const showOldPassword = ref(false)
+const showNewPassword = ref(false)
+const showConfirmPassword = ref(false)
+
+const oldPasswordError = ref('')
+const isSubmitting = ref(false)
+const isSuccess = ref(false)
+
+// 对应 V0 的 networkError state
+const networkError = ref(false)
+
+// 密码强度计算
+const passwordStrength = computed(() => {
+  if (!newPassword.value) return { level: 0, text: '', bgColor: '' }
+
+  let score = 0
+  if (newPassword.value.length >= 6) score++
+  if (newPassword.value.length >= 10) score++
+  if (/[a-z]/.test(newPassword.value) && /[A-Z]/.test(newPassword.value)) score++
+  if (/\d/.test(newPassword.value)) score++
+  if (/[!@#$%^&*(),.?":{}|<>]/.test(newPassword.value)) score++
+
+  if (score <= 2) return { level: 1, text: '弱', bgColor: '#ef4444' }
+  if (score <= 3) return { level: 2, text: '中', bgColor: '#eab308' }
+  return { level: 3, text: '强', bgColor: '#22c55e' }
+})
+
+// 密码规则验证
+const passwordRules = computed(() => ({
+  length: newPassword.value.length >= 6 && newPassword.value.length <= 20,
+  hasLetter: /[a-zA-Z]/.test(newPassword.value),
+  hasNumber: /\d/.test(newPassword.value),
+}))
+
+const isPasswordValid = computed(() =>
+  passwordRules.value.length && passwordRules.value.hasLetter && passwordRules.value.hasNumber
+)
+
+const isConfirmMatch = computed(() =>
+  confirmPassword.value === newPassword.value && confirmPassword.value.length > 0
+)
+
+const canSubmit = computed(() =>
+  oldPassword.value.length > 0 && isPasswordValid.value && isConfirmMatch.value && !isSubmitting.value
+)
+
+function handleSubmit() {
+  if (!canSubmit.value) return
+
+  oldPasswordError.value = ''
+  networkError.value = false
+  isSubmitting.value = true
+
+  // 模拟 API 请求 (1500ms)
+  setTimeout(() => {
+    // 模拟旧密码验证 (正确密码: 123456)
+    if (oldPassword.value !== '123456') {
+      oldPasswordError.value = '原密码错误'
+      isSubmitting.value = false
+      return
+    }
+
+    // 模拟成功
+    isSubmitting.value = false
+    isSuccess.value = true
+  }, 1500)
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+function goLogin() {
+  uni.redirectTo({ url: '/pages/login/index' })
+}
+
+function goForgotPassword() {
+  uni.navigateTo({ url: '/pages/login/forgot-password/index' })
+}
+</script>

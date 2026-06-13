@@ -1,0 +1,334 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-4">
+    <!-- 头部 -->
+    <view class="sticky top-0 z-10 bg-white border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view class="flex items-center gap-3">
+          <view class="p-1" @click="goBack">
+            <text class="text-[#2C2C2C] text-lg">←</text>
+          </view>
+          <text class="text-lg font-semibold text-[#2C2C2C]">收入结算</text>
+        </view>
+        <view class="p-1" @click="showFilter = true">
+          <text class="text-[#999]">📊</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 统计卡片 -->
+    <view class="p-4">
+      <view class="rounded-xl p-4 text-white" style="background:linear-gradient(to right,#C41E3A,#C41E3A);">
+        <text class="text-sm opacity-90 block mb-1">累计收入</text>
+        <text class="text-3xl font-bold block mb-4">¥{{ stats.totalNetAmount.toLocaleString() }}</text>
+        <view class="grid grid-cols-3 gap-4 text-sm">
+          <view>
+            <text class="opacity-75 block">总收入</text>
+            <text class="font-medium block">¥{{ stats.totalIncome.toLocaleString() }}</text>
+          </view>
+          <view>
+            <text class="opacity-75 block">扣除</text>
+            <text class="font-medium block">¥{{ stats.totalDeduction.toLocaleString() }}</text>
+          </view>
+          <view>
+            <text class="opacity-75 block">待结算</text>
+            <text class="font-medium block">¥{{ stats.pendingAmount.toLocaleString() }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 状态筛选 -->
+    <view class="px-4 mb-4">
+      <view class="flex gap-2 overflow-x-auto pb-2">
+        <view
+          v-for="opt in statusOptions"
+          :key="opt.value"
+          class="px-3 py-1.5 rounded-full text-sm whitespace-nowrap flex-shrink-0"
+          :style="{ backgroundColor: selectedStatus === opt.value ? '#C41E3A' : '#F1EDE8', color: selectedStatus === opt.value ? '#fff' : '#2C2C2C' }"
+          @click="selectedStatus = opt.value"
+        >
+          <text>{{ opt.label }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 结算列表 -->
+    <view class="px-4 space-y-3">
+      <!-- 加载骨架 -->
+      <template v-if="loading">
+        <view v-for="i in 3" :key="i" class="bg-white rounded-xl border border-[#E8E0D5] p-4">
+          <view class="flex items-center justify-between mb-3">
+            <view>
+              <view class="h-4 w-40 rounded mb-2" style="background:#F0EBE5" />
+              <view class="h-3 w-32 rounded" style="background:#F0EBE5" />
+            </view>
+            <view class="h-5 w-14 rounded-full" style="background:#F0EBE5" />
+          </view>
+          <view class="grid grid-cols-3 gap-4">
+            <view v-for="j in 3" :key="j">
+              <view class="h-3 w-10 rounded mb-1" style="background:#F0EBE5" />
+              <view class="h-5 w-16 rounded" style="background:#F0EBE5" />
+            </view>
+          </view>
+        </view>
+      </template>
+
+      <template v-if="!loading">
+      <view v-for="settlement in settlements" :key="settlement.id" class="bg-white rounded-xl border border-[#E8E0D5] p-4" @click="openDetail(settlement)">
+        <view class="flex items-start justify-between mb-3">
+          <view>
+            <view class="flex items-center gap-2 mb-1">
+              <text class="text-[#999]">📅</text>
+              <text class="text-sm text-[#2C2C2C]">{{ settlement.periodStart }} ~ {{ settlement.periodEnd }}</text>
+            </view>
+            <text class="text-xs text-[#999] block">结算单号：{{ settlement.settlementNo }}</text>
+          </view>
+          <view
+            class="text-xs px-2 py-0.5 rounded-full"
+            :style="{ backgroundColor: getStatusStyle(settlement.status).bg, color: getStatusStyle(settlement.status).color }"
+          >
+            <text>{{ getStatusLabel(settlement.status) }}</text>
+          </view>
+        </view>
+
+        <view class="flex items-end justify-between">
+          <view class="flex flex-1 gap-4 text-sm">
+            <view>
+              <text class="text-xs text-[#999] block">收入</text>
+              <text class="font-medium text-[#2C2C2C] block">¥{{ settlement.totalIncome.toLocaleString() }}</text>
+            </view>
+            <view>
+              <text class="text-xs text-[#999] block">扣除</text>
+              <text class="font-medium block" style="color:#EF4444">-¥{{ settlement.totalDeduction.toLocaleString() }}</text>
+            </view>
+            <view>
+              <text class="text-xs text-[#999] block">实收</text>
+              <text class="font-medium block" style="color:#22C55E">¥{{ settlement.netAmount.toLocaleString() }}</text>
+            </view>
+          </view>
+          <text class="text-[#999]">›</text>
+        </view>
+      </view>
+
+      <view v-if="!loading && settlements.length === 0" class="text-center py-12">
+        <text class="text-4xl text-[#999]/30 block mb-3">💰</text>
+        <text class="text-sm text-[#999] block">暂无结算记录</text>
+      </view>
+      </template>
+    </view>
+
+    <!-- 筛选弹窗 -->
+    <view v-if="showFilter" class="fixed inset-0 z-50" style="background-color:rgba(0,0,0,0.5)" @click="showFilter = false">
+      <view class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4" @click.stop>
+        <view class="flex items-center justify-between mb-4">
+          <text class="font-semibold text-[#2C2C2C]">筛选</text>
+          <view class="p-1" @click="showFilter = false">
+            <text class="text-[#999]">✕</text>
+          </view>
+        </view>
+        <view class="mb-4">
+          <text class="text-sm text-[#999] block mb-2">选择年份</text>
+          <view class="flex flex-wrap gap-2">
+            <view
+              v-for="year in years"
+              :key="year"
+              class="px-3 py-1.5 rounded-full text-sm"
+              :style="{ backgroundColor: selectedYear === year ? '#C41E3A' : '#F1EDE8', color: selectedYear === year ? '#fff' : '#2C2C2C' }"
+              @click="selectedYear = year"
+            >
+              <text>{{ year }}年</text>
+            </view>
+          </view>
+        </view>
+        <view class="w-full py-3 rounded-xl text-sm text-center text-white" style="background-color:#C41E3A" @click="showFilter = false">
+          <text>确定</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 详情弹窗 -->
+    <view v-if="showDetail && detailData" class="fixed inset-0 z-50" style="background-color:rgba(0,0,0,0.5)" @click="showDetail = false">
+      <view class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl" style="max-height:85vh;overflow-y:auto" @click.stop>
+        <view class="sticky top-0 bg-white border-b border-[#E8E0D5] p-4 flex items-center justify-between">
+          <text class="font-semibold text-[#2C2C2C]">结算详情</text>
+          <view class="p-1" @click="showDetail = false">
+            <text class="text-[#999]">✕</text>
+          </view>
+        </view>
+        <view class="p-4 space-y-4">
+          <!-- 结算概览 -->
+          <view class="rounded-lg p-4" style="background-color:rgba(241,237,232,0.5)">
+            <view class="flex items-center gap-2 mb-3">
+              <text class="text-[#999]">📅</text>
+              <text class="text-sm text-[#2C2C2C]">{{ detailData.periodStart }} ~ {{ detailData.periodEnd }}</text>
+              <view class="ml-auto text-xs px-2 py-0.5 rounded-full" :style="{ backgroundColor: getStatusStyle(detailData.status).bg, color: getStatusStyle(detailData.status).color }">
+                <text>{{ getStatusLabel(detailData.status) }}</text>
+              </view>
+            </view>
+            <view class="grid grid-cols-3 gap-4 text-center">
+              <view>
+                <text class="text-xs text-[#999] block">总收入</text>
+                <text class="font-semibold text-[#2C2C2C] block">¥{{ detailData.totalIncome.toLocaleString() }}</text>
+              </view>
+              <view>
+                <text class="text-xs text-[#999] block">扣除</text>
+                <text class="font-semibold block" style="color:#EF4444">-¥{{ detailData.totalDeduction.toLocaleString() }}</text>
+              </view>
+              <view>
+                <text class="text-xs text-[#999] block">实收</text>
+                <text class="font-semibold block" style="color:#22C55E">¥{{ detailData.netAmount.toLocaleString() }}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 收入构成 -->
+          <view>
+            <text class="font-medium text-[#2C2C2C] block mb-3">收入构成</text>
+            <view class="grid grid-cols-2 gap-3">
+              <view v-for="item in detailData.incomeByType" :key="item.type" class="bg-white rounded-xl border border-[#E8E0D5] p-3">
+                <view class="flex items-center gap-2 mb-2">
+                  <view class="p-1.5 rounded" :style="{ backgroundColor: getIncomeTypeColor(item.type).bg }">
+                    <text>{{ getIncomeTypeIcon(item.type) }}</text>
+                  </view>
+                  <text class="text-sm text-[#2C2C2C]">{{ getIncomeTypeLabel(item.type) }}</text>
+                </view>
+                <text class="font-semibold text-[#2C2C2C] block">¥{{ item.amount.toLocaleString() }}</text>
+                <text class="text-xs text-[#999] block">{{ item.count }}笔</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 收入明细 -->
+          <view>
+            <text class="font-medium text-[#2C2C2C] block mb-3">收入明细</text>
+            <view class="space-y-2">
+              <view v-for="item in detailData.incomeItems" :key="item.id" class="flex items-center gap-3 py-2 border-b border-[#E8E0D5] last:border-0">
+                <view class="p-1.5 rounded" :style="{ backgroundColor: getIncomeTypeColor(item.type).bg }">
+                  <text>{{ getIncomeTypeIcon(item.type) }}</text>
+                </view>
+                <view class="flex-1 min-w-0">
+                  <text class="text-sm text-[#2C2C2C] truncate block">{{ item.title }}</text>
+                  <text class="text-xs text-[#999] block">{{ item.time }}</text>
+                </view>
+                <text class="font-medium" style="color:#22C55E">+¥{{ item.amount }}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 扣除明细 -->
+          <view>
+            <text class="font-medium text-[#2C2C2C] block mb-3">扣除明细</text>
+            <view class="space-y-2">
+              <view v-for="item in detailData.deductionItems" :key="item.id" class="flex items-center justify-between py-2 border-b border-[#E8E0D5] last:border-0">
+                <view>
+                  <text class="text-sm text-[#2C2C2C] block">{{ item.title }}</text>
+                  <text v-if="item.remark" class="text-xs text-[#999] block">{{ item.remark }}</text>
+                </view>
+                <text class="font-medium" style="color:#EF4444">-¥{{ item.amount.toLocaleString() }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const selectedStatus = ref('all')
+const selectedYear = ref(2026)
+const showFilter = ref(false)
+const showDetail = ref(false)
+const detailData = ref<any>(null)
+const loading = ref(false)
+
+const statusOptions = [
+  { value: 'all', label: '全部' },
+  { value: 'pending', label: '待结算' },
+  { value: 'processing', label: '结算中' },
+  { value: 'completed', label: '已结算' },
+]
+
+const years = [2026, 2025, 2024]
+
+const stats = {
+  totalNetAmount: 128600,
+  totalIncome: 158000,
+  totalDeduction: 29400,
+  pendingAmount: 35800,
+}
+
+const settlements = [
+  { id: 1, periodStart: '2026-05-01', periodEnd: '2026-05-15', settlementNo: 'SET20260515001', status: 'completed', totalIncome: 28600, totalDeduction: 4300, netAmount: 24300 },
+  { id: 2, periodStart: '2026-04-16', periodEnd: '2026-04-30', settlementNo: 'SET20260430002', status: 'completed', totalIncome: 35200, totalDeduction: 5300, netAmount: 29900 },
+  { id: 3, periodStart: '2026-04-01', periodEnd: '2026-04-15', settlementNo: 'SET20260415003', status: 'pending', totalIncome: 18800, totalDeduction: 2800, netAmount: 16000 },
+  { id: 4, periodStart: '2026-03-16', periodEnd: '2026-03-31', settlementNo: 'SET20260331004', status: 'processing', totalIncome: 42000, totalDeduction: 6300, netAmount: 35700 },
+]
+
+const mockDetailData = {
+  id: 1, periodStart: '2026-05-01', periodEnd: '2026-05-15', status: 'completed',
+  totalIncome: 28600, totalDeduction: 4300, netAmount: 24300,
+  incomeByType: [
+    { type: 'course', amount: 15800, count: 28 },
+    { type: 'product', amount: 8600, count: 45 },
+    { type: 'booking', amount: 3200, count: 12 },
+    { type: 'commission', amount: 1000, count: 5 },
+  ],
+  incomeItems: [
+    { id: 1, type: 'course', title: '八字命理入门实战班', amount: 299, time: '2026-05-15' },
+    { id: 2, type: 'product', title: '滴天髓精解', amount: 136, time: '2026-05-14' },
+    { id: 3, type: 'booking', title: '一对一命理咨询', amount: 500, time: '2026-05-13' },
+  ],
+  deductionItems: [
+    { id: 1, title: '平台服务费', amount: 2860, remark: '按总收入10%收取' },
+    { id: 2, title: '手续费', amount: 1440, remark: '支付通道手续费' },
+  ],
+}
+
+function getStatusLabel(status: string): string {
+  const map: Record<string, string> = { pending: '待结算', processing: '结算中', completed: '已结算' }
+  return map[status] || status
+}
+
+function getStatusStyle(status: string): { bg: string; color: string } {
+  const map: Record<string, { bg: string; color: string }> = {
+    pending: { bg: 'rgba(245,158,11,0.1)', color: '#F59E0B' },
+    processing: { bg: 'rgba(59,130,246,0.1)', color: '#3B82F6' },
+    completed: { bg: 'rgba(34,197,94,0.1)', color: '#22C55E' },
+  }
+  return map[status] || { bg: '#F1EDE8', color: '#999' }
+}
+
+function getIncomeTypeLabel(type: string): string {
+  const map: Record<string, string> = { course: '课程收入', product: '商品收入', booking: '预约收入', commission: '佣金收入' }
+  return map[type] || type
+}
+
+function getIncomeTypeIcon(type: string): string {
+  const map: Record<string, string> = { course: '📖', product: '🛍️', booking: '👤', commission: '🎁' }
+  return map[type] || '📄'
+}
+
+function getIncomeTypeColor(type: string): { bg: string } {
+  const map: Record<string, { bg: string }> = {
+    course: { bg: 'rgba(59,130,246,0.1)' },
+    product: { bg: 'rgba(34,197,94,0.1)' },
+    booking: { bg: 'rgba(168,85,247,0.1)' },
+    commission: { bg: 'rgba(245,158,11,0.1)' },
+  }
+  return map[type] || { bg: '#F1EDE8' }
+}
+
+function openDetail(settlement: any) {
+  detailData.value = { ...mockDetailData, ...settlement }
+  showDetail.value = true
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

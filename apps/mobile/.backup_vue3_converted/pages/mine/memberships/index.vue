@@ -1,0 +1,256 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-background/95 border-b border-border">
+      <view class="flex items-center justify-between h-12 px-4">
+        <view @click="goBack" class="p-1 -ml-1"><text class="text-foreground text-xl">←</text></view>
+        <text class="font-semibold text-base text-foreground">我的权益</text>
+        <view class="p-1 relative" @click="goNotifications">
+          <text class="text-lg"></text>
+          <text v-if="expiringCount > 0" class="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center text-center leading-none">{{ expiringCount }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 统计卡片 -->
+    <view class="p-4">
+      <view class="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-4">
+        <view class="flex items-center justify-between mb-3">
+          <text class="font-medium text-foreground">权益概览</text>
+          <view class="text-xs text-primary flex items-center gap-1" @click="goOrders">
+            <text>订单记录</text>
+            <text class="text-lg leading-none">›</text>
+          </view>
+        </view>
+        <view class="grid grid-cols-4 gap-2 text-center">
+          <view
+            @click="filter = 'all'"
+            :class="['py-2 rounded-lg transition-colors', filter === 'all' ? 'bg-primary/20' : 'bg-white/50']"
+          >
+            <text class="text-lg font-bold text-foreground block">{{ stats.total }}</text>
+            <text class="text-[10px] text-muted-foreground">全部权益</text>
+          </view>
+          <view
+            @click="filter = 'active'"
+            :class="['py-2 rounded-lg transition-colors', filter === 'active' ? 'bg-green-100' : 'bg-white/50']"
+          >
+            <text class="text-lg font-bold text-green-600 block">{{ stats.active }}</text>
+            <text class="text-[10px] text-muted-foreground">正常</text>
+          </view>
+          <view
+            @click="filter = 'expiring'"
+            :class="['py-2 rounded-lg transition-colors', filter === 'expiring' ? 'bg-amber-100' : 'bg-white/50']"
+          >
+            <text class="text-lg font-bold text-amber-600 block">{{ stats.expiring }}</text>
+            <text class="text-[10px] text-muted-foreground">即将到期</text>
+          </view>
+          <view
+            @click="filter = 'expired'"
+            :class="['py-2 rounded-lg transition-colors', filter === 'expired' ? 'bg-red-100' : 'bg-white/50']"
+          >
+            <text class="text-lg font-bold text-red-600 block">{{ stats.expired }}</text>
+            <text class="text-[10px] text-muted-foreground">已过期</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 权益列表 -->
+    <view class="px-4 pb-24 space-y-3">
+      <!-- 空状态 -->
+      <view v-if="filteredMemberships.length === 0" class="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <text class="text-4xl mb-3 opacity-30">🎁</text>
+        <text class="text-sm">暂无权益</text>
+        <view class="mt-4 px-4 py-2 border border-border rounded-lg text-sm" @click="goVip">开通会员</view>
+      </view>
+
+      <!-- 权益卡片 -->
+      <view v-else v-for="membership in filteredMemberships" :key="membership.id" :class="['rounded-xl overflow-hidden border border-border/50', membership.bgColor]">
+        <!-- 头部 -->
+        <view class="flex items-center justify-between p-3 border-b border-border/50">
+          <view class="flex items-center gap-2">
+            <view :class="['w-8 h-8 rounded-lg flex items-center justify-center', membership.iconBg]">
+              <text>{{ membership.iconText }}</text>
+            </view>
+            <view>
+              <text class="font-medium text-sm text-foreground block">{{ membership.name }}</text>
+              <text class="text-[10px] text-muted-foreground block">{{ membership.startDate }} ~ {{ membership.expireDate }}</text>
+            </view>
+          </view>
+          <text :class="['text-[10px] px-2 py-0.5 rounded-full', statusConfig[membership.status].bg, statusConfig[membership.status].color]">
+            {{ statusConfig[membership.status].label }}
+          </text>
+        </view>
+
+        <!-- 有效期与权益 -->
+        <view class="p-3">
+          <view class="flex items-center justify-between mb-2">
+            <view class="flex items-center gap-1">
+              <text class="text-muted-foreground text-xs">🕐</text>
+              <text class="text-xs text-muted-foreground">剩余有效期</text>
+            </view>
+            <text :class="['text-sm font-bold', isExpiringSoon(membership) ? 'text-amber-600' : membership.color]">
+              {{ membership.daysLeft > 0 ? `${membership.daysLeft}天` : '已过期' }}
+            </text>
+          </view>
+
+          <!-- 进度条 -->
+          <view class="h-1.5 bg-secondary rounded-full overflow-hidden">
+            <view
+              :class="['h-full rounded-full transition-all', isExpiringSoon(membership) ? 'bg-amber-500' : membership.barColor]"
+              :style="{ width: Math.min(100, Math.max(0, (membership.daysLeft / 365) * 100)) + '%' }"
+            />
+          </view>
+
+          <!-- 权益标签 -->
+          <view class="flex flex-wrap gap-1.5 mt-3">
+            <text v-for="(benefit, i) in membership.benefits.slice(0, 4)" :key="i" class="px-2 py-0.5 rounded-full bg-white/60 text-[10px] text-muted-foreground">
+              {{ benefit }}
+            </text>
+          </view>
+        </view>
+
+        <!-- 底部操作 -->
+        <view class="flex items-center justify-between p-3 border-t border-border/50 bg-white/30">
+          <view class="flex items-center gap-2">
+            <switch :checked="membership.autoRenew" @change="toggleAutoRenew(membership.id)" style="transform: scale(0.75); transform-origin: left center;" color="#C41E3A" />
+            <text class="text-xs text-muted-foreground">{{ membership.autoRenew ? '自动续费已开启' : '自动续费' }}</text>
+          </view>
+          <view class="flex items-center gap-2">
+            <view class="text-right mr-2">
+              <text class="text-xs text-muted-foreground block">续费价格</text>
+              <text class="font-bold text-primary">
+                ¥{{ membership.price }}
+                <text v-if="membership.originalPrice" class="text-[10px] text-muted-foreground line-through ml-1">¥{{ membership.originalPrice }}</text>
+              </text>
+            </view>
+            <view
+              :class="['h-8 px-3 rounded-lg text-xs text-white flex items-center gap-1', isExpiringSoon(membership) ? 'bg-amber-500' : 'bg-primary']"
+              @click="goRenew(membership)"
+            >
+              <text>⟳</text>
+              <text>{{ isExpiringSoon(membership) ? '立即续费' : '续费' }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 即将到期警告 -->
+        <view v-if="isExpiringSoon(membership)" class="flex items-center gap-2 px-3 py-2 bg-amber-50 border-t border-amber-100">
+          <text class="text-amber-500 text-sm"></text>
+          <text class="text-xs text-amber-600">您的权益将在{{ membership.daysLeft }}天后到期，续费可享受连续优惠</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+type MembershipStatus = 'active' | 'expiring' | 'expired'
+
+interface Membership {
+  id: string
+  type: string
+  name: string
+  iconText: string
+  color: string
+  iconBg: string
+  barColor: string
+  bgColor: string
+  status: MembershipStatus
+  startDate: string
+  expireDate: string
+  daysLeft: number
+  price: number
+  originalPrice?: number
+  autoRenew: boolean
+  benefits: string[]
+}
+
+const statusConfig: Record<MembershipStatus, { label: string; color: string; bg: string }> = {
+  active: { label: '正常', color: 'text-green-600', bg: 'bg-green-50' },
+  expiring: { label: '即将到期', color: 'text-amber-600', bg: 'bg-amber-50' },
+  expired: { label: '已过期', color: 'text-red-600', bg: 'bg-red-50' },
+}
+
+const filter = ref<'all' | MembershipStatus>('all')
+
+const memberships = ref<Membership[]>([
+  {
+    id: 'vip-1', type: 'vip', name: '热卜国学VIP会员', iconText: '👑',
+    color: 'text-yellow-600', iconBg: 'bg-yellow-100', barColor: 'bg-yellow-500',
+    bgColor: 'bg-gradient-to-r from-yellow-50 to-yellow-5',
+    status: 'active', startDate: '2024-01-08', expireDate: '2025-01-08', daysLeft: 186,
+    price: 365, originalPrice: 588, autoRenew: true,
+    benefits: ['排盘工具无限使用', '课程专属折扣', '专属客服', '去广告'],
+  },
+  {
+    id: 'circle-1', type: 'circle', name: '八字命理研习社', iconText: '',
+    color: 'text-primary', iconBg: 'bg-primary/10', barColor: 'bg-primary',
+    bgColor: 'bg-gradient-to-r from-primary/10 to-primary/5',
+    status: 'expiring', startDate: '2024-01-14', expireDate: '2025-01-14', daysLeft: 28,
+    price: 199, autoRenew: false,
+    benefits: ['圈内免费内容', '专属直播', '圈内问答', '交流群'],
+  },
+  {
+    id: 'circle-2', type: 'circle', name: '紫微斗数学习班', iconText: '',
+    color: 'text-primary', iconBg: 'bg-primary/10', barColor: 'bg-primary',
+    bgColor: 'bg-gradient-to-r from-primary/10 to-primary/5',
+    status: 'active', startDate: '2024-03-01', expireDate: '2025-03-01', daysLeft: 268,
+    price: 299, autoRenew: true,
+    benefits: ['系统课程', '案例分析', '作业点评', '1v1答疑'],
+  },
+  {
+    id: 'station-1', type: 'station', name: '分站站长资格', iconText: '🏠',
+    color: 'text-green-600', iconBg: 'bg-green-100', barColor: 'bg-green-500',
+    bgColor: 'bg-gradient-to-r from-green-50 to-green-5',
+    status: 'active', startDate: '2023-12-20', expireDate: '2024-12-20', daysLeft: 45,
+    price: 999, autoRenew: false,
+    benefits: ['专属分站页面', '推广分佣', '自购返佣', '品牌展示'],
+  },
+  {
+    id: 'institute-1', type: 'institute', name: '研究院成员', iconText: '🎓',
+    color: 'text-blue-600', iconBg: 'bg-blue-100', barColor: 'bg-blue-500',
+    bgColor: 'bg-gradient-to-r from-blue-50 to-blue-5',
+    status: 'active', startDate: '2023-12-15', expireDate: '2024-12-15', daysLeft: 40,
+    price: 10000, autoRenew: false,
+    benefits: ['内部交流', '线下活动', '资源对接', '保证金可退'],
+  },
+])
+
+const stats = computed(() => ({
+  total: memberships.value.length,
+  active: memberships.value.filter(m => m.status === 'active').length,
+  expiring: memberships.value.filter(m => m.status === 'expiring').length,
+  expired: memberships.value.filter(m => m.status === 'expired').length,
+}))
+
+const filteredMemberships = computed(() =>
+  filter.value === 'all' ? memberships.value : memberships.value.filter(m => m.status === filter.value)
+)
+
+const expiringCount = computed(() =>
+  memberships.value.filter(m => m.daysLeft <= 30 && m.daysLeft > 0).length
+)
+
+function isExpiringSoon(m: Membership): boolean {
+  return m.daysLeft <= 30 && m.daysLeft > 0
+}
+
+function toggleAutoRenew(id: string) {
+  const m = memberships.value.find(m => m.id === id)
+  if (m) m.autoRenew = !m.autoRenew
+}
+
+function goBack() { uni.navigateBack() }
+function goNotifications() { uni.navigateTo({ url: '/pages/notifications/index' }) }
+function goOrders() { uni.navigateTo({ url: '/pages/orders/center/index' }) }
+function goVip() { uni.navigateTo({ url: '/pages/vip/index' }) }
+function goRenew(membership: Membership) {
+  uni.navigateTo({ url: `/pages/renew/index?type=${membership.type}&id=${membership.id}` })
+}
+</script>
+
+<style scoped>
+</style>

@@ -1,0 +1,366 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-10 bg-background/95 backdrop-blur-lg border-b border-border">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view @click="goBack" class="p-1 -ml-1">
+          <text class="text-lg text-foreground">&#8592;</text>
+        </view>
+        <text class="font-semibold text-foreground">扫码结果</text>
+        <view class="w-10" />
+      </view>
+    </header>
+
+    <main class="p-4">
+      <!-- 解析中 -->
+      <view v-if="status === 'parsing'" class="flex flex-col items-center justify-center py-20">
+        <view class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+          <text class="text-3xl animate-spin">&#9203;</text>
+        </view>
+        <text class="text-sm text-muted-foreground">正在解析二维码...</text>
+      </view>
+
+      <!-- 解析成功 -->
+      <view v-else-if="status === 'success' && result" class="space-y-6">
+        <!-- 类型标识 -->
+        <view class="flex justify-center">
+          <view :class="['w-20 h-20 rounded-full flex items-center justify-center', getTypeConfig(result.type).bgColor]">
+            <text :class="['text-3xl', getTypeConfig(result.type).textColor]">{{ getTypeConfig(result.type).icon }}</text>
+          </view>
+        </view>
+        <text class="text-center text-sm text-muted-foreground block">{{ getTypeConfig(result.type).label }}</text>
+
+        <!-- 内容卡片 -->
+        <view class="bg-white rounded-xl p-4">
+          <!-- 好友 -->
+          <view v-if="result.type === 'friend'" class="flex items-center gap-4">
+            <view class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-xl font-medium flex-shrink-0">
+              <text>{{ (result.data.nickname || '?')[0] }}</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="font-semibold text-lg text-foreground block">{{ result.data.nickname }}</text>
+              <text class="text-sm text-muted-foreground line-clamp-2 block mt-1">{{ result.data.signature }}</text>
+            </view>
+          </view>
+
+          <!-- 群聊 -->
+          <view v-if="result.type === 'group'" class="flex items-center gap-4">
+            <view class="w-16 h-16 rounded-xl bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white text-xl font-medium flex-shrink-0">
+              <text>{{ (result.data.name || '?')[0] }}</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="font-semibold text-lg text-foreground block">{{ result.data.name }}</text>
+              <text class="text-sm text-muted-foreground block">{{ result.data.memberCount }}人</text>
+              <text class="text-sm text-muted-foreground line-clamp-1 block mt-1">{{ result.data.description }}</text>
+            </view>
+          </view>
+
+          <!-- 付款 -->
+          <view v-if="result.type === 'pay'" class="flex items-center gap-4">
+            <view class="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <text class="text-3xl">&#128179;</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="font-semibold text-lg text-foreground block">{{ result.data.merchantName }}</text>
+              <text class="text-sm text-muted-foreground block mt-1">向TA付款</text>
+            </view>
+          </view>
+
+          <!-- 课程 -->
+          <view v-if="result.type === 'course'" class="flex gap-3">
+            <view class="w-24 h-16 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+              <text class="text-2xl">&#128218;</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="font-medium line-clamp-2 text-foreground">{{ result.data.title }}</text>
+              <text class="text-sm text-muted-foreground block mt-1">{{ result.data.teacher }}</text>
+              <text class="text-primary font-semibold block mt-1">¥{{ result.data.price }}</text>
+            </view>
+          </view>
+
+          <!-- 文章 -->
+          <view v-if="result.type === 'article'" class="flex gap-3">
+            <view class="w-24 h-16 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+              <text class="text-2xl">&#128203;</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="font-medium line-clamp-2 text-foreground">{{ result.data.title }}</text>
+              <text class="text-sm text-muted-foreground block mt-1">{{ result.data.author }}</text>
+            </view>
+          </view>
+
+          <!-- 直播 -->
+          <view v-if="result.type === 'live'" class="flex gap-3">
+            <view class="relative w-24 h-16 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+              <text class="text-2xl">&#128250;</text>
+              <view v-if="result.data.status === 'live'" class="absolute top-1 left-1 px-1.5 py-0.5 bg-red-500 text-white text-[10px] rounded">
+                <text>直播中</text>
+              </view>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="font-medium line-clamp-2 text-foreground">{{ result.data.title }}</text>
+              <text class="text-sm text-muted-foreground block mt-1">{{ result.data.host }}</text>
+            </view>
+          </view>
+
+          <!-- 邀请注册 -->
+          <view v-if="result.type === 'invite'" class="text-center">
+            <view class="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-white text-xl font-medium mx-auto mb-3">
+              <text>{{ (result.data.inviterName || '?')[0] }}</text>
+            </view>
+            <text class="text-sm text-muted-foreground block mb-2">
+              <text class="font-medium text-foreground">{{ result.data.inviterName }}</text> 邀请您加入热卜
+            </text>
+            <view class="space-y-1 mt-4">
+              <view v-for="(b, idx) in result.data.benefits" :key="idx" class="flex items-center justify-center gap-2 text-sm">
+                <text class="text-green-500">&#10003;</text>
+                <text>{{ b }}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 签到 -->
+          <view v-if="result.type === 'checkin'" class="text-center">
+            <text class="font-semibold text-lg text-foreground block">{{ result.data.eventName }}</text>
+            <text class="text-sm text-muted-foreground block mt-2">{{ result.data.eventTime }}</text>
+            <text class="text-sm text-muted-foreground block">{{ result.data.location }}</text>
+          </view>
+
+          <!-- 外部链接 -->
+          <view v-if="result.type === 'url'">
+            <text class="text-sm text-muted-foreground block mb-2">即将访问外部链接：</text>
+            <text class="text-sm text-blue-600 block break-all">{{ result.data.url }}</text>
+            <text class="text-xs text-amber-600 block mt-2">请注意识别链接安全性</text>
+          </view>
+        </view>
+
+        <!-- 操作按钮 -->
+        <view v-if="result.action"
+          @click="handleAction"
+          :class="['w-full h-12 rounded-xl font-medium flex items-center justify-center gap-2 text-white', actionLoading ? 'opacity-70' : '']"
+          style="background:linear-gradient(to right,#f59e0b,#f97316)">
+          <view v-if="actionLoading" class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></view>
+          <text v-else>&#8594;</text>
+          <text>{{ actionLoading ? '处理中...' : result.action.label }}</text>
+        </view>
+      </view>
+
+      <!-- 解析失败 -->
+      <view v-else class="flex flex-col items-center justify-center py-20">
+        <view class="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-6">
+          <text class="text-3xl text-gray-400">&#10060;</text>
+        </view>
+        <text class="font-semibold text-lg text-foreground block mb-2">无法识别二维码</text>
+        <text class="text-sm text-muted-foreground text-center block mb-6">
+          {{ scanContent ? '该二维码内容无法识别或已失效' : '未获取到二维码内容' }}
+        </text>
+
+        <view v-if="result?.type === 'unknown' && result?.data?.content" class="w-full bg-white rounded-xl p-4 mb-6">
+          <text class="text-sm text-muted-foreground block mb-1">原始内容：</text>
+          <text class="text-sm text-foreground block break-all">{{ result.data.content }}</text>
+        </view>
+
+        <view class="flex gap-3">
+          <view @click="goBack" class="px-5 py-2.5 bg-white border border-border text-foreground text-sm rounded-xl flex items-center gap-2">
+            <text>&#128260;</text>
+            <text>重新扫码</text>
+          </view>
+          <view @click="goHome" class="px-5 py-2.5 bg-white border border-border text-foreground text-sm rounded-xl flex items-center gap-2">
+            <text>&#127968;</text>
+            <text>返回首页</text>
+          </view>
+        </view>
+      </view>
+    </main>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+
+type ScanResultType = 'friend' | 'group' | 'pay' | 'course' | 'article' | 'live' | 'invite' | 'checkin' | 'url' | 'unknown'
+
+interface ScanResult {
+  type: ScanResultType
+  data: Record<string, any>
+  action?: {
+    label: string
+    url?: string
+    handler?: string
+  }
+}
+
+interface TypeConfig {
+  icon: string
+  label: string
+  bgColor: string
+  textColor: string
+}
+
+const status = ref<'parsing' | 'success' | 'error'>('parsing')
+const result = ref<ScanResult | null>(null)
+const actionLoading = ref(false)
+const scanContent = ref('')
+
+const typeConfigs: Record<ScanResultType, TypeConfig> = {
+  friend: { icon: '', label: '好友名片', bgColor: 'bg-blue-50', textColor: 'text-blue-600' },
+  group: { icon: '', label: '群聊', bgColor: 'bg-green-50', textColor: 'text-green-600' },
+  pay: { icon: '', label: '收款码', bgColor: 'bg-amber-50', textColor: 'text-amber-600' },
+  course: { icon: '', label: '课程', bgColor: 'bg-purple-50', textColor: 'text-purple-600' },
+  article: { icon: '', label: '文章', bgColor: 'bg-cyan-50', textColor: 'text-cyan-600' },
+  live: { icon: '', label: '直播', bgColor: 'bg-red-50', textColor: 'text-red-600' },
+  invite: { icon: '', label: '邀请注册', bgColor: 'bg-primary/10', textColor: 'text-primary' },
+  checkin: { icon: '', label: '签到', bgColor: 'bg-green-50', textColor: 'text-green-600' },
+  url: { icon: '', label: '外部链接', bgColor: 'bg-gray-50', textColor: 'text-gray-600' },
+  unknown: { icon: '❓', label: '未知', bgColor: 'bg-gray-50', textColor: 'text-gray-400' },
+}
+
+const getTypeConfig = (type: ScanResultType): TypeConfig => typeConfigs[type]
+
+// 异步解析二维码内容
+const parseQrCode = async (content: string): Promise<ScanResult> => {
+  // 模拟解析延迟
+  await new Promise(resolve => setTimeout(resolve, 1000))
+
+  if (content.includes('rebu.com') || content.includes('rebu://')) {
+    if (content.includes('/user/') || content.includes('user=')) {
+      const userId = content.match(/user[=/](\d+)/)?.[1] || '123'
+      return {
+        type: 'friend',
+        data: { userId, nickname: '国学爱好者', avatar: '', signature: '探索国学智慧，传承传统文化' },
+        action: { label: '添加好友', handler: 'addFriend' },
+      }
+    }
+    if (content.includes('/group/') || content.includes('group=')) {
+      const groupId = content.match(/group[=/](\d+)/)?.[1] || '456'
+      return {
+        type: 'group',
+        data: { groupId, name: '八字命理交流群', memberCount: 128, description: '探讨八字命理，共同学习进步' },
+        action: { label: '申请加入', handler: 'joinGroup' },
+      }
+    }
+    if (content.includes('/pay/') || content.includes('pay=')) {
+      return {
+        type: 'pay',
+        data: { merchantName: '热卜国学' },
+        action: { label: '立即付款', url: '/pages/pay/transfer/index' },
+      }
+    }
+    if (content.includes('/course/')) {
+      const courseId = content.match(/course\/(\d+)/)?.[1] || '1'
+      return {
+        type: 'course',
+        data: { courseId, title: '八字命理入门精讲', cover: '', price: 199, teacher: '张明德' },
+        action: { label: '查看课程', url: `/pages/course/${courseId}` },
+      }
+    }
+    if (content.includes('/article/')) {
+      const articleId = content.match(/article\/(\d+)/)?.[1] || '1'
+      return {
+        type: 'article',
+        data: { articleId, title: '如何看懂自己的八字命盘', cover: '', author: '易学先生' },
+        action: { label: '阅读文章', url: `/pages/article/${articleId}` },
+      }
+    }
+    if (content.includes('/live/')) {
+      const liveId = content.match(/live\/(\d+)/)?.[1] || '1'
+      return {
+        type: 'live',
+        data: { liveId, title: '今晚8点：八字看财运专题', cover: '', host: '王老师', status: 'upcoming' },
+        action: { label: '进入直播', url: `/pages/live/${liveId}` },
+      }
+    }
+    if (content.includes('/invite/') || content.includes('invite=')) {
+      const inviteCode = content.match(/invite[=/](\w+)/)?.[1] || 'ABC123'
+      return {
+        type: 'invite',
+        data: { inviteCode, inviterName: '国学传承者', benefits: ['注册即得100积分', '首单立减10元'] },
+        action: { label: '立即注册', url: `/pages/auth/register?invite=${inviteCode}` },
+      }
+    }
+    if (content.includes('/checkin/')) {
+      return {
+        type: 'checkin',
+        data: { eventName: '线下讲座签到', eventTime: '2026-06-05 14:00', location: '北京国学馆' },
+        action: { label: '确认签到', handler: 'checkin' },
+      }
+    }
+  }
+
+  if (content.startsWith('http://') || content.startsWith('https://')) {
+    return {
+      type: 'url',
+      data: { url: content },
+      action: { label: '访问链接', url: content },
+    }
+  }
+
+  return {
+    type: 'unknown',
+    data: { content },
+  }
+}
+
+const handleAction = async () => {
+  if (!result.value?.action) return
+  const action = result.value.action
+
+  if (action.url) {
+    uni.navigateTo({ url: action.url })
+    return
+  }
+
+  if (action.handler) {
+    actionLoading.value = true
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    actionLoading.value = false
+
+    switch (action.handler) {
+      case 'addFriend':
+        uni.navigateTo({ url: `/pages/im/chat?targetId=${result.value.data.userId}&type=user` })
+        break
+      case 'joinGroup':
+        uni.navigateTo({ url: `/pages/im/group-chat/${result.value.data.groupId}` })
+        break
+      case 'checkin':
+        uni.showToast({ title: '签到成功', icon: 'success' })
+        uni.navigateBack()
+        break
+    }
+  }
+}
+
+const goBack = () => { uni.navigateBack() }
+const goHome = () => { uni.reLaunch({ url: '/pages/index/index' }) }
+
+onLoad((options) => {
+  const content = options?.content || options?.data || ''
+  scanContent.value = content
+
+  if (!content) {
+    status.value = 'error'
+    return
+  }
+
+  const decoded = decodeURIComponent(content)
+  parseQrCode(decoded)
+    .then(res => {
+      result.value = res
+      status.value = res.type === 'unknown' ? 'error' : 'success'
+    })
+    .catch(() => {
+      status.value = 'error'
+    })
+})
+</script>
+
+<style scoped>
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>

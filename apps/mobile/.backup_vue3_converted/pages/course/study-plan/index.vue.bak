@@ -1,0 +1,675 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 导航栏 -->
+    <view class="sticky top-0 z-10 bg-[#C41E3A] text-white">
+      <view class="flex items-center h-14 px-4 gap-3">
+        <view class="w-8 h-8 flex items-center justify-center" hover-class="bg-white/20 rounded-full" @click="goBack">
+          <text class="text-white text-lg">⬅️</text>
+        </view>
+        <text class="flex-1 text-[17px] font-bold">学习计划</text>
+        <view class="flex items-center gap-1 bg-white/20 px-2.5 py-1 rounded-full">
+          <text class="text-orange-300 text-sm">🔥</text>
+          <text class="text-[12px] font-bold">{{ streak }}天连续</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 完成度统计条 -->
+    <view class="bg-gradient-to-r from-[#C41E3A] to-[#9B0B28] px-4 pb-5 pt-1">
+      <view class="flex items-center gap-4">
+        <view class="flex-1">
+          <view class="flex items-center justify-between mb-1.5">
+            <text class="text-[12px] text-white/80">今日完成</text>
+            <text class="text-[12px] text-white font-bold">{{ doneCount }}/{{ tasks.length }} 项</text>
+          </view>
+          <view class="h-2 bg-white/20 rounded-full overflow-hidden">
+            <view
+              class="h-full bg-[#C9A96E] rounded-full transition-all duration-500"
+              :style="{ width: tasks.length ? (doneCount / tasks.length) * 100 + '%' : '0%' }"
+            />
+          </view>
+        </view>
+        <view class="text-center">
+          <text class="text-[24px] font-black text-[#C9A96E] leading-none">
+            {{ tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0 }}%
+          </text>
+          <text class="text-[10px] text-white/60 mt-0.5">完成率</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="px-4 pt-4">
+      <!-- ─── 打卡日历热力图 ─────────────────────────── -->
+      <view class="bg-white rounded-2xl p-4 mb-4" :style="{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }">
+        <view class="flex items-center justify-between mb-3">
+          <view class="flex items-center gap-2">
+            <view class="w-8 h-8 bg-[#C41E3A]/10 rounded-lg flex items-center justify-center">
+              <text class="text-[#C41E3A]">📅</text>
+            </view>
+            <text class="text-[15px] font-semibold text-[#2C2C2C]">打卡日历</text>
+          </view>
+          <text class="text-[12px] text-[#999]">
+            近30天打卡 <text class="text-[#C41E3A] font-medium">{{ checkInTotalDays }}</text> 天
+          </text>
+        </view>
+
+        <!-- 星期标签 -->
+        <view class="flex mb-2">
+          <view class="w-6" />
+          <view v-for="(label, wi) in WEEK_LABELS" :key="wi" class="flex-1 text-center">
+            <text class="text-[10px] text-[#999]">{{ label }}</text>
+          </view>
+        </view>
+
+        <!-- 热力图网格 -->
+        <view class="flex flex-col gap-1">
+          <view v-for="(week, wi) in weeks" :key="wi" class="flex items-center">
+            <view class="w-6 text-[10px] text-[#999]">
+              <text>{{ week.monthLabel }}</text>
+            </view>
+            <view v-for="(cell, ci) in week.cells" :key="ci" class="flex-1 flex justify-center">
+              <view
+                :class="[
+                  'w-6 h-6 rounded-md transition-colors',
+                  cell.isFuture ? 'bg-transparent' : getIntensityColor(cell.level)
+                ]"
+                :style="cell.isToday ? { boxShadow: '0 0 0 2px #C41E3A, 0 0 0 4px #fff' } : {}"
+              />
+            </view>
+          </view>
+        </view>
+
+        <!-- 图例 -->
+        <view class="flex items-center justify-end gap-1 mt-3 text-[10px] text-[#999]">
+          <text>少</text>
+          <view class="w-3 h-3 rounded bg-[#F2EFEA]" />
+          <view class="w-3 h-3 rounded bg-[#FFE5E5]" />
+          <view class="w-3 h-3 rounded bg-[#FF9999]" />
+          <view class="w-3 h-3 rounded bg-[#C41E3A]" />
+          <text>多</text>
+        </view>
+      </view>
+
+      <!-- ─── 目标设置卡片 ─────────────────────────── -->
+      <view class="bg-white rounded-2xl p-4 mb-4" :style="{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }">
+        <view class="flex items-center justify-between mb-3">
+          <view class="flex items-center gap-2">
+            <view class="w-8 h-8 bg-[#C41E3A]/10 rounded-lg flex items-center justify-center">
+              <text class="text-[#C41E3A]">🎯</text>
+            </view>
+            <text class="text-[15px] font-semibold text-[#2C2C2C]">学习目标</text>
+          </view>
+          <view class="flex items-center gap-1 text-[12px] text-[#C41E3A] font-medium" @click="openGoalEditor">
+            <text>✏️</text>
+            <text>编辑</text>
+          </view>
+        </view>
+
+        <view class="flex items-center gap-4 mb-3">
+          <view class="flex-1 text-center bg-[#FAF8F5] rounded-xl py-3">
+            <text class="text-[28px] font-black text-[#C41E3A] leading-none block">{{ goal.daysPerWeek }}</text>
+            <text class="text-[11px] text-[#999] mt-1 block">天 / 周</text>
+          </view>
+          <view class="flex-1 text-center bg-[#FAF8F5] rounded-xl py-3">
+            <text class="text-[28px] font-black text-[#C9A96E] leading-none block">{{ goal.minutesPerDay }}</text>
+            <text class="text-[11px] text-[#999] mt-1 block">分钟 / 天</text>
+          </view>
+          <view class="flex-1 text-center bg-[#FAF8F5] rounded-xl py-3">
+            <text class="text-[28px] font-black text-[#4A90D9] leading-none block">{{ goal.daysPerWeek * goal.minutesPerDay }}</text>
+            <text class="text-[11px] text-[#999] mt-1 block">分钟 / 周</text>
+          </view>
+        </view>
+
+        <!-- 周计划指示格 -->
+        <view class="flex gap-1.5">
+          <view
+            v-for="(label, gi) in WEEK_LABELS"
+            :key="gi"
+            :class="[
+              'flex-1 h-8 rounded-md flex flex-col items-center justify-center gap-0.5 transition-all',
+              gi === todayDay ? 'bg-[#C41E3A] text-white' : (gi !== 0 && gi <= goal.daysPerWeek) ? 'bg-[#C41E3A]/10 text-[#C41E3A]' : 'bg-[#F2EFEA] text-[#BBBBBB]'
+            ]"
+          >
+            <text class="text-[9px] font-medium">{{ label }}</text>
+            <view v-if="gi !== 0 && gi <= goal.daysPerWeek && gi !== todayDay" class="w-1 h-1 rounded-full bg-[#C41E3A]/50" />
+          </view>
+        </view>
+      </view>
+
+      <!-- ─── 今日任务卡片 ─────────────────────────── -->
+      <view class="bg-white rounded-2xl mb-4 overflow-hidden" :style="{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }">
+        <!-- 标题行 + 进度 -->
+        <view class="px-4 pt-4 pb-3" :style="{ borderBottom: '1px solid #F2EFEA' }">
+          <view class="flex items-center justify-between">
+            <view class="flex items-center gap-2">
+              <view class="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center">
+                <text class="text-orange-500">🔥</text>
+              </view>
+              <view>
+                <text class="text-[15px] font-semibold text-[#2C2C2C]">今日任务</text>
+                <text class="text-[12px] text-[#999] ml-2">{{ todayDateStr }}</text>
+              </view>
+            </view>
+            <text class="text-[13px] font-bold text-[#C41E3A]">{{ doneCount }}/{{ tasks.length }}</text>
+          </view>
+          <!-- 进度条 -->
+          <view class="mt-2.5 h-1.5 bg-[#F2EFEA] rounded-full overflow-hidden">
+            <view
+              class="h-full rounded-full transition-all duration-500"
+              :style="{
+                width: tasks.length ? (doneCount / tasks.length) * 100 + '%' : '0%',
+                background: 'linear-gradient(90deg, #C41E3A, #E74C3C)'
+              }"
+            />
+          </view>
+          <view class="flex justify-between mt-1">
+            <text class="text-[10px] text-[#999]">计划 {{ totalMin }} 分钟</text>
+            <text class="text-[10px] text-[#C41E3A]">已完成 {{ doneMin }} 分钟</text>
+          </view>
+        </view>
+
+        <!-- 任务列表 -->
+        <view v-if="tasks.length === 0" class="py-8 text-center">
+          <text class="text-[13px] text-[#BBBBBB]">今日没有安排学习任务</text>
+        </view>
+        <view v-else>
+          <view
+            v-for="task in tasks"
+            :key="task.id"
+            class="flex items-center gap-3 px-4 py-3 transition-colors"
+            hover-class="bg-[#FAF8F5]"
+            @click="toggleTask(task.id)"
+            :style="{ borderBottom: '1px solid #F5F0E8' }"
+          >
+            <text v-if="task.isDone" class="text-[#52C41A] text-[20px] flex-shrink-0">✅</text>
+            <text v-else class="text-[#DDDDDD] text-[20px] flex-shrink-0">⭕</text>
+            <view class="flex-1 min-w-0">
+              <view :class="['text-[13px] font-medium truncate', task.isDone ? 'line-through text-[#BBBBBB]' : 'text-[#2C2C2C]']">
+                <text>{{ task.title }}</text>
+              </view>
+              <view class="text-[11px] text-[#999] mt-0.5">
+                <text>{{ task.lessonTitle }}</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-1 text-[11px] text-[#BBBBBB] flex-shrink-0">
+              <text>🕐</text>
+              <text>{{ task.duration }}分钟</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ─── 课程时间线卡片 ─────────────────────────── -->
+      <view class="bg-white rounded-2xl mb-4 overflow-hidden" :style="{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }">
+        <view class="flex items-center justify-between px-4 pt-4 pb-3" :style="{ borderBottom: '1px solid #F2EFEA' }">
+          <view class="flex items-center gap-2">
+            <view class="w-8 h-8 bg-[#4A90D9]/10 rounded-lg flex items-center justify-center">
+              <text class="text-[#4A90D9]">📅</text>
+            </view>
+            <text class="text-[15px] font-semibold text-[#2C2C2C]">课程安排</text>
+          </view>
+          <view
+            class="w-7 h-7 bg-[#C41E3A]/10 rounded-full flex items-center justify-center"
+            hover-class="bg-[#C41E3A]/20"
+            @click="goCourseList"
+          >
+            <text class="text-[#C41E3A] text-sm">➕</text>
+          </view>
+        </view>
+
+        <view v-if="courses.length === 0" class="py-10 flex flex-col items-center gap-2 text-[#BBBBBB]" @click="goCourseList">
+          <text class="text-2xl">📖</text>
+          <text class="text-[13px]">还没有安排课程，点击添加</text>
+        </view>
+        <view v-else>
+          <view
+            v-for="(course, ci) in courses"
+            :key="course.id"
+            :data-id="course.id"
+            :data-index="ci"
+            :class="[
+              'flex items-center gap-3 px-4 py-3 transition-all',
+              draggingId === course.id ? 'opacity-40 bg-[#FAF8F5]' : ''
+            ]"
+            :style="{ borderBottom: ci < courses.length - 1 ? '1px solid #F5F0E8' : 'none' }"
+            @touchstart="onCourseTouchStart($event, course.id, ci)"
+            @touchmove.prevent="onCourseListTouchMove($event)"
+            @touchend="onCourseListTouchEnd"
+          >
+            <!-- 拖拽把手 -->
+            <text class="text-[#DDDDDD] text-base flex-shrink-0 leading-none">⠿</text>
+
+            <!-- 封面 -->
+            <view class="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#F2EFEA]">
+              <image :src="course.cover" mode="aspectFill" class="w-full h-full" />
+            </view>
+
+            <!-- 信息区 -->
+            <view class="flex-1 min-w-0">
+              <view class="text-[13px] font-medium text-[#2C2C2C] truncate">
+                <text>{{ course.title }}</text>
+              </view>
+              <view class="flex items-center gap-2 mt-1">
+                <view class="flex-1 h-1.5 bg-[#F2EFEA] rounded-full overflow-hidden">
+                  <view
+                    class="h-full rounded-full"
+                    :style="{
+                      width: courseProgress(course) + '%',
+                      background: 'linear-gradient(90deg, #C41E3A, #E74C3C)'
+                    }"
+                  />
+                </view>
+                <text class="text-[10px] text-[#BBBBBB] flex-shrink-0">{{ courseProgress(course) }}%</text>
+              </view>
+              <!-- 计划日 -->
+              <view class="flex gap-1 mt-1.5">
+                <view
+                  v-for="(l, di) in WEEK_LABELS"
+                  :key="di"
+                  :class="[
+                    'text-[9px] w-4 h-4 rounded flex items-center justify-center font-medium',
+                    course.scheduledDays.includes(di) ? 'bg-[#C41E3A] text-white' : 'bg-[#F2EFEA] text-[#CCCCCC]'
+                  ]"
+                >
+                  <text>{{ l }}</text>
+                </view>
+              </view>
+            </view>
+
+            <!-- 删除按钮 -->
+            <view
+              class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+              hover-class="text-red-400"
+              @click.stop="removeCourse(course.id)"
+            >
+              <text class="text-[#DDDDDD]">🗑️</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部去选课提示 -->
+      <view class="mt-2 mb-8 text-center">
+        <text class="text-[12px] text-[#BBBBBB]">从</text>
+        <text class="text-[12px] text-[#C41E3A] font-medium mx-1" @click="goCourseList">课程广场</text>
+        <text class="text-[12px] text-[#BBBBBB]">添加更多课程到学习计划</text>
+      </view>
+    </view>
+
+    <!-- ─── 目标编辑弹窗 ─────────────────────────── -->
+    <view v-if="showGoalEditor" class="fixed inset-0 z-50 flex items-end">
+      <view class="absolute inset-0 bg-black/40" @click="closeGoalEditor" />
+      <view
+        class="relative w-full bg-white rounded-t-2xl px-4 pt-4"
+        :style="{ paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 16px))' }"
+      >
+        <view class="flex items-center justify-between mb-4">
+          <text class="text-[16px] font-bold text-[#2C2C2C]">设置学习目标</text>
+          <view @click="closeGoalEditor">
+            <text class="text-[#999] text-lg">✕</text>
+          </view>
+        </view>
+
+        <!-- 每周天数 -->
+        <view class="mb-4">
+          <text class="text-[13px] text-[#666] mb-2 block">每周学习天数</text>
+          <view class="flex gap-2">
+            <view
+              v-for="d in 7"
+              :key="d"
+              :class="[
+                'flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-all text-center',
+                editDays === d ? 'bg-[#C41E3A] text-white' : 'bg-[#F2EFEA] text-[#666]'
+              ]"
+              :style="editDays === d ? { boxShadow: '0 4px 12px rgba(196,30,58,0.3)' } : {}"
+              @click="editDays = d"
+            >
+              <text>{{ d }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 每日时长 -->
+        <view class="mb-6">
+          <text class="text-[13px] text-[#666] mb-2 block">每日学习时长</text>
+          <view class="flex flex-wrap gap-2">
+            <view
+              v-for="m in minuteOptions"
+              :key="m"
+              :class="[
+                'px-4 py-2 rounded-xl text-[13px] font-bold transition-all',
+                editMinutes === m ? 'bg-[#C41E3A] text-white' : 'bg-[#F2EFEA] text-[#666]'
+              ]"
+              :style="editMinutes === m ? { boxShadow: '0 4px 12px rgba(196,30,58,0.3)' } : {}"
+              @click="editMinutes = m"
+            >
+              <text>{{ m >= 60 ? (m / 60) + '小时' : m + '分钟' }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view
+          class="w-full py-3.5 text-white font-bold rounded-xl text-[15px] text-center mb-4"
+          :style="{
+            background: 'linear-gradient(90deg, #C41E3A, #E74C3C)',
+            boxShadow: '0 4px 16px rgba(196,30,58,0.35)'
+          }"
+          @click="confirmGoalEdit"
+        >
+          <text>保存目标</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+// ─── 类型定义 ─────────────────────────────────
+interface StudyGoal {
+  daysPerWeek: number
+  minutesPerDay: number
+}
+
+interface PlannedCourse {
+  id: string
+  courseId: string
+  title: string
+  cover: string
+  totalLessons: number
+  completedLessons: number
+  scheduledDays: number[]
+  order: number
+}
+
+interface DailyTask {
+  id: string
+  courseId: string
+  title: string
+  lessonTitle: string
+  duration: number
+  isDone: boolean
+  date: string
+}
+
+interface CalendarCell {
+  dateStr: string
+  level: number
+  isToday: boolean
+  isFuture: boolean
+}
+
+interface CalendarWeek {
+  monthLabel: string
+  cells: CalendarCell[]
+}
+
+// ─── Mock 数据 ─────────────────────────────────
+const MOCK_GOAL: StudyGoal = { daysPerWeek: 5, minutesPerDay: 30 }
+
+const MOCK_COURSES: PlannedCourse[] = [
+  {
+    id: 'pc1', courseId: 'c1',
+    title: '八字命理入门精讲',
+    cover: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=120&h=80&fit=crop',
+    totalLessons: 32, completedLessons: 12,
+    scheduledDays: [1, 3, 5], order: 0,
+  },
+  {
+    id: 'pc2', courseId: 'c2',
+    title: '紫微斗数基础课',
+    cover: 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=120&h=80&fit=crop',
+    totalLessons: 24, completedLessons: 6,
+    scheduledDays: [2, 4], order: 1,
+  },
+  {
+    id: 'pc3', courseId: 'c3',
+    title: '周易易经入门',
+    cover: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=120&h=80&fit=crop',
+    totalLessons: 18, completedLessons: 0,
+    scheduledDays: [6], order: 2,
+  },
+]
+
+const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六']
+const TODAY = new Date()
+const todayStr = TODAY.toISOString().slice(0, 10)
+const todayDay = TODAY.getDay()
+
+// 打卡记录数据（过去30天）
+function generateCheckInData(): Record<string, number> {
+  const data: Record<string, number> = {}
+  for (let i = 0; i < 30; i++) {
+    const date = new Date(TODAY)
+    date.setDate(date.getDate() - i)
+    const dateStr = date.toISOString().slice(0, 10)
+    const rand = Math.random()
+    if (rand > 0.3) {
+      data[dateStr] = rand > 0.8 ? 3 : rand > 0.6 ? 2 : 1
+    }
+  }
+  return data
+}
+
+const MOCK_CHECKIN_DATA = generateCheckInData()
+
+// 生成今日任务
+function generateTodayTasks(courseList: PlannedCourse[]): DailyTask[] {
+  return courseList
+    .filter(c => c.scheduledDays.includes(todayDay))
+    .map(c => ({
+      id: `task-${c.courseId}`,
+      courseId: c.courseId,
+      title: c.title,
+      lessonTitle: `第 ${c.completedLessons + 1} 课`,
+      duration: 30,
+      isDone: false,
+      date: todayStr,
+    }))
+}
+
+// ─── 状态 ─────────────────────────────────────
+const goal = ref<StudyGoal>({ ...MOCK_GOAL })
+const courses = ref<PlannedCourse[]>(MOCK_COURSES.map(c => ({ ...c })))
+const tasks = ref<DailyTask[]>([])
+const showGoalEditor = ref(false)
+const draggingId = ref<string | null>(null)
+const dragOverId = ref<string | null>(null)
+const touchStartY = ref(0)
+const touchStartIdx = ref(-1)
+
+// 目标编辑临时状态
+const editDays = ref(goal.value.daysPerWeek)
+const editMinutes = ref(goal.value.minutesPerDay)
+const minuteOptions = [15, 20, 30, 45, 60, 90, 120]
+
+// 连续天数（当前为模拟数据，后续对接后端）
+const streak = 7
+
+// ─── 计算属性 ─────────────────────────────────
+const doneCount = computed(() => tasks.value.filter(t => t.isDone).length)
+
+const totalMin = computed(() => tasks.value.reduce((s, t) => s + t.duration, 0))
+
+const doneMin = computed(() => tasks.value.filter(t => t.isDone).reduce((s, t) => s + t.duration, 0))
+
+const todayDateStr = computed(() => {
+  const d = new Date()
+  return `${d.getMonth() + 1}月${d.getDate()}日 星期${WEEK_LABELS[d.getDay()]}`
+})
+
+const checkInTotalDays = computed(() => Object.values(MOCK_CHECKIN_DATA).filter(v => v > 0).length)
+
+// 热力图周数据
+const weeks = computed<CalendarWeek[]>(() => {
+  const result: CalendarWeek[] = []
+  const startDate = new Date(TODAY)
+  startDate.setDate(startDate.getDate() - 27)
+  startDate.setDate(startDate.getDate() - startDate.getDay())
+
+  for (let w = 0; w < 4; w++) {
+    const dates: Date[] = []
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(startDate)
+      date.setDate(date.getDate() + w * 7 + d)
+      dates.push(date)
+    }
+    const monthLabel = `${dates[0].getMonth() + 1}月`
+    const cells: CalendarCell[] = dates.map(date => {
+      const dateStr = date.toISOString().slice(0, 10)
+      return {
+        dateStr,
+        level: MOCK_CHECKIN_DATA[dateStr] || 0,
+        isToday: dateStr === todayStr,
+        isFuture: date > TODAY,
+      }
+    })
+    result.push({ monthLabel, cells })
+  }
+  return result
+})
+
+// ─── 工具函数 ─────────────────────────────────
+function getIntensityColor(level: number): string {
+  switch (level) {
+    case 0: return 'bg-[#F2EFEA]'
+    case 1: return 'bg-[#FFE5E5]'
+    case 2: return 'bg-[#FF9999]'
+    case 3: return 'bg-[#C41E3A]'
+    default: return 'bg-[#F2EFEA]'
+  }
+}
+
+function courseProgress(course: PlannedCourse): number {
+  return Math.round((course.completedLessons / course.totalLessons) * 100)
+}
+
+// ─── 目标管理 ─────────────────────────────────
+function openGoalEditor() {
+  editDays.value = goal.value.daysPerWeek
+  editMinutes.value = goal.value.minutesPerDay
+  showGoalEditor.value = true
+}
+
+function closeGoalEditor() {
+  showGoalEditor.value = false
+}
+
+function confirmGoalEdit() {
+  const newGoal: StudyGoal = {
+    daysPerWeek: editDays.value,
+    minutesPerDay: editMinutes.value,
+  }
+  goal.value = newGoal
+  uni.setStorageSync('study_goal', JSON.stringify(newGoal))
+  showGoalEditor.value = false
+}
+
+// ─── 任务管理 ─────────────────────────────────
+function toggleTask(id: string) {
+  const next = tasks.value.map(t => (t.id === id ? { ...t, isDone: !t.isDone } : t))
+  tasks.value = next
+  uni.setStorageSync(`study_tasks_${todayStr}`, JSON.stringify(next))
+}
+
+// ─── 课程管理 ─────────────────────────────────
+function removeCourse(id: string) {
+  const next = courses.value.filter(c => c.id !== id)
+  courses.value = next
+  uni.setStorageSync('study_courses', JSON.stringify(next))
+}
+
+// ─── 拖拽排序（触摸版） ─────────────────────────
+function onCourseTouchStart(e: TouchEvent, id: string, idx: number) {
+  draggingId.value = id
+  touchStartIdx.value = idx
+  touchStartY.value = e.touches[0].clientY
+}
+
+function onCourseListTouchMove(e: TouchEvent) {
+  if (!draggingId.value) return
+  const currentY = e.touches[0].clientY
+  const deltaY = currentY - touchStartY.value
+  const itemHeight = 76
+  const idxDelta = Math.round(deltaY / itemHeight)
+  const fromIdx = touchStartIdx.value
+  const toIdx = Math.max(0, Math.min(courses.value.length - 1, fromIdx + idxDelta))
+  if (toIdx !== fromIdx) {
+    dragOverId.value = courses.value[toIdx].id
+  } else {
+    dragOverId.value = null
+  }
+}
+
+function onCourseListTouchEnd() {
+  if (draggingId.value && dragOverId.value && draggingId.value !== dragOverId.value) {
+    const arr = [...courses.value]
+    const fromIdx = arr.findIndex(c => c.id === draggingId.value)
+    const toIdx = arr.findIndex(c => c.id === dragOverId.value)
+    if (fromIdx !== -1 && toIdx !== -1) {
+      const [item] = arr.splice(fromIdx, 1)
+      arr.splice(toIdx, 0, item)
+      const reordered = arr.map((c, i) => ({ ...c, order: i }))
+      courses.value = reordered
+      uni.setStorageSync('study_courses', JSON.stringify(reordered))
+    }
+  }
+  draggingId.value = null
+  dragOverId.value = null
+  touchStartIdx.value = -1
+}
+
+// ─── 导航 ─────────────────────────────────────
+function goBack() {
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+  } else {
+    uni.redirectTo({ url: '/pages/discover/index' })
+  }
+}
+
+function goCourseList() {
+  uni.navigateTo({ url: '/pages/course/list/index' })
+}
+
+// ─── 生命周期 ─────────────────────────────────
+onMounted(() => {
+  try {
+    const savedGoal = uni.getStorageSync('study_goal')
+    const savedCourses = uni.getStorageSync('study_courses')
+    const savedTasks = uni.getStorageSync(`study_tasks_${todayStr}`)
+    if (savedGoal) {
+      const parsed = JSON.parse(savedGoal) as StudyGoal
+      goal.value = parsed
+    }
+    if (savedCourses) {
+      const parsed = JSON.parse(savedCourses) as PlannedCourse[]
+      courses.value = parsed
+      tasks.value = generateTodayTasks(parsed)
+    }
+    if (savedTasks) {
+      const parsed = JSON.parse(savedTasks) as DailyTask[]
+      tasks.value = parsed
+    } else if (!savedCourses) {
+      tasks.value = generateTodayTasks(MOCK_COURSES)
+    }
+  } catch {
+    tasks.value = generateTodayTasks(MOCK_COURSES)
+  }
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+@keyframes drag-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes progress-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(196, 30, 58, 0.2); }
+  50% { box-shadow: 0 0 10px rgba(196, 30, 58, 0.5); }
+}
+</style>

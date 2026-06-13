@@ -1,0 +1,194 @@
+<template>
+  <view class="min-h-screen bg-background flex flex-col">
+    <!-- 顶部导航 -->
+    <view class="flex items-center justify-between px-4 h-12 bg-white border-b border-border flex-shrink-0">
+      <view class="p-1" @click="goBack"><text class="text-xl text-foreground">←</text></view>
+      <text class="text-base font-semibold text-foreground">圈子公告</text>
+      <view class="w-7" />
+    </view>
+
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="flex-1 p-4">
+      <view v-for="i in 4" :key="i" class="bg-white rounded-xl p-4 mb-3 animate-pulse">
+        <view class="w-3/4 h-4 bg-muted rounded mb-3" />
+        <view class="w-full h-3 bg-muted rounded mb-2" />
+        <view class="w-2/3 h-3 bg-muted rounded mb-3" />
+        <view class="flex items-center justify-between">
+          <view class="w-20 h-3 bg-muted rounded" />
+          <view class="w-16 h-3 bg-muted rounded" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 主内容 -->
+    <scroll-view v-else scroll-y class="flex-1 p-4">
+      <!-- 统计头部 -->
+      <view class="flex items-center gap-3 mb-4 px-1">
+        <text class="text-3xl"></text>
+        <view>
+          <text class="text-sm font-semibold text-foreground block">圈内公告</text>
+          <text class="text-xs text-muted-foreground">共 {{ list.length }} 条公告 · {{ unreadCount }} 条未读</text>
+        </view>
+        <view class="flex-1" />
+        <text class="text-xs text-primary" @click="markAllRead">全部标记已读</text>
+      </view>
+
+      <!-- 分类快速筛选 -->
+      <scroll-view scroll-x class="whitespace-nowrap mb-3" show-scrollbar="false">
+        <view class="flex gap-2">
+          <view v-for="cat in categories" :key="cat.key"
+            :class="['px-3 py-1 rounded-full text-xs inline-block', filterCat === cat.key ? 'bg-primary text-white' : 'bg-white border border-border text-ink-soft']"
+            @click="filterCat = cat.key">
+            <text>{{ cat.label }}{{ cat.key !== 'all' ? `(${cat.count})` : '' }}</text>
+          </view>
+        </view>
+      </scroll-view>
+
+      <!-- 空状态 -->
+      <view v-if="list.length === 0" class="flex flex-col items-center justify-center py-20">
+        <text class="text-5xl mb-4"></text>
+        <text class="text-base text-foreground font-medium mb-2">暂无公告</text>
+        <text class="text-sm text-muted-foreground">圈子还未发布任何公告</text>
+      </view>
+
+      <!-- 公告列表 -->
+      <view v-for="a in filteredList" :key="a.id" class="bg-white rounded-xl p-4 mb-3 shadow-sm border border-border" @click="goDetail(a.id)">
+        <!-- 置顶标记 -->
+        <view v-if="a.pinned" class="flex items-center gap-1 mb-2">
+          <view class="px-2 py-0.5 bg-primary/10 rounded text-[11px] text-primary font-medium">📌 置顶</view>
+          <view v-if="!a.read" class="w-1.5 h-1.5 rounded-full bg-primary" />
+        </view>
+        <view v-else-if="!a.read" class="flex items-center gap-1 mb-2">
+          <view class="w-1.5 h-1.5 rounded-full bg-primary" />
+          <text class="text-[11px] text-primary">未读</text>
+        </view>
+
+        <!-- 标题 -->
+        <text class="text-[14px] font-medium text-foreground block mb-1.5">{{ a.title }}</text>
+
+        <!-- 摘要 -->
+        <text class="text-[12px] text-muted-foreground mb-2 block line-clamp-2 leading-relaxed">{{ a.content }}</text>
+
+        <!-- 底部信息 -->
+        <view class="flex items-center justify-between mt-2">
+          <view class="flex items-center gap-2">
+            <view class="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] text-muted-foreground">
+              {{ a.author[0] }}
+            </view>
+            <text class="text-[11px] text-[#ccc]">{{ a.author }}</text>
+            <text class="text-[11px] text-[#ccc]">·</text>
+            <text class="text-[11px] text-[#ccc]">{{ a.time }}</text>
+          </view>
+          <view class="flex items-center gap-2">
+            <text class="text-[11px] text-[#ccc]"> {{ a.comments }}</text>
+            <text class="text-[11px] text-[#ccc]"> {{ a.views }}</text>
+          </view>
+        </view>
+
+        <!-- 阅读全文 -->
+        <view class="mt-2 pt-2 border-t border-[#FAF8F5] flex justify-end">
+          <text class="text-primary text-xs font-medium">阅读全文 →</text>
+        </view>
+      </view>
+
+      <view class="h-5" />
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const loading = ref(true)
+const filterCat = ref('all')
+
+interface Announcement {
+  id: string
+  title: string
+  content: string
+  author: string
+  time: string
+  pinned: boolean
+  read: boolean
+  comments: number
+  views: number
+  category: string
+}
+
+const list = ref<Announcement[]>([
+  {
+    id: '1', title: ' 欢迎加入国学圈子大家庭！',
+    content: '欢迎来到国学堂大家庭！这里有丰富的国学知识分享、专业的命理解读、有趣的传统文化交流。请先阅读圈规，遵守社区准则，一起营造良好的学习氛围。新成员请先修改昵称并上传头像。',
+    author: '圈主', time: '2024-01-01', pinned: true, read: false,
+    comments: 25, views: 1024, category: '站务通知',
+  },
+  {
+    id: '2', title: ' 本周六举办《易经》导读线上读书会',
+    content: '本周六晚上8点，我们将举办《易经》导读线上读书会，由周易大师领读，欢迎大家参加！会议链接将在活动前1小时公布。请提前阅读乾卦部分内容。',
+    author: '周易大师', time: '2024-01-15', pinned: true, read: true,
+    comments: 18, views: 568, category: '活动通知',
+  },
+  {
+    id: '3', title: ' 月度优秀成员评选结果',
+    content: '恭喜@国学达人、@易学爱好者获得本月优秀成员称号，各奖励100积分！感谢大家的积极参与和贡献，希望下个月有更多成员获得表彰。',
+    author: '管理员', time: '2024-02-01', pinned: false, read: false,
+    comments: 32, views: 789, category: '荣誉公告',
+  },
+  {
+    id: '4', title: ' 圈子资源库新增经典古籍',
+    content: '资源库新增《论语》《孟子》《大学》《中庸》四书全文注释版，以及《说文解字》电子版，会员可免费在线阅读。',
+    author: '资源管理', time: '2024-02-10', pinned: false, read: false,
+    comments: 12, views: 345, category: '资源更新',
+  },
+  {
+    id: '5', title: ' 圈子规范重申与违规处理公示',
+    content: '近期发现个别成员发布广告信息，已按圈规处理。再次重申：禁止发布与国学无关的商业广告、禁止人身攻击、禁止刷屏。',
+    author: '管理员', time: '2024-02-20', pinned: false, read: true,
+    comments: 8, views: 456, category: '站务通知',
+  },
+  {
+    id: '6', title: '🎓 命理基础课程即将开课',
+    content: '应广大成员要求，我们将开设命理基础入门课程，涵盖八字、紫微斗数基础内容。零基础可学，预计3月初开课，敬请关注报名通知。',
+    author: '教务组', time: '2024-02-25', pinned: false, read: true,
+    comments: 45, views: 890, category: '课程通知',
+  },
+])
+
+const unreadCount = computed(() => list.value.filter(a => !a.read).length)
+
+const categories = computed(() => {
+  const catMap = new Map<string, number>()
+  list.value.forEach(a => {
+    catMap.set(a.category, (catMap.get(a.category) || 0) + 1)
+  })
+  const result = [{ key: 'all', label: '全部', count: list.value.length }]
+  catMap.forEach((count, label) => {
+    result.push({ key: label, label, count })
+  })
+  return result
+})
+
+const filteredList = computed(() => {
+  if (filterCat.value === 'all') return list.value
+  return list.value.filter(a => a.category === filterCat.value)
+})
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 1000)
+})
+
+function goBack() { uni.navigateBack() }
+function goDetail(id: string) {
+  const item = list.value.find(a => a.id === id)
+  if (item) item.read = true
+  uni.navigateTo({ url: `/pages/circles/id-detail/announcements/annoId-detail/index?id=${id}` })
+}
+function markAllRead() {
+  list.value.forEach(a => { a.read = true })
+  uni.showToast({ title: '已全部标记为已读', icon: 'none' })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,114 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <view class="sticky top-0 z-10 bg-white border-b border-border">
+      <view class="flex items-center px-4 h-12 gap-3">
+        <view @click="goBack" class="p-1 -ml-1"><text class="text-foreground text-xl">←</text></view>
+        <text class="text-base font-semibold text-foreground">添加好友</text>
+      </view>
+    </view>
+
+    <view class="px-4 pt-4 pb-20">
+      <!-- 搜索栏 -->
+      <view class="flex gap-2 mb-6">
+        <view class="relative flex-1">
+          <text class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"></text>
+          <input v-model="query" placeholder="搜索手机号 / 智玄号 / 昵称" @confirm="doSearch" class="w-full pl-9 pr-3 py-2.5 bg-white border border-border rounded-xl text-sm outline-none" />
+        </view>
+        <view @click="loading || !query.trim() ? null : doSearch()" :class="['px-4 py-2.5 rounded-xl text-sm font-medium', loading || !query.trim() ? 'bg-gray-200 text-gray-400' : 'bg-primary text-white']">
+          <text>{{ loading ? '...' : '搜索' }}</text>
+        </view>
+      </view>
+
+      <!-- 其他方式 -->
+      <view v-if="!searched">
+        <text class="text-sm font-semibold text-foreground mb-3 block">其他方式</text>
+        <view class="space-y-2">
+          <view v-for="tip in tips" :key="tip.label" class="flex items-center gap-3 p-4 bg-white border border-border rounded-xl">
+            <view class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <text class="text-primary">{{ tip.icon }}</text>
+            </view>
+            <view>
+              <text class="text-sm font-medium text-foreground block">{{ tip.label }}</text>
+              <text class="text-xs text-muted-foreground block">{{ tip.desc }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 搜索结果 -->
+      <view v-else>
+        <text class="text-sm font-semibold text-foreground mb-3 block">搜索结果</text>
+        <view v-if="results.length === 0" class="text-center py-12 text-sm text-muted-foreground">未找到该用户</view>
+        <view v-else class="space-y-3">
+          <view v-for="user in results" :key="user.id" class="flex items-center gap-3 p-4 bg-white border border-border rounded-xl">
+            <view class="w-12 h-12 rounded-full flex-shrink-0 overflow-hidden">
+              <image v-if="user.avatar" :src="user.avatar" mode="aspectFill" class="w-full h-full" />
+              <view v-else class="w-full h-full bg-gradient-to-br from-primary to-[#E74C3C] flex items-center justify-center text-white text-lg">
+                <text>{{ user.name[0] }}</text>
+              </view>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="text-sm font-medium text-foreground block">{{ user.name }}</text>
+              <text class="text-xs text-muted-foreground truncate block">{{ user.bio }}</text>
+              <text class="text-xs text-muted-foreground block">{{ user.mutual }} 个共同好友</text>
+            </view>
+            <view
+              @click="!user.added && !sending[user.id] && addFriend(user.id)"
+              :class="['px-3 py-1.5 rounded-full text-xs font-medium', user.added ? 'bg-[#F5F5F5] text-muted-foreground' : 'bg-primary text-white']"
+            >
+              <text v-if="sending[user.id]" class="inline-block animate-spin"></text>
+              <text v-else-if="user.added">✓ 已添加</text>
+              <text v-else>+ 添加</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+interface SearchUser {
+  id: string; name: string; avatar: string; bio: string; mutual: number; added: boolean
+}
+
+const tips = [
+  { icon: '', label: '扫一扫', desc: '扫描好友二维码' },
+  { icon: '', label: '手机联系人', desc: '从通讯录添加好友' },
+  { icon: '@', label: '智玄号', desc: '通过智玄号搜索' },
+]
+
+const query = ref('')
+const searched = ref(false)
+const loading = ref(false)
+const results = ref<SearchUser[]>([])
+const sending = ref<Record<string, boolean>>({})
+
+function doSearch() {
+  if (!query.value.trim()) return
+  loading.value = true
+  setTimeout(() => {
+    results.value = [
+      { id: '1', name: '周易大师', avatar: '', bio: '八字命理研究者，从业二十年', mutual: 12, added: false },
+      { id: '2', name: '张玄风', avatar: '', bio: '紫微斗数专家 · 台湾传承', mutual: 5, added: false },
+    ]
+    searched.value = true
+    loading.value = false
+  }, 800)
+}
+
+async function addFriend(id: string) {
+  sending.value = { ...sending.value, [id]: true }
+  await new Promise(resolve => setTimeout(resolve, 800))
+  results.value = results.value.map(u => u.id === id ? { ...u, added: true } : u)
+  sending.value = { ...sending.value, [id]: false }
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

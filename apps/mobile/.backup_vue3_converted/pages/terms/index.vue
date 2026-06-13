@@ -1,0 +1,186 @@
+<template>
+  <!-- 条款列表页 -->
+  <view class="min-h-screen bg-background flex flex-col">
+    <!-- 导航栏 -->
+    <view class="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b border-border">
+      <view class="flex items-center gap-3 px-4 h-14">
+        <view class="p-2 -ml-2" @click="goBack"><text class="text-lg text-foreground">←</text></view>
+        <text class="font-semibold text-lg text-foreground">法律条款</text>
+      </view>
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="isLoading" class="flex-1 p-4">
+      <!-- 头部骨架 -->
+      <view class="bg-white rounded-xl p-5 mb-4 animate-pulse shadow-sm">
+        <view class="h-5 w-48 bg-[#E8E0D5] rounded mb-3" />
+        <view class="h-4 w-full bg-[#E8E0D5] rounded mb-2" />
+        <view class="h-4 w-3/4 bg-[#E8E0D5] rounded" />
+      </view>
+      <view v-for="i in 5" :key="i" class="flex items-center bg-white rounded-xl p-4 mb-2 animate-pulse shadow-sm">
+        <view class="w-9 h-9 bg-[#E8E0D5] rounded-lg" />
+        <view class="flex-1 ml-3 space-y-1.5">
+          <view class="h-4 w-32 bg-[#E8E0D5] rounded" />
+          <view class="h-3 w-24 bg-[#E8E0D5] rounded" />
+        </view>
+        <view class="w-4 h-4 bg-[#E8E0D5] rounded" />
+      </view>
+    </view>
+
+    <!-- 主体内容 -->
+    <scroll-view v-else scroll-y class="flex-1">
+      <!-- 介绍 -->
+      <view class="bg-gradient-to-r from-primary/5 to-transparent mx-4 mt-4 rounded-xl p-5 border border-border">
+        <text class="text-sm font-semibold text-foreground block mb-2">⚖️ 法律条款</text>
+        <text class="text-xs text-[#555] leading-5 block">
+          请仔细阅读以下法律条款。使用本平台服务即表示您同意遵守以下条款和条件。
+        </text>
+      </view>
+
+      <!-- 使用条款 -->
+      <view class="mx-4 mt-4">
+        <text class="text-[11px] font-semibold text-muted-foreground mb-2 block tracking-wider">使用条款</text>
+        <view class="bg-white rounded-xl overflow-hidden shadow-sm">
+          <view
+            v-for="(item, idx) in usageTerms"
+            :key="item.path"
+            class="flex items-center gap-3 px-4 py-3.5"
+            :class="idx < usageTerms.length - 1 ? 'border-b border-border' : ''"
+            @click="goPage(item)"
+          >
+            <view class="w-9 h-9 rounded-xl flex items-center justify-center text-lg" :style="{ background: item.bg }">
+              {{ item.icon }}
+            </view>
+            <view class="flex-1">
+              <text class="text-sm font-medium text-foreground block">{{ item.name }}</text>
+              <text class="text-xs text-muted-foreground block mt-0.5">{{ item.desc }}</text>
+            </view>
+            <text class="text-base text-[#ccc]">›</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 隐私与数据 -->
+      <view class="mx-4 mt-5">
+        <text class="text-[11px] font-semibold text-muted-foreground mb-2 block tracking-wider">隐私与数据</text>
+        <view class="bg-white rounded-xl overflow-hidden shadow-sm">
+          <view
+            v-for="(item, idx) in privacyTerms"
+            :key="item.path"
+            class="flex items-center gap-3 px-4 py-3.5"
+            :class="idx < privacyTerms.length - 1 ? 'border-b border-border' : ''"
+            @click="goPage(item)"
+          >
+            <view class="w-9 h-9 rounded-xl flex items-center justify-center text-lg" :style="{ background: item.bg }">
+              {{ item.icon }}
+            </view>
+            <view class="flex-1">
+              <text class="text-sm font-medium text-foreground block">{{ item.name }}</text>
+              <text class="text-xs text-muted-foreground block mt-0.5">{{ item.desc }}</text>
+            </view>
+            <text class="text-base text-[#ccc]">›</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 合规与法律 -->
+      <view class="mx-4 mt-5">
+        <text class="text-[11px] font-semibold text-muted-foreground mb-2 block tracking-wider">合规与法律</text>
+        <view class="bg-white rounded-xl overflow-hidden shadow-sm">
+          <view
+            v-for="(item, idx) in complianceTerms"
+            :key="item.path"
+            class="flex items-center gap-3 px-4 py-3.5"
+            :class="idx < complianceTerms.length - 1 ? 'border-b border-border' : ''"
+            @click="goPage(item)"
+          >
+            <view class="w-9 h-9 rounded-xl flex items-center justify-center text-lg" :style="{ background: item.bg }">
+              {{ item.icon }}
+            </view>
+            <view class="flex-1">
+              <text class="text-sm font-medium text-foreground block">{{ item.name }}</text>
+              <text class="text-xs text-muted-foreground block mt-0.5">{{ item.desc }}</text>
+            </view>
+            <text class="text-base text-[#ccc]">›</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部 -->
+      <view class="px-4 py-8 flex flex-col items-center">
+        <text class="text-xs text-[#ccc] text-center leading-5">
+          最新更新日期：2026年1月1日<br />
+          如您对以上条款有任何疑问，请联系我们
+        </text>
+        <view class="flex items-center gap-4 mt-3">
+          <text class="text-xs text-primary" @click="contactService">联系客服</text>
+          <text class="text-xs text-[#ccc]">|</text>
+          <text class="text-xs text-primary" @click="viewUpdateHistory">更新历史</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+interface TermItem {
+  name: string
+  desc: string
+  icon: string
+  bg: string
+  path: string
+}
+
+const isLoading = ref(true)
+
+const usageTerms = ref<TermItem[]>([
+  { name: '用户服务协议', desc: '使用平台服务的基本条款与条件', icon: '', bg: 'rgba(196,30,58,0.08)', path: '/pages/terms/user-agreement/index' },
+  { name: '平台规则', desc: '社区行为准则与内容规范', icon: '📏', bg: 'rgba(59,130,246,0.08)', path: '/pages/terms/platform-rules/index' },
+  { name: '会员服务条款', desc: 'VIP会员权益与订阅规则', icon: '👑', bg: 'rgba(201,169,110,0.1)', path: '/pages/terms/membership/index' },
+  { name: '课程服务条款', desc: '在线课程购买与学习规则', icon: '', bg: 'rgba(34,197,94,0.08)', path: '/pages/terms/course-service/index' },
+])
+
+const privacyTerms = ref<TermItem[]>([
+  { name: '隐私政策', desc: '个人信息收集、使用与保护规则', icon: '', bg: 'rgba(59,130,246,0.08)', path: '/pages/terms/privacy-policy/index' },
+  { name: '儿童隐私保护政策', desc: '未成年人信息保护特别条款', icon: '👶', bg: 'rgba(34,197,94,0.08)', path: '/pages/terms/child-privacy/index' },
+  { name: 'Cookie政策', desc: 'Cookie及追踪技术使用说明', icon: '🍪', bg: 'rgba(245,158,11,0.08)', path: '/pages/terms/cookie-policy/index' },
+  { name: '数据安全承诺', desc: '平台数据安全保障措施', icon: '🛡️', bg: 'rgba(14,165,233,0.08)', path: '/pages/terms/data-security/index' },
+])
+
+const complianceTerms = ref<TermItem[]>([
+  { name: '知识产权声明', desc: '平台内容版权归属与使用许可', icon: '©️', bg: 'rgba(168,85,247,0.08)', path: '/pages/terms/ip-statement/index' },
+  { name: '免责声明', desc: '平台服务责任限制与免责范围', icon: '⚠', bg: 'rgba(245,158,11,0.08)', path: '/pages/terms/disclaimer/index' },
+  { name: '争议解决条款', desc: '争议处理方式与管辖法院', icon: '⚖️', bg: 'rgba(59,130,246,0.08)', path: '/pages/terms/dispute-resolution/index' },
+  { name: '法律声明', desc: '平台运营主体法律信息', icon: '🏛️', bg: 'rgba(196,30,58,0.08)', path: '/pages/terms/legal-notice/index' },
+  { name: '反欺诈声明', desc: '防范网络诈骗的声明与提示', icon: '', bg: 'rgba(239,68,68,0.08)', path: '/pages/terms/anti-fraud/index' },
+  { name: '投诉与举报', desc: '违规内容投诉渠道与流程', icon: '', bg: 'rgba(245,158,11,0.08)', path: '/pages/terms/complaint/index' },
+])
+
+function goPage(item: TermItem) {
+  uni.navigateTo({ url: item.path })
+}
+
+function contactService() {
+  uni.showToast({ title: '客服邮箱：support@rebu.com', icon: 'none' })
+}
+
+function viewUpdateHistory() {
+  uni.showToast({ title: '更新历史功能开发中', icon: 'none' })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+onMounted(() => {
+  setTimeout(() => {
+    isLoading.value = false
+  }, 300)
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

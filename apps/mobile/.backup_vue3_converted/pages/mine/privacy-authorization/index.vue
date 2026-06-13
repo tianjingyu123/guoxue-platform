@@ -1,0 +1,256 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- Header -->
+    <view class="sticky top-0 z-10 bg-background border-b border-border">
+      <view class="flex items-center justify-between h-14 px-4">
+        <view @click="goBack" class="p-2 -ml-2">
+          <text class="text-foreground text-lg">←</text>
+        </view>
+        <text class="font-semibold text-foreground">隐私授权管理</text>
+        <view class="w-9" />
+      </view>
+    </view>
+
+    <view class="p-4 space-y-4">
+      <!-- Info Banner -->
+      <view class="bg-blue-50 rounded-2xl p-4">
+        <view class="flex gap-3">
+          <view class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+            <text class="text-blue-600 text-lg">🛡️</text>
+          </view>
+          <view class="flex-1">
+            <text class="font-medium text-blue-900 block">隐私保护说明</text>
+            <text class="text-sm text-blue-700 mt-1 block">我们重视您的隐私。以下权限仅在您主动使用相关功能时请求，您可以随时在此管理授权状态。</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Summary -->
+      <view class="bg-white rounded-2xl p-4 border border-border">
+        <view class="flex items-center justify-between">
+          <view>
+            <text class="text-sm text-muted-foreground block">已授权权限</text>
+            <text class="text-2xl font-bold text-foreground">{{ authorizedCount }}<text class="text-base font-normal text-muted-foreground">/{{ permissions.length }}</text></text>
+          </view>
+          <view class="flex -space-x-2">
+            <view v-for="p in authorizedPermissions.slice(0, 4)" :key="p.id" class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center border-2 border-white">
+              <text class="text-green-600 text-base">{{ permIcon(p.id) }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Permission List -->
+      <view class="bg-white rounded-2xl border border-border overflow-hidden">
+        <view class="p-4 border-b border-border">
+          <text class="font-medium">权限列表</text>
+        </view>
+        <view class="divide-y divide-border">
+          <view v-for="p in permissions" :key="p.id" @click="handlePermissionClick(p)" class="flex items-center gap-4 p-4">
+            <view :class="['w-12 h-12 rounded-xl flex items-center justify-center', getStatusBgClass(p.status)]">
+              <text :class="[getStatusTextClass(p.status)]">{{ permIcon(p.id) }}</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-2">
+                <text class="font-medium">{{ p.name }}</text>
+                <text v-if="p.required" class="text-xs text-red-500 bg-red-50 px-1.5 py-0.5 rounded">必需</text>
+              </view>
+              <text class="text-sm text-muted-foreground truncate block mt-0.5">{{ p.description }}</text>
+            </view>
+            <view class="flex items-center gap-2">
+              <text :class="['text-xs px-2 py-1 rounded-full', getStatusBadgeClass(p.status)]">{{ getStatusText(p.status) }}</text>
+              <text class="text-muted-foreground">›</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Tips -->
+      <view class="bg-amber-50 rounded-2xl p-4">
+        <view class="flex gap-3">
+          <text class="text-amber-600 text-lg shrink-0"></text>
+          <view class="text-sm text-amber-800">
+            <text class="font-medium block mb-1">温馨提示</text>
+            <text class="text-amber-700 block">• 拒绝授权不会影响基础功能使用</text>
+            <text class="text-amber-700 block">• 部分功能需要对应权限才能正常工作</text>
+            <text class="text-amber-700 block">• 您可以随时在系统设置中修改权限</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- System Settings -->
+      <view @click="handleGoSystemSettings" class="flex items-center justify-between p-4 bg-white rounded-2xl border border-border">
+        <view class="flex items-center gap-3">
+          <view class="w-10 h-10 bg-muted rounded-xl flex items-center justify-center">
+            <text class="text-muted-foreground text-lg">⚙️</text>
+          </view>
+          <text class="font-medium">前往系统设置</text>
+        </view>
+        <text class="text-muted-foreground">›</text>
+      </view>
+    </view>
+
+    <!-- Auth Dialog -->
+    <view v-if="showAuthDialog && selectedPermission" class="fixed inset-0 z-50 flex items-end justify-center bg-black/50" @click="showAuthDialog = false">
+      <view class="w-full max-w-lg bg-background rounded-t-3xl" @click.stop>
+        <view class="p-6">
+          <view class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <text class="text-primary text-2xl">{{ permIcon(selectedPermission.id) }}</text>
+          </view>
+          <text class="text-xl font-bold text-center block mb-2">允许访问{{ selectedPermission.name }}？</text>
+          <text class="text-center text-muted-foreground block mb-4">{{ selectedPermission.purpose }}</text>
+
+          <view class="bg-muted rounded-xl p-4 mb-6">
+            <view class="flex items-start gap-3">
+              <text class="text-green-500 text-lg shrink-0">✓</text>
+              <view class="text-sm">
+                <text class="font-medium text-foreground block">数据安全承诺</text>
+                <text class="text-muted-foreground mt-1 block">我们仅在您使用相关功能时访问此权限，不会在后台收集或上传您的数据。</text>
+              </view>
+            </view>
+          </view>
+
+          <view v-if="selectedPermission.degradedFeature" class="bg-amber-50 rounded-xl p-3 mb-6 flex items-start gap-2">
+            <text class="text-amber-600"></text>
+            <text class="text-sm text-amber-700 block">如果拒绝授权，{{ selectedPermission.degradedFeature }}</text>
+          </view>
+
+          <view class="space-y-3">
+            <!-- 位置权限特殊处理：专用始终/使用时选项 -->
+            <view v-if="selectedPermission.id === 'location'" @click="handleAuthorize('always')" class="w-full h-12 bg-primary text-white rounded-xl font-medium flex items-center justify-center">
+              <text>始终允许</text>
+            </view>
+            <view v-if="selectedPermission.id === 'location'" @click="handleAuthorize('while_using')" class="w-full h-12 bg-primary/10 text-primary rounded-xl font-medium flex items-center justify-center">
+              <text>仅在使用应用期间允许</text>
+            </view>
+            <!-- 其他权限：标准允许按钮 -->
+            <view v-if="selectedPermission.id !== 'location'" @click="handleAuthorize('authorized')" class="w-full h-12 bg-primary text-white rounded-xl font-medium flex items-center justify-center">
+              <text>允许</text>
+            </view>
+            <view @click="handleAuthorize('deny')" class="w-full h-12 text-muted-foreground rounded-xl font-medium flex items-center justify-center">
+              <text>不允许</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Already Authorized Dialog -->
+    <view v-if="showDeniedDialog && selectedPermission" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click="showDeniedDialog = false">
+      <view class="w-full max-w-sm bg-background rounded-2xl" @click.stop>
+        <view class="p-6 text-center">
+          <view class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <text class="text-green-600 text-2xl">✓</text>
+          </view>
+          <text class="text-lg font-bold block mb-2">已授权 {{ selectedPermission.name }}</text>
+          <text class="text-sm text-muted-foreground block mb-6">如需修改权限状态，请前往系统设置中的应用权限管理进行修改。</text>
+          <view class="flex gap-3">
+            <view @click="showDeniedDialog = false" class="flex-1 h-11 bg-muted rounded-xl font-medium flex items-center justify-center">
+              <text>取消</text>
+            </view>
+            <view @click="handleGoSystemSettings" class="flex-1 h-11 bg-primary text-white rounded-xl font-medium flex items-center justify-center">
+              <text>前往设置</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface Permission {
+  id: string
+  name: string
+  description: string
+  purpose: string
+  status: string
+  required: boolean
+  degradedFeature?: string
+}
+
+const permissions = ref<Permission[]>([
+  { id: 'location', name: '位置信息', description: '获取您的地理位置', purpose: '用于推荐附近驿站、本地化内容推荐', status: 'while_using', required: false, degradedFeature: '无法使用附近推荐功能' },
+  { id: 'camera', name: '相机', description: '拍摄照片和视频', purpose: '用于拍摄头像、发布图片/视频内容', status: 'authorized', required: false, degradedFeature: '无法拍摄照片和视频' },
+  { id: 'microphone', name: '麦克风', description: '录制音频', purpose: '用于语音搜索、发布语音内容', status: 'authorized', required: false, degradedFeature: '无法使用语音功能' },
+  { id: 'photos', name: '相册', description: '访问您的照片和视频', purpose: '用于选择头像、发布图片/视频内容', status: 'always', required: false, degradedFeature: '无法选择本地图片' },
+  { id: 'contacts', name: '通讯录', description: '读取联系人信息', purpose: '用于发现已注册的朋友', status: 'denied', required: false, degradedFeature: '无法发现通讯录好友' },
+  { id: 'calendar', name: '日历', description: '访问日历事件', purpose: '用于添加课程提醒', status: 'not_determined', required: false, degradedFeature: '无法添加日历提醒' },
+  { id: 'notifications', name: '通知', description: '发送推送通知', purpose: '用于消息提醒、课程提醒', status: 'authorized', required: true },
+])
+
+const showAuthDialog = ref(false)
+const showDeniedDialog = ref(false)
+const selectedPermission = ref<Permission | null>(null)
+
+const authorizedPermissions = computed(() => permissions.value.filter(p => ['authorized', 'always', 'while_using'].includes(p.status)))
+const authorizedCount = computed(() => authorizedPermissions.value.length)
+
+function permIcon(id: string): string {
+  const map: Record<string, string> = { location: '📍', camera: '', microphone: '', photos: '️', contacts: '', calendar: '', notifications: '' }
+  return map[id] || ''
+}
+
+function getStatusText(status: string): string {
+  const map: Record<string, string> = { authorized: '已授权', always: '始终允许', while_using: '使用时允许', denied: '已拒绝', not_determined: '未设置' }
+  return map[status] || status
+}
+
+function getStatusBgClass(status: string): string {
+  if (['authorized', 'always', 'while_using'].includes(status)) return 'bg-green-100 text-green-600'
+  if (status === 'denied') return 'bg-red-100 text-red-500'
+  return 'bg-muted text-muted-foreground'
+}
+
+function getStatusTextClass(status: string): string {
+  if (['authorized', 'always', 'while_using'].includes(status)) return 'text-green-600'
+  if (status === 'denied') return 'text-red-500'
+  return 'text-muted-foreground'
+}
+
+function getStatusBadgeClass(status: string): string {
+  if (['authorized', 'always', 'while_using'].includes(status)) return 'text-green-600 bg-green-50'
+  if (status === 'denied') return 'text-red-500 bg-red-50'
+  return 'text-muted-foreground bg-muted'
+}
+
+function handlePermissionClick(p: Permission) {
+  selectedPermission.value = p
+  if (p.status === 'denied' || p.status === 'not_determined') {
+    showAuthDialog.value = true
+  } else {
+    showDeniedDialog.value = true
+  }
+}
+
+function handleAuthorize(type: string) {
+  if (!selectedPermission.value) return
+  const statusMap: Record<string, string> = {
+    authorized: 'authorized',
+    always: 'always',
+    while_using: 'while_using',
+    deny: 'denied',
+  }
+  permissions.value = permissions.value.map(p => {
+    if (p.id === selectedPermission.value!.id) {
+      return { ...p, status: statusMap[type] || type }
+    }
+    return p
+  })
+  showAuthDialog.value = false
+  selectedPermission.value = null
+}
+
+function handleGoSystemSettings() {
+  showDeniedDialog.value = false
+  uni.showToast({ title: '即将跳转到系统设置', icon: 'none' })
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,282 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 导航栏 -->
+    <header class="sticky top-0 z-10 bg-white border-b border-border">
+      <view class="flex items-center h-14 px-4">
+        <view @click="goBack" class="p-2 -ml-2">
+          <text class="text-xl text-foreground">←</text>
+        </view>
+        <text class="flex-1 text-center font-medium text-foreground">举报处理结果</text>
+        <view class="w-10" />
+      </view>
+    </header>
+
+    <!-- 统计卡片 -->
+    <view v-if="stats" class="p-4" style="background-color:#F5F1EB/50">
+      <view class="grid grid-cols-4 gap-2 text-center" style="display:flex;gap:8rpx">
+        <view class="flex-1 bg-white rounded-lg p-3">
+          <text class="text-lg font-bold text-foreground" style="display:block">{{stats.total}}</text>
+          <text class="text-xs text-muted-foreground" style="display:block">总举报</text>
+        </view>
+        <view class="flex-1 bg-white rounded-lg p-3">
+          <text class="text-lg font-bold text-amber-600" style="display:block">{{stats.pending + stats.processing}}</text>
+          <text class="text-xs text-muted-foreground" style="display:block">处理中</text>
+        </view>
+        <view class="flex-1 bg-white rounded-lg p-3">
+          <text class="text-lg font-bold text-green-600" style="display:block">{{stats.resolved}}</text>
+          <text class="text-xs text-muted-foreground" style="display:block">已处理</text>
+        </view>
+        <view class="flex-1 bg-white rounded-lg p-3">
+          <text class="text-lg font-bold text-red-600" style="display:block">{{stats.rejected}}</text>
+          <text class="text-xs text-muted-foreground" style="display:block">已驳回</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 状态筛选 -->
+    <view class="flex items-center gap-2 px-4 py-3 border-b border-border" style="overflow-x:auto;white-space:nowrap">
+      <text class="text-sm text-muted-foreground"></text>
+      <view v-for="filter in statusFilters" :key="filter.value" @click="statusFilter=filter.value" :class="'px-3 py-1.5 rounded-full text-sm ' + (statusFilter===filter.value ? 'bg-primary text-white' : 'bg-secondary text-muted-foreground')">
+        <text>{{filter.label}}</text>
+      </view>
+    </view>
+
+    <!-- 举报记录列表 -->
+    <view v-if="loading" class="p-4 space-y-4">
+      <view v-for="i in 3" :key="i" class="flex gap-3">
+        <view class="w-10 h-10 rounded-full bg-[#E8E0D5] animate-pulse" style="flex-shrink:0" />
+        <view class="flex-1 space-y-2">
+          <view class="h-4 bg-[#E8E0D5] rounded animate-pulse" style="width:66%" />
+          <view class="h-3 bg-[#E8E0D5] rounded animate-pulse" style="width:100%" />
+          <view class="h-3 bg-[#E8E0D5] rounded animate-pulse" style="width:33%" />
+        </view>
+      </view>
+    </view>
+
+    <view v-else-if="records.length>0">
+      <view v-for="record in records" :key="record.id" @click="handleViewDetail(record)" class="p-4 bg-white">
+        <view class="flex items-start gap-3">
+          <!-- 对象类型图标 -->
+          <view class="w-10 h-10 rounded-full flex items-center justify-center" style="flex-shrink:0;background-color:#F5F1EB">
+            <text class="text-sm">{{getTargetTypeIcon(record.targetType)}}</text>
+          </view>
+
+          <!-- 内容 -->
+          <view class="flex-1" style="min-width:0">
+            <view class="flex items-center gap-2 mb-1">
+              <text class="font-medium text-foreground" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{record.targetTitle}}</text>
+              <text class="text-xs px-1.5 py-0.5 rounded border border-border text-muted-foreground" style="flex-shrink:0">{{getTargetTypeLabel(record.targetType)}}</text>
+            </view>
+            <text class="text-sm text-muted-foreground mb-2" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{getReportTypeLabel(record.reportType)}}：{{record.reason}}</text>
+            <view class="flex items-center justify-between">
+              <text class="text-xs text-muted-foreground">{{record.createdAt}}</text>
+              <text :class="'text-xs px-2 py-0.5 rounded flex items-center gap-1 ' + getReportStatusColor(record.status)">
+                {{getStatusIcon(record.status)}} {{getReportStatusLabel(record.status)}}
+              </text>
+            </view>
+          </view>
+
+          <text class="text-sm text-muted-foreground" style="flex-shrink:0">›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view v-else class="flex flex-col items-center justify-center py-20">
+      <text class="text-3xl text-muted-foreground mb-4"></text>
+      <text class="text-sm text-muted-foreground">暂无举报记录</text>
+    </view>
+
+    <!-- 详情弹层 -->
+    <view v-if="showDetail && selectedRecord" class="fixed inset-0 z-50 bg-black/40" @click="showDetail=false">
+      <view class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl" @click.stop style="height:85vh;overflow-y:auto">
+        <view class="sticky top-0 bg-white border-b border-border px-4 py-3">
+          <text class="font-medium text-foreground" style="display:block;text-align:center">举报详情</text>
+        </view>
+
+        <view class="mt-4 p-4 space-y-4">
+          <!-- 举报对象 -->
+          <view class="rounded-lg p-4" style="background-color:#F5F1EB/30">
+            <text class="text-sm font-medium text-foreground mb-3" style="display:block">举报对象</text>
+            <view class="flex items-center gap-3">
+              <view class="w-12 h-12 rounded-lg flex items-center justify-center" style="background-color:#F5F1EB">
+                <text class="text-lg">{{getTargetTypeIcon(selectedRecord.targetType)}}</text>
+              </view>
+              <view>
+                <text class="font-medium text-foreground" style="display:block">{{selectedRecord.targetTitle}}</text>
+                <text class="text-sm text-muted-foreground" style="display:block">{{getTargetTypeLabel(selectedRecord.targetType)}}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 举报信息 -->
+          <view class="space-y-3">
+            <text class="text-sm font-medium text-foreground" style="display:block">举报信息</text>
+            <view class="grid grid-cols-2 gap-3 text-sm">
+              <text>举报类型：{{getReportTypeLabel(selectedRecord.reportType)}}</text>
+              <text>提交时间：{{selectedRecord.createdAt}}</text>
+            </view>
+            <view class="text-sm">
+              <text class="text-muted-foreground">举报原因：</text>
+              <text class="mt-1" style="display:block">{{selectedRecord.reason}}</text>
+            </view>
+            <view v-if="selectedRecord.evidence && selectedRecord.evidence.length>0">
+              <text class="text-sm text-muted-foreground" style="display:block">证据截图：</text>
+              <view class="flex gap-2 mt-2">
+                <image v-for="(img,idx) in selectedRecord.evidence" :key="idx" :src="img" class="w-20 h-20 rounded-lg border border-border" mode="aspectFill" />
+              </view>
+            </view>
+          </view>
+
+          <view class="h-px bg-[#E8E0D5]" />
+
+          <!-- 处理状态 -->
+          <view class="space-y-3">
+            <view class="flex items-center justify-between">
+              <text class="text-sm font-medium text-foreground" style="display:block">处理状态</text>
+              <text :class="'text-xs px-2 py-0.5 rounded ' + getReportStatusColor(selectedRecord.status)">
+                {{getReportStatusLabel(selectedRecord.status)}}
+              </text>
+            </view>
+
+            <view v-if="selectedRecord.result" class="rounded-lg p-4 space-y-3" style="background-color:#F5F1EB/30">
+              <view class="flex items-center gap-2">
+                <text class="text-sm text-muted-foreground">处理结论：</text>
+                <text :class="'font-medium ' + getConclusionColor(selectedRecord.result.conclusion)">{{getConclusionLabel(selectedRecord.result.conclusion)}}</text>
+              </view>
+              <view v-if="selectedRecord.result.action" class="text-sm">
+                <text class="text-muted-foreground">处理措施：</text>
+                <text class="mt-1" style="display:block">{{selectedRecord.result.action}}</text>
+              </view>
+              <view class="text-sm">
+                <text class="text-muted-foreground">处理说明：</text>
+                <text class="mt-1" style="display:block">{{selectedRecord.result.description}}</text>
+              </view>
+              <view class="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border">
+                <text>处理人：{{selectedRecord.result.handler}}</text>
+                <text>{{selectedRecord.result.handledAt}}</text>
+              </view>
+            </view>
+
+            <view v-else class="rounded-lg p-4 text-center text-sm text-muted-foreground" style="background-color:#F5F1EB/30">
+              <text class="text-3xl text-amber-500" style="display:block;margin:0 auto 8rpx">🕐</text>
+              <text style="display:block">正在处理中，请耐心等待</text>
+              <text class="text-xs mt-1" style="display:block">预计1-3个工作日内处理完成</text>
+            </view>
+          </view>
+
+          <!-- 申诉入口 -->
+          <view v-if="selectedRecord.status==='rejected'" class="pt-4">
+            <view @click="navigateTo('/pages/report/appeal/index?id='+selectedRecord.id)" class="w-full py-3 text-center text-sm font-medium rounded-xl border border-border text-foreground">
+              <text>⚠ 我要申诉</text>
+            </view>
+            <text class="text-xs text-muted-foreground text-center mt-2" style="display:block">如对处理结果有异议，可提交申诉</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, watch, onMounted } from 'vue'
+
+const statusFilters = [
+  { value: 'all', label: '全部' },
+  { value: 'pending', label: '待处理' },
+  { value: 'processing', label: '处理中' },
+  { value: 'resolved', label: '已处理' },
+  { value: 'rejected', label: '已驳回' },
+]
+
+const loading = ref(false)
+const stats = ref<any>(null)
+const records = ref<any[]>([])
+const statusFilter = ref<string>('all')
+const selectedRecord = ref<any>(null)
+const showDetail = ref(false)
+
+onMounted(() => {
+  loadData()
+})
+
+watch(statusFilter, () => { loadData() })
+
+function loadData() {
+  loading.value = true
+  setTimeout(() => {
+    stats.value = { total: 12, pending: 2, processing: 1, resolved: 7, rejected: 2 }
+    records.value = [
+      { id: 1, targetType: 'post', targetTitle: '违规文章示例', reportType: 'spam', reason: '包含虚假宣传内容', createdAt: '2024-01-15 14:30', status: 'pending', evidence: [] },
+      { id: 2, targetType: 'comment', targetTitle: '不当评论', reportType: 'abuse', reason: '人身攻击', createdAt: '2024-01-14 10:20', status: 'resolved', evidence: [], result: { conclusion: 'valid', action: '评论已删除', description: '经核实，该评论确实存在人身攻击行为，已按规则删除', handler: '客服小张', handledAt: '2024-01-15 09:00' } },
+      { id: 3, targetType: 'user', targetTitle: '用户张三', reportType: 'other', reason: '骚扰其他用户', createdAt: '2024-01-13 09:15', status: 'rejected', evidence: [], result: { conclusion: 'invalid', action: '', description: '经核实，举报内容不构成违规', handler: '客服小李', handledAt: '2024-01-14 11:30' } },
+    ]
+    loading.value = false
+  }, 300)
+}
+
+function getTargetTypeIcon(type: string) {
+  const icons: Record<string, string> = { user: '', post: '', comment: '', course: '', circle: '', live: '📡' }
+  return icons[type] || '⚠'
+}
+
+function getTargetTypeLabel(type: string) {
+  const labels: Record<string, string> = { user: '用户', post: '动态', comment: '评论', course: '课程', circle: '圈子', live: '直播' }
+  return labels[type] || type
+}
+
+function getReportTypeLabel(type: string) {
+  const labels: Record<string, string> = { spam: '垃圾广告', abuse: '人身攻击', falseInfo: '虚假信息', copyright: '侵权', other: '其他举报' }
+  return labels[type] || '其他'
+}
+
+function getReportStatusLabel(status: string) {
+  const labels: Record<string, string> = { pending: '待处理', processing: '处理中', resolved: '已处理', rejected: '已驳回' }
+  return labels[status] || status
+}
+
+function getReportStatusColor(status: string) {
+  switch (status) {
+    case 'pending': return 'text-amber-500 bg-amber-500/10'
+    case 'processing': return 'text-blue-500 bg-blue-500/10'
+    case 'resolved': return 'text-green-500 bg-green-500/10'
+    case 'rejected': return 'text-red-500 bg-red-500/10'
+    default: return 'text-muted-foreground bg-secondary'
+  }
+}
+
+function getConclusionLabel(conclusion: string) {
+  return conclusion === 'valid' ? '违规成立' : '不成立'
+}
+
+function getConclusionColor(conclusion: string) {
+  return conclusion === 'valid' ? 'text-red-500' : 'text-green-500'
+}
+
+function getStatusIcon(status: string) {
+  switch (status) {
+    case 'pending': return '🕐'
+    case 'processing': return ''
+    case 'resolved': return '✓'
+    case 'rejected': return '✕'
+    default: return ''
+  }
+}
+
+function handleViewDetail(record: any) {
+  selectedRecord.value = record
+  showDetail.value = true
+}
+
+function navigateTo(url: string) {
+  uni.navigateTo({ url })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

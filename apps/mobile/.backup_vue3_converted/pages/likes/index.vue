@@ -1,0 +1,161 @@
+<template>
+  <view class="min-h-screen bg-background max-w-lg mx-auto">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b border-border">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view @click="goBack" class="p-1"><text class="text-xl text-foreground">←</text></view>
+        <text class="font-semibold text-base text-foreground">我的点赞</text>
+        <view class="w-9" />
+      </view>
+    </header>
+
+    <!-- 类型筛选Tab -->
+    <view class="sticky top-14 z-30 bg-background" style="border-bottom:1px solid rgba(232,224,213,0.6)">
+      <scroll-view scroll-x class="flex overflow-x-auto" style="white-space:nowrap">
+        <view v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id"
+          class="inline-block px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors"
+          :style="activeTab === tab.id ? 'color:#C41E3A;border-bottom:2px solid #C41E3A' : 'color:#999;border-bottom:2px solid transparent'">
+          {{ tab.icon }} {{ tab.label }}
+          <text v-if="getTabCount(tab.id) > 0" class="text-xs text-muted-foreground">({{ getTabCount(tab.id) }})</text>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 点赞列表 -->
+    <view class="p-4 space-y-3">
+      <template v-if="filteredItems.length > 0">
+        <view v-for="item in filteredItems" :key="item.id" class="bg-white rounded-xl overflow-hidden" style="border:1px solid rgba(232,224,213,0.6)">
+          <view class="flex">
+            <!-- 封面图 -->
+            <view class="shrink-0 w-28 aspect-[4/3] flex items-center justify-center relative" style="background:#F5F1EB">
+              <text v-if="item.type === 'video'" class="text-3xl text-muted-foreground/40">▶</text>
+              <text v-else-if="item.type === 'course'" class="text-3xl text-accent/40"></text>
+              <text v-else class="text-3xl text-muted-foreground/40"></text>
+              <text v-if="item.duration" class="absolute bottom-1 right-1 px-1.5 py-0.5 text-[10px] rounded" style="background:rgba(0,0,0,0.6);color:white">{{ item.duration }}</text>
+            </view>
+
+            <!-- 内容 -->
+            <view class="flex-1 p-3 min-w-0">
+              <view class="flex items-start justify-between gap-2">
+                <view class="flex-1 min-w-0">
+                  <!-- 类型标签 -->
+                  <text class="inline-block text-[10px] px-1.5 py-0 mb-1.5 rounded" :class="getTypeBadgeClass(item.type)">
+                    {{ getTypeConfig(item.type).icon }} {{ getTypeConfig(item.type).label }}
+                  </text>
+                  <!-- 标题 -->
+                  <text class="font-medium text-sm text-foreground line-clamp-2 block mt-1">{{ item.title }}</text>
+                  <!-- 摘要 -->
+                  <text v-if="item.summary" class="text-xs text-muted-foreground line-clamp-1 block mt-1">{{ item.summary }}</text>
+                  <!-- 底部信息 -->
+                  <view class="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
+                    <text>{{ item.author || item.instructor }}</text>
+                    <text v-if="item.type === 'course' && item.price" class="text-primary font-medium">¥{{ item.price }}</text>
+                    <text v-if="item.type === 'video' && item.likes">{{ item.likes }} 点赞</text>
+                    <text>· {{ item.likedAt }}</text>
+                  </view>
+                </view>
+                <!-- 取消点赞按钮 -->
+                <view @click="handleUnlike(item.id)" class="shrink-0 p-2">
+                  <text class="text-lg text-primary"></text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </template>
+
+      <!-- 空状态 -->
+      <template v-else>
+        <view class="flex flex-col items-center justify-center py-20">
+          <view class="w-24 h-24 rounded-full flex items-center justify-center mb-4" style="background:#F5F1EB">
+            <text class="text-4xl text-muted-foreground/40"></text>
+          </view>
+          <text class="text-sm text-muted-foreground">暂无点赞记录</text>
+          <text class="text-xs text-muted-foreground/70 mt-1">看到喜欢的内容，点个赞吧</text>
+          <view @click="goDiscover" class="mt-4 px-6 py-2 bg-primary text-white text-sm font-medium rounded-full">去发现内容</view>
+        </view>
+      </template>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+type ItemType = 'all' | 'article' | 'video' | 'post' | 'course'
+
+interface LikedItem {
+  id: number
+  type: string
+  title: string
+  summary?: string
+  duration?: string
+  cover: string
+  author?: string
+  instructor?: string
+  price?: number
+  likes?: number
+  likedAt: string
+}
+
+const activeTab = ref<string>('all')
+
+const tabs = [
+  { id: 'all', label: '全部', icon: '' },
+  { id: 'post', label: '帖子', icon: '' },
+  { id: 'article', label: '文章', icon: '' },
+  { id: 'video', label: '短视频', icon: '▶' },
+  { id: 'course', label: '课程', icon: '' },
+]
+
+const items = ref<LikedItem[]>([
+  { id: 1, type: 'article', title: '八字命理入门：如何看懂你的命盘', summary: '八字命理是中国传统文化的重要组成部分，本文将带你从零开始了解八字的基本概念...', cover: '', author: '周易大师', likedAt: '2小时前' },
+  { id: 2, type: 'video', title: '三分钟看懂十神关系', duration: '03:25', cover: '', author: '命理小课堂', likes: 2580, likedAt: '5小时前' },
+  { id: 3, type: 'post', title: '今日案例分析：乙木生于子月', summary: '分享一个最近遇到的命盘，乙木日主生于子月，地支一片水旺...', cover: '', author: '八字研习者', likedAt: '昨天' },
+  { id: 4, type: 'course', title: '紫微斗数入门到精通', instructor: '张玄风', price: 299, cover: '', likedAt: '3天前' },
+  { id: 5, type: 'article', title: '风水布局的五大禁忌', summary: '家居风水关系到一家人的运势，这些常见的风水禁忌你一定要知道...', cover: '', author: '陈风水', likedAt: '1周前' },
+  { id: 6, type: 'video', title: '手把手教你排八字', duration: '08:42', cover: '', author: '国学小白', likes: 5680, likedAt: '1周前' },
+])
+
+const filteredItems = computed(() => {
+  if (activeTab.value === 'all') return items.value
+  return items.value.filter(item => item.type === activeTab.value)
+})
+
+function getTabCount(tabId: string): number {
+  if (tabId === 'all') return items.value.length
+  return items.value.filter(i => i.type === tabId).length
+}
+
+function getTypeConfig(type: string): { icon: string; label: string; color: string } {
+  const config: Record<string, { icon: string; label: string; color: string }> = {
+    post: { icon: '', label: '帖子', color: 'post' },
+    article: { icon: '', label: '文章', color: 'article' },
+    video: { icon: '▶', label: '视频', color: 'video' },
+    course: { icon: '', label: '课程', color: 'course' },
+  }
+  return config[type] || { icon: '', label: '内容', color: '' }
+}
+
+function getTypeBadgeClass(type: string): string {
+  const colors: Record<string, string> = {
+    post: 'bg-blue-500/10 text-blue-500',
+    article: 'bg-green-500/10 text-green-500',
+    video: 'bg-purple-500/10 text-purple-500',
+    course: 'bg-accent/10 text-accent',
+  }
+  return colors[type] || 'bg-gray-500/10 text-gray-500'
+}
+
+function handleUnlike(id: number) {
+  items.value = items.value.filter(item => item.id !== id)
+  uni.showToast({ title: '已取消点赞', icon: 'none' })
+}
+
+function goBack() { uni.navigateBack() }
+function goDiscover() { uni.switchTab({ url: '/pages/discover/index' }) }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

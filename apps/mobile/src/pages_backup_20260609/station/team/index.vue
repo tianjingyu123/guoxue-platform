@@ -1,0 +1,7 @@
+<template>
+  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">分站团队</text><text class="na" @click="invite">＋</text></view>
+    <scroll-view scroll-y class="c"><view v-for="m in members" :key="m.id" class="card"><text class="ca">{{m.name[0]}}</text><view><text class="cn">{{m.name}}</text><text class="cr">{{m.role}}</text></view><text class="cc">⋯</text></view></scroll-view></view>
+</template>
+<script setup lang="ts">import {ref} from 'vue';const members=ref([{id:1,name:'周易大师',role:'站长'},{id:2,name:'张玄风',role:'管理员'}]);function invite(){};function goBack(){uni.navigateBack()}</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.na{font-size:40rpx;color:#C41E3A}.c{padding:24rpx}.card{display:flex;align-items:center;gap:16rpx;background:#fff;border-radius:16rpx;padding:24rpx;margin-bottom:12rpx;box-shadow:0 2rpx 8rpx rgba(0,0,0,.03)}.ca{width:72rpx;height:72rpx;border-radius:50%;background:#F5F1EB;display:flex;align-items:center;justify-content:center;font-size:28rpx;color:#2C2C2C}.cn{font-size:26rpx;font-weight:500;color:#2C2C2C;display:block}.cr{font-size:22rpx;color:#999}.cc{font-size:36rpx;color:#999;padding:8rpx;margin-left:auto}
+</style>

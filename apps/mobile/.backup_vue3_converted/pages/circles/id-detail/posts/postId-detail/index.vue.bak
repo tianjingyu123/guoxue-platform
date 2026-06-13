@@ -1,0 +1,475 @@
+<template>
+  <view class="min-h-screen bg-white" style="padding-bottom:80px">
+    <!-- 顶部导航 -->
+    <view class="fixed top-0 left-0 right-0 z-50 bg-white/95 border-b border-[#E8E0D5]" style="backdrop-filter:blur(4px)">
+      <view class="flex items-center justify-between px-4 h-12">
+        <view @click="goBack" class="p-1">
+          <text class="text-xl text-[#2C2C2C]">←</text>
+        </view>
+        <text class="text-[14px] font-medium text-[#2C2C2C]">{{ post.circleName }}</text>
+        <view class="p-1">
+          <text class="text-xl text-[#666]">⋯</text>
+        </view>
+      </view>
+    </view>
+
+    <main style="padding-top:48px">
+      <!-- 文章内容 -->
+      <view class="px-4 py-4">
+        <!-- 标签 -->
+        <view class="flex items-center gap-2 mb-3">
+          <text v-if="post.isPinned" class="px-2 py-0.5 bg-[#C41E3A]/10 text-[#C41E3A] text-[11px] rounded-full flex items-center gap-1">📌 置顶</text>
+          <text v-if="post.isEssence" class="px-2 py-0.5 bg-[#C9A96E]/10 text-[#C9A96E] text-[11px] rounded-full flex items-center gap-1">⭐ 精华</text>
+          <text v-if="post.type === 'article'" class="px-2 py-0.5 bg-[#1890FF]/10 text-[#1890FF] text-[11px] rounded-full flex items-center gap-1">📄 长文</text>
+        </view>
+
+        <!-- 标题 -->
+        <text class="text-[22px] font-bold text-[#2C2C2C] leading-tight mb-4 block">{{ post.title }}</text>
+
+        <!-- 作者信息 -->
+        <view class="flex items-center justify-between mb-4 pb-4 border-b border-[#F5F0E8]">
+          <view @click="goUser(post.author.id)" class="flex items-center gap-3">
+            <view class="relative">
+              <image :src="post.author.avatar" mode="aspectFill" class="w-11 h-11 rounded-full" />
+              <view class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#C41E3A] flex items-center justify-center">
+                <text class="text-[9px] text-white font-bold">{{ post.author.level }}</text>
+              </view>
+            </view>
+            <view>
+              <view class="flex items-center gap-2">
+                <text class="font-medium text-[15px] text-[#2C2C2C]">{{ post.author.name }}</text>
+                <text class="px-1.5 py-0.5 bg-[#C9A96E]/10 text-[#C9A96E] text-[10px] rounded">{{ post.author.title }}</text>
+              </view>
+              <view class="flex items-center gap-2 text-[12px] text-[#999]">
+                <text>{{ post.author.followers }}粉丝</text>
+                <text>·</text>
+                <text>{{ post.author.posts }}篇文章</text>
+              </view>
+            </view>
+          </view>
+          <view @click="handleFollow"
+            :class="['px-4 py-1.5 rounded-full text-[13px] font-medium transition-all', isFollowed ? 'bg-[#F5F0E8] text-[#999]' : 'bg-[#C41E3A] text-white']">
+            <text>{{ isFollowed ? '已关注' : '关注' }}</text>
+          </view>
+        </view>
+
+        <!-- 元信息 -->
+        <view class="flex items-center gap-4 text-[12px] text-[#999] mb-6">
+          <text class="flex items-center gap-1">🕐 {{ post.createdAt }}</text>
+          <text class="flex items-center gap-1">👁 {{ post.views }}阅读</text>
+          <text class="flex items-center gap-1">🕐 约{{ post.readTime }}分钟</text>
+        </view>
+
+        <!-- 音频播放器 -->
+        <view v-if="post.audio" class="mb-6">
+          <view class="bg-gradient-to-r from-[#1a1a2e] to-[#16213e] rounded-2xl p-4">
+            <view class="flex items-center gap-3 mb-3">
+              <view @click="togglePlay" class="w-12 h-12 rounded-full flex items-center justify-center" style="background:rgba(255,255,255,0.1)">
+                <text v-if="isPlaying" class="text-2xl text-white">⏸</text>
+                <text v-else class="text-2xl text-white ml-1">▶</text>
+              </view>
+              <view class="flex-1">
+                <view class="flex items-center gap-2 mb-1">
+                  <text class="text-sm text-white/70">🔊</text>
+                  <text class="text-white font-medium text-[14px]">{{ post.audio.title }}</text>
+                </view>
+                <view class="flex items-center gap-2">
+                  <text class="text-white/50 text-[12px]">{{ formatDuration(currentTime) }}</text>
+                  <view class="flex-1 h-1 rounded-full overflow-hidden" style="background:rgba(255,255,255,0.2)">
+                    <view class="h-full bg-white rounded-full transition-all" :style="'width:' + progress + '%'" />
+                  </view>
+                  <text class="text-white/50 text-[12px]">{{ formatDuration(post.audio.duration) }}</text>
+                </view>
+              </view>
+            </view>
+            <view class="flex items-center justify-between">
+              <text class="text-white/50 text-[11px]">边听边看，学习更高效</text>
+              <view class="flex items-center gap-2">
+                <text class="text-white/70 text-[12px]">0.75x</text>
+                <text class="text-white text-[12px] font-medium">1.0x</text>
+                <text class="text-white/70 text-[12px]">1.5x</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- Markdown正文内容 -->
+        <view class="article-content">
+          <view v-for="(el, idx) in renderedContent" :key="idx">
+            <!-- h2 -->
+            <text v-if="el.type === 'h2'" class="text-[18px] font-bold text-[#2C2C2C] block" style="margin:24px 0 12px">{{ el.text }}</text>
+            <!-- bold -->
+            <text v-else-if="el.type === 'bold'" class="text-[15px] font-semibold text-[#2C2C2C] block" style="margin:8px 0">{{ el.text }}</text>
+            <!-- blockquote -->
+            <view v-else-if="el.type === 'blockquote'" class="border-l-4 border-[#C9A96E] bg-[#FFF8E7] px-4 py-3 my-4 rounded-r-lg">
+              <text class="text-[14px] text-[#666] italic">{{ el.text }}</text>
+            </view>
+            <!-- list item -->
+            <text v-else-if="el.type === 'li'" class="text-[15px] text-[#2C2C2C] leading-relaxed block" style="margin:4px 0 4px 16px">{{ el.text }}</text>
+            <!-- numbered list -->
+            <text v-else-if="el.type === 'num-li'" class="text-[15px] text-[#2C2C2C] leading-relaxed block" style="margin:4px 0 4px 16px">- {{ el.text }}</text>
+            <!-- hr -->
+            <view v-else-if="el.type === 'hr'" class="border-t border-[#E8E0D5] my-6" />
+            <!-- italic -->
+            <text v-else-if="el.type === 'italic'" class="text-[14px] text-[#999] italic block" style="margin:8px 0">{{ el.text }}</text>
+            <!-- normal paragraph -->
+            <text v-else class="text-[15px] text-[#2C2C2C] leading-relaxed block" style="margin:8px 0" v-html="el.html || el.text" />
+          </view>
+        </view>
+
+        <!-- 图片展示 -->
+        <view v-if="post.images && post.images.length > 0" class="mt-6 space-y-3">
+          <view v-for="(img, idx) in post.images" :key="idx" class="rounded-xl overflow-hidden">
+            <image :src="img.url" mode="widthFix" class="w-full" @click="previewImage = img.url" />
+            <view v-if="img.caption" class="px-3 py-2 bg-[#FAF8F5] text-center">
+              <text class="text-[12px] text-[#999]">{{ img.caption }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 打赏区 -->
+        <view class="mt-8 pt-6 border-t border-[#E8E0D5]">
+          <view class="flex items-center justify-between mb-4">
+            <view class="flex items-center gap-2">
+              <text class="text-lg text-[#C9A96E]">🎁</text>
+              <text class="font-medium text-[#2C2C2C]">打赏作者</text>
+            </view>
+            <text class="text-[12px] text-[#999]">{{ post.rewardCount }}人已打赏</text>
+          </view>
+          <view class="flex items-center justify-center gap-3 mb-4">
+            <view v-for="amount in [5, 10, 20, 50]" :key="amount" @click="showRewardModal = true" class="w-16 h-16 rounded-xl bg-[#FAF8F5] flex flex-col items-center justify-center">
+              <text class="text-lg text-[#C9A96E] mb-1">✨</text>
+              <text class="text-[14px] font-medium text-[#2C2C2C]">{{ amount }}</text>
+            </view>
+          </view>
+          <text class="text-center text-[12px] text-[#999] block">累计收到 {{ post.reward }} 国学币打赏</text>
+        </view>
+      </view>
+
+      <!-- 互动数据 -->
+      <view class="px-4 py-4 bg-[#FAF8F5] flex items-center justify-around">
+        <view @click="handleLike" class="flex flex-col items-center">
+          <text :class="['text-2xl mb-1', isLiked ? 'text-[#C41E3A]' : 'text-[#666]']">{{ isLiked ? '❤️' : '🤍' }}</text>
+          <text :class="['text-[12px]', isLiked ? 'text-[#C41E3A]' : 'text-[#666]']">{{ likes }}</text>
+        </view>
+        <view class="flex flex-col items-center">
+          <text class="text-2xl mb-1 text-[#666]">💬</text>
+          <text class="text-[12px] text-[#666]">{{ post.comments }}</text>
+        </view>
+        <view @click="handleCollect" class="flex flex-col items-center">
+          <text :class="['text-2xl mb-1', isCollected ? 'text-[#C9A96E]' : 'text-[#666]']">{{ isCollected ? '🔖' : '🏷' }}</text>
+          <text :class="['text-[12px]', isCollected ? 'text-[#C9A96E]' : 'text-[#666]']">{{ collects }}</text>
+        </view>
+        <view class="flex flex-col items-center">
+          <text class="text-2xl mb-1 text-[#666]">📤</text>
+          <text class="text-[12px] text-[#666]">{{ post.shares }}</text>
+        </view>
+      </view>
+
+      <!-- 评论区 -->
+      <view class="px-4 pt-4">
+        <view class="flex items-center justify-between mb-2">
+          <text class="font-semibold text-[#2C2C2C]">评论 {{ post.comments }}</text>
+          <view class="flex items-center gap-2">
+            <text class="text-[13px] text-[#C41E3A]">最热</text>
+            <text class="text-[#E8E0D5]">|</text>
+            <text class="text-[13px] text-[#999]">最新</text>
+          </view>
+        </view>
+        <view class="divide-y divide-[#F5F0E8]">
+          <view v-for="comment in comments" :key="comment.id" class="py-4">
+            <view class="flex gap-3">
+              <image :src="comment.author.avatar" mode="aspectFill" class="w-9 h-9 rounded-full flex-shrink-0" />
+              <view class="flex-1 min-w-0">
+                <view class="flex items-center gap-2 mb-1">
+                  <text class="text-[14px] font-medium text-[#2C2C2C]">{{ comment.author.name }}</text>
+                  <text v-if="comment.author.level" class="px-1.5 py-0.5 bg-[#C41E3A]/10 text-[#C41E3A] text-[10px] rounded">Lv.{{ comment.author.level }}</text>
+                  <text v-if="comment.author.title" class="px-1.5 py-0.5 bg-[#C9A96E]/10 text-[#C9A96E] text-[10px] rounded">{{ comment.author.title }}</text>
+                  <text v-if="comment.isPinned" class="px-1.5 py-0.5 bg-[#52C41A]/10 text-[#52C41A] text-[10px] rounded flex items-center gap-0.5">📌置顶</text>
+                </view>
+                <text class="text-[14px] text-[#2C2C2C] leading-relaxed mb-2 block">{{ comment.content }}</text>
+                <view class="flex items-center gap-4">
+                  <text class="text-[12px] text-[#999]">{{ comment.createdAt }}</text>
+                  <view @click="handleCommentLike(comment)" class="flex items-center gap-1 text-[12px] text-[#999]">
+                    <text :class="comment.isLiked ? 'text-[#C41E3A]' : ''">{{ comment.isLiked ? '❤️' : '🤍' }}</text>
+                    <text :class="comment.likes > 0 && comment.isLiked ? 'text-[#C41E3A]' : ''">{{ comment.likes > 0 ? comment.likes : '' }}</text>
+                  </view>
+                  <text @click="handleReply(comment)" class="text-[12px] text-[#999]">回复</text>
+                </view>
+
+                <!-- 子评论 -->
+                <view v-if="comment.replies && comment.replies.length > 0" class="mt-3 pl-3 border-l-2 border-[#F5F0E8]">
+                  <view v-if="!comment.showReplies" @click="comment.showReplies = true" class="text-[13px] text-[#C41E3A] flex items-center gap-1">
+                    <text>展开{{ comment.replies.length }}条回复</text>
+                    <text class="text-sm">▼</text>
+                  </view>
+                  <view v-else class="space-y-3">
+                    <view v-for="reply in comment.replies" :key="reply.id" class="flex gap-2">
+                      <image :src="reply.author.avatar" mode="aspectFill" class="w-7 h-7 rounded-full flex-shrink-0" />
+                      <view>
+                        <view class="flex items-center gap-1 mb-0.5">
+                          <text class="text-[13px] font-medium text-[#2C2C2C]">{{ reply.author.name }}</text>
+                          <text v-if="reply.author.title" class="px-1 py-0.5 bg-[#C9A96E]/10 text-[#C9A96E] text-[9px] rounded">{{ reply.author.title }}</text>
+                        </view>
+                        <text class="text-[13px] text-[#2C2C2C]">{{ reply.content }}</text>
+                        <view class="flex items-center gap-3 mt-1">
+                          <text class="text-[11px] text-[#999]">{{ reply.createdAt }}</text>
+                          <view class="flex items-center gap-1 text-[11px] text-[#999]">
+                            <text>{{ reply.isLiked ? '❤️' : '🤍' }}</text>
+                            <text>{{ reply.likes }}</text>
+                          </view>
+                        </view>
+                      </view>
+                    </view>
+                    <view @click="comment.showReplies = false" class="text-[12px] text-[#999] flex items-center gap-1">
+                      <text>收起</text>
+                      <text class="text-sm">▲</text>
+                    </view>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </main>
+
+    <!-- 底部评论输入 -->
+    <view class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E8E0D5] px-4 py-3 z-50" style="padding-bottom:env(safe-area-inset-bottom,10px)">
+      <view v-if="replyTo" class="flex items-center justify-between mb-2 px-3 py-1.5 bg-[#F5F0E8] rounded-lg">
+        <text class="text-[12px] text-[#666]">@ 回复 {{ replyTo.author.name }}</text>
+        <view @click="replyTo = null">
+          <text class="text-sm text-[#999]">✕</text>
+        </view>
+      </view>
+      <view class="flex items-center gap-3">
+        <input type="text" v-model="commentText"
+          :placeholder="replyTo ? '回复 ' + replyTo.author.name + '...' : '写评论...'"
+          class="flex-1 h-10 px-4 bg-[#F5F0E8] rounded-full text-[14px] outline-none" />
+        <view @click="handleSubmitComment"
+          :class="['w-10 h-10 rounded-full flex items-center justify-center transition-colors', commentText.trim() ? 'bg-[#C41E3A] text-white' : 'bg-[#E8E0D5] text-[#999]']">
+          <text class="text-lg">➤</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 图片预览 -->
+    <view v-if="previewImage" class="fixed inset-0 z-50 bg-black flex items-center justify-center" @click="previewImage = null">
+      <view class="absolute top-4 right-4">
+        <text class="text-2xl text-white">✕</text>
+      </view>
+      <image :src="previewImage" mode="aspectFit" class="max-w-full" style="max-height:100%" />
+    </view>
+
+    <!-- 打赏弹窗 -->
+    <view v-if="showRewardModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <view class="w-[85%] max-w-sm bg-white rounded-2xl p-6">
+        <view class="text-center mb-6">
+          <view class="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-[#C9A96E] to-[#E8D5B5] flex items-center justify-center mb-3">
+            <text class="text-3xl text-white">🎁</text>
+          </view>
+          <text class="text-[18px] font-bold text-[#2C2C2C] mb-1 block">打赏作者</text>
+          <text class="text-[14px] text-[#999]">感谢 {{ post.author.name }} 的精彩分享</text>
+        </view>
+        <view class="grid grid-cols-4 gap-2 mb-6">
+          <view v-for="amount in [5, 10, 20, 50, 100, 200, 500, 1000]" :key="amount"
+            class="py-2 rounded-lg bg-[#FAF8F5] text-[14px] font-medium text-[#2C2C2C] text-center">
+            {{ amount }}
+          </view>
+        </view>
+        <view class="flex gap-3">
+          <view @click="showRewardModal = false" class="flex-1 py-3 rounded-full bg-[#F5F0E8] text-[#666] font-medium text-center">
+            取消
+          </view>
+          <view class="flex-1 py-3 rounded-full bg-gradient-to-r from-[#C9A96E] to-[#E8D5B5] text-white font-medium text-center">
+            确认打赏
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+// 帖子详情
+const postDetail = {
+  id: '1', type: 'article', circleId: '1', circleName: '八字命理研习社',
+  title: '八字命理中的十神关系详解 - 正财与偏财的本质区别',
+  content: `在八字命理学中，十神是分析命局的核心概念之一。今天我们重点探讨**正财**与**偏财**的区别，这对于理解一个人的财运特质至关重要。
+
+## 一、正财的定义与特性
+
+正财，是指日干所克之物，且阴阳相异者。比如甲木日主见己土、乙木日主见戊土，这都是正财。
+
+**正财的核心特质：**
+1. 代表正当、稳定的收入来源
+2. 体现务实、保守的理财观念
+3. 象征妻财（男命）、俸禄、工薪
+4. 为人勤俭、重视积累
+
+> 《滴天髓》云："财为养命之源，不可无，亦不可过旺。"
+
+## 二、偏财的定义与特性
+
+偏财，同样是日干所克之物，但阴阳相同。如甲木日主见戊土、乙木日主见己土。
+
+**偏财的核心特质：**
+1. 代表意外之财、投机收入
+2. 体现慷慨、大方的用财态度
+3. 象征父亲、情人（男命）、横财
+4. 为人豪爽、不拘小节
+
+## 三、实战案例分析
+
+让我们看一个具体的八字案例：
+
+**八字：甲子、丙寅、戊辰、壬戌**
+
+此八字日主戊土，生于寅月木旺之时。年干甲木、月令寅木均为七杀（偏官），时干壬水为偏财。
+
+从财运角度分析：
+- 时柱见偏财壬水，主中晚年财运较好
+- 偏财坐戌土（日主之根），财有根基
+- 但财星被年月木克，需注意投资风险
+
+## 四、总结与建议
+
+正财与偏财各有特点，在实际批命中需要结合整体格局来判断。
+
+**实践建议：**
+- 正财旺者适合稳定职业，如公务员、企业职员
+- 偏财旺者可尝试投资理财，但需控制风险
+- 财星太弱需补财运，可从方位、颜色等方面调理
+
+---
+
+*本文为原创内容，欢迎讨论交流。如需转载请注明出处。*`,
+  images: [
+    { url: 'https://picsum.photos/800/400?random=101', caption: '图1：十神关系图解' },
+    { url: 'https://picsum.photos/800/400?random=102', caption: '图2：八字排盘示例' },
+  ],
+  audio: { url: '/audio/lesson-01.mp3', duration: 856, title: '音频讲解版' },
+  author: { id: '1', name: '周易大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=master', title: '资深命理师', level: 8, levelName: '一代宗师', isFollowed: false, followers: 12800, posts: 256 },
+  createdAt: '2024-01-15 10:30', readTime: 8, views: 3256, likes: 328, collects: 156, comments: 89, shares: 45,
+  isLiked: false, isCollected: false, isPinned: true, isEssence: true, reward: 128, rewardCount: 23,
+}
+
+// 评论数据
+const commentsData = [
+  { id: 'c1', content: '老师讲得太好了！正财偏财的区别一直困扰我很久，看完这篇文章豁然开朗。', author: { id: 'u1', name: '命理新手', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=u1', level: 3 }, createdAt: '1小时前', likes: 28, isLiked: false, isPinned: true, showReplies: false, replies: [
+    { id: 'c1-r1', content: '同感！收藏了', author: { id: 'u2', name: '学习中', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=u2' }, createdAt: '45分钟前', likes: 5, isLiked: false },
+    { id: 'c1-r2', content: '感谢支持，有问题随时讨论', author: { id: '1', name: '周易大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=master', title: '作者' }, createdAt: '30分钟前', likes: 12, isLiked: false },
+  ] },
+  { id: 'c2', content: '请问老师，如果八字中正财偏财都有，而且力量差不多，应该怎么分析呢？', author: { id: 'u3', name: '易学爱好者', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=u3', level: 4 }, createdAt: '30分钟前', likes: 15, isLiked: true, isPinned: false, showReplies: false, replies: [] },
+]
+
+const post = ref(postDetail)
+const isLiked = ref(postDetail.isLiked)
+const isCollected = ref(postDetail.isCollected)
+const likes = ref(postDetail.likes)
+const collects = ref(postDetail.collects)
+const isFollowed = ref(postDetail.author.isFollowed)
+const commentText = ref('')
+const replyTo = ref<any>(null)
+const showRewardModal = ref(false)
+const previewImage = ref<string | null>(null)
+const isPlaying = ref(false)
+const progress = ref(0)
+const currentTime = ref(0)
+const comments = ref(JSON.parse(JSON.stringify(commentsData)))
+
+// 简单的Markdown解析
+interface ContentEl {
+  type: string; text?: string; html?: string
+}
+
+const renderedContent = computed(() => {
+  const lines = post.value.content.trim().split('\n')
+  const elements: ContentEl[] = []
+  lines.forEach((line) => {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('## ')) {
+      elements.push({ type: 'h2', text: trimmed.slice(3) })
+    } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+      elements.push({ type: 'bold', text: trimmed.slice(2, -2) })
+    } else if (trimmed.startsWith('> ')) {
+      elements.push({ type: 'blockquote', text: trimmed.slice(2) })
+    } else if (trimmed.startsWith('- ')) {
+      elements.push({ type: 'li', text: trimmed.slice(2) })
+    } else if (/^\d+\.\s/.test(trimmed)) {
+      elements.push({ type: 'num-li', text: trimmed.replace(/^\d+\.\s/, '') })
+    } else if (trimmed === '---') {
+      elements.push({ type: 'hr' })
+    } else if (trimmed.startsWith('*') && trimmed.endsWith('*')) {
+      elements.push({ type: 'italic', text: trimmed.slice(1, -1) })
+    } else if (trimmed) {
+      // 先转义HTML防止XSS，再应用markdown粗体转换
+      const escaped = trimmed.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      const html = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      elements.push({ type: 'p', html, text: trimmed });
+    }
+  })
+  return elements
+})
+
+function formatDuration(seconds: number) {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${mins}:${String(secs).padStart(2, '0')}`
+}
+
+function togglePlay() {
+  isPlaying.value = !isPlaying.value
+  if (isPlaying.value) {
+    simulatePlayback()
+  }
+}
+
+async function simulatePlayback() {
+  while (isPlaying.value && currentTime.value < (post.value.audio?.duration || 0)) {
+    await new Promise(r => setTimeout(r, 1000))
+    currentTime.value++
+    progress.value = (currentTime.value / (post.value.audio?.duration || 1)) * 100
+  }
+  if (currentTime.value >= (post.value.audio?.duration || 0)) {
+    isPlaying.value = false
+    currentTime.value = 0
+    progress.value = 0
+  }
+}
+
+function handleLike() {
+  isLiked.value = !isLiked.value
+  likes.value = isLiked.value ? likes.value + 1 : likes.value - 1
+}
+
+function handleCollect() {
+  isCollected.value = !isCollected.value
+  collects.value = isCollected.value ? collects.value + 1 : collects.value - 1
+}
+
+function handleFollow() {
+  isFollowed.value = !isFollowed.value
+}
+
+function handleReply(comment: any) {
+  replyTo.value = comment
+}
+
+function handleCommentLike(comment: any) {
+  comment.isLiked = !comment.isLiked
+  comment.likes += comment.isLiked ? 1 : -1
+}
+
+function handleSubmitComment() {
+  if (!commentText.value.trim()) return
+  commentText.value = ''
+  replyTo.value = null
+}
+
+function goBack() { uni.navigateBack() }
+function goUser(id: string) { /* router push */ }
+</script>
+<style scoped>/* 样式由 Tailwind 处理 */</style>

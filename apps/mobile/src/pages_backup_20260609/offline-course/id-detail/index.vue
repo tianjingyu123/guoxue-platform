@@ -1,0 +1,14 @@
+<template>
+  <view class="page">
+    <view class="cover"><view class="cover-img"/><text class="c-back" @click="goBack">←</text></view>
+    <scroll-view scroll-y class="content">
+      <view class="info"><text class="in-title">{{course.title}}</text><view class="in-meta"><text>📍{{course.venue}}</text><text>📅{{course.date}}</text></view><text class="in-price">¥{{course.price}}</text></view>
+      <view class="card"><text class="ct">课程介绍</text><text class="desc">{{course.description}}</text></view><view class="card"><text class="ct">讲师</text><view class="tr"><text class="tr-av">{{course.teacher[0]}}</text><text>{{course.teacher}}</text></view></view>
+      <view style="height:48rpx"/>
+    </scroll-view>
+    <view class="bb"><view class="bb-price">¥{{course.price}}</view><view class="bb-btn" @click="enroll">立即报名</view></view>
+  </view>
+</template>
+<script setup lang="ts">import {ref} from 'vue';import {onPullDownRefresh} from '@dcloudio/uni-app';const course=ref({title:'八字命理入门线下班',venue:'北京国学馆',date:'2024-03-15',price:1999,description:'由资深命理师现场授课，为期两天集中学习。',teacher:'周易大师'});function enroll(){uni.showToast({title:'报名成功'})};function goBack(){uni.navigateBack()};onPullDownRefresh(()=>setTimeout(()=>uni.stopPullDownRefresh(),500))</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.cover{position:relative;height:280rpx}.cover-img{width:100%;height:100%;background:linear-gradient(135deg,rgba(196,30,58,.2),rgba(201,169,110,.15))}.c-back{position:absolute;top:20rpx;left:24rpx;width:64rpx;height:64rpx;border-radius:50%;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-size:28rpx}.content{padding:24rpx}.info{margin-top:-60rpx;background:#fff;border-radius:24rpx;padding:28rpx;box-shadow:0 4rpx 24rpx rgba(0,0,0,.08);z-index:10;margin-bottom:20rpx}.in-title{font-size:34rpx;font-weight:600;color:#2C2C2C;display:block;margin-bottom:12rpx}.in-meta{display:flex;gap:16rpx;font-size:24rpx;color:#999;margin-bottom:16rpx}.in-price{font-size:44rpx;font-weight:700;color:#C41E3A}.card{background:#fff;border-radius:20rpx;padding:24rpx;margin-bottom:20rpx;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}.ct{font-size:28rpx;font-weight:600;color:#2C2C2C;margin-bottom:16rpx;display:block}.desc{font-size:26rpx;color:#666;line-height:1.6}.tr{display:flex;align-items:center;gap:16rpx;font-size:26rpx;color:#2C2C2C}.tr-av{width:56rpx;height:56rpx;border-radius:50%;background:rgba(196,30,58,.1);display:flex;align-items:center;justify-content:center;color:#C41E3A}.bb{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;gap:24rpx;padding:20rpx 24rpx;background:#fff;border-top:1px solid #E8E0D5;z-index:50}.bb-price{font-size:40rpx;font-weight:700;color:#C41E3A}.bb-btn{flex:1;padding:28rpx;text-align:center;background:linear-gradient(90deg,#C41E3A,#E74C3C);color:#fff;border-radius:40rpx;font-size:28rpx;font-weight:600}
+</style>

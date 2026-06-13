@@ -1,0 +1,168 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-white border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between h-14 px-4">
+        <view class="flex items-center gap-3">
+          <view @click="goBack" class="p-1">
+            <text class="text-xl text-[#2C2C2C]">←</text>
+          </view>
+          <text class="text-lg font-semibold">入驻申请状态</text>
+        </view>
+        <view @click="handleRefresh" :class="['p-2', refreshing ? 'animate-spin' : '']">
+          <text class="text-lg text-[#999]">🔄</text>
+        </view>
+      </view>
+    </view>
+
+    <scroll-view scroll-y class="flex-1 p-4 pb-8">
+      <!-- 状态卡片 -->
+      <view :class="['rounded-2xl p-6 text-center mb-4', config.bgColor]">
+        <view :class="['w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4', config.bgColor]">
+          <text class="text-4xl">{{ config.icon }}</text>
+        </view>
+        <text class="text-xl font-bold text-[#2C2C2C] mb-2 block">{{ config.title }}</text>
+        <text class="text-sm text-[#999] block">{{ config.desc }}</text>
+        <view class="mt-4 px-4 py-2 bg-white rounded-lg inline-block">
+          <text class="text-sm text-[#999]">店铺名称：</text>
+          <text class="font-medium">{{ applicationData.shopName }}</text>
+        </view>
+      </view>
+
+      <!-- 申请进度（非暂停/关闭状态） -->
+      <view v-if="status !== 'SUSPENDED' && status !== 'CLOSED'" class="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+        <text class="font-medium mb-4 block">申请进度</text>
+        <view class="flex items-center justify-between relative">
+          <view class="absolute top-4 left-0 right-0 h-0.5 bg-[#E8E0D5]" />
+          <view class="absolute top-4 left-0 h-0.5 bg-[#C41E3A] transition-all" :style="{ width: progressPercent + '%' }" />
+          <view v-for="(step, index) in progressSteps" :key="step.id" class="flex flex-col items-center relative z-10">
+            <view :class="['w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium', index <= progressIndex ? 'bg-[#C41E3A] text-white' : 'bg-[#E8E0D5] text-[#999]']">
+              <text v-if="index < progressIndex">✓</text>
+              <text v-else>{{ index + 1 }}</text>
+            </view>
+            <text :class="['text-xs mt-2', index === progressIndex ? 'text-[#C41E3A] font-medium' : 'text-[#999]']">{{ step.name }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 驳回原因 -->
+      <view v-if="status === 'REVIEW_FAILED'" class="bg-red-50 rounded-2xl p-4 mb-4">
+        <text class="font-medium text-red-600 mb-2 block">驳回原因</text>
+        <text class="text-sm text-[#666]">{{ applicationData.rejectReason }}</text>
+      </view>
+
+      <!-- 保证金信息 -->
+      <view v-if="status === 'DEPOSIT_PENDING'" class="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+        <text class="font-medium mb-3 block">保证金信息</text>
+        <view class="flex items-baseline gap-1 mb-2">
+          <text class="text-3xl font-bold text-[#C41E3A]">¥{{ applicationData.depositAmount }}</text>
+          <text class="text-sm text-[#999]">.00</text>
+        </view>
+        <text class="text-sm text-[#999]">保证金将在您退出经营时全额退还</text>
+      </view>
+
+      <!-- 暂停原因 -->
+      <view v-if="status === 'SUSPENDED'" class="bg-orange-50 rounded-2xl p-4 mb-4">
+        <text class="font-medium text-orange-600 mb-2 block">暂停原因</text>
+        <text class="text-sm text-[#666]">{{ applicationData.suspendReason }}</text>
+      </view>
+
+      <!-- 开店日期 -->
+      <view v-if="status === 'ACTIVE'" class="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+        <view class="flex items-center justify-between">
+          <text class="text-[#999]">开店日期</text>
+          <text class="font-medium">{{ applicationData.openDate }}</text>
+        </view>
+      </view>
+
+      <!-- 操作按钮 -->
+      <view class="space-y-3 pt-2">
+        <view v-if="status === 'PENDING_REVIEW'" @click="goEditApp" class="w-full py-3 border border-[#E8E0D5] rounded-xl text-center text-sm font-medium">修改申请</view>
+        <view v-if="status === 'REVIEW_FAILED'" @click="goEditApp" class="w-full py-3 bg-[#C41E3A] text-white rounded-xl text-center text-sm font-medium">修改申请</view>
+        <view v-if="status === 'DEPOSIT_PENDING'" @click="goPay" class="w-full py-3 bg-[#C41E3A] text-white rounded-xl text-center text-sm font-medium">💰 立即缴纳保证金</view>
+        <view v-if="status === 'AGREEMENT_PENDING'" @click="goSign" class="w-full py-3 bg-[#C41E3A] text-white rounded-xl text-center text-sm font-medium">📄 查看协议并签署</view>
+        <view v-if="status === 'ACTIVE'" @click="goDashboard" class="w-full py-3 bg-[#C41E3A] text-white rounded-xl text-center text-sm font-medium">🏪 进入商家后台</view>
+        <view v-if="status === 'SUSPENDED'">
+          <view class="w-full py-3 border border-[#E8E0D5] rounded-xl text-center text-sm font-medium mb-3">我要申诉</view>
+          <view class="w-full py-3 border border-[#E8E0D5] rounded-xl text-center text-sm font-medium">📞 联系客服</view>
+        </view>
+        <view v-if="status === 'CLOSED'" @click="goApply" class="w-full py-3 bg-[#C41E3A] text-white rounded-xl text-center text-sm font-medium">重新申请入驻</view>
+      </view>
+
+      <!-- 演示模式切换 -->
+      <view class="mt-6 pt-4 border-t border-dashed border-[#E8E0D5]">
+        <text class="text-xs text-[#999] text-center mb-2 block">演示模式</text>
+        <view @click="handleDemoSwitch" class="w-full py-2 border border-[#E8E0D5] rounded-xl text-center text-xs text-[#666]">切换状态（{{ status }}）</view>
+      </view>
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+type ApplicationStatus = 'PENDING_REVIEW' | 'REVIEW_FAILED' | 'DEPOSIT_PENDING' | 'AGREEMENT_PENDING' | 'ACTIVE' | 'SUSPENDED' | 'CLOSED'
+
+const statusConfig: Record<string, { icon: string; color: string; bgColor: string; title: string; desc: string }> = {
+  PENDING_REVIEW: { icon: '⏳', color: 'text-blue-500', bgColor: 'bg-blue-50', title: '申请已提交，正在审核中', desc: '预计1-3个工作日完成审核' },
+  REVIEW_FAILED: { icon: '❌', color: 'text-red-500', bgColor: 'bg-red-50', title: '审核未通过', desc: '请根据驳回原因修改后重新提交' },
+  DEPOSIT_PENDING: { icon: '⚠️', color: 'text-amber-500', bgColor: 'bg-amber-50', title: '审核已通过，请缴纳保证金', desc: '缴纳保证金后即可签署协议' },
+  AGREEMENT_PENDING: { icon: '📄', color: 'text-blue-500', bgColor: 'bg-blue-50', title: '保证金已到账，请签署协议', desc: '签署入驻协议后即可开通店铺' },
+  ACTIVE: { icon: '✅', color: 'text-green-500', bgColor: 'bg-green-50', title: '恭喜！店铺已成功开通', desc: '您可以开始上架商品了' },
+  SUSPENDED: { icon: '⏸', color: 'text-orange-500', bgColor: 'bg-orange-50', title: '店铺已暂停经营', desc: '请查看暂停原因并进行申诉' },
+  CLOSED: { icon: '🚫', color: 'text-gray-500', bgColor: 'bg-gray-100', title: '店铺已关闭', desc: '如需继续经营，请重新申请入驻' },
+}
+
+const progressSteps = [{ id: 'submit', name: '已提交' }, { id: 'review', name: '审核中' }, { id: 'deposit', name: '待缴费' }, { id: 'agreement', name: '待签署' }, { id: 'active', name: '已开通' }]
+
+const status = ref<ApplicationStatus>('PENDING_REVIEW')
+const refreshing = ref(false)
+
+const applicationData = {
+  shopName: '国学堂官方店',
+  rejectReason: '营业执照图片不清晰，请重新上传',
+  depositAmount: 2000,
+  suspendReason: '存在违规商品',
+  openDate: '2024-01-18',
+}
+
+const config = computed(() => statusConfig[status.value])
+
+const progressIndex = computed(() => {
+  switch (status.value) {
+    case 'PENDING_REVIEW': return 1
+    case 'REVIEW_FAILED': return 1
+    case 'DEPOSIT_PENDING': return 2
+    case 'AGREEMENT_PENDING': return 3
+    case 'ACTIVE': return 4
+    default: return 0
+  }
+})
+
+const progressPercent = computed(() => (progressIndex.value / (progressSteps.length - 1)) * 100)
+
+const demoStatuses: ApplicationStatus[] = ['PENDING_REVIEW', 'REVIEW_FAILED', 'DEPOSIT_PENDING', 'AGREEMENT_PENDING', 'ACTIVE', 'SUSPENDED', 'CLOSED']
+const demoIndex = ref(0)
+
+function handleDemoSwitch() {
+  const nextIndex = (demoIndex.value + 1) % demoStatuses.length
+  demoIndex.value = nextIndex
+  status.value = demoStatuses[nextIndex]
+}
+
+function handleRefresh() {
+  refreshing.value = true
+  setTimeout(() => { refreshing.value = false }, 1000)
+}
+
+function goBack() { uni.navigateBack() }
+function goEditApp() { uni.navigateTo({ url: '/pages/merchant/edit-application/index' }) }
+function goPay() { uni.navigateTo({ url: '/pages/merchant/pay-deposit/index' }) }
+function goSign() { uni.navigateTo({ url: '/pages/merchant/sign-agreement/index' }) }
+function goDashboard() { uni.navigateTo({ url: '/pages/merchant/dashboard/index' }) }
+function goApply() { uni.navigateTo({ url: '/pages/merchant/apply/index' }) }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

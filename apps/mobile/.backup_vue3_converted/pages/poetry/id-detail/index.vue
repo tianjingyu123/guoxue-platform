@@ -1,0 +1,236 @@
+<template>
+  <view class="min-h-screen pb-24" style="background: linear-gradient(to bottom, #1a1815, #0d0c0a)">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-50" style="background: rgba(26,24,21,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.1)">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view class="p-1.5 -ml-1.5 rounded-lg" @click="goBack">
+          <text class="text-white text-xl">←</text>
+        </view>
+        <text class="text-white font-medium" style="font-family: serif">诗词详情</text>
+        <view class="p-1.5 -mr-1.5 text-white">
+          <text></text>
+        </view>
+      </view>
+    </header>
+
+    <main class="px-4 py-6 space-y-6">
+      <!-- 诗词主体 -->
+      <section class="text-center">
+        <text class="text-2xl font-bold text-white mb-2 block" style="font-family: serif">{{ poemDetail.title }}</text>
+        <text class="text-white/60">〔{{ poemDetail.dynasty }}〕{{ poemDetail.author }}</text>
+
+        <!-- 朗读控制 -->
+        <view class="flex items-center justify-center gap-4 mt-4">
+          <view class="flex items-center gap-1.5 px-4 py-2 rounded-full" style="background: rgba(251,191,36,0.2)" @click="isPlaying = !isPlaying">
+            <text class="text-amber-400">{{ isPlaying ? '' : '' }}</text>
+            <text class="text-sm text-amber-400">{{ isPlaying ? '停止' : '朗读' }}</text>
+          </view>
+          <view class="px-4 py-2 rounded-full text-sm" :class="showPinyin ? 'bg-white/20 text-white' : 'bg-white/10 text-white/60'" @click="showPinyin = !showPinyin">拼音</view>
+        </view>
+
+        <!-- 诗词内容 -->
+        <view class="mt-8 py-6 flex flex-col items-center gap-3">
+          <view v-for="(item, index) in poemDetail.content" :key="index" class="text-center">
+            <text v-if="showPinyin" class="text-xs text-white/40 mb-1 block tracking-wider">{{ item.pinyin }}</text>
+            <text class="text-xl text-white tracking-widest leading-relaxed" style="font-family: serif">{{ item.line }}</text>
+          </view>
+        </view>
+
+        <!-- 标签 -->
+        <view class="flex flex-wrap justify-center gap-2 mt-4">
+          <view v-for="tag in poemDetail.tags" :key="tag" class="px-2 py-1 rounded-full text-xs" style="background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7)">{{ tag }}</view>
+        </view>
+
+        <!-- 操作按钮 -->
+        <view class="flex items-center justify-center gap-6 mt-6">
+          <view class="flex flex-col items-center gap-1" @click="isLiked = !isLiked">
+            <view class="w-10 h-10 rounded-full flex items-center justify-center" :class="isLiked ? 'bg-red-500/20' : 'bg-white/10'">
+              <text :class="isLiked ? 'text-red-500' : 'text-white/60'"></text>
+            </view>
+            <text class="text-xs text-white/50">{{ (poemDetail.likes / 1000).toFixed(1) }}k</text>
+          </view>
+          <view class="flex flex-col items-center gap-1" @click="isBookmarked = !isBookmarked">
+            <view class="w-10 h-10 rounded-full flex items-center justify-center" :class="isBookmarked ? 'bg-amber-500/20' : 'bg-white/10'">
+              <text :class="isBookmarked ? 'text-amber-400' : 'text-white/60'">🔖</text>
+            </view>
+            <text class="text-xs text-white/50">{{ (poemDetail.collections / 1000).toFixed(1) }}k</text>
+          </view>
+          <view class="flex flex-col items-center gap-1" @click="handleCopy">
+            <view class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+              <text :class="copied ? 'text-green-400' : 'text-white/60'">{{ copied ? '✓' : '' }}</text>
+            </view>
+            <text class="text-xs text-white/50">{{ copied ? '已复制' : '复制' }}</text>
+          </view>
+        </view>
+      </section>
+
+      <!-- 译文 -->
+      <view class="rounded-xl p-4" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1)">
+        <text class="font-medium text-white mb-2 flex items-center gap-2">
+          <text class="text-amber-400"></text>
+          译文
+        </text>
+        <text class="text-sm leading-relaxed" style="color: rgba(255,255,255,0.7)">{{ poemDetail.translation }}</text>
+      </view>
+
+      <!-- 注释 -->
+      <view class="rounded-xl overflow-hidden" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1)">
+        <view class="w-full flex items-center justify-between p-4" @click="showNotes = !showNotes">
+          <text class="font-medium text-white flex items-center gap-2">
+            <text class="text-amber-400"></text>
+            注释
+          </text>
+          <text class="text-white/50 text-sm" :class="showNotes ? 'rotate-180' : ''">▼</text>
+        </view>
+        <view v-if="showNotes" class="px-4 pb-4 space-y-3">
+          <view v-for="(note, index) in poemDetail.notes" :key="index" class="flex gap-2">
+            <text class="px-1.5 py-0.5 rounded text-xs shrink-0" style="background: rgba(251,191,36,0.2); color: #fbbf24">{{ note.word }}</text>
+            <text class="text-sm" style="color: rgba(255,255,255,0.6)">{{ note.note }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 赏析 -->
+      <view class="rounded-xl p-4" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1)">
+        <text class="font-medium text-white mb-3 flex items-center gap-2">
+          <text class="text-amber-400"></text>
+          赏析
+        </text>
+        <text class="text-sm leading-relaxed" style="color: rgba(255,255,255,0.7); white-space: pre-line">{{ poemDetail.appreciation }}</text>
+      </view>
+
+      <!-- 作者简介 -->
+      <view class="rounded-xl p-4" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1)">
+        <view class="flex items-center gap-3" @click="goToAuthor">
+          <view class="w-14 h-14 rounded-full flex items-center justify-center shrink-0" style="background: linear-gradient(135deg, rgba(251,191,36,0.3), rgba(239,68,68,0.3))">
+            <text class="text-xl font-bold text-white" style="font-family: serif">{{ poemDetail.authorInfo.name[0] }}</text>
+          </view>
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center gap-2">
+              <text class="font-medium text-white">{{ poemDetail.authorInfo.name }}</text>
+              <text class="px-1.5 py-0.5 rounded text-xs" style="background: rgba(251,191,36,0.2); color: #fbbf24">{{ poemDetail.authorInfo.title }}</text>
+            </view>
+            <text class="text-xs mt-0.5 block" style="color: rgba(255,255,255,0.5)">{{ poemDetail.authorInfo.dynasty }} · {{ poemDetail.authorInfo.years }} · {{ poemDetail.authorInfo.poemCount }}首</text>
+            <text class="text-sm mt-1 block" style="color: rgba(255,255,255,0.6); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical">{{ poemDetail.authorInfo.intro }}</text>
+          </view>
+          <text class="text-white/40 shrink-0">›</text>
+        </view>
+      </view>
+
+      <!-- 相关诗词 -->
+      <section>
+        <view class="flex items-center justify-between mb-3">
+          <text class="text-white/80 font-medium">相关诗词</text>
+          <text class="text-xs text-white/50 flex items-center" @click="goToMoreRelated">
+            更多 <text>›</text>
+          </text>
+        </view>
+        <view class="space-y-2">
+          <view v-for="rp in poemDetail.relatedPoems" :key="rp.id" class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1)" @click="goToPoem(rp.id)">
+            <view class="flex-1 min-w-0">
+              <text class="font-medium text-white text-sm block">{{ rp.title }}</text>
+              <text class="text-xs mt-0.5 block truncate" style="color: rgba(255,255,255,0.5)">{{ rp.preview }}</text>
+            </view>
+            <text class="text-xs" style="color: rgba(255,255,255,0.4)">{{ rp.author }}</text>
+          </view>
+        </view>
+      </section>
+
+      <!-- AI深度解析 -->
+      <view class="rounded-xl p-4" style="background: linear-gradient(135deg, rgba(147,51,234,0.2), rgba(147,51,234,0.05)); border: 1px solid rgba(147,51,234,0.3)">
+        <view class="flex items-center gap-3">
+          <view class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style="background: linear-gradient(135deg, #9333ea, #7c3aed)">
+            <text class="text-white text-sm"></text>
+          </view>
+          <view class="flex-1">
+            <text class="font-medium text-white">AI深度解析</text>
+            <text class="text-xs mt-0.5 block" style="color: rgba(255,255,255,0.6)">探索更多意境与典故</text>
+          </view>
+          <view class="px-3 py-1.5 rounded-lg text-xs text-white" style="background: linear-gradient(135deg, #9333ea, #7c3aed)" @click="startAiAnalysis">开始解析</view>
+        </view>
+      </view>
+    </main>
+
+    <!-- 底部操作栏 -->
+    <view class="fixed bottom-0 left-0 right-0 px-4 py-3 z-50" style="background: rgba(26,24,21,0.95); backdrop-filter: blur(12px); border-top: 1px solid rgba(255,255,255,0.1)">
+      <view class="flex items-center gap-3" style="max-width: 768px; margin: 0 auto">
+        <view class="flex-1 h-11 rounded-xl flex items-center justify-center" style="border: 1px solid rgba(255,255,255,0.2)">
+          <text class="text-sm mr-1.5 text-white"></text>
+          <text class="text-white">听读</text>
+        </view>
+        <view class="flex-1 h-11 rounded-xl flex items-center justify-center" style="background: #d97706">
+          <text class="text-sm mr-1.5 text-white"></text>
+          <text class="text-white">背诵练习</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const poemDetail = {
+  id: '1', title: '静夜思', author: '李白', authorId: '1', dynasty: '唐', form: '五言绝句',
+  content: [
+    { line: '床前明月光，', pinyin: 'chuáng qián míng yuè guāng，' },
+    { line: '疑是地上霜。', pinyin: 'yí shì dì shàng shuāng。' },
+    { line: '举头望明月，', pinyin: 'jǔ tóu wàng míng yuè，' },
+    { line: '低头思故乡。', pinyin: 'dī tóu sī gù xiāng。' },
+  ],
+  translation: '明亮的月光洒在床前，好像地上泛起了一层霜。抬头望着天上的明月，低下头思念起远方的故乡。',
+  appreciation: `这首诗写的是在寂静的月夜思念家乡的感受。
+
+诗的前两句，是写诗人在作客他乡的特定环境中一刹那间所产生的错觉。一个独处他乡的人，白天奔波忙碌，倒还能冲淡离愁，然而一到夜深人静的时候，心头就难免泛起阵阵思念故乡的波澜。何况是在月明之夜，更何况是月色如霜的秋夜。
+
+疑是地上霜中的疑字，生动地表达了诗人睡梦初醒，迷离恍惚中将照射在床前的清冷月光误作铺在地面的浓霜。而霜字用得更妙，既形容了月光的皎洁，又表达了季节的寒冷，还烘托出诗人飘泊他乡的孤寂凄凉之情。
+
+诗的后两句，则是通过动作神态的刻画，深化思乡之情。举头望明月，把诗人的思绪由地上引向天上，由近处引向远处。低头思故乡是诗人完成从疑到望再到思这一系列心理活动的终点。`,
+  notes: [
+    { word: '床', note: '此指井栏，或作井边的围栏解。一说为窗的通假字。' },
+    { word: '疑', note: '好像、似乎。' },
+    { word: '举头', note: '抬头。' },
+    { word: '思', note: '思念。' },
+  ],
+  authorInfo: {
+    name: '李白', dynasty: '唐', years: '701-762', title: '诗仙',
+    intro: '李白（701年-762年），字太白，号青莲居士，又号谪仙人，唐代伟大的浪漫主义诗人，被后人誉为诗仙。',
+    poemCount: 1184,
+  },
+  relatedPoems: [
+    { id: '2', title: '月下独酌', author: '李白', preview: '花间一壶酒，独酌无相亲...' },
+    { id: '3', title: '望庐山瀑布', author: '李白', preview: '日照香炉生紫烟...' },
+    { id: '4', title: '早发白帝城', author: '李白', preview: '朝辞白帝彩云间...' },
+  ],
+  tags: ['思乡', '月亮', '夜晚', '五言绝句'], likes: 12800, collections: 8900,
+}
+
+const isLiked = ref(false)
+const isBookmarked = ref(false)
+const isPlaying = ref(false)
+const showPinyin = ref(true)
+const showNotes = ref(false)
+const copied = ref(false)
+
+function handleCopy() {
+  const text = poemDetail.content.map(c => c.line).join('\n')
+  uni.setClipboardData({
+    data: `${poemDetail.title}\n${poemDetail.author}\n\n${text}`,
+    success: () => {
+      copied.value = true
+      uni.showToast({ title: '已复制', icon: 'success' })
+      setTimeout(() => { copied.value = false }, 2000)
+    }
+  })
+}
+
+function goBack() { uni.navigateBack() }
+function goToAuthor() { /* TODO */ }
+function goToMoreRelated() { /* TODO */ }
+function goToPoem(id: string) { uni.navigateTo({ url: `/pages/poetry/id-detail/index?id=${id}` }) }
+function startAiAnalysis() { uni.showToast({ title: 'AI解析即将上线', icon: 'none' }) }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

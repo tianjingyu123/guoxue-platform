@@ -1,0 +1,322 @@
+<template>
+  <view class="min-h-screen bg-background max-w-lg mx-auto">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-white/95 backdrop-blur-lg border-b border-border">
+      <view class="flex items-center justify-between h-12 px-4">
+        <view @click="goBack" class="p-1 -ml-1">
+          <text class="text-xl text-foreground">←</text>
+        </view>
+        <text class="font-semibold text-base">我的订单</text>
+        <view class="w-6" />
+      </view>
+
+      <!-- 分类Tab - 横向滚动 -->
+      <scroll-view scroll-x class="px-4 py-2 whitespace-nowrap" show-scrollbar="false">
+        <view class="flex items-center gap-2">
+          <view
+            v-for="cat in orderCategories" :key="cat.key"
+            @click="activeCategory = cat.key"
+            :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all inline-flex', activeCategory === cat.key ? 'bg-primary text-white' : 'bg-background text-ink-soft']"
+          >
+            <text>{{ cat.icon }}</text>
+            <text>{{ cat.label }}</text>
+            <text v-if="categoryCounts[cat.key] > 0" :class="['min-w-[16px] h-[16px] rounded-full text-[10px] flex items-center justify-center', activeCategory === cat.key ? 'bg-white/20' : 'bg-gray-200']">
+              {{ categoryCounts[cat.key] }}
+            </text>
+          </view>
+        </view>
+      </scroll-view>
+
+      <!-- 状态筛选 -->
+      <scroll-view scroll-x class="px-4 pb-2 whitespace-nowrap" show-scrollbar="false">
+        <view class="flex items-center gap-2">
+          <view
+            @click="activeStatus = ''"
+            :class="['px-2.5 py-1 rounded text-xs transition-all inline-block', activeStatus === '' ? 'bg-primary/10 text-primary font-medium' : 'text-ink-soft']"
+          >
+            全部状态
+          </view>
+          <view
+            v-for="(config, key) in statusConfig" :key="key"
+            @click="activeStatus = key"
+            :class="['px-2.5 py-1 rounded text-xs transition-all inline-block', activeStatus === key ? 'bg-primary/10 text-primary font-medium' : 'text-ink-soft']"
+          >
+            {{ config.label }}
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 订单列表 -->
+    <view class="p-4 pb-24">
+      <view v-if="filteredOrders.length === 0" class="flex flex-col items-center justify-center py-20 text-muted-foreground">
+        <text class="text-5xl mb-3 opacity-30 animate-pulse">📦</text>
+        <text class="text-sm">暂无订单</text>
+      </view>
+      <view v-else class="space-y-3">
+        <view v-for="order in filteredOrders" :key="order.id" class="bg-white rounded-2xl overflow-hidden shadow-sm active:scale-[0.98] transition-transform">
+          <!-- 订单头部 -->
+          <view class="flex items-center justify-between px-3 py-2 border-b border-border bg-background">
+            <view class="flex items-center gap-2">
+              <text :class="['flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium', getCategoryColor(order.category)]">
+                <text>{{ getCategoryIcon(order.category) }}</text>
+                <text>{{ getCategoryLabel(order.category) }}</text>
+              </text>
+              <text class="text-[10px] text-muted-foreground">{{ order.orderNo }}</text>
+            </view>
+            <text :class="['text-xs font-medium transition-colors duration-200', statusConfig[order.status]?.color?.split(' ')[0] || 'text-ink-soft']">
+              {{ statusConfig[order.status]?.label || '' }}
+            </text>
+          </view>
+
+          <!-- 订单内容 -->
+          <view class="p-3">
+            <view class="flex gap-3">
+              <!-- 封面 -->
+              <view v-if="order.cover" class="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
+                <image :src="order.cover" mode="aspectFill" class="w-full h-full" />
+              </view>
+              <view v-else :class="['w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0', getCategoryColor(order.category)]">
+                <text>{{ getCategoryIcon(order.category) }}</text>
+              </view>
+
+              <!-- 信息 -->
+              <view class="flex-1 min-w-0">
+                <text class="font-medium text-sm line-clamp-2">{{ order.title }}</text>
+                <view class="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+                  <text v-if="order.extra?.teacherName">讲师: {{ order.extra.teacherName }}</text>
+                  <text v-if="order.extra?.duration">{{ order.extra.duration }}</text>
+                  <text v-if="order.extra?.quantity">x{{ order.extra.quantity }}</text>
+                </view>
+                <view v-if="order.expiredAt" class="flex items-center gap-1 mt-1 text-[10px]">
+                  <text class="text-muted-foreground">🕐</text>
+                  <text :class="[new Date(order.expiredAt) < new Date() ? 'text-red-500' : 'text-muted-foreground']">
+                    有效期至 {{ order.expiredAt }}
+                  </text>
+                </view>
+              </view>
+
+              <!-- 价格 -->
+              <view class="text-right flex-shrink-0">
+                <text class="font-bold text-base text-primary">
+                  {{ order.price > 0 ? '¥' + order.price : '免费' }}
+                </text>
+                <text v-if="order.originalPrice && order.originalPrice > order.price" class="text-[10px] text-muted-foreground line-through block">
+                  ¥{{ order.originalPrice }}
+                </text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 订单底部 -->
+          <view class="flex items-center justify-between px-3 py-2 border-t border-border bg-background/50">
+            <text class="text-[10px] text-muted-foreground">{{ order.createdAt }}</text>
+            <view class="flex items-center gap-2">
+              <template v-if="order.status === 'pending'">
+                <view @click.stop class="px-3 py-1 text-xs text-ink-soft border border-border rounded-full">取消订单</view>
+                <view @click.stop class="px-3 py-1 text-xs text-white bg-primary rounded-full">去付款</view>
+              </template>
+              <template v-if="order.status === 'completed' && order.expiredAt && new Date(order.expiredAt) > new Date()">
+                <view @click.stop="goTo('/pages/renew/index?type=' + order.category + '&id=' + order.id)" class="px-3 py-1 text-xs text-ink-soft border border-border rounded-full">续费</view>
+              </template>
+              <template v-if="order.status === 'completed' && !order.expiredAt">
+                <view @click.stop class="px-3 py-1 text-xs text-ink-soft flex items-center gap-1">
+                  查看详情
+                  <text class="text-sm">›</text>
+                </view>
+              </template>
+              <template v-if="order.status === 'expired'">
+                <view @click.stop="goTo('/pages/renew/index?type=' + order.category + '&id=' + order.id)" class="px-3 py-1 text-xs text-white bg-amber-500 rounded-full">立即续费</view>
+              </template>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+type OrderCategory = 'all' | 'product' | 'course' | 'circle' | 'live' | 'activity' | 'qa' | 'membership' | 'station' | 'institute'
+
+interface OrderExtra {
+  circleName?: string
+  teacherName?: string
+  duration?: string
+  quantity?: number
+}
+
+interface UnifiedOrder {
+  id: string
+  orderNo: string
+  category: OrderCategory
+  title: string
+  cover?: string
+  price: number
+  originalPrice?: number
+  status: string
+  createdAt: string
+  paidAt?: string
+  expiredAt?: string
+  extra?: OrderExtra
+}
+
+type OrderStatus = 'pending' | 'paid' | 'completed' | 'cancelled' | 'refunding' | 'expired'
+
+const orderCategories: { key: OrderCategory; label: string; icon: string }[] = [
+  { key: 'all', label: '全部', icon: '📦' },
+  { key: 'product', label: '商品', icon: '️' },
+  { key: 'course', label: '课程', icon: '' },
+  { key: 'circle', label: '圈子', icon: '' },
+  { key: 'live', label: '直播', icon: '📻' },
+  { key: 'activity', label: '活动', icon: '🎫' },
+  { key: 'qa', label: '问答', icon: '' },
+  { key: 'membership', label: '会员', icon: '🎁' },
+  { key: 'station', label: '分站', icon: '🏢' },
+  { key: 'institute', label: '研究院', icon: '🎓' },
+]
+
+const statusConfig: Record<OrderStatus, { label: string; color: string }> = {
+  pending: { label: '待付款', color: 'text-amber-500 bg-amber-50' },
+  paid: { label: '已付款', color: 'text-blue-500 bg-blue-50' },
+  completed: { label: '已完成', color: 'text-green-500 bg-green-50' },
+  cancelled: { label: '已取消', color: 'text-muted-foreground bg-gray-100' },
+  refunding: { label: '退款中', color: 'text-orange-500 bg-orange-50' },
+  expired: { label: '已过期', color: 'text-red-500 bg-red-50' },
+}
+
+const mockOrders: UnifiedOrder[] = [
+  {
+    id: '1', orderNo: 'C202401150001', category: 'course',
+    title: '八字入门实战精讲课', cover: '/placeholder.svg',
+    price: 299, originalPrice: 599, status: 'completed',
+    createdAt: '2024-01-15 14:30', paidAt: '2024-01-15 14:32',
+    extra: { teacherName: '张玄风', duration: '36课时' }
+  },
+  {
+    id: '2', orderNo: 'R202401140002', category: 'circle',
+    title: '八字命理研习社', cover: '/placeholder.svg',
+    price: 199, status: 'completed',
+    createdAt: '2024-01-14 10:20', paidAt: '2024-01-14 10:25',
+    expiredAt: '2025-01-14', extra: { circleName: '八字命理研习社' }
+  },
+  {
+    id: '3', orderNo: 'P202401130003', category: 'product',
+    title: '周易六十四卦详解（精装典藏版）', cover: '/placeholder.svg',
+    price: 168, status: 'paid',
+    createdAt: '2024-01-13 09:15', paidAt: '2024-01-13 09:20',
+    extra: { quantity: 1 }
+  },
+  {
+    id: '4', orderNo: 'L202401120004', category: 'live',
+    title: '紫微斗数实战直播课', cover: '/placeholder.svg',
+    price: 49.9, status: 'completed',
+    createdAt: '2024-01-12 18:00', paidAt: '2024-01-12 18:02',
+    extra: { teacherName: '李命理' }
+  },
+  {
+    id: '5', orderNo: 'Q202401100005', category: 'qa',
+    title: '八字婚姻分析咨询', cover: '/placeholder.svg',
+    price: 88, status: 'completed',
+    createdAt: '2024-01-10 16:40', paidAt: '2024-01-10 16:45',
+    extra: { teacherName: '王大师' }
+  },
+  {
+    id: '6', orderNo: 'M202401080006', category: 'membership',
+    title: '热卜国学VIP年卡',
+    price: 365, originalPrice: 588, status: 'completed',
+    createdAt: '2024-01-08 12:00', paidAt: '2024-01-08 12:05',
+    expiredAt: '2025-01-08',
+  },
+  {
+    id: '7', orderNo: 'A202401050007', category: 'activity',
+    title: '新春开运讲座', cover: '/placeholder.svg',
+    price: 0, status: 'completed',
+    createdAt: '2024-01-05 20:00',
+    extra: { duration: '2小时' }
+  },
+  {
+    id: '8', orderNo: 'S202312200008', category: 'station',
+    title: '分站站长资格',
+    price: 999, status: 'completed',
+    createdAt: '2023-12-20 10:00', paidAt: '2023-12-20 10:05',
+    expiredAt: '2024-12-20',
+  },
+  {
+    id: '9', orderNo: 'I202312150009', category: 'institute',
+    title: '研究院保证金',
+    price: 10000, status: 'completed',
+    createdAt: '2023-12-15 14:00', paidAt: '2023-12-15 14:10',
+    expiredAt: '2024-12-15',
+    extra: { circleName: '热卜国学研究院' }
+  },
+  {
+    id: '10', orderNo: 'C202401160010', category: 'course',
+    title: '风水堪舆高级班', cover: '/placeholder.svg',
+    price: 1299, status: 'pending',
+    createdAt: '2024-01-16 09:00',
+    extra: { teacherName: '风水大师', duration: '60课时' }
+  },
+]
+
+function getCategoryIcon(category: OrderCategory): string {
+  const found = orderCategories.find(c => c.key === category)
+  return found ? found.icon : '📦'
+}
+
+function getCategoryLabel(category: OrderCategory): string {
+  const found = orderCategories.find(c => c.key === category)
+  return found ? found.label : ''
+}
+
+function getCategoryColor(category: OrderCategory): string {
+  const colors: Record<OrderCategory, string> = {
+    all: 'bg-gray-100 text-ink-soft',
+    product: 'bg-primary/10 text-primary',
+    course: 'text-accent',
+    circle: 'text-blue-500',
+    live: 'text-blue-500',
+    activity: 'text-orange-500',
+    qa: 'text-green-500',
+    membership: 'text-amber-500',
+    station: 'text-green-500',
+    institute: 'text-orange-500',
+  }
+  return colors[category]
+}
+
+const activeCategory = ref<OrderCategory>('all')
+const activeStatus = ref<OrderStatus | ''>('')
+
+const categoryCounts = computed(() => {
+  const result: Record<string, number> = {}
+  for (const cat of orderCategories) {
+    result[cat.key] = cat.key === 'all'
+      ? mockOrders.length
+      : mockOrders.filter(o => o.category === cat.key).length
+  }
+  return result
+})
+
+const filteredOrders = computed(() => {
+  return mockOrders.filter(order => {
+    if (activeCategory.value !== 'all' && order.category !== activeCategory.value) return false
+    if (activeStatus.value && order.status !== activeStatus.value) return false
+    return true
+  })
+})
+
+function goBack() {
+  uni.navigateBack()
+}
+
+function goTo(url: string) {
+  uni.navigateTo({ url })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

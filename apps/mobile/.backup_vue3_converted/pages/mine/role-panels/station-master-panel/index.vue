@@ -1,0 +1,371 @@
+<template>
+  <view class="min-h-screen bg-background pb-20">
+    <!-- Header -->
+    <view class="sticky top-0 z-10 bg-primary text-white">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view @click="goBack" class="p-1">
+          <text class="text-white text-lg">←</text>
+        </view>
+        <text class="text-lg font-semibold">分站管理</text>
+        <view @click="goNotifications" class="p-1">
+          <text class="text-white text-lg"></text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Loading -->
+    <view v-if="loading" class="p-4 space-y-4">
+      <view class="h-24 bg-muted rounded-xl animate-pulse" />
+      <view class="grid grid-cols-3 gap-3">
+        <view v-for="i in 6" :key="i" class="h-20 bg-muted rounded-lg animate-pulse" />
+      </view>
+      <view class="h-28 bg-muted rounded-xl animate-pulse" />
+      <view class="h-48 bg-muted rounded-xl animate-pulse" />
+      <view class="grid grid-cols-4 gap-3">
+        <view v-for="i in 8" :key="i" class="h-20 bg-muted rounded-lg animate-pulse" />
+      </view>
+    </view>
+
+    <template v-else>
+      <view class="p-4 space-y-4">
+        <!-- Station Info Card -->
+        <view class="bg-gradient-to-r from-primary to-[#E85A5A] rounded-xl p-4 text-white overflow-hidden">
+          <view class="flex items-start justify-between">
+            <view>
+              <view class="flex items-center gap-2 mb-2">
+                <text class="text-accent text-lg">👑</text>
+                <text class="bg-accent text-white text-xs px-2 py-0.5 rounded-full">{{ stationInfo.levelName }}</text>
+              </view>
+              <text class="text-xl font-bold block">{{ stationInfo.name }}</text>
+              <text class="text-sm text-white/70 block mt-1">创建于 {{ stationInfo.createTime }}</text>
+            </view>
+            <view class="text-right">
+              <text :class="['text-xs px-2 py-0.5 rounded-full text-white inline-block', getStatusStyle(stationInfo.status)]">{{ getStatusLabel(stationInfo.status) }}</text>
+              <text v-if="stationInfo.expireTime" class="text-xs text-white/70 block mt-2">有效期至 {{ stationInfo.expireTime }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Data Overview -->
+        <view class="grid grid-cols-3 gap-3">
+          <view v-for="(item, index) in overviewItems" :key="index" @click="goAnalytics" class="bg-white rounded-xl p-3 border border-border">
+            <view class="flex items-center gap-1 mb-1">
+              <text class="text-xs">{{ overviewIcon(item.icon) }}</text>
+              <text class="text-xs text-muted-foreground">{{ item.label }}</text>
+            </view>
+            <view class="flex items-baseline gap-1">
+              <text class="text-lg font-bold text-foreground">{{ typeof item.value === 'number' ? item.value.toLocaleString() : item.value }}</text>
+              <text v-if="item.unit" class="text-xs text-muted-foreground">{{ item.unit }}</text>
+            </view>
+            <view v-if="item.trend !== undefined && item.trend !== 0" :class="['flex items-center gap-0.5 text-xs', getTrendColor(item.trendType)]">
+              <text>{{ getTrendIcon(item.trendType) }}</text>
+              <text>{{ Math.abs(item.trend) }}%</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Balance -->
+        <view class="bg-white rounded-xl p-4 border border-border">
+          <view class="flex items-center justify-between mb-3">
+            <text class="font-semibold">收益余额</text>
+            <view @click="goWithdraw" class="py-1.5 px-3 border border-primary text-primary text-xs rounded-lg">
+              <text>申请提现</text>
+            </view>
+          </view>
+          <view class="grid grid-cols-4 gap-2 text-center">
+            <view>
+              <text class="text-lg font-bold text-primary block">{{ balanceInfo.available.toLocaleString() }}</text>
+              <text class="text-xs text-muted-foreground block">可提现</text>
+            </view>
+            <view>
+              <text class="text-lg font-bold text-accent block">{{ balanceInfo.pending.toLocaleString() }}</text>
+              <text class="text-xs text-muted-foreground block">待结算</text>
+            </view>
+            <view>
+              <text class="text-lg font-bold text-foreground block">{{ balanceInfo.withdrawn.toLocaleString() }}</text>
+              <text class="text-xs text-muted-foreground block">已提现</text>
+            </view>
+            <view>
+              <text class="text-lg font-bold text-muted-foreground block">{{ balanceInfo.frozen.toLocaleString() }}</text>
+              <text class="text-xs text-muted-foreground block">冻结</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Trend Chart -->
+        <view class="bg-white rounded-xl p-4 border border-border">
+          <view class="flex items-center justify-between mb-4">
+            <view class="flex bg-muted rounded-lg overflow-hidden">
+              <view v-for="t in trendTypes" :key="t.key" @click="activeTrend = t.key" :class="['px-3 py-1 text-xs', activeTrend === t.key ? 'bg-primary text-white' : 'text-muted-foreground']">
+                <text>{{ t.label }}</text>
+              </view>
+            </view>
+            <view class="flex bg-muted rounded-lg overflow-hidden">
+              <view v-for="p in trendPeriods" :key="p.key" @click="trendPeriod = p.key" :class="['px-3 py-1 text-xs', trendPeriod === p.key ? 'bg-primary text-white' : 'text-muted-foreground']">
+                <text>{{ p.label }}</text>
+              </view>
+            </view>
+          </view>
+
+          <view v-for="trend in filteredTrends" :key="trend.type">
+            <view class="flex items-baseline gap-2 mb-3">
+              <text class="text-2xl font-bold">{{ trend.total.toLocaleString() }}</text>
+              <text class="text-sm text-muted-foreground">{{ activeTrend === 'revenue' ? '元' : '单' }}</text>
+              <text :class="['text-sm', trend.change >= 0 ? 'text-green-500' : 'text-red-500']">{{ trend.change >= 0 ? '+' : '' }}{{ trend.change }}%</text>
+            </view>
+            <!-- Bar Chart -->
+            <view class="h-32 flex items-end gap-1">
+              <view v-for="(point, idx) in trend.data" :key="idx" class="flex-1 flex flex-col items-center gap-1">
+                <view class="w-full bg-primary/20 rounded-t transition-all" :style="{ height: (point.value / maxTrendValue(trend.data) * 100) + '%' }">
+                  <view class="w-full bg-primary rounded-t transition-all" style="height: 100%" />
+                </view>
+                <text class="text-[10px] text-muted-foreground">{{ point.date.slice(-2) }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- Quick Actions -->
+        <view class="bg-white rounded-xl p-4 border border-border">
+          <text class="font-semibold mb-3 block">快捷功能</text>
+          <view class="grid grid-cols-4 gap-4">
+            <view v-for="action in quickActions" :key="action.id" @click="handleQuickAction(action)" class="flex flex-col items-center gap-2 relative">
+              <view class="w-12 h-12 rounded-xl bg-background flex items-center justify-center text-lg">
+                <text>{{ quickActionIcon(action.icon) }}</text>
+              </view>
+              <text v-if="action.badge && action.badge > 0" class="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[10px] rounded-full flex items-center justify-center">{{ action.badge }}</text>
+              <text class="text-xs text-center">{{ action.label }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Member Stats -->
+        <view class="bg-white rounded-xl p-4 border border-border">
+          <view class="flex items-center justify-between mb-3">
+            <text class="font-semibold">团队成员</text>
+            <view @click="goTeam" class="text-primary text-sm">
+              <text>查看全部 ›</text>
+            </view>
+          </view>
+          <view class="grid grid-cols-3 gap-3 mb-4">
+            <view class="text-center p-2 bg-white rounded-lg border border-border">
+              <text class="text-xl font-bold text-primary block">{{ memberStats.total }}</text>
+              <text class="text-xs text-muted-foreground block">总成员</text>
+            </view>
+            <view class="text-center p-2 bg-white rounded-lg border border-border">
+              <text class="text-xl font-bold text-accent block">{{ memberStats.active }}</text>
+              <text class="text-xs text-muted-foreground block">本月活跃</text>
+            </view>
+            <view class="text-center p-2 bg-white rounded-lg border border-border">
+              <text class="text-xl font-bold text-green-500 block">+{{ memberStats.newThisMonth }}</text>
+              <text class="text-xs text-muted-foreground block">本月新增</text>
+            </view>
+          </view>
+          <view class="space-y-2">
+            <view v-for="level in memberStats.levelDistribution" :key="level.level" class="flex items-center gap-3">
+              <text class="text-xs text-muted-foreground w-16">{{ level.label }}</text>
+              <view class="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                <view class="h-full bg-primary rounded-full" :style="{ width: (level.count / memberStats.total * 100) + '%' }" />
+              </view>
+              <text class="text-xs font-medium w-10 text-right">{{ level.count }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Latest Notices -->
+        <view v-if="notices.length > 0" class="bg-white rounded-xl p-4 border border-border">
+          <view class="flex items-center justify-between mb-3">
+            <text class="font-semibold">最新通知</text>
+            <view @click="goNotifications" class="text-primary text-sm">
+              <text>全部 ›</text>
+            </view>
+          </view>
+          <view class="space-y-3">
+            <view v-for="notice in notices.slice(0, 3)" :key="notice.id" class="flex items-start gap-3 p-3 bg-white rounded-lg border border-border">
+              <text>{{ getNoticeIcon(notice.type) }}</text>
+              <view class="flex-1 min-w-0">
+                <text class="text-sm block truncate">{{ notice.title }}</text>
+                <text class="text-xs text-muted-foreground block mt-0.5">{{ notice.createdAt }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+const loading = ref(true)
+const activeTrend = ref<'revenue' | 'orders'>('revenue')
+const trendPeriod = ref<'week' | 'month'>('week')
+
+const stationInfo = ref({
+  name: '华东分站',
+  levelName: '金牌分站',
+  createTime: '2023-06-01',
+  status: 'active',
+  expireTime: '2025-06-01',
+})
+
+const trendTypes = [
+  { key: 'revenue', label: '收益' },
+  { key: 'orders', label: '订单' },
+]
+
+const trendPeriods = [
+  { key: 'week', label: '本周' },
+  { key: 'month', label: '本月' },
+]
+
+const overviewItems = [
+  { icon: 'users', label: '总用户', value: 28600, unit: '人', trend: 12, trendType: 'up' as const },
+  { icon: 'revenue', label: '本月收入', value: 186000, unit: '元', trend: 8, trendType: 'up' as const },
+  { icon: 'orders', label: '本月订单', value: 1258, unit: '单', trend: -3, trendType: 'down' as const },
+  { icon: 'total', label: '累计交易', value: 2860000, unit: '元', trend: 15, trendType: 'up' as const },
+  { icon: 'visits', label: '本月访问', value: 52800, unit: '次', trend: 5, trendType: 'up' as const },
+  { icon: 'conversion', label: '转化率', value: 3.82, unit: '%', trend: 0.5, trendType: 'up' as const },
+]
+
+const balanceInfo = ref({
+  available: 286000,
+  pending: 58000,
+  withdrawn: 1200000,
+  frozen: 15000,
+})
+
+const trendData = [
+  {
+    type: 'revenue',
+    total: 186000,
+    change: 8,
+    data: [
+      { date: '06-03', value: 22000 },
+      { date: '06-04', value: 28000 },
+      { date: '06-05', value: 25000 },
+      { date: '06-06', value: 32000 },
+      { date: '06-07', value: 29000 },
+      { date: '06-08', value: 35000 },
+      { date: '06-09', value: 15000 },
+    ],
+  },
+  {
+    type: 'orders',
+    total: 1258,
+    change: -3,
+    data: [
+      { date: '06-03', value: 180 },
+      { date: '06-04', value: 210 },
+      { date: '06-05', value: 165 },
+      { date: '06-06', value: 220 },
+      { date: '06-07', value: 195 },
+      { date: '06-08', value: 230 },
+      { date: '06-09', value: 58 },
+    ],
+  },
+]
+
+const quickActions = [
+  { id: 1, icon: 'users', label: '成员管理', path: '/mine/station/team' },
+  { id: 2, icon: 'image', label: '内容管理', path: '/mine/station/content' },
+  { id: 3, icon: 'settings', label: '分站设置', path: '/mine/station/settings' },
+  { id: 4, icon: 'wallet', label: '财务中心', badge: 1, path: '/mine/station/finance' },
+  { id: 5, icon: 'list', label: '订单管理', path: '/mine/station/orders' },
+  { id: 6, icon: 'chart', label: '数据报表', path: '/mine/station/analytics' },
+  { id: 7, icon: 'money', label: '提现管理', badge: 2, path: '/mine/station/withdraw' },
+  { id: 8, icon: 'help', label: '帮助中心', path: '/mine/station/help' },
+]
+
+const memberStats = ref({
+  total: 128,
+  active: 86,
+  newThisMonth: 12,
+  levelDistribution: [
+    { level: 'vip1', label: '普通成员', count: 68 },
+    { level: 'vip2', label: '活跃成员', count: 35 },
+    { level: 'vip3', label: '核心成员', count: 18 },
+    { level: 'vip4', label: '管理成员', count: 7 },
+  ],
+})
+
+const notices = ref([
+  { id: 1, type: 'info', title: '平台通知：关于调整分站佣金比例的说明', createdAt: '2小时前' },
+  { id: 2, type: 'warning', title: '系统提醒：华东分站存储空间即将不足，请及时清理', createdAt: '1天前' },
+  { id: 3, type: 'success', title: '恭喜！华东分站本月业绩突破历史新高', createdAt: '3天前' },
+])
+
+const filteredTrends = computed(() => trendData.filter(t => t.type === activeTrend.value))
+
+function maxTrendValue(data: { value: number }[]): number {
+  return Math.max(...data.map(d => d.value), 1)
+}
+
+function overviewIcon(icon: string): string {
+  const map: Record<string, string> = {
+    users: '', revenue: '', orders: '', total: '💎', visits: '️', conversion: '',
+  }
+  return map[icon] || '📊'
+}
+
+function quickActionIcon(icon: string): string {
+  const map: Record<string, string> = {
+    users: '', image: '️', settings: '⚙️', wallet: '',
+    list: '', chart: '📊', money: '', help: '❓',
+  }
+  return map[icon] || '📌'
+}
+
+function getTrendIcon(type?: string): string {
+  if (type === 'up') return '↑'
+  if (type === 'down') return '↓'
+  return '—'
+}
+
+function getTrendColor(type?: string): string {
+  if (type === 'up') return 'text-green-500'
+  if (type === 'down') return 'text-red-500'
+  return 'text-muted-foreground'
+}
+
+function getStatusStyle(status: string): string {
+  const map: Record<string, string> = {
+    active: 'bg-green-500',
+    expired: 'bg-gray-500',
+    suspended: 'bg-amber-500',
+  }
+  return map[status] || 'bg-gray-500'
+}
+
+function getStatusLabel(status: string): string {
+  const map: Record<string, string> = {
+    active: '正常运营',
+    expired: '已过期',
+    suspended: '已暂停',
+  }
+  return map[status] || status
+}
+
+function getNoticeIcon(type: string): string {
+  const map: Record<string, string> = {
+    success: '',
+    warning: '',
+    info: 'ℹ️',
+  }
+  return map[type] || ''
+}
+
+function goBack() { uni.navigateBack() }
+function goAnalytics() { uni.navigateTo({ url: '/mine/station/analytics' }) }
+function goWithdraw() { uni.navigateTo({ url: '/mine/station/withdraw' }) }
+function goNotifications() { uni.navigateTo({ url: '/mine/station/notifications' }) }
+function goTeam() { uni.navigateTo({ url: '/mine/station/team' }) }
+function handleQuickAction(action: any) { uni.navigateTo({ url: action.path }) }
+
+setTimeout(() => { loading.value = false }, 400)
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

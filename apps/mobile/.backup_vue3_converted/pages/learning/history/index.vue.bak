@@ -1,0 +1,137 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-20">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-40 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5] pt-safe">
+      <view class="flex items-center px-4 h-12 gap-3">
+        <view class="p-2 -ml-2 rounded-full" @click="goBack">
+          <text class="text-lg text-[#2C2C2C]">←</text>
+        </view>
+        <text class="text-base font-semibold text-[#2C2C2C] flex-1">学习历史</text>
+      </view>
+    </view>
+
+    <!-- 标签切换 -->
+    <view class="flex border-b border-[#E8E0D5] bg-[#FAF8F5]">
+      <view
+        v-for="t in tabs"
+        :key="t.key"
+        class="flex-1 py-2.5 text-sm font-medium text-center border-b-2 transition-colors"
+        :class="tab === t.key ? 'text-[#C41E3A] border-[#C41E3A]' : 'text-[#999] border-transparent'"
+        @click="tab = t.key"
+      >
+        <text>{{ t.label }}</text>
+      </view>
+    </view>
+
+    <!-- 搜索栏 -->
+    <view class="px-4 pt-4">
+      <view class="relative mb-4">
+        <text class="absolute left-3 text-[#999]" style="top: 50%; transform: translateY(-50%)">🔍</text>
+        <input
+          v-model="search"
+          placeholder="搜索课程"
+          class="w-full h-10 pl-9 pr-4 rounded-lg bg-[#F2EFEA] text-[#2C2C2C] text-sm"
+        />
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view v-if="filtered.length === 0" class="flex flex-col items-center py-16">
+      <text class="text-4xl opacity-30 mb-3">📖</text>
+      <text class="text-sm text-[#999]">暂无学习记录</text>
+    </view>
+
+    <!-- 列表 -->
+    <view v-else class="px-4 space-y-3">
+      <view v-for="item in filtered" :key="item.id" class="flex gap-3 p-3 bg-white border border-[#E8E0D5] rounded-xl">
+        <!-- 封面 -->
+        <view class="relative flex-shrink-0">
+          <image :src="item.cover" mode="aspectFill" class="w-24 h-16 rounded-lg" />
+          <view v-if="item.progress === 100" class="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+            <text class="text-white text-xs font-medium">已完成</text>
+          </view>
+          <view v-else class="absolute bottom-1 right-1 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center">
+            <text class="text-white text-xs">▶</text>
+          </view>
+        </view>
+
+        <!-- 信息 -->
+        <view class="flex-1 min-w-0">
+          <view class="flex items-start justify-between gap-2 mb-1">
+            <text class="text-sm font-medium text-[#2C2C2C] truncate">{{ item.title }}</text>
+            <view class="text-[#999] flex-shrink-0" @click="remove(item.id)">
+              <text>🗑</text>
+            </view>
+          </view>
+          <text class="text-xs text-[#999] mb-1 block">{{ item.instructor }}</text>
+          <text class="text-xs text-[#999] mb-2 block">
+            🕐 {{ item.lastChapter }} · {{ item.lastTime }}
+          </text>
+          <!-- 进度条 -->
+          <view class="flex items-center gap-2">
+            <view class="flex-1 h-1 rounded-full bg-[#F2EFEA] overflow-hidden">
+              <view
+                class="h-full rounded-full"
+                :class="item.progress === 100 ? 'bg-green-500' : 'bg-[#C41E3A]'"
+                :style="{ width: item.progress + '%' }"
+              />
+            </view>
+            <text class="text-[10px] text-[#999] flex-shrink-0">{{ item.progress }}%</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+
+const tab = ref<'all' | 'watching' | 'done'>('all')
+const search = ref('')
+
+const tabs = [
+  { key: 'all' as const, label: '全部' },
+  { key: 'watching' as const, label: '学习中' },
+  { key: 'done' as const, label: '已完成' },
+]
+
+interface HistoryItem {
+  id: string
+  title: string
+  instructor: string
+  cover: string
+  progress: number
+  lastChapter: string
+  lastTime: string
+  totalDuration: string
+  category: string
+}
+
+const items = ref<HistoryItem[]>([
+  { id: '1', title: '八字入门实战课', instructor: '周易大师', cover: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=120', progress: 65, lastChapter: '第5章 十神详解', lastTime: '昨天 14:30', totalDuration: '28小时', category: '八字' },
+  { id: '2', title: '紫微斗数精讲', instructor: '张玄风', cover: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=120', progress: 40, lastChapter: '第12章 四化详解', lastTime: '3天前', totalDuration: '36小时', category: '紫微' },
+  { id: '3', title: '风水布局入门', instructor: '陈风水', cover: 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=120', progress: 15, lastChapter: '第2章 八宅风水', lastTime: '1周前', totalDuration: '12小时', category: '风水' },
+  { id: '4', title: '易经六十四卦解读', instructor: '李玄机', cover: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=120', progress: 100, lastChapter: '第64章 火水未济', lastTime: '2周前', totalDuration: '48小时', category: '易经' },
+  { id: '5', title: '奇门遁甲实战', instructor: '林奇门', cover: 'https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=120', progress: 80, lastChapter: '第18章 奇门选日', lastTime: '3周前', totalDuration: '24小时', category: '奇门' },
+])
+
+const filtered = computed(() => {
+  return items.value.filter(h => {
+    const matchTab = tab.value === 'all' ? true : tab.value === 'done' ? h.progress === 100 : h.progress < 100
+    const matchSearch = !search.value || h.title.includes(search.value) || h.instructor.includes(search.value)
+    return matchTab && matchSearch
+  })
+})
+
+function remove(id: string) {
+  items.value = items.value.filter(h => h.id !== id)
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

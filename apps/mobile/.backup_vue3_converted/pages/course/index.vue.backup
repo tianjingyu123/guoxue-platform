@@ -1,0 +1,19 @@
+<template>
+<view class="min-h-screen bg-[#FAF8F5]">
+<!-- 已更新为 Tailwind 样式 -->
+  <view class="page">
+    <view class="header"><view class="back-btn" @click="goBack"><text class="icon">←</text></view><text class="title">课程详情</text><view class="ph" /></view>
+    <scroll-view scroll-y class="content" :style="{paddingBottom:'80px'}">
+      <view class="cover">📚</view>
+      <view class="card"><text class="at">{{ info.title }}</text><view class="am"><text>⭐{{ info.rating }}</text><text>{{ info.students }}人学</text><text>{{ info.lessons }}课时</text></view></view>
+      <view class="card"><text class="ct">课程介绍</text><text class="cd">{{ info.desc }}</text></view>
+      <view class="card"><text class="ct">课程大纲</text>
+        <view v-for="(c,i) in chapters" :key="i" class="ch"><text class="cn">{{ i+1 }}. {{ c.title }}</text><text class="cd">{{ c.dur }}</text></view>
+      </view>
+    </scroll-view>
+    <view class="bot"><view class="bp"><text class="pp">¥{{ info.price }}</text><text class="po">¥{{ info.origPrice }}</text></view><view class="btn" @click="doBuy">立即购买</view></view>
+  </view>
+</view>
+</template>
+<script setup lang="ts">const info={title:'八字命理入门到精通',desc:'系统学习八字命理知识',rating:'4.9',students:2345,lessons:36,price:299,origPrice:599};const chapters=[{title:'八字基础概念',dur:'12分钟'},{title:'天干地支详解',dur:'18分钟'},{title:'十神与格局',dur:'15分钟'}];function goBack(){uni.navigateBack()}function doBuy(){uni.showToast({title:'已购买',icon:'success'})}</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh;display:flex;flex-direction:column}.header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;background:#fff;border-bottom:1px solid #E8E3DB;flex-shrink:0}.back-btn{padding:4px}.icon{font-size:20px;color:#2C2C2C}.title{font-size:16px;font-weight:600;color:#2C2C2C;font-family:'Noto Serif SC',serif}.ph{width:28px}.content{flex:1;overflow-y:auto}.cover{height:200px;background:linear-gradient(135deg,#1565C0,#42A5F5);display:flex;align-items:center;justify-content:center;font-size:64px}.card{background:#fff;padding:14px 16px;margin-bottom:8px}.ct{font-size:14px;font-weight:600;color:#2C2C2C;display:block;margin-bottom:8px}.cd{font-size:13px;color:#555;line-height:1.7}.at{font-size:16px;font-weight:600;color:#2C2C2C;display:block;margin-bottom:8px}.am{display:flex;gap:12px;font-size:12px;color:#999}.ch{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #FAF8F5;font-size:13px}.ch:last-child{border-bottom:none}.cn{color:#2C2C2C}.cd{color:#999;font-size:12px}.bot{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;padding-bottom:calc(10px+env(safe-area-inset-bottom));background:#fff;border-top:1px solid #E8E3DB;z-index:30}.pp{font-size:20px;font-weight:700;color:#C41E3A}.po{font-size:12px;color:#999;text-decoration:line-through;margin-left:6px}.btn{padding:10px 32px;background:#C41E3A;color:#fff;border-radius:24px;font-size:14px;font-weight:600}</style>

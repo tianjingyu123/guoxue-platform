@@ -1,0 +1,413 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- Header -->
+    <view class="sticky top-0 z-10 bg-white border-b border-border">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view @click="goBack" class="p-2 -ml-2">
+          <text class="text-2xl text-foreground">←</text>
+        </view>
+        <text class="font-semibold text-foreground">嘉宾/老师管理</text>
+        <view @click="showInviteModal = true" class="p-2 -mr-2">
+          <text class="text-xl text-primary">+</text>
+        </view>
+      </view>
+
+      <!-- Search -->
+      <view class="px-4 pb-3">
+        <view class="relative">
+          <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"></text>
+          <input type="text" placeholder="搜索嘉宾/老师" v-model="searchQuery"
+            class="w-full pl-9 pr-4 py-2.5 bg-background rounded-xl text-sm" style="outline:none" />
+        </view>
+      </view>
+
+      <!-- Tabs -->
+      <view class="flex px-4 gap-2 pb-3">
+        <view v-for="tab in tabs" :key="tab.key"
+          @click="activeTab = tab.key"
+          class="px-4 py-1.5 rounded-full text-sm transition-all"
+          :class="activeTab === tab.key ? 'bg-primary text-white' : 'bg-background text-muted-foreground'"
+        >
+          <text>{{ tab.label }}</text>
+          <text v-if="tab.count"> ({{ tab.count }})</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Guest List -->
+    <view class="p-4 space-y-3">
+      <!-- Empty state -->
+      <view v-if="filteredGuests.length === 0" class="text-center py-12">
+        <text class="text-3xl text-muted-foreground mx-auto mb-3 block">+</text>
+        <text class="text-muted-foreground text-sm">暂无嘉宾/老师</text>
+        <view @click="showInviteModal = true" class="mt-4 px-6 py-2 bg-primary text-white text-sm rounded-xl inline-block">
+          邀请嘉宾
+        </view>
+      </view>
+
+      <!-- Guest Cards -->
+      <view v-for="guest in filteredGuests" :key="guest.id" class="bg-white rounded-2xl p-4" style="box-shadow:0 2px 12px rgba(0,0,0,0.04)">
+        <!-- Header -->
+        <view class="flex items-start gap-3">
+          <image :src="guest.avatar" mode="aspectFill" class="w-12 h-12 rounded-xl" />
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center gap-2 flex-wrap">
+              <text class="font-medium text-foreground">{{ guest.name }}</text>
+              <text class="text-[10px] px-1.5 py-0.5 rounded" :class="guest.role === 'teacher' ? 'bg-blue-50 text-blue-500' : 'bg-yellow-50 text-yellow-700'">
+                {{ guest.role === 'teacher' ? '老师' : '嘉宾' }}
+              </text>
+              <text v-if="guest.status === 'pending'" class="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-600">
+                待审核
+              </text>
+            </view>
+            <text class="text-xs text-muted-foreground mt-0.5 block">{{ guest.title }}</text>
+            <text class="text-[10px] text-muted-foreground mt-1 block">加入于 {{ guest.joinedAt }}</text>
+          </view>
+          <view @click="toggleActionMenu(guest.id)" class="p-2 -mr-2">
+            <text class="text-lg text-muted-foreground">⋯</text>
+          </view>
+        </view>
+
+        <!-- Action Menu -->
+        <view v-if="showActionMenu === guest.id" class="mt-3 pt-3 border-t border-border flex gap-2">
+          <view @click="openEditModal(guest.id)" class="flex-1 flex items-center justify-center gap-1 py-2 text-sm text-muted-foreground bg-background rounded-lg">
+            <text class="text-sm">✏️</text>
+            <text>编辑</text>
+          </view>
+          <view class="flex-1 flex items-center justify-center gap-1 py-2 text-sm text-muted-foreground bg-background rounded-lg">
+            <text class="text-sm">📊</text>
+            <text>收益</text>
+          </view>
+          <view class="flex-1 flex items-center justify-center gap-1 py-2 text-sm text-red-500 bg-red-50 rounded-lg">
+            <text class="text-sm">🗑️</text>
+            <text>移除</text>
+          </view>
+        </view>
+
+        <!-- Permission Tags -->
+        <view class="mt-3 flex flex-wrap gap-1.5">
+          <text class="text-[10px] text-muted-foreground">可发布：</text>
+          <text v-for="perm in guest.permissions" :key="perm"
+            class="text-[10px] px-1.5 py-0.5 rounded bg-background text-muted-foreground">
+            {{ permissionLabels[perm] || perm }}
+          </text>
+        </view>
+
+        <!-- Stats (active) -->
+        <view v-if="guest.status === 'active'" class="mt-3 pt-3 border-t border-border">
+          <view class="grid grid-cols-4 gap-2 text-center">
+            <view>
+              <view class="flex items-center justify-center gap-1 text-muted-foreground">
+                <text class="text-sm"></text>
+                <text class="text-sm font-medium">{{ guest.stats.articles }}</text>
+              </view>
+              <text class="text-[10px] text-muted-foreground">文章</text>
+            </view>
+            <view>
+              <view class="flex items-center justify-center gap-1 text-muted-foreground">
+                <text class="text-sm"></text>
+                <text class="text-sm font-medium">{{ guest.stats.courses }}</text>
+              </view>
+              <text class="text-[10px] text-muted-foreground">课程</text>
+            </view>
+            <view>
+              <view class="flex items-center justify-center gap-1 text-muted-foreground">
+                <text class="text-sm">📡</text>
+                <text class="text-sm font-medium">{{ guest.stats.lives }}</text>
+              </view>
+              <text class="text-[10px] text-muted-foreground">直播</text>
+            </view>
+            <view>
+              <view class="text-sm font-medium text-yellow-700">¥{{ guest.stats.thisMonthRevenue.toFixed(0) }}</view>
+              <text class="text-[10px] text-muted-foreground">本月收益</text>
+            </view>
+          </view>
+          <view class="mt-2 flex items-center justify-between text-xs">
+            <text class="text-muted-foreground">分成比例：{{ guest.revenueShare }}%</text>
+            <text class="text-muted-foreground">累计收益：¥{{ guest.stats.totalRevenue.toFixed(2) }}</text>
+          </view>
+        </view>
+
+        <!-- Pending Actions -->
+        <view v-if="guest.status === 'pending'" class="mt-3 pt-3 border-t border-border flex gap-2">
+          <view class="flex-1 flex items-center justify-center gap-1 py-2.5 text-sm text-white bg-primary rounded-xl">
+            <text class="text-sm">✓</text>
+            <text>通过</text>
+          </view>
+          <view class="flex-1 flex items-center justify-center gap-1 py-2.5 text-sm text-muted-foreground bg-background rounded-xl">
+            <text class="text-sm">✕</text>
+            <text>拒绝</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Invite Guest Modal -->
+    <view v-if="showInviteModal" class="fixed inset-0 z-50 flex items-end">
+      <view class="absolute inset-0 bg-black/40" @click="showInviteModal = false" />
+      <view class="relative w-full bg-white rounded-t-3xl overflow-hidden" style="max-height:85vh">
+        <view class="flex items-center justify-between p-4 border-b border-border">
+          <text @click="showInviteModal = false" class="text-muted-foreground">取消</text>
+          <text class="font-medium text-foreground">邀请嘉宾/老师</text>
+          <text class="text-primary font-medium">确定</text>
+        </view>
+
+        <view class="p-4 space-y-4 overflow-y-auto" style="max-height:70vh">
+          <!-- Invite Method Toggle -->
+          <view class="flex gap-2">
+            <view @click="inviteType = 'link'"
+              class="flex-1 py-2.5 rounded-xl text-sm text-center transition-colors"
+              :class="inviteType === 'link' ? 'bg-primary text-white' : 'bg-background text-muted-foreground'">
+              链接邀请
+            </view>
+            <view @click="inviteType = 'search'"
+              class="flex-1 py-2.5 rounded-xl text-sm text-center transition-colors"
+              :class="inviteType === 'search' ? 'bg-primary text-white' : 'bg-background text-muted-foreground'">
+              搜索用户
+            </view>
+          </view>
+
+          <!-- Role Selection -->
+          <view>
+            <text class="block text-sm font-medium text-foreground mb-2">角色类型</text>
+            <view class="flex gap-2">
+              <view @click="inviteRole = 'guest'"
+                class="flex-1 p-3 rounded-xl border-2 transition-colors"
+                :class="inviteRole === 'guest' ? 'border-primary bg-primary/5' : 'border-border'">
+                <view class="flex items-center gap-2">
+                  <text :class="inviteRole === 'guest' ? 'text-yellow-700' : 'text-muted-foreground'">👑</text>
+                  <text :class="['font-medium', inviteRole === 'guest' ? 'text-foreground' : 'text-muted-foreground']">嘉宾</text>
+                </view>
+                <text class="text-[10px] text-muted-foreground mt-1 block">受邀创作者，可发布内容</text>
+              </view>
+              <view @click="inviteRole = 'teacher'"
+                class="flex-1 p-3 rounded-xl border-2 transition-colors"
+                :class="inviteRole === 'teacher' ? 'border-primary bg-primary/5' : 'border-border'">
+                <view class="flex items-center gap-2">
+                  <text :class="inviteRole === 'teacher' ? 'text-blue-500' : 'text-muted-foreground'">🛡️</text>
+                  <text :class="['font-medium', inviteRole === 'teacher' ? 'text-foreground' : 'text-muted-foreground']">老师</text>
+                </view>
+                <text class="text-[10px] text-muted-foreground mt-1 block">签约讲师，可开设课程</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- Permission Settings -->
+          <view>
+            <text class="block text-sm font-medium text-foreground mb-2">发布权限</text>
+            <view class="flex flex-wrap gap-2">
+              <view v-for="(label, key) in permissionLabels" :key="key"
+                @click="togglePermission(key)"
+                class="px-4 py-2 rounded-xl text-sm transition-colors"
+                :class="selectedPermissions.includes(key) ? 'bg-primary text-white' : 'bg-background text-muted-foreground'">
+                <text>{{ label }}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- Revenue Share -->
+          <view>
+            <text class="block text-sm font-medium text-foreground mb-2">收益分成比例（嘉宾/老师）</text>
+            <view class="flex items-center gap-4">
+              <slider :min="10" :max="90" :step="5" :value="revenueShare" @change="onRevenueShareChange" class="flex-1" style="accent-color:#C41E3A" />
+              <text class="text-lg font-bold text-primary" style="width:64px;text-align:right">{{ revenueShare }}%</text>
+            </view>
+            <text class="text-xs text-muted-foreground mt-1 block">嘉宾/老师获得 {{ revenueShare }}%，圈子获得 {{ 100 - revenueShare }}%</text>
+          </view>
+
+          <!-- Invite Link -->
+          <view v-if="inviteType === 'link'">
+            <text class="block text-sm font-medium text-foreground mb-2">邀请链接</text>
+            <view class="flex gap-2">
+              <view class="flex-1 px-3 py-2.5 bg-background rounded-xl text-sm text-muted-foreground truncate">{{ inviteLink }}</view>
+              <view class="px-4 py-2.5 bg-primary text-white rounded-xl flex items-center justify-center">
+                <text class="text-sm"></text>
+              </view>
+              <view class="px-4 py-2.5 bg-background text-muted-foreground rounded-xl flex items-center justify-center">
+                <text class="text-sm"></text>
+              </view>
+            </view>
+            <text class="text-xs text-muted-foreground mt-2 block">链接7天内有效，对方接受邀请后自动成为嘉宾/老师</text>
+          </view>
+
+          <!-- Search User -->
+          <view v-if="inviteType === 'search'">
+            <text class="block text-sm font-medium text-foreground mb-2">搜索用户</text>
+            <view class="relative">
+              <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"></text>
+              <input type="text" placeholder="输入用户名或ID搜索"
+                class="w-full pl-9 pr-4 py-2.5 bg-background rounded-xl text-sm" style="outline:none" />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Edit Guest Modal -->
+    <view v-if="showEditModal" class="fixed inset-0 z-50 flex items-end">
+      <view class="absolute inset-0 bg-black/40" @click="showEditModal = null" />
+      <view class="relative w-full bg-white rounded-t-3xl overflow-hidden" style="max-height:80vh">
+        <view class="flex items-center justify-between p-4 border-b border-border">
+          <text @click="showEditModal = null" class="text-muted-foreground">取消</text>
+          <text class="font-medium text-foreground">编辑 {{ editingGuest?.name }}</text>
+          <text class="text-primary font-medium">保存</text>
+        </view>
+
+        <view class="p-4 space-y-4 overflow-y-auto">
+          <!-- Role Selection -->
+          <view>
+            <text class="block text-sm font-medium text-foreground mb-2">角色类型</text>
+            <view class="flex gap-2">
+              <view @click="editRole = 'guest'"
+                class="flex-1 py-2.5 rounded-xl text-sm text-center transition-colors"
+                :class="editRole === 'guest' ? 'bg-yellow-600 text-white' : 'bg-background text-muted-foreground'">
+                嘉宾
+              </view>
+              <view @click="editRole = 'teacher'"
+                class="flex-1 py-2.5 rounded-xl text-sm text-center transition-colors"
+                :class="editRole === 'teacher' ? 'bg-blue-500 text-white' : 'bg-background text-muted-foreground'">
+                老师
+              </view>
+            </view>
+          </view>
+
+          <!-- Permission Settings -->
+          <view>
+            <text class="block text-sm font-medium text-foreground mb-2">发布权限</text>
+            <view class="flex flex-wrap gap-2">
+              <view v-for="(label, key) in permissionLabels" :key="key"
+                @click="toggleEditPermission(key)"
+                class="px-4 py-2 rounded-xl text-sm transition-colors"
+                :class="editPermissions.includes(key) ? 'bg-primary text-white' : 'bg-background text-muted-foreground'">
+                <text>{{ label }}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- Revenue Share -->
+          <view>
+            <text class="block text-sm font-medium text-foreground mb-2">收益分成比例</text>
+            <view class="flex items-center gap-4">
+              <slider :min="10" :max="90" :step="5" :value="editRevenueShare" @change="onEditRevenueChange" class="flex-1" style="accent-color:#C41E3A" />
+              <text class="text-lg font-bold text-primary" style="width:64px;text-align:right">{{ editRevenueShare }}%</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue'
+
+const mockGuests = [
+  { id: '1', name: '张玄风', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang', title: '资深命理师', role: 'guest' as const, joinedAt: '2024-01-10', status: 'active' as const, stats: { articles: 28, courses: 3, lives: 12, totalRevenue: 12680.50, thisMonthRevenue: 2350.00 }, revenueShare: 70, permissions: ['article', 'course', 'live', 'qa'] },
+  { id: '2', name: '李易安', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=li', title: '紫微斗数讲师', role: 'teacher' as const, joinedAt: '2024-02-15', status: 'active' as const, stats: { articles: 15, courses: 5, lives: 8, totalRevenue: 8920.00, thisMonthRevenue: 1680.00 }, revenueShare: 60, permissions: ['article', 'course'] },
+  { id: '3', name: '王命理', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wang', title: '八字研究者', role: 'guest' as const, joinedAt: '2024-03-01', status: 'pending' as const, stats: { articles: 0, courses: 0, lives: 0, totalRevenue: 0, thisMonthRevenue: 0 }, revenueShare: 50, permissions: ['article'] },
+]
+
+const permissionLabels: Record<string, string> = {
+  article: '文章', course: '课程', live: '直播', qa: '问答', post: '帖子',
+}
+
+// --- Route params ---
+const circleId = ref('')
+onMounted(() => {
+  // @ts-ignore
+  const pages = getCurrentPages()
+  // @ts-ignore
+  const page = pages[pages.length - 1]
+  // @ts-ignore
+  if (page?.options?.id) circleId.value = page.options.id
+})
+
+// --- Main state ---
+const searchQuery = ref('')
+const activeTab = ref<string>('all')
+const showInviteModal = ref(false)
+const showActionMenu = ref<string | null>(null)
+const showEditModal = ref<string | null>(null)
+
+// --- Invite modal state ---
+const inviteType = ref<'link' | 'search'>('link')
+const inviteRole = ref<'guest' | 'teacher'>('guest')
+const revenueShare = ref(50)
+const selectedPermissions = ref<string[]>(['article'])
+
+// --- Edit modal state ---
+const editRole = ref<'guest' | 'teacher'>('guest')
+const editRevenueShare = ref(50)
+const editPermissions = ref<string[]>([])
+
+const tabs = [
+  { key: 'all', label: '全部' },
+  { key: 'guest', label: '嘉宾' },
+  { key: 'teacher', label: '老师' },
+  { key: 'pending', label: '待审核', count: mockGuests.filter(g => g.status === 'pending').length },
+]
+
+const filteredGuests = computed(() => {
+  let result = mockGuests.filter(guest => {
+    if (activeTab.value === 'pending') return guest.status === 'pending'
+    if (activeTab.value === 'guest') return guest.role === 'guest' && guest.status === 'active'
+    if (activeTab.value === 'teacher') return guest.role === 'teacher' && guest.status === 'active'
+    return guest.status === 'active'
+  })
+  if (searchQuery.value) {
+    result = result.filter(g => g.name.includes(searchQuery.value) || g.title.includes(searchQuery.value))
+  }
+  return result
+})
+
+const editingGuest = computed(() => mockGuests.find(g => g.id === showEditModal.value))
+const inviteLink = computed(() => `https://rebugx.com/invite/${circleId.value}?role=${inviteRole.value}`)
+
+// Initialize edit modal state when opened
+watch(showEditModal, (val) => {
+  if (val) {
+    const guest = mockGuests.find(g => g.id === val)
+    if (guest) {
+      editRole.value = guest.role
+      editRevenueShare.value = guest.revenueShare
+      editPermissions.value = [...guest.permissions]
+    }
+  }
+})
+
+function toggleActionMenu(id: string) {
+  showActionMenu.value = showActionMenu.value === id ? null : id
+}
+
+function openEditModal(id: string) {
+  showEditModal.value = id
+  showActionMenu.value = null
+}
+
+function togglePermission(perm: string) {
+  selectedPermissions.value = selectedPermissions.value.includes(perm)
+    ? selectedPermissions.value.filter(p => p !== perm)
+    : [...selectedPermissions.value, perm]
+}
+
+function toggleEditPermission(perm: string) {
+  editPermissions.value = editPermissions.value.includes(perm)
+    ? editPermissions.value.filter(p => p !== perm)
+    : [...editPermissions.value, perm]
+}
+
+function onRevenueShareChange(e: any) {
+  revenueShare.value = e.detail.value
+}
+
+function onEditRevenueChange(e: any) {
+  editRevenueShare.value = e.detail.value
+}
+
+function goBack() { uni.navigateBack() }
+
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

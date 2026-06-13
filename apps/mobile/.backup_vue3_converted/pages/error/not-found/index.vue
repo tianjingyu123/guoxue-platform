@@ -1,0 +1,108 @@
+<template>
+  <view class="min-h-screen bg-background flex flex-col">
+    <!-- 主要内容区 -->
+    <view class="flex-1 flex flex-col items-center justify-center px-4 py-12">
+      <!-- 404 大号文字 -->
+      <view class="relative mb-6">
+        <!-- 背景装饰 -->
+        <view class="absolute inset-0 flex items-center justify-center">
+          <view class="w-48 h-48 rounded-full bg-primary/5" />
+        </view>
+
+        <!-- 404 数字 -->
+        <text class="relative text-[120px] font-bold text-primary leading-none tracking-tighter block">404</text>
+      </view>
+
+      <!-- 副标题 -->
+      <text class="text-2xl font-semibold text-foreground mb-2 block">页面不存在</text>
+      <text class="text-muted-foreground text-center mb-8 max-w-xs block">您访问的页面可能已被移除、名称已更改或暂时不可用</text>
+
+      <!-- 操作按钮 -->
+      <view class="flex flex-col gap-3 w-full max-w-xs">
+        <view class="flex-1 h-11 bg-primary text-white rounded-full flex items-center justify-center gap-1" @click="goTo('/pages/index/index')">
+          <text>🏠</text>
+          <text>返回首页</text>
+        </view>
+        <view class="flex-1 h-11 border border-border text-foreground rounded-full flex items-center justify-center gap-1" @click="handleGoBack">
+          <text>←</text>
+          <text>返回上一页</text>
+        </view>
+      </view>
+
+      <!-- 分隔线 -->
+      <view class="flex items-center gap-4 my-8 w-full max-w-xs">
+        <view class="flex-1 h-px bg-[#E8E0D5]" />
+        <text class="text-xs text-muted-foreground">或者</text>
+        <view class="flex-1 h-px bg-[#E8E0D5]" />
+      </view>
+
+      <!-- 快捷链接 -->
+      <view class="w-full max-w-xs">
+        <text class="text-sm text-muted-foreground mb-3 text-center block">您可以访问以下页面</text>
+        <view class="flex justify-center gap-2">
+          <view v-for="link in quickLinks" :key="link.href" class="px-3 py-1.5 text-muted-foreground rounded-lg text-sm" @click="goTo(link.href)">
+            <text>{{ link.icon }}</text>
+            <text>{{ link.label }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部装饰 - 山水意境 -->
+    <view class="h-32 relative overflow-hidden">
+      <svg
+        viewBox="0 0 400 100"
+        class="absolute bottom-0 left-0 w-full h-full text-primary/10"
+        preserveAspectRatio="xMidYMax slice"
+      >
+        <!-- 远山 -->
+        <path
+          d="M0 100 L0 60 Q50 40 100 55 Q150 70 200 45 Q250 20 300 50 Q350 80 400 40 L400 100 Z"
+          fill="currentColor"
+          opacity="0.3"
+        />
+        <!-- 近山 -->
+        <path
+          d="M0 100 L0 75 Q80 55 150 70 Q220 85 280 60 Q340 35 400 65 L400 100 Z"
+          fill="currentColor"
+          opacity="0.5"
+        />
+        <!-- 最近的山 -->
+        <path
+          d="M0 100 L0 85 Q100 70 200 80 Q300 90 400 75 L400 100 Z"
+          fill="currentColor"
+          opacity="0.7"
+        />
+      </svg>
+    </view>
+
+    <!-- 错误代码提示 -->
+    <text class="text-center py-4 text-xs text-muted-foreground/50 block">错误代码: 404 | 如需帮助请联系客服</text>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+
+function handleGoBack() {
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+  } else {
+    uni.navigateTo({ url: '/pages/index/index' })
+  }
+}
+
+const quickLinks = [
+  { label: '首页', href: '/pages/index/index', icon: '🏠' },
+  { label: '发现', href: '/pages/discover/index', icon: '' },
+  { label: '帮助中心', href: '/pages/help/index', icon: '❓' },
+]
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

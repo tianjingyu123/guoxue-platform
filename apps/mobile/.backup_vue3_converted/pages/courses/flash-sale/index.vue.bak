@@ -1,0 +1,274 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-10 bg-white border-b border-[#E8E0D5] flex items-center justify-between px-4 h-12">
+      <view class="flex items-center gap-2" @click="goBack">
+        <text class="text-xl">←</text>
+      </view>
+      <text class="text-base font-semibold text-[#2C2C2C]">限时特惠</text>
+      <text class="text-orange-500 text-lg">🔥</text>
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="loading">
+      <view class="h-28 bg-[#F0EBE5] animate-pulse" />
+      <view class="flex border-b border-[#E8E0D5] bg-white">
+        <view v-for="i in 3" :key="i" class="flex-1 py-3 text-center">
+          <view class="h-4 w-16 bg-[#F0EBE5] rounded mx-auto animate-pulse" />
+          <view class="h-3 w-12 bg-[#F0EBE5] rounded mx-auto mt-1 animate-pulse" />
+        </view>
+      </view>
+      <view class="px-4 pt-4 space-y-4">
+        <view v-for="i in 2" :key="i" class="bg-white border border-[#E8E0D5] rounded-xl overflow-hidden">
+          <view class="h-40 bg-[#F0EBE5] animate-pulse" />
+          <view class="p-3 space-y-2">
+            <view class="h-4 w-3/4 bg-[#F0EBE5] rounded animate-pulse" />
+            <view class="h-3 w-1/2 bg-[#F0EBE5] rounded animate-pulse" />
+            <view class="h-5 w-24 bg-[#F0EBE5] rounded animate-pulse" />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Banner -->
+    <view v-else class="bg-gradient-to-r from-orange-500 to-red-500 px-4 py-4">
+      <view class="flex items-center justify-between">
+        <view>
+          <text class="text-white/80 text-xs mb-0.5 block">限时抢购</text>
+          <text class="text-white text-lg font-black">距结束还剩</text>
+        </view>
+        <view class="flex items-center gap-1 font-mono text-white" v-if="activeSessionObj?.status === 'active'">
+          <text class="bg-white/20 rounded px-1.5 py-1 text-sm font-bold">{{ cdh }}</text>
+          <text class="text-xs">:</text>
+          <text class="bg-white/20 rounded px-1.5 py-1 text-sm font-bold">{{ cdm }}</text>
+          <text class="text-xs">:</text>
+          <text class="bg-white/20 rounded px-1.5 py-1 text-sm font-bold">{{ cds }}</text>
+        </view>
+        <text v-else class="text-white text-sm">即将开始</text>
+      </view>
+    </view>
+
+    <!-- Sessions -->
+    <view class="flex border-b border-[#E8E0D5] bg-white">
+      <view
+        v-for="s in sessions"
+        :key="s.id"
+        class="flex-1 py-3 text-center transition-colors border-b-2 cursor-pointer"
+        :class="activeSession === s.id ? 'border-[#C41E3A]' : 'border-transparent'"
+        @click="activeSession = s.id"
+      >
+        <text class="text-sm font-medium block" :class="activeSession === s.id ? 'text-[#C41E3A]' : 'text-[#2C2C2C]'">{{ s.label }}</text>
+        <text class="text-xs block mt-0.5" :class="s.status === 'active' ? 'text-orange-500' : 'text-[#999]'">
+          {{ s.status === 'past' ? '已结束' : s.status === 'active' ? '进行中' : '即将开始' }}
+        </text>
+      </view>
+    </view>
+
+    <!-- 当前场次状态提示 -->
+    <view
+      v-if="activeSessionObj"
+      class="px-4 py-2 flex items-center justify-between"
+      :class="activeSessionObj.status === 'active' ? 'bg-orange-50' : 'bg-[#F5F1EB]'"
+    >
+      <text class="text-xs" :class="activeSessionObj.status === 'active' ? 'text-orange-600' : 'text-[#999]'">
+        {{ activeSessionObj.status === 'active' ? '🔥 正在抢购中，手慢无！' : activeSessionObj.status === 'upcoming' ? '🕐 即将开始，请提前关注' : '📋 本场已结束' }}
+      </text>
+      <text v-if="activeSessionObj.status === 'upcoming'" class="text-xs text-[#C41E3A] font-medium">设置提醒 →</text>
+    </view>
+
+    <!-- 排序栏 -->
+    <view class="px-4 pt-2 flex items-center justify-between">
+      <view class="flex items-center gap-2">
+        <text class="text-xs text-[#999]">共 {{ sessionCourses.length }} 门课程</text>
+        <text v-if="isUpcoming" class="text-[10px] px-1.5 py-0.5 bg-[#C9A96E]/10 text-[#C9A96E] rounded-full">即将开始</text>
+      </view>
+      <view class="flex gap-2">
+        <text class="text-xs text-[#C41E3A] font-medium">综合排序 ▼</text>
+      </view>
+    </view>
+
+    <!-- 热门标签 -->
+    <view class="px-4 pt-2 flex gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide">
+      <view
+        v-for="tag in hotTags"
+        :key="tag"
+        @click="activeTag = tag"
+        class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
+        :class="activeTag === tag ? 'bg-[#C41E3A] text-white border-[#C41E3A]' : 'bg-white text-[#999] border-[#E8E0D5]'"
+      >
+        {{ tag }}
+      </view>
+    </view>
+
+    <!-- 活动倒计时横幅 -->
+    <view class="px-4 pt-3">
+      <view class="bg-[#FFF8F0] rounded-xl p-3 border border-orange-200 flex items-center justify-between">
+        <view class="flex items-center gap-2">
+          <text class="text-orange-500">🔥</text>
+          <text class="text-xs text-[#2C2C2C]">限时特惠进行中 · {{ formatTime(now) }}</text>
+        </view>
+        <text class="text-[10px] text-[#C41E3A] font-medium">查看全部 ></text>
+      </view>
+    </view>
+
+    <!-- 课程列表 -->
+    <view class="px-4 pt-3 pb-20 space-y-4">
+      <template v-if="sessionCourses.length > 0">
+        <view v-for="course in sessionCourses" :key="course.id" class="bg-white border border-[#E8E0D5] rounded-xl overflow-hidden">
+          <view class="relative">
+            <image :src="course.cover" mode="aspectFill" class="w-full h-40" />
+            <view class="absolute top-2 left-2 flex gap-1">
+              <text class="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ course.discount }}折</text>
+              <text class="bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">{{ course.category }}</text>
+            </view>
+            <view v-if="course.sold >= course.total" class="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <text class="text-white text-lg font-bold bg-black/60 px-4 py-2 rounded-lg">已售罄</text>
+            </view>
+          </view>
+          <view class="p-3">
+            <text class="text-sm font-semibold text-[#2C2C2C] mb-1 line-clamp-1 block">{{ course.title }}</text>
+            <view class="flex items-center gap-2 text-xs text-[#999] mb-2">
+              <text>{{ course.instructor }}</text>
+              <text>⭐ {{ course.rating }}</text>
+              <text>👥 {{ (course.students / 1000).toFixed(1) }}k</text>
+            </view>
+            <view class="flex items-center justify-between mb-2">
+              <view>
+                <text class="text-lg font-black text-orange-500">¥{{ course.salePrice }}</text>
+                <text class="text-xs text-[#999] line-through ml-1">¥{{ course.originalPrice }}</text>
+                <text class="text-xs text-[#FF4D4F] ml-1">省¥{{ course.originalPrice - course.salePrice }}</text>
+              </view>
+              <text class="text-xs text-[#999]">仅剩 {{ course.total - course.sold }} 名额</text>
+            </view>
+            <view class="h-1.5 rounded-full bg-[#F2EFEA] overflow-hidden mb-3">
+              <view
+                class="h-full rounded-full transition-all"
+                :class="course.sold / course.total > 0.8 ? 'bg-red-500' : 'bg-orange-500'"
+                :style="'width:' + Math.min(100, (course.sold / course.total) * 100) + '%'"
+              />
+            </view>
+            <view
+              class="w-full h-10 rounded-full flex items-center justify-center text-sm font-medium transition-colors"
+              :class="isUpcoming ? 'bg-[#F2EFEA] text-[#999]' : course.sold >= course.total ? 'bg-[#F2EFEA] text-[#999]' : 'bg-orange-500 text-white'"
+            >
+              <text v-if="isUpcoming">🕐 即将开抢</text>
+              <text v-else-if="course.sold >= course.total">已售罄</text>
+              <text v-else @click="buyCourse(course.id)">🛒 立即抢购</text>
+            </view>
+          </view>
+        </view>
+      </template>
+
+      <!-- 空状态 -->
+      <view v-else class="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-[#E8E0D5]">
+        <text class="text-4xl mb-4">📚</text>
+        <text class="text-sm text-[#999]">暂无课程</text>
+        <text class="text-xs text-[#999] mt-1">该场次暂无可售课程</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+
+interface SaleSession {
+  id: string
+  label: string
+  status: 'past' | 'active' | 'upcoming'
+}
+
+interface Course {
+  id: string
+  title: string
+  instructor: string
+  cover: string
+  originalPrice: number
+  salePrice: number
+  discount: number
+  students: number
+  rating: number
+  sessionId: string
+  sold: number
+  total: number
+  category: string
+}
+
+// 加载状态
+const loading = ref(true)
+setTimeout(() => { loading.value = false }, 600)
+
+// 实时更新时间
+const now = ref(new Date())
+let timeTimer: ReturnType<typeof setInterval> | null = null
+onMounted(() => {
+  timeTimer = setInterval(() => { now.value = new Date() }, 60000)
+})
+onUnmounted(() => {
+  if (timeTimer) clearInterval(timeTimer)
+})
+function formatTime(d: Date) {
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+const sessions: SaleSession[] = [
+  { id: '1', label: '10:00场', status: 'past' },
+  { id: '2', label: '14:00场', status: 'active' },
+  { id: '3', label: '20:00场', status: 'upcoming' },
+]
+
+// 热门标签
+const hotTags = ['全部', '八字', '紫微斗数', '奇门遁甲', '风水', '易经', '梅花易数', '六爻']
+const activeTag = ref('全部')
+
+const courses: Course[] = [
+  { id: '1', title: '八字入门实战课', instructor: '周易大师', cover: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=300', originalPrice: 299, salePrice: 99, discount: 33, students: 2680, rating: 4.9, sessionId: '2', sold: 180, total: 200, category: '八字' },
+  { id: '2', title: '紫微斗数精讲班', instructor: '张玄风', cover: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=300', originalPrice: 499, salePrice: 149, discount: 30, students: 1520, rating: 4.8, sessionId: '2', sold: 95, total: 100, category: '紫微' },
+  { id: '3', title: '奇门遁甲高阶课', instructor: '林奇门', cover: 'https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=300', originalPrice: 399, salePrice: 128, discount: 32, students: 980, rating: 4.7, sessionId: '2', sold: 48, total: 80, category: '奇门' },
+  { id: '4', title: '风水堪舆实操班', instructor: '王德华', cover: 'https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=300', originalPrice: 599, salePrice: 199, discount: 33, students: 860, rating: 4.8, sessionId: '3', sold: 0, total: 50, category: '风水' },
+  { id: '5', title: '易经六十四卦速解', instructor: '李玄机', cover: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300', originalPrice: 199, salePrice: 59, discount: 30, students: 3400, rating: 4.6, sessionId: '3', sold: 0, total: 100, category: '易经' },
+  { id: '6', title: '梅花易数占卜技巧', instructor: '邵康节弟子', cover: 'https://images.unsplash.com/photo-1589903308904-1010c2294adc?w=300', originalPrice: 259, salePrice: 79, discount: 30, students: 1200, rating: 4.5, sessionId: '1', sold: 200, total: 200, category: '梅花易数' },
+  { id: '7', title: '六爻预测实战精讲', instructor: '刘伯温传人', cover: 'https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?w=300', originalPrice: 359, salePrice: 109, discount: 30, students: 750, rating: 4.7, sessionId: '2', sold: 35, total: 60, category: '六爻' },
+  { id: '8', title: '大六壬预测入门', instructor: '陈六壬', cover: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?w=300', originalPrice: 459, salePrice: 139, discount: 30, students: 520, rating: 4.6, sessionId: '3', sold: 0, total: 40, category: '六壬' },
+]
+
+const activeSession = ref('2')
+const countdownSecs = ref(3600)
+let timer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  timer = setInterval(() => {
+    countdownSecs.value = Math.max(0, countdownSecs.value - 1)
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
+
+const activeSessionObj = computed(() => sessions.find(s => s.id === activeSession.value))
+const sessionCourses = computed(() => courses.filter(c => c.sessionId === activeSession.value))
+const isUpcoming = computed(() => activeSessionObj.value?.status === 'upcoming')
+
+const cdh = computed(() => pad(Math.floor(countdownSecs.value / 3600)))
+const cdm = computed(() => pad(Math.floor((countdownSecs.value % 3600) / 60)))
+const cds = computed(() => pad(countdownSecs.value % 60))
+
+function pad(n: number) { return String(n).padStart(2, '0') }
+
+function buyCourse(id: string) {
+  uni.navigateTo({ url: `/pages/courses/detail/index?id=${id}` })
+}
+
+function goBack() { uni.navigateBack() }
+
+// 活动标签颜色
+function tagColor(idx: number): string {
+  const colors = ['bg-red-100 text-red-600', 'bg-blue-100 text-blue-600', 'bg-green-100 text-green-600', 'bg-purple-100 text-purple-600', 'bg-amber-100 text-amber-600']
+  return colors[idx % colors.length]
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

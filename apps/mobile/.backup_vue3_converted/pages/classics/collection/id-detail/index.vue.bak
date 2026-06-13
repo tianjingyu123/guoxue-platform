@@ -1,0 +1,174 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-6">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-50 bg-[#FAF8F5]/80 backdrop-blur-sm">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view @click="goBack" class="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center shadow-sm">
+          <text class="text-base">←</text>
+        </view>
+        <view class="flex items-center gap-2">
+          <view class="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center shadow-sm">
+            <text class="text-base">📤</text>
+          </view>
+          <view @click="showMore" class="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center shadow-sm">
+            <text class="text-lg">⋯</text>
+          </view>
+        </view>
+      </view>
+    </header>
+
+    <!-- 封面区域 -->
+    <view class="mx-4 rounded-2xl p-6 bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/30">
+      <text class="bg-[#F5F1EB] text-[10px] px-2 py-0.5 rounded inline-block mb-3">精选书单</text>
+      <text class="text-xl font-bold block mb-2">{{ collection.title }}</text>
+      <text class="text-sm text-[#999] leading-relaxed block mb-4">{{ collection.description }}</text>
+      <view class="flex items-center gap-4 text-xs text-[#999] mb-4">
+        <text>{{ collection.curator }}</text>
+        <text>·</text>
+        <text>{{ collection.bookCount }}本</text>
+        <text>·</text>
+        <text>{{ (collection.viewCount / 10000).toFixed(1) }}万人看过</text>
+      </view>
+      <view class="flex items-center gap-2">
+        <text v-for="(tag, i) in collection.tags" :key="i" class="text-[10px] bg-white/50 dark:bg-black/20 border border-[#E8E0D5] px-2 py-0.5 rounded">{{ tag }}</text>
+      </view>
+    </view>
+
+    <!-- 书籍预览 + 操作 -->
+    <view class="px-4 py-4 -mt-4">
+      <view class="flex -space-x-2 mb-4">
+        <view v-for="(book, i) in collection.books.slice(0, 5)" :key="book.id"
+          class="w-10 h-14 rounded-sm flex items-center justify-center border-2 border-card shadow-md bg-[#f5f0e1]"
+          :style="{ zIndex: 5 - i }">
+          <text class="text-[7px] font-serif font-bold text-[#4a3f2f]">{{ book.title.slice(0, 2) }}</text>
+        </view>
+        <view v-if="collection.books.length > 5" class="w-10 h-14 rounded-sm bg-[#F5F1EB] flex items-center justify-center border-2 border-card shadow-md text-xs text-[#999]">
+          +{{ collection.books.length - 5 }}
+        </view>
+      </view>
+      <view class="flex gap-3">
+        <view @click="isAddedToShelf = !isAddedToShelf" :class="['flex-1 rounded-full py-2 text-sm text-center', isAddedToShelf ? 'bg-[#F5F1EB]' : 'bg-[#C41E3A] text-white']">
+          <text>{{ isAddedToShelf ? '已加入书架' : '加入书架' }}</text>
+        </view>
+        <view @click="goTo('/pages/reader/' + (collection.books[0]?.id || '1'))" class="flex-1 rounded-full py-2 text-sm text-center border border-[#E8E0D5]">
+          <text>📖 开始阅读</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 书单内容 -->
+    <section class="px-4 pt-2">
+      <view class="flex items-center justify-between mb-4">
+        <text class="font-medium">书单内容</text>
+        <text class="text-xs text-[#999]">{{ collection.books.length }}本</text>
+      </view>
+      <view class="space-y-3">
+        <view v-for="(book, i) in collection.books" :key="book.id" @click="goTo('/pages/classics/' + book.id + '/id-detail')" class="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#E8E0D5]/50">
+          <text :class="['w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0', i < 3 ? 'bg-amber-500 text-white' : 'bg-[#F5F1EB] text-[#999]']">{{ i + 1 }}</text>
+          <view class="w-10 h-14 rounded-sm flex-shrink-0 flex items-center justify-center relative bg-[#f5f0e1] border border-[#c9b896]/50 shadow-sm">
+            <view class="absolute left-0 top-0 bottom-0 w-1 bg-[#d4c4a8] rounded-l-sm" />
+            <text class="text-[8px] font-serif font-bold text-[#4a3f2f]">{{ book.title.slice(0, 2) }}</text>
+            <text v-if="book.hasAI" class="absolute top-0.5 right-0.5 w-3 h-3 rounded-full bg-purple-500 flex items-center justify-center">
+              <text class="text-white text-[6px]">✨</text>
+            </text>
+          </view>
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center gap-2 mb-0.5">
+              <text class="font-medium text-sm">{{ book.title }}</text>
+              <text v-if="book.hasTranslation" class="text-[9px] px-1 py-0 bg-amber-100 text-amber-700 rounded">译文</text>
+            </view>
+            <text class="text-xs text-[#999] block">[{{ book.dynasty }}] {{ book.author }}</text>
+            <text class="text-xs text-[#999]/70 block line-clamp-1 mt-0.5">{{ book.description }}</text>
+          </view>
+          <text class="text-[#999]">›</text>
+        </view>
+      </view>
+    </section>
+
+    <!-- 相关书单 -->
+    <section class="px-4 pt-6">
+      <text class="font-medium block mb-4">相关书单</text>
+      <view class="flex gap-3 overflow-x-auto pb-1">
+        <view v-for="col in relatedCollections" :key="col.id" @click="goTo('/pages/classics/collection/' + col.id + '/id-detail')" class="flex-shrink-0">
+          <view class="w-48 overflow-hidden bg-white rounded-xl border border-[#E8E0D5]/60">
+            <view class="h-20 p-3" :style="{ backgroundImage: gradientFromCover(col.cover), backgroundBlendMode: 'normal' }">
+              <text class="font-medium text-sm block">{{ col.title }}</text>
+              <text class="text-[10px] text-[#999] block mt-0.5 line-clamp-1">{{ col.description }}</text>
+            </view>
+            <view class="p-2 flex items-center justify-between">
+              <text class="text-[10px] text-[#999]">{{ col.bookCount }}本</text>
+              <text class="text-[#999]">›</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </section>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface CollectionBook { id: string; title: string; author: string; dynasty: string; description: string; hasAI: boolean; hasTranslation: boolean; coverColor: string }
+interface CollectionDetail { id: string; title: string; description: string; cover: string; curator: string; bookCount: number; viewCount: number; tags: string[]; books: CollectionBook[] }
+
+const collectionsData: Record<string, CollectionDetail> = {
+  "1": {
+    id: "1", title: "国学经典必读", description: "入门必备，经典永流传。精选中华文化精髓，从周易到论语，带你走进国学的大门。",
+    cover: "from-amber-100 to-amber-200", curator: "热卜国学编辑部", bookCount: 12, viewCount: 28600,
+    tags: ["入门", "经典", "推荐"],
+    books: [
+      { id: "1", title: "周易", author: "伏羲", dynasty: "周", description: "群经之首，大道之源", hasAI: true, hasTranslation: true, coverColor: "cream" },
+      { id: "2", title: "道德经", author: "老子", dynasty: "春秋", description: "道法自然，无为而治", hasAI: true, hasTranslation: true, coverColor: "brown" },
+      { id: "3", title: "论语", author: "孔子门人", dynasty: "春秋", description: "仁义礼智，修身齐家", hasAI: true, hasTranslation: true, coverColor: "blue" },
+      { id: "4", title: "孟子", author: "孟轲", dynasty: "战国", description: "性善之论，王道仁政", hasAI: true, hasTranslation: true, coverColor: "green" },
+      { id: "5", title: "大学", author: "曾子", dynasty: "战国", description: "修身治国，格物致知", hasAI: true, hasTranslation: true, coverColor: "gray" },
+      { id: "6", title: "中庸", author: "子思", dynasty: "战国", description: "天命之谓性，中和之道", hasAI: true, hasTranslation: true, coverColor: "cream" },
+    ]
+  },
+  "2": {
+    id: "2", title: "命理入门书单", description: "八字命理学习路径，从入门到精通。精选历代命理经典，系统学习命理之道。",
+    cover: "from-purple-100 to-purple-200", curator: "命理研究室", bookCount: 8, viewCount: 15800,
+    tags: ["命理", "八字", "进阶"],
+    books: [
+      { id: "10", title: "滴天髓", author: "刘基", dynasty: "明", description: "八字命理经典，字字珠玑", hasAI: true, hasTranslation: true, coverColor: "cream" },
+      { id: "11", title: "子平真诠", author: "沈孝瞻", dynasty: "清", description: "格局用神，系统阐述", hasAI: true, hasTranslation: true, coverColor: "brown" },
+      { id: "12", title: "穷通宝鉴", author: "余春台", dynasty: "清", description: "调候用神，实用参考", hasAI: true, hasTranslation: true, coverColor: "blue" },
+      { id: "13", title: "三命通会", author: "万民英", dynasty: "明", description: "命理大全，包罗万象", hasAI: true, hasTranslation: true, coverColor: "green" },
+    ]
+  }
+}
+
+const collectionId = ref("1")
+const isAddedToShelf = ref(false)
+
+onMounted(() => {
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1]
+  const route = currentPage.$page?.fullPath || ''
+  const id = route.match(/\/collection\/(\d+)/)?.[1] || "1"
+  collectionId.value = id
+})
+
+const collection = computed(() => collectionsData[collectionId.value] || collectionsData["1"])
+const relatedCollections = computed(() => Object.values(collectionsData).filter(c => c.id !== collectionId.value))
+
+function showMore() {
+  uni.showActionSheet({ itemList: ['下载全部'], success: () => {} })
+}
+
+function gradientFromCover(cover: string): string {
+  const map: Record<string, string> = {
+    'from-amber-100 to-amber-200': 'linear-gradient(135deg, #fef3c7, #fde68a)',
+    'from-purple-100 to-purple-200': 'linear-gradient(135deg, #f3e8ff, #e9d5ff)',
+  }
+  return map[cover] || 'linear-gradient(135deg, #fef3c7, #fde68a)'
+}
+
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,416 @@
+<template>
+  <view class="min-h-screen bg-background pb-20">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50" style="background-color:#C41E3A">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view class="p-2 -ml-2 rounded-full" hover-class="bg-white/10" @click="goTo('/operator/dashboard')">
+          <text class="text-white text-lg">←</text>
+        </view>
+        <text class="font-medium text-white">名额管理</text>
+        <view class="w-9" />
+      </view>
+    </view>
+
+    <!-- 名额概览 -->
+    <view class="px-4 mt-4">
+      <view class="p-4 rounded-xl" style="background:linear-gradient(135deg,#C41E3A,#C41E3acc)">
+        <view class="flex items-center justify-between mb-4">
+          <text class="font-medium text-white flex items-center gap-2">
+            <text class="text-base">📦</text>
+            <text>分站名额</text>
+          </text>
+          <view class="bg-white/20 text-white px-2 py-0.5 rounded text-[10px]">
+            <text>¥{{ quotaData.price }}/个</text>
+          </view>
+        </view>
+
+        <view class="grid grid-cols-5 gap-2 text-center">
+          <view class="p-2 bg-white/10 rounded-lg">
+            <text class="text-xl font-bold text-white">{{ quotaData.total }}</text>
+            <text class="text-[10px] text-white/70 block">总名额</text>
+          </view>
+          <view class="p-2 bg-white/10 rounded-lg">
+            <text class="text-xl font-bold text-white">{{ quotaData.used }}</text>
+            <text class="text-[10px] text-white/70 block">自用</text>
+          </view>
+          <view class="p-2 bg-white/10 rounded-lg">
+            <text class="text-xl font-bold" style="color:#22C55E">{{ quotaData.sold }}</text>
+            <text class="text-[10px] text-white/70 block">已售</text>
+          </view>
+          <view class="p-2 bg-white/10 rounded-lg">
+            <text class="text-xl font-bold" style="color:#C9A96E">{{ quotaData.gifted }}</text>
+            <text class="text-[10px] text-white/70 block">已赠</text>
+          </view>
+          <view class="p-2 bg-white/10 rounded-lg">
+            <text class="text-xl font-bold" style="color:#C9A96E">{{ quotaData.available }}</text>
+            <text class="text-[10px] text-white/70 block">可用</text>
+          </view>
+        </view>
+
+        <view class="mt-4 p-3 bg-white/10 rounded-lg">
+          <text class="text-sm text-white">
+            已售名额收入：<text class="font-bold" style="color:#22C55E">¥{{ quotaData.sold * quotaData.price }}</text>
+          </text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 操作区 -->
+    <view class="px-4 mt-4">
+      <view class="p-4 bg-white rounded-xl">
+        <text class="font-medium text-foreground mb-3 block">分配名额</text>
+
+        <view class="grid grid-cols-2 gap-3">
+          <!-- 分享销售链接 -->
+          <view class="p-4 rounded-xl text-left" style="background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,197,94,0.05));border:1px solid rgba(34,197,94,0.3)" @click="showQrDialog = true">
+            <view class="w-10 h-10 rounded-xl flex items-center justify-center mb-2" style="background-color:rgba(34,197,94,0.2)">
+              <text class="text-lg" style="color:#22C55E"></text>
+            </view>
+            <text class="font-medium text-sm text-foreground">分享购买链接</text>
+            <text class="text-[10px] text-muted-foreground block mt-0.5">用户付费¥{{ quotaData.price }}购买</text>
+          </view>
+
+          <!-- 免费赠送 -->
+          <view
+            :class="['p-4 rounded-xl border text-left transition-colors', quotaData.available > 0 ? 'border-gold/30' : 'border-muted bg-[#F1EDE8]/50']"
+            :style="quotaData.available > 0 ? 'background:linear-gradient(135deg,rgba(201,169,110,0.1),rgba(201,169,110,0.05))' : ''"
+            @click="handleGiftClick"
+          >
+            <view :class="['w-10 h-10 rounded-xl flex items-center justify-center mb-2', quotaData.available > 0 ? 'bg-gold/20' : 'bg-[#F1EDE8]']">
+              <text :class="['text-lg', quotaData.available > 0 ? 'text-accent' : 'text-muted-foreground']">🎁</text>
+            </view>
+            <text :class="['font-medium text-sm', quotaData.available === 0 ? 'text-muted-foreground' : 'text-foreground']">免费赠送</text>
+            <text class="text-[10px] text-muted-foreground block mt-0.5">
+              {{ quotaData.available > 0 ? '剩余' + quotaData.available + '个可赠送' : '暂无可用名额' }}
+            </text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Tab切换 -->
+    <view class="px-4 mt-4">
+      <view class="flex bg-[#F1EDE8] rounded-lg p-1">
+        <view
+          class="flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors"
+          :class="activeTab === 'manage' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground'"
+          @click="activeTab = 'manage'"
+        >
+          <text>名额记录</text>
+        </view>
+        <view
+          class="flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors"
+          :class="activeTab === 'rules' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground'"
+          @click="activeTab = 'rules'"
+        >
+          <text>使用规则</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 名额记录 -->
+    <view v-if="activeTab === 'manage'" class="px-4 mt-4">
+      <view class="space-y-3">
+        <view v-for="record in quotaRecords" :key="record.id" class="p-4 bg-white rounded-xl">
+          <view class="flex items-center gap-3">
+            <view :class="['w-10 h-10 rounded-xl flex items-center justify-center', record.type === 'self' ? 'bg-operator/10' : record.type === 'sold' ? 'bg-success/10' : 'bg-gold/10']">
+              <text v-if="record.type === 'self'" class="text-xl" style="color:#C41E3A"></text>
+              <text v-else-if="record.type === 'sold'" class="text-xl" style="color:#22C55E"></text>
+              <text v-else class="text-xl" style="color:#C9A96E">🎁</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-2">
+                <text class="font-medium text-sm text-foreground">{{ record.name }}</text>
+                <view
+                  :class="['text-[10px] px-2 py-0.5 rounded', record.type === 'self' ? 'text-operator bg-operator/10' : record.type === 'sold' ? 'text-success bg-success/10' : 'text-accent bg-gold/10']"
+                >
+                  <text>{{ record.type === 'self' ? '自用' : record.type === 'sold' ? '已售' : '已赠' }}</text>
+                </view>
+              </view>
+              <text class="text-xs text-muted-foreground block mt-0.5">
+                {{ record.phone ? record.phone + ' · ' : '' }}{{ record.date }}
+              </text>
+            </view>
+            <view v-if="record.type === 'sold' && record.amount" class="text-right">
+              <text class="font-bold" style="color:#22C55E">+¥{{ record.amount }}</text>
+              <text class="text-[10px] text-muted-foreground block">收入</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view v-if="quotaData.available > 0" class="mt-3 p-4 rounded-xl border-2 border-dashed border-muted text-center">
+        <text class="text-sm text-muted-foreground">剩余 {{ quotaData.available }} 个名额待分配</text>
+      </view>
+    </view>
+
+    <!-- 使用规则 -->
+    <view v-if="activeTab === 'rules'" class="px-4 mt-4">
+      <view class="p-4 bg-white rounded-xl">
+        <view class="space-y-4">
+          <view class="flex items-start gap-3">
+            <view class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style="background-color:rgba(196,30,58,0.1)">
+              <text class="text-xs font-bold" style="color:#C41E3A">1</text>
+            </view>
+            <view>
+              <text class="font-medium text-sm text-foreground">名额来源</text>
+              <text class="text-xs text-muted-foreground block mt-1">
+                成为运营商时获赠6个分站名额，其中1个自用，5个可分配给他人
+              </text>
+            </view>
+          </view>
+
+          <view class="flex items-start gap-3">
+            <view class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style="background-color:rgba(34,197,94,0.1)">
+              <text class="text-xs font-bold" style="color:#22C55E">2</text>
+            </view>
+            <view>
+              <text class="font-medium text-sm text-foreground">分享销售</text>
+              <text class="text-xs text-muted-foreground block mt-1">
+                分享购买链接，用户支付¥{{ quotaData.price }}后自动开通站长权益，款项100%归您所有
+              </text>
+            </view>
+          </view>
+
+          <view class="flex items-start gap-3">
+            <view class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style="background-color:rgba(201,169,110,0.1)">
+              <text class="text-xs font-bold" style="color:#C9A96E">3</text>
+            </view>
+            <view>
+              <text class="font-medium text-sm text-foreground">免费赠送</text>
+              <text class="text-xs text-muted-foreground block mt-1">
+                可选择免费赠送给指定用户，用于团队激励或合作伙伴
+              </text>
+            </view>
+          </view>
+
+          <view class="flex items-start gap-3">
+            <view class="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style="background-color:rgba(59,130,246,0.1)">
+              <text class="text-xs font-bold" style="color:#3B82F6">4</text>
+            </view>
+            <view>
+              <text class="font-medium text-sm text-foreground">团队奖励</text>
+              <text class="text-xs text-muted-foreground block mt-1">
+                通过您分配的名额开通的站长，其产生的入圈分佣，您额外获得5%管理奖励
+              </text>
+            </view>
+          </view>
+
+          <view class="p-3 rounded-lg" style="background-color:rgba(245,158,11,0.1)">
+            <text class="text-xs flex items-start gap-2" style="color:#B45309">
+              <text class="flex-shrink-0 mt-0.5"></text>
+              <text>名额一经分配无法收回，请谨慎操作。如需更多名额，可联系平台客服购买。</text>
+            </text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 分享链接弹窗 -->
+    <view v-if="showQrDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click="showQrDialog = false">
+      <view class="w-full max-w-lg mx-4 bg-white rounded-2xl" @click.stop>
+        <view class="flex items-center justify-between p-4 border-b border-border">
+          <text class="font-semibold text-foreground">分享购买链接</text>
+          <view @click="showQrDialog = false" class="p-1">
+            <text class="text-lg">✕</text>
+          </view>
+        </view>
+
+        <view class="p-4 space-y-4">
+          <view class="flex items-center gap-2">
+            <view class="flex-1 p-3 rounded-lg text-xs break-all" style="background-color:rgba(241,237,232,0.5)">
+              <text>{{ saleLink }}</text>
+            </view>
+          </view>
+
+          <!-- 二维码占位 -->
+          <view class="aspect-square max-w-[200px] mx-auto rounded-xl flex items-center justify-center" style="background-color:rgba(241,237,232,0.5)">
+            <view class="text-center">
+              <text class="text-6xl block mb-2"></text>
+              <text class="text-xs text-muted-foreground">购买二维码</text>
+            </view>
+          </view>
+
+          <view class="text-center">
+            <text class="text-sm font-medium text-foreground">购买价格：</text>
+            <text class="font-bold" style="color:#C41E3A">¥{{ quotaData.price }}</text>
+            <text class="text-xs text-muted-foreground block mt-1">款项100%归您所有</text>
+          </view>
+
+          <view class="flex gap-2">
+            <view class="flex-1 py-3 rounded-xl border border-border text-sm text-center" @click="handleCopy">
+              <text v-if="copied" class="mr-1">✓</text>
+              <text v-else class="mr-1"></text>
+              <text>{{ copied ? '已复制' : '复制链接' }}</text>
+            </view>
+            <view class="flex-1 py-3 rounded-xl text-sm text-center text-white" style="background-color:#C41E3A" @click="showQrDialog = false">
+              <text class="mr-1"></text>
+              <text>分享</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 免费赠送弹窗 -->
+    <view v-if="showGiftDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" @click="handleCloseGift">
+      <view class="w-full max-w-lg mx-4 bg-white rounded-2xl" @click.stop>
+        <view class="flex items-center justify-between p-4 border-b border-border">
+          <text class="font-semibold text-foreground">免费赠送名额</text>
+          <view @click="handleCloseGift" class="p-1">
+            <text class="text-lg">✕</text>
+          </view>
+        </view>
+
+        <view class="p-4 space-y-4">
+          <!-- 搜索用户 -->
+          <view>
+            <text class="text-sm font-medium text-foreground mb-2 block">用户手机号</text>
+            <view class="flex gap-2">
+              <input
+                class="flex-1 p-3 rounded-lg border border-border text-sm"
+                placeholder="请输入手机号"
+                :value="giftPhone"
+                @input="giftPhone = $event.detail.value"
+                maxlength="11"
+              />
+              <view
+                class="px-4 py-3 rounded-lg border border-border text-sm"
+                :class="isSearching || giftPhone.length < 11 ? 'opacity-60' : ''"
+                @click="handleSearch"
+              >
+                <text>{{ isSearching ? '搜索中...' : ' 搜索' }}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 搜索结果 -->
+          <view v-if="searchResult" class="p-4 rounded-xl" style="background-color:rgba(241,237,232,0.5)">
+            <view class="flex items-center gap-3">
+              <view class="w-12 h-12 rounded-full flex items-center justify-center" style="background-color:rgba(201,169,110,0.1)">
+                <text class="text-2xl" style="color:#C9A96E"></text>
+              </view>
+              <view class="flex-1">
+                <text class="font-medium text-foreground">{{ searchResult.name }}</text>
+                <text class="text-xs text-muted-foreground block">{{ searchResult.phone }}</text>
+              </view>
+              <view class="px-2 py-0.5 rounded text-[10px]" style="background-color:rgba(34,197,94,0.1);color:#22C55E">
+                <text>已找到</text>
+              </view>
+            </view>
+
+            <view class="mt-3">
+              <text class="text-xs text-muted-foreground mb-1 block">赠送备注（选填）</text>
+              <input
+                class="w-full p-3 rounded-lg border border-border text-sm"
+                placeholder="例如：合作伙伴激励"
+                :value="giftName"
+                @input="giftName = $event.detail.value"
+              />
+            </view>
+          </view>
+
+          <view class="p-3 rounded-lg" style="background-color:rgba(245,158,11,0.1)">
+            <text class="text-xs flex items-start gap-2" style="color:#B45309">
+              <text class="flex-shrink-0 mt-0.5"></text>
+              <text>赠送后名额无法收回，对方将立即获得1年站长权益</text>
+            </text>
+          </view>
+
+          <view class="flex gap-2">
+            <view class="flex-1 py-3 rounded-xl border border-border text-sm text-center" @click="handleCloseGift">
+              <text>取消</text>
+            </view>
+            <view
+              class="flex-1 py-3 rounded-xl text-sm text-center text-white"
+              :class="searchResult ? '' : 'opacity-50'"
+              style="background-color:#C9A96E"
+              @click="handleGift"
+            >
+              <text class="mr-1">🎁</text>
+              <text>确认赠送</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const activeTab = ref('manage')
+const copied = ref(false)
+const showGiftDialog = ref(false)
+const showQrDialog = ref(false)
+const giftPhone = ref('')
+const giftName = ref('')
+const searchResult = ref<{ name: string; phone: string } | null>(null)
+const isSearching = ref(false)
+
+const quotaData = {
+  total: 6,
+  used: 1,
+  sold: 3,
+  gifted: 0,
+  available: 2,
+  price: 999,
+}
+
+const quotaRecords = [
+  { id: 1, type: 'self' as const, name: '自用开站', date: '2024-01-01', status: 'active' as const },
+  { id: 2, type: 'sold' as const, name: '张***', phone: '138****8888', date: '2024-02-15', amount: 999, status: 'active' as const },
+  { id: 3, type: 'sold' as const, name: '李***', phone: '139****9999', date: '2024-03-20', amount: 999, status: 'active' as const },
+  { id: 4, type: 'sold' as const, name: '王***', phone: '137****7777', date: '2024-05-10', amount: 999, status: 'active' as const },
+]
+
+const saleLink = `https://rebu.com/join/station?ref=OP12345&price=${quotaData.price}`
+
+function handleCopy() {
+  uni.setClipboardData({ data: saleLink })
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
+}
+
+function handleSearch() {
+  if (!giftPhone.value || giftPhone.value.length < 11) return
+  isSearching.value = true
+  setTimeout(() => {
+    searchResult.value = {
+      name: '张三丰',
+      phone: giftPhone.value.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2'),
+    }
+    isSearching.value = false
+  }, 1000)
+}
+
+function handleGiftClick() {
+  if (quotaData.available > 0) {
+    showGiftDialog.value = true
+  }
+}
+
+function handleGift() {
+  if (!searchResult.value) return
+  showGiftDialog.value = false
+  giftPhone.value = ''
+  giftName.value = ''
+  searchResult.value = null
+}
+
+function handleCloseGift() {
+  showGiftDialog.value = false
+  giftPhone.value = ''
+  giftName.value = ''
+  searchResult.value = null
+}
+
+function goTo(path: string) {
+  uni.navigateTo({ url: path })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,248 @@
+<template>
+  <view class="min-h-screen bg-background pb-28">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-border/50">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view @click="goBack" class="w-9 h-9 rounded-full bg-secondary/80 flex items-center justify-center">
+          <text class="text-base">←</text>
+        </view>
+        <view class="flex items-center gap-2">
+          <text class="text-xs border border-border px-2 py-0.5 rounded">简繁</text>
+        </view>
+        <view @click="handleShare" class="w-9 h-9 rounded-full bg-secondary/80 flex items-center justify-center">
+          <text class="text-base"></text>
+        </view>
+      </view>
+    </header>
+
+    <view v-if="isLoading || !book" class="p-4 space-y-4">
+      <view class="flex gap-4">
+        <view class="w-28 h-[150px] bg-secondary rounded-lg animate-pulse" />
+        <view class="flex-1 space-y-2">
+          <view class="h-6 bg-secondary rounded w-3/4 animate-pulse" />
+          <view class="h-4 bg-secondary rounded w-1/2 animate-pulse" />
+          <view class="h-4 bg-secondary rounded w-2/3 animate-pulse" />
+        </view>
+      </view>
+      <view class="h-24 bg-secondary rounded-xl animate-pulse" />
+      <view v-for="i in 4" :key="i" class="h-12 bg-secondary rounded-xl animate-pulse" />
+    </view>
+
+    <template v-if="book">
+      <!-- 书籍封面区 -->
+      <section class="px-4 py-6">
+        <view class="flex gap-4">
+          <view class="w-28 h-[150px] rounded-lg overflow-hidden shadow-lg flex-shrink-0 relative bg-gradient-to-b from-amber-100 via-amber-50 to-amber-100 dark:from-amber-900/60 dark:via-amber-800/40 dark:to-amber-900/60">
+            <view class="absolute left-0 top-0 bottom-0 w-2.5 bg-gradient-to-r from-amber-700/40 via-amber-600/20 to-transparent" />
+            <view class="absolute inset-0 flex items-center justify-center p-2">
+              <text class="text-xl font-serif font-bold text-amber-900 dark:text-amber-200 tracking-widest">{{ book.title }}</text>
+            </view>
+            <view class="absolute bottom-2 left-0 right-0 text-center">
+              <text class="text-[9px] text-amber-700/70 dark:text-amber-300/70">{{ book.author.split("/")[0] }}</text>
+            </view>
+          </view>
+          <view class="flex-1 min-w-0 flex flex-col justify-between">
+            <view>
+              <text class="font-serif text-xl font-bold block mb-1">{{ book.title }}</text>
+              <text class="text-sm text-muted-foreground block mb-2">[{{ book.dynasty }}] {{ book.author }}</text>
+              <view class="flex flex-wrap gap-1.5 mb-3">
+                <text class="bg-secondary text-[10px] px-2 py-0.5 rounded">{{ book.version }}</text>
+                <text v-if="book.hasTranslation" class="bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 text-[10px] px-2 py-0.5 rounded">译文</text>
+                <text v-if="book.hasAudio" class="bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 text-[10px] px-2 py-0.5 rounded">听书</text>
+                <text v-if="book.hasAI" class="bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 text-[10px] px-2 py-0.5 rounded flex items-center gap-0.5">
+                  <text></text>AI
+                </text>
+              </view>
+            </view>
+            <view class="flex items-center gap-4 text-xs text-muted-foreground">
+              <text><text class="text-amber-400"></text>{{ book.rating }}</text>
+              <text><text></text>{{ (book.reads / 10000).toFixed(1) }}万</text>
+              <text><text></text>{{ book.totalChapters }}篇</text>
+            </view>
+          </view>
+        </view>
+      </section>
+
+      <!-- 书籍简介 -->
+      <section class="px-4 pb-4">
+        <view class="bg-gradient-to-br from-amber-50/50 to-orange-50/50 dark:from-amber-950/30 dark:to-orange-950/30 rounded-xl p-4 border border-amber-200/50 dark:border-amber-800/50">
+          <view class="flex items-center gap-1.5 mb-2">
+            <text class="text-amber-600"></text>
+            <text class="text-xs font-medium text-amber-700 dark:text-amber-300">书籍简介</text>
+          </view>
+          <text class="text-sm text-foreground/90 leading-relaxed block">{{ book.aiSummary }}</text>
+        </view>
+      </section>
+
+      <!-- 操作按钮 -->
+      <section class="px-4 pb-4 flex gap-3">
+        <view @click="handleAddToBookshelf" :class="['flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm border', isInBookshelf ? 'border-primary text-primary' : 'border-border text-foreground']">
+          <text>{{ isInBookshelf ? '✓' : '🔖' }}</text>
+          <text>{{ isInBookshelf ? '已加书架' : '加入书架' }}</text>
+        </view>
+        <view @click="goTo('/pages/reader/' + book.id)" class="flex-1 h-11 rounded-full flex items-center justify-center gap-2 text-sm text-white bg-gradient-to-r from-amber-500 to-amber-600">
+          <text>▶</text>
+          <text>开始阅读</text>
+        </view>
+      </section>
+
+      <!-- 听书入口 -->
+      <section v-if="book.hasAudio" class="px-4 pb-4">
+        <view @click="goTo('/pages/classics/' + book.id + '/audio')" class="flex items-center gap-3 p-3 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 rounded-xl border border-orange-200/50 dark:border-orange-800/50">
+          <view class="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center">
+            <text class="text-white"></text>
+          </view>
+          <view class="flex-1">
+            <text class="font-medium text-sm">听书版本</text>
+            <text class="text-xs text-muted-foreground">青山先生朗读 · 全本</text>
+          </view>
+          <text class="text-muted-foreground text-lg">›</text>
+        </view>
+      </section>
+
+      <!-- 目录 -->
+      <section class="px-4 py-4">
+        <view class="flex items-center justify-between mb-3">
+          <text class="font-medium">目录</text>
+          <text class="text-xs text-muted-foreground">共{{ book.totalChapters }}卷</text>
+        </view>
+        <view class="bg-white rounded-xl border border-border/60 overflow-hidden">
+          <view v-for="(chapter, index) in displayedChapters" :key="chapter.id">
+            <view @click="chapter.hasChildren ? toggleChapter(chapter.id) : goTo('/pages/reader/' + book.id + '?chapter=' + chapter.id)" class="w-full flex items-center gap-3 px-4 py-3">
+              <text v-if="chapter.hasChildren" :class="['text-muted-foreground text-xs transition-transform', expandedChapters.has(chapter.id) ? 'rotate-180' : '']">▼</text>
+              <text v-else class="w-4" />
+              <text class="text-sm flex-1">{{ chapter.title }}</text>
+            </view>
+            <view v-if="chapter.hasChildren && chapter.children && expandedChapters.has(chapter.id)" class="bg-secondary/30">
+              <view v-for="child in chapter.children" :key="child.id" @click="goTo('/pages/reader/' + book.id + '?chapter=' + child.id)" class="flex items-center gap-3 px-4 py-2.5 pl-11">
+                <text class="text-sm text-muted-foreground">{{ child.title }}</text>
+              </view>
+            </view>
+            <view v-if="index < displayedChapters.length - 1" class="border-b border-border/50 mx-4" />
+          </view>
+          <view v-if="!showAllChapters && book.chapters.length > 6" @click="showAllChapters = true" class="w-full py-3 text-sm text-primary text-center">
+            查看全部 {{ book.chapters.length }} 个章节
+          </view>
+        </view>
+      </section>
+
+      <!-- 相关推荐 -->
+      <section class="px-4 py-4">
+        <view class="flex items-center justify-between mb-3">
+          <text class="font-medium">相关推荐</text>
+        </view>
+        <view class="flex gap-3 overflow-x-auto pb-1">
+          <view v-for="related in book.relatedBooks" :key="related.id" @click="goTo('/pages/classics/id-detail/index?id=' + related.id)" class="flex-shrink-0">
+            <view class="w-20">
+              <view class="aspect-[3/4] rounded-lg overflow-hidden relative shadow-md bg-gradient-to-b from-amber-100 via-amber-50 to-amber-100 dark:from-amber-900/60 dark:via-amber-800/40 dark:to-amber-900/60 mb-2">
+                <view class="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-r from-amber-700/40 to-transparent" />
+                <view class="absolute inset-0 flex items-center justify-center p-2">
+                  <text class="text-sm font-serif font-bold text-amber-900 dark:text-amber-200">{{ related.title }}</text>
+                </view>
+              </view>
+              <text class="text-xs text-center truncate block">{{ related.title }}</text>
+              <text class="text-[10px] text-muted-foreground text-center truncate block">{{ related.author }}</text>
+            </view>
+          </view>
+        </view>
+      </section>
+
+      <!-- 底部固定操作栏 -->
+      <view class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-border px-4 py-3">
+        <view class="flex gap-3">
+          <view @click="handleAddToBookshelf" :class="['flex-1 h-12 rounded-xl flex items-center justify-center gap-2 text-sm border', isInBookshelf ? 'border-primary text-primary' : 'border-border text-foreground']">
+            <text>{{ isInBookshelf ? '✓' : '🔖' }}</text>
+            <text>{{ isInBookshelf ? '已在书架' : '加入书架' }}</text>
+          </view>
+          <view @click="goTo('/pages/reader/' + book.id)" class="flex-1 h-12 rounded-xl flex items-center justify-center text-base text-white bg-gradient-to-r from-amber-500 to-amber-600">
+            开始阅读
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface Chapter { id: string; title: string; hasChildren?: boolean; children?: { id: string; title: string }[] }
+interface RelatedBook { id: string; title: string; author: string; dynasty: string }
+interface BookDetail {
+  id: string; title: string; author: string; dynasty: string; version: string; description: string
+  aiSummary: string; reads: number; rating: number; totalChapters: number
+  hasAI: boolean; hasAudio: boolean; hasTranslation: boolean; isFree: boolean; isInBookshelf: boolean
+  chapters: Chapter[]; relatedBooks: RelatedBook[]
+}
+
+const bookData: Record<string, BookDetail> = {
+  "1": {
+    id: "1", title: "周易", author: "伏羲/周文王/孔子", dynasty: "周", version: "通行本",
+    description: "《周易》即《易经》，是传统经典之一，相传系周文王姬昌所作，内容包括《经》和《传》两个部分。",
+    aiSummary: "想拥有健康体魄却不知从何处入手？这本汇集历代名人养生理论、六字诀八段锦等著名导引功法的古籍，不仅有李治久病黄肿通过书中方法病除的真实案例，还揭示'血随气行'调息愈顽疾的养生妙理，至今仍是养生好指引。",
+    reads: 128600, rating: 4.9, totalChapters: 64, hasAI: true, hasAudio: true, hasTranslation: true, isFree: true, isInBookshelf: false,
+    chapters: [
+      { id: "c1", title: "扉页" },
+      { id: "c2", title: "序跋", hasChildren: true, children: [{ id: "c2-1", title: "周易序" }, { id: "c2-2", title: "周易正义序" }] },
+      { id: "c3", title: "周易卷首目次" },
+      { id: "c4", title: "周易卷首", hasChildren: true },
+      { id: "c5", title: "周易上经", hasChildren: true, children: [{ id: "c5-1", title: "乾卦第一" }, { id: "c5-2", title: "坤卦第二" }, { id: "c5-3", title: "屯卦第三" }] },
+      { id: "c6", title: "周易下经", hasChildren: true },
+      { id: "c7", title: "系辞上传" }, { id: "c8", title: "系辞下传" }, { id: "c9", title: "说卦传" },
+      { id: "c10", title: "序卦传" }, { id: "c11", title: "杂卦传" }, { id: "c12", title: "结束页" },
+    ],
+    relatedBooks: [{ id: "2", title: "道德经", author: "老子", dynasty: "春秋" }, { id: "3", title: "论语", author: "孔子门人", dynasty: "春秋" }, { id: "4", title: "易传", author: "孔子", dynasty: "春秋" }]
+  },
+  "2": {
+    id: "2", title: "道德经", author: "老子", dynasty: "春秋", version: "王弼注本",
+    description: "《道德经》又称《老子》，是道家学派的经典著作，分《道经》和《德经》上下两篇，共八十一章。",
+    aiSummary: "道法自然，无为而治。老子用五千字道出宇宙至理，引领人们探寻生命本真。",
+    reads: 145600, rating: 4.9, totalChapters: 81, hasAI: true, hasAudio: true, hasTranslation: true, isFree: true, isInBookshelf: true,
+    chapters: [
+      { id: "c1", title: "扉页" }, { id: "c2", title: "序跋" },
+      { id: "c3", title: "道经（第一至第三十七章）", hasChildren: true },
+      { id: "c4", title: "德经（第三十八至第八十一章）", hasChildren: true },
+      { id: "c5", title: "结束页" },
+    ],
+    relatedBooks: [{ id: "1", title: "周易", author: "伏羲", dynasty: "周" }, { id: "6", title: "庄子", author: "庄周", dynasty: "战国" }]
+  }
+}
+
+const isLoading = ref(true)
+const book = ref<BookDetail | null>(null)
+const isInBookshelf = ref(false)
+const expandedChapters = ref<Set<string>>(new Set())
+const showAllChapters = ref(false)
+
+const displayedChapters = computed(() => {
+  return showAllChapters.value ? book.value!.chapters : book.value!.chapters.slice(0, 6)
+})
+
+function toggleChapter(chapterId: string) {
+  const next = new Set(expandedChapters.value)
+  if (next.has(chapterId)) { next.delete(chapterId) } else { next.add(chapterId) }
+  expandedChapters.value = next
+}
+
+function handleAddToBookshelf() { isInBookshelf.value = !isInBookshelf.value }
+function handleShare() { uni.showToast({ title: '已复制分享链接', icon: 'none' }) }
+
+onMounted(() => {
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1]
+  const route = currentPage.$page?.fullPath || ''
+  const id = route.match(/\/classics\/(\d+)/)?.[1] || "1"
+  setTimeout(() => {
+    book.value = bookData[id] || bookData["1"]
+    isInBookshelf.value = book.value!.isInBookshelf
+    isLoading.value = false
+  }, 600)
+})
+
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

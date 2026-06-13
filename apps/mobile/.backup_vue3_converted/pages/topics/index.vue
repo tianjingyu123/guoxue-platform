@@ -1,0 +1,265 @@
+<template>
+  <view class="min-h-screen bg-background flex flex-col">
+    <!-- 顶部导航 -->
+    <view class="flex items-center justify-between px-4 h-12 bg-white border-b border-border shrink-0">
+      <view class="p-1" @click="goBack"><text class="text-xl text-foreground">←</text></view>
+      <text class="text-base font-semibold text-foreground">话题广场</text>
+      <view class="flex items-center gap-1">
+        <text class="text-base px-1" @click="showSearch=!showSearch"></text>
+        <text class="text-base px-1" @click="showCreate=true"></text>
+      </view>
+    </view>
+
+    <!-- 搜索栏 -->
+    <view v-if="showSearch" class="px-4 py-2 bg-white border-b border-border">
+      <view class="relative">
+        <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"></text>
+        <input v-model="searchQuery" placeholder="搜索话题..." class="w-full pl-9 h-9 bg-background rounded-lg text-sm text-foreground placeholder:text-muted-foreground outline-none px-4 pr-8" />
+        <text v-if="searchQuery" class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground" @click="searchQuery=''">✕</text>
+      </view>
+    </view>
+
+    <!-- 加载骨架 -->
+    <view v-if="loading" class="flex-1 p-4">
+      <view class="animate-pulse mb-4">
+        <view class="h-4 w-24 bg-[#E8E0D5] rounded mb-3" />
+        <view class="flex gap-2 overflow-hidden">
+          <view v-for="i in 4" :key="i" class="h-24 w-36 bg-[#E8E0D5] rounded-xl shrink-0" />
+        </view>
+      </view>
+      <view class="animate-pulse">
+        <view class="flex gap-2 mb-3">
+          <view v-for="i in 5" :key="i" class="h-7 w-16 bg-[#E8E0D5] rounded-full" />
+        </view>
+        <view v-for="i in 5" :key="i" class="flex items-center gap-3 bg-white rounded-xl p-3 mb-2">
+          <view class="w-9 h-9 rounded-full bg-[#E8E0D5]" />
+          <view class="flex-1">
+            <view class="h-4 bg-[#E8E0D5] rounded w-1/3 mb-1" />
+            <view class="h-3 bg-[#E8E0D5] rounded w-1/2" />
+          </view>
+          <view class="h-7 w-14 bg-[#E8E0D5] rounded-full" />
+        </view>
+      </view>
+    </view>
+
+    <scroll-view v-else scroll-y class="flex-1 overflow-y-auto" refresher-enabled @refresherrefresh="onRefresh" :refresher-triggered="refreshing">
+      <!-- 热门话题横滑 -->
+      <view class="px-4 pt-4">
+        <view class="flex items-center justify-between mb-3">
+          <view class="flex items-center gap-1.5">
+            <text class="text-sm font-semibold text-foreground"> 热门话题</text>
+            <text class="text-[10px] text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">实时</text>
+          </view>
+          <text class="text-xs text-accent">查看全部 ›</text>
+        </view>
+        <scroll-view scroll-x class="flex gap-2.5 pb-1" show-scrollbar="false">
+          <view v-for="h in hots" :key="h.id" class="bg-white rounded-xl p-3.5 shrink-0 w-40 shadow-sm border border-border" @click="goTopic(h)">
+            <view class="flex items-center gap-1.5 mb-1.5">
+              <text v-if="h.rank <= 3" class="text-xs"></text>
+              <text class="text-sm font-medium text-primary block truncate">{{ h.name }}</text>
+            </view>
+            <view class="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <text>{{ h.count }} 讨论</text>
+              <text>{{ h.followers }} 关注</text>
+            </view>
+            <view class="flex items-center gap-1 mt-1.5">
+              <view class="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                <view class="h-full bg-gradient-to-r from-primary to-[#E74C3C] rounded-full" :style="{width: h.hot+'%'}" />
+              </view>
+              <text class="text-[10px] text-muted-foreground">{{ h.hot }}°</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 分类tab -->
+      <view class="px-4 pt-4 pb-2">
+        <scroll-view scroll-x class="flex gap-2" show-scrollbar="false">
+          <view v-for="c in categories" :key="c.key" :class="'px-4 py-1.5 rounded-full text-sm shrink-0 '+(activeCat===c.key?'bg-primary text-white shadow-sm':'bg-white text-foreground border border-border')" @click="activeCat=c.key;scrollLeft=0">
+            <text>{{ c.icon }} {{ c.name }}</text>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 话题排序 -->
+      <view class="flex items-center justify-between px-4 mb-1">
+        <text class="text-xs text-muted-foreground">{{ filteredTopics.length }} 个话题</text>
+        <view class="flex items-center gap-2 text-xs">
+          <text :class="sortBy==='hot'?'text-primary font-medium':'text-muted-foreground'" @click="sortBy='hot'"> 热门</text>
+          <text class="text-[#E8E0D5]">|</text>
+          <text :class="sortBy==='new'?'text-primary font-medium':'text-muted-foreground'" @click="sortBy='new'">🕐 最新</text>
+        </view>
+      </view>
+
+      <!-- 全部话题列表 -->
+      <view class="bg-white mx-4 my-2 rounded-xl shadow-sm border border-border">
+        <view v-for="t in filteredTopics" :key="t.id" class="flex items-center gap-3 px-4 py-3.5 border-b border-[#FAF8F5] last:border-b-0 active:bg-background" @click="goTopic(t)">
+          <view class="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0" :class="t.bg || 'bg-primary/10'">
+            <text>{{ t.icon || '' }}</text>
+          </view>
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center gap-2">
+              <text class="text-sm font-medium text-foreground truncate">{{ t.name }}</text>
+              <text v-if="t.isHot" class="px-1 py-0.5 bg-primary/10 text-primary text-[10px] rounded-full shrink-0"></text>
+              <text v-if="t.isNew" class="px-1 py-0.5 bg-green-50 text-green-600 text-[10px] rounded-full shrink-0">NEW</text>
+            </view>
+            <view class="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5">
+              <text>{{ t.count }} 讨论</text>
+              <text>{{ t.followers }} 关注</text>
+              <text v-if="t.todayCount" class="text-accent">今日 +{{ t.todayCount }}</text>
+            </view>
+          </view>
+          <view :class="'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap '+(t.joined ? 'bg-primary/10 text-primary border border-primary/30' : 'bg-secondary text-muted-foreground')" @click.stop="toggleJoin(t)">
+            <text>{{ t.joined ? '已加入' : '+ 加入' }}</text>
+          </view>
+        </view>
+        <view v-if="filteredTopics.length === 0" class="flex flex-col items-center py-12 text-muted-foreground">
+          <text class="text-4xl mb-3 opacity-40"></text>
+          <text class="text-sm">未找到相关话题</text>
+          <text class="text-xs mt-1">尝试更换关键词或分类</text>
+        </view>
+      </view>
+
+      <view class="h-6" />
+    </scroll-view>
+
+    <!-- 创建话题弹窗 -->
+    <view v-if="showCreate" class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-6" @click="showCreate=false">
+      <view class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl" @click.stop>
+        <view class="px-5 pt-5 pb-2">
+          <text class="text-base font-semibold text-foreground block text-center"> 创建新话题</text>
+        </view>
+        <view class="px-5 py-4">
+          <text class="text-xs text-muted-foreground block mb-2">话题名称</text>
+          <input v-model="newTopicName" placeholder="输入话题名称，如 #易经入门" class="w-full h-10 px-3 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground outline-none mb-3" maxlength="30" />
+          <text class="text-[10px] text-muted-foreground text-right block mb-2">{{ newTopicName.length }}/30</text>
+          <text class="text-xs text-muted-foreground block mb-2">选择分类</text>
+          <picker :range="catOptions" @change="(e:any)=>newTopicCat=catOptions[e.detail.value]">
+            <view class="w-full h-10 px-3 bg-background border border-border rounded-lg text-sm flex items-center justify-between">
+              <text :class="newTopicCat ? 'text-foreground' : 'text-muted-foreground'">{{ newTopicCat || '请选择分类' }}</text>
+              <text class="text-muted-foreground text-xs">▼</text>
+            </view>
+          </picker>
+          <text class="text-xs text-muted-foreground block mt-3">创建话题需要遵守社区规范，不得发布违规内容</text>
+        </view>
+        <view class="flex border-t border-border">
+          <view class="flex-1 h-12 flex items-center justify-center text-sm text-muted-foreground bg-background active:bg-secondary" @click="showCreate=false">取消</view>
+          <view class="flex-1 h-12 flex items-center justify-center text-sm text-white bg-primary active:bg-[#B01A31]" @click="createTopic">创建话题</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+const loading = ref(true)
+const refreshing = ref(false)
+const showSearch = ref(false)
+const showCreate = ref(false)
+const searchQuery = ref('')
+const activeCat = ref('all')
+const sortBy = ref('hot')
+const newTopicName = ref('')
+const newTopicCat = ref('')
+const scrollLeft = ref(0)
+
+const catOptions = ['国学', '命理', '风水', '易经', '诗词', '中医', '养生', '历史', '哲学', '其他']
+
+const categories = ref([
+  { key: 'all', icon: '', name: '全部' },
+  { key: 'guoxue', icon: '', name: '国学' },
+  { key: 'mingli', icon: '🧮', name: '命理' },
+  { key: 'fengshui', icon: '', name: '风水' },
+  { key: 'yijing', icon: '', name: '易经' },
+  { key: 'shici', icon: '', name: '诗词' },
+  { key: 'zhongyi', icon: '🌿', name: '中医' },
+])
+
+const hots = ref([
+  { id: 'h1', name: '#易经入门', count: 512, followers: 238, hot: 98, rank: 1 },
+  { id: 'h2', name: '#八字实战', count: 389, followers: 176, hot: 92, rank: 2 },
+  { id: 'h3', name: '#风水布局', count: 345, followers: 156, hot: 87, rank: 3 },
+  { id: 'h4', name: '#梅花易数', count: 278, followers: 132, hot: 83, rank: 4 },
+  { id: 'h5', name: '#紫微斗数', count: 256, followers: 118, hot: 80, rank: 5 },
+  { id: 'h6', name: '#奇门遁甲', count: 198, followers: 89, hot: 76, rank: 6 },
+])
+
+const topics = ref([
+  { id: '1', name: '#国学入门', icon: '', count: 128, followers: 56, isHot: false, isNew: false, joined: true, todayCount: 5, bg: 'bg-blue-50', cat: 'guoxue' },
+  { id: '2', name: '#八字命理', icon: '🧮', count: 256, followers: 89, isHot: true, isNew: false, joined: false, todayCount: 12, bg: 'bg-red-50', cat: 'mingli' },
+  { id: '3', name: '#风水实战', icon: '', count: 189, followers: 72, isHot: false, isNew: true, joined: false, todayCount: 8, bg: 'bg-green-50', cat: 'fengshui' },
+  { id: '4', name: '#唐诗三百首', icon: '', count: 312, followers: 145, isHot: true, isNew: false, joined: true, todayCount: 3, bg: 'bg-yellow-50', cat: 'shici' },
+  { id: '5', name: '#周易八卦', icon: '', count: 178, followers: 63, isHot: false, isNew: false, joined: false, todayCount: 6, bg: 'bg-purple-50', cat: 'yijing' },
+  { id: '6', name: '#奇门遁甲', icon: '🏛️', count: 98, followers: 34, isHot: false, isNew: false, joined: false, todayCount: 2, bg: 'bg-indigo-50', cat: 'mingli' },
+  { id: '7', name: '#中医养生', icon: '🌿', count: 234, followers: 112, isHot: true, isNew: false, joined: false, todayCount: 15, bg: 'bg-teal-50', cat: 'zhongyi' },
+  { id: '8', name: '#六爻占卜', icon: '', count: 145, followers: 56, isHot: false, isNew: false, joined: true, todayCount: 4, bg: 'bg-amber-50', cat: 'mingli' },
+  { id: '9', name: '#论语心得', icon: '', count: 92, followers: 41, isHot: false, isNew: false, joined: false, todayCount: 1, bg: 'bg-sky-50', cat: 'guoxue' },
+  { id: '10', name: '#诗词创作', icon: '✍️', count: 167, followers: 78, isHot: false, isNew: true, joined: false, todayCount: 9, bg: 'bg-rose-50', cat: 'shici' },
+])
+
+const filteredTopics = computed(() => {
+  let result = topics.value
+  if (activeCat.value !== 'all') {
+    result = result.filter(t => t.cat === activeCat.value)
+  }
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    result = result.filter(t => t.name.toLowerCase().includes(q))
+  }
+  if (sortBy.value === 'hot') {
+    result = [...result].sort((a, b) => b.count - a.count)
+  } else {
+    result = [...result].sort((a, b) => (b.todayCount || 0) - (a.todayCount || 0))
+  }
+  return result
+})
+
+setTimeout(() => { loading.value = false }, 600)
+
+async function onRefresh() {
+  refreshing.value = true
+  await new Promise(r => setTimeout(r, 1000))
+  refreshing.value = false
+  uni.showToast({ title: '刷新成功', icon: 'success' })
+}
+
+function goTopic(t: any) {
+  uni.showToast({ title: `进入话题 ${t.name}`, icon: 'none' })
+}
+function toggleJoin(t: any) {
+  t.joined = !t.joined
+  uni.showToast({ title: t.joined ? '已加入话题' : '已退出话题', icon: 'success' })
+}
+function createTopic() {
+  if (!newTopicName.value) {
+    uni.showToast({ title: '请输入话题名称', icon: 'none' })
+    return
+  }
+  if (newTopicName.value.length < 2) {
+    uni.showToast({ title: '话题名称至少2个字符', icon: 'none' })
+    return
+  }
+  topics.value.unshift({
+    id: 't' + Date.now(),
+    name: '#' + newTopicName.value.replace(/^#/, ''),
+    icon: '',
+    count: 0,
+    followers: 1,
+    isHot: false,
+    isNew: true,
+    joined: true,
+    todayCount: 1,
+    bg: 'bg-primary/10',
+    cat: 'guoxue'
+  })
+  showCreate.value = false
+  newTopicName.value = ''
+  uni.showToast({ title: '话题创建成功 ', icon: 'success' })
+}
+function goBack() { uni.navigateBack() }
+</script>
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

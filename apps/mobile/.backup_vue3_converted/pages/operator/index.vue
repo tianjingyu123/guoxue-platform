@@ -1,0 +1,196 @@
+<template>
+  <view class="min-h-screen bg-background pb-6">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-primary text-white">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view @click="goBack" class="p-2 -ml-2 rounded-full">
+          <text class="text-white text-lg">←</text>
+        </view>
+        <text class="font-medium">运营商中心</text>
+        <view @click="goSettings" class="p-2 -mr-2 rounded-full">
+          <text class="text-white">⋯</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 运营商信息头部 -->
+    <view class="bg-gradient-to-b from-primary to-primary/80 text-white px-4 pb-6">
+      <view class="flex items-center gap-3 mb-4">
+        <view class="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
+          <text class="text-white text-3xl">🏢</text>
+        </view>
+        <view>
+          <text class="font-bold text-lg block">{{ operatorData.name }}</text>
+          <view class="inline-flex items-center gap-1 bg-white/20 text-white text-[10px] px-2 py-0.5 rounded-full">
+            <text>👑</text>
+            <text>{{ operatorData.level }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 名额状态 -->
+      <view class="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+        <view class="flex items-center justify-between mb-3">
+          <text class="text-white/80 text-sm">分站名额</text>
+          <view class="text-xs text-white/60 flex items-center">
+            管理 ›
+          </view>
+        </view>
+        <view class="grid grid-cols-4 gap-2 text-center">
+          <view>
+            <text class="text-2xl font-bold block">{{ operatorData.quota.total }}</text>
+            <text class="text-[10px] text-white/60">总名额</text>
+          </view>
+          <view>
+            <text class="text-2xl font-bold block">{{ operatorData.quota.used }}</text>
+            <text class="text-[10px] text-white/60">自用</text>
+          </view>
+          <view>
+            <text class="text-2xl font-bold text-green-300 block">{{ operatorData.quota.sold }}</text>
+            <text class="text-[10px] text-white/60">已售</text>
+          </view>
+          <view>
+            <text class="text-2xl font-bold text-yellow-300 block">{{ operatorData.quota.available }}</text>
+            <text class="text-[10px] text-white/60">可售</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 数据概览 -->
+    <view class="px-4 -mt-2">
+      <view class="bg-white rounded-xl p-4 border border-border">
+        <view class="grid grid-cols-2 gap-4">
+          <view v-for="(item, idx) in earningCards" :key="idx" :class="['p-3 rounded-xl', item.bg]">
+            <view class="flex items-center gap-2 mb-2">
+              <text>{{ item.icon }}</text>
+              <text class="text-xs text-muted-foreground">{{ item.label }}</text>
+            </view>
+            <text :class="['text-xl font-bold', item.textColor]">{{ item.value }}</text>
+            <text class="text-[10px] text-muted-foreground mt-1 block">{{ item.sub }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 推广链接 -->
+    <view class="px-4 mt-4">
+      <view class="bg-white rounded-xl p-4 border border-border">
+        <text class="font-medium text-foreground mb-3 flex items-center gap-2 block"> 站长招募链接</text>
+        <view class="flex items-center gap-2">
+          <view class="flex-1 p-2 bg-muted/50 rounded-lg text-xs text-muted-foreground truncate">{{ inviteLink }}</view>
+          <view @click="handleCopy" class="px-3 py-1.5 border border-border rounded-lg text-xs flex-shrink-0">{{ copied ? '✓ 已复制' : ' 复制' }}</view>
+          <view class="px-3 py-1.5 bg-primary text-white rounded-lg text-xs flex-shrink-0"> 二维码</view>
+        </view>
+        <text class="text-[10px] text-muted-foreground mt-2 block">通过此链接注册的站长将加入您的团队，您可获得5%团队奖励</text>
+      </view>
+    </view>
+
+    <!-- Tab切换 -->
+    <view class="px-4 mt-4">
+      <view class="flex bg-muted rounded-lg p-1">
+        <view @click="activeTab = 'team'" :class="['flex-1 py-2 text-center text-sm font-medium rounded-md', activeTab === 'team' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground']">团队管理</view>
+        <view @click="activeTab = 'quota'" :class="['flex-1 py-2 text-center text-sm font-medium rounded-md', activeTab === 'quota' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground']">名额记录</view>
+      </view>
+    </view>
+
+    <!-- 团队列表 -->
+    <view v-if="activeTab === 'team'" class="px-4 mt-4 space-y-3">
+      <view v-for="member in teamMembers" :key="member.id" class="bg-white rounded-xl p-4 border border-border">
+        <view class="flex items-center gap-3">
+          <view class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center">
+            <text class="text-green-600 text-2xl"></text>
+          </view>
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center gap-2">
+              <text class="font-medium truncate">{{ member.name }}</text>
+              <text :class="['text-[10px] px-1.5 py-0.5 rounded-full', member.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-amber-100 text-amber-700']">{{ member.status === 'active' ? '已激活' : '待激活' }}</text>
+            </view>
+            <text class="text-xs text-muted-foreground mt-0.5 block">加入于 {{ member.joinDate }}</text>
+          </view>
+          <view class="text-muted-foreground">⋯</view>
+        </view>
+        <view v-if="member.status === 'active'" class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border">
+          <view class="text-center">
+            <text class="text-sm font-bold block">{{ member.users }}</text>
+            <text class="text-[10px] text-muted-foreground">用户数</text>
+          </view>
+          <view class="text-center">
+            <text class="text-sm font-bold text-green-600 block">¥{{ member.earnings }}</text>
+            <text class="text-[10px] text-muted-foreground">产生收益</text>
+          </view>
+          <view class="text-center">
+            <text class="text-sm font-bold text-primary block">¥{{ member.myBonus }}</text>
+            <text class="text-[10px] text-muted-foreground">我的奖励</text>
+          </view>
+        </view>
+      </view>
+      <view v-if="operatorData.quota.available > 0" @click="goInvite" class="bg-white rounded-xl p-4 border-2 border-dashed border-primary/30 bg-primary/5 flex items-center justify-center gap-2 text-primary">
+        <text class="text-lg">＋</text>
+        <text class="font-medium">邀请新站长（剩余{{ operatorData.quota.available }}个名额）</text>
+      </view>
+    </view>
+
+    <!-- 名额记录 -->
+    <view v-if="activeTab === 'quota'" class="px-4 mt-4 space-y-3">
+      <view v-for="record in quotaRecords" :key="record.id" class="bg-white rounded-xl p-4 border border-border">
+        <view class="flex items-center gap-3">
+          <view :class="['w-10 h-10 rounded-xl flex items-center justify-center', record.type === 'self' ? 'bg-primary/10' : 'bg-yellow-50']">
+            <text>{{ record.type === 'self' ? '🏢' : '🎁' }}</text>
+          </view>
+          <view class="flex-1">
+            <text class="text-sm font-medium block">{{ record.name }}</text>
+            <text class="text-xs text-muted-foreground mt-0.5 block">{{ record.date }}</text>
+          </view>
+          <text v-if="record.type === 'sold'" class="text-sm font-bold text-yellow-600">+¥{{ record.price }}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const operatorData = {
+  name: '国学推广联盟',
+  level: '金牌运营商',
+  joinDate: '2024-01-15',
+  quota: { total: 6, used: 1, sold: 3, available: 2 },
+  earnings: { total: 32680, thisMonth: 5680, pending: 1280, teamBonus: 8600, quotaSales: 2997 },
+}
+
+const teamMembers = [
+  { id: 1, name: '易学驿站', avatar: '', joinDate: '2024-03-15', status: 'active', users: 128, earnings: 3680, myBonus: 184 },
+  { id: 2, name: '国学小站', avatar: '', joinDate: '2024-05-20', status: 'active', users: 86, earnings: 2560, myBonus: 128 },
+  { id: 3, name: '命理之家', avatar: '', joinDate: '2024-06-01', status: 'pending', users: 0, earnings: 0, myBonus: 0 },
+]
+
+const quotaRecords = [
+  { id: 1, type: 'self', name: '自用', date: '2024-01-15', price: 0 },
+  { id: 2, type: 'sold', name: '易学驿站', date: '2024-03-15', price: 999 },
+  { id: 3, type: 'sold', name: '国学小站', date: '2024-05-20', price: 999 },
+]
+
+const inviteLink = 'https://rebu.com/join/station?ref=OP12345'
+
+const earningCards = [
+  { icon: '', label: '累计收益', value: '¥32,680', textColor: 'text-primary', bg: 'bg-gradient-to-br from-primary/5 to-yellow-50', sub: '本月 +¥5,680' },
+  { icon: '', label: '团队站长', value: '3人', textColor: 'text-primary', bg: 'bg-gradient-to-br from-primary/5 to-blue-50', sub: '本月 +1人' },
+  { icon: '🎁', label: '名额销售', value: '¥2,997', textColor: 'text-yellow-600', bg: 'bg-gradient-to-br from-yellow-50 to-green-50', sub: '已售 3 个名额' },
+  { icon: '📈', label: '团队奖励', value: '¥8,600', textColor: 'text-green-600', bg: 'bg-gradient-to-br from-green-50 to-blue-50', sub: '下级站长分佣5%' },
+]
+
+const activeTab = ref<'team' | 'quota'>('team')
+const copied = ref(false)
+
+function handleCopy() {
+  copied.value = true
+  setTimeout(() => copied.value = false, 2000)
+  uni.setClipboardData({ data: inviteLink })
+}
+
+function goBack() { uni.navigateBack() }
+function goSettings() { uni.navigateTo({ url: '/pages/operator/settings/index' }) }
+function goInvite() { uni.navigateTo({ url: '/pages/operator/invite/index' }) }
+</script>

@@ -1,0 +1,219 @@
+<template>
+  <view class="min-h-screen bg-background pb-24">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
+      <view class="flex items-center justify-between h-14 px-4">
+        <view @click="goBack" class="text-foreground">
+          <text class="text-lg">←</text>
+        </view>
+        <text class="font-semibold text-base text-foreground">充值国学币</text>
+        <view class="w-9" />
+      </view>
+    </header>
+
+    <view class="p-4 space-y-6">
+      <!-- 余额展示 -->
+      <view class="bg-gradient-to-br from-primary to-red-700 rounded-xl p-4 text-white">
+        <text class="text-sm opacity-80 block mb-1">国学币余额</text>
+        <text class="text-3xl font-bold">{{ balance }}</text>
+        <text class="text-sm opacity-80 ml-1">国学币</text>
+      </view>
+
+      <!-- 说明文字 -->
+      <view class="text-center">
+        <text class="text-sm text-muted-foreground block">国学币与人民币比例为 <text class="text-accent font-medium">10:1</text></text>
+        <text class="text-xs text-muted-foreground/70 mt-1 block">充值后可用于购买课程、加入圈子、打赏、付费问答等</text>
+      </view>
+
+      <!-- 预设充值档位 -->
+      <view>
+        <text class="text-sm font-medium text-foreground block mb-3">选择充值金额</text>
+        <!-- 加载骨架屏 -->
+        <view v-if="loading" class="grid grid-cols-3 gap-3">
+          <view v-for="i in 6" :key="i" class="p-3 bg-white rounded-xl border border-border">
+            <view class="h-7 bg-secondary rounded mb-2" />
+            <view class="h-4 bg-secondary rounded w-1/2 mx-auto" />
+          </view>
+        </view>
+        <view v-else class="grid grid-cols-3 gap-3">
+          <view v-for="opt in options" :key="opt.coins"
+            @click="handleOptionSelect(opt.coins)"
+            :class="selectedOption === opt.coins ? 'relative p-3 text-center bg-white border border-accent ring-1 ring-accent rounded-xl' : 'relative p-3 text-center bg-white border border-border rounded-xl'"
+          >
+            <!-- 推荐标签 -->
+            <view v-if="opt.popular" class="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-primary text-white text-[10px] font-medium rounded-full">
+              <text>推荐</text>
+            </view>
+            <!-- 赠送标签 -->
+            <view v-if="opt.bonus > 0" class="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 bg-accent text-white text-[9px] font-medium rounded-full flex items-center gap-0.5">
+              <text class="text-xs">+{{ opt.bonus }}</text>
+            </view>
+            <!-- 币数 -->
+            <text :class="selectedOption === opt.coins ? 'text-xl font-bold text-accent' : 'text-xl font-bold text-foreground'">
+              {{ opt.coins + opt.bonus }}<text class="text-xs font-normal ml-0.5">币</text>
+            </text>
+            <!-- 价格 -->
+            <text class="text-sm text-muted-foreground block mt-1">¥{{ opt.price }}</text>
+            <!-- 选中指示器 -->
+            <view v-if="selectedOption === opt.coins" class="absolute bottom-1 right-1 w-4 h-4 bg-accent rounded-full flex items-center justify-center">
+              <text class="text-xs text-white">✓</text>
+            </view>
+          </view>
+        </view>
+      </view>  <!-- /选择充值金额 -->
+
+      <!-- 自定义金额 -->
+      <view>
+        <text class="text-sm font-medium text-foreground block mb-3">自定义金额</text>
+        <view :class="customAmount ? 'p-4 bg-white border border-accent ring-1 ring-accent rounded-xl' : 'p-4 bg-white border border-border rounded-xl'">
+          <view class="flex items-center gap-3">
+            <text class="text-lg font-medium text-foreground">¥</text>
+            <input
+              v-model="customAmount"
+              type="digit"
+              placeholder="输入其他金额（整数）"
+              @focus="selectedOption = null"
+              class="flex-1 bg-transparent text-lg font-medium text-foreground placeholder:text-muted-foreground/50 outline-none"
+            />
+            <text v-if="customAmount" class="text-sm text-accent">= {{ parseInt(customAmount) * 10 || 0 }} 币</text>
+          </view>
+          <text class="text-xs text-muted-foreground block mt-2">最低充值金额 ¥1，最高单次充值 ¥50000</text>
+        </view>
+      </view>
+
+      <!-- 支付方式 -->
+      <view>
+        <text class="text-sm font-medium text-foreground block mb-3">支付方式</text>
+        <view class="space-y-2">
+          <view v-for="method in paymentMethods" :key="method.id"
+            @click="paymentMethod = method.id"
+            :class="paymentMethod === method.id ? 'p-4 bg-white border border-accent bg-accent/5 rounded-xl flex items-center justify-between' : 'p-4 bg-white border border-border rounded-xl flex items-center justify-between'"
+          >
+            <view class="flex items-center gap-3">
+              <text class="text-xl">{{ method.icon }}</text>
+              <text class="font-medium text-foreground">{{ method.name }}</text>
+            </view>
+            <view :class="paymentMethod === method.id ? 'w-5 h-5 rounded-full border-2 border-accent bg-accent flex items-center justify-center' : 'w-5 h-5 rounded-full border-2 border-muted-foreground/30 flex items-center justify-center'">
+              <text v-if="paymentMethod === method.id" class="text-xs text-white">✓</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 充值说明 -->
+      <view class="p-4 bg-secondary/30 border border-border rounded-xl">
+        <text class="text-sm font-medium text-foreground block mb-2">充值说明</text>
+        <view class="text-xs text-muted-foreground space-y-1.5">
+          <view class="flex items-start gap-2">
+            <text class="text-accent">•</text>
+            <text>国学币为平台虚拟货币，仅限在本平台内使用</text>
+          </view>
+          <view class="flex items-start gap-2">
+            <text class="text-accent">•</text>
+            <text>充值后不支持退款，请确认后再进行充值</text>
+          </view>
+          <view class="flex items-start gap-2">
+            <text class="text-accent">•</text>
+            <text>赠送的国学币有效期为充值后365天</text>
+          </view>
+          <view class="flex items-start gap-2">
+            <text class="text-accent">•</text>
+            <text>如有疑问，请联系客服处理</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部固定操作栏 -->
+    <view class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-border p-4">
+      <view class="max-w-lg mx-auto">
+        <!-- 充值预览 -->
+        <view v-if="selectedAmount > 0" class="flex items-center justify-between text-sm mb-3">
+          <text class="text-muted-foreground">本次充值</text>
+          <view class="text-right">
+            <text class="text-accent font-bold text-lg">{{ totalCoins }}</text>
+            <text class="text-muted-foreground ml-1">国学币</text>
+          </view>
+        </view>
+        <view
+          @click="handleSubmit"
+          :class="selectedAmount > 0 ? 'w-full py-3.5 bg-primary text-white rounded-xl font-medium text-base flex items-center justify-center gap-2' : 'w-full py-3.5 bg-secondary text-muted-foreground rounded-xl font-medium text-base flex items-center justify-center gap-2 cursor-not-allowed'"
+        >
+          <text>{{ selectedAmount > 0 ? `确认充值 ¥${selectedAmount}` : '请选择充值金额' }}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const balance = ref(888.88)
+const loading = ref(true)
+
+const options = ref([
+  { coins: 10, price: 1, bonus: 0, popular: false },
+  { coins: 50, price: 5, bonus: 5, popular: true },
+  { coins: 100, price: 10, bonus: 15, popular: false },
+  { coins: 200, price: 20, bonus: 40, popular: false },
+  { coins: 500, price: 50, bonus: 120, popular: false },
+  { coins: 1000, price: 100, bonus: 350, popular: false },
+])
+
+const paymentMethods = [
+  { id: 'wechat', name: '微信支付', icon: '💚' },
+  { id: 'alipay', name: '支付宝', icon: '💙' },
+]
+
+const selectedOption = ref<number | null>(50)
+const customAmount = ref('')
+const paymentMethod = ref('wechat')
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 600)
+})
+
+const getSelectedAmount = computed(() => {
+  if (customAmount.value) {
+    return parseInt(customAmount.value) || 0
+  }
+  const opt = options.value.find(o => o.coins === selectedOption.value)
+  return opt?.price || 0
+})
+
+const selectedAmount = computed(() => getSelectedAmount.value)
+
+const getCoins = computed(() => {
+  if (customAmount.value) {
+    return (parseInt(customAmount.value) || 0) * 10
+  }
+  const opt = options.value.find(o => o.coins === selectedOption.value)
+  return opt ? opt.coins + opt.bonus : 0
+})
+
+const totalCoins = computed(() => getCoins.value)
+
+function handleOptionSelect(coins: number) {
+  selectedOption.value = coins
+  customAmount.value = ''
+}
+
+async function handleSubmit() {
+  const amount = selectedAmount.value
+  if (amount <= 0) return
+  uni.showLoading({ title: '支付中...' })
+  await new Promise(r => setTimeout(r, 1500))
+  uni.hideLoading()
+  uni.showToast({ title: `充值成功，+${totalCoins.value}国学币`, icon: 'success' })
+  setTimeout(() => uni.navigateBack(), 1200)
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,16 @@
+<template>
+  <view class="page">
+    <view class="nav"><text class="nav-back" @click="goBack">←</text><view class="nav-user"><text class="nu-avatar">{{chatUser.name[0]}}</text><text class="nu-name">{{chatUser.name}}</text></view><text class="nav-more" @click="onMore">⋯</text></view>
+    <scroll-view scroll-y class="msgs" :style="{height:'calc(100vh - 56px - 140rpx)'}" :scroll-into-view="'msg-'+messages[messages.length-1]?.id">
+      <view v-for="m in messages" :key="m.id" :id="'msg-'+m.id" class="msg" :class="m.from==='me'?'right':'left'">
+        <text v-if="m.from!=='me'" class="msg-avatar">{{chatUser.name[0]}}</text>
+        <view class="msg-bubble" :class="m.from==='me'?'mine':'other'"><text>{{m.content}}</text></view>
+        <text v-if="m.from==='me'" class="msg-avatar me-av">👤</text>
+      </view>
+    </scroll-view>
+    <view class="input-bar"><view class="ib-more" @click="onPlus">＋</view><input v-model="input" class="ib-input" placeholder="输入消息..." @confirm="sendMsg"/><view class="ib-send" @click="sendMsg">发送</view></view>
+  </view>
+</template>
+<script setup lang="ts">import {ref,nextTick} from 'vue';import {onPullDownRefresh} from '@dcloudio/uni-app';const chatUser={name:'周易大师',avatar:''};const input=ref('');const messages=ref([{id:1,from:'other',content:'你好，有什么可以帮你的吗？'},{id:2,from:'me',content:'老师好，我想咨询八字排盘的问题'},{id:3,from:'other',content:'好的，把你的出生时间告诉我'},{id:4,from:'me',content:'1984年3月15日 早上8点'},{id:5,from:'other',content:'好的稍等，我帮你排一下盘'}]);
+function sendMsg(){if(!input.value.trim())return;messages.value.push({id:Date.now(),from:'me',content:input.value});input.value='';nextTick(()=>{})};function onPlus(){};function onMore(){};function goBack(){uni.navigateBack()};onPullDownRefresh(()=>setTimeout(()=>uni.stopPullDownRefresh(),500))</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh;display:flex;flex-direction:column}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5;position:sticky;top:0;z-index:40}.nav-back{font-size:36rpx;color:#2C2C2C}.nav-user{display:flex;align-items:center;gap:12rpx}.nu-avatar{width:56rpx;height:56rpx;border-radius:50%;background:rgba(196,30,58,.1);color:#C41E3A;display:flex;align-items:center;justify-content:center;font-size:24rpx}.nu-name{font-size:28rpx;font-weight:500;color:#2C2C2C}.nav-more{font-size:32rpx;color:#999}.msgs{padding:24rpx;flex:1}.msg{display:flex;gap:12rpx;align-items:flex-start;margin-bottom:24rpx}.msg.right{flex-direction:row-reverse}.msg-avatar{width:56rpx;height:56rpx;border-radius:50%;background:rgba(196,30,58,.1);color:#C41E3A;display:flex;align-items:center;justify-content:center;font-size:22rpx;flex-shrink:0}.me-av{background:#F5F1EB;color:#999}.msg-bubble{max-width:70%;padding:20rpx 24rpx;border-radius:20rpx;font-size:26rpx;line-height:1.5}.msg-bubble.other{background:#fff;color:#2C2C2C;box-shadow:0 2rpx 8rpx rgba(0,0,0,.03)}.msg-bubble.mine{background:#C41E3A;color:#fff}.input-bar{display:flex;align-items:center;gap:12rpx;padding:16rpx 24rpx;background:#fff;border-top:1px solid #E8E0D5}.ib-more{font-size:36rpx;color:#999;padding:8rpx}.ib-input{flex:1;height:72rpx;background:#F5F1EB;border-radius:40rpx;padding:0 24rpx;font-size:26rpx}.ib-send{padding:14rpx 28rpx;background:#C41E3A;color:#fff;border-radius:40rpx;font-size:26rpx}</style>

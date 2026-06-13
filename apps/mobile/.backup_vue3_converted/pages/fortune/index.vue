@@ -1,0 +1,282 @@
+<template>
+  <!-- 骨架屏 -->
+  <view v-if="loading && !fortune" class="min-h-screen bg-background">
+    <view class="p-4 space-y-6">
+      <view class="h-8 w-32 bg-muted rounded mx-auto" />
+      <view class="h-48 w-48 rounded-full bg-muted mx-auto" />
+      <view class="flex justify-center gap-4">
+        <view class="h-20 w-24 bg-muted rounded" />
+        <view class="h-20 w-24 bg-muted rounded" />
+      </view>
+      <view class="grid grid-cols-2 gap-3">
+        <view v-for="i in 4" :key="i" class="h-24 rounded-xl bg-muted" />
+      </view>
+    </view>
+  </view>
+
+  <!-- 错误状态 -->
+  <view v-else-if="error && !fortune" class="min-h-screen bg-gradient-to-b from-red-50 to-[#FAF8F5] flex items-center justify-center">
+    <view class="text-center px-4">
+      <text class="text-4xl mb-4 block"></text>
+      <text class="text-muted-foreground text-sm mb-4 block">{{ error }}</text>
+      <view @click="loadFortune(currentDate)" class="px-6 py-2.5 bg-primary text-white text-sm font-medium rounded-full inline-block">
+        <text>重新加载</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空数据状态 -->
+  <view v-else-if="!fortune" class="min-h-screen bg-background flex items-center justify-center">
+    <view class="text-center px-4">
+      <view class="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
+        <text class="text-4xl"></text>
+      </view>
+      <text class="text-muted-foreground text-sm mb-4 block">暂无运势数据</text>
+      <view @click="loadFortune(currentDate)" class="px-6 py-2.5 bg-primary text-white text-sm font-medium rounded-full inline-block">
+        <text>重新加载</text>
+      </view>
+    </view>
+  </view>
+
+  <view v-else class="min-h-screen bg-gradient-to-b from-red-50 to-[#FAF8F5]">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-10 bg-gradient-to-b from-red-50 to-transparent" style="padding-top:env(safe-area-inset-top)">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view class="w-10 h-10 flex items-center justify-center" @tap="goBack">
+          <text class="text-xl text-foreground">‹</text>
+        </view>
+        <view class="flex items-center gap-2">
+          <text class="text-lg"></text>
+          <text class="font-medium text-foreground">每日运势</text>
+        </view>
+        <view class="w-10" />
+      </view>
+    </view>
+
+    <view class="px-4 pb-6 space-y-6">
+      <!-- 日期选择器 -->
+      <view class="flex items-center justify-center gap-4">
+        <view class="w-10 h-10 bg-white/60 rounded-full flex items-center justify-center" @tap="changeDate(-1)">
+          <text class="text-lg text-foreground">‹</text>
+        </view>
+        <view class="text-center">
+          <text class="text-lg font-semibold text-foreground block">{{ formatFortuneDate(currentDate) }}</text>
+          <text v-if="fortune" class="text-sm text-muted-foreground block">{{ fortune.lunarDate }} {{ fortune.weekday }}</text>
+        </view>
+        <view class="w-10 h-10 bg-white/60 rounded-full flex items-center justify-center" @tap="changeDate(1)">
+          <text class="text-lg text-foreground">›</text>
+        </view>
+      </view>
+
+      <!-- 综合运势圆环 -->
+      <view v-if="fortune" class="flex flex-col items-center">
+        <view class="relative w-40 h-40">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="#F2EFEA" stroke-width="8" />
+            <circle cx="50" cy="50" r="45" fill="none" stroke="#C41E3A" stroke-width="8" stroke-linecap="round"
+              :stroke-dasharray="(fortune.overallScore * 2.83) + ' 283'" class="transition-all duration-1000" />
+          </svg>
+          <view class="absolute inset-0 flex flex-col items-center justify-center">
+            <text class="text-4xl font-bold text-primary">{{ fortune.overallScore }}</text>
+            <text :class="['text-lg font-medium mt-1', getFortuneLevelInfo(fortune.overallLevel).color]">
+              {{ getFortuneLevelInfo(fortune.overallLevel).label }}
+            </text>
+          </view>
+        </view>
+        <text class="text-sm text-muted-foreground mt-3 text-center max-w-xs block">{{ fortune.overallSummary }}</text>
+      </view>
+
+      <!-- 今日宜忌 -->
+      <view v-if="fortune && fortune.yiji" class="flex gap-3">
+        <view class="flex-1 border border-green-200 bg-green-50/50 rounded-xl p-4">
+          <view class="flex items-center gap-2 mb-2">
+            <text class="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center text-sm font-medium">宜</text>
+            <text class="text-sm font-medium text-green-700">今日宜</text>
+          </view>
+          <view class="flex flex-wrap gap-1.5">
+            <text v-for="(item, i) in fortune.yiji.yi" :key="i" class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">{{ item }}</text>
+          </view>
+        </view>
+        <view class="flex-1 border border-red-200 bg-red-50/50 rounded-xl p-4">
+          <view class="flex items-center gap-2 mb-2">
+            <text class="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-sm font-medium">忌</text>
+            <text class="text-sm font-medium text-red-700">今日忌</text>
+          </view>
+          <view class="flex flex-wrap gap-1.5">
+            <text v-for="(item, i) in fortune.yiji.ji" :key="i" class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">{{ item }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 分类运势 -->
+      <view v-if="fortune && fortune.categories && fortune.categories.length > 0">
+        <text class="text-base font-semibold text-foreground mb-3 block">分类运势</text>
+        <view class="grid grid-cols-2 gap-3">
+          <view v-for="cat in fortune.categories" :key="cat.category"
+            :class="['p-3 rounded-xl border', getCategoryBorder(cat.category)]">
+            <view class="flex items-center gap-2 mb-2">
+              <view :class="['w-8 h-8 rounded-lg flex items-center justify-center', getCategoryBg(cat.category), getCategoryText(cat.category)]">
+                <text>{{ getCategoryIcon(cat.category) }}</text>
+              </view>
+              <view>
+                <text class="text-sm font-medium text-foreground">{{ cat.categoryName }}</text>
+                <text :class="['text-xs', getFortuneLevelInfo(cat.level).color]">{{ cat.score }}分</text>
+              </view>
+            </view>
+            <text class="text-xs text-muted-foreground line-clamp-1">{{ cat.summary }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 幸运信息 -->
+      <view v-if="fortune" class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4">
+        <text class="text-sm font-semibold text-amber-800 mb-3 block">今日幸运</text>
+        <view class="grid grid-cols-2 gap-3 text-sm">
+          <view class="flex items-center gap-2">
+            <text class="text-amber-600">幸运色:</text>
+            <text class="font-medium text-foreground">{{ fortune.luckyColor }}</text>
+          </view>
+          <view class="flex items-center gap-2">
+            <text class="text-amber-600">幸运数:</text>
+            <text class="font-medium text-foreground">{{ fortune.luckyNumber }}</text>
+          </view>
+          <view class="flex items-center gap-2">
+            <text class="text-amber-600">吉方位:</text>
+            <text class="font-medium text-foreground">{{ fortune.luckyDirection }}</text>
+          </view>
+          <view class="flex items-center gap-2">
+            <text class="text-amber-600">吉时:</text>
+            <text class="font-medium text-foreground">{{ fortune.luckyTime }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 查看详细解读 -->
+      <view v-if="fortune" @click="goTo('/pages/fortune/detail/index?date=' + currentDate)" class="w-full py-3.5 bg-primary text-white rounded-full text-sm font-medium flex items-center justify-center gap-2">
+        <text>查看详细解读</text>
+        <text class="text-sm">›</text>
+      </view>
+
+      <!-- 今日提醒 -->
+      <view v-if="fortune && fortune.tips && fortune.tips.length > 0" class="border border-dashed border-border rounded-xl p-4">
+        <text class="text-sm font-semibold text-foreground mb-2 block">今日提醒</text>
+        <view class="space-y-1">
+          <view v-for="(tip, i) in fortune.tips" :key="i" class="flex items-start gap-2">
+            <text class="text-primary mt-0.5">•</text>
+            <text class="text-xs text-muted-foreground">{{ tip }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, watch } from 'vue'
+
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+
+interface FortuneCategory {
+  category: string
+  categoryName: string
+  level: string
+  score: number
+  summary: string
+}
+
+interface DailyFortune {
+  overallScore: number
+  overallLevel: string
+  overallSummary: string
+  lunarDate: string
+  weekday: string
+  yiji: { yi: string[]; ji: string[] }
+  categories: FortuneCategory[]
+  luckyColor: string
+  luckyNumber: string
+  luckyDirection: string
+  luckyTime: string
+  tips: string[]
+}
+
+// 分类配置
+const categoryIcons: Record<string, string> = {
+  career: '💼', love: '', wealth: '', health: '🏃',
+}
+const categoryColors: Record<string, { bg: string; text: string; border: string }> = {
+  career: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' },
+  love: { bg: 'bg-pink-50', text: 'text-pink-600', border: 'border-pink-200' },
+  wealth: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' },
+  health: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' },
+}
+const fortuneLevels: Record<string, { label: string; color: string }> = {
+  shang: { label: '上签', color: 'text-primary' },
+  zhongshang: { label: '中上签', color: 'text-orange-500' },
+  zhong: { label: '中签', color: 'text-amber-600' },
+  zhongxia: { label: '中下签', color: 'text-blue-600' },
+  xia: { label: '下签', color: 'text-muted-foreground' },
+}
+
+function getCategoryIcon(cat: string) { return categoryIcons[cat] || '' }
+function getCategoryBg(cat: string) { return categoryColors[cat]?.bg || 'bg-gray-50' }
+function getCategoryText(cat: string) { return categoryColors[cat]?.text || 'text-gray-600' }
+function getCategoryBorder(cat: string) { return categoryColors[cat]?.border || 'border-gray-200' }
+function getFortuneLevelInfo(level: string) { return fortuneLevels[level] || { label: level, color: 'text-muted-foreground' } }
+
+function formatFortuneDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`
+}
+
+const currentDate = ref(new Date().toISOString().split('T')[0])
+const fortune = ref<DailyFortune | null>(null)
+const loading = ref(true)
+const error = ref<string | null>(null)
+
+const loadFortune = async (date: string) => {
+  loading.value = true
+  error.value = null
+  try {
+    // 模拟API调用
+    await new Promise(resolve => setTimeout(resolve, 500))
+    fortune.value = {
+      overallScore: 85,
+      overallLevel: 'shang',
+      overallSummary: '今日运势良好，适合开展新计划。宜主动出击，把握机会。',
+      lunarDate: '农历五月初五',
+      weekday: '星期三',
+      yiji: { yi: ['出行', '签约', '学习', '求财'], ji: ['动土', '安葬', '伐木'] },
+      categories: [
+        { category: 'career', categoryName: '事业', level: 'shang', score: 90, summary: '职场运势强劲，适合推进重要项目' },
+        { category: 'wealth', categoryName: '财运', level: 'zhongshang', score: 75, summary: '正财运佳，偏财谨慎' },
+        { category: 'love', categoryName: '爱情', level: 'shang', score: 85, summary: '桃花运旺盛，单身者有机会' },
+        { category: 'health', categoryName: '健康', level: 'zhong', score: 60, summary: '注意作息规律，预防感冒' },
+      ],
+      luckyColor: '红色',
+      luckyNumber: '8',
+      luckyDirection: '东南',
+      luckyTime: '09:00-11:00',
+      tips: ['今天适合与人沟通交流', '避免冲动消费', '注意饮食卫生'],
+    }
+  } catch {
+    error.value = '网络错误，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(() => currentDate.value, (newDate) => {
+  loadFortune(newDate)
+}, { immediate: true })
+
+const changeDate = (days: number) => {
+  const date = new Date(currentDate.value)
+  date.setDate(date.getDate() + days)
+  currentDate.value = date.toISOString().split('T')[0]
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

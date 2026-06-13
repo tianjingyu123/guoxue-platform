@@ -1,0 +1,10 @@
+<template>
+  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">AI研究助手</text><view style="width:48rpx"/></view>
+    <view class="c"><view class="card"><text class="ct">针对《渊海子平》提问</text>
+      <view class="ss"><text v-for="s in suggests" :key="s" class="si" @click="ask(s)">{{s}}</text></view></view>
+    <view v-for="m in msgs" :key="m.id" class="msg" :class="m.role"><text class="ma" v-if="m.role==='ai'">🤖</text><view class="mb" :class="m.role"><text>{{m.c}}</text></view></view>
+    <view class="inp"><input class="ii" placeholder="输入问题..."/><text class="is" @click="ask('')">发送</text></view></view></view>
+</template>
+<script setup lang="ts">import {ref} from 'vue';const suggests=['天干地支有哪些','什么是格局','如何取用神'];const msgs=ref([{id:1,role:'ai',c:'你好！我是古籍AI研究助手，可以回答关于《渊海子平》的问题。'}]);function ask(q:string){};function goBack(){uni.navigateBack()}</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.c{padding:24rpx}.card{background:#fff;border-radius:20rpx;padding:24rpx;margin-bottom:20rpx;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}.ct{font-size:28rpx;font-weight:600;color:#2C2C2C;margin-bottom:16rpx;display:block}.ss{display:flex;flex-wrap:wrap;gap:12rpx}.si{padding:12rpx 24rpx;background:#F5F1EB;border-radius:40rpx;font-size:24rpx;color:#C41E3A}.msg{display:flex;gap:12rpx;margin-bottom:20rpx;align-items:flex-start}.ma{font-size:36rpx}.mb{padding:16rpx 20rpx;border-radius:16rpx;font-size:26rpx;line-height:1.5;max-width:80%}.mb.ai{background:#fff;color:#2C2C2C;box-shadow:0 2rpx 8rpx rgba(0,0,0,.03)}.mb.user{background:#C41E3A;color:#fff;margin-left:auto}.inp{display:flex;gap:12rpx;padding-top:12rpx}.ii{flex:1;height:72rpx;background:#F5F1EB;border-radius:40rpx;padding:0 24rpx;font-size:26rpx}.is{padding:14rpx 28rpx;background:#C41E3A;color:#fff;border-radius:40rpx;font-size:26rpx}
+</style>

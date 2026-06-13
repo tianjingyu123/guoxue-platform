@@ -1,0 +1,268 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-6">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50" style="background-color:#C41E3A">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view class="p-2 -ml-2 rounded-full" hover-class="bg-white/10" @click="goTo('/profile')">
+          <text class="text-white text-lg">←</text>
+        </view>
+        <text class="font-medium text-white">运营商中心</text>
+        <view class="p-2 -mr-2 rounded-full" hover-class="bg-white/10" @click="goTo('/operator/settings')">
+          <text class="text-white text-lg">⚙️</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 运营商信息头部 -->
+    <view class="text-white px-4 pb-6" style="background:linear-gradient(180deg,#C41E3A,#C41E3Acc)">
+      <view class="flex items-center gap-3 mb-4">
+        <view class="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
+          <text class="text-3xl">🏛</text>
+        </view>
+        <view>
+          <text class="font-bold text-lg text-white">{{ operatorData.name }}</text>
+          <view class="bg-white/20 text-white px-2 py-0.5 rounded text-[10px] inline-flex items-center gap-1">
+            <text>👑</text>
+            <text>{{ operatorData.level }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 名额状态 -->
+      <view class="bg-white/10 backdrop-blur-sm p-4 rounded-xl">
+        <view class="flex items-center justify-between mb-3">
+          <text class="text-white/80 text-sm">分站名额</text>
+          <view class="text-xs text-white/60 flex items-center" @click="goTo('/operator/quota')">
+            <text>管理</text>
+            <text class="ml-1">›</text>
+          </view>
+        </view>
+        <view class="grid grid-cols-4 gap-2 text-center">
+          <view>
+            <text class="text-2xl font-bold text-white">{{ operatorData.quota.total }}</text>
+            <text class="text-[10px] text-white/60 block">总名额</text>
+          </view>
+          <view>
+            <text class="text-2xl font-bold text-white">{{ operatorData.quota.used }}</text>
+            <text class="text-[10px] text-white/60 block">自用</text>
+          </view>
+          <view>
+            <text class="text-2xl font-bold" style="color:#22C55E">{{ operatorData.quota.sold }}</text>
+            <text class="text-[10px] text-white/60 block">已售</text>
+          </view>
+          <view>
+            <text class="text-2xl font-bold" style="color:#C9A96E">{{ operatorData.quota.available }}</text>
+            <text class="text-[10px] text-white/60 block">可售</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 数据概览 -->
+    <view class="px-4 -mt-2">
+      <view class="p-4 bg-white rounded-xl">
+        <view class="grid grid-cols-2 gap-4">
+          <!-- 累计收益 -->
+          <view class="p-3 rounded-xl" style="background:linear-gradient(135deg,rgba(196,30,58,0.05),rgba(201,169,110,0.05))">
+            <view class="flex items-center gap-2 mb-2">
+              <text class="text-base" style="color:#C41E3A">👛</text>
+              <text class="text-xs text-[#999]">累计收益</text>
+            </view>
+            <text class="text-xl font-bold" style="color:#C41E3A">¥{{ operatorData.earnings.total.toLocaleString() }}</text>
+            <text class="text-[10px] text-[#999] block mt-1">本月 +¥{{ operatorData.earnings.thisMonth }}</text>
+          </view>
+
+          <!-- 团队人数 -->
+          <view class="p-3 rounded-xl" style="background:linear-gradient(135deg,rgba(196,30,58,0.05),rgba(59,130,246,0.05))">
+            <view class="flex items-center gap-2 mb-2">
+              <text class="text-base" style="color:#C41E3A">👥</text>
+              <text class="text-xs text-[#999]">团队站长</text>
+            </view>
+            <text class="text-xl font-bold" style="color:#C41E3A">{{ operatorData.team.total }}人</text>
+            <text class="text-[10px] text-[#999] block mt-1">本月 +{{ operatorData.team.thisMonth }}人</text>
+          </view>
+
+          <!-- 名额销售收入 -->
+          <view class="p-3 rounded-xl" style="background:linear-gradient(135deg,rgba(201,169,110,0.05),rgba(34,197,94,0.05))">
+            <view class="flex items-center gap-2 mb-2">
+              <text class="text-base" style="color:#C9A96E">🎁</text>
+              <text class="text-xs text-[#999]">名额销售</text>
+            </view>
+            <text class="text-xl font-bold" style="color:#C9A96E">¥{{ operatorData.earnings.quotaSales.toLocaleString() }}</text>
+            <text class="text-[10px] text-[#999] block mt-1">已售 {{ operatorData.quota.sold }} 个名额</text>
+          </view>
+
+          <!-- 团队奖励 -->
+          <view class="p-3 rounded-xl" style="background:linear-gradient(135deg,rgba(34,197,94,0.05),rgba(59,130,246,0.05))">
+            <view class="flex items-center gap-2 mb-2">
+              <text class="text-base" style="color:#22C55E">📈</text>
+              <text class="text-xs text-[#999]">团队奖励</text>
+            </view>
+            <text class="text-xl font-bold" style="color:#22C55E">¥{{ operatorData.earnings.teamBonus.toLocaleString() }}</text>
+            <text class="text-[10px] text-[#999] block mt-1">下级站长分佣5%</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 推广链接 -->
+    <view class="px-4 mt-4">
+      <view class="p-4 bg-white rounded-xl">
+        <text class="font-medium text-[#2C2C2C] mb-3 flex items-center gap-2">
+          <text class="text-base" style="color:#C41E3A">🔗</text>
+          站长招募链接
+        </text>
+        <view class="flex items-center gap-2">
+          <view class="flex-1 p-2 rounded-lg text-xs text-[#999] truncate" style="background-color:rgba(241,237,232,0.5)">
+            <text>{{ inviteLink }}</text>
+          </view>
+          <view class="flex-shrink-0 px-3 py-1.5 rounded-lg border text-xs" @click="handleCopy">
+            <text v-if="copied">✓</text>
+            <text v-else>📋</text>
+          </view>
+          <view class="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs text-white" style="background-color:#C41E3A">
+            <text>📱</text>
+          </view>
+        </view>
+        <text class="text-[10px] text-[#999] block mt-2">
+          通过此链接注册的站长将加入您的团队，您可获得5%团队奖励
+        </text>
+      </view>
+    </view>
+
+    <!-- Tab切换 -->
+    <view class="px-4 mt-4">
+      <view class="flex bg-[#F1EDE8] rounded-lg p-1">
+        <view
+          class="flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors"
+          :class="activeTab === 'team' ? 'bg-white text-[#2C2C2C] shadow-sm' : 'text-[#999]'"
+          @click="activeTab = 'team'"
+        >
+          <text>团队管理</text>
+        </view>
+        <view
+          class="flex-1 text-center py-2 text-sm font-medium rounded-md transition-colors"
+          :class="activeTab === 'quota' ? 'bg-white text-[#2C2C2C] shadow-sm' : 'text-[#999]'"
+          @click="activeTab = 'quota'"
+        >
+          <text>名额记录</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 团队列表 -->
+    <view v-if="activeTab === 'team'" class="px-4 mt-4 space-y-3">
+      <view v-for="member in teamMembers" :key="member.id" class="p-4 bg-white rounded-xl">
+        <view class="flex items-center gap-3">
+          <view class="w-12 h-12 rounded-xl flex items-center justify-center" style="background-color:rgba(34,197,94,0.1)">
+            <text class="text-2xl" style="color:#22C55E">🏆</text>
+          </view>
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center gap-2">
+              <text class="font-medium truncate">{{ member.name }}</text>
+              <view
+                class="text-[10px] px-2 py-0.5 rounded"
+                :class="member.status === 'active' ? 'text-green-600' : 'text-amber-700'"
+                :style="{ backgroundColor: member.status === 'active' ? 'rgba(34,197,94,0.1)' : 'rgba(245,158,11,0.1)' }"
+              >
+                <text>{{ member.status === 'active' ? '已激活' : '待激活' }}</text>
+              </view>
+            </view>
+            <text class="text-xs text-[#999] block mt-0.5">加入于 {{ member.joinDate }}</text>
+          </view>
+          <view class="p-2 rounded-full hover:bg-[#F1EDE8]">
+            <text class="text-lg">⋯</text>
+          </view>
+        </view>
+
+        <view v-if="member.status === 'active'" class="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[#E8E0D5]">
+          <view class="text-center">
+            <text class="text-sm font-bold">{{ member.users }}</text>
+            <text class="text-[10px] text-[#999] block">用户数</text>
+          </view>
+          <view class="text-center">
+            <text class="text-sm font-bold" style="color:#22C55E">¥{{ member.earnings }}</text>
+            <text class="text-[10px] text-[#999] block">产生收益</text>
+          </view>
+          <view class="text-center">
+            <text class="text-sm font-bold" style="color:#C41E3A">¥{{ member.myBonus }}</text>
+            <text class="text-[10px] text-[#999] block">我的奖励</text>
+          </view>
+        </view>
+      </view>
+
+      <view v-if="operatorData.quota.available > 0" class="p-4 rounded-xl border-2 border-dashed flex items-center justify-center gap-2" style="border-color:rgba(196,30,58,0.3);background-color:rgba(196,30,58,0.05)" @click="goTo('/operator/invite')">
+        <text class="text-lg" style="color:#C41E3A">+</text>
+        <text class="font-medium" style="color:#C41E3A">邀请新站长（剩余{{ operatorData.quota.available }}个名额）</text>
+      </view>
+    </view>
+
+    <!-- 名额记录 -->
+    <view v-if="activeTab === 'quota'" class="px-4 mt-4 space-y-3">
+      <view v-for="record in quotaRecords" :key="record.id" class="p-4 bg-white rounded-xl">
+        <view class="flex items-center gap-3">
+          <view
+            class="w-10 h-10 rounded-xl flex items-center justify-center"
+            :class="record.type === 'self' ? 'bg-[#722ED1]/10' : 'bg-gold/10'"
+          >
+            <text v-if="record.type === 'self'" class="text-xl" style="color:#C41E3A">🏛</text>
+            <text v-else class="text-xl" style="color:#C9A96E">🎁</text>
+          </view>
+          <view class="flex-1">
+            <view class="flex items-center gap-2">
+              <text class="font-medium text-sm">{{ record.name }}</text>
+            </view>
+            <text class="text-xs text-[#999] block mt-0.5">{{ record.date }}</text>
+          </view>
+          <text v-if="record.type === 'sold'" class="text-sm font-bold" style="color:#C9A96E">+¥{{ record.price }}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const activeTab = ref('team')
+const copied = ref(false)
+
+const operatorData = {
+  name: "国学推广联盟",
+  level: "金牌运营商",
+  joinDate: "2024-01-15",
+  quota: { total: 6, used: 1, sold: 3, available: 2 },
+  team: { total: 3, thisMonth: 1 },
+  earnings: { total: 32680, thisMonth: 5680, pending: 1280, teamBonus: 8600, quotaSales: 2997 },
+  stats: { totalUsers: 580, thisMonthUsers: 86, conversionRate: 12.5 },
+}
+
+const teamMembers = [
+  { id: 1, name: "易学驿站", avatar: "", joinDate: "2024-03-15", status: "active", users: 128, earnings: 3680, myBonus: 184 },
+  { id: 2, name: "国学小站", avatar: "", joinDate: "2024-05-20", status: "active", users: 86, earnings: 2560, myBonus: 128 },
+  { id: 3, name: "命理之家", avatar: "", joinDate: "2024-06-01", status: "pending", users: 0, earnings: 0, myBonus: 0 },
+]
+
+const quotaRecords = [
+  { id: 1, type: "self", name: "自用", date: "2024-01-15", status: "active" },
+  { id: 2, type: "sold", name: "易学驿站", date: "2024-03-15", price: 999, status: "active" },
+  { id: 3, type: "sold", name: "国学小站", date: "2024-05-20", price: 999, status: "active" },
+  { id: 4, type: "sold", name: "命理之家", date: "2024-06-01", price: 999, status: "pending" },
+]
+
+const inviteLink = "https://rebu.com/join/station?ref=OP12345"
+
+function handleCopy() {
+  uni.setClipboardData({ data: inviteLink })
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
+}
+
+function goTo(path: string) {
+  uni.navigateTo({ url: path })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

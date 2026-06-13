@@ -1,0 +1,8 @@
+<template>
+  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">分站收益</text><view style="width:48rpx"/></view>
+    <view class="c"><view class="ov"><text class="ol">累计收益</text><text class="ov">¥{{data.total}}</text><view class="or"><view class="ori"><text class="orv">¥{{data.month}}</text><text class="orl">本月</text></view><view class="ori"><text class="orv">¥{{data.wd}}</text><text class="orl">可提现</text></view></view></view>
+    <view v-for="s in data.src" :key="s.n" class="sr"><text class="sn">{{s.n}}</text><text class="sa">¥{{s.a}}</text></view></view></view>
+</template>
+<script setup lang="ts">import {ref} from 'vue';const data=ref({total:'86,800',month:'12,580',wd:'45,680',src:[{n:'课程分佣',a:'45,800'},{n:'商品分佣',a:'28,600'},{n:'会员分佣',a:'12,400'}]});function goBack(){uni.navigateBack()}</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.c{padding:24rpx}.ov{background:linear-gradient(135deg,#C9A96E,#C41E3A);border-radius:24rpx;padding:36rpx;color:#fff;margin-bottom:24rpx}.ol{font-size:24rpx;opacity:.8}.ov{font-size:56rpx;font-weight:700;display:block;margin:8rpx 0 24rpx}.or{display:flex;gap:32rpx}.ori{}.orv{font-size:32rpx;font-weight:600;display:block}.orl{font-size:22rpx;opacity:.7}.sr{display:flex;justify-content:space-between;padding:20rpx;background:#fff;border-radius:12rpx;margin-bottom:8rpx;font-size:26rpx}.sn{color:#2C2C2C}.sa{color:#C41E3A;font-weight:500}
+</style>

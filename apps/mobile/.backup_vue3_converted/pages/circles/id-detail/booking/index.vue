@@ -1,0 +1,369 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- Loading skeleton -->
+    <view v-if="loading" class="min-h-screen bg-background">
+      <view class="h-14 bg-white" />
+      <view class="p-4 space-y-4">
+        <view class="h-6 w-24 bg-gray-200 rounded animate-pulse" />
+        <view class="flex gap-3 overflow-x-auto pb-2">
+          <view v-for="i in 3" :key="i" class="w-32 h-40 bg-gray-200 rounded-xl animate-pulse flex-shrink-0" />
+        </view>
+        <view class="h-6 w-24 bg-gray-200 rounded animate-pulse mt-6" />
+        <view class="h-48 bg-gray-200 rounded-xl animate-pulse" />
+      </view>
+    </view>
+
+    <!-- Success page -->
+    <view v-else-if="showSuccess && selectedExpert && selectedSlot" class="min-h-screen bg-background flex flex-col">
+      <view class="flex-1 flex flex-col items-center justify-center p-6">
+        <view class="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-4">
+          <text class="text-3xl text-green-500">✓</text>
+        </view>
+        <text class="text-xl font-bold text-foreground mb-2">预约成功</text>
+        <text class="text-ink-soft text-center mb-6">我们已向专家发送通知，请准时参加</text>
+
+        <view class="w-full bg-white rounded-xl p-4 space-y-3">
+          <view class="flex items-center gap-3">
+            <view class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-[#E85A6B] flex items-center justify-center text-white font-medium">
+              <text>{{ selectedExpert.name[0] }}</text>
+            </view>
+            <view>
+              <text class="font-medium text-foreground">{{ selectedExpert.name }}</text>
+              <text class="text-sm text-muted-foreground">{{ selectedExpert.title }}</text>
+            </view>
+          </view>
+          <view class="border-t border-border pt-3 space-y-2">
+            <view class="flex justify-between text-sm">
+              <text class="text-muted-foreground">日期</text>
+              <text class="text-foreground">{{ selectedDateStr }}</text>
+            </view>
+            <view class="flex justify-between text-sm">
+              <text class="text-muted-foreground">时间</text>
+              <text class="text-foreground">{{ selectedSlot.startTime }} - {{ selectedSlot.endTime }}</text>
+            </view>
+            <view class="flex justify-between text-sm">
+              <text class="text-muted-foreground">咨询主题</text>
+              <text class="text-foreground">{{ topic }}</text>
+            </view>
+            <view class="flex justify-between text-sm">
+              <text class="text-muted-foreground">费用</text>
+              <text class="text-primary font-medium">¥{{ calculatePrice() }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="p-4 space-y-3">
+        <view @click="addToCalendar" class="w-full py-3 rounded-xl border border-primary text-primary font-medium flex items-center justify-center gap-2">
+          <text></text>
+          <text>添加到日历</text>
+        </view>
+        <view @click="goToCircle" class="w-full py-3 rounded-xl bg-gradient-to-r from-primary to-[#E85A6B] text-white font-medium text-center">
+          返回圈子
+        </view>
+      </view>
+    </view>
+
+    <!-- Main booking page -->
+    <view v-else class="min-h-screen bg-background pb-24">
+      <!-- 顶部导航 -->
+      <view class="sticky top-0 z-10 bg-white border-b border-border">
+        <view class="flex items-center justify-between px-4 h-14">
+          <view @click="goBack" class="p-2 -ml-2">
+            <text class="text-xl text-foreground">←</text>
+          </view>
+          <text class="font-medium text-foreground">连麦预约</text>
+          <view class="w-9" />
+        </view>
+      </view>
+
+      <view class="p-4 space-y-6">
+        <!-- 选择专家 -->
+        <view>
+          <text class="text-sm font-medium text-foreground mb-3 block">选择专家</text>
+          <scroll-view scroll-x class="flex gap-3 pb-2" style="white-space:nowrap;">
+            <view v-for="expert in experts" :key="expert.id"
+              @click="expert.available && (selectedExpert = expert)"
+              :class="[
+                'inline-flex flex-col w-32 rounded-xl p-3 border-2 transition-all mr-3',
+                selectedExpert?.id === expert.id ? 'border-primary bg-red-50' :
+                expert.available ? 'border-transparent bg-white' : 'border-transparent bg-gray-100 opacity-60'
+              ]">
+              <view class="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-[#E85A6B] mx-auto mb-2 flex items-center justify-center text-white font-medium text-lg">
+                <text>{{ expert.name[0] }}</text>
+              </view>
+              <text class="font-medium text-foreground text-sm text-center truncate">{{ expert.name }}</text>
+              <text class="text-xs text-muted-foreground text-center truncate">{{ expert.title }}</text>
+              <view class="flex items-center justify-center gap-1 mt-1">
+                <text class="text-yellow-600 text-xs"></text>
+                <text class="text-xs text-ink-soft">{{ expert.rating }}</text>
+              </view>
+              <text class="text-center mt-2">
+                <text class="text-primary font-bold">¥{{ expert.pricePerMinute }}</text>
+                <text class="text-xs text-muted-foreground">/分钟</text>
+              </text>
+              <text v-if="!expert.available" class="text-xs text-center text-muted-foreground mt-1">暂不可约</text>
+            </view>
+          </scroll-view>
+        </view>
+
+        <!-- 选择日期 -->
+        <view>
+          <text class="text-sm font-medium text-foreground mb-3 block">选择日期</text>
+          <view class="bg-white rounded-xl p-4">
+            <view class="flex items-center justify-between mb-4">
+              <view @click="prevMonth" class="p-2">
+                <text class="text-xl text-ink-soft">‹</text>
+              </view>
+              <text class="font-medium text-foreground">{{ currentMonth.getFullYear() }}年{{ currentMonth.getMonth() + 1 }}月</text>
+              <view @click="nextMonth" class="p-2">
+                <text class="text-xl text-ink-soft">›</text>
+              </view>
+            </view>
+            <view class="grid grid-cols-7 gap-1 mb-2">
+              <view v-for="day in weekDays" :key="day" class="text-center text-xs text-muted-foreground py-1">{{ day }}</view>
+            </view>
+            <view class="grid grid-cols-7 gap-1">
+              <view v-for="(date, i) in calendarDays" :key="i" class="aspect-square flex items-center justify-center">
+                <view v-if="date" @click="!isPast(date) && (selectedDate = date)"
+                  :class="[
+                    'w-9 h-9 rounded-full text-sm flex items-center justify-center transition-colors',
+                    isSelected(date) ? 'bg-primary text-white' :
+                    isPast(date) ? 'text-[#CCCCCC]' : 'text-foreground'
+                  ]">
+                  <text>{{ date.getDate() }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 选择时段 -->
+        <view>
+          <text class="text-sm font-medium text-foreground mb-3 block">选择时段</text>
+          <view class="bg-white rounded-xl p-4">
+            <view v-if="slots.length > 0" class="grid grid-cols-4 gap-2">
+              <view v-for="slot in slots" :key="slot.id"
+                @click="slot.available && (selectedSlot = slot)"
+                :class="[
+                  'py-2 rounded-lg text-sm transition-colors text-center',
+                  selectedSlot?.id === slot.id ? 'bg-primary text-white' :
+                  slot.available ? 'bg-background text-foreground' : 'bg-gray-100 text-[#CCCCCC] line-through'
+                ]">
+                <text>{{ slot.startTime }}</text>
+              </view>
+            </view>
+            <text v-else class="text-center text-muted-foreground py-4 block">该日期暂无可用时段</text>
+          </view>
+        </view>
+
+        <!-- 咨询时长 -->
+        <view>
+          <text class="text-sm font-medium text-foreground mb-3 block">咨询时长</text>
+          <view class="flex gap-3">
+            <view v-for="mins in [15, 30, 45, 60]" :key="mins"
+              @click="duration = mins"
+              :class="[
+                'flex-1 py-3 rounded-xl text-sm font-medium text-center transition-colors',
+                duration === mins ? 'bg-primary text-white' : 'bg-white text-foreground'
+              ]">
+              <text>{{ mins }}分钟</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 咨询主题 -->
+        <view>
+          <text class="text-sm font-medium text-foreground mb-3 block">咨询主题</text>
+          <view class="bg-white rounded-xl p-4">
+            <textarea v-model="topic" placeholder="请简要描述您想咨询的问题..." :rows="3" class="w-full resize-none text-sm text-foreground placeholder:text-[#CCCCCC] outline-none bg-transparent" />
+            <view class="flex items-center gap-2 pt-2 border-t border-border">
+              <text class="text-sm text-muted-foreground"></text>
+              <text class="text-xs text-muted-foreground">专家将根据您的主题提前准备</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 费用预览 -->
+        <view v-if="selectedExpert" class="bg-white rounded-xl p-4">
+          <text class="text-sm font-medium text-foreground mb-3 block">费用预览</text>
+          <view class="space-y-2">
+            <view class="flex justify-between text-sm">
+              <text class="text-ink-soft">单价</text>
+              <text class="text-foreground">¥{{ selectedExpert.pricePerMinute }}/分钟</text>
+            </view>
+            <view class="flex justify-between text-sm">
+              <text class="text-ink-soft">时长</text>
+              <text class="text-foreground">{{ duration }}分钟</text>
+            </view>
+            <view class="flex justify-between text-sm pt-2 border-t border-border">
+              <text class="text-foreground font-medium">合计</text>
+              <text class="text-primary font-bold text-lg">¥{{ calculatePrice() }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部固定按钮 -->
+      <view class="fixed bottom-0 left-0 right-0 bg-white border-t border-border p-4" style="padding-bottom:env(safe-area-inset-bottom,10px)">
+        <view class="flex items-center justify-between mb-3">
+          <view class="flex items-center gap-2">
+            <text class="text-sm text-muted-foreground">🕐</text>
+            <text class="text-sm text-ink-soft">
+              {{ selectedSlot ? selectedDateStr + ' ' + selectedSlot.startTime : '请选择时段' }}
+            </text>
+          </view>
+          <view class="text-right">
+            <text class="text-muted-foreground text-sm">需支付</text>
+            <text class="text-primary font-bold text-xl ml-1">¥{{ calculatePrice() }}</text>
+          </view>
+        </view>
+        <view
+          @click="handleSubmit"
+          :class="[
+            'w-full py-3 rounded-xl bg-gradient-to-r from-primary to-[#E85A6B] text-white font-medium flex items-center justify-center gap-2',
+            (!selectedExpert || !selectedSlot || !topic.trim() || submitting) ? 'opacity-50' : ''
+          ]">
+          <view v-if="submitting">
+            <view class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+            <text> 预约中...</text>
+          </view>
+          <text v-else>立即预约</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue'
+
+interface Expert {
+  id: string; name: string; avatar: string; title: string
+  specialty: string[]; pricePerMinute: number; rating: number
+  sessions: number; available: boolean
+}
+interface TimeSlot {
+  id: string; startTime: string; endTime: string
+  available: boolean; duration: number
+}
+
+const mockExperts: Expert[] = [
+  { id: '1', name: '张明远', avatar: '/placeholder.svg', title: '资深命理师', specialty: ['八字', '紫微'], pricePerMinute: 5, rating: 4.9, sessions: 328, available: true },
+  { id: '2', name: '李易风', avatar: '/placeholder.svg', title: '风水大师', specialty: ['风水', '择日'], pricePerMinute: 8, rating: 4.8, sessions: 156, available: true },
+  { id: '3', name: '王国学', avatar: '/placeholder.svg', title: '易学研究员', specialty: ['周易', '六爻'], pricePerMinute: 6, rating: 4.7, sessions: 89, available: false },
+]
+const mockSlots: TimeSlot[] = [
+  { id: '1', startTime: '09:00', endTime: '09:30', available: true, duration: 30 },
+  { id: '2', startTime: '09:30', endTime: '10:00', available: false, duration: 30 },
+  { id: '3', startTime: '10:00', endTime: '10:30', available: true, duration: 30 },
+  { id: '4', startTime: '10:30', endTime: '11:00', available: true, duration: 30 },
+  { id: '5', startTime: '14:00', endTime: '14:30', available: true, duration: 30 },
+  { id: '6', startTime: '14:30', endTime: '15:00', available: true, duration: 30 },
+  { id: '7', startTime: '15:00', endTime: '15:30', available: false, duration: 30 },
+  { id: '8', startTime: '15:30', endTime: '16:00', available: true, duration: 30 },
+]
+
+const loading = ref(true)
+const experts = ref<Expert[]>([])
+const selectedExpert = ref<Expert | null>(null)
+const selectedDate = ref(new Date())
+const slots = ref<TimeSlot[]>([])
+const selectedSlot = ref<TimeSlot | null>(null)
+const duration = ref(30)
+const topic = ref('')
+const submitting = ref(false)
+const showSuccess = ref(false)
+const bookingResult = ref<{ bookingId: string } | null>(null)
+
+// Calendar
+const currentMonth = ref(new Date())
+const today = new Date()
+today.setHours(0, 0, 0, 0)
+const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+
+const calendarDays = computed(() => {
+  const year = currentMonth.value.getFullYear()
+  const month = currentMonth.value.getMonth()
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  const days: (Date | null)[] = []
+  for (let i = 0; i < firstDay.getDay(); i++) days.push(null)
+  for (let i = 1; i <= lastDay.getDate(); i++) days.push(new Date(year, month, i))
+  return days
+})
+
+const selectedDateStr = computed(() => {
+  return `${selectedDate.value.getFullYear()}-${String(selectedDate.value.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.value.getDate()).padStart(2, '0')}`
+})
+
+function isSelected(date: Date) {
+  return date.toDateString() === selectedDate.value.toDateString()
+}
+function isPast(date: Date) {
+  return date < today
+}
+function prevMonth() {
+  currentMonth.value = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() - 1)
+}
+function nextMonth() {
+  currentMonth.value = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1)
+}
+
+onMounted(() => {
+  loadExperts()
+})
+
+function loadExperts() {
+  loading.value = true
+  try {
+    // mock
+    experts.value = mockExperts
+    selectedExpert.value = mockExperts.find(e => e.available) || mockExperts[0]
+    loadSlots()
+  } catch {/* ignore */} finally {
+    loading.value = false
+  }
+}
+
+watch([selectedExpert, selectedDate], () => {
+  loadSlots()
+})
+
+function loadSlots() {
+  if (!selectedExpert.value) return
+  try {
+    slots.value = mockSlots
+  } catch {
+    slots.value = mockSlots
+  }
+  selectedSlot.value = null
+}
+
+function calculatePrice(): number {
+  if (!selectedExpert.value) return 0
+  return selectedExpert.value.pricePerMinute * duration.value
+}
+
+async function handleSubmit() {
+  if (!selectedExpert.value || !selectedSlot.value || !topic.value.trim()) return
+  submitting.value = true
+  try {
+    bookingResult.value = { bookingId: 'mock-booking-123' }
+    showSuccess.value = true
+  } catch {
+    bookingResult.value = { bookingId: 'mock-booking-123' }
+    showSuccess.value = true
+  } finally {
+    submitting.value = false
+  }
+}
+
+function addToCalendar() {
+  if (!selectedExpert.value || !selectedSlot.value) return
+  uni.showToast({ title: '已添加到日历(Mock)', icon: 'none' })
+}
+
+function goBack() { uni.navigateBack() }
+function goToCircle() { uni.navigateBack() }
+</script>
+<style scoped>/* 样式由 Tailwind 处理 */</style>

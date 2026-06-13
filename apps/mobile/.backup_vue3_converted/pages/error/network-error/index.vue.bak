@@ -1,0 +1,248 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-10 bg-[#FAF8F5]/80 backdrop-blur-sm border-b border-[#E8E0D5] px-4 py-3">
+      <view class="flex items-center gap-3">
+        <view class="w-10 h-10 flex items-center justify-center" @tap="goBack">
+          <text class="text-lg text-[#2C2C2C]">←</text>
+        </view>
+        <text class="text-lg font-semibold text-[#2C2C2C]">网络状态</text>
+      </view>
+    </view>
+
+    <!-- 主内容区 -->
+    <view class="flex-1 flex flex-col items-center justify-center px-6 py-12">
+      <!-- 图标区域 - 双层圆形 -->
+      <view
+        class="w-32 h-32 rounded-full flex items-center justify-center mb-8 transition-colors duration-300"
+        :class="status === 'online' ? 'bg-green-100' : 'bg-[#F0EBE5]'"
+      >
+        <view
+          class="w-24 h-24 rounded-full flex items-center justify-center transition-colors duration-300"
+          :class="status === 'online' ? 'bg-green-200' : 'bg-[#E0D8CE]/10'"
+        >
+          <!-- V0 风格：online 显示 SignalHigh, checking 显示旋转图标, offline 显示 WifiOff -->
+          <text
+            v-if="status === 'online'"
+            class="text-5xl text-green-600"
+          >📆</text>
+          <text
+            v-else-if="status === 'checking'"
+            class="text-5xl text-[#999]"
+            :class="isRetrying ? 'animate-spin' : ''"
+          >📓</text>
+          <text
+            v-else
+            class="text-5xl text-[#999]"
+          >📵</text>
+        </view>
+      </view>
+
+      <!-- 状态文字 -->
+      <text
+        class="text-2xl font-bold mb-3 transition-colors duration-300"
+        :class="status === 'online' ? 'text-green-600' : 'text-[#2C2C2C]'"
+      >
+        <text v-if="status === 'online'">网络已恢复</text>
+        <text v-else-if="status === 'checking'">正在检测网络...</text>
+        <text v-else>网络连接已断开</text>
+      </text>
+
+      <text class="text-[#999] text-center max-w-sm mb-2">
+        <text v-if="status === 'online'">正在返回上一页...</text>
+        <text v-else-if="status === 'checking'">请稍候，正在尝试连接网络</text>
+        <text v-else>请检查您的网络设置，确保设备已连接到互联网</text>
+      </text>
+
+      <text v-if="status === 'offline' && retryCount > 0" class="text-sm text-[#999] mb-6">
+        已尝试 {{ retryCount }} 次
+      </text>
+
+      <!-- 信号强度指示 - 匹配 V0 的 SignalIcon 组件 -->
+      <view class="flex items-center gap-2 mb-8">
+        <text class="text-3xl">{{ signalIcon }}</text>
+        <text class="text-sm text-[#999]">
+          <text v-if="status === 'online'">信号良好</text>
+          <text v-else-if="status === 'checking'">检测中</text>
+          <text v-else>无信号</text>
+        </text>
+      </view>
+
+      <!-- 操作按钮 -->
+      <view class="flex flex-col gap-3 w-full max-w-xs">
+        <!-- 重试连接按钮 -->
+        <view
+          @tap="checkNetwork"
+          class="w-full py-3 rounded-lg bg-[#C41E3A] text-white text-center text-sm font-medium flex items-center justify-center gap-2"
+          :class="isRetrying ? 'opacity-50' : ''"
+        >
+          <text
+            class="text-base"
+            :class="isRetrying ? 'animate-spin' : ''"
+          >📓</text>
+          <text>{{ isRetrying ? '正在重试...' : '重试连接' }}</text>
+        </view>
+
+        <!-- 返回首页按钮 -->
+        <view
+          @tap="goHome"
+          class="w-full py-3 rounded-lg border border-[#E8E0D5] text-center text-sm font-medium flex items-center justify-center gap-2 text-[#2C2C2C]"
+        >
+          <text class="text-base">🏠</text>
+          <text>返回首页</text>
+        </view>
+      </view>
+
+      <!-- 排查建议 -->
+      <view class="mt-12 p-4 rounded-lg max-w-sm w-full" style="background:rgba(240,235,229,0.5)">
+        <text class="font-medium text-sm mb-3 block text-[#2C2C2C]">排查建议</text>
+        <view class="space-y-2">
+          <view
+            v-for="(tip, idx) in troubleshootTips"
+            :key="idx"
+            class="flex items-start gap-2"
+          >
+            <view class="w-5 h-5 rounded-full bg-[#C41E3A]/10 text-[#C41E3A] text-xs flex items-center justify-center shrink-0 mt-0.5">
+              <text>{{ tip.num }}</text>
+            </view>
+            <text class="text-sm text-[#999]">{{ tip.text }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+
+type NetworkStatus = 'offline' | 'online' | 'checking'
+
+const status = ref<NetworkStatus>('offline')
+const retryCount = ref(0)
+const isRetrying = ref(false)
+const signalStrength = ref(0)
+
+let intervalId: ReturnType<typeof setInterval> | null = null
+
+// V0 排查建议
+const troubleshootTips = [
+  { num: 1, text: '检查Wi-Fi或移动数据是否开启' },
+  { num: 2, text: '尝试开启/关闭飞行模式' },
+  { num: 3, text: '重启路由器或切换网络' },
+  { num: 4, text: '如问题持续，请联系网络服务商' },
+]
+
+// V0 风格的信号强度图标
+const signalIcon = computed(() => {
+  if (status.value === 'checking') {
+    switch (signalStrength.value) {
+      case 0: return '\u{1F4F6}'    // Signal=0 -> 📶
+      case 1: return '\u{1F4F6}'    // SignalLow
+      case 2: return '\u{1F4F6}'    // SignalMedium
+      case 3: return '\u{1F4F6}'    // SignalHigh
+      default: return '\u{1F4F6}'   // default
+    }
+  }
+  if (status.value === 'online') return '\u{1F4F6}'  // SignalHigh
+  return '\u{1F4F5}'  // WifiOff
+})
+
+// 检测网络状态 —— 匹配 V0 的 checkNetwork 逻辑
+async function checkNetwork() {
+  isRetrying.value = true
+  status.value = 'checking'
+
+  // V0: 模拟信号强度动画 (setInterval 每200ms切换)
+  let strength = 0
+  intervalId = setInterval(() => {
+    strength = (strength + 1) % 4
+    signalStrength.value = strength
+  }, 200)
+
+  try {
+    // V0: 使用 fetch 请求 /api/health 并设置 5s 超时
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
+
+    const response = await fetch('/api/health', {
+      method: 'HEAD',
+      signal: controller.signal,
+      cache: 'no-store',
+    })
+
+    clearTimeout(timeoutId)
+    if (intervalId) clearInterval(intervalId)
+
+    if (response.ok || navigator.onLine) {
+      status.value = 'online'
+      signalStrength.value = 3
+      // V0: 延迟 1s 后返回上一页
+      setTimeout(() => {
+        uni.navigateBack()
+      }, 1000)
+    } else {
+      status.value = 'offline'
+      signalStrength.value = 0
+    }
+  } catch {
+    if (intervalId) clearInterval(intervalId)
+    // V0: 备用检测：使用 navigator.onLine
+    if (navigator.onLine) {
+      status.value = 'online'
+      signalStrength.value = 3
+      setTimeout(() => {
+        uni.navigateBack()
+      }, 1000)
+    } else {
+      status.value = 'offline'
+      signalStrength.value = 0
+    }
+  } finally {
+    isRetrying.value = false
+    retryCount.value++
+  }
+}
+
+// V0: 监听网络状态变化
+function handleOnline() {
+  status.value = 'online'
+  signalStrength.value = 3
+  setTimeout(() => {
+    uni.navigateBack()
+  }, 1000)
+}
+
+function handleOffline() {
+  status.value = 'offline'
+  signalStrength.value = 0
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+function goHome() {
+  uni.reLaunch({ url: '/pages/index/index' })
+}
+
+onMounted(() => {
+  // V0: 初始检测
+  if (navigator.onLine) {
+    checkNetwork()
+  }
+
+  // V0: 添加事件监听
+  window.addEventListener('online', handleOnline)
+  window.addEventListener('offline', handleOffline)
+})
+
+onUnmounted(() => {
+  if (intervalId) clearInterval(intervalId)
+  window.removeEventListener('online', handleOnline)
+  window.removeEventListener('offline', handleOffline)
+})
+</script>
+
+<style scoped>
+</style>

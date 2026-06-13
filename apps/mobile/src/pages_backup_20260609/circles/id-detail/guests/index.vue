@@ -1,0 +1,7 @@
+<template>
+  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">嘉宾管理</text><view class="na" @click="add">＋</view></view>
+    <scroll-view scroll-y class="c"><view v-for="g in guests" :key="g.id" class="card"><text class="ga">{{g.n[0]}}</text><view><text class="gn">{{g.n}}</text><text class="gt">{{g.t}}</text></view><text class="gd" @click="del(g.id)">🗑️</text></view></scroll-view></view>
+</template>
+<script setup lang="ts">import {ref} from 'vue';const guests=ref([{id:1,n:'张玄风',t:'紫微斗数传承人'},{id:2,n:'李易安',t:'姓名学专家'}]);function add(){};function del(id:number){guests.value=guests.value.filter((g:any)=>g.id!==id)};function goBack(){uni.navigateBack()}</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.na{font-size:40rpx;color:#C41E3A}.c{padding:24rpx}.card{display:flex;align-items:center;gap:16rpx;background:#fff;border-radius:16rpx;padding:24rpx;margin-bottom:12rpx}.ga{width:72rpx;height:72rpx;border-radius:50%;background:#F5F1EB;display:flex;align-items:center;justify-content:center;font-size:28rpx;color:#2C2C2C}.gn{font-size:26rpx;font-weight:500;color:#2C2C2C;display:block}.gt{font-size:22rpx;color:#999}.gd{font-size:28rpx;color:#ef4444}
+</style>

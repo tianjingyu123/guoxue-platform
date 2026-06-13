@@ -1,0 +1,198 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-white border-b border-[#E8E0D5]">
+      <view class="flex items-center h-14 px-4">
+        <view @click="goBack" class="mr-3 p-1">
+          <text class="text-xl text-[#2C2C2C]">←</text>
+        </view>
+        <text class="text-lg font-semibold">违规管理</text>
+      </view>
+    </view>
+
+    <!-- 违规概览 -->
+    <view class="p-4">
+      <view class="bg-white rounded-2xl p-4">
+        <view class="flex items-center justify-between mb-4">
+          <view>
+            <text class="text-sm text-[#999] block">店铺扣分</text>
+            <view class="flex items-baseline gap-1 mt-1">
+              <text class="text-3xl font-bold text-[#2C2C2C]">{{ violationStats.score }}</text>
+              <text class="text-sm text-[#999]">/ {{ violationStats.maxScore }}分</text>
+            </view>
+          </view>
+          <view :class="['w-16 h-16 rounded-full flex items-center justify-center', scorePercent > 50 ? 'bg-red-100' : scorePercent > 25 ? 'bg-amber-100' : 'bg-green-100']">
+            <text :class="['text-lg font-bold', scorePercent > 50 ? 'text-red-600' : scorePercent > 25 ? 'text-amber-600' : 'text-green-600']">
+              {{ scorePercent > 50 ? '警告' : scorePercent > 25 ? '注意' : '良好' }}
+            </text>
+          </view>
+        </view>
+
+        <!-- 进度条 -->
+        <view class="w-full h-2 bg-[#E8E0D5] rounded-full overflow-hidden">
+          <view :class="['h-full rounded-full transition-all', scorePercent > 50 ? 'bg-red-500' : scorePercent > 25 ? 'bg-amber-500' : 'bg-green-500']" :style="{ width: scorePercent + '%' }" />
+        </view>
+
+        <view class="flex items-center gap-4 mt-4 text-sm">
+          <view class="flex items-center gap-1">
+            <text class="text-[#999]">违规次数</text>
+            <text class="font-medium">{{ violationStats.total }}</text>
+          </view>
+          <view class="flex items-center gap-1">
+            <text class="text-[#999]">待处理</text>
+            <text class="font-medium text-red-600">{{ violationStats.pending }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 扣分说明 -->
+      <view class="bg-amber-50 border border-amber-200/50 rounded-2xl mt-3 p-3">
+        <view class="flex items-start gap-2">
+          <text class="text-amber-600 mt-0.5">ℹ️</text>
+          <view class="text-xs text-[#999]">
+            <text class="block">扣分满48分将被暂停营业资格，每季度初清零一次。</text>
+            <text class="block mt-1">如有异议可在收到通知后3天内提交申诉。</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 违规记录 -->
+    <view class="px-4">
+      <text class="font-medium mb-3 block">违规记录</text>
+
+      <view class="space-y-3">
+        <view v-for="violation in violations" :key="violation.id" class="bg-white rounded-2xl p-4">
+          <view class="flex items-start gap-3">
+            <view :class="['w-10 h-10 rounded-full flex items-center justify-center shrink-0', getTypeColor(violation.type)]">
+              <text class="text-lg">{{ getTypeIcon(violation.type) }}</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center justify-between">
+                <text class="font-medium text-[#2C2C2C]">{{ violation.title }}</text>
+                <text :class="['px-2 py-0.5 rounded text-xs', getStatusColor(violation.status).bg, getStatusColor(violation.status).text]">
+                  {{ getStatusColor(violation.status).label }}
+                </text>
+              </view>
+              <text class="text-sm text-[#999] mt-1 block">{{ violation.description }}</text>
+
+              <view class="mt-2 text-xs text-[#999]">
+                <text v-if="violation.productTitle" class="block">商品: {{ violation.productTitle }}</text>
+                <text v-if="violation.orderNo" class="block">订单: {{ violation.orderNo }}</text>
+              </view>
+
+              <view class="mt-2 p-2 bg-red-50 rounded text-xs">
+                <text class="text-red-600">处罚: {{ violation.penalty }}</text>
+              </view>
+
+              <view class="flex items-center justify-between mt-3 pt-3 border-t border-[#E8E0D5]">
+                <text class="text-xs text-[#999]">{{ violation.createdAt }}</text>
+                <view v-if="violation.status === 'pending'" class="flex gap-2">
+                  <view class="px-3 py-1 border border-[#E8E0D5] rounded-lg text-xs">申诉</view>
+                  <view class="px-3 py-1 bg-[#C41E3A] text-white rounded-lg text-xs">去处理</view>
+                </view>
+                <text v-if="violation.status === 'processed'" class="text-xs text-[#999]">
+                  处理时间: {{ violation.processedAt }}
+                </text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 空状态 -->
+      <view v-if="violations.length === 0" class="py-20 text-center">
+        <view class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+          <text class="text-3xl">🛡️</text>
+        </view>
+        <text class="text-[#999]">暂无违规记录，继续保持！</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+
+const violationStats = {
+  total: 3,
+  pending: 1,
+  score: 12,
+  maxScore: 48,
+}
+
+const violations = [
+  {
+    id: '1',
+    type: 'product',
+    title: '商品信息违规',
+    description: '商品标题包含夸大宣传用语',
+    productTitle: '最强命理秘籍',
+    penalty: '商品下架，扣2分',
+    score: 2,
+    status: 'pending',
+    createdAt: '2024-01-15 10:00',
+    deadline: '2024-01-18 10:00',
+  },
+  {
+    id: '2',
+    type: 'service',
+    title: '服务态度违规',
+    description: '与买家沟通时使用不文明用语',
+    orderNo: '202401100001',
+    penalty: '警告，扣5分',
+    score: 5,
+    status: 'processed',
+    createdAt: '2024-01-10 15:00',
+    processedAt: '2024-01-11 09:00',
+  },
+  {
+    id: '3',
+    type: 'delay',
+    title: '延迟发货',
+    description: '超过承诺时间48小时未发货',
+    orderNo: '202401050001',
+    penalty: '扣5分，赔付买家5元',
+    score: 5,
+    status: 'processed',
+    createdAt: '2024-01-05 00:00',
+    processedAt: '2024-01-05 12:00',
+  },
+]
+
+const scorePercent = computed(() => (violationStats.score / violationStats.maxScore) * 100)
+
+const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
+  pending: { label: '待处理', bg: 'bg-red-100', text: 'text-red-700' },
+  appealing: { label: '申诉中', bg: 'bg-blue-100', text: 'text-blue-700' },
+  processed: { label: '已处理', bg: 'bg-gray-100', text: 'text-gray-700' },
+}
+
+function getStatusColor(status: string) {
+  return statusConfig[status] || { label: '未知', bg: 'bg-gray-100', text: 'text-gray-700' }
+}
+
+function getTypeIcon(type: string) {
+  switch (type) {
+    case 'product': return '📄'
+    case 'service': return '⚠️'
+    case 'delay': return '⏰'
+    default: return '❗'
+  }
+}
+
+function getTypeColor(type: string) {
+  switch (type) {
+    case 'product': return 'bg-orange-50 text-orange-600'
+    case 'service': return 'bg-red-50 text-red-600'
+    case 'delay': return 'bg-amber-50 text-amber-600'
+    default: return 'bg-gray-50 text-gray-600'
+  }
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

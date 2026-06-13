@@ -1,0 +1,311 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-40 bg-white/95 border-b border-border">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view @click="goBack" class="p-2 -ml-2">
+          <text class="text-xl text-foreground">←</text>
+        </view>
+        <text class="font-semibold text-base text-foreground">编辑视频</text>
+        <view @click="handlePublish" :class="'px-4 py-1.5 text-sm font-medium rounded-full ' + (title.trim() ? 'bg-primary text-white' : 'bg-secondary text-muted-foreground')">
+          <text>发布</text>
+        </view>
+      </view>
+    </header>
+
+    <view class="pb-20">
+      <!-- 视频预览区 -->
+      <view class="relative mx-4 mt-4 rounded-xl overflow-hidden" style="aspect-ratio:9/16;max-height:50vh;background-color:#000">
+        <view class="absolute inset-0 flex items-center justify-center" style="background:linear-gradient(135deg,#F5F1EB,#FAF8F5,#F5F1EB)">
+          <view class="text-center">
+            <view class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-2" style="background-color:rgba(255,255,255,0.1)">
+              <text class="text-white text-2xl ml-1">▶</text>
+            </view>
+            <text class="text-white/40 text-xs">视频预览区</text>
+          </view>
+        </view>
+
+        <!-- 播放/暂停控制 -->
+        <view @click="isPlaying=!isPlaying" class="absolute inset-0 flex items-center justify-center">
+          <view v-if="!isPlaying" class="w-16 h-16 rounded-full flex items-center justify-center" style="background-color:rgba(0,0,0,0.4)">
+            <text class="text-white text-2xl ml-1">▶</text>
+          </view>
+        </view>
+
+        <!-- 静音控制 -->
+        <view @click="isMuted=!isMuted" class="absolute top-3 right-3 p-2 rounded-full" style="background-color:rgba(0,0,0,0.4)">
+          <text class="text-white">{{isMuted ? '' : ''}}</text>
+        </view>
+
+        <!-- 滤镜效果叠加层 -->
+        <view v-if="selectedFilter!=='none'" :class="'absolute inset-0 pointer-events-none ' + (
+          selectedFilter==='shuimo' ? 'mix-blend-multiply' :
+          selectedFilter==='xuanzhi' ? 'bg-amber-50/20' :
+          selectedFilter==='guofeng' ? 'bg-gradient-to-br from-red-900/10 to-amber-900/10' :
+          ''
+        )" />
+      </view>
+
+      <!-- 编辑工具条 -->
+      <view class="flex items-center justify-around px-4 py-4 border-b border-border">
+        <view @click="activeTab=activeTab==='trim'?null:'trim'" :class="'flex flex-col items-center gap-1 px-4 py-2 rounded-lg ' + (activeTab==='trim' ? 'bg-primary/10 text-primary' : 'text-muted-foreground')">
+          <text class="text-lg">✂</text>
+          <text class="text-xs">裁剪</text>
+        </view>
+        <view @click="activeTab=activeTab==='filter'?null:'filter'" :class="'flex flex-col items-center gap-1 px-4 py-2 rounded-lg ' + (activeTab==='filter' ? 'bg-primary/10 text-primary' : 'text-muted-foreground')">
+          <text class="text-lg"></text>
+          <text class="text-xs">滤镜</text>
+        </view>
+        <view @click="activeTab=activeTab==='music'?null:'music'" :class="'flex flex-col items-center gap-1 px-4 py-2 rounded-lg ' + (activeTab==='music' ? 'bg-primary/10 text-primary' : 'text-muted-foreground')">
+          <text class="text-lg"></text>
+          <text class="text-xs">音乐</text>
+        </view>
+        <view @click="activeTab=activeTab==='cover'?null:'cover'" :class="'flex flex-col items-center gap-1 px-4 py-2 rounded-lg ' + (activeTab==='cover' ? 'bg-primary/10 text-primary' : 'text-muted-foreground')">
+          <text class="text-lg"></text>
+          <text class="text-xs">封面</text>
+        </view>
+      </view>
+
+      <!-- 编辑面板 - 裁剪 -->
+      <view v-if="activeTab==='trim'" class="px-4 py-4 border-b border-border">
+        <text class="text-sm text-muted-foreground mb-3" style="display:block">拖动滑块选择视频片段</text>
+        <view class="relative h-12 rounded-lg overflow-hidden" style="background-color:#F5F1EB">
+          <view class="absolute inset-0 flex">
+            <view v-for="i in 10" :key="i" class="flex-1 border-r border-border/30" style="background:linear-gradient(to bottom,rgba(153,153,153,0.2),rgba(153,153,153,0.1))" />
+          </view>
+          <view class="absolute top-0 bottom-0 border-x-2 border-primary" :style="{left:trimStart+'%',right:(100-trimEnd)+'%',backgroundColor:'rgba(196,30,58,0.2)'}" />
+          <view class="absolute top-0 bottom-0 w-4 bg-primary rounded-l flex items-center justify-center" :style="{left:trimStart+'%'}">
+            <view class="w-0.5 h-4 bg-white rounded" />
+          </view>
+          <view class="absolute top-0 bottom-0 w-4 bg-primary rounded-r flex items-center justify-center" :style="{right:(100-trimEnd)+'%'}">
+            <view class="w-0.5 h-4 bg-white rounded" />
+          </view>
+        </view>
+        <view class="flex justify-between mt-2 text-xs text-muted-foreground">
+          <text>00:00</text>
+          <text>已选 {{Math.round((trimEnd-trimStart)/100*15)}}秒</text>
+          <text>00:15</text>
+        </view>
+      </view>
+
+      <!-- 编辑面板 - 滤镜 -->
+      <view v-if="activeTab==='filter'" class="px-4 py-4 border-b border-border">
+        <view class="flex gap-3" style="overflow-x:auto;white-space:nowrap">
+          <view v-for="filter in filters" :key="filter.id" @click="selectedFilter=filter.id" class="flex-shrink-0 flex flex-col items-center gap-2">
+            <view :class="'w-16 h-16 rounded-lg overflow-hidden border-2 ' + (selectedFilter===filter.id ? 'border-primary' : 'border-transparent')">
+              <view :class="'w-full h-full flex items-center justify-center ' + (
+                filter.id==='shuimo' ? 'from-slate-200 to-slate-400' :
+                filter.id==='xuanzhi' ? 'from-amber-100 to-amber-200' :
+                filter.id==='guofeng' ? 'from-red-100 to-amber-100' :
+                filter.id==='huaijiu' ? 'from-yellow-100 to-orange-100' :
+                filter.id==='qingxin' ? 'from-green-100 to-cyan-100' :
+                filter.id==='nuanyang' ? 'from-orange-100 to-yellow-100' :
+                ''
+              )" style="background:linear-gradient(135deg,#F5F1EB,#E8E0D5)">
+                <text class="text-sm opacity-40"></text>
+              </view>
+            </view>
+            <text :class="'text-xs ' + (selectedFilter===filter.id ? 'text-primary font-medium' : 'text-muted-foreground')">{{filter.name}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 编辑面板 - 音乐 -->
+      <view v-if="activeTab==='music'" class="px-4 py-4 border-b border-border" style="max-height:192rpx;overflow-y:auto">
+        <view v-for="music in musicList" :key="music.id" @click="selectedMusic=String(music.id)" :class="'w-full flex items-center gap-3 p-3 rounded-lg ' + (selectedMusic===String(music.id) ? 'bg-primary/10' : '')">
+          <view :class="'w-10 h-10 rounded-lg flex items-center justify-center ' + (selectedMusic===String(music.id) ? 'bg-primary' : 'bg-secondary')">
+            <text :class="selectedMusic===String(music.id) ? 'text-white' : 'text-muted-foreground'"></text>
+          </view>
+          <view class="flex-1" style="text-align:left">
+            <text :class="'text-sm ' + (selectedMusic===String(music.id) ? 'text-primary font-medium' : 'text-foreground')" style="display:block">{{music.name}}</text>
+            <text v-if="music.artist" class="text-xs text-muted-foreground" style="display:block">{{music.artist}} · {{music.duration}}</text>
+          </view>
+          <text v-if="selectedMusic===String(music.id)" class="text-sm text-primary">✓</text>
+        </view>
+      </view>
+
+      <!-- 编辑面板 - 封面 -->
+      <view v-if="activeTab==='cover'" class="px-4 py-4 border-b border-border">
+        <text class="text-sm text-muted-foreground mb-3" style="display:block">从视频中选择封面</text>
+        <view class="flex gap-2" style="overflow-x:auto;white-space:nowrap">
+          <view v-for="(frame,index) in coverFrames" :key="index" @click="selectedCover=index" :class="'flex-shrink-0 w-16 rounded-lg overflow-hidden border-2 ' + (selectedCover===index ? 'border-primary' : 'border-transparent')" style="aspect-ratio:9/16">
+            <view class="w-full h-full flex items-center justify-center" style="background:linear-gradient(135deg,#F5F1EB,#E8E0D5)">
+              <text class="text-[10px] text-muted-foreground">{{index+1}}</text>
+            </view>
+          </view>
+          <view class="flex-shrink-0 rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1" style="width:128rpx;aspect-ratio:9/16">
+            <text class="text-sm text-muted-foreground">+</text>
+            <text class="text-[10px] text-muted-foreground">上传</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 发布设置区 -->
+      <view class="px-4 py-4 space-y-4">
+        <!-- 标题 -->
+        <view>
+          <textarea
+            :value="title"
+            @input="e => title=e.detail.value"
+            placeholder="添加视频标题和描述，让更多人发现你的作品..."
+            class="w-full h-20 p-3 rounded-xl text-sm text-foreground resize-none"
+            style="background-color:#F5F1EB;outline:none"
+            maxlength="200"
+          />
+          <text class="text-right text-xs text-muted-foreground mt-1" style="display:block;text-align:right">{{title.length}}/200</text>
+        </view>
+
+        <!-- 话题标签 -->
+        <view>
+          <text class="text-sm font-medium text-foreground mb-2" style="display:block">话题标签</text>
+          <view class="flex flex-wrap gap-2 mb-2">
+            <view v-for="(topic,tIdx) in topics" :key="tIdx" class="flex items-center gap-1 px-2 py-1 rounded-full text-xs" style="background-color:#F5F1EB">
+              <text>#{{topic}}</text>
+              <view @click="removeTopic(topic)" class="p-0.5">
+                <text class="text-xs">✕</text>
+              </view>
+            </view>
+            <view v-if="topics.length<5" class="flex items-center gap-1">
+              <text class="text-muted-foreground">#</text>
+              <input
+                :value="topicInput"
+                @input="e => topicInput=e.detail.value"
+                @confirm="addTopic(topicInput)"
+                placeholder="添加话题"
+                class="w-20 bg-transparent text-sm"
+                style="outline:none"
+              />
+            </view>
+          </view>
+          <view class="flex flex-wrap gap-2">
+            <view v-for="topic in hotTopics.filter(t=>!topics.includes(t)).slice(0,4)" :key="topic" @click="addTopic(topic)" class="px-2 py-1 rounded text-xs text-muted-foreground">
+              <text>#{{topic}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 位置 -->
+        <view class="w-full flex items-center justify-between p-3 rounded-xl" style="background-color:#F5F1EB">
+          <view class="flex items-center gap-3">
+            <text class="text-muted-foreground">📍</text>
+            <text class="text-sm text-foreground">{{location || '添加位置'}}</text>
+          </view>
+          <text class="text-sm text-muted-foreground">›</text>
+        </view>
+
+        <!-- 关联圈子 -->
+        <view @click="showCircleSelect=true" class="w-full flex items-center justify-between p-3 rounded-xl" style="background-color:#F5F1EB">
+          <view class="flex items-center gap-3">
+            <text class="text-muted-foreground"></text>
+            <text class="text-sm text-foreground">{{selectedCircle ? selectedCircle.name : '选择发布圈子'}}</text>
+          </view>
+          <text class="text-sm text-muted-foreground">›</text>
+        </view>
+
+        <!-- 关联商品 -->
+        <view @click="showProductSelect=true" class="w-full flex items-center justify-between p-3 rounded-xl" style="background-color:#F5F1EB">
+          <view class="flex items-center gap-3">
+            <text class="text-muted-foreground"></text>
+            <text class="text-sm text-foreground">{{linkedProducts.length>0 ? '已选 '+linkedProducts.length+' 件商品' : '关联商品（可选）'}}</text>
+          </view>
+          <text class="text-sm text-muted-foreground">›</text>
+        </view>
+
+        <!-- 可见范围 -->
+        <view class="flex items-center justify-between p-3 rounded-xl" style="background-color:#F5F1EB">
+          <view class="flex items-center gap-3">
+            <text class="text-muted-foreground">{{visibility==='public' ? '' : ''}}</text>
+            <text class="text-sm text-foreground">谁可以看</text>
+          </view>
+          <view class="flex items-center gap-2">
+            <view @click="visibility='public'" :class="'px-3 py-1 rounded-full text-xs ' + (visibility==='public' ? 'bg-primary text-white' : 'bg-white text-muted-foreground')">
+              <text>公开</text>
+            </view>
+            <view @click="visibility='circle'" :class="'px-3 py-1 rounded-full text-xs ' + (visibility==='circle' ? 'bg-primary text-white' : 'bg-white text-muted-foreground')">
+              <text>仅圈内</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部发布按钮 -->
+    <view class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-border p-4" style="padding-bottom:env(safe-area-inset-bottom,0)">
+      <view @click="handlePublish" :class="'w-full py-3 rounded-xl font-medium text-center ' + (title.trim() ? 'bg-primary text-white' : 'bg-secondary text-muted-foreground')">
+        <text>发布视频</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const filters = [
+  { id: "none", name: "原片" },
+  { id: "guofeng", name: "国风" },
+  { id: "xuanzhi", name: "宣纸" },
+  { id: "shuimo", name: "水墨" },
+  { id: "huaijiu", name: "怀旧" },
+  { id: "qingxin", name: "清新" },
+  { id: "nuanyang", name: "暖阳" },
+]
+
+const musicList = [
+  { id: "none", name: "无背景音乐", artist: "", duration: "" },
+  { id: "1", name: "古风悠扬", artist: "平台精选", duration: "03:25" },
+  { id: "2", name: "山水意境", artist: "平台精选", duration: "02:48" },
+  { id: "3", name: "禅意空灵", artist: "平台精选", duration: "04:12" },
+  { id: "4", name: "国韵悠长", artist: "热门推荐", duration: "03:05" },
+  { id: "5", name: "书香墨韵", artist: "热门推荐", duration: "02:56" },
+]
+
+const hotTopics = ["八字命理", "风水布局", "紫微斗数", "每日运势", "国学智慧", "传统文化"]
+
+const isPlaying = ref(true)
+const isMuted = ref(false)
+const activeTab = ref<string | null>(null)
+const selectedFilter = ref("none")
+const selectedMusic = ref("none")
+const selectedCover = ref(0)
+const trimStart = ref(0)
+const trimEnd = ref(100)
+const title = ref("")
+const topics = ref<string[]>([])
+const topicInput = ref("")
+const location = ref("")
+const selectedCircle = ref({ id: 1, name: "八字命理研习社" })
+const linkedProducts = ref<any[]>([])
+const visibility = ref<"public" | "circle">("public")
+const showCircleSelect = ref(false)
+const showProductSelect = ref(false)
+const coverFrames = [0, 1, 2, 3, 4, 5, 6, 7]
+
+function addTopic(topic: string) {
+  if (topic && !topics.value.includes(topic) && topics.value.length < 5) {
+    topics.value.push(topic)
+    topicInput.value = ""
+  }
+}
+
+function removeTopic(topic: string) {
+  topics.value = topics.value.filter(t => t !== topic)
+}
+
+function handlePublish() {
+  if (!title.value.trim()) {
+    uni.showToast({ title: '请输入视频标题', icon: 'none' })
+    return
+  }
+  uni.showToast({ title: '发布成功', icon: 'success' })
+  setTimeout(() => uni.navigateBack(), 800)
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,252 @@
+<template>
+  <view class="min-h-screen bg-background pb-24">
+    <!-- 骨架屏 -->
+    <template v-if="isLoading">
+      <view class="min-h-screen bg-background">
+        <view class="sticky top-0 z-10 bg-background border-b border-border">
+          <view class="h-14 px-4 flex items-center">
+            <view class="w-8 h-8 bg-[#E8E0D5] rounded-full animate-pulse" />
+            <view class="flex-1 mx-4 h-5 bg-[#E8E0D5] rounded animate-pulse" />
+          </view>
+        </view>
+        <view class="p-4 space-y-4">
+          <view class="h-32 bg-white rounded-xl animate-pulse" />
+          <view class="h-48 bg-white rounded-xl animate-pulse" />
+          <view class="h-64 bg-white rounded-xl animate-pulse" />
+        </view>
+      </view>
+    </template>
+
+    <template v-else-if="!work">
+      <view class="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <text class="text-4xl text-muted-foreground mb-4"></text>
+        <text class="text-ink-soft">作业不存在</text>
+        <view class="mt-4 px-6 py-2 bg-primary text-white rounded-full text-sm" @click="goBack">返回</view>
+      </view>
+    </template>
+
+    <template v-else>
+      <!-- 顶部导航 -->
+      <view class="sticky top-0 z-10 bg-background border-b border-border">
+        <view class="h-14 px-4 flex items-center justify-between">
+          <view class="w-8 h-8 flex items-center justify-center" @click="goBack"><text class="text-xl text-foreground">←</text></view>
+          <text class="text-base font-semibold text-foreground">作业批改结果</text>
+          <view class="w-8" />
+        </view>
+      </view>
+
+      <view class="p-4 space-y-4">
+        <!-- 状态卡片 -->
+        <view :class="['rounded-xl p-4', statusBg]">
+          <view class="flex items-center gap-3">
+            <view :class="['w-12 h-12 rounded-full flex items-center justify-center', statusIconBg]">
+              <text :class="['text-xl', statusColor]">{{ statusIcon }}</text>
+            </view>
+            <view class="flex-1">
+              <view class="flex items-center gap-2">
+                <text :class="['text-lg font-semibold', statusColor]">{{ statusText }}</text>
+                <text v-if="work.status === 'graded' && work.score !== undefined" :class="['text-2xl font-bold', scoreColor]">
+                  {{ work.score }}<text class="text-sm font-normal text-muted-foreground">/{{ work.maxScore }}分</text>
+                </text>
+              </view>
+              <text class="text-sm text-ink-soft mt-1 block">{{ work.courseTitle }} · {{ work.chapterTitle }}</text>
+            </view>
+          </view>
+          <view v-if="work.status === 'pending'" class="mt-4 p-3 bg-white/60 rounded-lg">
+            <view class="flex items-center gap-2">
+              <view class="w-2 h-2 bg-orange-400 rounded-full animate-pulse" />
+              <text class="text-sm text-orange-600">教师正在批改中，请耐心等待...</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 批改结果 -->
+        <view v-if="work.status === 'graded' && work.gradedBy" class="bg-white rounded-xl overflow-hidden shadow-sm">
+          <view class="px-4 py-3 border-b border-border flex items-center gap-2">
+            <text class="text-primary"></text>
+            <text class="font-medium text-foreground">教师评语</text>
+          </view>
+          <view class="p-4">
+            <view class="flex items-center gap-3 mb-4">
+              <view class="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                <text class="text-sm font-medium text-primary">{{ work.gradedBy.name.charAt(0) }}</text>
+              </view>
+              <view>
+                <text class="text-sm font-medium text-foreground">{{ work.gradedBy.name }}</text>
+                <text class="text-xs text-muted-foreground">批改于 {{ work.gradedAt }}</text>
+              </view>
+            </view>
+            <text class="text-sm text-[#333] leading-relaxed whitespace-pre-wrap">{{ work.teacherComment }}</text>
+            <view v-if="work.suggestions && work.suggestions.length > 0" class="mt-4 p-3 bg-red-50 rounded-lg">
+              <text class="text-xs font-medium text-red-600 mb-2 block">修改建议：</text>
+              <view v-for="(suggestion, index) in work.suggestions" :key="index" class="text-sm text-red-600 flex items-start gap-2 mb-1">
+                <text class="text-red-400 mt-1">•</text>
+                <text>{{ suggestion }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 我的提交 -->
+        <view class="bg-white rounded-xl overflow-hidden shadow-sm">
+          <view class="px-4 py-3 border-b border-border flex items-center justify-between">
+            <view class="flex items-center gap-2">
+              <text class="text-accent"></text>
+              <text class="font-medium text-foreground">我的提交</text>
+            </view>
+            <text class="text-xs text-muted-foreground">{{ work.submittedAt }}</text>
+          </view>
+          <view class="p-4">
+            <text class="text-sm text-[#333] leading-relaxed whitespace-pre-wrap">{{ work.content }}</text>
+            <view v-if="work.images.length > 0" class="mt-4 grid grid-cols-3 gap-2">
+              <view v-for="(img, index) in work.images" :key="index" class="aspect-square rounded-lg overflow-hidden bg-[#F5F0E8] relative" @click="previewIndex = index">
+                <image :src="img" mode="aspectFill" class="w-full h-full" />
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 评分详情 -->
+        <view v-if="work.status === 'graded' && work.score !== undefined" class="bg-white rounded-xl overflow-hidden shadow-sm">
+          <view class="px-4 py-3 border-b border-border flex items-center gap-2">
+            <text class="text-accent"></text>
+            <text class="font-medium text-foreground">评分详情</text>
+          </view>
+          <view class="p-4">
+            <view class="flex items-center justify-center py-4">
+              <view class="text-center">
+                <text :class="['text-5xl font-bold', scoreColor]">{{ work.score }}</text>
+                <text class="text-sm text-muted-foreground mt-1 block">满分 {{ work.maxScore }} 分</text>
+              </view>
+            </view>
+            <view class="mt-2">
+              <view class="h-2 bg-[#E8E0D5] rounded-full overflow-hidden">
+                <view :class="['h-full rounded-full transition-all', scoreBarColor]" :style="'width:' + (work.score / work.maxScore) * 100 + '%'" />
+              </view>
+              <view class="flex justify-between mt-1 text-xs text-muted-foreground">
+                <text>0</text>
+                <text>60及格</text>
+                <text>100</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部操作栏 -->
+      <view v-if="work.canResubmit" class="fixed bottom-0 left-0 right-0 bg-white border-t border-border p-4" style="padding-bottom: calc(16px + env(safe-area-inset-bottom))">
+        <view class="w-full py-3 bg-gradient-to-r from-primary to-[#E74C3C] text-white text-base font-semibold rounded-full flex items-center justify-center gap-2 shadow-lg" @click="handleResubmit">
+          <text></text>
+          <text>重新提交</text>
+        </view>
+      </view>
+
+      <!-- 图片预览 -->
+      <!-- 图片预览 -->
+      <view v-if="previewIndex !== null" class="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" @click="previewIndex = null">
+        <view class="absolute top-4 right-4 w-10 h-10 bg-white/20 rounded-full flex items-center justify-center" @click.stop="previewIndex = null">
+          <text class="text-white text-xl">✕</text>
+        </view>
+        <image :src="work.images[previewIndex]" mode="aspectFit" class="max-w-[90vw] max-h-[80vh]" @click.stop />
+        <view v-if="work.images.length > 1">
+          <view class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 rounded-full flex items-center justify-center" @click.stop="prevImage">
+            <text class="text-white text-xl">‹</text>
+          </view>
+          <view class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 rounded-full flex items-center justify-center" @click.stop="nextImage">
+            <text class="text-white text-xl">›</text>
+          </view>
+          <view class="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/50 rounded-full text-white text-sm">
+            {{ previewIndex + 1 }} / {{ work.images.length }}
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface Teacher {
+  id: string; name: string; avatar: string
+}
+interface WorkResult {
+  id: string; chapterId: string; chapterTitle: string; courseId: string; courseTitle: string
+  content: string; images: string[]; submittedAt: string; status: 'pending' | 'graded' | 'returned'
+  score?: number; maxScore: number; teacherComment?: string; suggestions?: string[]
+  gradedAt?: string; gradedBy?: Teacher; canResubmit: boolean
+}
+
+const isLoading = ref(true)
+const work = ref<WorkResult | null>(null)
+const previewIndex = ref<number | null>(null)
+
+const mockWork: WorkResult = {
+  id: '1', chapterId: 'ch1', chapterTitle: '第一章：八字基础入门', courseId: '1',
+  courseTitle: '八字命理入门精讲',
+  content: '通过本章学习，我对八字命理有了初步的认识。八字由年柱、月柱、日柱、时柱组成，每柱包含一个天干和一个地支。天干有甲、乙、丙、丁、戊、己、庚、辛、壬、癸十个，地支有子、丑、寅、卯、辰、巳、午、未、申、酉、戌、亥十二个。\n\n八字的排列遵循一定的规则，首先要确定出生的年、月、日、时，然后根据万年历查出对应的干支。日主是命主本人，通过分析日主与其他七字的关系，可以推断命主的性格、运势等。',
+  images: ['https://images.unsplash.com/photo-1516979187457-637abb4f9353?w=400&h=300&fit=crop', 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=400&h=300&fit=crop'],
+  submittedAt: '2024-01-15 14:30', status: 'graded', score: 85, maxScore: 100,
+  teacherComment: '作业完成得很好！对八字的基本概念理解准确，举例也很恰当。建议在后续学习中多练习排盘，加深对天干地支的记忆。',
+  suggestions: ['建议补充五行生克关系的说明', '可以尝试分析自己的八字加深理解'],
+  gradedAt: '2024-01-16 09:15',
+  gradedBy: { id: 't1', name: '周易大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=teacher1' },
+  canResubmit: true,
+}
+
+onMounted(async () => {
+  await new Promise(r => setTimeout(r, 500))
+  work.value = mockWork
+  isLoading.value = false
+})
+
+const statusInfo = computed(() => {
+  const s = work.value?.status
+  if (s === 'pending') return { icon: '🕐', text: '批改中', color: 'text-orange-500', bg: 'bg-orange-50', iconBg: 'bg-orange-100' }
+  if (s === 'graded') return { icon: '', text: '已批改', color: 'text-green-600', bg: 'bg-green-50', iconBg: 'bg-green-100' }
+  return { icon: '', text: '已退回', color: 'text-red-500', bg: 'bg-red-50', iconBg: 'bg-red-100' }
+})
+const statusColor = computed(() => statusInfo.value.color)
+const statusBg = computed(() => statusInfo.value.bg)
+const statusIconBg = computed(() => statusInfo.value.iconBg)
+const statusIcon = computed(() => statusInfo.value.icon)
+const statusText = computed(() => statusInfo.value.text)
+
+const scoreColor = computed(() => {
+  if (!work.value) return ''
+  const pct = work.value.score! / work.value.maxScore
+  if (pct >= 0.9) return 'text-green-600'
+  if (pct >= 0.7) return 'text-blue-600'
+  if (pct >= 0.6) return 'text-orange-500'
+  return 'text-red-500'
+})
+const scoreBarColor = computed(() => {
+  if (!work.value) return ''
+  const pct = work.value.score! / work.value.maxScore
+  if (pct >= 0.9) return 'bg-green-500'
+  if (pct >= 0.7) return 'bg-blue-500'
+  if (pct >= 0.6) return 'bg-orange-500'
+  return 'bg-red-500'
+})
+
+function prevImage() {
+  if (work.value && previewIndex.value !== null) {
+    previewIndex.value = (previewIndex.value - 1 + work.value.images.length) % work.value.images.length
+  }
+}
+function nextImage() {
+  if (work.value && previewIndex.value !== null) {
+    previewIndex.value = (previewIndex.value + 1) % work.value.images.length
+  }
+}
+function goBack() { uni.navigateBack() }
+function handleResubmit() {
+  uni.navigateTo({ url: `/pages/courses/work-submit/index?chapterId=${work.value?.chapterId}` })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+</style>

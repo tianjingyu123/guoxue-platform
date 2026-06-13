@@ -1,0 +1,213 @@
+<template>
+  <view class="min-h-screen bg-background pb-24">
+    <!-- ===== Loading骨架屏 ===== -->
+    <template v-if="loading">
+      <header class="sticky top-0 z-10 bg-background border-b border-border px-4 py-3">
+        <view class="flex items-center gap-3">
+          <view class="w-8 h-8 rounded-full skeleton-bg" />
+          <view class="h-5 w-32 skeleton-bg rounded" />
+        </view>
+      </header>
+      <view class="p-4 space-y-4">
+        <view class="h-8 w-48 skeleton-bg rounded" />
+        <view class="h-4 w-full skeleton-bg rounded" />
+        <view class="h-4 w-full skeleton-bg rounded" />
+        <view class="h-4 w-3/4 skeleton-bg rounded" />
+      </view>
+    </template>
+
+    <!-- ===== 加载失败 ===== -->
+    <template v-else-if="!document">
+      <view class="min-h-screen bg-background flex items-center justify-center">
+        <view class="text-center">
+          <text class="text-5xl text-muted-foreground block mb-4"></text>
+          <text class="text-sm text-muted-foreground block">文档加载失败</text>
+          <view @click="goBack" class="inline-block mt-4 px-6 py-2 bg-white border border-border rounded-full text-sm text-foreground">返回</view>
+        </view>
+      </view>
+    </template>
+
+    <!-- ===== 主内容 ===== -->
+    <template v-else>
+      <!-- 导航栏 -->
+      <header class="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-border">
+        <view class="flex items-center justify-between px-4 py-3">
+          <view class="flex items-center gap-3">
+            <view @click="goBack" class="p-1 -ml-1"><text class="text-2xl leading-none">←</text></view>
+            <text class="text-lg font-semibold">{{ document.title || '隐私政策' }}</text>
+          </view>
+          <view @click="showToc = true" class="p-1"><text class="text-lg"></text></view>
+        </view>
+      </header>
+
+      <!-- 文档信息 -->
+      <view class="px-4 py-4" style="background:rgba(250,248,245,0.5);border-bottom:1px solid rgba(232,224,213,0.6)">
+        <view class="flex items-center gap-4 text-xs text-muted-foreground">
+          <text class="flex items-center gap-1"> 版本 {{ document.version || '1.0' }}</text>
+          <text class="flex items-center gap-1">🕐 更新于 {{ document.updatedAt || '2024-01-01' }}</text>
+        </view>
+        <view v-if="confirmed && confirmedAt" class="mt-2 flex items-center gap-1 text-xs text-green-600">
+           您已于 {{ confirmedAt }} 确认阅读
+        </view>
+      </view>
+
+      <!-- 文档内容 -->
+      <view class="px-4 py-6">
+        <view class="text-sm text-ink-soft leading-relaxed space-y-4">
+          <view v-for="(section, idx) in sections" :key="idx" :id="'section-' + idx" class="mb-6">
+            <text class="text-base font-semibold text-foreground block mb-3 pb-2" style="border-bottom:1px solid rgba(232,224,213,0.6)">{{ section.title }}</text>
+            <text class="text-sm text-ink-soft leading-relaxed whitespace-pre-line block">{{ section.content }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部确认按钮 (仅在requireConfirm时显示) -->
+      <view v-if="!confirmed && document.requireConfirm" class="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4">
+        <view
+          @click="handleConfirm"
+          class="w-full py-3 rounded-full text-center text-sm font-medium"
+          :class="hasScrolledToBottom ? 'bg-primary text-white' : 'bg-[#E8E0D5] text-muted-foreground'"
+        >
+          {{ confirming ? '确认中...' : hasScrolledToBottom ? ' 我已阅读并同意' : '请阅读完整内容后确认' }}
+        </view>
+        <text v-if="!hasScrolledToBottom" class="text-xs text-muted-foreground text-center block mt-2">请滚动阅读全部内容</text>
+      </view>
+
+      <!-- 已确认状态 -->
+      <view v-if="confirmed" class="fixed bottom-0 left-0 right-0 bg-green-50 border-t border-green-200 p-4">
+        <view class="flex items-center justify-center gap-2">
+          <text class="text-green-600 text-sm font-medium"> 您已确认阅读并同意本隐私政策</text>
+        </view>
+      </view>
+
+      <!-- 目录侧边栏 -->
+      <view v-if="showToc" class="fixed inset-0 z-50">
+        <view class="absolute inset-0 bg-black/50" @click="showToc = false" />
+        <view class="absolute right-0 top-0 bottom-0 w-72 bg-white shadow-xl">
+          <view class="flex items-center justify-between p-4 border-b border-border">
+            <text class="font-semibold">目录</text>
+            <view @click="showToc = false" class="p-1"><text>✕</text></view>
+          </view>
+          <scroll-view scroll-y class="overflow-y-auto" style="height:calc(100% - 60px)">
+            <view class="p-4 space-y-1">
+              <view v-for="(item, idx) in toc" :key="idx" @click="scrollToSection(item.id)"
+                class="w-full text-left py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-between"
+                :class="[activeSection === item.id ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-background', item.level === 3 ? 'pl-6' : '', item.level === 4 ? 'pl-9' : '']">
+                <text>{{ item.title }}</text>
+                <text class="text-xs opacity-50">›</text>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+
+interface LegalDocTocItem { id: string; title: string; level: number }
+interface LegalDocument {
+  title: string
+  version: string
+  updatedAt: string
+  htmlContent: string
+  hasConfirmed: boolean
+  confirmedAt?: string
+  requireConfirm?: boolean
+}
+
+const loading = ref(true)
+const document = ref<LegalDocument | null>(null)
+const confirmed = ref(false)
+const confirming = ref(false)
+const confirmedAt = ref('')
+const showToc = ref(false)
+const activeSection = ref('')
+const hasScrolledToBottom = ref(false)
+
+const sections = [
+  { title: '一、信息收集', content: '我们收集以下类型的信息：\n1. 账号信息（手机号、昵称）\n2. 设备信息（设备型号、操作系统）\n3. 使用数据（浏览记录、搜索记录）。' },
+  { title: '二、信息使用', content: '收集的信息用于：提供和改善服务、个性化推荐、安全防护、法律法规要求。我们不会将您的个人信息用于本政策所述目的之外的其他用途。' },
+  { title: '三、信息共享', content: '我们不会将您的个人信息出售给第三方。仅在以下情况共享：获得您的明确同意、法律法规要求、保护平台合法权益、业务转让时的必要转移。' },
+  { title: '四、信息安全', content: '我们采用业界标准的安全措施保护您的个人信息，包括数据加密、访问控制、定期安全检查等。如发生信息泄露事件，我们将第一时间通知您。' },
+  { title: '五、您的权利', content: '您有权访问、更正、删除您的个人信息，也可以通过设置管理隐私偏好。如需行使上述权利或对数据处理有任何疑问，可随时联系我们的隐私保护团队。' },
+  { title: '六、Cookie使用', content: '我们可能使用Cookie和类似技术优化您的浏览体验，分析服务使用情况。您可在浏览器设置中管理Cookie偏好，部分功能可能因此受限。' },
+  { title: '七、政策更新', content: '我们可能不定期更新本隐私政策。重大变更将在平台显著位置公告。建议您定期查阅本政策了解最新隐私保护措施。' },
+]
+
+const toc: LegalDocTocItem[] = sections.map((s, i) => ({ id: `section-${i}`, title: s.title, level: 2 }))
+
+onMounted(() => {
+  loadDocument()
+  window.addEventListener('scroll', handleScroll)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
+
+function loadDocument() {
+  loading.value = true
+  setTimeout(() => {
+    document.value = {
+      title: '隐私政策',
+      version: '2.0',
+      updatedAt: '2024-03-15',
+      htmlContent: '',
+      hasConfirmed: false,
+      requireConfirm: true,
+    }
+    loading.value = false
+  }, 500)
+}
+
+function handleScroll() {
+  if (!document.value) return
+  const { scrollTop, scrollHeight, clientHeight } = document.documentElement
+  if (scrollTop + clientHeight >= scrollHeight - 100) {
+    hasScrolledToBottom.value = true
+  }
+  toc.forEach(item => {
+    const el = document.getElementById(item.id)
+    if (el) {
+      const rect = el.getBoundingClientRect()
+      if (rect.top <= 100) {
+        activeSection.value = item.id
+      }
+    }
+  })
+}
+
+function scrollToSection(id: string) {
+  const el = document.getElementById(id)
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    showToc.value = false
+  }
+}
+
+async function handleConfirm() {
+  confirming.value = true
+  await new Promise(resolve => setTimeout(resolve, 500))
+  confirmed.value = true
+  confirmedAt.value = new Date().toLocaleDateString('zh-CN')
+  confirming.value = false
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+.skeleton-bg {
+  background: linear-gradient(90deg, #f0ece6 25%, #e8e0d5 50%, #f0ece6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+</style>

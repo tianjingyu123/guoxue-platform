@@ -1,0 +1,197 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 骨架屏 -->
+    <template v-if="loading">
+      <view class="sticky top-0 z-10 bg-white border-b border-[#E8E0D5]">
+        <view class="flex items-center justify-between px-4 h-12">
+          <view class="flex items-center gap-3">
+            <view class="w-7 h-7 bg-gray-200 rounded" />
+            <view class="w-12 h-5 bg-gray-200 rounded" />
+          </view>
+        </view>
+      </view>
+      <view class="divide-y divide-[#FAF8F5]">
+        <view v-for="i in 5" :key="i" class="flex items-center gap-3 px-4 py-3 bg-white">
+          <view class="w-12 h-12 bg-gray-200 rounded-full" />
+          <view class="flex-1">
+            <view class="w-24 h-4 bg-gray-200 rounded mb-2" />
+            <view class="w-40 h-3 bg-gray-200 rounded" />
+          </view>
+        </view>
+      </view>
+    </template>
+
+    <template v-else>
+      <!-- 顶部导航 -->
+      <view class="sticky top-0 z-10 bg-white border-b border-[#E8E0D5]">
+        <view class="flex items-center justify-between px-4 h-12">
+          <view class="flex items-center gap-3">
+            <view @click="goBack" class="p-1 -ml-1"><text class="text-[#2C2C2C] text-xl">←</text></view>
+            <text class="text-lg font-semibold text-[#2C2C2C]">消息</text>
+            <view v-if="totalUnread > 0"
+              class="bg-[#C41E3A] text-white text-xs px-2 py-0.5 rounded-full min-w-[22px] text-center">
+              {{ totalUnread > 99 ? '99+' : totalUnread }}
+            </view>
+          </view>
+          <view @click="goNewChat" class="flex items-center gap-1 px-3 py-1.5 bg-[#C41E3A] rounded-lg">
+            <text class="text-white text-xs font-bold">+</text>
+            <text class="text-white text-xs font-medium">新建</text>
+          </view>
+        </view>
+        <!-- 搜索 -->
+        <view class="px-4 pb-2.5">
+          <view class="relative">
+            <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#999] z-10">🔍</text>
+            <input v-model="keyword" placeholder="搜索会话..."
+              class="w-full h-9 pl-9 pr-3 text-sm bg-[#FAF8F5] rounded-lg border border-[#E8E0D5] box-border placeholder:text-[#999]" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 在线好友 -->
+      <view v-if="onlineFriends.length > 0" class="px-4 py-3 bg-white border-b border-[#E8E0D5]">
+        <text class="text-xs text-[#999] block mb-2">在线好友 · {{ onlineFriends.length }}</text>
+        <scroll-view scroll-x class="flex gap-3 overflow-x-auto">
+          <view v-for="f in onlineFriends" :key="f.id"
+            @click="goChat(f.id)"
+            class="flex flex-col items-center flex-shrink-0">
+            <view class="relative">
+              <view class="w-12 h-12 rounded-full bg-gradient-to-br from-[#C41E3A] to-[#E74C3C] flex items-center justify-center text-white text-sm font-semibold">
+                <text>{{ f.name[0] }}</text>
+              </view>
+              <view class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+            </view>
+            <text class="text-[10px] text-[#2C2C2C] mt-1 truncate max-w-[56px]">{{ f.name }}</text>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 会话列表 -->
+      <view class="divide-y divide-[#FAF8F5]">
+        <view v-for="c in filteredConversations" :key="c.id"
+          @click="goChat(c.id)"
+          class="flex items-center gap-3 px-4 py-3 bg-white active:bg-[#FAF8F5] transition-colors"
+          @longpress="showDeleteModal(c)">
+          <view class="relative w-12 h-12 rounded-full bg-gradient-to-br from-[#C41E3A] to-[#E74C3C] flex items-center justify-center text-white text-lg font-semibold flex-shrink-0">
+            <text>{{ c.name[0] }}</text>
+            <view v-if="c.type === 'group'"
+              class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#C9A96E] rounded-full flex items-center justify-center ring-2 ring-white">
+              <text class="text-white text-[8px]">群</text>
+            </view>
+          </view>
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center justify-between">
+              <view class="flex items-center gap-1.5">
+                <text class="text-sm font-medium text-[#2C2C2C]">{{ c.name }}</text>
+                <text v-if="c.type === 'service'" class="text-[10px] px-1 py-0.5 bg-blue-50 text-blue-500 rounded">客服</text>
+              </view>
+              <text class="text-xs text-[#CCC]">{{ c.time }}</text>
+            </view>
+            <view class="flex items-center justify-between mt-0.5">
+              <text class="text-xs text-[#999] truncate block flex-1 min-w-0 mr-2">{{ c.lastMsg }}</text>
+              <view v-if="c.unread > 0"
+                class="min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center px-1 font-medium flex-shrink-0">
+                {{ c.unread > 99 ? '99+' : c.unread }}
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 空状态 -->
+      <view v-if="filteredConversations.length === 0 && !keyword"
+        class="flex flex-col items-center justify-center py-20">
+        <text class="text-5xl text-[#E8E0D5] block mb-4">💬</text>
+        <text class="text-[#999] text-sm mb-1">暂无消息</text>
+        <text class="text-[#BBB] text-xs mb-4">点击右上角新建开始聊天</text>
+        <view @click="goNewChat"
+          class="px-4 py-2 bg-[#C41E3A] text-white rounded-lg text-xs font-medium">开始聊天</view>
+      </view>
+      <view v-if="filteredConversations.length === 0 && keyword"
+        class="flex flex-col items-center justify-center py-20">
+        <text class="text-4xl mb-4">🔍</text>
+        <text class="text-[#999] text-sm">未找到匹配的会话</text>
+      </view>
+    </template>
+
+    <!-- 删除确认 -->
+    <view v-if="deleteItem"
+      class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-6">
+      <view class="bg-white w-72 rounded-2xl p-5 text-center" @click.stop>
+        <text class="text-3xl block mb-3">🗑</text>
+        <text class="text-base font-semibold text-[#2C2C2C] block mb-1">确认删除</text>
+        <text class="text-sm text-[#999] block mb-4">删除与「{{ deleteItem.name }}」的会话？</text>
+        <view class="flex gap-3">
+          <view @click="deleteItem = null"
+            class="flex-1 py-2.5 bg-[#FAF8F5] rounded-xl text-sm text-[#999] font-medium">取消</view>
+          <view @click="doDelete"
+            class="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium">删除</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const loading = ref(true)
+const keyword = ref('')
+const deleteItem = ref<any>(null)
+
+interface Conversation {
+  id: string; name: string; type: string; lastMsg: string; time: string; unread: number
+}
+
+const conversations = ref<Conversation[]>([
+  { id: '1', name: '周易大师', type: 'private', lastMsg: '好的，我看看你的八字排盘...', time: '10:30', unread: 3 },
+  { id: '2', name: '国学堂交流群', type: 'group', lastMsg: '张三: 大家早上好', time: '09:15', unread: 12 },
+  { id: '3', name: '客服小助手', type: 'service', lastMsg: '感谢您的反馈，我们会尽快处理', time: '昨天', unread: 0 },
+  { id: '4', name: '系统通知', type: 'system', lastMsg: '您的课程《八字命理入门》即将开始', time: '昨天', unread: 0 },
+  { id: '5', name: '紫微传承人', type: 'private', lastMsg: '你的命盘我已经看过了，有一些...', time: '周三', unread: 5 },
+  { id: '6', name: '风水实战派', type: 'private', lastMsg: '上周去看了你家的布局，有几个...', time: '周二', unread: 0 },
+])
+
+const onlineFriends = [
+  { id: '101', name: '周易大师' },
+  { id: '102', name: '紫微传承人' },
+  { id: '103', name: '文化传承' },
+  { id: '104', name: '易学入门' },
+  { id: '105', name: '国学爱好者' },
+]
+
+const totalUnread = computed(() =>
+  conversations.value.reduce((sum, c) => sum + c.unread, 0)
+)
+
+const filteredConversations = computed(() => {
+  if (!keyword.value) return conversations.value
+  return conversations.value.filter(c =>
+    c.name.includes(keyword.value) || c.lastMsg.includes(keyword.value)
+  )
+})
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 400)
+})
+
+function goBack() { uni.navigateBack() }
+function goNewChat() { uni.navigateTo({ url: '/pages/chat/new/index' }) }
+function goChat(id: string) { uni.navigateTo({ url: '/pages/im/chat/id-detail/index?id=' + id }) }
+
+function showDeleteModal(c: Conversation) {
+  deleteItem.value = c
+}
+
+function doDelete() {
+  if (deleteItem.value) {
+    conversations.value = conversations.value.filter(c => c.id !== deleteItem.value.id)
+    deleteItem.value = null
+    uni.showToast({ title: '已删除', icon: 'success' })
+  }
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,388 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-background border-b border-border">
+      <view class="flex items-center justify-between px-4 h-12">
+        <view class="p-1 -ml-1" hover-class="opacity-70" @click="goBack">
+          <text class="text-lg" style="color:#2C2C2C">←</text>
+        </view>
+        <text class="text-[17px] font-semibold" style="color:#2C2C2C">我的课程</text>
+        <view
+          class="p-1 -mr-1"
+          :class="refreshing ? 'animate-spin' : ''"
+          hover-class="opacity-70"
+          @click="handleRefresh"
+        >
+          <text class="text-base" style="color:#999"></text>
+        </view>
+      </view>
+
+      <!-- Tab 切换 -->
+      <view class="flex px-4 gap-6">
+        <view
+          v-for="tab in tabs"
+          :key="tab.id"
+          class="py-3 text-[15px] font-medium relative"
+          :style="activeTab === tab.id ? 'color:#C41E3A' : 'color:#999'"
+          @click="handleTabChange(tab.id)"
+        >
+          <text>{{ tab.label }}</text>
+          <view v-if="activeTab === tab.id" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 rounded-full" style="background-color:#C41E3A" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 学习统计卡片 -->
+    <view class="px-4 pt-4 pb-2">
+      <view class="rounded-2xl p-4 text-white" style="background:linear-gradient(135deg, #C41E3A, #E74C3C)">
+        <view class="flex items-center justify-between mb-3">
+          <view class="flex items-center gap-2">
+            <text class="text-base">📈</text>
+            <text class="font-medium">本周学习统计</text>
+          </view>
+          <view class="text-xs flex items-center gap-1" style="color:rgba(255,255,255,0.8)" hover-class="opacity-80" @click="goStudyPlan">
+            <text>学习计划</text>
+            <text class="text-xs">→</text>
+          </view>
+        </view>
+        <view class="grid grid-cols-3 gap-4 text-center">
+          <view>
+            <text class="text-2xl font-bold block">{{ studyStats.todayMinutes }}</text>
+            <text class="text-xs block" style="color:rgba(255,255,255,0.7)">今日/分钟</text>
+          </view>
+          <view>
+            <text class="text-2xl font-bold block">{{ studyStats.weekMinutes }}</text>
+            <text class="text-xs block" style="color:rgba(255,255,255,0.7)">本周/分钟</text>
+          </view>
+          <view class="flex flex-col items-center">
+            <view class="flex items-center gap-1">
+              <text class="text-lg" style="color:#FCD34D"></text>
+              <text class="text-2xl font-bold">{{ studyStats.streak }}</text>
+            </view>
+            <text class="text-xs block" style="color:rgba(255,255,255,0.7)">连续天数</text>
+          </view>
+        </view>
+        <!-- 今日进度 -->
+        <view class="mt-3 pt-3" style="border-top:1px solid rgba(255,255,255,0.2)">
+          <view class="flex items-center justify-between text-xs mb-1.5">
+            <text style="color:rgba(255,255,255,0.8)">今日目标</text>
+            <text>{{ studyStats.todayMinutes }}/{{ studyStats.todayGoal }}分钟</text>
+          </view>
+          <view class="h-2 rounded-full overflow-hidden" style="background-color:rgba(255,255,255,0.2)">
+            <view
+              class="h-full rounded-full"
+              style="background-color:#FCD34D"
+              :style="{ width: Math.min(100, (studyStats.todayMinutes / studyStats.todayGoal) * 100) + '%' }"
+            />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="p-4 space-y-3">
+      <view v-for="i in 3" :key="i" class="bg-white rounded-xl p-3 flex gap-3" style="animation:pulse 1.5s infinite">
+        <view class="w-28 h-20 rounded-lg flex-shrink-0" style="background-color:#F5F1EB" />
+        <view class="flex-1 space-y-2">
+          <view class="h-4 rounded" style="background-color:#F5F1EB;width:100%" />
+          <view class="h-3 rounded" style="background-color:#F5F1EB;width:66%" />
+          <view class="h-2 rounded" style="background-color:#F5F1EB;width:100%" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view v-else-if="filteredCourses.length === 0" class="flex flex-col items-center py-20">
+      <view class="w-20 h-20 rounded-full flex items-center justify-center mb-4" style="background-color:#F5F1EB">
+        <text class="text-3xl" style="color:#C9A96E"></text>
+      </view>
+      <text class="text-sm mb-2" style="color:#999">
+        {{ activeTab === 'learning' ? '暂无学习中的课程' : '暂无已完结的课程' }}
+      </text>
+      <text class="text-sm font-medium" style="color:#C41E3A" hover-class="opacity-80" @click="goDiscover">去发现精品课程</text>
+    </view>
+
+    <!-- 课程列表 -->
+    <view v-else class="p-4 space-y-3">
+      <view
+        v-for="course in filteredCourses"
+        :key="course.id"
+        class="bg-white rounded-xl p-3"
+        style="box-shadow:0 1px 3px rgba(0,0,0,0.05)"
+        hover-class="opacity-95"
+        @click="goDetail(course)"
+      >
+        <view class="flex gap-3">
+          <!-- 封面 -->
+          <view class="w-28 h-20 rounded-lg overflow-hidden flex-shrink-0 relative" style="background-color:#F5F1EB">
+            <image :src="course.cover" mode="aspectFill" class="w-full h-full" />
+            <view v-if="course.status === 'completed'" class="absolute inset-0 flex items-center justify-center" style="background-color:rgba(0,0,0,0.4)">
+              <view class="rounded-full p-1.5" style="background-color:#C9A96E">
+                <text class="text-white text-xs"></text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 信息 -->
+          <view class="flex-1 min-w-0">
+            <text class="text-[14px] font-medium block truncate mb-1" style="color:#2C2C2C">{{ course.title }}</text>
+            <text class="text-[12px] block mb-2" style="color:#999">{{ course.instructor.name }} · {{ course.totalLessons }}课时</text>
+
+            <!-- 进度条 -->
+            <view class="mb-2">
+              <view class="flex items-center justify-between mb-1">
+                <text class="text-[11px]" style="color:#666">
+                  {{ course.status === 'completed' ? '已完成' : course.completedLessons + '/' + course.totalLessons + '课时' }}
+                </text>
+                <text class="text-[11px] font-medium" :style="course.status === 'completed' ? 'color:#C9A96E' : 'color:#C41E3A'">
+                  {{ course.progressPercent }}%
+                </text>
+              </view>
+              <view class="h-1.5 rounded-full overflow-hidden" style="background-color:#F5F1EB">
+                <view
+                  class="h-full rounded-full transition-all"
+                  :style="{
+                    width: course.progressPercent + '%',
+                    background: course.status === 'completed'
+                      ? 'linear-gradient(to right, #C9A96E, #D4B896)'
+                      : 'linear-gradient(to right, #C41E3A, #E74C3C)'
+                  }"
+                />
+              </view>
+            </view>
+
+            <!-- 底部信息 -->
+            <view class="flex items-center justify-between">
+              <text v-if="course.status === 'completed'" class="text-[11px] flex items-center gap-1" style="color:#C9A96E">
+                 已获得证书
+              </text>
+              <text v-else class="text-[11px] flex items-center gap-1" style="color:#999">
+                ⏱️ {{ formatLastStudy(course.lastStudyAt) }}
+              </text>
+              <view
+                v-if="course.status !== 'completed'"
+                class="flex items-center gap-1 px-2.5 py-1 text-white text-[11px] font-medium rounded-full"
+                style="background-color:#C41E3A"
+                @click.stop="goContinue(course)"
+              >
+                <text>▶</text>
+                <text>继续学习</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 上次学习位置 -->
+        <view v-if="course.status !== 'completed' && course.lastLesson" class="mt-2 pt-2" style="border-top:1px solid #F5F1EB">
+          <text class="text-[11px] block truncate" style="color:#999">上次学到: {{ course.lastLesson.title }}</text>
+        </view>
+
+        <!-- 即将过期提醒 -->
+        <view
+          v-if="course.status !== 'completed' && course.expireAt"
+          class="mt-2 pt-2 flex items-center gap-1.5"
+          style="border-top:1px solid #F5F1EB;color:#D97706"
+        >
+          <text class="text-xs"></text>
+          <text class="text-[11px]">课程将在{{ getDaysLeft(course.expireAt) }}天后过期，请尽快学习</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+// 类型定义
+interface Instructor {
+  id: string
+  name: string
+  avatar: string
+}
+
+interface CourseLesson {
+  id: string
+  title: string
+}
+
+interface MyCourse {
+  id: string
+  title: string
+  cover: string
+  instructor: Instructor
+  totalLessons: number
+  completedLessons: number
+  progressPercent: number
+  status: 'learning' | 'completed'
+  lastStudyAt?: string
+  lastLesson?: CourseLesson
+  purchasedAt: string
+  expireAt?: string
+  certificateId?: string
+}
+
+// 状态
+const loading = ref(true)
+const refreshing = ref(false)
+const activeTab = ref<'learning' | 'completed'>('learning')
+
+const tabs = [
+  { id: 'learning' as const, label: '学习中' },
+  { id: 'completed' as const, label: '已完结' },
+]
+
+// 学习统计
+const studyStats = {
+  todayMinutes: 45,
+  weekMinutes: 280,
+  totalMinutes: 2400,
+  streak: 7,
+  todayGoal: 60,
+  weekGoal: 300,
+}
+
+// 课程数据
+const courses = ref<MyCourse[]>([])
+
+const filteredCourses = computed(() => courses.value.filter(c => c.status === activeTab.value))
+
+// 日期格式化
+function formatLastStudy(dateStr?: string): string {
+  if (!dateStr) return '未开始学习'
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+
+  if (days === 0) return '今天'
+  if (days === 1) return '昨天'
+  if (days < 7) return days + '天前'
+  return (date.getMonth() + 1) + '月' + date.getDate() + '日'
+}
+
+// 获取剩余天数
+function getDaysLeft(expireAt: string): number {
+  const daysLeft = Math.ceil((new Date(expireAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  return Math.max(0, daysLeft)
+}
+
+// 是否显示过期提醒
+function showExpiryWarning(expireAt?: string): boolean {
+  if (!expireAt) return false
+  const days = getDaysLeft(expireAt)
+  return days <= 7 && days > 0
+}
+
+// 加载数据
+function loadCourses(refresh = false) {
+  if (refresh) refreshing.value = true
+  else loading.value = true
+
+  setTimeout(() => {
+    courses.value = [
+      {
+        id: '1',
+        title: '八字命理入门到精通',
+        cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
+        instructor: { id: '1', name: '张明远', avatar: '' },
+        totalLessons: 32,
+        completedLessons: 18,
+        progressPercent: 56,
+        status: 'learning',
+        lastStudyAt: '2026-06-10T10:30:00Z',
+        lastLesson: { id: 'lesson-18', title: '第18课：大运流年的推算' },
+        purchasedAt: '2024-01-01T00:00:00Z',
+        expireAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: '2',
+        title: '紫微斗数零基础入门',
+        cover: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?w=400&h=300&fit=crop',
+        instructor: { id: '2', name: '李玄机', avatar: '' },
+        totalLessons: 24,
+        completedLessons: 8,
+        progressPercent: 33,
+        status: 'learning',
+        lastStudyAt: '2026-06-09T15:20:00Z',
+        lastLesson: { id: 'lesson-8', title: '第8课：命宫的奥秘' },
+        purchasedAt: '2024-01-05T00:00:00Z',
+        expireAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        id: '3',
+        title: '风水堪舆实战课程',
+        cover: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=300&fit=crop',
+        instructor: { id: '3', name: '王德华', avatar: '' },
+        totalLessons: 20,
+        completedLessons: 20,
+        progressPercent: 100,
+        status: 'completed',
+        purchasedAt: '2023-10-01T00:00:00Z',
+        certificateId: 'cert-001',
+      },
+      {
+        id: '4',
+        title: '易经六十四卦详解',
+        cover: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=300&fit=crop',
+        instructor: { id: '4', name: '赵无极', avatar: '' },
+        totalLessons: 64,
+        completedLessons: 64,
+        progressPercent: 100,
+        status: 'completed',
+        purchasedAt: '2023-08-15T00:00:00Z',
+        certificateId: 'cert-002',
+      },
+    ]
+    loading.value = false
+    refreshing.value = false
+  }, 400)
+}
+
+// Tab 切换
+function handleTabChange(tab: 'learning' | 'completed') {
+  activeTab.value = tab
+  loadCourses()
+}
+
+// 刷新
+function handleRefresh() {
+  loadCourses(true)
+}
+
+// 导航
+function goDetail(course: MyCourse) {
+  if (course.status === 'completed') {
+    uni.navigateTo({ url: '/pages/courses/detail/index?id=' + course.id })
+  } else {
+    uni.navigateTo({ url: '/pages/courses/learn/index?id=' + course.id })
+  }
+}
+
+function goContinue(course: MyCourse) {
+  uni.navigateTo({ url: '/pages/courses/player/index?id=' + course.id + '&lesson=' + (course.lastLesson?.id || '') })
+}
+
+function goDiscover() {
+  uni.navigateTo({ url: '/pages/courses-list/index' })
+}
+
+function goStudyPlan() {
+  uni.navigateTo({ url: '/pages/courses/study-plan/index' })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+onMounted(() => {
+  loadCourses()
+})
+</script>
+
+<style scoped>
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+</style>

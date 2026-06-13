@@ -1,0 +1,222 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- Loading -->
+    <template v-if="loading">
+      <view class="sticky top-0 z-10 bg-background border-b border-border">
+        <view class="flex items-center h-14 px-4">
+          <view class="w-8 h-8 bg-muted rounded-full animate-pulse" />
+          <view class="flex-1 text-center">
+            <view class="h-5 w-32 bg-muted rounded mx-auto animate-pulse" />
+          </view>
+          <view class="w-8" />
+        </view>
+      </view>
+      <view class="p-4 space-y-4">
+        <view v-for="i in 3" :key="i" class="h-20 bg-muted rounded-2xl animate-pulse" />
+      </view>
+    </template>
+
+    <!-- Content -->
+    <template v-else>
+      <!-- Header -->
+      <view class="sticky top-0 z-10 bg-background/95 border-b border-border" style="backdrop-filter:blur(8px)">
+        <view class="flex items-center justify-between h-14 px-4">
+          <view @click="goBack" class="p-2 -ml-2 rounded-full">
+            <text class="text-foreground">&#8592;</text>
+          </view>
+          <text class="font-semibold text-foreground">第三方账号</text>
+          <view class="w-9" />
+        </view>
+      </view>
+
+      <!-- Tip Card -->
+      <view class="p-4">
+        <view class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <view class="flex gap-3">
+            <view class="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <text class="text-amber-600">&#9888;&#65039;</text>
+            </view>
+            <view>
+              <text class="text-sm font-medium text-amber-900">绑定提示</text>
+              <text class="text-xs text-amber-700 mt-1 block">
+                绑定第三方账号后，可使用该账号快速登录。解绑后将无法使用该方式登录，请确保已绑定其他登录方式。
+              </text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Stats -->
+      <view class="px-4 pb-4">
+        <view class="flex items-center gap-2 text-sm text-muted-foreground">
+          <text>已绑定 {{ boundCount }}/3 个账号</text>
+          <text v-if="boundCount >= 2" class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">账号安全</text>
+        </view>
+      </view>
+
+      <!-- Account List -->
+      <view class="px-4 space-y-3">
+        <view v-for="account in accounts" :key="account.provider" class="bg-white rounded-2xl p-4 border border-border">
+          <view class="flex items-center gap-4">
+            <!-- Icon -->
+            <view class="w-12 h-12 rounded-xl flex items-center justify-center text-white" :style="{ backgroundColor: providerConfig[account.provider as keyof typeof providerConfig].color }">
+              <text class="text-xl">{{ providerConfig[account.provider as keyof typeof providerConfig].icon }}</text>
+            </view>
+
+            <!-- Info -->
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-2">
+                <text class="font-medium">{{ providerConfig[account.provider as keyof typeof providerConfig].name }}</text>
+                <text v-if="account.isBound" class="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">&#10004;&#65039; 已绑定</text>
+              </view>
+              <text v-if="account.isBound" class="text-sm text-muted-foreground mt-0.5 block">
+                {{ account.accountInfo }}
+                <text class="ml-2 text-xs">绑定于 {{ account.boundAt }}</text>
+              </text>
+              <text v-else class="text-sm text-muted-foreground mt-0.5 block">
+                未绑定，绑定后可快速登录
+              </text>
+            </view>
+
+            <!-- Action -->
+            <view v-if="account.isBound" @click="unbindTarget = account" class="px-4 py-2 text-sm border border-border rounded-lg text-muted-foreground">
+              解绑
+            </view>
+            <view v-else @click="handleBind(account.provider)" class="flex items-center gap-1 px-4 py-2 text-sm rounded-lg text-white" :style="{ backgroundColor: providerConfig[account.provider as keyof typeof providerConfig].color }">
+              <text>+ 绑定</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Benefits -->
+      <view class="p-4 mt-4">
+        <text class="text-sm font-medium text-foreground mb-3 block">绑定后可享受</text>
+        <view class="grid grid-cols-2 gap-3">
+          <view v-for="(benefit, index) in benefits" :key="index" class="bg-muted/50 rounded-xl p-3">
+            <text class="text-xl">{{ benefit.icon }}</text>
+            <text class="text-sm font-medium mt-1 block">{{ benefit.title }}</text>
+            <text class="text-xs text-muted-foreground">{{ benefit.desc }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Unbind Confirm Modal -->
+      <view v-if="unbindTarget" class="fixed inset-0 z-50 flex items-end justify-center">
+        <view class="absolute inset-0 bg-black/50" @click="unbindTarget = null" />
+        <view class="relative bg-white w-full max-w-md rounded-t-3xl p-6" style="animation:slideUp 0.3s ease">
+          <text class="text-lg font-semibold text-center block">确认解绑</text>
+
+          <view class="mt-4 p-4 bg-red-50 rounded-xl">
+            <view class="flex items-center gap-3">
+              <view class="w-10 h-10 rounded-lg flex items-center justify-center text-white" :style="{ backgroundColor: providerConfig[unbindTarget.provider as keyof typeof providerConfig].color }">
+                <text>{{ providerConfig[unbindTarget.provider as keyof typeof providerConfig].icon }}</text>
+              </view>
+              <view>
+                <text class="font-medium">{{ providerConfig[unbindTarget.provider as keyof typeof providerConfig].name }}</text>
+                <text class="text-sm text-muted-foreground">{{ unbindTarget.accountInfo }}</text>
+              </view>
+            </view>
+          </view>
+
+          <view class="mt-4 space-y-2">
+            <text class="text-sm text-muted-foreground">解绑后：</text>
+            <view v-for="(item, i) in unbindWarnings" :key="i" class="flex items-center gap-2 text-sm text-red-600">
+              <text class="w-1 h-1 bg-red-600 rounded-full" />
+              <text>{{ item }}</text>
+            </view>
+          </view>
+
+          <view class="flex gap-3 mt-6">
+            <view @click="unbindTarget = null" class="flex-1 py-3 border border-border rounded-xl font-medium text-center">取消</view>
+            <view @click="handleUnbind" :class="['flex-1 py-3 bg-red-500 text-white rounded-xl font-medium text-center', processing ? 'opacity-50' : '']">
+              <text>{{ processing ? '解绑中...' : '确认解绑' }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface BoundAccount {
+  provider: 'wechat' | 'qq' | 'apple'
+  isBound: boolean
+  accountInfo?: string
+  boundAt?: string
+}
+
+const providerConfig: Record<string, { name: string; color: string; icon: string }> = {
+  wechat: { name: '微信', color: '#07C160', icon: '&#128154;' },
+  qq: { name: 'QQ', color: '#12B7F5', icon: '&#128039;' },
+  apple: { name: 'Apple ID', color: '#000000', icon: '&#127822;' },
+}
+
+const benefits = [
+  { icon: '&#128640;', title: '快速登录', desc: '一键授权登录' },
+  { icon: '&#128274;', title: '账号安全', desc: '多重验证保护' },
+  { icon: '&#128241;', title: '多端同步', desc: '数据云端同步' },
+  { icon: '&#127873;', title: '专属福利', desc: '绑定送积分' },
+]
+
+const unbindWarnings = [
+  '无法使用该账号登录',
+  '请确保已绑定手机号或其他账号',
+  '解绑后可重新绑定',
+]
+
+const accounts = ref<BoundAccount[]>([])
+const loading = ref(true)
+const unbindTarget = ref<BoundAccount | null>(null)
+const processing = ref(false)
+
+const boundCount = computed(() => accounts.value.filter(a => a.isBound).length)
+
+onMounted(() => {
+  setTimeout(() => {
+    accounts.value = [
+      { provider: 'wechat', isBound: true, accountInfo: 'wx_user***89', boundAt: '2024-01-15' },
+      { provider: 'qq', isBound: false },
+      { provider: 'apple', isBound: true, accountInfo: 'user***@icloud.com', boundAt: '2024-03-20' },
+    ]
+    loading.value = false
+  }, 500)
+})
+
+function goBack() {
+  uni.navigateBack()
+}
+
+function handleBind(provider: string) {
+  uni.showToast({ title: `即将跳转到${providerConfig[provider].name}授权页面`, icon: 'none' })
+}
+
+async function handleUnbind() {
+  if (!unbindTarget.value) return
+  processing.value = true
+  await new Promise(resolve => setTimeout(resolve, 1000))
+  accounts.value = accounts.value.map(acc =>
+    acc.provider === unbindTarget.value!.provider
+      ? { ...acc, isBound: false, accountInfo: undefined, boundAt: undefined }
+      : acc
+  )
+  processing.value = false
+  unbindTarget.value = null
+}
+</script>
+
+<style scoped>
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+</style>

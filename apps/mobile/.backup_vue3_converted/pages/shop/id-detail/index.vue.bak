@@ -1,0 +1,413 @@
+<template>
+  <!-- 骨架屏 -->
+  <view v-if="loading" class="min-h-screen bg-[#FAF8F5] animate-pulse">
+    <view class="aspect-square bg-gray-200" />
+    <view class="p-4 space-y-4">
+      <view class="h-6 bg-gray-200 rounded w-3/4" />
+      <view class="h-8 bg-gray-200 rounded w-1/2" />
+      <view class="h-20 bg-gray-200 rounded" />
+    </view>
+  </view>
+
+  <!-- 主内容 -->
+  <view v-else class="min-h-screen bg-[#FAF8F5] pb-20">
+    <!-- 顶部导航 -->
+    <view class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-sm">
+      <view @click="goBack" class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center">
+        <text class="text-lg">←</text>
+      </view>
+      <view class="flex gap-2">
+        <view @click="isFavorite = !isFavorite" class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center">
+          <text :class="['text-lg', isFavorite ? 'text-[#C41E3A]' : '']">{{ isFavorite ? '❤️' : '🤍' }}</text>
+        </view>
+        <view class="w-9 h-9 rounded-full bg-black/5 flex items-center justify-center">
+          <text class="text-lg">📤</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 图片轮播 -->
+    <view class="relative aspect-square bg-white" @click="showImageViewer = true">
+      <image
+        :src="product.images[currentImage]"
+        :alt="product.name"
+        class="w-full h-full"
+        style="object-fit: cover;"
+      />
+      <view class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+        <view
+          v-for="(_, i) in product.images"
+          :key="i"
+          @click.stop="currentImage = i"
+          :class="['w-2 h-2 rounded-full transition-all', i === currentImage ? 'w-4 bg-[#C41E3A]' : 'bg-black/20']"
+        />
+      </view>
+      <text
+        v-if="product.isHot"
+        class="absolute top-16 left-0 px-3 py-1 bg-gradient-to-r from-[#C41E3A] to-[#E85A71] text-white text-xs font-medium rounded-r-full"
+      >热销</text>
+    </view>
+
+    <!-- 价格信息 -->
+    <view class="bg-white p-4">
+      <view class="flex items-baseline gap-2 mb-2">
+        <text class="text-2xl font-bold text-[#C41E3A]">¥{{ currentPrice }}</text>
+        <text class="text-sm text-[#999999] line-through">¥{{ currentOriginalPrice }}</text>
+        <text class="px-1.5 py-0.5 bg-[#FFF0F0] text-[#C41E3A] text-xs rounded">省¥{{ currentOriginalPrice - currentPrice }}</text>
+      </view>
+      <text class="text-lg font-medium text-[#2C2C2C] leading-snug mb-3 block">{{ product.name }}</text>
+      <view class="flex items-center gap-4 text-sm text-[#666666]">
+        <view class="flex items-center gap-1">
+          <text class="text-[#C9A96E] text-base">⭐</text>
+          <text>{{ product.rating }}</text>
+        </view>
+        <text>已售{{ product.sales }}+</text>
+        <text>{{ product.shipping }}</text>
+      </view>
+    </view>
+
+    <!-- SKU选择入口 -->
+    <view
+      @click="buyMode = 'cart'; showSkuPanel = true"
+      class="w-full mt-2 bg-white p-4 flex items-center justify-between"
+    >
+      <text class="text-[#666666]">已选</text>
+      <view class="flex items-center gap-2">
+        <text class="text-[#2C2C2C]">{{ (selectedSku?.name || '请选择规格') + ' x' + quantity }}</text>
+        <text class="text-sm text-[#999999]">›</text>
+      </view>
+    </view>
+
+    <!-- 规格参数 -->
+    <view class="mt-2 bg-white p-4">
+      <text class="font-medium text-[#2C2C2C] mb-3 block">规格参数</text>
+      <view class="grid grid-cols-2 gap-2">
+        <view v-for="(spec, i) in product.specs" :key="i" class="flex text-sm">
+          <text class="text-[#999999] w-16">{{ spec.name }}</text>
+          <text class="text-[#666666]">{{ spec.value }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 评价预览 -->
+    <view class="mt-2 bg-white p-4">
+      <view class="flex items-center justify-between mb-3">
+        <text class="font-medium text-[#2C2C2C]">用户评价 ({{ product.reviews }})</text>
+        <text class="text-sm text-[#C41E3A] flex items-center" @click="goTo('/pages/shop/reviews/index?id=' + product.id)">
+          查看全部 ›
+        </text>
+      </view>
+      <view class="flex items-center gap-4 mb-4 pb-3" style="border-bottom: 1px solid #E8E0D5;">
+        <view class="flex items-center gap-1">
+          <text class="text-2xl font-bold text-[#C41E3A]">{{ product.rating }}</text>
+          <view class="flex">
+            <text v-for="s in 5" :key="s" :class="['text-sm', s <= Math.round(product.rating) ? 'text-[#C9A96E]' : 'text-gray-300']">⭐</text>
+          </view>
+        </view>
+      </view>
+      <view class="space-y-4">
+        <view v-for="(review, idx) in reviews" :key="review.id" class="pb-4" :class="idx === reviews.length - 1 ? '' : 'border-b border-[#E8E0D5]'">
+          <view class="flex items-center gap-2 mb-2">
+            <image :src="review.user.avatar" class="w-8 h-8 rounded-full" mode="aspectFill" />
+            <view>
+              <text class="text-sm text-[#2C2C2C] block">{{ review.user.name }}</text>
+              <view class="flex items-center gap-1">
+                <text v-for="s in 5" :key="s" :class="['text-xs', s <= review.rating ? 'text-[#C9A96E]' : 'text-gray-300']">⭐</text>
+                <text v-if="review.skuName" class="text-xs text-[#999999] ml-2">{{ review.skuName }}</text>
+              </view>
+            </view>
+          </view>
+          <text class="text-sm text-[#666666] mb-2 block">{{ review.content }}</text>
+          <view v-if="review.images" class="flex gap-2">
+            <image v-for="(img, ii) in review.images" :key="ii" :src="img" class="w-16 h-16 rounded" mode="aspectFill" />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 商品详情图文 -->
+    <view class="mt-2 bg-white p-4">
+      <text class="font-medium text-[#2C2C2C] mb-3 block">商品详情</text>
+      <text class="text-sm text-[#666666] leading-relaxed" style="white-space: pre-wrap;">{{ product.description }}</text>
+    </view>
+
+    <!-- 底部购买栏 -->
+    <view class="fixed bottom-0 left-0 right-0 bg-white" style="border-top: 1px solid #E8E0D5; padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom));">
+      <view class="flex items-center gap-3">
+        <view @click="goTo('/pages/shop/cart/index')" class="flex flex-col items-center relative">
+          <text class="text-2xl text-[#666666]">🛒</text>
+          <text class="text-xs text-[#666666]">购物车</text>
+          <text v-if="cartAnimation" class="absolute -top-1 -right-1 w-5 h-5 bg-[#C41E3A] rounded-full flex items-center justify-center animate-bounce text-white text-xs">✓</text>
+        </view>
+        <view
+          @click="buyMode = 'cart'; showSkuPanel = true"
+          class="flex-1 py-3 rounded-full text-white font-medium text-center"
+          style="background: linear-gradient(90deg, #C9A96E, #D4B87A);"
+        >加入购物车</view>
+        <view
+          @click="buyMode = 'buy'; showSkuPanel = true"
+          class="flex-1 py-3 rounded-full text-white font-medium text-center"
+          style="background: linear-gradient(90deg, #C41E3A, #E85A71);"
+        >立即购买</view>
+      </view>
+    </view>
+
+    <!-- SKU选择面板 -->
+    <view v-if="showSkuPanel" class="fixed inset-0 z-50 flex items-end" @click="showSkuPanel = false">
+      <view class="absolute inset-0 bg-black/50" />
+      <view class="relative w-full bg-white rounded-t-2xl max-h-[70vh] overflow-auto" @click.stop>
+        <view class="sticky top-0 bg-white p-4 flex items-start gap-3" style="border-bottom: 1px solid #E8E0D5;">
+          <image :src="selectedSku?.image || product.images[0]" class="w-20 h-20 rounded-lg" mode="aspectFill" />
+          <view class="flex-1">
+            <text class="text-xl font-bold text-[#C41E3A]">¥{{ selectedSku?.price || product.price }}</text>
+            <text class="text-sm text-[#999999] block">库存 {{ selectedSku?.stock || product.stock }}</text>
+            <text class="text-sm text-[#666666] block">已选：{{ selectedSku?.name }}</text>
+          </view>
+          <view @click="showSkuPanel = false">
+            <text class="text-lg text-[#999999]">✕</text>
+          </view>
+        </view>
+
+        <view class="p-4">
+          <text class="text-sm font-medium text-[#2C2C2C] mb-3 block">规格</text>
+          <view class="flex flex-wrap gap-2 mb-6">
+            <view
+              v-for="sku in product.skus"
+              :key="sku.id"
+              @click="handleSkuChange(sku)"
+              :class="[
+                'px-4 py-2 rounded-full text-sm border transition-all',
+                selectedSku?.id === sku.id
+                  ? 'border-[#C41E3A] bg-[#FFF0F0] text-[#C41E3A]'
+                  : sku.stock === 0
+                  ? 'border-gray-200 text-gray-400 line-through'
+                  : 'border-[#E8E0D5] text-[#666666]'
+              ]"
+            >
+              <text>{{ sku.name }}</text>
+            </view>
+          </view>
+
+          <view class="flex items-center justify-between mb-6">
+            <text class="text-sm font-medium text-[#2C2C2C]">数量</text>
+            <view class="flex items-center gap-3">
+              <view
+                @click="quantity = Math.max(1, quantity - 1)"
+                class="w-8 h-8 rounded-full flex items-center justify-center" style="border: 1px solid #E8E0D5;"
+              >
+                <text class="text-sm">−</text>
+              </view>
+              <text class="w-10 text-center font-medium">{{ quantity }}</text>
+              <view
+                @click="quantity = Math.min(selectedSku?.stock || 99, quantity + 1)"
+                class="w-8 h-8 rounded-full flex items-center justify-center" style="border: 1px solid #E8E0D5;"
+              >
+                <text class="text-sm">+</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <view class="p-4 pt-0">
+          <view
+            @click="buyMode === 'cart' ? handleAddToCart() : handleBuyNow()"
+            :class="['w-full py-3 font-medium rounded-full text-white text-center', buyMode === 'cart' ? 'bg-gradient-to-r from-[#C9A96E] to-[#D4B87A]' : 'bg-gradient-to-r from-[#C41E3A] to-[#E85A71]']"
+          >
+            <text>{{ buyMode === 'cart' ? '加入购物车' : '立即购买' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加购成功Toast -->
+    <view v-if="addedToast" class="fixed top-20 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 bg-black/80 text-white text-sm rounded-full flex items-center gap-2 animate-fade-in">
+      <text class="text-green-400">✓</text>
+      <text>已加入购物车</text>
+    </view>
+
+    <!-- 飞入购物车动画 -->
+    <view v-if="flyAnimation" class="fixed z-[60] w-10 h-10 bg-[#C41E3A] rounded-full flex items-center justify-center animate-fly-to-cart" :style="{ left: 'calc(50% - 20px)', top: '50%' }">
+      <text class="text-white text-lg">🛒</text>
+    </view>
+
+    <!-- 图片浏览器 -->
+    <view v-if="showImageViewer" class="fixed inset-0 z-50 bg-black flex items-center justify-center" @click="showImageViewer = false">
+      <view @click="showImageViewer = false" class="absolute top-4 right-4 text-white p-2">
+        <text class="text-white text-lg">✕</text>
+      </view>
+      <image :src="product.images[currentImage]" class="max-w-full max-h-full" mode="aspectFit" />
+      <view class="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2">
+        <view
+          v-for="(_, i) in product.images"
+          :key="i"
+          @click.stop="currentImage = i"
+          :class="['w-2 h-2 rounded-full', i === currentImage ? 'bg-white' : 'bg-white/40']"
+        />
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface ProductSku {
+  id: string
+  name: string
+  attrs: { name: string; value: string }[]
+  price: number
+  originalPrice: number
+  stock: number
+  image?: string
+}
+
+interface ProductReview {
+  id: string
+  user: { id: string; name: string; avatar: string }
+  rating: number
+  content: string
+  skuName?: string
+  createdAt: string
+  likes: number
+  images?: string[]
+}
+
+interface ProductDetail {
+  id: string
+  name: string
+  cover: string
+  price: number
+  originalPrice: number
+  sales: number
+  rating: number
+  category: string
+  tags: string[]
+  isHot: boolean
+  images: string[]
+  description: string
+  specs: { name: string; value: string }[]
+  stock: number
+  shipping: string
+  reviews: number
+  skus: ProductSku[]
+}
+
+// Mock数据
+const mockProduct: ProductDetail = {
+  id: '1',
+  name: '精装《周易全解》典藏版 - 王弼注释本',
+  cover: '/placeholder.svg?height=400&width=400',
+  price: 168,
+  originalPrice: 298,
+  sales: 2580,
+  rating: 4.9,
+  category: '国学书籍',
+  tags: ['精装', '典藏'],
+  isHot: true,
+  images: [
+    '/placeholder.svg?height=400&width=400&text=图1',
+    '/placeholder.svg?height=400&width=400&text=图2',
+    '/placeholder.svg?height=400&width=400&text=图3',
+    '/placeholder.svg?height=400&width=400&text=图4',
+  ],
+  description: '本书为《周易》经典注释本，由三国时期著名学者王弼注释...',
+  specs: [
+    { name: '出版社', value: '中华书局' },
+    { name: '页数', value: '568页' },
+    { name: '装帧', value: '精装' },
+    { name: '开本', value: '16开' },
+  ],
+  stock: 99,
+  shipping: '包邮',
+  reviews: 368,
+  skus: [
+    { id: 'sku1', name: '精装版', attrs: [{ name: '版本', value: '精装' }], price: 168, originalPrice: 298, stock: 50, image: '/placeholder.svg?height=400&width=400&text=精装版' },
+    { id: 'sku2', name: '平装版', attrs: [{ name: '版本', value: '平装' }], price: 98, originalPrice: 168, stock: 80, image: '/placeholder.svg?height=400&width=400&text=平装版' },
+    { id: 'sku3', name: '典藏礼盒版', attrs: [{ name: '版本', value: '典藏礼盒' }], price: 368, originalPrice: 498, stock: 20, image: '/placeholder.svg?height=400&width=400&text=典藏版' },
+  ],
+}
+
+const mockReviews: ProductReview[] = [
+  { id: '1', user: { id: 'u1', name: '国学爱好者', avatar: '/placeholder.svg' }, rating: 5, content: '印刷精美，注释详尽，非常满意！', skuName: '精装版', createdAt: '2024-01-15', likes: 28, images: ['/placeholder.svg?height=100&width=100'] },
+  { id: '2', user: { id: 'u2', name: '易学研究者', avatar: '/placeholder.svg' }, rating: 5, content: '王弼注释很有深度，适合深入研究。', skuName: '典藏礼盒版', createdAt: '2024-01-10', likes: 15 },
+  { id: '3', user: { id: 'u3', name: '读书人', avatar: '/placeholder.svg' }, rating: 4, content: '纸张质量很好，物流也很快。', skuName: '平装版', createdAt: '2024-01-08', likes: 8 },
+]
+
+const loading = ref(true)
+const product = ref<ProductDetail>(mockProduct)
+const reviews = ref<ProductReview[]>(mockReviews)
+const currentImage = ref(0)
+const isFavorite = ref(false)
+const showSkuPanel = ref(false)
+const selectedSku = ref<ProductSku>(mockProduct.skus[0])
+const quantity = ref(1)
+const buyMode = ref<'cart' | 'buy'>('cart')
+const showImageViewer = ref(false)
+const cartAnimation = ref(false)
+const addedToast = ref(false)
+const flyAnimation = ref(false)
+
+const currentPrice = computed(() => selectedSku.value?.price || product.value.price)
+const currentOriginalPrice = computed(() => selectedSku.value?.originalPrice || product.value.originalPrice)
+
+onMounted(() => {
+  setTimeout(() => {
+    loading.value = false
+  }, 800)
+})
+
+function handleSkuChange(sku: ProductSku) {
+  selectedSku.value = sku
+  if (sku.image) {
+    const skuImageIndex = product.value.images.findIndex(img => img === sku.image)
+    if (skuImageIndex >= 0) {
+      currentImage.value = skuImageIndex
+    }
+  }
+}
+
+function handleAddToCart() {
+  if (!selectedSku.value) return
+  cartAnimation.value = true
+  flyAnimation.value = true
+  setTimeout(() => {
+    flyAnimation.value = false
+    addedToast.value = true
+    setTimeout(() => { addedToast.value = false }, 2000)
+  }, 400)
+  setTimeout(() => {
+    cartAnimation.value = false
+    showSkuPanel.value = false
+  }, 600)
+}
+
+function handleBuyNow() {
+  if (!selectedSku.value) return
+  goTo('/pages/shop/checkout/index?productId=' + product.value.id + '&skuId=' + selectedSku.value.id + '&quantity=' + quantity.value)
+}
+
+function goTo(url: string) {
+  uni.navigateTo({ url })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+
+@keyframes fly-to-cart {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5) translateY(-20px); opacity: 0.7; }
+  100% { transform: scale(0) translateY(-60px); opacity: 0; }
+}
+.animate-fly-to-cart { animation: fly-to-cart 0.6s ease-in forwards; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fade-in 0.3s ease-out; }
+</style>

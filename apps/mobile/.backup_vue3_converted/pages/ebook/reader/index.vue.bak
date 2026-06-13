@@ -1,0 +1,222 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col" :class="{ 'bg-[#1A1A1A]': nightMode }">
+    <!-- 顶部导航栏 -->
+    <view :class="['flex items-center justify-between px-4 h-12 border-b shrink-0', nightMode ? 'bg-[#222] border-[#333]' : 'bg-white border-[#E8E0D5]']">
+      <view class="p-1" @click="goBack"><text :class="['text-xl', nightMode ? 'text-white' : 'text-[#2C2C2C]']">←</text></view>
+      <text :class="['text-base font-semibold truncate max-w-[200px]', nightMode ? 'text-white' : 'text-[#2C2C2C]']">《{{ info.title }}》</text>
+      <view class="flex items-center gap-3">
+        <text :class="nightMode ? 'text-white' : 'text-[#2C2C2C]'" @click="toggleNightMode">🌙</text>
+        <text :class="nightMode ? 'text-white' : 'text-[#2C2C2C]'" @click="showMenu = !showMenu">⋯</text>
+      </view>
+    </view>
+
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="flex-1 px-6 py-8" :class="{ 'bg-[#1A1A1A]': nightMode }">
+      <view class="w-1/2 h-5 bg-[#F0EBE5] rounded mx-auto mb-8 animate-pulse" :class="{ 'bg-[#333]': nightMode }" />
+      <view v-for="i in 6" :key="i" class="mb-3 animate-pulse">
+        <view :class="['w-full h-3.5 rounded', nightMode ? 'bg-[#333]' : 'bg-[#F0EBE5]']" :style="{ width: (60 + Math.random() * 40) + '%' }" />
+      </view>
+    </view>
+
+    <!-- 工具栏 -->
+    <view v-else :class="['flex items-center gap-4 px-4 py-2 border-b', nightMode ? 'bg-[#222] border-[#333]' : 'bg-white border-[#E8E0D5]']">
+      <view class="flex items-center gap-1" @click="fontSize = Math.max(12, fontSize - 2)">
+        <text :class="['text-xs px-1.5 py-0.5 rounded', nightMode ? 'text-white bg-[#333]' : 'text-[#666] bg-[#F0EBE5]'">A-</text>
+      </view>
+      <text :class="['text-sm font-medium', nightMode ? 'text-white' : 'text-[#2C2C2C]']">{{ fontSize }}</text>
+      <view class="flex items-center gap-1" @click="fontSize = Math.min(28, fontSize + 2)">
+        <text :class="['text-sm px-1.5 py-0.5 rounded', nightMode ? 'text-white bg-[#333]' : 'text-[#666] bg-[#F0EBE5]'">A+</text>
+      </view>
+      <view class="w-px h-4 bg-[#E8E0D5]" />
+      <view class="flex items-center gap-1" @click="toggleBookmark">
+        <text :class="[nightMode ? 'text-white' : 'text-[#666]']">{{ bookmarked ? '🔖' : '🏷' }}</text>
+        <text :class="['text-xs', nightMode ? 'text-white' : 'text-[#999]']">{{ bookmarked ? '已书签' : '加书签' }}</text>
+      </view>
+      <view class="flex-1" />
+      <text :class="['text-xs', nightMode ? 'text-[#aaa]' : 'text-[#999]']" @click="showCatalog = !showCatalog">📖 目录</text>
+    </view>
+
+    <!-- 阅读内容 -->
+    <scroll-view scroll-y class="flex-1 overflow-y-auto" :class="nightMode ? 'bg-[#1A1A1A]' : 'bg-[#FAF8F5]'"
+      @click="showMenu = false; showCatalog = false">
+      <!-- 书籍信息头部 -->
+      <view :class="['px-6 pt-5 pb-4 border-b', nightMode ? 'border-[#333]' : 'border-[#E8E0D5]']">
+        <view class="flex items-center gap-4">
+          <view class="w-16 h-20 rounded-lg bg-gradient-to-br from-[#C41E3A] to-[#E74C3C] flex items-center justify-center text-white text-lg font-bold shrink-0 shadow-sm">
+            {{ info.title[0] }}
+          </view>
+          <view class="flex-1">
+            <text :class="['text-lg font-bold', nightMode ? 'text-white' : 'text-[#2C2C2C]']">{{ info.title }}</text>
+            <text :class="['text-xs mt-0.5 block', nightMode ? 'text-[#aaa]' : 'text-[#999]']">{{ info.author }} 著 · {{ info.publisher }}</text>
+            <view class="flex items-center gap-3 mt-1.5">
+              <text class="text-[11px] text-[#999]">📖 {{ totalPages }}页</text>
+              <text class="text-[11px] text-[#999]">⏱ {{ readingTime }}分钟</text>
+              <text class="text-[11px]" :class="bookmarked ? 'text-[#C9A96E]' : 'text-[#999]'">{{ bookmarked ? '🔖 已书签' : '🏷 未书签' }}</text>
+            </view>
+            <!-- 阅读进度条 -->
+            <view class="mt-2 bg-[#F0EBE5] rounded-full h-1.5 overflow-hidden">
+              <view class="h-full bg-[#C41E3A] rounded-full" :style="{ width: (curPage / totalPages * 100) + '%' }" />
+            </view>
+          </view>
+        </view>
+        <!-- 书籍信息标签 -->
+        <view class="flex gap-2 mt-3">
+          <view class="px-2 py-0.5 bg-[#F0EBE5] rounded-full text-[10px] text-[#666]">国学经典</view>
+          <view class="px-2 py-0.5 bg-[#F0EBE5] rounded-full text-[10px] text-[#666]">哲学</view>
+          <view class="px-2 py-0.5 bg-[#F0EBE5] rounded-full text-[10px] text-[#666]">五经</view>
+          <view class="px-2 py-0.5 bg-[#F0EBE5] rounded-full text-[10px] text-[#666]">ISBN: {{ info.isbn }}</view>
+        </view>
+      </view>
+
+      <view class="px-6 py-6" :class="nightMode ? 'text-[#ccc]' : ''">
+        <!-- 章节标题 -->
+        <view class="text-center mb-6">
+          <text :class="['text-lg font-semibold font-serif block mb-1', nightMode ? 'text-white' : 'text-[#2C2C2C]']">{{ info.chapter }}</text>
+          <view class="w-12 h-px bg-[#C9A96E] mx-auto mt-2" />
+        </view>
+
+        <!-- 正文 -->
+        <view :class="['leading-loose whitespace-pre-line font-serif', nightMode ? 'text-[#ccc]' : 'text-[#333]']" :style="{ fontSize: fontSize + 'px' }">
+          <text v-for="(p, i) in paragraphs" :key="i" :class="['block mb-4', p.startsWith('「') ? 'text-[#C41E3A] font-medium' : '']">{{ p }}</text>
+        </view>
+
+        <!-- 进度指示 -->
+        <view class="flex items-center justify-center gap-2 mt-8 mb-4">
+          <view class="w-16 h-px bg-[#E8E0D5]" />
+          <text class="text-xs text-[#999]">已读 {{ curPage }}/{{ totalPages }} 页</text>
+          <view class="w-16 h-px bg-[#E8E0D5]" />
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 底部翻页 -->
+    <view :class="['flex gap-2.5 px-4 py-3 border-t', nightMode ? 'bg-[#222] border-[#333]' : 'bg-white border-[#E8E0D5]']">
+      <view class="flex-1 text-center py-2.5 rounded-lg text-sm font-medium"
+        :class="curPage <= 1 ? (nightMode ? 'bg-[#333] text-[#666]' : 'bg-[#D9D9D9] text-[#999]') : 'bg-[#C41E3A] text-white'"
+        @click="prevPage">
+        <text>← 上一页</text>
+      </view>
+      <view class="flex-1 text-center py-2.5 rounded-lg text-sm font-medium"
+        :class="curPage >= totalPages ? (nightMode ? 'bg-[#333] text-[#666]' : 'bg-[#D9D9D9] text-[#999]') : 'bg-[#C41E3A] text-white'"
+        @click="nextPage">
+        <text>下一页 →</text>
+      </view>
+    </view>
+
+    <!-- 目录弹出层 -->
+    <view v-if="showCatalog" class="fixed inset-0 z-50 flex">
+      <view class="absolute inset-0 bg-black/30" @click="showCatalog = false" />
+      <view :class="['w-72 h-full absolute left-0 top-12 shadow-xl', nightMode ? 'bg-[#222]' : 'bg-white']">
+        <view class="p-4 border-b border-[#E8E0D5]">
+          <text :class="['text-base font-semibold', nightMode ? 'text-white' : 'text-[#2C2C2C]']">📖 目录</text>
+        </view>
+        <scroll-view scroll-y class="h-full pb-20">
+          <view v-for="(ch, i) in chapters" :key="i"
+            :class="['flex items-center gap-2 px-4 py-3.5 border-b border-[#FAF8F5]', curChapter === i ? 'bg-[#C41E3A]/5' : '']"
+            @click="jumpChapter(i)">
+            <text :class="['text-xs w-6 h-6 rounded-full flex items-center justify-center', curChapter === i ? 'bg-[#C41E3A] text-white' : 'bg-[#F0EBE5] text-[#999]']">{{ i + 1 }}</text>
+            <text :class="['text-sm flex-1', curChapter === i ? 'text-[#C41E3A] font-medium' : (nightMode ? 'text-white' : 'text-[#2C2C2C]')]">{{ ch }}</text>
+            <text v-if="curChapter === i" class="text-[#C41E3A] text-xs">✓</text>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
+    <!-- 设置菜单弹出层 -->
+    <view v-if="showMenu" class="fixed inset-0 z-50" @click="showMenu = false">
+      <view :class="['absolute bottom-16 left-4 right-4 rounded-xl p-4 shadow-xl', nightMode ? 'bg-[#333]' : 'bg-white']" @click.stop>
+        <view class="grid grid-cols-4 gap-4 text-center">
+          <view @click="toggleNightMode">
+            <text class="text-2xl block mb-1">🌙</text>
+            <text :class="['text-xs', nightMode ? 'text-white' : 'text-[#666]']">{{ nightMode ? '日间' : '夜间' }}</text>
+          </view>
+          <view @click="toggleBookmark">
+            <text class="text-2xl block mb-1">{{ bookmarked ? '🔖' : '🏷' }}</text>
+            <text :class="['text-xs', nightMode ? 'text-white' : 'text-[#666]']">书签</text>
+          </view>
+          <view @click="showCatalog = true">
+            <text class="text-2xl block mb-1">📖</text>
+            <text :class="['text-xs', nightMode ? 'text-white' : 'text-[#666]']">目录</text>
+          </view>
+          <view @click="showProgress">
+            <text class="text-2xl block mb-1">📊</text>
+            <text :class="['text-xs', nightMode ? 'text-white' : 'text-[#666]']">进度</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const loading = ref(true)
+const nightMode = ref(false)
+const showCatalog = ref(false)
+const showMenu = ref(false)
+const readingTime = ref(12)
+
+const fontSize = ref(16)
+const curPage = ref(1)
+const totalPages = ref(42)
+const curChapter = ref(0)
+const bookmarked = ref(false)
+
+const chapters = ['乾卦第一', '坤卦第二', '屯卦第三', '蒙卦第四', '需卦第五', '讼卦第六', '师卦第七', '比卦第八']
+
+const info = ref({
+  title: '周易',
+  author: '姬昌',
+  chapter: '乾卦第一',
+  publisher: '中华书局',
+  isbn: '978-7-101-00001-2',
+  content: '乾：元亨，利贞。\n\n初九：潜龙勿用。\n\n九二：见龙在田，利见大人。\n\n九三：君子终日乾乾，夕惕若，厉无咎。\n\n九四：或跃在渊，无咎。\n\n九五：飞龙在天，利见大人。\n\n上九：亢龙有悔。\n\n用九：见群龙无首，吉。\n\n「彖曰」大哉乾元，万物资始，乃统天。云行雨施，品物流形。大明终始，六位时成，时乘六龙以御天。乾道变化，各正性命，保合太和，乃利贞。首出庶物，万国咸宁。\n\n「象曰」天行健，君子以自强不息。"潜龙勿用"，阳在下也。"见龙在田"，德施普也。"终日乾乾"，反复道也。"或跃在渊"，进无咎也。"飞龙在天"，大人造也。"亢龙有悔"，盈不可久也。"用九"，天德不可为首也。',
+})
+
+const paragraphs = computed(() => {
+  return info.value.content.split('\n').filter(p => p.trim())
+})
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 1500)
+})
+
+function goBack() { uni.navigateBack() }
+
+function prevPage() {
+  if (curPage.value > 1) curPage.value--
+  readingTime.value = Math.floor(curPage.value * 0.3)
+}
+
+function nextPage() {
+  if (curPage.value < totalPages.value) curPage.value++
+  readingTime.value = Math.floor(curPage.value * 0.3)
+}
+
+function toggleNightMode() {
+  nightMode.value = !nightMode.value
+  uni.showToast({ title: nightMode.value ? '夜间模式' : '日间模式', icon: 'none' })
+}
+
+function toggleBookmark() {
+  bookmarked.value = !bookmarked.value
+  uni.showToast({ title: bookmarked.value ? '已添加书签' : '已移除书签', icon: 'none' })
+}
+
+function jumpChapter(index: number) {
+  curChapter.value = index
+  info.value.chapter = chapters[index]
+  curPage.value = index * 5 + 1
+  readingTime.value = Math.floor(curPage.value * 0.3)
+  showCatalog.value = false
+}
+
+function showProgress() {
+  uni.showToast({ title: `阅读进度: ${Math.round(curPage.value / totalPages.value * 100)}%`, icon: 'none' })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

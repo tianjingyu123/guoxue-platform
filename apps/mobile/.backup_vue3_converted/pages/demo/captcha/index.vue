@@ -1,0 +1,197 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b border-border">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view class="p-2 -ml-2" @click="goBack">
+          <text>←</text>
+        </view>
+        <text class="font-semibold text-base text-foreground">安全验证演示</text>
+        <view class="w-9" />
+      </view>
+    </view>
+
+    <view class="p-4 space-y-6">
+      <!-- 说明卡片 -->
+      <view class="p-4 bg-primary/5 border border-primary/20 rounded-xl">
+        <view class="flex items-start gap-3">
+          <view class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+            <text class="text-primary">🛡</text>
+          </view>
+          <view>
+            <text class="font-medium text-foreground block">滑块拼图验证</text>
+            <text class="text-sm text-muted-foreground mt-1 block">
+              用于防止机器人恶意刷接口。用户需要拖动滑块将拼图块拼合到正确位置，验证通过后自动触发后续操作。
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 场景1：直接调用 -->
+      <view>
+        <text class="font-medium text-sm text-foreground mb-3 block">场景1：直接使用组件</text>
+        <view class="p-4 bg-white rounded-xl border border-border">
+          <text class="text-sm text-muted-foreground mb-4 block">
+            直接导入 CaptchaModal 组件，通过 isOpen 控制显示
+          </text>
+          <view class="w-full py-3 bg-primary text-white text-sm font-medium rounded-xl text-center" hover-class="hover-primary" @click="showDirectModal = true">
+            <text>打开验证弹窗</text>
+          </view>
+          <view v-if="directResult" class="mt-3 flex items-center gap-2 text-sm text-green-600">
+            <text>✓</text>
+            <text>{{ directResult }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 场景2：使用 Hook -->
+      <view>
+        <text class="font-medium text-sm text-foreground mb-3 block">场景2：使用 useCaptcha Hook</text>
+        <view class="p-4 bg-white rounded-xl border border-border">
+          <text class="text-sm text-muted-foreground mb-4 block">
+            使用 useCaptcha() Hook，调用 verify(callback) 方法触发验证
+          </text>
+          <view class="w-full py-3 bg-secondary text-foreground text-sm font-medium rounded-xl text-center" hover-class="hover-secondary" @click="handleHookVerify">
+            <text>触发验证 (Hook 方式)</text>
+          </view>
+          <view v-if="hookResult" class="mt-3 flex items-center gap-2 text-sm text-green-600">
+            <text>✓</text>
+            <text>{{ hookResult }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 场景3：发送短信验证码 -->
+      <view>
+        <text class="font-medium text-sm text-foreground mb-3 block">场景3：发送短信验证码</text>
+        <view class="p-4 bg-white rounded-xl border border-border">
+          <view class="flex items-center gap-3 mb-4">
+            <view class="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+              <text></text>
+            </view>
+            <view>
+              <text class="text-sm text-foreground block">{{ phone }}</text>
+              <text class="text-xs text-muted-foreground">当前绑定手机号</text>
+            </view>
+          </view>
+          <view
+            class="w-full py-3 text-white text-sm font-medium rounded-xl text-center"
+            :class="countdown > 0 ? 'bg-muted text-muted-foreground' : 'bg-primary'"
+            hover-class="hover-primary"
+            @click="handleSendSms"
+          >
+            <text>{{ countdown > 0 ? countdown + '秒后可重新发送' : '获取验证码' }}</text>
+          </view>
+          <view v-if="smsSent" class="mt-3 flex items-center gap-2 text-sm text-green-600">
+            <text> 验证码已发送至 {{ phone }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 技术说明 -->
+      <view class="p-4 bg-white rounded-xl border border-border">
+        <text class="font-medium text-foreground mb-3 block">技术说明</text>
+        <view class="space-y-2 text-sm text-muted-foreground">
+          <text class="block">• 拼图位置随机生成，每次刷新都会变化</text>
+          <text class="block">• 允许误差范围 ±5px，保证用户体验</text>
+          <text class="block">• 验证失败后自动重置滑块位置</text>
+          <text class="block">• 验证成功后触发回调函数</text>
+          <text class="block">• 可接入腾讯云验证码服务替换本地验证逻辑</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 验证弹窗（模拟） -->
+    <view v-if="showDirectModal || showCaptcha" class="fixed inset-0 z-50 flex items-center justify-center">
+      <view class="absolute inset-0 bg-black/50" @click="closeCaptcha" />
+      <view class="relative bg-white rounded-2xl p-6 mx-8 w-full max-w-sm">
+        <text class="text-lg font-bold text-center block mb-4">安全验证</text>
+        <view class="bg-secondary rounded-xl h-32 flex items-center justify-center mb-4">
+          <text class="text-4xl">🧩</text>
+        </view>
+        <text class="text-sm text-muted-foreground text-center block mb-4">请拖动滑块完成拼图验证</text>
+        <view class="w-full py-3 bg-primary text-white text-sm font-medium rounded-xl text-center" hover-class="hover-primary" @click="handleSuccess">
+          <text>模拟验证通过</text>
+        </view>
+        <view class="w-full py-3 text-sm text-muted-foreground text-center mt-2" @click="closeCaptcha">
+          <text>取消</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onUnmounted } from 'vue'
+
+function goBack() { uni.navigateBack() }
+
+const showDirectModal = ref(false)
+const showCaptcha = ref(false)
+const directResult = ref<string | null>(null)
+const hookResult = ref<string | null>(null)
+const phone = ref('138****8888')
+const countdown = ref(0)
+const smsSent = ref(false)
+
+// 用于 SMS 验证码流程：captcha 验证成功后触发的回调
+const pendingSmsCallback = ref<(() => void) | null>(null)
+
+let timer: ReturnType<typeof setInterval> | null = null
+onUnmounted(() => { if (timer) clearInterval(timer) })
+
+function closeCaptcha() {
+  showDirectModal.value = false
+  showCaptcha.value = false
+  pendingSmsCallback.value = null
+}
+
+function handleSuccess() {
+  // 检查是否有待执行的 SMS 回调（模拟入 verify(callback) 的行为）
+  if (pendingSmsCallback.value) {
+    pendingSmsCallback.value()
+    pendingSmsCallback.value = null
+    closeCaptcha()
+    return
+  }
+
+  const msg = '验证成功！时间：' + new Date().toLocaleTimeString('zh-CN')
+  if (showDirectModal.value) {
+    directResult.value = msg
+  } else {
+    hookResult.value = msg
+  }
+  closeCaptcha()
+}
+
+function handleHookVerify() {
+  showCaptcha.value = true
+}
+
+function handleSendSms() {
+  if (countdown.value > 0) return
+  // 模拟 V0 中 verify(() => { ... }) 的行为：
+  // 先打开 captcha，验证成功后才执行发送逻辑
+  pendingSmsCallback.value = () => {
+    smsSent.value = true
+    countdown.value = 60
+    timer = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0) {
+        if (timer) clearInterval(timer)
+        timer = null
+      }
+    }, 1000)
+  }
+  showCaptcha.value = true
+}
+</script>
+
+<style scoped>
+.hover-primary {
+  opacity: 0.9;
+}
+.hover-secondary {
+  background-color: #E8E0D5;
+}
+</style>

@@ -1,0 +1,285 @@
+<template>
+  <view v-if="loading" class="min-h-screen bg-[#FAF8F5]">
+    <view class="h-[50vh] bg-gray-200" />
+    <view class="p-4 space-y-4">
+      <view class="h-8 bg-gray-200 rounded" />
+      <view class="h-20 bg-gray-200 rounded" />
+    </view>
+  </view>
+
+  <view v-else-if="!room" class="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+    <text class="text-[#999999]">直播不存在</text>
+  </view>
+
+  <view v-else class="min-h-screen bg-[#FAF8F5] pb-24">
+    <!-- 封面区域 -->
+    <view class="relative h-[50vh] min-h-[320px]">
+      <view class="absolute inset-0 bg-gradient-to-br from-gray-600 to-gray-800" />
+      <view class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+      <!-- 顶部导航 -->
+      <view class="absolute top-0 left-0 right-0 p-4 flex items-center justify-between">
+        <view @click="goBack" class="w-10 h-10 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center">
+          <text class="text-white text-xl">←</text>
+        </view>
+        <view @click="handleShare" class="w-10 h-10 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center">
+          <text class="text-white">📤</text>
+        </view>
+      </view>
+
+      <!-- 预告标签 -->
+      <view class="absolute top-4 left-1/2 -translate-x-1/2">
+        <view class="px-4 py-1.5 bg-[#C41E3A] text-white text-sm font-medium rounded-full flex items-center gap-1.5">
+          <text>📅</text>
+          <text>直播预告</text>
+        </view>
+      </view>
+
+      <!-- 底部信息 -->
+      <view class="absolute bottom-0 left-0 right-0 p-4 text-white">
+        <text class="text-xl font-bold leading-tight block mb-3">{{ room.title }}</text>
+
+        <!-- 讲师信息 -->
+        <view @click="goTo('/pages/user/index?id=' + room.host.id)" class="flex items-center gap-3 mb-4">
+          <view class="w-12 h-12 rounded-full border-2 border-white/30 bg-[#F5F1EB] flex items-center justify-center overflow-hidden flex-shrink-0">
+            <text class="text-sm text-[#666]">{{ room.host.name[0] }}</text>
+          </view>
+          <view>
+            <text class="font-medium block">{{ room.host.name }}</text>
+            <text class="text-sm text-white/70 block">{{ room.host.followers.toLocaleString() }} 粉丝</text>
+          </view>
+        </view>
+
+        <!-- 倒计时 -->
+        <view class="bg-black/40 backdrop-blur-sm rounded-2xl p-4">
+          <view v-if="isStartingSoon" class="flex items-center justify-center gap-2 text-[#FFD700]">
+            <text class="text-white">▶</text>
+            <text class="text-lg font-bold">即将开始</text>
+          </view>
+          <view v-else>
+            <text class="text-sm text-white/70 text-center block mb-2">距开播还有</text>
+            <view class="flex items-center justify-center gap-2">
+              <template v-if="countdown.days > 0">
+                <view class="bg-white/20 rounded-lg px-3 py-2 min-w-[50px] text-center">
+                  <text class="text-2xl font-bold block">{{ countdown.days }}</text>
+                  <text class="text-xs text-white/70">天</text>
+                </view>
+                <text class="text-xl font-bold">:</text>
+              </template>
+              <view class="bg-white/20 rounded-lg px-3 py-2 min-w-[50px] text-center">
+                <text class="text-2xl font-bold block">{{ String(countdown.hours).padStart(2, '0') }}</text>
+                <text class="text-xs text-white/70">时</text>
+              </view>
+              <text class="text-xl font-bold">:</text>
+              <view class="bg-white/20 rounded-lg px-3 py-2 min-w-[50px] text-center">
+                <text class="text-2xl font-bold block">{{ String(countdown.minutes).padStart(2, '0') }}</text>
+                <text class="text-xs text-white/70">分</text>
+              </view>
+              <text class="text-xl font-bold">:</text>
+              <view class="bg-white/20 rounded-lg px-3 py-2 min-w-[50px] text-center">
+                <text class="text-2xl font-bold block">{{ String(countdown.seconds).padStart(2, '0') }}</text>
+                <text class="text-xs text-white/70">秒</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 详情内容 -->
+    <view class="p-4 space-y-4">
+      <!-- 信息卡片 -->
+      <view class="bg-white rounded-2xl p-4 shadow-sm">
+        <view class="grid grid-cols-3 gap-4 text-center">
+          <view>
+            <view class="flex items-center justify-center gap-1 text-[#C41E3A] mb-1">
+              <text>👥</text>
+              <text class="text-lg font-bold">{{ bookedCount.toLocaleString() }}</text>
+            </view>
+            <text class="text-xs text-[#999999]">已预约</text>
+          </view>
+          <view>
+            <view class="flex items-center justify-center gap-1 text-[#C9A96E] mb-1">
+              <text>🕐</text>
+              <text class="text-lg font-bold">{{ room.estimatedDuration || 60 }}</text>
+            </view>
+            <text class="text-xs text-[#999999]">预计时长(分钟)</text>
+          </view>
+          <view>
+            <text class="text-lg font-bold text-[#2C2C2C] block mb-1">{{ formatDate(room.startTime) }}</text>
+            <text class="text-xs text-[#999999]">{{ formatTime(room.startTime) }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 标签 -->
+      <view v-if="room.tags && room.tags.length > 0" class="flex flex-wrap gap-2">
+        <view v-for="(tag, idx) in room.tags" :key="idx" class="px-3 py-1 bg-[#C41E3A]/10 text-[#C41E3A] text-sm rounded-full">
+          <text>{{ tag }}</text>
+        </view>
+      </view>
+
+      <!-- 直播简介 -->
+      <view class="bg-white rounded-2xl p-4 shadow-sm">
+        <text class="text-lg font-bold text-[#2C2C2C] mb-3 block">直播简介</text>
+        <view class="text-[#666666] leading-relaxed whitespace-pre-wrap text-sm">
+          <text>{{ room.description }}</text>
+        </view>
+      </view>
+
+      <!-- 讲师卡片 -->
+      <view class="bg-white rounded-2xl p-4 shadow-sm">
+        <text class="text-lg font-bold text-[#2C2C2C] mb-3 block">讲师介绍</text>
+        <view @click="goTo('/pages/user/index?id=' + room.host.id)" class="flex items-center gap-4">
+          <view class="w-16 h-16 rounded-full bg-[#F5F1EB] flex items-center justify-center overflow-hidden flex-shrink-0">
+            <text class="text-lg text-[#666]">{{ room.host.name[0] }}</text>
+          </view>
+          <view class="flex-1">
+            <text class="font-bold text-[#2C2C2C] block">{{ room.host.name }}</text>
+            <text class="text-sm text-[#999999] block mt-1">{{ room.host.followers.toLocaleString() }} 粉丝</text>
+          </view>
+          <text class="text-[#C41E3A] text-sm">查看主页 →</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部固定按钮 -->
+    <view class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E8E0D5] p-4">
+      <view
+        @click="handleBook"
+        :class="['w-full py-3.5 rounded-xl font-medium text-base flex items-center justify-center gap-2', isBooked ? 'bg-[#F5F5F5] text-[#666666]' : 'bg-[#C41E3A] text-white']"
+      >
+        <text>{{ isBooked ? '✓ 已预约' : '🔔 立即预约' }}</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+
+// ============================================================
+// Types
+// ============================================================
+interface HostInfo {
+  id: string; name: string; avatar: string; followers: number
+}
+
+interface LiveRoomDetail {
+  id: string; title: string; cover: string; status: string
+  host: HostInfo; viewers: number; likes: number
+  startTime: string; category: string; tags: string[]
+  isBooked: boolean; bookedCount: number; estimatedDuration: number
+  description: string; playUrl: string; replayUrl: string; gifts: any[]; messages: any[]
+}
+
+// ============================================================
+// Mock data
+// ============================================================
+const mockRoom: LiveRoomDetail = {
+  id: '1',
+  title: '紫微斗数入门：十二宫位详解与命盘分析实战',
+  cover: '',
+  status: 'preview',
+  host: { id: 'h1', name: '云中子', avatar: '', followers: 12800 },
+  viewers: 0, likes: 0,
+  startTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+  category: '命理学',
+  tags: ['紫微斗数', '入门课程', '命盘分析'],
+  isBooked: false, bookedCount: 1268, estimatedDuration: 90,
+  description: `本次直播将深入讲解紫微斗数的十二宫位体系，帮助初学者建立完整的命盘分析框架。
+
+课程大纲
+
+1. 命宫与身宫 - 了解自我与人生方向
+2. 兄弟宫与夫妻宫 - 人际关系的奥秘
+3. 子女宫与财帛宫 - 子嗣与财运分析
+4. 疾厄宫与迁移宫 - 健康与出行运势
+5. 交友宫与官禄宫 - 社交与事业发展
+6. 田宅宫与福德宫 - 家宅与精神层面
+7. 父母宫 - 长辈缘分与早年运势`,
+  playUrl: '', replayUrl: '', gifts: [], messages: [],
+}
+
+// ============================================================
+// State
+// ============================================================
+const loading = ref(true)
+const room = ref<LiveRoomDetail | null>(null)
+const isBooked = ref(false)
+const bookedCount = ref(0)
+const countdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+let countdownTimer: ReturnType<typeof setInterval> | null = null
+
+// ============================================================
+// Computed
+// ============================================================
+const isStartingSoon = computed(() =>
+  countdown.value.days === 0 && countdown.value.hours === 0 && countdown.value.minutes < 60
+)
+
+// ============================================================
+// Lifecycle
+// ============================================================
+onMounted(() => {
+  // 模拟加载
+  setTimeout(() => {
+    room.value = mockRoom
+    isBooked.value = mockRoom.isBooked
+    bookedCount.value = mockRoom.bookedCount
+    loading.value = false
+  }, 500)
+
+  // 倒计时
+  countdownTimer = setInterval(() => {
+    if (!room.value?.startTime) return
+    const now = Date.now()
+    const start = new Date(room.value.startTime).getTime()
+    const diff = start - now
+    if (diff <= 0) {
+      countdown.value = { days: 0, hours: 0, minutes: 0, seconds: 0 }
+      return
+    }
+    countdown.value = {
+      days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+      hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+      minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+      seconds: Math.floor((diff % (1000 * 60)) / 1000),
+    }
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+// ============================================================
+// Methods
+// ============================================================
+function handleBook() {
+  const newBooked = !isBooked.value
+  isBooked.value = newBooked
+  bookedCount.value = newBooked ? bookedCount.value + 1 : bookedCount.value - 1
+}
+
+function handleShare() {
+  uni.showActionSheet({ itemList: ['分享到微信', '分享到朋友圈', '复制链接'] })
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return `${d.getMonth() + 1}月${d.getDate()}日`
+}
+
+function formatTime(dateStr: string): string {
+  const d = new Date(dateStr)
+  return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
+}
+
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

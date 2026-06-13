@@ -1,0 +1,515 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- ===== Fixed Top Header ===== -->
+    <header class="fixed top-0 left-0 right-0 z-50 bg-[rgba(250,248,245,0.95)] backdrop-blur-lg border-b border-[#E8E0D5]">
+      <view class="max-w-lg mx-auto">
+        <!-- Title bar -->
+        <view class="flex items-center justify-between h-12 px-4">
+          <!-- BackButton -->
+          <view @click="goBack" class="p-2 -ml-2 rounded-full active:bg-[#F5F1EB] transition-colors">
+            <text class="text-[#2C2C2C] text-xl leading-none">←</text>
+          </view>
+          <text class="font-serif font-bold text-lg text-[#2C2C2C]">直播广场</text>
+          <!-- Search link -->
+          <view @click="goSearch" class="p-2 -mr-2 rounded-full active:bg-[#F5F1EB] transition-colors">
+            <text class="text-[#999] text-lg leading-none">🔍</text>
+          </view>
+        </view>
+
+        <!-- Category tabs — underline style -->
+        <view class="flex items-center px-4 h-10 gap-6 border-t border-[rgba(232,224,213,0.3)] overflow-x-auto scroll-x-hidden">
+          <view
+            v-for="tab in tabs"
+            :key="tab"
+            @click="activeTab = tab"
+            :class="[
+              'relative py-2 text-sm transition-all whitespace-nowrap flex-shrink-0',
+              activeTab === tab
+                ? 'text-[#C41E3A] font-semibold'
+                : 'text-[#999]'
+            ]"
+          >
+            <text>{{ tab }}</text>
+            <view
+              v-if="activeTab === tab"
+              class="absolute bottom-0 left-0 right-0 h-[3px] bg-[#C41E3A] rounded-full"
+            />
+          </view>
+        </view>
+      </view>
+    </header>
+
+    <!-- ===== Main Content ===== -->
+    <main class="pt-[88px] pb-8 px-4 max-w-lg mx-auto">
+
+      <!-- ---- 正在直播 ---- -->
+      <view v-if="livesNow.length > 0" class="mb-6">
+        <view class="flex items-center gap-2 mb-3">
+          <view class="flex items-center justify-center w-5 h-5 rounded-full bg-[#C41E3A]">
+            <text class="text-white text-[10px]">📡</text>
+          </view>
+          <text class="font-serif font-semibold text-[#2C2C2C]">正在直播</text>
+          <text class="text-xs text-[#999]">({{ livesNow.length }})</text>
+        </view>
+        <!-- 2-column grid 8px gap -->
+        <view class="grid grid-cols-2 gap-2">
+          <template v-for="item in nowLayout" :key="item.id">
+            <view :class="item.isFull ? 'col-span-2' : ''">
+              <!-- LiveCard (inlined) -->
+              <view
+                class="overflow-hidden rounded-[10px] shadow-[0_2px_12px_rgba(0,0,0,0.08)] active:scale-[0.98] transition-all duration-300 bg-white"
+                @click="goToLiveDetail(item.data.id)"
+              >
+                <!-- Cover area -->
+                <view
+                  :class="[
+                    'relative bg-[#F2EFEA] overflow-hidden',
+                    item.data.orientation === 'horizontal' ? 'aspect-video' : 'aspect-[3/4]'
+                  ]"
+                >
+                  <!-- Cover image -->
+                  <image
+                    v-if="item.data.cover"
+                    :src="item.data.cover"
+                    mode="aspectFill"
+                    class="w-full h-full"
+                  />
+                  <view v-else class="w-full h-full bg-gradient-to-br from-[#C41E3A]/10 to-[#F5F1EB]/50" />
+
+                  <!-- Gradient overlay from bottom -->
+                  <view class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+                  <!-- Type badge — top-left (knowledge=blue, commerce=gold) -->
+                  <view
+                    :class="[
+                      'absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] text-white font-medium',
+                      item.data.type === 'knowledge' ? 'bg-[#4A90D9]' : 'bg-[#C9A96E]'
+                    ]"
+                  >
+                    <text>{{ item.data.type === 'knowledge' ? '知识授课' : '电商带货' }}</text>
+                  </view>
+
+                  <!-- Status badge — top-right -->
+                  <!-- Live: red badge with pulsing dot -->
+                  <view
+                    v-if="item.data.status === 'live'"
+                    class="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-[#C41E3A] rounded"
+                  >
+                    <view class="w-1.5 h-1.5 bg-white rounded-full live-dot" />
+                    <text class="text-[10px] font-medium text-white">直播中</text>
+                  </view>
+                  <!-- Upcoming: blue badge with clock -->
+                  <view
+                    v-if="item.data.status === 'upcoming'"
+                    class="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-[#4A90D9] rounded"
+                  >
+                    <text class="text-white text-[10px]">🕐</text>
+                    <text class="text-[10px] font-medium text-white">{{ item.data.scheduledTime }}</text>
+                  </view>
+
+                  <!-- Viewer count — bottom-left -->
+                  <view class="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 bg-black/50 rounded">
+                    <text class="text-white/80 text-[10px]">{{ item.data.status === 'upcoming' ? '👥' : '👁' }}</text>
+                    <text class="text-[10px] text-white">
+                      {{ formatCount(item.data.viewerCount) }}{{ item.data.status === 'upcoming' ? '人预约' : '' }}
+                    </text>
+                  </view>
+
+                  <!-- Book button — bottom-right, upcoming only -->
+                  <view
+                    v-if="item.data.status === 'upcoming'"
+                    @click.stop="toggleBook(item.data.id)"
+                    :class="[
+                      'absolute bottom-2 right-2 flex items-center gap-1 px-3 py-1 rounded text-[10px] font-medium transition-all',
+                      bookedIds.has(item.data.id)
+                        ? 'bg-white/20 text-white border border-white/30'
+                        : 'bg-[#4A90D9] text-white'
+                    ]"
+                  >
+                    <text>{{ bookedIds.has(item.data.id) ? '已预约' : '预约' }}</text>
+                  </view>
+                </view>
+
+                <!-- Host info section -->
+                <view class="p-2.5">
+                  <text class="text-[15px] font-medium text-[#2C2C2C] line-clamp-2 leading-snug mb-2 block">
+                    {{ item.data.title }}
+                  </text>
+                  <view class="flex items-center gap-1.5">
+                    <!-- Avatar (fallback to initial) -->
+                    <view class="w-5 h-5 rounded-full bg-[#F5F1EB] flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <text class="text-[9px] text-[#666]">{{ hostInitial(item.data.hostName) }}</text>
+                    </view>
+                    <text class="text-[11px] text-[#666] truncate">{{ item.data.hostName }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </template>
+        </view>
+      </view>
+
+      <!-- ---- 直播预告 ---- -->
+      <view v-if="livesUpcoming.length > 0" class="mb-6">
+        <view class="flex items-center gap-2 mb-3">
+          <text class="font-serif font-semibold text-[#2C2C2C]">直播预告</text>
+          <text class="text-xs text-[#999]">({{ livesUpcoming.length }})</text>
+        </view>
+        <view class="grid grid-cols-2 gap-2">
+          <template v-for="item in upcomingLayout" :key="item.id">
+            <view :class="item.isFull ? 'col-span-2' : ''">
+              <!-- LiveCard (inlined, same as above) -->
+              <view
+                class="overflow-hidden rounded-[10px] shadow-[0_2px_12px_rgba(0,0,0,0.08)] active:scale-[0.98] transition-all duration-300 bg-white"
+                @click="goToLiveDetail(item.data.id)"
+              >
+                <view
+                  :class="[
+                    'relative bg-[#F2EFEA] overflow-hidden',
+                    item.data.orientation === 'horizontal' ? 'aspect-video' : 'aspect-[3/4]'
+                  ]"
+                >
+                  <image
+                    v-if="item.data.cover"
+                    :src="item.data.cover"
+                    mode="aspectFill"
+                    class="w-full h-full"
+                  />
+                  <view v-else class="w-full h-full bg-gradient-to-br from-[#C41E3A]/10 to-[#F5F1EB]/50" />
+                  <view class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  <view
+                    :class="[
+                      'absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] text-white font-medium',
+                      item.data.type === 'knowledge' ? 'bg-[#4A90D9]' : 'bg-[#C9A96E]'
+                    ]"
+                  >
+                    <text>{{ item.data.type === 'knowledge' ? '知识授课' : '电商带货' }}</text>
+                  </view>
+                  <view
+                    v-if="item.data.status === 'live'"
+                    class="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-[#C41E3A] rounded"
+                  >
+                    <view class="w-1.5 h-1.5 bg-white rounded-full live-dot" />
+                    <text class="text-[10px] font-medium text-white">直播中</text>
+                  </view>
+                  <view
+                    v-if="item.data.status === 'upcoming'"
+                    class="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-[#4A90D9] rounded"
+                  >
+                    <text class="text-white text-[10px]">🕐</text>
+                    <text class="text-[10px] font-medium text-white">{{ item.data.scheduledTime }}</text>
+                  </view>
+                  <view class="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 bg-black/50 rounded">
+                    <text class="text-white/80 text-[10px]">{{ item.data.status === 'upcoming' ? '👥' : '👁' }}</text>
+                    <text class="text-[10px] text-white">
+                      {{ formatCount(item.data.viewerCount) }}{{ item.data.status === 'upcoming' ? '人预约' : '' }}
+                    </text>
+                  </view>
+                  <view
+                    v-if="item.data.status === 'upcoming'"
+                    @click.stop="toggleBook(item.data.id)"
+                    :class="[
+                      'absolute bottom-2 right-2 flex items-center gap-1 px-3 py-1 rounded text-[10px] font-medium transition-all',
+                      bookedIds.has(item.data.id)
+                        ? 'bg-white/20 text-white border border-white/30'
+                        : 'bg-[#4A90D9] text-white'
+                    ]"
+                  >
+                    <text>{{ bookedIds.has(item.data.id) ? '已预约' : '预约' }}</text>
+                  </view>
+                </view>
+                <view class="p-2.5">
+                  <text class="text-[15px] font-medium text-[#2C2C2C] line-clamp-2 leading-snug mb-2 block">
+                    {{ item.data.title }}
+                  </text>
+                  <view class="flex items-center gap-1.5">
+                    <view class="w-5 h-5 rounded-full bg-[#F5F1EB] flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <text class="text-[9px] text-[#666]">{{ hostInitial(item.data.hostName) }}</text>
+                    </view>
+                    <text class="text-[11px] text-[#666] truncate">{{ item.data.hostName }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </template>
+        </view>
+      </view>
+
+      <!-- ---- Empty State ---- -->
+      <view v-if="filteredLives.length === 0" class="flex flex-col items-center justify-center py-20">
+        <view class="w-20 h-20 rounded-full bg-[#F5F1EB] flex items-center justify-center mb-4">
+          <text class="text-[#999] text-3xl">📡</text>
+        </view>
+        <text class="text-[#999] text-sm">暂无相关直播</text>
+      </view>
+    </main>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+// ============================================================
+// Tabs
+// ============================================================
+const tabs = ['全部', '知识授课', '电商带货', '关注的']
+const activeTab = ref('全部')
+
+// ============================================================
+// Mock data — 保留 V0 所有数据
+// ============================================================
+interface LiveItem {
+  id: string
+  title: string
+  cover: string
+  hostName: string
+  hostAvatar: string
+  viewerCount: number
+  type: 'knowledge' | 'commerce'
+  status: 'live' | 'upcoming' | 'replay'
+  orientation: 'horizontal' | 'vertical'
+  scheduledTime?: string
+  duration?: string
+}
+
+const mockLives: LiveItem[] = [
+  {
+    id: '1',
+    title: '八字命理入门：如何快速解读四柱八字',
+    cover: '/images/live/live-h1.jpg',
+    hostName: '易道先生',
+    hostAvatar: '/images/experts/expert-1.jpg',
+    viewerCount: 12580,
+    type: 'knowledge',
+    status: 'live',
+    orientation: 'horizontal',
+  },
+  {
+    id: '2',
+    title: '开光吉祥物专场：招财貔貅、转运葫芦',
+    cover: '/images/live/live-2.jpg',
+    hostName: '福缘阁主',
+    hostAvatar: '/images/experts/expert-2.jpg',
+    viewerCount: 8920,
+    type: 'commerce',
+    status: 'live',
+    orientation: 'vertical',
+  },
+  {
+    id: '3',
+    title: '天然水晶手链专场直播',
+    cover: '/images/live/live-3.jpg',
+    hostName: '晶缘坊',
+    hostAvatar: '',
+    viewerCount: 5630,
+    type: 'commerce',
+    status: 'live',
+    orientation: 'vertical',
+  },
+  {
+    id: '4',
+    title: '紫微斗数实战案例分析第三期',
+    cover: '/images/live/live-h1.jpg',
+    hostName: '紫微大师',
+    hostAvatar: '/images/experts/expert-1.jpg',
+    viewerCount: 3280,
+    type: 'knowledge',
+    status: 'live',
+    orientation: 'horizontal',
+  },
+  {
+    id: '5',
+    title: '今晚8点：风水布局与家居旺财秘诀',
+    cover: '/images/live/live-1.jpg',
+    hostName: '风水堂主',
+    hostAvatar: '',
+    viewerCount: 328,
+    type: 'knowledge',
+    status: 'upcoming',
+    scheduledTime: '今晚 20:00',
+    orientation: 'vertical',
+  },
+  {
+    id: '6',
+    title: '周易古籍珍藏版专场直播',
+    cover: '/images/live/live-2.jpg',
+    hostName: '古籍书阁',
+    hostAvatar: '',
+    viewerCount: 4150,
+    type: 'commerce',
+    status: 'live',
+    orientation: 'vertical',
+  },
+  {
+    id: '7',
+    title: '奇门遁甲：预测学的巅峰之术',
+    cover: '/images/live/live-3.jpg',
+    hostName: '奇门居士',
+    hostAvatar: '',
+    viewerCount: 186,
+    type: 'knowledge',
+    status: 'upcoming',
+    scheduledTime: '明天 14:00',
+    orientation: 'vertical',
+  },
+  {
+    id: '8',
+    title: '手把手教你排八字命盘',
+    cover: '/images/live/live-h1.jpg',
+    hostName: '李命理',
+    hostAvatar: '/images/experts/expert-2.jpg',
+    viewerCount: 2860,
+    type: 'knowledge',
+    status: 'live',
+    orientation: 'horizontal',
+  },
+  {
+    id: '9',
+    title: '手工罗盘制作工艺展示与售卖',
+    cover: '/images/live/live-1.jpg',
+    hostName: '匠心堂',
+    hostAvatar: '',
+    viewerCount: 1520,
+    type: 'commerce',
+    status: 'live',
+    orientation: 'vertical',
+  },
+  {
+    id: '10',
+    title: '道家符箓专场直播',
+    cover: '/images/live/live-2.jpg',
+    hostName: '玄真道人',
+    hostAvatar: '',
+    viewerCount: 980,
+    type: 'commerce',
+    status: 'live',
+    orientation: 'vertical',
+  },
+]
+
+// ============================================================
+// Layout item: horizontal = full width (col-span-2)
+// vertical = paired side-by-side
+// ============================================================
+interface LayoutItem {
+  id: string
+  data: LiveItem
+  isFull: boolean
+}
+
+// ============================================================
+// Tab filter (computed)
+// ============================================================
+const filteredLives = computed(() => {
+  return mockLives.filter((live) => {
+    if (activeTab.value === '全部') return true
+    if (activeTab.value === '知识授课') return live.type === 'knowledge'
+    if (activeTab.value === '电商带货') return live.type === 'commerce'
+    if (activeTab.value === '关注的') return false
+    return true
+  })
+})
+
+// ============================================================
+// Split into live / upcoming
+// ============================================================
+const livesNow = computed(() => filteredLives.value.filter((l) => l.status === 'live'))
+const livesUpcoming = computed(() => filteredLives.value.filter((l) => l.status === 'upcoming'))
+
+// ============================================================
+// Mixed layout builder — 匹配 V0 renderMixedLayout 逻辑
+// ============================================================
+function buildLayout(lives: LiveItem[]): LayoutItem[] {
+  const result: LayoutItem[] = []
+  let i = 0
+
+  while (i < lives.length) {
+    const current = lives[i]
+
+    if (current.orientation === 'horizontal') {
+      // 横屏独占一行
+      result.push({ id: current.id, data: current, isFull: true })
+      i++
+    } else {
+      // 竖屏 - 尝试配对
+      const next = lives[i + 1]
+      if (next && next.orientation === 'vertical') {
+        result.push({ id: current.id, data: current, isFull: false })
+        result.push({ id: next.id, data: next, isFull: false })
+        i += 2
+      } else {
+        result.push({ id: current.id, data: current, isFull: false })
+        i++
+      }
+    }
+  }
+
+  return result
+}
+
+const nowLayout = computed(() => buildLayout(livesNow.value))
+const upcomingLayout = computed(() => buildLayout(livesUpcoming.value))
+
+// ============================================================
+// 预约状态 (Set of book IDs)
+// ============================================================
+const bookedIds = ref(new Set<string>())
+
+function toggleBook(id: string) {
+  const s = new Set(bookedIds.value)
+  if (s.has(id)) {
+    s.delete(id)
+  } else {
+    s.add(id)
+  }
+  bookedIds.value = s
+}
+
+// ============================================================
+// Helpers
+// ============================================================
+function formatCount(n: number): string {
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万'
+  return String(n)
+}
+
+function hostInitial(name: string): string {
+  return name ? name.charAt(0) : '?'
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+function goSearch() {
+  uni.navigateTo({ url: '/pages/search/index' })
+}
+
+function goToLiveDetail(id: string) {
+  uni.navigateTo({ url: '/pages/live/id-detail/index?id=' + id })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.live-dot {
+  animation: livePulse 1.5s ease-in-out infinite;
+}
+
+/* 标题两行截断 */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 隐藏 tab 滚动条 */
+.scroll-x-hidden::-webkit-scrollbar {
+  display: none;
+}
+</style>

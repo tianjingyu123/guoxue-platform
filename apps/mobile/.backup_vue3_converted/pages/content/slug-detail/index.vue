@@ -1,0 +1,257 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 加载状态 -->
+    <view v-if="isLoading" class="flex items-center justify-center min-h-screen">
+      <view class="space-y-4 w-full px-4">
+        <view class="h-6 bg-secondary rounded w-1/3 animate-pulse" />
+        <view class="h-4 bg-secondary rounded w-full animate-pulse" />
+        <view class="h-4 bg-secondary rounded w-5/6 animate-pulse" />
+        <view class="h-4 bg-secondary rounded w-3/4 animate-pulse" />
+        <view class="h-40 bg-secondary rounded w-full animate-pulse" />
+      </view>
+    </view>
+
+    <!-- 内容区域 -->
+    <template v-else>
+      <!-- 顶部导航 -->
+      <view class="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b border-border">
+        <view class="flex items-center justify-between px-4 h-14">
+          <view @click="goBack" class="p-2 -ml-2">
+            <text class="text-xl text-foreground">←</text>
+          </view>
+          <text class="font-semibold text-base text-foreground">{{ content.title }}</text>
+          <view @click="handleShare" class="p-2 -mr-2 rounded-full">
+            <text class="text-lg text-muted-foreground"></text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 内容区 -->
+      <view :class="['px-4 py-6', content.hasAction ? 'pb-28' : 'pb-8']">
+        <!-- 类型标签和更新时间 -->
+        <view class="flex items-center gap-2 mb-4">
+          <text :class="['px-2 py-0.5 rounded text-xs font-medium', typeColors[content.type] || typeColors.notice]">
+            {{ typeLabels[content.type] || typeLabels.notice }}
+          </text>
+          <text v-if="content.updatedAt" class="text-xs text-muted-foreground">
+            更新于 {{ content.updatedAt }}
+          </text>
+        </view>
+
+        <!-- 富文本内容 -->
+        <view>
+          <view v-for="(item, index) in content.content" :key="index">
+            <!-- heading level 2 -->
+            <text v-if="item.type === 'heading' && item.level === 2" class="text-lg font-bold text-foreground mt-6 mb-3 block first:mt-0">{{ item.text }}</text>
+            <!-- heading level 3 -->
+            <text v-else-if="item.type === 'heading'" class="text-base font-semibold text-foreground mt-4 mb-2 block">{{ item.text }}</text>
+            <!-- paragraph -->
+            <text v-else-if="item.type === 'paragraph'" class="text-sm text-muted-foreground leading-relaxed mb-3 block">{{ item.text }}</text>
+            <!-- list -->
+            <view v-else-if="item.type === 'list'" class="space-y-2 mb-4 pl-4">
+              <view v-for="(li, i) in item.items" :key="i" class="text-sm text-muted-foreground leading-relaxed flex items-start gap-2">
+                <view class="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                <text>{{ li }}</text>
+              </view>
+            </view>
+            <!-- quote -->
+            <view v-else-if="item.type === 'quote'" class="p-4 bg-secondary/50 rounded-xl mb-4 border-l-4 border-accent">
+              <text class="text-sm text-foreground block" style="white-space: pre-line;">{{ item.text }}</text>
+            </view>
+            <!-- image -->
+            <view v-else-if="item.type === 'image'" class="mb-4">
+              <view class="aspect-video bg-secondary rounded-lg flex items-center justify-center">
+                <text class="text-muted-foreground text-sm">图片加载区域</text>
+              </view>
+              <text v-if="item.caption" class="text-xs text-muted-foreground text-center mt-2 block">{{ item.caption }}</text>
+            </view>
+            <!-- divider -->
+            <view v-else-if="item.type === 'divider'" class="border-t border-border my-4" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部操作栏（仅协议类） -->
+      <view v-if="content.hasAction" class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-border" style="padding-bottom: env(safe-area-inset-bottom);">
+        <view class="px-4 py-3">
+          <view
+            @click="handleAction"
+            :class="['w-full py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-colors', agreed ? 'bg-green-500 text-white' : 'bg-primary text-white']"
+          >
+            <text v-if="agreed" class="text-sm">✓</text>
+            <text>{{ agreed ? '已同意，点击返回' : content.actionText }}</text>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+
+interface ContentBlock {
+  type: 'heading' | 'paragraph' | 'image' | 'list' | 'quote' | 'divider'
+  level?: number
+  text?: string
+  items?: string[]
+  src?: string
+  caption?: string
+}
+
+interface ContentPage {
+  title: string
+  type: 'notice' | 'agreement' | 'rule' | 'guide'
+  updatedAt: string
+  hasAction?: boolean
+  actionText?: string
+  content: ContentBlock[]
+}
+
+const contentData: Record<string, ContentPage> = {
+  'user-agreement': {
+    title: '用户协议',
+    type: 'agreement',
+    updatedAt: '2026-01-01',
+    hasAction: true,
+    actionText: '我已阅读并同意',
+    content: [
+      { type: 'heading', level: 2, text: '一、总则' },
+      { type: 'paragraph', text: '欢迎您使用「热卜国学」平台服务。本协议是您与热卜国学平台之间关于使用平台服务所订立的协议。请您仔细阅读本协议的全部内容。' },
+      { type: 'paragraph', text: '如果您不同意本协议的任意内容，请您立即停止使用本平台服务。当您注册成功或以其他方式开始使用本平台服务时，即视为您已充分阅读、理解并同意接受本协议的全部内容。' },
+      { type: 'divider' },
+      { type: 'heading', level: 2, text: '二、服务内容' },
+      { type: 'paragraph', text: '热卜国学平台为用户提供以下服务：' },
+      { type: 'list', items: ['排盘工具：提供八字、紫微斗数、风水等专业排盘服务', '知识社区：圈子、文章、短视频等内容服务', '在线课程：视频课程、直播课程等教育服务', '电商服务：书籍、文创、饰品等商品销售', '智能体服务：AI辅助分析和问答服务'] },
+      { type: 'divider' },
+      { type: 'heading', level: 2, text: '三、用户注册与账号管理' },
+      { type: 'paragraph', text: '用户在注册时应提供真实、准确、完整的个人资料，并在资料发生变更时及时更新。用户应妥善保管账号和密码，因用户保管不善造成的损失由用户自行承担。' },
+      { type: 'quote', text: '特别提示：一个手机号仅可注册一个账号，账号一经注册不可转让或赠与他人使用。' },
+      { type: 'divider' },
+      { type: 'heading', level: 2, text: '四、用户行为规范' },
+      { type: 'paragraph', text: '用户在使用本平台服务时，应遵守国家法律法规，不得利用本平台从事违法违规活动。' },
+      { type: 'list', items: ['不得发布违反国家法律法规的内容', '不得发布虚假、欺诈性内容', '不得侵犯他人知识产权', '不得进行人身攻击或骚扰他人', '不得从事任何可能损害平台利益的行为'] },
+      { type: 'divider' },
+      { type: 'heading', level: 2, text: '五、知识产权' },
+      { type: 'paragraph', text: '平台上所有内容（包括但不限于文字、图片、音频、视频、软件等）的知识产权归热卜国学平台或相关权利人所有。未经授权，任何人不得擅自使用。' },
+      { type: 'divider' },
+      { type: 'heading', level: 2, text: '六、免责声明' },
+      { type: 'paragraph', text: '本平台提供的命理分析、风水建议等内容仅供参考，不构成任何专业建议。用户应理性看待相关内容，自行承担使用风险。' },
+      { type: 'quote', text: '重要提示：国学命理仅供娱乐参考，请勿过度迷信。重大人生决策请结合实际情况谨慎考虑。' },
+    ]
+  },
+  'privacy-policy': {
+    title: '隐私政策',
+    type: 'agreement',
+    updatedAt: '2026-01-01',
+    hasAction: true,
+    actionText: '我已阅读并同意',
+    content: [
+      { type: 'heading', level: 2, text: '引言' },
+      { type: 'paragraph', text: '热卜国学平台非常重视用户的隐私保护。本隐私政策旨在向您说明我们如何收集、使用、存储和保护您的个人信息。' },
+      { type: 'divider' },
+      { type: 'heading', level: 2, text: '一、信息收集' },
+      { type: 'paragraph', text: '我们可能收集以下类型的信息：' },
+      { type: 'list', items: ['注册信息：手机号、昵称、头像等', '身份信息：实名认证时的姓名、身份证号', '设备信息：设备型号、操作系统、唯一设备标识符', '位置信息：仅在您授权时收集', '使用记录：浏览、搜索、购买等行为数据'] },
+      { type: 'divider' },
+      { type: 'heading', level: 2, text: '二、信息使用' },
+      { type: 'paragraph', text: '我们使用收集的信息用于：' },
+      { type: 'list', items: ['提供、维护和改进我们的服务', '个性化内容推荐', '安全保障和风险控制', '客户服务和沟通'] },
+      { type: 'divider' },
+      { type: 'heading', level: 2, text: '三、信息安全' },
+      { type: 'paragraph', text: '我们采用业界标准的安全技术和程序来保护您的个人信息，包括数据加密、访问控制、安全审计等措施。' },
+    ]
+  },
+  'platform-notice': {
+    title: '平台公告',
+    type: 'notice',
+    updatedAt: '2026-05-01',
+    content: [
+      { type: 'heading', level: 2, text: '关于平台服务升级的通知' },
+      { type: 'paragraph', text: '尊敬的热卜国学用户：' },
+      { type: 'paragraph', text: '为提供更优质的服务体验，我们将于2026年5月15日进行系统升级维护。届时部分功能可能暂时无法使用，预计维护时间为4小时（00:00-04:00）。' },
+      { type: 'image', src: '', caption: '升级内容示意图' },
+      { type: 'heading', level: 3, text: '本次升级内容：' },
+      { type: 'list', items: ['排盘工具性能优化，响应速度提升50%', '新增紫微斗数流年分析功能', '智能体对话能力升级，支持多轮深度问答', '修复已知问题，提升系统稳定性'] },
+      { type: 'paragraph', text: '感谢您的理解与支持！如有疑问，请联系客服。' },
+      { type: 'quote', text: '热卜国学运营团队\n2026年5月1日' },
+    ]
+  },
+  'vip-rights': {
+    title: '会员权益说明',
+    type: 'guide',
+    updatedAt: '2026-03-01',
+    content: [
+      { type: 'heading', level: 2, text: '热卜国学VIP会员权益' },
+      { type: 'paragraph', text: '成为热卜国学VIP会员，解锁更多专属权益，开启国学学习之旅。' },
+      { type: 'divider' },
+      { type: 'heading', level: 3, text: '核心权益' },
+      { type: 'list', items: ['排盘工具无限使用：八字、紫微、风水等全部排盘功能免费', '专属AI分析：每月赠送100次智能体深度分析', '课程折扣：全平台课程享8折优惠', '圈子特权：免费加入10个付费圈子', '专属客服：VIP专属客服通道，优先响应'] },
+      { type: 'divider' },
+      { type: 'heading', level: 3, text: '会员等级' },
+      { type: 'paragraph', text: '根据会员时长和消费金额，会员分为以下等级：' },
+      { type: 'list', items: ['普通会员：基础会员权益', '黄金会员：额外享受课程7折优惠', '钻石会员：额外享受课程6折优惠，每月赠送200国学币', '至尊会员：最高权益，专属定制服务'] },
+      { type: 'image', src: '', caption: '会员等级权益对比' },
+    ]
+  },
+}
+
+const typeLabels: Record<string, string> = {
+  notice: '公告', agreement: '协议', rule: '规则', guide: '指南',
+}
+
+const typeColors: Record<string, string> = {
+  notice: 'bg-primary/10 text-primary',
+  agreement: 'bg-blue-500/10 text-blue-500',
+  rule: 'bg-orange-500/10 text-orange-500',
+  guide: 'bg-accent/10 text-accent',
+}
+
+const slug = ref('')
+const agreed = ref(false)
+const isLoading = ref(true)
+
+const defaultContent: ContentPage = {
+  title: '内容不存在',
+  type: 'notice',
+  updatedAt: '',
+  content: [{ type: 'paragraph', text: '抱歉，您访问的内容不存在或已被删除。' }]
+}
+
+const content = ref<ContentPage>({ ...defaultContent })
+
+onLoad((options) => {
+  if (options?.slug) {
+    slug.value = options.slug as string
+  }
+})
+
+onMounted(() => {
+  // 模拟加载延迟
+  setTimeout(() => {
+    content.value = slug.value && contentData[slug.value] ? { ...contentData[slug.value] } : { ...defaultContent }
+    isLoading.value = false
+  }, 300)
+})
+
+function handleAction() {
+  if (!agreed.value) {
+    agreed.value = true
+  } else {
+    uni.navigateBack()
+  }
+}
+
+function handleShare() {
+  uni.showShareMenu({ withShareTicket: true })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,684 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- ===== 1. 顶部导航 ===== -->
+    <header class="fixed top-0 left-0 right-0 z-40 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5] pt-safe">
+      <view class="flex items-center justify-between px-4 h-12">
+        <view class="flex items-center gap-1 p-1 -ml-1 rounded-full" hover-class="bg-[#F5F1EB]" @click="goBack">
+          <text class="text-2xl leading-none text-[#2C2C2C]">←</text>
+        </view>
+        <text class="font-medium text-base text-[#2C2C2C]">帖子详情</text>
+        <view class="relative z-50">
+          <view class="p-2 -mr-2 rounded-full" hover-class="bg-[#F5F1EB]" @click="showMoreMenu = !showMoreMenu">
+            <text class="text-2xl leading-none text-[#2C2C2C]">⋯</text>
+          </view>
+          <!-- 更多菜单 -->
+          <view v-if="showMoreMenu">
+            <view class="fixed inset-0 z-40" @click="showMoreMenu = false" />
+            <view class="absolute right-0 top-full mt-1 w-36 bg-white rounded-xl shadow-xl border border-[#E8E0D5] overflow-hidden z-50">
+              <template v-if="isAdmin">
+                <view class="flex items-center gap-2 w-full px-4 py-3" hover-class="bg-[#F5F1EB]" @click="toggleEssence">
+                  <text>⭐</text>
+                  <text class="text-sm text-[#2C2C2C]">{{ post.isEssence ? '取消加精' : '设为精华' }}</text>
+                </view>
+                <view class="flex items-center gap-2 w-full px-4 py-3" hover-class="bg-[#F5F1EB]" @click="togglePin">
+                  <text>📌</text>
+                  <text class="text-sm text-[#2C2C2C]">{{ post.isPinned ? '取消置顶' : '置顶帖子' }}</text>
+                </view>
+                <view class="flex items-center gap-2 w-full px-4 py-3" hover-class="bg-[#F5F1EB]" @click="deletePost">
+                  <text>🗑️</text>
+                  <text class="text-sm text-[#C41E3A]">删除帖子</text>
+                </view>
+              </template>
+              <template v-else>
+                <view class="flex items-center gap-2 w-full px-4 py-3" hover-class="bg-[#F5F1EB]" @click="reportPost">
+                  <text class="text-sm text-[#C41E3A]">举报</text>
+                </view>
+              </template>
+            </view>
+          </view>
+        </view>
+      </view>
+    </header>
+
+    <!-- ===== 2. 主要内容区 ===== -->
+    <view class="pt-12 pb-16">
+      <!-- 帖子内容块 -->
+      <view class="p-4 border-b border-[#E8E0D5]">
+        <!-- 发布者信息 -->
+        <view class="flex items-center gap-3 mb-4">
+          <view @click="navigateToUser(post.author.id)">
+            <view class="w-11 h-11 rounded-full bg-[#F5F1EB] flex items-center justify-center text-[#2C2C2C] text-sm font-medium">
+              <text>{{ post.author.name[0] }}</text>
+            </view>
+          </view>
+          <view class="flex-1">
+            <view class="flex items-center gap-2">
+              <text class="font-medium text-sm text-[#2C2C2C]">{{ post.author.name }}</text>
+              <view v-if="post.author.isVerified" class="text-[10px] px-1 py-0 bg-[#C9A96E]/20 text-[#C9A96E] rounded leading-normal">
+                V
+              </view>
+              <view :class="['text-[10px] px-1.5 py-0 border rounded leading-normal', getRoleBadgeStyle(post.author.role)]">
+                {{ post.author.role }}
+              </view>
+            </view>
+            <text class="text-xs text-[#999] mt-0.5 block">{{ post.publishTime }}</text>
+          </view>
+          <view class="flex items-center gap-1 shrink-0">
+            <view v-if="post.isEssence" class="text-[10px] px-1.5 py-0 bg-[#C9A96E] text-white rounded leading-normal">
+              精华
+            </view>
+            <view v-if="post.isPinned" class="text-[10px] px-1.5 py-0 bg-[#C41E3A] text-white rounded leading-normal">
+              置顶
+            </view>
+          </view>
+        </view>
+
+        <!-- 帖子正文 -->
+        <text class="text-sm text-[#2C2C2C] leading-relaxed whitespace-pre-wrap mb-4 block">{{ post.content }}</text>
+
+        <!-- 图片区域 -->
+        <view v-if="post.images && post.images.length > 0" :class="['grid gap-2 mb-4', imageGridClass]">
+          <view
+            v-for="(img, index) in post.images" :key="img.id"
+            :class="['relative bg-[#F5F1EB] rounded-lg overflow-hidden', post.images.length === 1 ? 'aspect-video' : 'aspect-square']"
+            @click="selectedImage = index"
+          >
+            <view class="absolute inset-0 flex items-center justify-center">
+              <text class="text-4xl text-[#999]/40">🖼️</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 视频区域 -->
+        <view v-if="post.video" class="relative aspect-video bg-[#F5F1EB] rounded-lg overflow-hidden mb-4">
+          <view class="absolute inset-0 flex items-center justify-center">
+            <view class="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
+              <text class="text-2xl text-[#C41E3A] ml-1">▶</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 文件附件 -->
+        <view v-if="post.files && post.files.length > 0" class="space-y-2 mb-4">
+          <view
+            v-for="file in post.files" :key="file.id"
+            class="flex items-center gap-3 p-3 bg-white rounded-xl border border-[#E8E0D5]"
+            hover-class="bg-[#F5F1EB]/50"
+            @click="downloadFile(file)"
+          >
+            <view class="w-10 h-10 rounded-lg bg-[#C41E3A]/10 flex items-center justify-center shrink-0">
+              <text class="text-xl text-[#C41E3A]">📄</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="text-sm font-medium text-[#2C2C2C] truncate block">{{ file.name }}</text>
+              <text class="text-xs text-[#999] block">{{ file.size }}</text>
+            </view>
+            <text class="text-lg text-[#999] shrink-0">📥</text>
+          </view>
+        </view>
+
+        <!-- 话题标签 -->
+        <view v-if="post.tags && post.tags.length > 0" class="flex flex-wrap gap-2 mb-4">
+          <view
+            v-for="tag in post.tags" :key="tag"
+            class="flex items-center gap-1 px-2 py-1 bg-[#C41E3A]/10 text-[#C41E3A] text-xs rounded-full"
+            hover-class="bg-[#C41E3A]/20"
+            @click="navigateToTag(tag)"
+          >
+            <text class="text-xs">#</text>
+            <text>{{ tag }}</text>
+          </view>
+        </view>
+
+        <!-- 互动数据行 -->
+        <view class="flex items-center gap-4 text-xs text-[#999]">
+          <text>{{ post.likes }} 点赞</text>
+          <text>{{ post.comments }} 评论</text>
+          <text>{{ post.collects }} 收藏</text>
+        </view>
+      </view>
+
+      <!-- 评论区 -->
+      <view class="p-4">
+        <text class="font-semibold text-base text-[#2C2C2C] mb-4 block">全部评论 ({{ post.comments }})</text>
+
+        <!-- 空评论状态 -->
+        <view v-if="comments.length === 0" class="flex flex-col items-center justify-center py-12">
+          <text class="text-4xl text-[#999]/30 mb-3">💬</text>
+          <text class="text-sm text-[#999]">暂无评论，来发表第一条吧</text>
+        </view>
+
+        <!-- 评论列表 -->
+        <view v-else class="space-y-4">
+          <view v-for="comment in comments" :key="comment.id" class="border-b border-[#E8E0D5] pb-4 last:border-0">
+            <view class="flex gap-3">
+              <!-- 评论头像 -->
+              <view class="shrink-0" @click="navigateToUser(comment.author.id)">
+                <view class="w-9 h-9 rounded-full bg-[#F5F1EB] flex items-center justify-center text-[#2C2C2C] text-xs font-medium">
+                  <text>{{ comment.author.name[0] }}</text>
+                </view>
+              </view>
+              <!-- 评论主体 -->
+              <view class="flex-1 min-w-0">
+                <!-- 评论作者信息 -->
+                <view class="flex items-center gap-2 mb-1">
+                  <text class="font-medium text-sm text-[#2C2C2C]">{{ comment.author.name }}</text>
+                  <view v-if="comment.author.role !== '成员'" :class="['text-[10px] px-1 py-0 border rounded leading-normal', getRoleBadgeStyle(comment.author.role)]">
+                    {{ comment.author.role }}
+                  </view>
+                  <text class="text-xs text-[#999]">{{ comment.time }}</text>
+                </view>
+                <!-- 评论内容 -->
+                <text class="text-sm text-[#2C2C2C] mb-2 block">{{ comment.content }}</text>
+                <!-- 评论操作 -->
+                <view class="flex items-center gap-4">
+                  <view
+                    :class="['flex items-center gap-1 text-xs transition-colors', comment.isLiked ? 'text-[#C41E3A]' : 'text-[#999]']"
+                    @click="handleCommentLike(comment.id)"
+                  >
+                    <text :class="['text-sm', comment.isLiked ? 'text-[#C41E3A]' : '']">👍</text>
+                    <text v-if="comment.likes > 0">{{ comment.likes }}</text>
+                  </view>
+                  <view class="text-xs text-[#999]" hover-class="text-[#2C2C2C]" @click="startReply(comment)">
+                    回复
+                  </view>
+                </view>
+
+                <!-- 子评论（楼中楼） -->
+                <view v-if="comment.replies.length > 0" class="mt-3 pl-3 border-l-2 border-[#E8E0D5] space-y-3">
+                  <view v-for="reply in getDisplayedReplies(comment)" :key="reply.id">
+                    <view class="flex items-center gap-2 mb-1">
+                      <text class="font-medium text-sm text-[#2C2C2C]">{{ reply.author.name }}</text>
+                      <view v-if="reply.author.role !== '成员'" :class="['text-[10px] px-1 py-0 border rounded leading-normal', getRoleBadgeStyle(reply.author.role)]">
+                        {{ reply.author.role }}
+                      </view>
+                      <text class="text-xs text-[#999]">{{ reply.time }}</text>
+                    </view>
+                    <text class="text-sm text-[#2C2C2C]">
+                      <text class="text-[#C41E3A]">@{{ reply.replyTo }}</text>&nbsp;{{ reply.content }}
+                    </text>
+                  </view>
+                  <!-- 展开/收起回复 -->
+                  <view
+                    v-if="comment.hasMoreReplies && comment.totalReplies > 2"
+                    class="flex items-center gap-1 text-xs text-[#C41E3A]"
+                    hover-class="text-[#C41E3A]/80"
+                    @click="toggleReplies(comment.id)"
+                  >
+                    <text>{{ expandedReplies.includes(comment.id) ? '收起' : '展开更多回复 (' + (comment.totalReplies - 2) + ')' }}</text>
+                    <text>{{ expandedReplies.includes(comment.id) ? '▲' : '▼' }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 3. 底部固定操作栏 ===== -->
+    <view class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-[#E8E0D5] pb-safe z-30">
+      <view class="flex items-center gap-2 px-4 h-14">
+        <!-- 点赞 -->
+        <view
+          :class="['flex items-center gap-1 px-3 py-2 rounded-full transition-all', post.isLiked ? 'text-[#C41E3A]' : 'text-[#999]']"
+          hover-class="bg-[#F5F1EB]"
+          @click="handleLike"
+        >
+          <text :class="['text-xl transition-transform', post.isLiked ? 'scale-110' : '']">❤️</text>
+          <text class="text-xs">{{ post.likes }}</text>
+        </view>
+        <!-- 收藏 -->
+        <view
+          :class="['flex items-center gap-1 px-3 py-2 rounded-full transition-all', post.isCollected ? 'text-[#C9A96E]' : 'text-[#999]']"
+          hover-class="bg-[#F5F1EB]"
+          @click="handleCollect"
+        >
+          <text :class="['text-xl transition-transform', post.isCollected ? 'scale-110' : '']">🔖</text>
+          <text class="text-xs">{{ post.collects }}</text>
+        </view>
+        <!-- 评论输入入口 -->
+        <view class="flex-1 flex items-center gap-2 px-4 py-2 bg-[#F5F1EB] rounded-full" @click="openCommentInput">
+          <text class="text-sm text-[#999]">
+            {{ replyTo ? '回复 @' + replyTo.name : '说点什么...' }}
+          </text>
+        </view>
+        <!-- 分享 -->
+        <view class="p-2 rounded-full text-[#999]" hover-class="bg-[#F5F1EB] text-[#2C2C2C]" @click="sharePost">
+          <text class="text-xl">📤</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 4. 图片预览弹窗 ===== -->
+    <view v-if="selectedImage !== null" class="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
+      <!-- 关闭按钮 -->
+      <view class="absolute top-4 right-4 p-2 rounded-full bg-white/10 z-10" hover-class="bg-white/20" @click="selectedImage = null">
+        <text class="text-white text-2xl">✕</text>
+      </view>
+      <!-- 图片展示区 -->
+      <view class="w-full h-full flex items-center justify-center p-4">
+        <view class="max-w-lg w-full aspect-square bg-[#FAF8F5]/20 rounded-xl flex flex-col items-center justify-center">
+          <text class="text-6xl text-white/40 mb-3">🖼️</text>
+          <text class="text-white/60 text-sm">{{ getImageCaption(selectedImage) }}</text>
+        </view>
+      </view>
+      <!-- 底部指示点 -->
+      <view class="absolute bottom-8 left-0 right-0 flex items-center justify-center gap-2">
+        <view
+          v-for="(img, index) in post.images" :key="index"
+          :class="['w-2 h-2 rounded-full transition-colors', selectedImage === index ? 'bg-white' : 'bg-white/30']"
+          @click="selectedImage = index"
+        />
+      </view>
+    </view>
+
+    <!-- ===== 5. 评论输入弹窗 ===== -->
+    <view v-if="showInputFocus" class="fixed inset-0 z-50 flex flex-col justify-end bg-black/40" @click="closeCommentInput">
+      <view class="bg-white border-t border-[#E8E0D5] p-4 pb-safe slide-in-bottom" @click.stop>
+        <!-- 回复指示 -->
+        <view v-if="replyTo" class="flex items-center justify-between mb-2">
+          <text class="text-xs text-[#999]">回复 @{{ replyTo.name }}</text>
+          <text class="text-xs text-[#C41E3A]" hover-class="text-[#C41E3A]/80" @click="cancelReply">取消回复</text>
+        </view>
+        <!-- 输入区域 -->
+        <view class="flex items-end gap-2">
+          <textarea
+            v-model="commentText"
+            :placeholder="replyTo ? '回复 @' + replyTo.name + '...' : '说点什么...'"
+            class="flex-1 min-h-[80px] max-h-[160px] px-4 py-3 bg-[#F5F1EB] rounded-xl text-sm text-[#2C2C2C] placeholder:text-[#999] resize-none"
+          />
+          <view
+            :class="['p-3 rounded-full transition-colors', commentText.trim() ? 'bg-[#C41E3A] text-white' : 'bg-[#F5F1EB] text-[#999]']"
+            @click="handleSendComment"
+          >
+            <text class="text-xl">📨</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+// ============================================
+// 类型定义
+// ============================================
+interface Author {
+  id: number
+  name: string
+  avatar: string
+  role: string
+  isVerified: boolean
+}
+
+interface ImageItem {
+  id: number
+  url: string
+  caption: string
+}
+
+interface FileItem {
+  id: number
+  name: string
+  size: string
+  type: string
+}
+
+interface Reply {
+  id: number
+  author: Author
+  replyTo: string
+  content: string
+  time: string
+  likes: number
+  isLiked: boolean
+}
+
+interface Comment {
+  id: number
+  author: Author
+  content: string
+  time: string
+  likes: number
+  isLiked: boolean
+  replies: Reply[]
+  hasMoreReplies: boolean
+  totalReplies: number
+}
+
+interface Post {
+  id: number
+  author: Author
+  publishTime: string
+  content: string
+  images: ImageItem[]
+  files: FileItem[]
+  video: null | object
+  tags: string[]
+  likes: number
+  comments: number
+  collects: number
+  isLiked: boolean
+  isCollected: boolean
+  isPinned: boolean
+  isEssence: boolean
+  circleName: string
+  circleId: number
+}
+
+// ============================================
+// 模拟数据
+// ============================================
+const postData: Post = {
+  id: 1,
+  author: {
+    id: 1,
+    name: '周易大师',
+    avatar: '',
+    role: '圈主',
+    isVerified: true,
+  },
+  publishTime: '2小时前',
+  content: '今天分享一个有趣的八字案例分析。\n\n这位朋友是甲木日主，生于寅月，地支寅卯辰三会木局，天干透甲乙，木气极旺。\n\n从格局上看，这是一个「从强格」的典型案例。木旺喜水木相生，忌金克土泄。\n\n关键分析点：\n1. 日主甲木坐寅，得禄得地，根基稳固\n2. 月令寅木当令，木气正旺\n3. 地支三会木局，势不可挡\n\n这种命格的人通常性格正直，有领导才能，但也要注意过刚易折的问题。\n\n大家有什么看法？欢迎在评论区讨论！',
+  images: [
+    { id: 1, url: '', caption: '八字排盘图' },
+    { id: 2, url: '', caption: '五行分析' },
+    { id: 3, url: '', caption: '大运走势' },
+  ],
+  files: [
+    { id: 1, name: '八字案例分析.pdf', size: '2.3MB', type: 'pdf' },
+  ],
+  video: null,
+  tags: ['八字案例', '命理分析', '从强格'],
+  likes: 128,
+  comments: 36,
+  collects: 45,
+  isLiked: false,
+  isCollected: false,
+  isPinned: true,
+  isEssence: true,
+  circleName: '八字命理研习社',
+  circleId: 1,
+}
+
+const commentsData: Comment[] = [
+  {
+    id: 1,
+    author: { id: 2, name: '易学新手', avatar: '', role: '成员' },
+    content: '周老师分析得太透彻了！请问如果大运走金运，是不是会比较艰难？',
+    time: '1小时前',
+    likes: 15,
+    isLiked: false,
+    replies: [
+      {
+        id: 11,
+        author: { id: 1, name: '周易大师', avatar: '', role: '圈主' },
+        replyTo: '易学新手',
+        content: '是的，金运克木，对于从强格来说确实不利。但也要看具体流年配合，不能一概而论。',
+        time: '50分钟前',
+        likes: 8,
+        isLiked: false,
+      },
+      {
+        id: 12,
+        author: { id: 3, name: '命理爱好者', avatar: '', role: '嘉宾' },
+        replyTo: '周易大师',
+        content: '周老师说得对，还要看大运地支的配合情况。',
+        time: '30分钟前',
+        likes: 3,
+        isLiked: false,
+      },
+    ],
+    hasMoreReplies: true,
+    totalReplies: 5,
+  },
+  {
+    id: 2,
+    author: { id: 4, name: '紫微研究者', avatar: '', role: '成员' },
+    content: '从紫微斗数的角度来看，这种命格的人在事业宫应该也很强。有机会可以对比分析一下两种命理体系的异同。',
+    time: '45分钟前',
+    likes: 22,
+    isLiked: true,
+    replies: [],
+    hasMoreReplies: false,
+    totalReplies: 0,
+  },
+  {
+    id: 3,
+    author: { id: 5, name: '风水学徒', avatar: '', role: '成员' },
+    content: '学习了，请问周老师有没有关于从弱格的案例分析？',
+    time: '20分钟前',
+    likes: 6,
+    isLiked: false,
+    replies: [],
+    hasMoreReplies: false,
+    totalReplies: 0,
+  },
+]
+
+// ============================================
+// 响应式状态
+// ============================================
+const post = ref<Post>(postData)
+const comments = ref<Comment[]>(commentsData)
+const showMoreMenu = ref(false)
+const selectedImage = ref<number | null>(null)
+const commentText = ref('')
+const replyTo = ref<{ id: number; name: string } | null>(null)
+const expandedReplies = ref<number[]>([])
+const showInputFocus = ref(false)
+
+// 当前用户角色（模拟）
+const userRole = '圈主' // 可以是 "圈主" | "管理员" | "成员"
+const isAdmin = computed(() => userRole === '圈主' || userRole === '管理员')
+
+// 图片网格列数计算
+const imageGridClass = computed(() => {
+  const len = post.value.images.length
+  return len === 1 ? 'grid-cols-1' : len === 2 ? 'grid-cols-2' : 'grid-cols-3'
+})
+
+// ============================================
+// 辅助函数
+// ============================================
+function getRoleBadgeStyle(role: string): string {
+  switch (role) {
+    case '圈主':
+      return 'bg-[#C41E3A]/20 text-[#C41E3A] border-[#C41E3A]/30'
+    case '嘉宾':
+      return 'bg-[#C9A96E]/20 text-[#C9A96E] border-[#C9A96E]/30'
+    case '管理员':
+      return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+    default:
+      return 'bg-[#F5F1EB] text-[#999] border-[#E8E0D5]'
+  }
+}
+
+function getDisplayedReplies(comment: Comment) {
+  if (expandedReplies.value.includes(comment.id)) {
+    return comment.replies
+  }
+  return comment.replies.slice(0, 2)
+}
+
+function getImageCaption(index: number | null): string {
+  if (index === null || !post.value.images[index]) return '图片预览'
+  return post.value.images[index].caption || '图片预览'
+}
+
+// ============================================
+// 操作处理器
+// ============================================
+
+// 点赞切换
+function handleLike(): void {
+  post.value.isLiked = !post.value.isLiked
+  post.value.likes += post.value.isLiked ? 1 : -1
+}
+
+// 收藏切换
+function handleCollect(): void {
+  post.value.isCollected = !post.value.isCollected
+  post.value.collects += post.value.isCollected ? 1 : -1
+}
+
+// 评论点赞切换
+function handleCommentLike(commentId: number): void {
+  const comment = comments.value.find(c => c.id === commentId)
+  if (comment) {
+    comment.isLiked = !comment.isLiked
+    comment.likes += comment.isLiked ? 1 : -1
+  }
+}
+
+// 发送评论
+function handleSendComment(): void {
+  if (!commentText.value.trim()) return
+  const newComment: Comment = {
+    id: Date.now(),
+    author: { id: 999, name: '我', avatar: '', role: '成员', isVerified: false },
+    content: replyTo.value
+      ? '回复 @' + replyTo.value.name + '：' + commentText.value
+      : commentText.value,
+    time: '刚刚',
+    likes: 0,
+    isLiked: false,
+    replies: [],
+    hasMoreReplies: false,
+    totalReplies: 0,
+  }
+  comments.value.unshift(newComment)
+  commentText.value = ''
+  replyTo.value = null
+  showInputFocus.value = false
+}
+
+// 展开/收起子评论
+function toggleReplies(commentId: number): void {
+  const index = expandedReplies.value.indexOf(commentId)
+  if (index === -1) {
+    expandedReplies.value.push(commentId)
+  } else {
+    expandedReplies.value.splice(index, 1)
+  }
+}
+
+// 开始回复某条评论
+function startReply(comment: Comment): void {
+  replyTo.value = { id: comment.id, name: comment.author.name }
+  showInputFocus.value = true
+}
+
+// 取消回复
+function cancelReply(): void {
+  replyTo.value = null
+}
+
+// 打开评论输入
+function openCommentInput(): void {
+  showInputFocus.value = true
+}
+
+// 关闭评论输入弹窗
+function closeCommentInput(): void {
+  showInputFocus.value = false
+  replyTo.value = null
+}
+
+// ============================================
+// 管理操作
+// ============================================
+function toggleEssence(): void {
+  post.value.isEssence = !post.value.isEssence
+  showMoreMenu.value = false
+  uni.showToast({ title: post.value.isEssence ? '已设为精华' : '已取消精华', icon: 'none' })
+}
+
+function togglePin(): void {
+  post.value.isPinned = !post.value.isPinned
+  showMoreMenu.value = false
+  uni.showToast({ title: post.value.isPinned ? '已置顶' : '已取消置顶', icon: 'none' })
+}
+
+function deletePost(): void {
+  showMoreMenu.value = false
+  uni.showModal({
+    title: '确认删除',
+    content: '确定要删除这个帖子吗？',
+    success: (res) => {
+      if (res.confirm) {
+        uni.showToast({ title: '已删除', icon: 'none' })
+        uni.navigateBack()
+      }
+    },
+  })
+}
+
+function reportPost(): void {
+  showMoreMenu.value = false
+  uni.showToast({ title: '已举报', icon: 'none' })
+}
+
+// ============================================
+// 导航与分享
+// ============================================
+function goBack(): void {
+  uni.navigateBack()
+}
+
+function navigateToUser(userId: number): void {
+  uni.navigateTo({ url: '/pages/user/index?id=' + userId })
+}
+
+function navigateToTag(tag: string): void {
+  uni.navigateTo({
+    url: '/pages/circle/home?id=' + post.value.circleId + '&tag=' + encodeURIComponent(tag),
+  })
+}
+
+function downloadFile(file: FileItem): void {
+  uni.showToast({ title: '正在下载 ' + file.name, icon: 'none' })
+}
+
+function sharePost(): void {
+  uni.showToast({ title: '分享功能开发中', icon: 'none' })
+}
+</script>
+
+<style>
+/* 评论输入弹窗上滑动画 */
+@keyframes slideInFromBottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.slide-in-bottom {
+  animation: slideInFromBottom 0.2s ease-out;
+}
+
+/* 安全区域适配 */
+.pt-safe {
+  padding-top: var(--status-bar-height, 0px);
+}
+.pb-safe {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 过渡动画 */
+.transition-colors {
+  transition: background-color 0.2s, color 0.2s;
+}
+.transition-transform {
+  transition: transform 0.2s;
+}
+.transition-all {
+  transition: all 0.2s;
+}
+</style>

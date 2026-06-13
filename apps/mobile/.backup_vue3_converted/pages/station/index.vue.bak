@@ -1,0 +1,255 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <!-- 导航栏 -->
+    <view class="flex items-center justify-between px-4 h-12 bg-white border-b border-[#E8E0D5] shrink-0">
+      <view class="p-1" @click="goBack">
+        <text class="text-xl text-[#2C2C2C]">←</text>
+      </view>
+      <text class="text-base font-semibold text-[#2C2C2C]">{{ info.name }}</text>
+      <view class="w-7 flex items-center justify-center" @click="onShare">
+        <text class="text-lg">📤</text>
+      </view>
+    </view>
+
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="flex-1 p-4">
+      <view class="w-full h-40 bg-[#F0EBE5] rounded-2xl mb-4 skeleton-pulse" />
+      <view class="flex gap-2 mb-4">
+        <view v-for="i in 4" :key="i" class="flex-1 h-16 bg-white rounded-xl skeleton-pulse" />
+      </view>
+      <view v-for="i in 3" :key="i" class="h-12 bg-white rounded-xl mb-2 skeleton-pulse" />
+      <view class="h-40 bg-white rounded-xl mt-4 skeleton-pulse" />
+    </view>
+
+    <!-- 空状态 (分站不存在) -->
+    <view v-else-if="!info.id" class="flex-1 flex flex-col items-center justify-center p-8">
+      <text class="text-5xl mb-4">🏠</text>
+      <text class="text-sm text-[#999] mb-2">分站不存在或已下线</text>
+      <text class="text-xs text-[#bbb]">请联系管理员获取最新分站信息</text>
+      <view class="mt-4 px-6 py-2.5 bg-[#C41E3A] text-white text-sm rounded-xl font-medium" @click="goBack">返回上一页</view>
+    </view>
+
+    <!-- 主内容 -->
+    <scroll-view v-else scroll-y class="flex-1 overflow-y-auto" refresher-enabled @refresherrefresh="onRefresh" :refresher-triggered="refreshing">
+      <!-- Banner -->
+      <view class="mx-4 mt-4 mb-3 bg-gradient-to-br from-[#C9A96E] to-[#D4B87A] rounded-2xl p-6 text-white relative overflow-hidden">
+        <view class="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -translate-y-1/3 translate-x-1/3" />
+        <view class="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -translate-x-1/3 translate-y-1/3" />
+        <text class="text-4xl block mb-2">🏠</text>
+        <text class="text-lg font-semibold block">{{ info.name }}</text>
+        <view class="flex items-center gap-1 mt-1">
+          <text class="text-sm text-white/80">📍 {{ info.address }}</text>
+        </view>
+        <text v-if="info.phone" class="text-xs text-white/70 block mt-1">{{ info.phone }}</text>
+      </view>
+
+      <!-- 数据统计 -->
+      <view class="mx-4 mb-3">
+        <view class="grid grid-cols-4 gap-2">
+          <view class="bg-white rounded-xl py-3 px-1 text-center shadow-sm">
+            <text class="text-lg font-bold text-[#C41E3A] block">{{ info.members }}</text>
+            <text class="text-[10px] text-[#999]">会员</text>
+          </view>
+          <view class="bg-white rounded-xl py-3 px-1 text-center shadow-sm">
+            <text class="text-lg font-bold text-[#C41E3A] block">{{ info.teachers }}</text>
+            <text class="text-[10px] text-[#999]">教师</text>
+          </view>
+          <view class="bg-white rounded-xl py-3 px-1 text-center shadow-sm">
+            <text class="text-lg font-bold text-[#C41E3A] block">{{ info.courses }}</text>
+            <text class="text-[10px] text-[#999]">课程</text>
+          </view>
+          <view class="bg-white rounded-xl py-3 px-1 text-center shadow-sm">
+            <text class="text-lg font-bold text-[#C41E3A] block">{{ info.activities }}</text>
+            <text class="text-[10px] text-[#999]">活动</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 功能菜单 -->
+      <view class="mx-4 mb-3">
+        <view class="grid grid-cols-4 gap-3">
+          <view v-for="menu in menus" :key="menu.label" class="flex flex-col items-center py-3 bg-white rounded-xl shadow-sm active:opacity-70" @click="onMenu(menu.key)">
+            <view class="w-9 h-9 rounded-full bg-[#F5F1EB] flex items-center justify-center mb-1">
+              <text class="text-lg">{{ menu.icon }}</text>
+            </view>
+            <text class="text-xs text-[#2C2C2C]">{{ menu.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 推荐教师 -->
+      <view class="mx-4 mb-3">
+        <view class="flex items-center justify-between mb-2.5">
+          <text class="text-sm font-semibold text-[#2C2C2C]">👨‍🏫 推荐教师</text>
+          <text class="text-xs text-[#C9A96E]">查看全部 ›</text>
+        </view>
+        <scroll-view scroll-x class="flex-row" show-scrollbar="false">
+          <view class="flex gap-3 w-max pb-1">
+            <view v-for="t in teachers" :key="t.id" class="bg-white rounded-xl p-3 w-[130px] shrink-0 shadow-sm flex flex-col items-center" @click="goTeacher(t.id)">
+              <view class="w-10 h-10 rounded-full bg-gradient-to-br from-[#C41E3A] to-[#E57373] text-white flex items-center justify-center text-base font-medium mb-1.5">{{ t.name[0] }}</view>
+              <text class="text-sm font-medium text-[#2C2C2C] truncate w-full text-center">{{ t.name }}</text>
+              <text class="text-[10px] text-[#999] mt-0.5 truncate w-full text-center">{{ t.title }}</text>
+              <text class="text-xs text-[#C9A96E] mt-1">⭐ {{ t.rating }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 最新动态 -->
+      <view class="mx-4 mb-3">
+        <view class="flex items-center justify-between mb-2.5">
+          <text class="text-sm font-semibold text-[#2C2C2C]">最新动态</text>
+          <text class="text-xs text-[#C9A96E]">查看全部 ›</text>
+        </view>
+        <view v-for="n in news" :key="n.id" class="flex items-start gap-3 bg-white rounded-xl p-3.5 mb-2 shadow-sm active:opacity-80" @click="goNews(n.id)">
+          <view class="w-8 h-8 rounded-lg bg-[#F5F1EB] flex items-center justify-center shrink-0">
+            <text>{{ n.icon }}</text>
+          </view>
+          <view class="flex-1 min-w-0">
+            <text class="text-sm text-[#2C2C2C] block truncate">{{ n.title }}</text>
+            <view class="flex items-center gap-2 mt-0.5">
+              <text class="text-[11px] text-[#999]">{{ n.time }}</text>
+              <text class="text-[11px] text-[#C9A96E]" v-if="n.hot">🔥 {{ n.hot }}</text>
+            </view>
+          </view>
+        </view>
+        <view v-if="news.length === 0" class="bg-white rounded-xl p-6 text-center">
+          <text class="text-xs text-[#bbb]">暂无动态</text>
+        </view>
+      </view>
+
+      <!-- 底部占位 -->
+      <view class="h-6" />
+    </scroll-view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const loading = ref(true)
+const refreshing = ref(false)
+
+interface StationInfo {
+  id: string
+  name: string
+  address: string
+  phone: string
+  members: number
+  teachers: number
+  courses: number
+  activities: number
+}
+
+const info = ref<StationInfo>({
+  id: '1',
+  name: '北京朝阳分站',
+  address: '北京市朝阳区建国路88号',
+  phone: '010-88886666',
+  members: 356,
+  teachers: 12,
+  courses: 48,
+  activities: 16,
+})
+
+const menus = [
+  { key: 'course', label: '课程', icon: '📅' },
+  { key: 'activity', label: '活动', icon: '🎉' },
+  { key: 'mall', label: '商城', icon: '🛍️' },
+  { key: 'book', label: '预约', icon: '✍️' },
+  { key: 'teachers', label: '教师', icon: '👨‍🏫' },
+  { key: 'data', label: '数据', icon: '📊' },
+  { key: 'notice', label: '公告', icon: '🔔' },
+  { key: 'more', label: '更多', icon: '⋯' },
+  { key: 'live', label: '直播', icon: '📺' },
+  { key: 'video', label: '回放', icon: '🎬' },
+  { key: 'forum', label: '论坛', icon: '💬' },
+]
+
+interface NewsItem {
+  id: string
+  title: string
+  icon: string
+  time: string
+  hot?: string
+}
+
+interface Teacher {
+  id: string
+  name: string
+  title: string
+  rating: number
+}
+
+const teachers = ref<Teacher[]>([
+  { id: 't1', name: '周易大师', title: '易学高级讲师', rating: 4.9 },
+  { id: 't2', name: '紫微传承人', title: '紫微斗数专家', rating: 4.8 },
+  { id: 't3', name: '风水徐师傅', title: '风水堪舆大师', rating: 4.7 },
+  { id: 't4', name: '奇门居士', title: '奇门遁甲传人', rating: 4.9 },
+])
+
+const news = ref<NewsItem[]>([
+  { id: '1', title: '本周六「易经入门」公开课开放报名', icon: '📢', time: '2小时前', hot: '12人报名' },
+  { id: '2', title: '新进5位资深命理讲师，点击查看简介', icon: '👨‍🏫', time: '昨天', hot: '新' },
+  { id: '3', title: '春季读书会第3期：《道德经》精读', icon: '📖', time: '3天前' },
+  { id: '4', title: '分站会员系统升级通知', icon: '⚙️', time: '5天前' },
+  { id: '5', title: '4月排盘公益活动圆满结束', icon: '🎊', time: '1周前' },
+  { id: '6', title: '清明节放假安排通知', icon: '📋', time: '2周前' },
+  { id: '7', title: '与北京中医药大学合作开设《黄帝内经》课程', icon: '🏥', time: '3周前', hot: '新合作' },
+  { id: '8', title: '暑期少儿国学夏令营开始报名', icon: '🧒', time: '1个月前', hot: '火热报名' },
+])
+
+function onRefresh() {
+  refreshing.value = true
+  setTimeout(() => { refreshing.value = false }, 1000)
+}
+
+function goBack() { uni.navigateBack() }
+
+function onShare() {
+  uni.showToast({ title: '分享功能即将开放', icon: 'none' })
+}
+
+/** 分站特色简介 */
+const stationFeatures = [
+  '专注国学传统文化传播',
+  '资深讲师团队一对一指导',
+  '定期举办线下交流活动',
+]
+
+function onMenu(key: string) {
+  const paths: Record<string, string> = {
+    course: '/pages/course/list/index',
+    activity: '/pages/same-city/index',
+    mall: '/pages/mall/index',
+    book: '/pages/booking/index',
+    teachers: '/pages/teacher/list/index',
+  }
+  if (paths[key]) {
+    uni.navigateTo({ url: paths[key] })
+  } else {
+    uni.showToast({ title: '功能开发中', icon: 'none' })
+  }
+}
+
+function goNews(id: string) {
+  uni.navigateTo({ url: `/pages/post/index?id=${id}` })
+}
+
+function goTeacher(id: string) {
+  uni.navigateTo({ url: `/pages/teacher/index?id=${id}` })
+}
+
+setTimeout(() => { loading.value = false }, 1000)
+</script>
+
+<style scoped>
+.skeleton-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+/* 样式由 Tailwind 处理 */
+</style>

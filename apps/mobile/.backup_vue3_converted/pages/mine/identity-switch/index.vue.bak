@@ -1,0 +1,283 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-safe">
+    <!-- Loading -->
+    <template v-if="loading">
+      <view class="sticky top-0 z-10 bg-[#FAF8F5] border-b border-[#E8E0D5]">
+        <view class="flex items-center h-14 px-4">
+          <view class="w-8 h-8 rounded-full bg-[#F0EBE5] animate-pulse" />
+          <view class="flex-1 mx-4 h-5 bg-[#F0EBE5] rounded animate-pulse" />
+        </view>
+      </view>
+      <view class="p-4 space-y-4">
+        <view class="h-32 bg-[#F0EBE5] rounded-2xl animate-pulse" />
+        <view class="h-24 bg-[#F0EBE5] rounded-2xl animate-pulse" />
+        <view class="h-24 bg-[#F0EBE5] rounded-2xl animate-pulse" />
+      </view>
+    </template>
+
+    <template v-else-if="activeRoles.length <= 1 && pendingRoles.length === 0 && inactiveRoles.length === 0">
+      <view class="flex flex-col items-center justify-center p-4 pt-20">
+        <view class="w-20 h-20 rounded-full bg-[#F0EBE5] flex items-center justify-center mb-4">
+          <text class="text-[#999] text-3xl">&#128100;</text>
+        </view>
+        <text class="text-[#999] text-center">当前仅有一个身份</text>
+        <view @click="goBack" class="mt-6 px-6 py-2 bg-[#C41E3A] text-white rounded-full text-sm">
+          <text>返回</text>
+        </view>
+      </view>
+    </template>
+
+    <template v-else>
+      <!-- Header -->
+      <view class="sticky top-0 z-10 bg-[#FAF8F5]/95 border-b border-[#E8E0D5]" style="backdrop-filter:blur(8px)">
+        <view class="flex items-center h-14 px-4">
+          <view @click="goBack" class="p-2 -ml-2 rounded-full">
+            <text class="text-[#2C2C2C] text-lg">&#8592;</text>
+          </view>
+          <text class="flex-1 text-center font-medium text-[#2C2C2C]">身份切换</text>
+          <view class="w-9" />
+        </view>
+      </view>
+
+      <view class="p-4 space-y-6">
+        <!-- Current Role -->
+        <view v-if="currentRole">
+          <text class="text-sm text-[#999] mb-3 block">当前身份</text>
+          <view :class="['p-4 rounded-2xl border-2', roleBorderClass(currentRole.type), roleBgClass(currentRole.type)]">
+            <view class="flex items-center gap-4">
+              <view :class="['w-14 h-14 rounded-xl flex items-center justify-center', roleBgClass(currentRole.type)]">
+                <text :class="['text-2xl', roleTextClass(currentRole.type)]">{{ roleIcon(currentRole.type) }}</text>
+              </view>
+              <view class="flex-1">
+                <view class="flex items-center gap-2">
+                  <text class="font-semibold text-base text-[#2C2C2C]">{{ currentRole.name }}</text>
+                  <text class="px-2 py-0.5 bg-[#C41E3A]/10 text-[#C41E3A] text-xs rounded-full flex items-center gap-1">
+                    <text>&#10003;</text> 当前
+                  </text>
+                </view>
+                <text class="text-sm text-[#999] mt-1 block">{{ currentRole.description }}</text>
+                <text v-if="currentRole.activatedAt" class="text-xs text-[#999] mt-2 block">激活于 {{ currentRole.activatedAt }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- Available Roles -->
+        <view v-if="activeRoles.length > 0">
+          <text class="text-sm text-[#999] mb-3 block">可切换身份</text>
+          <view class="space-y-3">
+            <view v-for="role in activeRoles" :key="role.id" @click="handleRoleClick(role)" class="w-full p-4 rounded-2xl bg-white border border-[#E8E0D5] transition-colors">
+              <view class="flex items-center gap-4">
+                <view :class="['w-12 h-12 rounded-xl flex items-center justify-center', roleBgClass(role.type)]">
+                  <text :class="['text-xl', roleTextClass(role.type)]">{{ roleIcon(role.type) }}</text>
+                </view>
+                <view class="flex-1">
+                  <view class="flex items-center gap-2">
+                    <text class="font-medium text-[#2C2C2C]">{{ role.name }}</text>
+                    <text class="px-2 py-0.5 bg-green-100 text-green-600 text-xs rounded-full">已激活</text>
+                  </view>
+                  <text class="text-sm text-[#999] mt-0.5 block">{{ role.description }}</text>
+                </view>
+                <text class="text-[#999] text-lg">&#8250;</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- Pending Roles -->
+        <view v-if="pendingRoles.length > 0">
+          <text class="text-sm text-[#999] mb-3 block">审核中</text>
+          <view class="space-y-3">
+            <view v-for="role in pendingRoles" :key="role.id" class="p-4 rounded-2xl bg-white border border-[#E8E0D5]">
+              <view class="flex items-center gap-4">
+                <view class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center">
+                  <text class="text-amber-600 text-xl">{{ roleIcon(role.type) }}</text>
+                </view>
+                <view class="flex-1">
+                  <view class="flex items-center gap-2">
+                    <text class="font-medium text-[#2C2C2C]">{{ role.name }}</text>
+                    <text class="px-2 py-0.5 bg-amber-100 text-amber-600 text-xs rounded-full flex items-center gap-1">
+                      <view class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" /> 审核中
+                    </text>
+                  </view>
+                  <text class="text-sm text-[#999] mt-0.5 block">{{ role.description }}</text>
+                </view>
+              </view>
+              <view class="mt-3 pt-3 border-t border-[#E8E0D5]">
+                <text class="text-xs text-[#999]">您的申请正在审核中，预计1-3个工作日完成</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- Inactive Roles -->
+        <view v-if="inactiveRoles.length > 0">
+          <text class="text-sm text-[#999] mb-3 block">更多身份</text>
+          <view class="space-y-3">
+            <view v-for="role in inactiveRoles" :key="role.id" @click="handleRoleClick(role)" class="w-full p-4 rounded-2xl bg-[#F0EBE5]/50 border border-[#E8E0D5]">
+              <view class="flex items-center gap-4">
+                <view class="w-12 h-12 rounded-xl bg-[#F0EBE5] flex items-center justify-center">
+                  <text class="text-[#999] text-xl">{{ roleIcon(role.type) }}</text>
+                </view>
+                <view class="flex-1">
+                  <view class="flex items-center gap-2">
+                    <text class="font-medium text-[#999]">{{ role.name }}</text>
+                    <text class="px-2 py-0.5 bg-[#F0EBE5] text-[#999] text-xs rounded-full flex items-center gap-1">
+                      <text>&#128274;</text> 未开通
+                    </text>
+                  </view>
+                  <text class="text-sm text-[#999]/70 mt-0.5 block">{{ role.description }}</text>
+                </view>
+                <text class="text-xs text-[#C41E3A]">申请开通</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- Tips -->
+        <view class="p-4 rounded-2xl bg-blue-50 border border-blue-100">
+          <view class="flex gap-3">
+            <text class="text-blue-600 text-lg shrink-0">&#128737;&#65039;</text>
+            <view>
+              <text class="text-sm font-medium text-blue-900 block">身份切换说明</text>
+              <view class="mt-2 space-y-1">
+                <text class="text-xs text-blue-700 block">&#8226; 切换身份后，界面将自动跳转至对应工作台</text>
+                <text class="text-xs text-blue-700 block">&#8226; 不同身份的数据和权限相互独立</text>
+                <text class="text-xs text-blue-700 block">&#8226; 您可以随时切换回其他已激活身份</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+
+    <!-- Switch Confirm Dialog -->
+    <view v-if="showConfirm && selectedRole" class="fixed inset-0 z-50 flex items-end justify-center bg-black/50" @click="!switching && (showConfirm = false)">
+      <view class="w-full max-w-lg bg-white rounded-t-3xl p-6 pb-safe" @click.stop>
+        <view class="w-12 h-1 bg-[#F0EBE5] rounded-full mx-auto mb-6" />
+
+        <view class="text-center mb-6">
+          <view :class="['w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4', roleBgClass(selectedRole.type)]">
+            <text :class="['text-3xl', roleTextClass(selectedRole.type)]">{{ roleIcon(selectedRole.type) }}</text>
+          </view>
+          <text class="text-lg font-semibold text-[#2C2C2C] block">切换至&#12300;{{ selectedRole.name }}&#12301;身份</text>
+          <text class="text-sm text-[#999] mt-2 block">切换后将跳转至{{ selectedRole.name }}工作台</text>
+        </view>
+
+        <view class="p-4 rounded-xl bg-[#F0EBE5]/50 mb-6">
+          <text class="text-sm text-[#999]"><text class="font-medium text-[#2C2C2C]">提示：</text>切换身份不会影响您在其他身份下的数据，您可以随时切换回来。</text>
+        </view>
+
+        <view class="flex gap-3">
+          <view @click="showConfirm = false" :class="['flex-1 h-12 rounded-xl border border-[#E8E0D5] text-sm font-medium flex items-center justify-center', switching ? 'opacity-50' : '']">
+            <text>取消</text>
+          </view>
+          <view @click="handleSwitch" :class="['flex-1 h-12 rounded-xl text-white text-sm font-medium flex items-center justify-center', switching ? 'opacity-50 bg-gray-400' : 'bg-[#C41E3A]']">
+            <text>{{ switching ? '切换中...' : '确认切换' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface UserRole {
+  id: string
+  type: string
+  name: string
+  description: string
+  icon: string
+  status: string
+  activatedAt?: string
+  workspaceUrl?: string
+}
+
+const loading = ref(true)
+const currentRoleId = ref('role_1')
+const roles = ref<UserRole[]>([])
+const showConfirm = ref(false)
+const selectedRole = ref<UserRole | null>(null)
+const switching = ref(false)
+
+const currentRole = computed(() => roles.value.find(r => r.id === currentRoleId.value))
+const activeRoles = computed(() => roles.value.filter(r => r.status === 'active' && r.id !== currentRoleId.value))
+const pendingRoles = computed(() => roles.value.filter(r => r.status === 'pending'))
+const inactiveRoles = computed(() => roles.value.filter(r => r.status === 'inactive'))
+
+const roleIcons: Record<string, string> = {
+  student: '👤',
+  teacher: '🎓',
+  merchant: '🏪',
+  host: '📺',
+  creator: '✨',
+}
+
+const roleColors: Record<string, { bg: string; text: string; border: string }> = {
+  student: { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' },
+  teacher: { bg: '#faf5ff', text: '#9333ea', border: '#e9d5ff' },
+  merchant: { bg: '#fff7ed', text: '#ea580c', border: '#fed7aa' },
+  host: { bg: '#fef2f2', text: '#dc2626', border: '#fecaca' },
+  creator: { bg: '#ecfdf5', text: '#059669', border: '#a7f3d0' },
+}
+
+function roleIcon(type: string): string {
+  return roleIcons[type] || '👤'
+}
+
+function roleBgClass(type: string): string {
+  return roleColors[type]?.bg || 'bg-[#F0EBE5]'
+}
+
+function roleTextClass(type: string): string {
+  return roleColors[type]?.text || 'text-[#999]'
+}
+
+function roleBorderClass(type: string): string {
+  return roleColors[type]?.border || 'border-[#E8E0D5]'
+}
+
+function handleRoleClick(role: UserRole) {
+  if (role.status === 'active' && role.id !== currentRoleId.value) {
+    selectedRole.value = role
+    showConfirm.value = true
+  } else if (role.status === 'inactive') {
+    uni.showToast({ title: '请先申请开通', icon: 'none' })
+  }
+}
+
+function handleSwitch() {
+  if (!selectedRole.value) return
+  switching.value = true
+  setTimeout(() => {
+    currentRoleId.value = selectedRole.value!.id
+    switching.value = false
+    showConfirm.value = false
+    if (selectedRole.value!.workspaceUrl) {
+      uni.navigateTo({ url: selectedRole.value!.workspaceUrl })
+    }
+    uni.showToast({ title: '切换成功', icon: 'success' })
+  }, 1000)
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+setTimeout(() => {
+  roles.value = [
+    { id: 'role_1', type: 'student', name: '学员', description: '学习课程、参与圈子、购买商品', icon: 'User', status: 'active', activatedAt: '2024-01-15', workspaceUrl: '/' },
+    { id: 'role_2', type: 'teacher', name: '讲师', description: '创建课程、开设直播、解答问题', icon: 'GraduationCap', status: 'active', activatedAt: '2024-03-20', workspaceUrl: '/pages/creator/dashboard/index' },
+    { id: 'role_3', type: 'merchant', name: '商家', description: '管理店铺、上架商品、处理订单', icon: 'Store', status: 'pending' },
+    { id: 'role_4', type: 'host', name: '主播', description: '开设直播、获取打赏、粉丝互动', icon: 'Radio', status: 'inactive' },
+    { id: 'role_5', type: 'creator', name: '内容创作者', description: '发布文章、短视频、知识分享', icon: 'Sparkles', status: 'active', activatedAt: '2024-06-01', workspaceUrl: '/pages/creator/content/index' },
+  ]
+  loading.value = false
+}, 400)
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

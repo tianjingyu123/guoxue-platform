@@ -1,0 +1,239 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-10 bg-white border-b border-[#E8E0D5]">
+      <view class="flex items-center px-4 h-12 gap-3">
+        <view @click="goBack" class="p-1 -ml-1"><text class="text-xl text-[#2C2C2C]">←</text></view>
+        <view class="flex-1" />
+        <text class="text-base font-semibold text-[#2C2C2C]">{{ groupName }}({{ memberCount }})</text>
+        <view class="flex-1 flex items-center justify-end gap-3">
+          <text class="text-lg" @click="showGroupInfo">ℹ</text>
+        </view>
+      </view>
+      <!-- 群公告提示 -->
+      <view class="bg-[#C9A96E]/5 border-t border-[#C9A96E]/20 px-4 py-2 flex items-center gap-2" @click="goAnnouncement">
+        <text class="text-xs text-[#C9A96E]">📢 公告</text>
+        <text class="text-xs text-[#999] flex-1 truncate">{{ announcement }}</text>
+        <text class="text-xs text-[#C9A96E]">详情 ›</text>
+      </view>
+    </view>
+
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="flex-1 p-4 flex flex-col justify-end">
+      <view v-for="i in 4" :key="i" class="flex mb-4" :class="i % 2 === 0 ? 'justify-end' : ''">
+        <view :class="['flex items-start gap-2', i % 2 === 0 ? 'flex-row-reverse' : '']">
+          <view class="w-8 h-8 rounded-full bg-[#F0EBE5] animate-pulse" />
+          <view :class="['rounded-lg px-4 py-3 max-w-[65%]', i % 2 === 0 ? 'bg-[#F0EBE5]' : 'bg-[#F5F1EB]']">
+            <view class="w-28 h-3 bg-white/50 rounded animate-pulse" />
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 消息列表 -->
+    <scroll-view v-else scroll-y class="flex-1 p-4" :style="{ paddingBottom: '90px' }">
+      <!-- 系统消息 -->
+      <view class="flex justify-center mb-4">
+        <view class="px-3 py-1.5 bg-[#F0EBE5] rounded-lg">
+          <text class="text-[11px] text-[#999]">{{ systemMsg }}</text>
+        </view>
+      </view>
+
+      <!-- 在线成员提示 -->
+      <view class="flex items-center gap-2 px-2 mb-4 overflow-hidden">
+        <view class="flex -space-x-1.5">
+          <view v-for="(m, i) in onlineMembers.slice(0, 5)" :key="i" class="w-7 h-7 rounded-full border-2 border-white bg-gradient-to-br from-[#C41E3A] to-[#E74C3C] flex items-center justify-center text-white text-[10px] font-medium">
+            {{ m[0] }}
+          </view>
+          <view v-if="onlineMembers.length > 5" class="w-7 h-7 rounded-full border-2 border-white bg-[#F0EBE5] flex items-center justify-center text-[10px] text-[#999]">
+            +{{ onlineMembers.length - 5 }}
+          </view>
+        </view>
+        <text class="text-xs text-[#999]">{{ onlineMembers.length }}人在线</text>
+      </view>
+
+      <view v-for="(m, i) in messages" :key="i">
+        <!-- 自己消息 -->
+        <view v-if="m.self" class="flex items-end justify-end gap-2 mb-4">
+          <view class="max-w-[70%]">
+            <view v-if="m.replyTo" class="bg-[#C41E3A]/10 rounded-lg px-2.5 py-1.5 mb-1 text-right">
+              <text class="text-[10px] text-[#C41E3A]">回复 @{{ m.replyTo }}</text>
+            </view>
+            <view class="px-3 py-2.5 bg-[#C41E3A] text-white rounded-xl rounded-tr-sm text-sm inline-block">
+              <text>{{ m.text }}</text>
+            </view>
+            <text class="text-[10px] text-[#ccc] block mt-0.5 text-right">{{ formatTime(m.time) }}</text>
+          </view>
+          <view class="w-8 h-8 rounded-full bg-[#F0EBE5] flex items-center justify-center text-xs text-[#999] font-semibold shrink-0">
+            我
+          </view>
+        </view>
+
+        <!-- 他人消息 -->
+        <view v-else class="flex items-start gap-2 mb-4">
+          <view class="w-8 h-8 rounded-full" :class="memberColor(m.userName)">
+            <view class="w-full h-full rounded-full flex items-center justify-center text-white text-xs font-semibold">
+              {{ m.userName[0] }}
+            </view>
+          </view>
+          <view class="max-w-[70%]">
+            <view class="flex items-center gap-1.5 mb-0.5">
+              <text class="text-xs font-medium" :class="memberTextColor(m.userName)">{{ m.userName }}</text>
+              <text v-if="m.isAdmin" class="text-[10px] px-1 py-0.5 bg-[#C9A96E]/10 rounded text-[#C9A96E]">管理员</text>
+            </view>
+            <view v-if="m.replyTo" class="bg-[#F0EBE5] rounded-lg px-2.5 py-1.5 mb-1">
+              <text class="text-[10px] text-[#999]">回复 @{{ m.replyTo }}: {{ m.replyText }}</text>
+            </view>
+            <view v-if="m.atMe" class="bg-[#C41E3A]/5 rounded-lg px-2.5 py-1.5 mb-1">
+              <text class="text-[10px] text-[#C41E3A]">有人@你</text>
+            </view>
+            <view v-if="m.type === 'image'" class="w-32 h-32 bg-[#F0EBE5] rounded-xl flex items-center justify-center">
+              <text class="text-3xl">🖼</text>
+            </view>
+            <view v-else class="px-3 py-2.5 bg-white rounded-xl rounded-tl-sm text-sm text-[#2C2C2C] border border-[#E8E0D5] inline-block">
+              <text>{{ m.text }}</text>
+            </view>
+            <text class="text-[10px] text-[#ccc] block mt-0.5">{{ formatTime(m.time) }}</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 输入区域 -->
+    <view class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E8E0D5] z-30">
+      <view class="flex items-center gap-2 px-4 py-2.5">
+        <text class="text-lg text-[#999] shrink-0" @click="showEmoji = !showEmoji">😊</text>
+        <input v-model="input" placeholder="发送消息..." @confirm="send" class="flex-1 px-4 py-2.5 bg-[#FAF8F5] rounded-full text-sm outline-none border border-[#E8E0D5]" />
+        <text class="text-lg text-[#999] shrink-0" @click="atMember">@</text>
+        <view @click="send" class="px-5 py-2.5 bg-[#C41E3A] text-white rounded-full text-sm font-medium shrink-0">发送</view>
+      </view>
+      <!-- 表情面板 -->
+      <view v-if="showEmoji" class="border-t border-[#E8E0D5] p-3 bg-[#FAF8F5]">
+        <view class="grid grid-cols-8 gap-2">
+          <text v-for="e in emojis" :key="e" class="text-xl text-center p-1" @click="insertEmoji(e)">{{ e }}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+const loading = ref(true)
+const input = ref('')
+const showEmoji = ref(false)
+const groupName = ref('国学堂交流群')
+const memberCount = ref(128)
+const announcement = ref('新成员请先阅读圈规，修改昵称后发言')
+
+const systemMsg = '欢迎新成员「国学小白」加入群聊'
+
+const onlineMembers = ['周易大师', '紫微传承人', '玄空居士', '国学达人', '易学爱好者', '命理研究者', '传统文化君']
+
+interface Message {
+  text: string
+  self: boolean
+  userName: string
+  isAdmin?: boolean
+  type: 'text' | 'image'
+  time: Date
+  atMe?: boolean
+  replyTo?: string
+  replyText?: string
+}
+
+const messages = ref<Message[]>([
+  { text: '大家好！欢迎加入国学堂交流群', self: false, userName: '周易大师', isAdmin: true, time: new Date(Date.now() - 7200000), type: 'text' },
+  { text: '老师好！我新来的，请多关照', self: true, userName: '我', time: new Date(Date.now() - 7200000 + 30000), type: 'text' },
+  { text: '欢迎欢迎！有什么问题可以问周老师', self: false, userName: '国学达人', time: new Date(Date.now() - 7200000 + 60000), type: 'text' },
+  { text: '我想问一下八字排盘的问题', self: true, userName: '我', time: new Date(Date.now() - 3600000), type: 'text' },
+  { text: '排盘首先要确定年柱，以立春为界。比如2024年2月4日立春之后出生才是甲辰年。', self: false, userName: '周易大师', isAdmin: true, time: new Date(Date.now() - 3600000 + 30000), type: 'text', atMe: true },
+  { text: '明白了，谢谢老师！', self: true, userName: '我', time: new Date(Date.now() - 3600000 + 60000), type: 'text', replyTo: '周易大师', replyText: '排盘首先要确定年柱...' },
+  { text: '我今天排了一个命盘，大家帮忙看看', self: false, userName: '紫微传承人', time: new Date(Date.now() - 1800000), type: 'image' },
+  { text: '这个命盘财帛宫有化禄，财运不错', self: false, userName: '玄空居士', time: new Date(Date.now() - 1800000 + 60000), type: 'text' },
+  { text: '@玄空居士 同意，而且迁移宫有吉星，适合外出发展', self: false, userName: '周易大师', isAdmin: true, time: new Date(Date.now() - 1800000 + 120000), type: 'text' },
+  { text: '大家最近在读什么书？推荐一下', self: false, userName: '易学爱好者', time: new Date(Date.now() - 600000), type: 'text' },
+  { text: '推荐《梅花易数》，简单易学又实用', self: false, userName: '国学达人', time: new Date(Date.now() - 600000 + 30000), type: 'text' },
+])
+
+const emojis = ['😊', '😂', '🤣', '❤️', '😍', '🥰', '😘', '😗', '😙', '😚', '🙂', '🤗', '🤩', '🤔', '🤨', '😐', '😑', '😶', '🙄', '😏', '😣', '😥', '😮', '🤐', '😯', '😪', '😫', '😴', '😌', '😛', '😜', '😝', '🤤', '😒', '😓', '😔', '😕', '🙃', '🤑', '😲', '☹️', '🙁', '😖', '😞', '😟', '😤', '😢', '😭']
+
+const memberColors: Record<string, string> = {
+  '周易大师': 'bg-gradient-to-br from-[#C41E3A] to-[#E74C3C]',
+  '国学达人': 'bg-gradient-to-br from-[#C9A96E] to-[#8B6914]',
+  '紫微传承人': 'bg-gradient-to-br from-[#2C2C2C] to-[#555]',
+  '玄空居士': 'bg-gradient-to-br from-blue-600 to-blue-400',
+  '易学爱好者': 'bg-gradient-to-br from-green-600 to-green-400',
+  '命理研究者': 'bg-gradient-to-br from-purple-600 to-purple-400',
+  '传统文化君': 'bg-gradient-to-br from-orange-500 to-yellow-500',
+}
+
+const memberTextColors: Record<string, string> = {
+  '周易大师': 'text-[#C41E3A]',
+  '国学达人': 'text-[#C9A96E]',
+  '紫微传承人': 'text-[#2C2C2C]',
+  '玄空居士': 'text-blue-600',
+  '易学爱好者': 'text-green-600',
+  '命理研究者': 'text-purple-600',
+  '传统文化君': 'text-orange-500',
+}
+
+function memberColor(name: string): string {
+  return memberColors[name] || 'bg-gradient-to-br from-[#999] to-[#ccc]'
+}
+
+function memberTextColor(name: string): string {
+  return memberTextColors[name] || 'text-[#999]'
+}
+
+function formatTime(date: Date): string {
+  const h = String(date.getHours()).padStart(2, '0')
+  const m = String(date.getMinutes()).padStart(2, '0')
+  return `${h}:${m}`
+}
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 1200)
+})
+
+function send() {
+  if (!input.value.trim()) return
+  messages.value.push({
+    text: input.value,
+    self: true,
+    userName: '我',
+    time: new Date(),
+    type: 'text',
+  })
+  input.value = ''
+  showEmoji.value = false
+}
+
+function insertEmoji(e: string) {
+  input.value += e
+}
+
+function atMember() {
+  uni.showActionSheet({
+    itemList: onlineMembers,
+    success: (res) => {
+      input.value += `@${onlineMembers[res.tapIndex]} `
+    },
+  })
+}
+
+function showGroupInfo() {
+  uni.showToast({ title: '群组信息(Mock)', icon: 'none' })
+}
+
+function goAnnouncement() {
+  uni.navigateTo({ url: '/pages/circles/id-detail/announcements/index' })
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

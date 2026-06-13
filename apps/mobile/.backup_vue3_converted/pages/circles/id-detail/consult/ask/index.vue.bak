@@ -1,0 +1,313 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-10 bg-[#FAF8F5] border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 h-12">
+        <view @click="goBack" class="p-1">
+          <text class="text-xl text-[#2C2C2C]">←</text>
+        </view>
+        <text class="text-base font-semibold text-[#2C2C2C]">咨询问答</text>
+        <view class="w-8" />
+      </view>
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="px-4 pt-6 space-y-4">
+      <view v-for="i in 3" :key="i" class="p-4 rounded-xl border border-[#E8E0D5] bg-white">
+        <view class="flex items-start gap-3 mb-3">
+          <view class="w-8 h-8 rounded-full bg-[#F0EBE5] animate-pulse" />
+          <view class="flex-1 space-y-2">
+            <view class="h-4 w-3/4 bg-[#F0EBE5] rounded animate-pulse" />
+            <view class="h-3 w-full bg-[#F0EBE5] rounded animate-pulse" />
+          </view>
+        </view>
+        <view class="flex gap-3">
+          <view class="h-3 w-16 bg-[#F0EBE5] rounded animate-pulse" />
+          <view class="h-3 w-16 bg-[#F0EBE5] rounded animate-pulse" />
+          <view class="h-3 w-16 bg-[#F0EBE5] rounded animate-pulse" />
+        </view>
+      </view>
+    </view>
+
+    <view v-else style="padding-bottom: 96px">
+      <!-- 提问按钮 -->
+      <view class="mx-4 mt-4">
+        <view @click="showNewQuestion = true" class="w-full py-3 bg-[#C41E3A] text-white rounded-xl font-medium text-center flex items-center justify-center gap-2">
+          <text class="text-sm">💬</text>
+          <text>提出问题</text>
+        </view>
+      </view>
+
+      <!-- 新问题表单 -->
+      <view v-if="showNewQuestion" class="mx-4 mt-4 p-4 rounded-xl" style="background:rgba(196,30,58,0.05);border:1px solid rgba(196,30,58,0.2)">
+        <!-- 选择专家 -->
+        <view class="mb-3">
+          <text class="text-xs font-medium text-[#2C2C2C] block mb-2">选择专家 <text class="text-[#FF4D4F]">*</text></text>
+          <scroll-view scroll-x class="flex gap-2 whitespace-nowrap">
+            <view
+              v-for="expert in experts"
+              :key="expert.id"
+              @click="selectedExpert = expert.id"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+              :class="selectedExpert === expert.id
+                ? 'bg-[#C41E3A] text-white border-[#C41E3A]'
+                : 'bg-white text-[#2C2C2C] border-[#E8E0D5]'"
+            >
+              <image :src="expert.avatar" mode="aspectFill" class="w-4 h-4 rounded-full" />
+              <text>{{ expert.name }}</text>
+            </view>
+          </scroll-view>
+        </view>
+
+        <view class="space-y-3">
+          <input
+            type="text"
+            placeholder="问题标题（如：如何看八字财运？）"
+            v-model="newQuestion.title"
+            maxlength="50"
+            class="w-full px-3 py-2 border border-[#E8E0D5] rounded-lg bg-[#FAF8F5] text-[#2C2C2C] placeholder:text-[#999] focus:outline-none focus:border-[#C41E3A]"
+          />
+          <textarea
+            v-model="newQuestion.content"
+            placeholder="详细描述您的问题⋯"
+            :rows="4"
+            maxlength="500"
+            class="w-full px-3 py-2 border border-[#E8E0D5] rounded-lg bg-[#FAF8F5] text-[#2C2C2C] placeholder:text-[#999] focus:outline-none focus:border-[#C41E3A]"
+          />
+          <view class="text-right text-xs text-[#999]">{{ newQuestion.content.length }}/500</view>
+
+          <!-- 富文本扩展 -->
+          <view class="flex items-center gap-3 text-xs text-[#999]">
+            <view class="flex items-center gap-1" @click="addImage">
+              <text>🖼</text>
+              <text>图片</text>
+            </view>
+            <view class="flex items-center gap-1" @click="addLink">
+              <text>🔗</text>
+              <text>链接</text>
+            </view>
+          </view>
+
+          <!-- 匿名提问开关 -->
+          <view class="flex items-center justify-between py-2">
+            <view class="flex items-center gap-2">
+              <text class="text-sm">👤</text>
+              <text class="text-xs text-[#2C2C2C]">匿名提问</text>
+            </view>
+            <view
+              class="w-10 h-5 rounded-full relative transition-colors"
+              :class="isAnonymous ? 'bg-[#C41E3A]' : 'bg-[#E8E0D5]'"
+              @click="isAnonymous = !isAnonymous"
+            >
+              <view class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all" :class="isAnonymous ? 'left-5' : 'left-0.5'" />
+            </view>
+          </view>
+
+          <!-- 支付信息 -->
+          <view v-if="selectedExpert" class="bg-[#F5F1EB] rounded-lg p-3">
+            <view class="flex items-center justify-between text-xs">
+              <text class="text-[#999]">咨询费用</text>
+              <text class="text-[#C41E3A] font-bold text-sm">¥{{ expertPrice }}</text>
+            </view>
+            <view class="flex items-center justify-between text-xs mt-1">
+              <text class="text-[#999]">预计回复</text>
+              <text class="text-[#2C2C2C]">24小时内</text>
+            </view>
+          </view>
+
+          <view class="flex gap-2 pt-2">
+            <view
+              @click="showNewQuestion = false"
+              class="flex-1 py-2.5 rounded-xl border border-[#E8E0D5] text-[#999] text-sm font-medium text-center"
+            >
+              取消
+            </view>
+            <view
+              @click="handlePostQuestion"
+              class="flex-1 py-2.5 rounded-xl text-sm font-medium text-center"
+              :class="canSubmit ? 'bg-[#C41E3A] text-white' : 'bg-[#E8E0D5] text-[#999]'"
+            >
+              <text>提交问题</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 分类筛选标签 -->
+      <view class="mx-4 mt-4 flex gap-2 overflow-x-auto whitespace-nowrap pb-1">
+        <view
+          v-for="tag in questionTags"
+          :key="tag"
+          @click="activeTag = tag"
+          class="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+          :class="activeTag === tag ? 'bg-[#C41E3A] text-white' : 'bg-white text-[#999] border border-[#E8E0D5]'"
+        >
+          <text>{{ tag }}</text>
+        </view>
+      </view>
+
+      <!-- 问题列表 -->
+      <view class="mx-4 mt-4">
+        <text class="text-sm font-semibold text-[#2C2C2C] mb-3 block">热门问题</text>
+        <view v-if="filteredQuestions.length > 0" class="space-y-3">
+          <view
+            v-for="question in filteredQuestions"
+            :key="question.id"
+            @click="goQuestion(question.id)"
+            class="w-full p-4 rounded-xl border border-[#E8E0D5] bg-white"
+          >
+            <view class="flex items-start gap-3 mb-3">
+              <image :src="question.avatar" mode="aspectFill" class="w-8 h-8 rounded-full flex-shrink-0" />
+              <view class="flex-1 min-w-0">
+                <view class="flex items-center gap-2">
+                  <text class="font-semibold text-[#2C2C2C] line-clamp-1 block">{{ question.title }}</text>
+                  <text
+                    v-if="question.status === 'unanswered'"
+                    class="px-2 py-0.5 bg-orange-100 text-orange-800 text-[10px] rounded-full flex-shrink-0"
+                  >待回答</text>
+                  <text
+                    v-else
+                    class="px-2 py-0.5 bg-green-100 text-green-800 text-[10px] rounded-full flex-shrink-0"
+                  >已回答</text>
+                </view>
+                <text class="text-xs text-[#999] mt-1 line-clamp-2 block">{{ question.content }}</text>
+              </view>
+            </view>
+            <view class="flex items-center justify-between text-xs">
+              <view class="flex items-center gap-2">
+                <text class="text-[#999]">{{ question.asker }}</text>
+                <text class="text-[#999]">·</text>
+                <text class="text-[#999]">{{ question.time }}</text>
+              </view>
+              <view class="flex items-center gap-3 text-[#999]">
+                <text>👁 {{ question.views }}</text>
+                <text>👍 {{ question.likes }}</text>
+                <text>💬 {{ question.answers }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 空状态 -->
+        <view v-else class="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-[#E8E0D5]">
+          <text class="text-4xl mb-4">📝</text>
+          <text class="text-sm text-[#999]">暂无相关问题</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface Expert {
+  id: string
+  name: string
+  avatar: string
+  price: number
+  specialty: string
+}
+
+interface Question {
+  id: string
+  title: string
+  content: string
+  asker: string
+  avatar: string
+  views: number
+  likes: number
+  answers: number
+  status: 'answered' | 'unanswered'
+  time: string
+  tag: string
+}
+
+// 加载状态
+const loading = ref(true)
+setTimeout(() => { loading.value = false }, 700)
+
+// 专家列表
+const experts: Expert[] = [
+  { id: 'e1', name: '玄易大师', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=40', price: 99, specialty: '八字' },
+  { id: 'e2', name: '子平先生', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40', price: 128, specialty: '紫微' },
+  { id: 'e3', name: '张玄风', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40', price: 88, specialty: '梅花易数' },
+  { id: 'e4', name: '林奇门', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40', price: 168, specialty: '奇门遁甲' },
+]
+
+const selectedExpert = ref('')
+const expertPrice = computed(() => {
+  const exp = experts.find(e => e.id === selectedExpert.value)
+  return exp ? exp.price : 0
+})
+
+// 问题标签
+const questionTags = ['全部', '八字', '紫微斗数', '梅花易数', '奇门遁甲', '风水', '六爻']
+const activeTag = ref('全部')
+
+// Mock 问题
+const mockQuestions: Question[] = [
+  { id: '1', title: '如何通过八字看一个人的财运？', content: '我想了解如何从八字命盘中看出一个人的财运好坏，有什么关键要素吗？比如财星的位置、旺衰等。', asker: '张女士', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=40', views: 1250, likes: 85, answers: 12, status: 'answered', time: '2024-01-20 14:30', tag: '八字' },
+  { id: '2', title: '紫微斗数和八字哪个准确率更高？', content: '想对比一下两种算命方法的准确率，求推荐。两者在分析维度上有什么本质区别？', asker: '李先生', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40', views: 850, likes: 62, answers: 8, status: 'answered', time: '2024-01-20 10:15', tag: '紫微斗数' },
+  { id: '3', title: '流年大运是如何计算的？', content: '请问流年大运的计算方法，以及如何才能准确的判断出一个人的吉凶祸福。大运和流年哪个更重要？', asker: '王女士', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40', views: 620, likes: 45, answers: 5, status: 'unanswered', time: '2024-01-20 09:45', tag: '八字' },
+  { id: '4', title: '梅花易数数字起卦详解', content: '用数字起卦时，是先取三位数还是有其他规则？如何根据数字确定体用生克？', asker: '赵同学', avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=40', views: 430, likes: 32, answers: 3, status: 'answered', time: '2024-01-19 16:20', tag: '梅花易数' },
+  { id: '5', title: '六爻预测中动变爻的解读技巧', content: '在六爻预测中，动爻和变爻之间的关系如何把握？有没有系统的解读方法和原则？', asker: '钱老师', avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=40', views: 380, likes: 28, answers: 4, status: 'unanswered', time: '2024-01-19 08:30', tag: '六爻' },
+  { id: '6', title: '阳宅风水布局的核心原则', content: '想请教阳宅风水布局中，大门、厨房、卧室的位置选择有什么核心原则？', asker: '周先生', avatar: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=40', views: 560, likes: 41, answers: 6, status: 'answered', time: '2024-01-18 21:10', tag: '风水' },
+]
+
+const questions = ref(mockQuestions)
+const showNewQuestion = ref(false)
+const isAnonymous = ref(false)
+const newQuestion = ref({ title: '', content: '' })
+
+const filteredQuestions = computed(() => {
+  if (activeTag.value === '全部') return questions.value
+  return questions.value.filter(q => q.tag === activeTag.value)
+})
+
+const canSubmit = computed(() =>
+  selectedExpert.value &&
+  newQuestion.value.title.trim() &&
+  newQuestion.value.content.trim()
+)
+
+function handlePostQuestion() {
+  if (!canSubmit.value) return
+  showNewQuestion.value = false
+  const q: Question = {
+    id: Date.now().toString(),
+    title: newQuestion.value.title,
+    content: newQuestion.value.content,
+    asker: isAnonymous.value ? '匿名用户' : '我',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=40',
+    views: 0,
+    likes: 0,
+    answers: 0,
+    status: 'unanswered',
+    time: new Date().toLocaleString(),
+    tag: activeTag.value === '全部' ? '其他' : activeTag.value,
+  }
+  questions.value.unshift(q)
+  newQuestion.value = { title: '', content: '' }
+  selectedExpert.value = ''
+  isAnonymous.value = false
+  uni.showToast({ title: '问题已提交', icon: 'success' })
+}
+
+function addImage() {
+  uni.showToast({ title: '图片上传(Mock)', icon: 'none' })
+}
+
+function addLink() {
+  uni.showToast({ title: '链接添加(Mock)', icon: 'none' })
+}
+
+function goBack() { uni.navigateBack() }
+function goQuestion(id: string) {
+  uni.navigateTo({ url: `/pages/circles/id-detail/consult/detail/index?id=${id}` })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

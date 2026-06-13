@@ -1,0 +1,593 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 图文课程渲染 -->
+    <template v-if="courseData.type === 'text'">
+      <!-- 顶部导航 -->
+      <header class="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
+        <view class="flex items-center justify-between px-4 h-14">
+          <view @click="goBack" class="p-2 -ml-2">
+            <text class="text-lg text-foreground">&#8592;</text>
+          </view>
+          <text class="font-medium text-sm text-foreground line-clamp-1 flex-1 mx-4 text-center">{{ courseData.title }}</text>
+          <view @click="showChapterList = !showChapterList" class="p-2 rounded-full">
+            <text class="text-foreground">&#9776;</text>
+          </view>
+        </view>
+      </header>
+
+      <!-- 图文内容 -->
+      <main class="pt-14 pb-20 px-4">
+        <view class="prose-content py-6">
+          <rich-text :nodes="courseData.textContent"></rich-text>
+        </view>
+      </main>
+
+      <!-- 底部操作栏 -->
+      <view class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-border" style="padding-bottom: env(safe-area-inset-bottom);">
+        <view class="flex items-center justify-between px-4 h-14">
+          <view class="flex items-center gap-4">
+            <view @click="goToChapter('prev')" class="flex items-center gap-1 text-sm text-muted-foreground">
+              <text>&#9194;</text>
+              <text>上一节</text>
+            </view>
+            <view @click="goToChapter('next')" class="flex items-center gap-1 text-sm text-muted-foreground">
+              <text>下一节</text>
+              <text>&#9193;</text>
+            </view>
+          </view>
+          <view class="flex items-center gap-2">
+            <view @click="isFavorited = !isFavorited" :class="['p-2 rounded-full', isFavorited ? 'text-primary' : 'text-muted-foreground']">
+              <text>{{ isFavorited ? '&#10084;&#65039;' : '&#129293;' }}</text>
+            </view>
+            <view class="p-2 rounded-full text-muted-foreground">
+              <text>&#128228;</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+
+    <!-- 视频/音频课程渲染 -->
+    <template v-else>
+      <!-- 播放器区域 -->
+      <view :class="['relative bg-black', courseData.type === 'video' ? 'aspect-video' : 'h-64']">
+        <!-- 返回按钮 -->
+        <view @click="goBack" class="absolute top-4 left-4 z-20">
+          <view class="w-8 h-8 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+            <text class="text-white text-sm">&#8592;</text>
+          </view>
+        </view>
+
+        <!-- 加载状态 -->
+        <view v-if="isLoading" class="absolute inset-0 flex items-center justify-center bg-black z-10">
+          <view class="w-12 h-12 animate-spin">
+            <svg viewBox="0 0 100 100" class="w-full h-full">
+              <circle cx="50" cy="50" r="48" fill="none" stroke="#E8E0D5" stroke-width="2" />
+              <path d="M50 2 A48 48 0 0 1 50 98 A24 24 0 0 1 50 50 A24 24 0 0 0 50 2" fill="#C41E3A" />
+              <circle cx="50" cy="26" r="6" fill="#FAF8F5" />
+              <circle cx="50" cy="74" r="6" fill="#C41E3A" />
+            </svg>
+          </view>
+        </view>
+
+        <!-- 视频播放器 -->
+        <view v-else-if="courseData.type === 'video'" class="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-black/20 to-black/60">
+          <view @click="isPlaying = !isPlaying" class="w-16 h-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center hover:bg-white/30 transition-colors">
+            <text class="text-white text-3xl">{{ isPlaying ? '&#9208;' : '&#9654;' }}</text>
+          </view>
+        </view>
+
+        <!-- 音频播放器 -->
+        <view v-else class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#F5F1EB] to-[#FAF8F5] p-6">
+          <view class="w-32 h-32 rounded-2xl bg-primary/20 flex items-center justify-center mb-4 shadow-lg">
+            <text class="text-6xl text-primary">&#127911;</text>
+          </view>
+          <text class="text-sm text-muted-foreground mb-2">正在播放</text>
+          <text class="font-medium text-foreground text-center line-clamp-2">{{ currentChapter.title }}</text>
+          <text class="text-xs text-muted-foreground mt-1">支持后台播放</text>
+        </view>
+
+        <!-- 播放控制条 -->
+        <view v-if="!isLoading" class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+          <!-- 进度条 -->
+          <view class="flex items-center gap-2 mb-3">
+            <text class="text-xs text-white/80 w-10">{{ formatTime(progress) }}</text>
+            <view class="flex-1 h-1 bg-white/30 rounded-full overflow-hidden">
+              <view class="h-full bg-primary rounded-full transition-all" :style="{ width: progress + '%' }"></view>
+            </view>
+            <text class="text-xs text-white/80 w-10 text-right">{{ currentChapter.duration }}</text>
+          </view>
+
+          <!-- 控制按钮 -->
+          <view class="flex items-center justify-between">
+            <view class="flex items-center gap-2">
+              <view @click="isMuted = !isMuted" class="p-2 rounded-full hover:bg-white/10">
+                <text class="text-white">{{ isMuted ? '&#128263;' : '&#128266;' }}</text>
+              </view>
+
+              <!-- 倍速选择 -->
+              <view class="relative">
+                <view @click="showSpeedMenu = !showSpeedMenu" class="px-2 py-1 rounded text-xs text-white bg-white/20 hover:bg-white/30">
+                  <text>{{ playbackSpeed }}x</text>
+                </view>
+                <view v-if="showSpeedMenu" class="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg overflow-hidden">
+                  <view v-for="speed in speeds" :key="speed"
+                    @click="playbackSpeed = speed; showSpeedMenu = false"
+                    :class="['block w-full px-4 py-2 text-sm text-left', playbackSpeed === speed ? 'text-primary' : 'text-foreground']">
+                    <text>{{ speed }}x</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+
+            <view class="flex items-center gap-2">
+              <template v-if="courseData.type === 'video'">
+                <view class="p-2 rounded-full hover:bg-white/10">
+                  <text class="text-white">&#128250;</text>
+                </view>
+                <view class="p-2 rounded-full hover:bg-white/10">
+                  <text class="text-white">&#9974;</text>
+                </view>
+              </template>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 当前章节信息 -->
+      <view class="px-4 py-3 border-b border-border">
+        <view class="flex items-center justify-between">
+          <view class="flex-1 min-w-0">
+            <text class="font-medium text-foreground line-clamp-1">{{ currentChapter.title }}</text>
+            <text class="text-xs text-muted-foreground mt-0.5 block">
+              学习进度 {{ Math.round((courseData.completedChapters / courseData.totalChapters) * 100) }}%
+            </text>
+          </view>
+          <view class="flex items-center gap-2">
+            <view @click="autoPlay = !autoPlay" class="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <view :class="['w-4 h-4 rounded border flex items-center justify-center', autoPlay ? 'bg-primary border-primary' : 'border-[#999]']">
+                <text v-if="autoPlay" class="text-white text-[10px]">&#10003;</text>
+              </view>
+              <text>自动连播</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Tab切换 -->
+      <view class="flex border-b border-border">
+        <view v-for="tab in tabs" :key="tab.id"
+          @click="activeTab = tab.id"
+          :class="['flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium border-b-2 transition-colors', activeTab === tab.id ? 'text-primary border-primary' : 'text-muted-foreground border-transparent']">
+          <text>{{ tab.icon }}</text>
+          <text>{{ tab.label }}</text>
+          <text v-if="tab.id === 'notes' && courseData.notes.length > 0" class="text-[10px] px-1.5 py-0 rounded bg-muted text-muted-foreground ml-1">{{ courseData.notes.length }}</text>
+        </view>
+      </view>
+
+      <!-- Tab内容 -->
+      <view class="pb-20">
+        <!-- 目录Tab -->
+        <view v-if="activeTab === 'chapters'" class="divide-y divide-border">
+          <view v-for="(chapter, index) in courseData.chapters" :key="chapter.id"
+            @click="switchChapter(chapter)"
+            :class="['w-full flex items-center gap-3 px-4 py-3 text-left transition-colors', chapter.id === currentChapter.id ? 'bg-primary/5' : 'hover:bg-secondary/50', (chapter.status === 'locked' && !chapter.isFree) ? 'opacity-50' : '']">
+            <view @click.stop="downloadChapter(chapter)" class="w-6 flex items-center justify-center">
+              <text v-if="chapter.status === 'completed'" class="text-green-500">&#10003;</text>
+              <view v-else-if="chapter.status === 'playing'" class="w-3 h-3 rounded-full bg-primary animate-pulse"></view>
+              <text v-else class="text-muted-foreground">&#9679;</text>
+            </view>
+            <view class="flex-1 min-w-0 text-left">
+              <view class="flex items-center gap-2">
+                <text :class="['text-sm', chapter.id === currentChapter.id ? 'text-primary font-medium' : 'text-foreground']">{{ chapter.title }}</text>
+                <text v-if="chapter.isFree" class="text-[10px] px-1.5 py-0 rounded bg-green-500/10 text-green-600">试看</text>
+              </view>
+              <text class="text-xs text-muted-foreground block">{{ chapter.duration }}</text>
+            </view>
+            <view @click.stop="downloadChapter(chapter)" class="p-2 rounded-full hover:bg-secondary text-muted-foreground">
+              <text>&#11015;</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 笔记Tab -->
+        <view v-if="activeTab === 'notes'">
+          <!-- 添加笔记 -->
+          <view class="p-4 border-b border-border">
+            <view class="flex gap-2">
+              <input v-model="newNote" placeholder="记录学习心得..." class="flex-1 px-3 py-2 text-sm bg-secondary rounded-lg border-0 text-foreground placeholder:text-muted-foreground" />
+              <view @click="saveNote" :class="['px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg', !newNote.trim() ? 'opacity-50' : '']">
+                <text>保存</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 笔记列表 -->
+          <view v-if="courseData.notes.length > 0" class="divide-y divide-border">
+            <view v-for="note in courseData.notes" :key="note.id" class="p-4">
+              <view class="flex items-center gap-2 mb-2">
+                <text class="text-[10px] px-1.5 py-0 rounded border border-border text-muted-foreground">{{ getChapterTitle(note.chapterId).slice(0, 10) }}...</text>
+                <text class="text-xs text-primary">{{ note.time }}</text>
+                <text class="text-xs text-muted-foreground ml-auto">{{ note.createdAt }}</text>
+              </view>
+              <text class="text-sm text-foreground block">{{ note.content }}</text>
+            </view>
+          </view>
+          <view v-else class="flex flex-col items-center justify-center py-16">
+            <text class="text-4xl text-muted-foreground/50 mb-3">&#128203;</text>
+            <text class="text-muted-foreground text-sm">暂无笔记</text>
+            <text class="text-muted-foreground/70 text-xs mt-1">学习时记录重点，方便复习</text>
+          </view>
+        </view>
+
+        <!-- 问答Tab -->
+        <view v-if="activeTab === 'questions'">
+          <!-- 提问区 -->
+          <view class="p-4 border-b border-border">
+            <view class="flex gap-2">
+              <input v-model="newQuestion" placeholder="向老师提问..." class="flex-1 px-3 py-2 text-sm bg-secondary rounded-lg border-0 text-foreground placeholder:text-muted-foreground" />
+              <view @click="submitQuestion" :class="['px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg', !newQuestion.trim() ? 'opacity-50' : '']">
+                <text>提问</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 问答列表 -->
+          <view v-if="courseData.questions.length > 0" class="divide-y divide-border">
+            <view v-for="qa in courseData.questions" :key="qa.id" class="p-4">
+              <!-- 问题 -->
+              <view class="flex gap-3 mb-3">
+                <view class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                  <text class="text-xs text-foreground">{{ qa.user.name[0] }}</text>
+                </view>
+                <view class="flex-1">
+                  <view class="flex items-center gap-2">
+                    <text class="text-sm font-medium text-foreground">{{ qa.user.name }}</text>
+                    <text class="text-xs text-muted-foreground">{{ qa.time }}</text>
+                  </view>
+                  <text class="text-sm text-foreground mt-1 block">{{ qa.question }}</text>
+                </view>
+              </view>
+              <!-- 回答 -->
+              <view v-if="qa.answer" class="ml-11 p-3 bg-secondary/50 rounded-lg">
+                <view class="flex items-center gap-2 mb-1">
+                  <text class="text-[10px] px-1.5 py-0 rounded bg-primary/10 text-primary">老师回复</text>
+                </view>
+                <text class="text-sm text-muted-foreground block">{{ qa.answer }}</text>
+              </view>
+              <!-- 互动 -->
+              <view class="flex items-center gap-4 mt-2 ml-11">
+                <view class="flex items-center gap-1 text-xs text-muted-foreground">
+                  <text>&#10084;&#65039;</text>
+                  <text>{{ qa.likes }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+          <view v-else class="flex flex-col items-center justify-center py-16">
+            <text class="text-4xl text-muted-foreground/50 mb-3">&#128172;</text>
+            <text class="text-muted-foreground text-sm">暂无问答</text>
+            <text class="text-muted-foreground/70 text-xs mt-1">有问题随时向老师提问</text>
+          </view>
+        </view>
+
+        <!-- 猜你喜欢推荐位 -->
+        <view class="p-4 border-t border-border">
+          <view class="flex items-center justify-between mb-3">
+            <view class="flex items-center gap-2">
+              <text class="text-accent">&#10024;</text>
+              <text class="font-medium text-sm text-foreground">猜你喜欢</text>
+            </view>
+            <view @click="goTo('/pages/courses/index')" class="flex items-center gap-1 text-xs text-muted-foreground">
+              <text>更多课程</text>
+              <text>&#9654;</text>
+            </view>
+          </view>
+          <scroll-view scroll-x class="flex gap-3 pb-2" style="white-space: nowrap;">
+            <view v-for="course in recommendedCourses" :key="course.id" @click="goTo('/pages/course/' + course.id)" class="inline-flex flex-col flex-shrink-0 w-36" style="display: inline-flex;">
+              <view class="bg-white rounded-xl overflow-hidden hover:bg-secondary/50 transition-colors">
+                <view class="aspect-[4/3] bg-secondary flex items-center justify-center">
+                  <text class="text-3xl text-accent/60">&#128214;</text>
+                </view>
+                <view class="p-2">
+                  <text class="text-xs font-medium text-foreground line-clamp-2" style="white-space: normal;">{{ course.title }}</text>
+                  <text class="text-[10px] text-muted-foreground mt-0.5 block">{{ course.instructor }}</text>
+                  <view class="flex items-center justify-between mt-1">
+                    <text class="text-xs text-primary font-medium">¥{{ course.price }}</text>
+                    <text class="text-[10px] text-muted-foreground">{{ course.students }}人学习</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+      </view>
+
+      <!-- 学习完成弹窗 -->
+      <view v-if="showCompletionModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <view class="w-[90%] max-w-sm bg-white rounded-2xl overflow-hidden" style="animation: fadeIn 0.2s ease;">
+          <!-- 头部庆祝 -->
+          <view class="relative bg-gradient-to-br from-accent via-[#C9A96E]/80 to-primary p-6 text-center">
+            <view @click="showCompletionModal = false" class="absolute top-3 right-3 p-1 rounded-full bg-black/20">
+              <text class="text-white">&#10005;</text>
+            </view>
+            <view class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
+              <text class="text-3xl text-white">&#127942;</text>
+            </view>
+            <text class="text-lg font-bold text-white block">恭喜完成学习!</text>
+            <text class="text-sm text-white/80 block mt-1">你已完成《{{ courseData.title }}》全部课程</text>
+          </view>
+
+          <!-- 推荐内容 -->
+          <view class="p-4">
+            <text class="text-xs text-muted-foreground mb-3 block">继续提升，推荐你学习</text>
+
+            <!-- 进阶课程 -->
+            <view @click="goTo('/pages/course/3')" class="block mb-3">
+              <view class="flex items-center gap-3 p-3 bg-white rounded-xl border border-border">
+                <view class="w-14 h-14 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
+                  <text class="text-2xl text-accent">&#128214;</text>
+                </view>
+                <view class="flex-1 min-w-0">
+                  <text class="text-sm font-medium text-foreground line-clamp-1">八字进阶实战课</text>
+                  <text class="text-xs text-muted-foreground block">周易大师 · 进阶课程</text>
+                  <text class="text-xs text-primary mt-0.5 block">¥399</text>
+                </view>
+                <text class="text-muted-foreground">&#9654;</text>
+              </view>
+            </view>
+
+            <!-- 推荐圈子 -->
+            <text class="text-xs text-muted-foreground mb-2 block">加入圈子，与同好交流</text>
+            <view v-for="circle in recommendedCircles" :key="circle.id" @click="goTo('/pages/circles/' + circle.id)" class="block mb-2">
+              <view class="flex items-center gap-3 p-3 bg-white rounded-xl border border-border">
+                <view class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <text class="text-primary">&#128101;</text>
+                </view>
+                <view class="flex-1 min-w-0">
+                  <text class="text-sm font-medium text-foreground">{{ circle.name }}</text>
+                  <text class="text-xs text-muted-foreground block">{{ circle.members }}成员</text>
+                </view>
+                <view class="px-3 py-1 bg-primary text-white text-xs font-medium rounded-full">
+                  <text>加入</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 底部按钮 -->
+          <view class="px-4 pb-4">
+            <view @click="showCompletionModal = false" class="w-full py-3 bg-secondary text-foreground text-sm font-medium rounded-xl text-center">
+              <text>返回课程</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部操作栏 -->
+      <view class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-border" style="padding-bottom: env(safe-area-inset-bottom);">
+        <view class="flex items-center justify-between px-4 h-14">
+          <view class="flex items-center gap-1">
+            <view @click="goToChapter('prev')" :class="['flex items-center gap-1 px-3 py-2 text-sm', currentChapter.id === 1 ? 'text-muted-foreground/50' : 'text-muted-foreground']">
+              <text>&#9194;</text>
+              <text>上一节</text>
+            </view>
+            <view @click="goToChapter('next')" :class="['flex items-center gap-1 px-3 py-2 text-sm', currentChapter.id === courseData.chapters.length ? 'text-muted-foreground/50' : 'text-muted-foreground']">
+              <text>下一节</text>
+              <text>&#9193;</text>
+            </view>
+          </view>
+          <view class="flex items-center gap-2">
+            <view @click="isFavorited = !isFavorited" :class="['p-2 rounded-full', isFavorited ? 'text-primary' : 'text-muted-foreground']">
+              <text>{{ isFavorited ? '&#10084;&#65039;' : '&#129293;' }}</text>
+            </view>
+            <view class="p-2 rounded-full text-muted-foreground">
+              <text>&#128228;</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { onLoad, onUnmounted } from '@dcloudio/uni-app'
+
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+
+// 课程数据
+const courseData = {
+  id: 1,
+  title: '八字命理入门到精通',
+  type: 'video' as 'video' | 'audio' | 'text',
+  instructor: { name: '周易大师', avatar: '' },
+  totalChapters: 12,
+  completedChapters: 3,
+  currentChapter: 4,
+  autoPlay: true,
+  chapters: [
+    { id: 1, title: '第一讲：什么是八字命理', duration: '15:30', status: 'completed', isFree: true },
+    { id: 2, title: '第二讲：天干地支基础', duration: '22:15', status: 'completed', isFree: true },
+    { id: 3, title: '第三讲：五行生克关系', duration: '18:45', status: 'completed', isFree: false },
+    { id: 4, title: '第四讲：十神详解（上）', duration: '25:00', status: 'playing', isFree: false },
+    { id: 5, title: '第五讲：十神详解（下）', duration: '23:30', status: 'locked', isFree: false },
+    { id: 6, title: '第六讲：格局判断方法', duration: '28:15', status: 'locked', isFree: false },
+    { id: 7, title: '第七讲：大运流年分析', duration: '30:00', status: 'locked', isFree: false },
+    { id: 8, title: '第八讲：婚姻感情看法', duration: '26:45', status: 'locked', isFree: false },
+    { id: 9, title: '第九讲：事业财运分析', duration: '24:30', status: 'locked', isFree: false },
+    { id: 10, title: '第十讲：健康疾病判断', duration: '20:15', status: 'locked', isFree: false },
+    { id: 11, title: '第十一讲：综合案例分析', duration: '35:00', status: 'locked', isFree: false },
+    { id: 12, title: '第十二讲：实战练习与答疑', duration: '40:00', status: 'locked', isFree: false },
+  ],
+  notes: [
+    { id: 1, chapterId: 2, time: '05:30', content: '天干：甲乙丙丁戊己庚辛壬癸', createdAt: '2024-01-15' },
+    { id: 2, chapterId: 3, time: '12:15', content: '五行相生：木生火、火生土、土生金、金生水、水生木', createdAt: '2024-01-16' },
+    { id: 3, chapterId: 4, time: '08:20', content: '十神分为：正官、七杀、正印、偏印、比肩、劫财、食神、伤官、正财、偏财', createdAt: '2024-01-18' },
+  ],
+  questions: [
+    { id: 1, chapterId: 4, user: { name: '学员小李', avatar: '' }, question: '老师，十神的记忆有什么技巧吗？', answer: '可以结合五行关系来记忆，生我者为印，我生者为食伤...', time: '2天前', likes: 12 },
+    { id: 2, chapterId: 4, user: { name: '易学爱好者', avatar: '' }, question: '正官和七杀的区别是什么？', answer: '正官为阴阳异性相克，七杀为阴阳同性相克，性质上正官温和，七杀激烈...', time: '3天前', likes: 8 },
+  ],
+  textContent: `
+    <h2>第四讲：十神详解（上）</h2>
+    <p>十神是八字命理中最核心的概念之一，它描述了日干与其他七个字之间的关系。理解十神，是读懂命盘的关键。</p>
+    <h3>一、什么是十神</h3>
+    <p>十神是根据五行生克关系，以日干为中心，推演出的十种关系类型。分别是：</p>
+    <ul>
+      <li><strong>正官</strong>：克我且与我阴阳不同者</li>
+      <li><strong>七杀</strong>：克我且与我阴阳相同者</li>
+      <li><strong>正印</strong>：生我且与我阴阳不同者</li>
+      <li><strong>偏印</strong>：生我且与我阴阳相同者</li>
+      <li><strong>比肩</strong>：与我相同且阴阳相同者</li>
+      <li><strong>劫财</strong>：与我相同且阴阳不同者</li>
+      <li><strong>食神</strong>：我生且与我阴阳相同者</li>
+      <li><strong>伤官</strong>：我生且与我阴阳不同者</li>
+      <li><strong>正财</strong>：我克且与我阴阳不同者</li>
+      <li><strong>偏财</strong>：我克且与我阴阳相同者</li>
+    </ul>
+    <h3>二、十神的基本含义</h3>
+    <p>每个十神都有其特定的象征意义，在分析命盘时需要综合考虑：</p>
+    <p><strong>正官</strong>代表：事业、地位、约束、规范、丈夫（女命）</p>
+    <p><strong>七杀</strong>代表：权力、魄力、压力、小人、情人（女命）</p>
+  `
+}
+
+// 推荐课程数据
+const recommendedCourses = [
+  { id: 2, title: '紫微斗数精讲', instructor: '张玄风', price: 299, students: 856, image: '' },
+  { id: 3, title: '八字进阶实战', instructor: '周易大师', price: 399, students: 1024, image: '' },
+  { id: 4, title: '风水堪舆入门', instructor: '陈风水', price: 199, students: 628, image: '' },
+]
+
+// 推荐圈子数据
+const recommendedCircles = [
+  { id: 1, name: '八字命理研习社', members: 1280, description: '一起探讨命理学问' },
+  { id: 2, name: '周易大师圈', members: 3560, description: '讲师专属交流圈' },
+]
+
+const tabs = [
+  { id: 'chapters', label: '目录', icon: '☰' },
+  { id: 'notes', label: '笔记', icon: '' },
+  { id: 'questions', label: '问答', icon: '' },
+]
+
+const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2]
+
+// 状态
+const activeTab = ref<'chapters' | 'notes' | 'questions'>('chapters')
+const currentChapter = ref(courseData.chapters[3])
+const isPlaying = ref(false)
+const isMuted = ref(false)
+const progress = ref(35)
+const playbackSpeed = ref(1)
+const showSpeedMenu = ref(false)
+const isLoading = ref(false)
+const isFavorited = ref(false)
+const showChapterList = ref(true)
+const newNote = ref('')
+const newQuestion = ref('')
+const autoPlay = ref(courseData.autoPlay)
+const showCompletionModal = ref(false)
+
+const isAllCompleted = computed(() => courseData.chapters.every(c => c.status === 'completed'))
+
+const getChapterTitle = (chapterId: number) => {
+  const ch = courseData.chapters.find(c => c.id === chapterId)
+  return ch ? ch.title : ''
+}
+
+// 格式化播放时间
+const formatTime = (pct: number) => {
+  const minutes = Math.floor(pct * 0.25)
+  const secs = Math.floor((pct * 15) % 60)
+  return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
+// 切换章节
+const switchChapter = (chapter: typeof courseData.chapters[0]) => {
+  if (chapter.status === 'locked' && !chapter.isFree) return
+  isLoading.value = true
+  setTimeout(() => {
+    currentChapter.value = chapter
+    progress.value = 0
+    isPlaying.value = true
+    isLoading.value = false
+  }, 800)
+}
+
+// 上一节/下一节
+const goToChapter = (direction: 'prev' | 'next') => {
+  const currentIndex = courseData.chapters.findIndex(c => c.id === currentChapter.value.id)
+  const targetIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1
+  if (targetIndex >= 0 && targetIndex < courseData.chapters.length) {
+    const targetChapter = courseData.chapters[targetIndex]
+    if (targetChapter.status !== 'locked' || targetChapter.isFree) {
+      switchChapter(targetChapter)
+    }
+  }
+}
+
+// 下载章节
+const downloadChapter = (chapter: typeof courseData.chapters[0]) => {
+  uni.showToast({ title: '开始下载', icon: 'none' })
+}
+
+// 保存笔记
+const saveNote = () => {
+  if (!newNote.value.trim()) return
+  uni.showToast({ title: '笔记已保存', icon: 'success' })
+  newNote.value = ''
+}
+
+// 提交问题
+const submitQuestion = () => {
+  if (!newQuestion.value.trim()) return
+  uni.showToast({ title: '问题已提交', icon: 'success' })
+  newQuestion.value = ''
+}
+</script>
+
+<style scoped>
+.prose-content {
+  font-size: 14px;
+  line-height: 1.75;
+  color: #2C2C2C;
+}
+.prose-content h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  color: #2C2C2C;
+}
+.prose-content h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  color: #2C2C2C;
+}
+.prose-content p {
+  margin-bottom: 12px;
+  color: #666;
+  line-height: 1.75;
+}
+.prose-content ul {
+  padding-left: 20px;
+  margin-bottom: 12px;
+}
+.prose-content li {
+  color: #666;
+  margin-bottom: 4px;
+}
+.prose-content strong {
+  color: #2C2C2C;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+</style>

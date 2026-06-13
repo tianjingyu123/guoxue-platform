@@ -1,0 +1,222 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <view class="sticky top-0 z-10 bg-white border-b border-[#E8E0D5]">
+      <view class="px-4 py-3 flex items-center justify-between">
+        <view class="flex items-center gap-3">
+          <view class="p-1" @click="goBack">
+            <text class="text-[#2C2C2C] text-lg">←</text>
+          </view>
+          <text class="font-semibold text-[#2C2C2C]">驿站订单</text>
+        </view>
+        <view class="p-1" @click="handleRefresh">
+          <text :class="refreshing ? 'animate-spin' : ''" class="text-[#999]">🔄</text>
+        </view>
+      </view>
+
+      <!-- Tab 栏 -->
+      <view class="flex border-t border-[#E8E0D5]">
+        <view
+          v-for="tab in orderTabs"
+          :key="tab.key"
+          class="flex-1 py-3 flex flex-col items-center gap-1 text-sm transition-colors"
+          :style="{ color: activeTab === tab.key ? '#C41E3A' : '#999', borderBottom: activeTab === tab.key ? '2px solid #C41E3A' : '2px solid transparent' }"
+          @click="activeTab = tab.key"
+        >
+          <text>{{ tab.icon }}</text>
+          <text>{{ tab.label }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 订单列表 -->
+    <view class="p-4">
+      <view v-if="loading">
+        <view v-for="i in 3" :key="i" class="bg-white rounded-xl border border-[#E8E0D5] overflow-hidden mb-4">
+          <view class="px-4 py-3 border-b border-[#E8E0D5] flex items-center justify-between">
+            <view class="h-4 w-20 bg-[#F1EDE8] rounded" />
+            <view class="h-4 w-12 bg-[#F1EDE8] rounded" />
+          </view>
+          <view class="p-4 space-y-3">
+            <view class="flex gap-3">
+              <view class="w-16 h-16 rounded-lg bg-[#F1EDE8] flex-shrink-0" />
+              <view class="flex-1 space-y-2">
+                <view class="h-4 w-3/4 bg-[#F1EDE8] rounded" />
+                <view class="h-3 w-1/2 bg-[#F1EDE8] rounded" />
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view v-else-if="orders.length === 0" class="flex flex-col items-center justify-center py-20">
+        <text class="text-5xl text-[#999]/30 block mb-4">📦</text>
+        <text class="text-[#999] block mb-4">{{ emptyLabels[activeTab] || '暂无订单' }}</text>
+        <view class="px-4 py-2 rounded-lg border border-[#E8E0D5] text-sm text-[#2C2C2C]" @click="goToStations">
+          <text>去逛逛驿站</text>
+        </view>
+      </view>
+
+      <view v-else class="space-y-4">
+        <view v-for="order in orders" :key="order.id" class="bg-white rounded-xl border border-[#E8E0D5] overflow-hidden" @click="goToOrderDetail(order.id)">
+          <!-- 订单头部 -->
+          <view class="px-4 py-3 border-b border-[#E8E0D5] flex items-center justify-between">
+            <view class="flex items-center gap-2">
+              <text class="text-[#999]">{{ getTypeIcon(order.type) }}</text>
+              <text class="text-sm text-[#999]">{{ order.stationName }}</text>
+            </view>
+            <view class="px-2 py-0.5 rounded-full text-xs" :style="{ backgroundColor: getOrderStatusColor(order.status), color: '#fff' }">
+              <text>{{ getOrderStatusLabel(order.status) }}</text>
+            </view>
+          </view>
+
+          <!-- 订单内容 -->
+          <view class="p-4">
+            <view v-for="(item, idx) in order.items" :key="item.id" :class="idx > 0 ? 'mt-3 pt-3 border-t border-[#E8E0D5]' : ''">
+              <view class="flex gap-3">
+                <view class="w-16 h-16 rounded-lg bg-[#F1EDE8] flex items-center justify-center flex-shrink-0">
+                  <text class="text-lg text-[#999]">🖼️</text>
+                </view>
+                <view class="flex-1 min-w-0">
+                  <text class="font-medium text-sm text-[#2C2C2C] line-clamp-2 block">{{ item.title }}</text>
+                  <text v-if="item.spec" class="text-xs text-[#999] mt-1 block">{{ item.spec }}</text>
+                  <view class="flex items-center justify-between mt-1">
+                    <text class="font-medium" style="color:#C41E3A">¥{{ item.price }}</text>
+                    <text class="text-xs text-[#999]">x{{ item.quantity }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+            <view v-if="order.scheduleTime" class="mt-3 pt-3 border-t border-[#E8E0D5] flex items-center gap-2 text-sm text-[#999]">
+              <text>🕐</text>
+              <text>预约时间：{{ order.scheduleTime }}</text>
+            </view>
+          </view>
+
+          <!-- 订单底部 -->
+          <view class="px-4 py-3 border-t border-[#E8E0D5] flex items-center justify-between" style="background-color:rgba(241,237,232,0.3)">
+            <view class="text-sm">
+              <text class="text-[#999]">共{{ order.items.reduce((s: number, i: any) => s + i.quantity, 0) }}件</text>
+              <text class="mx-2 text-[#999]">|</text>
+              <text>实付</text>
+              <text class="font-semibold ml-1" style="color:#C41E3A">¥{{ order.payAmount }}</text>
+            </view>
+            <view class="flex gap-2" @click.stop>
+              <view
+                v-for="action in getActions(order.status)"
+                :key="action.key"
+                class="px-3 py-1.5 rounded-lg text-xs"
+                :style="{ backgroundColor: action.primary ? '#C41E3A' : 'transparent', color: action.primary ? '#fff' : '#2C2C2C', border: action.primary ? 'none' : '1px solid #E8E0D5' }"
+                @click="handleOrderAction(order.id, action.key)"
+              >
+                <text>{{ action.label }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const activeTab = ref<string>('all')
+const loading = ref(true)
+const refreshing = ref(false)
+const ordersData = ref<any[]>([])
+
+const orderTabs = [
+  { key: 'all', label: '全部', icon: '📦' },
+  { key: 'course', label: '课程', icon: '📖' },
+  { key: 'product', label: '商品', icon: '🛍️' },
+  { key: 'booking', label: '预约', icon: '📅' },
+]
+
+const emptyLabels: Record<string, string> = {
+  all: '暂无订单',
+  course: '暂无课程订单',
+  product: '暂无商品订单',
+  booking: '暂无预约订单',
+}
+
+onMounted(() => {
+  setTimeout(() => {
+    ordersData.value = [
+      { id: 1, type: 'course', stationName: '北京朝阳驿站', status: 'paid',
+        items: [{ id: 1, title: '八字命理入门实战班（第12期）', spec: '2026-06-15 09:00-17:00', price: 299, quantity: 1 }],
+        payAmount: 299, scheduleTime: '2026-06-15' },
+      { id: 2, type: 'product', stationName: '北京朝阳驿站', status: 'shipped',
+        items: [{ id: 2, title: '滴天髓精解', spec: '精装版', price: 68, quantity: 2 }],
+        payAmount: 136 },
+      { id: 3, type: 'booking', stationName: '上海静安驿站', status: 'pending',
+        items: [{ id: 3, title: '一对一命理咨询', spec: '周易大师', price: 500, quantity: 1 }],
+        payAmount: 500, scheduleTime: '2026-06-20 14:00' },
+    ]
+    loading.value = false
+  }, 500)
+})
+
+const orders = computed(() => {
+  if (activeTab.value === 'all') return ordersData.value
+  return ordersData.value.filter((o: any) => o.type === activeTab.value)
+})
+
+function getTypeIcon(type: string): string {
+  const map: Record<string, string> = { course: '📖', product: '🛍️', booking: '📅' }
+  return map[type] || '📦'
+}
+
+function getOrderStatusLabel(status: string): string {
+  const map: Record<string, string> = { pending: '待付款', paid: '已付款', confirmed: '已确认', shipped: '已发货', completed: '已完成', cancelled: '已取消', refunding: '退款中' }
+  return map[status] || status
+}
+
+function getOrderStatusColor(status: string): string {
+  const map: Record<string, string> = { pending: '#F59E0B', paid: '#3B82F6', confirmed: '#22C55E', shipped: '#22C55E', completed: '#999', cancelled: '#999', refunding: '#EF4444' }
+  return map[status] || '#999'
+}
+
+function getActions(status: string): { key: string; label: string; primary: boolean }[] {
+  const map: Record<string, { key: string; label: string; primary: boolean }[]> = {
+    pending: [
+      { key: 'pay', label: '立即付款', primary: true },
+      { key: 'cancel', label: '取消', primary: false },
+    ],
+    paid: [{ key: 'refund', label: '申请退款', primary: false }],
+    shipped: [{ key: 'confirm', label: '确认收货', primary: true }],
+    completed: [{ key: 'review', label: '评价', primary: false }],
+  }
+  return map[status] || []
+}
+
+function handleOrderAction(orderId: number, action: string) {
+  if (action === 'cancel') {
+    uni.showModal({
+      title: '确定要取消这个订单吗？',
+      success: (res) => { if (res.confirm) uni.showToast({ title: '已取消', icon: 'success' }) },
+    })
+  } else {
+    uni.showToast({ title: action === 'pay' ? '跳转支付...' : '操作成功', icon: 'success' })
+  }
+}
+
+function handleRefresh() {
+  refreshing.value = true
+  setTimeout(() => { refreshing.value = false }, 500)
+}
+
+function goToOrderDetail(id: number) {
+  uni.navigateTo({ url: `/pages/offline/orders/id-detail/index?id=${id}` })
+}
+
+function goToStations() {
+  uni.navigateTo({ url: '/pages/offline/stations/index' })
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

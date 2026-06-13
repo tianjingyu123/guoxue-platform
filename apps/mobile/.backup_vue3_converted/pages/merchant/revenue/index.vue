@@ -1,0 +1,196 @@
+<template>
+  <view class="min-h-screen bg-background pb-20">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-white border-b border-border">
+      <view class="flex items-center justify-between h-14 px-4">
+        <view class="flex items-center gap-3">
+          <view @click="goBack" class="p-1">
+            <text class="text-xl text-foreground">←</text>
+          </view>
+          <text class="text-lg font-semibold">收入管理</text>
+        </view>
+        <view class="p-1">
+          <text></text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 余额卡片 -->
+    <view class="bg-gradient-to-br from-primary to-primary/80 text-white p-4 pb-20">
+      <view class="flex items-center justify-between">
+        <view>
+          <text class="text-sm text-white/80 block">可提现余额(元)</text>
+          <text class="text-3xl font-bold mt-1 block">{{ revenueData.balance.toFixed(2) }}</text>
+        </view>
+        <view class="px-4 py-2 bg-white text-primary rounded-xl text-sm font-medium"> 提现</view>
+      </view>
+      <view class="flex items-center gap-6 mt-4 text-sm">
+        <view>
+          <text class="text-white/70 block">待结算</text>
+          <text class="font-medium">¥{{ revenueData.pendingSettle.toFixed(2) }}</text>
+        </view>
+        <view>
+          <text class="text-white/70 block">冻结中</text>
+          <text class="font-medium">¥{{ revenueData.frozen.toFixed(2) }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 数据概览 -->
+    <view class="px-4 -mt-12">
+      <view class="bg-white rounded-2xl p-4 shadow-lg">
+        <view class="grid grid-cols-3 gap-4">
+          <view class="text-center">
+            <text class="text-lg font-bold text-foreground block">¥{{ (revenueData.totalIncome / 1000).toFixed(1) }}k</text>
+            <text class="text-xs text-muted-foreground mt-0.5 block">累计收入</text>
+          </view>
+          <view class="text-center border-x border-border">
+            <text class="text-lg font-bold text-foreground block">¥{{ revenueData.monthIncome.toFixed(0) }}</text>
+            <text class="text-xs text-muted-foreground mt-0.5 block">本月收入</text>
+          </view>
+          <view class="text-center">
+            <view class="flex items-center justify-center gap-1">
+              <text class="text-green-600 text-lg">📈</text>
+              <text class="text-lg font-bold text-green-600">+{{ revenueData.monthCompare }}%</text>
+            </view>
+            <text class="text-xs text-muted-foreground mt-0.5 block">环比上月</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 收支明细 -->
+    <view class="mt-4 px-4">
+      <view class="flex items-center justify-between mb-3">
+        <text class="font-medium">收支明细</text>
+        <view class="flex items-center gap-1 text-xs text-muted-foreground">
+          <text></text>
+          <text>导出</text>
+        </view>
+      </view>
+
+      <!-- 筛选标签 -->
+      <view class="grid grid-cols-4 h-9 bg-muted rounded-lg p-0.5 mb-3">
+        <view v-for="t in filterTabs" :key="t.key" @click="activeTab = t.key" :class="['inline-flex items-center justify-center whitespace-nowrap rounded-md text-xs font-medium transition-all', activeTab === t.key ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground']">
+          <text>{{ t.label }}</text>
+        </view>
+      </view>
+
+      <view class="space-y-2">
+        <view v-for="item in filteredTransactions" :key="item.id" class="bg-white rounded-xl p-3">
+          <view class="flex items-center gap-3">
+            <view :class="['w-10 h-10 rounded-full flex items-center justify-center', getTypeConfig(item.type).bg]">
+              <text>{{ getTypeConfig(item.type).icon }}</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-2">
+                <text class="text-sm font-medium">{{ item.title }}</text>
+                <text :class="['px-1.5 py-0.5 rounded text-[10px]', getStatusConfig(item.status).bg, getStatusConfig(item.status).text]">{{ getStatusConfig(item.status).label }}</text>
+              </view>
+              <text class="text-xs text-muted-foreground mt-0.5 block">
+                {{ item.orderNo ? '订单: ' + item.orderNo : item.bankCard }}
+              </text>
+            </view>
+            <view class="text-right">
+              <text :class="['font-medium', item.amount > 0 ? 'text-green-600' : 'text-foreground']" block>
+                {{ item.amount > 0 ? '+' : '' }}{{ item.amount.toFixed(2) }}
+              </text>
+              <text class="text-xs text-muted-foreground mt-0.5 block">{{ item.createdAt }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 结算说明 -->
+    <view class="mt-4 px-4">
+      <view class="bg-amber-50 border border-amber-200/50 rounded-2xl p-4">
+        <view class="flex items-start gap-2">
+          <text class="text-amber-600 mt-0.5"></text>
+          <view>
+            <text class="text-sm font-medium text-foreground block">结算说明</text>
+            <text class="text-xs text-muted-foreground mt-1 block">订单完成后7天自动结算到可提现余额，提现到银行卡1-3个工作日到账。</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+const revenueData = {
+  balance: 12680.50,
+  pendingSettle: 2350.00,
+  frozen: 500.00,
+  totalIncome: 56800.00,
+  totalWithdraw: 41769.50,
+  monthIncome: 8560.00,
+  monthCompare: 12.5,
+}
+
+interface Transaction {
+  id: string
+  type: string
+  title: string
+  orderNo?: string
+  bankCard?: string
+  amount: number
+  status: string
+  createdAt: string
+}
+
+const transactions: Transaction[] = [
+  { id: '1', type: 'income', title: '订单收入', orderNo: '202401150001', amount: 136.00, status: 'settled', createdAt: '2024-01-15 14:35' },
+  { id: '2', type: 'income', title: '订单收入', orderNo: '202401140001', amount: 88.00, status: 'pending', createdAt: '2024-01-14 10:25' },
+  { id: '3', type: 'withdraw', title: '提现到银行卡', bankCard: '招商银行 ****8888', amount: -2000.00, status: 'success', createdAt: '2024-01-10 09:00' },
+  { id: '4', type: 'refund', title: '订单退款', orderNo: '202401080001', amount: -199.00, status: 'completed', createdAt: '2024-01-08 15:00' },
+  { id: '5', type: 'fee', title: '平台服务费', orderNo: '202401050001', amount: -29.40, status: 'completed', createdAt: '2024-01-05 00:00' },
+]
+
+const filterTabs = [
+  { key: 'all', label: '全部' },
+  { key: 'income', label: '收入' },
+  { key: 'withdraw', label: '提现' },
+  { key: 'refund', label: '支出' },
+]
+
+const activeTab = ref('all')
+
+const filteredTransactions = computed(() => {
+  if (activeTab.value === 'income') return transactions.filter(t => t.type === 'income')
+  if (activeTab.value === 'withdraw') return transactions.filter(t => t.type === 'withdraw')
+  if (activeTab.value === 'refund') return transactions.filter(t => t.type === 'refund' || t.type === 'fee')
+  return transactions
+})
+
+const typeConfig: Record<string, { icon: string; bg: string }> = {
+  income: { icon: '📈', bg: 'bg-green-50' },
+  withdraw: { icon: '', bg: 'bg-blue-50' },
+  refund: { icon: '📉', bg: 'bg-red-50' },
+  fee: { icon: '', bg: 'bg-orange-50' },
+}
+
+const statusConfig: Record<string, { label: string; bg: string; text: string }> = {
+  settled: { label: '已结算', bg: 'bg-green-100', text: 'text-green-700' },
+  pending: { label: '待结算', bg: 'bg-amber-100', text: 'text-amber-700' },
+  success: { label: '提现成功', bg: 'bg-green-100', text: 'text-green-700' },
+  completed: { label: '已完成', bg: 'bg-gray-100', text: 'text-gray-700' },
+  processing: { label: '处理中', bg: 'bg-blue-100', text: 'text-blue-700' },
+}
+
+function getTypeConfig(type: string) {
+  return typeConfig[type] || { icon: '', bg: 'bg-gray-50' }
+}
+
+function getStatusConfig(status: string) {
+  return statusConfig[status] || { label: '未知', bg: 'bg-gray-100', text: 'text-gray-700' }
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

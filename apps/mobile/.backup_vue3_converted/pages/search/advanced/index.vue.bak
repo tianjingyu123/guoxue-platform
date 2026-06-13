@@ -1,0 +1,385 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- Header -->
+    <view class="sticky top-0 z-20 bg-white border-b border-[#E8E0D5]">
+      <view class="flex items-center gap-3 px-4 py-3">
+        <view @click="goBack" class="p-1">
+          <text class="text-xl text-[#2C2C2C]">←</text>
+        </view>
+        <view class="flex-1 flex items-center gap-2 bg-[#FAF8F5] rounded-full px-4 py-2">
+          <text class="text-sm text-[#999]">🔍</text>
+          <input
+            type="text"
+            :value="filters.keyword"
+            @input="e => updateFilter('keyword', e.detail.value)"
+            placeholder="搜索内容..."
+            class="flex-1 bg-transparent text-sm text-[#2C2C2C]"
+            style="outline:none"
+          />
+          <view v-if="filters.keyword" @click="updateFilter('keyword', '')" class="p-0.5">
+            <text class="text-sm text-[#999]">✕</text>
+          </view>
+        </view>
+        <view @click="performSearch" v-if="filters.keyword" class="text-[#C41E3A] font-medium text-sm">
+          <text>搜索</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Filter Section -->
+    <view class="bg-white border-b border-[#E8E0D5]">
+      <view class="flex items-center gap-2 px-4 py-3" style="overflow-x:auto;white-space:nowrap">
+        <view class="flex items-center gap-1 text-[#C41E3A]">
+          <text class="text-sm">🔧</text>
+          <text class="text-sm font-medium">筛选</text>
+        </view>
+
+        <!-- Time Range -->
+        <view @click="activeFilter=activeFilter==='time'?null:'time'" :class="'flex items-center gap-1 px-3 py-1.5 rounded-full text-sm border ' + (filters.timeRange!=='all' ? 'bg-[#C41E3A]/10 border-[#C41E3A] text-[#C41E3A]' : 'bg-[#FAF8F5] border-transparent text-[#666]')">
+          <text class="text-xs">🕐</text>
+          <text>{{timeRangeOptions.find(o=>o.value===filters.timeRange)?.label||'时间'}}</text>
+          <text :class="'text-xs transition-transform ' + (activeFilter==='time' ? 'rotate-180' : '')">›</text>
+        </view>
+
+        <!-- Content Type -->
+        <view @click="activeFilter=activeFilter==='type'?null:'type'" :class="'flex items-center gap-1 px-3 py-1.5 rounded-full text-sm border ' + (filters.contentType.length>0 ? 'bg-[#C41E3A]/10 border-[#C41E3A] text-[#C41E3A]' : 'bg-[#FAF8F5] border-transparent text-[#666]')">
+          <text class="text-xs">📄</text>
+          <text>类型{{filters.contentType.length>0 ? '('+filters.contentType.length+')' : ''}}</text>
+          <text :class="'text-xs transition-transform ' + (activeFilter==='type' ? 'rotate-180' : '')">›</text>
+        </view>
+
+        <!-- Category -->
+        <view @click="activeFilter=activeFilter==='category'?null:'category'" :class="'flex items-center gap-1 px-3 py-1.5 rounded-full text-sm border ' + (filters.category ? 'bg-[#C41E3A]/10 border-[#C41E3A] text-[#C41E3A]' : 'bg-[#FAF8F5] border-transparent text-[#666]')">
+          <text>{{filters.category ? categoryOptions.find(o=>o.value===filters.category)?.label : '分类'}}</text>
+          <text :class="'text-xs transition-transform ' + (activeFilter==='category' ? 'rotate-180' : '')">›</text>
+        </view>
+
+        <!-- Sort -->
+        <view @click="activeFilter=activeFilter==='sort'?null:'sort'" :class="'flex items-center gap-1 px-3 py-1.5 rounded-full text-sm border ' + (filters.sortBy!=='relevance' ? 'bg-[#C41E3A]/10 border-[#C41E3A] text-[#C41E3A]' : 'bg-[#FAF8F5] border-transparent text-[#666]')">
+          <text>{{sortOptions.find(o=>o.value===filters.sortBy)?.label||'排序'}}</text>
+          <text :class="'text-xs transition-transform ' + (activeFilter==='sort' ? 'rotate-180' : '')">›</text>
+        </view>
+      </view>
+
+      <!-- Filter Dropdown -->
+      <view v-if="activeFilter" class="px-4 py-3 border-t border-[#E8E0D5] bg-[#FAF8F5]">
+        <!-- Time options -->
+        <view v-if="activeFilter==='time'" class="flex flex-wrap gap-2">
+          <view v-for="option in timeRangeOptions" :key="option.value" @click="updateFilter('timeRange',option.value);activeFilter=null" :class="'px-4 py-2 rounded-lg text-sm ' + (filters.timeRange===option.value ? 'bg-[#C41E3A] text-white' : 'bg-white text-[#666] border border-[#E8E0D5]')">
+            <text>{{option.label}}</text>
+          </view>
+        </view>
+
+        <!-- Content Type options -->
+        <view v-if="activeFilter==='type'" class="grid grid-cols-3 gap-2">
+          <view v-for="option in contentTypeOptions" :key="option.value" @click="toggleContentType(option.value)" :class="'flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm ' + (filters.contentType.includes(option.value) ? 'bg-[#C41E3A] text-white' : 'bg-white text-[#666] border border-[#E8E0D5]')">
+            <text class="text-xs">{{getTypeIcon(option.value)}}</text>
+            <text>{{option.label}}</text>
+            <text v-if="filters.contentType.includes(option.value)" class="text-xs">✓</text>
+          </view>
+        </view>
+
+        <!-- Category options -->
+        <view v-if="activeFilter==='category'" class="flex flex-wrap gap-2">
+          <view v-for="option in categoryOptions" :key="option.value" @click="updateFilter('category',option.value);activeFilter=null" :class="'px-4 py-2 rounded-lg text-sm ' + (filters.category===option.value ? 'bg-[#C41E3A] text-white' : 'bg-white text-[#666] border border-[#E8E0D5]')">
+            <text>{{option.label}}</text>
+          </view>
+        </view>
+
+        <!-- Sort options -->
+        <view v-if="activeFilter==='sort'" class="flex flex-wrap gap-2">
+          <view v-for="option in sortOptions" :key="option.value" @click="updateFilter('sortBy',option.value);activeFilter=null" :class="'px-4 py-2 rounded-lg text-sm ' + (filters.sortBy===option.value ? 'bg-[#C41E3A] text-white' : 'bg-white text-[#666] border border-[#E8E0D5]')">
+            <text>{{option.label}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Active Filters Tags -->
+      <view v-if="activeFilters.length>0" class="flex items-center gap-2 px-4 py-2" style="overflow-x:auto">
+        <text class="text-xs text-[#999]" style="white-space:nowrap">已选:</text>
+        <view v-for="(filter,index) in activeFilters" :key="index" class="flex items-center gap-1 px-2 py-1 rounded text-xs" style="background-color:#C41E3A/10;color:#C41E3A;white-space:nowrap">
+          <text>{{filter.label}}</text>
+          <view @click="removeFilter(filter.key, filter.key==='contentType'?filter.value:undefined)" class="p-0.5">
+            <text class="text-xs">✕</text>
+          </view>
+        </view>
+        <view @click="resetFilters" class="flex items-center gap-1 text-xs text-[#999]" style="white-space:nowrap">
+          <text class="text-xs">🔄</text>
+          <text>重置</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Results -->
+    <view class="p-4">
+      <!-- Loading -->
+      <view v-if="loading" class="space-y-4">
+        <view v-for="i in 3" :key="i" class="bg-white rounded-2xl p-4 animate-pulse">
+          <view class="flex gap-3">
+            <view class="w-24 h-16 bg-[#E8E0D5] rounded-lg" style="flex-shrink:0" />
+            <view class="flex-1 space-y-2">
+              <view class="h-4 bg-[#E8E0D5] rounded" style="width:75%" />
+              <view class="h-3 bg-[#E8E0D5] rounded" style="width:100%" />
+              <view class="h-3 bg-[#E8E0D5] rounded" style="width:50%" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Results list -->
+      <view v-else-if="results.length>0">
+        <view class="flex items-center justify-between mb-4">
+          <text class="text-sm text-[#666]">共找到 <text class="text-[#C41E3A] font-medium">{{total}}</text> 条结果</text>
+        </view>
+        <view class="space-y-3">
+          <view v-for="item in results" :key="item.id" class="bg-white rounded-2xl p-4" @click="navigateToDetail(item)">
+            <view class="flex gap-3">
+              <image v-if="item.cover" :src="item.cover" class="w-24 h-16 rounded-lg" style="flex-shrink:0;object-fit:cover" mode="aspectFill" />
+              <view class="flex-1" style="min-width:0">
+                <view class="flex items-center gap-2 mb-1">
+                  <text class="px-1.5 py-0.5 rounded text-xs" style="background-color:#C41E3A/10;color:#C41E3A">
+                    {{getTypeIcon(item.type)}} {{getTypeLabel(item.type)}}
+                  </text>
+                </view>
+                <text class="font-medium text-[#2C2C2C] mb-1" style="display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden">{{item.title}}</text>
+                <text class="text-sm text-[#666]" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{item.summary}}</text>
+                <view v-if="item.author" class="flex items-center gap-2 mt-2">
+                  <image :src="item.author.avatar" class="w-5 h-5 rounded-full" mode="aspectFill" />
+                  <text class="text-xs text-[#999]">{{item.author.name}}</text>
+                  <text class="text-xs text-[#999]">{{item.createdAt}}</text>
+                  <text v-if="item.stats" class="text-xs text-[#999]">{{item.stats.views}}阅读 · {{item.stats.likes}}赞</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- No results -->
+      <view v-else-if="filters.keyword" class="flex flex-col items-center justify-center py-20">
+        <view class="w-24 h-24 rounded-full flex items-center justify-center mb-4" style="background-color:#E8E0D5">
+          <text class="text-2xl text-[#999]">🔍</text>
+        </view>
+        <text class="text-[#666] mb-2">未找到相关结果</text>
+        <text class="text-sm text-[#999]">试试调整筛选条件或更换关键词</text>
+      </view>
+
+      <!-- Initial state -->
+      <view v-else class="flex flex-col items-center justify-center py-20">
+        <view class="w-24 h-24 rounded-full flex items-center justify-center mb-4" style="background-color:#E8E0D5">
+          <text class="text-2xl text-[#999]">🔍</text>
+        </view>
+        <text class="text-[#666] mb-2">输入关键词开始搜索</text>
+        <text class="text-sm text-[#999]">使用筛选条件精确查找内容</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface FilterState {
+  keyword: string
+  timeRange: string
+  contentType: string[]
+  author: string
+  circle: string
+  category: string
+  sortBy: string
+}
+
+const defaultFilters: FilterState = {
+  keyword: '',
+  timeRange: 'all',
+  contentType: [],
+  author: '',
+  circle: '',
+  category: '',
+  sortBy: 'relevance'
+}
+
+const timeRangeOptions = [
+  { value: 'all', label: '全部时间' },
+  { value: 'today', label: '今天' },
+  { value: 'week', label: '最近一周' },
+  { value: 'month', label: '最近一月' },
+  { value: 'year', label: '最近一年' },
+  { value: 'custom', label: '自定义' }
+]
+
+const contentTypeOptions = [
+  { value: 'article', label: '文章' },
+  { value: 'post', label: '动态' },
+  { value: 'course', label: '课程' },
+  { value: 'product', label: '商品' },
+  { value: 'user', label: '用户' },
+  { value: 'video', label: '视频' }
+]
+
+const categoryOptions = [
+  { value: '', label: '全部分类' },
+  { value: 'yijing', label: '易经' },
+  { value: 'fengshui', label: '风水' },
+  { value: 'bazi', label: '八字' },
+  { value: 'meihua', label: '梅花' },
+  { value: 'liuyao', label: '六爻' },
+  { value: 'qimen', label: '奇门' }
+]
+
+const sortOptions = [
+  { value: 'relevance', label: '相关度' },
+  { value: 'latest', label: '最新发布' },
+  { value: 'popular', label: '最热门' },
+  { value: 'comments', label: '评论最多' }
+]
+
+const filters = ref<FilterState>({ ...defaultFilters })
+const activeFilter = ref<string | null>(null)
+const results = ref<any[]>([])
+const loading = ref(false)
+const total = ref(0)
+
+function performSearch() {
+  if (!filters.value.keyword.trim()) return
+  loading.value = true
+  setTimeout(() => {
+    results.value = [
+      {
+        id: '1', type: 'article',
+        title: `${filters.value.keyword}入门指南`,
+        summary: `关于${filters.value.keyword}的详细讲解，从基础概念到实际应用...`,
+        cover: '',
+        author: { name: '易学大师', avatar: '' },
+        createdAt: '2024-01-15',
+        stats: { views: 1234, likes: 89, comments: 23 }
+      },
+      {
+        id: '2', type: 'course',
+        title: `${filters.value.keyword}实战课程`,
+        summary: `系统学习${filters.value.keyword}，掌握核心技巧...`,
+        cover: '',
+        author: { name: '国学名师', avatar: '' },
+        createdAt: '2024-01-10',
+        stats: { views: 5678, likes: 456, comments: 78 }
+      },
+      {
+        id: '3', type: 'post',
+        title: `分享我的${filters.value.keyword}学习心得`,
+        summary: `经过三个月的学习，终于有了一些感悟...`,
+        author: { name: '学习者小王', avatar: '' },
+        createdAt: '2024-01-20',
+        stats: { views: 234, likes: 45, comments: 12 }
+      }
+    ]
+    total.value = 156
+    loading.value = false
+  }, 500)
+}
+
+function updateFilter(key: string, value: string | string[]) {
+  (filters.value as any)[key] = value
+  if (key === 'keyword' && value) {
+    performSearch()
+  }
+}
+
+function toggleContentType(type: string) {
+  const idx = filters.value.contentType.indexOf(type)
+  if (idx > -1) {
+    filters.value.contentType.splice(idx, 1)
+  } else {
+    filters.value.contentType.push(type)
+  }
+}
+
+function resetFilters() {
+  const kw = filters.value.keyword
+  filters.value = { ...defaultFilters, keyword: kw }
+}
+
+const activeFilters = computed(() => {
+  const active: { key: string; label: string; value: string }[] = []
+  if (filters.value.timeRange !== 'all') {
+    const option = timeRangeOptions.find(o => o.value === filters.value.timeRange)
+    if (option) active.push({ key: 'timeRange', label: option.label, value: filters.value.timeRange })
+  }
+  filters.value.contentType.forEach(type => {
+    const option = contentTypeOptions.find(o => o.value === type)
+    if (option) active.push({ key: 'contentType', label: option.label, value: type })
+  })
+  if (filters.value.author) {
+    active.push({ key: 'author', label: `作者: ${filters.value.author}`, value: filters.value.author })
+  }
+  if (filters.value.circle) {
+    active.push({ key: 'circle', label: `圈子: ${filters.value.circle}`, value: filters.value.circle })
+  }
+  if (filters.value.category) {
+    const option = categoryOptions.find(o => o.value === filters.value.category)
+    if (option) active.push({ key: 'category', label: option.label, value: filters.value.category })
+  }
+  if (filters.value.sortBy !== 'relevance') {
+    const option = sortOptions.find(o => o.value === filters.value.sortBy)
+    if (option) active.push({ key: 'sortBy', label: `排序: ${option.label}`, value: filters.value.sortBy })
+  }
+  return active
+})
+
+function removeFilter(key: string, value?: string) {
+  if (key === 'contentType' && value) {
+    toggleContentType(value)
+  } else if (key === 'timeRange') {
+    updateFilter('timeRange', 'all')
+  } else if (key === 'sortBy') {
+    updateFilter('sortBy', 'relevance')
+  } else {
+    updateFilter(key, '')
+  }
+}
+
+function getTypeIcon(type: string) {
+  const icons: Record<string, string> = {
+    article: '📄', post: '👥', course: '📚',
+    product: '🛍', user: '👤', video: '📄'
+  }
+  return icons[type] || '📄'
+}
+
+function getTypeLabel(type: string) {
+  const labels: Record<string, string> = {
+    article: '文章', post: '动态', course: '课程',
+    product: '商品', user: '用户', video: '视频'
+  }
+  return labels[type] || type
+}
+
+function navigateToDetail(item: any) {
+  uni.navigateTo({ url: `/pages/${item.type}s/${item.id}/index` })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+onMounted(() => {
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1] as any
+  if (currentPage?.$page?.options) {
+    const opts = currentPage.$page.options
+    if (opts.keyword) {
+      filters.value.keyword = opts.keyword
+      performSearch()
+    }
+    if (opts.timeRange) updateFilter('timeRange', opts.timeRange)
+    if (opts.sortBy) updateFilter('sortBy', opts.sortBy)
+    if (opts.category) updateFilter('category', opts.category)
+    if (opts.contentType) {
+      filters.value.contentType = opts.contentType.split(',')
+    }
+  }
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

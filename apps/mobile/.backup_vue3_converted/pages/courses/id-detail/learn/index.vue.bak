@@ -1,0 +1,407 @@
+<template>
+  <view class="min-h-screen" style="background-color: #FAF8F5; padding-bottom: 192rpx;">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-40" style="background-color: #FFFFFF; border-bottom: 2rpx solid #E8E0D5;">
+      <view class="flex items-center" style="padding: 0 32rpx; height: 88rpx;">
+        <view @click="goBack" style="padding: 8rpx;">
+          <text style="font-size: 40rpx; color: #2C2C2C;">←</text>
+        </view>
+        <text style="flex: 1; text-align: center; font-size: 30rpx; font-weight: 500; color: #2C2C2C; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 32rpx;">
+          {{ mockCourse.title }}
+        </text>
+        <view style="width: 48rpx;" />
+      </view>
+    </view>
+
+    <!-- 骨架屏 -->
+    <view v-if="isLoading" class="min-h-screen" style="background-color: #FAF8F5;">
+      <view style="background-color: #FFFFFF; padding: 32rpx;">
+        <view class="flex items-center" style="gap: 32rpx;">
+          <view style="width: 160rpx; height: 160rpx; border-radius: 50%; background-color: #F0EBE5;" />
+          <view style="flex: 1;">
+            <view style="height: 40rpx; background-color: #F0EBE5; border-radius: 8rpx; width: 75%; margin-bottom: 16rpx;" />
+            <view style="height: 32rpx; background-color: #F0EBE5; border-radius: 8rpx; width: 50%;" />
+          </view>
+        </view>
+      </view>
+      <view style="padding: 32rpx;">
+        <view v-for="i in 4" :key="i" style="height: 160rpx; background-color: #FFFFFF; border-radius: 16rpx; margin-bottom: 24rpx;" />
+      </view>
+    </view>
+
+    <template v-else>
+      <!-- 课程信息 + 进度 -->
+      <view style="background-color: #FFFFFF; padding: 32rpx; border-bottom: 2rpx solid #E8E0D5;">
+        <view class="flex items-center" style="gap: 32rpx;">
+          <!-- 进度环 SVG -->
+          <view style="position: relative; width: 160rpx; height: 160rpx;">
+            <svg class="transform -rotate-90" width="160" height="160">
+              <circle cx="80" cy="80" r="74" fill="none" stroke="#E8E0D5" stroke-width="12" />
+              <circle cx="80" cy="80" r="74" fill="none" stroke="#C41E3A" stroke-width="12"
+                :stroke-dasharray="String(circumference)" :stroke-dashoffset="String(strokeDashoffset)"
+                stroke-linecap="round" style="transition: all 0.5s;" />
+            </svg>
+            <view style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;">
+              <text style="font-size: 32rpx; font-weight: 700; color: #C41E3A;">{{ mockProgress.progressPercent }}%</text>
+            </view>
+          </view>
+          <view style="flex: 1;">
+            <text style="font-size: 30rpx; font-weight: 700; color: #2C2C2C; margin-bottom: 8rpx; display: block;">{{ mockCourse.title }}</text>
+            <view class="flex items-center" style="gap: 16rpx; margin-bottom: 16rpx;">
+              <image :src="mockCourse.instructor.avatar" mode="aspectFill" style="width: 40rpx; height: 40rpx; border-radius: 50%;" />
+              <text style="font-size: 22rpx; color: #666666;">{{ mockCourse.instructor.name }}</text>
+            </view>
+            <view class="flex items-center" style="gap: 24rpx; font-size: 20rpx; color: #999999;">
+              <text>已学 {{ mockProgress.completedLessons.length }}/{{ mockProgress.totalLessons }} 节</text>
+              <text>·</text>
+              <text style="display: flex; align-items: center; gap: 8rpx;">
+                <text style="font-size: 20rpx;">🕐</text>
+                {{ Math.floor(mockProgress.studyTime / 60) }}小时{{ mockProgress.studyTime % 60 }}分钟
+              </text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Tab 切换 -->
+      <view class="sticky z-30" style="top: 88rpx; background-color: #FFFFFF; border-bottom: 2rpx solid #E8E0D5;">
+        <view class="flex">
+          <view v-for="tab in tabs" :key="tab.id" @click="activeTab = tab.id as any"
+            :style="{
+              flex: 1,
+              padding: '24rpx 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12rpx',
+              borderBottom: '4rpx solid',
+              borderBottomColor: activeTab === tab.id ? '#C41E3A' : 'transparent',
+              color: activeTab === tab.id ? '#C41E3A' : '#666666'
+            }">
+            <text style="font-size: 24rpx;">{{ tab.icon }}</text>
+            <text style="font-size: 24rpx; font-weight: 500;">{{ tab.label }}</text>
+            <text :style="{
+              fontSize: '20rpx',
+              padding: '4rpx 12rpx',
+              borderRadius: '999rpx',
+              backgroundColor: activeTab === tab.id ? 'rgba(196,30,58,0.1)' : '#F5F0E8'
+            }">
+              {{ tab.count }}
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Tab 内容区域 -->
+      <view style="padding: 32rpx;">
+        <!-- ====== 目录 Tab ====== -->
+        <view v-if="activeTab === 'catalog'" style="background-color: #FFFFFF; border-radius: 16rpx; overflow: hidden;">
+          <view v-for="chapter in mockChapters" :key="chapter.id" style="border-bottom: 2rpx solid #E8E0D5; border-bottom-width: 0; border-bottom-style: solid;">
+            <!-- Chapter header -->
+            <view @click="toggleChapter(chapter.id)"
+              style="width: 100%; padding: 24rpx 32rpx; display: flex; align-items: center; justify-content: space-between;">
+              <view class="flex items-center" style="gap: 24rpx;">
+                <!-- Completion indicator -->
+                <view :style="{
+                  width: '48rpx',
+                  height: '48rpx',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: isChapterCompleted(chapter) ? 'rgba(196,30,58,0.1)' : '#F0EBE5'
+                }">
+                  <template v-if="isChapterCompleted(chapter)">
+                    <text style="font-size: 28rpx; color: #C41E3A;">✓</text>
+                  </template>
+                  <template v-else>
+                    <text style="font-size: 18rpx; font-weight: 700; color: #666666;">
+                      {{ getCompletedCount(chapter) }}/{{ getTotalCount(chapter) }}
+                    </text>
+                  </template>
+                </view>
+                <view>
+                  <text style="font-size: 26rpx; font-weight: 500; color: #2C2C2C; display: block;">{{ chapter.title }}</text>
+                  <text style="font-size: 22rpx; color: #999999;">{{ chapter.lessons?.length || 0 }}节 · {{ chapter.duration }}分钟</text>
+                </view>
+              </view>
+              <text style="font-size: 36rpx; color: #999999;">{{ expandedChapters.has(chapter.id) ? '↑' : '↓' }}</text>
+            </view>
+
+            <!-- Expanded lesson list -->
+            <view v-if="expandedChapters.has(chapter.id) && chapter.lessons" style="background-color: #FAFAFA; padding: 0 32rpx 16rpx 32rpx;">
+              <view v-for="(lesson, idx) in chapter.lessons" :key="lesson.id" @click="handleLessonClick(lesson.id)"
+                style="width: 100%; padding: 20rpx 0; display: flex; align-items: center; gap: 24rpx; border-bottom: 2rpx solid rgba(232,224,213,0.5);">
+                <view style="width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center;">
+                  <text v-if="lesson.isCompleted" style="font-size: 28rpx; color: #C41E3A;">✓</text>
+                  <text v-else-if="!chapter.isFree && !lesson.isFree" style="font-size: 28rpx; color: #999999;">🔒</text>
+                  <text v-else style="font-size: 28rpx; color: #666666;">▶</text>
+                </view>
+                <view style="flex: 1;">
+                  <text :style="{ fontSize: '24rpx', color: lesson.isCompleted ? '#999999' : '#2C2C2C' }">
+                    {{ idx + 1 }}. {{ lesson.title }}
+                  </text>
+                </view>
+                <view class="flex items-center" style="gap: 16rpx;">
+                  <text v-if="lesson.isFree" style="font-size: 18rpx; color: #52C41A; background-color: rgba(82,196,26,0.1); padding: 4rpx 12rpx; border-radius: 8rpx;">试看</text>
+                  <text style="font-size: 20rpx; color: #999999;">{{ lesson.duration }}分钟</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- ====== 笔记 Tab ====== -->
+        <view v-if="activeTab === 'notes'">
+          <view v-if="mockNotes.length > 0" style="display: flex; flex-direction: column; gap: 24rpx;">
+            <view v-for="note in mockNotes" :key="note.id" style="background-color: #FFFFFF; border-radius: 16rpx; padding: 24rpx;">
+              <view class="flex items-start" style="gap: 16rpx; margin-bottom: 16rpx;">
+                <text style="font-size: 28rpx; color: #C9A96E; margin-top: 4rpx; flex-shrink: 0;">📄</text>
+                <view style="flex: 1;">
+                  <text style="font-size: 22rpx; color: #C41E3A; display: block;">{{ note.chapterTitle }}</text>
+                  <text style="font-size: 20rpx; color: #999999;">
+                    {{ note.lessonTitle }}
+                    <text v-if="note.timestamp !== undefined"> · {{ formatTimestamp(note.timestamp) }}</text>
+                  </text>
+                </view>
+              </view>
+              <text style="font-size: 24rpx; color: #2C2C2C; line-height: 1.6; display: block; padding-left: 44rpx;">{{ note.content }}</text>
+              <text style="font-size: 20rpx; color: #999999; margin-top: 16rpx; display: block; padding-left: 44rpx;">{{ note.createdAt }}</text>
+            </view>
+          </view>
+          <view v-else style="text-align: center; padding: 96rpx 0;">
+            <text style="font-size: 96rpx; color: #E8E0D5;">📄</text>
+            <text style="font-size: 26rpx; color: #999999; display: block; margin-top: 24rpx;">暂无笔记</text>
+            <text style="font-size: 22rpx; color: #BBBBBB; margin-top: 8rpx;">学习时可以随时记录笔记</text>
+          </view>
+        </view>
+
+        <!-- ====== 问答 Tab ====== -->
+        <view v-if="activeTab === 'questions'" style="display: flex; flex-direction: column; gap: 24rpx;">
+          <!-- 提问按钮 -->
+          <view @click="showAskModal = true"
+            style="width: 100%; padding: 24rpx 0; background-color: #FFFFFF; border-radius: 16rpx; border: 2rpx dashed #C41E3A; display: flex; align-items: center; justify-content: center; gap: 16rpx; color: #C41E3A; font-size: 24rpx; font-weight: 500;">
+            <text style="font-size: 28rpx;">💬</text>
+            <text>我要提问</text>
+          </view>
+          <!-- 问题列表 -->
+          <view v-for="q in mockQuestions" :key="q.id" style="background-color: #FFFFFF; border-radius: 16rpx; padding: 24rpx;">
+            <view class="flex items-start" style="gap: 20rpx;">
+              <image :src="q.author.avatar" mode="aspectFill" style="width: 64rpx; height: 64rpx; border-radius: 50%; flex-shrink: 0;" />
+              <view style="flex: 1;">
+                <view class="flex items-center justify-between" style="margin-bottom: 8rpx;">
+                  <text style="font-size: 22rpx; font-weight: 500; color: #2C2C2C;">{{ q.author.name }}</text>
+                  <text style="font-size: 20rpx; color: #999999;">{{ q.createdAt }}</text>
+                </view>
+                <text style="font-size: 24rpx; color: #2C2C2C; line-height: 1.6; margin-bottom: 16rpx; display: block;">{{ q.content }}</text>
+                <view class="flex items-center" style="gap: 24rpx;">
+                  <text style="font-size: 20rpx; color: #999999;">{{ q.chapterTitle }}</text>
+                  <text style="font-size: 20rpx; color: #C41E3A;">{{ q.answers }}条回答</text>
+                  <text v-if="q.isAnswered" style="font-size: 18rpx; color: #FFFFFF; background-color: #52C41A; padding: 4rpx 12rpx; border-radius: 8rpx;">已解答</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部继续学习按钮 -->
+      <view style="position: fixed; bottom: 0; left: 0; right: 0; background-color: #FFFFFF; border-top: 2rpx solid #E8E0D5; padding: 32rpx; padding-bottom: 64rpx;">
+        <view @click="handleLessonClick(mockProgress.lastLesson?.id || 'l1')"
+          style="width: 100%; padding: 24rpx 0; background: linear-gradient(135deg, #C41E3A, #E74C3C); color: #FFFFFF; font-size: 30rpx; font-weight: 700; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; box-shadow: 0 8rpx 32rpx rgba(196,30,58,0.3);">
+          <text style="font-size: 36rpx;">▶</text>
+          <text>继续学习 · {{ mockProgress.lastLesson?.title }}</text>
+        </view>
+      </view>
+
+      <!-- 提问弹窗 -->
+      <view v-if="showAskModal" style="position: fixed; inset: 0; z-index: 999; background-color: rgba(0,0,0,0.5); display: flex; align-items: flex-end;">
+        <view style="width: 100%; background-color: #FFFFFF; border-radius: 24rpx 24rpx 0 0; padding: 32rpx; padding-bottom: 64rpx;">
+          <view class="flex items-center justify-between" style="margin-bottom: 32rpx;">
+            <text style="font-size: 30rpx; font-weight: 700; color: #2C2C2C;">我要提问</text>
+            <view @click="closeAskModal" style="padding: 8rpx;">
+              <text style="font-size: 36rpx; color: #999999;">✕</text>
+            </view>
+          </view>
+          <textarea v-model="questionContent" placeholder="请输入您的问题..."
+            style="width: 100%; height: 256rpx; padding: 24rpx; background-color: #F5F0E8; border-radius: 16rpx; font-size: 26rpx; color: #2C2C2C;"
+            placeholder-style="color: #999999;" />
+          <view @click="submitQuestion"
+            :style="{
+              width: '100%',
+              marginTop: '32rpx',
+              padding: '24rpx 0',
+              borderRadius: '999rpx',
+              fontSize: '26rpx',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '16rpx',
+              backgroundColor: questionContent.trim() ? '#C41E3A' : '#E8E0D5',
+              color: questionContent.trim() ? '#FFFFFF' : '#999999'
+            }">
+            <text style="font-size: 28rpx;">📨</text>
+            <text>提交问题</text>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const mockCourse = {
+  id: '1',
+  title: '八字命理入门到精通',
+  cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
+  instructor: { id: '1', name: '李明远', avatar: 'https://i.pravatar.cc/100?img=11', title: '资深命理师' },
+  totalLessons: 32,
+  totalDuration: 1920,
+}
+
+const mockProgress = {
+  courseId: '1',
+  completedLessons: ['l1', 'l2', 'l3', 'l4', 'l5'] as string[],
+  totalLessons: 32,
+  progressPercent: 15,
+  lastLesson: { id: 'l6', chapterId: 'c2', title: '天干地支的阴阳属性' },
+  studyTime: 180,
+}
+
+interface Lesson {
+  id: string
+  title: string
+  duration: number
+  isFree: boolean
+  isCompleted: boolean
+}
+
+interface Chapter {
+  id: string
+  title: string
+  duration: number
+  isFree: boolean
+  lessons: Lesson[]
+}
+
+const mockChapters: Chapter[] = [
+  {
+    id: 'c1', title: '第一章 八字基础概念', duration: 180, isFree: true,
+    lessons: [
+      { id: 'l1', title: '什么是八字命理', duration: 15, isFree: true, isCompleted: true },
+      { id: 'l2', title: '八字的起源与发展', duration: 18, isFree: true, isCompleted: true },
+      { id: 'l3', title: '四柱八字的构成', duration: 20, isFree: true, isCompleted: true },
+    ],
+  },
+  {
+    id: 'c2', title: '第二章 天干地支详解', duration: 240, isFree: false,
+    lessons: [
+      { id: 'l4', title: '十天干基础', duration: 25, isFree: false, isCompleted: true },
+      { id: 'l5', title: '十二地支基础', duration: 25, isFree: false, isCompleted: true },
+      { id: 'l6', title: '天干地支的阴阳属性', duration: 22, isFree: false, isCompleted: false },
+      { id: 'l7', title: '干支的五行属性', duration: 28, isFree: false, isCompleted: false },
+    ],
+  },
+  {
+    id: 'c3', title: '第三章 排盘方法', duration: 300, isFree: false,
+    lessons: [
+      { id: 'l8', title: '年柱的推算', duration: 30, isFree: false, isCompleted: false },
+      { id: 'l9', title: '月柱的推算', duration: 32, isFree: false, isCompleted: false },
+      { id: 'l10', title: '日柱的推算', duration: 28, isFree: false, isCompleted: false },
+    ],
+  },
+]
+
+const mockNotes = [
+  { id: 'n1', content: '八字由年、月、日、时四柱组成，每柱包含天干地支，共八个字。', chapterId: 'c1', chapterTitle: '第一章 八字基础概念', lessonTitle: '四柱八字的构成', createdAt: '2024-01-15' },
+  { id: 'n2', content: '十天干：甲乙丙丁戊己庚辛壬癸。其中甲丙戊庚壬为阳干，乙丁己辛癸为阴干。', chapterId: 'c2', chapterTitle: '第二章 天干地支详解', lessonTitle: '十天干基础', timestamp: 320, createdAt: '2024-01-16' },
+  { id: 'n3', content: '十二地支：子丑寅卯辰巳午未申酉戌亥。对应十二生肖。', chapterId: 'c2', chapterTitle: '第二章 天干地支详解', lessonTitle: '十二地支基础', timestamp: 180, createdAt: '2024-01-16' },
+]
+
+const mockQuestions = [
+  { id: 'q1', content: '请问老师，为什么说八字中日柱最重要？', author: { id: 'u1', name: '学习者小王', avatar: 'https://i.pravatar.cc/100?img=33' }, chapterTitle: '第一章', createdAt: '2024-01-18', answers: 3, isAnswered: true },
+  { id: 'q2', content: '天干地支的阴阳划分有什么实际应用意义？', author: { id: 'u2', name: '命理新手', avatar: 'https://i.pravatar.cc/100?img=44' }, chapterTitle: '第二章', createdAt: '2024-01-17', answers: 5, isAnswered: true },
+  { id: 'q3', content: '如何判断一个八字的五行是否平衡？', author: { id: 'u3', name: '易学爱好者', avatar: 'https://i.pravatar.cc/100?img=55' }, chapterTitle: '第三章', createdAt: '2024-01-16', answers: 0, isAnswered: false },
+]
+
+const isLoading = ref(true)
+const activeTab = ref<'catalog' | 'notes' | 'questions'>('catalog')
+const expandedChapters = ref<Set<string>>(new Set(['c1', 'c2']))
+const showAskModal = ref(false)
+const questionContent = ref('')
+
+const radius = 74
+const circumference = Math.round(radius * 2 * Math.PI)
+const strokeDashoffset = computed(() => circumference - (mockProgress.progressPercent / 100) * circumference)
+
+const tabs = [
+  { id: 'catalog', label: '目录', icon: '📖', count: mockChapters.length },
+  { id: 'notes', label: '笔记', icon: '📄', count: mockNotes.length },
+  { id: 'questions', label: '问答', icon: '💬', count: mockQuestions.length },
+]
+
+onMounted(() => {
+  setTimeout(() => { isLoading.value = false }, 800)
+})
+
+function isChapterCompleted(chapter: Chapter): boolean {
+  const completed = chapter.lessons?.filter(l => l.isCompleted).length || 0
+  const total = chapter.lessons?.length || 0
+  return completed === total && total > 0
+}
+
+function getCompletedCount(chapter: Chapter): number {
+  return chapter.lessons?.filter(l => l.isCompleted).length || 0
+}
+
+function getTotalCount(chapter: Chapter): number {
+  return chapter.lessons?.length || 0
+}
+
+function formatTimestamp(seconds: number): string {
+  const min = Math.floor(seconds / 60)
+  const sec = seconds % 60
+  return `${min}:${sec.toString().padStart(2, '0')}`
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+function toggleChapter(id: string) {
+  const next = new Set(expandedChapters.value)
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    next.add(id)
+  }
+  expandedChapters.value = next
+}
+
+function handleLessonClick(lessonId: string) {
+  uni.navigateTo({ url: `/pages/courses/id-detail/player/index?lesson=${lessonId}&courseId=${mockCourse.id}` })
+}
+
+function closeAskModal() {
+  showAskModal.value = false
+  questionContent.value = ''
+}
+
+function submitQuestion() {
+  if (questionContent.value.trim()) {
+    uni.showToast({ title: '问题已提交', icon: 'success' })
+    questionContent.value = ''
+    showAskModal.value = false
+  }
+}
+</script>
+
+<style scoped>
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.items-start { align-items: flex-start; }
+</style>

@@ -1,0 +1,362 @@
+<template>
+  <view class="min-h-screen" style="background-color: #FAF8F5; padding-bottom: 24px;">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-40" style="background-color: rgba(250,248,245,0.95); border-bottom: 1px solid #E8E0D5;">
+      <view class="flex items-center justify-between px-4" style="height: 56px;">
+        <view @click="goBack" class="p-2 -ml-2 rounded-full" style="cursor: pointer;">
+          <text style="font-size: 18px; color: #2C2C2C; line-height: 1;">←</text>
+        </view>
+        <text class="font-semibold text-base" style="color: #2C2C2C;">我的收藏</text>
+        <text @click="toggleEditMode" class="text-sm" style="color: #C41E3A; cursor: pointer;">
+          {{ isEditMode ? '完成' : '管理' }}
+        </text>
+      </view>
+
+      <!-- 分类Tab (V0 一致: 水平滑动) -->
+      <scroll-view scroll-x class="px-4 py-2" style="white-space: nowrap;">
+        <view
+          v-for="tab in tabs"
+          :key="tab.id"
+          @click="switchTab(tab.id)"
+          class="inline-block px-4 py-1.5 rounded-full text-sm font-medium mr-2"
+          :style="{
+            backgroundColor: activeTab === tab.id ? '#C41E3A' : '#F5F1EB',
+            color: activeTab === tab.id ? '#FFFFFF' : '#999',
+            cursor: 'pointer',
+          }"
+        >
+          <text>{{ tab.name }}</text>
+          <text class="ml-1" style="opacity: 0.7;">{{ tab.count }}</text>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 编辑模式选中的操作栏 -->
+    <view v-if="isEditMode" class="flex items-center justify-between px-4 py-2" style="background-color: rgba(240,235,229,0.3);">
+      <view @click="handleSelectAll" class="flex items-center gap-2" style="cursor: pointer;">
+        <view
+          class="w-5 h-5 rounded border flex items-center justify-center"
+          :style="{
+            backgroundColor: selectedIds.length === favorites.length ? '#C41E3A' : 'transparent',
+            borderColor: selectedIds.length === favorites.length ? '#C41E3A' : '#999',
+          }"
+        >
+          <text v-if="selectedIds.length === favorites.length" class="text-white text-xs">✓</text>
+        </view>
+        <text class="text-sm" style="color: #999;">{{ selectedIds.length === favorites.length ? '取消全选' : '全选' }}</text>
+      </view>
+      <view class="flex items-center gap-3">
+        <text
+          @click="handleBatchRemove"
+          class="text-sm"
+          :style="{ color: '#ef4444', opacity: selectedIds.length === 0 ? 0.5 : 1, cursor: 'pointer' }"
+        >删除</text>
+      </view>
+    </view>
+
+    <!-- 刷新按钮 -->
+    <view class="flex justify-center py-2">
+      <view @click="handleRefresh" class="flex items-center gap-2 text-xs" style="color: #999; cursor: pointer;">
+        <text :class="isRefreshing ? 'animate-spin-custom' : ''" style="font-size: 12px;"></text>
+        <text>{{ isRefreshing ? '刷新中...' : '下拉刷新' }}</text>
+      </view>
+    </view>
+
+    <!-- 收藏列表 -->
+    <view class="px-4 space-y-3 mt-1">
+      <!-- 骨架屏 (5项) -->
+      <view v-if="isLoading" class="space-y-3">
+        <view v-for="i in 5" :key="i" class="flex gap-3 p-3 rounded-xl" style="border: 1px solid #E8E0D5;">
+          <view class="w-16 h-16 rounded-lg flex-shrink-0 skeleton-pulse" style="background-color: #F5F1EB;" />
+          <view class="flex-1 space-y-2">
+            <view class="h-4 w-20 rounded skeleton-pulse" style="background-color: #F5F1EB;" />
+            <view class="h-4 w-full rounded skeleton-pulse" style="background-color: #F5F1EB;" />
+            <view class="h-3 w-2/3 rounded skeleton-pulse" style="background-color: #F5F1EB;" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 空状态 -->
+      <view v-else-if="favorites.length === 0" class="flex flex-col items-center justify-center py-20">
+        <text style="font-size: 48px; margin-bottom: 16px; color: rgba(153,153,153,0.3);"></text>
+        <text class="mb-4" style="color: #999;">暂无收藏内容</text>
+        <view @click="goDiscover" class="px-6 py-2 rounded-full text-sm" style="background-color: #C41E3A; color: #FFFFFF; cursor: pointer;">去发现</view>
+      </view>
+
+      <!-- 收藏项列表 -->
+      <template v-else>
+        <view
+          v-for="item in favorites"
+          :key="item.id"
+          class="flex items-center gap-3 rounded-xl p-3"
+          :style="{ border: '1px solid #E8E0D5', opacity: item.isInvalid ? 0.6 : 1 }"
+        >
+          <!-- 编辑模式选择框 -->
+          <view
+            v-if="isEditMode"
+            @click.stop="toggleSelect(item.id)"
+            class="w-5 h-5 rounded border flex items-center justify-center flex-shrink-0"
+            :style="{
+              backgroundColor: selectedIds.includes(item.id) ? '#C41E3A' : 'transparent',
+              borderColor: selectedIds.includes(item.id) ? '#C41E3A' : '#999',
+              cursor: 'pointer',
+            }"
+          >
+            <text v-if="selectedIds.includes(item.id)" class="text-white text-xs">✓</text>
+          </view>
+
+          <!-- 封面/图标 -->
+          <view
+            @click="!isEditMode && goToItem(item)"
+            class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
+            style="background-color: #F5F1EB; cursor: pointer;"
+          >
+            <image v-if="item.cover" :src="item.cover" mode="aspectFill" class="w-full h-full" />
+            <text v-else :style="{ fontSize: '22px', color: typeConfigs[item.type]?.iconColor || '#999' }">{{ getTypeIcon(item.type) }}</text>
+          </view>
+
+          <!-- 信息 -->
+          <view
+            @click="!isEditMode && goToItem(item)"
+            class="flex-1 min-w-0"
+            style="cursor: pointer;"
+          >
+            <view class="flex items-center gap-2 mb-1 flex-wrap">
+              <!-- 类型标签 -->
+              <view
+                class="text-[10px] px-1.5 py-0.5 rounded"
+                :style="{
+                  backgroundColor: typeConfigs[item.type]?.bg || '#F0EBE5',
+                  color: typeConfigs[item.type]?.text || '#999',
+                }"
+              >
+                <text>{{ getTypeLabel(item.type) }}</text>
+              </view>
+              <!-- 已失效 -->
+              <view v-if="item.isInvalid" class="text-[10px] px-1.5 py-0.5 rounded" style="background-color: #F0EBE5; color: #999;">
+                <text>已失效</text>
+              </view>
+              <!-- 收藏日期 -->
+              <text class="text-[10px]" style="color: #999;">{{ item.time }}</text>
+            </view>
+            <text class="font-medium text-sm block" style="color: #2C2C2C; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">{{ item.title }}</text>
+            <text class="text-xs block mt-0.5" style="color: #999; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">{{ item.description }}</text>
+            <!-- 价格 -->
+            <view v-if="item.price !== undefined" class="flex items-center gap-2 mt-1">
+              <text v-if="item.price > 0" class="text-sm font-bold" style="color: #C41E3A;">¥{{ item.price }}</text>
+              <text v-if="item.originalPrice && item.originalPrice > item.price" class="text-xs" style="color: #999; text-decoration: line-through;">¥{{ item.originalPrice }}</text>
+              <text v-else-if="item.price === 0" class="text-xs" style="color: #22c55e;">免费</text>
+            </view>
+          </view>
+
+          <!-- 单个删除 -->
+          <view v-if="!isEditMode" @click.stop="handleRemove(item.id)" class="p-2" style="cursor: pointer;">
+            <text style="font-size: 14px; color: #999;">✕</text>
+          </view>
+        </view>
+
+        <!-- 加载更多 -->
+        <view v-if="hasMore" @click="loadMore" class="w-full py-3 text-sm text-center" style="color: #999; cursor: pointer;">
+          <text>加载更多</text>
+        </view>
+      </template>
+    </view>
+
+    <!-- 底部操作栏（编辑模式 + 有选中项时） -->
+    <view
+      v-if="isEditMode && selectedIds.length > 0"
+      class="fixed bottom-0 left-0 right-0 p-4"
+      style="background-color: #FFFFFF; border-top: 1px solid #E8E0D5; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));"
+    >
+      <view class="flex items-center justify-between">
+        <text
+          @click="handleSelectAll"
+          class="text-sm"
+          style="color: #C41E3A; cursor: pointer;"
+        >
+          {{ selectedIds.length === favorites.length ? '取消全选' : '全选' }}
+        </text>
+        <view
+          @click="handleBatchRemove"
+          class="flex items-center gap-2 px-6 py-2 rounded-full text-sm"
+          style="background-color: #ef4444; color: #FFFFFF; cursor: pointer;"
+        >
+          <text style="font-size: 12px;">🗑️</text>
+          <text>删除 ({{ selectedIds.length }})</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+// --- 类型配置 (V0 对应: course/circle/article/product/live/teacher) ---
+const typeConfigs: Record<string, { icon: string; iconColor: string; label: string; bg: string; text: string }> = {
+  course: { icon: '▶️', iconColor: '#2563eb', label: '课程', bg: '#eff6ff', text: '#2563eb' },
+  circle: { icon: '', iconColor: '#16a34a', label: '圈子', bg: '#f0fdf4', text: '#16a34a' },
+  article: { icon: '', iconColor: '#9333ea', label: '文章', bg: '#faf5ff', text: '#9333ea' },
+  product: { icon: '️', iconColor: '#ea580c', label: '商品', bg: '#fff7ed', text: '#ea580c' },
+  live: { icon: '📡', iconColor: '#dc2626', label: '直播', bg: '#fef2f2', text: '#dc2626' },
+  teacher: { icon: '‍🏫', iconColor: '#ec4899', label: '讲师', bg: '#fdf2f8', text: '#ec4899' },
+}
+
+function getTypeIcon(type: string): string {
+  return typeConfigs[type]?.icon || ''
+}
+function getTypeLabel(type: string): string {
+  return typeConfigs[type]?.label || type
+}
+
+// --- Types ---
+interface FavoriteItem {
+  id: number
+  type: string
+  title: string
+  description: string
+  cover?: string
+  time: string
+  price?: number
+  originalPrice?: number
+  isInvalid?: boolean
+}
+
+interface FavoriteTab {
+  id: string
+  name: string
+  count: number
+}
+
+// --- State ---
+const activeTab = ref<string>('all')
+const isEditMode = ref(false)
+const selectedIds = ref<number[]>([])
+const favorites = ref<FavoriteItem[]>([])
+const tabs = ref<FavoriteTab[]>([])
+const isLoading = ref(true)
+const isRefreshing = ref(false)
+const hasMore = ref(false)
+
+// --- Lifecycle ---
+onMounted(() => {
+  loadData()
+})
+
+function loadData() {
+  isLoading.value = true
+  setTimeout(() => {
+    tabs.value = [
+      { id: 'all', name: '全部', count: 12 },
+      { id: 'course', name: '课程', count: 5 },
+      { id: 'article', name: '文章', count: 3 },
+      { id: 'product', name: '商品', count: 2 },
+      { id: 'circle', name: '圈子', count: 1 },
+      { id: 'live', name: '直播', count: 1 },
+    ]
+    favorites.value = [
+      { id: 1, type: 'course', title: '八字命理入门到精通', description: '第四讲：十神详解', time: '2天前', price: 0 },
+      { id: 2, type: 'article', title: '易经的智慧', description: '易经入门指南', time: '3天前' },
+      { id: 3, type: 'product', title: '天然黑曜石貔貅手链', description: '招财转运', time: '5天前', price: 168, originalPrice: 199 },
+      { id: 4, type: 'circle', title: '国学爱好者交流圈', description: '每日分享国学知识', time: '1周前' },
+      { id: 5, type: 'live', title: '八字命理实战直播回放', description: '周易大师主讲', time: '2周前', price: 0 },
+      { id: 6, type: 'teacher', title: '李明华老师', description: '国学名师 | 八字命理专家', time: '3周前' },
+    ]
+    isLoading.value = false
+  }, 500)
+}
+
+function switchTab(tabId: string) {
+  activeTab.value = tabId
+  if (isEditMode.value) {
+    isEditMode.value = false
+    selectedIds.value = []
+  }
+}
+
+function toggleEditMode() {
+  isEditMode.value = !isEditMode.value
+  if (!isEditMode.value) selectedIds.value = []
+}
+
+function toggleSelect(id: number) {
+  if (selectedIds.value.includes(id)) {
+    selectedIds.value = selectedIds.value.filter(i => i !== id)
+  } else {
+    selectedIds.value.push(id)
+  }
+}
+
+function handleSelectAll() {
+  if (selectedIds.value.length === favorites.value.length) {
+    selectedIds.value = []
+  } else {
+    selectedIds.value = favorites.value.map(f => f.id)
+  }
+}
+
+function handleRemove(id: number) {
+  favorites.value = favorites.value.filter(f => f.id !== id)
+  uni.showToast({ title: '已取消收藏', icon: 'success' })
+}
+
+function handleBatchRemove() {
+  if (selectedIds.value.length === 0) return
+  favorites.value = favorites.value.filter(f => !selectedIds.value.includes(f.id))
+  selectedIds.value = []
+  isEditMode.value = false
+  uni.showToast({ title: '已批量取消收藏', icon: 'success' })
+}
+
+async function handleRefresh() {
+  isRefreshing.value = true
+  await new Promise(resolve => setTimeout(resolve, 500))
+  loadData()
+  isRefreshing.value = false
+  uni.showToast({ title: '已刷新', icon: 'success' })
+}
+
+const moreFavorites: FavoriteItem[] = [
+  { id: 7, type: 'course', title: '风水堪舆实战班', description: '王大师主讲 · 48节课', time: '1个月前', price: 299, originalPrice: 599 },
+  { id: 8, type: 'article', title: '面相十二宫详解', description: '从面相看人生运势', time: '1个月前' },
+  { id: 9, type: 'product', title: '紫檀木罗盘摆件', description: '风水堪舆必备工具', time: '2个月前', price: 268, originalPrice: 399 },
+  { id: 10, type: 'course', title: '奇门遁甲实战应用', description: '赵先生主讲 · 40节课', time: '2个月前', price: 388, originalPrice: 688 },
+  { id: 11, type: 'article', title: '八字合婚指南', description: '详解婚配中的八字五行', time: '3个月前' },
+  { id: 12, type: 'live', title: '六爻预测入门直播回放', description: '陈老师实战案例讲解', time: '3个月前', price: 0 },
+]
+
+function loadMore() {
+  favorites.value = [...favorites.value, ...moreFavorites]
+  hasMore.value = false
+  uni.showToast({ title: '已加载全部', icon: 'none' })
+}
+
+function goToItem(item: FavoriteItem) {
+  uni.navigateTo({ url: '/pages/' + item.type + '/detail/index?id=' + item.id })
+}
+
+function goDiscover() {
+  uni.navigateTo({ url: '/pages/discover/index' })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.skeleton-pulse {
+  animation: skeletonPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes customSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-custom {
+  animation: customSpin 1s linear infinite;
+}
+</style>

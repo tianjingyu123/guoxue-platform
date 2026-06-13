@@ -1,0 +1,258 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- Header -->
+    <view class="sticky top-0 z-50 bg-white/90 border-b border-[#E8E0D5]/40" style="backdrop-filter:blur(12px)">
+      <view class="flex items-center h-14 px-4 gap-3">
+        <view @click="goBack" class="w-9 h-9 flex items-center justify-center rounded-xl">
+          <text class="text-[#2C2C2C] text-xl">←</text>
+        </view>
+        <text class="flex-1 text-center text-base font-semibold text-[#2C2C2C]">账号安全</text>
+        <view class="w-9" />
+      </view>
+    </view>
+
+    <!-- Security Score Card -->
+    <view class="mx-4 mt-4 mb-2">
+      <view class="rounded-2xl p-4 text-white shadow-lg" style="background:linear-gradient(135deg,#1a1a2e,#16213e)">
+        <view class="flex items-center justify-between">
+          <view>
+            <text class="text-white/60 text-xs block mb-1">账号安全评分</text>
+            <view class="flex items-end gap-1.5">
+              <text class="text-3xl font-bold" style="color:#C9A96E">82</text>
+              <text class="text-white/60 text-sm mb-0.5">/ 100</text>
+            </view>
+            <text class="text-white/70 text-xs mt-1 block">安全级别：良好，建议完善实名认证</text>
+          </view>
+          <view class="relative w-16 h-16">
+            <svg class="w-16 h-16" viewBox="0 0 64 64" style="transform:rotate(-90deg)">
+              <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="6" />
+              <circle cx="32" cy="32" r="28" fill="none" stroke="#C9A96E" stroke-width="6"
+                :stroke-dasharray="arcLength(0.82)" stroke-linecap="round" />
+            </svg>
+            <text class="absolute inset-0 flex items-center justify-center text-lg" style="color:#C9A96E">🛡️</text>
+          </view>
+        </view>
+        <view class="flex gap-2 mt-3 pt-3" style="border-top:1px solid rgba(255,255,255,0.1)">
+          <view v-for="item in securityItems" :key="item.label" class="flex-1 flex flex-col items-center gap-0.5">
+            <view :class="['w-5 h-5 rounded-full flex items-center justify-center', item.done ? 'bg-green-500/20' : 'bg-orange-500/20']">
+              <text :class="[item.done ? 'text-green-400' : 'text-orange-400', 'text-xs']">{{ item.done ? '✓' : '✗' }}</text>
+            </view>
+            <text class="text-white/50 text-[10px]">{{ item.label }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="pb-8">
+      <!-- Login Security -->
+      <view class="mb-4">
+        <text class="text-xs text-[#999] px-4 py-2 font-medium block">登录安全</text>
+        <view class="bg-white mx-4 rounded-2xl overflow-hidden">
+          <view v-for="(item, idx) in loginItems" :key="item.id"
+            @click="goPage(item.href)"
+            class="flex items-center gap-3 px-4 py-3.5"
+            :class="idx < loginItems.length - 1 ? '' : ''"
+            style="border-bottom:0.5px solid rgba(232,227,219,0.6)"
+            v-bind:style="idx === loginItems.length - 1 ? 'border-bottom:none' : ''"
+          >
+            <view :class="['w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0', item.iconBg]">
+              <text class="text-white text-sm">{{ item.icon }}</text>
+            </view>
+            <text class="flex-1 text-sm font-medium text-[#2C2C2C]">{{ item.label }}</text>
+            <view class="flex items-center gap-1.5">
+              <template v-if="item.status === 'set' || item.status === 'verified'">
+                <text v-if="item.showValue" class="text-xs text-[#999]">{{ item.showValue }}</text>
+                <text class="inline-flex items-center gap-0.5 text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
+                  <text class="text-[10px]">✓</text>
+                  {{ item.status === 'verified' ? '已认证' : '已设置' }}
+                </text>
+              </template>
+              <template v-else-if="item.status === 'unset' || item.status === 'unverified'">
+                <text class="inline-flex items-center gap-0.5 text-xs text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">
+                  <text class="text-[10px]">✗</text>
+                  {{ item.status === 'unverified' ? '未认证' : '未设置' }}
+                </text>
+              </template>
+              <text class="text-[#999]/50 text-sm">›</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Payment Security -->
+      <view class="mb-4">
+        <text class="text-xs text-[#999] px-4 py-2 font-medium block">支付安全</text>
+        <view class="bg-white mx-4 rounded-2xl overflow-hidden">
+          <view v-for="(item, idx) in paymentItems" :key="item.id"
+            @click="goPage(item.href)"
+            class="flex items-center gap-3 px-4 py-3.5"
+            :class="idx < paymentItems.length - 1 ? '' : ''"
+            style="border-bottom:0.5px solid rgba(232,227,219,0.6)"
+            v-bind:style="idx === paymentItems.length - 1 ? 'border-bottom:none' : ''"
+          >
+            <view :class="['w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0', item.iconBg]">
+              <text class="text-white text-sm">{{ item.icon }}</text>
+            </view>
+            <text class="flex-1 text-sm font-medium text-[#2C2C2C]">{{ item.label }}</text>
+            <view class="flex items-center gap-1.5">
+              <template v-if="item.status === 'set' || item.status === 'verified'">
+                <text v-if="item.showValue" class="text-xs text-[#999]">{{ item.showValue }}</text>
+                <text class="inline-flex items-center gap-0.5 text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
+                  <text class="text-[10px]">✓</text>
+                  {{ item.status === 'verified' ? '已认证' : '已设置' }}
+                </text>
+              </template>
+              <template v-else-if="item.status === 'unset' || item.status === 'unverified'">
+                <text class="inline-flex items-center gap-0.5 text-xs text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">
+                  <text class="text-[10px]">✗</text>
+                  {{ item.status === 'unverified' ? '未认证' : '未设置' }}
+                </text>
+              </template>
+              <text class="text-[#999]/50 text-sm">›</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Device Management -->
+      <view class="mb-4">
+        <text class="text-xs text-[#999] px-4 py-2 font-medium block">设备管理</text>
+        <view class="bg-white mx-4 rounded-2xl overflow-hidden">
+          <view @click="goPage('/mine/security/devices')" class="flex items-center gap-3 px-4 py-3.5">
+            <view class="w-8 h-8 rounded-xl bg-slate-500 flex items-center justify-center flex-shrink-0">
+              <text class="text-white text-sm">💻</text>
+            </view>
+            <text class="flex-1 text-sm font-medium text-[#2C2C2C]">登录设备管理</text>
+            <view class="flex items-center gap-1.5">
+              <text class="text-sm text-[#999]">2 台设备已登录</text>
+              <text class="text-[#999]/50 text-sm">›</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- Account Management -->
+      <view class="mb-4">
+        <text class="text-xs text-[#999] px-4 py-2 font-medium block">账号管理</text>
+        <view class="bg-white mx-4 rounded-2xl overflow-hidden">
+          <view @click="showDeactivateSheet = true" class="flex items-center gap-3 px-4 py-3.5">
+            <view class="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+              <text class="text-red-500 text-sm">⚠️</text>
+            </view>
+            <view class="flex-1">
+              <text class="text-sm font-medium text-red-500 block">注销账号</text>
+              <text class="text-xs text-[#999] mt-0.5 block">注销后所有数据将被永久删除，不可恢复</text>
+            </view>
+            <text class="text-[#999]/50 text-sm">›</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- Security Tip -->
+      <view class="mx-4 bg-amber-50 border border-amber-200/60 rounded-2xl p-4">
+        <view class="flex gap-2">
+          <text class="text-amber-600 flex-shrink-0 mt-0.5">🔒</text>
+          <view>
+            <text class="text-xs font-medium text-amber-700 block mb-1">安全提示</text>
+            <text class="text-xs text-amber-600 leading-relaxed block">平台工作人员绝不会索要您的账号密码或支付密码，请注意防范钓鱼欺诈，保护账号安全。</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Deactivate Confirm Sheet -->
+    <view v-if="showDeactivateSheet" class="fixed inset-0 z-50 flex items-end">
+      <view class="absolute inset-0 bg-black/50" @click="showDeactivateSheet = false" />
+      <view class="relative w-full bg-white rounded-t-3xl px-5 pt-5 pb-8">
+        <view class="w-10 h-1 bg-[#F0EDE8] rounded-full mx-auto mb-5" />
+        <view class="flex flex-col items-center mb-6">
+          <view class="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-3">
+            <text class="text-red-500 text-2xl">⚠️</text>
+          </view>
+          <text class="text-lg font-semibold text-[#2C2C2C] mb-1 block">确认注销账号？</text>
+          <text class="text-sm text-[#999] text-center leading-relaxed block">注销账号后，以下数据将被永久删除且无法恢复：</text>
+        </view>
+        <view class="space-y-2 mb-6">
+          <view v-for="(item, i) in deactivateWarnings" :key="i" class="flex items-center gap-2 text-sm text-[#2C2C2C]/70">
+            <view class="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
+            <text>{{ item }}</text>
+          </view>
+        </view>
+        <view class="flex gap-3">
+          <view @click="showDeactivateSheet = false"
+            class="flex-1 h-12 rounded-xl bg-[#F0EDE8] text-[#2C2C2C] font-medium text-sm flex items-center justify-center">
+            再想想
+          </view>
+          <view @click="confirmDeactivate"
+            class="flex-1 h-12 rounded-xl bg-red-500 text-white font-medium text-sm flex items-center justify-center">
+            继续注销
+          </view>
+        </view>
+        <text class="text-center text-xs text-[#999] mt-3 block">注销流程需要验证身份并等待7天冷静期</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+const mockProfile = {
+  phone: '138****8888',
+  email: 'u***@example.com',
+  passwordUpdatedAt: '2024-09-15',
+  payPasswordSet: true,
+  realNameVerified: true,
+  realName: '张*明',
+}
+
+const securityItems = [
+  { label: '密码', done: true },
+  { label: '手机', done: true },
+  { label: '邮箱', done: true },
+  { label: '支付', done: mockProfile.payPasswordSet },
+  { label: '实名', done: mockProfile.realNameVerified },
+]
+
+const loginItems = [
+  { id: 'password', icon: '🔑', iconBg: 'bg-blue-500', label: '登录密码', showValue: `上次修改 ${mockProfile.passwordUpdatedAt}`, status: 'set', href: '/mine/security/change-password' },
+  { id: 'phone', icon: '📱', iconBg: 'bg-green-500', label: '手机号码', showValue: mockProfile.phone, status: 'set', href: '/mine/security/change-phone' },
+  { id: 'email', icon: '✉️', iconBg: 'bg-orange-500', label: '邮箱绑定', showValue: mockProfile.email || undefined, status: mockProfile.email ? 'set' : 'unset', href: '/mine/security/bind-email' },
+]
+
+const paymentItems = [
+  { id: 'pay-password', icon: '💳', iconBg: 'bg-purple-500', label: '支付密码', status: mockProfile.payPasswordSet ? 'set' : 'unset', href: '/mine/security/pay-password' },
+  { id: 'real-name', icon: '🛡️', iconBg: 'bg-[#C41E3A]', label: '实名认证', showValue: mockProfile.realNameVerified ? mockProfile.realName : undefined, status: mockProfile.realNameVerified ? 'verified' : 'unverified', href: '/mine/security/real-name' },
+]
+
+const deactivateWarnings = [
+  '个人资料、头像及所有内容',
+  '圈子成员资格及圈主权限',
+  '课程购买记录及学习进度',
+  '钱包余额及积分将作废',
+  '问答记录及悬赏奖励',
+]
+
+const showDeactivateSheet = ref(false)
+
+function arcLength(percent: number): string {
+  const circumference = 2 * Math.PI * 28
+  return `${circumference * percent} ${circumference}`
+}
+
+function goBack() { uni.navigateBack() }
+
+function goPage(href: string) {
+  const pagePath = href.startsWith('/') ? href.substring(1) : href
+  uni.navigateTo({ url: '/pages/' + pagePath + '/index' })
+}
+
+function confirmDeactivate() {
+  showDeactivateSheet.value = false
+  uni.navigateTo({ url: '/pages/mine/security/deactivate/index' })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

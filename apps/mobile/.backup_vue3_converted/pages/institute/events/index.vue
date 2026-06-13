@@ -1,0 +1,569 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- ===== 头部 ===== -->
+    <view class="sticky top-0 z-10 bg-background border-b border-border px-4 py-3">
+      <view class="flex items-center justify-between">
+        <view class="flex items-center gap-3">
+          <view @click="goBack" class="p-1 -ml-1">
+            <text class="text-2xl leading-none">←</text>
+          </view>
+          <text class="text-lg font-semibold text-foreground">研究院活动</text>
+        </view>
+        <view class="flex items-center gap-1">
+          <view @click="viewMode = 'list'"
+            class="w-8 h-8 rounded flex items-center justify-center"
+            :class="viewMode === 'list' ? 'bg-primary text-white' : 'bg-secondary text-muted-foreground'">
+            <text class="text-sm leading-none"></text>
+          </view>
+          <view @click="viewMode = 'calendar'"
+            class="w-8 h-8 rounded flex items-center justify-center"
+            :class="viewMode === 'calendar' ? 'bg-primary text-white' : 'bg-secondary text-muted-foreground'">
+            <text class="text-sm leading-none"></text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 搜索和筛选 ===== -->
+    <view class="px-4 py-3 space-y-3 border-b border-border">
+      <view class="relative">
+        <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"></text>
+        <input
+          v-model="searchKeyword"
+          placeholder="搜索活动名称、主讲人..."
+          class="w-full h-10 pl-9 pr-3 rounded-lg text-sm text-foreground box-border bg-secondary"
+          style="border:1px solid rgba(232,224,213,0.6)"
+        />
+      </view>
+      <scroll-view scroll-x class="w-full" show-scrollbar="false">
+        <view class="flex gap-2" style="white-space: nowrap;">
+          <view
+            v-for="t in eventTypes"
+            :key="t.value"
+            @click="selectedType = t.value"
+            class="inline-flex px-3 py-1.5 rounded-full text-xs flex-shrink-0"
+            :class="selectedType === t.value ? 'bg-primary text-white' : 'bg-white text-muted-foreground'"
+            style="border:1px solid rgba(232,224,213,0.6)"
+          >
+            {{ t.label }}
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- ===== 加载骨架屏 ===== -->
+    <view v-if="loading" class="p-4 space-y-4">
+      <view v-for="i in 3" :key="i" class="bg-white rounded-xl overflow-hidden" style="border:1px solid rgba(232,224,213,0.6)">
+        <view class="h-40 w-full animate-pulse" style="background:rgba(232,224,213,0.5)" />
+        <view class="p-4 space-y-3">
+          <view class="h-5 w-3/4 rounded animate-pulse" style="background:rgba(232,224,213,0.5)" />
+          <view class="h-4 w-1/2 rounded animate-pulse" style="background:rgba(232,224,213,0.5)" />
+          <view class="h-4 w-2/3 rounded animate-pulse" style="background:rgba(232,224,213,0.5)" />
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 主内容 ===== -->
+    <view v-else>
+      <!-- ===== 列表视图 ===== -->
+      <view v-if="viewMode === 'list'" class="p-4 space-y-4">
+        <!-- 空状态 -->
+        <view v-if="filteredEvents.length === 0" class="py-20 text-center">
+          <text class="text-5xl block mb-4 opacity-40"></text>
+          <text class="text-muted-foreground">暂无相关活动</text>
+        </view>
+
+        <!-- 活动卡片 -->
+        <view
+          v-for="event in filteredEvents"
+          :key="event.id"
+          @click="goToEvent(event.id)"
+          class="bg-white rounded-xl overflow-hidden cursor-pointer"
+          style="border:1px solid rgba(232,224,213,0.6)"
+        >
+          <!-- 封面区域 -->
+          <view class="relative h-40 bg-secondary">
+            <image
+              v-if="event.cover"
+              :src="event.cover"
+              mode="aspectFill"
+              class="w-full h-full"
+            />
+            <view class="absolute top-2 left-2 flex gap-1.5 z-10">
+              <text class="px-2 py-0.5 text-xs rounded text-white"
+                :style="{ backgroundColor: getEventTypeColor(event.type) }">
+                {{ getEventTypeLabel(event.type) }}
+              </text>
+              <text class="px-2 py-0.5 text-xs rounded text-white"
+                :style="{ backgroundColor: getEventStatusColor(event.status) }">
+                {{ getEventStatusLabel(event.status) }}
+              </text>
+            </view>
+            <text v-if="event.isOnline"
+              class="absolute top-2 right-2 px-2 py-0.5 text-xs rounded text-white flex items-center gap-1 z-10"
+              style="background:rgba(6,182,212,0.9)">
+              🎥 线上
+            </text>
+          </view>
+
+          <!-- 内容区域 -->
+          <view class="p-4">
+            <text class="font-semibold text-foreground line-clamp-2 block mb-2 leading-relaxed">{{ event.title }}</text>
+
+            <!-- 主讲人 -->
+            <view v-if="event.speakers && event.speakers.length > 0" class="flex items-center gap-2 mb-2">
+              <view class="flex flex-row-reverse justify-end" :style="{ direction: 'rtl' }">
+                <image
+                  v-for="(speaker, idx) in event.speakers.slice(0, 3)"
+                  :key="idx"
+                  :src="speaker.avatar"
+                  mode="aspectFill"
+                  class="w-6 h-6 rounded-full border-2 border-white -ml-1"
+                />
+              </view>
+              <text class="text-sm text-muted-foreground">{{ event.speakers.map(s => s.name).join('、') }}</text>
+            </view>
+
+            <!-- 时间地点 -->
+            <view class="space-y-1.5 text-sm text-muted-foreground mb-3">
+              <view class="flex items-center gap-2">
+                <text>🕐</text>
+                <text>{{ formatDate(event.startTime) }}</text>
+              </view>
+              <view class="flex items-center gap-2">
+                <text>📍</text>
+                <text>{{ event.isOnline ? '线上直播' : event.location }}</text>
+              </view>
+            </view>
+
+            <!-- 底部操作栏 -->
+            <view class="flex items-center justify-between pt-3" style="border-top:1px solid rgba(232,224,213,0.6)">
+              <view class="flex items-center gap-1 text-sm text-muted-foreground">
+                <text></text>
+                <text>{{ event.enrolledCount }}/{{ event.maxEnrollment || '不限' }}人</text>
+              </view>
+              <view class="flex items-center gap-2">
+                <!-- 添加到日历 -->
+                <view @click.stop="addToCalendar(event)"
+                  class="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground rounded">
+                  <text></text>
+                  <text>日历</text>
+                </view>
+                <!-- 报名/取消报名 -->
+                <view v-if="event.status === 'enrolling'"
+                  @click.stop="handleEnroll(event)"
+                  :class="[
+                    'px-4 py-1.5 rounded-full text-xs',
+                    enrollingId === event.id
+                      ? 'bg-gray-200 text-muted-foreground'
+                      : event.isEnrolled
+                        ? 'bg-white text-primary border border-primary'
+                        : 'bg-primary text-white'
+                  ]">
+                  <text>{{ enrollingId === event.id ? '处理中...' : event.isEnrolled ? '已报名' : '我要报名' }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ===== 日历视图 ===== -->
+      <view v-if="viewMode === 'calendar'" class="p-4">
+        <!-- 月份切换 -->
+        <view class="flex items-center justify-between mb-4">
+          <view @click="prevMonth" class="p-1 active:opacity-60">
+            <text class="text-lg text-foreground">←</text>
+          </view>
+          <text class="font-semibold text-foreground">{{ currentYear }}年{{ currentMonth + 1 }}月</text>
+          <view @click="nextMonth" class="p-1 active:opacity-60">
+            <text class="text-lg text-foreground">→</text>
+          </view>
+        </view>
+
+        <!-- 星期头 -->
+        <view class="grid grid-cols-7 gap-1 mb-2">
+          <view v-for="d in weekDays" :key="d"
+            class="text-center text-sm text-muted-foreground py-2">
+            {{ d }}
+          </view>
+        </view>
+
+        <!-- 日期格子 -->
+        <view class="grid grid-cols-7 gap-1">
+          <view
+            v-for="(day, idx) in calendarData"
+            :key="idx"
+            class="min-h-[70px] p-1.5 rounded border"
+            :class="day.date === 0 ? 'border-transparent' : ''"
+            :style="[
+              day.date > 0 ? { borderColor: 'rgba(232,224,213,0.6)' } : {},
+              day.date > 0 && day.events.length > 0 ? { backgroundColor: 'rgba(196,30,58,0.05)' } : {}
+            ]"
+          >
+            <text v-if="day.date > 0"
+              class="text-sm block"
+              :class="day.isToday ? 'text-primary font-bold' : 'text-foreground'">
+              {{ day.date }}
+            </text>
+            <view v-if="day.date > 0 && day.events.length > 0" class="mt-1 space-y-0.5">
+              <view v-for="e in day.events.slice(0, 2)" :key="e.id"
+                @click="goToEvent(e.id)"
+                class="text-xs px-1 py-0.5 rounded truncate text-white leading-relaxed"
+                :style="{ backgroundColor: getEventTypeColor(e.type) }">
+                {{ e.title }}
+              </view>
+              <text v-if="day.events.length > 2" class="text-xs text-muted-foreground">+{{ day.events.length - 2 }}个活动</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue'
+import { instituteApi, api } from '@/api'
+
+// ===== 类型定义 =====
+interface Speaker {
+  name: string
+  avatar: string
+}
+
+type InstituteEventType = 'lecture' | 'seminar' | 'workshop' | 'conference' | 'online'
+type InstituteEventStatus = 'draft' | 'enrolling' | 'upcoming' | 'ongoing' | 'ended' | 'cancelled'
+
+interface InstituteEvent {
+  id: number
+  title: string
+  cover: string
+  type: InstituteEventType
+  status: InstituteEventStatus
+  startTime: string
+  endTime: string
+  location: string
+  isOnline: boolean
+  isEnrolled?: boolean
+  enrolledCount: number
+  maxEnrollment?: number
+  speakers?: Speaker[]
+  description?: string
+}
+
+// ===== 常量 =====
+const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+
+const eventTypes: { value: InstituteEventType | 'all'; label: string }[] = [
+  { value: 'all', label: '全部' },
+  { value: 'lecture', label: '学术讲座' },
+  { value: 'seminar', label: '研讨会' },
+  { value: 'workshop', label: '工作坊' },
+  { value: 'conference', label: '学术会议' },
+  { value: 'online', label: '线上活动' },
+]
+
+const eventTypeColors: Record<string, string> = {
+  lecture: '#C41E3A',
+  seminar: '#4A90D9',
+  workshop: '#52C41A',
+  conference: '#C9A96E',
+  online: '#06B2D6',
+}
+
+const eventTypeLabels: Record<string, string> = {
+  lecture: '学术讲座',
+  seminar: '研讨会',
+  workshop: '工作坊',
+  conference: '学术会议',
+  online: '线上活动',
+}
+
+const eventStatusColors: Record<string, string> = {
+  draft: '#999',
+  enrolling: '#52C41A',
+  upcoming: '#FA8C16',
+  ongoing: '#4A90D9',
+  ended: '#999',
+  cancelled: '#FF4D4F',
+}
+
+const eventStatusLabels: Record<string, string> = {
+  draft: '草稿',
+  enrolling: '报名中',
+  upcoming: '即将开始',
+  ongoing: '进行中',
+  ended: '已结束',
+  cancelled: '已取消',
+}
+
+// ===== 状态 =====
+const viewMode = ref<'list' | 'calendar'>('list')
+const searchKeyword = ref('')
+const selectedType = ref<InstituteEventType | 'all'>('all')
+const currentMonth = ref(new Date().getMonth())
+const currentYear = ref(new Date().getFullYear())
+const loading = ref(true)
+const events = ref<InstituteEvent[]>([])
+const enrollingId = ref<number | null>(null)
+
+// ===== 辅助函数 =====
+function getEventTypeColor(type: string): string {
+  return eventTypeColors[type] || '#C41E3A'
+}
+
+function getEventTypeLabel(type: string): string {
+  return eventTypeLabels[type] || type
+}
+
+function getEventStatusColor(status: string): string {
+  return eventStatusColors[status] || '#999'
+}
+
+function getEventStatusLabel(status: string): string {
+  return eventStatusLabels[status] || status
+}
+
+// 格式化日期
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  const month = d.getMonth() + 1
+  const day = d.getDate()
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  return `${month}月${day}日 ${hours}:${minutes}`
+}
+
+// ===== 计算属性 =====
+// 搜索过滤
+const filteredEvents = computed(() => {
+  let result = events.value
+  if (selectedType.value !== 'all') {
+    result = result.filter(e => e.type === selectedType.value)
+  }
+  if (searchKeyword.value) {
+    const kw = searchKeyword.value.toLowerCase()
+    result = result.filter(e =>
+      e.title.toLowerCase().includes(kw) ||
+      e.speakers?.some(s => s.name.toLowerCase().includes(kw))
+    )
+  }
+  return result
+})
+
+// 日历数据
+const calendarData = computed(() => {
+  const year = currentYear.value
+  const month = currentMonth.value
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const firstDayOfWeek = new Date(year, month, 1).getDay()
+  const today = new Date()
+
+  const days: {
+    date: number
+    events: InstituteEvent[]
+    isToday: boolean
+  }[] = []
+
+  // 空白填充
+  for (let i = 0; i < firstDayOfWeek; i++) {
+    days.push({ date: 0, events: [], isToday: false })
+  }
+
+  // 每天
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    const dayEvents = filteredEvents.value.filter(e =>
+      e.startTime && e.startTime.startsWith(dateStr)
+    )
+    days.push({
+      date: d,
+      events: dayEvents,
+      isToday:
+        d === today.getDate() &&
+        month === today.getMonth() &&
+        year === today.getFullYear(),
+    })
+  }
+
+  return days
+})
+
+// ===== 数据加载 =====
+async function loadEvents() {
+  loading.value = true
+  try {
+    const res = await instituteApi.events({
+      type: selectedType.value === 'all' ? undefined : selectedType.value,
+    })
+    if (res && res.code === 200 && res.data) {
+      events.value = res.data.list || res.data
+    } else if (Array.isArray(res)) {
+      events.value = res as InstituteEvent[]
+    }
+  } catch (e: any) {
+    console.error('加载活动失败', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadEvents()
+})
+
+watch(selectedType, () => {
+  loadEvents()
+})
+
+// ===== 报名/取消报名 =====
+async function handleEnroll(event: InstituteEvent) {
+  enrollingId.value = event.id
+  try {
+    if (event.isEnrolled) {
+      // 取消报名
+      const res = await api.post(`/institute/events/${event.id}/cancel-enroll`, {})
+      if (res && (res.code === 200 || res.code === undefined)) {
+        event.isEnrolled = false
+        event.enrolledCount = Math.max(0, event.enrolledCount - 1)
+        uni.showToast({ title: '已取消报名', icon: 'success' })
+      }
+    } else {
+      // 报名
+      const res = await api.post(`/institute/events/${event.id}/enroll`, {})
+      if (res && (res.code === 200 || res.code === undefined)) {
+        event.isEnrolled = true
+        event.enrolledCount += 1
+        uni.showToast({ title: '报名成功', icon: 'success' })
+      }
+    }
+  } catch (e: any) {
+    uni.showToast({ title: e.errMsg || '操作失败', icon: 'none' })
+  } finally {
+    enrollingId.value = null
+  }
+}
+
+// ===== 添加到系统日历 =====
+function addToCalendar(event: InstituteEvent) {
+  // UniApp 环境下生成 ICS 文件并下载
+  const startDate = new Date(event.startTime)
+  const endDate = new Date(event.endTime)
+
+  const fmt = (d: Date) => {
+    return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+  }
+
+  const icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Guoxue//Events//CN',
+    'BEGIN:VEVENT',
+    `DTSTART:${fmt(startDate)}`,
+    `DTEND:${fmt(endDate)}`,
+    `SUMMARY:${event.title}`,
+    `LOCATION:${event.isOnline ? '线上活动' : event.location || ''}`,
+    `DESCRIPTION:${event.description || ''}`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n')
+
+  // 尝试保存为文件
+  const fileName = `${event.title.replace(/[/\\?%*:|"<>]/g, '_')}.ics`
+  const filePath = `${uni.env.USER_DATA_PATH}/${fileName}`
+
+  uni.getFileSystemManager().writeFile({
+    filePath,
+    data: icsContent,
+    encoding: 'utf8',
+    success() {
+      uni.openDocument({
+        filePath,
+        success() {
+          uni.showToast({ title: '已打开日历文件', icon: 'none' })
+        },
+        fail() {
+          // 降级：复制到剪贴板
+          uni.setClipboardData({
+            data: `活动：${event.title}\n时间：${formatDate(event.startTime)} - ${formatDate(event.endTime)}\n地点：${event.isOnline ? '线上' : event.location}`,
+            success() {
+              uni.showToast({ title: '活动信息已复制', icon: 'none' })
+            },
+          })
+        },
+      })
+    },
+    fail() {
+      // 降级：复制到剪贴板
+      uni.setClipboardData({
+        data: `活动：${event.title}\n时间：${formatDate(event.startTime)}`,
+        success() {
+          uni.showToast({ title: '活动信息已复制到剪贴板', icon: 'none' })
+        },
+      })
+    },
+  })
+}
+
+// ===== 月份切换 =====
+function prevMonth() {
+  if (currentMonth.value === 0) {
+    currentMonth.value = 11
+    currentYear.value--
+  } else {
+    currentMonth.value--
+  }
+}
+
+function nextMonth() {
+  if (currentMonth.value === 11) {
+    currentMonth.value = 0
+    currentYear.value++
+  } else {
+    currentMonth.value++
+  }
+}
+
+// ===== 导航 =====
+function goToEvent(id: number) {
+  uni.navigateTo({ url: `/pages/institute/events/detail?id=${id}` })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 修复 rtl 头像重叠 */
+[style*="direction: rtl"] > image {
+  margin-left: -4px;
+}
+[style*="direction: rtl"] > image:first-child {
+  margin-left: 0;
+}
+
+/* scroll-view 隐藏滚动条 */
+scroll-view ::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+</style>

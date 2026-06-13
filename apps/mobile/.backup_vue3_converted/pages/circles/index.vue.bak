@@ -1,0 +1,448 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-20">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-sm">
+      <view class="flex items-center justify-between px-4 py-3">
+        <text class="text-[20px] font-bold text-[#2C2C2C]">圈子</text>
+        <view class="flex items-center gap-2">
+          <view class="w-9 h-9 rounded-full bg-[#F5F0E8] flex items-center justify-center" @click="goSearch">
+            <text class="text-[#666] text-lg">🔍</text>
+          </view>
+          <view class="w-9 h-9 rounded-full bg-[#F5F0E8] flex items-center justify-center" @click="goCalendar">
+            <text class="text-[#666] text-lg">📅</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 主Tab切换 -->
+      <view class="flex items-center border-b border-[#E8E0D5]">
+        <view
+          v-for="tab in tabs"
+          :key="tab.id"
+          class="flex-1 py-3 text-[14px] font-medium relative text-center"
+          :class="activeTab === tab.id ? 'text-[#C41E3A]' : 'text-[#999]'"
+          @click="activeTab = tab.id"
+        >
+          <text>{{ tab.label }}</text>
+          <view v-if="activeTab === tab.id" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-[#C41E3A] rounded-full" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 发现Tab内容 -->
+    <block v-if="activeTab === 'discover'">
+      <!-- 直播预告横幅 -->
+      <view v-if="upcomingLives.length > 0" class="px-4 pt-4">
+        <view class="bg-gradient-to-r from-[#1a1a2e] to-[#16213e] rounded-2xl p-4 relative overflow-hidden">
+          <view class="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 bg-red-500 rounded-full">
+            <text class="text-white text-[10px] font-medium">🔴 直播预告</text>
+          </view>
+          <view class="flex items-center gap-3">
+            <image :src="upcomingLives[0].avatar" class="w-12 h-12 rounded-full border-2 border-white/20" />
+            <view class="flex-1 min-w-0">
+              <text class="text-white font-medium text-[14px] truncate block">{{ upcomingLives[0].title }}</text>
+              <text class="text-white/60 text-[12px] mt-0.5 block">{{ upcomingLives[0].host }} · {{ upcomingLives[0].circleName }}</text>
+              <view class="flex items-center gap-3 mt-1.5">
+                <text class="text-[#FFD700] text-[12px]">🕐 {{ upcomingLives[0].startTime }}</text>
+                <text class="text-white/50 text-[11px]">{{ upcomingLives[0].viewers }}人预约</text>
+              </view>
+            </view>
+            <view class="px-4 py-2 bg-[#C41E3A] text-white text-[12px] font-medium rounded-full" @click="reserveLive(upcomingLives[0].id)">
+              <text>🔔 预约</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 今日活动 -->
+      <view class="px-4 pt-4">
+        <view class="flex items-center justify-between mb-3">
+          <view class="flex items-center gap-2">
+            <text class="text-lg">⚡</text>
+            <text class="font-semibold text-[#2C2C2C]">今日活动</text>
+          </view>
+          <view class="text-[12px] text-[#999] flex items-center" @click="goActivities">
+            <text>全部 </text><text>›</text>
+          </view>
+        </view>
+        <scroll-view class="flex gap-3 pb-1 whitespace-nowrap" scroll-x>
+          <view
+            v-for="act in todayActivities"
+            :key="act.id"
+            class="inline-flex flex-shrink-0 w-[200px] bg-white rounded-xl p-3 shadow-sm border border-[#F5F0E8] flex-col"
+            @click="goActivity(act.circleId, act.id)"
+          >
+            <view class="flex items-center gap-2 mb-2">
+              <text class="text-base">{{ act.type === 'checkin' ? '📖' : act.type === 'homework' ? '🏆' : '💬' }}</text>
+              <text :class="act.type === 'checkin' ? 'text-[#52C41A]' : act.type === 'homework' ? 'text-[#C41E3A]' : 'text-[#1890FF]'" class="text-[10px] px-1.5 py-0.5 rounded" :style="'background:' + (act.type === 'checkin' ? '#52C41A10' : act.type === 'homework' ? '#C41E3A10' : '#1890FF10')">
+                {{ act.type === 'checkin' ? '打卡' : act.type === 'homework' ? '作业' : '问答' }}
+              </text>
+            </view>
+            <text class="text-[13px] font-medium text-[#2C2C2C] line-clamp-2 mb-2">{{ act.title }}</text>
+            <view class="flex items-center justify-between text-[11px]">
+              <text class="text-[#999]">{{ act.participants }}人参与</text>
+              <text class="text-[#FF6B35]">{{ act.reward }}</text>
+            </view>
+            <view class="mt-2 pt-2 border-t border-[#F5F0E8] text-[10px] text-[#999]">
+              截止: {{ act.deadline }}
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 分类Tab -->
+      <view class="px-4 pt-4 pb-2">
+        <scroll-view class="flex items-center gap-2 whitespace-nowrap" scroll-x>
+          <view
+            v-for="cat in categories"
+            :key="cat.id"
+            class="inline-flex flex-shrink-0 px-3 py-1.5 rounded-full text-[13px] font-medium transition-all"
+            :class="category === cat.id ? 'bg-[#C41E3A] text-white' : 'bg-white text-[#666] border border-[#E8E0D5]'"
+            @click="category = cat.id; loadData()"
+          >
+            <text>{{ cat.name }}</text>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 排行榜入口 -->
+      <view v-if="ranking.length > 0" class="mx-4 mb-4 bg-gradient-to-r from-[#FFF9E6] to-[#FFF5F5] rounded-xl p-3 border border-[#F5E6D3]" @click="goRanking">
+        <view class="flex items-center justify-between mb-2">
+          <view class="flex items-center gap-2">
+            <view class="w-7 h-7 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+              <text class="text-white text-sm">👑</text>
+            </view>
+            <text class="text-[14px] font-semibold text-[#2C2C2C]">热门圈子排行</text>
+          </view>
+          <text class="text-[#999] text-base">›</text>
+        </view>
+        <scroll-view class="flex items-center gap-2 whitespace-nowrap" scroll-x>
+          <view v-for="(c, i) in ranking.slice(0, 5)" :key="c.id" class="inline-flex flex-shrink-0 items-center gap-1.5 bg-white rounded-full pl-1 pr-2.5 py-1">
+            <view :class="'w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white ' + (i === 0 ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : i === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400' : i === 2 ? 'bg-gradient-to-br from-orange-300 to-orange-400' : 'bg-[#999]')">
+              <text>{{ i + 1 }}</text>
+            </view>
+            <text class="text-[11px] text-[#2C2C2C] whitespace-nowrap">{{ c.name }}</text>
+          </view>
+        </scroll-view>
+      </view>
+
+      <!-- 圈子列表 -->
+      <view v-if="loading" class="grid grid-cols-2 gap-3 px-4">
+        <view v-for="i in 6" :key="i" class="bg-white rounded-xl p-3 animate-pulse">
+          <view class="aspect-[4/3] bg-[#F2EFEA] rounded-lg mb-3" />
+          <view class="h-4 bg-[#F2EFEA] rounded w-3/4 mb-2" />
+          <view class="h-3 bg-[#F2EFEA] rounded w-1/2" />
+        </view>
+      </view>
+      <view v-else class="grid grid-cols-2 gap-3 px-4">
+        <view
+          v-for="circle in circles"
+          :key="circle.id"
+          class="bg-white rounded-xl overflow-hidden shadow-sm border border-[#F5F0E8]"
+          @click="goCircleDetail(circle.id)"
+        >
+          <!-- 封面 -->
+          <view class="aspect-[4/3] relative overflow-hidden">
+            <image :src="circle.cover" class="w-full h-full object-cover" />
+            <!-- 排名角标 -->
+            <view v-if="circle.rank && circle.rank <= 3" :class="'absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ' + (circle.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : circle.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-400' : 'bg-gradient-to-br from-orange-300 to-orange-400')">
+              <text>{{ circle.rank }}</text>
+            </view>
+            <!-- 今日活跃 -->
+            <view v-if="circle.todayActive && circle.todayActive > 0" class="absolute top-2 right-2 px-1.5 py-0.5 bg-[#C41E3A]/90 rounded text-[9px] text-white flex items-center gap-0.5">
+              <text>🔥 {{ circle.todayActive }}</text>
+            </view>
+          </view>
+          <!-- 信息 -->
+          <view class="p-3">
+            <text class="text-[14px] font-semibold text-[#2C2C2C] line-clamp-1 block mb-1">{{ circle.name }}</text>
+            <text class="text-[11px] text-[#999] line-clamp-1 block mb-2">{{ circle.description }}</text>
+            <view class="flex items-center justify-between">
+              <view class="flex items-center gap-3 text-[11px] text-[#666]">
+                <text>👥 {{ circle.members >= 10000 ? (circle.members/10000).toFixed(1) + '万' : circle.members }}</text>
+                <text>💬 {{ circle.posts }}</text>
+              </view>
+              <text v-if="circle.isJoined" class="text-[10px] text-[#999] px-2 py-0.5 bg-[#F5F0E8] rounded-full">已加入</text>
+              <view v-else class="text-[10px] text-white px-2.5 py-1 bg-[#C41E3A] rounded-full" @click.stop="handleJoin(circle.id)">
+                <text>加入</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 空状态 -->
+      <view v-if="!loading && circles.length === 0" class="flex flex-col items-center justify-center py-20">
+        <view class="w-16 h-16 rounded-full bg-[#F5F0E8] flex items-center justify-center mb-4">
+          <text class="text-[#999] text-2xl">👥</text>
+        </view>
+        <text class="text-[#999] text-[14px]">暂无相关圈子</text>
+      </view>
+    </block>
+
+    <!-- 动态Tab -->
+    <block v-if="activeTab === 'feed'">
+      <view class="px-4 pt-4 space-y-4">
+        <view v-if="myCircles.length === 0" class="flex flex-col items-center justify-center py-20">
+          <view class="w-16 h-16 rounded-full bg-[#F5F0E8] flex items-center justify-center mb-4">
+            <text class="text-[#999] text-2xl">👥</text>
+          </view>
+          <text class="text-[#999] text-[14px] mb-2">还没有加入任何圈子</text>
+          <text class="text-[#BBB] text-[12px] mb-4">加入圈子后，这里会显示最新动态</text>
+          <view class="px-4 py-2 bg-[#C41E3A] text-white text-[13px] rounded-full" @click="activeTab = 'discover'">
+            <text>去发现圈子</text>
+          </view>
+        </view>
+        <view v-else>
+          <view v-for="post in hotPosts" :key="post.id" class="bg-white rounded-2xl overflow-hidden shadow-sm mb-4" @click="goPost(post.circleId, post.id)">
+            <!-- 圈子来源 -->
+            <view class="px-4 pt-3 pb-2 flex items-center justify-between border-b border-[#F5F0E8]">
+              <view class="flex items-center gap-2" @click.stop="goCircleDetail(post.circleId)">
+                <text class="text-[12px] text-[#C41E3A] font-medium">#{{ post.circleName }}</text>
+                <text v-if="post.isPinned" class="text-[10px] px-1.5 py-0.5 bg-[#FFF0F0] text-[#C41E3A] rounded">置顶</text>
+              </view>
+              <text class="text-[11px] text-[#BBB]">{{ post.time }}</text>
+            </view>
+            <!-- 作者信息 -->
+            <view class="px-4 pt-3 flex items-center gap-2">
+              <image :src="post.author.avatar" class="w-10 h-10 rounded-full" />
+              <view>
+                <view class="flex items-center gap-1.5">
+                  <text class="text-[14px] font-medium text-[#2C2C2C]">{{ post.author.name }}</text>
+                  <text v-if="post.author.title" class="text-[10px] px-1.5 py-0.5 bg-[#C9A96E]/10 text-[#C9A96E] rounded">{{ post.author.title }}</text>
+                </view>
+              </view>
+            </view>
+            <!-- 内容 -->
+            <view class="px-4 py-3">
+              <text class="text-[14px] text-[#2C2C2C] leading-relaxed line-clamp-4">{{ post.content }}</text>
+            </view>
+            <!-- 图片 -->
+            <view v-if="post.images.length > 0" :class="'px-4 pb-3 grid gap-2 ' + (post.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2')">
+              <image v-for="(img, idx) in post.images" :key="idx" :src="img" :class="'w-full object-cover rounded-lg ' + (post.images.length === 1 ? 'max-h-48' : 'aspect-square')" />
+            </view>
+            <!-- 互动栏 -->
+            <view class="px-4 py-3 border-t border-[#F5F0E8] flex items-center gap-6">
+              <view class="flex items-center gap-1.5 text-[#666]">
+                <text class="text-base">💬</text>
+                <text class="text-[12px]">{{ post.comments }}</text>
+              </view>
+              <view class="flex items-center gap-1.5 text-[#666]">
+                <text class="text-base">📈</text>
+                <text class="text-[12px]">{{ post.likes }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 我的Tab -->
+    <block v-if="activeTab === 'mine'">
+      <view class="px-4 pt-4">
+        <!-- 我的圈子数据卡片 -->
+        <view class="bg-gradient-to-br from-[#C41E3A] to-[#A01530] rounded-2xl p-4 text-white mb-4">
+          <view class="flex items-center justify-between mb-3">
+            <text class="font-medium">我的圈子数据</text>
+            <view class="text-[12px] text-white/70 flex items-center" @click="goStats">
+              <text>详情 </text><text>›</text>
+            </view>
+          </view>
+          <view class="grid grid-cols-4 gap-2 text-center">
+            <view>
+              <text class="text-[20px] font-bold block">{{ myCircles.length }}</text>
+              <text class="text-[11px] text-white/70">已加入</text>
+            </view>
+            <view>
+              <text class="text-[20px] font-bold block">156</text>
+              <text class="text-[11px] text-white/70">发帖数</text>
+            </view>
+            <view>
+              <text class="text-[20px] font-bold block">2.8k</text>
+              <text class="text-[11px] text-white/70">获赞数</text>
+            </view>
+            <view>
+              <text class="text-[20px] font-bold block">Lv.5</text>
+              <text class="text-[11px] text-white/70">等级</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 我的圈子列表 -->
+        <view class="flex items-center justify-between mb-3">
+          <text class="font-semibold text-[#2C2C2C]">我加入的圈子</text>
+          <text class="text-[12px] text-[#999]">{{ myCircles.length }}个</text>
+        </view>
+
+        <view v-if="myCircles.length === 0" class="flex flex-col items-center justify-center py-12 bg-white rounded-2xl">
+          <view class="w-14 h-14 rounded-full bg-[#F5F0E8] flex items-center justify-center mb-3">
+            <text class="text-[#999] text-2xl">👥</text>
+          </view>
+          <text class="text-[#999] text-[13px] mb-4">还没有加入任何圈子</text>
+          <view class="px-4 py-2 bg-[#C41E3A] text-white text-[13px] rounded-full" @click="activeTab = 'discover'">
+            <text>去发现圈子</text>
+          </view>
+        </view>
+        <view v-else class="space-y-3">
+          <view v-for="circle in myCircles" :key="circle.id" class="bg-white rounded-xl p-3 flex items-center gap-3 shadow-sm" @click="goCircleDetail(circle.id)">
+            <image :src="circle.cover" class="w-14 h-14 rounded-xl object-cover" />
+            <view class="flex-1 min-w-0">
+              <text class="font-medium text-[14px] text-[#2C2C2C] truncate block">{{ circle.name }}</text>
+              <text class="text-[12px] text-[#999] mt-0.5 block">{{ circle.members }}成员 · {{ circle.posts }}帖子</text>
+              <view v-if="circle.todayActive && circle.todayActive > 0" class="flex items-center gap-1 mt-1">
+                <text class="text-[#FF6B35] text-sm">🔥</text>
+                <text class="text-[11px] text-[#FF6B35]">今日{{ circle.todayActive }}条新动态</text>
+              </view>
+            </view>
+            <text class="text-[#CCC] text-lg">›</text>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 创建圈子浮动按钮 -->
+    <view class="fixed right-4 bottom-24 w-12 h-12 bg-gradient-to-br from-[#C41E3A] to-[#A01530] rounded-full shadow-lg flex items-center justify-center" @click="goCreate">
+      <text class="text-white text-2xl">+</text>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+interface Circle {
+  id: string
+  name: string
+  cover: string
+  description?: string
+  category?: string
+  members: number
+  posts: number
+  isJoined?: boolean
+  todayActive?: number
+  rank?: number
+}
+
+interface LiveItem {
+  id: string
+  title: string
+  host: string
+  avatar: string
+  startTime: string
+  viewers: number
+  circleId: string
+  circleName: string
+}
+
+interface ActivityItem {
+  id: string
+  type: string
+  title: string
+  participants: number
+  deadline: string
+  circleId: string
+  reward: string
+}
+
+interface PostItem {
+  id: string
+  circleId: string
+  circleName: string
+  author: { name: string; avatar: string; title?: string }
+  content: string
+  images: string[]
+  likes: number
+  comments: number
+  time: string
+  isPinned?: boolean
+}
+
+const activeTab = ref<'discover' | 'feed' | 'mine'>('discover')
+const category = ref('')
+const circles = ref<Circle[]>([])
+const myCircles = ref<Circle[]>([])
+const ranking = ref<Circle[]>([])
+const loading = ref(true)
+
+const tabs = [
+  { id: 'discover', label: '发现' },
+  { id: 'feed', label: '动态' },
+  { id: 'mine', label: '我的' },
+]
+
+const categories = [
+  { id: '', name: '推荐' },
+  { id: 'bazi', name: '八字命理' },
+  { id: 'ziwei', name: '紫微斗数' },
+  { id: 'fengshui', name: '风水堪舆' },
+  { id: 'yijing', name: '易经' },
+  { id: 'liuyao', name: '六爻' },
+  { id: 'qimen', name: '奇门遁甲' },
+  { id: 'yangsheng', name: '养生' },
+  { id: 'shufa', name: '书法' },
+]
+
+const upcomingLives = ref<LiveItem[]>([
+  { id: 'live1', title: '八字入门精讲（第3期）', host: '周易大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=master', startTime: '今晚 20:00', viewers: 1280, circleId: '1', circleName: '八字研习社' },
+  { id: 'live2', title: '紫微斗数实战案例分析', host: '张玄风', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang', startTime: '明天 19:30', viewers: 860, circleId: '2', circleName: '紫微斗数学院' },
+])
+
+const todayActivities = ref<ActivityItem[]>([
+  { id: 'act1', type: 'checkin', title: '《易经》共读打卡 Day 15', participants: 328, deadline: '23:59', circleId: '4', reward: '+10经验' },
+  { id: 'act2', type: 'homework', title: '八字案例分析作业', participants: 156, deadline: '本周日', circleId: '1', reward: '+50经验' },
+  { id: 'act3', type: 'qa', title: '限时免费提问活动', participants: 89, deadline: '12:00', circleId: '1', reward: '免费' },
+])
+
+const hotPosts = ref<PostItem[]>([
+  { id: 'p1', circleId: '1', circleName: '八字研习社', author: { name: '周易大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=master', title: '圈主' }, content: '今天分享一个八字案例：某人八字为甲子、丙寅、戊辰、壬戌，这个八字有什么特点？从五行来看，日主戊土生于寅月...', images: ['https://picsum.photos/400/300?random=201'], likes: 328, comments: 56, time: '2小时前', isPinned: true },
+  { id: 'p2', circleId: '2', circleName: '紫微斗数学院', author: { name: '张玄风', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zhang', title: '嘉宾' }, content: '紫微斗数中的「四化」如何理解？化禄主福、化权主权、化科主名、化忌主烦。今天重点讲讲化忌...', images: [], likes: 256, comments: 42, time: '3小时前' },
+  { id: 'p3', circleId: '3', circleName: '风水堪舆交流', author: { name: '王德华', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=wang' }, content: '分享一个商铺选址的风水案例。这家店位于T字路口，门前有一棵大树遮挡，开业三个月生意惨淡...', images: ['https://picsum.photos/400/300?random=202', 'https://picsum.photos/400/300?random=203'], likes: 198, comments: 38, time: '5小时前' },
+])
+
+const mockCircles: Circle[] = [
+  { id: '1', name: '八字研习社', cover: 'https://picsum.photos/400/300?random=101', description: '专注八字命理学习与交流', category: 'bazi', members: 12800, posts: 3560, isJoined: true, todayActive: 128, rank: 1 },
+  { id: '2', name: '紫微斗数爱好者', cover: 'https://picsum.photos/400/300?random=102', description: '探索紫微斗数的奥秘', category: 'ziwei', members: 8600, posts: 2180, isJoined: false, todayActive: 86, rank: 2 },
+  { id: '3', name: '风水学堂', cover: 'https://picsum.photos/400/300?random=103', description: '风水堪舆知识分享', category: 'fengshui', members: 6500, posts: 1820, isJoined: true, todayActive: 56, rank: 3 },
+  { id: '4', name: '易经读书会', cover: 'https://picsum.photos/400/300?random=104', description: '一起研读易经经典', category: 'yijing', members: 5200, posts: 1560, isJoined: false, todayActive: 42 },
+  { id: '5', name: '六爻预测交流', cover: 'https://picsum.photos/400/300?random=105', description: '六爻占卜实战分享', category: 'liuyao', members: 4800, posts: 1280, isJoined: false, todayActive: 38 },
+  { id: '6', name: '奇门遁甲研究', cover: 'https://picsum.photos/400/300?random=106', description: '奇门遁甲术数探讨', category: 'qimen', members: 3600, posts: 960, isJoined: false, todayActive: 28 },
+  { id: '7', name: '中医养生圈', cover: 'https://picsum.photos/400/300?random=107', description: '传统养生智慧分享', category: 'yangsheng', members: 9200, posts: 2860, isJoined: true, todayActive: 96 },
+  { id: '8', name: '书法艺术', cover: 'https://picsum.photos/400/300?random=108', description: '书法练习与鉴赏', category: 'shufa', members: 7800, posts: 2340, isJoined: false, todayActive: 68 },
+]
+
+onMounted(() => {
+  loadData()
+})
+
+function loadData() {
+  loading.value = true
+  const filtered = category.value
+    ? mockCircles.filter(c => c.category === category.value)
+    : mockCircles
+  circles.value = filtered
+  myCircles.value = mockCircles.filter(c => c.isJoined)
+  ranking.value = mockCircles.slice(0, 5).map((c, i) => ({ ...c, rank: i + 1 }))
+  loading.value = false
+}
+
+function handleJoin(id: string) {
+  circles.value = circles.value.map(c =>
+    c.id === id ? { ...c, isJoined: true, members: c.members + 1 } : c
+  )
+}
+
+function goSearch() { uni.navigateTo({ url: '/pages/circles/search/index' }) }
+function goCalendar() { uni.navigateTo({ url: '/pages/circles/calendar/index' }) }
+function goActivities() { uni.navigateTo({ url: '/pages/circles/activities/index' }) }
+function goRanking() { uni.navigateTo({ url: '/pages/circles/ranking/index' }) }
+function goStats() { uni.navigateTo({ url: '/pages/circles/stats/index' }) }
+function goCreate() { uni.navigateTo({ url: '/pages/circles/create/index' }) }
+function goCircleDetail(id: string) { uni.navigateTo({ url: '/pages/circles/id-detail/index?id=' + id }) }
+function goActivity(circleId: string, actId: string) { uni.navigateTo({ url: '/pages/circles/id-detail/checkin/index?circleId=' + circleId + '&activityId=' + actId }) }
+function goPost(circleId: string, postId: string) { uni.navigateTo({ url: '/pages/circles/id-detail/posts/postId-detail/index?circleId=' + circleId + '&postId=' + postId }) }
+function reserveLive(id: string) { uni.showToast({ title: '预约成功', icon: 'success' }) }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

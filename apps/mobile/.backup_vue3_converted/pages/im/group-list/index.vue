@@ -1,0 +1,372 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-20 bg-white border-b border-gray-100">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view @click="goBack" class="p-2 -ml-2"><text class="text-xl text-foreground">←</text></view>
+        <text class="text-lg font-semibold text-foreground">群聊</text>
+        <view @click="goTo('/pages/im/create-group/index')" class="p-2 -mr-2"><text class="text-xl text-primary"></text></view>
+      </view>
+    </view>
+
+    <!-- 搜索框 -->
+    <view class="sticky top-14 z-10 bg-background p-4">
+      <view class="relative">
+        <text class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"></text>
+        <input
+          v-model="searchKeyword"
+          @input="handleSearch"
+          placeholder="搜索群聊"
+          class="w-full pl-9 pr-9 py-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none text-foreground"
+        />
+        <text v-if="searchKeyword" @click="clearSearch" class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">✕</text>
+      </view>
+    </view>
+
+    <!-- 加载中 -->
+    <view v-if="loading" class="bg-white p-4 space-y-3">
+      <view v-for="i in 4" :key="i" class="flex items-center gap-3">
+        <view class="w-12 h-12 rounded-xl bg-muted animate-pulse shrink-0" />
+        <view class="flex-1 space-y-2">
+          <view class="h-4 w-1/3 bg-muted rounded animate-pulse" />
+          <view class="h-3 w-2/3 bg-muted rounded animate-pulse" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 搜索中骨架 -->
+    <view v-else-if="isSearching" class="bg-white p-4 space-y-3">
+      <view v-for="i in 3" :key="i" class="flex items-center gap-3">
+        <view class="w-12 h-12 rounded-xl bg-muted animate-pulse shrink-0" />
+        <view class="flex-1 space-y-2">
+          <view class="h-4 w-1/3 bg-muted rounded animate-pulse" />
+          <view class="h-3 w-2/3 bg-muted rounded animate-pulse" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="text-center py-20 bg-white">
+      <text class="text-4xl text-[#E8E0D5] block mb-3">⚠</text>
+      <text class="text-muted-foreground text-sm block mb-4">{{ error }}</text>
+      <view @click="loadData" class="inline-block px-6 py-2 bg-primary text-white rounded-full text-sm">重试</view>
+    </view>
+
+    <!-- 群聊列表 -->
+    <view v-else class="bg-white">
+      <view v-if="displayList.length === 0" class="text-center py-12">
+        <text class="text-4xl text-[#E8E0D5] block mb-3"></text>
+        <text class="text-sm text-muted-foreground">{{ searchKeyword ? '未找到相关群聊' : '暂无群聊' }}</text>
+      </view>
+
+      <view class="divide-y divide-gray-50">
+        <view
+          v-for="group in displayList"
+          :key="group.id"
+          @click="goTo('/pages/im/group-chat/id-detail/index?id=' + group.id)"
+          :class="['flex items-center gap-3 p-4 active:bg-gray-50', group.isPinned ? 'bg-gray-50/50' : '']"
+        >
+          <!-- 群头像 -->
+          <view class="relative flex-shrink-0">
+            <image
+              v-if="group.avatar"
+              :src="group.avatar"
+              mode="aspectFill"
+              class="w-12 h-12 rounded-xl"
+            />
+            <view v-else class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-[#E85A6B] flex items-center justify-center">
+              <text class="text-white text-xl"></text>
+            </view>
+            <view v-if="group.isMuted" class="absolute -bottom-1 -right-1 w-4 h-4 bg-gray-400 rounded-full flex items-center justify-center">
+              <text class="text-white text-[8px]"></text>
+            </view>
+          </view>
+
+          <!-- 群信息 -->
+          <view class="flex-1 min-w-0">
+            <view class="flex items-center gap-1.5">
+              <text :class="['truncate text-sm', group.unreadCount > 0 && !group.isMuted ? 'font-semibold text-foreground' : 'text-foreground']">
+                {{ group.name }}
+              </text>
+              <text v-if="group.myRole === 'owner'" class="text-xs text-amber-500">👑</text>
+              <text v-else-if="group.myRole === 'admin'" class="text-xs text-blue-500">🛡</text>
+              <text class="text-xs text-gray-400">({{ group.memberCount }})</text>
+              <text v-if="group.isPinned" class="text-xs text-gray-400">📌</text>
+            </view>
+            <text v-if="group.lastMessage" class="text-sm text-gray-500 truncate block mt-0.5">
+              {{ group.lastMessage.senderName }}: {{ group.lastMessage.content }}
+            </text>
+          </view>
+
+          <!-- 右侧信息 -->
+          <view class="flex flex-col items-end gap-1 flex-shrink-0">
+            <text class="text-xs text-gray-400">{{ group.lastMessage?.time }}</text>
+            <view v-if="group.unreadCount > 0" :class="['min-w-5 h-5 px-1.5 rounded-full flex items-center justify-center text-xs text-white', group.isMuted ? 'bg-gray-400' : 'bg-red-500']">
+              <text>{{ group.unreadCount > 99 ? '99+' : group.unreadCount }}</text>
+            </view>
+          </view>
+
+          <!-- 操作菜单按钮 -->
+          <view class="p-1.5 -mr-1.5" @click.stop="showGroupMenu(group)">
+            <text class="text-lg text-gray-400">⋯</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 创建群聊浮动按钮 -->
+    <view @click="goTo('/pages/im/create-group/index')" class="fixed bottom-24 right-4 w-14 h-14 bg-primary rounded-full shadow-lg flex items-center justify-center active:scale-95">
+      <text class="text-white text-2xl"></text>
+    </view>
+
+    <!-- 操作菜单 -->
+    <view v-if="showMenu" class="fixed inset-0 z-50" @click="showMenu = false">
+      <view class="absolute inset-0 bg-black/40" />
+      <view class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl pb-8" @click.stop>
+        <view class="p-4 space-y-1">
+          <view
+            class="flex items-center gap-3 py-4 rounded-lg active:bg-secondary"
+            @click="togglePin(menuGroup!)"
+          >
+            <text class="text-lg">📌</text>
+            <text class="text-sm text-foreground">{{ menuGroup?.isPinned ? '取消置顶' : '置顶' }}</text>
+          </view>
+          <view
+            class="flex items-center gap-3 py-4 rounded-lg active:bg-secondary"
+            @click="toggleMute(menuGroup!)"
+          >
+            <text class="text-lg">{{ menuGroup?.isMuted ? '' : '' }}</text>
+            <text class="text-sm text-foreground">{{ menuGroup?.isMuted ? '关闭免打扰' : '开启免打扰' }}</text>
+          </view>
+          <view
+            class="flex items-center gap-3 py-4 rounded-lg active:bg-secondary"
+            @click="showQuitConfirm(menuGroup!)"
+          >
+            <text class="text-lg">🚪</text>
+            <text class="text-sm text-primary">{{ menuGroup?.myRole === 'owner' ? '解散群聊' : '退出群聊' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 退出/解散确认弹窗 -->
+    <view v-if="quitConfirm" class="fixed inset-0 z-50 flex items-center justify-center px-6">
+      <view class="absolute inset-0 bg-black/50" @click="quitConfirm = null" />
+      <view class="relative bg-white rounded-2xl p-6 w-full max-w-sm">
+        <text class="text-lg font-semibold text-foreground block mb-2">{{ quitConfirm.myRole === 'owner' ? '解散群聊' : '退出群聊' }}</text>
+        <text class="text-sm text-muted-foreground block mb-6">
+          {{ quitConfirm.myRole === 'owner'
+            ? `确定要解散「${quitConfirm.name}」吗？解散后所有成员将被移出，且无法恢复。`
+            : `确定要退出「${quitConfirm.name}」吗？退出后将不再接收该群消息。`
+          }}
+        </text>
+        <view class="flex gap-3">
+          <view @click="quitConfirm = null" class="flex-1 py-3 bg-secondary text-ink-soft rounded-xl text-center text-sm font-medium">取消</view>
+          <view @click="handleQuit" class="flex-1 py-3 bg-primary text-white rounded-xl text-center text-sm font-medium">
+            {{ quitConfirm.myRole === 'owner' ? '解散' : '退出' }}
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue'
+
+interface GroupItem {
+  id: string
+  name: string
+  avatar?: string
+  myRole: string
+  memberCount: number
+  unreadCount: number
+  isMuted: boolean
+  isPinned: boolean
+  lastMessage?: { senderName: string; content: string; time: string }
+}
+
+interface GroupListResponse {
+  list: GroupItem[]
+  total: number
+}
+
+const data = ref<GroupListResponse | null>(null)
+const loading = ref(true)
+const error = ref<string | null>(null)
+
+// 搜索
+const searchKeyword = ref('')
+const searchResults = ref<GroupItem[] | null>(null)
+const isSearching = ref(false)
+
+// 菜单
+const showMenu = ref(false)
+const menuGroup = ref<GroupItem | null>(null)
+
+// 退出确认
+const quitConfirm = ref<GroupItem | null>(null)
+
+const displayList = computed(() => {
+  return searchResults.value ?? data.value?.list ?? []
+})
+
+// 加载数据
+async function loadData() {
+  loading.value = true
+  error.value = null
+  try {
+    const res = await getGroupList()
+    if (res.code === 200) {
+      data.value = res.data
+    } else {
+      error.value = res.message
+    }
+  } catch {
+    error.value = '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 搜索
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+function handleSearch() {
+  const keyword = searchKeyword.value
+  if (!keyword.trim()) {
+    searchResults.value = null
+    return
+  }
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(async () => {
+    isSearching.value = true
+    try {
+      const res = await searchGroups(keyword)
+      if (res.code === 200) {
+        searchResults.value = res.data
+      }
+    } finally {
+      isSearching.value = false
+    }
+  }, 300)
+}
+
+function clearSearch() {
+  searchKeyword.value = ''
+  searchResults.value = null
+}
+
+function showGroupMenu(group: GroupItem) {
+  menuGroup.value = group
+  showMenu.value = true
+}
+
+async function togglePin(group: GroupItem) {
+  showMenu.value = false
+  try {
+    const res = await togglePinGroup(group.id)
+    if (res.code === 200 && data.value) {
+      const updated = data.value.list.map(g =>
+        g.id === group.id ? { ...g, isPinned: res.data.isPinned } : g
+      )
+      updated.sort((a, b) => {
+        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1
+        return 0
+      })
+      data.value = { ...data.value, list: updated }
+      uni.showToast({ title: res.data.isPinned ? '已置顶' : '已取消置顶', icon: 'success' })
+    }
+  } catch {
+    uni.showToast({ title: '操作失败', icon: 'none' })
+  }
+}
+
+async function toggleMute(group: GroupItem) {
+  showMenu.value = false
+  try {
+    const res = await toggleMuteGroup(group.id)
+    if (res.code === 200 && data.value) {
+      data.value = {
+        ...data.value,
+        list: data.value.list.map(g =>
+          g.id === group.id ? { ...g, isMuted: res.data.isMuted } : g
+        )
+      }
+      uni.showToast({ title: res.data.isMuted ? '已开启免打扰' : '已关闭免打扰', icon: 'success' })
+    }
+  } catch {
+    uni.showToast({ title: '操作失败', icon: 'none' })
+  }
+}
+
+function showQuitConfirm(group: GroupItem) {
+  showMenu.value = false
+  quitConfirm.value = group
+}
+
+async function handleQuit() {
+  if (!quitConfirm.value) return
+  const group = quitConfirm.value
+  try {
+    const isOwner = group.myRole === 'owner'
+    const res = isOwner
+      ? await dismissGroup(group.id)
+      : await quitGroup(group.id)
+    if (res.code === 200 && data.value) {
+      data.value = {
+        ...data.value,
+        list: data.value.list.filter(g => g.id !== group.id),
+        total: data.value.total - 1,
+      }
+      uni.showToast({ title: res.message, icon: 'success' })
+    }
+  } catch {
+    uni.showToast({ title: '操作失败', icon: 'none' })
+  } finally {
+    quitConfirm.value = null
+  }
+}
+
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+
+// API 桩函数 (Mock 数据)
+const mockGroups: GroupItem[] = [
+  { id: 'g1', name: '八字命理研习社', avatar: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=80&q=80', myRole: 'member', memberCount: 128, unreadCount: 5, isMuted: false, isPinned: true, lastMessage: { senderName: '张大师', content: '今天的案例很有启发性，大家多练习排盘', time: '10:32' } },
+  { id: 'g2', name: '紫微斗数交流群', avatar: 'https://images.unsplash.com/photo-1532074205216-d0e1f4b87368?w=80&q=80', myRole: 'admin', memberCount: 256, unreadCount: 0, isMuted: true, isPinned: false, lastMessage: { senderName: '林道长', content: '十二宫位的飞星变化要结合大运来看', time: '09:15' } },
+  { id: 'g3', name: '风水堪舆学院', avatar: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=80&q=80', myRole: 'owner', memberCount: 89, unreadCount: 12, isMuted: false, isPinned: true, lastMessage: { senderName: '王大师', content: '阳宅布局的核心是纳气和藏风', time: '昨天' } },
+  { id: 'g4', name: '六爻预测实战', avatar: 'https://images.unsplash.com/photo-1519791883288-dc8bd696e667?w=80&q=80', myRole: 'member', memberCount: 156, unreadCount: 2, isMuted: false, isPinned: false, lastMessage: { senderName: '陈老师', content: '这个卦象很有意思，大家来分析一下', time: '昨天' } },
+  { id: 'g5', name: '奇门遁甲研习社', avatar: 'https://images.unsplash.com/photo-1471107340929-a87cd0f5b5f3?w=80&q=80', myRole: 'member', memberCount: 203, unreadCount: 0, isMuted: false, isPinned: false, lastMessage: { senderName: '赵先生', content: '飞盘和转盘的区别主要在起局方式上', time: '2天前' } },
+  { id: 'g6', name: '国学经典品读会', avatar: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=80&q=80', myRole: 'member', memberCount: 312, unreadCount: 8, isMuted: false, isPinned: false, lastMessage: { senderName: '李明华', content: '今天我们来读《道德经》第十六章', time: '3天前' } },
+  { id: 'g7', name: '起名改名交流', avatar: 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=80&q=80', myRole: 'member', memberCount: 178, unreadCount: 0, isMuted: true, isPinned: false, lastMessage: { senderName: '李老师', content: '起名要结合八字五行喜用神', time: '1周前' } },
+]
+
+async function getGroupList(): Promise<any> {
+  return { code: 200, data: { list: mockGroups, total: mockGroups.length } }
+}
+async function searchGroups(keyword: string): Promise<any> {
+  const kw = keyword.toLowerCase()
+  const results = mockGroups.filter(g => g.name.toLowerCase().includes(kw))
+  return { code: 200, data: results }
+}
+async function togglePinGroup(id: string): Promise<any> {
+  return { code: 200, data: { isPinned: true } }
+}
+async function toggleMuteGroup(id: string): Promise<any> {
+  return { code: 200, data: { isMuted: true } }
+}
+async function quitGroup(id: string): Promise<any> {
+  return { code: 200, message: '已退出群聊' }
+}
+async function dismissGroup(id: string): Promise<any> {
+  return { code: 200, message: '群聊已解散' }
+}
+
+onMounted(() => {
+  loadData()
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

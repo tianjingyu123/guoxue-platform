@@ -1,0 +1,156 @@
+<template>
+  <view class="min-h-screen bg-background pb-32">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-white border-b border-border">
+      <view class="flex items-center h-14 px-4">
+        <view @click="goBack" class="mr-3 p-1">
+          <text class="text-xl text-foreground">←</text>
+        </view>
+        <text class="text-lg font-semibold">修改入驻资料</text>
+      </view>
+    </view>
+
+    <!-- 提示信息 -->
+    <view class="p-4">
+      <view class="p-3 bg-amber-50 rounded-xl border border-amber-200/50">
+        <view class="flex items-start gap-2">
+          <text class="text-amber-600 mt-0.5"></text>
+          <view class="text-xs text-ink-soft">
+            <text class="block">修改入驻资料需要重新审核，审核期间店铺正常营业。</text>
+            <text class="mt-1 block">部分敏感信息修改后可能影响店铺信用评级。</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <scroll-view scroll-y class="flex-1 px-4 space-y-4">
+      <!-- 店铺信息 -->
+      <view class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
+        <view class="flex items-center justify-between">
+          <text class="font-medium">店铺信息</text>
+          <text class="px-2 py-0.5 bg-background rounded text-xs text-ink-soft">{{ formData.shopType }}</text>
+        </view>
+        <view class="space-y-2">
+          <text class="text-sm font-medium">店铺名称</text>
+          <input v-model="formData.shopName" class="w-full px-3 py-2.5 bg-background rounded-xl text-sm" />
+          <text class="text-xs text-muted-foreground">店铺名称每年只能修改1次</text>
+        </view>
+      </view>
+
+      <!-- 资质材料 -->
+      <view class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
+        <text class="font-medium">资质材料</text>
+
+        <view class="space-y-2">
+          <text class="text-sm font-medium">营业执照</text>
+          <view class="flex items-center gap-3">
+            <view class="w-24 h-16 rounded-xl bg-background flex items-center justify-center border-2 border-dashed border-border">
+              <view class="text-center">
+                <text class="text-green-600 block">✓</text>
+                <text class="text-[10px] text-muted-foreground">已上传</text>
+              </view>
+            </view>
+            <view class="px-3 py-1.5 border border-border rounded-lg text-xs inline-flex items-center gap-1"><text></text><text>重新上传</text></view>
+          </view>
+        </view>
+
+        <view class="space-y-2">
+          <text class="text-sm font-medium">法人身份证</text>
+          <view class="grid grid-cols-2 gap-3">
+            <view class="aspect-[3/2] rounded-xl bg-background flex items-center justify-center border-2 border-dashed border-border">
+              <view class="text-center">
+                <text class="text-green-600 block">✓</text>
+                <text class="text-xs text-muted-foreground">人像面</text>
+              </view>
+            </view>
+            <view class="aspect-[3/2] rounded-xl bg-background flex items-center justify-center border-2 border-dashed border-border">
+              <view class="text-center">
+                <text class="text-green-600 block">✓</text>
+                <text class="text-xs text-muted-foreground">国徽面</text>
+              </view>
+            </view>
+          </view>
+          <view class="flex justify-end mt-2">
+            <view class="px-3 py-1.5 border border-border rounded-lg text-xs flex items-center gap-1">
+              <text></text>
+              <text>重新上传</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="space-y-2">
+          <text class="text-sm font-medium">法人姓名</text>
+          <input v-model="formData.legalPerson" class="w-full px-3 py-2.5 bg-background rounded-xl text-sm" />
+        </view>
+      </view>
+
+      <!-- 联系人信息 -->
+      <view class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
+        <text class="font-medium">联系人信息</text>
+
+        <view class="space-y-2">
+          <text class="text-sm font-medium">联系人姓名</text>
+          <input v-model="formData.contactName" class="w-full px-3 py-2.5 bg-background rounded-xl text-sm" />
+        </view>
+
+        <view class="space-y-2">
+          <text class="text-sm font-medium">联系电话</text>
+          <input v-model="formData.contactPhone" class="w-full px-3 py-2.5 bg-background rounded-xl text-sm" />
+        </view>
+
+        <view class="space-y-2">
+          <text class="text-sm font-medium">联系邮箱</text>
+          <input v-model="formData.contactEmail" type="email" class="w-full px-3 py-2.5 bg-background rounded-xl text-sm" />
+        </view>
+      </view>
+
+      <!-- 经营类目 -->
+      <view class="bg-white rounded-2xl p-4 shadow-sm space-y-4">
+        <text class="font-medium">经营类目</text>
+        <view class="flex flex-wrap gap-2">
+          <text v-for="cat in formData.categories" :key="cat" class="px-2 py-1 bg-background rounded text-xs text-ink-soft">{{ cat }}</text>
+        </view>
+        <view class="w-full py-2 border border-border rounded-xl text-center text-xs">修改经营类目</view>
+        <text class="text-xs text-muted-foreground">新增类目可能需要提供额外资质</text>
+      </view>
+    </scroll-view>
+
+    <!-- 底部提交 -->
+    <view class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-border" style="padding-bottom: calc(16px + env(safe-area-inset-bottom));">
+      <view @click="handleSubmit" :class="['w-full py-3 rounded-xl text-center font-medium', isSubmitting ? 'bg-primary/50 text-white' : 'bg-primary text-white']">
+        <text v-if="isSubmitting"> </text>
+        <text>提交修改申请</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { reactive, ref } from 'vue'
+
+const formData = reactive({
+  shopName: '国学堂官方店',
+  shopType: '企业店铺',
+  businessLicense: '已上传',
+  legalPerson: '张三',
+  contactName: '张三',
+  contactPhone: '13888888888',
+  contactEmail: 'zhangsan@example.com',
+  categories: ['国学课程', '古籍图书'],
+})
+
+const isSubmitting = ref(false)
+
+async function handleSubmit() {
+  isSubmitting.value = true
+  await new Promise(resolve => setTimeout(resolve, 2000))
+  isSubmitting.value = false
+  uni.navigateTo({ url: '/pages/merchant/application-status/index' })
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

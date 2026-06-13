@@ -1,0 +1,173 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-6">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-white border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 h-11">
+        <view @click="goBack" class="flex items-center">
+          <text class="text-[#2C2C2C] text-lg">←</text>
+        </view>
+        <text class="font-medium text-[#2C2C2C]">历届比赛档案</text>
+        <view class="w-5" />
+      </view>
+    </view>
+
+    <!-- 年份筛选 -->
+    <view class="px-4 py-3 border-b border-[#E8E0D5]">
+      <view class="flex gap-2">
+        <view v-for="year in years" :key="year.value" @click="selectedYear = year.value" :class="['px-4 py-1.5 rounded-full text-sm transition-colors', selectedYear === year.value ? 'bg-[#C41E3A] text-white' : 'bg-[#F5F1EB] text-[#2C2C2C]']">
+          <text>{{ year.label }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 历届比赛列表 -->
+    <view class="px-4 py-4 space-y-4">
+      <view v-for="competition in filteredData" :key="competition.id" class="rounded-xl border border-[#E8E0D5] bg-white overflow-hidden">
+        <!-- 基本信息 -->
+        <view class="p-4">
+          <view class="flex items-start justify-between mb-2">
+            <view>
+              <text class="inline-block px-2 py-0.5 rounded text-xs bg-[#F5F1EB] text-[#2C2C2C] mb-2">{{ competition.edition }}</text>
+              <text class="font-bold text-[#2C2C2C] block">{{ competition.title }}</text>
+            </view>
+            <text class="text-sm text-[#999]">{{ competition.year }}</text>
+          </view>
+
+          <view class="flex items-center gap-4 text-sm text-[#999] mb-4">
+            <text class="flex items-center gap-1">📅 {{ competition.startTime }}</text>
+            <text class="flex items-center gap-1">👥 {{ competition.totalParticipants }}人参赛</text>
+          </view>
+
+          <!-- 前三名展示 -->
+          <view class="flex items-end justify-center gap-3 py-4 rounded-xl" style="background: linear-gradient(to bottom, rgba(254,243,199,0.5), transparent)">
+            <!-- 亚军 -->
+            <view class="text-center">
+              <view class="w-12 h-12 rounded-full bg-gray-100 mx-auto mb-1 flex items-center justify-center">
+                <text class="text-gray-400 text-lg">🏈</text>
+              </view>
+              <text class="text-xs font-medium text-[#2C2C2C]">{{ competition.topThree[1].name }}</text>
+              <text class="text-xs text-[#999] block">{{ competition.topThree[1].score }}分</text>
+            </view>
+
+            <!-- 冠军 -->
+            <view class="text-center -mt-4">
+              <view class="w-16 h-16 rounded-full bg-amber-100 mx-auto mb-1 flex items-center justify-center">
+                <text class="text-amber-500 text-2xl">👑</text>
+              </view>
+              <text class="text-sm font-bold text-[#2C2C2C]">{{ competition.topThree[0].name }}</text>
+              <text class="text-xs text-amber-600 block">{{ competition.topThree[0].score }}分</text>
+            </view>
+
+            <!-- 季军 -->
+            <view class="text-center">
+              <view class="w-12 h-12 rounded-full bg-amber-50 mx-auto mb-1 flex items-center justify-center">
+                <text class="text-amber-600 text-lg">🏅</text>
+              </view>
+              <text class="text-xs font-medium text-[#2C2C2C]">{{ competition.topThree[2].name }}</text>
+              <text class="text-xs text-[#999] block">{{ competition.topThree[2].score }}分</text>
+            </view>
+          </view>
+
+          <!-- 展开/收起 -->
+          <view @click="toggleExpand(competition.id)" class="w-full flex items-center justify-center gap-1 text-sm text-[#999] mt-3 pt-3 border-t border-[#E8E0D5]">
+            <text>{{ expandedId === competition.id ? '收起详情' : '查看详情' }}</text>
+            <text class="text-sm">{{ expandedId === competition.id ? '▲' : '▼' }}</text>
+          </view>
+        </view>
+
+        <!-- 展开详情 -->
+        <view v-if="expandedId === competition.id" class="px-4 pb-4 border-t border-[#E8E0D5]">
+          <view class="pt-4 space-y-4">
+            <!-- 精彩回顾 -->
+            <view>
+              <text class="font-medium text-sm mb-2 flex items-center gap-1 text-[#2C2C2C]">⭐ 精彩回顾</text>
+              <view class="space-y-1">
+                <view v-for="(highlight, i) in competition.highlights" :key="i" class="text-sm text-[#999] flex items-start gap-2">
+                  <text class="w-1.5 h-1.5 rounded-full bg-[#C41E3A] mt-2 flex-shrink-0" />
+                  <text>{{ highlight }}</text>
+                </view>
+              </view>
+            </view>
+
+            <!-- 操作按钮 -->
+            <view class="flex gap-3">
+              <view v-if="competition.hasReplay" class="flex-1 py-2.5 rounded-lg border border-[#E8E0D5] text-center text-sm font-medium text-[#2C2C2C]">
+                <text class="mr-1">▶️</text>观看回放
+              </view>
+              <view @click="goResult(competition.id)" class="flex-1 py-2.5 rounded-lg border border-[#E8E0D5] text-center text-sm font-medium text-[#2C2C2C]">
+                <text class="mr-1">🏆</text>完整排名
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 空状态 -->
+      <view v-if="filteredData.length === 0" class="text-center py-12 text-[#999]">
+        <text class="text-4xl block mx-auto mb-3 opacity-30">🏆</text>
+        <text class="text-sm">暂无历届比赛记录</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+const archiveData = [
+  {
+    id: '2023', title: '2023热卜杯·八字命理大赛', year: 2023, edition: '第一届',
+    startTime: '2023-04-01', endTime: '2023-04-30', totalParticipants: 986,
+    topThree: [
+      { rank: 1, name: '王命理', avatar: '', score: 96, title: '冠军' },
+      { rank: 2, name: '李八字', avatar: '', score: 94, title: '亚军' },
+      { rank: 3, name: '张易学', avatar: '', score: 92, title: '季军' },
+    ],
+    highlights: ['首届比赛，共吸引986名选手参赛', '决赛采用直播PK形式', '冠军王命理获得平台金牌认证'],
+    hasReplay: true, replayUrl: '/videos/competition-2023-final.mp4',
+  },
+  {
+    id: '2022-ziwei', title: '2022紫微斗数精英赛', year: 2022, edition: '首届',
+    startTime: '2022-10-01', endTime: '2022-10-31', totalParticipants: 568,
+    topThree: [
+      { rank: 1, name: '陈斗数', avatar: '', score: 95, title: '冠军' },
+      { rank: 2, name: '周紫微', avatar: '', score: 93, title: '亚军' },
+      { rank: 3, name: '吴星曜', avatar: '', score: 91, title: '季军' },
+    ],
+    highlights: ['紫微斗数专项比赛', '邀请多位业内专家担任评委', '冠军陈斗数后成为平台签约老师'],
+    hasReplay: true, replayUrl: '/videos/competition-2022-ziwei.mp4',
+  },
+  {
+    id: '2022-fengshui', title: '2022风水堪舆设计大赛', year: 2022, edition: '首届',
+    startTime: '2022-06-01', endTime: '2022-07-15', totalParticipants: 423,
+    topThree: [
+      { rank: 1, name: '赵风水', avatar: '', score: 94, title: '冠军' },
+      { rank: 2, name: '钱堪舆', avatar: '', score: 92, title: '亚军' },
+      { rank: 3, name: '孙玄空', avatar: '', score: 90, title: '季军' },
+    ],
+    highlights: ['首次采用作品提交+专家评审模式', '优秀作品在平台展示', '多个设计作品被实际采用'],
+    hasReplay: false, replayUrl: '',
+  },
+]
+
+const years = [
+  { value: 'all', label: '全部' },
+  { value: '2023', label: '2023年' },
+  { value: '2022', label: '2022年' },
+]
+
+const selectedYear = ref('all')
+const expandedId = ref<string | null>(null)
+
+const filteredData = computed(() =>
+  archiveData.filter(item => selectedYear.value === 'all' || item.year.toString() === selectedYear.value)
+)
+
+function goBack() { uni.navigateBack() }
+function goResult(id: string) { uni.navigateTo({ url: `/pages/competition/id-detail/result/index?id=${id}` }) }
+function toggleExpand(id: string) { expandedId.value = expandedId.value === id ? null : id }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

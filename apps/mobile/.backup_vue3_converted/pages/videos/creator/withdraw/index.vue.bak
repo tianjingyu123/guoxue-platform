@@ -1,0 +1,285 @@
+<template>
+  <view class="min-h-screen" style="background-color: #FAF8F5;">
+    <!-- ====== 提现表单页 ====== -->
+    <template v-if="showForm">
+      <view class="sticky top-0 z-10" style="background-color: #FFFFFF; border-bottom: 2rpx solid #E8E0D5;">
+        <view class="flex items-center justify-between" style="padding: 0 32rpx; height: 96rpx;">
+          <view @click="showForm = false" style="padding: 8rpx;">
+            <text style="font-size: 48rpx; color: #2C2C2C;">←</text>
+          </view>
+          <text style="font-size: 36rpx; font-weight: 600; color: #2C2C2C;">申请提现</text>
+          <view style="width: 64rpx;" />
+        </view>
+      </view>
+
+      <view style="padding-bottom: 192rpx;">
+        <!-- 可提现余额 -->
+        <view style="margin: 32rpx; padding: 32rpx; background-color: rgba(245,245,245,0.5); border-radius: 16rpx;">
+          <text style="font-size: 26rpx; color: #999999; margin-bottom: 8rpx; display: block;">可提现余额</text>
+          <text style="font-size: 48rpx; font-weight: 700; color: #2C2C2C;">¥{{ overview.withdrawable.toFixed(2) }}</text>
+        </view>
+
+        <!-- 提现金额输入 -->
+        <view style="margin: 0 32rpx;">
+          <text style="font-size: 26rpx; font-weight: 600; color: #2C2C2C; margin-bottom: 16rpx; display: block;">提现金额</text>
+          <view style="position: relative;">
+            <text style="position: absolute; left: 24rpx; top: 50%; transform: translateY(-50%); font-size: 36rpx; font-weight: 600; color: #2C2C2C;">¥</text>
+            <input v-model="withdrawAmount" type="number" placeholder="0.00"
+              style="width: 100%; padding: 24rpx 128rpx 24rpx 64rpx; font-size: 40rpx; font-weight: 700; border: 2rpx solid #E8E0D5; border-radius: 16rpx; background-color: #FFFFFF; color: #2C2C2C; outline: none;"
+              placeholder-style="color: #999999;" />
+            <view @click="handleWithdrawAll"
+              style="position: absolute; right: 24rpx; top: 50%; transform: translateY(-50%); font-size: 22rpx; color: #C41E3A; font-weight: 500;">
+              全部提现
+            </view>
+          </view>
+
+          <!-- 手续费明细 -->
+          <view v-if="amount > 0" style="margin-top: 16rpx;">
+            <view class="flex justify-between" style="font-size: 22rpx; color: #999999; margin-bottom: 8rpx;">
+              <text>手续费（0.6%，最低¥1）</text>
+              <text>-¥{{ fee.toFixed(2) }}</text>
+            </view>
+            <view class="flex justify-between" style="font-size: 24rpx; font-weight: 500; color: #2C2C2C;">
+              <text>实际到账</text>
+              <text>¥{{ actualAmount.toFixed(2) }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 提现方式 -->
+        <view style="margin: 40rpx 32rpx 0;">
+          <text style="font-size: 26rpx; font-weight: 600; color: #2C2C2C; margin-bottom: 16rpx; display: block;">提现方式</text>
+          <view style="display: flex; flex-direction: column; gap: 16rpx;">
+            <view v-for="method in withdrawMethods" :key="method.key" @click="selectedMethod = method.key"
+              :style="{
+                width: '100%',
+                padding: '32rpx',
+                borderRadius: '16rpx',
+                border: '4rpx solid',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '24rpx',
+                backgroundColor: selectedMethod === method.key ? 'rgba(196,30,58,0.05)' : '#FFFFFF',
+                borderColor: selectedMethod === method.key ? '#C41E3A' : '#E8E0D5'
+              }">
+              <view :style="{
+                width: '80rpx',
+                height: '80rpx',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: method.key === 'alipay' ? '#3B82F6' : '#16A34A'
+              }">
+                <text style="font-size: 36rpx; color: #FFFFFF;">{{ method.key === 'alipay' ? '📱' : '🏦' }}</text>
+              </view>
+              <view style="flex: 1;">
+                <text style="font-size: 26rpx; font-weight: 500; color: #2C2C2C; display: block;">{{ method.label }}</text>
+                <text style="font-size: 22rpx; color: #999999;">{{ method.desc }}</text>
+              </view>
+              <text v-if="selectedMethod === method.key" style="font-size: 32rpx; color: #C41E3A;">✓</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部提交按钮 -->
+      <view style="position: fixed; bottom: 0; left: 0; right: 0; background-color: #FFFFFF; border-top: 2rpx solid #E8E0D5; padding: 32rpx;">
+        <view @click="handleSubmit"
+          :style="{
+            width: '100%',
+            padding: '24rpx 0',
+            borderRadius: '16rpx',
+            textAlign: 'center',
+            fontSize: '26rpx',
+            fontWeight: 600,
+            color: '#FFFFFF',
+            backgroundColor: (submitting || amount <= 0 || amount > overview.withdrawable) ? 'rgba(196,30,58,0.5)' : '#C41E3A'
+          }">
+          <text>{{ submitting ? '提交中...' : '确认提现 ¥' + actualAmount.toFixed(2) }}</text>
+        </view>
+      </view>
+    </template>
+
+    <!-- ====== 首页 ====== -->
+    <template v-else>
+      <view class="sticky top-0 z-10" style="background-color: #FFFFFF; border-bottom: 2rpx solid #E8E0D5;">
+        <view class="flex items-center justify-between" style="padding: 0 32rpx; height: 96rpx;">
+          <view @click="goBack" style="padding: 8rpx;">
+            <text style="font-size: 48rpx; color: #2C2C2C;">←</text>
+          </view>
+          <text style="font-size: 36rpx; font-weight: 600; color: #2C2C2C;">创作者提现</text>
+          <view style="width: 64rpx;" />
+        </view>
+      </view>
+
+      <view style="padding-bottom: 160rpx;">
+        <!-- 余额卡片 -->
+        <view style="margin: 32rpx; padding: 48rpx; border-radius: 24rpx; background: linear-gradient(135deg, #C41E3A, #B91C1C);">
+          <view class="flex items-start justify-between" style="margin-bottom: 40rpx;">
+            <view>
+              <text style="font-size: 26rpx; color: rgba(255,255,255,0.8); margin-bottom: 8rpx; display: block;">可提现余额</text>
+              <text style="font-size: 72rpx; font-weight: 700; color: #FFFFFF;">¥{{ overview.withdrawable.toFixed(2) }}</text>
+              <text style="font-size: 26rpx; color: rgba(255,255,255,0.7); margin-top: 8rpx; display: block;">
+                冻结 ¥{{ overview.frozen.toFixed(2) }} · 待结算 ¥{{ overview.pending.toFixed(2) }}
+              </text>
+            </view>
+            <view style="width: 96rpx; height: 96rpx; background-color: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+              <text style="font-size: 48rpx;">💰</text>
+            </view>
+          </view>
+          <view @click="showForm = true"
+            style="width: 100%; padding: 24rpx 0; background-color: rgba(255,255,255,0.2); border-radius: 16rpx; text-align: center; font-size: 26rpx; font-weight: 500; color: #FFFFFF;">
+            <text>📤 申请提现</text>
+          </view>
+        </view>
+
+        <!-- 数据概览 -->
+        <view style="margin: 0 32rpx; display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx;">
+          <view style="background-color: #FFFFFF; border-radius: 16rpx; padding: 32rpx; text-align: center;">
+            <text style="font-size: 22rpx; color: #999999; margin-bottom: 8rpx; display: block;">累计收益</text>
+            <text style="font-size: 36rpx; font-weight: 700; color: #2C2C2C;">¥{{ Math.floor(overview.totalRevenue) }}</text>
+          </view>
+          <view style="background-color: #FFFFFF; border-radius: 16rpx; padding: 32rpx; text-align: center;">
+            <text style="font-size: 22rpx; color: #999999; margin-bottom: 8rpx; display: block;">本月收益</text>
+            <text style="font-size: 36rpx; font-weight: 700; color: #2C2C2C;">¥{{ overview.monthRevenue.toFixed(2) }}</text>
+          </view>
+        </view>
+
+        <!-- 提现记录 -->
+        <view style="margin: 48rpx 32rpx 0;">
+          <text style="font-size: 26rpx; font-weight: 600; color: #2C2C2C; margin-bottom: 24rpx; display: block;">提现记录</text>
+          <view v-if="withdrawHistory.length > 0" style="display: flex; flex-direction: column; gap: 16rpx;">
+            <view v-for="record in withdrawHistory" :key="record.id" style="background-color: #FFFFFF; border-radius: 16rpx; padding: 32rpx;">
+              <view class="flex items-start" style="gap: 24rpx;">
+                <!-- 状态图标 -->
+                <text :style="{ fontSize: '28rpx', color: record.status === 'success' ? '#16A34A' : record.status === 'processing' ? '#2563EB' : '#DC2626' }">
+                  {{ statusIcons[record.status] }}
+                </text>
+                <view style="flex: 1; min-width: 0;">
+                  <view class="flex items-center justify-between" style="margin-bottom: 8rpx;">
+                    <text style="font-size: 26rpx; font-weight: 600; color: #2C2C2C;">{{ record.method }} · {{ record.account }}</text>
+                    <text style="font-size: 26rpx; font-weight: 700; color: #2C2C2C;">¥{{ record.actualAmount.toFixed(2) }}</text>
+                  </view>
+                  <view class="flex items-center" style="gap: 16rpx;">
+                    <text :style="{
+                      fontSize: '18rpx',
+                      padding: '4rpx 12rpx',
+                      borderRadius: '8rpx',
+                      backgroundColor: record.status === 'success' ? 'rgba(22,163,74,0.1)' : record.status === 'processing' ? 'rgba(37,99,235,0.1)' : 'rgba(220,38,38,0.1)',
+                      color: record.status === 'success' ? '#16A34A' : record.status === 'processing' ? '#2563EB' : '#DC2626'
+                    }">
+                      {{ statusLabels[record.status] }}
+                    </text>
+                    <text style="font-size: 22rpx; color: #999999;">{{ record.createdAt }}</text>
+                  </view>
+                  <text style="font-size: 22rpx; color: #999999; margin-top: 8rpx; display: block;">
+                    申请 ¥{{ record.amount.toFixed(2) }} · 手续费 ¥{{ record.fee.toFixed(2) }}
+                  </text>
+                </view>
+              </view>
+            </view>
+          </view>
+          <view v-else style="background-color: #FFFFFF; border-radius: 16rpx; padding: 80rpx; text-align: center;">
+            <text style="font-size: 26rpx; color: #999999;">暂无提现记录</text>
+          </view>
+        </view>
+
+        <!-- 提现说明 -->
+        <view style="margin: 48rpx 32rpx 0; padding: 32rpx; background-color: rgba(245,245,245,0.5); border-radius: 16rpx;">
+          <text style="font-size: 26rpx; font-weight: 600; color: #2C2C2C; margin-bottom: 16rpx; display: block;">提现说明</text>
+          <view style="font-size: 22rpx; color: #999999;">
+            <text style="display: block; margin-bottom: 8rpx;">• 手续费为提现金额的 0.6%，最低 1 元</text>
+            <text style="display: block; margin-bottom: 8rpx;">• 支付宝通常 2 小时内到账</text>
+            <text style="display: block; margin-bottom: 8rpx;">• 银行卡通常 1-3 个工作日到账</text>
+            <text style="display: block;">• 最低提现金额为 10 元</text>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface WithdrawRecord {
+  id: string
+  amount: number
+  fee: number
+  actualAmount: number
+  method: string
+  account: string
+  status: 'success' | 'processing' | 'failed'
+  createdAt: string
+  completedAt?: string
+}
+
+// 收益概览数据（与 V0 的 CreatorRevenueOverview 一致）
+const overview = ref({
+  withdrawable: 2350.00,
+  frozen: 500.00,
+  pending: 1250.00,
+  totalRevenue: 12680.50,
+  monthRevenue: 3250.00,
+})
+
+const showForm = ref(false)
+const withdrawAmount = ref('')
+const selectedMethod = ref<'alipay' | 'bank'>('alipay')
+const submitting = ref(false)
+
+const withdrawMethods = [
+  { key: 'alipay' as const, label: '支付宝', desc: '2小时内到账' },
+  { key: 'bank' as const, label: '银行卡', desc: '1-3个工作日到账' },
+]
+
+const statusIcons: Record<string, string> = {
+  success: '✓',
+  processing: '⏳',
+  failed: '✕',
+}
+
+const statusLabels: Record<string, string> = {
+  success: '已到账',
+  processing: '处理中',
+  failed: '提现失败',
+}
+
+const withdrawHistory: WithdrawRecord[] = [
+  { id: 'W001', amount: 2500, fee: 15, actualAmount: 2485, method: '支付宝', account: '138****8888', status: 'success', createdAt: '2026-05-28 10:00' },
+  { id: 'W002', amount: 1200, fee: 7.2, actualAmount: 1192.8, method: '银行卡', account: '工商银行 尾号1234', status: 'processing', createdAt: '2026-06-02 15:00' },
+]
+
+const amount = computed(() => parseFloat(withdrawAmount.value) || 0)
+const feeRate = 0.006
+const minFee = 1
+const fee = computed(() => amount.value > 0 ? Math.max(amount.value * feeRate, minFee) : 0)
+const actualAmount = computed(() => amount.value > 0 ? amount.value - fee.value : 0)
+
+function handleWithdrawAll() {
+  withdrawAmount.value = overview.value.withdrawable.toFixed(2)
+}
+
+async function handleSubmit() {
+  if (amount.value <= 0 || amount.value > overview.value.withdrawable) return
+  submitting.value = true
+  await new Promise(resolve => setTimeout(resolve, 1200))
+  submitting.value = false
+  showForm.value = false
+  withdrawAmount.value = ''
+  uni.showToast({ title: '提现申请已提交', icon: 'success' })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.items-start { align-items: flex-start; }
+.justify-center { justify-content: center; }
+</style>

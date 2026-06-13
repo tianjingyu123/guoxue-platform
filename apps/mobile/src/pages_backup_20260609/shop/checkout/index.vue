@@ -1,0 +1,17 @@
+<template>
+  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">确认订单</text><view style="width:48rpx"/></view>
+    <scroll-view scroll-y class="c" :style="{height:'calc(100vh - 56px - 120rpx)'}">
+      <view class="card"><text class="ct">收货地址</text><view class="addr"><text class="an">{{addr.name}} {{addr.phone}}</text><text class="ad">{{addr.region}} {{addr.detail}}</text></view></view>
+      <view class="card"><text class="ct">商品信息</text><view v-for="p in products" :key="p.id" class="pr"><text class="pn">{{p.name}}</text><text class="pp">¥{{p.price}}×{{p.qty}}</text></view></view>
+      <view class="card"><text class="ct">优惠券</text><text class="cp">{{coupon||'选择优惠券'}} ›</text></view>
+      <view class="card"><text class="ct">支付方式</text><view v-for="m in methods" :key="m.k" class="pm" :class="{s:pay===m.k}" @click="pay=m.k"><text>{{m.icon}} {{m.name}}</text><text v-if="pay===m.k">✓</text></view></view>
+      <view class="card"><text class="ct">价格明细</text>
+        <view class="prw"><text>商品金额</text><text>¥{{total}}</text></view><view class="prw"><text>运费</text><text>¥{{ship}}</text></view>
+        <view class="prw total"><text>实付</text><text class="ppr">¥{{total+ship}}</text></view></view>
+      <view class="agree"><checkbox :checked="agreed" @change="agreed=!agreed"/> 我已阅读并同意《用户协议》</view><view style="height:48rpx"/></scroll-view>
+    <view class="bb"><view class="bb-price">¥{{total+ship}}</view><view class="bb-btn" @click="submit">提交订单</view></view>
+  </view>
+</template>
+<script setup lang="ts">import {ref} from 'vue';const pay=ref('wechat'),agreed=ref(false),coupon=ref(''),total=98,ship=10;const addr={name:'张三',phone:'138****8888',region:'北京市朝阳区',detail:'建国路88号'};const products=[{id:1,name:'渊海子平精装版',price:98,qty:1}];const methods=[{k:'wechat',name:'微信支付',icon:'💚'},{k:'alipay',name:'支付宝',icon:'💙'}];function submit(){uni.showToast({title:'下单成功'})};function goBack(){uni.navigateBack()}</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.c{padding:24rpx}.card{background:#fff;border-radius:20rpx;padding:24rpx;margin-bottom:16rpx;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}.ct{font-size:28rpx;font-weight:600;color:#2C2C2C;margin-bottom:16rpx;display:block}.an{font-size:26rpx;color:#2C2C2C;display:block}.ad{font-size:24rpx;color:#999;margin-top:4rpx}.pr{display:flex;justify-content:space-between;padding:8rpx 0;font-size:26rpx}.pn{color:#2C2C2C}.pp{color:#C41E3A}.cp{font-size:24rpx;color:#C41E3A}.pm{display:flex;justify-content:space-between;padding:16rpx;border:2rpx solid #E8E0D5;border-radius:16rpx;font-size:26rpx;color:#2C2C2C;margin-bottom:12rpx}.pm.s{border-color:#C41E3A;background:rgba(196,30,58,.03)}.prw{display:flex;justify-content:space-between;padding:8rpx 0;font-size:26rpx;color:#666}.prw.total{padding-top:12rpx;border-top:1px solid #E8E0D5;font-weight:500;color:#2C2C2C}.ppr{font-size:36rpx;font-weight:700;color:#C41E3A}.agree{padding:12rpx 0;font-size:24rpx;color:#999}.bb{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;gap:24rpx;padding:20rpx 24rpx;background:#fff;border-top:1px solid #E8E0D5;z-index:50}.bb-price{font-size:36rpx;font-weight:700;color:#C41E3A}.bb-btn{padding:24rpx 56rpx;background:linear-gradient(90deg,#C41E3A,#E74C3C);color:#fff;border-radius:40rpx;font-size:28rpx;font-weight:600}
+</style>

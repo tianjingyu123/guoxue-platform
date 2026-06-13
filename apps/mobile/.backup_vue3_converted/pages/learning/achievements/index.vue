@@ -1,0 +1,200 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="p-4 space-y-4">
+      <view class="h-12 bg-muted rounded-lg" />
+      <view class="h-28 bg-muted rounded-2xl" />
+      <view v-for="i in 3" :key="i" class="space-y-2">
+        <view class="h-5 w-24 bg-muted rounded" />
+        <view class="h-20 bg-muted rounded-xl" />
+        <view class="h-20 bg-muted rounded-xl" />
+      </view>
+    </view>
+
+    <template v-else>
+      <!-- 顶部导航 -->
+      <view class="sticky top-0 z-10 bg-background border-b border-border flex items-center px-4 h-12 gap-3">
+        <view @tap="goBack">
+          <text class="text-xl text-foreground">←</text>
+        </view>
+        <text class="text-base font-semibold text-foreground">学习成就</text>
+      </view>
+
+      <!-- 总览横幅 -->
+      <view class="mx-4 mt-4 p-5 bg-gradient-to-r from-primary to-[#A01530] rounded-2xl text-white">
+        <view class="flex items-center justify-between mb-3">
+          <view>
+            <text class="text-sm opacity-80">成就等级</text>
+            <text class="text-2xl font-black block mt-1">{{ level }}</text>
+          </view>
+          <view class="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
+            <text class="text-3xl">{{ levelIcon }}</text>
+          </view>
+        </view>
+        <view class="bg-white/20 rounded-full h-2 mb-2">
+          <view class="bg-[#FFD700] rounded-full h-2 transition-all" :style="'width:' + levelProgress + '%'" />
+        </view>
+        <text class="text-xs text-white/70">距离下一级还需 {{ nextLevelPoints }} 积分</text>
+        <view class="mt-4 pt-4 border-t border-white/20 flex items-center gap-4">
+          <view class="flex-1 text-center">
+            <text class="text-lg font-bold block">{{ totalPoints.toLocaleString() }}</text>
+            <text class="text-[11px] text-white/70">总积分</text>
+          </view>
+          <view class="flex-1 text-center">
+            <text class="text-lg font-bold block">{{ earnedCount }}/{{ achievements.length }}</text>
+            <text class="text-[11px] text-white/70">已获得</text>
+          </view>
+          <view class="flex-1 text-center">
+            <text class="text-lg font-bold block">{{ completionRate }}%</text>
+            <text class="text-[11px] text-white/70">完成率</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 成就分类列表 -->
+      <view class="px-4 pb-24 mt-6">
+        <view v-for="cat in CATEGORIES" :key="cat" class="mb-6">
+          <view class="flex items-center justify-between mb-3">
+            <text class="text-base font-semibold text-foreground">{{ CATEGORY_LABELS[cat] }}</text>
+            <text class="text-xs text-muted-foreground">{{ categoryEarned(cat) }}/{{ categoryTotal(cat) }} 枚</text>
+          </view>
+          <!-- 分类进度条 -->
+          <view class="bg-muted rounded-full h-1.5 mb-3">
+            <view class="bg-primary rounded-full h-1.5 transition-all" :style="'width:' + categoryProgress(cat) + '%'" />
+          </view>
+          <view class="space-y-2">
+            <view
+              v-for="item in achievements.filter(a => a.category === cat)"
+              :key="item.id"
+              class="flex items-center gap-3 p-3.5 rounded-xl border border-border transition-all duration-300"
+              :class="item.earned ? 'bg-white' : 'bg-muted/30 opacity-70'"
+            >
+              <view
+                class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                :class="item.earned ? 'bg-primary/10' : 'bg-muted'"
+              >
+                <text class="text-2xl" :class="item.earned ? '' : 'grayscale opacity-50'">{{ item.icon }}</text>
+              </view>
+              <view class="flex-1 min-w-0">
+                <text class="text-sm font-medium text-foreground">{{ item.name }}</text>
+                <text class="text-xs text-muted-foreground block mt-0.5">{{ item.description }}</text>
+              </view>
+              <view class="text-right flex-shrink-0">
+                <text
+                  class="text-xs font-medium px-2 py-0.5 rounded-full"
+                  :class="item.earned ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'"
+                >
+                  {{ item.earned ? '+' + item.points + '分' : '未获得' }}
+                </text>
+                <text v-if="item.earned" class="text-[10px] text-muted-foreground block mt-1">{{ item.earnedDate }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const loading = ref(true)
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 600)
+})
+
+function goBack() { uni.navigateBack() }
+
+const CATEGORY_LABELS: Record<string, string> = {
+  study: '学习成就',
+  social: '社交成就',
+  special: '特殊成就'
+}
+const CATEGORIES = ['study', 'social', 'special'] as const
+
+interface Achievement {
+  id: number
+  category: string
+  name: string
+  description: string
+  icon: string
+  points: number
+  earned: boolean
+  earnedDate: string
+}
+
+const achievements = ref<Achievement[]>([
+  { id: 1, category: 'study', name: '初窥门径', description: '完成第一门课程', icon: '', points: 100, earned: true, earnedDate: '2024-01-15' },
+  { id: 2, category: 'study', name: '勤学苦练', description: '累计学习10小时', icon: '', points: 200, earned: true, earnedDate: '2024-02-20' },
+  { id: 3, category: 'study', name: '学富五车', description: '完成5门课程', icon: '🎓', points: 500, earned: false, earnedDate: '' },
+  { id: 4, category: 'study', name: '博览群书', description: '阅读100篇文章', icon: '', points: 300, earned: true, earnedDate: '2024-03-10' },
+  { id: 5, category: 'study', name: '答题达人', description: '答对500道练习题', icon: '✍️', points: 400, earned: false, earnedDate: '' },
+  { id: 6, category: 'social', name: '初露锋芒', description: '发布第一个帖子', icon: '', points: 50, earned: true, earnedDate: '2024-01-20' },
+  { id: 7, category: 'social', name: '人气之星', description: '获得100个点赞', icon: '', points: 300, earned: false, earnedDate: '' },
+  { id: 8, category: 'social', name: '社交达人', description: '评论50条内容', icon: '🗣️', points: 250, earned: true, earnedDate: '2024-02-28' },
+  { id: 9, category: 'social', name: '分享使者', description: '分享内容20次', icon: '', points: 150, earned: false, earnedDate: '' },
+  { id: 10, category: 'special', name: '连续签到', description: '连续签到30天', icon: '', points: 400, earned: false, earnedDate: '' },
+  { id: 11, category: 'special', name: '收藏达人', description: '收藏100个内容', icon: '💎', points: 250, earned: true, earnedDate: '2024-03-01' },
+  { id: 12, category: 'special', name: '早起鸟', description: '连续7天早上6点前签到', icon: '🌅', points: 350, earned: false, earnedDate: '' },
+])
+
+const totalPoints = computed(() => achievements.value.filter(a => a.earned).reduce((sum, a) => sum + a.points, 0))
+const earnedCount = computed(() => achievements.value.filter(a => a.earned).length)
+const completionRate = computed(() => Math.round((earnedCount.value / achievements.value.length) * 100))
+
+// 等级系统
+const level = computed(() => {
+  const p = totalPoints.value
+  if (p >= 3000) return '至尊学者'
+  if (p >= 2000) return '大师学者'
+  if (p >= 1000) return '高级学者'
+  if (p >= 500) return '中级学者'
+  return '初级学者'
+})
+
+const levelIcon = computed(() => {
+  if (totalPoints.value >= 3000) return '👑'
+  if (totalPoints.value >= 2000) return ''
+  if (totalPoints.value >= 1000) return ''
+  if (totalPoints.value >= 500) return ''
+  return ''
+})
+
+const nextLevelPoints = computed(() => {
+  const p = totalPoints.value
+  if (p >= 3000) return 0
+  if (p >= 2000) return 3000 - p
+  if (p >= 1000) return 2000 - p
+  if (p >= 500) return 1000 - p
+  return 500 - p
+})
+
+const levelProgress = computed(() => {
+  const p = totalPoints.value
+  if (p >= 3000) return 100
+  if (p >= 2000) return ((p - 2000) / 1000) * 100
+  if (p >= 1000) return ((p - 1000) / 1000) * 100
+  if (p >= 500) return ((p - 500) / 500) * 100
+  return (p / 500) * 100
+})
+
+function categoryEarned(cat: string) {
+  return achievements.value.filter(a => a.category === cat && a.earned).length
+}
+
+function categoryTotal(cat: string) {
+  return achievements.value.filter(a => a.category === cat).length
+}
+
+function categoryProgress(cat: string) {
+  const items = achievements.value.filter(a => a.category === cat)
+  if (items.length === 0) return 0
+  return Math.round((items.filter(a => a.earned).length / items.length) * 100)
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,7 @@
+<template>
+  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">关注列表</text><view style="width:48rpx"/></view>
+    <scroll-view scroll-y class="c"><view v-for="u in users" :key="u.id" class="card"><text class="ca">{{u.n[0]}}</text><view><text class="cn">{{u.n}}</text><text class="cb">{{u.b}}</text></view><view class="cbtn" :class="{on:u.f}" @click="u.f=!u.f">{{u.f?'已关注':'关注'}}</view></view></scroll-view></view>
+</template>
+<script setup lang="ts">import {ref} from 'vue';const users=ref([{id:1,n:'张玄风',b:'紫微斗数传承人',f:true},{id:2,n:'李易安',b:'姓名学专家',f:false}]);function goBack(){uni.navigateBack()}</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.c{padding:24rpx}.card{display:flex;align-items:center;gap:16rpx;background:#fff;border-radius:16rpx;padding:24rpx;margin-bottom:12rpx;box-shadow:0 2rpx 8rpx rgba(0,0,0,.03)}.ca{width:72rpx;height:72rpx;border-radius:50%;background:#F5F1EB;display:flex;align-items:center;justify-content:center;font-size:28rpx;color:#2C2C2C}.cn{font-size:26rpx;font-weight:500;color:#2C2C2C;display:block}.cb{font-size:22rpx;color:#999}.cbtn{padding:14rpx 28rpx;border-radius:40rpx;font-size:24rpx;background:#C41E3A;color:#fff}.cbtn.on{background:#F5F1EB;color:#999}
+</style>

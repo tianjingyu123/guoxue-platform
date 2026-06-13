@@ -1,0 +1,29 @@
+<template>
+  <view class="page">
+    <view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">分享</text></view>
+    <scroll-view scroll-y class="c">
+      <view class="card"><text class="ct">分享</text><text class="cd">内容加载中...</text></view>
+      <view style="height:48rpx"></view>
+    </scroll-view>
+  </view>
+</template>
+<script setup lang="ts">
+import {ref,onMounted} from 'vue'
+
+
+
+function goBack(){uni.navigateBack()}
+</script>
+<style scoped>
+.page{background:#FAF8F5;min-height:100vh}
+.nav{display:flex;align-items:center;gap:12rpx;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5;position:sticky;top:0;z-index:40}
+.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600;color:#2C2C2C}
+.c{padding:24rpx}
+.card{background:#fff;border-radius:20rpx;padding:28rpx;margin-bottom:20rpx;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}
+.ct{font-size:28rpx;font-weight:600;color:#2C2C2C;margin-bottom:20rpx;display:block}
+.cd{font-size:26rpx;color:#666;line-height:1.8}
+
+
+
+
+</style>

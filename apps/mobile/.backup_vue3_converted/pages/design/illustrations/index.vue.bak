@@ -1,0 +1,161 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] pb-10">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5]">
+      <view class="flex items-center h-14 px-4">
+        <view class="p-2 -ml-2" @click="goBack">
+          <text>←</text>
+        </view>
+        <text class="ml-2 font-semibold text-[#2C2C2C]">插画设计资源</text>
+      </view>
+    </view>
+
+    <view class="p-4 space-y-8">
+      <!-- 默认头像 -->
+      <view>
+        <text class="text-lg font-semibold text-[#2C2C2C] mb-4 block">默认头像（5款）</text>
+        <view class="grid grid-cols-5 gap-4">
+          <view v-for="avatar in defaultAvatars" :key="avatar.label" class="flex flex-col items-center gap-2">
+            <view class="w-16 h-16 rounded-full bg-[#F5F1EB] flex items-center justify-center">
+              <text class="text-2xl">{{ avatar.icon }}</text>
+            </view>
+            <text class="text-xs text-[#999]">{{ avatar.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 空状态插画 -->
+      <view>
+        <text class="text-lg font-semibold text-[#2C2C2C] mb-4 block">空状态插画（8幅）</text>
+        <view class="grid grid-cols-2 gap-4">
+          <view v-for="item in emptyStates" :key="item.label" class="p-4 flex flex-col items-center gap-2 bg-white rounded-xl border border-[#E8E0D5]">
+            <text class="text-5xl">{{ item.icon }}</text>
+            <text class="text-sm font-medium text-[#2C2C2C]">{{ item.label }}</text>
+            <text class="text-xs text-[#999]">{{ item.desc }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 引导插画 -->
+      <view>
+        <text class="text-lg font-semibold text-[#2C2C2C] mb-4 block">引导插画（5幅）</text>
+        <view class="grid grid-cols-2 gap-4">
+          <view v-for="item in guideIllustrations" :key="item.label" class="p-4 flex flex-col items-center gap-2 bg-white rounded-xl border border-[#E8E0D5]">
+            <view class="w-32 h-32 mx-auto rounded-2xl bg-gradient-to-br from-[#C41E3A]/10 to-[#C9A96E]/20 flex items-center justify-center shadow-sm">
+              <text class="text-5xl">{{ item.icon }}</text>
+            </view>
+            <text class="text-sm font-medium text-[#2C2C2C]">{{ item.label }}</text>
+            <text class="text-xs text-[#999]">{{ item.desc }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 功能图标 -->
+      <view>
+        <text class="text-lg font-semibold text-[#2C2C2C] mb-4 block">功能图标</text>
+        <view class="p-4 bg-white rounded-xl border border-[#E8E0D5]">
+          <view class="grid grid-cols-5 gap-6">
+            <view v-for="item in functionIcons" :key="item.label" class="flex flex-col items-center gap-2">
+              <text class="text-3xl">{{ item.icon }}</text>
+              <text class="text-xs text-[#999]">{{ item.label }}</text>
+            </view>
+          </view>
+          <view class="mt-6 pt-4 border-t border-[#E8E0D5]">
+            <text class="text-xs text-[#999] mb-3 block">填充样式</text>
+            <view class="grid grid-cols-5 gap-6">
+              <view v-for="item in functionIcons" :key="'fill-' + item.label" class="flex flex-col items-center gap-2">
+                <view class="w-8 h-8 rounded-lg bg-[#C41E3A] flex items-center justify-center">
+                  <text class="text-white text-sm">{{ item.shortLabel }}</text>
+                </view>
+                <text class="text-xs text-[#999]">{{ item.label }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 占位图和Logo -->
+      <view>
+        <text class="text-lg font-semibold text-[#2C2C2C] mb-4 block">占位图与Logo</text>
+        <view class="grid grid-cols-2 gap-4">
+          <view class="p-4 flex flex-col items-center gap-2 bg-white rounded-xl border border-[#E8E0D5]">
+            <view class="w-36 h-20 bg-[#F5F1EB] rounded-lg flex items-center justify-center">
+              <text class="text-[#999] text-2xl">🖼</text>
+            </view>
+            <text class="text-sm text-[#999]">封面占位图</text>
+          </view>
+          <view class="p-4 flex flex-col items-center gap-2 bg-white rounded-xl border border-[#E8E0D5]">
+            <view class="w-16 h-16 bg-[#C41E3A] rounded-2xl flex items-center justify-center">
+              <text class="text-white text-xl font-bold">儒</text>
+            </view>
+            <text class="text-sm text-[#999]">平台Logo</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 配色方案 -->
+      <view>
+        <text class="text-lg font-semibold text-[#2C2C2C] mb-4 block">配色方案</text>
+        <view class="p-4 bg-white rounded-xl border border-[#E8E0D5]">
+          <view class="grid grid-cols-4 gap-4">
+            <view v-for="item in colorScheme" :key="item.name" class="flex flex-col items-center gap-2">
+              <view class="w-12 h-12 rounded-lg border border-[#E8E0D5]" :style="{ backgroundColor: item.color }" />
+              <text class="text-xs font-medium text-[#2C2C2C]">{{ item.name }}</text>
+              <text class="text-[10px] text-[#999]">{{ item.usage }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+function goBack() { uni.navigateBack() }
+
+const defaultAvatars = [
+  { label: '男性', icon: '👨' },
+  { label: '女性', icon: '👩' },
+  { label: '通用', icon: '😊' },
+  { label: '圈主', icon: '👑' },
+  { label: '系统', icon: '🤖' },
+]
+
+const emptyStates = [
+  { label: '通用空状态', desc: '等待书写', icon: '📝' },
+  { label: '无内容', desc: '暂无内容', icon: '📭' },
+  { label: '无网络', desc: '网络异常', icon: '📡' },
+  { label: '无消息', desc: '消息中心', icon: '💬' },
+  { label: '搜索无结果', desc: '未找到相关内容', icon: '🔍' },
+  { label: '支付成功', desc: '喜庆祥和', icon: '🎉' },
+  { label: '支付失败', desc: '安抚情绪', icon: '😞' },
+  { label: '404错误', desc: '页面不存在', icon: '🔮' },
+]
+
+const guideIllustrations = [
+  { label: '排盘引导', desc: '输入生辰，探寻命理', icon: '🎯' },
+  { label: '加入圈子', desc: '加入圈子，结交同好', icon: '👥' },
+  { label: '学习课程', desc: '名师指路，研习经典', icon: '📚' },
+  { label: '发布内容', desc: '分享你的国学见解', icon: '✍️' },
+  { label: '开通会员', desc: '解锁更多智慧解读', icon: '💎' },
+]
+
+const functionIcons = [
+  { label: '排盘', shortLabel: '排', icon: '📊' },
+  { label: '圈子', shortLabel: '圈', icon: '👥' },
+  { label: '课程', shortLabel: '课', icon: '📖' },
+  { label: '商城', shortLabel: '商', icon: '🛒' },
+  { label: '发现', shortLabel: '发', icon: '🔍' },
+]
+
+const colorScheme = [
+  { color: '#C41E3A', name: '故宫红', usage: '主色/强调' },
+  { color: '#F5F1EB', name: '宣纸米白', usage: '背景/底色' },
+  { color: '#C9A96E', name: '金色', usage: '点缀/装饰' },
+  { color: '#2C2C2C', name: '墨色', usage: '文字/线条' },
+]
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

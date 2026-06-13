@@ -4,21 +4,6 @@
   </view>
 </template>
 
-<script lang="ts">
-export default {
-  onLaunch() {
-    const options = uni.getLaunchOptionsSync();
-    const stationCode = options?.query?.station_code;
-    if (stationCode) {
-      import('@/store/stationStore').then(({ useStationStore }) => {
-        const store = useStationStore();
-        store.fetchBrand(stationCode).catch(() => {});
-      });
-    }
-  },
-};
-</script>
-
 <script setup lang="ts">
 import { onMounted } from "vue";
 import { useStationStore } from "@/store/stationStore";
@@ -26,57 +11,53 @@ import { useStationStore } from "@/store/stationStore";
 const stationStore = useStationStore();
 
 onMounted(async () => {
-  // 应用初始化
+  const options = uni.getLaunchOptionsSync();
+  const stationCode = options?.query?.station_code;
+  if (stationCode) {
+    try { await stationStore.fetchBrand(stationCode); } catch {}
+  }
 });
 </script>
 
 <style>
-/* 全局重置与设计系统 */
+/* ===== UniApp 全局重置 — 对齐 V0 设计 ===== */
+
+/* 盒模型统一 */
+*, ::before, ::after {
+  box-sizing: border-box;
+}
+
+/* 页面基底 */
 page {
-  background: #F5F0E8;
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: #FAF8F5;
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   color: #2C2C2C;
-  font-size: 14px;
+  font-size: 16px;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .app {
   min-height: 100vh;
-  background: #F5F0E8;
+  background: #FAF8F5;
 }
 
-/* ── 通用卡片 ── */
+/* UniApp 自定义元素重置 */
+uni-view { display: block; }
+uni-text { display: inline; }
+uni-page, uni-page-wrapper, uni-page-body {
+  display: block;
+  min-height: 100vh;
+  background: inherit;
+}
+uni-page-head { display: none; }
+
+/* 通用工具类 */
 .card {
   background: #FFFFFF;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
-
-/* ── 通用按钮 ── */
-.btn-primary {
-  background: linear-gradient(135deg, #C41E3A, #8B0000);
-  color: #FFFFFF;
-  border: none;
-  border-radius: 20px;
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 500;
-}
-.btn-primary:active {
-  transform: scale(0.98);
-}
-
-.btn-gold {
-  background: linear-gradient(135deg, #C9A96E, #D4AF37);
-  color: #FFFFFF;
-  border: none;
-  border-radius: 20px;
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-/* ── 文字截断 ── */
 .text-ellipsis {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -88,20 +69,6 @@ page {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
-/* ── 安全区 ── */
-.safe-padding-top {
-  padding-top: env(safe-area-inset-top);
-}
-.safe-padding-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* ── 无更多 ── */
-.no-more {
-  text-align: center;
-  color: #999999;
-  font-size: 12px;
-  padding: 20px;
-}
+.safe-padding-top { padding-top: env(safe-area-inset-top); }
+.safe-padding-bottom { padding-bottom: env(safe-area-inset-bottom); }
 </style>

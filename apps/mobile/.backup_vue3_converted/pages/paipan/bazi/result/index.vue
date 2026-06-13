@@ -1,0 +1,788 @@
+<template>
+  <view class="min-h-screen bg-background flex flex-col">
+    <!-- 顶部导航 -->
+    <view class="bg-white border-b border-border sticky top-0 z-20">
+      <view class="flex items-center justify-between px-3 py-2.5">
+        <view @click="goBack" class="text-muted-foreground"><text class="text-2xl leading-none">←</text></view>
+        <text class="text-base font-bold text-foreground">热卜八字</text>
+        <view class="flex items-center gap-1">
+          <view @click="showNotes=!showNotes" class="p-1 text-muted-foreground"><text></text></view>
+          <view class="p-1 text-muted-foreground"><text></text></view>
+        </view>
+      </view>
+      <!-- 模式切换 -->
+      <view class="flex">
+        <view v-for="m in modes" :key="m.key" @click="activeMode=m.key"
+              class="flex-1 py-2.5 text-sm font-medium text-center border-b-2 transition-colors"
+              :class="activeMode===m.key ? 'text-primary border-primary' : 'text-muted-foreground border-transparent'">
+          <text>{{ m.label }}</text>
+        </view>
+      </view>
+    </view>
+
+    <scroll-view scroll-y class="flex-1">
+      <!-- 传统模式 -->
+      <template v-if="activeMode==='traditional'">
+        <view class="p-2.5 space-y-2">
+          <!-- 基本信息 -->
+          <view class="bg-white rounded-lg border border-border">
+            <view class="flex items-center justify-between px-3 py-2.5 border-b border-border">
+              <view class="flex items-center gap-4 text-sm text-foreground">
+                <text><text class="text-primary font-medium">名称：</text>{{ data.name }}</text>
+                <text><text class="text-primary font-medium">性别：</text>{{ data.gender }}</text>
+                <text><text class="text-primary font-medium">生肖：</text>{{ data.zodiac }}</text>
+              </view>
+            </view>
+            <view class="px-3 py-2 text-sm flex items-center gap-2 border-b border-border">
+              <text class="text-primary font-medium shrink-0">日期</text>
+              <text class="text-foreground">{{ data.solarDate }}（{{ data.lunarDate }}）</text>
+              <view @click="showEditModal=true" class="ml-auto p-0.5 text-muted-foreground"><text>✏️</text></view>
+            </view>
+            <view class="px-3 py-2 text-sm flex gap-2 border-b border-border">
+              <text class="text-primary font-medium shrink-0">真太阳时</text>
+              <text class="text-muted-foreground">{{ data.realSolarTime }}</text>
+            </view>
+            <view class="px-3 py-2 text-sm flex gap-2">
+              <text class="text-primary font-medium shrink-0">节气</text>
+              <text class="text-muted-foreground">{{ data.jieQi }}</text>
+            </view>
+          </view>
+
+          <!-- 四柱主表 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="text-center">
+              <view class="flex bg-primary/5 text-sm py-2">
+                <view class="w-[52px] text-sm font-semibold text-primary"><text>四柱</text></view>
+                <view v-for="(n,i) in colNames" :key="i" class="flex-1 text-sm font-semibold" :class="i===2?'text-primary':'text-foreground'"><text>{{ n }}</text></view>
+              </view>
+              <!-- 十神 -->
+              <view class="flex border-t border-border text-sm py-1.5">
+                <view class="w-[52px] text-primary font-medium"><text>十神</text></view>
+                <view v-for="k in cols" :key="k" class="flex-1 text-muted-foreground"><text>{{ data.siZhu[k].shiShen }}</text></view>
+              </view>
+              <!-- 天干 -->
+              <view class="flex bg-secondary/20 py-3">
+                <view class="w-[52px] text-primary font-medium"><text>{{ data.qianKun }}</text></view>
+                <view v-for="k in cols" :key="k" class="flex-1">
+                  <text class="text-2xl font-black block leading-tight" :class="wxColor(data.siZhu[k].gan)">{{ data.siZhu[k].gan }}</text>
+                  <text class="text-2xl font-black block leading-tight" :class="wxColor(data.siZhu[k].zhi)">{{ data.siZhu[k].zhi }}</text>
+                </view>
+              </view>
+              <!-- 藏干 -->
+              <view class="flex border-t border-border py-1.5 text-sm">
+                <view class="w-[52px] text-primary font-medium"><text>藏干</text></view>
+                <view v-for="k in cols" :key="k" class="flex-1">
+                  <view class="flex justify-center gap-0.5">
+                    <text v-for="(c,ci) in data.siZhu[k].cangGan" :key="ci" class="font-bold" :class="wxColor(c.gan)">{{ c.gan }}</text>
+                  </view>
+                  <view class="flex justify-center gap-0.5 text-[9px] text-muted-foreground">
+                    <text v-for="(c,ci) in data.siZhu[k].cangGan" :key="ci">{{ c.shen }}</text>
+                  </view>
+                </view>
+              </view>
+              <!-- 纳音/地势/自坐/空亡 -->
+              <template v-for="row in ['naYin','diShi','ziZuo','kongWang']" :key="row">
+                <view class="flex border-t border-border py-1.5 text-sm">
+                  <view class="w-[52px] text-primary font-medium"><text>{{ rowLabels[row] }}</text></view>
+                  <view v-for="k in cols" :key="k" class="flex-1 text-muted-foreground"><text>{{ (data.siZhu[k] as any)[row] }}</text></view>
+                </view>
+              </template>
+              <!-- 神煞 -->
+              <view class="flex border-t border-border py-1.5 text-sm">
+                <view class="w-[52px] text-primary font-medium"><text>神煞</text></view>
+                <view v-for="k in cols" :key="k" class="flex-1 text-muted-foreground text-xs">
+                  <text>{{ data.shenSha[k].slice(0,2).join('、') }}{{ data.shenSha[k].length>2 ? '...' : '' }}</text>
+                </view>
+              </view>
+            </view>
+            <view @click="showAllShenSha=!showAllShenSha" class="w-full py-2 border-t border-border flex items-center justify-center gap-1 text-xs text-primary">
+              <text>{{ showAllShenSha ? '收起神煞' : '展开全部神煞' }}</text>
+              <text class="text-xs">{{ showAllShenSha ? '▲' : '▼' }}</text>
+            </view>
+            <view v-if="showAllShenSha" class="border-t border-border bg-secondary/20 px-3 py-2.5">
+              <view class="grid grid-cols-4 gap-x-2 gap-y-1">
+                <view v-for="(k,ci) in cols" :key="k" class="text-center">
+                  <text class="text-primary text-xs font-semibold mb-1 block">{{ colNames[ci] }}</text>
+                  <text v-for="(s,si) in data.shenSha[k]" :key="si" class="text-muted-foreground text-xs leading-relaxed block">{{ s }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 胎元/命宫/身宫/旺相 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex text-center">
+              <view v-for="label in ['胎元','命宫','身宫']" :key="label" class="flex-1 py-2">
+                <text class="text-lg font-black" :class="wxColor(data[labelMap[label]].gan)">{{ data[labelMap[label]].gan }}</text>
+                <text class="text-lg font-black" :class="wxColor(data[labelMap[label]].zhi)">{{ data[labelMap[label]].zhi }}</text>
+              </view>
+              <view class="flex-1 py-2">
+                <view class="flex flex-wrap justify-center gap-1">
+                  <text v-for="(st,el) in data.wuxingState" :key="el" class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold" :class="wxBgColor(el)">{{ el }}{{ st }}</text>
+                </view>
+              </view>
+            </view>
+            <view class="flex text-xs text-muted-foreground border-t border-border py-1 text-center">
+              <view class="flex-1"><text>{{ data.taiYuan.naYin }}</text></view>
+              <view class="flex-1"><text>{{ data.mingGong.naYin }}</text></view>
+              <view class="flex-1"><text>{{ data.shenGong.naYin }}</text></view>
+              <view class="flex-1" />
+            </view>
+          </view>
+
+          <!-- 起运 -->
+          <view class="bg-white rounded-lg border border-border px-3 py-2.5 text-sm text-muted-foreground">
+            <text>{{ data.qiYun }}</text>
+          </view>
+
+          <!-- 大运 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5">
+                <view class="w-0.5 h-3.5 bg-primary rounded-full" />
+                <text class="text-sm font-semibold text-foreground">大运</text>
+              </view>
+              <text class="text-xs text-muted-foreground">点击展开流年</text>
+            </view>
+            <view class="text-center">
+              <view class="flex text-[11px] text-muted-foreground pt-1">
+                <view v-for="(d,i) in data.daYun" :key="i" class="flex-1"><text>{{ d.year }}</text></view>
+              </view>
+              <view class="flex">
+                <view v-for="(d,i) in data.daYun" :key="i" @click="expandedDaYun=expandedDaYun===i?null:i"
+                      class="flex-1 cursor-pointer transition-colors" :class="d.active?'bg-primary/5':expandedDaYun===i?'bg-secondary':''">
+                  <text class="text-xl font-black leading-none" :class="wxColor(d.gan)">{{ d.gan }}</text>
+                  <text class="text-[9px] text-muted-foreground align-top">{{ d.shiShen }}</text>
+                </view>
+              </view>
+              <view class="flex">
+                <view v-for="(d,i) in data.daYun" :key="i" @click="expandedDaYun=expandedDaYun===i?null:i"
+                      class="flex-1 cursor-pointer transition-colors" :class="d.active?'bg-primary/5':expandedDaYun===i?'bg-secondary':''">
+                  <text class="text-xl font-black leading-none" :class="wxColor(d.zhi)">{{ d.zhi }}</text>
+                  <text class="text-[9px] text-muted-foreground align-top">{{ d.shiShenZhi }}</text>
+                </view>
+              </view>
+            </view>
+            <!-- 大运展开流年 -->
+            <view v-if="expandedDaYun!==null" class="border-t border-border p-2.5 bg-secondary/30">
+              <view class="flex justify-between items-center mb-2">
+                <text class="text-xs text-foreground font-medium">{{ data.daYun[expandedDaYun].year }}-{{ data.daYun[expandedDaYun].year+9 }} 流年</text>
+                <view @click="expandedDaYun=null" class="text-xs text-primary"><text>收起</text></view>
+              </view>
+              <view class="grid grid-cols-5 gap-1.5">
+                <view v-for="(ln,li) in expandDaYunLiuNian(data.daYun[expandedDaYun])" :key="li" class="bg-white rounded p-1.5 text-center border border-border">
+                  <view class="text-[10px] text-muted-foreground"><text>{{ ln.year }}</text></view>
+                  <view><text class="text-base font-bold" :class="wxColor(ln.gan)">{{ ln.gan }}</text></view>
+                  <view><text class="text-base font-bold" :class="wxColor(ln.zhi)">{{ ln.zhi }}</text></view>
+                  <view class="text-[10px] text-muted-foreground mt-0.5"><text>{{ ln.age }}岁</text></view>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 流年 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5">
+                <view class="w-0.5 h-3.5 bg-primary rounded-full" />
+                <text class="text-sm font-semibold text-foreground">流年</text>
+              </view>
+            </view>
+            <view class="text-center">
+              <view class="flex text-[11px] text-muted-foreground pt-1">
+                <view v-for="(n,i) in data.liuNian" :key="i" class="flex-1"><text>{{ n.year }}</text></view>
+              </view>
+              <view class="flex">
+                <view v-for="(n,i) in data.liuNian" :key="i" class="flex-1" :class="n.active?'bg-primary/5':''">
+                  <text class="text-lg font-bold" :class="wxColor(n.gan)">{{ n.gan }}</text>
+                  <text class="text-[9px] text-muted-foreground align-top">{{ n.shiShen }}</text>
+                </view>
+              </view>
+              <view class="flex">
+                <view v-for="(n,i) in data.liuNian" :key="i" class="flex-1" :class="n.active?'bg-primary/5':''">
+                  <text class="text-lg font-bold" :class="wxColor(n.zhi)">{{ n.zhi }}</text>
+                  <text class="text-[9px] text-muted-foreground align-top">{{ n.shiShenZhi }}</text>
+                </view>
+              </view>
+              <view class="flex text-[10px] text-muted-foreground pb-1">
+                <view v-for="(n,i) in data.liuNian" :key="i" class="flex-1" :class="n.active?'bg-primary/5':''"><text>{{ n.age }}岁</text></view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 古籍参考 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5">
+                <view class="w-0.5 h-3.5 bg-primary rounded-full" />
+                <text class="text-sm font-semibold text-foreground">古籍参考</text>
+              </view>
+              <text class="text-xs text-primary">更多古籍</text>
+            </view>
+            <view class="grid grid-cols-4 gap-3 px-3 pb-3">
+              <view v-for="b in classics" :key="b.id" @click="selectedClassic=selectedClassic===b.id?null:b.id" class="flex flex-col items-center gap-1">
+                <view class="relative w-[68px] h-[92px] rounded-sm overflow-hidden shadow-sm" :class="selectedClassic===b.id?'ring-2 ring-primary shadow-md':''">
+                  <view class="absolute inset-0 bg-gradient-to-b from-amber-100 via-amber-50 to-amber-100" />
+                  <view class="absolute inset-0 opacity-[0.08]" style="background-image:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(120,80,40,0.3) 3px,rgba(120,80,40,0.3) 3.5px)" />
+                  <view class="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-amber-200/80 to-transparent border-r border-amber-300/40" />
+                  <view class="absolute left-[4px] top-[14%] w-1 h-1 rounded-full bg-amber-400/50" />
+                  <view class="absolute left-[4px] top-[46%] w-1 h-1 rounded-full bg-amber-400/50" />
+                  <view class="absolute left-[4px] top-[78%] w-1 h-1 rounded-full bg-amber-400/50" />
+                  <view class="absolute left-[14px] right-[6px] top-[10px] bottom-[10px] border border-amber-400/40 rounded-[1px] flex items-center justify-center">
+                    <text class="text-primary font-bold text-[11px]" style="writing-mode:vertical-rl">{{ b.name }}</text>
+                  </view>
+                </view>
+                <text class="text-xs leading-tight" :class="selectedClassic===b.id?'text-primary font-semibold':'text-muted-foreground'">{{ b.name }}</text>
+              </view>
+            </view>
+            <!-- 古籍内容 -->
+            <view v-if="selectedClassic && classicsContent[selectedClassic]" class="border-t border-border p-3 bg-secondary/30">
+              <view class="flex gap-2 mb-2.5">
+                <view v-for="m in ['原文','译文','对照']" :key="m" @click="classicMode=m as any"
+                      class="px-3 py-1 text-xs rounded-full transition-colors"
+                      :class="classicMode===m ? 'bg-primary text-white' : 'bg-white text-muted-foreground border border-border'">
+                  <text>{{ m }}</text>
+                </view>
+              </view>
+              <view class="bg-white rounded-lg p-3 border border-border">
+                <text class="text-sm font-semibold text-foreground mb-1.5 block">{{ classicsContent[selectedClassic].title }}</text>
+                <text class="text-sm text-muted-foreground leading-relaxed whitespace-pre-line block">
+                  <template v-if="classicMode==='原文'">{{ classicsContent[selectedClassic].original }}</template>
+                  <template v-else-if="classicMode==='译文'">{{ classicsContent[selectedClassic].translation }}</template>
+                  <template v-else>
+                    <text class="text-foreground font-medium">【原文】</text>{{ classicsContent[selectedClassic].original }}
+                    {'\n\n'}
+                    <text class="text-primary font-medium">【译文】</text>{{ classicsContent[selectedClassic].translation }}
+                  </template>
+                </text>
+              </view>
+            </view>
+          </view>
+
+          <!-- AI辅助分析 -->
+          <view class="w-full bg-primary text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 text-center">
+            <text></text>
+            <text>AI辅助分析</text>
+          </view>
+        </view>
+      </template>
+
+      <!-- 分析模式 -->
+      <template v-else>
+        <view class="p-2.5 space-y-2">
+          <view class="bg-white rounded-lg border border-border px-3 py-2.5 flex items-center justify-between">
+            <text class="text-sm text-foreground">
+              <text class="text-primary font-medium">名称：</text>{{ data.name }}
+              <text class="text-primary font-medium ml-3">性别：</text>{{ data.gender }}
+              <text class="ml-3">出生于{{ data.solarDate }}（{{ data.lunarDate }}）</text>
+            </text>
+            <view @click="showEditModal=true" class="p-1 text-muted-foreground"><text>✏️</text></view>
+          </view>
+
+          <!-- 八柱总表 -->
+          <view class="bg-white rounded-lg border border-border overflow-x-auto">
+            <view class="text-sm" style="min-width:560px">
+              <view class="flex bg-primary/5 py-1.5">
+                <view class="w-9 text-xs text-muted-foreground" />
+                <view v-for="(n,i) in colNames" :key="i" class="flex-1 text-sm font-semibold text-center" :class="i===2?'text-primary':'text-foreground'"><text>{{ n }}</text></view>
+                <view v-for="h in ['大运','流年','流月','流日']" :key="h" class="flex-1 text-sm font-semibold text-foreground text-center bg-secondary/40"><text>{{ h }}</text></view>
+              </view>
+              <view class="flex border-t border-border text-xs text-muted-foreground py-0.5">
+                <view class="w-9"><text>十神</text></view>
+                <view v-for="k in cols" :key="k" class="flex-1 text-center"><text>{{ data.siZhu[k].shiShen }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text>{{ analysisDaYun.shiShen }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text>{{ analysisLiuNian.shiShen }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text>{{ ganShiShen[analysisLiuYue.gan] }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text>{{ ganShiShen[analysisLiuRi.gan] }}</text></view>
+              </view>
+              <view class="flex bg-secondary/10 py-0.5">
+                <view class="w-9 text-xs text-primary font-medium"><text>{{ data.qianKun }}</text></view>
+                <view v-for="k in cols" :key="k" class="flex-1 text-center"><text class="text-xl font-black" :class="wxColor(data.siZhu[k].gan)">{{ data.siZhu[k].gan }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text class="text-xl font-black" :class="wxColor(analysisDaYun.gan)">{{ analysisDaYun.gan }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text class="text-xl font-black" :class="wxColor(analysisLiuNian.gan)">{{ analysisLiuNian.gan }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text class="text-xl font-black" :class="wxColor(analysisLiuYue.gan)">{{ analysisLiuYue.gan }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text class="text-xl font-black" :class="wxColor(analysisLiuRi.gan)">{{ analysisLiuRi.gan }}</text></view>
+              </view>
+              <view class="flex bg-secondary/10 py-0.5">
+                <view class="w-9" />
+                <view v-for="k in cols" :key="k" class="flex-1 text-center"><text class="text-xl font-black" :class="wxColor(data.siZhu[k].zhi)">{{ data.siZhu[k].zhi }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text class="text-xl font-black" :class="wxColor(analysisDaYun.zhi)">{{ analysisDaYun.zhi }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text class="text-xl font-black" :class="wxColor(analysisLiuNian.zhi)">{{ analysisLiuNian.zhi }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text class="text-xl font-black" :class="wxColor(analysisLiuYue.zhi)">{{ analysisLiuYue.zhi }}</text></view>
+                <view class="flex-1 text-center bg-secondary/20"><text class="text-xl font-black" :class="wxColor(analysisLiuRi.zhi)">{{ analysisLiuRi.zhi }}</text></view>
+              </view>
+              <view class="flex border-t border-border text-xs py-1">
+                <view class="w-9 text-primary font-medium"><text>藏干</text></view>
+                <view v-for="k in cols" :key="k" class="flex-1 text-center">
+                  <view class="flex justify-center gap-0.5">
+                    <text v-for="(c,ci) in data.siZhu[k].cangGan" :key="ci" class="font-bold" :class="wxColor(c.gan)">{{ c.gan }}</text>
+                  </view>
+                  <view class="flex justify-center gap-0.5 text-[10px] text-muted-foreground">
+                    <text v-for="(c,ci) in data.siZhu[k].cangGan" :key="ci">{{ c.shen }}</text>
+                  </view>
+                </view>
+                <view v-for="item in [analysisDaYun,analysisLiuNian,analysisLiuYue,analysisLiuRi]" :key="item.zhi" class="flex-1 text-center bg-secondary/20">
+                  <view class="flex justify-center gap-0.5"><text v-for="(c,ci) in zhiCangGan[item.zhi]||[]" :key="ci" class="font-bold" :class="wxColor(c.gan)">{{ c.gan }}</text></view>
+                  <view class="flex justify-center gap-0.5 text-[10px] text-muted-foreground"><text v-for="(c,ci) in zhiCangGan[item.zhi]||[]" :key="ci">{{ c.shen }}</text></view>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 干支关系 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5"><view class="w-0.5 h-3.5 bg-primary rounded-full" /><text class="text-sm font-semibold text-foreground">提示</text></view>
+            </view>
+            <view class="px-3 pb-3 space-y-1.5">
+              <view class="flex flex-wrap gap-1.5">
+                <text v-for="(r,i) in data.relations.tianGan" :key="i" class="px-2 py-0.5 rounded text-xs font-semibold bg-green-50 text-green-600">【{{ r }}】</text>
+              </view>
+              <view class="flex flex-wrap gap-1.5">
+                <text v-for="(r,i) in data.relations.diZhi" :key="i" class="px-2 py-0.5 rounded text-xs font-semibold"
+                      :class="(r.includes('冲')||r.includes('刑')||r.includes('害')) ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-600'">【{{ r }}】</text>
+              </view>
+              <view class="flex flex-wrap gap-1.5">
+                <text v-for="(r,i) in data.relations.zhengZhu" :key="i" class="px-2 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-500">【{{ r }}】</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 大运选择 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5"><view class="w-0.5 h-3.5 bg-primary rounded-full" /><text class="text-sm font-semibold text-foreground">大运</text></view>
+              <text class="text-xs text-muted-foreground">点击选择</text>
+            </view>
+            <view class="text-center">
+              <view class="flex text-xs text-muted-foreground pt-0.5">
+                <view v-for="(d,i) in data.daYun" :key="i" class="flex-1"><text>{{ d.year }}</text></view>
+              </view>
+              <view class="flex">
+                <view v-for="(d,i) in data.daYun" :key="i" @click="selectedDaYun=i"
+                      class="flex-1 cursor-pointer transition-colors" :class="selectedDaYun===i?'bg-primary/10':d.active?'bg-primary/5':''">
+                  <text class="text-lg font-black" :class="selectedDaYun===i?'text-primary':wxColor(d.gan)">{{ d.gan }}</text>
+                  <text class="text-[10px] text-muted-foreground align-top">{{ d.shiShen }}</text>
+                </view>
+              </view>
+              <view class="flex">
+                <view v-for="(d,i) in data.daYun" :key="i" @click="selectedDaYun=i"
+                      class="flex-1 cursor-pointer transition-colors" :class="selectedDaYun===i?'bg-primary/10':d.active?'bg-primary/5':''">
+                  <text class="text-lg font-black" :class="selectedDaYun===i?'text-primary':wxColor(d.zhi)">{{ d.zhi }}</text>
+                  <text class="text-[10px] text-muted-foreground align-top">{{ d.shiShenZhi }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 流年 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5"><view class="w-0.5 h-3.5 bg-primary rounded-full" /><text class="text-sm font-semibold text-foreground">流年</text></view>
+              <text class="text-xs text-muted-foreground">{{ data.daYun[selectedDaYun]?.year }}-{{ (data.daYun[selectedDaYun]?.year||0)+9 }}</text>
+            </view>
+            <view class="text-center">
+              <view class="flex text-xs text-muted-foreground pt-0.5">
+                <view v-for="(n,i) in dynamicLiuNian" :key="i" class="flex-1"><text>{{ n.year }}</text></view>
+              </view>
+              <view class="flex">
+                <view v-for="(n,i) in dynamicLiuNian" :key="i" @click="selectedLiuNian=i"
+                      class="flex-1 cursor-pointer transition-colors" :class="selectedLiuNian===i?'bg-blue-50':n.active?'bg-primary/5':''">
+                  <text class="text-base font-black" :class="selectedLiuNian===i?'text-blue-500':wxColor(n.gan)">{{ n.gan }}</text>
+                  <text class="text-[10px] text-muted-foreground align-top">{{ n.shiShen }}</text>
+                </view>
+              </view>
+              <view class="flex">
+                <view v-for="(n,i) in dynamicLiuNian" :key="i" @click="selectedLiuNian=i"
+                      class="flex-1 cursor-pointer transition-colors" :class="selectedLiuNian===i?'bg-blue-50':n.active?'bg-primary/5':''">
+                  <text class="text-base font-black" :class="selectedLiuNian===i?'text-blue-500':wxColor(n.zhi)">{{ n.zhi }}</text>
+                  <text class="text-[10px] text-muted-foreground align-top">{{ n.shiShenZhi }}</text>
+                </view>
+              </view>
+              <view class="flex text-xs text-muted-foreground pb-0.5">
+                <view v-for="(n,i) in dynamicLiuNian" :key="i" class="flex-1" :class="selectedLiuNian===i?'bg-blue-50':''"><text>{{ n.age }}岁</text></view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 流月 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5"><view class="w-0.5 h-3.5 bg-primary rounded-full" /><text class="text-sm font-semibold text-foreground">流月</text></view>
+            </view>
+            <view class="text-center">
+              <view class="flex text-[10px] text-muted-foreground pt-0.5">
+                <view v-for="(m,i) in liuYueData" :key="i" class="flex-1"><text>{{ m.month }}月</text></view>
+              </view>
+              <view class="flex">
+                <view v-for="(m,i) in liuYueData" :key="i" @click="selectedLiuYue=i"
+                      class="flex-1 cursor-pointer transition-colors" :class="selectedLiuYue===i?'bg-amber-50':''">
+                  <text class="text-base font-bold" :class="selectedLiuYue===i?'text-amber-600':wxColor(m.gan)">{{ m.gan }}</text>
+                  <text class="text-[10px] text-muted-foreground align-top">{{ m.shiShen }}</text>
+                </view>
+              </view>
+              <view class="flex">
+                <view v-for="(m,i) in liuYueData" :key="i" @click="selectedLiuYue=i"
+                      class="flex-1 cursor-pointer transition-colors" :class="selectedLiuYue===i?'bg-amber-50':''">
+                  <text class="text-base font-bold" :class="selectedLiuYue===i?'text-amber-600':wxColor(m.zhi)">{{ m.zhi }}</text>
+                  <text class="text-[10px] text-muted-foreground align-top">{{ m.shiShenZhi }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 流日 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5"><view class="w-0.5 h-3.5 bg-primary rounded-full" /><text class="text-sm font-semibold text-foreground">流日</text></view>
+            </view>
+            <view class="grid grid-cols-10 gap-px p-1.5 bg-border">
+              <view v-for="(d,i) in liuRiData" :key="i" @click="selectedLiuRi=i"
+                    class="py-0.5 text-center transition-colors cursor-pointer" :class="selectedLiuRi===i?'bg-primary/10':'bg-white'">
+                <view class="text-[9px] text-muted-foreground"><text>{{ d.day }}</text></view>
+                <view><text class="text-xs font-bold" :class="selectedLiuRi===i?'text-primary':wxColor(d.gan)">{{ d.gan }}</text></view>
+                <view><text class="text-xs font-bold" :class="selectedLiuRi===i?'text-primary':wxColor(d.zhi)">{{ d.zhi }}</text></view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 五行旺相 -->
+          <view class="bg-white rounded-lg border border-border px-3 py-2.5">
+            <text class="text-sm font-semibold text-foreground mb-2 block">五行状态</text>
+            <view class="flex justify-around">
+              <text v-for="(st,el) in data.wuxingState" :key="el" class="px-2.5 py-1 rounded text-sm font-semibold" :class="wxBgColor(el)">{{ el }}{{ st }}</text>
+            </view>
+          </view>
+
+          <!-- 四柱神煞 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5"><view class="w-0.5 h-3.5 bg-primary rounded-full" /><text class="text-sm font-semibold text-foreground">四柱神煞</text></view>
+            </view>
+            <view class="px-3 pb-2.5 space-y-1.5">
+              <view v-for="k in cols" :key="k" class="flex items-start gap-2">
+                <view class="shrink-0 w-10 flex gap-0.5">
+                  <text class="text-sm font-bold" :class="wxColor(data.siZhu[k].gan)">{{ data.siZhu[k].gan }}</text>
+                  <text class="text-sm font-bold" :class="wxColor(data.siZhu[k].zhi)">{{ data.siZhu[k].zhi }}</text>
+                </view>
+                <text class="text-xs text-muted-foreground leading-relaxed">{{ data.shenSha[k].join('、') }}</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 大运神煞 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5"><view class="w-0.5 h-3.5 bg-primary rounded-full" /><text class="text-sm font-semibold text-foreground">大运神煞</text></view>
+            </view>
+            <view class="px-3 pb-2.5 flex items-start gap-2">
+              <view class="shrink-0 w-10 flex gap-0.5">
+                <text class="text-sm font-bold" :class="wxColor(analysisDaYun.gan)">{{ analysisDaYun.gan }}</text>
+                <text class="text-sm font-bold" :class="wxColor(analysisDaYun.zhi)">{{ analysisDaYun.zhi }}</text>
+              </view>
+              <text class="text-xs text-muted-foreground leading-relaxed">天乙贵人、太极贵人、德秀贵人、文昌贵人、天德秀贵</text>
+            </view>
+          </view>
+
+          <!-- 流年神煞 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5"><view class="w-0.5 h-3.5 bg-primary rounded-full" /><text class="text-sm font-semibold text-foreground">流年神煞</text></view>
+            </view>
+            <view class="px-3 pb-2.5 flex items-start gap-2">
+              <view class="shrink-0 w-10 flex gap-0.5">
+                <text class="text-sm font-bold" :class="wxColor(analysisLiuNian.gan)">{{ analysisLiuNian.gan }}</text>
+                <text class="text-sm font-bold" :class="wxColor(analysisLiuNian.zhi)">{{ analysisLiuNian.zhi }}</text>
+              </view>
+              <text class="text-xs text-muted-foreground leading-relaxed">德秀贵人、将星、桃花、血刃、羊刃</text>
+            </view>
+          </view>
+
+          <!-- 古籍参考 -->
+          <view class="bg-white rounded-lg border border-border overflow-hidden">
+            <view class="flex items-center justify-between px-3 py-2">
+              <view class="flex items-center gap-1.5"><view class="w-0.5 h-3.5 bg-primary rounded-full" /><text class="text-sm font-semibold text-foreground">古籍参考</text></view>
+              <text class="text-xs text-primary">更多古籍</text>
+            </view>
+            <view class="grid grid-cols-4 gap-3 px-3 pb-3">
+              <view v-for="b in classics" :key="b.id" @click="selectedClassic=selectedClassic===b.id?null:b.id" class="flex flex-col items-center gap-1">
+                <view class="relative w-[68px] h-[92px] rounded-sm overflow-hidden shadow-sm" :class="selectedClassic===b.id?'ring-2 ring-primary shadow-md':''">
+                  <view class="absolute inset-0 bg-gradient-to-b from-amber-100 via-amber-50 to-amber-100" />
+                  <view class="absolute inset-0 opacity-[0.08]" style="background-image:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(120,80,40,0.3) 3px,rgba(120,80,40,0.3) 3.5px)" />
+                  <view class="absolute left-0 top-0 bottom-0 w-3 bg-gradient-to-r from-amber-200/80 to-transparent border-r border-amber-300/40" />
+                  <view class="absolute left-[4px] top-[14%] w-1 h-1 rounded-full bg-amber-400/50" />
+                  <view class="absolute left-[4px] top-[46%] w-1 h-1 rounded-full bg-amber-400/50" />
+                  <view class="absolute left-[4px] top-[78%] w-1 h-1 rounded-full bg-amber-400/50" />
+                  <view class="absolute left-[14px] right-[6px] top-[10px] bottom-[10px] border border-amber-400/40 rounded-[1px] flex items-center justify-center">
+                    <text class="text-primary font-bold text-[11px]" style="writing-mode:vertical-rl">{{ b.name }}</text>
+                  </view>
+                </view>
+                <text class="text-xs leading-tight" :class="selectedClassic===b.id?'text-primary font-semibold':'text-muted-foreground'">{{ b.name }}</text>
+              </view>
+            </view>
+            <view v-if="selectedClassic && classicsContent[selectedClassic]" class="border-t border-border p-3 bg-secondary/30">
+              <view class="flex gap-2 mb-2.5">
+                <view v-for="m in ['原文','译文','对照']" :key="m" @click="classicMode=m as any"
+                      class="px-3 py-1 text-xs rounded-full transition-colors"
+                      :class="classicMode===m ? 'bg-primary text-white' : 'bg-white text-muted-foreground border border-border'">
+                  <text>{{ m }}</text>
+                </view>
+              </view>
+              <view class="bg-white rounded-lg p-3 border border-border">
+                <text class="text-sm font-semibold text-foreground mb-1.5 block">{{ classicsContent[selectedClassic].title }}</text>
+                <text class="text-sm text-muted-foreground leading-relaxed whitespace-pre-line block">
+                  <template v-if="classicMode==='原文'">{{ classicsContent[selectedClassic].original }}</template>
+                  <template v-else-if="classicMode==='译文'">{{ classicsContent[selectedClassic].translation }}</template>
+                  <template v-else><text class="text-foreground font-medium">【原文】</text>{{ classicsContent[selectedClassic].original }}{'\n\n'}<text class="text-primary font-medium">【译文】</text>{{ classicsContent[selectedClassic].translation }}</template>
+                </text>
+              </view>
+            </view>
+          </view>
+
+          <view class="flex gap-2">
+            <view class="flex-1 bg-primary text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 text-center"><text></text><text>AI辅助分析</text></view>
+            <view class="flex-1 bg-accent text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 text-center"><text>命理奇门局</text></view>
+          </view>
+        </view>
+      </template>
+    </scroll-view>
+
+    <!-- 悬浮笔记 -->
+    <view class="fixed right-3 bottom-5 z-10">
+      <view @click="showNotes=!showNotes" class="w-11 h-11 bg-white rounded-full shadow-lg border border-border flex flex-col items-center justify-center gap-0.5">
+        <text class="text-sm text-primary"></text>
+        <text class="text-[9px] text-primary font-medium">笔记</text>
+      </view>
+    </view>
+
+    <!-- 编辑弹窗 -->
+    <view v-if="showEditModal" class="fixed inset-0 bg-black/40 z-50 flex items-end" @click="showEditModal=false">
+      <view class="bg-white w-full rounded-t-2xl p-5 pb-8" style="max-height:80vh" @click.stop>
+        <view class="flex justify-between items-center mb-5">
+          <text class="text-lg font-bold text-foreground">修改信息</text>
+          <view @click="showEditModal=false" class="w-7 h-7 rounded-full border border-border flex items-center justify-center text-muted-foreground"><text>✕</text></view>
+        </view>
+        <view class="divide-y divide-border">
+          <view class="flex items-center justify-between py-4">
+            <text class="text-sm font-semibold text-foreground shrink-0">客户名称</text>
+            <input type="text" :value="data.name" placeholder="请输入名称" class="text-right text-sm text-muted-foreground placeholder:text-muted-foreground/50 bg-transparent w-40" />
+          </view>
+          <view class="flex items-center justify-between py-4">
+            <text class="text-sm font-semibold text-foreground shrink-0">选择性别</text>
+            <view class="flex items-center gap-4">
+              <view @click="editGender='男'" class="flex items-center gap-1.5">
+                <view class="w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center" :class="editGender==='男'?'border-primary':'border-border'"><text v-if="editGender==='男'" class="text-primary text-xs">●</text></view>
+                <text class="text-sm text-foreground">男</text>
+              </view>
+              <view @click="editGender='女'" class="flex items-center gap-1.5">
+                <view class="w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center" :class="editGender==='女'?'border-primary':'border-border'"><text v-if="editGender==='女'" class="text-primary text-xs">●</text></view>
+                <text class="text-sm text-foreground">女</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        <view class="flex items-center gap-5 mt-4 mb-6">
+          <view v-for="opt in ['真太阳时','早晚子时','夏令时']" :key="opt" class="flex items-center gap-1.5">
+            <view class="w-4 h-4 rounded border-2 flex items-center justify-center" :class="opt==='真太阳时'?'border-primary bg-primary':'border-border'"><text v-if="opt==='真太阳时'" class="text-white text-xs">✓</text></view>
+            <text class="text-sm text-foreground">{{ opt }}</text>
+          </view>
+        </view>
+        <view @click="showEditModal=false" class="w-full py-3.5 bg-primary text-white rounded-xl font-semibold text-base text-center">确定</view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed } from 'vue'
+
+function goBack() { uni.navigateBack() }
+
+// ===== 模式 =====
+const modes = [{ key: 'traditional' as const, label: '传统模式' }, { key: 'analysis' as const, label: '分析模式' }]
+const activeMode = ref<'traditional' | 'analysis'>('traditional')
+
+const showEditModal = ref(false)
+const showNotes = ref(false)
+const editGender = ref('男')
+const showAllShenSha = ref(false)
+const expandedDaYun = ref<number | null>(null)
+const selectedClassic = ref<string | null>(null)
+const classicMode = ref<'原文' | '译文' | '对照'>('原文')
+
+const cols = ['year', 'month', 'day', 'hour'] as const
+const colNames = ['年柱', '月柱', '日柱', '时柱']
+
+const rowLabels: Record<string, string> = { naYin: '纳音', diShi: '地势', ziZuo: '自坐', kongWang: '空亡' }
+const labelMap: Record<string, 'taiYuan' | 'mingGong' | 'shenGong'> = { '胎元': 'taiYuan', '命宫': 'mingGong', '身宫': 'shenGong' }
+
+const ganShiShen: Record<string, string> = {
+  '甲':'比','乙':'劫','丙':'食','丁':'伤','戊':'才','己':'财','庚':'杀','辛':'官','壬':'枭','癸':'印'
+}
+const zhiShiShen: Record<string, string> = {
+  '子':'官','丑':'食','寅':'印','卯':'枭','辰':'食','巳':'比','午':'伤','未':'食','申':'财','酉':'才','戌':'食','亥':'杀'
+}
+const zhiCangGan: Record<string, {gan:string;shen:string}[]> = {
+  '子':[{gan:'癸',shen:'官'}],'丑':[{gan:'己',shen:'食'},{gan:'癸',shen:'杀'},{gan:'辛',shen:'才'}],
+  '寅':[{gan:'甲',shen:'印'},{gan:'丙',shen:'比'},{gan:'戊',shen:'食'}],
+  '卯':[{gan:'乙',shen:'枭'}],'辰':[{gan:'戊',shen:'食'},{gan:'乙',shen:'枭'},{gan:'癸',shen:'杀'}],
+  '巳':[{gan:'丙',shen:'比'},{gan:'庚',shen:'才'},{gan:'戊',shen:'食'}],
+  '午':[{gan:'丁',shen:'伤'},{gan:'己',shen:'食'}],
+  '未':[{gan:'己',shen:'食'},{gan:'丁',shen:'伤'},{gan:'乙',shen:'枭'}],
+  '申':[{gan:'庚',shen:'才'},{gan:'壬',shen:'杀'},{gan:'戊',shen:'食'}],
+  '酉':[{gan:'辛',shen:'财'}],'戌':[{gan:'戊',shen:'食'},{gan:'辛',shen:'财'},{gan:'丁',shen:'伤'}],
+  '亥':[{gan:'壬',shen:'杀'},{gan:'甲',shen:'印'}],
+}
+
+function wxColor(c: string): string {
+  const m: Record<string, string> = {
+    '甲':'text-green-600','乙':'text-green-600','丙':'text-red-500','丁':'text-red-500',
+    '戊':'text-amber-600','己':'text-amber-600','庚':'text-slate-500','辛':'text-slate-500',
+    '壬':'text-blue-500','癸':'text-blue-500',
+    '子':'text-blue-500','丑':'text-amber-600','寅':'text-green-600','卯':'text-green-600',
+    '辰':'text-amber-600','巳':'text-red-500','午':'text-red-500','未':'text-amber-600',
+    '申':'text-slate-500','酉':'text-slate-500','戌':'text-amber-600','亥':'text-blue-500',
+  }
+  return m[c] || 'text-foreground'
+}
+function wxBgColor(el: string): string {
+  const m: Record<string, string> = { '木':'bg-green-50 text-green-600','火':'bg-red-50 text-red-500','土':'bg-amber-50 text-amber-600','金':'bg-slate-50 text-slate-500','水':'bg-blue-50 text-blue-500' }
+  return m[el] || ''
+}
+
+// ===== 数据 =====
+const data = reactive({
+  name: '未知', gender: '男', zodiac: '猪', qianKun: '乾造', birthYear: 1983,
+  solarDate: '1983年6月18日 14时31分', lunarDate: '五月初八',
+  realSolarTime: '1983年06月18日 14时13分（北京 房山区）',
+  jieQi: '芒种后12天0小时，夏至前3天17小时',
+  siZhu: {
+    year: { gan: '癸', zhi: '亥', shiShen: '杀', cangGan: [{ gan: '壬', shen: '官' }, { gan: '甲', shen: '印' }], naYin: '大海水', diShi: '胎', ziZuo: '帝旺', kongWang: '子丑' },
+    month: { gan: '戊', zhi: '午', shiShen: '伤', cangGan: [{ gan: '丁', shen: '比' }, { gan: '己', shen: '食' }], naYin: '天上火', diShi: '临官', ziZuo: '帝旺', kongWang: '子丑' },
+    day: { gan: '丁', zhi: '丑', shiShen: '日元', cangGan: [{ gan: '己', shen: '食' }, { gan: '癸', shen: '杀' }, { gan: '辛', shen: '才' }], naYin: '涧下水', diShi: '墓', ziZuo: '墓', kongWang: '申酉' },
+    hour: { gan: '丁', zhi: '未', shiShen: '比', cangGan: [{ gan: '己', shen: '食' }, { gan: '丁', shen: '比' }, { gan: '乙', shen: '枭' }], naYin: '天河水', diShi: '冠带', ziZuo: '冠带', kongWang: '寅卯' },
+  },
+  shenSha: {
+    year: ['驿马', '天德贵人', '禄神', '词馆'],
+    month: ['禄神', '词馆', '阴差阳错'],
+    day: ['阴差阳错', '华盖'],
+    hour: ['华盖', '红艳', '天德贵人'],
+  },
+  taiYuan: { gan: '己', zhi: '酉', naYin: '大驿土' },
+  mingGong: { gan: '丙', zhi: '辰', naYin: '沙中土' },
+  shenGong: { gan: '甲', zhi: '寅', naYin: '大溪水' },
+  qiYun: '出生后3年11个月29日起大运，每逢丁年6月16日前后交运。',
+  daYun: [
+    { year: 1983, gan: '戊', zhi: '午', shiShen: '伤', shiShenZhi: '劫', age: 0 },
+    { year: 1987, gan: '丁', zhi: '巳', shiShen: '比', shiShenZhi: '枭', age: 4 },
+    { year: 1997, gan: '丙', zhi: '辰', shiShen: '劫', shiShenZhi: '食', age: 14 },
+    { year: 2007, gan: '乙', zhi: '卯', shiShen: '枭', shiShenZhi: '枭', age: 24 },
+    { year: 2017, gan: '甲', zhi: '寅', shiShen: '印', shiShenZhi: '印', age: 34, active: true },
+    { year: 2027, gan: '癸', zhi: '丑', shiShen: '杀', shiShenZhi: '食', age: 44 },
+    { year: 2037, gan: '壬', zhi: '子', shiShen: '官', shiShenZhi: '官', age: 54 },
+    { year: 2047, gan: '辛', zhi: '亥', shiShen: '才', shiShenZhi: '官', age: 64 },
+    { year: 2057, gan: '庚', zhi: '戌', shiShen: '财', shiShenZhi: '伤', age: 74 },
+    { year: 2067, gan: '己', zhi: '酉', shiShen: '食', shiShenZhi: '才', age: 84 },
+  ],
+  liuNian: [
+    { year: 2018, gan: '戊', zhi: '戌', shiShen: '伤', shiShenZhi: '伤', age: 36 },
+    { year: 2019, gan: '己', zhi: '亥', shiShen: '食', shiShenZhi: '官', age: 37 },
+    { year: 2020, gan: '庚', zhi: '子', shiShen: '财', shiShenZhi: '官', age: 38 },
+    { year: 2021, gan: '辛', zhi: '丑', shiShen: '才', shiShenZhi: '食', age: 39 },
+    { year: 2022, gan: '壬', zhi: '寅', shiShen: '官', shiShenZhi: '印', age: 40 },
+    { year: 2023, gan: '癸', zhi: '卯', shiShen: '杀', shiShenZhi: '枭', age: 41 },
+    { year: 2024, gan: '甲', zhi: '辰', shiShen: '印', shiShenZhi: '食', age: 42 },
+    { year: 2025, gan: '乙', zhi: '巳', shiShen: '枭', shiShenZhi: '枭', age: 43 },
+    { year: 2026, gan: '丙', zhi: '午', shiShen: '劫', shiShenZhi: '劫', age: 44, active: true },
+    { year: 2027, gan: '丁', zhi: '未', shiShen: '比', shiShenZhi: '食', age: 45 },
+  ],
+  relations: {
+    tianGan: ['丙辛合', '戊癸合化火'],
+    diZhi: ['亥卯未三合', '巳午未三会', '丑未冲', '午午刑', '寅巳害'],
+    zhengZhu: ['己亥冲', '寅亥合', '午丑害'],
+  },
+  wuxingState: { 木: '旺', 火: '相', 土: '休', 金: '囚', 水: '死' } as Record<string, string>,
+})
+
+// ===== 古籍 =====
+const classics = [
+  { id: 'qiong', name: '穷通宝鉴' },
+  { id: 'di', name: '滴天髓' },
+  { id: 'san', name: '三命通会' },
+  { id: 'bazi', name: '八字提要' },
+]
+
+const classicsContent: Record<string, { title: string; original: string; translation: string }> = {
+  qiong: {
+    title: '论丁生午月',
+    original: '五月丁火建禄，正值火旺之时，火当令而旺，以金水为用神为宜。用癸不可少甲，最为紧要。丙丁并透，又加支中火多，无癸水制之，其人必操屠宰业。用癸者，金妻水子。若得庚辛癸三者齐透，科甲功名。',
+    translation: '五月丁火处于建禄之位，正值火势最旺的时候，火在当令之时非常旺盛，应该以金水作为用神。使用癸水时不能缺少甲木的配合，这是最关键的要点。如果丙丁都透出天干，再加上地支火多，没有癸水来制约，此人必定从事屠宰行业。用癸水为用神的，娶金命之妻、生水命之子。若庚辛癸三者都透出天干，可得科举功名。',
+  },
+  di: {
+    title: '论丁火',
+    original: '丁火柔中，内性昭融。抱乙而孝，合壬而忠。旺而不烈，衰而不穷。如有嫡母，可秋可冬。',
+    translation: '丁火属阴，性质柔和而内在光明通达。与乙木相依托是慈孝之象，与壬水相合是忠义之征。丁火旺盛时不会过于猛烈，衰弱时也不会走投无路。如果命中有甲木正印来生助，即使在秋冬失令之时也能自立。丁火犹如灯火之光，虽小而能照亮四方。',
+  },
+  san: {
+    title: '丁丑日柱论',
+    original: '丁丑坐墓库，为金神格局。丁火坐丑中己土食神、辛金偏财、癸水七杀。若身旺能任财杀，主富贵。丁火日主坐墓地，逢冲则发。丑中暗藏三奇：己辛癸，食神生偏财，偏财引七杀，一路顺生有情。',
+    translation: '丁丑日柱是丁火坐在墓库之上，属于金神格局。丑土中暗藏己土（食神）、辛金（偏财）、癸水（七杀）。如果日主身旺能够承担财杀，主人富贵。丁火日主坐在墓地，遇到冲击就会发达。丑土中暗藏食神、偏财、七杀三种元素，食神生偏财、偏财引七杀，形成一路顺生的有情组合。',
+  },
+  bazi: {
+    title: '五月提要（午月）',
+    original: '午月丁火建禄，火势炎上。宜癸水高透以制火，庚金佐之发水源。甲木不可少，引丁成文明之象。午月火旺土燥，金水为调候急需。若癸甲两透，定主科甲。癸透甲藏，亦可功名。无癸用壬，格局稍次。',
+    translation: '午月丁火正当建禄之时，火势极为旺盛向上。适宜癸水在天干高透来制约火势，庚金辅助癸水以发其源头。甲木不可缺少，引导丁火成为文明之象。午月火旺土燥，金水是调候的迫切需要。如果癸水和甲木都透出天干，必定主科举功名。癸水透出而甲木暗藏在地支，也可以取得功名。没有癸水而用壬水代替，格局稍差一些。',
+  },
+}
+
+// ===== 分析模式 =====
+const selectedDaYun = ref(4)
+const selectedLiuNian = ref(0)
+const selectedLiuYue = ref(4)
+const selectedLiuRi = ref(16)
+
+const dynamicLiuNian = computed(() => {
+  const dy = data.daYun[selectedDaYun.value]
+  if (!dy) return data.liuNian
+  return Array.from({ length: 10 }, (_, i) => {
+    const y = dy.year + i
+    const gs = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸']
+    const zs = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥']
+    return { year: y, gan: gs[(y-4)%10], zhi: zs[(y-4)%12], shiShen: ganShiShen[gs[(y-4)%10]], shiShenZhi: zhiShiShen[zs[(y-4)%12]], age: y-(data.birthYear||1983), active: y===2026 }
+  })
+})
+
+const analysisDaYun = computed(() => data.daYun[selectedDaYun.value] || data.daYun[0])
+const analysisLiuNian = computed(() => dynamicLiuNian.value[selectedLiuNian.value] || dynamicLiuNian.value[0])
+const analysisLiuYue = computed(() => liuYueData.value[selectedLiuYue.value])
+const analysisLiuRi = computed(() => liuRiData.value[selectedLiuRi.value])
+
+const liuYueData = computed(() =>
+  Array.from({ length: 12 }, (_, i) => {
+    const gans = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸']
+    const zhis = ['寅','卯','辰','巳','午','未','申','酉','戌','亥','子','丑']
+    const g = gans[i%10]; const z = zhis[i]
+    return { month: i+1, gan: g, zhi: z, shiShen: ganShiShen[g], shiShenZhi: zhiShiShen[z] }
+  })
+)
+
+const liuRiData = computed(() =>
+  Array.from({ length: 31 }, (_, i) => {
+    const gans = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸']
+    const zhis = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥']
+    return { day: i+1, gan: gans[i%10], zhi: zhis[i%12] }
+  })
+)
+
+function expandDaYunLiuNian(dy: any) {
+  return Array.from({ length: 10 }, (_, i) => {
+    const y = dy.year + i
+    const gs = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸']
+    const zs = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥']
+    return { year: y, gan: gs[(y-4)%10], zhi: zs[(y-4)%12], age: y-(data.birthYear||1983) }
+  })
+}
+</script>
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

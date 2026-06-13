@@ -1,0 +1,326 @@
+<template>
+  <!-- 提交成功页 -->
+  <view v-if="submitSuccess" class="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center p-8">
+    <view class="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6">
+      <text class="text-4xl text-green-500">✓</text>
+    </view>
+    <text class="text-xl font-bold text-[#2C2C2C] mb-2">提交成功</text>
+    <text class="text-sm text-[#999] text-center mb-8">售后申请已提交，商家将在24小时内审核</text>
+    <view class="w-full max-w-xs space-y-3">
+      <view class="w-full py-3 bg-[#C41E3A] text-white text-center rounded-xl text-sm font-medium" @click="viewProgress">查看进度</view>
+      <view class="w-full py-3 border border-[#E8E0D5] text-[#2C2C2C] text-center rounded-xl text-sm" @click="goBack">返回订单</view>
+    </view>
+  </view>
+
+  <!-- 进度跟踪页 -->
+  <view v-else-if="viewingProgress" class="min-h-screen bg-[#FAF8F5] pb-24">
+    <view class="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5]" style="padding-top: var(--status-bar-height);">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view class="p-2 -ml-2" @click="viewingProgress = false; submitSuccess = false">
+          <text class="text-[#2C2C2C] text-lg">←</text>
+        </view>
+        <text class="font-semibold text-base text-[#2C2C2C]">售后进度</text>
+        <view class="w-9" />
+      </view>
+    </view>
+
+    <view class="p-4 space-y-4">
+      <!-- 当前状态卡片 -->
+      <view class="p-4 rounded-xl bg-white border border-[#E8E0D5]">
+        <view class="flex items-center gap-3">
+          <view class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+            <text class="text-lg text-blue-500">📋</text>
+          </view>
+          <view>
+            <text class="font-medium text-[#2C2C2C] block">商家审核中</text>
+            <text class="text-xs text-[#999]">预计24小时内完成审核</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 进度时间轴 -->
+      <view class="p-4 rounded-xl bg-white border border-[#E8E0D5]">
+        <text class="font-medium text-sm text-[#2C2C2C] mb-4 block">处理进度</text>
+        <view class="space-y-0">
+          <view v-for="(step, idx) in progressSteps" :key="idx" class="flex gap-3">
+            <view class="flex flex-col items-center">
+              <view :class="['w-6 h-6 rounded-full flex items-center justify-center text-xs', step.completed ? 'bg-[#C41E3A] text-white' : step.active ? 'bg-blue-500 text-white' : 'bg-[#F5F1EB] text-[#999]']">
+                <text v-if="step.completed">✓</text>
+                <text v-else-if="step.active">●</text>
+                <text v-else>○</text>
+              </view>
+              <view v-if="idx < progressSteps.length - 1" class="w-0.5 flex-1 min-h-6" :class="step.completed ? 'bg-[#C41E3A]' : 'bg-[#E8E0D5]'" />
+            </view>
+            <view class="flex-1 pb-4">
+              <text :class="['text-sm block', step.completed || step.active ? 'text-[#2C2C2C] font-medium' : 'text-[#999]']">{{ step.title }}</text>
+              <text class="text-xs text-[#999] block mt-0.5">{{ step.time || step.desc }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 申请信息 -->
+      <view class="p-4 rounded-xl bg-white border border-[#E8E0D5]">
+        <text class="font-medium text-sm text-[#2C2C2C] mb-3 block">申请信息</text>
+        <view class="space-y-2 text-sm">
+          <view class="flex justify-between">
+            <text class="text-[#999]">售后类型</text>
+            <text class="text-[#2C2C2C]">{{ aftersaleTypes.find(t => t.id === selectedType)?.label }}</text>
+          </view>
+          <view class="flex justify-between">
+            <text class="text-[#999]">申请原因</text>
+            <text class="text-[#2C2C2C]">{{ aftersaleReasons.find(r => r.id === selectedReason)?.label }}</text>
+          </view>
+          <view class="flex justify-between">
+            <text class="text-[#999]">退款金额</text>
+            <text class="text-[#C41E3A] font-medium">¥{{ orderProduct.maxRefund.toFixed(2) }}</text>
+          </view>
+          <view class="flex justify-between">
+            <text class="text-[#999]">申请单号</text>
+            <view class="flex items-center gap-1">
+              <text class="text-[#2C2C2C]">{{ afterSaleNo }}</text>
+              <text class="text-[#C41E3A] text-xs" @click="copyNo">复制</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部操作 -->
+      <view class="flex gap-3 pt-2">
+        <view class="flex-1 py-3 border border-[#E8E0D5] text-[#2C2C2C] text-center rounded-xl text-sm" @click="cancelAfterSale">撤销申请</view>
+        <view class="flex-1 py-3 bg-[#C41E3A] text-white text-center rounded-xl text-sm" @click="contactService">联系客服</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 申请表单 -->
+  <view v-else class="min-h-screen bg-[#FAF8F5] pb-24">
+    <!-- 顶部导航 -->
+    <view class="fixed top-0 left-0 right-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5]" style="padding-top: var(--status-bar-height);">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view class="p-2 -ml-2 rounded-full" @click="goBack">
+          <text class="text-[#2C2C2C] text-lg">←</text>
+        </view>
+        <text class="font-semibold text-base text-[#2C2C2C]">申请售后</text>
+        <view class="w-9" />
+      </view>
+    </view>
+
+    <!-- 申请表单 -->
+    <view class="pt-14 p-4 space-y-4">
+      <!-- 商品信息 -->
+      <view class="p-3 rounded-xl border border-[#E8E0D5] bg-white">
+        <view class="flex gap-3">
+          <view class="w-16 h-16 rounded-lg bg-[#F5F1EB] flex items-center justify-center flex-shrink-0">
+            <text class="text-[#999] text-2xl">📦</text>
+          </view>
+          <view class="flex-1 min-w-0">
+            <text class="text-sm font-medium text-[#2C2C2C] line-clamp-2 block">{{ orderProduct.name }}</text>
+            <text class="text-xs text-[#999] mt-1 block">{{ orderProduct.spec }}</text>
+            <view class="flex items-center justify-between mt-1">
+              <text class="text-sm text-[#C41E3A] font-medium">¥{{ orderProduct.price }}</text>
+              <text class="text-xs text-[#999]">x{{ orderProduct.quantity }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 选择售后类型 -->
+      <view class="p-4 rounded-xl border border-[#E8E0D5] bg-white">
+        <text class="font-medium text-sm text-[#2C2C2C] mb-3 block">选择售后类型</text>
+        <view class="space-y-2">
+          <view
+            v-for="type in aftersaleTypes"
+            :key="type.id"
+            @click="selectedType = type.id"
+            :class="['w-full flex items-center gap-3 p-3 rounded-xl border transition-all', selectedType === type.id ? 'border-primary bg-[#C41E3A]/5' : 'border-[#E8E0D5]']"
+          >
+            <view :class="['w-10 h-10 rounded-full flex items-center justify-center', selectedType === type.id ? 'bg-[#C41E3A]/10' : 'bg-[#F5F1EB]']">
+              <text :class="['w-5 h-5', selectedType === type.id ? 'text-[#C41E3A]' : 'text-[#999]']">{{ type.id === 'refund_only' ? '💳' : type.id === 'return_refund' ? '📦' : '🚚' }}</text>
+            </view>
+            <view class="flex-1 text-left">
+              <text :class="['text-sm font-medium block', selectedType === type.id ? 'text-[#C41E3A]' : 'text-[#2C2C2C]']">{{ type.label }}</text>
+              <text class="text-xs text-[#999] block">{{ type.desc }}</text>
+            </view>
+            <view v-if="selectedType === type.id" class="w-5 h-5 rounded-full bg-[#C41E3A] flex items-center justify-center">
+              <text class="text-white text-xs">✓</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 选择售后原因 -->
+      <view class="p-4 rounded-xl border border-[#E8E0D5] bg-white">
+        <text class="font-medium text-sm text-[#2C2C2C] mb-3 block">选择原因</text>
+        <view class="flex flex-wrap gap-2">
+          <view
+            v-for="reason in aftersaleReasons"
+            :key="reason.id"
+            @click="selectedReason = reason.id"
+            :class="['px-3 py-2 rounded-lg text-sm transition-all', selectedReason === reason.id ? 'bg-[#C41E3A] text-white' : 'bg-[#F5F1EB] text-[#2C2C2C]']"
+          >
+            <text>{{ reason.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 退款金额 -->
+      <view v-if="selectedType === 'refund_only' || selectedType === 'return_refund'" class="p-4 rounded-xl border border-[#E8E0D5] bg-white">
+        <view class="flex items-center justify-between">
+          <text class="text-sm text-[#999]">可退金额</text>
+          <text class="text-xl font-bold text-[#C41E3A]">¥{{ orderProduct.maxRefund.toFixed(2) }}</text>
+        </view>
+        <text class="text-xs text-[#999] mt-2 block">系统已自动计算可退金额（含商品金额，不含运费）</text>
+      </view>
+
+      <!-- 问题描述 -->
+      <view class="p-4 rounded-xl border border-[#E8E0D5] bg-white">
+        <text class="font-medium text-sm text-[#2C2C2C] mb-3 block">问题描述</text>
+        <textarea
+          v-model="description"
+          placeholder="请详细描述您遇到的问题，有助于我们更快处理"
+          class="w-full h-24 px-3 py-2 text-sm bg-[#F5F1EB] rounded-xl border-0 resize-none placeholder:text-[#999]"
+          maxlength="200"
+        />
+        <text class="text-xs text-[#999] text-right mt-1 block">{{ description.length }}/200</text>
+      </view>
+
+      <!-- 上传凭证 -->
+      <view class="p-4 rounded-xl border border-[#E8E0D5] bg-white">
+        <text class="font-medium text-sm text-[#2C2C2C] mb-3 block">上传凭证（最多3张）</text>
+        <view class="flex gap-3">
+          <view v-for="(img, index) in images" :key="index" class="relative w-20 h-20 rounded-lg bg-[#F5F1EB]">
+            <view class="w-full h-full flex items-center justify-center">
+              <text class="text-[#999]/50 text-2xl">📷</text>
+            </view>
+            <view @click="handleRemoveImage(index)" class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#FF4D4F] flex items-center justify-center">
+              <text class="text-white text-xs">✕</text>
+            </view>
+          </view>
+          <view v-if="images.length < 3" @click="handleAddImage" class="w-20 h-20 rounded-lg border-2 border-dashed border-[#E8E0D5] flex flex-col items-center justify-center gap-1">
+            <text class="text-[#999] text-lg">📷</text>
+            <text class="text-xs text-[#999]">上传</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 提示 -->
+      <view class="flex items-start gap-2 px-2">
+        <text class="text-[#999] text-sm mt-0.5">⚠️</text>
+        <text class="text-xs text-[#999]">提交申请后，商家将在24小时内审核。如审核通过，请按指引操作。</text>
+      </view>
+    </view>
+
+    <!-- 底部提交按钮 -->
+    <view class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-[#E8E0D5] px-4 py-3" style="padding-bottom: env(safe-area-inset-bottom);">
+      <view
+        @click="handleSubmit"
+        :class="['w-full py-3.5 rounded-xl font-medium text-base text-center transition-all', selectedType && selectedReason && !isSubmitting ? 'bg-[#C41E3A] text-white' : 'bg-[#F0EBE5] text-[#999]']"
+      >
+        <text>{{ isSubmitting ? '提交中...' : '提交申请' }}</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+// 导航辅助
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+
+// Mock 数据
+const orderProduct = {
+  id: 1,
+  name: "《渊海子平》精装典藏版",
+  spec: "精装版·红色",
+  price: 168,
+  quantity: 1,
+  image: "",
+  maxRefund: 168,
+}
+
+const aftersaleTypes = [
+  { id: "refund_only", label: "仅退款", desc: "无需退货，直接退款" },
+  { id: "return_refund", label: "退货退款", desc: "需寄回商品，收到后退款" },
+  { id: "exchange", label: "换货", desc: "商品有问题，申请换货" },
+]
+
+const aftersaleReasons = [
+  { id: "quality", label: "质量问题" },
+  { id: "mismatch", label: "与描述不符" },
+  { id: "wrong", label: "发错货" },
+  { id: "unwanted", label: "不想要了" },
+  { id: "damage", label: "商品破损" },
+  { id: "other", label: "其他原因" },
+]
+
+// 组件逻辑
+const selectedType = ref("")
+const selectedReason = ref("")
+const description = ref("")
+const images = ref<string[]>([])
+const isSubmitting = ref(false)
+const submitSuccess = ref(false)
+const viewingProgress = ref(false)
+const afterSaleNo = ref('AS' + Date.now().toString(36).toUpperCase())
+
+const progressSteps = [
+  { title: '提交申请', desc: '售后申请已提交', time: '刚刚', completed: true, active: false },
+  { title: '商家审核', desc: '商家正在审核您的申请', time: '', completed: false, active: true },
+  { title: '审核通过', desc: '请按指引操作', time: '', completed: false, active: false },
+  { title: '退货/换货', desc: '寄回商品并填写物流', time: '', completed: false, active: false },
+  { title: '退款/完成', desc: '退款将原路返回', time: '', completed: false, active: false },
+  { title: '售后完成', desc: '售后流程结束', time: '', completed: false, active: false },
+]
+
+const handleAddImage = () => {
+  if (images.value.length < 3) {
+    images.value = [...images.value, `image_${images.value.length + 1}`]
+  }
+}
+
+const handleRemoveImage = (index: number) => {
+  images.value = images.value.filter((_, i) => i !== index)
+}
+
+const handleSubmit = async () => {
+  if (!selectedType.value || !selectedReason.value) return
+  isSubmitting.value = true
+  await new Promise(resolve => setTimeout(resolve, 1500))
+  isSubmitting.value = false
+  submitSuccess.value = true
+}
+
+function viewProgress() {
+  submitSuccess.value = false
+  viewingProgress.value = true
+}
+
+function copyNo() {
+  uni.setClipboardData({ data: afterSaleNo.value })
+  uni.showToast({ title: '已复制', icon: 'success' })
+}
+
+function cancelAfterSale() {
+  uni.showModal({
+    title: '撤销申请',
+    content: '确定要撤销本次售后申请吗？',
+    success: (res) => {
+      if (res.confirm) {
+        uni.showToast({ title: '已撤销', icon: 'success' })
+        setTimeout(() => uni.navigateBack(), 800)
+      }
+    }
+  })
+}
+
+function contactService() {
+  uni.showToast({ title: '客服功能开发中', icon: 'none' })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

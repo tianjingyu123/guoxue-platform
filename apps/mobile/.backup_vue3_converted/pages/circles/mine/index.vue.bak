@@ -1,0 +1,149 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- Header -->
+    <view class="sticky top-0 z-10 bg-[#FAF8F5] border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view @click="goBack" class="p-1">
+          <text class="text-[#2C2C2C] text-lg">←</text>
+        </view>
+        <text class="text-lg font-semibold text-[#2C2C2C]">我的圈子</text>
+        <view @click="goCreate" class="p-1">
+          <text class="text-[#2C2C2C] text-lg">➕</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Tab toggle -->
+    <view class="flex px-4 pt-4 gap-2">
+      <view
+        v-for="tab in tabs"
+        :key="tab.value"
+        @click="activeTab = tab.value"
+        :class="[
+          'px-4 py-2 rounded-full text-sm font-medium transition-colors',
+          activeTab === tab.value ? 'bg-[#C41E3A] text-white' : 'bg-[#F0EBE5] text-[#2C2C2C]'
+        ]"
+      >
+        <text>{{ tab.label }}</text>
+      </view>
+    </view>
+
+    <!-- Loading skeleton -->
+    <view v-if="loading" class="p-4 space-y-3">
+      <view v-for="i in 3" :key="i" class="h-24 bg-[#F0EBE5] rounded-xl animate-pulse" />
+    </view>
+
+    <!-- Empty state -->
+    <view v-else-if="displayList.length === 0" class="flex flex-col items-center justify-center py-16">
+      <text class="text-[#999] text-sm mb-3 block">
+        {{ activeTab === 'joined' ? '还没有加入任何圈子' : '还没有创建圈子' }}
+      </text>
+      <view @click="emptyAction" class="bg-[#C41E3A] text-white px-6 py-2 rounded-lg text-sm mt-3">
+        <text>{{ activeTab === 'joined' ? '去发现圈子' : '立即创建' }}</text>
+      </view>
+    </view>
+
+    <!-- Circle list -->
+    <view v-else class="pb-20 px-4 mt-4 space-y-3">
+      <view
+        v-for="circle in displayList"
+        :key="circle.id"
+        @click="goCircle(circle.id)"
+        class="w-full p-4 rounded-xl border border-[#E8E0D5] bg-white flex items-center gap-3"
+      >
+        <view class="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden bg-[#C41E3A]/10 text-[#C41E3A] font-bold flex items-center justify-center text-lg">
+          <image v-if="circle.cover" :src="circle.cover" mode="aspectFill" class="w-full h-full" />
+          <text v-else>{{ circle.name.slice(0, 2) }}</text>
+        </view>
+        <view class="flex-1 min-w-0">
+          <view class="flex items-center gap-2 mb-1">
+            <text class="font-semibold text-[#2C2C2C] truncate">{{ circle.name }}</text>
+            <text v-if="circle.isOwner" class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full flex-shrink-0">👑 圈主</text>
+            <text v-if="circle.isAdmin" class="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full flex-shrink-0">管理员</text>
+          </view>
+          <text class="text-xs text-[#999] block truncate mb-1.5">{{ circle.desc || '国学文化交流圈子' }}</text>
+          <view class="flex items-center gap-3 text-xs text-[#999]">
+            <text>👥 {{ circle.members.toLocaleString() }} 成员</text>
+            <text v-if="circle.hasNew" class="text-[#C41E3A]">有新内容</text>
+          </view>
+        </view>
+        <text class="text-[#999] flex-shrink-0">›</text>
+      </view>
+
+      <!-- Create new circle entry -->
+      <view
+        @click="goCreate"
+        class="w-full p-4 rounded-xl border border-dashed border-[#E8E0D5] bg-[#FAF8F5] text-center"
+      >
+        <view class="flex flex-col items-center gap-2 text-[#999]">
+          <view class="w-12 h-12 rounded-full bg-[#F0EBE5] flex items-center justify-center">
+            <text class="text-lg">➕</text>
+          </view>
+          <text class="text-sm">创建一个新圈子</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface MyCircle {
+  id: string
+  name: string
+  desc: string
+  members: number
+  cover?: string
+  isOwner: boolean
+  isAdmin: boolean
+  hasNew: boolean
+}
+
+const tabs = [
+  { value: 'joined' as const, label: '已加入' },
+  { value: 'created' as const, label: '我创建' },
+]
+
+const loading = ref(true)
+const activeTab = ref<'joined' | 'created'>('joined')
+const joinedCircles = ref<MyCircle[]>([])
+
+onMounted(() => {
+  // Simulate API fetch
+  setTimeout(() => {
+    joinedCircles.value = [
+      { id: '1', name: '国学堂', desc: '传统文化学习交流', members: 2345, isOwner: true, isAdmin: false, hasNew: true },
+      { id: '2', name: '八字爱好者', desc: '八字命理研习社', members: 876, isOwner: false, isAdmin: true, hasNew: false },
+      { id: '3', name: '紫微斗数学院', desc: '紫微斗数专业交流圈', members: 1250, isOwner: false, isAdmin: false, hasNew: true },
+    ]
+    loading.value = false
+  }, 500)
+})
+
+const displayList = computed(() => joinedCircles.value)
+
+function goBack() {
+  uni.navigateBack()
+}
+
+function goCreate() {
+  uni.navigateTo({ url: '/pages/circles/create/index' })
+}
+
+function goCircle(id: string) {
+  uni.navigateTo({ url: `/pages/circle/id-detail/home/index?id=${id}` })
+}
+
+function emptyAction() {
+  if (activeTab.value === 'joined') {
+    uni.navigateTo({ url: '/pages/circles/index' })
+  } else {
+    uni.navigateTo({ url: '/pages/circles/create/index' })
+  }
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

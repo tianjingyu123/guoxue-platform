@@ -1,0 +1,1022 @@
+<template>
+  <view v-if="!live" class="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+    <text class="text-[#999]">直播不存在</text>
+  </view>
+
+  <!-- ================================================================ -->
+  <!-- 横屏 OBS 知识授课布局                                                -->
+  <!-- ================================================================ -->
+  <view v-else-if="live.orientation === 'horizontal'" class="fixed inset-0 bg-[#1a1a2e] flex flex-col overflow-hidden">
+    <!-- ===== 非全屏模式 ===== -->
+    <template v-if="!isFullscreen">
+      <!-- 顶部主播信息栏 -->
+      <view class="h-10 bg-[#1a1a2e] border-b border-white/10 flex items-center justify-between px-4 flex-shrink-0">
+        <view class="flex items-center gap-3">
+          <view @click="goBack" class="w-8 h-8 rounded-full bg-black/30 flex items-center justify-center">
+            <text class="text-white text-lg">←</text>
+          </view>
+          <view class="w-7 h-7 rounded-full border border-[#C41E3A] bg-[#F5F1EB] flex items-center justify-center overflow-hidden flex-shrink-0">
+            <text class="text-[10px] text-[#666]">{{ live.hostName[0] }}</text>
+          </view>
+          <text class="text-white text-sm font-medium">{{ live.hostName }}</text>
+          <text class="text-white/50 text-xs">|</text>
+          <text class="text-white/70 text-xs truncate max-w-[200px]">{{ live.title }}</text>
+        </view>
+        <view class="flex items-center gap-3">
+          <view class="flex items-center gap-1">
+            <text class="text-white/60 text-[10px]">👁</text>
+            <text class="text-white/60 text-xs">{{ formatCount(live.viewerCount) }}</text>
+          </view>
+          <view
+            @click="isFollowing = !isFollowing"
+            :class="['h-6 px-3 rounded-full text-[10px] flex items-center',
+              isFollowing ? 'bg-white/10 text-white' : 'bg-[#C41E3A] text-white']"
+          >
+            <text>{{ isFollowing ? '已关注' : '关注' }}</text>
+          </view>
+          <view class="w-7 h-7 rounded-full flex items-center justify-center">
+            <text class="text-white/70">📤</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 主视频播放区 (16:9) -->
+      <view class="relative bg-black flex-shrink-0" style="padding-top: 56.25%">
+        <view class="absolute inset-0 flex items-center justify-center">
+          <view class="text-center opacity-20">
+            <view class="w-24 h-24 rounded-xl bg-white/10 flex items-center justify-center mx-auto mb-3">
+              <text class="text-4xl">📊</text>
+            </view>
+            <text class="text-white/50 text-sm">OBS课件直播画面</text>
+          </view>
+        </view>
+
+        <!-- 全屏按钮 -->
+        <view @click="isFullscreen = true" class="absolute right-3 bottom-3 w-9 h-9 rounded-lg bg-black/60 flex items-center justify-center">
+          <text class="text-white">⛶</text>
+        </view>
+
+        <!-- 弹幕浮层 -->
+        <view v-if="!isMuted && danmakuList.length > 0" class="absolute left-3 bottom-14 z-10 max-w-[60%] flex flex-col gap-1">
+          <view v-for="d in danmakuList.slice(-3)" :key="d.id" class="inline-block px-2 py-0.5 bg-black/40 rounded">
+            <text class="text-[14px]" style="opacity: 0.7">
+              <text class="text-[#C41E3A] mr-1.5">{{ d.user }}</text>
+              <text class="text-white">{{ d.content }}</text>
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部Tab互动区 -->
+      <view class="flex-1 flex flex-col min-h-0 bg-white">
+        <view class="flex border-b border-[#E8E0D5] flex-shrink-0">
+          <view
+            v-for="tab in bottomTabs"
+            :key="tab.key"
+            @click="activeBottomTab = tab.key"
+            :class="[
+              'flex-1 py-2.5 text-sm font-medium relative text-center',
+              activeBottomTab === tab.key ? 'text-[#C41E3A]' : 'text-[#999]'
+            ]"
+          >
+            <text>{{ tab.label }}</text>
+            <view v-if="activeBottomTab === tab.key" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-[#C41E3A] rounded-full" />
+          </view>
+        </view>
+
+        <view class="flex-1 overflow-y-auto">
+          <!-- 讨论Tab -->
+          <view v-if="activeBottomTab === 'chat'" class="flex flex-col h-full">
+            <view class="flex-1 p-3 flex flex-col gap-2 overflow-y-auto">
+              <view v-for="d in danmakuList" :key="d.id" class="flex items-start gap-2">
+                <view class="w-6 h-6 rounded-full bg-[#C41E3A]/10 flex items-center justify-center flex-shrink-0">
+                  <text class="text-[10px] text-[#C41E3A]">{{ d.user[0] }}</text>
+                </view>
+                <view class="min-w-0">
+                  <text class="text-xs text-[#999] block">{{ d.user }}</text>
+                  <text class="text-sm break-words">{{ d.content }}</text>
+                </view>
+              </view>
+            </view>
+            <view class="p-3 border-t border-[#E8E0D5] flex-shrink-0">
+              <view class="flex items-center gap-2 h-9 px-3 bg-[#F1EDE8] rounded-full">
+                <input
+                  v-model="message"
+                  placeholder="发送弹幕..."
+                  @confirm="handleSendMessage"
+                  class="flex-1 bg-transparent text-sm placeholder:text-[#999] outline-none"
+                />
+                <view @click="isMuted = !isMuted" :class="['w-6 h-6 rounded-full flex items-center justify-center', isMuted ? 'text-[#999]' : 'text-[#C41E3A]']">
+                  <text class="text-xs">💬</text>
+                </view>
+                <view @click="handleSendMessage" class="w-6 h-6 rounded-full bg-[#C41E3A] flex items-center justify-center">
+                  <text class="text-white text-[10px]">📨</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 课件Tab -->
+          <view v-if="activeBottomTab === 'slides'" class="p-3 flex flex-col gap-2">
+            <text class="text-xs text-[#999] mb-1">当前课件进度</text>
+            <view
+              v-for="(slide, i) in mockSlides"
+              :key="slide.id"
+              :class="['flex items-center gap-3 p-2.5 rounded-lg border transition-colors', slide.isCurrent ? 'border-[#C41E3A] bg-[#C41E3A]/5' : 'border-[#E8E0D5]']"
+            >
+              <view :class="['w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0', slide.isCurrent ? 'bg-[#C41E3A] text-white' : 'bg-[#F1EDE8] text-[#999]']">
+                <text>{{ i + 1 }}</text>
+              </view>
+              <text :class="['text-sm flex-1', slide.isCurrent && 'font-medium']">{{ slide.title }}</text>
+              <view v-if="slide.isCurrent" class="text-[10px] px-2 py-0.5 bg-[#C41E3A]/10 text-[#C41E3A] rounded">
+                <text>讲解中</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 问答Tab -->
+          <view v-if="activeBottomTab === 'qa'" class="p-3 flex flex-col gap-3">
+            <view class="flex items-center justify-between mb-1">
+              <text class="text-xs text-[#999]">观众提问</text>
+              <view class="h-7 px-3 rounded-full border border-[#E8E0D5] flex items-center text-xs">
+                <text class="mr-1">💬</text>
+                <text>我要提问</text>
+              </view>
+            </view>
+            <view
+              v-for="qa in mockQA"
+              :key="qa.id"
+              :class="['p-3 rounded-lg border', qa.isOnWall ? 'border-[#C41E3A] bg-[#C41E3A]/5' : 'border-[#E8E0D5]']"
+            >
+              <view class="flex items-center gap-2 mb-1.5">
+                <view class="w-5 h-5 rounded-full bg-[#F1EDE8] flex items-center justify-center">
+                  <text class="text-[8px] text-[#999]">{{ qa.user[0] }}</text>
+                </view>
+                <text class="text-xs text-[#999]">{{ qa.user }}</text>
+                <text class="text-[10px] text-[#999]/60">{{ qa.time }}</text>
+                <view v-if="qa.isOnWall" class="text-[8px] px-1 py-0.5 bg-[#C41E3A] text-white rounded">
+                  <text>已上墙</text>
+                </view>
+              </view>
+              <text class="text-sm">{{ qa.question }}</text>
+            </view>
+          </view>
+
+          <!-- 资料Tab -->
+          <view v-if="activeBottomTab === 'files'" class="p-3 flex flex-col gap-2">
+            <text class="text-xs text-[#999] mb-1">本课资料</text>
+            <view
+              v-for="file in mockFiles"
+              :key="file.id"
+              class="flex items-center gap-3 p-3 rounded-lg border border-[#E8E0D5]"
+            >
+              <view class="w-10 h-10 rounded-lg bg-[#C41E3A]/10 flex items-center justify-center flex-shrink-0">
+                <text class="text-[#C41E3A]">📄</text>
+              </view>
+              <view class="flex-1 min-w-0">
+                <text class="text-sm font-medium block truncate">{{ file.name }}</text>
+                <text class="text-xs text-[#999]">{{ file.size }}</text>
+              </view>
+              <view class="h-7 px-3 rounded-full border border-[#E8E0D5] flex items-center text-xs">
+                <text>下载</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 简介Tab -->
+          <view v-if="activeBottomTab === 'intro'" class="p-4 flex flex-col gap-4">
+            <view>
+              <text class="text-sm font-semibold block mb-2">课程介绍</text>
+              <text class="text-sm text-[#999] leading-relaxed">
+                本课程将深入讲解紫微斗数命盘的解读方法，包括十二宫位的含义、主星特性分析、四化飞星运用等核心内容。适合有一定基础的学员进阶学习。
+              </text>
+            </view>
+            <view>
+              <text class="text-sm font-semibold block mb-2">讲师简介</text>
+              <view class="flex items-start gap-3">
+                <view class="w-12 h-12 rounded-full border-2 border-[#C41E3A] bg-[#F5F1EB] flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <text class="text-sm text-[#666]">{{ live.hostName[0] }}</text>
+                </view>
+                <view>
+                  <text class="text-sm font-medium block">{{ live.hostName }}</text>
+                  <text class="text-xs text-[#999] block">{{ live.hostTitle }}</text>
+                  <text class="text-xs text-[#999] block mt-1">{{ formatCount(live.followerCount) }}粉丝</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 横屏提示 -->
+      <view class="fixed top-14 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-black/80 backdrop-blur-md rounded-full flex items-center gap-2">
+        <text class="text-white text-xs">🔄</text>
+        <text class="text-white text-xs">旋转手机获得最佳观看体验</text>
+        <view @click="isFullscreen = true" class="ml-2 px-2 py-0.5 rounded-full bg-[#C41E3A]">
+          <text class="text-white text-xs">全屏</text>
+        </view>
+      </view>
+    </template>
+
+    <!-- ===== 全屏模式 ===== -->
+    <template v-else>
+      <view class="fixed inset-0 bg-[#1a1a2e] overflow-hidden" @click="resetControlsTimer" @touchstart="resetControlsTimer">
+        <!-- 全屏视频画面 -->
+        <view class="absolute inset-0 flex items-center justify-center bg-black">
+          <view class="text-center opacity-20">
+            <view class="w-40 h-40 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+              <text class="text-6xl">📊</text>
+            </view>
+            <text class="text-white/50 text-lg">OBS课件直播画面</text>
+            <text class="text-white/30 text-sm block mt-2">16:9 横屏 · 沉浸式授课</text>
+          </view>
+        </view>
+
+        <!-- 顶部控制栏 -->
+        <view :class="[
+          'absolute top-0 left-0 right-0 z-30 transition-all duration-300',
+          showFullscreenControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        ]">
+          <view class="bg-gradient-to-b from-black/80 via-black/40 to-transparent px-6 py-4">
+            <view class="flex items-center justify-between">
+              <view class="flex items-center gap-4">
+                <view class="w-10 h-10 rounded-full border-2 border-[#C41E3A] bg-[#F5F1EB] flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <text class="text-sm text-[#666]">{{ live.hostName[0] }}</text>
+                </view>
+                <view>
+                  <view class="flex items-center gap-2">
+                    <text class="text-white font-medium">{{ live.hostName }}</text>
+                    <view class="text-[10px] px-1.5 py-0.5 rounded bg-[#C41E3A]/20 text-[#C41E3A] border border-[#C41E3A]/30">
+                      <text>直播中</text>
+                    </view>
+                  </view>
+                  <text class="text-white/60 text-sm block truncate max-w-[300px]">{{ live.title }}</text>
+                </view>
+              </view>
+
+              <view class="flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10">
+                <text class="text-white/70 text-[10px]">👁</text>
+                <text class="text-white text-sm">{{ formatCount(live.viewerCount) }}人观看</text>
+              </view>
+
+              <view class="flex items-center gap-3">
+                <view class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10">
+                  <text class="text-white text-sm">📤</text>
+                  <text class="text-white text-sm">分享</text>
+                </view>
+                <view @click="isFullscreen = false" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10">
+                  <text class="text-white text-sm">⛶</text>
+                  <text class="text-white text-sm">退出全屏</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 底部控制栏 -->
+        <view :class="[
+          'absolute bottom-0 left-0 right-0 z-30 transition-all duration-300',
+          showFullscreenControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        ]">
+          <view class="bg-gradient-to-t from-black/80 via-black/40 to-transparent px-6 py-4">
+            <view class="flex items-center justify-between">
+              <view class="flex items-center gap-4">
+                <view class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                  <text class="text-white">▶</text>
+                </view>
+                <view class="flex items-center gap-2">
+                  <view @click="isVolumeMuted = !isVolumeMuted" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                    <text class="text-white">{{ isVolumeMuted ? '🔇' : '🔊' }}</text>
+                  </view>
+                  <view class="w-24 h-1 bg-white/20 rounded-full overflow-hidden">
+                    <view class="h-full bg-white rounded-full" :style="{ width: isVolumeMuted ? '0%' : '70%' }" />
+                  </view>
+                </view>
+              </view>
+
+              <view class="flex items-center gap-4">
+                <view
+                  @click="isMuted = !isMuted"
+                  :class="['flex items-center gap-1.5 px-3 py-1.5 rounded-full', isMuted ? 'bg-white/10' : 'bg-[#C41E3A]/80']"
+                >
+                  <text class="text-white text-sm">💬</text>
+                  <text class="text-white text-sm">{{ isMuted ? '弹幕已关' : '弹幕已开' }}</text>
+                </view>
+              </view>
+
+              <view class="flex items-center gap-3">
+                <view @click="showChatPanel = true" class="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/10">
+                  <text class="text-white text-sm">💬</text>
+                  <text class="text-white text-sm">讨论</text>
+                </view>
+                <view @click="showFullscreenGiftPanel = true" class="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-amber-500/80 to-orange-500/80">
+                  <text class="text-white">🎁</text>
+                  <text class="text-white text-sm">打赏</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 全屏弹幕 -->
+        <view v-if="!isMuted && danmakuList.length > 0" class="absolute left-6 bottom-24 z-20 max-w-[40%] flex flex-col gap-2">
+          <view v-for="d in danmakuList.slice(-4)" :key="d.id">
+            <view class="inline-block px-3 py-1.5 bg-black/60 backdrop-blur-sm rounded-full">
+              <text class="text-sm">
+                <text class="text-[#C41E3A] mr-2">{{ d.user }}</text>
+                <text class="text-white/90">{{ d.content }}</text>
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 讨论浮窗 -->
+        <view v-if="showChatPanel" class="fixed inset-0 z-40" @click="showChatPanel = false">
+          <view class="absolute right-0 top-0 bottom-0 w-80 bg-[#1a1a2e]/95 backdrop-blur-md border-l border-white/10 flex flex-col" @click.stop>
+            <view class="flex items-center justify-between px-4 py-3 border-b border-white/10">
+              <text class="text-white font-medium">实时讨论</text>
+              <view @click="showChatPanel = false"><text class="text-white/60">✕</text></view>
+            </view>
+            <view class="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+              <view v-for="d in danmakuList" :key="d.id" class="flex items-start gap-2">
+                <view class="w-7 h-7 rounded-full bg-[#C41E3A]/20 flex items-center justify-center flex-shrink-0">
+                  <text class="text-[10px] text-[#C41E3A]">{{ d.user[0] }}</text>
+                </view>
+                <view>
+                  <text class="text-xs text-white/50 block">{{ d.user }}</text>
+                  <text class="text-sm text-white/90">{{ d.content }}</text>
+                </view>
+              </view>
+            </view>
+            <view class="p-3 border-t border-white/10">
+              <view class="flex items-center gap-2 h-10 px-4 bg-white/10 rounded-full">
+                <input
+                  v-model="message"
+                  placeholder="发送弹幕..."
+                  @confirm="handleSendMessage"
+                  class="flex-1 bg-transparent text-sm text-white placeholder:text-white/40 outline-none"
+                />
+                <view @click="handleSendMessage" class="w-7 h-7 rounded-full bg-[#C41E3A] flex items-center justify-center">
+                  <text class="text-white text-xs">📨</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 全屏礼物面板 -->
+      <view v-if="showFullscreenGiftPanel" class="fixed inset-0 z-50 bg-black/60" @click="showFullscreenGiftPanel = false">
+        <view class="absolute bottom-0 left-0 right-0 bg-[#1a1a2e] rounded-t-2xl p-6" @click.stop>
+          <view class="flex items-center justify-between mb-5">
+            <text class="text-white font-semibold text-lg">送礼物</text>
+            <view @click="showFullscreenGiftPanel = false"><text class="text-white/60">✕</text></view>
+          </view>
+          <view class="grid grid-cols-6 gap-4">
+            <view v-for="g in fullscreenGifts" :key="g.name" class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/5 border border-white/10">
+              <text class="text-3xl">{{ g.icon }}</text>
+              <text class="text-white text-sm">{{ g.name }}</text>
+              <text class="text-amber-400 text-xs">{{ g.price }}币</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+
+  <!-- ================================================================ -->
+  <!-- 竖屏直播布局                                                       -->
+  <!-- ================================================================ -->
+  <view v-else class="fixed inset-0 bg-black flex flex-col overflow-hidden">
+    <!-- 全屏视频区 -->
+    <view class="absolute inset-0 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
+      <view class="absolute inset-0 flex items-center justify-center">
+        <view class="text-center opacity-30">
+          <view class="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
+            <text class="text-4xl">{{ live.type === 'commerce' ? '🛍️' : '📖' }}</text>
+          </view>
+          <text class="text-white/50 text-sm">直播画面</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 顶部信息栏 ===== -->
+    <view
+      :class="['absolute top-0 left-0 right-0 z-30 transition-all duration-300', headerCollapsed ? 'opacity-70' : 'opacity-100']"
+      @click="headerCollapsed = false"
+    >
+      <view class="bg-gradient-to-b from-black/70 via-black/40 to-transparent px-4 pt-12 pb-3">
+        <view class="flex items-center justify-between">
+          <!-- 主播信息胶囊 -->
+          <view class="flex items-center gap-2 px-1.5 py-1.5 pr-3 bg-black/40 backdrop-blur-md rounded-full">
+            <view class="relative">
+              <view class="w-10 h-10 rounded-full border-2 border-red-500 bg-[#F5F1EB] flex items-center justify-center overflow-hidden">
+                <text class="text-sm text-[#666]">{{ live.hostName[0] }}</text>
+              </view>
+              <view class="absolute bottom-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-black" />
+            </view>
+            <view class="min-w-0">
+              <view class="flex items-center gap-1.5">
+                <text class="text-sm font-medium text-white truncate max-w-[80px]">{{ live.hostName }}</text>
+              </view>
+              <text class="text-[10px] text-white/60">{{ formatCount(live.followerCount) }} 粉丝</text>
+            </view>
+            <view
+              @click.stop="isFollowing = !isFollowing"
+              :class="['h-7 px-3 rounded-full text-xs flex items-center ml-1', isFollowing ? 'bg-white/20 text-white' : 'bg-red-500 text-white']"
+            >
+              <text>{{ isFollowing ? '已关注' : '关注' }}</text>
+            </view>
+          </view>
+
+          <!-- 右侧：在线人数 + 关闭 -->
+          <view class="flex items-center gap-2">
+            <view class="flex items-center gap-1 px-2.5 py-1.5 bg-black/40 backdrop-blur-md rounded-full">
+              <text class="text-white/80 text-[10px]">👥</text>
+              <text class="text-xs text-white">{{ formatCount(live.viewerCount) }}</text>
+            </view>
+            <view @click="goBack" class="w-8 h-8 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center">
+              <text class="text-white">✕</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 标题 -->
+        <view class="mt-2 overflow-hidden">
+          <text class="text-xs text-white/80 truncate block">{{ live.title }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 右上角人气榜 ===== -->
+    <view class="absolute top-36 right-3 z-20">
+      <view
+        @click="showRank = !showRank"
+        class="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-amber-500/80 to-orange-500/80 backdrop-blur-md rounded-full"
+      >
+        <text class="text-white text-[10px]">👑</text>
+        <text class="text-[10px] text-white font-medium">榜单</text>
+        <text class="text-white text-[10px]">{{ showRank ? '▲' : '▼' }}</text>
+      </view>
+
+      <!-- 榜单展开 -->
+      <view v-if="showRank" class="mt-2 w-36 bg-black/60 backdrop-blur-md rounded-xl p-2 flex flex-col gap-1.5">
+        <view v-for="item in mockRankList" :key="item.rank" class="flex items-center gap-2">
+          <view :class="['w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold',
+            item.rank === 1 ? 'bg-amber-500 text-white' :
+            item.rank === 2 ? 'bg-gray-300 text-gray-700' :
+            'bg-amber-700 text-white']">
+            <text>{{ item.rank }}</text>
+          </view>
+          <text class="text-xs text-white truncate flex-1">{{ item.user }}</text>
+          <text class="text-[10px] text-amber-400">{{ item.amount }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 左侧弹幕 + 系统消息 ===== -->
+    <view class="absolute left-3 bottom-44 right-24 z-10 flex flex-col gap-2 pointer-events-none">
+      <!-- 系统消息 -->
+      <view v-for="msg in systemMessages.slice(-1)" :key="msg.id"
+        :class="['px-3 py-1.5 rounded-full text-xs w-fit max-w-full',
+          msg.type === 'enter' ? 'bg-white/10 text-white/80' :
+          msg.type === 'gift' ? 'bg-gradient-to-r from-amber-500/30 to-orange-500/30 text-amber-200' :
+          'bg-gradient-to-r from-red-500/30 to-pink-500/30 text-pink-200']">
+        <text class="font-medium">{{ msg.user }}</text>
+        <text class="ml-1">{{ msg.content }}</text>
+        <text v-if="msg.giftIcon" class="ml-1">{{ msg.giftIcon }}</text>
+      </view>
+
+      <!-- 弹幕 -->
+      <view class="flex flex-col gap-1.5">
+        <view v-for="d in danmakuList.slice(-3)" :key="d.id" class="flex items-start gap-2">
+          <view class="shrink-0 px-2 py-1 bg-[#C41E3A]/20 rounded-full">
+            <text class="text-[10px] text-[#C41E3A] font-medium">{{ d.user }}</text>
+          </view>
+          <text class="text-sm text-white/90 leading-relaxed">{{ d.content }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 右侧浮动爱心 ===== -->
+    <view class="absolute right-6 bottom-40 z-20 pointer-events-none">
+      <view v-for="heart in floatingHearts" :key="heart.id" class="absolute bottom-0" :style="{ left: heart.x + 'px' }">
+        <text class="text-red-500 text-2xl animate-[heart_1.5s_ease-out_forwards]">❤️</text>
+      </view>
+    </view>
+
+    <!-- ===== 商品讲解卡片（电商直播） ===== -->
+    <view v-if="live.type === 'commerce' && currentProduct" class="absolute right-3 bottom-[72px] z-20 flex flex-col items-end gap-1.5">
+      <!-- 实时销量 -->
+      <view class="flex items-center gap-2">
+        <view class="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-red-600 to-orange-500 rounded-full shadow-lg">
+          <view class="relative flex h-2 w-2">
+            <view class="absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+            <view class="relative inline-flex rounded-full h-2 w-2 bg-white" />
+          </view>
+          <text class="text-[11px] text-white/90">已售</text>
+          <text :class="['text-sm text-white font-bold transition-all duration-300', salesAnimating ? 'text-yellow-300 scale-125' : '']">
+            {{ liveSalesCount.toLocaleString() }}
+          </text>
+          <text class="text-[11px] text-white/90">件</text>
+        </view>
+      </view>
+
+      <!-- 购买通知 -->
+      <view class="flex flex-col gap-1 overflow-hidden max-h-16">
+        <view v-for="notif in salesNotifications" :key="notif.id" class="flex items-center gap-1.5 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-full">
+          <view class="w-4 h-4 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
+            <text class="text-[8px] text-white font-bold">{{ notif.user[0] }}</text>
+          </view>
+          <text class="text-[10px] text-white/80 truncate max-w-[80px]">{{ notif.user }}</text>
+          <text class="text-[10px] text-green-400">下单成功</text>
+        </view>
+      </view>
+
+      <!-- 商品卡片 -->
+      <view @click="showProducts = true" class="relative animate-pulse">
+        <view class="absolute -inset-1 bg-gradient-to-r from-red-500/50 to-orange-500/50 rounded-2xl blur-md" />
+        <view class="relative w-[140px] rounded-xl overflow-hidden border-2 border-red-500/60 bg-black/80 backdrop-blur-md shadow-lg">
+          <view class="relative">
+            <image :src="currentProduct.image" mode="aspectFill" class="w-full h-20" />
+            <view class="absolute top-1.5 left-1.5 flex items-center gap-1 px-1.5 py-0.5 bg-red-500 rounded text-[10px] text-white font-medium">
+              <view class="w-1.5 h-1.5 bg-white rounded-full" />
+              <text>讲解中</text>
+            </view>
+            <view class="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-orange-500 rounded text-[10px] text-white font-bold">
+              <text>{{ Math.round((1 - currentProduct.price / currentProduct.originalPrice) * 100) }}%OFF</text>
+            </view>
+          </view>
+          <view class="p-2">
+            <text class="text-[11px] text-white/90 truncate block">{{ currentProduct.name }}</text>
+            <view class="flex items-baseline gap-1 mt-1">
+              <text class="text-red-400 font-bold text-base">¥{{ currentProduct.price }}</text>
+              <text class="text-[10px] text-white/40 line-through">¥{{ currentProduct.originalPrice }}</text>
+            </view>
+          </view>
+          <view @click.stop="handleAddToCart(currentProduct.id)" class="w-full py-2 bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs font-medium flex items-center justify-center gap-1">
+            <text>🛒</text>
+            <text>立即抢购</text>
+          </view>
+        </view>
+        <view class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-black shadow-lg">
+          <text class="text-[10px] text-white font-bold">{{ mockProducts.length }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 底部互动栏 ===== -->
+    <view class="absolute bottom-0 left-0 right-0 z-30">
+      <view class="bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-4 pb-8">
+        <view class="px-3">
+          <view class="flex items-center gap-3">
+            <!-- 弹幕输入框 -->
+            <view class="flex items-center gap-2 h-10 px-4 bg-white/10 backdrop-blur-md rounded-full border border-white/10 flex-1">
+              <input
+                v-model="message"
+                placeholder="说点什么..."
+                @confirm="handleSendMessage"
+                class="flex-1 bg-transparent text-sm text-white placeholder:text-white/50 outline-none min-w-0"
+              />
+              <view @click="handleSendMessage" class="w-5 h-5 rounded-full bg-[#C41E3A] flex items-center justify-center flex-shrink-0">
+                <text class="text-white text-[10px]">📨</text>
+              </view>
+            </view>
+
+            <!-- 点赞 -->
+            <view @click="handleLike" class="relative w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+              <text class="text-red-500">❤️</text>
+            </view>
+
+            <!-- 打赏 -->
+            <view @click="showGifts = true" class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500/30 to-orange-500/30 flex items-center justify-center">
+              <text class="text-amber-400">🎁</text>
+            </view>
+
+            <!-- 购物袋（仅电商） -->
+            <view
+              v-if="live.type === 'commerce'"
+              @click="showProducts = !showProducts"
+              class="relative w-10 h-10 rounded-full bg-gradient-to-br from-red-500/30 to-pink-500/30 flex items-center justify-center"
+            >
+              <text class="text-red-400">🛒</text>
+              <view class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+                <text>{{ mockProducts.length }}</text>
+              </view>
+            </view>
+
+            <!-- 连麦 -->
+            <view class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500/30 to-cyan-500/30 flex items-center justify-center">
+              <text class="text-blue-400">📞</text>
+            </view>
+
+            <!-- 分享 -->
+            <view class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+              <text class="text-white">📤</text>
+            </view>
+
+            <!-- 更多 -->
+            <view class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+              <text>⋯</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 礼物面板 ===== -->
+    <view v-if="showGifts" class="absolute inset-0 z-50" @click="showGifts = false">
+      <view class="absolute inset-x-0 bottom-0 bg-gradient-to-b from-gray-900/95 to-black rounded-t-3xl" @click.stop>
+        <view class="p-4 border-b border-white/10 flex items-center justify-between">
+          <view class="flex items-center gap-2">
+            <text class="text-amber-400">🎁</text>
+            <text class="font-semibold text-white">国学风礼物</text>
+          </view>
+          <view @click="showGifts = false"><text class="text-white/60">✕</text></view>
+        </view>
+        <view class="p-4 grid grid-cols-4 gap-3">
+          <view v-for="gift in giftList" :key="gift.id" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/5 border border-white/5">
+            <text class="text-3xl">{{ gift.icon }}</text>
+            <text class="text-xs text-white">{{ gift.name }}</text>
+            <view class="flex items-center gap-0.5">
+              <text class="text-[10px] text-amber-400">✨{{ gift.price }}</text>
+            </view>
+          </view>
+        </view>
+        <view class="p-4 border-t border-white/10 flex items-center justify-between">
+          <view class="flex items-center gap-2">
+            <text class="text-amber-400">✨</text>
+            <text class="text-sm text-white">余额: 1,288</text>
+          </view>
+          <view class="px-6 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500">
+            <text class="text-white text-sm font-medium">充值</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 商品列表弹窗 ===== -->
+    <view v-if="showProducts" class="absolute inset-0 z-50" @click="showProducts = false">
+      <view class="absolute right-0 top-0 bottom-0 w-72 bg-black/90 backdrop-blur-md flex flex-col" @click.stop>
+        <view class="p-3 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+          <view class="flex items-center gap-2">
+            <text class="text-red-400">🛒</text>
+            <text class="text-sm font-medium text-white">直播好物</text>
+            <text class="text-xs text-white/50">{{ mockProducts.length }}件</text>
+          </view>
+          <view @click="showProducts = false"><text class="text-white/60">✕</text></view>
+        </view>
+
+        <view class="flex-1 overflow-y-auto">
+          <view v-for="(product, index) in mockProducts" :key="product.id"
+            :class="['p-3 border-b border-white/5', product.isExplaining && 'bg-red-500/10']">
+            <view class="flex gap-3">
+              <view class="relative flex-shrink-0">
+                <image :src="product.image" mode="aspectFill" class="w-16 h-16 rounded-lg" />
+                <view v-if="product.isExplaining" class="absolute -top-1 -left-1 px-1.5 py-0.5 bg-red-500 rounded text-[8px] text-white font-medium">
+                  <text>讲解中</text>
+                </view>
+                <view class="absolute -top-1 -right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center">
+                  <text class="text-[10px] text-white font-medium">{{ index + 1 }}</text>
+                </view>
+              </view>
+              <view class="flex-1 min-w-0">
+                <text class="text-xs text-white/90 line-clamp-2 block leading-tight">{{ product.name }}</text>
+                <view class="flex items-baseline gap-1.5 mt-1.5">
+                  <text class="text-red-400 font-bold text-base">¥{{ product.price }}</text>
+                  <text class="text-[10px] text-white/40 line-through">¥{{ product.originalPrice }}</text>
+                </view>
+                <view class="flex items-center justify-between mt-1.5">
+                  <text class="text-[10px] text-white/40">已售{{ product.sales }}</text>
+                  <view
+                    @click="handleAddToCart(product.id)"
+                    :class="['px-3 py-1 rounded-full text-xs font-medium', product.isExplaining ? 'bg-red-500 text-white' : 'bg-white/10 text-white']"
+                  >
+                    <text>{{ product.isExplaining ? '抢购' : '加购' }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 底部购物车 -->
+        <view v-if="cartCount > 0" class="p-3 border-t border-white/10 flex-shrink-0">
+          <view class="w-full py-2.5 bg-red-500 text-white rounded-full text-sm font-medium flex items-center justify-center gap-2">
+            <text>🛒</text>
+            <text>去结算 ({{ cartCount }})</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+
+// ============================================================
+// Mock data
+// ============================================================
+interface LiveRoomData {
+  id: string
+  title: string
+  type: 'knowledge' | 'commerce'
+  orientation: 'vertical' | 'horizontal'
+  hostName: string
+  hostAvatar: string
+  hostTitle: string
+  followerCount: number
+  viewerCount: number
+  likeCount: number
+  isFollowed: boolean
+}
+
+const mockLiveData: Record<string, LiveRoomData> = {
+  '1': {
+    id: '1',
+    title: '八字命理入门：如何快速解读四柱八字',
+    type: 'knowledge',
+    orientation: 'vertical',
+    hostName: '易道先生',
+    hostAvatar: '',
+    hostTitle: '国学易经研究员',
+    followerCount: 12800,
+    viewerCount: 12580,
+    likeCount: 58600,
+    isFollowed: false,
+  },
+  '2': {
+    id: '2',
+    title: '开光吉祥物专场：招财貔貅、转运葫芦限时特惠',
+    type: 'commerce',
+    orientation: 'vertical',
+    hostName: '福缘阁主',
+    hostAvatar: '',
+    hostTitle: '福缘阁创始人',
+    followerCount: 8500,
+    viewerCount: 8920,
+    likeCount: 32100,
+    isFollowed: false,
+  },
+  '3': {
+    id: '3',
+    title: '紫微斗数命盘解读实战课程',
+    type: 'knowledge',
+    orientation: 'horizontal',
+    hostName: '紫微大师',
+    hostAvatar: '',
+    hostTitle: '紫微斗数传承人',
+    followerCount: 15600,
+    viewerCount: 5630,
+    likeCount: 28900,
+    isFollowed: false,
+  },
+}
+
+// 课件数据
+const mockSlides = [
+  { id: 1, title: '第一章：紫微斗数概述', isCurrent: false },
+  { id: 2, title: '第二章：十二宫位详解', isCurrent: false },
+  { id: 3, title: '第三章：主星特性分析', isCurrent: true },
+  { id: 4, title: '第四章：四化飞星入门', isCurrent: false },
+  { id: 5, title: '第五章：命盘实例解读', isCurrent: false },
+]
+
+// 商品数据
+const mockProducts = [
+  { id: 'p1', name: '开光招财貔貅摆件', price: 299, originalPrice: 599, image: '', sales: 1280, stock: 56, isExplaining: true },
+  { id: 'p2', name: '天然黄水晶转运葫芦', price: 168, originalPrice: 328, image: '', sales: 890, stock: 128, isExplaining: false },
+  { id: 'p3', name: '紫檀木雕福禄寿三星', price: 1680, originalPrice: 2999, image: '', sales: 156, stock: 23, isExplaining: false },
+]
+
+// 弹幕
+const mockDanmaku = [
+  { id: 1, user: '易学爱好者', content: '讲得太好了！', type: 'normal' },
+  { id: 2, user: '命理初学', content: '老师这个怎么看大运？', type: 'normal' },
+  { id: 3, user: '紫微门人', content: '666', type: 'normal' },
+  { id: 4, user: '风水小白', content: '感谢老师分享', type: 'normal' },
+  { id: 5, user: '国学传承', content: '受益匪浅', type: 'normal' },
+]
+
+// 系统消息
+const mockSystemMessages = [
+  { id: 1, type: 'enter', user: '玄学新人', content: '进入了直播间' },
+  { id: 2, type: 'gift', user: '易道弟子', content: '送出太极', giftIcon: '☯️' },
+  { id: 3, type: 'buy', user: '福气满满', content: '购买了 开光招财貔貅摆件' },
+]
+
+// 打赏榜
+const mockRankList = [
+  { rank: 1, user: '易道传人', avatar: '', amount: 8888 },
+  { rank: 2, user: '国学守护', avatar: '', amount: 5666 },
+  { rank: 3, user: '玄学爱好', avatar: '', amount: 3288 },
+]
+
+// 国学风礼物
+const giftList = [
+  { id: 1, name: '太极', icon: '☯️', price: 1 },
+  { id: 2, name: '梅花', icon: '🌸', price: 10 },
+  { id: 3, name: '竹简', icon: '📜', price: 52 },
+  { id: 4, name: '罗盘', icon: '🧭', price: 99 },
+  { id: 5, name: '如意', icon: '🪬', price: 199 },
+  { id: 6, name: '龙凤', icon: '🐉', price: 520 },
+  { id: 7, name: '金元宝', icon: '🪙', price: 999 },
+  { id: 8, name: '聚宝盆', icon: '🏆', price: 1888 },
+]
+
+// 横屏全屏礼物
+const fullscreenGifts = [
+  { name: '太极', price: 1, icon: '☯️' },
+  { name: '梅花', price: 10, icon: '🌸' },
+  { name: '竹简', price: 52, icon: '📜' },
+  { name: '罗盘', price: 99, icon: '🧭' },
+  { name: '玉如意', price: 199, icon: '🔮' },
+  { name: '金元宝', price: 520, icon: '🏆' },
+]
+
+// 横屏底部Tab
+const bottomTabs = [
+  { key: 'chat', label: '讨论' },
+  { key: 'slides', label: '课件' },
+  { key: 'qa', label: '问答' },
+  { key: 'files', label: '资料' },
+  { key: 'intro', label: '简介' },
+]
+
+// 问答数据
+const mockQA = [
+  { id: 1, user: '易学小白', question: '老师，命宫化忌是不是一定不好？', time: '12:35', isOnWall: true },
+  { id: 2, user: '紫微迷', question: '天机星在夫妻宫怎么解读？', time: '12:38', isOnWall: false },
+  { id: 3, user: '命理爱好者', question: '太阴落陷需要注意什么？', time: '12:42', isOnWall: false },
+]
+
+// 资料数据
+const mockFiles = [
+  { id: 1, name: '紫微斗数入门讲义.pdf', size: '2.3MB', type: 'pdf' },
+  { id: 2, name: '命盘实例分析案例集.pdf', size: '5.1MB', type: 'pdf' },
+  { id: 3, name: '本课思维导图.png', size: '890KB', type: 'image' },
+]
+
+// ============================================================
+// State
+// ============================================================
+const liveId = ref('1')
+const live = ref<LiveRoomData | null>(null)
+
+const isFollowing = ref(false)
+const likeCount = ref(0)
+const showProducts = ref(false)
+const showGifts = ref(false)
+const showRank = ref(false)
+const message = ref('')
+const danmakuList = ref<typeof mockDanmaku>([])
+const systemMessages = ref<typeof mockSystemMessages>([])
+const cartCount = ref(0)
+const isMuted = ref(false)
+const floatingHearts = ref<{ id: number; x: number }[]>([])
+const headerCollapsed = ref(false)
+
+// 竖屏电商状态
+const currentProduct = ref(mockProducts[0])
+const salesNotifications = ref<{ id: number; user: string; product: string }[]>([])
+const liveSalesCount = ref(1280)
+const salesAnimating = ref(false)
+
+// 横屏OBS状态
+const isFullscreen = ref(false)
+const isVolumeMuted = ref(false)
+const activeBottomTab = ref('chat')
+const showFullscreenGiftPanel = ref(false)
+const showChatPanel = ref(false)
+const showFullscreenControls = ref(true)
+const controlsTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+
+// 定时器引用
+let danmakuTimer: ReturnType<typeof setInterval> | null = null
+let systemMsgTimer: ReturnType<typeof setInterval> | null = null
+let salesTimer: ReturnType<typeof setInterval> | null = null
+let headerTimer: ReturnType<typeof setTimeout> | null = null
+
+// ============================================================
+// Lifecycle
+// ============================================================
+onMounted(() => {
+  // 获取路由参数
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1] as any
+  if (currentPage?.options?.id) {
+    liveId.value = currentPage.options.id
+  }
+
+  live.value = mockLiveData[liveId.value] || mockLiveData['1']
+  if (!live.value) return
+
+  likeCount.value = live.value.likeCount
+
+  // 模拟弹幕滚动
+  let danmakuIndex = 0
+  danmakuTimer = setInterval(() => {
+    if (danmakuIndex < mockDanmaku.length) {
+      danmakuList.value = [...danmakuList.value.slice(-3), mockDanmaku[danmakuIndex]]
+      danmakuIndex++
+    } else {
+      danmakuIndex = 0
+    }
+  }, 2500)
+
+  // 模拟系统消息
+  let sysIndex = 0
+  systemMsgTimer = setInterval(() => {
+    if (sysIndex < mockSystemMessages.length) {
+      systemMessages.value = [...systemMessages.value.slice(-1), mockSystemMessages[sysIndex]]
+      sysIndex++
+    } else {
+      sysIndex = 0
+    }
+  }, 4000)
+
+  // 自动收起顶部栏
+  headerTimer = setTimeout(() => {
+    headerCollapsed.value = true
+  }, 5000)
+
+  // 模拟实时已售通知（电商直播）
+  if (live.value.type === 'commerce') {
+    const names = ['福气满满', '招财进宝', '玄学新人', '易道弟子', '国学传承', '命理初学', '紫微门人']
+    salesTimer = setInterval(() => {
+      const randomUser = names[Math.floor(Math.random() * names.length)]
+      const randomProduct = mockProducts[Math.floor(Math.random() * mockProducts.length)]
+      const notification = { id: Date.now(), user: randomUser, product: randomProduct.name.slice(0, 8) }
+      salesNotifications.value = [...salesNotifications.value.slice(-2), notification]
+
+      const increment = Math.floor(Math.random() * 3) + 1
+      liveSalesCount.value += increment
+      salesAnimating.value = true
+      setTimeout(() => { salesAnimating.value = false }, 600)
+
+      setTimeout(() => {
+        salesNotifications.value = salesNotifications.value.filter(n => n.id !== notification.id)
+      }, 3000)
+    }, 4000)
+  }
+})
+
+onUnmounted(() => {
+  if (danmakuTimer) clearInterval(danmakuTimer)
+  if (systemMsgTimer) clearInterval(systemMsgTimer)
+  if (salesTimer) clearInterval(salesTimer)
+  if (headerTimer) clearTimeout(headerTimer)
+  if (controlsTimer.value) clearTimeout(controlsTimer.value)
+})
+
+// ============================================================
+// Methods
+// ============================================================
+function formatCount(count: number): string {
+  if (count >= 10000) return (count / 10000).toFixed(1) + '万'
+  return String(count)
+}
+
+function handleLike() {
+  likeCount.value += 1
+  const newHeart = { id: Date.now(), x: Math.random() * 40 - 20 }
+  floatingHearts.value = [...floatingHearts.value, newHeart]
+  setTimeout(() => {
+    floatingHearts.value = floatingHearts.value.filter(h => h.id !== newHeart.id)
+  }, 1500)
+}
+
+function handleAddToCart(productId: string) {
+  cartCount.value += 1
+}
+
+function handleSendMessage() {
+  if (!message.value.trim()) return
+  danmakuList.value = [
+    ...danmakuList.value.slice(-3),
+    { id: Date.now(), user: '我', content: message.value, type: 'normal' },
+  ]
+  message.value = ''
+}
+
+function resetControlsTimer() {
+  if (controlsTimer.value) clearTimeout(controlsTimer.value)
+  showFullscreenControls.value = true
+  controlsTimer.value = setTimeout(() => {
+    showFullscreenControls.value = false
+  }, 3000)
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+@keyframes heart {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-100px) scale(0.5); }
+}
+</style>

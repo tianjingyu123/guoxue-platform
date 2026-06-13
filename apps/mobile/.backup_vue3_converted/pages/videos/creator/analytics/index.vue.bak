@@ -1,0 +1,310 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-10 bg-white border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view class="p-1" hover-class="opacity-70" @click="goBack">
+          <text class="text-lg" style="color:#2C2C2C">←</text>
+        </view>
+        <text class="text-lg font-semibold" style="color:#2C2C2C">数据分析</text>
+        <view class="p-1" hover-class="opacity-70" @click="handleExport">
+          <text class="text-lg" style="color:#999">⬇</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="p-4 space-y-4">
+      <view v-for="i in 2" :key="i" class="h-24 rounded-xl" style="background-color:#F5F1EB;animation:pulse 1.5s infinite" />
+      <view class="h-48 rounded-xl" style="background-color:#F5F1EB;animation:pulse 1.5s infinite" />
+      <view v-for="i in 2" :key="'s' + i" class="h-20 rounded-xl" style="background-color:#F5F1EB;animation:pulse 1.5s infinite" />
+    </view>
+
+    <template v-else>
+      <!-- 时间周期选择 -->
+      <view class="sticky z-10 bg-white border-b border-[#E8E0D5] px-4 py-3" style="top:52px">
+        <view class="flex gap-2">
+          <view
+            v-for="p in periods"
+            :key="p.key"
+            class="px-3 py-1.5 rounded-full text-sm font-medium"
+            :class="period === p.key ? 'text-white' : ''"
+            :style="period === p.key ? 'background-color:#C41E3A' : 'background-color:#F5F1EB;color:#2C2C2C'"
+            hover-class="opacity-80"
+            @click="period = p.key"
+          >
+            <text>{{ p.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="pb-20">
+        <!-- 关键指标 -->
+        <view class="mx-4 mt-4">
+          <text class="text-sm font-semibold mb-3 block" style="color:#2C2C2C">关键指标</text>
+          <view class="grid grid-cols-2 gap-3">
+            <view
+              v-for="(metric, idx) in metrics"
+              :key="idx"
+              class="bg-white rounded-xl p-3"
+              style="border:1px solid #E8E0D5"
+            >
+              <text class="text-xs block mb-1" style="color:#999">{{ metric.label }}</text>
+              <text class="text-2xl font-bold block" style="color:#2C2C2C">{{ formatMetricValue(metric.rawValue) }}</text>
+              <view class="flex items-center gap-1 mt-1 text-xs" :style="metric.trend >= 0 ? 'color:#16A34A' : 'color:#DC2626'">
+                <text>{{ metric.trend >= 0 ? '📈' : '📉' }}</text>
+                <text>{{ Math.abs(metric.trend) }}%</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 观看趋势 - SVG 折线图 -->
+        <view class="mx-4 mt-6">
+          <text class="text-sm font-semibold mb-3 block" style="color:#2C2C2C">观看趋势</text>
+          <view class="bg-white rounded-xl p-4" style="border:1px solid #E8E0D5">
+            <view class="relative" style="height:240px">
+              <!-- SVG 趋势线 -->
+              <svg class="w-full h-full" viewBox="0 0 300 200" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="analyticsTrendGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#C41E3A" stop-opacity="0.3" />
+                    <stop offset="100%" stop-color="#C41E3A" stop-opacity="0" />
+                  </linearGradient>
+                </defs>
+                <!-- 网格线 -->
+                <line x1="0" y1="40" x2="300" y2="40" stroke="#F0EBE5" stroke-width="1" />
+                <line x1="0" y1="80" x2="300" y2="80" stroke="#F0EBE5" stroke-width="1" />
+                <line x1="0" y1="120" x2="300" y2="120" stroke="#F0EBE5" stroke-width="1" />
+                <line x1="0" y1="160" x2="300" y2="160" stroke="#F0EBE5" stroke-width="1" />
+                <!-- 面积填充 -->
+                <path
+                  :d="trendAreaPath"
+                  fill="url(#analyticsTrendGrad)"
+                />
+                <!-- 折线 -->
+                <path
+                  :d="trendLinePath"
+                  fill="none"
+                  stroke="#C41E3A"
+                  stroke-width="2.5"
+                  stroke-linejoin="round"
+                  stroke-linecap="round"
+                />
+                <!-- 数据点 -->
+                <circle
+                  v-for="(point, idx) in trendLinePoints"
+                  :key="idx"
+                  :cx="point.cx"
+                  :cy="point.cy"
+                  r="4"
+                  fill="#C41E3A"
+                  stroke="#fff"
+                  stroke-width="2"
+                />
+              </svg>
+              <!-- X轴标签 -->
+              <view class="flex justify-between mt-1 text-xs" style="color:#999">
+                <text v-for="day in viewTrend" :key="day.date" class="text-center" style="flex:1">
+                  {{ day.date }}
+                </text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 视频统计 -->
+        <view class="mx-4 mt-6">
+          <text class="text-sm font-semibold mb-3 block" style="color:#2C2C2C">视频统计</text>
+          <view class="space-y-2">
+            <view
+              v-for="(video, idx) in videoMetrics"
+              :key="video.id"
+              class="bg-white rounded-xl p-3"
+              style="border:1px solid #E8E0D5"
+              hover-class="opacity-95"
+              @click="goToVideoDetail(video)"
+            >
+              <view class="flex items-start justify-between mb-2">
+                <view class="flex-1 min-w-0">
+                  <text class="text-sm font-medium block truncate" style="color:#2C2C2C">{{ video.title }}</text>
+                  <text class="text-xs block mt-0.5" style="color:#999">{{ video.uploadDate }} · {{ video.duration }}</text>
+                </view>
+                <text class="text-xs px-2 py-0.5 rounded" style="background-color:#F5F1EB;color:#999">#{{ idx + 1 }}</text>
+              </view>
+              <view class="grid grid-cols-4 gap-2 text-xs" style="color:#666">
+                <view class="flex items-center gap-1">
+                  <text>👁</text>
+                  <text>{{ video.views >= 10000 ? (video.views / 10000).toFixed(1) + '万' : video.views }}</text>
+                </view>
+                <view class="flex items-center gap-1">
+                  <text>👍</text>
+                  <text>{{ video.likes }}</text>
+                </view>
+                <view class="flex items-center gap-1">
+                  <text>💬</text>
+                  <text>{{ video.comments }}</text>
+                </view>
+                <view class="flex items-center gap-1">
+                  <text>📤</text>
+                  <text>{{ video.shares }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 底部留白 -->
+        <view class="h-8" />
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+// 类型定义
+interface ViewDay {
+  date: string
+  views: number
+  likes: number
+  comments: number
+}
+
+interface VideoMetric {
+  id: string
+  title: string
+  views: number
+  likes: number
+  comments: number
+  shares: number
+  duration: string
+  uploadDate: string
+}
+
+interface MetricCard {
+  label: string
+  rawValue: number
+  trend: number
+}
+
+// 状态
+const loading = ref(true)
+const period = ref<'week' | 'month' | 'year'>('week')
+
+const periods = [
+  { key: 'week' as const, label: '本周' },
+  { key: 'month' as const, label: '本月' },
+  { key: 'year' as const, label: '本年' },
+]
+
+// 关键指标
+const metrics: MetricCard[] = [
+  { label: '总观看', rawValue: 158420, trend: 12 },
+  { label: '总点赞', rawValue: 8320, trend: 8 },
+  { label: '评论数', rawValue: 1250, trend: -2 },
+  { label: '分享数', rawValue: 620, trend: 5 },
+]
+
+// 格式化指标数值
+function formatMetricValue(value: number): string {
+  if (value >= 100000) {
+    return (value / 1000).toFixed(0) + 'K'
+  }
+  if (value >= 10000) {
+    return (value / 10000).toFixed(1) + '万'
+  }
+  return value.toLocaleString()
+}
+
+// 观看趋势数据
+const viewTrend: ViewDay[] = [
+  { date: '周一', views: 2100, likes: 125, comments: 45 },
+  { date: '周二', views: 2800, likes: 180, comments: 62 },
+  { date: '周三', views: 2400, likes: 140, comments: 48 },
+  { date: '周四', views: 3200, likes: 210, comments: 78 },
+  { date: '周五', views: 3800, likes: 250, comments: 95 },
+  { date: '周六', views: 4200, likes: 280, comments: 120 },
+  { date: '周日', views: 3900, likes: 265, comments: 110 },
+]
+
+// SVG 趋势图计算
+const maxViews = computed(() => Math.max(...viewTrend.map(d => d.views), 1))
+
+interface TrendPoint {
+  cx: number
+  cy: number
+  value: number
+}
+
+const trendLinePoints = computed<TrendPoint[]>(() => {
+  const chartHeight = 160
+  const chartWidth = 300
+  const padding = 10
+  const len = viewTrend.length
+  const maxV = maxViews.value
+
+  return viewTrend.map((d, i) => {
+    const x = padding + (i / (len - 1)) * (chartWidth - 2 * padding)
+    const y = chartHeight - ((d.views - 0) / maxV) * (chartHeight - 20) - 10
+    return { cx: x, cy: y, value: d.views }
+  })
+})
+
+const trendLinePath = computed(() => {
+  if (trendLinePoints.value.length === 0) return ''
+  const points = trendLinePoints.value
+  let d = `M${points[0].cx},${points[0].cy}`
+  for (let i = 1; i < points.length; i++) {
+    d += ` L${points[i].cx},${points[i].cy}`
+  }
+  return d
+})
+
+const trendAreaPath = computed(() => {
+  if (trendLinePoints.value.length === 0) return ''
+  const points = trendLinePoints.value
+  const bottom = 200
+  let d = `M${points[0].cx},${points[0].cy}`
+  for (let i = 1; i < points.length; i++) {
+    d += ` L${points[i].cx},${points[i].cy}`
+  }
+  d += ` L${points[points.length - 1].cx},${bottom} L${points[0].cx},${bottom} Z`
+  return d
+})
+
+// 视频统计
+const videoMetrics: VideoMetric[] = [
+  { id: '1', title: '《易经》30分钟速成课', views: 15820, likes: 1250, comments: 280, shares: 85, duration: '30分', uploadDate: '2024-01-18' },
+  { id: '2', title: '八字命理基础讲解', views: 12450, likes: 850, comments: 195, shares: 62, duration: '45分', uploadDate: '2024-01-17' },
+  { id: '3', title: '紫微斗数应用技巧', views: 9850, likes: 620, comments: 150, shares: 48, duration: '52分', uploadDate: '2024-01-16' },
+]
+
+// 导出数据
+function handleExport() {
+  uni.showToast({ title: '正在导出数据...', icon: 'none' })
+}
+
+// 跳转视频详情
+function goToVideoDetail(video: VideoMetric) {
+  uni.navigateTo({ url: '/pages/videos/detail?id=' + video.id })
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+onMounted(() => {
+  setTimeout(() => {
+    loading.value = false
+  }, 400)
+})
+</script>
+
+<style scoped>
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+</style>

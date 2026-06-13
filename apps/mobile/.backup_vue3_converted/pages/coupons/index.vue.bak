@@ -1,0 +1,262 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] max-w-lg mx-auto">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-[#FAF8F5]/95 border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view @click="goBack" class="p-2 -ml-2">
+          <text class="text-[#2C2C2C]">←</text>
+        </view>
+        <text class="font-semibold text-base text-[#2C2C2C]">优惠券</text>
+        <view class="px-3 py-1.5 bg-[#C41E3A] text-white text-xs font-medium rounded-lg" @click="goClaim">
+          <text>+ 领取</text>
+        </view>
+      </view>
+
+      <!-- Tab栏 -->
+      <view class="flex border-b border-[#E8E0D5]">
+        <view
+          v-for="tab in tabs"
+          :key="tab.id"
+          @tap="activeTab = tab.id"
+          class="flex-1 py-3 text-sm font-medium relative text-center transition-colors"
+          :class="activeTab === tab.id ? 'text-[#C41E3A]' : 'text-[#999]'"
+        >
+          <text>{{ tab.label }}</text>
+          <text v-if="tab.count > 0" class="ml-1" :class="activeTab === tab.id ? 'text-[#C41E3A]' : 'text-[#999]'">({{ tab.count }})</text>
+          <view v-if="activeTab === tab.id" class="absolute bottom-0 left-1/2 w-8 h-0.5 bg-[#C41E3A] rounded-full" style="transform: translateX(-50%)" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="p-4 space-y-4">
+      <view v-for="i in 3" :key="i" class="bg-white rounded-xl overflow-hidden flex animate-pulse">
+        <view class="w-28 py-5 bg-[#F0EBE5]" />
+        <view class="flex-1 p-4 space-y-2">
+          <view class="h-3 w-16 bg-[#F0EBE5] rounded" />
+          <view class="h-4 w-24 bg-[#F0EBE5] rounded" />
+          <view class="h-3 w-32 bg-[#F0EBE5] rounded" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 排序/筛选 -->
+    <view v-if="!loading && currentCoupons.length > 0" class="px-4 pt-3 flex gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide">
+      <view
+        v-for="sort in sortOptions"
+        :key="sort.value"
+        @tap="activeSort = sort.value"
+        class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
+        :class="activeSort === sort.value ? 'bg-[#C41E3A] text-white border-[#C41E3A]' : 'bg-white text-[#999] border-[#E8E0D5]'"
+      >
+        {{ sort.label }}
+      </view>
+    </view>
+
+    <!-- 优惠券列表 -->
+    <scroll-view v-else scroll-y class="p-4 space-y-4" style="height: calc(100vh - 110px);">
+      <view v-if="currentCoupons.length === 0" class="flex flex-col items-center justify-center py-20">
+        <view class="w-20 h-20 rounded-full bg-[#F5F1EB] flex items-center justify-center mb-4">
+          <text class="text-4xl text-[#999]/50">🎟</text>
+        </view>
+        <text class="text-[#999] mb-2">
+          {{ activeTab === 'available' ? '暂无可用优惠券' : activeTab === 'used' ? '暂无已使用记录' : '暂无已过期优惠券' }}
+        </text>
+        <text class="text-xs text-[#999] mb-4" v-if="activeTab === 'available'">去领券中心看看吧</text>
+        <view
+          v-if="activeTab === 'available'"
+          @click="goClaim"
+          class="px-6 py-2 bg-[#C41E3A] text-white text-sm font-medium rounded-full"
+        >
+          去领券中心
+        </view>
+      </view>
+
+      <view v-for="coupon in sortedCoupons" :key="coupon.id" class="bg-white rounded-xl overflow-hidden relative shadow-sm">
+        <view :class="['flex', getStatus(coupon) !== 'available' ? 'opacity-60' : '']">
+          <!-- 左侧金额区 -->
+          <view
+            class="w-28 flex flex-col items-center justify-center py-5 relative"
+            :class="getStatus(coupon) !== 'available' ? 'bg-[#F0EBE5]' : 'bg-gradient-to-br from-[#C41E3A] to-[#C41E3A]/80'"
+          >
+            <view class="text-3xl font-bold" :class="getStatus(coupon) !== 'available' ? 'text-[#999]' : 'text-white'">
+              <text v-if="coupon.isPercent">{{ coupon.amount }}<text class="text-lg">折</text></text>
+              <text v-else>
+                <text class="text-lg">¥</text>{{ coupon.amount }}
+              </text>
+            </view>
+            <text class="text-[10px] mt-1" :class="getStatus(coupon) !== 'available' ? 'text-[#999]/70' : 'text-white/80'">{{ coupon.condition }}</text>
+          </view>
+
+          <!-- 右侧信息区 -->
+          <view class="flex-1 p-3 relative">
+            <text
+              class="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded border"
+              :class="getStatus(coupon) !== 'available' ? 'border-[#E8E0D5] text-[#999]/70' : 'border-[#C41E3A]/30 text-[#C41E3A]'"
+            >{{ coupon.type }}</text>
+            <text class="font-medium text-sm pr-16 block" :class="getStatus(coupon) !== 'available' ? 'text-[#999]' : 'text-[#2C2C2C]'">
+              {{ coupon.scope }}
+            </text>
+            <text class="text-xs mt-1 block" :class="getStatus(coupon) !== 'available' ? 'text-[#999]/60' : 'text-[#999]'">
+              有效期至 {{ coupon.expireDate }}
+            </text>
+            <view v-if="getStatus(coupon) === 'available'" @click="useCoupon" class="mt-2 px-4 py-1.5 bg-[#C41E3A] text-white text-xs font-medium rounded-full inline-block">
+              立即使用
+            </view>
+            <text v-if="getStatus(coupon) === 'used' && coupon.usedDate" class="text-xs text-[#999]/60 mt-2 block">
+              使用时间：{{ coupon.usedDate }}
+            </text>
+            <text v-if="getStatus(coupon) === 'expired' && !coupon.usedDate" class="text-xs text-[#FF4D4F]/60 mt-2 block">
+              过期时间：{{ coupon.expireDate }}
+            </text>
+          </view>
+        </view>
+
+        <!-- 水印 -->
+        <view v-if="getStatus(coupon) !== 'available'" class="absolute top-1/2 right-8" style="transform: translateY(-50%) rotate(-15deg);">
+          <text class="text-2xl font-bold opacity-20" :class="getStatus(coupon) === 'used' ? 'text-[#999]' : 'text-[#FF4D4F]'">
+            {{ getStatus(coupon) === 'used' ? '已使用' : '已过期' }}
+          </text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 推荐优惠券卡片（可用tab下显示最大面额推荐） -->
+    <view v-if="activeTab === 'available' && maxCoupon" class="px-4 pb-2">
+      <view class="bg-gradient-to-r from-[#C41E3A]/5 to-[#C9A96E]/5 rounded-xl p-3 border border-[#C41E3A]/10 flex items-center justify-between">
+        <view class="flex items-center gap-2">
+          <text class="text-lg">💡</text>
+          <view>
+            <text class="text-xs font-medium text-[#2C2C2C]">最大优惠券推荐</text>
+            <text class="text-[10px] text-[#999] block">{{ maxCoupon.scope }}·满{{ maxCoupon.condition }}</text>
+          </view>
+        </view>
+        <view class="px-3 py-1 bg-[#C41E3A] text-white text-[10px] rounded-full" @click="useCoupon">去使用</view>
+      </view>
+    </view>
+
+    <!-- 使用说明 -->
+    <view class="fixed bottom-0 left-0 right-0 bg-[#FAF8F5] border-t border-[#E8E0D5] px-4">
+      <view class="py-2" @click="toggleInstructions">
+        <view class="flex items-center justify-center gap-1">
+          <text class="text-[10px] text-[#999]">💡 优惠券不可叠加使用，每笔订单限用1张</text>
+          <text class="text-[8px] text-[#999]" :class="showInstructions ? 'rotate-180' : ''">▼</text>
+        </view>
+      </view>
+      <view v-if="showInstructions" class="pb-3 space-y-1">
+        <text class="text-[10px] text-[#999] block">• 每笔订单只能使用1张优惠券</text>
+        <text class="text-[10px] text-[#999] block">• 优惠券不可与秒杀活动叠加使用</text>
+        <text class="text-[10px] text-[#999] block">• 虚拟商品（课程、会员）不参与满减</text>
+        <text class="text-[10px] text-[#999] block">• 优惠券过期后自动失效，不补发</text>
+        <text class="text-[10px] text-[#999] block">• 部分优惠券有使用门槛，请仔细阅读</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface Coupon {
+  id: number
+  amount: number
+  type: string
+  condition: string
+  scope: string
+  expireDate: string
+  isPercent: boolean
+  usedDate?: string
+}
+
+type TabId = 'available' | 'used' | 'expired'
+
+// 加载状态
+const loading = ref(true)
+setTimeout(() => { loading.value = false }, 600)
+
+// 排序选项
+const sortOptions = [
+  { label: '默认排序', value: 'default' },
+  { label: '面额最大', value: 'amount_desc' },
+  { label: '即将过期', value: 'expiring' },
+]
+const activeSort = ref('default')
+
+// 按排序筛选后的优惠券
+const sortedCoupons = computed(() => {
+  const list = [...currentCoupons.value]
+  switch (activeSort.value) {
+    case 'amount_desc':
+      return list.sort((a, b) => b.amount - a.amount)
+    case 'expiring':
+      return list.sort((a, b) => {
+        const dateA = new Date(a.expireDate.replace(/\./g, '-'))
+        const dateB = new Date(b.expireDate.replace(/\./g, '-'))
+        return dateA.getTime() - dateB.getTime()
+      })
+    default:
+      return list
+  }
+})
+
+// 导航
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+function goClaim() { uni.navigateTo({ url: '/pages/coupons/center/index' }) }
+function useCoupon() { uni.navigateTo({ url: '/pages/shop/index' }) }
+
+// 了解更多
+const showInstructions = ref(false)
+function toggleInstructions() { showInstructions.value = !showInstructions.value }
+
+const couponsData: Record<TabId, Coupon[]> = {
+  available: [
+    { id: 1, amount: 10, type: '满减券', condition: '满99元可用', scope: '全部商品', expireDate: '2026.12.31', isPercent: false },
+    { id: 2, amount: 50, type: '满减券', condition: '满299元可用', scope: '全部课程', expireDate: '2026.06.30', isPercent: false },
+    { id: 3, amount: 8, type: '折扣券', condition: '无门槛', scope: '指定商品', expireDate: '2026.03.15', isPercent: true },
+    { id: 4, amount: 5, type: '无门槛券', condition: '无门槛', scope: '全部商品', expireDate: '2026.02.28', isPercent: false },
+    { id: 5, amount: 20, type: '满减券', condition: '满199元可用', scope: '付费圈子', expireDate: '2026.05.20', isPercent: false },
+    { id: 13, amount: 3, type: '无门槛券', condition: '无门槛', scope: '指定商品', expireDate: '2027.01.01', isPercent: false },
+    { id: 14, amount: 7, type: '折扣券', condition: '无门槛', scope: '书籍专区', expireDate: '2026.08.15', isPercent: true },
+  ],
+  used: [
+    { id: 6, amount: 20, type: '满减券', condition: '满199元可用', scope: '全部商品', expireDate: '2026.01.15', isPercent: false, usedDate: '2026.01.10' },
+    { id: 7, amount: 100, type: '满减券', condition: '满599元可用', scope: '全部课程', expireDate: '2025.12.31', isPercent: false, usedDate: '2025.12.25' },
+    { id: 8, amount: 15, type: '折扣券', condition: '满150元可用', scope: '指定圈子', expireDate: '2025.11.20', isPercent: true, usedDate: '2025.11.15' },
+    { id: 15, amount: 30, type: '满减券', condition: '满200元可用', scope: '全部商品', expireDate: '2025.10.01', isPercent: false, usedDate: '2025.09.28' },
+    { id: 16, amount: 6, type: '折扣券', condition: '满100元可用', scope: '课程专区', expireDate: '2025.12.10', isPercent: true, usedDate: '2025.12.05' },
+  ],
+  expired: [
+    { id: 9, amount: 15, type: '满减券', condition: '满149元可用', scope: '全部商品', expireDate: '2025.11.30', isPercent: false },
+    { id: 10, amount: 30, type: '满减券', condition: '满249元可用', scope: '指定圈子', expireDate: '2025.10.15', isPercent: false },
+    { id: 11, amount: 8, type: '无门槛券', condition: '无门槛', scope: '全部商品', expireDate: '2025.09.01', isPercent: false },
+    { id: 12, amount: 50, type: '满减券', condition: '满399元可用', scope: '全部课程', expireDate: '2025.08.15', isPercent: false },
+    { id: 17, amount: 25, type: '满减券', condition: '满179元可用', scope: '全部商品', expireDate: '2025.07.01', isPercent: false },
+    { id: 18, amount: 5, type: '折扣券', condition: '无门槛', scope: '指定圈子', expireDate: '2025.06.15', isPercent: true },
+  ],
+}
+
+const tabs = [
+  { id: 'available' as TabId, label: '可用', count: couponsData.available.length },
+  { id: 'used' as TabId, label: '已使用', count: couponsData.used.length },
+  { id: 'expired' as TabId, label: '已过期', count: couponsData.expired.length },
+]
+
+const activeTab = ref<TabId>('available')
+
+const currentCoupons = computed(() => couponsData[activeTab.value])
+
+function getStatus(coupon: Coupon): TabId {
+  return activeTab.value
+}
+
+// 查找可用优惠券中面额最大的一张
+const maxCoupon = computed(() => {
+  if (couponsData.available.length === 0) return null
+  return couponsData.available.reduce((max, c) => c.amount > max.amount ? c : max)
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

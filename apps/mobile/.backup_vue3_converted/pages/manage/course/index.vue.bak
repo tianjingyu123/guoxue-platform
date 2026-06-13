@@ -1,0 +1,237 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 骨架屏 -->
+    <template v-if="loading">
+      <view class="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5]">
+        <view class="flex items-center justify-between h-14 px-4">
+          <view class="flex items-center gap-3">
+            <view class="w-7 h-7 bg-gray-200 rounded" />
+            <view class="w-20 h-5 bg-gray-200 rounded" />
+          </view>
+        </view>
+      </view>
+      <view class="p-4">
+        <view class="grid grid-cols-3 gap-3 mb-6">
+          <view v-for="i in 3" :key="i" class="h-20 bg-gray-200 rounded-xl" />
+        </view>
+        <view v-for="i in 3" :key="i" class="h-24 bg-gray-200 rounded-xl mb-3" />
+      </view>
+    </template>
+
+    <template v-else>
+      <view class="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5]">
+        <view class="flex items-center justify-between h-14 px-4">
+          <view class="flex items-center gap-3">
+            <view @click="goBack" class="p-1">
+              <text class="text-[#2C2C2C]" style="font-size:20px">←</text>
+            </view>
+            <text class="font-semibold text-lg text-[#2C2C2C]">课程管理</text>
+          </view>
+          <view @click="goCreate" class="flex items-center gap-1 px-3 py-1.5 bg-[#C41E3A] rounded-lg">
+            <text class="text-white text-xs">+</text>
+            <text class="text-white text-xs font-medium">新建</text>
+          </view>
+        </view>
+        <!-- 搜索 -->
+        <view class="px-4 pb-2.5">
+          <view class="relative">
+            <text class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#999] z-10">🔍</text>
+            <input v-model="keyword" placeholder="搜索课程..."
+              class="w-full h-9 pl-9 pr-3 text-sm bg-white rounded-lg border border-[#E8E0D5] box-border placeholder:text-[#999]" />
+          </view>
+        </view>
+      </view>
+
+      <view class="p-4 pb-24">
+        <!-- 数据概览 -->
+        <view class="grid grid-cols-4 gap-2 mb-4">
+          <view class="bg-white border border-[#E8E0D5] rounded-xl p-3 text-center">
+            <text class="text-xl font-bold text-[#2C2C2C] block">{{ list.length }}</text>
+            <text class="text-[10px] text-[#999]">全部</text>
+          </view>
+          <view class="bg-white border border-[#E8E0D5] rounded-xl p-3 text-center">
+            <text class="text-xl font-bold text-green-600 block">{{ statusCount('上架') }}</text>
+            <text class="text-[10px] text-[#999]">已上架</text>
+          </view>
+          <view class="bg-white border border-[#E8E0D5] rounded-xl p-3 text-center">
+            <text class="text-xl font-bold text-[#C9A96E] block">{{ statusCount('草稿') }}</text>
+            <text class="text-[10px] text-[#999]">草稿</text>
+          </view>
+          <view class="bg-white border border-[#E8E0D5] rounded-xl p-3 text-center">
+            <text class="text-xl font-bold text-[#999] block">{{ statusCount('下架') }}</text>
+            <text class="text-[10px] text-[#999]">已下架</text>
+          </view>
+        </view>
+
+        <!-- Tab 筛选 -->
+        <view class="flex gap-2 mb-4 overflow-x-auto">
+          <view v-for="t in tabs" :key="t.id" @click="activeTab = t.id"
+            class="px-3.5 py-1.5 rounded-full text-xs whitespace-nowrap font-medium transition-colors"
+            :class="activeTab === t.id ? 'bg-[#C41E3A] text-white' : 'bg-[#F0EBE5] text-[#2C2C2C]'">
+            {{ t.label }}
+          </view>
+        </view>
+
+        <!-- 批量操作 -->
+        <view v-if="selectedIds.length > 0" class="flex items-center gap-2 mb-3 px-2">
+          <text class="text-xs text-[#C41E3A] font-medium">已选 {{ selectedIds.length }} 项</text>
+          <view @click="batchPublish" class="px-3 py-1 bg-green-50 border border-green-200 rounded-lg text-xs text-green-600">批量上架</view>
+          <view @click="batchOffline" class="px-3 py-1 bg-gray-100 border border-gray-200 rounded-lg text-xs text-[#999]">批量下架</view>
+          <view @click="selectedIds = []" class="px-3 py-1 rounded-lg text-xs text-[#999]">取消</view>
+        </view>
+
+        <!-- 课程列表 -->
+        <view class="space-y-3">
+          <view v-for="c in filteredCourses" :key="c.id"
+            class="bg-white border border-[#E8E0D5] rounded-xl overflow-hidden transition-colors"
+            :class="selectedIds.includes(c.id) ? 'ring-2 ring-[#C41E3A]/30' : ''">
+            <view class="flex gap-3 p-3.5" @click="goDetail(c.id)">
+              <view class="w-24 h-16 rounded-lg bg-[#F5F1EB] flex items-center justify-center flex-shrink-0 overflow-hidden text-2xl">
+                <text>{{ c.cover || '📖' }}</text>
+              </view>
+              <view class="flex-1 min-w-0">
+                <view class="flex items-start justify-between gap-2">
+                  <view class="flex-1 min-w-0">
+                    <text class="font-medium text-sm text-[#2C2C2C] block truncate">{{ c.title }}</text>
+                    <text class="text-xs text-[#999] block mt-0.5">{{ c.category }} · {{ c.lessons }}节课</text>
+                  </view>
+                  <text class="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
+                    :class="statusClass(c.statusLabel)">{{ c.statusLabel }}</text>
+                </view>
+                <view class="flex items-center justify-between mt-2">
+                  <view class="flex items-center gap-3 text-[11px] text-[#999]">
+                    <text>👤 {{ c.students.toLocaleString() }}</text>
+                    <text>💰 {{ c.revenue.toLocaleString() }}</text>
+                  </view>
+                  <!-- 选择框 -->
+                  <view @click.stop="toggleSelect(c.id)"
+                    class="w-5 h-5 rounded border-2 flex items-center justify-center"
+                    :class="selectedIds.includes(c.id) ? 'border-[#C41E3A] bg-[#C41E3A]' : 'border-[#CCC]'">
+                    <text v-if="selectedIds.includes(c.id)" class="text-white text-[10px]">✓</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+            <!-- 课程底部操作 -->
+            <view class="flex border-t border-[#F5F1EB] divide-x divide-[#F5F1EB]">
+              <view @click="toggleStatus(c.id)" class="flex-1 py-2 text-center text-xs text-[#C41E3A] font-medium">
+                {{ c.statusLabel === '上架' ? '下架' : '上架' }}
+              </view>
+              <view @click="goEdit(c.id)" class="flex-1 py-2 text-center text-xs text-[#999]">编辑</view>
+              <view @click="goStats(c.id)" class="flex-1 py-2 text-center text-xs text-[#999]">数据</view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 空状态 -->
+        <view v-if="filteredCourses.length === 0" class="flex flex-col items-center justify-center py-16">
+          <text class="text-4xl mb-3">📚</text>
+          <text class="text-[#999] text-sm mb-1">{{ keyword ? '未找到匹配课程' : '暂无课程' }}</text>
+          <text v-if="!keyword" class="text-[#BBB] text-xs mb-3">点击右上角新建按钮创建课程</text>
+          <view v-if="!keyword" @click="goCreate"
+            class="px-4 py-2 bg-[#C41E3A] text-white rounded-lg text-xs font-medium">新建课程</view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+const loading = ref(true)
+const keyword = ref('')
+const activeTab = ref('all')
+const selectedIds = ref<string[]>([])
+
+const tabs = [
+  { id: 'all', label: '全部' },
+  { id: 'published', label: '已上架' },
+  { id: 'draft', label: '草稿' },
+  { id: 'offline', label: '已下架' },
+]
+
+interface Course {
+  id: string
+  title: string
+  category: string
+  cover: string
+  lessons: number
+  students: number
+  revenue: number
+  statusLabel: string
+}
+
+const list = ref<Course[]>([
+  { id: '1', title: '八字命理入门实战', category: '八字', cover: '📜', lessons: 24, students: 2345, revenue: 56800, statusLabel: '上架' },
+  { id: '2', title: '紫微斗数精讲', category: '紫微斗数', cover: '⭐', lessons: 36, students: 876, revenue: 12500, statusLabel: '草稿' },
+  { id: '3', title: '风水布局基础', category: '风水', cover: '🏠', lessons: 18, students: 1567, revenue: 34200, statusLabel: '上架' },
+  { id: '4', title: '梅花易数入门到精通', category: '梅花易数', cover: '🌸', lessons: 30, students: 432, revenue: 8900, statusLabel: '草稿' },
+  { id: '5', title: '奇门遁甲实战应用', category: '奇门遁甲', cover: '🌀', lessons: 42, students: 1234, revenue: 45600, statusLabel: '上架' },
+  { id: '6', title: '国学经典导读·论语', category: '国学', cover: '📚', lessons: 12, students: 0, revenue: 0, statusLabel: '下架' },
+])
+
+const filteredCourses = computed(() => {
+  let result = list.value
+  if (activeTab.value === 'published') result = result.filter(c => c.statusLabel === '上架')
+  else if (activeTab.value === 'draft') result = result.filter(c => c.statusLabel === '草稿')
+  else if (activeTab.value === 'offline') result = result.filter(c => c.statusLabel === '下架')
+  if (keyword.value) result = result.filter(c => c.title.includes(keyword.value))
+  return result
+})
+
+function statusCount(label: string) {
+  return list.value.filter(c => c.statusLabel === label).length
+}
+
+function statusClass(label: string) {
+  if (label === '上架') return 'bg-green-50 text-green-600'
+  if (label === '草稿') return 'bg-gray-100 text-gray-500'
+  return 'bg-red-50 text-red-400'
+}
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 400)
+})
+
+function goBack() { uni.navigateBack() }
+function goCreate() { uni.navigateTo({ url: '/pages/manage/course/create/index' }) }
+function goDetail(id: string) { uni.navigateTo({ url: `/pages/manage/course/id-detail/index?id=${id}` }) }
+function goEdit(id: string) { uni.navigateTo({ url: `/pages/manage/course/edit/index?id=${id}` }) }
+function goStats(id: string) { uni.navigateTo({ url: `/pages/manage/course/stats/index?id=${id}` }) }
+
+function toggleSelect(id: string) {
+  const idx = selectedIds.value.indexOf(id)
+  if (idx > -1) selectedIds.value.splice(idx, 1)
+  else selectedIds.value.push(id)
+}
+
+function toggleStatus(id: string) {
+  const c = list.value.find(c => c.id === id)
+  if (!c) return
+  c.statusLabel = c.statusLabel === '上架' ? '下架' : '上架'
+  uni.showToast({ title: c.statusLabel === '上架' ? '已上架' : '已下架', icon: 'success' })
+}
+
+function batchPublish() {
+  selectedIds.value.forEach(id => {
+    const c = list.value.find(c => c.id === id)
+    if (c) c.statusLabel = '上架'
+  })
+  uni.showToast({ title: `已上架 ${selectedIds.value.length} 个课程`, icon: 'success' })
+  selectedIds.value = []
+}
+
+function batchOffline() {
+  selectedIds.value.forEach(id => {
+    const c = list.value.find(c => c.id === id)
+    if (c) c.statusLabel = '下架'
+  })
+  uni.showToast({ title: `已下架 ${selectedIds.value.length} 个课程`, icon: 'success' })
+  selectedIds.value = []
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,424 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-10 bg-[#FAF8F5] border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view class="p-2 -ml-2" @click="goBack">
+          <text class="text-lg">←</text>
+        </view>
+        <text class="font-semibold">活动日历</text>
+        <view class="w-9" />
+      </view>
+    </view>
+
+    <!-- 月份选择器 -->
+    <view class="flex items-center justify-between px-4 py-3 bg-white border-b border-[#E8E0D5]">
+      <view class="w-10 h-10 flex items-center justify-center" @click="changeMonth(-1)">
+        <text class="text-lg">‹</text>
+      </view>
+      <view class="flex items-center gap-2">
+        <text class="text-[#C41E3A]">📅</text>
+        <text class="font-semibold text-lg">{{ year }}年{{ month }}月</text>
+      </view>
+      <view class="w-10 h-10 flex items-center justify-center" @click="changeMonth(1)">
+        <text class="text-lg">›</text>
+      </view>
+    </view>
+
+    <!-- 图例 -->
+    <view class="flex items-center justify-center gap-3 px-4 py-2 bg-white border-b border-[#E8E0D5]">
+      <view v-for="type in legendTypes" :key="type" class="flex items-center gap-1">
+        <view class="w-2 h-2 rounded-full" :style="{ backgroundColor: getEventTypeColor(type) }" />
+        <text class="text-xs text-[#999]">{{ getEventTypeLabel(type) }}</text>
+      </view>
+    </view>
+
+    <!-- 加载中 -->
+    <view v-if="loading" class="p-4">
+      <view class="grid grid-cols-7 bg-white border-b border-[#E8E0D5]">
+        <view v-for="day in WEEKDAYS" :key="day" class="text-center py-2 text-sm text-[#999] font-medium">
+          {{ day }}
+        </view>
+      </view>
+      <view class="grid grid-cols-7 bg-white border-b border-[#E8E0D5]">
+        <view v-for="i in 42" :key="i" class="aspect-square p-1 border-b border-r border-[#E8E0D5]/50">
+          <view class="w-6 h-6 bg-[#F0EBE5] rounded m-auto animate-pulse" />
+        </view>
+      </view>
+    </view>
+
+    <!-- 错误状态 -->
+    <view v-else-if="error" class="flex flex-col items-center justify-center py-20 px-4">
+      <text class="text-4xl mb-4">⚠️</text>
+      <text class="text-[#999] mb-4">{{ error }}</text>
+      <view class="px-6 py-2 bg-[#C41E3A] text-white rounded-full" @click="loadCalendarData">
+        <text class="text-sm">重试</text>
+      </view>
+    </view>
+
+    <!-- 正常内容 -->
+    <template v-else>
+      <!-- 星期标题 -->
+      <view class="grid grid-cols-7 bg-white">
+        <view v-for="day in WEEKDAYS" :key="day" class="text-center py-2 text-sm text-[#999] font-medium">
+          {{ day }}
+        </view>
+      </view>
+
+      <!-- 日历格子 -->
+      <view class="grid grid-cols-7 bg-white border-b border-[#E8E0D5]">
+        <view
+          v-for="item in calendarDays"
+          :key="item.date"
+          class="relative aspect-square p-1 border-b border-r border-[#E8E0D5]/50 transition-colors"
+          :class="[
+            item.isCurrentMonth ? 'text-[#2C2C2C]' : 'text-[#999]/50',
+            selectedDate === item.date ? 'bg-[#C41E3A]/10' : '',
+            item.date === today && item.isCurrentMonth ? 'font-bold' : '',
+          ]"
+          @click="handleSelectDate(item.date, item.marker)"
+        >
+          <text
+            class="text-sm"
+            :class="item.date === today && item.isCurrentMonth ? 'text-[#C41E3A]' : ''"
+          >{{ item.day }}</text>
+
+          <!-- 活动标记点 -->
+          <view v-if="item.marker" class="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+            <view v-if="item.marker.hasFlashSale" class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: getEventTypeColor('flash_sale') }" />
+            <view v-if="item.marker.hasGroupBuy" class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: getEventTypeColor('group_buy') }" />
+            <view v-if="item.marker.hasLive" class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: getEventTypeColor('live') }" />
+            <view v-if="item.marker.hasCourse" class="w-1.5 h-1.5 rounded-full" :style="{ backgroundColor: getEventTypeColor('course') }" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 选中日期的活动列表 -->
+      <view class="p-4">
+        <template v-if="selectedDate">
+          <text class="text-sm font-medium text-[#999] mb-3 block">
+            {{ selectedDate.replace(/-/g, '/') }} 的活动
+          </text>
+          <view v-if="selectedEvents.length > 0" class="space-y-3">
+            <view
+              v-for="event in selectedEvents"
+              :key="event.id"
+              class="flex items-center gap-3 p-3 bg-white rounded-lg border border-[#E8E0D5]"
+              @click="goTo(getEventLink(event))"
+            >
+              <view
+                class="w-10 h-10 rounded-lg flex items-center justify-center"
+                :style="{ backgroundColor: getEventTypeColor(event.type) + '20' }"
+              >
+                <text class="text-lg">{{ getEventIcon(event.type) }}</text>
+              </view>
+              <view class="flex-1 min-w-0">
+                <view class="flex items-center gap-2">
+                  <text class="font-medium truncate">{{ event.title }}</text>
+                  <view
+                    class="shrink-0 text-xs px-2 py-0.5 rounded-full"
+                    :class="event.status === 'ongoing' ? 'bg-[#C41E3A] text-white' : 'bg-[#F0EBE5] text-[#999]'"
+                  >
+                    <text>{{ getActivityStatusText(event.status) }}</text>
+                  </view>
+                </view>
+                <view class="flex items-center gap-2 mt-1 text-xs text-[#999]">
+                  <text>{{ getTimePart(event.startTime) }} - {{ getTimePart(event.endTime) }}</text>
+                  <text v-if="event.extra?.productCount">| {{ event.extra.productCount }}件商品</text>
+                  <text v-if="event.extra?.hostName">| {{ event.extra.hostName }}</text>
+                </view>
+              </view>
+              <text class="text-[#999]">›</text>
+            </view>
+          </view>
+          <view v-else class="text-center py-8 text-[#999]">
+            <text class="text-4xl opacity-50 block mb-2">📅</text>
+            <text>该日期暂无活动</text>
+          </view>
+        </template>
+        <view v-else class="text-center py-8 text-[#999]">
+          <text>点击日期查看活动详情</text>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+// 导航辅助
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+
+// 星期标签
+const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六']
+
+// 图例类型
+const legendTypes = ['flash_sale', 'group_buy', 'live', 'course']
+
+// 活动类型颜色映射
+function getEventTypeColor(type: string): string {
+  const colors: Record<string, string> = {
+    flash_sale: '#C41E3A',
+    group_buy: '#E67E22',
+    promotion: '#C9A96E',
+    live: '#E74C3C',
+    course: '#3498DB',
+  }
+  return colors[type] || '#999'
+}
+
+// 活动类型标签
+function getEventTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    flash_sale: '闪购',
+    group_buy: '拼团',
+    promotion: '促销',
+    live: '直播',
+    course: '课程',
+  }
+  return labels[type] || type
+}
+
+// 活动类型图标
+function getEventIcon(type: string): string {
+  const icons: Record<string, string> = {
+    flash_sale: '⚡',
+    group_buy: '👥',
+    promotion: '🏷',
+    live: '📡',
+    course: '📖',
+  }
+  return icons[type] || '📌'
+}
+
+// 活动状态文本
+function getActivityStatusText(status: string): string {
+  const texts: Record<string, string> = {
+    ongoing: '进行中',
+    upcoming: '即将开始',
+    ended: '已结束',
+  }
+  return texts[status] || status
+}
+
+// 从日期时间串中提取时间部分
+function getTimePart(dateTime: string): string {
+  return dateTime.split(' ')[1] || dateTime
+}
+
+interface DateMarker {
+  date: string
+  events: any[]
+  hasFlashSale?: boolean
+  hasGroupBuy?: boolean
+  hasLive?: boolean
+  hasCourse?: boolean
+}
+
+interface CalendarDay {
+  date: string
+  day: number
+  isCurrentMonth: boolean
+  marker?: DateMarker
+}
+
+interface CalendarEvent {
+  id: string
+  title: string
+  type: string
+  status: string
+  startTime: string
+  endTime: string
+  extra?: {
+    productCount?: number
+    hostName?: string
+  }
+}
+
+interface CalendarMonthData {
+  markers: DateMarker[]
+}
+
+// 响应式状态
+const currentDate = ref(new Date())
+const selectedDate = ref<string | null>(null)
+const calendarData = ref<CalendarMonthData | null>(null)
+const selectedEvents = ref<CalendarEvent[]>([])
+const loading = ref(true)
+const error = ref<string | null>(null)
+
+// 计算属性
+const year = computed(() => currentDate.value.getFullYear())
+const month = computed(() => currentDate.value.getMonth() + 1)
+
+const today = computed(() => new Date().toISOString().split('T')[0])
+
+// Mock 日历数据生成
+function generateMockMarkers(): DateMarker[] {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = now.getMonth() + 1
+  const markers: DateMarker[] = [
+    { date: `${y}-${String(m).padStart(2, '0')}-05`, events: [], hasFlashSale: true, hasLive: true },
+    { date: `${y}-${String(m).padStart(2, '0')}-10`, events: [], hasGroupBuy: true },
+    { date: `${y}-${String(m).padStart(2, '0')}-15`, events: [], hasFlashSale: true, hasGroupBuy: true, hasCourse: true },
+    { date: `${y}-${String(m).padStart(2, '0')}-20`, events: [], hasLive: true, hasCourse: true },
+    { date: `${y}-${String(m).padStart(2, '0')}-25`, events: [], hasFlashSale: true },
+  ]
+  return markers
+}
+
+// 加载月历数据
+async function loadCalendarData() {
+  loading.value = true
+  error.value = null
+  try {
+    // Mock API 调用
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    calendarData.value = {
+      markers: generateMockMarkers(),
+    }
+  } catch {
+    error.value = '网络错误'
+  } finally {
+    loading.value = false
+  }
+}
+
+// 切换月份
+function changeMonth(delta: number) {
+  const newDate = new Date(currentDate.value)
+  newDate.setMonth(newDate.getMonth() + delta)
+  currentDate.value = newDate
+  selectedDate.value = null
+  selectedEvents.value = []
+}
+
+// 选择日期
+function handleSelectDate(dateStr: string, marker?: DateMarker) {
+  selectedDate.value = dateStr
+  // Mock: 给选中日期生成示例事件
+  if (marker) {
+    const events: CalendarEvent[] = []
+    if (marker.hasFlashSale) {
+      events.push({
+        id: 'fs-' + dateStr,
+        title: '限时闪购活动',
+        type: 'flash_sale',
+        status: 'ongoing',
+        startTime: dateStr + ' 10:00',
+        endTime: dateStr + ' 22:00',
+        extra: { productCount: 12 },
+      })
+    }
+    if (marker.hasGroupBuy) {
+      events.push({
+        id: 'gb-' + dateStr,
+        title: '拼团优惠专场',
+        type: 'group_buy',
+        status: 'upcoming',
+        startTime: dateStr + ' 14:00',
+        endTime: dateStr + ' 20:00',
+        extra: { productCount: 8 },
+      })
+    }
+    if (marker.hasLive) {
+      events.push({
+        id: 'lv-' + dateStr,
+        title: '国学知识直播',
+        type: 'live',
+        status: 'upcoming',
+        startTime: dateStr + ' 19:00',
+        endTime: dateStr + ' 21:00',
+        extra: { hostName: '张老师' },
+      })
+    }
+    if (marker.hasCourse) {
+      events.push({
+        id: 'cs-' + dateStr,
+        title: '易经入门课程',
+        type: 'course',
+        status: 'ongoing',
+        startTime: dateStr + ' 09:00',
+        endTime: dateStr + ' 18:00',
+        extra: {},
+      })
+    }
+    selectedEvents.value = events
+  } else {
+    selectedEvents.value = []
+  }
+}
+
+// 生成日历格子
+const calendarDays = computed<CalendarDay[]>(() => {
+  const y = year.value
+  const m = month.value
+  const firstDay = new Date(y, m - 1, 1)
+  const lastDay = new Date(y, m, 0)
+  const daysInMonth = lastDay.getDate()
+  const startWeekday = firstDay.getDay()
+
+  const days: CalendarDay[] = []
+
+  // 上月末尾
+  const prevMonthLastDay = new Date(y, m - 1, 0).getDate()
+  for (let i = startWeekday - 1; i >= 0; i--) {
+    const day = prevMonthLastDay - i
+    const prevMonth = m === 1 ? 12 : m - 1
+    const prevYear = m === 1 ? y - 1 : y
+    days.push({
+      date: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      day,
+      isCurrentMonth: false,
+    })
+  }
+
+  // 当月
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const marker = calendarData.value?.markers.find((m) => m.date === dateStr)
+    days.push({ date: dateStr, day, isCurrentMonth: true, marker })
+  }
+
+  // 下月开头
+  const remainingDays = 42 - days.length
+  for (let day = 1; day <= remainingDays; day++) {
+    const nextMonth = m === 12 ? 1 : m + 1
+    const nextYear = m === 12 ? y + 1 : y
+    days.push({
+      date: `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      day,
+      isCurrentMonth: false,
+    })
+  }
+
+  return days
+})
+
+// 获取活动跳转链接
+function getEventLink(event: CalendarEvent): string {
+  switch (event.type) {
+    case 'flash_sale':
+    case 'group_buy':
+    case 'promotion':
+      return `/pages/activity/landing?id=${event.id}&type=${event.type}`
+    case 'live':
+      return `/pages/live/id-detail?id=${event.id}`
+    case 'course':
+      return `/pages/courses/id-detail?id=${event.id}`
+    default:
+      return '#'
+  }
+}
+
+onMounted(() => {
+  loadCalendarData()
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,476 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5]" style="padding-top: var(--status-bar-height);">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view @click="goBack" class="p-2 -ml-2 rounded-full">
+          <text class="text-[#2C2C2C] text-lg">←</text>
+        </view>
+        <text class="font-semibold text-base text-[#2C2C2C]">{{ agentData.name }}</text>
+        <view class="flex items-center gap-2">
+          <view @click="showMenu = !showMenu" class="p-2 rounded-full">
+            <text class="text-[#2C2C2C]">⋯</text>
+          </view>
+          <view v-if="showMenu" class="absolute right-4 top-full mt-1 w-40 bg-white rounded-xl shadow-lg border border-[#E8E0D5] overflow-hidden z-50">
+            <view @click="handleClearContext" class="flex items-center gap-2 w-full px-4 py-3 text-sm text-[#2C2C2C]">
+              <text>🔄</text>
+              <text>清除上下文</text>
+            </view>
+            <view @click="handleGenerateSummary" class="flex items-center gap-2 w-full px-4 py-3 text-sm text-[#2C2C2C]">
+              <text>📝</text>
+              <text>生成总结</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 消息列表 -->
+    <scroll-view class="flex-1 px-4 py-4" scroll-y :scroll-into-view="scrollToId" scroll-with-animation>
+      <view
+        v-for="msg in messages"
+        :key="msg.id"
+        :id="'msg-' + msg.id"
+        :class="['mb-4 flex', msg.role === 'user' ? 'justify-end' : 'justify-start']"
+      >
+        <view v-if="msg.role === 'assistant'" class="w-8 h-8 rounded-full bg-[#F5F1EB] flex items-center justify-center flex-shrink-0 mr-2 mt-1">
+          <text>🤖</text>
+        </view>
+        <view :class="['max-w-[80%] rounded-2xl px-4 py-3', msg.role === 'user' ? 'bg-[#C41E3A] text-white rounded-tr-md' : 'bg-[#F5F1EB] text-[#2C2C2C] rounded-tl-md']">
+          <text class="text-sm leading-relaxed">{{ msg.content }}</text>
+          <!-- 推荐卡片区域 -->
+          <view v-if="msg.recommendations && msg.recommendations.length" class="mt-3 space-y-2">
+            <text class="text-xs text-[#999] flex items-center gap-1">✨ 为您推荐</text>
+            <view v-for="(rec, idx) in msg.recommendations" :key="idx">
+              <!-- 课程推荐 -->
+              <view v-if="rec.type === 'course'" @click="goTo('/pages/course/' + rec.data.id + '/index')" class="flex gap-3 p-3 rounded-xl bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/10">
+                <view class="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
+                  <text class="text-[#C41E3A] text-xl">▶️</text>
+                </view>
+                <view class="flex-1 min-w-0">
+                  <text class="text-sm font-medium text-[#2C2C2C] line-clamp-1 block">{{ rec.data.title }}</text>
+                  <text class="text-xs text-[#999] mt-0.5 block">{{ rec.data.instructor }} · {{ rec.data.students }}人已学</text>
+                  <view class="flex items-center gap-2 mt-1.5">
+                    <text class="text-sm font-bold text-[#C41E3A]">¥{{ rec.data.price }}</text>
+                    <text class="text-xs text-[#999] line-through">¥{{ rec.data.originalPrice }}</text>
+                  </view>
+                </view>
+              </view>
+              <!-- 圈子推荐 -->
+              <view v-if="rec.type === 'circle'" @click="goTo('/pages/circles/' + rec.data.id + '/index')" class="flex gap-3 p-3 rounded-xl bg-gradient-to-r from-emerald-500/5 to-teal-500/5 border border-emerald-500/10">
+                <view class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center flex-shrink-0">
+                  <text class="text-emerald-600 text-xl">👥</text>
+                </view>
+                <view class="flex-1 min-w-0">
+                  <view class="flex items-center gap-2">
+                    <text class="text-sm font-medium text-[#2C2C2C] line-clamp-1 block">{{ rec.data.name }}</text>
+                    <view v-if="rec.data.price === 0" class="text-[10px] bg-green-500/10 text-green-600 px-1.5 py-0 rounded">
+                      <text>免费</text>
+                    </view>
+                  </view>
+                  <text class="text-xs text-[#999] mt-0.5 block">{{ rec.data.description }}</text>
+                  <view class="flex items-center gap-2 mt-1">
+                    <text class="text-xs text-[#999]">{{ rec.data.members }}成员</text>
+                    <text v-if="rec.data.price > 0" class="text-sm font-bold text-[#C41E3A]">¥{{ rec.data.price }}</text>
+                  </view>
+                </view>
+                <text class="text-[#999] self-center">→</text>
+              </view>
+              <!-- 商品推荐 -->
+              <view v-if="rec.type === 'product'" @click="goTo('/pages/mall/product/' + rec.data.id + '/index')" class="flex gap-3 p-3 rounded-xl bg-gradient-to-r from-amber-500/5 to-orange-500/5 border border-amber-500/10">
+                <view class="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center flex-shrink-0">
+                  <text class="text-amber-600 text-xl">🛍️</text>
+                </view>
+                <view class="flex-1 min-w-0">
+                  <text class="text-sm font-medium text-[#2C2C2C] line-clamp-1 block">{{ rec.data.name }}</text>
+                  <text class="text-xs text-[#999] mt-0.5 block">{{ rec.data.type }} · 已售{{ rec.data.sales }}</text>
+                  <view class="flex items-center gap-2 mt-1">
+                    <text class="text-sm font-bold text-[#C41E3A]">¥{{ rec.data.price }}</text>
+                    <text class="text-xs text-[#999] line-through">¥{{ rec.data.originalPrice }}</text>
+                  </view>
+                </view>
+              </view>
+              <!-- 排盘工具推荐 -->
+              <view v-if="rec.type === 'paipan'" @click="goTo('/pages/paipan/index')" class="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-500/20">
+                <view class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
+                  <text class="text-white text-lg">🧭</text>
+                </view>
+                <view class="flex-1">
+                  <text class="text-sm font-medium block">立即排盘</text>
+                  <text class="text-xs text-[#999] block">使用八字排盘工具生成命盘</text>
+                </view>
+                <text class="text-[#999]">→</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 输入中指示 -->
+      <view v-if="isTyping" class="flex justify-start mb-4">
+        <view class="w-8 h-8 rounded-full bg-[#F5F1EB] flex items-center justify-center flex-shrink-0 mr-2">
+          <text>🤖</text>
+        </view>
+        <view class="bg-[#F5F1EB] rounded-2xl rounded-tl-md px-4 py-3">
+          <text class="text-sm text-[#2C2C2C]">正在输入...</text>
+        </view>
+      </view>
+      <view id="scroll-end" />
+    </scroll-view>
+
+    <!-- 快捷提问标签 -->
+    <view v-if="messages.length <= 2" class="px-4 py-2">
+      <scroll-view scroll-x show-scrollbar="false">
+        <view class="flex gap-2">
+          <view
+            v-for="q in quickQuestions"
+            :key="q"
+            @click="handleQuickQuestion(q)"
+            class="px-3 py-1.5 rounded-full bg-[#F5F1EB] text-xs text-[#2C2C2C] whitespace-nowrap"
+          >
+            <text>{{ q }}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 输入区域 -->
+    <view class="border-t border-[#E8E0D5] px-4 py-3 bg-[#FAF8F5]" style="padding-bottom: env(safe-area-inset-bottom);">
+      <view class="flex items-end gap-2">
+        <view class="flex-1 relative">
+          <textarea
+            v-model="inputValue"
+            placeholder="输入您的问题..."
+            class="w-full max-h-24 px-4 py-2.5 bg-[#F5F1EB] rounded-xl text-sm text-[#2C2C2C] placeholder:text-[#999] resize-none"
+            :disabled="isInCall"
+          />
+        </view>
+        <view
+          @click="handleSend"
+          :class="['w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', inputValue.trim() && !isTyping ? 'bg-[#C41E3A]' : 'bg-[#F5F1EB]']"
+        >
+          <text :class="inputValue.trim() && !isTyping ? 'text-white' : 'text-[#999]'">↑</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 对话总结弹窗 -->
+    <view v-if="showSummary" class="fixed inset-0 z-50 flex items-center justify-center p-6">
+      <view @click="showSummary = false" class="absolute inset-0 bg-black/40" />
+      <view class="relative w-full max-w-sm bg-white rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
+        <text class="text-lg font-bold text-[#2C2C2C] block mb-4">对话总结</text>
+        <view class="p-4 rounded-xl bg-gradient-to-br from-primary/5 via-accent/5 to-primary/5 border border-primary/20">
+          <view class="flex items-center gap-2 mb-3">
+            <text class="text-[#C9A96E]">💡</text>
+            <text class="font-medium text-sm">本次对话共{{ messages.filter(m => m.role === 'user').length }}个问题</text>
+          </view>
+          <view class="flex flex-wrap gap-1.5">
+            <view class="text-xs bg-[#C41E3A]/10 text-[#C41E3A] px-2 py-0.5 rounded">运势分析</view>
+            <view class="text-xs bg-[#C41E3A]/10 text-[#C41E3A] px-2 py-0.5 rounded">事业规划</view>
+          </view>
+        </view>
+        <view @click="showSummary = false" class="w-full py-2.5 rounded-xl bg-[#C41E3A] text-white text-sm font-medium text-center mt-4">
+          <text>我知道了</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, watch, nextTick } from 'vue'
+import { onMounted } from 'vue'
+
+// 导航辅助
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+
+// Mock 数据
+const agentData = {
+  id: 1,
+  name: "八字命理大师",
+  avatar: "/placeholder.svg",
+  description: "精通八字命理，可为您解读命盘、分析运势",
+  tags: ["八字排盘", "运势分析", "婚姻事业"],
+  pricePerChat: 0.5,
+  freeQuota: 3,
+  callPrice: 2,
+  gradient: "from-violet-600 via-purple-500 to-indigo-600",
+}
+
+const quickQuestions = [
+  "帮我看看今年的运势如何？",
+  "我的八字五行缺什么？",
+  "分析一下我的事业运",
+  "看看我的婚姻宫情况",
+  "帮我解读一下命盘",
+]
+
+const recommendedCourses = [
+  { id: 1, title: "八字入门实战课", instructor: "周易大师", price: 199, originalPrice: 299, students: 2680, rating: 4.9 },
+  { id: 2, title: "八字看婚姻专题", instructor: "玄学居士", price: 99, originalPrice: 149, students: 1520, rating: 4.8 },
+  { id: 3, title: "流年运势精解", instructor: "周易大师", price: 149, originalPrice: 199, students: 1890, rating: 4.9 },
+]
+
+const recommendedCircles = [
+  { id: 1, name: "八字命理研习社", members: 3280, price: 99, description: "系统学习八字命理" },
+  { id: 2, name: "周易大师交流圈", members: 5620, price: 0, description: "与高手一起探讨" },
+]
+
+const recommendedProducts = [
+  { id: 1, name: "八字命理入门", type: "电子书", price: 29, originalPrice: 49, sales: 856 },
+  { id: 2, name: "开运水晶手链", type: "饰品", price: 168, originalPrice: 268, sales: 326 },
+]
+
+// 类型定义
+interface RecommendItem {
+  type: "course" | "circle" | "product" | "paipan"
+  data: any
+}
+
+interface Message {
+  id: number
+  role: "user" | "assistant"
+  content: string
+  timestamp: Date
+  isStreaming?: boolean
+  recommendations?: RecommendItem[]
+  isSummary?: boolean
+}
+
+// 组件状态
+const messages = ref<Message[]>([])
+const inputValue = ref("")
+const isTyping = ref(false)
+const freeRemaining = ref(agentData.freeQuota)
+const showMenu = ref(false)
+const showSummary = ref(false)
+const scrollToId = ref("")
+
+// 欢迎消息
+onMounted(() => {
+  const welcomeMessage: Message = {
+    id: 0,
+    role: "assistant",
+    content: `您好！我是${agentData.name}，精通八字命理学，拥有多年实战经验。
+
+我可以为您提供以下服务：
+- 八字命盘排盘与解读
+- 流年运势分析
+- 婚姻事业预测
+- 五行调理建议
+
+请告诉我您的出生年月日时（公历或农历均可），我来为您详细分析。`,
+    timestamp: new Date(),
+    recommendations: [{ type: "paipan", data: null }],
+  }
+  messages.value = [welcomeMessage]
+})
+
+// 滚动到底部
+watch(messages, () => {
+  nextTick(() => {
+    scrollToId.value = "scroll-end"
+  })
+}, { deep: true })
+
+// 格式化时长
+const formatDuration = (seconds: number) => {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+}
+
+// 模拟流式输出
+const simulateStreaming = (fullText: string, messageId: number, recommendations?: RecommendItem[]) => {
+  let currentIndex = 0
+  const interval = setInterval(() => {
+    if (currentIndex < fullText.length) {
+      const charsToAdd = Math.min(3, fullText.length - currentIndex)
+      currentIndex += charsToAdd
+      messages.value = messages.value.map(msg =>
+        msg.id === messageId
+          ? { ...msg, content: fullText.slice(0, currentIndex), isStreaming: currentIndex < fullText.length }
+          : msg
+      )
+    } else {
+      clearInterval(interval)
+      messages.value = messages.value.map(msg =>
+        msg.id === messageId ? { ...msg, isStreaming: false, recommendations } : msg
+      )
+      isTyping.value = false
+    }
+  }, 25)
+}
+
+// 发送消息
+const handleSend = () => {
+  if (!inputValue.value.trim() || isTyping.value) return
+
+  const userMessage: Message = {
+    id: messages.value.length,
+    role: "user",
+    content: inputValue.value.trim(),
+    timestamp: new Date(),
+  }
+
+  messages.value = [...messages.value, userMessage]
+  const q = inputValue.value.trim()
+  inputValue.value = ""
+  isTyping.value = true
+
+  if (freeRemaining.value > 0) {
+    freeRemaining.value--
+  }
+
+  setTimeout(() => {
+    const { text, recommendations } = generateResponse(q)
+    const assistantMessage: Message = {
+      id: messages.value.length + 1,
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+      isStreaming: true,
+    }
+    messages.value = [...messages.value, assistantMessage]
+    simulateStreaming(text, messages.value.length + 1, recommendations)
+  }, 600)
+}
+
+// 生成回复
+const generateResponse = (question: string): { text: string; recommendations?: RecommendItem[] } => {
+  if (question.includes("运势") || question.includes("今年")) {
+    return {
+      text: `根据您提供的信息，让我来分析一下您的运势：
+
+【2024年整体运势】
+今年流年甲辰，天干甲木生助，地支辰土为财库，整体运势呈上升趋势。
+
+【事业运】
+上半年贵人运旺，适合拓展人脉、寻求合作机会。下半年需稳中求进，不宜冒进。
+
+【财运】
+正财稳定，偏财有小进。建议以稳健投资为主，避免高风险操作。
+
+如果您想更深入地了解流年运势的变化规律，我推荐您学习以下课程：`,
+      recommendations: [
+        { type: "course", data: recommendedCourses[2] },
+        { type: "circle", data: recommendedCircles[0] },
+      ]
+    }
+  } else if (question.includes("五行") || question.includes("缺")) {
+    return {
+      text: `关于五行分析，我需要您提供准确的出生信息：
+
+【所需信息】
+1. 出生年份（公历）
+2. 出生月份
+3. 出生日期
+4. 出生时辰（如知道的话）
+
+有了这些信息，我可以为您排出完整八字命盘，分析五行旺衰，判断喜用神。
+
+您可以使用排盘工具快速生成命盘：`,
+      recommendations: [
+        { type: "paipan", data: null },
+        { type: "course", data: recommendedCourses[0] },
+      ]
+    }
+  } else if (question.includes("事业")) {
+    return {
+      text: `关于事业运的分析：
+
+【事业宫位】
+八字中以月柱为事业宫，结合日主强弱、官杀星的配置来综合判断。
+
+【一般建议】
+1. 身强者适合独立创业或担任领导职位
+2. 身弱者适合稳定工作或与人合作
+3. 食伤生财格局利于技术、创意类工作
+4. 官杀旺者适合体制内或管理岗位
+
+如需针对性分析，请提供您的八字信息。同时，如果您对事业规划有更多疑问，也欢迎加入我们的交流圈：`,
+      recommendations: [
+        { type: "circle", data: recommendedCircles[1] },
+      ]
+    }
+  } else if (question.includes("婚姻") || question.includes("感情")) {
+    return {
+      text: `关于婚姻宫的分析：
+
+【婚姻宫位】
+八字中以日支为婚姻宫，代表配偶和婚姻状态。
+
+【影响因素】
+1. 日支所坐十神（正财、正官等）
+2. 日支与其他地支的刑冲合害
+3. 大运流年对婚姻宫的影响
+
+请提供您的出生信息，我可以为您详细分析婚姻运势：`,
+      recommendations: [
+        { type: "course", data: recommendedCourses[1] },
+        { type: "paipan", data: null },
+      ]
+    }
+  } else if (question.includes("化解") || question.includes("调理")) {
+    return {
+      text: `关于命理调理和化解：
+
+【调理原则】
+1. 五行补缺：通过颜色、方位、饰品等补充所缺五行
+2. 流年趋避：了解不利时段，提前规避风险
+3. 风水调整：居家办公环境的布局优化
+4. 心态调整：顺应天时，积极面对
+
+具体的调理方案需要根据您的八字来定制。另外，一些开运饰品也可以起到辅助作用：`,
+      recommendations: [
+        { type: "product", data: recommendedProducts[1] },
+        { type: "course", data: recommendedCourses[2] },
+      ]
+    }
+  }
+
+  return {
+    text: `感谢您的提问！
+
+为了给您更准确的命理分析，我需要了解以下信息：
+
+1. **出生日期**：公历年月日
+2. **出生时辰**：如早上7点、下午3点等
+3. **出生地点**：用于校正真太阳时
+
+有了这些信息，我可以为您排出精准的八字命盘。您也可以先使用排盘工具：`,
+    recommendations: [
+      { type: "paipan", data: null },
+      { type: "course", data: recommendedCourses[0] },
+    ]
+  }
+}
+
+// 快捷提问
+const handleQuickQuestion = (question: string) => {
+  inputValue.value = question
+}
+
+// 清除上下文
+const handleClearContext = () => {
+  messages.value = [{
+    id: 0,
+    role: "assistant",
+    content: `对话已重置。您好！我是${agentData.name}，有什么可以帮您的？`,
+    timestamp: new Date(),
+  }]
+  showMenu.value = false
+  showSummary.value = false
+}
+
+// 生成总结
+const handleGenerateSummary = () => {
+  showSummary.value = true
+  showMenu.value = false
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

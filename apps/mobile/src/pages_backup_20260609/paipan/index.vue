@@ -1,0 +1,14 @@
+<template>
+  <view class="page">
+    <view class="nav"><text class="nav-back" @click="goBack">←</text><text class="nav-title">排盘工具</text><view style="width:48rpx"/></view>
+    <scroll-view scroll-y class="content">
+      <view class="recent" v-if="recent.length>0"><text class="sec-title">最近使用</text><scroll-view scroll-x class="recent-scroll"><view v-for="r in recent" :key="r.key" class="rs-item" @click="go(r.key)"><text class="rsi-icon">{{r.icon}}</text><text class="rsi-name">{{r.name}}</text></view></scroll-view></view>
+      <text class="sec-title">全部工具</text>
+      <view class="grid"><view v-for="t in tools" :key="t.key" class="g-item" @click="go(t.key)"><text class="gi-icon">{{t.icon}}</text><text class="gi-name">{{t.name}}</text><text class="gi-desc">{{t.desc}}</text></view></view>
+      <view style="height:48rpx"/>
+    </scroll-view>
+  </view>
+</template>
+<script setup lang="ts">import {ref} from 'vue';import {onPullDownRefresh} from '@dcloudio/uni-app';const recent=ref([{key:'bazi',name:'八字排盘',icon:'🏮'},{key:'ziwei',name:'紫微斗数',icon:'⭐'}]);const tools=ref([{key:'bazi',name:'八字排盘',desc:'四柱八字命盘分析',icon:'🏮'},{key:'ziwei',name:'紫微斗数',desc:'十二宫命盘解读',icon:'⭐'},{key:'qimen',name:'奇门遁甲',desc:'时空格局推演',icon:'🧭'},{key:'fengshui',name:'风水罗盘',desc:'宅居风水分析',icon:'🧭'},{key:'liuren',name:'大六壬',desc:'天时人事预测',icon:'🔮'},{key:'meihua',name:'梅花易数',desc:'万物类象占卜',icon:'🌸'},{key:'qiming',name:'起名工具',desc:'八字五行起名',icon:'📛'},{key:'zeri',name:'择日工具',desc:'黄道吉日查询',icon:'📅'},{key:'wannianli',name:'万年历',desc:'农历黄历查询',icon:'🗓️'}]);function go(key:string){uni.navigateTo({url:'/pages/paipan/'+key+'/index'})};function goBack(){uni.navigateBack()};onPullDownRefresh(()=>setTimeout(()=>uni.stopPullDownRefresh(),500))</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nav-back{font-size:36rpx;color:#2C2C2C}.nav-title{font-size:32rpx;font-weight:600}.content{padding:24rpx}.sec-title{font-size:26rpx;font-weight:600;color:#2C2C2C;margin-bottom:16rpx;display:block}.recent{margin-bottom:32rpx}.recent-scroll{white-space:nowrap}.rs-item{display:inline-block;text-align:center;margin-right:16rpx;padding:16rpx 24rpx;background:#fff;border-radius:16rpx;box-shadow:0 2rpx 8rpx rgba(0,0,0,.03)}.rsi-icon{font-size:44rpx;display:block;margin-bottom:8rpx}.rsi-name{font-size:22rpx;color:#2C2C2C}.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16rpx}.g-item{background:#fff;border-radius:20rpx;padding:28rpx 16rpx;text-align:center;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}.gi-icon{font-size:48rpx;display:block;margin-bottom:12rpx}.gi-name{font-size:24rpx;font-weight:500;color:#2C2C2C;display:block}.gi-desc{font-size:20rpx;color:#999;margin-top:4rpx}
+</style>

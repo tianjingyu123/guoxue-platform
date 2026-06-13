@@ -1,0 +1,197 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] flex flex-col overflow-hidden">
+    <!-- 顶部装饰背景 -->
+    <view class="absolute inset-x-0 top-0 h-64 overflow-hidden pointer-events-none">
+      <view class="absolute inset-0" style="background:linear-gradient(180deg,rgba(196,30,58,0.08),rgba(201,169,110,0.05),transparent)" />
+      <!-- 飘散的八卦符号装饰 -->
+      <text
+        v-for="(sym, i) in baguaSymbols" :key="i"
+        class="absolute text-[#C41E3A]/10 font-serif select-none"
+        :style="{ fontSize: (20 + i * 8) + 'px', left: (10 + i * 20) + '%', top: (10 + (i % 2) * 20) + 'px', transform: 'rotate(' + (i * 15) + 'deg)' }"
+      >{{ sym }}</text>
+    </view>
+
+    <!-- 头部 -->
+    <view class="relative z-10 pt-14 px-6 pb-4">
+      <!-- 步骤指示器 -->
+      <view class="flex justify-end mb-6">
+        <view class="flex items-center gap-2">
+          <view v-for="i in 2" :key="i" :class="['rounded-full transition-all duration-300', i === 1 ? 'w-5 h-2 bg-[#C41E3A]' : 'w-2 h-2 bg-[#E8E0D5]']" />
+          <text class="text-[12px] text-[#999] ml-1">1/2</text>
+        </view>
+      </view>
+
+      <!-- AI推荐角标 -->
+      <view class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#C41E3A]/10 mb-3">
+        <text class="text-xs text-[#C41E3A]">✨</text>
+        <text class="text-[12px] font-medium text-[#C41E3A]">AI 个性化推荐</text>
+      </view>
+
+      <text class="font-serif text-[26px] font-bold text-[#2C2C2C] block mb-2" style="line-height:1.3">
+        选择你感兴趣的
+        <text class="text-[#C41E3A]">领域</text>
+      </text>
+      <text class="text-[13px] text-[#999]">
+        已选 <text class="text-[#C41E3A] font-bold">{{ selected.size }}</text>/{{ MAX_SELECT }} 个
+        <text v-if="remaining > 0" class="ml-1 text-[#C9A96E]">· 还需选择 {{ remaining }} 个</text>
+      </text>
+    </view>
+
+    <!-- 标签网格 -->
+    <view class="flex-1 overflow-y-auto px-5 pb-4">
+      <!-- 骨架屏 -->
+      <view v-if="loading" class="flex flex-wrap gap-2.5">
+        <view v-for="i in 16" :key="i" class="h-9 rounded-full bg-[#F2EFEA] animate-pulse" :style="{ width: (60 + (i % 4) * 16) + 'px' }" />
+      </view>
+      <!-- 标签列表 -->
+      <view v-else class="flex flex-wrap gap-2.5">
+        <view
+          v-for="tag in tags" :key="tag.id"
+          :class="['relative flex items-center gap-1.5 px-3 py-2 rounded-full border transition-all duration-200', selected.has(tag.id) ? 'bg-[#C41E3A] border-[#C41E3A] shadow-[0_2px_12px_rgba(196,30,58,0.3)]' : selected.size >= MAX_SELECT ? 'bg-white/50 border-[#E8E0D5] opacity-50' : 'bg-white border-[#E8E0D5]']"
+          @click="toggleTag(tag.id)"
+        >
+          <text class="text-base leading-none">{{ tag.icon }}</text>
+          <text :class="['text-[13px] font-medium leading-none', selected.has(tag.id) ? 'text-white' : 'text-[#2C2C2C]']">{{ tag.name }}</text>
+          <view v-if="selected.has(tag.id)" class="flex items-center justify-center w-4 h-4 rounded-full bg-white/25">
+            <text class="text-white text-xs font-bold" style="font-size:8px">✓</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 最多选提示 -->
+      <text v-if="selected.size >= MAX_SELECT" class="mt-4 text-center text-[12px] text-[#C9A96E] block">
+        已达最多选择数量（{{ MAX_SELECT }}个），可取消已选标签来更换
+      </text>
+    </view>
+
+    <!-- 底部操作区 -->
+    <view class="px-5 pb-10 pt-3" style="background:linear-gradient(180deg,transparent,#FAF8F5)">
+      <!-- 已选标签预览 -->
+      <view v-if="selected.size > 0" class="flex flex-wrap gap-1.5 mb-4 min-h-[28px]">
+        <view v-for="id in selectedArray" :key="id" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#C41E3A]/10">
+          <text class="text-[11px] text-[#C41E3A] font-medium">{{ getTagName(id) }}</text>
+        </view>
+      </view>
+
+      <!-- 开始探索按钮 -->
+      <view
+        :class="['w-full rounded-full flex items-center justify-center gap-2 text-[16px] font-bold transition-all duration-200 active:scale-[0.98]', selected.size >= MIN_SELECT ? 'text-white' : 'bg-[#E8E0D5] text-[#B0AAA0]', shakeBtn ? 'animate-shake' : '']"
+        :style="{ height: '52px', background: selected.size >= MIN_SELECT ? 'linear-gradient(90deg,#C41E3A,#E8314E)' : '', boxShadow: selected.size >= MIN_SELECT ? '0 4px 20px rgba(196,30,58,0.35)' : 'none' }"
+        @click="handleSubmit"
+      >
+        <view v-if="submitting" class="w-5 h-5 rounded-full border-2 border-white/40" style="border-top-color:white;animation:spin 0.6s linear infinite" />
+        <template v-else>
+          <text>开始探索</text>
+          <text class="text-xl leading-none">›</text>
+        </template>
+      </view>
+
+      <text v-if="selected.size < MIN_SELECT" class="text-center text-[12px] text-[#BBB] block mt-2.5">
+        至少选择 {{ MIN_SELECT }} 个领域才能继续
+      </text>
+    </view>
+
+    <!-- 抖动动画 -->
+    <view v-if="shakeBtn" class="fixed inset-0 pointer-events-none" />
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface InterestTag {
+  id: string; name: string; category: string; icon: string
+}
+
+const FALLBACK_TAGS: InterestTag[] = [
+  { id: '1', name: '八字命理', category: '命理', icon: '🔮' },
+  { id: '2', name: '紫微斗数', category: '命理', icon: '⭐' },
+  { id: '3', name: '六爻占卜', category: '命理', icon: '☯' },
+  { id: '4', name: '风水堪舆', category: '风水', icon: '🏠' },
+  { id: '5', name: '奇门遁甲', category: '命理', icon: '🧭' },
+  { id: '6', name: '周易易经', category: '经典', icon: '📖' },
+  { id: '7', name: '诗词歌赋', category: '诗词', icon: '🖋' },
+  { id: '8', name: '唐诗宋词', category: '诗词', icon: '📜' },
+  { id: '9', name: '中医养生', category: '养生', icon: '🌿' },
+  { id: '10', name: '太极武术', category: '武术', icon: '🥋' },
+  { id: '11', name: '茶道文化', category: '茶道', icon: '🍵' },
+  { id: '12', name: '书法艺术', category: '书法', icon: '✍️' },
+  { id: '13', name: '国画丹青', category: '国画', icon: '🎨' },
+  { id: '14', name: '古典音乐', category: '音乐', icon: '🎵' },
+  { id: '15', name: '中华历史', category: '历史', icon: '🏛' },
+  { id: '16', name: '道家文化', category: '经典', icon: '☯' },
+  { id: '17', name: '儒家经典', category: '经典', icon: '📚' },
+  { id: '18', name: '佛学禅意', category: '经典', icon: '🪷' },
+  { id: '19', name: '节气民俗', category: '民俗', icon: '🎑' },
+  { id: '20', name: '琴棋书画', category: '艺术', icon: '♟' },
+  { id: '21', name: '花鸟虫鱼', category: '自然', icon: '🌸' },
+  { id: '22', name: '篆刻印章', category: '书法', icon: '🔖' },
+  { id: '23', name: '器物收藏', category: '收藏', icon: '🏺' },
+  { id: '24', name: '占星星座', category: '命理', icon: '🌙' },
+]
+
+const baguaSymbols = ['☯', '☷', '☵', '☳', '☴']
+
+const MIN_SELECT = 3
+const MAX_SELECT = 8
+
+const tags = ref<InterestTag[]>([])
+const selected = ref<Set<string>>(new Set())
+const loading = ref(true)
+const submitting = ref(false)
+const shakeBtn = ref(false)
+
+const remaining = computed(() => MIN_SELECT - selected.value.size)
+
+const selectedArray = computed(() => Array.from(selected.value))
+
+function getTagName(id: string): string {
+  const tag = tags.value.find(t => t.id === id)
+  return tag ? (tag.icon + ' ' + tag.name) : id
+}
+
+function toggleTag(id: string) {
+  const next = new Set(selected.value)
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    if (next.size >= MAX_SELECT) return
+    next.add(id)
+  }
+  selected.value = next
+}
+
+function handleSubmit() {
+  if (selected.value.size < MIN_SELECT) {
+    shakeBtn.value = true
+    setTimeout(() => { shakeBtn.value = false }, 600)
+    return
+  }
+  submitting.value = true
+  setTimeout(() => {
+    submitting.value = false
+    uni.reLaunch({ url: '/pages/index/index' })
+  }, 1000)
+}
+
+onMounted(() => {
+  setTimeout(() => {
+    tags.value = FALLBACK_TAGS
+    loading.value = false
+  }, 500)
+})
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+</style>

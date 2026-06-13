@@ -1,0 +1,252 @@
+<template>
+  <!-- 骨架屏 -->
+  <view v-if="loading" class="min-h-screen bg-[#FAF8F5]">
+    <view class="h-14 bg-white border-b border-[#E8E0D5] animate-pulse" />
+    <view class="h-40 bg-white border-b border-[#E8E0D5] animate-pulse mt-2" />
+    <view class="mt-2">
+      <view v-for="i in 8" :key="i" class="h-14 bg-white animate-pulse" style="margin-bottom: 1px;" />
+    </view>
+  </view>
+
+  <!-- 主内容 -->
+  <view v-else class="min-h-screen bg-[#FAF8F5]">
+    <!-- 导航栏 -->
+    <view class="sticky top-0 z-30 bg-white flex items-center h-14 px-4 gap-3" style="border-bottom: 1px solid #E8E0D5;">
+      <view @click="goBack">
+        <text class="text-lg text-[#2C2C2C]">←</text>
+      </view>
+      <text class="flex-1 text-base font-bold text-[#2C2C2C]">商品对比</text>
+      <view
+        @click="onlyDiff = !onlyDiff"
+        :class="['text-xs px-3 py-1.5 rounded-full border transition-colors', onlyDiff ? 'bg-[#C41E3A] text-white border-[#C41E3A]' : 'border-[#E8E0D5] text-[#666666]']"
+      >
+        <text>只看差异</text>
+      </view>
+    </view>
+
+    <!-- 商品选择区 -->
+    <view class="bg-white px-4 py-4" style="border-bottom: 1px solid #E8E0D5;">
+      <view class="flex gap-3 overflow-x-auto pb-1">
+        <view v-for="(p, idx) in products" :key="productIds[idx]" class="relative shrink-0 w-28">
+          <view
+            class="w-28 h-28 rounded-2xl bg-[#FAF8F5] overflow-hidden cursor-pointer flex items-center justify-center" style="border: 1px solid #E8E0D5;"
+            @click="goTo('/pages/shop/id-detail/index?id=' + productIds[idx])"
+          >
+            <text class="text-[10px] text-[#999999]">封面</text>
+          </view>
+          <text v-if="p" class="text-xs text-[#2C2C2C] mt-1.5 truncate font-medium block leading-tight">{{ p.name }}</text>
+          <text class="text-sm font-bold text-[#C41E3A] mt-0.5 block">¥{{ p?.price || '—' }}</text>
+          <view
+            @click="handleRemove(idx)"
+            class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#2C2C2C] flex items-center justify-center"
+          >
+            <text class="text-white text-xs">✕</text>
+          </view>
+        </view>
+        <view v-if="productIds.length < 4" @click="showPicker = true" class="flex flex-col items-center justify-center w-28 h-28 shrink-0" style="border: 2px dashed #E8E0D5; border-radius: 16px;">
+          <text class="text-lg text-[#C9A96E] mb-1">+</text>
+          <text class="text-xs text-[#999999]">添加商品</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 对比表格 -->
+    <view class="mt-2">
+      <view v-for="group in paramGroups" :key="group.group" class="mb-2">
+        <view v-if="group.data.length > 0">
+          <!-- 分组标题 -->
+          <view
+            @click="toggleGroup(group.group)"
+            class="w-full flex items-center justify-between px-4 py-3 bg-[#FAF8F5]"
+          >
+            <text class="text-sm font-bold text-[#2C2C2C]">{{ group.group }}</text>
+            <text class="text-sm text-[#999999]">{{ collapsedGroups.has(group.group) ? '展开' : '收起' }}</text>
+          </view>
+
+          <view v-if="!collapsedGroups.has(group.group)">
+            <view
+              v-for="(row, ri) in filteredRows(group)"
+              :key="row.key"
+              :class="['flex', row.diff ? 'bg-[#FFF5F5]' : ri % 2 === 0 ? 'bg-white' : 'bg-white']"
+              style="border-bottom: 1px solid #E8E0D5;"
+            >
+              <!-- 参数名 -->
+              <view class="w-24 shrink-0 px-3 py-3 flex items-center">
+                <text class="text-xs text-[#999999] leading-snug">{{ row.label }}</text>
+                <text v-if="row.diff" class="ml-1 w-1.5 h-1.5 rounded-full bg-[#C41E3A] shrink-0" />
+              </view>
+              <!-- 各商品值 -->
+              <view class="flex-1 flex" style="border-left: 1px solid #E8E0D5;">
+                <view
+                  v-for="(val, idx) in row.values"
+                  :key="idx"
+                  :class="['flex-1 px-2 py-3 flex items-center justify-center text-center', row.diff && row.key === 'price' && isBestPrice(val) ? 'text-[#C41E3A] font-bold' : row.diff ? 'text-[#2C2C2C] font-semibold' : 'text-[#666666]']"
+                  style="border-right: 1px solid #E8E0D5;"
+                >
+                  <text class="text-xs leading-snug">{{ val || '—' }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部操作区 -->
+    <view class="sticky bottom-0 bg-white px-4 py-3" style="border-top: 1px solid #E8E0D5;">
+      <view class="flex gap-3">
+        <view
+          v-for="(id, idx) in productIds"
+          :key="id"
+          v-if="products[idx]"
+          @click="goTo('/pages/shop/id-detail/index?id=' + id)"
+          class="flex-1 flex items-center justify-center gap-1 h-10 rounded-full bg-[#C41E3A] text-white text-xs font-bold"
+        >
+          <text class="text-sm">🔗</text>
+          <text>查看</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 商品选择弹窗 -->
+    <view v-if="showPicker" class="fixed inset-0 z-50 flex items-end">
+      <view class="absolute inset-0 bg-black/40" @click="showPicker = false" />
+      <view class="relative w-full bg-white rounded-t-3xl px-4 pt-4 pb-8 max-h-[60vh] overflow-y-auto">
+        <view class="flex items-center justify-between mb-4">
+          <text class="text-base font-bold text-[#2C2C2C]">选择对比商品</text>
+          <view @click="showPicker = false"><text class="text-lg text-[#666666]">✕</text></view>
+        </view>
+        <view class="space-y-3">
+          <view
+            v-for="p in mockPicks"
+            :key="p.id"
+            v-if="!productIds.includes(p.id)"
+            @click="handleAdd(p.id); showPicker = false"
+            class="w-full flex items-center gap-3 p-3 rounded-xl" style="border: 1px solid #E8E0D5;"
+          >
+            <view class="w-14 h-14 rounded-xl bg-[#FAF8F5] flex items-center justify-center shrink-0">
+              <text class="text-xs text-[#999999]">封面</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="text-sm font-medium text-[#2C2C2C] truncate block">{{ p.name }}</text>
+              <text class="text-sm text-[#C41E3A] font-bold mt-0.5 block">¥{{ p.price }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface Spec { name: string; value: string }
+interface ProductDetail {
+  id: string; name: string; cover: string; price: number; originalPrice: number
+  sales: number; rating: number; category: string; tags: string[]; images: string[]
+  description: string; reviews: number; stock: number; shipping: string; specs: Spec[]; skus: any[]
+}
+interface RowData {
+  key: string; label: string; getValue: (p: ProductDetail) => string
+  values: (string | undefined)[]; diff: boolean
+}
+interface ParamGroup { group: string; data: RowData[] }
+
+const MOCK_PRODUCTS: Record<string, ProductDetail> = {
+  p1: { id: 'p1', name: '八字命理精研课', cover: '', price: 299, originalPrice: 499, sales: 2341, rating: 4.8, category: '命理', tags: ['热门', '精品'], images: [], description: '', reviews: 456, stock: 99, shipping: '虚拟商品', specs: [{ name: '课时', value: '48节' }, { name: '有效期', value: '永久' }, { name: '讲师', value: '王命理' }, { name: '学员数', value: '2341人' }, { name: '证书', value: '含结课证书' }, { name: '答疑', value: '7天内' }, { name: '格式', value: '视频' }, { name: '难度', value: '中级' }], skus: [] },
+  p2: { id: 'p2', name: '紫微斗数入门', cover: '', price: 199, originalPrice: 299, sales: 1823, rating: 4.6, category: '命理', tags: ['入门'], images: [], description: '', reviews: 312, stock: 99, shipping: '虚拟商品', specs: [{ name: '课时', value: '32节' }, { name: '有效期', value: '365天' }, { name: '讲师', value: '李斗数' }, { name: '学员数', value: '1823人' }, { name: '证书', value: '不含证书' }, { name: '答疑', value: '3天内' }, { name: '格式', value: '视频+图文' }, { name: '难度', value: '入门' }], skus: [] },
+  p3: { id: 'p3', name: '六爻预测实战课', cover: '', price: 399, originalPrice: 599, sales: 987, rating: 4.9, category: '命理', tags: ['实战'], images: [], description: '', reviews: 198, stock: 99, shipping: '虚拟商品', specs: [{ name: '课时', value: '60节' }, { name: '有效期', value: '永久' }, { name: '讲师', value: '张六爻' }, { name: '学员数', value: '987人' }, { name: '证书', value: '含结课证书' }, { name: '答疑', value: '24小时内' }, { name: '格式', value: '视频' }, { name: '难度', value: '高级' }], skus: [] },
+  p4: { id: 'p4', name: '奇门遁甲核心', cover: '', price: 499, originalPrice: 799, sales: 654, rating: 4.7, category: '命理', tags: ['进阶'], images: [], description: '', reviews: 134, stock: 99, shipping: '虚拟商品', specs: [{ name: '课时', value: '72节' }, { name: '有效期', value: '永久' }, { name: '讲师', value: '刘奇门' }, { name: '学员数', value: '654人' }, { name: '证书', value: '含结课证书' }, { name: '答疑', value: '7天内' }, { name: '格式', value: '视频' }, { name: '难度', value: '高级' }], skus: [] },
+}
+
+const mockPicks = [
+  { id: 'p1', name: '八字命理精研课', price: 299, cover: '' },
+  { id: 'p2', name: '紫微斗数入门', price: 199, cover: '' },
+  { id: 'p3', name: '六爻预测实战课', price: 399, cover: '' },
+  { id: 'p4', name: '奇门遁甲核心', price: 499, cover: '' },
+  { id: 'p5', name: '风水堪舆基础', price: 159, cover: '' },
+]
+
+const loading = ref(true)
+const productIds = ref<string[]>(['p1', 'p2'])
+const products = ref<(ProductDetail | null)[]>([])
+const showPicker = ref(false)
+const collapsedGroups = ref<Set<string>>(new Set())
+const onlyDiff = ref(false)
+
+const paramGroups = computed<ParamGroup[]>(() => {
+  if (products.value.length === 0) return []
+  return [
+    {
+      group: '价格信息',
+      data: [
+        { key: 'price', label: '当前价格', getValue: (p: ProductDetail) => '¥' + p.price },
+        { key: 'originalPrice', label: '原价', getValue: (p: ProductDetail) => '¥' + p.originalPrice },
+        { key: 'sales', label: '销量', getValue: (p: ProductDetail) => p.sales + '人' },
+        { key: 'rating', label: '评分', getValue: (p: ProductDetail) => p.rating + '分' },
+      ].map(k => {
+        const values = products.value.map(prod => prod ? k.getValue(prod) : undefined)
+        return { ...k, values, diff: isDifferent(values) }
+      }),
+    },
+    {
+      group: '课程规格',
+      data: (products.value[0]?.specs || []).map(s => {
+        const key = { key: s.name, label: s.name, getValue: (p: ProductDetail) => p.specs.find(sp => sp.name === s.name)?.value || '—' }
+        const values = products.value.map(prod => prod ? key.getValue(prod) : undefined)
+        return { ...key, values, diff: isDifferent(values) }
+      }),
+    },
+  ]
+})
+
+onMounted(() => {
+  setTimeout(() => {
+    products.value = productIds.value.map(id => MOCK_PRODUCTS[id] ?? null)
+    loading.value = false
+  }, 500)
+})
+
+function isDifferent(values: (string | undefined)[]): boolean {
+  const nonEmpty = values.filter(Boolean)
+  if (nonEmpty.length < 2) return false
+  return new Set(nonEmpty).size > 1
+}
+
+function handleRemove(idx: number) {
+  const newIds = productIds.value.filter((_, i) => i !== idx)
+  productIds.value = newIds
+  products.value = newIds.map(id => MOCK_PRODUCTS[id] ?? null)
+}
+
+function handleAdd(newId: string) {
+  if (productIds.value.length >= 4) return
+  productIds.value = [...productIds.value, newId]
+  products.value = productIds.value.map(id => MOCK_PRODUCTS[id] ?? null)
+}
+
+function toggleGroup(group: string) {
+  const next = new Set(collapsedGroups.value)
+  next.has(group) ? next.delete(group) : next.add(group)
+  collapsedGroups.value = next
+}
+
+function filteredRows(group: ParamGroup) {
+  const rows = group.data
+  return onlyDiff.value ? rows.filter(r => r.diff) : rows
+}
+
+function isBestPrice(val: string | undefined): boolean {
+  if (!val) return false
+  const prices = products.value.filter(Boolean).map(p => '¥' + p!.price)
+  return val === prices.sort()[0]
+}
+
+function goTo(url: string) { uni.navigateTo({ url }) }
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

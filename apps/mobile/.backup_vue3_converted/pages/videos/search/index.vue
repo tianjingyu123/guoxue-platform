@@ -1,0 +1,103 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <view class="sticky top-0 z-10 bg-white border-b border-border">
+      <view class="flex items-center px-4 h-12 gap-2">
+        <view @click="goBack" class="p-1"><text class="text-xl text-foreground">←</text></view>
+        <view class="flex-1 flex items-center gap-2 bg-[#F5F5F5] rounded-xl px-3 h-9">
+          <text class="text-sm text-muted-foreground flex-shrink-0"></text>
+          <input v-model="query" placeholder="搜索视频" class="flex-1 bg-transparent text-sm text-foreground placeholder-[#999] outline-none" @confirm="doSearch(query)" @input="searched = false" :focus="inputFocused" @blur="inputFocused = false" />
+          <text v-if="query" @click="query = ''; searched = false" class="text-sm text-muted-foreground">✕</text>
+        </view>
+        <view @click="doSearch(query)" class="text-primary text-sm font-medium">搜索</view>
+      </view>
+    </view>
+
+    <view class="px-4 pt-4 pb-20">
+      <view v-if="!searched">
+        <view v-if="history.length > 0" class="mb-6">
+          <view class="flex items-center justify-between mb-3">
+            <text class="text-sm font-semibold text-foreground">搜索历史</text>
+            <view @click="clearHistory" class="text-xs text-muted-foreground flex items-center gap-0.5">&#10005; 清空</view>
+          </view>
+          <view class="flex gap-2 flex-wrap">
+            <text v-for="h in history" :key="h" @click="doSearch(h)" class="text-sm px-3 py-1.5 rounded-full bg-[#F5F5F5] text-foreground">{{ h }}</text>
+          </view>
+        </view>
+        <view>
+          <view class="flex items-center gap-1.5 mb-3">
+            <text class="text-primary text-sm"></text>
+            <text class="text-sm font-semibold text-foreground">热门搜索</text>
+          </view>
+          <view class="flex gap-2 flex-wrap">
+            <text v-for="(kw, i) in hotKeywords" :key="kw" @click="doSearch(kw)" :class="['text-sm px-3 py-1.5 rounded-full', i < 3 ? 'bg-primary/10 text-primary font-medium' : 'bg-[#F5F5F5] text-foreground']">
+              <text v-if="i < 3" class="font-bold mr-1">{{ i + 1 }}</text>{{ kw }}
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <view v-else>
+        <text class="text-xs text-muted-foreground block mb-4">找到 {{ filtered.length }} 个相关视频</text>
+        <view v-if="filtered.length === 0" class="text-center py-16 text-muted-foreground text-sm">未找到相关视频</view>
+        <view v-else class="space-y-4">
+          <view v-for="video in filtered" :key="video.id" @click="goTo('/pages/videos/id-detail/index?id=' + video.id)">
+            <view class="relative rounded-xl overflow-hidden mb-2">
+              <image :src="video.cover" mode="aspectFill" class="w-full h-44" />
+              <text class="absolute bottom-2 right-2 text-xs text-white bg-black/70 px-1.5 py-0.5 rounded">{{ video.duration }}</text>
+              <view class="absolute inset-0 flex items-center justify-center">
+                <view class="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center">
+                  <text class="text-white text-xl">▶</text>
+                </view>
+              </view>
+            </view>
+            <view class="flex gap-2">
+              <image :src="video.authorAvatar" mode="aspectFill" class="w-8 h-8 rounded-full flex-shrink-0 mt-0.5" />
+              <view class="flex-1 min-w-0">
+                <text class="text-sm font-medium text-foreground line-clamp-2 block mb-1">{{ video.title }}</text>
+                <view class="flex items-center gap-2 text-xs text-muted-foreground">
+                  <text>{{ video.author }}</text>
+                  <text> {{ (video.views / 1000).toFixed(1) }}k</text>
+                  <text>🕐 {{ video.publishedAt }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+interface VideoResult { id: string; title: string; author: string; authorAvatar: string; cover: string; duration: string; views: number; publishedAt: string; category: string }
+
+const hotKeywords = ['八字入门', '紫微斗数', '奇门遁甲', '风水布局', '易经', '流年运势', '命理基础', '面相手相']
+const searchResults: VideoResult[] = [
+  { id: '1', title: '八字入门：四柱八字基础讲解', author: '周易大师', authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40', cover: 'https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=300&h=160&fit=crop', duration: '28:35', views: 128500, publishedAt: '3天前', category: '八字' },
+  { id: '2', title: '紫微斗数十四主星全解析', author: '张玄风', authorAvatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=40', cover: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=300&h=160&fit=crop', duration: '45:12', views: 98200, publishedAt: '1周前', category: '紫微' },
+  { id: '3', title: '奇门遁甲九宫布局实战课', author: '林奇门', authorAvatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=40', cover: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300&h=160&fit=crop', duration: '32:48', views: 76400, publishedAt: '2周前', category: '奇门' },
+  { id: '4', title: '风水布局：阳宅财位实操讲解', author: '王德华', authorAvatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40', cover: 'https://images.unsplash.com/photo-1502943693086-33b5b1cfdf2f?w=300&h=160&fit=crop', duration: '22:16', views: 62300, publishedAt: '3周前', category: '风水' },
+]
+const query = ref('')
+const searched = ref(false)
+const history = ref<string[]>(['八字命理', '紫微斗数入门', '流年运势2024'])
+const filtered = ref<VideoResult[]>([...searchResults])
+const inputFocused = ref(true)
+
+function doSearch(q: string) {
+  if (!q.trim()) return
+  query.value = q; searched.value = true
+  const qLower = q.toLowerCase()
+  filtered.value = searchResults.filter(v => v.title.toLowerCase().includes(qLower) || v.category.includes(q))
+  if (!history.value.includes(q)) { history.value.unshift(q); if (history.value.length > 10) history.value.pop() }
+}
+function clearHistory() { history.value = [] }
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

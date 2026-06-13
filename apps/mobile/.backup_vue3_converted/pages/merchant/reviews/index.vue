@@ -1,0 +1,201 @@
+<template>
+  <view class="min-h-screen bg-background pb-20">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-white border-b border-border">
+      <view class="flex items-center h-14 px-4">
+        <view @click="goBack" class="mr-3 p-1">
+          <text class="text-xl text-foreground">←</text>
+        </view>
+        <text class="text-lg font-semibold">评价管理</text>
+      </view>
+    </view>
+
+    <!-- 统计概览 -->
+    <view class="p-4">
+      <view class="bg-white rounded-2xl p-4">
+        <view class="grid grid-cols-3 gap-4 text-center">
+          <view>
+            <text class="text-2xl font-bold text-foreground block">4.8</text>
+            <view class="flex items-center justify-center gap-0.5 mt-1">
+              <text v-for="i in 5" :key="i" :class="i <= 4 ? 'text-amber-400' : 'text-amber-400/50'" class="text-sm">★</text>
+            </view>
+            <text class="text-xs text-muted-foreground mt-1 block">店铺评分</text>
+          </view>
+          <view>
+            <text class="text-2xl font-bold text-foreground block">{{ stats.all }}</text>
+            <text class="text-xs text-muted-foreground mt-1 block">总评价数</text>
+          </view>
+          <view>
+            <text class="text-2xl font-bold text-orange-600 block">{{ stats.pending }}</text>
+            <text class="text-xs text-muted-foreground mt-1 block">待回复</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 筛选标签 -->
+    <view class="px-4 pb-3">
+      <view class="flex gap-2">
+        <view v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key" :class="['flex-1 py-2 rounded-full text-xs text-center font-medium', activeTab === tab.key ? 'bg-primary text-white' : 'bg-background text-ink-soft']">
+          <text>{{ tab.label }}{{ tab.showCount ? '(' + tab.count + ')' : '' }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 评价列表 -->
+    <view class="px-4 space-y-3">
+      <view v-for="review in filteredReviews" :key="review.id" class="bg-white rounded-2xl p-4">
+        <!-- 商品信息 -->
+        <view class="flex items-center gap-2 mb-3">
+          <view class="w-10 h-10 rounded bg-background flex items-center justify-center">
+            <text>📦</text>
+          </view>
+          <view class="flex-1 min-w-0">
+            <text class="text-sm font-medium truncate block">{{ review.productTitle }}</text>
+          </view>
+        </view>
+
+        <!-- 评价内容 -->
+        <view class="space-y-2">
+          <view class="flex items-center gap-2">
+            <view class="flex gap-0.5">
+              <text v-for="i in 5" :key="i" :class="i <= review.rating ? 'text-amber-400' : 'text-[#E8E0D5]'" class="text-sm">★</text>
+            </view>
+            <text class="text-xs text-muted-foreground">{{ review.buyer }}</text>
+            <text class="text-xs text-muted-foreground">{{ review.createdAt }}</text>
+          </view>
+
+          <text class="text-sm text-foreground block">{{ review.content }}</text>
+
+          <view v-if="review.images.length > 0" class="flex gap-2 mt-2">
+            <view v-for="(_, i) in review.images" :key="i" class="w-16 h-16 rounded bg-background flex items-center justify-center">
+              <text>️</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 商家回复 -->
+        <view v-if="review.replied && review.replyContent" class="mt-3 p-3 bg-background rounded-xl">
+          <view class="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+            <text class="px-1.5 py-0.5 rounded text-[10px] bg-[#E8E0D5]">商家回复</text>
+            <text>{{ review.replyTime }}</text>
+          </view>
+          <text class="text-sm text-foreground">{{ review.replyContent }}</text>
+        </view>
+
+        <!-- 回复输入框 -->
+        <view v-if="replyingId === review.id" class="mt-3 space-y-2">
+          <textarea v-model="replyText" placeholder="输入回复内容..." rows="3" class="w-full px-3 py-2 bg-background rounded-xl text-sm" />
+          <view class="flex justify-end gap-2">
+            <view @click="replyingId = null" class="px-3 py-1.5 border border-border rounded-lg text-xs">取消</view>
+            <view @click="handleReply(review.id)" class="px-3 py-1.5 bg-primary text-white rounded-lg text-xs">发送回复</view>
+          </view>
+        </view>
+
+        <!-- 操作按钮 -->
+        <view v-if="!review.replied && replyingId !== review.id" class="mt-3 pt-3 border-t border-border flex justify-end">
+          <view @click="startReply(review.id)" class="px-3 py-1.5 bg-primary text-white rounded-lg text-xs flex items-center gap-1">
+            <text></text>
+            <text>回复</text>
+          </view>
+        </view>
+      </view>
+
+      <view v-if="filteredReviews.length === 0" class="py-20 text-center">
+        <text class="text-muted-foreground">暂无评价</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface Review {
+  id: string
+  productTitle: string
+  rating: number
+  content: string
+  images: string[]
+  buyer: string
+  createdAt: string
+  replied: boolean
+  replyContent?: string
+  replyTime?: string
+  hasImage: boolean
+}
+
+const reviews: Review[] = [
+  {
+    id: '1', productTitle: '滴天髓精解', rating: 5,
+    content: '书的质量很好，印刷清晰，内容详实，对于学习命理很有帮助。卖家发货也很快，包装仔细，好评！',
+    images: [], buyer: '张***', createdAt: '2024-01-15 14:30', replied: false, hasImage: false,
+  },
+  {
+    id: '2', productTitle: '子平真诠评注', rating: 4,
+    content: '整体不错，但是有些地方注解不够详细，希望能有更多的案例分析。',
+    images: [], buyer: '李***', createdAt: '2024-01-14 10:20', replied: true,
+    replyContent: '感谢您的反馈，我们会在新版中增加更多案例分析，祝您学习愉快！',
+    replyTime: '2024-01-14 15:00', hasImage: false,
+  },
+  {
+    id: '3', productTitle: '文房四宝套装', rating: 5,
+    content: '非常满意！毛笔质量很好，墨汁浓淡适中，宣纸手感细腻。送朋友的，他非常喜欢。',
+    images: ['1', '2'], buyer: '王***', createdAt: '2024-01-13 09:00', replied: true,
+    replyContent: '感谢您的支持与好评！欢迎再次光临~',
+    replyTime: '2024-01-13 10:00', hasImage: true,
+  },
+  {
+    id: '4', productTitle: '八字命理基础课', rating: 2,
+    content: '课程内容比较基础，感觉不太适合有一定基础的人，希望能有进阶课程。',
+    images: [], buyer: '赵***', createdAt: '2024-01-12 15:00', replied: false, hasImage: false,
+  },
+]
+
+const activeTab = ref('all')
+const replyingId = ref<string | null>(null)
+const replyText = ref('')
+
+const stats = computed(() => ({
+  all: reviews.length,
+  pending: reviews.filter(r => !r.replied).length,
+  negative: reviews.filter(r => r.rating <= 3).length,
+}))
+
+const tabs = computed(() => [
+  { key: 'all', label: '全部', count: stats.value.all, showCount: false },
+  { key: 'pending', label: '待回复', count: stats.value.pending, showCount: true },
+  { key: 'negative', label: '差评', count: stats.value.negative, showCount: true },
+  { key: 'hasImage', label: '有图', count: 0, showCount: false },
+])
+
+const filteredReviews = computed(() => {
+  let arr = reviews
+  if (activeTab.value === 'pending') arr = arr.filter(r => !r.replied)
+  else if (activeTab.value === 'negative') arr = arr.filter(r => r.rating <= 3)
+  else if (activeTab.value === 'hasImage') arr = arr.filter(r => r.hasImage)
+  return arr
+})
+
+function startReply(id: string) {
+  replyingId.value = id
+  replyText.value = ''
+}
+
+function handleReply(id: string) {
+  const review = reviews.find(r => r.id === id)
+  if (review) {
+    review.replied = true
+    review.replyContent = replyText.value || '感谢您的支持！'
+    review.replyTime = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  }
+  replyingId.value = null
+  replyText.value = ''
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

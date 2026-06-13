@@ -1,0 +1,250 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5] max-w-lg mx-auto">
+    <!-- 进度弹窗 -->
+    <view v-if="taskOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" style="padding-bottom: env(safe-area-inset-bottom)">
+      <view class="bg-white rounded-2xl w-[85%] max-w-sm p-6">
+        <!-- 状态图标 -->
+        <view class="text-center mb-4">
+          <view
+            :class="[
+              'w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-3',
+              taskStatus === 'complete' ? 'bg-green-100' : taskStatus === 'fail' ? 'bg-red-100' : taskStatus === 'cancel' ? 'bg-gray-100' : 'bg-[#C41E3A]/10'
+            ]"
+          >
+            <text
+              :class="[
+                'text-3xl',
+                taskStatus === 'complete' ? 'text-green-500' : taskStatus === 'fail' ? 'text-red-500' : taskStatus === 'cancel' ? 'text-gray-500' : 'text-[#C41E3A]'
+              ]"
+            >
+              {{ taskStatus === 'complete' ? '✓' : taskStatus === 'fail' ? '✗' : taskStatus === 'cancel' ? '—' : '' }}
+            </text>
+            <view v-if="taskStatus === 'pending' || taskStatus === 'progress'" class="w-16 h-16">
+              <canvas type="2d" id="progressCanvas" style="width:64px;height:64px"></canvas>
+            </view>
+          </view>
+        </view>
+
+        <!-- 标题 -->
+        <text class="text-center text-base font-semibold text-[#2C2C2C] block mb-1">
+          {{ taskStatus === 'complete' ? '任务完成' : taskStatus === 'fail' ? '任务失败' : taskStatus === 'cancel' ? '已取消' : taskProgress >= 0 ? '处理中...' : taskName }}
+        </text>
+
+        <!-- 进度信息 -->
+        <text v-if="taskCurrentStep" class="text-center text-xs text-[#999] block mb-1">{{ taskCurrentStep }}</text>
+        <text v-if="taskEstimatedTime && taskStatus === 'progress'" class="text-center text-xs text-[#999] block mb-3">{{ taskEstimatedTime }}</text>
+
+        <!-- 进度条 -->
+        <view v-if="taskStatus === 'progress' || taskStatus === 'pending'" class="h-1.5 bg-[#F0EBE5] rounded-full overflow-hidden mb-3">
+          <view class="h-full bg-[#C41E3A] rounded-full transition-all duration-300" :style="'width:' + taskProgress + '%'" />
+        </view>
+
+        <!-- 操作按钮 -->
+        <view class="flex gap-3 mt-4">
+          <view
+            v-if="taskStatus === 'progress' || taskStatus === 'pending'"
+            class="flex-1 py-2.5 rounded-lg text-sm font-medium text-center border border-[#E8E0D5] text-[#999]"
+            @click="handleCancel"
+          >取消</view>
+          <view
+            v-if="taskStatus === 'progress' || taskStatus === 'pending'"
+            class="flex-1 py-2.5 rounded-lg text-sm font-medium text-center border border-[#E8E0D5] text-[#2C2C2C]"
+            @click="handleBackground"
+          >后台执行</view>
+          <view
+            v-if="taskStatus === 'complete' || taskStatus === 'cancel'"
+            class="flex-1 py-2.5 rounded-lg text-sm font-medium text-center bg-[#C41E3A] text-white"
+            @click="taskOpen = false"
+          >知道了</view>
+          <view
+            v-if="taskStatus === 'fail'"
+            class="flex-1 py-2.5 rounded-lg text-sm font-medium text-center bg-[#C41E3A] text-white"
+            @click="retryTask"
+          >重试</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-40 bg-[#FAF8F5]/95 border-b border-[#E8E0D5]">
+      <view class="flex items-center gap-3 px-4 h-14">
+        <view @click="goBack" class="p-1"><text class="text-xl text-[#2C2C2C]">←</text></view>
+        <text class="font-semibold text-lg text-[#2C2C2C]">进度反馈演示</text>
+      </view>
+    </view>
+
+    <view class="p-4 space-y-6">
+      <!-- 说明 -->
+      <view class="p-4 rounded-xl bg-[#F5F1EB] border border-[#E8E0D5]">
+        <text class="font-medium text-sm text-[#2C2C2C] mb-2 block">全局等待进度组件</text>
+        <text class="text-xs text-[#999] leading-relaxed">
+          用于大文件上传、视频转码、数据导出等耗时任务的进度反馈。支持圆环进度条、预计时间显示、取消和后台执行操作。
+        </text>
+      </view>
+
+      <!-- 任务类型演示 -->
+      <view>
+        <text class="text-sm font-medium text-[#2C2C2C] mb-3 block">任务类型演示</text>
+        <view class="space-y-3">
+          <view
+            v-for="demo in demos"
+            :key="demo.type"
+            class="flex items-center gap-3 p-4 rounded-xl bg-white border border-[#E8E0D5] transition-all"
+            @click="simulateTask(demo.type, demo.name)"
+          >
+            <view :class="['w-10 h-10 rounded-full flex items-center justify-center', demo.color]">
+              <text class="text-sm">{{ demo.icon }}</text>
+            </view>
+            <view class="flex-1">
+              <text class="text-sm font-medium text-[#2C2C2C] block">{{ demo.label }}</text>
+              <text class="text-xs text-[#999] block">{{ demo.name }}</text>
+            </view>
+            <text class="text-xs text-[#C41E3A]">点击演示</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 失败状态演示 -->
+      <view>
+        <text class="text-sm font-medium text-[#2C2C2C] mb-3 block">失败状态演示</text>
+        <view
+          class="flex items-center gap-3 p-4 rounded-xl bg-white border border-red-200 transition-all"
+          @click="simulateFail"
+        >
+          <view class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+            <text class="text-red-500 text-sm">📤</text>
+          </view>
+          <view class="flex-1">
+            <text class="text-sm font-medium text-[#2C2C2C] block">模拟上传失败</text>
+            <text class="text-xs text-[#999] block">进度到45%时触发失败</text>
+          </view>
+          <text class="text-xs text-red-500">点击演示</text>
+        </view>
+      </view>
+
+      <!-- 使用说明 -->
+      <view class="p-4 rounded-xl bg-white border border-[#E8E0D5]">
+        <text class="font-medium text-sm text-[#2C2C2C] mb-2 block">使用方法</text>
+        <view class="text-xs text-[#999] bg-[#F5F1EB] p-3 rounded-lg overflow-x-auto">
+<text class="block">// 开始任务</text>
+<text class="block">taskProgress.start("upload", "视频文件.mp4")</text>
+<text class="block"> </text>
+<text class="block">// 更新进度</text>
+<text class="block">taskProgress.updateProgress(50, "正在上传...", "约2分钟")</text>
+<text class="block"> </text>
+<text class="block">// 完成/失败/取消</text>
+<text class="block">taskProgress.complete()</text>
+<text class="block">taskProgress.fail()</text>
+<text class="block">taskProgress.cancel()</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+
+type TaskType = 'upload' | 'transcode' | 'export' | 'import' | 'sync' | 'generate'
+
+const taskOpen = ref(false)
+const taskType = ref<TaskType>('upload')
+const taskName = ref('')
+const taskProgress = ref(0)
+const taskStatus = ref<'pending' | 'progress' | 'complete' | 'fail' | 'cancel'>('pending')
+const taskCurrentStep = ref('')
+const taskEstimatedTime = ref('')
+const taskRetryType = ref<TaskType>('upload')
+const taskRetryName = ref('')
+
+let demoInterval: ReturnType<typeof setInterval> | null = null
+
+const demos = [
+  { type: 'upload' as TaskType, name: '八字入门第一课.mp4', icon: '📤', label: '视频上传', color: 'bg-blue-100 text-blue-500' },
+  { type: 'transcode' as TaskType, name: '紫微斗数精讲.mp4', icon: '🎬', label: '视频转码', color: 'bg-purple-100 text-purple-500' },
+  { type: 'export' as TaskType, name: '学员数据报表.xlsx', icon: '📥', label: '数据导出', color: 'bg-green-100 text-green-500' },
+  { type: 'sync' as TaskType, name: '圈子内容同步', icon: '🔄', label: '数据同步', color: 'bg-cyan-100 text-cyan-500' },
+  { type: 'generate' as TaskType, name: '排盘分析报告', icon: '⚙️', label: 'AI生成', color: 'bg-pink-100 text-pink-500' },
+]
+
+function goBack() {
+  cleanup()
+  uni.navigateBack()
+}
+
+function cleanup() {
+  if (demoInterval) {
+    clearInterval(demoInterval)
+    demoInterval = null
+  }
+}
+
+function simulateTask(type: TaskType, name: string) {
+  cleanup()
+  taskType.value = type
+  taskName.value = name
+  taskRetryType.value = type
+  taskRetryName.value = name
+  taskStatus.value = 'progress'
+  taskProgress.value = 0
+  taskOpen.value = true
+
+  const steps = ['准备中...', '正在处理文件...', '正在传输数据...', '校验数据完整性...', '即将完成...']
+
+  demoInterval = setInterval(() => {
+    taskProgress.value += Math.random() * 15
+    if (taskProgress.value >= 100) {
+      taskProgress.value = 100
+      cleanup()
+      setTimeout(() => { taskStatus.value = 'complete' }, 500)
+      return
+    }
+    const stepIndex = Math.min(Math.floor(taskProgress.value / 20), steps.length - 1)
+    const remainingTime = Math.max(1, Math.ceil((100 - taskProgress.value) / 10))
+    taskCurrentStep.value = steps[stepIndex]
+    taskEstimatedTime.value = `约${remainingTime}分钟`
+  }, 500)
+}
+
+function simulateFail() {
+  cleanup()
+  taskType.value = 'upload'
+  taskName.value = '测试视频.mp4'
+  taskRetryType.value = 'upload'
+  taskRetryName.value = '测试视频.mp4'
+  taskStatus.value = 'progress'
+  taskProgress.value = 0
+  taskOpen.value = true
+  taskCurrentStep.value = '正在上传...'
+  taskEstimatedTime.value = '约3分钟'
+
+  demoInterval = setInterval(() => {
+    taskProgress.value += Math.random() * 20
+    if (taskProgress.value >= 45) {
+      cleanup()
+      taskStatus.value = 'fail'
+      taskCurrentStep.value = '上传失败：网络连接超时'
+      return
+    }
+    taskCurrentStep.value = '正在上传...'
+    taskEstimatedTime.value = '约3分钟'
+  }, 500)
+}
+
+function handleCancel() {
+  cleanup()
+  taskStatus.value = 'cancel'
+  taskCurrentStep.value = '任务已取消'
+}
+
+function handleBackground() {
+  taskOpen.value = false
+}
+
+function retryTask() {
+  simulateTask(taskRetryType.value, taskRetryName.value)
+}
+</script>
+
+<style scoped>
+</style>

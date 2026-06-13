@@ -1,0 +1,331 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- Header -->
+    <view class="sticky top-0 z-20 bg-white border-b border-[#E8E0D5]">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view class="p-1 -ml-1" @click="goBack">
+          <text class="text-2xl text-[#2C2C2C]">‹</text>
+        </view>
+        <text class="text-lg font-semibold text-[#2C2C2C]">付费问答</text>
+        <view
+          class="flex items-center gap-1 px-3 py-1.5 bg-[#C41E3A] text-white text-sm font-medium rounded-full"
+          @click="goToAsk"
+        >
+          <text class="text-lg font-bold leading-none text-white">+</text>
+          <text>提问</text>
+        </view>
+      </view>
+
+      <!-- Tabs -->
+      <view class="flex px-4 gap-6">
+        <view
+          v-for="tab in tabs" :key="tab.key"
+          class="pb-3 text-sm font-medium border-b-2 transition-colors"
+          :class="activeTab === tab.key ? 'text-[#C41E3A] border-[#C41E3A]' : 'text-[#999] border-transparent'"
+          @click="activeTab = tab.key"
+        >
+          {{ tab.label }}
+        </view>
+      </view>
+    </view>
+
+    <!-- Questions List -->
+    <view class="p-4 space-y-3">
+      <!-- Loading Skeleton -->
+      <template v-if="loading">
+        <view v-for="i in 3" :key="i" class="bg-white rounded-2xl p-4 animate-pulse">
+          <view class="flex items-center gap-3 mb-3">
+            <view class="w-10 h-10 rounded-full bg-gray-200" />
+            <view class="flex-1">
+              <view class="h-4 bg-gray-200 rounded w-24 mb-1" />
+              <view class="h-3 bg-gray-100 rounded w-16" />
+            </view>
+          </view>
+          <view class="h-5 bg-gray-200 rounded w-3/4 mb-2" />
+          <view class="h-4 bg-gray-100 rounded w-full mb-4" />
+          <view class="flex gap-4">
+            <view class="h-4 bg-gray-100 rounded w-16" />
+            <view class="h-4 bg-gray-100 rounded w-16" />
+          </view>
+        </view>
+      </template>
+
+      <!-- Empty State -->
+      <template v-else-if="filteredQuestions.length === 0">
+        <view class="flex flex-col items-center justify-center py-20">
+          <text class="text-gray-300 text-6xl mb-4">💬</text>
+          <text class="text-[#999]">暂无问答内容</text>
+          <view
+            class="mt-4 px-6 py-2 bg-[#C41E3A] text-white text-sm font-medium rounded-full"
+            @click="goToAsk"
+          >
+            发起提问
+          </view>
+        </view>
+      </template>
+
+      <!-- Question Cards -->
+      <template v-else>
+        <view
+          v-for="question in filteredQuestions" :key="question.id"
+          class="bg-white rounded-2xl p-4 transition-colors"
+          hover-class="bg-gray-50"
+          @click="goToQuestion(question.id)"
+        >
+          <!-- Asker Info -->
+          <view class="flex items-center justify-between mb-3">
+            <view class="flex items-center gap-3">
+              <view
+                class="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
+                :style="{ background: 'linear-gradient(135deg, #C41E3A, #E85A6B)' }"
+              >
+                <text class="text-white font-medium">{{ question.asker.name[0] }}</text>
+              </view>
+              <view>
+                <text class="text-sm font-medium text-[#2C2C2C]">{{ question.asker.name }}</text>
+                <text class="text-xs text-[#999] block">{{ formatTime(question.createdAt) }}</text>
+              </view>
+            </view>
+            <view
+              class="px-2 py-0.5 rounded text-xs font-medium"
+              :style="{ backgroundColor: statusConfig[question.status].bg, color: statusConfig[question.status].color }"
+            >
+              {{ statusConfig[question.status].label }}
+            </view>
+          </view>
+
+          <!-- Question Title -->
+          <text class="text-base font-medium text-[#2C2C2C] mb-2 line-clamp-2 block">
+            {{ question.title }}
+          </text>
+
+          <!-- Price & Circle Tags -->
+          <view class="flex items-center gap-2 mb-3">
+            <view class="px-2 py-0.5 bg-[#FFF4E5] text-[#C9A96E] text-xs font-medium rounded">
+              ¥{{ question.price }}
+            </view>
+            <view
+              v-if="question.circleName"
+              class="px-2 py-0.5 bg-[#F5F5F5] text-[#666] text-xs rounded"
+            >
+              {{ question.circleName }}
+            </view>
+            <view
+              v-if="!question.isPublic"
+              class="px-2 py-0.5 bg-gray-100 text-[#999] text-xs rounded"
+            >
+              私密
+            </view>
+          </view>
+
+          <!-- Answerer Section -->
+          <view
+            v-if="question.answerer"
+            class="flex items-center gap-2 p-3 bg-[#FAF8F5] rounded-xl mb-3"
+          >
+            <view
+              class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium"
+              :style="{ background: 'linear-gradient(135deg, #C9A96E, #DFC296)' }"
+            >
+              {{ question.answerer.name[0] }}
+            </view>
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-2">
+                <text class="text-sm font-medium text-[#2C2C2C]">{{ question.answerer.name }}</text>
+                <text v-if="question.answerer.title" class="text-xs text-[#C9A96E]">
+                  {{ question.answerer.title }}
+                </text>
+              </view>
+              <text
+                v-if="question.answerPreview"
+                class="text-xs text-[#666] line-clamp-1 block mt-0.5"
+              >
+                {{ question.answerPreview }}
+              </text>
+            </view>
+            <text class="text-[#999] text-lg flex-shrink-0">›</text>
+          </view>
+
+          <!-- Stats -->
+          <view class="flex items-center justify-between text-xs text-[#999]">
+            <view class="flex items-center gap-4">
+              <text class="flex items-center gap-1">
+                <text class="text-sm">👁</text>
+                {{ question.viewCount }}
+              </text>
+              <text class="flex items-center gap-1">
+                <text class="text-sm">♡</text>
+                {{ question.likeCount }}
+              </text>
+            </view>
+            <text
+              v-if="question.status === 'pending'"
+              class="flex items-center gap-1 text-orange-500"
+            >
+              <text class="text-sm">⏰</text>
+              {{ getTimeRemaining(question.expireAt) }}
+            </text>
+          </view>
+        </view>
+      </template>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue'
+
+type QuestionStatus = 'pending' | 'answered' | 'expired' | 'refunded'
+
+interface Question {
+  id: string
+  title: string
+  content: string
+  price: number
+  status: QuestionStatus
+  asker: { id: string; name: string; avatar: string }
+  answerer?: { id: string; name: string; avatar: string; title?: string }
+  answerPreview?: string
+  isPublic: boolean
+  isPaid: boolean
+  viewCount: number
+  likeCount: number
+  circleName?: string
+  createdAt: string
+  answeredAt?: string
+  expireAt: string
+}
+
+const statusConfig: Record<QuestionStatus, { label: string; color: string; bg: string }> = {
+  pending: { label: '待回答', color: '#EA580C', bg: '#FFF7ED' },
+  answered: { label: '已回答', color: '#16A34A', bg: '#F0FDF4' },
+  expired: { label: '已过期', color: '#6B7280', bg: '#F3F4F6' },
+  refunded: { label: '已退款', color: '#DC2626', bg: '#FEF2F2' },
+}
+
+const tabs = [
+  { key: 'all', label: '全部' },
+  { key: 'pending', label: '待回答' },
+  { key: 'answered', label: '已回答' },
+] as const
+
+const activeTab = ref<'all' | 'pending' | 'answered'>('all')
+const questions = ref<Question[]>([])
+const loading = ref(true)
+
+function loadQuestions() {
+  loading.value = true
+  setTimeout(() => {
+    questions.value = [
+      {
+        id: '1',
+        title: '八字中的正官与七杀有什么区别？',
+        content: '我在学习八字命理时，对正官和七杀的区别不太理解，请问它们在命局中分别代表什么？',
+        price: 50,
+        status: 'answered' as QuestionStatus,
+        asker: { id: 'u1', name: '易学新手', avatar: '/avatars/user1.jpg' },
+        answerer: { id: 'a1', name: '张大师', avatar: '/avatars/master1.jpg', title: '八字命理专家' },
+        answerPreview: '正官与七杀都是克我者，但性质截然不同。正官是异性相克，代表正当的约束、规范...',
+        isPublic: true,
+        isPaid: true,
+        viewCount: 1280,
+        likeCount: 89,
+        circleName: '八字命理研究',
+        createdAt: '2024-01-15T10:00:00Z',
+        answeredAt: '2024-01-15T14:30:00Z',
+        expireAt: '2024-01-22T10:00:00Z',
+      },
+      {
+        id: '2',
+        title: '如何判断流年大运的吉凶？',
+        content: '请教一下，在八字排盘后，如何分析流年和大运对命局的影响？',
+        price: 88,
+        status: 'pending' as QuestionStatus,
+        asker: { id: 'u2', name: '命理爱好者', avatar: '/avatars/user2.jpg' },
+        answerer: { id: 'a2', name: '李老师', avatar: '/avatars/master2.jpg', title: '周易研究员' },
+        isPublic: true,
+        isPaid: true,
+        viewCount: 356,
+        likeCount: 12,
+        circleName: '周易预测',
+        createdAt: '2024-01-16T09:00:00Z',
+        expireAt: '2024-01-23T09:00:00Z',
+      },
+      {
+        id: '3',
+        title: '梅花易数起卦的时间问题',
+        content: '梅花易数起卦时，是用北京时间还是当地真太阳时？',
+        price: 30,
+        status: 'answered' as QuestionStatus,
+        asker: { id: 'u3', name: '国学迷', avatar: '/avatars/user3.jpg' },
+        answerer: { id: 'a3', name: '王先生', avatar: '/avatars/master3.jpg', title: '梅花易数传承人' },
+        answerPreview: '这是一个很好的问题。在传统梅花易数中，起卦使用的是当地真太阳时...',
+        isPublic: false,
+        isPaid: false,
+        viewCount: 520,
+        likeCount: 45,
+        createdAt: '2024-01-14T16:00:00Z',
+        answeredAt: '2024-01-14T20:00:00Z',
+        expireAt: '2024-01-21T16:00:00Z',
+      },
+    ]
+    loading.value = false
+  }, 800)
+}
+
+onMounted(loadQuestions)
+watch(activeTab, loadQuestions)
+
+const filteredQuestions = computed(() => {
+  return questions.value.filter(q => {
+    if (activeTab.value === 'all') return true
+    if (activeTab.value === 'pending') return q.status === 'pending'
+    if (activeTab.value === 'answered') return q.status === 'answered'
+    return true
+  })
+})
+
+function formatTime(dateStr: string) {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  if (hours < 24) return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}天前`
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return `${month}月${day}日`
+}
+
+function getTimeRemaining(expireAt: string) {
+  const expire = new Date(expireAt)
+  const now = new Date()
+  const diff = expire.getTime() - now.getTime()
+  if (diff <= 0) return '已过期'
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  if (hours < 24) return `${hours}小时后过期`
+  const days = Math.floor(hours / 24)
+  return `${days}天后过期`
+}
+
+function goBack() {
+  uni.navigateBack()
+}
+
+function goToAsk() {
+  uni.navigateTo({ url: '/pages/qa/ask/index' })
+}
+
+function goToQuestion(id: string) {
+  uni.navigateTo({ url: '/pages/qa/id-detail/index?id=' + id })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+</style>

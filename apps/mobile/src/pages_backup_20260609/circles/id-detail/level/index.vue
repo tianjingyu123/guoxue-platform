@@ -1,0 +1,8 @@
+<template>
+  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">等级体系</text><view style="width:48rpx"/></view>
+    <view class="c"><view class="card"><text class="cn">当前等级：Lv.{{lv}}</text><view class="cb"><view class="cbf" :style="{width:'65%'}"/></view><text>距下一级还需280经验</text></view>
+    <view class="card"><text class="ct">等级权益</text><view v-for="r in rights" :key="r.lv" class="rr"><text class="rl">Lv.{{r.lv}}</text><text>{{r.desc}}</text></view></view></view></view>
+</template>
+<script setup lang="ts">import {ref} from 'vue';const lv=ref(5);const rights=[{lv:1,desc:'基础发帖权限'},{lv:3,desc:'解锁精华帖浏览'},{lv:5,desc:'解锁私信功能'},{lv:8,desc:'专属徽章'}];function goBack(){uni.navigateBack()}</script>
+<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.c{padding:24rpx}.card{background:#fff;border-radius:20rpx;padding:24rpx;margin-bottom:20rpx;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}.cn{font-size:40rpx;font-weight:900;color:#C41E3A;display:block;margin-bottom:16rpx}.cb{height:12rpx;background:#F5F1EB;border-radius:6rpx;overflow:hidden;margin-bottom:8rpx}.cbf{height:100%;background:linear-gradient(90deg,#C41E3A,#E85A71);border-radius:6rpx}.ct{font-size:28rpx;font-weight:600;color:#2C2C2C;margin-bottom:16rpx;display:block}.rr{display:flex;gap:16rpx;padding:14rpx 0;border-bottom:1px solid #F5F1EB;font-size:26rpx;color:#666}.rl{font-weight:600;color:#C41E3A}
+</style>

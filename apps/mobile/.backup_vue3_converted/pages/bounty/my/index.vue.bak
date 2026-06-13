@@ -1,0 +1,257 @@
+<template>
+<view class="min-h-screen bg-[#FAF8F5]">
+  <!-- Header -->
+  <view class="sticky top-0 z-10 bg-[#FAF8F5] border-b border-[#E8E0D5]">
+    <view class="flex items-center justify-between px-4 h-14">
+      <view @click="goBack" class="p-2 -ml-2">
+        <text class="w-5 h-5">&#8249;</text>
+      </view>
+      <text class="font-semibold">我的悬赏</text>
+      <view class="w-9"></view>
+    </view>
+
+    <!-- Tabs -->
+    <view class="flex border-b border-[#E8E0D5]">
+      <view v-for="tab in myTabs" :key="tab.key" @tap="activeTab = tab.key" :class="['flex-1 py-3 text-sm font-medium relative text-center', activeTab === tab.key ? 'text-[#C41E3A]' : 'text-[#999]']">
+        {{ tab.label }}
+        <view v-if="activeTab === tab.key" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-[#C41E3A] rounded-full"></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- Stats Card -->
+  <view v-if="!loading && bounties.length > 0" class="p-4">
+    <view class="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-4 text-white">
+      <view class="flex items-center gap-2 mb-3">
+        <text class="w-5 h-5">&#127873;</text>
+        <text class="font-medium">{{ activeTab === 'posted' ? '发布统计' : '回答统计' }}</text>
+      </view>
+      <view class="flex justify-between gap-2">
+        <view class="text-center flex-1">
+          <text class="text-2xl font-bold block">{{ stats.total }}</text>
+          <text class="text-xs text-white/80">总数</text>
+        </view>
+        <view class="text-center flex-1">
+          <text class="text-2xl font-bold block">{{ stats.open }}</text>
+          <text class="text-xs text-white/80">进行中</text>
+        </view>
+        <view class="text-center flex-1">
+          <text class="text-2xl font-bold block">{{ stats.resolved }}</text>
+          <text class="text-xs text-white/80">已解决</text>
+        </view>
+        <view class="text-center flex-1">
+          <text class="text-2xl font-bold block">&#165;{{ stats.totalAmount }}</text>
+          <text class="text-xs text-white/80">{{ activeTab === 'posted' ? '总投入' : '总收益' }}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- List -->
+  <view class="px-4 pb-20">
+    <!-- Skeleton -->
+    <view v-if="loading" class="space-y-4 mt-4">
+      <view v-for="i in 3" :key="i" class="animate-pulse">
+        <view class="bg-white rounded-2xl p-4 space-y-3">
+          <view class="flex items-center gap-2">
+            <view class="h-5 w-16 bg-[#F0EBE5] rounded-full"></view>
+            <view class="h-4 w-20 bg-[#F0EBE5] rounded"></view>
+          </view>
+          <view class="h-5 w-3/4 bg-[#F0EBE5] rounded"></view>
+          <view class="h-4 w-full bg-[#F0EBE5] rounded"></view>
+          <view class="flex justify-between">
+            <view class="h-4 w-24 bg-[#F0EBE5] rounded"></view>
+            <view class="h-8 w-20 bg-[#F0EBE5] rounded-lg"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Empty -->
+    <view v-else-if="bounties.length === 0" class="flex flex-col items-center justify-center py-20">
+      <view class="w-20 h-20 bg-[#F0EBE5] rounded-full flex items-center justify-center mb-4">
+        <text class="text-5xl text-[#999]">&#127873;</text>
+      </view>
+      <text class="text-[#999] mb-4">
+        {{ activeTab === 'posted' ? '还没有发布过悬赏' : '还没有回答过悬赏' }}
+      </text>
+      <view v-if="activeTab === 'posted'" @click="goTo('/pages/bounty/create')" class="px-6 py-2.5 bg-[#C41E3A] text-white rounded-full text-sm font-medium">
+        发布悬赏
+      </view>
+    </view>
+
+    <!-- List Items -->
+    <view v-else class="space-y-4 mt-4">
+      <view v-for="bounty in bounties" :key="bounty.id" @click="goTo('/pages/bounty/id-detail?id=' + bounty.id)" class="bg-white rounded-2xl p-4 shadow-sm border border-[#E8E0D5]/50 active:scale-[0.98] transition-transform">
+        <!-- Status & Amount -->
+        <view class="flex items-center justify-between mb-3">
+          <view :class="['inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium', statusConfig[bounty.status]?.bg || 'bg-[#F0EBE5]', statusConfig[bounty.status]?.color || 'text-[#999]']">
+            {{ statusConfig[bounty.status]?.label || bounty.status }}
+          </view>
+          <view class="flex items-center gap-1 text-amber-600">
+            <text class="w-4 h-4">&#127873;</text>
+            <text class="font-bold">&#165;{{ bounty.amount }}</text>
+          </view>
+        </view>
+
+        <!-- Title -->
+        <text class="font-medium text-[#2C2C2C] mb-2 block line-clamp-2">{{ bounty.title }}</text>
+
+        <!-- Description -->
+        <text class="text-sm text-[#999] block mb-3 line-clamp-2">{{ bounty.description }}</text>
+
+        <!-- Meta -->
+        <view class="flex items-center gap-4 text-xs text-[#999] mb-3">
+          <text v-if="activeTab === 'posted'" class="flex items-center gap-1">
+            <text class="text-sm">&#128172;</text>
+            {{ bounty.answerCount }}个回答
+          </text>
+          <text v-if="activeTab === 'posted' && bounty.status === 'open'" class="flex items-center gap-1 text-orange-500">
+            <text class="text-sm">&#128339;</text>
+            {{ getRemainTime(bounty.expireAt) }}
+          </text>
+          <text v-if="activeTab === 'answered'">{{ formatTimeAgo(bounty.createdAt) }}回答</text>
+          <text v-if="activeTab === 'answered' && bounty.status === 'resolved'" class="flex items-center gap-1 text-green-600">
+            <text class="text-sm">&#10003;</text>
+            已被采纳
+          </text>
+        </view>
+
+        <!-- Actions -->
+        <view v-if="activeTab === 'posted'" class="flex items-center justify-end gap-2 pt-3 border-t border-[#E8E0D5]/50">
+          <view v-if="bounty.status === 'answered'" @click.stop="handleSettle(bounty.id)" class="flex items-center gap-1.5 px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-medium">
+            <text class="w-4 h-4">&#128155;</text>
+            结算悬赏
+          </view>
+          <view v-if="bounty.status === 'expired' || bounty.status === 'cancelled'" @click.stop="handleRepost(bounty.id)" class="flex items-center gap-1.5 px-4 py-2 bg-[#C41E3A] text-white rounded-lg text-sm font-medium">
+            <text class="w-4 h-4">&#128260;</text>
+            重新发布
+          </view>
+          <text v-if="bounty.status === 'open' && bounty.answerCount === 0" class="text-xs text-[#999]">等待回答中...</text>
+          <view v-if="bounty.status === 'open' && bounty.answerCount > 0" @click.stop="goTo('/pages/bounty/id-detail?id=' + bounty.id)" class="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-medium">
+            查看回答
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
+
+// 导航辅助
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+
+interface Bounty {
+  id: string
+  title: string
+  description: string
+  amount: number
+  status: string
+  poster: { id: string; name: string; avatar: string }
+  answerCount: number
+  viewCount: number
+  category: string
+  tags: string[]
+  createdAt: string
+  expireAt: string
+}
+
+const myTabs = [
+  { key: 'posted' as const, label: '我发布的' },
+  { key: 'answered' as const, label: '我回答的' },
+]
+
+const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
+  open: { label: '进行中', color: 'text-green-600', bg: 'bg-green-50' },
+  answered: { label: '待采纳', color: 'text-orange-600', bg: 'bg-orange-50' },
+  resolved: { label: '已解决', color: 'text-blue-600', bg: 'bg-blue-50' },
+  expired: { label: '已过期', color: 'text-[#999]', bg: 'bg-[#F0EBE5]' },
+  cancelled: { label: '已取消', color: 'text-[#999]', bg: 'bg-[#F0EBE5]' },
+}
+
+const activeTab = ref<'posted' | 'answered'>('posted')
+const bounties = ref<Bounty[]>([])
+const loading = ref(true)
+const page = ref(1)
+const hasMore = ref(true)
+
+watch([activeTab], () => {
+  loadBounties()
+})
+
+onMounted(() => {
+  loadBounties()
+})
+
+const loadBounties = async (loadMore = false) => {
+  if (!loadMore) {
+    loading.value = true
+    page.value = 1
+  }
+  try {
+    // Mock data
+    const mockData: Bounty[] = [
+      { id: '1', title: '求解八字命盘中的财运分析方法', description: '想了解如何从八字命盘中分析一个人的财运走势', amount: 50, status: 'open', poster: { id: 'u1', name: '易学初学者', avatar: '' }, answerCount: 3, viewCount: 128, category: '八字', tags: ['财运'], createdAt: '2024-01-15T10:00:00Z', expireAt: '2024-01-22T10:00:00Z' },
+      { id: '2', title: '风水布局中如何化解尖角煞？', description: '家里客厅有一个突出的墙角对着沙发', amount: 30, status: 'resolved', poster: { id: 'u2', name: '风水爱好者', avatar: '' }, answerCount: 5, viewCount: 256, category: '风水', tags: ['家居风水'], createdAt: '2024-01-14T08:00:00Z', expireAt: '2024-01-21T08:00:00Z' },
+    ]
+    bounties.value = mockData
+  } catch (error) {
+    console.error('加载失败', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleSettle = async (id: string) => {
+  try {
+    // await bountyApi.settle(id)
+    loadBounties()
+  } catch (error) {
+    console.error('结算失败', error)
+  }
+}
+
+const handleRepost = (id: string) => {
+  uni.navigateTo({ url: '/pages/bounty/create?repost=' + id })
+}
+
+const formatTimeAgo = (dateStr: string) => {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  if (days > 30) return `${Math.floor(days / 30)}个月前`
+  if (days > 0) return `${days}天前`
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  if (hours > 0) return `${hours}小时前`
+  return '刚刚'
+}
+
+const getRemainTime = (expireAt: string) => {
+  const expire = new Date(expireAt)
+  const now = new Date()
+  const diff = expire.getTime() - now.getTime()
+  if (diff <= 0) return '已过期'
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  if (days > 0) return `剩余${days}天${hours}小时`
+  return `剩余${hours}小时`
+}
+
+// 统计数据
+const stats = computed(() => ({
+  total: bounties.value.length,
+  open: bounties.value.filter(b => b.status === 'open').length,
+  resolved: bounties.value.filter(b => b.status === 'resolved').length,
+  totalAmount: bounties.value.reduce((sum, b) => sum + b.amount, 0),
+}))
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

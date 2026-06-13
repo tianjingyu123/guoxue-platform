@@ -1,0 +1,303 @@
+<template>
+  <view class="min-h-screen bg-background pb-6">
+    <!-- 顶部导航 -->
+    <header class="sticky top-0 z-50 bg-background border-b border-border/60">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view class="flex items-center gap-3">
+          <view @click="goBack" class="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-secondary">
+            <text class="text-base">←</text>
+          </view>
+          <text class="font-medium text-foreground">我的笔记</text>
+          <text v-if="!isSelectMode && notes.length > 0" class="text-xs text-muted-foreground ml-1">共 {{ notes.length }} 条</text>
+        </view>
+        <view class="flex items-center gap-2">
+          <template v-if="isSelectMode">
+            <text @click="handleCancelSelect" class="text-sm text-muted-foreground px-2 py-1">取消</text>
+            <text @click="handleBatchDelete" :class="['text-sm px-2 py-1 rounded', selectedIds.size === 0 ? 'text-muted-foreground' : 'text-danger']">
+              删除 ({{ selectedIds.size }})
+            </text>
+          </template>
+          <template v-else>
+            <view class="relative">
+              <text @click="showMenu = !showMenu" class="w-8 h-8 rounded-full flex items-center justify-center text-lg">⋯</text>
+              <!-- 下拉菜单 -->
+              <view v-if="showMenu" class="fixed inset-0 z-40" @click="showMenu = false" />
+              <view v-if="showMenu" class="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-border z-50 overflow-hidden">
+                <view @click="handleEnterBatchMode" class="flex items-center gap-2 px-4 py-3 text-sm text-foreground hover:bg-secondary">
+                  <text></text>
+                  <text>批量管理</text>
+                </view>
+              </view>
+            </view>
+          </template>
+        </view>
+      </view>
+      <!-- 搜索和视图切换 -->
+      <view class="px-4 pb-3 flex items-center gap-3">
+        <view class="flex-1 relative">
+          <text class="absolute left-3 top-1/2" style="transform:translateY(-50%);color:#999;font-size:14px;"></text>
+          <input v-model="searchValue" placeholder="搜索笔记内容..." class="w-full pl-9 h-9 bg-secondary border-0 rounded-full text-sm outline-none" style="color:#2C2C2C;" />
+        </view>
+        <view class="flex bg-secondary rounded-lg p-0.5">
+          <text @click="viewMode = 'timeline'" :class="['px-3 py-1 text-xs rounded-md transition-colors', viewMode === 'timeline' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground']">时间线</text>
+          <text @click="viewMode = 'book'" :class="['px-3 py-1 text-xs rounded-md transition-colors', viewMode === 'book' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground']">按书籍</text>
+        </view>
+      </view>
+    </header>
+
+    <!-- 搜索结果计数 -->
+    <view v-if="searchValue && filteredNotes.length > 0" class="px-4 pb-2">
+      <text class="text-xs text-muted-foreground">搜索到 {{ filteredNotes.length }} 条相关笔记</text>
+    </view>
+    <!-- 笔记列表 -->
+    <view class="p-4">
+      <!-- 空状态 -->
+      <view v-if="filteredNotes.length === 0" class="flex flex-col items-center justify-center py-16 text-center">
+        <view class="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-4">
+          <text class="text-3xl text-muted-foreground"></text>
+        </view>
+        <template v-if="searchValue">
+          <text class="font-medium text-foreground mb-1">未找到相关笔记</text>
+          <text class="text-sm text-muted-foreground mb-4">试试其他关键词搜索</text>
+        </template>
+        <template v-else>
+          <text class="font-medium text-foreground mb-1">暂无笔记</text>
+          <text class="text-sm text-muted-foreground mb-4">阅读时选中文字可添加笔记</text>
+          <view @click="goTo('/pages/classics/home/index')" class="inline-block px-6 py-2 bg-white border border-border rounded-full text-sm text-foreground">去阅读</view>
+        </template>
+      </view>
+
+      <!-- 时间线视图 -->
+      <view v-else-if="viewMode === 'timeline'" class="space-y-4">
+        <view v-for="note in filteredNotes" :key="note.id"
+          :class="['p-4 bg-white rounded-xl border border-border/50 transition-all', isSelectMode ? 'cursor-pointer' : '', selectedIds.has(note.id) ? 'ring-2 ring-primary' : '']"
+          @click="isSelectMode && handleToggleSelect(note.id)">
+          <!-- 书籍信息 -->
+          <view class="flex items-center justify-between mb-3">
+            <view @click.stop="!isSelectMode && goTo('/pages/classics/' + note.bookId + '/id-detail')" class="flex items-center gap-2">
+              <text class="text-sm font-medium text-foreground">《{{ note.bookTitle }}》</text>
+              <text class="text-xs text-muted-foreground">{{ note.chapter }} · 第{{ note.page }}页</text>
+            </view>
+            <view v-if="!isSelectMode" class="relative">
+              <text @click.stop="showNoteActions(note)" class="w-8 h-8 flex items-center justify-center text-lg text-muted-foreground">⋯</text>
+            </view>
+          </view>
+          <!-- 原文引用 -->
+          <view class="pl-3 border-l-2 border-accent bg-amber-50/50 rounded-r-lg py-2 pr-3 mb-3">
+            <text class="text-sm font-serif text-amber-800 block">{{ note.originalText }}</text>
+          </view>
+          <!-- 笔记内容 -->
+          <text class="text-sm leading-relaxed text-muted-foreground block mb-3">{{ note.noteContent }}</text>
+          <!-- 标签和时间 -->
+          <view class="flex items-center justify-between">
+            <view class="flex items-center gap-1.5">
+              <text class="text-xs text-muted-foreground"></text>
+              <text v-for="(tag, i) in note.tags" :key="i" class="bg-secondary text-[10px] px-1.5 py-0.5 rounded text-muted-foreground">{{ tag }}</text>
+            </view>
+            <view class="flex items-center gap-1 text-xs text-muted-foreground">
+              <text>🕐</text>
+              <text>{{ note.updatedAt }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 按书籍分组视图 -->
+      <view v-else class="space-y-4">
+        <view v-for="group in groupedNotes" :key="group.bookId">
+          <!-- 书籍标题 -->
+          <view @click="goTo('/pages/classics/' + group.bookId + '/id-detail')" class="flex items-center justify-between p-3 bg-secondary/50 rounded-lg mb-2 hover:bg-secondary transition-colors">
+            <view class="flex items-center gap-3">
+              <view class="w-8 h-11 rounded bg-gradient-to-b from-amber-100 to-amber-50 flex items-center justify-center shadow-sm">
+                <text class="text-[8px] font-serif font-bold text-amber-800">{{ group.bookTitle.slice(0, 2) }}</text>
+              </view>
+              <view>
+                <text class="font-medium text-sm text-foreground">《{{ group.bookTitle }}》</text>
+                <text class="text-xs text-muted-foreground block">[{{ group.dynasty }}] {{ group.bookAuthor }}</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-1 text-muted-foreground">
+              <text class="text-xs">{{ group.count }}条笔记</text>
+              <text class="text-lg text-muted-foreground">›</text>
+            </view>
+          </view>
+          <!-- 笔记列表 -->
+          <view class="space-y-2 pl-4 border-l-2 border-border/60 ml-4">
+            <view v-for="note in group.items" :key="note.id"
+              :class="['p-3 bg-white/50 rounded-xl border border-border/50', isSelectMode ? 'cursor-pointer' : '', selectedIds.has(note.id) ? 'ring-2 ring-primary' : '']"
+              @click="isSelectMode && handleToggleSelect(note.id)">
+              <text class="text-xs text-muted-foreground block mb-1">{{ note.chapter }} · 第{{ note.page }}页</text>
+              <text class="text-sm font-serif text-amber-700 block mb-2 line-clamp-1">{{ note.originalText }}</text>
+              <text class="text-sm text-muted-foreground block line-clamp-2">{{ note.noteContent }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 笔记操作底部弹出菜单 -->
+    <view v-if="selectedNote && !isSelectMode" class="fixed inset-0 z-50" @click="selectedNote = null">
+      <view class="absolute inset-0 bg-black/30" />
+      <view class="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl overflow-hidden" style="padding-bottom:env(safe-area-inset-bottom);" @click.stop>
+        <view class="flex items-center justify-center pt-3 pb-2">
+          <view class="w-8 h-1 rounded-full bg-[#E8E0D5]" />
+        </view>
+        <view class="px-4 pb-4">
+          <text class="text-sm font-medium text-foreground block mb-3 px-2">笔记操作</text>
+          <view @click="handleEditNote(selectedNote)" class="flex items-center gap-3 px-4 py-3.5 rounded-xl active:bg-secondary">
+            <text class="text-lg text-muted-foreground">✏️</text>
+            <text class="text-sm text-foreground">编辑</text>
+          </view>
+          <view @click="handleShareNote(selectedNote)" class="flex items-center gap-3 px-4 py-3.5 rounded-xl active:bg-secondary">
+            <text class="text-lg text-muted-foreground"></text>
+            <text class="text-sm text-foreground">分享</text>
+          </view>
+          <view @click="handleJumpToReading(selectedNote)" class="flex items-center gap-3 px-4 py-3.5 rounded-xl active:bg-secondary">
+            <text class="text-lg text-muted-foreground"></text>
+            <text class="text-sm text-foreground">跳转阅读</text>
+          </view>
+          <view class="h-px bg-[#E8E0D5] my-1" />
+          <view @click="handleDeleteNote(selectedNote)" class="flex items-center gap-3 px-4 py-3.5 rounded-xl active:bg-secondary">
+            <text class="text-lg text-danger">🗑️</text>
+            <text class="text-sm text-danger">删除</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface Note {
+  id: string; bookId: string; bookTitle: string; bookAuthor: string; dynasty: string
+  chapter: string; originalText: string; noteContent: string; tags: string[]
+  page: number; createdAt: string; updatedAt: string
+}
+
+// 模拟数据 - 用户笔记列表
+const notesData: Note[] = [
+  { id: "1", bookId: "1", bookTitle: "周易", bookAuthor: "伏羲", dynasty: "周", chapter: "乾卦", originalText: "天行健，君子以自强不息。", noteContent: "这句话强调的是效法天道的刚健运行，君子应当自强进取，永不停歇。在现代社会，这种精神依然有重要的指导意义。", tags: ["人生哲理", "自强"], page: 12, createdAt: "2024-01-15 14:30", updatedAt: "2024-01-15 16:20" },
+  { id: "2", bookId: "2", bookTitle: "道德经", bookAuthor: "老子", dynasty: "春秋", chapter: "第一章", originalText: "道可道，非常道。名可名，非常名。", noteContent: "老子开篇即点明'道'的不可言说性。真正的大道是超越语言文字的，任何试图用语言定义的'道'都不是永恒的道。这与佛教'不可说'的理念相通。", tags: ["道家", "哲学"], page: 1, createdAt: "2024-01-14 10:15", updatedAt: "2024-01-14 10:15" },
+  { id: "3", bookId: "3", bookTitle: "论语", bookAuthor: "孔子门人", dynasty: "春秋", chapter: "学而篇", originalText: "学而时习之，不亦说乎？", noteContent: "学习不仅是获取知识，更重要的是'时习'——在合适的时机反复实践。'说'通'悦'，是内心深处的喜悦。", tags: ["学习方法", "儒家"], page: 5, createdAt: "2024-01-13 09:00", updatedAt: "2024-01-13 11:30" },
+  { id: "4", bookId: "1", bookTitle: "周易", bookAuthor: "伏羲", dynasty: "周", chapter: "坤卦", originalText: "地势坤，君子以厚德载物。", noteContent: "地承载万物，君子应效法大地，以宽厚的德行包容万物。这是中华文化中'厚德'思想的重要来源。", tags: ["人生哲理", "德行"], page: 28, createdAt: "2024-01-12 16:45", updatedAt: "2024-01-12 16:45" },
+  { id: "5", bookId: "2", bookTitle: "道德经", bookAuthor: "老子", dynasty: "春秋", chapter: "第八章", originalText: "上善若水。水善利万物而不争。", noteContent: "最高的善就像水一样。水滋润万物却不与万物争利，处在众人不愿处的低处。这体现了老子'不争'的哲学思想。", tags: ["道家", "处世"], page: 8, createdAt: "2024-01-11 08:30", updatedAt: "2024-01-11 10:00" },
+]
+
+const searchValue = ref("")
+const selectedIds = ref<Set<string>>(new Set())
+const isSelectMode = ref(false)
+const notes = ref<Note[]>(notesData)
+const viewMode = ref<"timeline" | "book">("timeline")
+const showMenu = ref(false)
+const selectedNote = ref<Note | null>(null)
+
+const filteredNotes = computed(() => {
+  return notes.value.filter(note =>
+    note.noteContent.includes(searchValue.value) ||
+    note.originalText.includes(searchValue.value) ||
+    note.bookTitle.includes(searchValue.value) ||
+    note.tags.some(t => t.includes(searchValue.value))
+  )
+})
+
+const groupedNotes = computed(() => {
+  const groups: Record<string, Note[]> = {}
+  filteredNotes.value.forEach(note => {
+    if (!groups[note.bookId]) groups[note.bookId] = []
+    groups[note.bookId].push(note)
+  })
+  return Object.entries(groups).map(([bookId, items]) => ({
+    bookId, bookTitle: items[0].bookTitle, bookAuthor: items[0].bookAuthor,
+    dynasty: items[0].dynasty, count: items.length, items,
+  }))
+})
+
+function handleCancelSelect() {
+  isSelectMode.value = false
+  selectedIds.value = new Set()
+}
+
+function handleEnterBatchMode() {
+  showMenu.value = false
+  isSelectMode.value = true
+}
+
+function handleDeleteNote(note: Note) {
+  selectedNote.value = null
+  uni.showModal({
+    title: '删除笔记',
+    content: '确定要删除这条笔记吗？',
+    success: (res) => {
+      if (res.confirm) {
+        notes.value = notes.value.filter(n => n.id !== note.id)
+        uni.showToast({ title: '已删除', icon: 'none' })
+      }
+    }
+  })
+}
+
+function handleBatchDelete() {
+  uni.showModal({
+    title: '批量删除',
+    content: `确定要删除选中的 ${selectedIds.value.size} 条笔记吗？`,
+    success: (res) => {
+      if (res.confirm) {
+        notes.value = notes.value.filter(note => !selectedIds.value.has(note.id))
+        selectedIds.value = new Set()
+        isSelectMode.value = false
+        uni.showToast({ title: '已删除', icon: 'none' })
+      }
+    }
+  })
+}
+
+function handleToggleSelect(id: string) {
+  const next = new Set(selectedIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedIds.value = next
+}
+
+function showNoteActions(note: Note) {
+  selectedNote.value = note
+}
+
+function handleEditNote(note: Note) {
+  selectedNote.value = null
+  uni.showToast({ title: '编辑笔记（开发中）', icon: 'none' })
+}
+
+function handleShareNote(note: Note) {
+  selectedNote.value = null
+  uni.showShareMenu({ withShareTicket: true })
+}
+
+function handleJumpToReading(note: Note) {
+  selectedNote.value = null
+  uni.navigateTo({ url: '/pages/classics/' + note.bookId + '/id-detail' })
+}
+
+// 页面关闭时清理状态
+function goBack() { uni.navigateBack() }
+function goTo(url: string) { uni.navigateTo({ url }) }
+</script>
+
+<style scoped>
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 笔记卡片选中态高亮效果 */
+/* 时间线视图和分组视图共用样式 */
+</style>

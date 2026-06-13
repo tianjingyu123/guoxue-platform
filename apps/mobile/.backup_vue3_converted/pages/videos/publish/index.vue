@@ -1,0 +1,715 @@
+<template>
+  <!-- 步骤1：选择视频 -->
+  <view v-if="step === 'select'" class="min-h-screen bg-black flex flex-col">
+    <view class="flex items-center justify-between px-4 py-3 text-white">
+      <view @click="goBack" class="p-2 -ml-2"><text class="text-xl">✕</text></view>
+      <text class="text-lg font-medium">发布视频</text>
+      <view class="w-10" />
+    </view>
+    <view class="flex-1 flex flex-col items-center justify-center px-6">
+      <view class="w-24 h-24 rounded-full bg-white/10 flex items-center justify-center mb-6">
+        <text class="text-5xl text-white/80"></text>
+      </view>
+      <text class="text-white text-xl font-medium mb-2">选择视频</text>
+      <text class="text-white/60 text-sm text-center mb-8">支持 MP4、MOV 格式，最长60秒</text>
+      <view class="w-full space-y-3">
+        <view @click="selectFromAlbum" class="w-full py-4 bg-primary text-white rounded-xl flex items-center justify-center gap-2">
+          <text> 从相册选择</text>
+        </view>
+        <view @click="shootVideo" class="w-full py-4 bg-white/10 text-white rounded-xl flex items-center justify-center gap-2">
+          <text> 拍摄视频</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 步骤2：编辑视频 -->
+  <view v-else-if="step === 'edit'" class="min-h-screen bg-black flex flex-col">
+    <view class="flex items-center justify-between px-4 py-3 text-white">
+      <view @click="step = 'select'" class="p-2 -ml-2"><text class="text-xl">←</text></view>
+      <text class="text-lg font-medium">编辑视频</text>
+      <view @click="step = 'publish'" class="text-primary font-medium"><text>下一步</text></view>
+    </view>
+    <view class="relative flex-1 flex items-center justify-center bg-black">
+      <video
+        id="editVideo"
+        :src="videoPreview"
+        :controls="false"
+        :autoplay="false"
+        :loop="true"
+        :show-center-play-btn="false"
+        :show-play-btn="false"
+        :show-fullscreen-btn="false"
+        object-fit="contain"
+        class="max-w-full max-h-full"
+        @loadedmetadata="onEditVideoLoadedMeta"
+        @seeked="onEditVideoSeeked"
+      />
+      <view @click="togglePlay" class="absolute inset-0 flex items-center justify-center">
+        <view v-if="!isPlaying" class="w-16 h-16 rounded-full bg-black/50 flex items-center justify-center">
+          <text class="text-white text-3xl ml-1">▶</text>
+        </view>
+      </view>
+    </view>
+    <view class="bg-zinc-900 px-4 py-4">
+      <view class="flex items-center justify-between mb-3">
+        <text class="text-white text-sm">选择封面</text>
+        <view class="text-primary text-sm flex items-center gap-1">
+          <text></text>
+          <text>上传封面</text>
+        </view>
+      </view>
+      <scroll-view scroll-x class="flex-row pb-2" style="white-space:nowrap; overflow-x: auto;">
+        <view class="flex gap-2" style="display:inline-flex">
+          <view
+            v-for="(frame, index) in frames"
+            :key="index"
+            @click="selectCoverFrame(index)"
+            :class="['relative flex-shrink-0 w-16 h-24 rounded-lg overflow-hidden inline-block', coverFrameIndex === index ? 'ring-2 ring-primary' : '']"
+          >
+            <image v-if="frame" :src="frame" mode="aspectFill" class="w-full h-full" />
+            <view v-else class="w-full h-full bg-gradient-to-br from-gray-600 to-gray-700" />
+            <view v-if="coverFrameIndex === index" class="absolute inset-0 bg-primary/20 flex items-center justify-center">
+              <text class="text-white text-sm font-bold">✓</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+    <!-- 隐藏的画布，用于视频帧提取 -->
+    <canvas
+      id="frameExtractCanvas"
+      type="2d"
+      style="position:fixed;left:-9999px;top:-9999px;width:160px;height:90px"
+    />
+  </view>
+
+  <!-- 步骤3：发布设置 -->
+  <view v-else class="min-h-screen bg-background flex flex-col">
+    <view class="sticky top-0 z-20 bg-white border-b border-border">
+      <view class="flex items-center justify-between px-4 py-3">
+        <view @click="step = 'edit'" class="p-2 -ml-2"><text class="text-xl text-foreground">←</text></view>
+        <text class="text-lg font-medium text-foreground">发布设置</text>
+        <view
+          @click="handlePublish"
+          :class="['px-4 py-1.5 text-sm rounded-full', uploading ? 'bg-primary/50 text-white' : 'bg-primary text-white']"
+        >
+          <text>{{ uploading ? '发布中...' : '发布' }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="flex-1 overflow-auto pb-safe">
+      <!-- 视频预览卡片 -->
+      <view class="p-4">
+        <view class="flex gap-4 bg-white rounded-2xl p-4 shadow-sm">
+          <view class="relative w-24 h-32 rounded-xl overflow-hidden flex-shrink-0">
+            <image v-if="coverFrame" :src="coverFrame" mode="aspectFill" class="w-full h-full" />
+            <view v-else class="w-full h-full bg-gray-100 flex items-center justify-center">
+              <text class="text-4xl text-gray-400"></text>
+            </view>
+            <view class="absolute bottom-1 right-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
+              <text>{{ formatDuration(videoDuration) }}</text>
+            </view>
+          </view>
+          <view class="flex-1">
+            <textarea
+              v-model="title"
+              placeholder="添加标题，让更多人看到"
+              maxlength="50"
+              :class="['w-full h-full resize-none text-foreground placeholder-[#999] bg-transparent outline-none text-sm', errors.title ? 'border border-red-500 rounded p-2' : '']"
+            />
+            <text v-if="errors.title" class="text-red-500 text-xs mt-1 block">{{ errors.title }}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 描述 -->
+      <view class="px-4 mb-4">
+        <view class="bg-white rounded-2xl p-4 shadow-sm">
+          <textarea
+            v-model="description"
+            placeholder="添加描述..."
+            maxlength="200"
+            rows="3"
+            class="w-full resize-none text-foreground placeholder-[#999] bg-transparent outline-none text-sm"
+          />
+          <view class="text-right text-xs text-muted-foreground"><text>{{ description.length }}/200</text></view>
+        </view>
+      </view>
+
+      <!-- 话题标签 -->
+      <view class="px-4 mb-4">
+        <view class="bg-white rounded-2xl p-4 shadow-sm">
+          <view class="flex items-center gap-2 mb-3">
+            <text class="text-lg text-primary">#</text>
+            <text class="text-sm text-foreground font-medium">话题标签</text>
+            <text class="text-xs text-muted-foreground">(最多5个)</text>
+          </view>
+
+          <!-- 已选标签 -->
+          <view v-if="tags.length > 0" class="flex flex-wrap gap-2 mb-3">
+            <text
+              v-for="tag in tags"
+              :key="tag"
+              class="inline-flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm"
+            >
+              #{{ tag }}
+              <text @click="handleRemoveTag(tag)" class="text-xs ml-1">✕</text>
+            </text>
+          </view>
+
+          <!-- 标签输入 -->
+          <view class="flex gap-2 mb-3">
+            <input
+              v-model="tagInput"
+              placeholder="输入标签，回车添加"
+              @confirm="handleAddTag"
+              class="flex-1 px-3 py-2 bg-background rounded-lg text-sm outline-none"
+            />
+            <view @click="handleAddTag" class="px-4 py-2 bg-primary text-white rounded-lg text-sm">添加</view>
+          </view>
+
+          <!-- 热门标签 -->
+          <view>
+            <text class="text-xs text-muted-foreground block mb-2">热门标签</text>
+            <view class="flex flex-wrap gap-2">
+              <text
+                v-for="tag in hotTags"
+                :key="tag"
+                @click="handleSelectHotTag(tag)"
+                :class="['px-3 py-1 rounded-full text-sm', tags.includes(tag) ? 'bg-gray-100 text-gray-400' : 'bg-background text-ink-soft']"
+              >#{{ tag }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 关联商品 -->
+      <view class="px-4 mb-4">
+        <view class="bg-white rounded-2xl p-4 shadow-sm">
+          <view class="flex items-center justify-between mb-3">
+            <view class="flex items-center gap-2">
+              <text class="text-base text-accent"></text>
+              <text class="text-sm text-foreground font-medium">关联商品</text>
+              <text class="text-xs text-muted-foreground">(最多5件)</text>
+            </view>
+            <view @click="showProductSearch = true" class="text-primary text-sm flex items-center gap-1">
+              <text> 添加</text>
+            </view>
+          </view>
+
+          <!-- 已选商品列表 -->
+          <view v-if="selectedProducts.length > 0" class="space-y-2 mb-3">
+            <view
+              v-for="(product, index) in selectedProducts"
+              :key="product.id"
+              class="flex items-center gap-3 p-2 bg-background rounded-xl"
+            >
+              <text class="w-5 h-5 rounded-full bg-primary text-white text-xs flex items-center justify-center flex-shrink-0">{{ index + 1 }}</text>
+              <image
+                v-if="product.cover"
+                :src="product.cover"
+                mode="aspectFill"
+                class="w-10 h-10 rounded-lg flex-shrink-0"
+              />
+              <view v-else class="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center flex-shrink-0"><text></text></view>
+              <view class="flex-1 min-w-0">
+                <text class="text-xs text-foreground truncate block">{{ product.name }}</text>
+                <view class="flex items-center gap-2 mt-0.5">
+                  <text class="text-xs text-primary font-medium">¥{{ product.price }}</text>
+                  <text class="text-[10px] text-green-600 bg-green-50 px-1 rounded">{{ product.commission }}%佣金</text>
+                </view>
+              </view>
+              <text @click="handleToggleProduct(product)" class="text-xs text-muted-foreground">✕</text>
+            </view>
+          </view>
+
+          <!-- 佣金预览 -->
+          <view v-if="selectedProducts.length > 0" class="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-accent/10 to-accent/5">
+            <text class="text-xs text-ink-soft">预计每单佣金收益</text>
+            <text class="text-sm text-accent font-bold">¥{{ estimatedCommission.toFixed(2) }}</text>
+          </view>
+
+          <!-- 空状态 -->
+          <text v-if="selectedProducts.length === 0" class="text-xs text-muted-foreground text-center block py-4">添加商品，开启带货赚佣金</text>
+        </view>
+      </view>
+
+      <!-- 隐私设置 -->
+      <view class="px-4 mb-4">
+        <view class="bg-white rounded-2xl p-4 shadow-sm">
+          <view class="flex items-center justify-between">
+            <view class="flex items-center gap-2">
+              <text :class="isPublic ? 'text-green-500' : 'text-muted-foreground'">{{ isPublic ? '' : '' }}</text>
+              <text class="text-sm text-foreground font-medium">{{ isPublic ? '公开可见' : '仅自己可见' }}</text>
+            </view>
+            <view
+              @click="isPublic = !isPublic"
+              :class="['relative w-12 h-7 rounded-full transition-colors', isPublic ? 'bg-green-500' : 'bg-gray-300']"
+            >
+              <view
+                :class="['absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform', isPublic ? 'right-0.5' : 'left-0.5']"
+              />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 上传进度弹窗 -->
+    <view v-if="uploading" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <view class="bg-white rounded-2xl p-6 w-72">
+        <view class="text-center mb-4">
+          <view class="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-3">
+            <text class="text-3xl text-primary" :class="uploading ? 'animate-bounce' : ''"></text>
+          </view>
+          <text class="text-foreground font-medium">正在发布...</text>
+        </view>
+        <view class="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <view
+            class="h-full bg-primary transition-all duration-300 rounded-full"
+            :style="{ width: uploadProgress + '%' }"
+          />
+        </view>
+        <text class="text-center text-sm text-muted-foreground block mt-2">{{ uploadProgress }}%</text>
+      </view>
+    </view>
+
+    <!-- 商品搜索弹窗 -->
+    <view v-if="showProductSearch" class="fixed inset-0 bg-black/50 z-50 flex items-end">
+      <view class="w-full bg-white rounded-t-3xl max-h-[80vh] flex flex-col">
+        <view class="flex items-center justify-between px-4 py-4 border-b border-border">
+          <text class="text-lg font-medium text-foreground">选择商品</text>
+          <view class="flex items-center gap-2">
+            <text v-if="selectedProducts.length > 0" class="text-xs text-primary">已选 {{ selectedProducts.length }}/5</text>
+            <text @click="showProductSearch = false" class="text-xl text-ink-soft">✕</text>
+          </view>
+        </view>
+
+        <view class="p-4">
+          <view class="flex gap-2">
+            <view class="flex-1 relative">
+              <text class="absolute left-3 top-1/2 -translate-y-1/2 text-base text-muted-foreground"></text>
+              <input
+                v-model="productKeyword"
+                placeholder="搜索商品"
+                @confirm="handleSearchProducts"
+                class="w-full pl-10 pr-4 py-2.5 bg-background rounded-xl text-sm outline-none"
+              />
+            </view>
+            <view @click="handleSearchProducts" class="px-4 py-2 bg-primary text-white rounded-xl text-sm">搜索</view>
+          </view>
+        </view>
+
+        <!-- 标题 -->
+        <view class="px-4 pb-2">
+          <text class="text-xs text-muted-foreground">{{ showMyProducts ? '我的商品库' : '搜索结果' }}</text>
+        </view>
+
+        <!-- 商品列表 -->
+        <view class="flex-1 overflow-auto px-4 pb-safe">
+          <view v-if="searchResults.length === 0" class="text-center py-8 text-muted-foreground text-sm">
+            <text>暂无商品，去</text>
+            <text class="text-primary" @click="goToProductManage">商品管理</text>
+            <text>添加</text>
+          </view>
+          <view
+            v-for="product in searchResults"
+            :key="product.id"
+            @click="handleToggleProduct(product)"
+            :class="['flex items-center gap-3 p-3 rounded-xl mb-2 transition-colors', selectedProducts.find(p => p.id === product.id) ? 'bg-primary/5 border border-primary/30' : 'hover:bg-background', !selectedProducts.find(p => p.id === product.id) && selectedProducts.length >= 5 ? 'opacity-50' : '']"
+          >
+            <view class="relative">
+              <image
+                v-if="product.cover"
+                :src="product.cover"
+                mode="aspectFill"
+                class="w-14 h-14 rounded-lg object-cover"
+              />
+              <view v-else class="w-14 h-14 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center"><text></text></view>
+              <view v-if="selectedProducts.find(p => p.id === product.id)" class="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                <text class="text-white text-xs">✓</text>
+              </view>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="text-sm text-foreground truncate block">{{ product.name }}</text>
+              <view class="flex items-center gap-2 mt-1">
+                <text class="text-primary font-bold">¥{{ product.price }}</text>
+                <text class="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded">{{ product.commission }}%佣金</text>
+              </view>
+              <text class="text-[10px] text-muted-foreground block mt-0.5">库存 {{ product.stock }}</text>
+            </view>
+            <text class="text-xs text-ink-soft">{{ selectedProducts.find(p => p.id === product.id) ? '已选' : '选择' }}</text>
+          </view>
+        </view>
+
+        <!-- 确认按钮 -->
+        <view v-if="selectedProducts.length > 0" class="p-4 border-t border-border safe-area-pb">
+          <view @click="showProductSearch = false" class="w-full py-3 bg-primary text-white rounded-xl font-medium text-center">
+            确认选择 ({{ selectedProducts.length }}件商品)
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, nextTick } from 'vue'
+
+interface VideoProduct {
+  id: string
+  name: string
+  cover: string
+  price: number
+  commission?: number
+  stock?: number
+}
+
+// 模拟商品库
+const productLibrary: VideoProduct[] = [
+  { id: '1', name: '八字命理学入门书籍', cover: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=100&h=100&fit=crop', price: 68, commission: 10, stock: 500 },
+  { id: '2', name: '招财貔貅摆件', cover: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=100&h=100&fit=crop', price: 298, commission: 15, stock: 200 },
+  { id: '3', name: '五帝钱挂件', cover: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=100&h=100&fit=crop', price: 128, commission: 12, stock: 350 },
+  { id: '4', name: '姓名学全解', cover: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=100&h=100&fit=crop', price: 88, commission: 10, stock: 800 },
+  { id: '5', name: '风水堪舆实战课程', cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop', price: 199, commission: 20, stock: 999 },
+]
+
+const hotTags = ['易经', '风水', '八字', '命理', '国学', '周易', '梅花易数', '六爻']
+
+// 步骤状态
+const step = ref<'select' | 'edit' | 'publish'>('select')
+
+// 视频相关
+const videoFile = ref<string>('')
+const videoPreview = ref<string>('')
+const videoDuration = ref(0)
+const coverFrame = ref<string>('')
+const coverFrameIndex = ref(0)
+const frames = ref<string[]>([])
+const isPlaying = ref(false)
+
+// 表单状态
+const title = ref('')
+const description = ref('')
+const tags = ref<string[]>([])
+const tagInput = ref('')
+const isPublic = ref(true)
+
+// 商品相关
+const showProductSearch = ref(false)
+const productKeyword = ref('')
+const selectedProducts = ref<VideoProduct[]>([])
+const searchResults = ref<VideoProduct[]>([...productLibrary])
+const showMyProducts = ref(true)
+
+// 上传状态
+const uploading = ref(false)
+const uploadProgress = ref(0)
+const errors = ref<Record<string, string>>({})
+
+// 帧提取内部状态
+let frameExtractIdx = 0
+const FRAME_COUNT = 8
+let extractedFrames: string[] = []
+
+// 计算预计佣金
+const estimatedCommission = computed(() => {
+  return selectedProducts.value.reduce((sum, p) => sum + p.price * ((p.commission || 10) / 100), 0)
+})
+
+// 选择本地视频
+function selectFromAlbum() {
+  uni.chooseVideo({
+    sourceType: ['album'],
+    maxDuration: 60,
+    success: (res) => {
+      const tempPath = res.tempFilePath
+      videoFile.value = tempPath
+      videoPreview.value = tempPath
+      videoDuration.value = res.duration || 0
+      step.value = 'edit'
+      // 选择视频后开始提取帧
+      nextTick(() => {
+        const videoContext = uni.createVideoContext('editVideo')
+        if (videoContext) {
+          videoContext.seek(0)
+        }
+      })
+    },
+  })
+}
+
+// 拍摄视频
+function shootVideo() {
+  uni.chooseVideo({
+    sourceType: ['camera'],
+    maxDuration: 60,
+    success: (res) => {
+      const tempPath = res.tempFilePath
+      videoFile.value = tempPath
+      videoPreview.value = tempPath
+      videoDuration.value = res.duration || 0
+      step.value = 'edit'
+      nextTick(() => {
+        const videoContext = uni.createVideoContext('editVideo')
+        if (videoContext) {
+          videoContext.seek(0)
+        }
+      })
+    },
+  })
+}
+
+// 播放/暂停切换
+function togglePlay() {
+  const videoContext = uni.createVideoContext('editVideo')
+  if (!videoContext) return
+  if (isPlaying.value) {
+    videoContext.pause()
+  } else {
+    videoContext.play()
+  }
+  isPlaying.value = !isPlaying.value
+}
+
+// 视频元数据加载完成，获取时长
+function onEditVideoLoadedMeta(e: any) {
+  const dur = e.detail?.duration || 0
+  if (dur > 0) {
+    videoDuration.value = dur
+  }
+  // 开始帧提取
+  frameExtractIdx = 0
+  extractedFrames = []
+  const videoContext = uni.createVideoContext('editVideo')
+  if (videoContext && dur > 0) {
+    videoContext.seek(0)
+  }
+}
+
+// 视频 seek 完成，捕获当前帧
+function onEditVideoSeeked() {
+  if (frameExtractIdx >= FRAME_COUNT) return
+  const dur = videoDuration.value
+  if (!dur) return
+
+  captureVideoFrame((dataUrl) => {
+    extractedFrames.push(dataUrl)
+    frameExtractIdx++
+
+    if (frameExtractIdx >= FRAME_COUNT) {
+      frames.value = [...extractedFrames]
+      if (extractedFrames.length > 0) {
+        coverFrame.value = extractedFrames[0]
+        coverFrameIndex.value = 0
+      }
+    } else {
+      const videoContext = uni.createVideoContext('editVideo')
+      if (videoContext) {
+        videoContext.seek((dur / FRAME_COUNT) * frameExtractIdx)
+      }
+    }
+  })
+}
+
+// 捕获视频帧到 canvas
+function captureVideoFrame(callback: (dataUrl: string) => void) {
+  const query = uni.createSelectorQuery()
+  query
+    .select('#frameExtractCanvas')
+    .fields({ node: true, size: true })
+    .exec((res) => {
+      try {
+        const canvasNode = res?.[0]?.node as HTMLCanvasElement | undefined
+        if (canvasNode) {
+          const ctx = canvasNode.getContext('2d')
+          if (ctx) {
+            canvasNode.width = 160
+            canvasNode.height = 90
+            // 尝试通过 ID 查找 video 元素并绘制到 canvas
+            const videoEl = document.getElementById('editVideo') as HTMLVideoElement | null
+            if (videoEl) {
+              ctx.drawImage(videoEl, 0, 0, 160, 90)
+              const dataUrl = canvasNode.toDataURL('image/jpeg', 0.8)
+              callback(dataUrl)
+              return
+            }
+          }
+        }
+      } catch (_e) {
+        // canvas 操作失败，生成占位帧
+      }
+      // 降级：生成纯色帧
+      fallbackFrameCapture(callback)
+    })
+}
+
+// 降级帧捕获方案
+function fallbackFrameCapture(callback: (dataUrl: string) => void) {
+  // 在无法使用 canvas 抓取视频帧时，返回空字符串
+  // 实际生产中可通过原生插件或服务端截图实现
+  const query = uni.createSelectorQuery()
+  query
+    .select('#frameExtractCanvas')
+    .fields({ node: true, size: true })
+    .exec((res) => {
+      try {
+        const canvasNode = res?.[0]?.node as HTMLCanvasElement | undefined
+        if (canvasNode) {
+          const ctx = canvasNode.getContext('2d')
+          if (ctx) {
+            canvasNode.width = 160
+            canvasNode.height = 90
+            // 生成渐变填充的占位帧，视觉上可区分
+            const hue = (frameExtractIdx * 40) % 360
+            ctx.fillStyle = `hsl(${hue}, 30%, 50%)`
+            ctx.fillRect(0, 0, 160, 90)
+            ctx.fillStyle = '#ffffff'
+            ctx.font = '12px sans-serif'
+            ctx.textAlign = 'center'
+            ctx.fillText(`帧 ${frameExtractIdx + 1}`, 80, 50)
+            const dataUrl = canvasNode.toDataURL('image/jpeg', 0.8)
+            callback(dataUrl)
+            return
+          }
+        }
+      } catch (_e) {
+        // ignore
+      }
+      callback('')
+    })
+}
+
+// 选择封面帧
+function selectCoverFrame(index: number) {
+  coverFrameIndex.value = index
+  if (frames.value[index]) {
+    coverFrame.value = frames.value[index]
+  }
+}
+
+// 添加标签
+function handleAddTag() {
+  const trimmed = tagInput.value.trim()
+  if (trimmed && tags.value.length < 5 && !tags.value.includes(trimmed)) {
+    tags.value.push(trimmed)
+    tagInput.value = ''
+  }
+}
+
+// 移除标签
+function handleRemoveTag(tag: string) {
+  tags.value = tags.value.filter((t) => t !== tag)
+}
+
+// 选择热门标签
+function handleSelectHotTag(tag: string) {
+  if (tags.value.length < 5 && !tags.value.includes(tag)) {
+    tags.value.push(tag)
+  }
+}
+
+// 搜索商品
+function handleSearchProducts() {
+  if (productKeyword.value.trim()) {
+    const keyword = productKeyword.value.trim().toLowerCase()
+    searchResults.value = productLibrary.filter((p) => p.name.toLowerCase().includes(keyword))
+    showMyProducts.value = false
+  } else {
+    searchResults.value = [...productLibrary]
+    showMyProducts.value = true
+  }
+}
+
+// 切换商品选择
+function handleToggleProduct(product: VideoProduct) {
+  const idx = selectedProducts.value.findIndex((p) => p.id === product.id)
+  if (idx >= 0) {
+    selectedProducts.value = selectedProducts.value.filter((p) => p.id !== product.id)
+  } else if (selectedProducts.value.length < 5) {
+    selectedProducts.value.push(product)
+  }
+}
+
+// 表单校验
+function validateForm(): boolean {
+  const newErrors: Record<string, string> = {}
+  if (!title.value.trim()) newErrors.title = '请输入视频标题'
+  if (title.value.length > 50) newErrors.title = '标题不能超过50字'
+  errors.value = newErrors
+  return Object.keys(newErrors).length === 0
+}
+
+// 发布
+async function handlePublish() {
+  if (uploading.value) return
+  if (!validateForm()) return
+
+  uploading.value = true
+  uploadProgress.value = 0
+  for (let i = 0; i <= 100; i += 10) {
+    await new Promise((r) => setTimeout(r, 200))
+    uploadProgress.value = i
+  }
+
+  setTimeout(() => {
+    uploading.value = false
+    uni.showToast({ title: '发布成功', icon: 'success' })
+    setTimeout(() => {
+      uni.navigateBack()
+    }, 500)
+  }, 500)
+}
+
+// 返回
+function goBack() {
+  uni.navigateBack()
+}
+
+// 跳转商品管理
+function goToProductManage() {
+  uni.navigateTo({ url: '/pages/videos/creator/index' })
+}
+
+// 格式化时长
+function formatDuration(seconds: number): string {
+  if (!seconds) return '00:30'
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 0.8s ease infinite;
+}
+
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+.transition-colors {
+  transition: background-color 0.2s ease;
+}
+
+.transition-transform {
+  transition: transform 0.2s ease;
+}
+
+.animate-bounce {
+  animation: bounce 0.8s ease infinite;
+}
+</style>

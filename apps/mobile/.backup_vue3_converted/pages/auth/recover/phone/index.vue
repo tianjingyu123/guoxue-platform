@@ -1,0 +1,387 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-10 bg-background border-b border-border flex items-center px-4 h-12 gap-3">
+      <view @click="goBack">
+        <text class="text-xl text-foreground leading-none">←</text>
+      </view>
+      <text class="text-base font-semibold text-foreground">手机号找回密码</text>
+    </view>
+
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="px-6 pt-8">
+      <view class="flex justify-center mb-6">
+        <view class="w-16 h-16 rounded-full bg-muted animate-pulse" />
+      </view>
+      <view class="h-5 w-32 bg-muted rounded mx-auto mb-2 animate-pulse" />
+      <view class="h-4 w-48 bg-muted rounded mx-auto mb-8 animate-pulse" />
+      <view class="space-y-4">
+        <view class="h-4 w-20 bg-muted rounded animate-pulse" />
+        <view class="h-10 w-full bg-muted rounded-lg animate-pulse" />
+        <view class="h-4 w-20 bg-muted rounded animate-pulse" />
+        <view class="h-10 w-full bg-muted rounded-lg animate-pulse" />
+        <view class="h-11 w-full bg-muted rounded-lg animate-pulse" />
+      </view>
+    </view>
+
+    <!-- 内容 -->
+    <view v-else class="px-6 pt-6">
+      <!-- 步骤指示器 -->
+      <view class="flex items-center justify-center mb-8">
+        <view v-for="(step, index) in steps" :key="step.key" class="flex items-center">
+          <view class="flex flex-col items-center">
+            <view
+              class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300"
+              :class="currentStep >= index ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'"
+            >
+              <text v-if="currentStep > index">✓</text>
+              <text v-else>{{ index + 1 }}</text>
+            </view>
+            <text
+              class="text-[10px] mt-1 whitespace-nowrap transition-colors"
+              :class="currentStep >= index ? 'text-primary font-medium' : 'text-muted-foreground'"
+            >{{ step.label }}</text>
+          </view>
+          <view
+            v-if="index < steps.length - 1"
+            class="w-10 h-[2px] mx-1 mt-[-18px] transition-colors"
+            :class="currentStep > index ? 'bg-primary' : 'bg-muted'"
+          />
+        </view>
+      </view>
+
+      <!-- 步骤1: 验证手机号 -->
+      <view v-if="currentStep === 0">
+        <view class="flex justify-center mb-6">
+          <view class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <text class="text-3xl"></text>
+          </view>
+        </view>
+        <text class="text-xl font-bold text-foreground text-center block mb-2">验证手机号</text>
+        <text class="text-sm text-muted-foreground text-center block mb-8">输入注册手机号并完成验证</text>
+
+        <view class="space-y-4">
+          <view>
+            <label class="text-sm font-medium text-foreground mb-1.5 block">手机号码</label>
+            <view class="flex gap-2">
+              <view class="flex items-center justify-center px-3 h-10 border border-border rounded-lg text-sm text-foreground bg-muted flex-shrink-0">
+                +86
+              </view>
+              <input
+                class="flex-1 h-10 px-3 py-2 text-sm bg-background border border-border rounded-lg box-border placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                v-model="phone"
+                type="number"
+                placeholder="请输入手机号"
+                :maxlength="11"
+              />
+            </view>
+            <text v-if="phone.length > 0 && phone.length < 11" class="text-xs text-danger mt-1 block">请输入11位手机号</text>
+          </view>
+
+          <view>
+            <label class="text-sm font-medium text-foreground mb-1.5 block">验证码</label>
+            <view class="flex gap-2">
+              <input
+                class="flex-1 h-10 px-3 py-2 text-sm bg-background border border-border rounded-lg box-border placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                v-model="code"
+                type="digit"
+                placeholder="6位验证码"
+                maxlength="6"
+              />
+              <view
+                class="flex-shrink-0 h-10 px-4 rounded-lg flex items-center justify-center text-sm font-medium transition-colors"
+                :class="cd > 0
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                  : 'bg-primary text-white'"
+                @click="sendCode"
+              >
+                <text>{{ cd > 0 ? cd + 's' : '获取验证码' }}</text>
+              </view>
+            </view>
+            <text class="text-xs text-muted-foreground mt-1 block">验证码已通过短信发送</text>
+          </view>
+
+          <view
+            class="w-full h-11 rounded-lg flex items-center justify-center text-base font-semibold transition-colors"
+            :class="phone.length === 11 && code.length === 6
+              ? 'bg-primary text-white'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'"
+            @click="doVerify"
+          >
+            <text>验证</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 步骤2: 验证码已发送,输入验证码 -->
+      <view v-if="currentStep === 1">
+        <view class="flex justify-center mb-6">
+          <view class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <text class="text-3xl">🔐</text>
+          </view>
+        </view>
+        <text class="text-xl font-bold text-foreground text-center block mb-2">验证码已发送</text>
+        <text class="text-sm text-muted-foreground text-center block mb-2">验证码已发送至 {{ maskPhone }}</text>
+        <view class="flex justify-center mb-8">
+          <view class="flex gap-2">
+            <input
+              v-for="(d, idx) in 6"
+              :key="idx"
+              class="w-10 h-12 text-center text-lg font-bold border rounded-lg bg-background focus:border-primary focus:outline-none"
+              :class="codeDigits[idx] !== undefined ? 'border-primary' : 'border-border'"
+              :value="codeDigits[idx] || ''"
+              type="digit"
+              maxlength="1"
+              @input="onDigitInput(idx, $event)"
+            />
+          </view>
+        </view>
+        <view class="text-center mb-6">
+          <text class="text-xs text-muted-foreground">
+            {{ cd > 0 ? cd + 's后重新获取' : '未收到验证码？' }}
+          </text>
+          <text v-if="cd === 0" class="text-xs text-primary font-medium ml-1" @click="resendCode">重新获取</text>
+        </view>
+
+        <view
+          class="w-full h-11 rounded-lg flex items-center justify-center text-base font-semibold transition-colors"
+          :class="code.length === 6
+            ? 'bg-primary text-white'
+            : 'bg-muted text-muted-foreground cursor-not-allowed'"
+          @click="confirmCode"
+        >
+          <text>确认</text>
+        </view>
+      </view>
+
+      <!-- 步骤3: 设置新密码 -->
+      <view v-if="currentStep === 2">
+        <view class="flex justify-center mb-6">
+          <view class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <text class="text-3xl"></text>
+          </view>
+        </view>
+        <text class="text-xl font-bold text-foreground text-center block mb-2">设置新密码</text>
+        <text class="text-sm text-muted-foreground text-center block mb-8">请输入您的新登录密码</text>
+
+        <view class="space-y-4">
+          <view>
+            <label class="text-sm font-medium text-foreground mb-1.5 block">新密码</label>
+            <input
+              class="w-full h-10 px-3 py-2 text-sm bg-background border border-border rounded-lg box-border placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              v-model="newPassword"
+              type="password"
+              placeholder="请设置8-20位新密码"
+            />
+            <view v-if="newPassword" class="flex items-center gap-1 mt-1">
+              <view class="flex-1 h-1 rounded-full overflow-hidden bg-muted">
+                <view
+                  class="h-full rounded-full transition-all"
+                  :style="{ width: passwordStrengthPercent + '%' }"
+                  :class="passwordStrengthColor"
+                />
+              </view>
+              <text class="text-[10px]" :class="passwordStrengthTextColor">{{ passwordStrengthLabel }}</text>
+            </view>
+          </view>
+          <view>
+            <label class="text-sm font-medium text-foreground mb-1.5 block">确认密码</label>
+            <input
+              class="w-full h-10 px-3 py-2 text-sm bg-background border border-border rounded-lg box-border placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+              v-model="confirmPassword"
+              type="password"
+              placeholder="请再次输入新密码"
+            />
+            <text v-if="confirmPassword && confirmPassword !== newPassword" class="text-xs text-danger mt-1 block">两次输入的密码不一致</text>
+          </view>
+
+          <view
+            class="w-full h-11 rounded-lg flex items-center justify-center text-base font-semibold transition-colors"
+            :class="canReset
+              ? 'bg-primary text-white'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'"
+            @click="resetPassword"
+          >
+            <text>重置密码</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 步骤4: 完成 -->
+      <view v-if="currentStep === 3">
+        <view class="flex flex-col items-center pt-8">
+          <view class="w-20 h-20 rounded-full bg-green-50 border-4 border-green-200 flex items-center justify-center mb-6">
+            <text class="text-4xl"></text>
+          </view>
+          <text class="text-2xl font-bold text-foreground mb-2">密码重置成功</text>
+          <text class="text-sm text-muted-foreground text-center mb-2">请使用新密码登录您的账号</text>
+          <text class="text-xs text-muted-foreground text-center mb-8">为了账号安全，建议定期更换密码</text>
+
+          <view class="w-full space-y-3">
+            <view
+              class="w-full h-11 rounded-lg bg-primary text-white flex items-center justify-center text-base font-semibold"
+              @click="goToLogin"
+            >
+              <text>立即登录</text>
+            </view>
+            <view
+              class="w-full h-11 rounded-lg border border-border text-foreground flex items-center justify-center text-sm"
+              @click="goBack"
+            >
+              <text>返回首页</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部安全区 -->
+    <view class="h-8" />
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface Step {
+  key: string
+  label: string
+}
+
+const steps: Step[] = [
+  { key: 'phone', label: '手机验证' },
+  { key: 'code', label: '验证码' },
+  { key: 'password', label: '设置密码' },
+  { key: 'done', label: '完成' },
+]
+
+// 加载状态
+const loading = ref(true)
+setTimeout(() => { loading.value = false }, 600)
+
+// 表单数据
+const phone = ref('')
+const code = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const currentStep = ref(0)
+const cd = ref(0)
+
+// 散列验证码输入
+const codeDigits = ref<(string | undefined)[]>(Array(6).fill(undefined))
+function onDigitInput(idx: number, e: any) {
+  const val = e.detail.value
+  codeDigits.value[idx] = val
+  code.value = codeDigits.value.filter(d => d !== undefined).join('')
+  // 自动跳转到下一个输入框
+  if (val && idx < 5) {
+    // 聚焦到下一个
+  }
+}
+
+// 密码强度
+const passwordStrengthPercent = computed(() => {
+  const pwd = newPassword.value
+  if (!pwd) return 0
+  let score = 0
+  if (pwd.length >= 8) score += 25
+  if (pwd.length >= 12) score += 10
+  if (/[a-z]/.test(pwd)) score += 15
+  if (/[A-Z]/.test(pwd)) score += 15
+  if (/\d/.test(pwd)) score += 15
+  if (/[!@#$%^&*]/.test(pwd)) score += 20
+  return Math.min(100, score)
+})
+
+const passwordStrengthLabel = computed(() => {
+  const p = passwordStrengthPercent.value
+  if (p >= 80) return '强'
+  if (p >= 50) return '中'
+  if (p > 0) return '弱'
+  return ''
+})
+
+const passwordStrengthColor = computed(() => {
+  const p = passwordStrengthPercent.value
+  if (p >= 80) return 'bg-green-500'
+  if (p >= 50) return 'bg-accent'
+  return 'bg-danger'
+})
+
+const passwordStrengthTextColor = computed(() => {
+  const p = passwordStrengthPercent.value
+  if (p >= 80) return 'text-green-500'
+  if (p >= 50) return 'text-accent'
+  return 'text-danger'
+})
+
+const canReset = computed(() => {
+  return newPassword.value.length >= 8 && confirmPassword.value === newPassword.value
+})
+
+// 手机号脱敏
+const maskPhone = computed(() => {
+  if (phone.value.length === 11) {
+    return phone.value.slice(0, 3) + '****' + phone.value.slice(7)
+  }
+  return phone.value
+})
+
+// 发送验证码
+function sendCode() {
+  if (phone.value.length !== 11 || cd.value > 0) return
+  cd.value = 60
+  const t = setInterval(() => {
+    cd.value--
+    if (cd.value <= 0) clearInterval(t)
+  }, 1000)
+  uni.showToast({ title: '验证码已发送', icon: 'success' })
+  setTimeout(() => { currentStep.value = 1 }, 500)
+}
+
+function resendCode() {
+  if (cd.value > 0) return
+  cd.value = 60
+  const t = setInterval(() => {
+    cd.value--
+    if (cd.value <= 0) clearInterval(t)
+  }, 1000)
+  uni.showToast({ title: '已重新发送', icon: 'success' })
+}
+
+// 验证码确认
+function doVerify() {
+  if (phone.value.length !== 11 || code.value.length !== 6) {
+    uni.showToast({ title: '请正确填写信息', icon: 'none' })
+    return
+  }
+  uni.showToast({ title: '验证成功', icon: 'success' })
+  setTimeout(() => { currentStep.value = 1 }, 500)
+}
+
+function confirmCode() {
+  if (code.value.length !== 6) return
+  uni.showToast({ title: '验证通过', icon: 'success' })
+  setTimeout(() => { currentStep.value = 2 }, 500)
+}
+
+// 重置密码
+function resetPassword() {
+  if (!canReset.value) return
+  uni.showToast({ title: '密码重置中⋯', icon: 'loading' })
+  setTimeout(() => {
+    currentStep.value = 3
+  }, 1200)
+}
+
+function goToLogin() {
+  uni.showToast({ title: '跳转登录页', icon: 'none' })
+  setTimeout(() => uni.navigateBack(), 500)
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

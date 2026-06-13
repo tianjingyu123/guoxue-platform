@@ -1,0 +1,252 @@
+<template>
+  <view class="min-h-screen bg-[#FAF8F5]">
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="p-4 space-y-4">
+      <view class="h-12 bg-[#F0EBE5] rounded-lg" />
+      <view class="h-28 bg-[#F0EBE5] rounded-xl" />
+      <view class="grid grid-cols-3 gap-3">
+        <view v-for="i in 3" :key="i" class="h-20 bg-[#F0EBE5] rounded-xl" />
+      </view>
+      <view class="h-48 bg-[#F0EBE5] rounded-xl" />
+    </view>
+
+    <template v-else>
+      <!-- 顶部导航 -->
+      <view class="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-lg border-b border-[#E8E0D5]">
+        <view class="flex items-center justify-between h-12 px-4">
+          <view class="flex items-center gap-3">
+            <view @click="goBack" class="p-1">
+              <text class="text-xl text-[#2C2C2C]">←</text>
+            </view>
+            <text class="font-semibold text-base text-[#2C2C2C]">直播详情</text>
+          </view>
+          <view @click="goEdit" class="px-3 py-1.5 bg-[#C41E3A]/10 text-[#C41E3A] text-xs rounded-full font-medium">
+            编辑
+          </view>
+        </view>
+      </view>
+
+      <view class="p-4 pb-24">
+        <!-- 直播信息卡片 -->
+        <view class="bg-white border border-[#E8E0D5] rounded-xl p-4 mb-4">
+          <view class="flex gap-3">
+            <view class="w-24 h-16 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0 text-4xl">
+              ▶
+            </view>
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-1.5 flex-wrap">
+                <text class="text-[10px] px-1.5 py-0.5 bg-[#C41E3A]/10 text-[#C41E3A] rounded">{{ data.category }}</text>
+                <text class="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded">{{ data.status }}</text>
+                <text class="text-[10px] px-1.5 py-0.5 bg-green-50 text-green-600 rounded">{{ data.type }}</text>
+              </view>
+              <text class="text-sm font-semibold block mt-1.5 text-[#2C2C2C] line-clamp-1">{{ data.title }}</text>
+              <view class="flex items-center gap-3 text-[11px] text-[#999] mt-1">
+                <text class="flex items-center gap-0.5"><text>🕐</text>{{ data.duration }}</text>
+                <text class="flex items-center gap-0.5"><text>📅</text>{{ data.date }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 数据概览 -->
+        <view class="grid grid-cols-4 gap-2 mb-4">
+          <view class="bg-white border border-[#E8E0D5] rounded-xl p-3 text-center">
+            <text class="text-xl font-bold text-[#2C2C2C] block">{{ formatNum(data.views) }}</text>
+            <text class="text-[10px] text-[#999] mt-0.5">观看</text>
+          </view>
+          <view class="bg-white border border-[#E8E0D5] rounded-xl p-3 text-center">
+            <text class="text-xl font-bold text-[#C9A96E] block">{{ formatNum(data.peak) }}</text>
+            <text class="text-[10px] text-[#999] mt-0.5">峰值</text>
+          </view>
+          <view class="bg-white border border-[#E8E0D5] rounded-xl p-3 text-center">
+            <text class="text-xl font-bold text-[#2C2C2C] block">{{ data.avgDuration }}</text>
+            <text class="text-[10px] text-[#999] mt-0.5">均时</text>
+          </view>
+          <view class="bg-white border border-[#E8E0D5] rounded-xl p-3 text-center">
+            <text class="text-xl font-bold text-[#C41E3A] block">¥{{ data.revenue }}</text>
+            <text class="text-[10px] text-[#999] mt-0.5">收益</text>
+          </view>
+        </view>
+
+        <!-- 观看数据趋势（简易柱状图） -->
+        <view class="bg-white border border-[#E8E0D5] rounded-xl p-4 mb-4">
+          <view class="flex items-center justify-between mb-3">
+            <text class="text-sm font-semibold text-[#2C2C2C]">📊 观看趋势</text>
+            <view class="flex gap-1">
+              <text
+                v-for="t in chartTabs" :key="t.key"
+                @click="activeChartTab = t.key"
+                :class="['px-2 py-0.5 rounded text-[10px]', activeChartTab === t.key ? 'bg-[#C41E3A]/10 text-[#C41E3A] font-medium' : 'text-[#999]']"
+              >
+                {{ t.label }}
+              </text>
+            </view>
+          </view>
+          <view class="flex items-end gap-1.5 h-24">
+            <view v-for="(bar, idx) in chartData" :key="idx" class="flex-1 flex flex-col items-center gap-1">
+              <text class="text-[8px] text-[#999]">{{ bar.value }}</text>
+              <view class="w-full rounded-sm transition-all" :style="{ height: bar.height + '%', backgroundColor: bar.color }" />
+              <text class="text-[8px] text-[#999] mt-0.5">{{ bar.label }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 弹幕管理 -->
+        <view class="bg-white border border-[#E8E0D5] rounded-xl p-4 mb-4">
+          <view class="flex items-center justify-between mb-3">
+            <view class="flex items-center gap-1.5">
+              <text class="text-base">💬</text>
+              <text class="text-sm font-semibold text-[#2C2C2C]">弹幕管理</text>
+              <text class="text-xs text-[#999]">({{ danmakuCount }}条)</text>
+            </view>
+            <view @click="toggleDanmaku" class="px-2.5 py-1 rounded-full text-xs" :class="danmakuEnabled ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'">
+              {{ danmakuEnabled ? '已开启' : '已关闭' }}
+            </view>
+          </view>
+          <view v-for="d in danmakuList" :key="d.id" class="flex items-start gap-2 py-2 border-b border-[#F0EBE5] last:border-b-0">
+            <text class="text-xs text-[#C41E3A] font-medium flex-shrink-0">{{ d.user }}</text>
+            <text class="text-xs text-[#2C2C2C] flex-1 leading-relaxed">{{ d.content }}</text>
+            <text class="text-[10px] text-[#999] flex-shrink-0">{{ d.time }}</text>
+          </view>
+        </view>
+
+        <!-- 回放列表 -->
+        <view class="bg-white border border-[#E8E0D5] rounded-xl overflow-hidden mb-4">
+          <view class="px-4 py-3 border-b border-[#E8E0D5] flex items-center justify-between">
+            <view class="flex items-center gap-1.5">
+              <text class="text-base">▶</text>
+              <text class="font-semibold text-sm text-[#2C2C2C]">回放列表</text>
+            </view>
+            <view @click="addReplay" class="px-2.5 py-1 rounded-full bg-[#C41E3A]/10 text-[#C41E3A] text-xs font-medium">
+              + 添加回放
+            </view>
+          </view>
+          <view v-for="r in replays" :key="r.id" class="flex items-center gap-3 px-4 py-3.5 border-b border-[#E8E0D5] last:border-b-0">
+            <view class="w-16 h-10 rounded-lg bg-[#F5F1EB] flex items-center justify-center flex-shrink-0 text-xl">▶</view>
+            <view class="flex-1 min-w-0">
+              <text class="text-sm font-medium text-[#2C2C2C] block">{{ r.title }}</text>
+              <view class="flex items-center gap-2 text-[11px] text-[#999] mt-0.5">
+                <text>{{ r.duration }}</text>
+                <text>·</text>
+                <text>{{ r.date }}</text>
+                <text v-if="r.views" class="flex items-center gap-0.5"><text>👁</text>{{ r.views }}</text>
+              </view>
+            </view>
+            <view class="flex items-center gap-2">
+              <text class="text-xs text-[#C41E3A]">查看</text>
+              <text class="text-xs text-[#999]">✏</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 回放设置 -->
+        <view class="bg-white border border-[#E8E0D5] rounded-xl p-4">
+          <view class="flex items-center gap-1.5 mb-4">
+            <text class="text-base">⚙</text>
+            <text class="font-semibold text-sm text-[#2C2C2C]">回放设置</text>
+          </view>
+          <view class="space-y-4">
+            <view class="flex items-center justify-between">
+              <view><text class="text-sm font-medium text-[#2C2C2C] block">公开回放</text><text class="text-xs text-[#999]">允许所有用户观看直播回放</text></view>
+              <switch color="#C41E3A" :checked="replayPublic" @change="replayPublic = !replayPublic" />
+            </view>
+            <view class="flex items-center justify-between">
+              <view><text class="text-sm font-medium text-[#2C2C2C] block">付费观看</text><text class="text-xs text-[#999]">设置回放为付费内容</text></view>
+              <switch color="#C41E3A" :checked="replayPaid" @change="replayPaid = !replayPaid" />
+            </view>
+            <view class="flex items-center justify-between">
+              <view><text class="text-sm font-medium text-[#2C2C2C] block">支持下载</text><text class="text-xs text-[#999]">允许用户下载回放视频</text></view>
+              <switch color="#C41E3A" :checked="replayDownload" @change="replayDownload = !replayDownload" />
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+const loading = ref(true)
+
+onMounted(() => {
+  setTimeout(() => { loading.value = false }, 500)
+})
+
+const data = ref({
+  title: '八字命理入门：如何看懂你的命盘',
+  views: 12580,
+  peak: 3256,
+  avgDuration: '18分',
+  revenue: 2680,
+  duration: '2小时35分',
+  date: '2024-06-08 20:00',
+  category: '知识授课',
+  status: '已结束',
+  type: '公开直播',
+})
+
+const chartTabs = [
+  { key: 'viewers', label: '观看' },
+  { key: 'messages', label: '互动' },
+]
+
+const activeChartTab = ref('viewers')
+
+const chartData = ref([
+  { label: '20:00', value: '120', height: 20, color: '#F0EBE5' },
+  { label: '20:15', value: '850', height: 55, color: '#C9A96E' },
+  { label: '20:30', value: '2100', height: 78, color: '#C9A96E' },
+  { label: '20:45', value: '3256', height: 100, color: '#C41E3A' },
+  { label: '21:00', value: '2890', height: 92, color: '#C41E3A' },
+  { label: '21:15', value: '2350', height: 82, color: '#C9A96E' },
+  { label: '21:30', value: '1680', height: 65, color: '#C9A96E' },
+  { label: '21:45', value: '890', height: 45, color: '#F0EBE5' },
+  { label: '22:00', value: '350', height: 25, color: '#F0EBE5' },
+])
+
+const danmakuCount = 326
+const danmakuEnabled = ref(true)
+const danmakuList = [
+  { id: 'd1', user: '易学小白', content: '老师讲得太好了，终于看懂命盘了！', time: '20:15' },
+  { id: 'd2', user: '风水爱好者', content: '请问日主身弱怎么看', time: '20:22' },
+  { id: 'd3', user: '紫微达人', content: '这个案例跟紫微的命宫对照很一致', time: '20:38' },
+  { id: 'd4', user: '国学传承', content: '强烈推荐，满满的干货', time: '20:45' },
+]
+
+const replays = [
+  { id: '1', title: '八字入门讲解', duration: '1小时20分', date: '2024-06-08', views: 3250 },
+  { id: '2', title: '实战案例分享', duration: '45分', date: '2024-06-08', views: 2180 },
+  { id: '3', title: '互动答疑环节', duration: '30分', date: '2024-06-08', views: 1560 },
+]
+
+const replayPublic = ref(true)
+const replayPaid = ref(false)
+const replayDownload = ref(true)
+
+function formatNum(n: number): string {
+  if (n >= 10000) return (n / 10000).toFixed(1) + 'w'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k'
+  return n.toString()
+}
+
+function goBack() { uni.navigateBack() }
+
+function goEdit() {
+  uni.navigateTo({ url: `/pages/manage/live/edit/index?id=${liveId.value}` })
+}
+
+function toggleDanmaku() {
+  danmakuEnabled.value = !danmakuEnabled.value
+  uni.showToast({ title: danmakuEnabled.value ? '弹幕已开启' : '弹幕已关闭', icon: 'none' })
+}
+
+function addReplay() {
+  uni.showToast({ title: '添加回放片段（Mock）', icon: 'none' })
+}
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

@@ -1,0 +1,260 @@
+<template>
+  <view class="min-h-screen bg-background pb-6">
+    <!-- 顶部导航 -->
+    <view class="sticky top-0 z-50 bg-background/95 border-b border-border" style="backdrop-filter:blur(12px);padding-top:env(safe-area-inset-top)">
+      <view class="flex items-center justify-between px-4 h-14">
+        <view class="p-1 -ml-1" @click="goBack">
+          <text class="text-xl">←</text>
+        </view>
+        <text class="font-semibold text-base text-foreground">话题</text>
+        <view class="p-2 -mr-2 rounded-full" @click="handleShare">
+          <text></text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 话题信息区 -->
+    <view class="px-4 py-5 border-b border-border">
+      <view class="flex items-start justify-between gap-4">
+        <view class="flex-1">
+          <view class="flex items-center gap-2 mb-2">
+            <view class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <text class="text-lg text-primary font-bold">#</text>
+            </view>
+            <text class="text-xl font-bold text-foreground">#{{ topicData.tag }}#</text>
+          </view>
+          <text class="text-sm text-muted-foreground block mb-3">{{ topicData.description }}</text>
+          <view class="flex items-center gap-4 text-sm">
+            <text class="text-foreground">
+              <text class="font-semibold">{{ topicData.contentCount.toLocaleString() }}</text>
+              <text class="text-muted-foreground ml-1">篇内容</text>
+            </text>
+            <text class="text-foreground">
+              <text class="font-semibold">{{ topicData.followCount.toLocaleString() }}</text>
+              <text class="text-muted-foreground ml-1">人关注</text>
+            </text>
+          </view>
+        </view>
+        <view @click="handleFollow" :class="['flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all', isFollowed ? 'bg-secondary text-muted-foreground' : 'bg-primary text-white']">
+          <text>{{ isFollowed ? '✓' : '' }}</text>
+          <text>{{ isFollowed ? '已关注' : '关注' }}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 排序切换 -->
+    <view class="px-4 py-3 flex items-center justify-between border-b border-border">
+      <view class="relative">
+        <view class="flex items-center gap-1 text-sm text-foreground" @click="showSortMenu = !showSortMenu">
+          <text>{{ sortBy === 'latest' ? '最新发布' : '最受欢迎' }}</text>
+          <text :class="['text-xs transition-transform', showSortMenu ? 'rotate-180' : '']">▼</text>
+        </view>
+        <view v-if="showSortMenu">
+          <view class="fixed inset-0 z-40" @click="showSortMenu = false" />
+          <view class="absolute top-full left-0 mt-1 w-28 bg-white rounded-lg z-50 overflow-hidden" style="box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid #E8E0D5">
+            <view @click="sortBy = 'latest'; showSortMenu = false" :class="['w-full px-4 py-2.5 text-left text-sm transition-colors', sortBy === 'latest' ? 'text-primary bg-primary/5' : 'text-foreground']">最新发布</view>
+            <view @click="sortBy = 'hot'; showSortMenu = false" :class="['w-full px-4 py-2.5 text-left text-sm transition-colors', sortBy === 'hot' ? 'text-primary bg-primary/5' : 'text-foreground']">最受欢迎</view>
+          </view>
+        </view>
+      </view>
+      <view @click="handleRefresh">
+        <text class="text-sm text-primary">{{ isRefreshing ? '刷新中...' : '刷新' }}</text>
+      </view>
+    </view>
+
+    <!-- 内容列表 -->
+    <view>
+      <!-- 空状态 -->
+      <view v-if="sortedContent.length === 0" class="flex flex-col items-center justify-center py-20 px-4">
+        <view class="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-4">
+          <text class="text-3xl text-muted-foreground">#</text>
+        </view>
+        <text class="text-muted-foreground text-sm text-center block mb-4">
+          还没有相关内容<text class="block">成为第一个发布的人吧</text>
+        </text>
+        <view @click="handlePublish" class="px-6 py-2.5 bg-primary text-white text-sm font-medium rounded-full">
+          <text>去发布</text>
+        </view>
+      </view>
+
+      <!-- 内容卡片 -->
+      <template v-else>
+        <view v-for="item in sortedContent" :key="item.id" @click="goToContent(item)" class="block">
+          <!-- 文章类型 -->
+          <view v-if="item.type === 'article'" class="p-4 bg-white border-b border-border">
+            <view class="flex gap-3">
+              <view class="flex-1 min-w-0">
+                <view class="flex items-center gap-2 mb-1.5">
+                  <view class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px]" style="background:rgba(59,130,246,0.1);color:#3b82f6">
+                    <text></text>
+                    <text>文章</text>
+                  </view>
+                </view>
+                <text class="font-medium text-sm text-foreground line-clamp-2 block mb-1.5">{{ item.title }}</text>
+                <text class="text-xs text-muted-foreground line-clamp-2 block mb-2">{{ item.excerpt }}</text>
+                <view class="flex items-center justify-between">
+                  <view class="flex items-center gap-2">
+                    <view class="w-5 h-5 rounded-full bg-secondary flex items-center justify-center text-[10px] text-foreground">{{ item.author.name[0] }}</view>
+                    <text class="text-xs text-muted-foreground">{{ item.author.name }}</text>
+                    <text v-if="item.author.isVerified" class="text-[8px] px-1 py-0 rounded" style="background:rgba(201,169,110,0.2);color:#C9A96E">V</text>
+                  </view>
+                  <view class="flex items-center gap-3 text-xs text-muted-foreground">
+                    <text> {{ item.likes }}</text>
+                    <text> {{ item.comments }}</text>
+                    <text>{{ item.time }}</text>
+                  </view>
+                </view>
+              </view>
+              <view class="w-24 h-16 rounded-lg bg-secondary shrink-0 flex items-center justify-center">
+                <text class="text-muted-foreground/40"></text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 帖子类型 -->
+          <view v-if="item.type === 'post'" class="p-4 bg-white border-b border-border">
+            <view class="flex items-center gap-2 mb-2">
+              <view class="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs text-foreground">{{ item.author.name[0] }}</view>
+              <view>
+                <view class="flex items-center gap-1.5">
+                  <text class="text-sm font-medium text-foreground">{{ item.author.name }}</text>
+                  <text v-if="item.author.isVerified" class="text-[8px] px-1 py-0 rounded" style="background:rgba(201,169,110,0.2);color:#C9A96E">V</text>
+                </view>
+                <text class="text-[10px] text-muted-foreground block">{{ item.time }}</text>
+              </view>
+              <view class="ml-auto inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0 rounded" style="background:rgba(34,197,94,0.1);color:#22c55e">
+                <text></text>
+                <text>帖子</text>
+              </view>
+            </view>
+            <text class="text-sm text-foreground mb-3 block line-clamp-3">{{ item.content }}</text>
+            <view v-if="item.images && item.images.length > 0" :class="['grid gap-1 mb-3', item.images.length === 1 ? 'grid-cols-1' : item.images.length === 2 ? 'grid-cols-2' : 'grid-cols-3']">
+              <view v-for="(img, idx) in item.images.slice(0, 3)" :key="idx" class="aspect-square rounded-lg bg-secondary flex items-center justify-center relative">
+                <text class="text-muted-foreground/40"></text>
+                <view v-if="idx === 2 && item.images && item.images.length > 3" class="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                  <text class="text-white text-sm font-medium">+{{ item.images.length - 3 }}</text>
+                </view>
+              </view>
+            </view>
+            <view class="flex items-center gap-4 text-xs text-muted-foreground">
+              <text> {{ item.likes }}</text>
+              <text> {{ item.comments }}</text>
+            </view>
+          </view>
+
+          <!-- 视频类型 -->
+          <view v-if="item.type === 'video'" class="p-4 bg-white border-b border-border">
+            <view class="flex gap-3">
+              <view class="w-32 aspect-[9/16] rounded-lg bg-secondary shrink-0 relative flex items-center justify-center">
+                <text class="text-3xl text-muted-foreground/40">▶</text>
+                <view class="absolute inset-0 flex items-center justify-center">
+                  <view class="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center">
+                    <text class="text-white text-lg ml-0.5">▶</text>
+                  </view>
+                </view>
+                <view class="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded text-white text-[10px]" style="background:rgba(0,0,0,0.6)">{{ item.duration }}</view>
+              </view>
+              <view class="flex-1 min-w-0 flex flex-col">
+                <view class="self-start inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0 mb-1.5 rounded" style="background:rgba(168,85,247,0.1);color:#a855f7">
+                  <text>▶</text>
+                  <text>视频</text>
+                </view>
+                <text class="font-medium text-sm text-foreground line-clamp-2 block" style="margin-bottom:auto">{{ item.title }}</text>
+                <view class="flex items-center gap-2 mt-2">
+                  <view class="w-5 h-5 rounded-full bg-secondary flex items-center justify-center text-[10px] text-foreground">{{ item.author.name[0] }}</view>
+                  <text class="text-xs text-muted-foreground">{{ item.author.name }}</text>
+                  <text v-if="item.author.isVerified" class="text-[8px] px-1 py-0 rounded" style="background:rgba(201,169,110,0.2);color:#C9A96E">V</text>
+                </view>
+                <view class="flex items-center gap-3 text-xs text-muted-foreground mt-1.5">
+                  <text> {{ item.likes }}</text>
+                  <text> {{ item.views }}</text>
+                  <text>{{ item.time }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </template>
+    </view>
+
+    <!-- 加载更多 -->
+    <view v-if="sortedContent.length > 0" class="flex items-center justify-center py-6">
+      <view @click="handleLoadMore" :disabled="isLoadingMore" class="flex items-center gap-2 text-sm text-muted-foreground">
+        <text v-if="isLoadingMore" class="animate-spin"></text>
+        <text>{{ isLoadingMore ? '加载中...' : '点击加载更多' }}</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+const topicData = {
+  tag: '八字案例',
+  contentCount: 1286,
+  followCount: 3560,
+  description: '分享八字命理实战案例，探讨命盘分析技法',
+  isFollowed: false,
+}
+
+interface ContentItem {
+  id: number; type: 'article' | 'post' | 'video'
+  title?: string; cover?: string; excerpt?: string; content?: string
+  duration?: string; images?: string[]; views?: number
+  author: { name: string; avatar: string; isVerified: boolean }
+  likes: number; comments: number; time: string
+}
+
+const contentList: ContentItem[] = [
+  { id: 1, type: 'article', title: '从一个八字看事业转机：从低谷到高峰的命理分析', cover: '', excerpt: '今天分享一个真实案例，命主在2023年经历了事业的重大转折...', author: { name: '周易大师', avatar: '', isVerified: true }, likes: 328, comments: 56, time: '2小时前' },
+  { id: 2, type: 'post', content: '刚看完一个财运很旺的八字，年柱甲子、月柱庚申、日柱壬寅、时柱癸卯。大家觉得这个八字有什么特点？#八字案例# #命理分析#', images: ['', '', ''], author: { name: '命理小白', avatar: '', isVerified: false }, likes: 89, comments: 23, time: '3小时前' },
+  { id: 3, type: 'video', title: '实战讲解：如何从八字看婚姻缘分', cover: '', duration: '05:32', author: { name: '玄学研究员', avatar: '', isVerified: true }, likes: 1256, views: 8900, time: '昨天' },
+  { id: 4, type: 'article', title: '八字中的食伤生财格局详解', cover: '', excerpt: '食伤生财是八字中常见的富贵格局之一，今天我们通过几个实际案例来分析...', author: { name: '易学传承', avatar: '', isVerified: true }, likes: 456, comments: 78, time: '昨天' },
+  { id: 5, type: 'post', content: '请教各位大师，这个八字的用神应该怎么取？感觉木火土金水都有点道理...', images: [''], author: { name: '初学者小王', avatar: '', isVerified: false }, likes: 45, comments: 67, time: '2天前' },
+  { id: 6, type: 'video', title: '一分钟看懂八字十神关系', cover: '', duration: '01:28', author: { name: '周易大师', avatar: '', isVerified: true }, likes: 2345, views: 15600, time: '3天前' },
+]
+
+const isFollowed = ref(topicData.isFollowed)
+const sortBy = ref<'latest' | 'hot'>('latest')
+const showSortMenu = ref(false)
+const isRefreshing = ref(false)
+const isLoadingMore = ref(false)
+
+const sortedContent = computed(() => {
+  const arr = [...contentList]
+  if (sortBy.value === 'hot') {
+    arr.sort((a, b) => b.likes - a.likes)
+  }
+  return arr
+})
+
+function handleFollow() { isFollowed.value = !isFollowed.value }
+function handleShare() { uni.showToast({ title: '已复制分享链接', icon: 'none' }) }
+
+function handleRefresh() {
+  isRefreshing.value = true
+  setTimeout(() => { isRefreshing.value = false }, 1000)
+}
+
+function handleLoadMore() {
+  isLoadingMore.value = true
+  setTimeout(() => { isLoadingMore.value = false }, 1000)
+}
+
+function handlePublish() {
+  uni.navigateTo({ url: '/pages/publish/index' })
+}
+
+function goToContent(item: ContentItem) {
+  if (item.type === 'article') uni.navigateTo({ url: `/pages/article/${item.id}/index` })
+  else if (item.type === 'video') uni.navigateTo({ url: `/pages/video/${item.id}/index` })
+  else uni.navigateTo({ url: `/pages/post/${item.id}/index` })
+}
+
+function goBack() { uni.navigateBack() }
+</script>
+
+<style scoped>
+/* 样式由 Tailwind 处理 */
+</style>

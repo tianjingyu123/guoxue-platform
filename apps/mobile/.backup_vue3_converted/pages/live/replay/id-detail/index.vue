@@ -1,0 +1,692 @@
+<template>
+  <view class="min-h-screen bg-background">
+    <!-- ===== 加载状态 ===== -->
+    <view v-if="loading" class="min-h-screen flex items-center justify-center">
+      <view class="flex flex-col items-center gap-3">
+        <view class="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <text class="text-sm text-muted-foreground">加载中...</text>
+      </view>
+    </view>
+
+    <!-- ===== 错误状态 ===== -->
+    <view v-else-if="!replay" class="min-h-screen flex items-center justify-center">
+      <text class="text-muted-foreground">回放不存在</text>
+    </view>
+
+    <!-- ===== 主内容 ===== -->
+    <template v-else>
+      <!-- ===== 播放器区域 ===== -->
+      <view
+        ref="playerContainer"
+        class="relative bg-black"
+        style="aspect-ratio:16/9"
+        @click="handleVideoClick"
+      >
+        <!-- 返回按钮 -->
+        <view :class="['absolute top-4 left-4 z-20 transition-opacity duration-300', showControls ? 'opacity-100' : 'opacity-0']">
+          <view @click.stop="goBack" class="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center active:bg-black/60">
+            <text class="text-white text-lg leading-none">←</text>
+          </view>
+        </view>
+
+        <!-- 视频区域 -->
+        <view class="absolute inset-0 flex items-center justify-center bg-black/20">
+          <view v-if="!isPlaying"
+            @click.stop="handlePlayPause"
+            class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center active:bg-white/30 transition-colors">
+            <text class="text-white text-3xl ml-1 leading-none">▶</text>
+          </view>
+          <text v-else class="text-white/60 text-sm">播放中...</text>
+        </view>
+
+        <!-- 回放+倍速标签 -->
+        <view :class="['absolute top-4 right-4 flex items-center gap-2 z-20 transition-opacity duration-300', showControls ? 'opacity-100' : 'opacity-0']">
+          <view class="px-2 py-1 rounded bg-black/60 text-white text-xs flex items-center gap-1">
+            <text></text>
+            <text>回放</text>
+          </view>
+          <view v-if="speed !== 1" class="px-2 py-1 rounded text-white text-xs font-medium" style="background:rgba(196,30,58,0.8)">
+            <text>{{ speed }}x</text>
+          </view>
+        </view>
+
+        <!-- 当前章节显示 -->
+        <view v-if="currentChapter" :class="['absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-black/60 text-white text-xs transition-opacity duration-300 z-20', showControls ? 'opacity-100' : 'opacity-0']">
+          <text>{{ currentChapter.title }}</text>
+        </view>
+
+        <!-- ===== 底部控制栏 ===== -->
+        <view :class="['absolute bottom-0 left-0 right-0 p-4 pt-8 transition-opacity duration-300 z-20', showControls ? 'opacity-100' : 'opacity-0']" style="background:linear-gradient(to top,rgba(0,0,0,0.8),transparent)">
+          <!-- 进度条 -->
+          <view class="h-1.5 bg-white/30 rounded-full mb-3 relative cursor-pointer group" @click.stop="handleProgressClick">
+            <!-- 章节标记点 -->
+            <view v-for="ch in replay.chapters" :key="ch.id"
+              class="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-accent rounded-full z-10 cursor-pointer"
+              :style="{ left: (ch.startTime / duration) * 100 + '%' }"
+              @click.stop="handleChapterClick(ch)"
+              :hover-class="'scale-150'" />
+            <!-- 进度 -->
+            <view class="h-full bg-primary rounded-full relative transition-all" :style="{ width: progress + '%' }">
+              <view class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow" />
+            </view>
+          </view>
+
+          <!-- 控制按钮行 -->
+          <view class="flex items-center justify-between">
+            <view class="flex items-center gap-4">
+              <view @click.stop="handlePlayPause" class="active:opacity-60">
+                <text class="text-white text-2xl leading-none">{{ isPlaying ? '⏸' : '▶' }}</text>
+              </view>
+              <view @click.stop="handleSeek(currentTime - 10)" class="active:opacity-60">
+                <text class="text-white text-lg leading-none">⏪</text>
+              </view>
+              <view @click.stop="handleSeek(currentTime + 10)" class="active:opacity-60">
+                <text class="text-white text-lg leading-none">⏩</text>
+              </view>
+              <text class="text-white text-xs font-mono">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</text>
+            </view>
+            <view class="flex items-center gap-3">
+              <!-- 章节列表按钮 -->
+              <view @click.stop="showChapters = !showChapters" class="flex items-center gap-1 px-2 py-1 rounded bg-white/20 text-white text-xs active:bg-white/30">
+                <text>☰</text>
+                <text>章节</text>
+              </view>
+              <!-- 倍速选择 -->
+              <view class="relative">
+                <view @click.stop="showSpeedMenu = !showSpeedMenu" class="flex items-center gap-1 px-2 py-1 rounded bg-white/20 text-white text-xs active:bg-white/30">
+                  <text>{{ speed }}x</text>
+                  <text class="text-[10px]">▼</text>
+                </view>
+                <view v-if="showSpeedMenu" class="absolute bottom-full right-0 mb-2 rounded-lg overflow-hidden z-30" style="background:rgba(0,0,0,0.9)">
+                  <view v-for="s in playbackSpeeds" :key="s" @click.stop="handleSpeedChange(s)"
+                    class="px-4 py-2 text-xs text-center active:bg-white/10"
+                    :class="speed === s ? 'text-primary bg-white/10' : 'text-white'">
+                    <text>{{ s }}x</text>
+                  </view>
+                </view>
+              </view>
+              <!-- 课件按钮 -->
+              <view v-if="replay.slides && replay.slides.length > 0"
+                @click.stop="showSlides = !showSlides"
+                class="flex items-center gap-1 px-2 py-1 rounded bg-white/20 text-white text-xs active:bg-white/30">
+                <text></text>
+              </view>
+              <!-- 静音 -->
+              <view @click.stop="isMuted = !isMuted" class="active:opacity-60">
+                <text class="text-lg leading-none text-white">{{ isMuted ? '' : '' }}</text>
+              </view>
+              <!-- 全屏 -->
+              <view @click.stop="toggleFullscreen" class="active:opacity-60">
+                <text class="text-lg leading-none text-white">⛶</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- ===== 章节侧边栏（右侧滑出） ===== -->
+        <view v-if="showChapters" class="absolute top-0 right-0 bottom-0 w-72 overflow-y-auto z-30" style="background:rgba(0,0,0,0.95)" @click.stop>
+          <view class="p-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.1)">
+            <text class="text-white font-medium">章节列表</text>
+            <text @click="showChapters = false" class="text-white/60 text-xl leading-none active:opacity-60">›</text>
+          </view>
+          <view>
+            <view v-for="ch in replay.chapters" :key="ch.id" @click="handleChapterClick(ch)"
+              class="p-4 text-left w-full box-border active:bg-white/10"
+              :class="currentChapter?.id === ch.id ? 'bg-white/10' : ''">
+              <view class="flex items-center gap-3">
+                <text class="text-accent text-xs font-mono w-12 shrink-0">{{ ch.timeDisplay }}</text>
+                <text class="text-sm" :class="currentChapter?.id === ch.id ? 'text-primary font-medium' : 'text-white'">{{ ch.title }}</text>
+              </view>
+              <text v-if="ch.description" class="text-xs mt-1 ml-12 block" style="color:rgba(255,255,255,0.5)">{{ ch.description }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- ===== 课件预览（左侧滑出） ===== -->
+        <view v-if="showSlides && currentSlide" class="absolute top-0 left-0 bottom-0 w-64 overflow-y-auto z-30" style="background:rgba(0,0,0,0.95)" @click.stop>
+          <view class="p-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,0.1)">
+            <text class="text-white font-medium">课件同步</text>
+            <text @click="showSlides = false" class="text-white/60 text-xl leading-none active:opacity-60">‹</text>
+          </view>
+          <view class="p-4">
+            <image :src="currentSlide.imageUrl" mode="widthFix" class="w-full rounded-lg bg-white/10" />
+            <text v-if="currentSlide.title" class="text-white text-sm mt-2 block">{{ currentSlide.title }}</text>
+            <text class="text-xs mt-1 block" style="color:rgba(255,255,255,0.5)">{{ currentSlide.timeDisplay }}</text>
+          </view>
+          <view class="px-4 pb-4 space-y-2">
+            <view v-for="slide in replay.slides" :key="slide.id" @click="handleSeek(slide.time)"
+              class="rounded-lg overflow-hidden"
+              :class="currentSlide.id === slide.id ? 'border-2 border-primary' : 'border-2 border-transparent'">
+              <image :src="slide.imageUrl" mode="aspectFill" class="w-full" style="aspect-ratio:16/9" />
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ===== 回放信息 ===== -->
+      <view class="px-4 py-4 border-b border-border">
+        <text class="font-bold text-lg text-foreground block">{{ replay.title }}</text>
+
+        <view class="flex items-center gap-4 mt-3">
+          <view @click="goTo('/pages/expert/index?id=' + replay.host.id)" class="flex items-center gap-2 flex-1 min-w-0">
+            <image :src="replay.host.avatar" mode="aspectFill" class="w-10 h-10 rounded-full bg-secondary" />
+            <view class="min-w-0">
+              <view class="flex items-center gap-1">
+                <text class="font-medium text-sm text-foreground truncate">{{ replay.host.name }}</text>
+                <text v-if="replay.host.isVerified" class="text-[10px] px-1 py-0.5 rounded bg-accent/20 text-accent leading-none">V</text>
+              </view>
+              <text class="text-xs text-muted-foreground">{{ formatCount(replay.host.followers) }} 粉丝</text>
+            </view>
+          </view>
+          <text class="ml-auto shrink-0 px-4 py-1.5 border border-primary text-primary text-xs font-medium rounded-full active:bg-primary/10">+ 关注</text>
+        </view>
+
+        <view class="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+          <text class="flex items-center gap-1"> {{ replay.startTime }}</text>
+          <text class="flex items-center gap-1"> {{ formatCount(replay.viewerCount) }} 观看</text>
+          <text class="flex items-center gap-1"> {{ formatCount(replay.likeCount) }} 点赞</text>
+        </view>
+      </view>
+
+      <!-- ===== Tab 导航 ===== -->
+      <view class="bg-white border-b border-border">
+        <view class="flex">
+          <view v-for="tab in tabs" :key="tab.key" @click="activeTab = tab.key"
+            class="flex-1 flex items-center justify-center gap-1 py-3 text-sm font-medium relative"
+            :class="activeTab === tab.key ? 'text-primary' : 'text-muted-foreground'">
+            <text>{{ tab.icon }}</text>
+            <text>{{ tab.label }}</text>
+            <text class="text-xs opacity-70">({{ tab.count }})</text>
+            <view v-if="activeTab === tab.key" class="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-primary rounded-full" />
+          </view>
+        </view>
+      </view>
+
+      <!-- ===== Tab 内容 ===== -->
+      <view class="pb-28 bg-background">
+        <!-- 章节Tab -->
+        <view v-if="activeTab === 'chapters'">
+          <view v-for="ch in replay.chapters" :key="ch.id" @click="handleChapterClick(ch)"
+            class="flex items-center gap-4 p-4 bg-white border-b border-border active:bg-secondary"
+            :class="currentChapter?.id === ch.id ? 'bg-secondary' : ''">
+            <text class="shrink-0 px-2 py-1 bg-primary/10 text-primary text-xs font-mono rounded">{{ ch.timeDisplay }}</text>
+            <view class="flex-1 min-w-0">
+              <text class="font-medium text-sm block" :class="currentChapter?.id === ch.id ? 'text-primary' : 'text-foreground'">{{ ch.title }}</text>
+              <text v-if="ch.description" class="text-xs text-muted-foreground mt-0.5 block">{{ ch.description }}</text>
+            </view>
+            <text v-if="currentChapter?.id === ch.id" class="shrink-0 text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded leading-none">当前</text>
+          </view>
+        </view>
+
+        <!-- 讨论Tab -->
+        <view v-if="activeTab === 'discussion'" class="bg-white">
+          <view v-for="d in replay.discussions" :key="d.id" @click="handleSeek(d.time)"
+            class="flex gap-3 p-4 border-b border-border active:bg-secondary/30">
+            <text class="shrink-0 px-2 py-1 bg-primary/10 text-primary text-xs font-mono rounded self-start">{{ d.timeDisplay }}</text>
+            <view class="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-xs"
+              :class="d.isHost ? 'bg-accent/20 text-accent' : 'bg-secondary text-foreground'">
+              <text>{{ d.userName[0] }}</text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <view class="flex items-center gap-2">
+                <text class="text-sm font-medium" :class="d.isHost ? 'text-accent' : 'text-foreground'">{{ d.userName }}</text>
+                <text v-if="d.isHost" class="text-[10px] px-1 py-0.5 bg-accent/20 text-accent rounded leading-none">主播</text>
+              </view>
+              <text class="text-sm text-muted-foreground block mt-0.5">{{ d.content }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 问答Tab -->
+        <view v-if="activeTab === 'qa'" class="p-4 space-y-3">
+          <view v-for="q in replay.qaList" :key="q.id" @click="handleSeek(q.time)"
+            class="bg-white border border-border rounded-xl p-4 active:bg-secondary/30">
+            <view class="flex items-start gap-3">
+              <text class="shrink-0 px-2 py-1 bg-primary/10 text-primary text-xs font-mono rounded">{{ q.timeDisplay }}</text>
+              <view class="flex-1">
+                <view class="flex items-center gap-2 mb-2">
+                  <text class="text-primary text-sm leading-none">❓</text>
+                  <text class="text-xs text-muted-foreground">{{ q.questionerName }} 提问</text>
+                </view>
+                <text class="font-medium text-sm text-foreground block">{{ q.question }}</text>
+                <view class="mt-3 p-3 rounded-lg" style="background:rgba(245,241,235,0.5)">
+                  <view class="flex items-center gap-2 mb-1">
+                    <view class="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-[10px] text-accent">
+                      <text>{{ q.answererName[0] }}</text>
+                    </view>
+                    <text class="text-xs text-accent font-medium">{{ q.answererName }} 回答</text>
+                  </view>
+                  <text class="text-sm text-muted-foreground">{{ q.answer }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 商品Tab -->
+        <view v-if="activeTab === 'products' && replay.products && replay.products.length > 0" class="p-4 space-y-3">
+          <view v-for="item in replay.products" :key="item.id"
+            class="flex gap-3 p-3 bg-white border border-border rounded-xl">
+            <view class="w-20 h-20 rounded-lg flex items-center justify-center shrink-0 overflow-hidden bg-secondary">
+              <image v-if="item.image" :src="item.image" mode="aspectFill" class="w-full h-full" />
+              <text v-else class="text-2xl text-muted-foreground"></text>
+            </view>
+            <view class="flex-1 min-w-0">
+              <text class="font-medium text-sm text-foreground line-clamp-2 block">{{ item.name }}</text>
+              <text @click.stop="handleSeek(item.mentionTime)" class="text-xs text-primary mt-1 block">跳转到 {{ item.mentionTimeDisplay }}</text>
+              <view class="flex items-center justify-between mt-2">
+                <view class="flex items-baseline gap-1">
+                  <text class="text-primary font-bold">{{ item.price }}</text>
+                  <text class="text-xs text-muted-foreground line-through">{{ item.originalPrice }}</text>
+                </view>
+                <text class="text-xs text-muted-foreground">{{ item.sales }}人购买</text>
+              </view>
+            </view>
+            <view @click.stop="goTo('/pages/mall/product/index?id=' + item.id)" class="self-end shrink-0 px-3 py-1.5 bg-primary text-white text-xs font-medium rounded-full active:bg-primary/90">购买</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- ===== 底部操作栏 ===== -->
+      <view class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-lg border-t border-border z-40" style="padding:12px 16px;padding-bottom:calc(12px + env(safe-area-inset-bottom));">
+        <view class="flex items-center gap-4">
+          <view @click="isCollected = !isCollected" class="flex flex-col items-center gap-0.5 min-w-[48px]">
+            <text :class="isCollected ? 'text-primary' : 'text-muted-foreground'">{{ isCollected ? '' : '🤍' }}</text>
+            <text class="text-[10px] text-muted-foreground">收藏</text>
+          </view>
+          <view @click="handleShare" class="flex flex-col items-center gap-0.5 min-w-[48px]">
+            <text class="text-muted-foreground"></text>
+            <text class="text-[10px] text-muted-foreground">分享</text>
+          </view>
+
+          <view class="flex-1 flex gap-2 ml-4">
+            <view v-if="replay.isPaid && !replay.isPurchased"
+              @click="handleBuy"
+              class="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-full text-center active:bg-primary/90">
+              购买回放 {{ replay.price }}
+            </view>
+            <view v-else-if="replay.circle"
+              @click="goTo('/pages/circles/id-detail/index?id=' + replay.circle.id)"
+              class="flex-1 py-2.5 bg-primary text-white text-sm font-medium rounded-full text-center active:bg-primary/90">
+              加入「{{ replay.circle.name }}」
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { api } from '@/api'
+
+// ===== 类型定义 =====
+interface ReplayChapter {
+  id: number
+  title: string
+  timeDisplay: string
+  startTime: number
+  description?: string
+}
+
+interface ReplaySlide {
+  id: number
+  title: string
+  timeDisplay: string
+  time: number
+  imageUrl: string
+}
+
+interface ReplayDiscussion {
+  id: number
+  userName: string
+  userAvatar?: string
+  timeDisplay: string
+  time: number
+  content: string
+  isHost: boolean
+}
+
+interface ReplayQa {
+  id: number
+  questionerName: string
+  question: string
+  answererName: string
+  answer: string
+  timeDisplay: string
+  time: number
+}
+
+interface ReplayProduct {
+  id: string
+  name: string
+  image: string
+  price: string
+  originalPrice: string
+  sales: number
+  mentionTime: number
+  mentionTimeDisplay: string
+}
+
+interface ReplayHost {
+  id: string
+  name: string
+  avatar: string
+  followers: number
+  isVerified: boolean
+}
+
+interface ReplayCircle {
+  id: string
+  name: string
+}
+
+interface ReplayDetail {
+  id: number
+  title: string
+  host: ReplayHost
+  startTime: string
+  viewerCount: number
+  likeCount: number
+  isPaid: boolean
+  isPurchased: boolean
+  price?: string
+  circle?: ReplayCircle
+  chapters: ReplayChapter[]
+  slides: ReplaySlide[]
+  discussions: ReplayDiscussion[]
+  qaList: ReplayQa[]
+  products?: ReplayProduct[]
+}
+
+type PlaybackSpeed = 0.5 | 0.75 | 1 | 1.25 | 1.5 | 2
+
+// ===== 常量 =====
+const playbackSpeeds: PlaybackSpeed[] = [0.5, 0.75, 1, 1.25, 1.5, 2]
+
+// ===== 状态 =====
+const replay = ref<ReplayDetail | null>(null)
+const loading = ref(true)
+
+// 播放状态
+const isPlaying = ref(false)
+const isMuted = ref(false)
+const volume = ref(1)
+const currentTime = ref(0)
+const duration = ref(9015)
+const speed = ref<PlaybackSpeed>(1)
+const isFullscreen = ref(false)
+
+// UI 状态
+const showControls = ref(true)
+const showChapters = ref(false)
+const showSlides = ref(false)
+const showSpeedMenu = ref(false)
+const activeTab = ref<'chapters' | 'discussion' | 'qa' | 'products'>('chapters')
+const isCollected = ref(false)
+
+// 计时器
+let controlsTimer: ReturnType<typeof setTimeout> | null = null
+let playTimer: ReturnType<typeof setInterval> | null = null
+let progressSaveTimer: ReturnType<typeof setInterval> | null = null
+
+// ===== 计算属性 =====
+const currentChapter = computed(() => {
+  if (!replay.value) return null
+  return replay.value.chapters.find(ch => {
+    const nextCh = replay.value!.chapters.find(
+      c => c.startTime > ch.startTime && c.startTime <= currentTime.value
+    )
+    return ch.startTime <= currentTime.value && !nextCh
+  }) || replay.value.chapters[0] || null
+})
+
+const currentSlide = computed(() => {
+  if (!replay.value || !replay.value.slides.length) return null
+  return [...replay.value.slides].reverse().find(s => s.time <= currentTime.value) || null
+})
+
+const progress = computed(() => {
+  if (duration.value <= 0) return 0
+  return (currentTime.value / duration.value) * 100
+})
+
+const tabs = computed(() => {
+  if (!replay.value) return []
+  const items = [
+    { key: 'chapters' as const, label: '章节', icon: '☰', count: replay.value.chapters.length },
+    { key: 'discussion' as const, label: '讨论', icon: '', count: replay.value.discussions.length },
+    { key: 'qa' as const, label: '问答', icon: '❓', count: replay.value.qaList.length },
+  ]
+  if (replay.value.products && replay.value.products.length > 0) {
+    items.push({ key: 'products' as const, label: '商品', icon: '', count: replay.value.products.length })
+  }
+  return items
+})
+
+// ===== 工具函数 =====
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+function formatCount(n: number): string {
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k'
+  return String(n)
+}
+
+// ===== 生命周期 =====
+onMounted(async () => {
+  await loadReplay()
+})
+
+onUnmounted(() => {
+  if (playTimer) clearInterval(playTimer)
+  if (controlsTimer) clearTimeout(controlsTimer)
+  if (progressSaveTimer) clearInterval(progressSaveTimer)
+})
+
+// ===== 数据加载 =====
+async function loadReplay() {
+  loading.value = true
+  try {
+    const pages = getCurrentPages()
+    const currentPage = pages[pages.length - 1] as any
+    const replayId = currentPage?.$page?.options?.id || ''
+
+    const res = await api.get(`/live/replay/${replayId}`)
+    if (res && (res as any).code === 200 && (res as any).data) {
+      replay.value = (res as any).data
+    } else if (res && typeof res === 'object' && 'title' in res) {
+      replay.value = res as unknown as ReplayDetail
+    } else {
+      throw new Error('回放数据加载失败')
+    }
+
+    // 初始化时长
+    if (replay.value && replay.value.chapters.length > 0) {
+      const lastCh = replay.value.chapters[replay.value.chapters.length - 1]
+      duration.value = lastCh.startTime + 600 // 最后一章+10分钟估算
+    }
+  } catch (e: any) {
+    console.error('加载回放失败', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+// ===== 播放控制 =====
+function handlePlayPause() {
+  isPlaying.value = !isPlaying.value
+  showControls.value = true
+  resetControlsTimer()
+
+  if (isPlaying.value) {
+    startPlayTimer()
+    startProgressSaveTimer()
+  } else {
+    stopPlayTimer()
+    stopProgressSaveTimer()
+  }
+}
+
+function startPlayTimer() {
+  stopPlayTimer()
+  playTimer = setInterval(() => {
+    currentTime.value = Math.min(currentTime.value + speed.value, duration.value)
+    if (currentTime.value >= duration.value) {
+      isPlaying.value = false
+      stopPlayTimer()
+      stopProgressSaveTimer()
+    }
+  }, 1000)
+}
+
+function stopPlayTimer() {
+  if (playTimer) {
+    clearInterval(playTimer)
+    playTimer = null
+  }
+}
+
+function startProgressSaveTimer() {
+  stopProgressSaveTimer()
+  progressSaveTimer = setInterval(() => {
+    savePlayProgress()
+  }, 30000)
+}
+
+function stopProgressSaveTimer() {
+  if (progressSaveTimer) {
+    clearInterval(progressSaveTimer)
+    progressSaveTimer = null
+  }
+}
+
+async function savePlayProgress() {
+  if (!replay.value) return
+  try {
+    await api.post(`/live/replay/${replay.value.id}/progress`, {
+      currentTime: Math.floor(currentTime.value),
+      duration: Math.floor(duration.value),
+    })
+  } catch {
+    // 静默失败
+  }
+}
+
+function handleSeek(time: number) {
+  currentTime.value = Math.max(0, Math.min(time, duration.value))
+  showControls.value = true
+  resetControlsTimer()
+}
+
+function handleProgressClick(e: any) {
+  const rect = e.currentTarget.getBoundingClientRect()
+  const percent = (e.clientX - rect.left) / rect.width
+  handleSeek(Math.floor(percent * duration.value))
+}
+
+function handleChapterClick(ch: ReplayChapter) {
+  handleSeek(ch.startTime)
+  if (!isPlaying.value) {
+    handlePlayPause()
+  }
+  showChapters.value = false
+}
+
+function handleSpeedChange(s: PlaybackSpeed) {
+  speed.value = s
+  showSpeedMenu.value = false
+}
+
+function handleVideoClick() {
+  showControls.value = true
+  resetControlsTimer()
+}
+
+function toggleFullscreen() {
+  isFullscreen.value = !isFullscreen.value
+  // UniApp 全屏通过 video 组件或 plus 接口
+  if (isFullscreen.value) {
+    // 尝试使用系统全屏
+    try {
+      uni.setNavigationBarTitle({ title: '' })
+    } catch {}
+  }
+}
+
+// ===== 控制栏自动隐藏 =====
+function resetControlsTimer() {
+  if (controlsTimer) clearTimeout(controlsTimer)
+  if (isPlaying.value && showControls.value) {
+    controlsTimer = setTimeout(() => {
+      showControls.value = false
+    }, 3000)
+  }
+}
+
+// ===== 交互操作 =====
+function handleShare() {
+  uni.showActionSheet({
+    itemList: ['分享到微信', '分享到朋友圈', '复制链接'],
+    success: (res) => {
+      if (res.tapIndex === 2) {
+        uni.setClipboardData({
+          data: `我正在观看「${replay.value?.title}」回放，一起来学习吧！`,
+          success: () => uni.showToast({ title: '链接已复制', icon: 'success' }),
+        })
+      } else {
+        uni.showToast({ title: '分享成功', icon: 'success' })
+      }
+    },
+  })
+}
+
+function handleBuy() {
+  if (!replay.value) return
+  uni.showToast({ title: '跳转购买页', icon: 'none' })
+  // TODO: 实现购买逻辑
+}
+
+// ===== 导航 =====
+function goBack() {
+  uni.navigateBack()
+}
+
+function goTo(url: string) {
+  uni.navigateTo({ url })
+}
+</script>
+
+<style scoped>
+/* loading spinner */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* progress bar transition */
+.transition-all {
+  transition: width 0.3s ease;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* inline-flex adjustments */
+view[style*="display: inline-flex"] {
+  display: inline-flex;
+}
+</style>
