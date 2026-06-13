@@ -232,6 +232,21 @@
         </el-card>
       </el-tab-pane>
 
+      <!-- 测试对话 -->
+      <el-tab-pane
+        label="测试对话"
+        name="test"
+      >
+        <div style="height:500px;display:flex;flex-direction:column">
+          <div style="flex:1;border:1px solid #ebeef5;border-radius:8px;overflow:hidden">
+            <ChatUI
+              ref="csChatRef"
+              :config="csChatConfig"
+            />
+          </div>
+        </div>
+      </el-tab-pane>
+
       <!-- 对话监控 -->
       <el-tab-pane
         label="对话监控"
@@ -338,6 +353,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
+import { ChatUI } from '@/components/ChatUI'
+import type { ChatUIConfig } from '@/components/ChatUI/types'
 import { systemApi, api } from "@/api";
 
 const activeTab = ref("faq");
@@ -362,6 +379,19 @@ const transferRules = reactive({
   offHoursMessage: "当前为非工作时间，客服将在工作日9:00-18:00为您服务，请先留言或查看帮助中心。",
   pushCard: true,
 });
+
+// 测试对话
+const csChatRef = ref<InstanceType<typeof ChatUI>>()
+const csChatConfig: ChatUIConfig = {
+  apiEndpoint: '/api/v1/ai/customer-service/stream',
+  fallbackEndpoint: '/api/v1/ai/customer-service',
+  placeholder: '输入问题测试智能客服...',
+  showSources: true,
+  showFeedback: true,
+  showRetry: true,
+  welcomeMessage: '你好！我是平台智能客服，请问有什么可以帮助你的？',
+  extraBody: { scene: 'customer_service' },
+}
 
 // 对话监控
 const monitorKeyword = ref("");
@@ -516,7 +546,7 @@ async function fetchStats() {
 <style scoped>
 .cs-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-header h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .stat-card { background: #f5f7fa; border-radius: 8px; padding: 14px; text-align: center; }
 .stat-card .value { display: block; font-size: 24px; font-weight: 700; color: #303133; }
 .stat-card .label { display: block; font-size: 12px; color: #909399; margin-top: 2px; }

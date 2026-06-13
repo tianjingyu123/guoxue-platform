@@ -175,7 +175,7 @@ guoxue-platform/
 - [x] 灰度发布与功能开关 — FeatureFlag 模型 + Redis 缓存 + @RequireFeature 装饰器 + 百分比灰度
 - [x] E2E 测试 Docker 环境 — docker-compose.test.yml + Dockerfile.test
 - [x] OpenTelemetry 链路追踪（OTLP → Jaeger/Tempo，tracing.ts + TracingInterceptor）
-- [ ] 管理后台核心页面（Trae 负责 — Claude 不涉及）
+- [x] 管理后台核心页面（2026-06-14 从Trae重新分配给Claude完成）
 - [x] 生产部署文档 + Runbook（apps/server/docs/DEPLOYMENT.md）
 
 ### P4 自动化运营基建
@@ -224,7 +224,7 @@ guoxue-platform/
 - [x] 6种内容来源入库（文章/课程/精华帖/热门帖/文件/手动投喂）
 - [x] 三级去重机制（MD5哈希 + 向量相似度≥90% + 圈主确认）
 - [x] 圈主审核后台（知识库管理模块 — 已入库/待确认/设置）
-- [ ] "添加到知识库"按钮（前端UI，Trae负责）
+- [x] "添加到知识库"按钮（前端UI，Claude完成 2026-06-14）
 - [x] RAG检索 + Prompt模板引擎 + 来源标注
 
 #### 8.3 其他AI场景 ✅ 部分完成
@@ -299,7 +299,7 @@ guoxue-platform/
 - [x] 端侧AI架构预留（小程序端智能重排 + 离线推理接口）
 
 #### 10.3 智能化前后台规范（P0）
-- [ ] 前端 ChatUI 统一组件（气泡/流式输出/引用标注/AI标记水印）
+- [x] 前端 ChatUI 统一组件（气泡/流式输出/引用标注/AI标记水印，2026-06-14完成）
 - [x] 所有AI调用统一走 AI Gateway（鉴权/限流/计费/日志/降级/缓存）
 - [x] AI能力接口化标准（scene-based 路由 + Swagger标注 + 优雅降级链）
 - [x] 数据飞轮指标埋点（8个 AI Prometheus 指标 + AiInsightService 聚合分析）

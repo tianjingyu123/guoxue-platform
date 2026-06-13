@@ -6,7 +6,13 @@
       class="bubble-ai-badge"
     >
       <el-icon><Cpu /></el-icon>
-      <span>AI</span>
+      <span>AI 生成</span>
+      <el-tooltip
+        content="此内容由AI生成，仅供参考"
+        placement="top"
+      >
+        <el-icon class="ai-info-icon"><InfoFilled /></el-icon>
+      </el-tooltip>
     </div>
 
     <!-- 消息内容 -->
@@ -25,6 +31,7 @@
         v-else
         class="bubble-text"
         v-html="renderedContent"
+        @click="onContentClick"
       />
 
       <!-- 参考来源 -->
@@ -103,7 +110,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Cpu, Select, CloseBold, Refresh } from '@element-plus/icons-vue'
+import { Cpu, Select, CloseBold, Refresh, InfoFilled } from '@element-plus/icons-vue'
 import { renderMarkdown } from './markdown'
 import type { ChatMessage, ChatSource } from './types'
 
@@ -114,7 +121,7 @@ const props = defineProps<{
   showRetry?: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   feedback: [type: 'like' | 'dislike']
   retry: []
   sourceClick: [source: ChatSource]
@@ -125,6 +132,24 @@ const renderedContent = computed(() => renderMarkdown(props.message.content))
 function formatTime(d: Date | string): string {
   return new Date(d).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
+
+/** 点击消息内容中的引用标注 [n]，触发 sourceClick 事件 */
+function onContentClick(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (target.tagName === 'SUP' && target.textContent) {
+    const match = target.textContent.match(/\[(\d+)\]/)
+    if (match && props.message.sources) {
+      const idx = parseInt(match[1]) - 1
+      const source = props.message.sources[idx]
+      if (source) {
+        // 触发 sourceClick 事件，同时滚动到来源区
+        emit('sourceClick', source)
+        const sourcesEl = (e.currentTarget as HTMLElement)?.parentElement?.querySelector('.bubble-sources')
+        if (sourcesEl) sourcesEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -133,7 +158,8 @@ function formatTime(d: Date | string): string {
 .chat-bubble.assistant { align-self:flex-start; background:#f5f7fa; color:#303133 }
 .chat-bubble.system { align-self:center; background:#fdf6ec; color:#e6a23c; font-size:12px; max-width:90% }
 
-.bubble-ai-badge { display:flex; align-items:center; gap:4px; font-size:11px; color:#909399; margin-bottom:2px }
+.bubble-ai-badge { display:flex; align-items:center; gap:4px; font-size:11px; color:#909399; margin-bottom:4px; padding:2px 8px; background:linear-gradient(135deg, #f0f5ff 0%, #e6f0ff 100%); border-radius:4px; width:fit-content; user-select:none }
+.bubble-ai-badge .ai-info-icon { font-size:12px; color:#a0c4ff; cursor:help }
 .bubble-body { flex:1 }
 .bubble-text { font-size:14px; line-height:1.7; word-break:break-word }
 .bubble-text :deep(p) { margin:4px 0 }

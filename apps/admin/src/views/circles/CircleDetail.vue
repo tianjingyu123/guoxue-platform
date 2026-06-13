@@ -566,7 +566,7 @@
           </el-table-column>
           <el-table-column
             label="操作"
-            width="220"
+            width="300"
             fixed="right"
           >
             <template #default="{ row }">
@@ -581,6 +581,13 @@
                 @click="toggleTop(row)"
               >
                 {{ row.isTop ? '取消置顶' : '置顶' }}
+              </el-button>
+              <el-button
+                size="small"
+                type="success"
+                @click="addPostToKnowledge(row)"
+              >
+                知识库
               </el-button>
               <el-button
                 size="small"
@@ -687,7 +694,7 @@
           </el-table-column>
           <el-table-column
             label="操作"
-            width="180"
+            width="260"
             fixed="right"
           >
             <template #default="{ row }">
@@ -706,6 +713,13 @@
                 @click="auditArticle(row, 'REJECTED')"
               >
                 拒绝
+              </el-button>
+              <el-button
+                size="small"
+                type="success"
+                @click="addArticleToKnowledge(row)"
+              >
+                知识库
               </el-button>
               <el-button
                 size="small"
@@ -838,10 +852,17 @@
           </el-table-column>
           <el-table-column
             label="操作"
-            width="100"
+            width="180"
             fixed="right"
           >
             <template #default="{ row }">
+              <el-button
+                size="small"
+                type="success"
+                @click="addCourseToKnowledge(row)"
+              >
+                知识库
+              </el-button>
               <el-button
                 size="small"
                 type="danger"
@@ -1792,6 +1813,7 @@ import { ref, reactive, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { circleApi, articleApi, courseApi, knowledgeApi, circleDashboardApi } from "@/api";
+import { useAuthStore } from "@/store/auth";
 import api from "@/api";
 
 const route = useRoute();
@@ -2108,6 +2130,48 @@ async function fetchRanking() {
   } catch { leaderboard.value = []; hotContent.value = []; }
 }
 
+// ─── 添加到知识库 ───
+function getAdminUserId(): string {
+  const auth = useAuthStore()
+  return auth.user?.id || ''
+}
+
+async function addPostToKnowledge(row: any) {
+  try {
+    await knowledgeApi.addToKnowledge({
+      circleId,
+      userId: getAdminUserId(),
+      targetType: 'post',
+      targetId: row.id,
+    })
+    ElMessage.success(`帖子已添加到知识库候选`)
+  } catch { ElMessage.error('添加失败') }
+}
+
+async function addArticleToKnowledge(row: any) {
+  try {
+    await knowledgeApi.addToKnowledge({
+      circleId,
+      userId: getAdminUserId(),
+      targetType: 'article',
+      targetId: row.id,
+    })
+    ElMessage.success(`文章已添加到知识库候选`)
+  } catch { ElMessage.error('添加失败') }
+}
+
+async function addCourseToKnowledge(row: any) {
+  try {
+    await knowledgeApi.addToKnowledge({
+      circleId,
+      userId: getAdminUserId(),
+      targetType: 'course',
+      targetId: row.id,
+    })
+    ElMessage.success(`课程已添加到知识库候选`)
+  } catch { ElMessage.error('添加失败') }
+}
+
 // ─── 设置 ───
 async function saveSettings() {
   saving.value = true;
@@ -2156,7 +2220,7 @@ async function enableCircle() {
 .circle-detail-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .header-left { display: flex; align-items: center; gap: 10px; }
-.header-left h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.header-left h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .header-actions { display: flex; gap: 8px; }
 .stat-row { margin-bottom: 16px; }
 .stat-card { background: #f5f7fa; border-radius: 8px; padding: 12px 8px; text-align: center; }

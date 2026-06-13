@@ -16,6 +16,10 @@
         label="使用数据"
         name="usage"
       />
+      <el-tab-pane
+        label="测试对话"
+        name="test"
+      />
     </el-tabs>
 
     <!-- 开通审批 -->
@@ -222,6 +226,39 @@
       />
     </div>
 
+    <!-- 测试对话 -->
+    <div
+      v-if="activeTab === 'test'"
+      style="height:500px;display:flex;flex-direction:column"
+    >
+      <div style="margin-bottom:12px;display:flex;gap:12px;align-items:center">
+        <el-input
+          v-model="testCircleId"
+          placeholder="输入圈子ID"
+          size="small"
+          style="width:200px"
+          clearable
+        />
+        <el-tag
+          v-if="testCircleId"
+          type="success"
+          size="small"
+        >
+          已绑定圈子
+        </el-tag>
+        <span
+          v-else
+          style="font-size:12px;color:#909399"
+        >输入圈子ID后开始测试</span>
+      </div>
+      <div style="flex:1;border:1px solid #ebeef5;border-radius:8px;overflow:hidden">
+        <ChatUI
+          ref="testChatRef"
+          :config="testChatConfig"
+        />
+      </div>
+    </div>
+
     <!-- 知识库编辑弹窗 -->
     <el-dialog
       v-model="kVis"
@@ -265,8 +302,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ChatUI } from '@/components/ChatUI'
+import type { ChatUIConfig } from '@/components/ChatUI/types'
 import { aiAdminApi } from '@/api'
 
 const activeTab = ref('approvals')
@@ -278,6 +317,20 @@ const knowledgeCircleId = ref('')
 const kForm = reactive({ title: '', content: '' })
 
 const uLoading = ref(false); const usageCircleId = ref(''); const usageData = ref<any>(null)
+
+// 测试对话
+const testCircleId = ref('')
+const testChatRef = ref<InstanceType<typeof ChatUI>>()
+const testChatConfig = computed<ChatUIConfig>(() => ({
+  apiEndpoint: `/api/v1/circles/${testCircleId.value}/assistant/stream`,
+  fallbackEndpoint: `/api/v1/circles/${testCircleId.value}/assistant/ask`,
+  placeholder: '输入问题测试圈主助理...',
+  showSources: true,
+  showFeedback: true,
+  showRetry: true,
+  welcomeMessage: testCircleId.value ? '圈主助理已就绪，请输入问题测试' : '请先输入圈子ID',
+  systemContext: '你是圈子知识助手，请基于圈子知识库回答问题。回答时引用来源。',
+}))
 
 onMounted(() => fetchApprovals())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
@@ -331,4 +384,4 @@ async function fetchUsage() {
   try { const { data } = await aiAdminApi.getUsageData(usageCircleId.value); usageData.value = data } catch { usageData.value = null } finally { uLoading.value = false }
 }
 </script>
-<style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }</style>
+<style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>
