@@ -378,7 +378,7 @@ export class CircleController {
   @ApiResponse({ status: 401, description: "未认证" })
   @ApiResponse({ status: 403, description: "无权限（需圈主/管理员/嘉宾）" })
   setExpertConfig(@Param("id") circleId: string, @Req() req: Request, @Body() dto: ExpertConfigDto) {
-    return this.circle.setExpertConfig(circleId, dto.userId || req.user.id, dto);
+    return this.circle.setExpertConfig(circleId, req.user.id, dto);
   }
 
   @Get(":id/expert/:userId")

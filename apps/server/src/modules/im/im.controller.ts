@@ -42,8 +42,8 @@ export class ImController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  importAccount(@Body() dto: ImportAccountDto) {
-    return this.im.importAccount(dto.userId, dto.nickname, dto.avatar);
+  importAccount(@Req() req: Request, @Body() dto: ImportAccountDto) {
+    return this.im.importAccount(req.user.id, dto.nickname, dto.avatar);
   }
 
   @Get("account/state")
