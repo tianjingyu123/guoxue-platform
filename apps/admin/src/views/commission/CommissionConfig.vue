@@ -232,7 +232,7 @@ async function save() {
 <style scoped>
 .page { padding: 20px; }
 .header { margin-bottom: 16px; }
-.header h2 { margin: 0 0 4px; font-size: 18px; color: #8b4513; }
-.desc { margin: 0; font-size: 13px; color: #999; }
+.header h2 { margin: 0 0 4px; font-size: 18px; color: var(--color-text-title); }
+.desc { margin: 0; font-size: 13px; color: var(--color-text-secondary); }
 .rate-unit { margin-left: 8px; color: #666; }
 </style>

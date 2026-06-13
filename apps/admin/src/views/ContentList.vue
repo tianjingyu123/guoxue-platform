@@ -255,6 +255,6 @@ function exportData() {
 <style scoped>
 .content-page { padding: 0; }
 .cover-thumb { width: 48px; height: 32px; object-fit: cover; border-radius: 3px; }
-.no-cover { color: #ccc; font-size: 11px; }
+.no-cover { color: var(--color-text-placeholder); font-size: 11px; }
 .tag-chip { margin-right: 3px; margin-bottom: 2px; }
 </style>

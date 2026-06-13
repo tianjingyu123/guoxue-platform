@@ -429,11 +429,11 @@ function preview(row: any) {
 <style scoped>
 .audit-page { padding: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .stat-mini { background: #f5f7fa; border-radius: 6px; padding: 8px 12px; text-align: center; }
 .stat-mini .v { display: block; font-size: 22px; font-weight: 700; color: #303133; }
 .stat-mini .l { display: block; font-size: 11px; color: #909399; }
 .preview-body h2 { color: #333; margin-bottom: 8px; }
-.preview-body .meta { color: #999; font-size: 13px; margin-bottom: 16px; }
+.preview-body .meta { color: var(--color-text-secondary); font-size: 13px; margin-bottom: 16px; }
 .preview-body .content { line-height: 1.8; color: #444; }
 </style>

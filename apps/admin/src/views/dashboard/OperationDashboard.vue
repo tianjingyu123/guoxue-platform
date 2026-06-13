@@ -200,13 +200,13 @@ onMounted(async () => {
 .alerts-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
 .stats-row { margin-bottom: 20px; }
 .stat-card {
-  background: #fff; border-radius: 16px; padding: 20px 22px;
+  background: var(--color-bg-card); border-radius: 16px; padding: 20px 22px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04); transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer; margin-bottom: 20px;
 }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
 .stat-card__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.stat-card__label { font-size: 13px; color: #999; }
+.stat-card__label { font-size: 13px; color: var(--color-text-secondary); }
 .stat-card__icon {
   width: 36px; height: 36px; border-radius: 10px;
   background: rgba(255,107,107,0.1); color: #FF6B6B;

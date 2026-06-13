@@ -567,11 +567,11 @@ function addTag() {
 <style scoped>
 .hpc-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-header h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 
 .module-card {
   display: flex; align-items: center; padding: 10px 12px; margin-bottom: 8px;
-  background: #fff; border: 1px solid #ebeef5; border-radius: 8px; transition: all .2s;
+  background: var(--color-bg-card); border: 1px solid #ebeef5; border-radius: 8px; transition: all .2s;
 }
 .module-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 .module-card.disabled { opacity: 0.5; }

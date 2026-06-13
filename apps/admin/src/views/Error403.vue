@@ -43,6 +43,6 @@
 .error-icon { font-size: 64px; margin-bottom: 8px; }
 .error-code { font-size: 80px; color: #C41E3A; margin: 0; font-weight: 300; line-height: 1; }
 .error-desc { font-size: 18px; margin: 16px 0 8px; color: #333; }
-.error-hint { font-size: 13px; color: #999; margin: 0 0 28px; }
+.error-hint { font-size: 13px; color: var(--color-text-secondary); margin: 0 0 28px; }
 .error-actions { display: flex; gap: 12px; }
 </style>

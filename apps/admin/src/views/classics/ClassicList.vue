@@ -1,8 +1,7 @@
 <template>
   <div class="classic-page">
-    <div class="header">
-      <h2>古籍管理</h2>
-      <div class="header-actions">
+    <PageHeader title="古籍管理">
+      <template #actions>
         <el-button
           type="success"
           @click="seedLibrary"
@@ -30,8 +29,8 @@
         >
           添加古籍
         </el-button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- 统计面板 -->
     <div
@@ -409,6 +408,7 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { classicApi } from "@/api";
 import ImageUpload from "@/components/ImageUpload.vue";
+import PageHeader from "@/components/PageHeader.vue";
 
 const books = ref<any[]>([]);
 const loading = ref(false);
@@ -568,25 +568,22 @@ async function delChapter(id: string) {
 </script>
 
 <style scoped>
-.classic-page { padding: 20px; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
-.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.classic-page { padding: 0; }
 
 /* 统计面板 */
 .stats-panel {
   display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
 }
 .stat-item {
-  background: #fff; border-radius: 8px; padding: 16px 24px;
+  background: var(--color-bg-card); border-radius: 8px; padding: 16px 24px;
   text-align: center; min-width: 100px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
-.stat-num { font-size: 24px; font-weight: bold; color: #8b4513; display: block; }
-.stat-label { font-size: 12px; color: #999; margin-top: 4px; display: block; }
+.stat-num { font-size: 24px; font-weight: bold; color: var(--color-text-title); display: block; }
+.stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; display: block; }
 
 .cat-dist { margin-bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
 .cat-chip {
-  background: #f5ede2; color: #8b4513; padding: 2px 12px;
+  background: #f5ede2; color: var(--color-text-title); padding: 2px 12px;
   border-radius: 12px; font-size: 12px;
 }
 

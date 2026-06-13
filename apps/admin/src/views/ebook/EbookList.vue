@@ -1,7 +1,7 @@
 <template>
   <div class="page">
+    <PageHeader title="电子书管理" />
     <div class="toolbar">
-      <h3>电子书管理</h3>
       <div class="toolbar-right">
         <el-select
           v-model="filterStatus"
@@ -389,6 +389,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import PageHeader from "@/components/PageHeader.vue";
 import { ebookApi } from '@/api'
 
 const list = ref<any[]>([])
@@ -474,7 +475,7 @@ async function delChapter(id: string) {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.toolbar-right { display: flex; align-items: center; gap: 12px; }
+.page { padding: 0; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-lg); }
+.toolbar-right { display: flex; align-items: center; gap: var(--spacing-md); }
 </style>

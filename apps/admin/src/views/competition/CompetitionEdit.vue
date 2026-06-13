@@ -636,8 +636,8 @@ async function handleDelete() {
 .edit-main { flex: 1; min-width: 0; }
 .edit-sidebar { width: 220px; flex-shrink: 0; }
 .sidebar-section { margin-bottom: 16px; }
-.sidebar-section h4 { margin: 0 0 10px; font-size: 14px; color: #8b4513; border-bottom: 1px solid #f0e6d3; padding-bottom: 6px; }
-.hint { margin-left: 8px; color: #999; font-size: 12px; }
+.sidebar-section h4 { margin: 0 0 10px; font-size: 14px; color: var(--color-text-title); border-bottom: 1px solid #f0e6d3; padding-bottom: 6px; }
+.hint { margin-left: 8px; color: var(--color-text-secondary); font-size: 12px; }
 .cover-upload { margin-top: 4px; }
 .cover-preview { position: relative; width: 200px; aspect-ratio: 16/10; border-radius: 4px; overflow: hidden; background: #f5f5f5; margin-bottom: 8px; }
 .cover-preview img { width: 100%; height: 100%; object-fit: cover; }

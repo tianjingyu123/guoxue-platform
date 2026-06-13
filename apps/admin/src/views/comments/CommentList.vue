@@ -1,8 +1,6 @@
 <template>
   <div class="page">
-    <div class="header">
-      <h2>评论管理</h2>
-    </div>
+    <PageHeader title="评论管理" />
 
     <SearchFilter
       ref="searchRef"
@@ -157,6 +155,7 @@ import { ElMessage } from "element-plus"
 import { commentApi } from "@/api"
 import SearchFilter from "@/components/SearchFilter.vue"
 import DataTable from "@/components/DataTable.vue"
+import PageHeader from "@/components/PageHeader.vue"
 import { useTable } from "@/composables/useTable"
 
 const detailVisible = ref(false)
@@ -244,21 +243,19 @@ async function handleDelete(id: string) {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.header { margin-bottom: 16px; }
-.header h2 { margin: 0 0 8px; font-size: 18px; color: #8b4513; }
+.page { padding: 0; }
 .detail-info p { margin: 6px 0; font-size: 14px; color: #333; }
 .content-box {
   background: #f5f7fa; border-radius: 6px; padding: 12px;
   white-space: pre-wrap; word-break: break-all; font-size: 14px; line-height: 1.6;
 }
 .parent-box { background: #fef0f0; }
-.parent-meta { font-size: 12px; color: #999; margin-bottom: 4px; }
+.parent-meta { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
 .replies-list { max-height: 300px; overflow-y: auto; border: 1px solid #ebeef5; border-radius: 6px; padding: 8px 12px; }
 .reply-item { padding: 8px 0; border-bottom: 1px solid #f2f2f2; }
 .reply-item:last-child { border-bottom: none; }
 .reply-meta { display: flex; justify-content: space-between; margin-bottom: 4px; }
 .reply-user { font-weight: 600; font-size: 13px; color: #409eff; }
-.reply-time { font-size: 12px; color: #999; }
+.reply-time { font-size: 12px; color: var(--color-text-secondary); }
 .reply-content { font-size: 14px; line-height: 1.6; color: #333; }
 </style>

@@ -380,4 +380,4 @@ async function testEmail() {
   try { await emailApi.test(); ElMessage.success('邮件服务配置正常') } catch {} finally { sending.value = false }
 }
 </script>
-<style scoped>.page { padding: 20px; } .toolbar { margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }</style>
+<style scoped>.page { padding: 20px; } .toolbar { margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

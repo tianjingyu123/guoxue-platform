@@ -428,4 +428,4 @@ async function openRecords(row: any) {
   try { const { data } = await marketingApi.getCouponRecords(row.id); records.value = data.records || data.data || [] } catch { records.value = [] } finally { recordsLoading.value = false }
 }
 </script>
-<style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }</style>
+<style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

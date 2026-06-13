@@ -296,9 +296,9 @@ async function submitDividend() {
 <style scoped>
 .page { padding: 20px; }
 .header { margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
+.header h2 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .overview-row { margin-bottom: 16px; }
-.stat-label { font-size: 13px; color: #999; }
+.stat-label { font-size: 13px; color: var(--color-text-secondary); }
 .stat-value { font-size: 22px; font-weight: 600; color: #333; margin-top: 4px; }
 .section-card { margin-bottom: 16px; }
 </style>

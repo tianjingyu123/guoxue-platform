@@ -1,14 +1,15 @@
 <template>
   <div class="page">
-    <div class="header">
-      <h2>系统配置</h2>
-      <el-button
-        type="primary"
-        @click="openAdd"
-      >
-        添加配置
-      </el-button>
-    </div>
+    <PageHeader title="系统配置">
+      <template #actions>
+        <el-button
+          type="primary"
+          @click="openAdd"
+        >
+          添加配置
+        </el-button>
+      </template>
+    </PageHeader>
 
     <el-table
       v-loading="loading"
@@ -136,6 +137,7 @@
 import { ref, onMounted } from "vue";
 import { systemApi } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
+import PageHeader from "@/components/PageHeader.vue";
 
 const configs = ref<any[]>([]);
 const loading = ref(false);
@@ -212,7 +214,5 @@ async function remove(row: any) {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
+.page { padding: 0; }
 </style>

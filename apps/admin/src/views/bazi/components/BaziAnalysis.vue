@@ -304,8 +304,8 @@ const xiongShen = shenSha.filter(s => s.type === 'xiong')
   border-radius: 8px;
   transition: width .3s;
 }
-.bar-val { width: 24px; font-size: 12px; color: #999; text-align: right; }
-.wx-desc { font-size: 12px; color: #999; margin-top: 8px; }
+.bar-val { width: 24px; font-size: 12px; color: var(--color-text-secondary); text-align: right; }
+.wx-desc { font-size: 12px; color: var(--color-text-secondary); margin-top: 8px; }
 
 /* 合冲刑害标签 */
 .relation-tags { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -345,5 +345,5 @@ const xiongShen = shenSha.filter(s => s.type === 'xiong')
   background: #e0e0e0;
   color: #666;
 }
-.shensha-col .desc { margin: 4px 0 0; font-size: 12px; color: #999; }
+.shensha-col .desc { margin: 4px 0 0; font-size: 12px; color: var(--color-text-secondary); }
 </style>

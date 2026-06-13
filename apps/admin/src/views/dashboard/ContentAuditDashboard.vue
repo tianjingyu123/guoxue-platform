@@ -184,7 +184,7 @@ onMounted(async () => {
 }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
 .stat-card__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.stat-card__label { font-size: 13px; color: #999; }
+.stat-card__label { font-size: 13px; color: var(--color-text-secondary); }
 .stat-card__icon {
   width: 36px; height: 36px; border-radius: 10px;
   background: rgba(255, 107, 107, 0.1); color: #FF6B6B;

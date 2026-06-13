@@ -373,4 +373,4 @@ async function del(id: string) { try { await ElMessageBox.confirm('确定删除�
 async function handleSeed() { seeding.value = true; try { await api.post('/classic/commentaries/admin/seed'); ElMessage.success('种子数据初始化已触发') } catch {} finally { seeding.value = false } }
 async function handleVectorize() { vectorizing.value = true; try { await api.post('/classic/commentaries/admin/vectorize'); ElMessage.success('向量化索引已触发') } catch {} finally { vectorizing.value = false } }
 </script>
-<style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }</style>
+<style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

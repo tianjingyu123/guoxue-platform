@@ -210,7 +210,7 @@ const pillars = [
 .dayun-list { display: flex; flex-direction: column; gap: 8px; }
 .dayun-row { padding: 8px; background: #faf8f5; border-radius: 6px; }
 .dayun-header { display: flex; gap: 12px; align-items: center; }
-.dayun-step { color: #999; font-size: 12px; }
+.dayun-step { color: var(--color-text-secondary); font-size: 12px; }
 .dayun-ganzhi { font-size: 16px; font-weight: bold; }
 .dayun-shishen { color: #8b4513; font-size: 13px; }
 .dayun-age { color: #666; font-size: 13px; margin-left: auto; }
@@ -222,7 +222,7 @@ const pillars = [
   border-radius: 4px;
   font-size: 12px;
 }
-.liunian-year small { color: #999; margin-left: 2px; }
+.liunian-year small { color: var(--color-text-secondary); margin-left: 2px; }
 
 .relation-list p { font-size: 14px; }
 </style>

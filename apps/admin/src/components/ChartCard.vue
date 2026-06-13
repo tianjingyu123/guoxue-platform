@@ -5,15 +5,20 @@
       <slot name="extra" />
     </div>
     <div
+      v-if="hasData"
       ref="chartRef"
       class="chart-card__body"
       :style="{ height: height + 'px' }"
     />
-    <el-empty
-      v-if="!hasData"
-      description="暂无数据"
-      :image-size="48"
-    />
+    <div
+      v-else
+      class="chart-card__empty"
+    >
+      <el-empty
+        description="暂无数据"
+        :image-size="48"
+      />
+    </div>
   </div>
 </template>
 
@@ -48,8 +53,35 @@ onBeforeUnmount(() => { window.removeEventListener('resize', resize); chart?.dis
 </script>
 
 <style scoped>
-.chart-card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.04); }
-.chart-card__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.chart-card__title { font-size: 14px; font-weight: 500; color: #999; }
-.chart-card__body { width: 100%; }
+.chart-card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--transition-base);
+}
+.chart-card:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+.chart-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+.chart-card__title {
+  font-size: var(--font-size-caption);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.chart-card__body {
+  width: 100%;
+}
+.chart-card__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
 </style>

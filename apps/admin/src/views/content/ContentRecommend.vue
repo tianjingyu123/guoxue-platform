@@ -323,7 +323,7 @@ async function handleDelete(row: any) {
 <style scoped>
 .recommend-page { padding: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
-.no-img { color: #ccc; font-size: 11px; }
+.no-img { color: var(--color-text-placeholder); font-size: 11px; }
 </style>

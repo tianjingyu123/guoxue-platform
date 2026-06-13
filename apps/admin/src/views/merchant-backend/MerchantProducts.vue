@@ -432,7 +432,7 @@ async function handleDelete(row: any) {
 .page-header h3 { margin: 0; }
 .header-right { display: flex; gap: 12px; }
 .prod-img { width: 50px; height: 50px; border-radius: 4px; object-fit: cover; }
-.prod-img-placeholder { width: 50px; height: 50px; border-radius: 4px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 12px; }
+.prod-img-placeholder { width: 50px; height: 50px; border-radius: 4px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; color: var(--color-text-placeholder); font-size: 12px; }
 .images-section { display: flex; flex-wrap: wrap; gap: 8px; }
 .image-item { position: relative; width: 80px; height: 80px; border-radius: 4px; overflow: hidden; }
 .image-item img { width: 100%; height: 100%; object-fit: cover; }

@@ -673,7 +673,7 @@ async function handleUnban() {
 .tabs { margin-top: 16px; }
 .tab-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
 .tab-summary { padding: 8px 0 12px; font-size: 14px; color: #666; }
-h4 { color: #8b4513; margin: 8px 0; }
+h4 { color: var(--color-text-title); margin: 8px 0; }
 
 .stats-row { display: flex; gap: 12px; margin: 16px 0; flex-wrap: wrap; }
 .stat-card {
@@ -682,10 +682,10 @@ h4 { color: #8b4513; margin: 8px 0; }
 }
 .stat-value { font-size: 22px; font-weight: 600; color: #333; }
 .stat-value.coin { color: #e6a23c; }
-.stat-label { font-size: 12px; color: #999; margin-top: 2px; }
+.stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 
 .behavior-item { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .behavior-target { color: #666; font-size: 13px; }
-.behavior-meta { color: #999; font-size: 12px; }
-.behavior-meta-detail { width: 100%; font-size: 12px; color: #999; word-break: break-all; }
+.behavior-meta { color: var(--color-text-secondary); font-size: 12px; }
+.behavior-meta-detail { width: 100%; font-size: 12px; color: var(--color-text-secondary); word-break: break-all; }
 </style>

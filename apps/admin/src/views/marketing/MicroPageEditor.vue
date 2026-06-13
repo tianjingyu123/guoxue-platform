@@ -1716,65 +1716,65 @@ async function openPreview(row: any) {
 <style scoped>
 .page { padding: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 
 /* ═══ 可视化编辑器 ═══ */
-.ve-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: #fff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 10; }
+.ve-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: var(--color-bg-card); border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 10; }
 .ve-tbar-left { display: flex; align-items: center; gap: 12px; }
-.ve-page-name { font-size: 16px; font-weight: 600; color: #8b4513; }
+.ve-page-name { font-size: 16px; font-weight: 600; color: var(--color-text-title); }
 .ve-tbar-right { display: flex; gap: 8px; }
 
 .ve-body { display: flex; height: calc(100vh - 56px); overflow: hidden; }
 
 /* 左侧组件库 */
 .ve-left { width: 180px; background: #fafafa; border-right: 1px solid #eee; overflow-y: auto; flex-shrink: 0; }
-.ve-left-title { padding: 12px 12px 8px; font-size: 13px; color: #999; font-weight: 500; }
+.ve-left-title { padding: 12px 12px 8px; font-size: 13px; color: var(--color-text-secondary); font-weight: 500; }
 .ve-comp-lib { padding: 0 8px; }
-.ve-comp-item { display: flex; align-items: center; gap: 8px; padding: 10px 8px; margin-bottom: 4px; border-radius: 6px; cursor: grab; background: #fff; border: 1px solid #eee; transition: all 0.15s; user-select: none; }
-.ve-comp-item:hover { border-color: #8b4513; box-shadow: 0 2px 8px rgba(139,69,19,0.1); }
+.ve-comp-item { display: flex; align-items: center; gap: 8px; padding: 10px 8px; margin-bottom: 4px; border-radius: 6px; cursor: grab; background: var(--color-bg-card); border: 1px solid #eee; transition: all 0.15s; user-select: none; }
+.ve-comp-item:hover { border-color: var(--color-text-title); box-shadow: 0 2px 8px rgba(139,69,19,0.1); }
 .ve-comp-item:active { cursor: grabbing; }
 .ve-comp-icon { font-size: 18px; }
 .ve-comp-label { font-size: 12px; color: #666; }
 
 /* 中间预览区 */
 .ve-center { flex: 1; display: flex; justify-content: center; align-items: flex-start; padding: 20px; background: #f0f0f0; overflow-y: auto; }
-.ve-phone-frame { width: 375px; background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; }
+.ve-phone-frame { width: 375px; background: var(--color-bg-card); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; }
 .ve-phone-status { background: #8b4513; color: #fff; text-align: center; padding: 8px; font-size: 12px; }
 .ve-phone-body { min-height: 500px; padding: 0; position: relative; }
-.ve-phone-body.ve-drag-over { outline: 2px dashed #8b4513; outline-offset: -2px; background: rgba(139,69,19,0.03); }
-.ve-drop-hint { display: flex; align-items: center; justify-content: center; height: 400px; color: #ccc; font-size: 13px; text-align: center; line-height: 1.8; }
+.ve-phone-body.ve-drag-over { outline: 2px dashed #8b4513; outline-offset: -2px; background: rgba(201,169,110,0.03); }
+.ve-drop-hint { display: flex; align-items: center; justify-content: center; height: 400px; color: var(--color-text-placeholder); font-size: 13px; text-align: center; line-height: 1.8; }
 
 .ve-render-comp { position: relative; border-bottom: 1px dashed #eee; cursor: pointer; transition: all 0.15s; }
-.ve-render-comp:hover { background: rgba(139,69,19,0.02); }
-.ve-render-comp.ve-selected { outline: 2px solid #8b4513; outline-offset: -2px; background: rgba(139,69,19,0.05); }
+.ve-render-comp:hover { background: rgba(201,169,110,0.02); }
+.ve-render-comp.ve-selected { outline: 2px solid #8b4513; outline-offset: -2px; background: rgba(201,169,110,0.05); }
 .ve-comp-actions { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: rgba(0,0,0,0.03); }
 .ve-comp-idx { width: 18px; height: 18px; border-radius: 50%; background: #8b4513; color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; }
-.ve-comp-type-tag { font-size: 11px; color: #999; flex: 1; }
+.ve-comp-type-tag { font-size: 11px; color: var(--color-text-secondary); flex: 1; }
 .ve-comp-body { padding: 0; }
 
 /* 预览组件 mock */
-.ve-mock { padding: 20px 16px; text-align: center; color: #999; font-size: 13px; }
+.ve-mock { padding: 20px 16px; text-align: center; color: var(--color-text-secondary); font-size: 13px; }
 .ve-mock-carousel { background: linear-gradient(135deg, #f5f0e8, #e8d5c4); height: 100px; display: flex; align-items: center; justify-content: center; }
 .ve-mock-countdown { background: linear-gradient(135deg, #C41E3A, #E85D75); color: #fff; padding: 16px; }
 .ve-mock-image { background: #e8e0d5; height: 120px; display: flex; align-items: center; justify-content: center; }
-.ve-mock-text { background: #fff; min-height: 60px; display: flex; align-items: center; justify-content: center; }
+.ve-mock-text { background: var(--color-bg-card); min-height: 60px; display: flex; align-items: center; justify-content: center; }
 .ve-mock-tabs { background: #fafafa; border-top: 3px solid #8b4513; }
 .ve-mock-generic { background: #fafafa; min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 
 /* 右侧属性面板 */
-.ve-right { width: 300px; background: #fff; border-left: 1px solid #eee; overflow-y: auto; padding: 12px; flex-shrink: 0; }
-.ve-right-title { font-size: 14px; font-weight: 600; color: #8b4513; margin-bottom: 12px; }
-.ve-right-hint { display: flex; align-items: center; justify-content: center; height: 200px; color: #ccc; font-size: 13px; text-align: center; line-height: 1.8; }
+.ve-right { width: 300px; background: var(--color-bg-card); border-left: 1px solid #eee; overflow-y: auto; padding: 12px; flex-shrink: 0; }
+.ve-right-title { font-size: 14px; font-weight: 600; color: var(--color-text-title); margin-bottom: 12px; }
+.ve-right-hint { display: flex; align-items: center; justify-content: center; height: 200px; color: var(--color-text-placeholder); font-size: 13px; text-align: center; line-height: 1.8; }
 
 /* 预览手机框 */
-.pp-phone-frame { width: 320px; margin: 0 auto; background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; }
+.pp-phone-frame { width: 320px; margin: 0 auto; background: var(--color-bg-card); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; }
 .pp-phone-status-bar { background: #8b4513; color: #fff; text-align: center; padding: 6px; font-size: 11px; }
 .pp-phone-content { min-height: 400px; padding: 0; }
 .pp-preview-comp { border-bottom: 1px solid #f0f0f0; }
-.pp-comp-badge { display: inline-block; padding: 2px 6px; margin: 6px 8px 0; background: rgba(139,69,19,0.1); color: #8b4513; font-size: 10px; border-radius: 3px; }
+.pp-comp-badge { display: inline-block; padding: 2px 6px; margin: 6px 8px 0; background: rgba(201,169,110,0.1); color: var(--color-text-title); font-size: 10px; border-radius: 3px; }
 .pp-comp-title { font-size: 12px; font-weight: 600; padding: 4px 8px 0; color: #333; }
 .pp-comp-mock { padding: 8px; }
-.pp-mock-carousel { background: linear-gradient(135deg, #f5f0e8, #e8d5c4); height: 80px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: #999; border-radius: 6px; }
+.pp-mock-carousel { background: linear-gradient(135deg, #f5f0e8, #e8d5c4); height: 80px; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--color-text-secondary); border-radius: 6px; }
 .pp-mock-countdown { background: #C41E3A; color: #fff; padding: 12px; text-align: center; border-radius: 6px; font-size: 13px; }
 .pp-mock-flashsale { padding: 8px 0; }
 .pp-mock-product-card { flex: 1; text-align: center; }
@@ -1784,10 +1784,10 @@ async function openPreview(row: any) {
 .pp-mock-groupbuy { background: #fff3e0; color: #e65100; padding: 12px; text-align: center; border-radius: 6px; font-size: 13px; }
 .pp-mock-coupon { background: linear-gradient(90deg, #fff7e6, #ffe7ba); color: #d4380d; padding: 12px; text-align: center; border-radius: 6px; font-size: 13px; }
 .pp-mock-productlist { background: #f0faf0; padding: 16px; text-align: center; border-radius: 6px; font-size: 13px; color: #52c41a; }
-.pp-mock-image { background: #e8e0d5; height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 13px; color: #999; }
-.pp-mock-textblock { padding: 16px; text-align: center; font-size: 13px; color: #999; }
+.pp-mock-image { background: #e8e0d5; height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 13px; color: var(--color-text-secondary); }
+.pp-mock-textblock { padding: 16px; text-align: center; font-size: 13px; color: var(--color-text-secondary); }
 .pp-mock-recommend { background: #f0f5ff; padding: 16px; text-align: center; border-radius: 6px; font-size: 13px; color: #2f54eb; }
-.pp-mock-tabs { border-top: 3px solid #8b4513; padding: 16px; text-align: center; font-size: 13px; color: #999; }
+.pp-mock-tabs { border-top: 3px solid #8b4513; padding: 16px; text-align: center; font-size: 13px; color: var(--color-text-secondary); }
 </style>
 
 <!-- global styles for fullscreen dialog -->

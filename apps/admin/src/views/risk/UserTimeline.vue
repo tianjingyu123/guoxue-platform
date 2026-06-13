@@ -235,13 +235,13 @@ function exportTimeline() {
 <style scoped>
 .page { padding: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .search-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
 .user-card { margin-bottom: 20px; }
 .timeline-container { margin-top: 8px; }
 .timeline-item { padding: 4px 0; }
 .timeline-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .timeline-desc { font-size: 14px; color: #333; }
-.timeline-meta { display: flex; gap: 16px; font-size: 12px; color: #999; }
+.timeline-meta { display: flex; gap: 16px; font-size: 12px; color: var(--color-text-secondary); }
 .meta-tag { background: #f5f7fa; padding: 2px 8px; border-radius: 3px; }
 </style>

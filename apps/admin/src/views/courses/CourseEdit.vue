@@ -1644,15 +1644,15 @@ watch(activeTab, (tab) => {
 .edit-sidebar { width: 260px; flex-shrink: 0; }
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0; }
 .sidebar-section { margin-bottom: 16px; }
-.sidebar-section h4 { margin: 0 0 10px; font-size: 14px; color: #8b4513; border-bottom: 1px solid #f0e6d3; padding-bottom: 6px; }
+.sidebar-section h4 { margin: 0 0 10px; font-size: 14px; color: var(--color-text-title); border-bottom: 1px solid #f0e6d3; padding-bottom: 6px; }
 .cover-preview { position: relative; width: 100%; aspect-ratio: 16/10; border-radius: 4px; overflow: hidden; background: #f5f5f5; margin-bottom: 8px; }
 .cover-preview img { width: 100%; height: 100%; object-fit: cover; }
 .cover-remove { position: absolute; top: 4px; right: 4px; }
-.cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed #E8E0D5; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 13px; margin-bottom: 8px; }
+.cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed #E8E0D5; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--color-text-placeholder); font-size: 13px; margin-bottom: 8px; }
 .cover-input-row { display: flex; gap: 4px; }
 .chapter-editor-box { min-height: 200px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
-.stat-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; margin-bottom: 16px; }
-.stat-label { font-size: 13px; color: #999; margin-bottom: 8px; }
+.stat-card { background: var(--color-bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; margin-bottom: 16px; }
+.stat-label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px; }
 .stat-value { font-size: 28px; font-weight: 700; color: #C41E3A; }
 @media (max-width: 900px) { .edit-body { flex-direction: column; } .edit-sidebar { width: 100%; } }
 </style>

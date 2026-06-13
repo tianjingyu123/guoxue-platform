@@ -214,5 +214,5 @@ async function handleDelete(row: any) {
 <style scoped>
 .page { padding: 20px; }
 .header { margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
+.header h2 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 </style>

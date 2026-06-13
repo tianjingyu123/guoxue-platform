@@ -287,7 +287,7 @@ function handleExport() {
 <style scoped>
 .payment-page { padding: 0; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 
 .stat-card { background: #f5f7fa; border-radius: 8px; padding: 16px; text-align: center; }
 .stat-card .value { display: block; font-size: 22px; font-weight: 700; color: #303133; }

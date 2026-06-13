@@ -189,6 +189,6 @@ async function fetchSettlements() {
 .page-header { margin-bottom: 16px; }
 .page-header h3 { margin: 0; }
 .stat-card { text-align: center; padding: 12px; }
-.stat-card .stat-label { font-size: 13px; color: #999; margin-bottom: 8px; }
+.stat-card .stat-label { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px; }
 .stat-card .stat-value { font-size: 24px; font-weight: bold; color: #333; }
 </style>

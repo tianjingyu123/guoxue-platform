@@ -7,6 +7,7 @@ import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
 import SearchFilter from "@/components/SearchFilter.vue";
 import { useTable } from "@/composables/useTable";
+import PageHeader from "@/components/PageHeader.vue";
 
 const router = useRouter();
 const selectedIds = ref<string[]>([]);
@@ -131,6 +132,16 @@ function exportData() {
 
 <template>
   <div class="course-list">
+    <PageHeader title="课程管理">
+      <template #actions>
+        <el-button
+          type="primary"
+          @click="router.push('/courses/create')"
+        >
+          新建课程
+        </el-button>
+      </template>
+    </PageHeader>
     <DataTable
       v-model:page="pagination.page"
       v-model:page-size="pagination.pageSize"
@@ -144,12 +155,6 @@ function exportData() {
       @selection-change="onSelectionChange"
     >
       <template #toolbar>
-        <el-button
-          type="primary"
-          @click="router.push('/courses/create')"
-        >
-          新建课程
-        </el-button>
         <el-button @click="exportData">
           导出CSV
         </el-button>
@@ -336,5 +341,5 @@ function exportData() {
 </template>
 
 <style scoped>
-.course-list { padding: 16px; }
+.course-list { padding: 0; }
 </style>

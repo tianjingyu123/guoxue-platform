@@ -1,44 +1,45 @@
 <template>
   <div class="page">
-    <div class="header">
-      <h2>直播管理</h2>
-      <div>
-        <el-select
-          v-model="statusFilter"
-          placeholder="状态筛选"
-          clearable
-          style="width:120px;margin-right:12px"
-          @change="fetchList"
-        >
-          <el-option
-            label="全部"
-            value=""
-          />
-          <el-option
-            label="待开播"
-            value="WAITING"
-          />
-          <el-option
-            label="直播中"
-            value="LIVING"
-          />
-          <el-option
-            label="已结束"
-            value="ENDED"
-          />
-          <el-option
-            label="回放"
-            value="REPLAY"
-          />
-        </el-select>
-        <el-button
-          type="primary"
-          @click="openEdit()"
-        >
-          添加直播
-        </el-button>
-      </div>
-    </div>
+    <PageHeader title="直播管理">
+      <template #actions>
+        <div>
+          <el-select
+            v-model="statusFilter"
+            placeholder="状态筛选"
+            clearable
+            style="width:120px;margin-right:12px"
+            @change="fetchList"
+          >
+            <el-option
+              label="全部"
+              value=""
+            />
+            <el-option
+              label="待开播"
+              value="WAITING"
+            />
+            <el-option
+              label="直播中"
+              value="LIVING"
+            />
+            <el-option
+              label="已结束"
+              value="ENDED"
+            />
+            <el-option
+              label="回放"
+              value="REPLAY"
+            />
+          </el-select>
+          <el-button
+            type="primary"
+            @click="openEdit()"
+          >
+            添加直播
+          </el-button>
+        </div>
+      </template>
+    </PageHeader>
 
     <el-table
       v-loading="loading"
@@ -220,6 +221,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import PageHeader from "@/components/PageHeader.vue";
 import { liveApi } from "@/api";
 
 const list = ref<any[]>([]);
@@ -324,8 +326,6 @@ function del(id: string) {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
+.page { padding: 0; }
 .detail p { margin: 6px 0; font-size: 14px; color: #333; }
 </style>

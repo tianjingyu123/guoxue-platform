@@ -49,41 +49,93 @@ onMounted(async () => {
       v-else-if="error"
       class="dashboard-error"
     >
+      <div class="error-icon">⚠</div>
       <p>仪表盘加载失败：{{ error }}</p>
     </div>
     <div
       v-else
-      class="dashboard-fallback"
+      class="dashboard-welcome"
     >
-      <div class="fallback-icon">
-        🏮
+      <div class="welcome-card">
+        <div class="welcome-decoration" />
+        <div class="welcome-icon">🏮</div>
+        <h1 class="welcome-title">热卜国学</h1>
+        <p class="welcome-subtitle">管理后台</p>
+        <hr class="gold-divider">
+        <p class="welcome-text">
+          欢迎使用热卜国学管理后台。<br>
+          请通过左侧菜单选择管理功能。
+        </p>
       </div>
-      <h2>热卜国学管理后台</h2>
-      <p>欢迎使用管理后台，请通过左侧菜单导航。</p>
     </div>
   </div>
 </template>
 
 <style scoped>
 .dashboard-error {
-  padding: 40px;
-  text-align: center;
-  color: var(--color-primary);
-}
-.dashboard-fallback {
-  text-align: center;
   padding: 80px 20px;
-  color: var(--color-text-title);
-}
-.dashboard-fallback h2 {
+  text-align: center;
   color: var(--color-primary);
-  font-size: var(--font-size-title-lg);
-  font-weight: 600;
-  margin-bottom: var(--spacing-sm);
 }
-.dashboard-fallback p {
+.error-icon {
+  font-size: 48px;
+  margin-bottom: var(--spacing-lg);
+  opacity: 0.6;
+}
+
+.dashboard-welcome {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - var(--header-height) - var(--spacing-xl) * 2 - 120px);
+}
+
+.welcome-card {
+  text-align: center;
+  padding: 60px 80px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+}
+/* 顶部装饰金条 */
+.welcome-decoration {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  border-radius: 0 0 var(--radius-xs) var(--radius-xs);
+  background: var(--gradient-gold);
+}
+
+.welcome-icon {
+  font-size: 64px;
+  margin-bottom: var(--spacing-lg);
+  line-height: 1;
+}
+.welcome-title {
+  font-family: var(--font-family-display);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-text-title);
+  letter-spacing: 6px;
+  margin: 0 0 4px 0;
+}
+.welcome-subtitle {
+  font-size: var(--font-size-subtitle);
+  color: var(--color-gold);
+  font-weight: 500;
+  letter-spacing: 4px;
+  margin: 0 0 var(--spacing-xl) 0;
+}
+.welcome-text {
   color: var(--color-text-secondary);
   font-size: var(--font-size-body);
+  line-height: 1.8;
+  margin: var(--spacing-xl) 0 0 0;
 }
-.fallback-icon { font-size: 48px; margin-bottom: var(--spacing-lg); }
 </style>

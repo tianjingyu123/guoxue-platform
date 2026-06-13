@@ -1,8 +1,6 @@
 <template>
   <div class="page">
-    <div class="header">
-      <h2>付费问答管理</h2>
-    </div>
+    <PageHeader title="付费问答管理" />
 
     <div class="filter-row">
       <el-select
@@ -259,6 +257,7 @@
 import { ref, onMounted } from "vue";
 import api, { questionApi } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
+import PageHeader from "@/components/PageHeader.vue";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
@@ -336,13 +335,11 @@ function statusColor(s: string): string {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.header { margin-bottom: 16px; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
-.filter-row { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
-.pagination { margin-top: 16px; display: flex; justify-content: flex-end; }
+.page { padding: 0; }
+.filter-row { display: flex; gap: var(--spacing-sm); align-items: center; margin-bottom: var(--spacing-lg); }
+.pagination { margin-top: var(--spacing-lg); display: flex; justify-content: flex-end; }
 .detail-section { margin-bottom: 14px; }
-.detail-label { font-size: 12px; color: #999; margin-bottom: 4px; }
+.detail-label { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; }
 .detail-value { font-size: 14px; color: #333; }
 .question-body, .answer-body { background: #f8f5f0; padding: 12px; border-radius: 6px; white-space: pre-wrap; line-height: 1.6; }
 </style>

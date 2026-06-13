@@ -189,5 +189,5 @@ function exportData() {
 <style scoped>
 .page { padding: 20px; }
 .header { margin-bottom: 16px; }
-.header h2 { margin: 0 0 8px; font-size: 18px; color: #8b4513; }
+.header h2 { margin: 0 0 8px; font-size: 18px; color: var(--color-text-title); }
 </style>

@@ -298,13 +298,13 @@ async function updateShareRate(userId: string, shareRate: number) {
 <style scoped>
 .page { padding: 20px; }
 .header { margin-bottom: 16px; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
+.header h2 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .section-card { margin-bottom: 16px; }
 .overview-row { margin-bottom: 16px; }
-.stat-label { font-size: 13px; color: #999; }
+.stat-label { font-size: 13px; color: var(--color-text-secondary); }
 .stat-value { font-size: 22px; font-weight: 600; color: #333; margin-top: 4px; }
 .rev-item { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; }
-.rev-label { font-size: 13px; color: #999; }
+.rev-label { font-size: 13px; color: var(--color-text-secondary); }
 .rev-num { font-size: 20px; font-weight: 600; }
 .pagination { margin-top: 12px; display: flex; justify-content: flex-end; }
 </style>

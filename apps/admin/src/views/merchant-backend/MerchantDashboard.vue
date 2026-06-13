@@ -80,10 +80,10 @@ onMounted(async () => {
 .page { padding: 20px; }
 .page-header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 20px; }
 .page-header h3 { margin: 0; }
-.shop-name { color: #999; font-size: 14px; }
+.shop-name { color: var(--color-text-secondary); font-size: 14px; }
 .stat-card { display: flex; align-items: center; gap: 12px; padding: 16px; }
 .stat-card :deep(.el-card__body) { display: flex; align-items: center; gap: 12px; padding: 0; width: 100%; }
 .stat-icon { width: 48px; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #8B4513; flex-shrink: 0; }
 .stat-value { font-size: 22px; font-weight: bold; color: #333; }
-.stat-label { font-size: 12px; color: #999; margin-top: 4px; }
+.stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
 </style>

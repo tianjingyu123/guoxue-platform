@@ -357,10 +357,10 @@ async function handleSave(status?: string) {
   justify-content: space-between;
   align-items: center;
   padding: 12px 24px;
-  background: #fff;
+  background: var(--color-bg-card);
   border-bottom: 1px solid #E8E0D5;
 }
-.edit-header h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.edit-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .header-actions { display: flex; gap: 8px; }
 
 .edit-body {
@@ -373,7 +373,7 @@ async function handleSave(status?: string) {
 .edit-main {
   flex: 1;
   min-width: 0;
-  background: #fff;
+  background: var(--color-bg-card);
   padding: 20px;
   border-radius: 8px 0 0 8px;
   border: 1px solid #E8E0D5;
@@ -383,7 +383,7 @@ async function handleSave(status?: string) {
 .edit-sidebar {
   width: 280px;
   flex-shrink: 0;
-  background: #fff;
+  background: var(--color-bg-card);
   border: 1px solid #E8E0D5;
   border-radius: 0 8px 8px 0;
   padding: 16px;
@@ -395,7 +395,7 @@ async function handleSave(status?: string) {
 .sidebar-section h4 {
   margin: 0 0 10px;
   font-size: 14px;
-  color: #8b4513;
+  color: var(--color-text-title);
   border-bottom: 1px solid #f0e6d3;
   padding-bottom: 6px;
 }
@@ -410,13 +410,13 @@ async function handleSave(status?: string) {
 .cover-preview { position: relative; width: 100%; aspect-ratio: 16/10; border-radius: 4px; overflow: hidden; background: #f5f5f5; }
 .cover-preview img { width: 100%; height: 100%; object-fit: cover; }
 .cover-remove { position: absolute; top: 4px; right: 4px; }
-.cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed #E8E0D5; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #ccc; font-size: 13px; }
+.cover-placeholder { width: 100%; aspect-ratio: 16/10; border: 2px dashed #E8E0D5; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--color-text-placeholder); font-size: 13px; }
 .cover-input-row { display: flex; gap: 4px; }
 
 /* 标签 */
 .tag-input-row { display: flex; gap: 4px; margin-bottom: 8px; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 4px; min-height: 24px; }
-.no-tags { color: #ccc; font-size: 12px; }
+.no-tags { color: var(--color-text-placeholder); font-size: 12px; }
 
 @media (max-width: 900px) {
   .edit-body { flex-direction: column; }

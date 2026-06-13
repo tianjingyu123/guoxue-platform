@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { orderApi } from "@/api";
 import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
+import PageHeader from "@/components/PageHeader.vue";
 
 const orders = ref<any[]>([]);
 const total = ref(0);
@@ -151,6 +152,7 @@ function exportData() {
 
 <template>
   <div class="order-list">
+    <PageHeader title="订单管理" />
     <DataTable
       v-model:page="page"
       v-model:page-size="pageSize"
@@ -162,7 +164,6 @@ function exportData() {
       @change="fetchList"
     >
       <template #toolbar>
-        <h3>订单管理</h3>
         <el-select
           v-model="filterStatus"
           placeholder="状态"
@@ -485,5 +486,5 @@ function exportData() {
 </template>
 
 <style scoped>
-.order-list { padding: 16px; }
+.order-list { padding: 0; }
 </style>

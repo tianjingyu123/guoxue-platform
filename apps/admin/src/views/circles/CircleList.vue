@@ -1,14 +1,15 @@
 <template>
   <div class="page">
-    <div class="header">
-      <h2>圈子管理</h2>
-      <el-button
-        type="primary"
-        @click="openEdit()"
-      >
-        添加圈子
-      </el-button>
-    </div>
+    <PageHeader title="圈子管理">
+      <template #actions>
+        <el-button
+          type="primary"
+          @click="openEdit()"
+        >
+          添加圈子
+        </el-button>
+      </template>
+    </PageHeader>
 
     <el-table
       v-loading="loading"
@@ -192,6 +193,7 @@ import { ref, reactive, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { circleApi } from "@/api";
+import PageHeader from "@/components/PageHeader.vue";
 
 const router = useRouter();
 
@@ -278,7 +280,5 @@ function delCircle(id: string) {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
+.page { padding: 0; }
 </style>

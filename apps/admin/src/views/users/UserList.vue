@@ -1,9 +1,9 @@
 <template>
   <div class="page">
-    <div class="header">
-      <h2>用户管理</h2>
-      <span class="header-sub">客服工作台 — 快速查找与诊断用户问题</span>
-    </div>
+    <PageHeader
+      title="用户管理"
+      description="客服工作台 — 快速查找与诊断用户问题"
+    />
 
     <DataTable
       v-model:page="page"
@@ -366,6 +366,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { userApi } from "@/api";
 import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
+import PageHeader from "@/components/PageHeader.vue";
 
 const router = useRouter();
 const list = ref<any[]>([]);
@@ -555,11 +556,8 @@ function exportData() {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.header { margin-bottom: 16px; display: flex; align-items: baseline; gap: 12px; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
-.header-sub { color: #999; font-size: 13px; }
-.dim { color: #ccc; font-size: 13px; }
-.coin { color: #e6a23c; font-weight: 500; }
-.num { color: #409eff; font-weight: 500; }
+.page { padding: 0; }
+.dim { color: var(--color-text-placeholder); font-size: var(--font-size-caption); }
+.coin { color: var(--color-gold); font-weight: 500; }
+.num { color: var(--color-gold); font-weight: 500; }
 </style>

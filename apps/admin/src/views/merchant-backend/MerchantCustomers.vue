@@ -106,10 +106,10 @@ async function fetchList() {
 .page { padding: 20px; }
 .page-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
 .page-header h3 { margin: 0; }
-.subtitle { color: #999; font-size: 13px; }
+.subtitle { color: var(--color-text-secondary); font-size: 13px; }
 .customer-cell { display: flex; align-items: center; gap: 10px; }
 .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
 .avatar-placeholder { width: 36px; height: 36px; border-radius: 50%; background: #f0e6d3; display: flex; align-items: center; justify-content: center; color: #8B4513; font-size: 14px; }
 .nickname { font-weight: 500; }
-.phone { font-size: 12px; color: #999; }
+.phone { font-size: 12px; color: var(--color-text-secondary); }
 </style>

@@ -210,7 +210,7 @@ async function fetchLogs() {
 <style scoped>
 .sms-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-header h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .stat-card { background: #f5f7fa; border-radius: 8px; padding: 18px; text-align: center; }
 .stat-card .value { display: block; font-size: 26px; font-weight: 700; color: #303133; }
 .stat-card .label { display: block; font-size: 13px; color: #909399; margin-top: 4px; }

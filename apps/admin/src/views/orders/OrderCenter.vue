@@ -1,71 +1,72 @@
 <template>
   <div class="page">
-    <div class="header">
-      <h2>统一订单中心</h2>
-      <div class="search-row">
-        <el-input
-          v-model="keyword"
-          placeholder="订单号/用户昵称"
-          clearable
-          style="width:200px"
-          @keyup.enter="fetchList"
-        />
-        <el-select
-          v-model="typeFilter"
-          placeholder="订单类型"
-          clearable
-          style="width:140px"
-          @change="fetchList"
-        >
-          <el-option
-            label="全部"
-            value=""
+    <PageHeader title="统一订单中心">
+      <template #actions>
+        <div class="search-row">
+          <el-input
+            v-model="keyword"
+            placeholder="订单号/用户昵称"
+            clearable
+            style="width:200px"
+            @keyup.enter="fetchList"
           />
-          <el-option
-            label="商城"
-            value="SHOP"
-          />
-          <el-option
-            label="会员"
-            value="MEMBER"
-          />
-        </el-select>
-        <el-select
-          v-model="statusFilter"
-          placeholder="状态"
-          clearable
-          style="width:120px"
-          @change="fetchList"
-        >
-          <el-option
-            label="全部"
-            value=""
-          />
-          <el-option
-            label="已支付"
-            value="PAID"
-          />
-          <el-option
-            label="待支付"
-            value="PENDING"
-          />
-          <el-option
-            label="已退款"
-            value="REFUNDED"
-          />
-          <el-option
-            label="已取消"
-            value="CANCELLED"
-          />
-        </el-select>
-        <el-button
-          type="primary"
-          @click="fetchList"
-        >
-          查询
-        </el-button>
-      </div>
-    </div>
+          <el-select
+            v-model="typeFilter"
+            placeholder="订单类型"
+            clearable
+            style="width:140px"
+            @change="fetchList"
+          >
+            <el-option
+              label="全部"
+              value=""
+            />
+            <el-option
+              label="商城"
+              value="SHOP"
+            />
+            <el-option
+              label="会员"
+              value="MEMBER"
+            />
+          </el-select>
+          <el-select
+            v-model="statusFilter"
+            placeholder="状态"
+            clearable
+            style="width:120px"
+            @change="fetchList"
+          >
+            <el-option
+              label="全部"
+              value=""
+            />
+            <el-option
+              label="已支付"
+              value="PAID"
+            />
+            <el-option
+              label="待支付"
+              value="PENDING"
+            />
+            <el-option
+              label="已退款"
+              value="REFUNDED"
+            />
+            <el-option
+              label="已取消"
+              value="CANCELLED"
+            />
+          </el-select>
+          <el-button
+            type="primary"
+            @click="fetchList"
+          >
+            查询
+          </el-button>
+        </div>
+      </template>
+    </PageHeader>
 
     <el-table
       v-loading="loading"
@@ -155,6 +156,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { orderCenterApi } from "@/api";
+import PageHeader from "@/components/PageHeader.vue";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
@@ -186,9 +188,7 @@ async function fetchList() {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.header { margin-bottom: 16px; }
-.header h2 { margin: 0 0 8px; font-size: 18px; color: #8b4513; }
-.search-row { display: flex; gap: 8px; align-items: center; }
-.pagination { margin-top: 12px; display: flex; justify-content: flex-end; }
+.page { padding: 0; }
+.search-row { display: flex; gap: var(--spacing-sm); align-items: center; }
+.pagination { margin-top: var(--spacing-md); display: flex; justify-content: flex-end; }
 </style>

@@ -1,8 +1,6 @@
 <template>
   <div class="page">
-    <div class="header">
-      <h2>操作审计日志</h2>
-    </div>
+    <PageHeader title="操作审计日志" />
 
     <div class="filter-row">
       <el-select
@@ -117,6 +115,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
+import PageHeader from "@/components/PageHeader.vue";
 import { auditApi } from "@/api";
 
 const list = ref<any[]>([]);
@@ -188,9 +187,7 @@ function actionColor(a: string): string {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.header { margin-bottom: 16px; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
-.filter-row { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
-.pagination { margin-top: 16px; display: flex; justify-content: flex-end; }
+.page { padding: 0; }
+.filter-row { display: flex; gap: var(--spacing-sm); align-items: center; margin-bottom: var(--spacing-lg); }
+.pagination { margin-top: var(--spacing-lg); display: flex; justify-content: flex-end; }
 </style>

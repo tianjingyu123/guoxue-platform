@@ -469,7 +469,7 @@ onMounted(fetchData)
 .brand-header { display: flex; justify-content: space-between; align-items: center; }
 .brand-info { display: flex; align-items: center; gap: 16px; }
 .brand-text h2 { margin: 0 0 8px 0; font-size: 20px; }
-.brand-code { margin-left: 16px; color: #999; font-size: 13px; }
+.brand-code { margin-left: 16px; color: var(--color-text-secondary); font-size: 13px; }
 .brand-actions { display: flex; gap: 8px; }
 .stats-row { margin-bottom: 24px; }
 .section-title { margin: 24px 0 16px; font-size: 16px; color: #333; }

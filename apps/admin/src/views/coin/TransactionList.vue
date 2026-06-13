@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { api as rawApi } from "@/api";
+import PageHeader from "@/components/PageHeader.vue";
 
 const list = ref<any[]>([]);
 const total = ref(0);
@@ -52,9 +53,7 @@ function formatTime(v: any) {
 
 <template>
   <div class="page">
-    <div class="header">
-      <h2>虚拟币交易流水</h2>
-    </div>
+    <PageHeader title="虚拟币交易流水" />
 
     <div class="search-bar">
       <el-input
@@ -169,8 +168,6 @@ function formatTime(v: any) {
 </template>
 
 <style scoped>
-.page { padding: 16px; }
-.header { margin-bottom: 16px; }
-.header h2 { margin: 0; }
+.page { padding: 0; }
 .search-bar { display: flex; align-items: center; }
 </style>

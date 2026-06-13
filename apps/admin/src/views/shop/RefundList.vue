@@ -412,7 +412,7 @@ function exportCSV() {
 <style scoped>
 .refund-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-header h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 
 .stat-card { background: #f5f7fa; border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all .2s; border: 2px solid transparent; }
 .stat-card:hover { border-color: #409eff; }

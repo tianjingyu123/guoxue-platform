@@ -250,7 +250,7 @@ async function fetchHistory() {
 <style scoped>
 .page { padding: 20px; }
 .header { margin-bottom: 16px; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
+.header h2 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .search-row { display: flex; gap: 8px; align-items: center; }
 .section-card { margin-bottom: 16px; }
 .pagination { margin-top: 12px; display: flex; justify-content: flex-end; }

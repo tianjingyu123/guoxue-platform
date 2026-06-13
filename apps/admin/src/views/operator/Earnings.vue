@@ -199,7 +199,7 @@ onMounted(refresh)
 <style scoped>
 .page { padding: 16px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
+.header h2 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .stat-label { font-size: 13px; color: #909399; margin-bottom: 8px; }
 .stat-value { font-size: 28px; font-weight: 600; }
 </style>

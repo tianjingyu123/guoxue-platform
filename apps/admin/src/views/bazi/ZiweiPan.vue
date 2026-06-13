@@ -376,11 +376,11 @@ function starClass(star: any) {
 .star-neutral { background: #f5f5f5; color: #909399; }
 
 .gong-extra { padding-top: 6px; border-top: 1px dashed #f0f0f0; }
-.extra-item { font-size: 10px; color: #ccc; display: block; line-height: 1.6; }
+.extra-item { font-size: 10px; color: var(--color-text-placeholder); display: block; line-height: 1.6; }
 
 .empty-state {
   text-align: center;
-  color: #999;
+  color: var(--color-text-secondary);
   padding: 60px 0;
   font-size: 15px;
 }

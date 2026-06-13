@@ -218,7 +218,7 @@ async function sendPush() {
 <style scoped>
 .push-page { padding: 16px; }
 .toolbar { margin-bottom: 16px; }
-.toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .estimate { padding: 12px 16px; background: #fef0f0; border-radius: 8px; color: #C41E3A; }
 .estimate b { font-size: 20px; }
 </style>

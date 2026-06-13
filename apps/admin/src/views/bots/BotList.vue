@@ -1,40 +1,41 @@
 <template>
   <div class="page">
-    <div class="header">
-      <h2>Bot管理</h2>
-      <div class="header-actions">
-        <el-select
-          v-model="typeFilter"
-          placeholder="类型筛选"
-          clearable
-          style="width:140px"
-          @change="fetchList"
-        >
-          <el-option
-            label="全部"
-            value=""
-          />
-          <el-option
-            label="八字"
-            value="BAZI"
-          />
-          <el-option
-            label="紫微斗数"
-            value="ZIWEI"
-          />
-          <el-option
-            label="通用"
-            value="GENERAL"
-          />
-        </el-select>
-        <el-button
-          type="primary"
-          @click="openCreate"
-        >
-          新建Bot
-        </el-button>
-      </div>
-    </div>
+    <PageHeader title="Bot管理">
+      <template #actions>
+        <div class="header-actions">
+          <el-select
+            v-model="typeFilter"
+            placeholder="类型筛选"
+            clearable
+            style="width:140px"
+            @change="fetchList"
+          >
+            <el-option
+              label="全部"
+              value=""
+            />
+            <el-option
+              label="八字"
+              value="BAZI"
+            />
+            <el-option
+              label="紫微斗数"
+              value="ZIWEI"
+            />
+            <el-option
+              label="通用"
+              value="GENERAL"
+            />
+          </el-select>
+          <el-button
+            type="primary"
+            @click="openCreate"
+          >
+            新建Bot
+          </el-button>
+        </div>
+      </template>
+    </PageHeader>
 
     <el-table
       v-loading="loading"
@@ -475,6 +476,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import PageHeader from "@/components/PageHeader.vue";
 import { botApi, circleApi } from "@/api";
 
 const list = ref<any[]>([]);
@@ -678,15 +680,7 @@ async function handleBindCircle() {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.header {
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
-.header-actions { display: flex; gap: 12px; }
+.page { padding: 0; }
 .section-title {
   margin: 20px 0 10px;
   font-size: 15px;

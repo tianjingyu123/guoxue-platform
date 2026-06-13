@@ -748,10 +748,10 @@ onMounted(fetchData)
 .brand-header { display: flex; justify-content: space-between; align-items: center; }
 .brand-info { display: flex; align-items: center; gap: 16px; }
 .brand-text h2 { margin: 0 0 8px 0; font-size: 20px; }
-.brand-code { margin-left: 16px; color: #999; font-size: 13px; }
+.brand-code { margin-left: 16px; color: var(--color-text-secondary); font-size: 13px; }
 .brand-actions { display: flex; gap: 8px; }
 .stats-row { margin-bottom: 24px; }
-.stat-extra { font-size: 13px; color: #999; }
+.stat-extra { font-size: 13px; color: var(--color-text-secondary); }
 .section-title { margin: 24px 0 16px; font-size: 16px; color: #333; }
 .benefit-card { text-align: center; cursor: pointer; transition: transform .2s; }
 .benefit-card:hover { transform: translateY(-2px); }
@@ -771,6 +771,6 @@ onMounted(fetchData)
 .earned-amount { color: #e6a23c; font-weight: 600; }
 .invite-desc { color: #666; font-size: 13px; margin-bottom: 12px; }
 .poster-preview { display: flex; justify-content: center; margin: 16px 0; }
-.poster-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #999; }
+.poster-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--color-text-secondary); }
 .poster-placeholder p { margin: 8px 0 0; }
 </style>

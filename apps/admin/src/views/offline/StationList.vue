@@ -1,8 +1,7 @@
 <template>
   <div class="page">
-    <div class="header">
-      <h2>分站管理</h2>
-      <div class="header-actions">
+    <PageHeader title="分站管理">
+      <template #actions>
         <el-button @click="exportData">
           导出CSV
         </el-button>
@@ -12,8 +11,8 @@
         >
           新建分站
         </el-button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <el-table
       v-loading="loading"
@@ -495,6 +494,7 @@ import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { stationApi } from "@/api";
 import ImageUpload from "@/components/ImageUpload.vue";
+import PageHeader from "@/components/PageHeader.vue";
 import { exportCSV } from "@/utils/export";
 
 const router = useRouter();
@@ -747,25 +747,31 @@ async function saveOperator() {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.header { margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
-.pagination-wrap { margin-top: 16px; display: flex; justify-content: center; }
-.operator-header { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
-.operator-header { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.page { padding: 0; }
+.pagination-wrap { margin-top: var(--spacing-lg); display: flex; justify-content: center; }
+.operator-header { margin-bottom: var(--spacing-md); display: flex; justify-content: space-between; align-items: center; }
 
 /* 模版选择 */
 .template-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .tpl-card {
-  border: 2px solid #e4e7ed; border-radius: 10px; padding: 16px;
-  cursor: pointer; transition: border-color .2s, box-shadow .2s;
+  border: 2px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  cursor: pointer;
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
 }
-.tpl-card:hover { border-color: #b8a088; box-shadow: 0 2px 10px rgba(139,69,19,0.08); }
-.tpl-card--active { border-color: #8b4513; background: rgba(139,69,19,0.03); }
-.tpl-card__header { margin-bottom: 8px; }
-.tpl-card__name { font-size: 15px; font-weight: 600; color: #303133; }
-.tpl-card__desc { font-size: 13px; color: #909399; margin-bottom: 10px; line-height: 1.5; }
-.tpl-card__tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.tpl-card:hover {
+  border-color: var(--color-gold);
+  box-shadow: 0 2px 10px var(--color-gold-lighter);
+}
+.tpl-card--active {
+  border-color: var(--color-gold);
+  background: var(--color-gold-lighter);
+}
+.tpl-card__header { margin-bottom: var(--spacing-sm); }
+.tpl-card__name { font-size: 15px; font-weight: 600; color: var(--color-text-title); }
+.tpl-card__desc { font-size: var(--font-size-caption); color: var(--color-text-secondary); margin-bottom: 10px; line-height: 1.5; }
+.tpl-card__tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: var(--spacing-sm); }
 .tpl-card__modules { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.tpl-card__modules-label { font-size: 12px; color: #c0c4cc; }
+.tpl-card__modules-label { font-size: var(--font-size-small); color: var(--color-text-placeholder); }
 </style>

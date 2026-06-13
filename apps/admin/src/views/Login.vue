@@ -1,7 +1,9 @@
 <template>
   <div class="login-page">
     <el-card class="login-card">
-      <h2>🏮 热卜国学管理后台</h2>
+      <div class="login-logo">
+        <BrandLogo title="热卜国学" subtitle="管理后台" theme="light" />
+      </div>
       <el-form
         :model="form"
         label-width="0"
@@ -39,6 +41,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/store/auth";
+import BrandLogo from "@/components/BrandLogo.vue";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -102,12 +105,10 @@ async function handleLogin() {
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--color-divider);
 }
-.login-card h2 {
-  text-align: center;
+.login-logo {
+  display: flex;
+  justify-content: center;
   margin-bottom: var(--spacing-xl);
-  color: var(--color-primary);
-  font-size: var(--font-size-title-lg);
-  letter-spacing: 2px;
-  font-weight: 700;
+  padding-top: var(--spacing-sm);
 }
 </style>

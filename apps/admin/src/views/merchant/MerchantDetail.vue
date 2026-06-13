@@ -1119,5 +1119,5 @@ async function doSetCommission() {
 .header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
 .header h3 { margin: 0; }
 .stats-row { display: flex; gap: 40px; padding: 20px; }
-.text-muted { color: #999; }
+.text-muted { color: var(--color-text-secondary); }
 </style>

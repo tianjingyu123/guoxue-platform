@@ -1,5 +1,15 @@
 <template>
   <div class="product-page">
+    <PageHeader title="商品管理">
+      <template #actions>
+        <el-button
+          type="primary"
+          @click="openCreate"
+        >
+          添加商品
+        </el-button>
+      </template>
+    </PageHeader>
     <DataTable
       v-model:page="page"
       :columns="columns"
@@ -10,15 +20,6 @@
       actions-width="280"
       @change="fetchList"
     >
-      <template #toolbar>
-        <h3>商品管理</h3>
-        <el-button
-          type="primary"
-          @click="openCreate"
-        >
-          添加商品
-        </el-button>
-      </template>
 
       <template #image="{ row }">
         <img
@@ -361,6 +362,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { uploadApi, productApi } from '@/api'
 import ImageUpload from '@/components/ImageUpload.vue'
 import DataTable from '@/components/DataTable.vue'
+import PageHeader from "@/components/PageHeader.vue"
 
 const products = ref<any[]>([])
 const total = ref(0)
@@ -502,9 +504,9 @@ async function delSku(skuId: string) {
 </script>
 
 <style scoped>
-.product-page { padding: 16px; }
+.product-page { padding: 0; }
 .thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
-.no-img { color: #ccc; font-size: 11px; }
+.no-img { color: var(--color-text-placeholder); font-size: 11px; }
 .editor-box { min-height: 180px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; }
 .images-area { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .img-item { position: relative; width: 80px; height: 80px; }

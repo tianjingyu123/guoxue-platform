@@ -220,7 +220,7 @@
             :step="1"
             style="width: 100%"
           />
-          <span style="color: #999; font-size: 12px; margin-left: 8px">数字越小越靠前</span>
+          <span style="color: var(--color-text-secondary); font-size: 12px; margin-left: 8px">数字越小越靠前</span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -463,6 +463,6 @@ function exportData() {
 <style scoped>
 .page { padding: 20px; }
 .header { margin-bottom: 16px; }
-.header h2 { margin: 0 0 8px; font-size: 18px; color: #8b4513; }
+.header h2 { margin: 0 0 8px; font-size: 18px; color: var(--color-text-title); }
 .filter-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 </style>

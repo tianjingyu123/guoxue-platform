@@ -1,40 +1,41 @@
 <template>
   <div class="page">
-    <div class="header">
-      <h2>视频管理</h2>
-      <div style="display:flex;gap:8px">
-        <el-select
-          v-model="statusFilter"
-          placeholder="状态筛选"
-          clearable
-          style="width:120px"
-          @change="fetchList"
-        >
-          <el-option
-            label="全部"
-            value=""
-          />
-          <el-option
-            label="待审核"
-            value="PENDING"
-          />
-          <el-option
-            label="已发布"
-            value="PUBLISHED"
-          />
-          <el-option
-            label="已下架"
-            value="REMOVED"
-          />
-        </el-select>
-        <el-button
-          type="primary"
-          @click="openCreate()"
-        >
-          添加视频
-        </el-button>
-      </div>
-    </div>
+    <PageHeader title="视频管理">
+      <template #actions>
+        <div style="display:flex;gap:8px">
+          <el-select
+            v-model="statusFilter"
+            placeholder="状态筛选"
+            clearable
+            style="width:120px"
+            @change="fetchList"
+          >
+            <el-option
+              label="全部"
+              value=""
+            />
+            <el-option
+              label="待审核"
+              value="PENDING"
+            />
+            <el-option
+              label="已发布"
+              value="PUBLISHED"
+            />
+            <el-option
+              label="已下架"
+              value="REMOVED"
+            />
+          </el-select>
+          <el-button
+            type="primary"
+            @click="openCreate()"
+          >
+            添加视频
+          </el-button>
+        </div>
+      </template>
+    </PageHeader>
 
     <el-table
       v-loading="loading"
@@ -213,6 +214,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import PageHeader from "@/components/PageHeader.vue";
 import { videoApi } from "@/api";
 
 const list = ref<any[]>([]);
@@ -308,8 +310,6 @@ function del(id: string) {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.header h2 { margin: 0; font-size: 18px; color: #8b4513; }
+.page { padding: 0; }
 .detail p { margin: 6px 0; font-size: 14px; color: #333; }
 </style>

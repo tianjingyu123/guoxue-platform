@@ -281,6 +281,6 @@ async function saveTree() {
 .tree-preview { display: flex; flex-direction: column; gap: 12px; }
 .level1-group { padding: 10px; border-radius: 8px; background: #faf8f5; }
 .level1-name { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.level1-count { font-size: 12px; color: #999; }
+.level1-count { font-size: 12px; color: var(--color-text-secondary); }
 .level2-list { display: flex; flex-wrap: wrap; gap: 4px; }
 </style>

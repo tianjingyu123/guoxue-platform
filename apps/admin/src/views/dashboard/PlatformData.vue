@@ -296,17 +296,17 @@ onMounted(fetchData)
 <style scoped>
 .page { padding: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.toolbar h3 { margin: 0; font-size: 18px; color: #8b4513; }
+.toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .toolbar-right { display: flex; gap: 8px; }
 .stats-row { margin-bottom: 20px; }
 .stat-card {
-  background: #fff; border-radius: 16px; padding: 20px 22px;
+  background: var(--color-bg-card); border-radius: 16px; padding: 20px 22px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04); transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer; margin-bottom: 20px;
 }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
 .stat-card__top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.stat-card__label { font-size: 13px; color: #999; }
+.stat-card__label { font-size: 13px; color: var(--color-text-secondary); }
 .stat-card__icon {
   width: 36px; height: 36px; border-radius: 10px;
   background: rgba(255,107,107,0.1); color: #FF6B6B;
@@ -315,9 +315,9 @@ onMounted(fetchData)
 .stat-card__value { font-size: 28px; font-weight: 700; color: #1A1A1A; font-feature-settings: "tnum"; line-height: 1.2; }
 .charts-row { margin-bottom: 20px; }
 .section-card {
-  background: #fff; border-radius: 16px; padding: 20px 24px;
+  background: var(--color-bg-card); border-radius: 16px; padding: 20px 24px;
   box-shadow: 0 2px 12px rgba(0,0,0,0.04); margin-bottom: 20px;
 }
-.section-card__title { font-size: 14px; font-weight: 500; color: #999; margin-bottom: 16px; }
+.section-card__title { font-size: 14px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 16px; }
 @media (max-width: 768px) { .stat-card { margin-bottom: 12px; } }
 </style>

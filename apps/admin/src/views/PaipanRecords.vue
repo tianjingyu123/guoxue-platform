@@ -229,7 +229,7 @@ function formatDate(d?: string): string {
 .ziwei-cell .gong-name {
   font-size: 12px;
   font-weight: bold;
-  color: #8b4513;
+  color: var(--color-text-title);
 }
 
 .ziwei-cell .gong-ganzhi {
@@ -239,7 +239,7 @@ function formatDate(d?: string): string {
 
 .ziwei-cell .gong-stars {
   font-size: 10px;
-  color: #999;
+  color: var(--color-text-secondary);
   word-break: break-all;
 }
 

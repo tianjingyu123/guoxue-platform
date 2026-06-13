@@ -240,7 +240,7 @@ onMounted(() => {
 .search-bar { margin-bottom: 20px; }
 .stats-row { margin-bottom: 20px; }
 .stat-card { text-align: center; }
-.stat-label { font-size: 14px; color: #999; margin-bottom: 8px; }
+.stat-label { font-size: 14px; color: var(--color-text-secondary); margin-bottom: 8px; }
 .stat-value { font-size: 28px; font-weight: bold; }
 .stat-low .stat-value { color: #67c23a; }
 .stat-medium .stat-value { color: #e6a23c; }
