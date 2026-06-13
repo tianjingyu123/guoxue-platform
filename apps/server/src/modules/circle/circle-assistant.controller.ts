@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Param, Req, Res, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { CircleAssistantService } from "./circle-assistant.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
@@ -15,6 +15,9 @@ export class CircleAssistantController {
   @Post(":circleId/assistant")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "向圈主助理提问（简化路径）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async askSimple(
     @Param("circleId") circleId: string,
@@ -29,6 +32,9 @@ export class CircleAssistantController {
   @Post(":circleId/assistant/ask")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "向圈主助理提问（非流式）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async ask(
     @Param("circleId") circleId: string,
@@ -43,6 +49,9 @@ export class CircleAssistantController {
   @Post(":circleId/assistant/stream")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "向圈主助理提问（SSE流式）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async askStream(
     @Param("circleId") circleId: string,

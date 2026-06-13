@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { FinanceService } from "./finance.service";
 import {
@@ -29,6 +29,10 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "触发对账" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   triggerReconciliation(@Body() dto: CreateReconciliationDto) {
     return this.svc.triggerReconciliation(dto);
   }
@@ -37,6 +41,9 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "对账记录列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "source", required: false, type: String, description: "支付渠道" })
   @ApiQuery({ name: "status", required: false, type: String, description: "对账状态" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
@@ -54,6 +61,10 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "对账详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   getReconciliationDetail(@Param("id") id: string) {
     return this.svc.getReconciliationDetail(id);
   }
@@ -64,6 +75,10 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "创建发票申请" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   createInvoice(@Body() dto: CreateInvoiceDto) {
     return this.svc.createInvoice(dto);
   }
@@ -72,6 +87,9 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "发票列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "status", required: false, type: String, description: "发票状态" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
@@ -87,6 +105,11 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "开具发票" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   issueInvoice(@Param("id") id: string, @Body() dto: IssueInvoiceDto) {
     return this.svc.issueInvoice(id, dto.invoiceUrl);
   }
@@ -95,6 +118,11 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "标记已邮寄" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   mailInvoice(@Param("id") id: string, @Body() dto: MailInvoiceDto) {
     return this.svc.mailInvoice(id, dto.expressNo);
   }
@@ -105,6 +133,9 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "结算单列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "userId", required: false, type: String, description: "用户ID" })
   @ApiQuery({ name: "period", required: false, type: String, description: "结算周期" })
   @ApiQuery({ name: "status", required: false, type: String, description: "结算状态" })
@@ -124,6 +155,10 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "按周期生成结算单" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   generateSettlement(@Body() dto: GenerateSettlementDto) {
     return this.svc.generateSettlement(dto);
   }
@@ -132,6 +167,11 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "审批通过结算单" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   approveSettlement(@Param("id") id: string, @Req() req: Request) {
     return this.svc.approveSettlement(id, req.user.id);
   }
@@ -140,6 +180,11 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "标记已打款" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   paySettlement(@Param("id") id: string) {
     return this.svc.paySettlement(id);
   }
@@ -150,6 +195,9 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "提现申请列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "status", required: false, type: String, description: "提现状态" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
@@ -165,6 +213,11 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "批准提现" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   approveWithdrawal(@Param("id") id: string, @Body() dto: ApproveWithdrawalDto, @Req() req: Request) {
     return this.svc.approveWithdrawal(id, req.user.id, dto.reviewNote);
   }
@@ -173,6 +226,11 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "驳回提现" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   rejectWithdrawal(@Param("id") id: string, @Body() dto: RejectWithdrawalDto, @Req() req: Request) {
     return this.svc.rejectWithdrawal(id, req.user.id, dto.reviewNote);
   }
@@ -181,6 +239,10 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "确认打款" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   confirmWithdrawalPay(@Param("id") id: string) {
     return this.svc.confirmWithdrawalPay(id);
   }
@@ -191,6 +253,10 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "冻结订单资金" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   freezeAmount(@Body() dto: FreezeAmountDto) {
     return this.svc.freezeAmount(dto);
   }
@@ -199,6 +265,10 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "解冻订单资金" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   unfreezeAmount(@Body() dto: UnfreezeAmountDto) {
     return this.svc.unfreezeAmount(dto);
   }
@@ -207,6 +277,9 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "冻结记录列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "orderId", required: false, type: String, description: "订单ID" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
@@ -224,6 +297,9 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "月报数据（不传period则返回全部已保存报表列表）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "period", required: false, type: String, description: "报表周期（如 2026-05）" })
   getMonthlyReport(@Query("period") period?: string) {
     return this.svc.getMonthlyReport(period);
@@ -233,6 +309,10 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "生成月报并保存" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "period", required: true, type: String, description: "报表周期（如 2026-05）" })
   generateMonthlyReport(@Query("period") period: string, @Req() req: Request) {
     return this.svc.generateMonthlyReport(period, req.user.id);

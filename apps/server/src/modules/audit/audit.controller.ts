@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Query, Param, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { AuditService } from "./audit.service";
 import { ReportService, CreateReportDto, HandleReportDto } from "./report.service";
@@ -21,6 +21,9 @@ export class AuditController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "查询操作审计日志" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   list(@Query() q: AuditListQueryDto) {
@@ -30,6 +33,9 @@ export class AuditController {
   @Post("moderate/image")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "图片内容审核" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   moderateImage(
     @Body() body: ModerateImageDto,
@@ -40,6 +46,9 @@ export class AuditController {
   @Post("moderate/text")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "文本内容审核" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   moderateText(
     @Body() body: ModerateTextDto,
@@ -52,6 +61,9 @@ export class AuditController {
   @Post("reports")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "提交举报" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   submitReport(@Req() req: Request, @Body() dto: CreateReportDto) {
     return this.report.submit(req.user.id, dto);
@@ -60,6 +72,9 @@ export class AuditController {
   @Get("reports")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "获取举报列表（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   listReports(
@@ -74,6 +89,11 @@ export class AuditController {
   @Put("reports/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "处理举报" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   handleReport(@Param("id") id: string, @Body() dto: HandleReportDto) {
@@ -82,6 +102,8 @@ export class AuditController {
 
   @Get("reports/stats/:type/:id")
   @ApiOperation({ summary: "查询内容举报统计" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getReportStats(@Param("type") type: string, @Param("id") id: string) {
     return this.report.getTargetStats(type, id);
   }
@@ -91,6 +113,9 @@ export class AuditController {
   @Get("sensitive-words")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "获取敏感词列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   listSensitiveWords() {
@@ -100,6 +125,10 @@ export class AuditController {
   @Post("sensitive-words")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "添加敏感词" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   addSensitiveWord(@Body("word") word: string) {
@@ -109,6 +138,10 @@ export class AuditController {
   @Post("sensitive-words/batch")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "批量添加敏感词" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   addSensitiveWords(@Body("words") words: string[]) {
@@ -118,6 +151,10 @@ export class AuditController {
   @Delete("sensitive-words/:word")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "删除敏感词" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   removeSensitiveWord(@Param("word") word: string) {
@@ -126,6 +163,8 @@ export class AuditController {
 
   @Post("sensitive-words/check")
   @ApiOperation({ summary: "检测文本敏感词（公开接口）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   checkSensitive(@Body("text") text: string) {
     const hits = this.sensitiveWord.check(text);
     return { hasSensitive: hits.length > 0, hits };
@@ -136,6 +175,9 @@ export class AuditController {
   @Get("operation-logs")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "查询平台操作日志" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   listOperationLogs(@Query() q: OperationLogListQueryDto) {
@@ -145,6 +187,10 @@ export class AuditController {
   @Get("operation-logs/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "查看操作日志详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   getOperationLog(@Param("id") id: string) {

@@ -1,4 +1,5 @@
 // ── 金钱课计算引擎 ──
+// 算法参考：《周易》《灵棋经》《焦氏易林》
 // 铜钱摇卦 + 六十四卦完整爻辞
 
 import type { JinQianKeResult, JinQianYao } from "@guoxue/shared";
@@ -118,7 +119,7 @@ export function calculateJinQianKe(input: Record<string, unknown>): JinQianKeRes
       const nums = input.numbers as [number, number];
       ziCount = ((nums[0] + nums[1] + i) % 4);
     } else {
-      ziCount = Math.floor(Math.random() * 4);
+      ziCount = (seed >> (i * 4 + 4)) & 3;
     }
     const { yaoType, isDong, symbol } = coinToYao(ziCount);
     const code = isDong ? (yaoType === "老阳" ? 9 : 6) : (yaoType === "少阳" ? 7 : 8);
@@ -163,6 +164,43 @@ export function calculateJinQianKe(input: Record<string, unknown>): JinQianKeRes
 
   const dongCount = yaos.filter(y => y.isDong).length;
   const duanYu = `本卦${benGua.name}${benGua.symbol}，${dongCount > 0 ? `${dongCount}爻动${bianGua ? "变" + bianGua.name : ""}。` : "静卦，以本卦卦辞为断。"}${benGua.guaCi}`;
+  const duanGua = {
+    tiYong: "以卦论体用",
+    shiYing: dongCount > 0 ? "动变之间见吉凶" : "静观其变",
+    dongJing: dongCount > 3 ? "动多变数大" : "动静相宜",
+    jiXiong: (benGua.jiXiong === "大吉" ? "吉" : benGua.jiXiong === "半吉" ? "平" : benGua.jiXiong) as "吉" | "凶" | "平",
+  };
+  // ── box-drawing 结构化总结 ──
+  const dongYaoDisplay = dongYaoCi.length > 0 ? dongYaoCi.map(d => `│ ${d.position}爻：${d.yaoCi.substring(0, 40)}`).join("\n") : "│ （静卦，无动爻）";
+
+  const summary = [
+    `┌─ 金钱课 ─────────────────`,
+    `│ 本卦：${benGua.name}${benGua.symbol} ${huGua.name ? `互卦：${huGua.name}${huGua.symbol}` : ""}`,
+    `│ ${dongCount > 0 ? `${dongCount}爻动 → 变卦：${bianGua?.name}${bianGua?.symbol}` : "静卦"}`,
+    `│ 断卦：${duanGua.jiXiong} ${duanGua.tiYong} ${duanGua.shiYing}`,
+    `│`,
+    `├─ 六爻 ────────────────────`,
+    ...yaos.map(y => `│ ${y.position}爻：${y.yaoType} ${y.symbol} ${y.isDong ? "[动]" : ""}`),
+    `│`,
+    ...(dongCount > 0 ? [
+      `├─ 动爻爻辞 ──────────────────`,
+      dongYaoDisplay,
+    ] : []),
+    `├─ 互卦 ────────────────────`,
+    `│ ${huGua.name}${huGua.symbol}`,
+    `│`,
+    `├─ 卦辞 ────────────────────`,
+    `│ ${benGua.guaCi}`,
+    `│`,
+    `├─ 古籍出处 ──────────────────`,
+    `│ 《金钱课》传唐末宋初，以掷钱法代蓍草，简便易行`,
+    `│ 《增删卜易》清·李文辉，金钱课实战体系`,
+    `│ 《卜筮正宗》清·王洪绪，六爻纳甲整编`,
+    `│`,
+    `└─ 占断提示 ──────────────────`,
+    `   ${duanGua.dongJing === "动多变数大" ? "多爻动则事多变，宜审慎应对。" : "动静相宜，顺势而为。"}`,
+    `   ${duanYu}`,
+  ].filter(Boolean).join("\n");
 
   return {
     input: { datetime, method: method as any },
@@ -171,12 +209,8 @@ export function calculateJinQianKe(input: Record<string, unknown>): JinQianKeRes
     bianGua,
     huGua: { name: huGua.name, symbol: huGua.symbol },
     dongYaoCi,
-    duanGua: {
-      tiYong: "以卦论体用",
-      shiYing: dongCount > 0 ? "动变之间见吉凶" : "静观其变",
-      dongJing: dongCount > 3 ? "动多变数大" : "动静相宜",
-      jiXiong: (benGua.jiXiong === "大吉" ? "吉" : benGua.jiXiong === "半吉" ? "平" : benGua.jiXiong) as "吉" | "凶" | "平",
-    },
+    duanGua,
     duanYu,
-  };
+    summary,
+  } as JinQianKeResult & { summary: string };
 }

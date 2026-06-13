@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Req, UseGuards, Query } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { MediaAiService } from "./media-ai.service";
 import { AiLoggerService } from "./ai-logger.service";
@@ -23,6 +23,9 @@ export class MediaAiController {
   @Post("image-audit")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI图像内容审核 — 检测违规内容" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async auditImage(@Body() dto: ImageAuditDto, @Req() req: Request) {
     const userId = req.user?.id;
@@ -36,6 +39,9 @@ export class MediaAiController {
   @Post("tts")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI文字转语音 — 生成SSML标注" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async textToSpeech(@Body() dto: TtsDto, @Req() req: Request) {
     const userId = req.user?.id;
@@ -46,6 +52,9 @@ export class MediaAiController {
   @Post("transcribe")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI语音转文字 — 音频转写" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async transcribeAudio(@Body() dto: TranscribeDto, @Req() req: Request) {
     const userId = req.user?.id;
@@ -57,6 +66,9 @@ export class MediaAiController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取媒体处理任务列表（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })

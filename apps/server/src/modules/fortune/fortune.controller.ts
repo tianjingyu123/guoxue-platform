@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { FortuneService } from "./fortune.service";
 import { CreateFortuneSubscriptionDto } from "./fortune.dto";
@@ -16,6 +16,9 @@ export class FortuneController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "订阅运势推送" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   subscribe(@Req() req: Request, @Body() dto: CreateFortuneSubscriptionDto) {
     return this.svc.subscribe(req.user.id, dto);
   }
@@ -24,6 +27,8 @@ export class FortuneController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "我的订阅列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   listSubscriptions(@Req() req: Request) {
     return this.svc.listSubscriptions(req.user.id);
   }
@@ -32,6 +37,9 @@ export class FortuneController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "取消订阅" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   unsubscribe(@Req() req: Request, @Param("type") type: string, @Param("channel") channel: string) {
     return this.svc.unsubscribe(req.user.id, type, channel);
   }
@@ -40,10 +48,13 @@ export class FortuneController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "今日运势" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getToday(@Req() req: Request) { return this.svc.getTodayFortune(req.user.id); }
 
   @Get(":type/:period")
   @ApiOperation({ summary: "按周期查询运势" })
+  @ApiResponse({ status: 200, description: "成功" })
   getByPeriod(@Param("type") type: string, @Param("period") period: string) {
     return this.svc.getFortuneByPeriod("system", type, period);
   }
@@ -55,6 +66,10 @@ export class FortuneController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "推送全部运势" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   pushAll(@Body("fortuneType") fortuneType: string) { return this.svc.pushAll(fortuneType); }
 
   @Get("admin/records")
@@ -62,6 +77,9 @@ export class FortuneController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "运势记录列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   listRecords(@Query("page") page?: string, @Query("pageSize") pageSize?: string, @Query("fortuneType") fortuneType?: string) {
     return this.svc.adminListRecords(page ? +page : 1, pageSize ? +pageSize : 20, fortuneType);
   }
@@ -70,6 +88,7 @@ export class FortuneController {
 
   @Get("tools")
   @ApiOperation({ summary: "排盘工具首页聚合（工具网格+最近使用+课程推荐+智能体引导）" })
+  @ApiResponse({ status: 200, description: "成功" })
   getTools(@Req() req?: Request) {
     return this.svc.getToolsGrid(req?.user?.id);
   }
@@ -78,6 +97,8 @@ export class FortuneController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "排盘引导卡片数据" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getGuideCard(@Req() req: Request) {
     return this.svc.getGuideCard(req.user.id);
   }

@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Query, Body, Param, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { CapabilityRegistryService } from "./capability-registry.service";
 import { RegisterCapabilityDto } from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -16,6 +16,8 @@ export class CapabilityRegistryController {
 
   @Post()
   @ApiOperation({ summary: "注册AI能力" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async register(@Body() dto: RegisterCapabilityDto) {
     const id = await this.registry.register(dto);
     return { capabilityId: id };
@@ -23,6 +25,7 @@ export class CapabilityRegistryController {
 
   @Get()
   @ApiOperation({ summary: "发现可用AI能力" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "scene", required: false })
   @ApiQuery({ name: "modality", required: false })
   @ApiQuery({ name: "capabilityType", required: false })
@@ -38,24 +41,29 @@ export class CapabilityRegistryController {
 
   @Get("by-scene")
   @ApiOperation({ summary: "按场景分组查看能力" })
+  @ApiResponse({ status: 200, description: "成功" })
   async byScene() {
     return this.registry.discoverByScene();
   }
 
   @Get("health")
   @ApiOperation({ summary: "能力健康检查" })
+  @ApiResponse({ status: 200, description: "成功" })
   async healthCheck() {
     return this.registry.healthCheck();
   }
 
   @Get(":name")
   @ApiOperation({ summary: "获取能力详情" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getByName(@Param("name") name: string) {
     return this.registry.getByName(name);
   }
 
   @Put(":name/status")
   @ApiOperation({ summary: "设置能力状态" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async setStatus(
     @Param("name") name: string,
     @Body() body: { status: "active" | "degraded" | "offline" },
@@ -66,6 +74,8 @@ export class CapabilityRegistryController {
 
   @Post("recalculate-rates")
   @ApiOperation({ summary: "重新计算能力成功率" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async recalculateRates() {
     await this.registry.recalculateSuccessRates();
     return { success: true };

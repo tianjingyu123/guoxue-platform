@@ -1,4 +1,5 @@
 // ── 七政四余计算引擎 ──
+// 算法参考：《果老星宗》《星学大成》
 // 十一曜位置/十二宫/二十八宿/星曜相位/大限
 // 基于 sweph (Swiss Ephemeris) 真实天文星历
 
@@ -259,6 +260,22 @@ export function calculateQiZheng(input: Record<string, unknown>): QiZhengResult 
 
   const duanYu = `七政四余果老星宗（基于Swiss Ephemeris天文星历）。命宫${GONG_12[mingGongIdx]}，身宫${GONG_12[shenGongIdx]}，命主星${STARS_11[mingGongIdx % 11]}。十一曜分布于十二宫，${gongs.filter(g => g.stars.length >= 2).length}宫有双星以上汇聚。`;
 
+  const summary = [
+    "┌─ 七政四余 · 果老星宗 ─────────────┐",
+    `│ 命宫：${GONG_12[mingGongIdx]}  命主：${STARS_11[mingGongIdx % 11]}`.padEnd(36) + "│",
+    `│ 身宫：${GONG_12[shenGongIdx]}  身主：${STARS_11[shenGongIdx % 11]}`.padEnd(36) + "│",
+    `│ 体系：${system}  日宿：${starPositions[0].xiu}`.padEnd(36) + "│",
+    "├─ 十一曜分布 ───────────────────────┤",
+    ...starPositions.slice(0, 7).map(sp => `│ ${sp.star}：${sp.gong}宫（${sp.state}）`.padEnd(36) + "│"),
+    "├─ 格局 ─────────────────────────────┤",
+    ...(geJu.length > 0
+      ? geJu.slice(0, 3).map(g => `│ ${g.name}（${g.jiXiong}）：${g.desc.slice(0, 20)}`.padEnd(36) + "│")
+      : ["│ 无特殊格局                          │"]),
+    "├─ 出处 ─────────────────────────────┤",
+    "│ 《果老星宗》《星学大成》Swiss Ephemeris│",
+    "└────────────────────────────────────┘",
+  ].join("\n");
+
   return {
     input: { datetime, longitude, latitude, gender: gender as any, trueSolar, system: system as any },
     basicInfo: {
@@ -276,5 +293,6 @@ export function calculateQiZheng(input: Record<string, unknown>): QiZhengResult 
     liuNian: { year: d.getFullYear(), transits: starPositions.slice(0, 5).map(sp => ({ star: sp.star, gong: sp.gong, desc: `${sp.star}入${sp.gong}宫（${sp.state}）` })) },
     geJu,
     duanYu,
-  };
+    summary,
+  } as QiZhengResult & { summary: string };
 }

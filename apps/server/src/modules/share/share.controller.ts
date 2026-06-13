@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from "@nestjs/common";
-import { ApiTags, ApiOperation } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { ShareService } from "./share.service";
 
 @ApiTags("双轨分享")
@@ -9,6 +9,7 @@ export class ShareController {
 
   @Get("config")
   @ApiOperation({ summary: "获取分享配置(title/desc/image/miniPath/h5Url/appId)" })
+  @ApiResponse({ status: 200, description: "成功" })
   getConfig(@Query("type") type: string, @Query("id") id: string) {
     return this.svc.getShareConfig(type, id);
   }

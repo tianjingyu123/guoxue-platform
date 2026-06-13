@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { MarketplaceService } from "./marketplace.service";
 
 @ApiTags("智能体广场")
@@ -9,6 +9,7 @@ export class MarketplaceController {
 
   @Get("agents")
   @ApiOperation({ summary: "智能体广场列表（聚合Coze机器人+圈子助手）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "keyword", required: false })
   @ApiQuery({ name: "category", required: false })
   @ApiQuery({ name: "page", required: false })
@@ -29,6 +30,8 @@ export class MarketplaceController {
 
   @Get("agents/:id")
   @ApiOperation({ summary: "智能体详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getDetail(@Param("id") id: string) {
     return this.marketplace.getDetail(id);
   }

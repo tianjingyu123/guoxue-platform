@@ -1,4 +1,5 @@
 // ── 孔明神卦计算引擎 ──
+// 算法参考：《诸葛神数》《周易》
 // 64卦384爻完整数据 + 解卦模板
 // 卦辞参考周易原文，解卦综合传统解读
 
@@ -241,7 +242,7 @@ export function calculateKongMing(input: Record<string, unknown>): KongMingResul
     guaNum = ((seed >> 4) % 64) || 64;
     dongYao = ((seed >> 12) % 6) || 6;
   } else {
-    const seed = d.getTime() + Math.floor(Math.random() * 1000);
+    const seed = d.getTime();
     guaNum = (seed % 64) || 64;
     dongYao = ((seed >> 6) % 6) || 6;
   }
@@ -254,6 +255,42 @@ export function calculateKongMing(input: Record<string, unknown>): KongMingResul
   // 变卦（真正翻转指定爻位）
   const bianNum = calcBianGua(guaNum, dongYao);
   const bianGua = GUA_CI_64[bianNum] ?? GUA_CI_64[1];
+
+  // ── box-drawing 结构化总结 ──
+  const duanYu = `${gua.name}${gua.symbol}，${dongYao}爻动：${yaoCi}。${jieGua.daYi}。`;
+  const summary = [
+    `┌─ 孔明神数 ─────────────────`,
+    `│ ${gua.name}${gua.symbol} ${dongYao}爻动 → ${bianGua.name}${bianGua.symbol}`,
+    `│ 起卦：${method === "baoshu" ? `报数${number}` : "时辰起卦"}`,
+    `│`,
+    `├─ 动爻爻辞 ──────────────────`,
+    `│ ${yaoCi}`,
+    `│`,
+    `├─ 解卦 ────────────────────`,
+    `│ 大义：${jieGua.daYi}`,
+    `│ 事业：${jieGua.shiYe}`,
+    `│ 财运：${jieGua.caiYun}`,
+    `│ 感情：${jieGua.ganQing}`,
+    `│ 健康：${jieGua.jianKang}`,
+    `│ 出行：${jieGua.chuXing}`,
+    ...(question ? [`│ 所问"${question}"`] : []),
+    `│`,
+    `├─ 本卦 ────────────────────`,
+    `│ ${gua.name}${gua.symbol} 卦辞：${gua.guaCi}`,
+    `│ 彖辞：${gua.tuanCi.substring(0, 50)}...`,
+    `│ 大象：${gua.daXiang}`,
+    `│`,
+    `├─ 变卦 ────────────────────`,
+    `│ ${bianGua.name}${bianGua.symbol} 卦辞：${bianGua.guaCi}`,
+    `│`,
+    `├─ 古籍出处 ──────────────────`,
+    `│ 《孔明神数》传蜀汉·诸葛亮，军旅占断秘法`,
+    `│ 融合周易六十四卦+动爻+变卦解卦体系`,
+    `│`,
+    `└─ 占断提示 ──────────────────`,
+    `   ${duanYu}`,
+    `   本卦看当前，变卦看走势，动爻是关键所在。`,
+  ].join("\n");
 
   return {
     input: { datetime, method: method as any, number, trigger: input.trigger as string, question },
@@ -286,6 +323,7 @@ export function calculateKongMing(input: Record<string, unknown>): KongMingResul
       chuXing: jieGua.chuXing,
       specific: question ? `针对"${question}"，${jieGua.daYi}。` : jieGua.daYi,
     },
-    duanYu: `${gua.name}${gua.symbol}，${dongYao}爻动：${yaoCi}。${jieGua.daYi}。`,
-  };
+    duanYu,
+    summary,
+  } as KongMingResult & { summary: string };
 }

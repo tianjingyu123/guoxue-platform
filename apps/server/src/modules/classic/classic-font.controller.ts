@@ -1,5 +1,5 @@
 import { Controller, Get, Header } from "@nestjs/common";
-import { ApiTags, ApiOperation } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { FONT_LAYERS, VERTICAL_CSS, generateFontFaceCSS } from "./classic-font.config";
 
 @ApiTags("经典-字体")
@@ -7,6 +7,7 @@ import { FONT_LAYERS, VERTICAL_CSS, generateFontFaceCSS } from "./classic-font.c
 export class ClassicFontController {
   @Get("fonts/config")
   @ApiOperation({ summary: "获取古籍字体配置（字体分层回退链）" })
+  @ApiResponse({ status: 200, description: "成功" })
   getFontConfig() {
     return {
       layers: FONT_LAYERS.map((l) => ({
@@ -23,6 +24,7 @@ export class ClassicFontController {
   @Get("fonts/font-face.css")
   @Header("Content-Type", "text/css; charset=utf-8")
   @ApiOperation({ summary: "获取 @font-face CSS（含 unicode-range 分层加载）" })
+  @ApiResponse({ status: 200, description: "成功" })
   getFontFaceCSS() {
     return generateFontFaceCSS();
   }
@@ -30,6 +32,7 @@ export class ClassicFontController {
   @Get("fonts/vertical.css")
   @Header("Content-Type", "text/css; charset=utf-8")
   @ApiOperation({ summary: "获取竖排排版基础 CSS" })
+  @ApiResponse({ status: 200, description: "成功" })
   getVerticalCSS() {
     return VERTICAL_CSS;
   }

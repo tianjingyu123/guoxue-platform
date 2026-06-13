@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGuards, Logger } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { BotService } from "./bot.service";
 import { CozeService } from "./coze.service";
@@ -37,6 +37,10 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建智能体" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   create(@Body() dto: CreateBotDto) {
     return this.svc.create(dto);
@@ -47,6 +51,10 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "Coze 创建智能体并同步" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async createOnCoze(@Body() body: {
     name: string; description?: string; prompt?: string; type?: string;
@@ -86,6 +94,7 @@ export class BotController {
 
   @Get()
   @ApiOperation({ summary: "获取智能体列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "type", required: false, type: String, description: "智能体类型" })
   list(@Query("type") type?: string) {
     return this.svc.list(type);
@@ -93,18 +102,22 @@ export class BotController {
 
   @Get("ranking")
   @ApiOperation({ summary: "智能体热度排行" })
+  @ApiResponse({ status: 200, description: "成功" })
   ranking(@Query("limit") limit = 20) {
     return this.svc.getRanking(+limit);
   }
 
   @Get("feed-cards")
   @ApiOperation({ summary: "信息流智能体卡片（含动态背景色）" })
+  @ApiResponse({ status: 200, description: "成功" })
   feedCards(@Query("limit") limit = 6) {
     return this.svc.getFeedCards(+limit);
   }
 
   @Get(":id")
   @ApiOperation({ summary: "获取智能体详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   detail(@Param("id") id: string) {
     return this.svc.getDetail(id);
   }
@@ -113,6 +126,11 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新智能体" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   update(@Param("id") id: string, @Body() dto: UpdateBotDto) {
     return this.svc.update(id, dto);
@@ -122,6 +140,11 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除智能体" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   delete(@Param("id") id: string) {
     return this.svc.delete(id);
@@ -131,6 +154,9 @@ export class BotController {
   @Post(":id/bind-circle")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "绑定智能体到圈子" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   bindToCircle(@Param("id") id: string, @Body() dto: BindBotToCircleDto) {
     return this.svc.bindToCircle(id, dto);
@@ -138,6 +164,7 @@ export class BotController {
 
   @Get("circle/:circleId")
   @ApiOperation({ summary: "获取圈子绑定的智能体" })
+  @ApiResponse({ status: 200, description: "成功" })
   getCircleBot(@Param("circleId") circleId: string) {
     return this.svc.getCircleBot(circleId);
   }
@@ -146,6 +173,9 @@ export class BotController {
   @Post(":id/knowledge")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "添加知识库条目" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   addKnowledge(@Param("id") id: string, @Body() dto: AddKnowledgeDto) {
     return this.svc.addKnowledge(id, dto);
@@ -154,6 +184,9 @@ export class BotController {
   @Delete("knowledge/:knowledgeId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除知识库条目" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   deleteKnowledge(@Param("knowledgeId") knowledgeId: string) {
     return this.svc.deleteKnowledge(knowledgeId);
@@ -164,6 +197,9 @@ export class BotController {
   @Post(":id/chat")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "智能体对话（非流式）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   chat(
     @Req() req: Request,
@@ -176,6 +212,9 @@ export class BotController {
   @Post(":id/chat/stream")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "智能体对话（流式SSE）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async chatStream(
     @Req() req: Request,
@@ -216,6 +255,9 @@ export class BotController {
   @Get(":id/chat-history/:conversationId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取对话历史" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getChatHistory(
     @Param("id") id: string,
@@ -229,6 +271,9 @@ export class BotController {
   @Post(":id/voice-room")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建语音通话房间（Coze RTC）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createVoiceRoom(
     @Req() req: Request,
@@ -243,6 +288,10 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "从 Coze 同步智能体列表" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   syncFromCoze() {
     return this.svc.syncFromCoze();
@@ -252,6 +301,10 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取 Coze 侧智能体详细信息" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getCozeBotInfo(@Param("id") id: string) {
     return this.svc.getCozeBotInfo(id);
@@ -263,6 +316,10 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "执行 Coze 工作流" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   runWorkflow(@Body() dto: RunWorkflowDto) {
     return this.svc.runWorkflow(dto);
@@ -273,6 +330,9 @@ export class BotController {
   @Post(":id/upload-file")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "上传文件到 Coze（多模态对话）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   uploadFile(
     @Req() req: Request,
@@ -288,6 +348,9 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取待审批的圈主助理开通申请" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
@@ -302,6 +365,10 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批准圈主助理开通" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   approveBot(@Param("circleId") circleId: string) {
     return this.svc.approveBot(circleId);
@@ -311,6 +378,9 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取圈主助理知识库列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
@@ -326,6 +396,10 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "添加圈主助理知识库条目" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   addBotKnowledge(
     @Param("circleId") circleId: string,
@@ -338,6 +412,10 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新圈主助理知识库条目" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateBotKnowledge(
     @Param("knowledgeId") knowledgeId: string,
@@ -350,6 +428,10 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除圈主助理知识库条目" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteBotKnowledge(@Param("knowledgeId") knowledgeId: string) {
     return this.svc.deleteKnowledge(knowledgeId);
@@ -359,6 +441,9 @@ export class BotController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取圈主助理使用数据" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getBotUsageData(@Param("circleId") circleId: string) {
     return this.svc.getBotUsageData(circleId);

@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Query, Body, Param, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { CollaborationService } from "./collaboration.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -15,6 +15,8 @@ export class CollaborationController {
 
   @Post()
   @ApiOperation({ summary: "AI发起协作建议" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async propose(
     @Body()
     body: {
@@ -36,6 +38,8 @@ export class CollaborationController {
 
   @Post(":id/review")
   @ApiOperation({ summary: "人工审核建议" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async review(
     @Param("id") id: string,
     @Body()
@@ -58,6 +62,8 @@ export class CollaborationController {
 
   @Post(":id/execute")
   @ApiOperation({ summary: "执行已批准的建议" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async execute(
     @Param("id") id: string,
     @Body() body?: { executor?: string },
@@ -68,6 +74,8 @@ export class CollaborationController {
 
   @Post(":id/rollback")
   @ApiOperation({ summary: "回滚已执行的建议" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async rollback(
     @Param("id") id: string,
     @Body() body?: { operator?: string; reason?: string },
@@ -78,6 +86,8 @@ export class CollaborationController {
 
   @Post(":id/feedback")
   @ApiOperation({ summary: "记录反馈评分" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async feedback(
     @Param("id") id: string,
     @Body() body: { rating: number; comment?: string },
@@ -88,6 +98,7 @@ export class CollaborationController {
 
   @Get()
   @ApiOperation({ summary: "查询协作列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "riskLevel", required: false })
   @ApiQuery({ name: "type", required: false })
@@ -114,18 +125,22 @@ export class CollaborationController {
 
   @Get("pending")
   @ApiOperation({ summary: "获取待审核列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getPendingReviews() {
     return this.collaboration.getPendingReviews();
   }
 
   @Get("overview")
   @ApiOperation({ summary: "协作概览统计" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getOverview() {
     return this.collaboration.getOverview();
   }
 
   @Get(":id")
   @ApiOperation({ summary: "获取协作详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   async getDetail(@Param("id") id: string) {
     return this.collaboration.getDetail(id);
   }

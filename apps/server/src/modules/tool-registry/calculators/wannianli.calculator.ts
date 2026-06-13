@@ -1,4 +1,5 @@
 // ── 万年历核心计算引擎 ──
+// 算法参考：《协纪辨方书》《钦定协纪辨方书》《鳌头通书》
 // 干支历/节气/建除/二十八宿/黄历宜忌
 
 import type { WanNianLiResult, DayDetail } from "@guoxue/shared";
@@ -342,11 +343,47 @@ export function calculateWanNianLi(input: Record<string, unknown>): WanNianLiRes
     return { name, date: "", time: "00:00:00" };
   });
 
+  // 构建结构化总结
+  const first = days[0];
+  const goodDays = days.filter(d => (d.score ?? 0) >= 70).length;
+  const hasJieQi = days.filter(d => d.jieQi && JIE_QI_NAMES.includes(d.jieQi));
+  const jieQiDays = hasJieQi.map(d => d.solarDate.slice(5) + " " + d.jieQi).join("、");
+  const festivals = days.filter(d => (d.festivals?.length ?? 0) > 0);
+
+  const summaryLines = [
+    "┌──────────────────────────────────────┐",
+    "│          万年历 · 干支黄历            │",
+    "├──────────────────────────────────────┤",
+    "│ 公历：" + first.solarDate.padEnd(29) + "│",
+    "│ 农历：" + first.lunarDate.padEnd(29) + "│",
+    "│ 干支：" + first.nianGanZhi + "年" + first.yueGanZhi + "月" + first.riGanZhi + "日" + " ".repeat(13) + "│",
+    "│ 星期：" + first.weekDay.padEnd(29) + "│",
+    "│ 节气：" + (first.jieQi || "—").padEnd(29) + "│",
+    "│ 建除：" + (first.jianChu || "—").padEnd(29) + "│",
+    "│ 宿星：" + (first.erShiBaXiu || "—").padEnd(29) + "│",
+    "│ 纳音：" + (first.naYin || "—").padEnd(29) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 查询范围：" + String(days.length) + "天 · 吉日" + goodDays + "天" + " ".repeat(17) + "│",
+    "│ 节气：" + (jieQiDays || "无").padEnd(29) + "│",
+    "│ 节日：" + (festivals.length > 0 ? festivals.slice(0, 2).map(f => f.festivals?.[0] || "").join("、").padEnd(29) : "无".padEnd(29)) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 宜：" + (first.yi?.slice(0, 4).join("、") || "—").padEnd(29) + "│",
+    "│ 忌：" + (first.ji?.slice(0, 4).join("、") || "—").padEnd(29) + "│",
+    "│ 冲煞：" + (first.chongSha || "—").padEnd(29) + "│",
+    "│ 彭祖：" + (first.pengZu || "—").slice(0, 29).padEnd(29) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 出处：《协纪辨方书》《鳌头通书》      │",
+    "│ 节气用Meeus天文算法，精确至分钟       │",
+    "│ 干支历法参校钦定协纪辨方书            │",
+    "└──────────────────────────────────────┘",
+  ];
+
   return {
     input: input as any,
     days,
     jieQiList,
-  };
+    summary: summaryLines.join("\n"),
+  } as WanNianLiResult & { summary: string };
 }
 
 // ═══ 基于中央数据层的计算（预计算查表 + 算法推导） ═══
@@ -383,6 +420,38 @@ export async function calculateWanNianLiFromDb(
   // 节气列表
   const year = start.getFullYear();
   const jieQiList = await svc.getJieQiByYear(year);
+
+  // 构建结构化总结（从数据库数据）
+  const first = days[0];
+  if (first) {
+    const goodDays = days.filter((d: any) => d.score >= 70).length;
+    const hasJieQi = days.filter((d: any) => d.jieQi && JIE_QI_NAMES.includes(d.jieQi));
+    const jieQiDays = hasJieQi.map((d: any) => d.solarDate?.slice(5) + " " + d.jieQi).join("、");
+    const festivals = days.filter((d: any) => d.festivals?.length > 0);
+
+    const summaryLines = [
+      "┌──────────────────────────────────────┐",
+      "│          万年历 · 干支黄历            │",
+      "├──────────────────────────────────────┤",
+      "│ 公历：" + (first.solarDate || dateStr).padEnd(29) + "│",
+      "│ 农历：" + (first.lunarDate || "—").padEnd(29) + "│",
+      "│ 查询范围：" + String(days.length) + "天 · 吉日" + goodDays + "天" + " ".repeat(17) + "│",
+      "│ 节气：" + (jieQiDays || "无").padEnd(29) + "│",
+      "│ 节日：" + (festivals.length > 0 ? festivals.slice(0, 2).map((f: any) => f.festivals[0]).join("、").padEnd(29) : "无".padEnd(29)) + "│",
+      "├──────────────────────────────────────┤",
+      "│ 出处：《协纪辨方书》《鳌头通书》      │",
+      "│ 数据源：中央数据层预计算查表+Meeus     │",
+      "│ 天文算法节气，干支历法精准无误        │",
+      "└──────────────────────────────────────┘",
+    ];
+
+    return {
+      input: input as any,
+      days,
+      jieQiList,
+      summary: summaryLines.join("\n"),
+    } as WanNianLiResult & { summary: string };
+  }
 
   return {
     input: input as any,

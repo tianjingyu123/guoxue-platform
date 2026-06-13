@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Delete, Body, Query, Param, UseGuards, Req, ForbiddenException } from "@nestjs/common";
 import { Request } from "express";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -26,6 +26,9 @@ export class ImController {
 
   @Post("user-sig")
   @ApiOperation({ summary: "生成 UserSig", description: "为当前登录用户生成腾讯云 IM 的 UserSig" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   genUserSig(@Req() req: Request, @Body() _dto: GenUserSigDto) {
@@ -34,6 +37,9 @@ export class ImController {
 
   @Post("account/import")
   @ApiOperation({ summary: "导入 IM 账号", description: "将用户导入腾讯云 IM（注册后自动调用）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   importAccount(@Body() dto: ImportAccountDto) {
@@ -42,6 +48,8 @@ export class ImController {
 
   @Get("account/state")
   @ApiOperation({ summary: "查询账号在线状态" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   queryAccountState(@Query("userIds") userIds: string) {
@@ -51,6 +59,9 @@ export class ImController {
 
   @Post("account/:userId/profile")
   @ApiOperation({ summary: "更新 IM 账号资料" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   updateProfile(
@@ -66,6 +77,10 @@ export class ImController {
 
   @Post("groups")
   @ApiOperation({ summary: "创建群组", description: "为圈子/直播间等创建 IM 群组" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -75,6 +90,10 @@ export class ImController {
 
   @Delete("groups/:groupId")
   @ApiOperation({ summary: "解散群组" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -84,6 +103,10 @@ export class ImController {
 
   @Post("groups/:groupId/members")
   @ApiOperation({ summary: "添加群成员" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -96,6 +119,10 @@ export class ImController {
 
   @Delete("groups/:groupId/members")
   @ApiOperation({ summary: "删除群成员" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -108,6 +135,9 @@ export class ImController {
 
   @Post("groups/:groupId/msg")
   @ApiOperation({ summary: "发送群消息" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   sendGroupMsg(
@@ -120,6 +150,9 @@ export class ImController {
 
   @Get("groups/:groupId/history")
   @ApiOperation({ summary: "获取群组历史消息（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -135,6 +168,9 @@ export class ImController {
 
   @Post("c2c/send")
   @ApiOperation({ summary: "发送单聊消息" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   sendC2CMsg(@Req() req: Request, @Body() dto: SendC2CMsgDto) {
@@ -143,6 +179,8 @@ export class ImController {
 
   @Get("c2c/history")
   @ApiOperation({ summary: "获取单聊历史消息" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   getC2CHistory(
@@ -155,6 +193,9 @@ export class ImController {
 
   @Post("msg/withdraw")
   @ApiOperation({ summary: "撤回消息" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   withdrawMsg(@Req() req: Request, @Body() dto: WithdrawMsgDto) {
@@ -165,6 +206,9 @@ export class ImController {
 
   @Post("friends")
   @ApiOperation({ summary: "添加好友" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   addFriend(@Req() req: Request, @Body() dto: FriendDto) {
@@ -173,6 +217,9 @@ export class ImController {
 
   @Delete("friends/:toUserId")
   @ApiOperation({ summary: "删除好友" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   deleteFriend(@Req() req: Request, @Param("toUserId") toUserId: string) {
@@ -181,6 +228,8 @@ export class ImController {
 
   @Get("friends")
   @ApiOperation({ summary: "获取好友列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   getFriendList(@Req() req: Request) {
@@ -189,6 +238,9 @@ export class ImController {
 
   @Post("blacklist")
   @ApiOperation({ summary: "拉黑用户" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   addBlacklist(@Req() req: Request, @Body() dto: FriendDto) {
@@ -197,6 +249,9 @@ export class ImController {
 
   @Post("blacklist/remove")
   @ApiOperation({ summary: "取消拉黑" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   removeBlacklist(@Req() req: Request, @Body() dto: FriendDto) {
@@ -205,6 +260,8 @@ export class ImController {
 
   @Get("blacklist")
   @ApiOperation({ summary: "获取黑名单列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   getBlacklist(@Req() req: Request) {
@@ -215,6 +272,9 @@ export class ImController {
 
   @Post("friends/approve")
   @ApiOperation({ summary: "通过好友申请" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   approveFriendRequest(@Req() req: Request, @Body() dto: FriendDto) {
@@ -223,6 +283,9 @@ export class ImController {
 
   @Post("friends/reject")
   @ApiOperation({ summary: "拒绝好友申请" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   rejectFriendRequest(@Req() req: Request, @Body() dto: FriendDto) {
@@ -231,6 +294,8 @@ export class ImController {
 
   @Get("friends/pending")
   @ApiOperation({ summary: "获取待处理好友申请" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   listPendingFriendRequests(@Req() req: Request) {
@@ -241,6 +306,8 @@ export class ImController {
 
   @Get("groups/:groupId/detail")
   @ApiOperation({ summary: "获取群组详细信息" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   getGroupInfo(@Param("groupId") groupId: string) {
@@ -249,6 +316,8 @@ export class ImController {
 
   @Get("groups/:groupId/members")
   @ApiOperation({ summary: "获取群成员列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   getGroupMembers(@Param("groupId") groupId: string) {
@@ -259,6 +328,9 @@ export class ImController {
 
   @Post("c2c/image")
   @ApiOperation({ summary: "发送图片消息（单聊）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   sendC2CImage(
@@ -270,6 +342,9 @@ export class ImController {
 
   @Post("c2c/custom")
   @ApiOperation({ summary: "发送自定义消息" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   sendCustomMsg(

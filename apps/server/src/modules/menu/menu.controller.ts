@@ -1,5 +1,5 @@
 import { Controller, Get, UseGuards, Req } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { MenuService } from "./menu.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { Request } from "express";
@@ -13,6 +13,8 @@ export class MenuController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "获取当前用户可见菜单", description: "根据用户角色返回过滤后的菜单树" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getMenus(@Req() req: Request) {
     const user = req.user as { roles?: (string | { roleType: string })[] };
     const roles: string[] = (user?.roles || []).map((r) =>

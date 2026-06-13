@@ -1,4 +1,5 @@
 // ── 奇门穿壬计算引擎 ──
+// 算法参考：《奇门遁甲秘笈大全》《大六壬指南》
 // 奇门定方 + 六壬定时，双层嵌套，以奇门九宫穿壬七十二局
 // 复用 calculateQimenYang 真实排盘 + calculateDaLiuRen 真实六壬
 
@@ -331,6 +332,24 @@ export function calculateQimenChuanren(input: Record<string, unknown>): Record<s
     })),
   };
 
+  const gongSummary = chuanrenMappings.slice(0, 4).map(m =>
+    `${m.qimenGong.name}宫(${m.qimenGong.star}+${m.qimenGong.men})：${m.gongChuanJiXiong}`
+  );
+  const summary = [
+    "┌─ 奇门穿壬 ────────────────────────────┐",
+    `│ 奇门${qimenResult.dunType === "yang" ? "阳遁" : "阴遁"}${juNumber}局  ${qimenResult.jieQi}`.padEnd(36) + "│",
+    `│ 值符：${qimenResult.zhiFu}  值使：${qimenResult.zhiShiMen}`.padEnd(36) + "│",
+    `│ 六壬：${liuRenResult.zhanShi}  月将：${liuRenResult.yueJiang}(${liuRenResult.yueJiangZhi})`.padEnd(36) + "│",
+    `│ 穿壬第${exJu72}局：${ju72Entry?.star ?? ""}值符  综合${overallJiXiong}`.padEnd(36) + "│",
+    "├─ 九宫穿壬 ────────────────────────────┤",
+    ...gongSummary.map(s => `│ ${s}`.padEnd(36) + "│"),
+    "├─ 四课三传 ────────────────────────────┤",
+    `│ 初传：${liuRenResult.sanChuan.chu.zhi}  中传：${liuRenResult.sanChuan.zhong.zhi}  末传：${liuRenResult.sanChuan.mo.zhi}`.padEnd(36) + "│",
+    "├─ 出处 ────────────────────────────────┤",
+    "│ 《奇门遁甲秘笈大全》《大六壬指南》      │",
+    "└────────────────────────────────────────┘",
+  ].join("\n");
+
   return {
     input: { datetime, method, qiJuMethod, trueSolar, birthYear, gender },
     qimen: {
@@ -372,6 +391,7 @@ export function calculateQimenChuanren(input: Record<string, unknown>): Record<s
       desc: "以奇门定方，以六壬定时。方定则九宫八卦之象可推，时定则四课三传之机可察。方时合参，七十二局吉凶有别。",
     },
     duanYu,
+    summary,
   };
 }
 

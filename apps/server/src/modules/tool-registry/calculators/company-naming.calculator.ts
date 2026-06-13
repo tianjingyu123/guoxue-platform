@@ -1,4 +1,5 @@
 // ── 公司起名计算引擎 ──
+// 算法参考：《康熙字典》《五格剖象法》
 // 算法生成替代静态数据库，工商规则模拟+多策略字号生成+重名风险评估
 // 解决行业痛点：1)共享数据库→重名率高 2)无核名渠道→体验差
 
@@ -410,6 +411,20 @@ export function calculateCompanyNaming(input: Record<string, unknown>): CompanyN
     "不同城市同一字号可分别注册，建议备选2-3个方案",
   ].join("。");
 
+  const top3 = proposals.slice(0, 3);
+  const summary = [
+    "┌─ 公司起名 ────────────────────────────┐",
+    `│ 行业：${industry}  五行：${indInfo.wuXing}`.padEnd(36) + "│",
+    `│ 风格：${style}  字数：${ziHaoLength}字  方案：${proposals.length}组`.padEnd(36) + "│",
+    "├─ 推荐方案 ────────────────────────────┤",
+    ...top3.map(p => `│ #${p.rank} ${p.name.ziHao} — ${p.totalScore}分 ${p.totalScore >= 80 ? "★" : "·"}`.padEnd(36) + "│"),
+    "├─ 综合建议 ────────────────────────────┤",
+    `│ ${generalAdvice.slice(0, 30)}`.padEnd(36) + "│",
+    "├─ 出处 ────────────────────────────────┤",
+    "│ 《康熙字典》《五格剖象法》              │",
+    "└────────────────────────────────────────┘",
+  ].join("\n");
+
   return {
     input: {
       industry,
@@ -428,5 +443,6 @@ export function calculateCompanyNaming(input: Record<string, unknown>): CompanyN
       namingTips: indInfo.tips,
     },
     generalAdvice,
-  };
+    summary,
+  } as CompanyNamingResult & { summary: string };
 }

@@ -1,5 +1,5 @@
 import { Controller, Get, Query, UseGuards, Req } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { RevenueService } from "./revenue.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -15,6 +15,8 @@ export class RevenueController {
   @Get("summary")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "我的收益汇总" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   summary(@Req() req: Request) {
     return this.svc.getUserSummary(req.user.id);
   }
@@ -22,6 +24,8 @@ export class RevenueController {
   @Get("earnings")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "我的收益明细" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   earnings(@Req() req: Request, @Query("page") page = "1", @Query("pageSize") pageSize = "20") {
     return this.svc.getUserEarnings(req.user.id, +page, +pageSize);
   }
@@ -32,6 +36,9 @@ export class RevenueController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "平台营收总览（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   platformOverview() {
     return this.svc.getPlatformOverview();
   }
@@ -40,6 +47,9 @@ export class RevenueController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "平台营收趋势（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "days", required: false, type: Number })
   platformTrends(@Query("days") days = "30") {
     return this.svc.getRevenueTrends(+days);
@@ -51,6 +61,9 @@ export class RevenueController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "收入统计（管理员，可选平台级）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "userId", required: false, type: String, description: "用户ID（不传则平台级）" })
   @ApiQuery({ name: "startDate", required: false, type: String, description: "开始日期" })
   @ApiQuery({ name: "endDate", required: false, type: String, description: "结束日期" })
@@ -69,6 +82,9 @@ export class RevenueController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "收入分类明细（管理员，可选平台级）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "userId", required: false, type: String, description: "用户ID（不传则平台级）" })
   @ApiQuery({ name: "startDate", required: false, type: String, description: "开始日期" })
   @ApiQuery({ name: "endDate", required: false, type: String, description: "结束日期" })

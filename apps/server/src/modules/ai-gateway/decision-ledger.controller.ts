@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Query, Body, Param, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { DecisionLedgerService } from "./decision-ledger.service";
 import { RecordDecisionDto, ReviewDecisionDto } from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -16,6 +16,8 @@ export class DecisionLedgerController {
 
   @Post()
   @ApiOperation({ summary: "记录AI决策" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async record(@Body() dto: RecordDecisionDto) {
     const id = await this.ledger.record(dto as any);
     return { decisionId: id };
@@ -23,6 +25,8 @@ export class DecisionLedgerController {
 
   @Post(":id/review")
   @ApiOperation({ summary: "人工审核决策" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async review(@Param("id") id: string, @Body() dto: ReviewDecisionDto) {
     await this.ledger.reviewDecision(id, dto.action, dto.reviewer, dto.note);
     return { success: true };
@@ -30,6 +34,8 @@ export class DecisionLedgerController {
 
   @Post(":id/outcome")
   @ApiOperation({ summary: "记录决策效果" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async recordOutcome(
     @Param("id") id: string,
     @Body()
@@ -46,6 +52,7 @@ export class DecisionLedgerController {
 
   @Get()
   @ApiOperation({ summary: "查询决策历史" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "agentId", required: false })
   @ApiQuery({ name: "capabilityId", required: false })
   @ApiQuery({ name: "riskLevel", required: false })
@@ -78,24 +85,30 @@ export class DecisionLedgerController {
 
   @Get("overview")
   @ApiOperation({ summary: "决策概览统计" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getOverview() {
     return this.ledger.getOverview();
   }
 
   @Get("trace/:id")
   @ApiOperation({ summary: "获取决策完整追溯链" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   async getTrace(@Param("id") id: string) {
     return this.ledger.getTrace(id);
   }
 
   @Get("retrospective/:id")
   @ApiOperation({ summary: "决策复盘分析" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   async retrospective(@Param("id") id: string) {
     return this.ledger.retrospective(id);
   }
 
   @Get("compare")
   @ApiOperation({ summary: "模型版本对比" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "modelA", required: true })
   @ApiQuery({ name: "modelB", required: true })
   @ApiQuery({ name: "agentId", required: true })

@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Put, Body, Param, Query, UseGuards, UsePipes, Req, BadRequestException, Logger } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { AuthService } from "./auth.service";
 import { WechatService } from "./wechat.service";
 import { SystemService } from "../system/system.service";
@@ -33,6 +33,8 @@ export class AuthController {
 
   @Post("register/phone")
   @ApiOperation({ summary: "手机号注册", description: "使用手机号和密码注册新用户" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   @UseGuards(StrictRedisThrottleGuard)
   async phoneRegister(@Body() dto: PhoneRegisterDto, @Req() req: Request) {
     const result = await this.auth.phoneRegister(dto);
@@ -49,6 +51,8 @@ export class AuthController {
 
   @Post("login/phone")
   @ApiOperation({ summary: "手机号登录", description: "使用手机号和密码登录" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   @UseGuards(StrictRedisThrottleGuard)
   async phoneLogin(@Body() dto: PhoneLoginDto, @Req() req: Request) {
     try {
@@ -74,6 +78,8 @@ export class AuthController {
 
   @Post("login/sms")
   @ApiOperation({ summary: "短信验证码登录", description: "使用手机号和短信验证码登录" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   @UseGuards(StrictRedisThrottleGuard)
   async smsLogin(@Body() dto: SmsLoginDto, @Req() req: Request) {
     try {
@@ -99,6 +105,8 @@ export class AuthController {
 
   @Post("sms/send")
   @ApiOperation({ summary: "发送短信验证码", description: "向指定手机号发送验证码" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   @UseGuards(StrictRedisThrottleGuard)
   sendCode(@Body() dto: SendCodeDto) {
     return this.auth.sendSmsCode(dto);
@@ -107,6 +115,7 @@ export class AuthController {
   @Get("wechat/oauth-url")
   @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "获取微信 OAuth 授权 URL", description: "H5 微信登录：前端跳转到该 URL 完成授权后回调" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "redirectUri", description: "授权后回调地址", example: "https://example.com/callback" })
   @ApiQuery({ name: "scope", description: "授权范围", example: "snsapi_userinfo", required: false })
   getWechatOAuthUrl(
@@ -120,6 +129,8 @@ export class AuthController {
 
   @Post("login/wechat")
   @ApiOperation({ summary: "微信登录（H5/小程序）", description: "使用微信授权 code 登录，自动判断 H5 OAuth 或小程序" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   @UseGuards(StrictRedisThrottleGuard)
   wechatLogin(@Body() dto: WechatLoginDto) {
     return this.auth.wechatLogin(dto);
@@ -127,6 +138,8 @@ export class AuthController {
 
   @Post("login/mini-phone")
   @ApiOperation({ summary: "小程序手机号快速登录", description: "微信小程序一键登录：wx.login + getPhoneNumber 获取手机号后自动登录/注册" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   @UseGuards(StrictRedisThrottleGuard)
   miniPhoneLogin(@Body() dto: MiniPhoneLoginDto) {
     return this.auth.miniPhoneLogin(dto);
@@ -134,6 +147,8 @@ export class AuthController {
 
   @Get("me")
   @ApiOperation({ summary: "获取当前用户信息", description: "获取已登录用户的个人信息（需 JWT）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   getProfile(@Req() req: Request) {
@@ -143,6 +158,8 @@ export class AuthController {
   @Post("refresh")
   @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "刷新 Token", description: "使用 refreshToken 换取新的 accessToken + refreshToken（轮换防重放）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async refresh(@Body("refreshToken") refreshToken: string) {
     if (!refreshToken) throw new BadRequestException("refreshToken 参数必填");
     return this.auth.refreshToken(refreshToken);
@@ -150,6 +167,9 @@ export class AuthController {
 
   @Put("profile")
   @ApiOperation({ summary: "更新用户信息", description: "更新已登录用户的个人资料（需 JWT）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @UsePipes(new SanitizePipe())
@@ -159,6 +179,9 @@ export class AuthController {
 
   @Put("password")
   @ApiOperation({ summary: "修改密码", description: "修改当前用户的登录密码（需 JWT）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   changePassword(@Req() req: Request, @Body() dto: ChangePasswordDto) {
@@ -169,6 +192,9 @@ export class AuthController {
 
   @Post("devices/register")
   @ApiOperation({ summary: "注册当前登录设备" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   registerDevice(@Req() req: Request, @Body() body: RegisterDeviceDto) {
@@ -177,6 +203,8 @@ export class AuthController {
 
   @Get("devices")
   @ApiOperation({ summary: "登录设备列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   listDevices(@Req() req: Request) {
@@ -185,6 +213,9 @@ export class AuthController {
 
   @Post("devices/:id/logout")
   @ApiOperation({ summary: "踢出指定设备" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   removeDevice(@Req() req: Request, @Param("id") id: string) {
@@ -193,6 +224,9 @@ export class AuthController {
 
   @Post("bind/phone")
   @ApiOperation({ summary: "绑定手机号" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   bindPhone(@Req() req: Request, @Body() body: BindPhoneDto) {
@@ -201,6 +235,9 @@ export class AuthController {
 
   @Post("bind/wechat")
   @ApiOperation({ summary: "绑定微信" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   bindWechat(@Req() req: Request, @Body("code") code: string) {

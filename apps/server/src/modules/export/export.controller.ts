@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Res, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Response } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -18,6 +18,7 @@ export class ExportController {
   @Get("users/csv")
   @SkipFormat()
   @ApiOperation({ summary: "导出用户列表 CSV" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "keyword", required: false })
   @ApiQuery({ name: "startDate", required: false })
@@ -38,6 +39,7 @@ export class ExportController {
   @Get("orders/csv")
   @SkipFormat()
   @ApiOperation({ summary: "导出订单列表 CSV" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "type", required: false })
   @ApiQuery({ name: "startDate", required: false })
@@ -58,6 +60,7 @@ export class ExportController {
   @Get("courses/csv")
   @SkipFormat()
   @ApiOperation({ summary: "导出课程列表 CSV" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "auditStatus", required: false })
   @ApiQuery({ name: "startDate", required: false })
   @ApiQuery({ name: "endDate", required: false })
@@ -76,6 +79,7 @@ export class ExportController {
   @Get("articles/csv")
   @SkipFormat()
   @ApiOperation({ summary: "导出文章列表 CSV" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "auditStatus", required: false })
   @ApiQuery({ name: "circleId", required: false })
   @ApiQuery({ name: "startDate", required: false })
@@ -97,6 +101,7 @@ export class ExportController {
   @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
   @SkipFormat()
   @ApiOperation({ summary: "导出提现记录 CSV" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "startDate", required: false })
   @ApiQuery({ name: "endDate", required: false })

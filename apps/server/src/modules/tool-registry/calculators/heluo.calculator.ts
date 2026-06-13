@@ -1,4 +1,6 @@
 // ── 河洛理数计算引擎 ──
+// 算法参考：《河洛理数》《易学启蒙》《邵子神数》《皇极经世》
+// 河图洛书配八卦纳甲数，天干地支卦爻配数取象
 import { calcBazi } from "@guoxue/bazi-engine";
 
 interface HeLuoInput {
@@ -277,7 +279,34 @@ export function calculateHeLuo(input: unknown): HeLuoResult {
 
   const fortune = fortuneFromGua(hexName, upperTrigram.element);
 
-  const summary = `河洛理数：先天数${xianTianShu}后天数${houTianShu}，得${hexName}(${hexSymbol})，${dongYao === 1 ? "初" : dongYao === 2 ? "二" : dongYao === 3 ? "三" : dongYao === 4 ? "四" : dongYao === 5 ? "五" : "上"}爻动，变${bianGuaName}。${interp.split("。")[0]}`;
+  const dongYaoLabel = dongYao === 1 ? "初" : dongYao === 2 ? "二" : dongYao === 3 ? "三" : dongYao === 4 ? "四" : dongYao === 5 ? "五" : "上";
+  const siZhuStr = `${sz.nian.gan}${sz.nian.zhi} ${sz.yue.gan}${sz.yue.zhi} ${sz.ri.gan}${sz.ri.zhi} ${sz.shi.gan}${sz.shi.zhi}`;
+  const ganNumStr = `${ganNums.nian}+${ganNums.yue}+${ganNums.ri}+${ganNums.shi}=${ganNums.total}`;
+  const zhiNumStr = `${zhiNums.nian}+${zhiNums.yue}+${zhiNums.ri}+${zhiNums.shi}=${zhiNums.total}`;
+
+  const summary = [
+    "┌──────────────────────────────────────┐",
+    "│        河洛理数 · 八卦推命            │",
+    "├──────────────────────────────────────┤",
+    "│ 四柱：" + siZhuStr.padEnd(30) + "│",
+    "│ 天干数：" + ganNumStr.padEnd(30) + "│",
+    "│ 地支数：" + zhiNumStr.padEnd(30) + "│",
+    "│ 上卦：" + (upperTrigram.name + TRIGRAM_SYMBOL[upperNum] + "（" + upperTrigram.element + "）").padEnd(30) + "│",
+    "│ 下卦：" + (lowerTrigram.name + TRIGRAM_SYMBOL[lowerNum] + "（" + lowerTrigram.element + "）").padEnd(30) + "│",
+    "│ 本卦：" + (hexName + "（" + hexSymbol + "）").padEnd(30) + "│",
+    "│ 动爻：" + (dongYaoLabel + "爻 · 变卦：" + bianGuaName + "（" + bianGuaSymbol + "）").padEnd(30) + "│",
+    "│ 先天数：" + (String(xianTianShu) + " · 后天数：" + String(houTianShu)).padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 事业：" + fortune.career.padEnd(30) + "│",
+    "│ 财运：" + fortune.wealth.padEnd(30) + "│",
+    "│ 感情：" + fortune.love.padEnd(30) + "│",
+    "│ 健康：" + fortune.health.padEnd(30) + "│",
+    "│ 性格：" + fortune.personality.padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 出处：《河洛理数》《易学启蒙》        │",
+    "│       《邵子神数》《皇极经世》        │",
+    "└──────────────────────────────────────┘",
+  ].join("\n");
 
   return {
     siZhu: {

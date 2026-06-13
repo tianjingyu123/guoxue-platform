@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { BundleService } from "./bundle.service";
 import { CreateBundleDto, UpdateBundleDto, BundleQueryDto } from "./bundle.dto";
@@ -25,18 +25,25 @@ export class BundleController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "创建组合包" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   create(@Body() dto: CreateBundleDto) {
     return this.svc.create(dto);
   }
 
   @Get()
   @ApiOperation({ summary: "组合包列表（可按类型/目标筛选）" })
+  @ApiResponse({ status: 200, description: "成功" })
   list(@Query() query: BundleQueryDto) {
     return this.svc.list(query);
   }
 
   @Get(":id")
   @ApiOperation({ summary: "组合包详情（含组合项）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getById(@Param("id") id: string) {
     return this.svc.getById(id);
   }
@@ -46,6 +53,11 @@ export class BundleController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "更新组合包" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   update(@Param("id") id: string, @Body() dto: UpdateBundleDto) {
     return this.svc.update(id, dto);
   }
@@ -55,6 +67,11 @@ export class BundleController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除组合包" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   delete(@Param("id") id: string) {
     return this.svc.delete(id);
   }
@@ -65,6 +82,9 @@ export class BundleController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "分站/运营商领取免费组合包" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   async claim(@Req() req: Request, @Param("id") bundleId: string) {
     const userId = (req.user as any).id;
 
@@ -83,6 +103,8 @@ export class BundleController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "我领取的组合包" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   async getMyClaimed(@Req() req: Request) {
     const userId = (req.user as any).id;
 

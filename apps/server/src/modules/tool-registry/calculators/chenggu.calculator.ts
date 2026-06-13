@@ -1,4 +1,5 @@
 // ── 称骨算命计算引擎（袁天罡称骨歌） ──
+// 算法参考：《袁天罡称骨歌》
 
 import type { ChengGuResult } from "@guoxue/shared";
 import { Solar } from "lunar-javascript";
@@ -140,6 +141,33 @@ export function calculateChengGu(input: Record<string, unknown>): ChengGuResult 
     level: "中",
   };
 
+  const lunarInfoStr = `${yearGanZhi}年 ${lunarMonth}月 ${lunarDay}日 ${shiChen}时`;
+  const bonesStr = [
+    `│ 年骨：${yearGanZhi} ${weightToStr(yearW)}`.padEnd(30) + "│",
+    `│ 月骨：${lunarMonth}月 ${weightToStr(monthW)}`.padEnd(30) + "│",
+    `│ 日骨：${lunarDay}日 ${weightToStr(dayW)}`.padEnd(30) + "│",
+    `│ 时骨：${shiChen}时 ${weightToStr(hourW)}`.padEnd(30) + "│",
+  ].join("\n");
+
+  const scoreBar = "█".repeat(Math.min(10, Math.round(total))) + "░".repeat(Math.max(0, 10 - Math.round(total)));
+  const summary = [
+    "┌──────────────────────────────────────┐",
+    "│        袁天罡称骨 · 算命              │",
+    "├──────────────────────────────────────┤",
+    "│ 农历：" + lunarInfoStr.padEnd(30) + "│",
+    bonesStr,
+    "│ 总重：" + (weightToStr(total) + " " + scoreBar).padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 等级：" + entry.level.padEnd(30) + "│",
+    "│ 歌诀：" + (entry.poem.length > 30 ? entry.poem.slice(0, 30) + "…" : entry.poem).padEnd(30) + "│",
+    "│ 解读：" + (entry.interpretation.length > 30 ? entry.interpretation.slice(0, 30) + "…" : entry.interpretation).padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 出处：《袁天罡称骨歌》唐·袁天罡著    │",
+    "│ 称骨法为唐代命理之一派，以出生年      │",
+    "│ 月日时对应骨重推算一生福禄。          │",
+    "└──────────────────────────────────────┘",
+  ].join("\n");
+
   return {
     input: { year, month, day, hour, gender: gender as "男" | "女" },
     lunarInfo: {
@@ -159,5 +187,6 @@ export function calculateChengGu(input: Record<string, unknown>): ChengGuResult 
     poem: entry.poem,
     interpretation: entry.interpretation,
     level: entry.level,
-  };
+    summary,
+  } as ChengGuResult & { summary: string };
 }

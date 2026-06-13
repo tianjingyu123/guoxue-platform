@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { RenewalService } from "./renewal.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -15,6 +15,8 @@ export class RenewalController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "我的权益与有效期（所有角色统一视图）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getMyEntitlements(@Req() req: Request) {
     return this.svc.getMyEntitlements((req.user as any).id);
   }
@@ -23,6 +25,8 @@ export class RenewalController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "续费历史记录" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getMyRenewalHistory(
     @Req() req: Request,
     @Query("page") page = 1,
@@ -37,6 +41,8 @@ export class RenewalController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "获取即将到期用户列表（30天内）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权限" })
   getExpiringUsers() {
     return this.svc.getExpiringUsers();
   }
@@ -47,6 +53,8 @@ export class RenewalController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "管理员查看所有续费记录" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   @ApiQuery({ name: "type", required: false })

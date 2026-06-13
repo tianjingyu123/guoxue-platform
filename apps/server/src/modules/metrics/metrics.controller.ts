@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Res } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Response } from "express";
 import { MetricsService } from "../../common/metrics.service";
 import { AiInsightService } from "./ai-insight.service";
@@ -14,6 +14,7 @@ export class MetricsController {
 
   @Get()
   @ApiOperation({ summary: "Prometheus 指标采集端点" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getMetrics(@Res() res: Response) {
     res.setHeader("Content-Type", this.metrics.contentType());
     res.send(await this.metrics.metrics());
@@ -22,12 +23,14 @@ export class MetricsController {
   // ── AI 数据飞轮看板 ──
   @Get("flywheel/overview")
   @ApiOperation({ summary: "AI 数据飞轮总览" })
+  @ApiResponse({ status: 200, description: "成功" })
   getFlywheelOverview() {
     return this.insight.getFlywheelOverview();
   }
 
   @Get("flywheel/quality-trend")
   @ApiOperation({ summary: "AI 质量趋势（近N天）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "days", required: false, type: Number, description: "天数，默认7" })
   getQualityTrend(@Query("days") days = 7) {
     return this.insight.getQualityTrend(+days);
@@ -35,6 +38,7 @@ export class MetricsController {
 
   @Get("flywheel/cache-stats")
   @ApiOperation({ summary: "语义缓存统计" })
+  @ApiResponse({ status: 200, description: "成功" })
   getCacheStats() {
     return this.insight.getCacheStats();
   }

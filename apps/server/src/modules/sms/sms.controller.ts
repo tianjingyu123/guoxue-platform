@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Query, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { SmsService } from "./sms.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -15,6 +15,8 @@ export class SmsController {
   @Post("send")
   @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "发送短信验证码" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   sendCode(
     @Body() body: SendSmsDto,
   ) {
@@ -24,6 +26,8 @@ export class SmsController {
   @Post("verify")
   @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "验证短信验证码" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   verifyCode(
     @Body() body: VerifySmsDto,
   ) {
@@ -33,6 +37,7 @@ export class SmsController {
   @Get("status")
   @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "查询发送状态/倒计时" })
+  @ApiResponse({ status: 200, description: "成功" })
   getStatus(@Query("phone") phone: string) {
     return this.sms.getSendStatus(phone);
   }
@@ -44,6 +49,9 @@ export class SmsController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "短信发送日志（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   getAdminLogs(
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
@@ -57,6 +65,9 @@ export class SmsController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "短信发送统计（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   getAdminStats() {
     return this.sms.getAdminStats();
   }

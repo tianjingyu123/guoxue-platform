@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Param, Query, Body, Req, UseGuards, Logger } from "@nestjs/common";
 import { Request } from "express";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { UserService } from "./user.service";
 import { SystemService } from "../system/system.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -26,6 +26,9 @@ export class UserController {
   @Put("profile")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新个人资料" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   updateProfile(@Req() req: Request, @Body() dto: UpdateProfileDto) {
     return this.user.updateProfile(req.user.id, dto);
   }
@@ -35,6 +38,9 @@ export class UserController {
   @Get(":id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取用户详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getUser(@Param("id") id: string) {
     return this.user.getUserById(id);
   }
@@ -42,6 +48,9 @@ export class UserController {
   @Get(":id/stats")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取用户统计（文章/课程/粉丝数等）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getUserStats(@Param("id") id: string) {
     return this.user.getUserStats(id);
   }
@@ -50,6 +59,9 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "获取用户列表（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   @ApiQuery({ name: "keyword", required: false })
@@ -77,6 +89,10 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "分配用户角色" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   async assignRole(
     @Param("id") userId: string,
     @Body() body: AssignRoleDto,
@@ -98,6 +114,11 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "移除用户角色" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   async removeRole(
     @Param("id") userId: string,
     @Param("roleType") roleType: RoleType,
@@ -122,6 +143,10 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量更新用户状态" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   batchUpdateStatus(@Body() dto: BatchUpdateUserStatusDto) {
     return this.user.batchUpdateStatus(dto.ids, dto.status);
   }
@@ -130,6 +155,11 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新用户状态（封禁/激活）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   updateUserStatus(@Param("id") id: string, @Body() dto: UpdateUserStatusDto) {
     return this.user.updateUserStatus(id, dto.status);
   }
@@ -139,6 +169,9 @@ export class UserController {
   @Get(":id/purchases")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取用户会员购买记录" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getMemberPurchases(@Param("id") userId: string, @Req() req: Request) {
     const roles: string[] = req.user?.roles ?? [];
@@ -154,6 +187,9 @@ export class UserController {
   @Post(":id/follow")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "关注用户" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   follow(@Req() req: Request, @Param("id") id: string) {
     return this.user.follow(req.user.id, id);
   }
@@ -161,12 +197,18 @@ export class UserController {
   @Delete(":id/follow")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "取消关注" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   unfollow(@Req() req: Request, @Param("id") id: string) {
     return this.user.unfollow(req.user.id, id);
   }
 
   @Get(":id/followers")
   @ApiOperation({ summary: "粉丝列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   getFollowers(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
@@ -175,6 +217,8 @@ export class UserController {
 
   @Get(":id/following")
   @ApiOperation({ summary: "关注列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   getFollowing(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
@@ -184,6 +228,9 @@ export class UserController {
   @Get(":id/is-following")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "当前用户是否关注了目标用户" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   isFollowing(@Req() req: Request, @Param("id") id: string) {
     return this.user.isFollowing(req.user.id, id);
   }
@@ -193,6 +240,8 @@ export class UserController {
   @Get("blacklist/list")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "我的黑名单" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   getBlacklist(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
@@ -202,6 +251,9 @@ export class UserController {
   @Post(":id/block")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "拉黑用户" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   blockUser(@Req() req: Request, @Param("id") blockedUserId: string) {
     return this.user.blockUser(req.user.id, blockedUserId);
   }
@@ -209,6 +261,10 @@ export class UserController {
   @Delete(":id/block")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "取消拉黑" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   unblockUser(@Req() req: Request, @Param("id") blockedUserId: string) {
     return this.user.unblockUser(req.user.id, blockedUserId);
   }
@@ -219,6 +275,10 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "按标签分群推送消息" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   pushByTag(@Body() body: Record<string, unknown>) {
     return this.user.pushByTag(
       body.tag as string,
@@ -235,6 +295,9 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "白名单用户列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   getWhitelist(
@@ -248,6 +311,10 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "添加用户到白名单" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   addWhitelist(@Body() body: Record<string, unknown>) {
     return this.user.addWhitelist(body.userId as string);
   }
@@ -256,6 +323,10 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "从白名单移除用户" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   removeWhitelist(@Param("userId") userId: string) {
     return this.user.removeWhitelist(userId);
   }
@@ -266,6 +337,10 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取用户全量画像（订单/币/圈子/行为/设备等）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   getUserProfile(@Param("id") id: string) {
     return this.user.getUserProfile(id);
   }
@@ -276,6 +351,9 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "用户兴趣品类统计分析（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   async getInterestStats() {
     return this.user.getInterestStats();
   }
@@ -285,6 +363,9 @@ export class UserController {
   @Post("delete-request")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "申请注销账号（进入7天冷静期）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   requestAccountDeletion(@Req() req: Request) {
     return this.user.requestAccountDeletion(req.user.id);
   }
@@ -292,6 +373,9 @@ export class UserController {
   @Post("delete-cancel")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "取消注销申请（冷静期内）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   cancelAccountDeletion(@Req() req: Request) {
     return this.user.cancelAccountDeletion(req.user.id);
   }
@@ -300,6 +384,10 @@ export class UserController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "管理员执行账号注销" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   executeAccountDeletion(@Param("id") id: string) {
     return this.user.executeAccountDeletion(id);
   }

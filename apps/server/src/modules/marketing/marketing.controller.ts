@@ -2,7 +2,7 @@ import {
   Controller, Get, Post, Put, Delete,
   Body, Param, Query, Req, UseGuards, Logger,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { MarketingService } from "./marketing.service";
 import {
   CreateFlashSaleDto, UpdateFlashSaleDto, FlashSaleFilterDto,
@@ -35,6 +35,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建秒杀活动" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createFlashSale(@Body() dto: CreateFlashSaleDto) {
     return this.marketing.createFlashSale(dto);
@@ -44,6 +48,9 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "秒杀活动列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
@@ -56,6 +63,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新秒杀活动" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateFlashSale(@Param("id") id: string, @Body() dto: UpdateFlashSaleDto) {
     return this.marketing.updateFlashSale(id, dto);
@@ -65,6 +77,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除秒杀活动" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteFlashSale(@Param("id") id: string) {
     return this.marketing.deleteFlashSale(id);
@@ -74,6 +91,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "添加秒杀商品" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   addFlashSaleItem(@Param("id") id: string, @Body() dto: CreateFlashSaleItemDto) {
     return this.marketing.addFlashSaleItem(id, dto);
@@ -83,6 +104,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新秒杀商品" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateFlashSaleItem(
     @Param("id") id: string,
@@ -96,6 +122,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除秒杀商品" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteFlashSaleItem(@Param("id") id: string, @Param("itemId") itemId: string) {
     return this.marketing.deleteFlashSaleItem(id, itemId);
@@ -105,6 +136,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "启动秒杀活动" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   startFlashSale(@Param("id") id: string) {
     return this.marketing.startFlashSale(id);
@@ -114,6 +149,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "提前结束秒杀活动" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   endFlashSale(@Param("id") id: string) {
     return this.marketing.endFlashSale(id);
@@ -127,6 +166,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建拼团活动" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createGroupBuy(@Body() dto: CreateGroupBuyDto) {
     return this.marketing.createGroupBuy(dto);
@@ -136,6 +179,9 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "拼团活动列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
@@ -148,6 +194,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新拼团活动" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateGroupBuy(@Param("id") id: string, @Body() dto: UpdateGroupBuyDto) {
     return this.marketing.updateGroupBuy(id, dto);
@@ -157,6 +208,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除拼团活动" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteGroupBuy(@Param("id") id: string) {
     return this.marketing.deleteGroupBuy(id);
@@ -166,6 +222,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "查看拼团参与者" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getGroupBuyParticipants(@Param("id") id: string) {
     return this.marketing.getGroupBuyParticipants(id);
@@ -179,6 +239,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建优惠券模板" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createCouponTemplate(@Body() dto: CreateCouponTemplateDto) {
     return this.marketing.createCouponTemplate(dto);
@@ -188,6 +252,9 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "优惠券模板列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
@@ -201,6 +268,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新优惠券模板" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateCouponTemplate(@Param("id") id: string, @Body() dto: UpdateCouponTemplateDto) {
     return this.marketing.updateCouponTemplate(id, dto);
@@ -210,6 +282,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除优惠券模板" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteCouponTemplate(@Param("id") id: string) {
     return this.marketing.deleteCouponTemplate(id);
@@ -219,6 +296,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "发放优惠券给指定用户" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   grantCoupon(@Param("id") id: string, @Body() dto: GrantCouponDto) {
     return this.marketing.grantCoupon(id, dto);
@@ -228,6 +309,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量发放优惠券" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   batchGrantCoupon(@Param("id") id: string, @Body() dto: BatchGrantCouponDto) {
     return this.marketing.batchGrantCoupon(id, dto);
@@ -237,6 +322,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "查看优惠券领取/使用记录" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
@@ -253,6 +342,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建限时折扣" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createDiscount(@Body() dto: CreateDiscountDto) {
     return this.marketing.createDiscount(dto);
@@ -262,6 +355,9 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "限时折扣列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
@@ -274,6 +370,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新限时折扣" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateDiscount(@Param("id") id: string, @Body() dto: UpdateDiscountDto) {
     return this.marketing.updateDiscount(id, dto);
@@ -283,6 +384,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除限时折扣" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteDiscount(@Param("id") id: string) {
     return this.marketing.deleteDiscount(id);
@@ -296,6 +402,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建微页面" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createPage(@Body() dto: CreateMarketingPageDto) {
     return this.marketing.createPage(dto);
@@ -305,6 +415,9 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "微页面列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   listPages(@Query("stationId") stationId?: string) {
     return this.marketing.listPages(stationId);
@@ -314,6 +427,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取微页面详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getPage(@Param("id") id: string) {
     return this.marketing.getPage(id);
@@ -323,6 +440,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新微页面" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updatePage(@Param("id") id: string, @Body() dto: UpdateMarketingPageDto) {
     return this.marketing.updatePage(id, dto);
@@ -332,6 +454,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除微页面" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deletePage(@Param("id") id: string) {
     return this.marketing.deletePage(id);
@@ -341,6 +468,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "添加页面组件" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   addPageComponent(@Param("id") id: string, @Body() dto: CreatePageComponentDto) {
     return this.marketing.addPageComponent(id, dto);
@@ -350,6 +481,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新页面组件" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updatePageComponent(
     @Param("id") id: string,
@@ -363,6 +499,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除页面组件" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deletePageComponent(@Param("id") id: string, @Param("compId") compId: string) {
     return this.marketing.deletePageComponent(id, compId);
@@ -372,6 +513,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "组件排序" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   sortPageComponents(@Param("id") id: string, @Body() dto: SortComponentsDto) {
     return this.marketing.sortPageComponents(id, dto);
@@ -381,6 +527,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "发布微页面" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   publishPage(@Param("id") id: string) {
     return this.marketing.publishPage(id);
@@ -390,6 +540,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "微页面历史版本列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getPageVersions(@Param("id") id: string) {
     return this.marketing.getPageVersions(id);
@@ -399,6 +553,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "回滚微页面到指定版本" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   rollbackPage(@Param("id") id: string, @Param("versionId") versionId: string) {
     return this.marketing.rollbackPage(id, versionId);
@@ -410,6 +568,7 @@ export class MarketingController {
 
   @Get("pages/by-route")
   @ApiOperation({ summary: "根据路由获取已发布的微页面（用户端公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "route", required: true, type: String, description: "页面路由路径" })
   getPublishedPageByRoute(@Query("route") route: string) {
     return this.marketing.getPublishedPageByRoute(route);
@@ -423,6 +582,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建活动" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createActivity(@Body() dto: CreateActivityDto) {
     return this.marketing.createActivity(dto);
@@ -432,6 +595,9 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "活动列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
@@ -444,6 +610,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新活动" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateActivity(@Param("id") id: string, @Body() dto: UpdateActivityDto) {
     return this.marketing.updateActivity(id, dto);
@@ -453,6 +624,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除活动" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteActivity(@Param("id") id: string) {
     return this.marketing.deleteActivity(id);
@@ -462,6 +638,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "查看活动实时指标" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getActivityMetrics(@Param("id") id: string) {
     return this.marketing.getActivityMetrics(id);
@@ -475,6 +655,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建满减送活动" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createFullReduction(@Body() dto: CreateFullReductionDto) {
     return this.marketing.createFullReduction(dto);
@@ -484,6 +668,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新满减送活动" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateFullReduction(@Param("id") id: string, @Body() dto: UpdateFullReductionDto) {
     return this.marketing.updateFullReduction(id, dto);
@@ -493,6 +682,11 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除满减送活动" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteFullReduction(@Param("id") id: string) {
     return this.marketing.deleteFullReduction(id);
@@ -502,6 +696,9 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "满减送活动分页列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
@@ -520,6 +717,7 @@ export class MarketingController {
 
   @Get("full-reductions/active")
   @ApiOperation({ summary: "获取进行中的满减送活动（公开接口）" })
+  @ApiResponse({ status: 200, description: "成功" })
   getActiveFullReductions() {
     return this.marketing.getActiveFullReductions();
   }
@@ -530,12 +728,14 @@ export class MarketingController {
 
   @Get("flash-sales/active")
   @ApiOperation({ summary: "获取进行中和预告中的秒杀活动（用户端公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   getActiveFlashSales() {
     return this.marketing.getActiveFlashSales();
   }
 
   @Get("group-buys/active")
   @ApiOperation({ summary: "获取进行中的拼团活动（用户端公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   getActiveGroupBuys() {
     return this.marketing.getActiveGroupBuys();
   }
@@ -543,6 +743,9 @@ export class MarketingController {
   @Post("group-buys/:id/join")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "参与拼团" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   joinGroupBuy(@Req() req: any, @Param("id") id: string, @Body() dto?: { groupId?: string }) {
     return this.marketing.joinGroupBuy(req.user.id, id, dto?.groupId);
@@ -551,6 +754,8 @@ export class MarketingController {
   @Get("group-buys/my")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "我的拼团记录" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getMyGroupBuys(@Req() req: any) {
     return this.marketing.getMyGroupBuys(req.user.id);
@@ -560,6 +765,10 @@ export class MarketingController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取满减送活动详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getFullReduction(@Param("id") id: string) {
     return this.marketing.getFullReduction(id);

@@ -1,4 +1,5 @@
 // ── 灵签/抽签计算引擎 ──
+// 算法参考：《灵签》《周易》
 
 import type { LingQianResult, QianEntry, LingQianType, QianGrade } from "@guoxue/shared";
 
@@ -137,7 +138,7 @@ export function calculateLingQian(input: Record<string, unknown>): LingQianResul
   if (seed !== undefined) {
     idx = Math.abs(seed) % totalSigns;
   } else {
-    idx = Math.floor(Math.random() * totalSigns);
+    idx = (Date.now() % totalSigns);
   }
 
   const sign = buildEntry(signs[idx]);
@@ -146,11 +147,33 @@ export function calculateLingQian(input: Record<string, unknown>): LingQianResul
     ? `诚心报数 ${seed}，取第 ${sign.number} 签`
     : `虔诚摇签，得第 ${sign.number} 签`;
 
+  const summary = [
+    "┌──────────────────────────────────────┐",
+    "│  " + TYPE_NAMES[type] + " · 第" + sign.number + "签  " + sign.grade.padEnd(6) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 签题：" + sign.title.padEnd(29) + "│",
+    "│ 签诗：" + sign.poem.slice(0, 26).padEnd(28) + "│",
+    "│       " + sign.poem.slice(26, 52).padEnd(28) + "│",
+    "│ 解曰：" + sign.interpretation.slice(0, 26).padEnd(28) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 综合：" + sign.advice.general.padEnd(29) + "│",
+    "│ 财运：" + sign.advice.wealth.padEnd(29) + "│",
+    "│ 姻缘：" + sign.advice.love.padEnd(29) + "│",
+    "│ 事业：" + sign.advice.career.padEnd(29) + "│",
+    "│ 健康：" + sign.advice.health.padEnd(29) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 出处：《观音灵签》一百签，依周易六   │",
+    "│ 十四卦推演，历代宫观参校              │",
+    "│ " + shakeProcess.padEnd(37) + "│",
+    "└──────────────────────────────────────┘",
+  ].join("\n");
+
   return {
     input: { type, question, seed },
     typeName: TYPE_NAMES[type] || "观音灵签",
     totalSigns,
     sign,
     shakeProcess,
-  };
+    summary,
+  } as LingQianResult & { summary: string };
 }

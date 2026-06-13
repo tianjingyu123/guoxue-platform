@@ -1,6 +1,6 @@
 import { Request } from "express";
 import { Controller, Get, Post, Put, Delete, Body, Query, Param, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { RiskControlService } from "./risk-control.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -32,6 +32,10 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "创建预警规则" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createRule(@Body() dto: CreateRuleDto) {
     return this.svc.createRule(dto);
@@ -41,6 +45,9 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "获取预警规则列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   listRules(@Query() q: RuleListQueryDto) {
     return this.svc.listRules(q);
@@ -50,6 +57,11 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新预警规则" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateRule(@Param("id") id: string, @Body() dto: UpdateRuleDto) {
     return this.svc.updateRule(id, dto);
@@ -59,6 +71,11 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除预警规则" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteRule(@Param("id") id: string) {
     return this.svc.deleteRule(id);
@@ -72,6 +89,9 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取预警列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   listAlerts(@Query() q: AlertListQueryDto) {
     return this.svc.listAlerts(q);
@@ -81,6 +101,11 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "处理预警" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   handleAlert(@Param("id") id: string, @Req() req: Request, @Body() dto: HandleAlertDto) {
     return this.svc.handleAlert(id, req.user.id, dto.note);
@@ -90,6 +115,11 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "忽略预警" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   dismissAlert(@Param("id") id: string) {
     return this.svc.dismissAlert(id);
@@ -103,6 +133,9 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取刷单检测列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   listFraudDetections(@Query() q: FraudDetectionListQueryDto) {
     return this.svc.listFraudDetections(q);
@@ -113,6 +146,10 @@ export class RiskControlController {
   @Roles("SUPER_ADMIN")
   @RequireFeature("risk_fraud_scan")
   @ApiOperation({ summary: "手动触发刷单扫描" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   scanFraud() {
     return this.svc.scanFraud();
@@ -123,6 +160,11 @@ export class RiskControlController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @RequireFeature("risk_fraud_scan")
   @ApiOperation({ summary: "确认为刷单" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   confirmFraudDetection(@Param("id") id: string) {
     return this.svc.confirmFraudDetection(id);
@@ -133,6 +175,11 @@ export class RiskControlController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @RequireFeature("risk_fraud_scan")
   @ApiOperation({ summary: "标记为误报" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   dismissFraudDetection(@Param("id") id: string) {
     return this.svc.dismissFraudDetection(id);
@@ -146,6 +193,9 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "查询用户行为时间线" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getUserTimeline(@Param("userId") userId: string) {
     return this.svc.getUserTimeline(userId);
@@ -159,6 +209,9 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取申诉列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   listAppeals(@Query() q: AppealListQueryDto) {
     return this.svc.listAppeals(q);
@@ -168,6 +221,11 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "批准申诉" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   approveAppeal(@Param("id") id: string, @Req() req: Request) {
     return this.svc.approveAppeal(id, req.user.id);
@@ -177,6 +235,11 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "驳回申诉" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   rejectAppeal(@Param("id") id: string, @Req() req: Request, @Body() dto: RejectAppealDto) {
     return this.svc.rejectAppeal(id, req.user.id, dto.reviewNote);
@@ -190,6 +253,9 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取设备指纹列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   listDeviceFingerprints(@Query() q: DeviceFingerprintQueryDto) {
     return this.svc.listDeviceFingerprints(q);
@@ -199,6 +265,9 @@ export class RiskControlController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "查看用户的所有设备" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getDeviceFingerprintsByUser(@Param("userId") userId: string) {
     return this.svc.getDeviceFingerprintsByUser(userId);

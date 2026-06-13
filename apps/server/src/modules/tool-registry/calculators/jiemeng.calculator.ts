@@ -1,4 +1,5 @@
 // ── 周公解梦计算引擎 ──
+// 数据参考：《周公解梦》《敦煌本梦书》
 
 import type { JieMengResult, JieMengMatch, JieMengEntry, JieMengOmen } from "@guoxue/shared";
 
@@ -278,9 +279,55 @@ export function calculateJieMeng(input: Record<string, unknown>): JieMengResult 
     summary = `梦境吉凶参半（${jiCount}吉 ${xiongCount}凶 ${pingCount}平）。平常心对待，顺势而为即可。`;
   }
 
+  const resultMatches = matches.slice(0, 6);
+
+  // 构建 box-drawing 摘要
+  const omenIcon: Record<string, string> = { "吉": "○", "凶": "△", "平": "─" };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const omenColor: Record<string, string> = { "吉": "吉兆", "凶": "凶兆", "平": "平常" };
+  const lines: string[] = [
+    `┌─ 周公解梦 ─────────────────`,
+    `│ 梦境：${dream.length > 40 ? dream.slice(0, 40) + "…" : dream}`,
+    `│ 综合：${overallOmen === "吉" ? "▣ 吉" : overallOmen === "凶" ? "△ 凶" : "─ 平"} 吉${jiCount} · 凶${xiongCount} · 平${pingCount} 匹配${resultMatches.length}条`,
+  ];
+
+  if (resultMatches.length === 0) {
+    lines.push(`│`);
+    lines.push(`├─ 解梦结果 ──────────────────`);
+    lines.push(`│ （未匹配到梦典条目，请换个角度描述您的梦境）`);
+  } else {
+    lines.push(`│`);
+    lines.push(`├─ 解梦条目 ──────────────────`);
+    for (let i = 0; i < resultMatches.length; i++) {
+      const m = resultMatches[i];
+      const sep = i < resultMatches.length - 1 ? "├" : "└";
+      const icon = omenIcon[m.omen] || "─";
+      const pct = Math.round(m.confidence * 100);
+      lines.push(`│ ${sep}─ ${icon}【${m.keyword}】${m.omen === "吉" ? "吉" : m.omen === "凶" ? "凶" : "平"} ${m.category} 置信度${pct}%`);
+      lines.push(`│    ${m.meaning.slice(0, 60)}${m.meaning.length > 60 ? "…" : ""}`);
+    }
+  }
+
+  lines.push(`│`);
+  lines.push(`├─ 综合解读 ──────────────────`);
+  lines.push(`│ ${summary}`);
+  lines.push(`│`);
+  lines.push(`├─ 古籍出处 ──────────────────`);
+  lines.push(`│ 《周公解梦》—— 传统民间梦书，依托周公之名流传千年`);
+  lines.push(`│ 《敦煌本梦书》—— 敦煌遗书中保存的唐代解梦文献`);
+  lines.push(`│ 《黄帝内经·灵枢》—— 「正邪从外袭内而未有定舍，反淫于脏，不得定处，与营卫俱行，而与魂魄飞扬，使人卧不得安而喜梦」`);
+  lines.push(`│ 占梦之术可溯至殷商甲骨卜辞，周代设有「占梦」之官。`);
+  lines.push(`│`);
+  lines.push(`└─ 解梦提示 ──────────────────`);
+  lines.push(`   梦乃心之影，未必事事应验。吉梦可增信心，`);
+  lines.push(`   凶梦提醒注意，平常心待之方为上策。`);
+  lines.push(`   中医认为多梦与心神不宁相关，宜调养心脾。`);
+
+  const boxSummary = lines.join("\n");
+
   return {
     input: { dream },
-    matches: matches.slice(0, 6), // 最多返回 6 条
+    matches: resultMatches,
     overall: {
       omen: overallOmen,
       summary,
@@ -288,5 +335,6 @@ export function calculateJieMeng(input: Record<string, unknown>): JieMengResult 
       xiongCount,
       pingCount,
     },
-  };
+    summary: boxSummary,
+  } as JieMengResult & { summary: string };
 }

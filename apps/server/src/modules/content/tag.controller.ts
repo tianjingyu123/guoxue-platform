@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { PrismaService } from "../../prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -13,6 +13,7 @@ export class TagController {
 
   @Get("hot")
   @ApiOperation({ summary: "热门标签（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "limit", required: false, type: Number })
   async hotTags(@Query("limit") limit = 20) {
     return this.prisma.topicTag.findMany({
@@ -24,6 +25,7 @@ export class TagController {
 
   @Get("search")
   @ApiOperation({ summary: "搜索标签（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "q", required: true })
   async search(@Query("q") q: string) {
     return this.prisma.topicTag.findMany({
@@ -34,6 +36,7 @@ export class TagController {
 
   @Get(":name/posts")
   @ApiOperation({ summary: "标签下的内容聚合（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   async tagPosts(@Param("name") name: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
@@ -55,6 +58,10 @@ export class TagController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "创建标签" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   adminCreate(@Body() dto: CreateTagDto) {
     return this.prisma.topicTag.create({ data: dto });
   }
@@ -64,6 +71,11 @@ export class TagController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "编辑标签" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   adminUpdate(@Param("id") id: string, @Body() dto: UpdateTagDto) {
     return this.prisma.topicTag.update({ where: { id }, data: dto });
   }
@@ -73,6 +85,11 @@ export class TagController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除标签" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   adminDelete(@Param("id") id: string) {
     return this.prisma.topicTag.delete({ where: { id } });
   }

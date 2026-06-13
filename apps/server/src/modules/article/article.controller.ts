@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, UsePipes } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { ArticleService } from "./article.service";
 import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -24,6 +24,9 @@ export class ArticleController {
   @RequireFeature("content_publish")
   @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "创建文章" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   create(@Param("circleId") circleId: string, @Req() req: Request, @Body() dto: CreateArticleDto) {
     return this.article.create(circleId, req.user.id, dto);
@@ -31,6 +34,7 @@ export class ArticleController {
 
   @Get()
   @ApiOperation({ summary: "获取文章列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
   @ApiQuery({ name: "circleId", required: false, type: String, description: "圈子ID" })
@@ -56,12 +60,14 @@ export class ArticleController {
 
   @Get("stats")
   @ApiOperation({ summary: "获取文章统计（管理端）" })
+  @ApiResponse({ status: 200, description: "成功" })
   getStats() {
     return this.article.getStats();
   }
 
   @Get("feed")
   @ApiOperation({ summary: "获取首页动态" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页条数" })
   getHomeFeed(
@@ -74,6 +80,8 @@ export class ArticleController {
 
   @Get(":id/related")
   @ApiOperation({ summary: "获取相关文章" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getRelated(@Param("id") id: string) {
     return this.article.getRelated(id);
   }
@@ -83,6 +91,8 @@ export class ArticleController {
   @Get("drafts")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取我的草稿列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
@@ -93,6 +103,8 @@ export class ArticleController {
   @Get(":id")
   @UseGuards(StationIsolationGuard)
   @ApiOperation({ summary: "获取文章详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   detail(@Param("id") id: string) {
     return this.article.getDetail(id);
   }
@@ -101,6 +113,10 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard)
   @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "更新文章" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   update(@Param("id") id: string, @Req() req: Request, @Body() dto: UpdateArticleDto) {
     return this.article.update(id, req.user.id, dto);
@@ -109,6 +125,10 @@ export class ArticleController {
   @Delete(":id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除文章" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   delete(@Param("id") id: string, @Req() req: Request) {
     return this.article.delete(id, req.user.id);
@@ -120,6 +140,11 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审核文章" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   audit(@Param("id") id: string, @Body("status") status: string) {
     return this.article.auditArticle(id, status);
@@ -130,6 +155,9 @@ export class ArticleController {
   @Post(":id/recommends")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "添加推荐" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   addRecommend(@Param("id") articleId: string, @Req() req: Request, @Body() dto: AddRecommendDto) {
     return this.article.addRecommend(articleId, req.user.id, dto);
@@ -138,6 +166,10 @@ export class ArticleController {
   @Delete(":id/recommends/:recId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "移除推荐" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   removeRecommend(@Param("recId") recId: string, @Req() req: Request) {
     return this.article.removeRecommend(recId, req.user.id);
@@ -147,6 +179,9 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard)
   @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "保存草稿" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   saveDraft(@Req() req: Request, @Body() dto: CreateArticleDto) {
     return this.article.saveDraft(req.user.id, dto);
@@ -156,6 +191,10 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard)
   @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "更新草稿" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   updateDraft(@Param("id") id: string, @Req() req: Request, @Body() dto: UpdateArticleDto) {
     return this.article.updateDraft(id, req.user.id, dto);
@@ -164,6 +203,10 @@ export class ArticleController {
   @Delete("drafts/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除草稿" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   deleteDraft(@Param("id") id: string, @Req() req: Request) {
     return this.article.deleteDraft(id, req.user.id);
@@ -172,6 +215,9 @@ export class ArticleController {
   @Post("drafts/:id/publish")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "发布草稿" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   publishDraft(@Param("id") id: string, @Req() req: Request) {
     return this.article.publishDraft(id, req.user.id);
@@ -183,6 +229,9 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理端-查看所有用户草稿" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
@@ -199,6 +248,11 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理端-删除任意草稿" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   adminDeleteDraft(@Param("id") id: string) {
     return this.article.adminDeleteDraft(id);
@@ -208,6 +262,10 @@ export class ArticleController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理端-代为发布草稿" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   adminPublishDraft(@Param("id") id: string) {
     return this.article.adminPublishDraft(id);

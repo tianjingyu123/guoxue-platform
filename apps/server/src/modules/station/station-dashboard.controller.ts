@@ -1,5 +1,5 @@
 import { Controller, Get, Put, Body, Req, Query, UseGuards, NotFoundException, ForbiddenException } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { StationDashboardService } from "./station-dashboard.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -24,30 +24,35 @@ export class StationDashboardController {
 
   @Get("overview")
   @ApiOperation({ summary: "站长仪表盘概览 — 本月佣金/成交额/新用户/转化率" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getOverview(@Req() req: Request) {
     return this.svc.getOverview(await this.getStationId(req));
   }
 
   @Get("trends")
   @ApiOperation({ summary: "每日佣金趋势（近30天）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getTrends(@Req() req: Request) {
     return this.svc.getTrends(await this.getStationId(req));
   }
 
   @Get("link-ranking")
   @ApiOperation({ summary: "推广渠道收益分布" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getLinkRanking(@Req() req: Request) {
     return this.svc.getLinkRanking(await this.getStationId(req));
   }
 
   @Get("silent-users")
   @ApiOperation({ summary: "沉默用户提醒（7天未活跃）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getSilentUsers(@Req() req: Request) {
     return this.svc.getSilentUsers(await this.getStationId(req));
   }
 
   @Get("settlement-timer")
   @ApiOperation({ summary: "佣金结算倒计时" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getSettlementTimer(@Req() req: Request) {
     return this.svc.getSettlementTimer(await this.getStationId(req));
   }
@@ -70,6 +75,7 @@ export class OperatorDashboardController {
 
   @Get("overview")
   @ApiOperation({ summary: "运营商概览 — 团队总佣金/名下站长统计/名额使用" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getOverview(@Req() req: Request) {
     const { operator, stations } = await this.getOperatorStations(req);
     const stationIds = stations.map(s => s.id);
@@ -98,6 +104,7 @@ export class OperatorDashboardController {
 
   @Get("team-ranking")
   @ApiOperation({ summary: "名下站长业绩排行 Top10" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getTeamRanking(@Req() req: Request) {
     const { stations } = await this.getOperatorStations(req);
     return {
@@ -107,6 +114,7 @@ export class OperatorDashboardController {
 
   @Get("quota-usage")
   @ApiOperation({ summary: "名额使用情况（已用/总量）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getQuotaUsage(@Req() req: Request) {
     const { operator, stations } = await this.getOperatorStations(req);
     return { used: stations.length, total: operator?.containQuota || 0 };
@@ -116,6 +124,7 @@ export class OperatorDashboardController {
 
   @Get("my")
   @ApiOperation({ summary: "获取当前运营商完整信息（自服务）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getMyOperator(@Req() req: Request) {
     const userId = (req.user as any).id;
     const operator = await this.prisma.operator.findFirst({
@@ -151,6 +160,9 @@ export class OperatorDashboardController {
   @Put("my")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新运营商品牌信息（自服务）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   async updateMyOperator(@Req() req: Request, @Body() body: Record<string, unknown>) {
     const userId = (req.user as any).id;
     const operator = await this.prisma.operator.findFirst({ where: { userId } });
@@ -167,6 +179,7 @@ export class OperatorDashboardController {
 
   @Get("my/earnings")
   @ApiOperation({ summary: "运营商收益明细（自服务）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
   async getMyEarnings(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
@@ -206,6 +219,7 @@ export class OperatorDashboardController {
 
   @Get("my/stations")
   @ApiOperation({ summary: "名下站长列表（自服务）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getMyStations(@Req() req: Request) {
     const userId = (req.user as any).id;
     const operator = await this.prisma.operator.findFirst({ where: { userId } });

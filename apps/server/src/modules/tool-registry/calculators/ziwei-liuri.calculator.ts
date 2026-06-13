@@ -1,4 +1,5 @@
 // ── 紫微斗数流日流时计算器 ──
+// 算法参考：《紫微斗数全书》《十八飞星策天紫微斗数》
 import { calcZiwei } from "@guoxue/ziwei-engine";
 import { calcRiZhu, calcShiZhu, GAN, ZHI } from "@guoxue/bazi-engine";
 import type { Gan, Zhi } from "@guoxue/bazi-engine";

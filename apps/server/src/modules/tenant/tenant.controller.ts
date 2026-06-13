@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { TenantService } from "./tenant.service";
 import { TenantGuard } from "./tenant.guard";
@@ -14,6 +14,8 @@ export class TenantController {
   @Post("verify")
   @UseGuards(TenantGuard)
   @ApiOperation({ summary: "验证 API Key 并返回租户信息" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   verify(@Req() req: Request) {
     return (req as any).tenant;
   }
@@ -22,6 +24,8 @@ export class TenantController {
   @Post("consume")
   @UseGuards(TenantGuard)
   @ApiOperation({ summary: "扣减租户配额" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   consume(@Req() req: Request, @Body() dto: TenantConsumeDto) {
     const tenant = (req as any).tenant;
     const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip;
@@ -32,6 +36,7 @@ export class TenantController {
   @Get("quota")
   @UseGuards(TenantGuard)
   @ApiOperation({ summary: "查询租户剩余配额" })
+  @ApiResponse({ status: 200, description: "成功" })
   getQuota(@Req() req: Request) {
     return this.svc.getQuota(((req as any).tenant).id);
   }

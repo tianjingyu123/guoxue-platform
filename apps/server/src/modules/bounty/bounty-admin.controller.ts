@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { BountyService } from "./bounty.service";
 import { RejectReviewDto } from "./bounty.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -16,6 +16,7 @@ export class BountyAdminController {
 
   @Get("questions")
   @ApiOperation({ summary: "悬赏问题列表（管理端）" })
+  @ApiResponse({ status: 200, description: "成功" })
   listQuestions(
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
@@ -27,12 +28,15 @@ export class BountyAdminController {
 
   @Post("questions/:id/close")
   @ApiOperation({ summary: "管理员关闭悬赏" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   closeQuestion(@Param("id") id: string) {
     return this.svc.closeQuestion(id);
   }
 
   @Get("reviews")
   @ApiOperation({ summary: "悬赏审核列表（管理端）" })
+  @ApiResponse({ status: 200, description: "成功" })
   listReviews(
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
@@ -42,12 +46,18 @@ export class BountyAdminController {
 
   @Put("reviews/:id/approve")
   @ApiOperation({ summary: "通过审核" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   approveReview(@Param("id") id: string) {
     return this.svc.approveReview(id);
   }
 
   @Put("reviews/:id/reject")
   @ApiOperation({ summary: "拒绝审核" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   rejectReview(@Param("id") id: string, @Body() body: RejectReviewDto) {
     return this.svc.rejectReview(id, body?.reason || "");
   }

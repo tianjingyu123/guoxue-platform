@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { PricingService } from "./pricing.service";
 import { UnifiedPricingService } from "./unified-pricing.service";
 import { BatchUnifiedPriceDto } from "./pricing.dto";
@@ -19,6 +19,7 @@ export class PricingController {
 
   @Get("unified-price")
   @ApiOperation({ summary: "计算商品统一有效价格" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "productId", required: true })
   @ApiQuery({ name: "skuId", required: false })
   @ApiQuery({ name: "pageId", required: false })
@@ -34,6 +35,8 @@ export class PricingController {
 
   @Post("unified-price/batch")
   @ApiOperation({ summary: "批量计算商品统一价格" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async batchUnifiedPrice(
     @Body() body: BatchUnifiedPriceDto,
   ) {
@@ -49,6 +52,7 @@ export class PricingController {
 
   @Get("calc-price")
   @ApiOperation({ summary: "计算动态价格" })
+  @ApiResponse({ status: 200, description: "成功" })
   calcPrice(@Query("type") type: string, @Query("id") id: string, @Query("basePrice") basePrice?: string) {
     return this.svc.calculatePrice(type, id, undefined, basePrice ? +basePrice : undefined);
   }
@@ -60,6 +64,9 @@ export class PricingController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "定价规则列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   listRules() { return this.svc.listRules(); }
 
   @Post("admin/rules")
@@ -67,6 +74,10 @@ export class PricingController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "创建定价规则" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   createRule(@Body() body: Record<string, unknown>) { return this.svc.createRule(body); }
 
   @Put("admin/rules/:id")
@@ -74,6 +85,11 @@ export class PricingController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "更新规则" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   updateRule(@Param("id") id: string, @Body() body: Record<string, unknown>) { return this.svc.updateRule(id, body); }
 
   @Delete("admin/rules/:id")
@@ -81,6 +97,11 @@ export class PricingController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除规则" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   deleteRule(@Param("id") id: string) { return this.svc.deleteRule(id); }
 
   @Get("admin/demand")
@@ -88,5 +109,8 @@ export class PricingController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "需求热力图" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   getDemand() { return this.svc.getDemandHeatmap(); }
 }

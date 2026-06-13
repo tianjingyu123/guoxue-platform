@@ -5,6 +5,7 @@
 
 import type { QimenResult, QimenGong } from "@guoxue/shared";
 import { calcRiZhu, calcAllJieQi } from "@guoxue/bazi-engine";
+import { calculateQimenYin as calcYinPan } from "./qimen-yin.calculator";
 
 const TIAN_GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
 const DI_ZHI = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
@@ -312,6 +313,32 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
     });
   }
 
+  // Box-drawing 结构化总结
+  const gongTable = gongs.filter(g => g.name !== "中").map(g => {
+    const kw = g.kongWang ? "空" : "  ";
+    const mx = g.maXing ? "马" : "  ";
+    const rm = g.isRuMu ? "墓" : "  ";
+    return `宫${g.index}${g.name.padEnd(2)} 天${g.tianPan} 地${g.diPan} ${g.star.padEnd(2)} ${g.men.padEnd(2)} ${g.shen?.padEnd(2) ?? "—".padEnd(2)} ${kw}${mx}${rm}`;
+  });
+
+  const summary = [
+    "┌──────────────────────────────────────┐",
+    "│     阳盘奇门遁甲 · 转盘排盘           │",
+    "├──────────────────────────────────────┤",
+    "│ 局数：" + dunType + "遁" + juNumber + "局  节气：" + jieQi.name.padEnd(6) + " ".repeat(14) + "│",
+    "│ 用事：" + shiChenGanZhi + "时  日柱：" + riGan + riZhi + " ".repeat(19) + "│",
+    "│ 值符：" + zhiFuXing.padEnd(4) + "值使：" + zhiShiMen.padEnd(4) + " ".repeat(19) + "│",
+    "│ 旬首：" + xunShouYi + xunShouZhi + "  空亡：" + (xunShouZhi === "子" ? "戌亥" : xunShouZhi === "戌" ? "申酉" : xunShouZhi === "申" ? "午未" : xunShouZhi === "午" ? "辰巳" : xunShouZhi === "辰" ? "寅卯" : "子丑") + " ".repeat(18) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 宫 卦 天盘 地盘 九星   八门 八神 标记 │",
+    ...gongTable.map(l => "│ " + l.padEnd(37) + "│"),
+    "├──────────────────────────────────────┤",
+    "│ 出处：《奇门遁甲秘笈大全》            │",
+    "│ 节气用Meeus天文算法，局数依三元定     │",
+    "│ 转盘法·拆补/茅山/置闰三法可选         │",
+    "└──────────────────────────────────────┘",
+  ].join("\n");
+
   return {
     juNumber,
     dunType: dunType === "阳" ? "yang" : "yin",
@@ -321,11 +348,11 @@ export function calculateQimenYang(input: Record<string, unknown>): QimenResult 
     zhiShiMen,
     gongs,
     dipanBashen: shenArr,
-  };
+    summary,
+  } as QimenResult & { summary: string };
 }
 
-/** 阴盘奇门（待后续重写，当前委托给阴盘独立计算器） */
+/** 阴盘奇门 — 直接委托给阴盘独立计算器 */
 export function calculateQimenYin(input: Record<string, unknown>): QimenResult {
-  // 由 qimen-yin.calculator.ts 实现，此处作为向后兼容的fallback
-  return calculateQimenYang(input);
+  return calcYinPan(input);
 }

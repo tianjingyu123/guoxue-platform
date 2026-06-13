@@ -1,4 +1,5 @@
 // ── 阳盘命理奇门计算引擎 ──
+// 算法参考：《烟波钓叟歌》《奇门遁甲秘笈大全》《遁甲演义》
 // 出生时间起奇门命盘，叠加八字+大运+命宫+格局分析
 // 复用 calculateQimenYang 真实排盘 + calcBazi 八字引擎
 
@@ -347,7 +348,32 @@ export function calculateQimenMingli(input: Record<string, unknown>): Record<str
       : "命盘九宫整体平和，无重大冲克。",
   ].filter(Boolean).join("");
 
-  // ── 11. 组装输出 ──
+  // ── 11. 组装 summary ──
+  const bzStr = `${baziSummary.nian} ${baziSummary.yue} ${baziSummary.ri} ${baziSummary.shi}`;
+  const dunLabel = birthPlate.dunType === "yang" ? "阳遁" : "阴遁";
+  const geJuJi = geJuList.filter(g => g.jiXiong === "吉").length;
+  const geJuXiong = geJuList.filter(g => g.jiXiong === "凶").length;
+  const summary = [
+    "┌──────────────────────────────────────┐",
+    "│      命理奇门 · 终身盘排盘            │",
+    "├──────────────────────────────────────┤",
+    "│ 局数：" + (dunLabel + birthPlate.juNumber + "局 · 用事：" + (birthPlate.jieQi || "—")).padEnd(30) + "│",
+    "│ 八字：" + bzStr.padEnd(30) + "│",
+    "│ 命宫：" + (mingGongInfo.gongName + (mingGongIdx + 1) + "宫（" + mingGongInfo.ganZhi + "·" + mingGongInfo.star + "+" + mingGongInfo.men + "+" + mingGongInfo.shen + "）").padEnd(30) + "│",
+    "│ 身宫：" + (shenGongInfo.gongName + (shenGongIdx + 1) + "宫（" + shenGongInfo.ganZhi + "·" + shenGongGong.star + "+" + shenGongGong.men + "+" + shenGongGong.shen + "）").padEnd(30) + "│",
+    "│ 起运：" + (bz.qiYun.startAge + "岁 · " + bz.qiYun.daYun.length + "步大运").padEnd(30) + "│",
+    "│ 流年：" + (currentYear + "年（" + liuNianGanZhi + "）· 落" + GONG_NAMES[liuNianGongIdx] + (liuNianGongIdx + 1) + "宫").padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 格局：" + (geJuList.length + "个 · 吉" + geJuJi + " 平" + (geJuList.length - geJuJi - geJuXiong) + " 凶" + geJuXiong).padEnd(30) + "│",
+    "│ 值符：" + (birthPlate.zhiFu || "—").padEnd(30) + "│",
+    "│ 值使：" + (birthPlate.zhiShiMen || "—").padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 出处：《烟波钓叟歌》                  │",
+    "│       《奇门遁甲秘笈大全》            │",
+    "└──────────────────────────────────────┘",
+  ].join("\n");
+
+  // ── 12. 组装输出 ──
   return {
     input: { birthTime, birthplace, gender, jiGongMode, trueSolar, ziShiMode, daylightSaving },
     basicInfo: {
@@ -386,5 +412,6 @@ export function calculateQimenMingli(input: Record<string, unknown>): Record<str
     },
     geJu: geJuList,
     duanYu,
+    summary,
   };
 }

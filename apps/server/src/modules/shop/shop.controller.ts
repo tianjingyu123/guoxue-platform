@@ -3,7 +3,7 @@ import {
   Body, Param, Query, Req, UseGuards, Logger, ForbiddenException,
 } from "@nestjs/common";
 import { Request } from "express";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { ActiveUserGuard } from "../../common/active-user.guard";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
@@ -49,6 +49,9 @@ export class ShopController {
   @Post("products")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建商品" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createProduct(@Req() req: AuthRequest, @Body() dto: CreateProductDto) {
     return this.shop.createProduct(req.user.id, dto);
@@ -56,6 +59,7 @@ export class ShopController {
 
   @Get("products")
   @ApiOperation({ summary: "获取商品列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   listProducts(@Query() q: ProductListQueryDto) {
     return this.shop.listProducts(q);
   }
@@ -63,6 +67,8 @@ export class ShopController {
   @Get("products/:id")
   @UseGuards(OptionalAuthGuard, StationIsolationGuard)
   @ApiOperation({ summary: "获取商品详情（含统一活动价格）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiQuery({ name: "scene", required: false, description: "场景: detail/cart/checkout" })
   @ApiQuery({ name: "pageId", required: false, description: "当前微页面ID" })
   getProduct(@Param("id") id: string, @Query("scene") scene?: string, @Query("pageId") pageId?: string) {
@@ -72,6 +78,10 @@ export class ShopController {
   @Put("products/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新商品" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   updateProduct(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: UpdateProductDto) {
     return this.shop.updateProduct(req.user.id, id, dto);
@@ -81,6 +91,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "更新商品状态" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateProductStatus(@Param("id") id: string, @Body("status") status: string) {
     return this.shop.updateProductStatus(id, status);
@@ -89,6 +104,10 @@ export class ShopController {
   @Delete("products/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除商品" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   deleteProduct(@Req() req: AuthRequest, @Param("id") id: string) {
     const isAdmin = req.user.roles?.includes("SUPER_ADMIN") || req.user.roles?.includes("OPERATION_ADMIN");
@@ -100,6 +119,9 @@ export class ShopController {
   @Post("products/:id/skus")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "添加商品SKU" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   addSku(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: CreateSkuDto) {
     const isAdmin = req.user.roles?.includes("SUPER_ADMIN") || req.user.roles?.includes("OPERATION_ADMIN");
@@ -109,6 +131,9 @@ export class ShopController {
   @Delete("skus/:skuId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除商品SKU" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   deleteSku(@Req() req: AuthRequest, @Param("skuId") skuId: string) {
     const isAdmin = req.user.roles?.includes("SUPER_ADMIN") || req.user.roles?.includes("OPERATION_ADMIN");
@@ -121,6 +146,9 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, ActiveUserGuard, FeatureFlagGuard)
   @RequireFeature("shop_checkout")
   @ApiOperation({ summary: "创建订单" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async createOrder(@Req() req: AuthRequest, @Body() dto: CreateOrderDto) {
     const result = await this.shop.createOrder(req.user.id, dto);
@@ -139,6 +167,9 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取订单列表（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   listOrders(@Query() q: OrderListQueryDto) {
     return this.shop.listOrders(q);
@@ -147,6 +178,8 @@ export class ShopController {
   @Get("orders/my")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取我的订单" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
@@ -157,6 +190,9 @@ export class ShopController {
   @Get("orders/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取订单详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getOrder(@Req() req: AuthRequest, @Param("id") id: string) {
     const isAdmin = req.user.roles?.includes("SUPER_ADMIN") || req.user.roles?.includes("OPERATION_ADMIN");
@@ -166,6 +202,9 @@ export class ShopController {
   @Post("orders/:id/pay/jsapi")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "JSAPI支付（小程序/公众号内支付）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async jsapiPay(
     @Req() req: AuthRequest,
@@ -178,6 +217,9 @@ export class ShopController {
   @Post("orders/:id/pay/native")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "Native扫码支付（PC端）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async nativePay(
     @Req() req: AuthRequest,
@@ -190,6 +232,9 @@ export class ShopController {
   @Get("orders/:id/payment-status")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "查询订单支付状态" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   queryPaymentStatus(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.shop.queryPaymentStatus(id, req.user.id);
@@ -199,6 +244,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "发货（管理员）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   shipOrder(@Param("id") id: string) {
     return this.shop.shipOrder(id);
@@ -208,6 +258,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "管理员确认支付（需提供实际支付流水号）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   adminPayOrder(@Req() req: AuthRequest, @Param("id") id: string, @Body() body: AdminPayOrderDto) {
     const u = req.user;
@@ -218,6 +273,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "完成订单（管理员）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   completeOrder(@Param("id") id: string) {
     return this.shop.completeOrder(id);
@@ -227,6 +287,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "退款（管理员），对接微信支付退款" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async refundOrder(
     @Param("id") id: string,
@@ -250,6 +315,8 @@ export class ShopController {
   @Post("pay/notify")
   @SkipFormat()
   @ApiOperation({ summary: "微信支付回调通知" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async handlePayNotify(@Req() req: AuthRequest) {
     const signHeader = (req.headers["wechatpay-signature"] as string) || "";
     const timestamp = (req.headers["wechatpay-timestamp"] as string) || "";
@@ -270,6 +337,8 @@ export class ShopController {
   @Post("alipay/notify")
   @SkipFormat()
   @ApiOperation({ summary: "支付宝支付回调通知" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleAlipayNotify(@Req() req: AuthRequest) {
     const params = req.body;
     const { valid, data } = await this.shop.verifyAlipayNotify(params);
@@ -282,6 +351,8 @@ export class ShopController {
   @Post("unionpay/notify")
   @SkipFormat()
   @ApiOperation({ summary: "银联支付回调通知" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleUnionpayNotify(@Req() req: AuthRequest) {
     const params = req.body;
     const { valid, data } = await this.shop.verifyUnionpayNotify(params);
@@ -294,6 +365,8 @@ export class ShopController {
   @Post("refund/notify")
   @SkipFormat()
   @ApiOperation({ summary: "微信退款回调通知" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleRefundNotify(@Req() req: AuthRequest) {
     const signHeader = (req.headers["wechatpay-signature"] as string) || "";
     const timestamp = (req.headers["wechatpay-timestamp"] as string) || "";
@@ -317,6 +390,10 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "查询支付宝订单" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   alipayQuery(@Body("outTradeNo") outTradeNo: string) {
     return this.shop.alipayQuery(outTradeNo);
@@ -326,6 +403,10 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "支付宝退款" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   alipayRefund(@Body() body: AlipayRefundDto) {
     return this.shop.alipayRefund(body);
@@ -335,6 +416,10 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "查询银联订单" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   unionpayQuery(@Body("outTradeNo") outTradeNo: string) {
     return this.shop.unionpayQuery(outTradeNo);
@@ -344,6 +429,10 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "银联退款" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   unionpayRefund(@Body() dto: UnionpayRefundDto) {
     return this.shop.unionpayRefund(dto);
@@ -352,6 +441,10 @@ export class ShopController {
   @Put("orders/:id/cancel")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "取消订单" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   cancelOrder(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.shop.cancelOrder(id, req.user.id);
@@ -363,6 +456,10 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "创建优惠券" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createCoupon(@Body() dto: CreateCouponV2Dto) {
     return this.couponSvc.createCoupon(dto);
@@ -371,6 +468,7 @@ export class ShopController {
   @Get("coupons")
   @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取优惠券列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   @ApiQuery({ name: "admin", required: false, type: String, description: "是否管理员查看" })
@@ -388,6 +486,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "更新优惠券" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateCoupon(@Param("id") id: string, @Body() dto: CreateCouponV2Dto) {
     return this.couponSvc.updateCoupon(id, dto);
@@ -397,6 +500,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "删除优惠券" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteCoupon(@Param("id") id: string) {
     return this.couponSvc.deleteCoupon(id);
@@ -406,6 +514,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "更新优惠券状态" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateCouponStatus(@Param("id") id: string, @Body("status") status: string) {
     return this.couponSvc.updateCouponStatus(id, status);
@@ -414,6 +527,9 @@ export class ShopController {
   @Post("coupons/:id/claim")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "领取优惠券" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   claimCoupon(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.couponSvc.claimCoupon(req.user.id, id);
@@ -423,6 +539,10 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "发放优惠券给用户" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   grantCoupon(@Param("id") id: string, @Body("userId") userId: string) {
     return this.couponSvc.grantCoupon(id, userId);
@@ -431,6 +551,8 @@ export class ShopController {
   @Get("coupons/my")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取我的优惠券" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   myCoupons(@Req() req: AuthRequest) {
     return this.couponSvc.getUserCoupons(req.user.id);
@@ -442,6 +564,10 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建运费模板" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createFreightTemplate(@Body() dto: CreateFreightTemplateDto) {
     return this.shop.createFreightTemplate(dto);
@@ -449,6 +575,7 @@ export class ShopController {
 
   @Get("freight-templates")
   @ApiOperation({ summary: "获取运费模板列表（分页）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   listFreightTemplates(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
@@ -457,6 +584,8 @@ export class ShopController {
 
   @Get("freight-templates/:id")
   @ApiOperation({ summary: "获取运费模板详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getFreightTemplate(@Param("id") id: string) {
     return this.shop.getFreightTemplate(id);
   }
@@ -465,6 +594,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新运费模板" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateFreightTemplate(@Param("id") id: string, @Body() dto: UpdateFreightTemplateDto) {
     return this.shop.updateFreightTemplate(id, dto);
@@ -474,6 +608,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除运费模板" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteFreightTemplate(@Param("id") id: string) {
     return this.shop.deleteFreightTemplate(id);
@@ -484,6 +623,9 @@ export class ShopController {
   @Post("products/:id/reviews")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建商品评价" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createReview(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: CreateReviewDto) {
     return this.shop.createReview(req.user.id, id, dto);
@@ -491,6 +633,8 @@ export class ShopController {
 
   @Get("products/:id/reviews")
   @ApiOperation({ summary: "获取商品评价列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   listReviews(@Param("id") id: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
@@ -501,6 +645,10 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员回复评价" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   replyReview(@Param("id") id: string, @Body() dto: ReplyReviewDto) {
     return this.shop.replyProductReview(id, dto.reply);
@@ -510,6 +658,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "管理员删除评价" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteReview(@Param("id") id: string) {
     return this.shop.deleteProductReview(id);
@@ -520,6 +673,9 @@ export class ShopController {
   @Get("orders/:id/logistics")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取物流信息" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getLogistics(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.shop.getLogistics(id);
@@ -527,6 +683,7 @@ export class ShopController {
 
   @Get("logistics/track")
   @ApiOperation({ summary: "查询物流轨迹（快递100）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "no", required: true, type: String, description: "快递单号" })
   @ApiQuery({ name: "company", required: false, type: String, description: "快递公司" })
   trackLogistics(@Query("no") no: string, @Query("company") company?: string) {
@@ -537,6 +694,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新物流信息（管理员）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateLogistics(@Param("id") id: string, @Body() dto: UpdateLogisticsDto) {
     return this.shop.updateLogistics(id, dto);
@@ -547,6 +709,9 @@ export class ShopController {
   @Post("orders/:id/after-sale")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "申请售后" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   applyAfterSale(@Req() req: AuthRequest, @Param("id") orderId: string, @Body() dto: ApplyAfterSaleDto) {
     return this.couponSvc.applyAfterSale(req.user.id, orderId, dto.type, dto.reason, dto.amount);
@@ -555,6 +720,8 @@ export class ShopController {
   @Get("after-sales")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取我的售后列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
@@ -565,6 +732,9 @@ export class ShopController {
   @Get("after-sales/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取售后详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getAfterSale(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.couponSvc.getAfterSale(id, req.user.id);
@@ -573,6 +743,10 @@ export class ShopController {
   @Put("after-sales/:id/cancel")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "取消售后申请" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   cancelAfterSale(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.couponSvc.cancelAfterSale(id, req.user.id);
@@ -582,6 +756,9 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取售后列表（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
@@ -594,6 +771,11 @@ export class ShopController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "处理售后（管理员）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   processAfterSale(@Param("id") id: string, @Body("action") action: string, @Body("remark") remark?: string) {
     return this.couponSvc.processAfterSale(id, action, remark);
@@ -604,6 +786,8 @@ export class ShopController {
   @Get("cart")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取购物车" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getCart(@Req() req: AuthRequest) {
     return this.shop.getCart(req.user.id);
@@ -612,6 +796,9 @@ export class ShopController {
   @Post("cart")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "加入购物车" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   addToCart(@Req() req: AuthRequest, @Body() body: AddToCartDto) {
     return this.shop.addToCart(req.user.id, body.productId, body.skuId, body.quantity || 1);
@@ -620,6 +807,9 @@ export class ShopController {
   @Put("cart/:itemId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新购物车商品数量" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   updateCartItem(@Req() req: AuthRequest, @Param("itemId") itemId: string, @Body("quantity") quantity: number) {
     return this.shop.updateCartItem(req.user.id, itemId, quantity);
@@ -628,6 +818,9 @@ export class ShopController {
   @Delete("cart/:itemId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "移除购物车商品" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   removeCartItem(@Req() req: AuthRequest, @Param("itemId") itemId: string) {
     return this.shop.removeCartItem(req.user.id, itemId);
@@ -636,6 +829,9 @@ export class ShopController {
   @Delete("cart")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "清空购物车" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   clearCart(@Req() req: AuthRequest) {
     return this.shop.clearCart(req.user.id);

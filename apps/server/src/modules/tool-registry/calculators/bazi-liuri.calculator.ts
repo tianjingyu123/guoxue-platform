@@ -1,4 +1,5 @@
 // ── 八字流日流时计算器 ──
+// 算法参考：《渊海子平》《三命通会》《滴天髓》
 import type { BaziLiuRiInput, BaziLiuRiResult, LiuRiPillar, LiuRiInteraction } from "@guoxue/shared";
 import {
   calcBazi, calcRiZhu, calcShiZhu, calcShiShen,
@@ -237,11 +238,36 @@ export function calculateBaziLiuRi(input: unknown): BaziLiuRiResult {
 
   const fortune = generateFortune(liuRi.ganShiShen as ShiShen, liuRi.zhiShiShen as ShiShen, interactions);
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
   const interactionSummary = interactions.length > 0
     ? `，与命局有${interactions.map(i => i.desc).join("、")}`
     : "";
   const advice = generateAdvice(liuRi.ganShiShen as ShiShen, interactions);
-  const summary = `流日${liuRi.ganZhi}(${liuRi.nayin})，天干${liuRi.ganShiShen}地支${liuRi.zhiShiShen}${interactionSummary}。${fortune.overall}`;
+  const natalStr = `${siZhu.nian.gan}${siZhu.nian.zhi} ${siZhu.yue.gan}${siZhu.yue.zhi} ${siZhu.ri.gan}${siZhu.ri.zhi} ${siZhu.shi.gan}${siZhu.shi.zhi}`;
+  const daYunStr = currentDaYun ? `${currentDaYun.ganZhi}（${currentDaYun.startAge}-${currentDaYun.endAge}岁）` : "—";
+  const interactionNames = interactions.map(i => i.desc).join(" ") || "无冲合";
+  const summary = [
+    "┌──────────────────────────────────────┐",
+    "│        八字流日 · 逐日运程            │",
+    "├──────────────────────────────────────┤",
+    "│ 命局：" + natalStr.padEnd(30) + "│",
+    "│ 大运：" + daYunStr.padEnd(30) + "│",
+    "│ 流年：" + (currentLiuNian.year + "年 " + currentLiuNian.ganZhi + "（" + currentLiuNian.ganShiShen + "/" + currentLiuNian.zhiShiShen + "）").padEnd(30) + "│",
+    "│ 流日：" + (liuRi.ganZhi + "（" + liuRi.ganShiShen + "/" + liuRi.zhiShiShen + "·" + liuRi.nayin + "）").padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 综合：" + fortune.overall.padEnd(30) + "│",
+    "│ 事业：" + fortune.career.padEnd(30) + "│",
+    "│ 财运：" + fortune.wealth.padEnd(30) + "│",
+    "│ 感情：" + fortune.love.padEnd(30) + "│",
+    "│ 健康：" + fortune.health.padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 互动：" + interactionNames.padEnd(30) + "│",
+    "│ 建议：" + (advice.length > 30 ? advice.slice(0, 30) + "…" : advice).padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 出处：《渊海子平》《三命通会》        │",
+    "│       《滴天髓》                      │",
+    "└──────────────────────────────────────┘",
+  ].join("\n");
 
   return {
     natalChart: {

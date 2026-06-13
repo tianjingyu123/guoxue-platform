@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { PrismaService } from "../../prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -13,6 +13,7 @@ export class LegalController {
 
   @Get(":type")
   @ApiOperation({ summary: "获取最新版本协议（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getLatest(@Param("type") type: string) {
     const doc = await this.prisma.legalDocument.findFirst({
       where: { type, status: "PUBLISHED" },
@@ -23,6 +24,7 @@ export class LegalController {
 
   @Get(":type/versions")
   @ApiOperation({ summary: "历史版本列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getVersions(@Param("type") type: string) {
     return this.prisma.legalDocument.findMany({
       where: { type },
@@ -36,6 +38,10 @@ export class LegalController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "创建法律文件" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   adminCreate(@Body() dto: CreateLegalDto) {
     return this.prisma.legalDocument.create({ data: { ...dto, publishedAt: new Date() } });
   }
@@ -45,6 +51,11 @@ export class LegalController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "更新法律文件" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   adminUpdate(@Param("id") id: string, @Body() dto: UpdateLegalDto) {
     return this.prisma.legalDocument.update({ where: { id }, data: dto });
   }
@@ -54,6 +65,11 @@ export class LegalController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除法律文件" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   adminDelete(@Param("id") id: string) {
     return this.prisma.legalDocument.delete({ where: { id } });
   }

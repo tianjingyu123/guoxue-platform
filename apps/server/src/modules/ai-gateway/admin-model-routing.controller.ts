@@ -1,5 +1,5 @@
 import { Controller, Get, Put, Post, Param, Body, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { ModelRouterService } from "./model-router.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -21,6 +21,7 @@ export class AdminModelRoutingController {
   @Get("config")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取完整路由配置（含场景列表和默认值）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getConfig() {
     return this.modelRouter.getRoutingConfig();
   }
@@ -28,6 +29,8 @@ export class AdminModelRoutingController {
   @Put("config")
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新完整路由配置" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async updateConfig(@Body() dto: UpdateRoutingConfigDto, @Req() req: Request) {
     const u = req.user as { nickname?: string; id?: string };
     const updatedBy = u?.nickname || u?.id;
@@ -39,6 +42,8 @@ export class AdminModelRoutingController {
   @Put("scenes/:scene")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新单个场景配置" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async updateScene(
     @Param("scene") scene: string,
     @Body() dto: UpdateSceneRoutingDto,
@@ -55,6 +60,8 @@ export class AdminModelRoutingController {
   @Post("config/validate")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "验证路由配置有效性" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async validateConfig(@Body() dto: UpdateRoutingConfigDto) {
     const warnings: string[] = [];
     const allModels = new Set<string>();
@@ -78,6 +85,7 @@ export class AdminModelRoutingController {
   @Get("config/history")
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "配置变更历史" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getHistory() {
     return this.systemService.getConfigVersions("ai_model_routing", 1, 20);
   }
@@ -85,6 +93,7 @@ export class AdminModelRoutingController {
   @Get("budgets")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "各场景预算使用情况" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getBudgets() {
     return this.modelRouter.getSceneBudgets();
   }

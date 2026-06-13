@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { InstituteService } from "./institute.service";
 import { JoinInstituteDto, CreateTaskDto, CreateEventDto, UpdateEventDto, UpdateLecturerLevelDto, CreateTaskTemplateDto, CreateDividendDto, ApproveMemberDto, AssignRoleDto, UpdateMemberDto, RecommendToTalentDto } from "./institute.dto";
@@ -18,12 +18,14 @@ export class InstituteController {
 
   @Get("intro")
   @ApiOperation({ summary: "研究院介绍（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   getIntro() {
     return this.svc.getIntro();
   }
 
   @Get("members")
   @ApiOperation({ summary: "研究院成员列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "role", required: false })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "joinYear", required: false, type: Number })
@@ -41,12 +43,15 @@ export class InstituteController {
 
   @Get("members/:id")
   @ApiOperation({ summary: "成员详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getMember(@Param("id") id: string) {
     return this.svc.getMember(id);
   }
 
   @Get("events")
   @ApiOperation({ summary: "活动列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "type", required: false })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "upcoming", required: false, type: Boolean })
@@ -64,6 +69,7 @@ export class InstituteController {
 
   @Get("talent-pool")
   @ApiOperation({ summary: "线下老师人才库（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "level", required: false })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
@@ -82,6 +88,9 @@ export class InstituteController {
   @Post("members")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "申请加入研究院" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   join(@Req() req: Request, @Body() dto: JoinInstituteDto) {
     return this.svc.join(req.user.id, dto);
@@ -94,6 +103,8 @@ export class InstituteController {
   @Get("my")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "我的研究院信息（含任务进度和保证金状态）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   myMembership(@Req() req: Request) {
     return this.svc.getMyDashboard(req.user.id);
@@ -102,6 +113,8 @@ export class InstituteController {
   @Get("my/tasks")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "我的任务列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   myTasks(@Req() req: Request) {
     return this.svc.getMyTasks(req.user.id);
@@ -110,6 +123,9 @@ export class InstituteController {
   @Post("my/tasks/:id/complete")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "提交任务完成" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   completeMyTask(@Param("id") taskId: string, @Req() req: Request) {
     return this.svc.completeTask(taskId, req.user.id);
@@ -118,6 +134,9 @@ export class InstituteController {
   @Post("my/deposit-refund")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "申请保证金退还" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   requestDepositRefund(@Req() req: Request) {
     return this.svc.requestDepositRefund(req.user.id);
@@ -126,6 +145,8 @@ export class InstituteController {
   @Get("my/dividends")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "我的分红/奖励记录" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
@@ -140,6 +161,8 @@ export class InstituteController {
   @Get("manage/overview")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "管理层首页统计" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   manageOverview(@Req() req: Request) {
     return this.svc.getManageOverview(req.user.id);
@@ -148,6 +171,8 @@ export class InstituteController {
   @Get("manage/pending-members")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "待审核成员列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   pendingMembers(@Req() req: Request) {
     return this.svc.getPendingMembers(req.user.id);
@@ -156,6 +181,10 @@ export class InstituteController {
   @Put("manage/members/:id/approve")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "审核成员（通过/拒绝）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   approveMember(@Req() req: Request, @Param("id") id: string, @Body() dto: ApproveMemberDto) {
     return this.svc.approveMember(req.user.id, id, dto.status, dto.reason);
@@ -164,6 +193,10 @@ export class InstituteController {
   @Put("manage/members/:id/role")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "任命管理层角色（主席/副主席/秘书长）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   assignRole(@Req() req: Request, @Param("id") id: string, @Body() dto: AssignRoleDto) {
     return this.svc.assignMemberRole(req.user.id, id, dto.role);
@@ -172,6 +205,8 @@ export class InstituteController {
   @Get("manage/finance")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "研究院财务概览" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   manageFinance(@Req() req: Request, @Query("period") period?: string) {
     return this.svc.getFinanceOverview(req.user.id, period);
@@ -180,6 +215,9 @@ export class InstituteController {
   @Post("manage/dividends")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "发放分红/奖励" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createDividend(@Req() req: Request, @Body() dto: CreateDividendDto) {
     return this.svc.createDividend(req.user.id, dto);
@@ -188,6 +226,10 @@ export class InstituteController {
   @Put("manage/members/:id/recommend")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "推荐成员进入人才库" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   recommendToTalent(@Req() req: Request, @Param("id") id: string, @Body() dto: RecommendToTalentDto) {
     return this.svc.recommendToTalentPool(req.user.id, id, dto.lecturerLevel);
@@ -199,6 +241,7 @@ export class InstituteController {
 
   @Get("task-templates")
   @ApiOperation({ summary: "任务模板列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   listTaskTemplates() {
     return this.svc.listTaskTemplates();
   }
@@ -207,6 +250,10 @@ export class InstituteController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建任务模板" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createTaskTemplate(@Body() dto: CreateTaskTemplateDto) {
     return this.svc.createTaskTemplate(dto);
@@ -216,6 +263,11 @@ export class InstituteController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新任务模板" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateTaskTemplate(@Param("id") id: string, @Body() dto: CreateTaskTemplateDto) {
     return this.svc.updateTaskTemplate(id, dto);
@@ -228,6 +280,9 @@ export class InstituteController {
   @Post("events")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建活动排期" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createEvent(@Req() req: Request, @Body() dto: CreateEventDto) {
     return this.svc.createEvent(req.user.id, dto);
@@ -237,6 +292,11 @@ export class InstituteController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新活动" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateEvent(@Param("id") id: string, @Body() dto: UpdateEventDto) {
     return this.svc.updateEvent(id, dto);
@@ -250,6 +310,11 @@ export class InstituteController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新研究院成员信息" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateMember(@Param("id") id: string, @Body() dto: UpdateMemberDto) {
     return this.svc.updateMember(id, dto);
@@ -259,6 +324,11 @@ export class InstituteController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新讲师等级" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateLecturerLevel(@Param("id") id: string, @Body() dto: UpdateLecturerLevelDto) {
     return this.svc.updateLecturerLevel(id, dto);
@@ -268,6 +338,9 @@ export class InstituteController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "候选签约讲师" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getCandidates() {
     return this.svc.getSigningCandidates();
@@ -278,6 +351,10 @@ export class InstituteController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "添加年度任务（管理员）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   addTask(@Param("id") memberId: string, @Body() dto: CreateTaskDto) {
     return this.svc.addTask(memberId, dto);
@@ -287,6 +364,10 @@ export class InstituteController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "验证任务" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   verifyTask(@Param("id") taskId: string, @Req() req: Request) {
     return this.svc.verifyTask(taskId, req.user.id);

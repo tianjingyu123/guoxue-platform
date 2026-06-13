@@ -35,7 +35,7 @@ describe("EmailController", () => {
     expect(mockEmailSvc.send).toHaveBeenCalledWith(dto);
   });
 
-  it("POST /email/send-code — 发送验证码", async () => {
+  it("POST /email/send-verify-code — 发送验证码", async () => {
     const dto = { email: "user@test.com" };
     const result: any = await ctrl.sendVerifyCode(dto);
     expect(result.success).toBe(true);

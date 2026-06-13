@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Param, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { AnomalyDetectorService } from "./anomaly-detector.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -15,6 +15,8 @@ export class AnomalyDetectorController {
 
   @Post("check")
   @ApiOperation({ summary: "立即运行所有检测规则" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async runAll() {
     const reports = await this.detector.runAllRules();
     const aiReport = await this.detector.generateReport(reports);
@@ -23,6 +25,8 @@ export class AnomalyDetectorController {
 
   @Post("check/:ruleId")
   @ApiOperation({ summary: "运行单条检测规则" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async runRule(@Param("ruleId") ruleId: string) {
     const report = await this.detector.runRule(ruleId);
     return { report };
@@ -30,12 +34,15 @@ export class AnomalyDetectorController {
 
   @Get("rules")
   @ApiOperation({ summary: "获取所有检测规则" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getRules() {
     return this.detector.getRules();
   }
 
   @Post("rules")
   @ApiOperation({ summary: "注册/更新检测规则" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async registerRule(
     @Body()
     body: {

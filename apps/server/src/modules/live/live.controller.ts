@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { Request } from "express";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { LiveService } from "./live.service";
 import { CreateRoomDto, UpdateRoomDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
@@ -27,6 +27,9 @@ export class LiveController {
   @Post("rooms")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建直播间" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createRoom(@Req() req: AuthRequest, @Body() dto: CreateRoomDto) {
     return this.svc.createRoom(req.user.id, dto);
@@ -34,6 +37,7 @@ export class LiveController {
 
   @Get("rooms")
   @ApiOperation({ summary: "获取直播间列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "status", required: false, type: String })
   @ApiQuery({ name: "courseId", required: false, type: String, description: "按课程ID过滤" })
   @ApiQuery({ name: "circleId", required: false, type: String, description: "按圈子ID过滤" })
@@ -53,6 +57,8 @@ export class LiveController {
 
   @Get("rooms/:id")
   @ApiOperation({ summary: "获取直播间详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getRoom(@Param("id") id: string) {
     return this.svc.getRoom(id);
   }
@@ -60,6 +66,10 @@ export class LiveController {
   @Put("rooms/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新直播间" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   updateRoom(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: UpdateRoomDto) {
     return this.svc.updateRoom(req.user.id, id, dto);
@@ -70,6 +80,11 @@ export class LiveController {
   @RequireFeature("live_start")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "开始直播（生成推拉流地址）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   startRoom(@Param("id") id: string) {
     return this.svc.startLive(id);
@@ -78,6 +93,9 @@ export class LiveController {
   @Get("rooms/:id/stream-urls")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取推拉流地址" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getStreamUrls(@Param("id") id: string, @Req() req: AuthRequest) {
     return this.svc.getStreamUrls(id, req.user.id);
@@ -86,6 +104,9 @@ export class LiveController {
   @Get("rooms/:id/play-url")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取观众拉流地址" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   playUrl(@Param("id") id: string, @Req() req: AuthRequest) {
     return this.svc.getPlayUrl(id, req.user.id);
@@ -95,6 +116,11 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "结束直播" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   endRoom(@Param("id") id: string) {
     return this.svc.endRoom(id);
@@ -104,6 +130,11 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "设置直播回放" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   setReplay(@Param("id") id: string, @Body("replayUrl") replayUrl: string) {
     return this.svc.updateStatus(id, "REPLAY", { replayUrl });
@@ -112,6 +143,10 @@ export class LiveController {
   @Delete("rooms/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除直播间（房主或管理员）" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   deleteRoom(@Req() req: AuthRequest, @Param("id") id: string) {
     const isAdmin = (req.user as any)?.roles?.some((r: string) => ['SUPER_ADMIN', 'OPERATION_ADMIN'].includes(r));
@@ -123,6 +158,9 @@ export class LiveController {
   @Post("rooms/:id/mics")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "用户上麦" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   joinMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicManageDto) {
     return this.svc.joinMic(id, req.user.id, dto.position);
@@ -131,6 +169,10 @@ export class LiveController {
   @Delete("rooms/:id/mics/:userId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "用户下麦（主播或管理员）" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   leaveMic(@Param("id") id: string, @Param("userId") userId: string, @Req() req: AuthRequest) {
     return this.svc.leaveMic(id, userId, req.user.id);
@@ -140,6 +182,11 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "麦位操作（静音/解除/踢人）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   manageMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicManageDto) {
     return this.svc.manageMic(id, req.user.id, dto);
@@ -147,6 +194,8 @@ export class LiveController {
 
   @Get("rooms/:id/mics")
   @ApiOperation({ summary: "获取麦位列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   listMics(@Param("id") id: string) {
     return this.svc.listMics(id);
   }
@@ -155,6 +204,7 @@ export class LiveController {
 
   @Get("scheduled")
   @ApiOperation({ summary: "获取即将开始的直播预告列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   listScheduled(@Query("page") page = 1, @Query("pageSize") pageSize = 10, @StationId() stationId?: string) {
@@ -164,6 +214,9 @@ export class LiveController {
   @Post("rooms/:id/book")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "预约直播" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   bookRoom(@Param("id") id: string, @Req() req: AuthRequest) {
     return this.svc.bookRoom(id, req.user.id);
@@ -172,6 +225,10 @@ export class LiveController {
   @Delete("rooms/:id/book")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "取消直播预约" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   unbookRoom(@Param("id") id: string, @Req() req: AuthRequest) {
     return this.svc.unbookRoom(id, req.user.id);
@@ -179,6 +236,8 @@ export class LiveController {
 
   @Get("rooms/:id/bookings")
   @ApiOperation({ summary: "获取直播预约人数" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getBookingCount(@Param("id") id: string) {
     return this.svc.getBookingCount(id);
   }
@@ -189,6 +248,10 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "上传课件" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   addSlide(@Param("id") id: string, @Body() dto: SlideCreateDto) {
     return this.svc.addSlide(id, dto);
@@ -198,6 +261,10 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除课件" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   removeSlide(@Param("slideId") slideId: string) {
     return this.svc.removeSlide(slideId);
@@ -205,6 +272,8 @@ export class LiveController {
 
   @Get("rooms/:id/slides")
   @ApiOperation({ summary: "获取课件列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   listSlides(@Param("id") id: string) {
     return this.svc.listSlides(id);
   }
@@ -215,6 +284,10 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "禁言用户" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   muteUser(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MuteUserDto) {
     return this.svc.muteUser(id, req.user.id, dto);
@@ -223,6 +296,10 @@ export class LiveController {
   @Delete("rooms/:id/mute/:userId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "解除禁言（主播或管理员）" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   unmuteUser(@Param("id") id: string, @Param("userId") userId: string, @Req() req: AuthRequest) {
     return this.svc.unmuteUser(id, userId, req.user.id);
@@ -230,6 +307,8 @@ export class LiveController {
 
   @Get("rooms/:id/muted-users")
   @ApiOperation({ summary: "获取禁言用户列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   listMutedUsers(@Param("id") id: string) {
     return this.svc.listMutedUsers(id);
   }
@@ -240,6 +319,10 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建秒杀活动" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createFlashSale(@Param("id") id: string, @Body() dto: FlashSaleDto) {
     return this.svc.createFlashSale(id, dto);
@@ -249,6 +332,10 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "开始秒杀" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   startFlashSale(@Param("saleId") saleId: string) {
     return this.svc.startFlashSale(saleId);
@@ -257,6 +344,9 @@ export class LiveController {
   @Post("flash-sales/:saleId/order")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "秒杀下单" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   flashSaleOrder(@Param("saleId") saleId: string, @Req() req: AuthRequest) {
     return this.svc.flashSaleOrder(saleId, req.user.id);
@@ -266,6 +356,10 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "结束秒杀" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   endFlashSale(@Param("saleId") saleId: string) {
     return this.svc.endFlashSale(saleId);
@@ -273,6 +367,8 @@ export class LiveController {
 
   @Get("rooms/:id/flash-sales")
   @ApiOperation({ summary: "获取秒杀活动列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   listFlashSales(@Param("id") id: string) {
     return this.svc.listFlashSales(id);
   }
@@ -283,6 +379,8 @@ export class LiveController {
   @UseGuards(TencentCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "腾讯云直播回调（推流/断流/录制/截图）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   handleCallback(@Body() body: Record<string, unknown>) {
     const streamKey = (body.stream_param as string) || (body.StreamName as string) || "";
     const eventType = Number(body.event_type);
@@ -294,6 +392,7 @@ export class LiveController {
 
   @Get("gifts")
   @ApiOperation({ summary: "获取礼物列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   listGifts() {
     return this.svc.listGifts();
   }
@@ -302,6 +401,10 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建礼物（管理员）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createGift(@Body() dto: CreateGiftDto) {
     return this.svc.createGift(dto);
@@ -311,6 +414,10 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新礼物（管理员）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateGift(@Param("giftId") giftId: string, @Body() dto: UpdateGiftDto) {
     return this.svc.updateGift(giftId, dto);
@@ -320,6 +427,10 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除礼物（管理员）" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   removeGift(@Param("giftId") giftId: string) {
     return this.svc.removeGift(giftId);
@@ -328,6 +439,9 @@ export class LiveController {
   @Post("rooms/:id/gifts")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "发送礼物" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   sendGift(
     @Param("id") id: string,
@@ -339,6 +453,8 @@ export class LiveController {
 
   @Get("rooms/:id/gift-ranking")
   @ApiOperation({ summary: "直播间礼物排行榜" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   giftRanking(@Param("id") id: string) {
     return this.svc.giftRanking(id);
   }
@@ -348,6 +464,9 @@ export class LiveController {
   @Post("rooms/:id/comment")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "发送直播评论/弹幕" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   sendComment(
     @Param("id") id: string,
@@ -360,6 +479,9 @@ export class LiveController {
   @Post("rooms/:id/like")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "直播点赞" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   toggleLike(@Param("id") id: string, @Req() req: AuthRequest) {
     return this.svc.toggleLike(id, req.user.id);
@@ -371,6 +493,8 @@ export class LiveController {
   @UseGuards(TencentCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "腾讯云CMS审核回调" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   handleAuditCallback(@Body() body: Record<string, unknown>) {
     const roomId = (body.room_id as string) || (body.data_id as string) || "";
     const screenshotUrl = (body.screenshot_url as string) || (body.url as string) || "";
@@ -383,6 +507,10 @@ export class LiveController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取审核日志" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })

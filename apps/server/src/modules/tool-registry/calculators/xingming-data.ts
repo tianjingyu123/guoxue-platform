@@ -139,6 +139,104 @@ export function getShuLi(num: number) {
   return SHU_LI_81[n - 1];
 }
 
+// ── 三才配置吉凶全表 (5³=125种组合) ──
+// 算法参考：《五格剖象法》《姓名学大全》
+// 规则：天→人→地顺生为大吉，同类比和为吉，相克为凶
+
+export interface SanCaiEntry {
+  jiXiong: string;
+  desc: string;
+  jiChuYun: string;
+  chengGongYun: string;
+  sheJiaoYun: string;
+}
+
+const _生 = (a: number, b: number) => (a + 1) % 5 === b; // a生b
+const _克 = (a: number, b: number) => (a + 2) % 5 === b; // a克b
+
+// 五行映射
+const _WX = ["木","火","土","金","水"] as const;
+
+function _buildSanCaiTable(): Record<string, SanCaiEntry> {
+  const table: Record<string, SanCaiEntry> = {};
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const descTian: Record<number, string> = { 0:"木", 1:"火", 2:"土", 3:"金", 4:"水" };
+  const descByRelation = (from: number, to: number, fromName: string, toName: string): [string, string] => {
+    if (_生(from, to)) return [`${fromName}生${toName}`, "生"];
+    if (_克(from, to)) return [`${fromName}克${toName}`, "克"];
+    if (from === to) return [`${fromName}${toName}比和`, "比"];
+    return [`${toName}生${fromName}`, "被生"]; // 反向被生
+  };
+
+  for (let t = 0; t < 5; t++) {
+    for (let r = 0; r < 5; r++) {
+      for (let d = 0; d < 5; d++) {
+        const combo = `${_WX[t]}${_WX[r]}${_WX[d]}`;
+
+        // 判断吉凶等级
+        let jiXiong = "";
+        const genSheng = _生(t, r); // 天→人生?
+        const renSheng = _生(r, d); // 人→地生?
+        const genKe = _克(t, r);    // 天→人克?
+        const renKe = _克(r, d);    // 人→地克?
+        const renBeiSheng = _生(d, r); // 地→人生(人被地生)
+        const genBeiSheng = _生(r, t); // 人→天生(人被天生)
+
+        if (genSheng && renSheng) jiXiong = "大吉";
+        else if (genSheng && !renKe && !renSheng) jiXiong = "吉";
+        else if (!genKe && renSheng) jiXiong = "吉";
+        else if (t === r && r === d) jiXiong = "吉";
+        else if (genKe && renKe) jiXiong = "大凶";
+        else if (genKe || renKe) jiXiong = "凶";
+        else if (renBeiSheng && !genKe) jiXiong = "半吉";
+        else if (genBeiSheng && !renKe) jiXiong = "半吉";
+        else jiXiong = "半吉";
+
+        // 基础运（人格/地格）
+        let jiChuYun = "";
+        if (_生(r, d)) jiChuYun = "基础稳固，得下属晚辈拥护，遇困难有人援手。";
+        else if (_克(r, d)) jiChuYun = "基础不稳，易为下属晚辈所累，行事多阻滞。";
+        else if (r === d) jiChuYun = "基础平实，安定守成，不宜冒进变动。";
+        else jiChuYun = "基础运势一般，安守本分为上。";
+
+        // 成功运（天格/人格）
+        let chengGongYun = "";
+        if (_生(t, r)) chengGongYun = "成功运佳，得上司长辈提携，努力可得回报。";
+        else if (_克(t, r)) chengGongYun = "成功运迟，易受上司长辈压制，需更多耐心与智慧。";
+        else if (t === r) chengGongYun = "成功运尚可，自力更生，稳扎稳打可成。";
+        else chengGongYun = "成功运中平，宜借他人之势以补己短。";
+
+        // 社交运（天人地综合）
+        let sheJiaoYun = "";
+        if (jiXiong === "大吉") sheJiaoYun = "社交运佳，人缘好，多得贵人相助，左右逢源。";
+        else if (jiXiong === "吉") sheJiaoYun = "社交运良好，待人接物和谐，能得朋友信赖。";
+        else if (jiXiong === "大凶") sheJiaoYun = "社交运差，易遭误解孤立，宜谨言慎行多结善缘。";
+        else if (jiXiong === "凶") sheJiaoYun = "社交运欠佳，人际多波折，需以诚待人化戾气为祥和。";
+        else sheJiaoYun = "社交运一般，择友宜慎，交心不宜泛泛。";
+
+        // 综合描述
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const [, t2rRel] = descByRelation(t, r, "天格", "人格");
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const [, r2dRel] = descByRelation(r, d, "人格", "地格");
+        let desc = `${combo}三才配置：${descByRelation(t, r, "天格", "人格")[0]}，${descByRelation(r, d, "人格", "地格")[0]}。`;
+
+        if (jiXiong === "大吉") desc += "上下顺生，五行流通，福泽深厚，为最上乘配置。";
+        else if (jiXiong === "吉") desc += "配置吉祥，运势平稳向上，可得安稳人生。";
+        else if (jiXiong === "大凶") desc += "五行相克严重，运势多舛，宜修心养性以化解。";
+        else if (jiXiong === "凶") desc += "配置有克，多有波折，宜以德补运，守正待时。";
+        else desc += "配置中平，吉凶互见，宜趋吉避凶善用所长。";
+
+        table[combo] = { jiXiong, desc, jiChuYun, chengGongYun, sheJiaoYun };
+      }
+    }
+  }
+  return table;
+}
+
+export const SAN_CAI_TABLE = _buildSanCaiTable();
+
 // ── 生肖姓名学数据 ──
 // 12生肖各有喜用字根和忌用字根，基于生肖习性、三合六合、六冲六害等理论
 

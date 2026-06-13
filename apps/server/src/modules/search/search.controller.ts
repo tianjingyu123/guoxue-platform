@@ -1,5 +1,5 @@
 import { Controller, Get, Delete, Query, Req, Res, UseGuards, Logger } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { SearchService } from "./search.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -18,6 +18,7 @@ export class SearchController {
   @Get()
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "全局搜索" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "q", required: true, type: String, description: "搜索关键词" })
   @ApiQuery({ name: "type", required: false, type: String, description: "搜索类型" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
@@ -36,6 +37,7 @@ export class SearchController {
   @Get("hot")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "获取热门搜索" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "limit", required: false, type: Number, description: "返回数量" })
   hotSearches(@Query("limit") limit = 10) {
     return this.svc.getHotSearches(+limit);
@@ -45,6 +47,8 @@ export class SearchController {
   @Get("history/save")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "保存搜索历史" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "keyword", required: true, type: String, description: "搜索关键词" })
   saveHistory(@Req() req: Request, @Query("keyword") keyword: string) {
@@ -55,6 +59,8 @@ export class SearchController {
   @Get("history")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取我的搜索历史" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getHistory(@Req() req: Request) {
     return this.svc.getHistory(req.user.id);
@@ -64,6 +70,7 @@ export class SearchController {
   @Get("suggest")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "搜索建议" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "keyword", required: true, type: String, description: "关键词" })
   suggest(@Query("keyword") keyword: string) {
     return this.svc.suggest(keyword);
@@ -73,6 +80,9 @@ export class SearchController {
   @Delete("history")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "清除搜索历史" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   clearHistory(@Req() req: Request) {
     return this.svc.clearHistory(req.user.id);
@@ -83,6 +93,9 @@ export class SearchController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取搜索统计" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getStats() {
     return this.svc.getStats();
@@ -93,6 +106,9 @@ export class SearchController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取零结果搜索关键词" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getZeroResults() {
     return this.svc.getZeroResults();
@@ -102,6 +118,7 @@ export class SearchController {
   @Get("semantic")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "语义搜索 — 向量相似度匹配" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "q", required: true, type: String, description: "搜索关键词" })
   @ApiQuery({ name: "topK", required: false, type: Number, description: "返回数量" })
   async semanticSearch(@Query("q") q: string, @Query("topK") topK = 10) {
@@ -112,6 +129,7 @@ export class SearchController {
   @Get("semantic/suggest")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "相似查询词建议" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "q", required: true, type: String, description: "当前查询词" })
   async suggestSimilar(@Query("q") q: string) {
     return this.svc.suggestSimilarQueries(q || "");
@@ -121,6 +139,7 @@ export class SearchController {
   @Get("stream")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "SSE 流式搜索（逐类型推送结果）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "q", required: true, type: String })
   async searchStream(@Query("q") q: string, @Res() res: Response) {
     res.setHeader("Content-Type", "text/event-stream");

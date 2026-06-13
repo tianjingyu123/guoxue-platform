@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
-import type { JinKouJueInput } from "@guoxue/shared";
+import type { JinKouJueInput, YongShenFenXiInput, GeJuXiangJieInput } from "@guoxue/shared";
 import { WannianliService } from "../wannianli/wannianli.service";
 import {
   calculateBaZi,
@@ -22,7 +22,6 @@ import {
   calculateKongMing,
   calculateFeiGongQiMen,
   calculateTaiYi,
-  calculateQiZheng,
   calculatePhoneAnalysis,
   calculateXingmingJiexi,
   calculateQimenMingli,
@@ -47,7 +46,102 @@ import {
   calculateYangGong,
   calculateJinSuo,
   calculateZiweiHePan,
+  calculateShouXiang,
+  calculateMianXiang,
+  calculateShuZiNengLiang,
+  calculateDaYan,
+  calculateZhongLiuRen,
+  calculateQiMenZeJi,
+  calculateTieBan,
+  calculateDongGong,
+  calculateWuTuTaiYang,
   calculateWanNianLiFromDb,
+  calculateShenSha,
+  calculateJiaoshiYilin,
+  calculateYongShenFenXi,
+  calculateGeJuXiangJie,
+  calculateLiuNianYunShi,
+  calculateCeZi,
+  calculateZiweiGeJu,
+  calculateLiuShiJiaZi,
+  calculateWuXingChuanYi,
+  calculateLiuShiSiGua,
+  calculateShiShenXiangJie,
+  calculateTaiMingShen,
+  calculateBaziLiuYue,
+  calculateLiuYaoNaJia,
+  calculateShiErChangSheng,
+  calculateWuXingLiLiang,
+  calculateLingQiJing,
+  calculateXuanKongDaGua,
+  calculateYangZhaiSanYao,
+  calculateJiaQuZeRi,
+  calculateCongGeZhuanLun,
+  calculateLiuQinXiangJie,
+  calculateXuanKongShuiFa,
+  calculateErShiBaXiu,
+  calculateLiJiChi,
+  calculateHanZiFilter,
+  calculateSanSeShu,
+  calculateRiZhuLunMing,
+  calculateGuanYinLingQian,
+  calculateZiWeiXingYao,
+  calculateErShiSiShan,
+  calculateLiuYaoGuaCi,
+  calculateQiMenYingXun,
+  calculateMeiHuaWaiXiang,
+  calculateLiuYaoDuanGua,
+  calculateXuanKongJiuGong,
+  calculateBaziJianKang,
+  calculateZiWeiDaXian,
+  calculateSanCaiWuGe,
+  calculateZeJiDaQuan,
+  calculateZiWeiLiuNian,
+  calculateMianXiangShiErGong,
+  calculateZiWuLiuZhu,
+  calculateBaziCareer,
+  calculateBaziFanPai,
+  calculateBaZhaiMingJing,
+  calculateMeiHuaDuanGua,
+  calculateZhouYi64Gua,
+  calculateBaziDaYun,
+  calculateLiuNianFengShui,
+  calculateZiWeiLiuYue,
+  calculateQiMenZhongShen,
+  calculateQiMenShiKe,
+  calculateMianXiangLiuNian,
+  calculateQiMenChuXing,
+  calculateBaZhaiGongWei,
+  calculateLongMenBaju,
+  calculateQianKunGuoBao,
+  calculateShiShenTuPu,
+  calculateYaPaiShenShu,
+  calculateLingGuiBaFa,
+  calculateChunZiShu,
+  calculateLiuShiSiTuPu,
+  calculateZeRiZaJi,
+  calculateLiuNianShenSha,
+  calculateShiChenYunShi,
+  calculateFangWeiJiXiong,
+  calculateClassicalQuoteSearch,
+  calculateSurnameOrigin,
+  calculateAncientPlaceNames,
+  calculateCalligraphyStyles,
+  calculateShiJingQiMing,
+  calculateGuoLaoXingZong,
+  calculateGuoXueClassics,
+  calculateQiZhengSiYu,
+  calculateLiuRenShenSha,
+  calculateBrandNaming,
+  calculateZhaixiangFengshui,
+  calculateZiweiSihuaFei,
+  calculateDaLiuRenKeJing,
+  calculateQiMenShanGong,
+  calculateQiMenChuanYin,
+  calculateLiuYaoShenDong,
+  calculateDiZhiHeHua,
+  calculateXingXiuMingLi,
+  calculateBaGuaXiangShu,
 } from "./calculators";
 
 /** 统一排盘/计算请求 */
@@ -111,7 +205,6 @@ export class ToolCalculationService {
       case "bazhai":            return calculateBaZhai(input);
       case "dianzi-luopan":     return calculateLuoPan(input);
       case "wuyun-liuqi":       return calculateWuYunLiuQi(input);
-      case "qiming":
       case "xingming-jiexi":    return calculateXingmingJiexi(input);
       case "wannianli":         return calculateWanNianLiFromDb(input, this.wannianli);
       case "liuyao":            return calculateLiuYao(input);
@@ -122,7 +215,7 @@ export class ToolCalculationService {
       case "kongmingshengua":   return calculateKongMing(input);
       case "feigong-xiaoqimen": return calculateFeiGongQiMen(input);
       case "taiyi":             return calculateTaiYi(input);
-      case "qizheng-siyu":      return calculateQiZheng(input);
+      case "qizheng-siyu":      return calculateQiZhengSiYu(input);
       case "shoujihao-fenxi":   return calculatePhoneAnalysis(input);
       case "qimen-chuanren":    return calculateQimenChuanren(input);
       case "shanxiang-qimen":   return calculateShanXiangQiMen(input);
@@ -144,6 +237,102 @@ export class ToolCalculationService {
       case "yanggong":          return calculateYangGong(input);
       case "jinsuo":            return calculateJinSuo(input);
       case "ziwei-hepan":       return calculateZiweiHePan(input);
+      case "shouxiang":        return calculateShouXiang(input);
+      case "mianxiang":        return calculateMianXiang(input);
+      case "shuzi-nengliang": return calculateShuZiNengLiang(input);
+      case "bagua-xiangshu":  return calculateBaGuaXiangShu(input);
+      case "dayan-shifa":     return calculateDaYan(input);
+      case "zhongliuren":     return calculateZhongLiuRen(input);
+      case "qimen-zeji":      return calculateQiMenZeJi(input);
+      case "tieban-shenshu":  return calculateTieBan(input);
+      case "donggong-zeri": return calculateDongGong(input);
+      case "wutu-taiyang":  return calculateWuTuTaiYang(input);
+      case "shensha-daQuan":  return calculateShenSha(input);
+      case "jiaoshi-yilin":   return calculateJiaoshiYilin(input);
+      case "yongshen-fenxi":  return calculateYongShenFenXi(input as unknown as YongShenFenXiInput);
+      case "geju-xiangjie":   return calculateGeJuXiangJie(input as unknown as GeJuXiangJieInput);
+      case "liunian-yunshi":  return calculateLiuNianYunShi(input);
+      case "cezi":            return calculateCeZi(input);
+      case "ziwei-geju":      return calculateZiweiGeJu(input);
+      case "liushi-jiazi":    return calculateLiuShiJiaZi(input);
+      case "wuxing-chuanyi":  return calculateWuXingChuanYi(input);
+      case "liushisi-gua":    return calculateLiuShiSiGua(input);
+      case "shishen-xiangjie": return calculateShiShenXiangJie(input);
+      case "tai-ming-shen":   return calculateTaiMingShen(input);
+      case "liuyao-najia":    return calculateLiuYaoNaJia(input);
+      case "shier-changsheng":  return calculateShiErChangSheng(input);
+      case "wuxing-liliang":    return calculateWuXingLiLiang(input);
+      case "lingqi-jing":      return calculateLingQiJing(input);
+      case "xuankong-dagua":   return calculateXuanKongDaGua(input);
+      case "yangzhai-sanyao":  return calculateYangZhaiSanYao(input);
+      case "jiaqu-zeri":       return calculateJiaQuZeRi(input);
+      case "congge-zhuanlun":   return calculateCongGeZhuanLun(input);
+      case "liuqin-xiangjie":   return calculateLiuQinXiangJie(input);
+      case "xuankong-shuifa":   return calculateXuanKongShuiFa(input);
+      case "ershibaxiu":        return calculateErShiBaXiu(input);
+      case "lijichi":          return calculateLiJiChi(input);
+      case "hanzi-filter":     return calculateHanZiFilter(input);
+      case "sanseshu":         return calculateSanSeShu(input);
+      case "rizhu-lunming":       return calculateRiZhuLunMing(input);
+      case "guanyin-lingqian":   return calculateGuanYinLingQian(input);
+      case "ziwei-xingyao":     return calculateZiWeiXingYao(input);
+      case "ershisi-shan":     return calculateErShiSiShan(input);
+      case "liuyao-guaci":     return calculateLiuYaoGuaCi(input);
+      case "qimen-yingxun":   return calculateQiMenYingXun(input);
+      case "meihua-waixiang":    return calculateMeiHuaWaiXiang(input);
+      case "liuyao-duangua":    return calculateLiuYaoDuanGua(input);
+      case "xuankong-jiugong":   return calculateXuanKongJiuGong(input);
+      case "bazi-jiankang":     return calculateBaziJianKang(input);
+      case "ziwei-daxian":      return calculateZiWeiDaXian(input);
+      case "sancai-wuge":       return calculateSanCaiWuGe(input);
+      case "zeji-daQuan":       return calculateZeJiDaQuan(input);
+      case "ziwei-liunian":     return calculateZiWeiLiuNian(input);
+      case "mianxiang-shiere-gong": return calculateMianXiangShiErGong(input);
+      case "ziwu-liuzhu":       return calculateZiWuLiuZhu(input);
+      case "bazi-career":       return calculateBaziCareer(input);
+      case "bazhai-mingjing":   return calculateBaZhaiMingJing(input);
+      case "meihua-duangua":    return calculateMeiHuaDuanGua(input);
+      case "zhouyi-64gua":       return calculateZhouYi64Gua(input);
+      case "bazi-dayun":         return calculateBaziDaYun(input);
+      case "liunian-fengshui":   return calculateLiuNianFengShui(input);
+      case "ziwei-liuyue":       return calculateZiWeiLiuYue(input);
+      case "qimen-zhongshen":    return calculateQiMenZhongShen(input);
+      case "qimen-shike":        return calculateQiMenShiKe(input);
+      case "mianxiang-liunian":  return calculateMianXiangLiuNian(input);
+      case "qimen-chuxing":     return calculateQiMenChuXing(input);
+      case "bazhai-gongwei":    return calculateBaZhaiGongWei(input);
+      case "longmen-baju":      return calculateLongMenBaju(input);
+      case "qiankun-guobao":    return calculateQianKunGuoBao(input);
+      case "shishen-tupu":     return calculateShiShenTuPu(input);
+      case "linggui-bafa":     return calculateLingGuiBaFa(input);
+      case "chunzi-shu":       return calculateChunZiShu(input);
+      case "zeri-zaji":        return calculateZeRiZaJi(input);
+      case "liunian-shensha":  return calculateLiuNianShenSha(input);
+      case "surname-origin":         return calculateSurnameOrigin(input);
+      case "ancient-place-names":    return calculateAncientPlaceNames(input);
+      case "calligraphy-styles":     return calculateCalligraphyStyles(input);
+      case "shijing-qiming":         return calculateShiJingQiMing(input);
+      case "guolao-xingzong":        return calculateGuoLaoXingZong(input);
+      case "daliuren-kejing":       return calculateDaLiuRenKeJing(input);
+      case "qimen-shangong":        return calculateQiMenShanGong(input);
+      case "qimen-chuanyin":       return calculateQiMenChuanYin(input);
+      case "liuyao-shendong":      return calculateLiuYaoShenDong(input);
+      case "dizhi-hehua":          return calculateDiZhiHeHua(input);
+      case "xingxiu-mingli":       return calculateXingXiuMingLi(input);
+      case "bazi-fanpai":             return calculateBaziFanPai(input);
+      case "bazi-liuyue":             return calculateBaziLiuYue(input);
+      case "brand-naming":            return calculateBrandNaming(input);
+      case "classical-quote-search":  return calculateClassicalQuoteSearch(input);
+      case "fangwei-jixiong":         return calculateFangWeiJiXiong(input);
+      case "guoxue-classics":         return calculateGuoXueClassics(input);
+      case "hanzi-shaixuan":          return calculateHanZiFilter(input);
+      case "liji-chi":                return calculateLiJiChi(input);
+      case "liuren-shensha":          return calculateLiuRenShenSha(input);
+      case "liushisi-tupu":           return calculateLiuShiSiTuPu(input);
+      case "shichen-yunshi":          return calculateShiChenYunShi(input);
+      case "yapai-shenshu":           return calculateYaPaiShenShu(input);
+      case "zhaixiang-fengshui":       return calculateZhaixiangFengshui(input);
+      case "ziwei-sihua-fei":         return calculateZiweiSihuaFei(input);
       default:
         throw new BusinessException(
           ErrorCode.NOT_FOUND,

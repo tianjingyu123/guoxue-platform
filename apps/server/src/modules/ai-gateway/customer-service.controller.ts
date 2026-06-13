@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Req, Res, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { CustomerServiceService } from "./customer-service.service";
 import { StreamUnifierService } from "./stream-unifier.service";
@@ -17,6 +17,9 @@ export class CustomerServiceController {
   @Post("customer-service")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "智能客服对话（非流式）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async ask(@Body() body: AskDto, @Req() req: Request) {
     const userId = req.user?.id;
@@ -33,6 +36,9 @@ export class CustomerServiceController {
   @Post("customer-service/stream")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "智能客服流式对话 (SSE)" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async askStream(@Body() body: AskDto, @Req() req: Request, @Res() res: Response) {
     const userId = req.user?.id;

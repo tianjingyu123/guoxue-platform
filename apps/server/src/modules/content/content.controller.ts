@@ -2,7 +2,7 @@ import {
   Controller, Get, Post, Put, Delete,
   Body, Param, Query, Req, UseGuards, Logger,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { ContentService } from "./content.service";
 import { SystemService } from "../system/system.service";
@@ -29,6 +29,9 @@ export class ContentController {
   @UseGuards(JwtAuthGuard, ActiveUserGuard, FeatureFlagGuard)
   @RequireFeature("content_publish")
   @ApiOperation({ summary: "创建内容" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async create(@Body() dto: CreateContentDto, @Req() req: Request) {
     const result = await this.content.create(dto);
@@ -45,6 +48,7 @@ export class ContentController {
 
   @Get()
   @ApiOperation({ summary: "获取内容列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   list(@Query() q: ContentListQueryDto) {
     return this.content.list(q);
   }
@@ -53,24 +57,29 @@ export class ContentController {
 
   @Get("poem/random")
   @ApiOperation({ summary: "随机获取一首诗词" })
+  @ApiResponse({ status: 200, description: "成功" })
   getRandomPoem() {
     return this.content.getRandomPoem();
   }
 
   @Get("poem/daily")
   @ApiOperation({ summary: "每日推荐诗词" })
+  @ApiResponse({ status: 200, description: "成功" })
   getDailyPoem() {
     return this.content.getDailyPoem();
   }
 
   @Get("poem/:id/appreciation")
   @ApiOperation({ summary: "获取诗词注释/赏析" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getPoemAppreciation(@Param("id") id: string) {
     return this.content.getPoemAppreciation(id);
   }
 
   @Get("featured")
   @ApiOperation({ summary: "精选内容（按浏览量排序）" })
+  @ApiResponse({ status: 200, description: "成功" })
   getFeatured(@Query("type") type?: string) {
     return this.content.getFeatured(type);
   }
@@ -78,6 +87,8 @@ export class ContentController {
   @Get(":id")
   @UseGuards(OptionalAuthGuard, StationIsolationGuard)
   @ApiOperation({ summary: "获取内容详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   detail(@Param("id") id: string) {
     return this.content.detail(id);
   }
@@ -85,6 +96,10 @@ export class ContentController {
   @Put(":id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新内容" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async update(@Param("id") id: string, @Body() dto: UpdateContentDto, @Req() req: Request) {
     const result = await this.content.update(id, dto);
@@ -103,6 +118,11 @@ export class ContentController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除内容（管理员）" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async remove(@Param("id") id: string, @Req() req: Request) {
     const result = await this.content.remove(id);
@@ -123,6 +143,10 @@ export class ContentController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量更新内容状态" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async batchUpdateStatus(@Body() dto: BatchUpdateStatusDto, @Req() req: Request) {
     const result = await this.content.batchUpdateStatus(dto.ids, dto.status);
@@ -140,6 +164,9 @@ export class ContentController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "内容统计概览" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getStats() {
     return this.content.getStats();

@@ -1,5 +1,5 @@
 import { Controller, Get, Put, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -26,6 +26,7 @@ export class CircleBackendController {
 
   @Get("overview")
   @ApiOperation({ summary: "圈主仪表盘概览" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getOverview(@Req() req: Request) {
     const { circle } = await this.getMyCircle((req.user as any).id);
     const now = new Date();
@@ -44,6 +45,7 @@ export class CircleBackendController {
 
   @Get("members")
   @ApiOperation({ summary: "圈子成员管理" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   @ApiQuery({ name: "status", required: false, description: "ACTIVE/EXPIRED" })
@@ -74,6 +76,7 @@ export class CircleBackendController {
 
   @Get("guests")
   @ApiOperation({ summary: "嘉宾列表（含分账比例）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getGuests(@Req() req: Request) {
     const { circle } = await this.getMyCircle((req.user as any).id);
     const guests = await this.prisma.circleMember.findMany({
@@ -106,6 +109,8 @@ export class CircleBackendController {
 
   @Put("guests/:userId/share-rate")
   @ApiOperation({ summary: "设置嘉宾分账比例" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async setGuestShareRate(@Req() req: Request, @Param("userId") userId: string, @Body() body: { shareRate: number }) {
     const { circle } = await this.getMyCircle((req.user as any).id);
 
@@ -133,6 +138,7 @@ export class CircleBackendController {
 
   @Get("revenue")
   @ApiOperation({ summary: "圈主收益概览" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "period", required: false, description: "月份 如 2026-06" })
   async getRevenue(@Req() req: Request, @Query("period") period?: string) {
     const { circle } = await this.getMyCircle((req.user as any).id);
@@ -170,6 +176,8 @@ export class CircleBackendController {
   @UseGuards(RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员查看所有圈子列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权限" })
   async adminCircles(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     const [circles, total] = await Promise.all([
       this.prisma.circle.findMany({
@@ -187,6 +195,8 @@ export class CircleBackendController {
   @UseGuards(RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员查看圈子概览" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权限" })
   async adminCircleOverview(@Param("circleId") circleId: string) {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);

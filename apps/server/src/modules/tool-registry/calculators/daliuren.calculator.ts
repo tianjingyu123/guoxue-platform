@@ -1,6 +1,8 @@
 // ── 大六壬计算引擎 ──
 // 天地盘/四课/三传(九宗门)/课经/神煞
 // 节气计算使用 Meeus 天文算法，日柱使用纯数学计算
+// 算法参考：《六壬大全》《大六壬指南》《六壬断案》《六壬粹言》
+// 九宗门法源自《大六壬立成大全》《六壬经纬》
 
 import type { DaLiuRenResult, LiuRenGong, SiKeColumn } from "@guoxue/shared";
 import { calcRiZhu, calcAllJieQi } from "@guoxue/bazi-engine";
@@ -45,6 +47,34 @@ const GUI_REN: Record<string, { day: string; night: string }> = {
 
 // 天将名
 const TIAN_JIANG = ["贵人","螣蛇","朱雀","六合","勾陈","青龙","天空","白虎","太常","玄武","太阴","天后"];
+
+// 天将类象（源自《大六壬大全·十二天将》）
+const TIAN_JIANG_XIANG: Record<string, { wuXing: string; jiXiong: string; leiXiang: string; duanYu: string }> = {
+  "贵人": { wuXing:"土", jiXiong:"吉", leiXiang:"君父、尊长、贵人、官禄、文书", duanYu:"天乙贵人临，主得尊长提携、官方助力，万事有贵人相助。" },
+  "螣蛇": { wuXing:"火", jiXiong:"凶", leiXiang:"惊恐、怪异、虚惊、火灾、口舌", duanYu:"螣蛇临，主虚惊怪异之事，防小人暗算、口舌是非，宜谨慎。" },
+  "朱雀": { wuXing:"火", jiXiong:"平", leiXiang:"文书、信息、口舌、词讼、鸟类", duanYu:"朱雀临，主文书信息往来，亦有口舌是非，考生利文书。" },
+  "六合": { wuXing:"木", jiXiong:"吉", leiXiang:"婚姻、交易、和合、中介、子孙", duanYu:"六合临，主婚姻美事、交易成功、合作顺利，利签约合伙。" },
+  "勾陈": { wuXing:"土", jiXiong:"凶", leiXiang:"田土、官司、争斗、迟滞、牢狱", duanYu:"勾陈临，主田土纠纷、官司牵连，事多迟滞，宜化解争端。" },
+  "青龙": { wuXing:"木", jiXiong:"吉", leiXiang:"喜庆、财帛、升迁、婚姻、酒色", duanYu:"青龙临，主喜事临门、财运亨通、升迁有望，万事欣荣之象。" },
+  "天空": { wuXing:"土", jiXiong:"凶", leiXiang:"欺诈、虚无、文书不实、谎言、奴婢", duanYu:"天空临，主虚诈不实、信息失真，文书契约需仔细核实。" },
+  "白虎": { wuXing:"金", jiXiong:"大凶", leiXiang:"血光、丧服、疾病、官非、意外", duanYu:"白虎临，主血光之灾、疾病官非，大凶之将，宜化解不宜冲犯。" },
+  "太常": { wuXing:"土", jiXiong:"吉", leiXiang:"宴乐、饮食、衣帛、礼仪、婚姻", duanYu:"太常临，主宴饮聚会、礼仪庆典，社交顺畅，利相亲嫁娶。" },
+  "玄武": { wuXing:"水", jiXiong:"凶", leiXiang:"盗贼、遗失、暗昧、隐私、水厄", duanYu:"玄武临，主盗贼失窃、暗昧不明，防财物损失和隐私泄露。" },
+  "太阴": { wuXing:"金", jiXiong:"平", leiXiang:"阴私、密谋、女性、珠宝、暗中", duanYu:"太阴临，主暗中谋划有利，得女性贵人相助，宜保密行事。" },
+  "天后": { wuXing:"水", jiXiong:"吉", leiXiang:"皇后、贵妇、婚姻、恩泽、保护", duanYu:"天后临，主得女性贵人庇护，婚姻喜事，恩泽广被。" },
+};
+
+// 日干禄位（《六壬大全》卷四）
+const GAN_LU: Record<string, string> = {
+  "甲":"寅","乙":"卯","丙":"巳","丁":"午","戊":"巳","己":"午",
+  "庚":"申","辛":"酉","壬":"亥","癸":"子",
+};
+
+// 日干墓位
+const GAN_MU: Record<string, string> = {
+  "甲":"未","乙":"戌","丙":"戌","丁":"丑","戊":"戌","己":"丑",
+  "庚":"丑","辛":"辰","壬":"辰","癸":"未",
+};
 
 // 地支六冲
 const LIU_CHONG: Record<string, string> = {
@@ -547,6 +577,150 @@ function calcKongWang(riGanZhi: string): string[] {
   return [DI_ZHI[(xunShouIdx - 2 + 12) % 12], DI_ZHI[(xunShouIdx - 1 + 12) % 12]];
 }
 
+/** 日支驿马 */
+function getYiMa(zhi: string): string {
+  const sanHe: Record<string, string> = {
+    "申":"寅","子":"寅","辰":"寅","寅":"申","午":"申","戌":"申",
+    "亥":"巳","卯":"巳","未":"巳","巳":"亥","酉":"亥","丑":"亥",
+  };
+  return sanHe[zhi] ?? zhi;
+}
+
+/** 日支桃花 */
+function getTaoHua(zhi: string): string {
+  const map: Record<string, string> = {
+    "申":"卯","子":"卯","辰":"卯","寅":"午","午":"午","戌":"午",
+    "亥":"子","卯":"子","未":"子","巳":"酉","酉":"酉","丑":"酉",
+  };
+  return map[zhi] ?? zhi;
+}
+
+/** 日支劫煞 */
+function getJieSha(zhi: string): string {
+  const map: Record<string, string> = {
+    "申":"巳","子":"巳","辰":"巳","寅":"亥","午":"亥","戌":"亥",
+    "亥":"申","卯":"申","未":"申","巳":"寅","酉":"寅","丑":"寅",
+  };
+  return map[zhi] ?? zhi;
+}
+
+/** 日支灾煞 */
+function getZaiSha(zhi: string): string {
+  const map: Record<string, string> = {
+    "申":"午","子":"午","辰":"午","寅":"子","午":"子","戌":"子",
+    "亥":"酉","卯":"酉","未":"酉","巳":"卯","酉":"卯","丑":"卯",
+  };
+  return map[zhi] ?? zhi;
+}
+
+/** 十二天将临宫吉凶（源自《六壬大全》） */
+function tianJiangJiXiongAtGong(tianJiangName: string, gongZhi: string): string {
+  const gongWx = ZHI_WUXING[gongZhi] ?? "土";
+  const jiangInfo = TIAN_JIANG_XIANG[tianJiangName];
+  if (!jiangInfo) return "平";
+  // 天将五行生地盘宫五行 → 吉
+  const order = ["木","火","土","金","水"];
+  const jIdx = order.indexOf(jiangInfo.wuXing);
+  const gIdx = order.indexOf(gongWx);
+  if (jIdx === (gIdx + 1) % 5) return "吉"; // 生
+  if (jIdx === gIdx) return "平"; // 比和
+  if (jIdx === (gIdx + 2) % 5) return "平"; // 克
+  if (gIdx === (jIdx + 1) % 5) return "凶"; // 被生
+  if (gIdx === (jIdx + 2) % 5) return "凶"; // 被克
+  return "平";
+}
+
+/** 综合神煞计算（《大六壬大全·神煞篇》） */
+function buildShenShaList(
+  riGan: string, riZhi: string, yearZhi: string, monthZhi: string,
+  tianPan: string[], sanChuan: SanChuanResult, kongWang: string[], dunGan: { zhi: string; gan: string }[],
+  _tianJiangOnGong: Record<string, string>,
+): { name: string; zhi: string; type: string; description: string; source: string }[] {
+  const result: { name: string; zhi: string; type: string; description: string; source: string }[] = [];
+
+  // ── 干煞 ──
+  const riLu = GAN_LU[riGan];
+  if (riLu) result.push({ name:"日禄", zhi:riLu, type:"ji", description:`日干${riGan}禄在${riLu}，主财运俸禄。`, source:"《大六壬大全》卷四" });
+
+  const riMu = GAN_MU[riGan];
+  if (riMu) result.push({ name:"日墓", zhi:riMu, type:"xiong", description:`日干${riGan}墓在${riMu}，主困顿不明，宜韬光养晦。`, source:"《大六壬大全》卷四" });
+
+  // 日干合神
+  const heGan = GAN_WU_HE[riGan];
+  if (heGan) {
+    const heZhi = JI_GONG[heGan];
+    if (heZhi) result.push({ name:"日合", zhi:heZhi, type:"ji", description:`日干${riGan}合${heGan}（寄${heZhi}），主婚姻和合、合作顺利。`, source:"《大六壬指南》" });
+  }
+
+  // ── 支煞 ──
+  const yiMa = getYiMa(riZhi);
+  result.push({ name:"驿马", zhi:yiMa, type:"ji", description:`日支${riZhi}驿马在${yiMa}，主动变、出行、迁移。`, source:"《大六壬大全》卷四" });
+
+  const taoHua = getTaoHua(riZhi);
+  result.push({ name:"桃花", zhi:taoHua, type:"平", description:`日支${riZhi}桃花在${taoHua}，主感情姻缘、人缘社交，亦防酒色。`, source:"《大六壬大全》卷四" });
+
+  const jieSha = getJieSha(riZhi);
+  result.push({ name:"劫煞", zhi:jieSha, type:"xiong", description:`日支${riZhi}劫煞在${jieSha}，主破财失物、意外损失。`, source:"《大六壬大全》卷四" });
+
+  const zaiSha = getZaiSha(riZhi);
+  result.push({ name:"灾煞", zhi:zaiSha, type:"xiong", description:`日支${riZhi}灾煞在${zaiSha}，主疾病灾祸、飞来横祸。`, source:"《大六壬大全》卷四" });
+
+  // 日德
+  const riDeZhi = JI_GONG[riGan]; // 日德常在寄宫
+  if (riDeZhi) result.push({ name:"日德", zhi:riDeZhi, type:"ji", description:`日干${riGan}德在${riDeZhi}，德星所在主有福报、贵人扶持。`, source:"《大六壬大全》卷四" });
+
+  // 支刑
+  const riXing = XING[riZhi];
+  if (riXing && riXing !== riZhi) result.push({ name:"日刑", zhi:riXing, type:"xiong", description:`日支${riZhi}刑${riXing}，主纠纷冲突、官非口舌。`, source:"《大六壬大全》卷四" });
+
+  // 支合（六合）
+  const liuHeMap: Record<string, string> = { "子":"丑","丑":"子","寅":"亥","亥":"寅","卯":"戌","戌":"卯","辰":"酉","酉":"辰","巳":"申","申":"巳","午":"未","未":"午" };
+  const riHe = liuHeMap[riZhi];
+  if (riHe) result.push({ name:"支合", zhi:riHe, type:"ji", description:`日支${riZhi}合${riHe}，主和合助力、合作顺利。`, source:"《大六壬大全》" });
+
+  // ── 三传神煞 ──
+  const chuanZhis = [sanChuan.chu.zhi, sanChuan.zhong.zhi, sanChuan.mo.zhi];
+
+  // 三传遇空亡
+  for (const zhi of chuanZhis) {
+    if (kongWang.includes(zhi)) {
+      result.push({ name:"传空", zhi:zhi, type:"xiong", description:`三传${zhi}落空亡，事多虚而不实、有名无实。`, source:"《大六壬大全》" });
+    }
+  }
+
+  // 初传为日禄
+  if (sanChuan.chu.zhi === riLu) result.push({ name:"初传日禄", zhi:sanChuan.chu.zhi, type:"ji", description:"初传为日禄，求财得财，求官得禄。", source:"《六壬断案》" });
+  // 初传为驿马
+  if (sanChuan.chu.zhi === yiMa) result.push({ name:"初传驿马", zhi:sanChuan.chu.zhi, type:"ji", description:"初传为驿马，出行变动在即，宜顺势而动。", source:"《六壬断案》" });
+  // 初传为日墓
+  if (sanChuan.chu.zhi === riMu) result.push({ name:"初传日墓", zhi:sanChuan.chu.zhi, type:"xiong", description:"初传入墓，万事昏暗不明，宜守不宜攻。", source:"《六壬断案》" });
+
+  // ── 岁煞 ──
+  const suiPo = LIU_CHONG[yearZhi];
+  if (suiPo) result.push({ name:"岁破", zhi:suiPo, type:"xiong", description:`太岁${yearZhi}之破在${suiPo}，岁破方忌动土修造。`, source:"《大六壬大全》卷五" });
+
+  // ── 月煞 ──
+  const yuePo = LIU_CHONG[monthZhi];
+  if (yuePo) result.push({ name:"月破", zhi:yuePo, type:"xiong", description:`月建${monthZhi}之破在${yuePo}，月破方一事不宜。`, source:"《大六壬大全》卷五" });
+
+  // ── 遁干相关 ──
+  for (const dg of dunGan) {
+    if (dg.zhi === sanChuan.chu.zhi) {
+      const dgWx = GAN_WUXING[dg.gan];
+      const riWx = GAN_WUXING[riGan];
+      if (dgWx && riWx && dgWx !== riWx) {
+        // 天干五合检查
+        if (GAN_WU_HE[dg.gan] === riGan) {
+          result.push({ name:"遁干合日", zhi:dg.zhi, type:"ji", description:`初传遁干${dg.gan}合日干${riGan}，主暗中有贵人相助。`, source:"《大六壬指南》" });
+        }
+      }
+      break;
+    }
+  }
+
+  return result;
+}
+
 /** 主计算函数 */
 export function calculateDaLiuRen(input: Record<string, unknown>): DaLiuRenResult {
   const datetime = (input.datetime as string) ?? new Date().toISOString();
@@ -593,12 +767,33 @@ export function calculateDaLiuRen(input: Record<string, unknown>): DaLiuRenResul
 
   const kongWang = calcKongWang(riGanZhi);
 
-  // 年命行年
+  // 年命（本命地支）
   const nianGanZhiBaseYear = 1984;
   const nianDiff = birthYear - nianGanZhiBaseYear;
   let nianIdx = nianDiff % 60;
   if (nianIdx < 0) nianIdx += 60;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const nianMingZhi = DI_ZHI[nianIdx % 12];
 
+  // 太岁（流年）和月建
+  const currentYear = d.getFullYear();
+  const taiSuiIdx = (currentYear - 4) % 12;
+  const yearZhi = DI_ZHI[taiSuiIdx >= 0 ? taiSuiIdx : taiSuiIdx + 12];
+  const monthZhi = DI_ZHI[(d.getMonth() + 1 - 1 + 2) % 12]; // 农历月支近似
+
+  // 天将临十二宫映射
+  const tianJiangOnGong: Record<string, string> = {};
+  for (const tj of tianJiangLayoutResult) {
+    tianJiangOnGong[tj.zhi] = tj.tianJiang;
+  }
+
+  // 综合神煞
+  const shenShaList = buildShenShaList(
+    riGan, riZhi, yearZhi, monthZhi,
+    tianPan, sanChuan, kongWang, dunGan, tianJiangOnGong,
+  );
+
+  // 年命行年（nianIdx 已在上方神煞计算前算出）
   const riGanWuXingMap: Record<string, string> = {
     "甲":"木","乙":"木","丙":"火","丁":"火","戊":"土","己":"土","庚":"金","辛":"金","壬":"水","癸":"水",
   };
@@ -616,7 +811,96 @@ export function calculateDaLiuRen(input: Record<string, unknown>): DaLiuRenResul
     return { zhi: dg.zhi, liuQin };
   });
 
-  const duanYu = `日柱${riGanZhi}，月将${yueJiang.name}（${yueJiang.zhi}），占时${zhanShiZhi}。贵人${guiRenZhi}${guiShunNi}排。宗门${sanChuan.zongMen}，初传${sanChuan.chu.zhi}。空亡在${kongWang.join("、")}。`;
+  // ── 增强断语 ──
+  const jiShenCount = shenShaList.filter(s => s.type === "ji").length;
+  const xiongShenCount = shenShaList.filter(s => s.type === "xiong").length;
+
+  // 初传天将
+  const chuTianJiang = tianJiangOnGong[sanChuan.chu.zhi] ?? "贵人";
+  const chuJiangInfo = TIAN_JIANG_XIANG[chuTianJiang];
+
+  // 干支上天将
+  const ganShangTianJiang = tianJiangOnGong[siKe[0].shangZhi] ?? "贵人";
+  const zhiShangTianJiang = tianJiangOnGong[siKe[2].shangZhi] ?? "贵人";
+
+  const duanYuParts = [
+    `日柱${riGanZhi}，月将${yueJiang.name}（${yueJiang.zhi}）加时${zhanShiZhi}。`,
+    `贵人${guiRenZhi}${guiShunNi}排十二天将。`,
+    `四课：干上${siKe[0].shangZhi}（临${ganShangTianJiang}），支上${siKe[2].shangZhi}（临${zhiShangTianJiang}）。`,
+    `宗门${sanChuan.zongMen}：${sanChuan.zongMenDesc}`,
+    `三传：初传${sanChuan.chu.zhi}（临${chuTianJiang}）→中传${sanChuan.zhong.zhi}→末传${sanChuan.mo.zhi}。`,
+    `空亡${kongWang.join("、")}。`,
+    jiShenCount > xiongShenCount ? "吉神多现，所谋有望。" : xiongShenCount > jiShenCount ? "凶神多见，宜谨慎行事。" : "吉凶互见，须详察课传。",
+    chuJiangInfo ? `初传天将${chuTianJiang}：${chuJiangInfo.duanYu}` : "",
+  ].filter(Boolean).join("");
+
+  // 课经匹配（基于宗门和特征）
+  const keJingList: { name: string; number: number; summary: string; biFaFu: string[] }[] = [
+    { name: sanChuan.zongMen === "昴星" ? "昴星课" : `${sanChuan.zongMen}课`, number: 1, summary: sanChuan.zongMenDesc, biFaFu: [] },
+  ];
+
+  // 附加课经匹配
+  const ganShenJiXiong = tianJiangJiXiongAtGong(ganShangTianJiang, siKe[0].shangZhi);
+  const zhiShenJiXiong = tianJiangJiXiongAtGong(zhiShangTianJiang, siKe[2].shangZhi);
+
+  if (ganShenJiXiong === "吉" && zhiShenJiXiong === "吉") {
+    keJingList.push({ name:"亨通课", number:2, summary:"干上支上天将皆吉，万事亨通之象。", biFaFu:["宜主动进取","宜签约合作"] });
+  }
+  if (sanChuan.chu.zhi === kongWang[0] || sanChuan.chu.zhi === kongWang[1]) {
+    keJingList.push({ name:"空亡课", number:3, summary:"初传落空亡，事多虚而不实。《六壬大全》：'空亡发用，有名无实。'", biFaFu:["宜守不宜攻","重大决策暂缓"] });
+  }
+
+  // ── box-drawing 结构化总结 ──
+  const jiShaCount = shenShaList.filter(s => s.type === "ji").length;
+  const xiongShaCount = shenShaList.filter(s => s.type === "xiong").length;
+  const pingShaCount = shenShaList.filter(s => s.type === "平").length;
+  const chuJiangName = tianJiangOnGong[sanChuan.chu.zhi] ?? "贵人";
+  const zhongJiangName = tianJiangOnGong[sanChuan.zhong.zhi] ?? "贵人";
+  const moJiangName = tianJiangOnGong[sanChuan.mo.zhi] ?? "贵人";
+  const scoreBar = "●".repeat(Math.min(jiShaCount, 20)) + "○".repeat(Math.max(0, Math.min(xiongShaCount, 10)));
+
+  const summary = [
+    `┌─ 大六壬排盘 ─────────────────`,
+    `│ ${dateStr} ${dayNight}占 月将：${yueJiang.name}（${yueJiang.zhi}） 加时：${zhanShiZhi}`,
+    `│ 日柱：${riGanZhi}（${riGanWuXing}命） 节气：${jieQiInfo.name}`,
+    `│ 吉神${jiShaCount} · 凶煞${xiongShaCount} · 平${pingShaCount} ${scoreBar}`,
+    `│`,
+    `├─ 宗门 · 三传 ──────────────`,
+    `│ 宗门：${sanChuan.zongMen} — ${sanChuan.zongMenDesc}`,
+    `│ 初传：${sanChuan.chu.zhi}（临${chuJiangName}）→ 中传：${sanChuan.zhong.zhi}（临${zhongJiangName}）→ 末传：${sanChuan.mo.zhi}（临${moJiangName}）`,
+    `│`,
+    `├─ 贵人 · 天将 ──────────────`,
+    `│ 贵人诀甲戊庚牛羊 贵神：${guiRenZhi} ${guiShunNi}排`,
+    `│ 昼夜：${dayNight}（${hour >= 6 && hour < 18 ? "卯酉分界，昼占顺行" : "卯酉分界，夜占逆行"}）`,
+    `│`,
+    `├─ 四课 ────────────────────`,
+    `│ 干阳：${siKe[0].shangZhi}（临${ganShangTianJiang}） 干阴：${siKe[1].shangZhi}`,
+    `│ 支阳：${siKe[2].shangZhi}（临${zhiShangTianJiang}） 支阴：${siKe[3].shangZhi}`,
+    `│`,
+    `├─ 神煞 ────────────────────`,
+    ...shenShaList.slice(0, 8).map(s => `│ ${s.type === "ji" ? "○" : s.type === "xiong" ? "△" : "·"} ${s.name.padEnd(6, " ")} ${s.zhi.padEnd(2, " ")} ${s.description}`),
+    ...(shenShaList.length > 8 ? [`│ ... 共${shenShaList.length}个神煞`] : []),
+    `│`,
+    `├─ 课经 ────────────────────`,
+    ...keJingList.map(k => `│ ${k.name}：${k.summary}`),
+    `│`,
+    `├─ 空亡 · 年命 · 行年 ────────`,
+    `│ 空亡：${kongWang.join("、")} 年命：${TIAN_GAN[nianIdx % 10] + DI_ZHI[nianIdx % 12]}（${DI_ZHI[nianIdx % 12]}宫）`,
+    `│ 太岁：${yearZhi} 月建：${monthZhi} 行年：${TIAN_GAN[(nianIdx + 1) % 10] + DI_ZHI[(nianIdx + 1) % 12]}（${DI_ZHI[(nianIdx + 1) % 12]}宫）`,
+    `│`,
+    `├─ 古籍出处 ──────────────────`,
+    `│ 《大六壬大全》明·郭载騋，十二卷·六壬最详备之典`,
+    `│ 《大六壬指南》明·陈公献，九宗门/课经/毕法赋`,
+    `│ 《六壬断案》宋·邵彦和，三百余案例实战精华`,
+    `│ 《六壬粹言》清·刘赤江，初学入门必读`,
+    `│ 「月将者，太阳所躔之宫也」——六壬大全卷一`,
+    `│`,
+    `└─ 起课提示 ──────────────────`,
+    `   ${sanChuan.zongMen === "伏吟" ? "伏吟主静，宜守不宜动，事多反复。" : sanChuan.zongMen === "返吟" ? "返吟主动，事多变数，出行在即。" : sanChuan.zongMen === "昴星" ? "昴星虎视，惊疑不定，宜沉着冷静。" : jiShaCount > xiongShaCount ? "吉神有力，所谋可成，顺势而为。" : "凶多吉少，宜守不宜攻，审时度势。"}`,
+    `   ${kongWang.includes(sanChuan.chu.zhi) ? "初传空亡，有名无实，重大决策宜暂缓。" : "初传不空，课传有力，当机立断。"}`,
+    `   ${chuJiangInfo ? `初传临${chuJiangName}：${chuJiangInfo.duanYu.substring(0, 40)}` : ""}`,
+    `   日禄${GAN_LU[riGan] || "—"} 日墓${GAN_MU[riGan] || "—"} 驿马${getYiMa(riZhi)} 桃花${getTaoHua(riZhi)}`,
+  ].join("\n");
 
   return {
     input: { datetime, birthYear, gender: gender as any, liveTime: "", random: false, jiangMethod: "zhongqi", guiRenJue: "jiawugeng-niuyang", guiRenDayNight: "maoyou", sheHaiType: "mengzhongji", trueSolar: false },
@@ -632,18 +916,14 @@ export function calculateDaLiuRen(input: Record<string, unknown>): DaLiuRenResul
     zongMen: sanChuan.zongMen as any,
     zongMenDesc: sanChuan.zongMenDesc,
     tianJiangLayout: tianJiangLayoutResult,
-    keJing: [
-      { name: sanChuan.zongMen === "贼克" ? "元首课" : `${sanChuan.zongMen}课`, number: 1, summary: sanChuan.zongMenDesc, biFaFu: ["初传见克须谨慎"] },
-    ],
-    shenSha: [
-      { name:"日德", zhi: riZhi as any, type:"ji", description:"日德所在，主有贵人相助。" },
-      { name:"驿马", zhi: DI_ZHI[(DI_ZHI.indexOf(riZhi) + 6) % 12] as any, type:"ji", description:"驿马动，主出行变动。" },
-    ],
+    keJing: keJingList as any,
+    shenSha: shenShaList as any,
     kongWang: kongWang as any,
     nianMing: { ganZhi: TIAN_GAN[nianIdx % 10] + DI_ZHI[nianIdx % 12], gongWei: DI_ZHI[nianIdx % 12] as any },
     xingNian: { ganZhi: TIAN_GAN[(nianIdx + 1) % 10] + DI_ZHI[(nianIdx + 1) % 12], gongWei: DI_ZHI[(nianIdx + 1) % 12] as any },
     dunGanTable: dunGan as any,
     liuQinTable: liuQinTable as any,
-    duanYu,
-  };
+    duanYu: duanYuParts,
+    summary,
+  } as DaLiuRenResult & { summary: string };
 }

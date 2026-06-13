@@ -2,7 +2,7 @@ import {
   Controller, Get, Post, Put, Delete,
   Param, Body, Query, UseGuards, Req, HttpCode,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { CompetitionService } from "./competition.service";
 import {
   CreateCompetitionDto, UpdateCompetitionDto, CreateRoundDto, CreateQuestionDto,
@@ -26,42 +26,56 @@ export class CompetitionAdminController {
 
   @Post()
   @ApiOperation({ summary: "创建赛事" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   create(@Body() dto: CreateCompetitionDto) {
     return this.service.createCompetition(dto);
   }
 
   @Put(":id")
   @ApiOperation({ summary: "更新赛事" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   update(@Param("id") id: string, @Body() dto: UpdateCompetitionDto) {
     return this.service.updateCompetition(id, dto);
   }
 
   @Post(":id/publish")
   @ApiOperation({ summary: "发布赛事" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   publish(@Param("id") id: string) {
     return this.service.publishCompetition(id);
   }
 
   @Post(":id/start")
   @ApiOperation({ summary: "开始赛事" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   start(@Param("id") id: string) {
     return this.service.startCompetition(id);
   }
 
   @Post(":id/finish")
   @ApiOperation({ summary: "结束赛事" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   finish(@Param("id") id: string) {
     return this.service.finishCompetition(id);
   }
 
   @Get()
   @ApiOperation({ summary: "赛事列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   list(@Query() query: QueryCompetitionDto) {
     return this.service.listCompetitions(query);
   }
 
   @Get(":id")
   @ApiOperation({ summary: "赛事详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   get(@Param("id") id: string) {
     return this.service.getCompetition(id);
   }
@@ -70,6 +84,8 @@ export class CompetitionAdminController {
 
   @Post(":id/rounds")
   @ApiOperation({ summary: "创建赛程" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   createRound(@Param("id") id: string, @Body() dto: CreateRoundDto) {
     dto.competitionId = id;
     return this.service.createRound(dto);
@@ -77,12 +93,17 @@ export class CompetitionAdminController {
 
   @Get(":id/rounds")
   @ApiOperation({ summary: "赛程列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getRounds(@Param("id") id: string) {
     return this.service.getRounds(id);
   }
 
   @Put(":id/rounds/:roundId")
   @ApiOperation({ summary: "更新赛程" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   updateRound(@Param("roundId") roundId: string, @Body() dto: any) {
     return this.service.updateRound(roundId, dto);
   }
@@ -91,6 +112,8 @@ export class CompetitionAdminController {
 
   @Post(":id/questions")
   @ApiOperation({ summary: "创建题目" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   createQuestion(@Param("id") id: string, @Body() dto: CreateQuestionDto) {
     dto.competitionId = id;
     return this.service.createQuestion(dto);
@@ -98,6 +121,8 @@ export class CompetitionAdminController {
 
   @Post(":id/questions/batch")
   @ApiOperation({ summary: "批量创建题目" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   batchCreateQuestions(@Param("id") id: string, @Body() dto: BatchCreateQuestionDto) {
     const questions = dto.questions.map((q) => ({ ...q, competitionId: id }));
     return this.service.batchCreateQuestions(questions);
@@ -105,12 +130,17 @@ export class CompetitionAdminController {
 
   @Put(":id/questions/:questionId")
   @ApiOperation({ summary: "更新题目" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   updateQuestion(@Param("questionId") questionId: string, @Body() dto: any) {
     return this.service.updateQuestion(questionId, dto);
   }
 
   @Get(":id/questions")
   @ApiOperation({ summary: "题目列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   listQuestions(
     @Param("id") id: string,
     @Query("roundId") roundId?: string,
@@ -124,6 +154,8 @@ export class CompetitionAdminController {
 
   @Get(":id/registrations")
   @ApiOperation({ summary: "报名列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   listRegistrations(
     @Param("id") id: string,
     @Query("page") page?: string,
@@ -134,6 +166,9 @@ export class CompetitionAdminController {
 
   @Put(":id/registrations/:regId")
   @ApiOperation({ summary: "更新报名状态" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   updateRegistration(
     @Param("id") id: string,
     @Param("regId") regId: string,
@@ -146,6 +181,8 @@ export class CompetitionAdminController {
 
   @Get(":id/rankings")
   @ApiOperation({ summary: "排名列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getRankings(
     @Param("id") id: string,
     @Query("roundId") roundId?: string,
@@ -157,6 +194,8 @@ export class CompetitionAdminController {
 
   @Post(":id/calculate-ranking")
   @ApiOperation({ summary: "计算排名" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   calculateRanking(
     @Param("id") id: string,
     @Query("roundId") roundId?: string,
@@ -166,6 +205,8 @@ export class CompetitionAdminController {
 
   @Get(":id/stats")
   @ApiOperation({ summary: "赛事数据统计" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getStats(@Param("id") id: string) {
     return this.service.getCompetitionStats(id);
   }
@@ -173,6 +214,9 @@ export class CompetitionAdminController {
   @Delete(":id")
   @HttpCode(204)
   @ApiOperation({ summary: "删除赛事（仅草稿状态）" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   async remove(@Param("id") id: string) {
     await this.service.deleteCompetition(id);
   }
@@ -180,6 +224,9 @@ export class CompetitionAdminController {
   @Delete(":id/rounds/:roundId")
   @HttpCode(204)
   @ApiOperation({ summary: "删除赛程" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   async removeRound(@Param("id") id: string, @Param("roundId") roundId: string) {
     await this.service.deleteRound(roundId);
   }
@@ -187,6 +234,9 @@ export class CompetitionAdminController {
   @Delete(":id/questions/:questionId")
   @HttpCode(204)
   @ApiOperation({ summary: "删除题目" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   async removeQuestion(@Param("id") id: string, @Param("questionId") questionId: string) {
     await this.service.deleteQuestion(questionId);
   }
@@ -201,6 +251,7 @@ export class CompetitionPublicController {
 
   @Get()
   @ApiOperation({ summary: "赛事列表（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   list(@Query() query: QueryCompetitionDto) {
     // 公开只展示已发布及之后状态的赛事
     return this.service.listCompetitions({ ...query, status: query.status || undefined });
@@ -208,12 +259,16 @@ export class CompetitionPublicController {
 
   @Get(":id")
   @ApiOperation({ summary: "赛事详情（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   get(@Param("id") id: string) {
     return this.service.getCompetition(id);
   }
 
   @Get(":id/rankings")
   @ApiOperation({ summary: "排名（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getRankings(
     @Param("id") id: string,
     @Query() query: QueryRankingDto,
@@ -225,6 +280,9 @@ export class CompetitionPublicController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "报名参赛" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   register(
     @Param("id") id: string,
     @Body() body: RegisterCompetitionDto,
@@ -237,6 +295,9 @@ export class CompetitionPublicController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "我的报名状态" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getMyRegistration(@Param("id") id: string, @Req() req: any) {
     return this.service.getRegistration(id, req.user.id);
   }
@@ -245,6 +306,9 @@ export class CompetitionPublicController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "我的比赛成绩" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getMyResults(@Param("id") id: string, @Req() req: any) {
     return this.service.getMyResults(id, req.user.id);
   }
@@ -253,6 +317,9 @@ export class CompetitionPublicController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "提交答题" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   submitAnswer(@Param("roundId") roundId: string, @Body() dto: SubmitAnswerDto, @Req() req: any) {
     return this.service.submitAnswer(dto, req.user.id);
   }
@@ -261,6 +328,9 @@ export class CompetitionPublicController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "批量提交答题（整卷）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   batchSubmit(
     @Param("roundId") roundId: string,
     @Body() dto: BatchSubmitAnswerDto,
@@ -273,12 +343,15 @@ export class CompetitionPublicController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "获取试卷（题目乱序）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getPaper(@Param("roundId") roundId: string, @Query("count") count?: string) {
     return this.service.generatePaper(roundId, Number(count) || 30);
   }
 
   @Get("certificates/:rankingId/view")
   @ApiOperation({ summary: "查看电子证书HTML" })
+  @ApiResponse({ status: 200, description: "成功" })
   async viewCertificate(@Param("rankingId") rankingId: string) {
     return this.service.getCertificateHtml(rankingId);
   }
@@ -296,12 +369,15 @@ export class CompetitionJudgeController {
 
   @Get("submissions")
   @ApiOperation({ summary: "获取待评审作品列表", description: "返回评委当前需要评分的作品" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getJudgeSubmissions(@Req() req: any, @Query("competitionId") competitionId?: string) {
     return this.service.getJudgeSubmissions(req.user.id, competitionId);
   }
 
   @Post("submissions/:id/score")
   @ApiOperation({ summary: "提交评分", description: "对作品进行打分" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async submitScore(
     @Param("id") submissionId: string,
     @Body() dto: SubmitScoreDto,
@@ -312,6 +388,8 @@ export class CompetitionJudgeController {
 
   @Post("answers/:answerId/grade")
   @ApiOperation({ summary: "评委评分（按答案ID）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async gradeAnswer(
     @Param("answerId") answerId: string,
     @Body() dto: GradeAnswerDto,

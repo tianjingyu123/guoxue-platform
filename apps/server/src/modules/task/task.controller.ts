@@ -2,7 +2,7 @@ import {
   Controller, Get, Post, Put,
   Param, Body, Query, UseGuards, Req,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -18,6 +18,8 @@ export class TaskController {
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "任务列表（分页 + 筛选）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async list(
     @Query("page") page = "1",
@@ -42,6 +44,9 @@ export class TaskController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建任务" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async create(@Body() dto: CreateTaskDto) {
     return this.taskService.create(dto);
@@ -50,6 +55,9 @@ export class TaskController {
   @Get(":id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "任务详情（含流转日志）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async detail(@Param("id") id: string) {
     return this.taskService.detail(id);
@@ -58,6 +66,10 @@ export class TaskController {
   @Put(":id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新任务状态" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async update(
     @Param("id") id: string,
@@ -71,6 +83,9 @@ export class TaskController {
   @Post(":id/claim")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "认领任务" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async claim(
     @Param("id") id: string,
@@ -82,6 +97,9 @@ export class TaskController {
   @Post(":id/transfer")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "转交任务" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async transfer(
     @Param("id") id: string,
@@ -97,6 +115,10 @@ export class TaskController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "强制收回任务（管理员）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async forceReclaim(
     @Param("id") id: string,
@@ -110,6 +132,10 @@ export class TaskController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审批任务" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async approve(
     @Param("id") id: string,
@@ -124,6 +150,10 @@ export class TaskController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "回滚任务操作" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async rollback(
     @Param("id") id: string,
@@ -136,6 +166,8 @@ export class TaskController {
   @Get("stats/pending")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "待处理任务统计" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "executorType", required: false, description: "CLAUDE | HUMAN" })
   async pendingStats(@Query("executorType") executorType?: string) {

@@ -3,7 +3,7 @@ import {
   Body, Param, Query, Req, UseGuards, Logger,
 } from "@nestjs/common";
 import { Request } from "express";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { CourseService } from "./course.service";
 import { SystemService } from "../system/system.service";
 import { AnswerQuestionDto } from "./course.dto";
@@ -30,6 +30,11 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审核课程" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async audit(@Param("id") id: string, @Body("status") status: string, @Req() req: AuthRequest) {
     const result = await this.course.audit(id, status);
@@ -48,6 +53,10 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量审核课程" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async batchAudit(@Body("ids") ids: string[], @Body("status") status: string, @Req() req: AuthRequest) {
     const result = await this.course.batchAudit(ids, status);
@@ -67,6 +76,11 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "管理员强制删除课程" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async forceDelete(@Param("id") id: string, @Req() req: AuthRequest) {
     const result = await this.course.forceDelete(id);
@@ -85,6 +99,11 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员强制变更课程状态" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async forceStatus(@Param("id") id: string, @Body("status") status: string, @Req() req: AuthRequest) {
     const result = await this.course.forceStatus(id, status);
@@ -105,6 +124,10 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员查看课程学员列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
@@ -116,6 +139,10 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "查看学生详细学习进度" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getStudentProgress(@Param("id") courseId: string, @Param("userId") userId: string) {
     return this.course.getStudentProgress(courseId, userId);
@@ -127,6 +154,10 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员回复评价" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   replyReview(@Param("reviewId") reviewId: string, @Body("reply") reply: string) {
     return this.course.replyReview(reviewId, reply);
@@ -136,6 +167,10 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员隐藏/恢复评价" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   toggleReviewStatus(@Param("reviewId") reviewId: string, @Body("status") status: string) {
     return this.course.toggleReviewStatus(reviewId, status);
@@ -145,6 +180,10 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员查看所有评价（含隐藏）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   listAllReviews(@Param("id") courseId: string, @Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("status") status?: string) {
     return this.course.listAllReviews(courseId, +page, +pageSize, status);
@@ -156,6 +195,10 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批改作业评分（管理员/讲师/助教）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   scoreWork(
     @Param("workId") workId: string,
@@ -171,6 +214,10 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "AI 自动批改作业" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   aiScoreWork(@Param("workId") workId: string) {
     return this.course.aiScoreWork(workId);
@@ -180,6 +227,10 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "AI 批量批改课程作业" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "chapterId", required: false })
   aiBatchScoreWorks(@Param("id") courseId: string, @Query("chapterId") chapterId?: string) {
@@ -192,6 +243,10 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "回答/回复问题" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   answerQuestion(@Req() req: AuthRequest, @Param("qaId") qaId: string, @Body() dto: AnswerQuestionDto) {
     return this.course.answerQuestion(qaId, req.user.id, dto);
@@ -201,6 +256,10 @@ export class CourseAdminController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "AI 生成回答建议" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   aiSuggestAnswer(@Param("qaId") qaId: string) {
     return this.course.aiSuggestAnswer(qaId);

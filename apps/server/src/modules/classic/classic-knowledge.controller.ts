@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { KnowledgeGraphService } from "../ai-gateway/knowledge-graph.service";
 
 @ApiTags("古籍知识图谱")
@@ -9,6 +9,7 @@ export class ClassicKnowledgeController {
 
   @Get("entities")
   @ApiOperation({ summary: "查询知识图谱实体列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "type", required: false, description: "实体类型: person/book/concept/dynasty/event/place" })
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
@@ -22,12 +23,14 @@ export class ClassicKnowledgeController {
 
   @Get("entities/stats")
   @ApiOperation({ summary: "实体类型统计" })
+  @ApiResponse({ status: 200, description: "成功" })
   entityStats() {
     return this.kg.countByType();
   }
 
   @Get("entities/:name")
   @ApiOperation({ summary: "查询实体详情及其关联实体" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getEntity(@Param("name") name: string) {
     const entity = await this.kg.getEntity(name);
     if (!entity) return null;
@@ -37,6 +40,7 @@ export class ClassicKnowledgeController {
 
   @Get("path")
   @ApiOperation({ summary: "查找两实体间的最短路径（BFS）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "from", required: true })
   @ApiQuery({ name: "to", required: true })
   findPath(@Query("from") from: string, @Query("to") to: string) {

@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { WannianliService } from "./wannianli.service";
 
 @ApiTags("万年历")
@@ -10,6 +10,7 @@ export class WannianliController {
   /** 今日万年历 */
   @Get("today")
   @ApiOperation({ summary: "获取今日万年历" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getToday() {
     const row = await this.svc.getToday();
     if (!row) return null;
@@ -19,6 +20,7 @@ export class WannianliController {
   /** 按公历日期查询 */
   @Get("date/:date")
   @ApiOperation({ summary: "按公历日期查询万年历（格式 YYYY-MM-DD）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getByDate(@Param("date") dateStr: string) {
     const date = new Date(dateStr + "T00:00:00Z");
     if (isNaN(date.getTime())) return null;
@@ -30,6 +32,7 @@ export class WannianliController {
   /** 日期范围查询 */
   @Get("range")
   @ApiOperation({ summary: "日期范围查询万年历" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "start", required: true, example: "2026-01-01" })
   @ApiQuery({ name: "end", required: true, example: "2026-01-31" })
   async getRange(
@@ -46,6 +49,7 @@ export class WannianliController {
   /** 全年数据 */
   @Get("year/:year")
   @ApiOperation({ summary: "获取全年万年历数据" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getFullYear(@Param("year") year: string) {
     const y = parseInt(year, 10);
     if (isNaN(y)) return [];
@@ -56,6 +60,7 @@ export class WannianliController {
   /** 按农历年月查询 */
   @Get("lunar/:year/:month")
   @ApiOperation({ summary: "按农历年月查询万年历" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "includeLeap", required: false, example: "true" })
   async getByLunar(
     @Param("year") year: string,
@@ -72,6 +77,7 @@ export class WannianliController {
   /** 节气列表 */
   @Get("jieqi/:year")
   @ApiOperation({ summary: "获取指定年份的节气列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getJieQi(@Param("year") year: string) {
     const y = parseInt(year, 10);
     if (isNaN(y)) return [];

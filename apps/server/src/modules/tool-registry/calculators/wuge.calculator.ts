@@ -1,4 +1,5 @@
 // ── 五格数理计算引擎 ──
+// 算法参考：《康熙字典》《五格剖象法》
 // 天格/人格/地格/总格/外格 + 三才配置 + 81数理
 
 import type { WuGeResult, GeDetail, StrokeDetail, SanCaiConfig } from "@guoxue/shared";
@@ -203,7 +204,7 @@ function calcRenDiRelation(ren: number, di: number): { relation: string; desc: s
 }
 
 /** 主计算函数 */
-export function calculateWuGe(input: Record<string, unknown>): WuGeResult {
+export function calculateWuGe(input: Record<string, unknown>): WuGeResult & { summary: string } {
   const surname = (input.surname as string) ?? "";
   const givenName = (input.givenName as string) ?? "";
   const useKangXi = (input.kangXiStrokes as boolean) ?? true;
@@ -253,13 +254,34 @@ export function calculateWuGe(input: Record<string, unknown>): WuGeResult {
 
   const duanYu = `五格数理${totalScore >= 80 ? "优秀" : totalScore >= 60 ? "良好" : "一般"}（${totalScore}分）。人格${ren.number}数（${ren.shuLiName}），${ren.jiXiong === "大吉" || ren.jiXiong === "吉" ? "主运佳，根基稳固。" : "主运平平，需借他格之力。"}三才配置${sanCai.combo}${sanCai.jiXiong === "大吉" ? "，极为有利。" : "，需注意调适。"}`;
 
+  const scoreBar = "█".repeat(Math.round(totalScore / 100 * 10)) + "░".repeat(10 - Math.round(totalScore / 100 * 10));
+  const scores = { wuGe: wuGeScore, sanCai: sanCaiScore, ziYi: ziYiScore, yinYun: yinYunScore };
+
+  const summary = [
+    "┌─ 五格数理 · 姓名学 ───────────────┐",
+    `│ 姓名：${surname}${givenName}`.padEnd(36) + "│",
+    `│ 笔画：${strokes.map(s => s.char + "(" + s.kangXiStroke + "画)").join("")}`.padEnd(36) + "│",
+    "├─ 五格数理 ─────────────────────────┤",
+    ...geDetails.map(g => `│ ${g.name}：${g.number}数（${g.wuXing}/${g.jiXiong}/${g.shuLiName || ""}）`.padEnd(36) + "│"),
+    "├─ 三才配置 ─────────────────────────┤",
+    `│ ${sanCai.combo}（${sanCai.jiXiong}）`.padEnd(36) + "│",
+    `│ ${sanCai.desc.slice(0, 30)}`.padEnd(36) + "│",
+    "├─ 综合评分 ─────────────────────────┤",
+    `│ 总分：${totalScore}/100 [${scoreBar}]`.padEnd(36) + "│",
+    `│ 五格${scores.wuGe} 三才${scores.sanCai} 字义${scores.ziYi} 音韵${scores.yinYun}`.padEnd(36) + "│",
+    "├─ 出处 ─────────────────────────────┤",
+    "│ 《康熙字典》《五格剖象法》          │",
+    "└────────────────────────────────────┘",
+  ].join("\n");
+
   return {
     input: { surname, givenName, kangXiStrokes: useKangXi, gender: gender as any },
     strokes, geDetails, sanCai,
     renWaiRelation: calcRenWaiRelation(renGe, waiGe),
     renDiRelation: calcRenDiRelation(renGe, diGe),
     totalScore,
-    scores: { wuGe: wuGeScore, sanCai: sanCaiScore, ziYi: ziYiScore, yinYun: yinYunScore },
+    scores,
     duanYu,
-  };
+    summary,
+  } as WuGeResult & { summary: string };
 }

@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Query, Res, UseGuards, Req } from "@nestjs/common"
-import { ApiTags, ApiOperation, ApiQuery, ApiBody, ApiBearerAuth } from "@nestjs/swagger"
+import { ApiTags, ApiOperation, ApiQuery, ApiBody, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Response, Request } from "express"
 import { TtsService } from "./tts.service"
 import { TtsRequestDto } from "./tts.dto"
@@ -15,6 +15,9 @@ export class TtsController {
   @Post("synthesize")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "文本转语音（POST）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBody({ type: Object, description: "TTS 请求参数，包含 text、voice、rate" })
   async synthesize(@Req() req: Request, @Body() dto: TtsRequestDto, @Res() res: Response) {
     const { audio, contentType } = await this.tts.synthesize(dto)
@@ -30,6 +33,8 @@ export class TtsController {
   @Get("synthesize")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "文本转语音（GET）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiQuery({ name: "text", required: true, type: String, description: "要合成的文本" })
   @ApiQuery({ name: "voice", required: false, type: String, description: "语音类型" })
   @ApiQuery({ name: "rate", required: false, type: String, description: "语速" })
@@ -52,6 +57,7 @@ export class TtsController {
   /** 获取可用语音列表 */
   @Get("voices")
   @ApiOperation({ summary: "获取可用语音列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   getVoices() {
     return this.tts.getVoices()
   }

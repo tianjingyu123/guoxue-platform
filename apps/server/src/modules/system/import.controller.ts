@@ -3,7 +3,7 @@ import {
   UploadedFile, Req, BadRequestException,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiParam } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiParam, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -20,6 +20,10 @@ export class ImportController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量导入CSV数据", description: "支持 article/course/product/classic/user 类型" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiConsumes("multipart/form-data")
   @ApiParam({ name: "type", description: "导入类型", enum: ["article", "course", "product", "classic", "user"] })

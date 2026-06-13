@@ -1,4 +1,5 @@
 // ── 诸葛神数计算引擎 ──
+// 算法参考：《诸葛神数》《周易》
 // 384签 + 三字笔画起数
 // 签文基于64卦体系（每卦6爻=384签），常用汉字笔画来自真实笔画数据库
 
@@ -422,6 +423,37 @@ export function calculateZhuGe(input: Record<string, unknown>): ZhuGeResult {
 
   const qianWen = getQianWen(qianNum);
 
+  // ── box-drawing 结构化总结 ──
+  const qianTypeIcon = qianWen.type === "上上" ? "★★" : qianWen.type === "上吉" ? "★" : qianWen.type === "中上" || qianWen.type === "中平" ? "◆" : qianWen.type === "中下" || qianWen.type === "下下" ? "▼" : "·";
+  const duanYu = `诸葛神数第${qianNum}签（${qianWen.type}${qianWen.gua ? `·${qianWen.gua}卦` : ""}）：${qianWen.text}。${qianWen.baiHua}`;
+  const processDesc = `三字笔画：${strokes[0]} / ${strokes[1]} / ${strokes[2]}。各限215：${t1}/${t2}/${t3}。${sumProcess}`;
+
+  const summary = [
+    `┌─ 诸葛神数 ─────────────────`,
+    `│ 第${qianNum}签 ${qianWen.type} ${qianTypeIcon} ${qianWen.gua ? `对应${qianWen.gua}卦` : ""}`,
+    `│ 起数：${sumProcess}`,
+    `│`,
+    `├─ 签文 ────────────────────`,
+    `│ ${qianWen.text}`,
+    `│`,
+    `├─ 白话释义 ──────────────────`,
+    `│ ${qianWen.baiHua.substring(0, 80)}${qianWen.baiHua.length > 80 ? "..." : ""}`,
+    `│`,
+    ...(question ? [`├─ 所问 ────────────────────`,
+    `│ "${question}"`,
+    `│ ${qianWen.baiHua.substring(0, 60)}`,] : []),
+    `├─ 起数过程 ──────────────────`,
+    `│ ${processDesc}`,
+    `│`,
+    `├─ 古籍出处 ──────────────────`,
+    `│ 《诸葛神数》传蜀汉·诸葛亮，384签军国占断`,
+    `│ 以三字笔画起数，取384签对应周易384爻`,
+    `│`,
+    `└─ 占断提示 ──────────────────`,
+    `   ${duanYu.substring(0, 80)}`,
+    `   诸葛384签每签各有深意，宜细心体悟，结合具体情境领会。`,
+  ].filter(Boolean).join("\n");
+
   return {
     input: { method: method as any, chars: chars || undefined, numbers, question },
     qiShuProcess: {
@@ -430,7 +462,7 @@ export function calculateZhuGe(input: Record<string, unknown>): ZhuGeResult {
       sum1: t1, sum2: t2, sum3: t3,
       totalSum: total,
       finalNumber: qianNum,
-      processDesc: `三字笔画：${strokes[0]} / ${strokes[1]} / ${strokes[2]}。各限215：${t1}/${t2}/${t3}。${sumProcess}`,
+      processDesc,
     },
     qianWen,
     jieQian: {
@@ -443,6 +475,7 @@ export function calculateZhuGe(input: Record<string, unknown>): ZhuGeResult {
         ? `针对"${question}"，本签提示：${qianWen.baiHua}`
         : qianWen.baiHua,
     },
-    duanYu: `诸葛神数第${qianNum}签（${qianWen.type}${qianWen.gua ? `·${qianWen.gua}卦` : ""}）：${qianWen.text}。${qianWen.baiHua}`,
-  };
+    duanYu,
+    summary,
+  } as ZhuGeResult & { summary: string };
 }

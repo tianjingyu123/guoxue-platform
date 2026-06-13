@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Logger, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 import { AppGateway } from "../websocket/websocket.gateway";
 
@@ -23,6 +23,8 @@ export class ImCallbackController {
   @Post("callback")
   @UseGuards(TencentCallbackGuard)
   @ApiOperation({ summary: "接收腾讯云IM回调事件，推送到WebSocket客户端" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleCallback(@Body() body: {
     CallbackCommand: string;
     [key: string]: unknown;

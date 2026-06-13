@@ -1,5 +1,5 @@
 import { Controller, Get, Query, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { MapService } from "./map.service";
 import { ThrottleGuard } from "../../common/throttle.guard";
 
@@ -11,6 +11,7 @@ export class MapController {
   @Get("geocode")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "地址解析（地址→经纬度）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "address", required: true, type: String, description: "地址" })
   @ApiQuery({ name: "city", required: false, type: String, description: "城市" })
   geocode(@Query("address") address: string, @Query("city") city?: string) {
@@ -20,6 +21,7 @@ export class MapController {
   @Get("reverse")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "逆地址解析（经纬度→地址）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "lat", required: true, type: Number, description: "纬度" })
   @ApiQuery({ name: "lng", required: true, type: Number, description: "经度" })
   reverseGeocode(@Query("lat") lat: number, @Query("lng") lng: number) {
@@ -29,6 +31,7 @@ export class MapController {
   @Get("search")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "地点搜索" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "keyword", required: true, type: String, description: "关键词" })
   @ApiQuery({ name: "boundary", required: false, type: String, description: "范围限定" })
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
@@ -39,6 +42,7 @@ export class MapController {
   @Get("distance")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "距离计算" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "fromLat", required: true, type: Number, description: "起点纬度" })
   @ApiQuery({ name: "fromLng", required: true, type: Number, description: "起点经度" })
   @ApiQuery({ name: "toLat", required: true, type: Number, description: "终点纬度" })
@@ -50,6 +54,7 @@ export class MapController {
   @Get("route")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "驾车路线规划" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "fromLat", required: true, type: Number })
   @ApiQuery({ name: "fromLng", required: true, type: Number })
   @ApiQuery({ name: "toLat", required: true, type: Number })
@@ -61,6 +66,7 @@ export class MapController {
   @Get("districts")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "行政区划查询" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "id", required: false, type: String, description: "父级行政区ID" })
   districts(@Query("id") id?: string) {
     return this.map.districtList(id);
@@ -69,6 +75,7 @@ export class MapController {
   @Get("ip")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "IP定位" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "ip", required: true, type: String, description: "IP地址" })
   ipLocation(@Query("ip") ip: string) {
     return this.map.ipLocation(ip);

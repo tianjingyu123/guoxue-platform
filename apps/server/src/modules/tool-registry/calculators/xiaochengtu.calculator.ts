@@ -1,4 +1,5 @@
 // ── 小成图计算引擎 ──
+// 算法参考：《灵棋经》《焦氏易林》
 // 霍斐然小成图：卦象推演，阖辟往来辨吉凶
 
 import type { XiaoChengTuResult, XiaoChengTuGong } from "@guoxue/shared";

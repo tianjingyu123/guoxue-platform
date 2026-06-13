@@ -1,6 +1,8 @@
 // ── 金口诀计算引擎 ──
+// 算法参考：《周易》《灵棋经》《焦氏易林》
 // 四位课/用爻/五动/三动/干元关系/纳音/神煞
 
+import crypto from "crypto";
 import type {
   JinKouJueInput,
   JinKouJueResult,
@@ -232,7 +234,7 @@ function buildShenSha(diFenZhi: string, guiShenZhi: string, jiangShenZhi: string
 }
 
 /** 主计算函数 */
-export function calculateJinKouJue(input: JinKouJueInput): JinKouJueResult {
+export function calculateJinKouJue(input: JinKouJueInput): JinKouJueResult & { summary: string } {
   const datetime = input.datetime ?? new Date().toISOString();
   const diFenInput = input.diFen ?? "子";
   const diFenMethod: DiFenMethod = input.diFenMethod ?? "select";
@@ -251,7 +253,7 @@ export function calculateJinKouJue(input: JinKouJueInput): JinKouJueResult {
   // 地分
   let diFenZhi = diFenInput;
   if (diFenMethod === "random") {
-    diFenZhi = DI_ZHI[Math.floor(Math.random() * 12)];
+    diFenZhi = DI_ZHI[crypto.randomInt(12)];
   } else if (diFenMethod === "baoshu") {
     const num = parseInt(diFenInput) || 1;
     diFenZhi = DI_ZHI[(num - 1) % 12];
@@ -342,6 +344,30 @@ export function calculateJinKouJue(input: JinKouJueInput): JinKouJueResult {
   if (wuDong.length > 1) parts.push(`五动有${wuDong.map(w => w.name).join("、")}，需综合研判。`);
   const duanYu = parts.join("");
 
+  const wuDongNames = wuDong.map(w => w.name).join("、") || "无";
+  const sanDongNames = sanDong.map(s => s.name).join("、") || "无";
+  const shenShaNames = shenSha.map(s => s.name).join(" ") || "无";
+  const summary = [
+    "┌──────────────────────────────────────┐",
+    "│        金口诀 · 四位课断              │",
+    "├──────────────────────────────────────┤",
+    "│ 人元：" + (renYuanGan + "（" + renYuanWx + "）· 纳音：" + getNaYin(renYuanGan + diFenZhi)).padEnd(30) + "│",
+    "│ 贵神：" + (guiShen.name + "（" + guiShenGanZhi + "·" + guiShenWx + "）").padEnd(30) + "│",
+    "│ 月将：" + (yueJiang.name + "（" + jiangShenGanZhi + "·" + jiangShenWx + "）").padEnd(30) + "│",
+    "│ 地分：" + (diFenZhi + "（" + diFenWx + "）· 方位：" + (ZHI_DIRECTION[diFenZhi] ?? "")).padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 用爻：" + (yongYao.label + " · " + yongYao.wangShuai).padEnd(30) + "│",
+    "│ 五动：" + wuDongNames.padEnd(30) + "│",
+    "│ 三动：" + sanDongNames.padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 干方：" + (shengKeTable.ganFang + " · 将神：" + shengKeTable.shenJiang).padEnd(30) + "│",
+    "│ 空亡：" + (xunKong1 + xunKong2).padEnd(30) + "│",
+    "│ 神煞：" + shenShaNames.padEnd(30) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 出处：《金口诀》《灵棋经》            │",
+    "└──────────────────────────────────────┘",
+  ].join("\n");
+
   return {
     input: {
       datetime,
@@ -369,5 +395,6 @@ export function calculateJinKouJue(input: JinKouJueInput): JinKouJueResult {
     dunGan: renYuanGan,
     ganYuan,
     duanYu,
+    summary,
   };
 }

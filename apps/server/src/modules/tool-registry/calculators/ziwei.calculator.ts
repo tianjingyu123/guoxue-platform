@@ -1,4 +1,5 @@
 // ── 紫微斗数排盘计算引擎 ──
+// 算法参考：《紫微斗数全书》《十八飞星策天紫微斗数》
 // 封装 @guoxue/ziwei-engine，提供统一的 tool-registry 接口
 
 import type { ZiweiInput } from "@guoxue/ziwei-engine";

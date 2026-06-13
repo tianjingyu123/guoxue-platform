@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Body, Param, Req, UseGuards, Headers } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { HuifuService } from "./huifu.service";
 import { HuifuPayDto, HuifuSplitDto, HuifuRefundDto, UpdateConfigDto } from "./huifu.dto";
@@ -19,6 +19,9 @@ export class HuifuController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "获取汇付配置列表（敏感信息脱敏）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   getAllConfigs() {
     return this.svc.getAllConfigs();
   }
@@ -28,6 +31,10 @@ export class HuifuController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "更新汇付配置" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   updateConfig(@Body() dto: UpdateConfigDto) {
     return this.svc.setConfig(dto.key, dto.value, dto.description);
   }
@@ -37,6 +44,9 @@ export class HuifuController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "检查汇付支付是否已启用" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   async checkStatus() {
     const enabled = await this.svc.isEnabled();
     return { enabled };
@@ -48,12 +58,17 @@ export class HuifuController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "创建汇付天下支付" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   createPayment(@Req() req: Request, @Body() dto: HuifuPayDto) {
     return this.svc.createPayment(req.user.id, dto);
   }
 
   @Post("notify")
   @ApiOperation({ summary: "汇付天下支付回调（公开接口）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleNotify(@Body() body: Record<string, unknown>, @Headers("X-HF-Signature") signature?: string) {
     if (!signature) {
       return { resp_code: "FAIL", resp_msg: "缺少签名" };
@@ -70,6 +85,9 @@ export class HuifuController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "查询支付状态" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   queryPayment(@Body("outTradeNo") outTradeNo: string) {
     return this.svc.queryPayment(outTradeNo);
   }
@@ -81,6 +99,10 @@ export class HuifuController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "发起分账" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   createSplit(@Body() dto: HuifuSplitDto) {
     return this.svc.createSplit(dto);
   }
@@ -90,6 +112,9 @@ export class HuifuController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "查询分账结果" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   querySplit(@Param("orderId") orderId: string) {
     return this.svc.querySplit(orderId);
   }
@@ -101,6 +126,10 @@ export class HuifuController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "汇付退款" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   createRefund(@Body() dto: HuifuRefundDto) {
     return this.svc.createRefund(dto);
   }
@@ -112,6 +141,9 @@ export class HuifuController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "查询商户余额" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   queryBalance() {
     return this.svc.queryBalance();
   }
@@ -121,6 +153,9 @@ export class HuifuController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "下载账单" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   downloadBill(@Param("date") date: string) {
     return this.svc.downloadBill(date);
   }

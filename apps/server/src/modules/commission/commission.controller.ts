@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { CommissionService } from "./commission.service";
 import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, CreateReferralDto, CommissionRateDto } from "./commission.dto";
@@ -28,6 +28,9 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取所有分佣配置" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getAllConfigs() {
     return this.svc.getAllConfigs();
@@ -37,6 +40,10 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新分佣配置" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateConfig(@Param("key") key: string, @Body() dto: ConfigUpdateDto) {
     return this.svc.updateConfig(key, dto);
@@ -47,6 +54,8 @@ export class CommissionController {
   @Get("station-earnings/:stationId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取分站收益" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
@@ -63,6 +72,8 @@ export class CommissionController {
   @Get("station-balance/:stationId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取分站余额" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async getStationBalance(@Req() req: Request, @Param("stationId") stationId: string) {
     await this.verifyStationAccess(stationId, req);
@@ -74,6 +85,8 @@ export class CommissionController {
   @Get("operator-earnings/:operatorId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取运营商收益明细" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
@@ -90,6 +103,8 @@ export class CommissionController {
   @Get("operator-balance/:operatorId")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取运营商余额" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async getOperatorBalance(@Req() req: Request, @Param("operatorId") operatorId: string) {
     await this.verifyOperatorAccess(operatorId, req);
@@ -102,6 +117,9 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard, ActiveUserGuard, FeatureFlagGuard, StrictRedisThrottleGuard)
   @RequireFeature("commission_withdrawal")
   @ApiOperation({ summary: "申请提现" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   applyWithdrawal(@Req() req: Request, @Body() dto: WithdrawalApplyDto) {
     return this.svc.applyWithdrawal(req.user.id, dto);
@@ -110,6 +128,8 @@ export class CommissionController {
   @Get("withdrawals")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "查看我的提现记录" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
@@ -121,6 +141,9 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "查看所有提现记录（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
@@ -137,6 +160,11 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审核提现（管理员）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   auditWithdrawal(@Param("id") id: string, @Body() dto: WithdrawalAuditDto) {
     return this.svc.auditWithdrawal(id, dto);
@@ -147,6 +175,9 @@ export class CommissionController {
   @Post("referral-link")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建推荐链接" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createReferralLink(@Req() req: Request, @Body() dto: CreateReferralDto) {
     return this.svc.createReferralLink(req.user.id, dto);
@@ -155,6 +186,8 @@ export class CommissionController {
   @Get("referral-links")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取推荐链接列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   getReferralLinks(@Req() req: Request) {
     return this.svc.getReferralLinks(req.user.id);
@@ -162,6 +195,7 @@ export class CommissionController {
 
   @Get("track/:code")
   @ApiOperation({ summary: "跟踪推荐链接点击" })
+  @ApiResponse({ status: 200, description: "成功" })
   trackClick(@Param("code") code: string) {
     return this.svc.trackClick(code);
   }
@@ -172,6 +206,9 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "获取分佣配置总览" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getCommissionConfig() {
     return this.svc.getCommissionConfig();
@@ -181,6 +218,10 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新分佣配置比例" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiBody({ schema: { properties: { type: { type: "string" }, rate: { type: "number" } } } })
   updateCommissionConfig(@Body() dto: CommissionRateDto) {
@@ -193,6 +234,9 @@ export class CommissionController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "平台抽成汇总" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "startDate", required: false })
   @ApiQuery({ name: "endDate", required: false })
@@ -211,6 +255,8 @@ export class CommissionController {
   @Get("circle-revenue/:circleId/summary")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "圈主收益汇总" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async getCircleRevenueSummary(@Req() req: Request, @Param("circleId") circleId: string) {
     await this.verifyCircleAccess(circleId, req);
@@ -220,6 +266,8 @@ export class CommissionController {
   @Get("circle-revenue/:circleId/records")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "圈主收益明细" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })

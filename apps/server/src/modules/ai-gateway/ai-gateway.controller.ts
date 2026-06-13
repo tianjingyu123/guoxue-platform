@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Req, Res, UseGuards, Logger } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { AiGatewayService } from "./ai-gateway.service";
 import { ModelRouterService } from "./model-router.service";
@@ -42,6 +42,9 @@ export class AiGatewayController {
   @Post("chat")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI非流式对话" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async chat(@Body() dto: ChatDto, @Req() req: Request) {
     const userId = req.user?.id;
@@ -68,6 +71,9 @@ export class AiGatewayController {
   @Post("chat/stream")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI流式对话 (SSE)" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async chatStream(@Body() dto: ChatDto, @Req() req: Request, @Res() res: Response) {
     const userId = req.user?.id;
@@ -106,6 +112,9 @@ export class AiGatewayController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取AI模型路由配置（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async getRoutingConfig() {
     return this.router.getRoutingConfig();
@@ -115,6 +124,9 @@ export class AiGatewayController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取所有场景的预算使用情况" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async getSceneBudgets() {
     return this.router.getSceneBudgets();

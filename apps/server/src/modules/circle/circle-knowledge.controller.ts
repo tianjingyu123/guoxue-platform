@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, Res, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -14,6 +14,9 @@ export class CircleKnowledgeController {
   @Post(":circleId/knowledge")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "手动添加知识条目" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   addKnowledge(
     @Param("circleId") circleId: string,
@@ -32,6 +35,8 @@ export class CircleKnowledgeController {
   @Get(":circleId/knowledge")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取知识库列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
@@ -48,6 +53,10 @@ export class CircleKnowledgeController {
   @Put(":circleId/knowledge/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新知识条目内容" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   updateKnowledge(
     @Param("circleId") circleId: string,
@@ -60,6 +69,10 @@ export class CircleKnowledgeController {
   @Delete(":circleId/knowledge/:id")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除知识条目" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   removeKnowledge(
     @Param("circleId") circleId: string,
@@ -74,6 +87,8 @@ export class CircleKnowledgeController {
   @Get(":circleId/knowledge/candidates")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取候选知识列表（待圈主审核）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
@@ -88,6 +103,9 @@ export class CircleKnowledgeController {
   @Post(":circleId/knowledge/candidates/:candidateId/confirm")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "确认候选条目入库" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   confirmCandidate(
     @Param("circleId") circleId: string,
@@ -100,6 +118,9 @@ export class CircleKnowledgeController {
   @Post(":circleId/knowledge/candidates/:candidateId/reject")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "拒绝候选条目" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   rejectCandidate(
     @Param("circleId") circleId: string,
@@ -113,6 +134,8 @@ export class CircleKnowledgeController {
   @Get(":circleId/knowledge/export/json")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "导出知识库（JSON 格式）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "sourceType", required: false })
   @ApiQuery({ name: "startDate", required: false })
@@ -141,6 +164,8 @@ export class CircleKnowledgeController {
   @Get(":circleId/knowledge/export/markdown")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "导出知识库（Markdown 格式）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "sourceType", required: false })
   @ApiQuery({ name: "startDate", required: false })

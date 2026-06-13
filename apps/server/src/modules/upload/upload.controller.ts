@@ -2,7 +2,7 @@ import {
   Controller, Post, Delete, UseGuards, UseInterceptors,
   UploadedFile, UploadedFiles, BadRequestException, Param,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -19,6 +19,9 @@ export class UploadController {
   @Post("image")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "上传图片（单文件，最大10MB）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @UseInterceptors(
     FileInterceptor("file", {
       storage: memoryStorage(),
@@ -40,6 +43,9 @@ export class UploadController {
   @Post("images")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "批量上传图片（最多9张）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @UseInterceptors(
     FilesInterceptor("files", 9, {
       storage: memoryStorage(),
@@ -61,6 +67,9 @@ export class UploadController {
   @Post("audio")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "上传音频（最大50MB）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @UseInterceptors(
     FileInterceptor("file", {
       storage: memoryStorage(),
@@ -82,6 +91,9 @@ export class UploadController {
   @Post("video")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "上传视频（最大200MB）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @UseInterceptors(
     FileInterceptor("file", {
       storage: memoryStorage(),
@@ -104,6 +116,10 @@ export class UploadController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除已上传的文件（仅管理员）" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   async deleteFile(@Param("key") key: string) {
     await this.uploadService.delete(key);
     return { success: true };

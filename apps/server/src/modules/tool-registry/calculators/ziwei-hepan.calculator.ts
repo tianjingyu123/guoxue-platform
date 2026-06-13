@@ -1,4 +1,5 @@
 // ── 紫微合盘（双人紫微斗数配对分析）──
+// 算法参考：《紫微斗数全书》《十八飞星策天紫微斗数》
 import { calcZiwei } from "@guoxue/ziwei-engine";
 import { ZHI } from "@guoxue/bazi-engine";
 import type { Gan, Zhi } from "@guoxue/bazi-engine";

@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Req, Res, UseGuards, HttpException, HttpStatus } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { AiSearchDto, AiQueryDto } from "./dto/ai-search.dto";
@@ -15,6 +15,9 @@ export class AiSearchController {
   @Post("ai")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI智能搜索 — 输入问题直接返回AI回答" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async aiQuery(@Body() body: AiQueryDto, @Req() req: Request) {
     const userId = (req as any).user?.id;
@@ -44,6 +47,9 @@ export class AiSearchController {
   @Post("ai/summary")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI搜索总结 — 对搜索结果生成智能总结" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async searchSummary(@Body() body: AiSearchDto, @Req() req: Request) {
     const userId = (req as any).user?.id;
@@ -81,6 +87,9 @@ export class AiSearchController {
   @Post("ai/summary/stream")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "AI搜索总结流式 (SSE)" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async searchSummaryStream(
     @Body() body: AiSearchDto,

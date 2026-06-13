@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards } from "@nestjs/common";
 import { randomInt } from "crypto";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { EmailService } from "./email.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -17,15 +17,20 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "发送邮件（管理员）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   send(@Body() dto: SendEmailDto) {
     return this.email.send(dto);
   }
 
-  @Post("send-code")
   @Post("send-verify-code")
   @UseGuards(StrictRedisThrottleGuard)
   @ApiOperation({ summary: "发送邮件验证码" })
+  @ApiResponse({ status: 201, description: "发送成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   sendVerifyCode(@Body() dto: SendVerifyCodeDto) {
     return this.email.sendVerifyCode(dto.email, this.generateCode());
   }
@@ -34,6 +39,10 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "测试邮件配置" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   testEmail(@Body() dto: TestEmailDto) {
     return this.email.sendNotification(
@@ -49,6 +58,9 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取邮件模板列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getTemplates() {
     return this.email.getTemplates();
@@ -58,6 +70,10 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "创建邮件模板" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   createTemplate(@Body() dto: CreateEmailTemplateDto) {
     return this.email.createTemplate(dto);
@@ -67,6 +83,11 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新邮件模板" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   updateTemplate(@Param("id") id: string, @Body() dto: UpdateEmailTemplateDto) {
     return this.email.updateTemplate(id, dto);
@@ -76,6 +97,11 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除邮件模板" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   deleteTemplate(@Param("id") id: string) {
     return this.email.deleteTemplate(id);
@@ -85,6 +111,10 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "使用模板发送邮件" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   sendWithTemplate(
     @Body() body: SendTemplateDto,
@@ -96,6 +126,8 @@ export class EmailController {
 
   @Post("unsubscribe")
   @ApiOperation({ summary: "退订邮件" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   unsubscribe(@Body() body: UnsubscribeDto) {
     return this.email.unsubscribe(body.email, body.reason);
   }
@@ -104,6 +136,10 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "重新订阅（管理员）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   resubscribe(@Body() body: ResubscribeDto) {
     return this.email.resubscribe(body.email);
@@ -113,6 +149,9 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "退订列表（管理员）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getUnsubscribeList() {
     return this.email.getUnsubscribeList();

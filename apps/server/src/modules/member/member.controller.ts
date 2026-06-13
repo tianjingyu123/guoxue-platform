@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Param, Req, UseGuards, Body, Query, Logger } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { MemberService } from "./member.service";
 import { SystemService } from "../system/system.service";
@@ -22,6 +22,7 @@ export class MemberController {
 
   @Get("plans")
   @ApiOperation({ summary: "获取会员套餐列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   getPlans() {
     return this.memberService.getPlans();
   }
@@ -31,6 +32,9 @@ export class MemberController {
   @RequireFeature("member_purchase")
   @ApiBearerAuth()
   @ApiOperation({ summary: "购买会员" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   purchase(@Req() req: Request, @Param("planId") planId: string) {
     return this.memberService.purchase(req.user.id, planId);
   }
@@ -39,6 +43,8 @@ export class MemberController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "查询我的会员状态" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getStatus(@Req() req: Request) {
     return this.memberService.getStatus(req.user.id);
   }
@@ -47,6 +53,9 @@ export class MemberController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "续费会员" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   renew(@Req() req: Request, @Param("planId") planId: string) {
     return this.memberService.renew(req.user.id, planId);
   }
@@ -55,6 +64,8 @@ export class MemberController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "获取当前会员权益" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   getBenefits(@Req() req: Request) {
     return this.memberService.getBenefits(req.user.id);
   }
@@ -66,6 +77,9 @@ export class MemberController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "管理员查看会员购买记录" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
   getAdminPurchases(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
@@ -77,6 +91,9 @@ export class MemberController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "会员统计" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   getMemberStats() {
     return this.memberService.getMemberStats();
   }
@@ -86,6 +103,10 @@ export class MemberController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "手动授予会员" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   async grantMember(@Body() dto: GrantMemberDto, @Req() req: Request) {
     const result = await this.memberService.grantMember(dto.userId, dto.level, dto.durationDays ?? 30);
     this.systemService.logAudit({
@@ -104,6 +125,10 @@ export class MemberController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "撤销用户会员" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   async revokeMember(@Param("userId") userId: string, @Req() req: Request) {
     const result = await this.memberService.revokeMember(userId);
     this.systemService.logAudit({

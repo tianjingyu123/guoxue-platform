@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -15,6 +15,7 @@ export class OrderCenterController {
 
   @Get("my")
   @ApiOperation({ summary: "我的所有订单（统一视图，支持筛选）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "type", required: false, description: "SHOP/COURSE/MEMBER" })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "page", required: false, type: Number })
@@ -96,6 +97,8 @@ export class OrderCenterController {
   @UseGuards(RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "管理员查看所有订单" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiQuery({ name: "type", required: false, description: "SHOP/COURSE/MEMBER" })
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "keyword", required: false })

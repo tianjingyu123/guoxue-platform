@@ -1,6 +1,6 @@
 import { Request } from "express";
 import { Controller, Get, Post, Put, Delete, Param, Query, Body, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { RecommendService } from "./recommend.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -22,6 +22,8 @@ export class RecommendController {
   @Post("log")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "上报推荐曝光/点击" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   log(@Body() dto: RecommendLogDto) {
     return this.svc.logInteractions(dto);
   }
@@ -29,6 +31,7 @@ export class RecommendController {
   @Get("trending")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "获取热门推荐（旧版兼容）" })
+  @ApiResponse({ status: 200, description: "成功" })
   trending() {
     return this.svc.trending();
   }
@@ -36,6 +39,7 @@ export class RecommendController {
   @Get("related/:contentId")
   @UseGuards(ThrottleGuard)
   @ApiOperation({ summary: "获取相关内容（旧版兼容）" })
+  @ApiResponse({ status: 200, description: "成功" })
   related(@Param("contentId") contentId: string) {
     return this.svc.related(contentId);
   }
@@ -44,6 +48,8 @@ export class RecommendController {
   @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @RequireFeature("recommend_algorithm")
   @ApiOperation({ summary: "获取个性化推荐（旧版兼容）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   personalized(@Req() req: Request) {
     return this.svc.personalized(req.user.id);
@@ -53,6 +59,7 @@ export class RecommendController {
 
   @Get("interests/defaults")
   @ApiOperation({ summary: "获取默认兴趣标签（新用户引导页）" })
+  @ApiResponse({ status: 200, description: "成功" })
   getDefaultInterestTags() {
     return this.coldStart.getDefaultInterestTags();
   }
@@ -60,6 +67,9 @@ export class RecommendController {
   @Post("interests")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "保存用户兴趣标签（新用户引导完成）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   saveUserInterests(@Req() req: Request, @Body() dto: SaveUserInterestsDto) {
     return this.coldStart.saveUserInterests(req.user.id, dto.tags);
@@ -72,6 +82,10 @@ export class RecommendController {
   @RequireFeature("recommend_algorithm")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "设置分区强插" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   insertContent(@Body() dto: InsertContentDto) {
     return this.svc.insertContent(dto.position, dto.contentId, dto.contentType);
@@ -81,6 +95,10 @@ export class RecommendController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "移除分区强插" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   removeInsertedContent(@Param("position") position: string) {
     return this.svc.removeInsertedContent(parseInt(position, 10));
@@ -92,6 +110,9 @@ export class RecommendController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "推荐效果统计（曝光/点击/CTR/趋势）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   getAdminStats(
     @Query("startDate") startDate?: string,
@@ -108,6 +129,7 @@ export class RecommendController {
   @UseGuards(FeatureFlagGuard)
   @RequireFeature("recommend_algorithm")
   @ApiOperation({ summary: "全页面智能推荐" })
+  @ApiResponse({ status: 200, description: "成功" })
   async recommend(
     @Param("scene") scene: RecommendScene,
     @Query() query: RecommendQueryDto,

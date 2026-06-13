@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Query, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { SmartFeedService } from "./smart-feed.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -12,6 +12,8 @@ export class SmartFeedController {
   @Get("smart-feed")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取AI智能信息流" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
@@ -26,6 +28,9 @@ export class SmartFeedController {
   @Post("smart-feed/refresh")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "刷新AI智能信息流（重新生成排序）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async refreshFeed(@Req() req: Request) {
     return this.feed.getFeed((req as any).user.id, 1, 20);

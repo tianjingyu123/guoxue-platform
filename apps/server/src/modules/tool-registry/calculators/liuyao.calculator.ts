@@ -1,5 +1,7 @@
 // ── 六爻纳甲排盘计算引擎 ──
 // 装卦/纳甲/纳支/六兽/世应/六亲
+// 算法参考：《卜筮正宗》《增删卜易》《易林补遗》《火珠林》
+// 纳甲法源自京房易学体系
 
 import type { LiuYaoResult, Yao } from "@guoxue/shared";
 import { calcRiZhu } from "@guoxue/bazi-engine";
@@ -228,6 +230,37 @@ export function calculateLiuYao(input: Record<string, unknown>): LiuYaoResult {
     });
   }
 
+  // Box-drawing 结构化总结
+  const dongCount = dongYaoPositions.length;
+  const dongLines = dongYaoPositions.map(p => {
+    const y = yaos[p - 1];
+    return `第${p}爻${y.liuQin}(${y.naJia ?? ""})${y.liuShou}动`;
+  }).join("、");
+  const yaoList = yaos.map(y => {
+    const se = y.shiYing ? (y.shiYing === "世" ? "世" : "应") : "  ";
+    const dt = y.isDongYao ? "○" : "  ";
+    return `${y.position} ${y.type === "shaoyang" || y.type === "laoyang" ? "—" : "- -"} ${y.liuQin.padEnd(2)} ${y.naJia?.padEnd(4) ?? "—".padEnd(4)} ${y.liuShou.padEnd(2)} ${se} ${dt}`;
+  }).join("\n");
+
+  const summary = [
+    "┌──────────────────────────────────────┐",
+    "│       六爻纳甲 · 装卦排盘             │",
+    "├──────────────────────────────────────┤",
+    "│ 本卦：" + benGuaEntry.name + " " + benGuaEntry.symbol + " " + benGuaEntry.gong + "(" + benGuaEntry.wuXing + ")" + " ".repeat(5) + "│",
+    "│ 变卦：" + (bianGuaEntry?.name || "无") + " " + (bianGuaEntry?.symbol || "") + " ".repeat(24) + "│",
+    "│ 互卦：" + (huGuaEntry?.name || "无") + " " + (huGuaEntry?.symbol || "") + " ".repeat(24) + "│",
+    "│ 世爻：第" + shiYao + "爻  应爻：第" + yingYao + "爻" + " ".repeat(20) + "│",
+    "│ 动爻：" + dongCount + "个 · " + (dongLines || "无").slice(0, 30) + " ".repeat(3) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 爻位 卦象 六亲 纳甲    六兽 世应 动  │",
+    yaoList.split("\n").map(l => "│ " + l.padEnd(37) + "│").join("\n"),
+    "├──────────────────────────────────────┤",
+    "│ 出处：《卜筮正宗》《增删卜易》        │",
+    "│ 纳甲法源自京房易学，《火珠林》传世    │",
+    "│ 六十四卦八宫卦序·王洪绪订正本         │",
+    "└──────────────────────────────────────┘",
+  ].join("\n");
+
   return {
     input: { method: method as any, datetime },
     benGua: { name: benGuaEntry.name, symbol: benGuaEntry.symbol, upper: benGuaEntry.upper, lower: benGuaEntry.lower },
@@ -238,5 +271,6 @@ export function calculateLiuYao(input: Record<string, unknown>): LiuYaoResult {
     yingYao,
     guaGong: benGuaEntry.gong,
     wuXing: benGuaEntry.wuXing,
-  };
+    summary,
+  } as LiuYaoResult & { summary: string };
 }

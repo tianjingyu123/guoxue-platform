@@ -3,7 +3,7 @@ import {
   Param, Body, Query, UseGuards, Req, Res,
   UploadedFile, UseInterceptors, BadRequestException,
 } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiConsumes } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiConsumes, ApiResponse } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -26,6 +26,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取所有系统配置，支持 keyPrefix 过滤" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "keyPrefix", required: false, type: String, description: "按 key 前缀过滤" })
   async listConfigs(@Query("keyPrefix") keyPrefix?: string) {
@@ -40,6 +43,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建系统配置" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async createConfig(@Body() body: CreateConfigDto, @Req() req: Request) {
     const u = req.user as { nickname?: string; id?: string } | undefined;
@@ -51,6 +58,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取单个系统配置" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async getConfig(@Param("key") key: string) {
     return this.systemService.getConfig(key);
@@ -60,6 +70,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新系统配置" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async setConfig(
     @Param("key") key: string,
@@ -75,6 +89,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除系统配置" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async deleteConfig(@Param("key") key: string) {
     await this.systemService.deleteConfig(key);
@@ -85,6 +103,7 @@ export class SystemController {
 
   @Get("health")
   @ApiOperation({ summary: "系统健康检查" })
+  @ApiResponse({ status: 200, description: "成功" })
   async healthCheck() {
     return this.systemService.healthCheck();
   }
@@ -93,6 +112,7 @@ export class SystemController {
 
   @Get("maintenance")
   @ApiOperation({ summary: "查询维护模式状态" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getMaintenanceMode() {
     const enabled = await this.systemService.isMaintenanceMode();
     return { maintenanceMode: enabled };
@@ -102,6 +122,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "切换维护模式" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async toggleMaintenance(@Body() body: ToggleMaintenanceDto) {
     return this.systemService.toggleMaintenance(body.enabled);
@@ -112,6 +136,8 @@ export class SystemController {
   @Get("automation/status")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "查询自动化开关状态" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async getAutomationStatus() {
     const enabled = await this.systemService.isAutomationEnabled();
@@ -122,6 +148,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "一键接管 — 开/关自动化（关闭后 Claude 权限降为只读）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async toggleAutomation(@Body() body: ToggleAutomationDto, @Req() req: Request) {
     const u = req.user as { nickname?: string; id?: string } | undefined;
@@ -132,6 +162,7 @@ export class SystemController {
   /** 公开接口：获取首页 Banner */
   @Get("public/banners")
   @ApiOperation({ summary: "获取首页Banner（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getPublicBanners() {
     return this.systemService.getPublicBanners();
   }
@@ -139,6 +170,7 @@ export class SystemController {
   /** 公开接口：获取首页布局配置 */
   @Get("public/home-config")
   @ApiOperation({ summary: "获取首页布局配置（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getHomeConfig() {
     return this.systemService.getHomeConfig();
   }
@@ -152,6 +184,7 @@ export class SystemController {
    */
   @Get("public/miniapp-config")
   @ApiOperation({ summary: "获取小程序合规配置（公开）" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getMiniappConfig() {
     return {
       /** 小程序模式下可用的排盘工具 ID 列表（为空则全部隐藏） */
@@ -181,6 +214,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "查询审计日志" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async getAuditLogs(
     @Query("page") page = "1",
@@ -206,6 +242,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取审计日志动作类型列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async getAuditActions() {
     return { actions: await this.systemService.getAuditActions() };
@@ -217,6 +256,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取可回滚的审计日志列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async getRollbackableLogs(
     @Query("page") page = "1",
@@ -231,6 +273,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "预览回滚数据（回滚前查看将恢复的状态）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async previewRollback(@Param("id") id: string) {
     return this.systemService.previewRollback(id);
@@ -240,6 +286,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "回滚操作 — 根据审计日志快照恢复状态" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async rollbackAuditLog(@Param("id") id: string, @Req() req: Request) {
     const u = req.user as { nickname?: string; id?: string } | undefined;
@@ -250,6 +300,8 @@ export class SystemController {
 
   @Post("cron/:jobName")
   @ApiOperation({ summary: "定时任务触发入口（由 Vercel Cron / 阿里云函数计算调用）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiQuery({ name: "secret", required: false, description: "Webhook 密钥（可选，生产环境建议配置）" })
   async triggerCron(
     @Param("jobName") jobName: string,
@@ -263,6 +315,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "查询最近定时任务执行状态" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "limit", required: false, description: "返回最近 N 条记录", example: "10" })
   async getCronStatus(@Query("limit") limit = "10") {
@@ -275,6 +330,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出用户数据CSV" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async exportUsers(@Body() filters?: ExportUsersDto, @Res() res?: Response) {
     const filePath = await this.exportService.exportUsers(filters);
@@ -285,6 +344,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出订单数据CSV" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async exportOrders(@Body() filters?: ExportOrdersDto, @Res() res?: Response) {
     const filePath = await this.exportService.exportOrders(filters);
@@ -295,6 +358,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出内容数据CSV" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async exportContents(@Body() filters?: ExportContentsDto, @Res() res?: Response) {
     const filePath = await this.exportService.exportContents(filters);
@@ -305,6 +372,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出审计日志CSV" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async exportAuditLogs(@Body() filters?: ExportAuditLogsDto, @Res() res?: Response) {
     const filePath = await this.exportService.exportAuditLogs(filters);
@@ -315,6 +386,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出佣金收益CSV" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async exportEarnings(@Body() filters?: ExportEarningsDto, @Res() res?: Response) {
     const filePath = await this.exportService.exportEarnings(filters);
@@ -325,6 +400,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "导出Excel文件（支持 users/orders 类型）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async exportExcel(@Body() dto: ExportExcelDto, @Res() res: Response) {
     const buffer = await this.exportService.exportToExcel(dto.type, dto.filters);
@@ -338,6 +417,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量导入商品（CSV/TSV 格式）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiConsumes("multipart/form-data")
   @UseInterceptors(FileInterceptor("file", {
@@ -361,6 +444,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取页面文案配置" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "pageRoute", required: true })
   async getPageContent(@Query("pageRoute") pageRoute: string) {
@@ -371,6 +457,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建或更新页面文案" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async upsertPageContent(@Body() dto: UpsertPageContentDto) {
     return this.systemService.upsertPageContent(dto.pageRoute, dto.fieldKey, dto.content);
@@ -382,6 +472,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建全站公告" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async createSiteNotice(@Body() dto: CreateSiteNoticeDto) {
     return this.systemService.createSiteNotice(dto);
@@ -391,6 +485,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取全站公告列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
@@ -405,6 +502,11 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新全站公告" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async updateSiteNotice(
     @Param("id") id: string,
@@ -417,6 +519,11 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除全站公告" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async deleteSiteNotice(@Param("id") id: string) {
     return this.systemService.deleteSiteNotice(id);
@@ -428,6 +535,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "查询配置历史版本" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "configKey", required: false })
   @ApiQuery({ name: "page", required: false })
@@ -444,6 +554,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "获取单个配置版本详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async getConfigVersion(@Param("id") id: string) {
     return this.systemService.getConfigVersion(id);
@@ -453,6 +567,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "回滚配置到指定版本" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async rollbackConfig(@Body() dto: RollbackConfigDto, @Req() req: Request) {
     const u = req.user as { nickname?: string; id?: string } | undefined;
@@ -463,6 +581,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "获取两个配置版本的差异" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   @ApiQuery({ name: "configKey", required: true })
   @ApiQuery({ name: "v1", required: true })
@@ -481,6 +602,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取品类标签树" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async getCategoryTree() {
     const config = await this.systemService.getConfig("category_tree");
@@ -506,6 +630,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新品类标签树" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async updateCategoryTree(@Body() tree: Record<string, string[]>, @Req() req: Request) {
     const u = req.user as { nickname?: string; id?: string } | undefined;
@@ -519,6 +647,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取课程品类树" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async getCourseCategoryTree() {
     const config = await this.systemService.getConfig("course_category_tree");
@@ -533,6 +664,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新课程品类树" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async updateCourseCategoryTree(@Body() tree: Record<string, string[]>, @Req() req: Request) {
     const u = req.user as { nickname?: string; id?: string } | undefined;
@@ -546,6 +681,9 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "获取所有会员等级配置" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async getMemberConfigs() {
     return this.systemService.getMemberConfigs();
@@ -555,6 +693,10 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "创建或更新会员等级配置" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async upsertMemberConfig(@Body() dto: UpsertMemberConfigDto) {
     return this.systemService.upsertMemberConfig(dto);
@@ -564,6 +706,11 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新会员等级配置" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async updateMemberConfig(@Param("id") id: string, @Body() dto: UpsertMemberConfigDto) {
     return this.systemService.updateMemberConfig(id, dto);
@@ -573,6 +720,11 @@ export class SystemController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除会员等级配置" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async deleteMemberConfig(@Param("id") id: string) {
     await this.systemService.deleteMemberConfig(id);

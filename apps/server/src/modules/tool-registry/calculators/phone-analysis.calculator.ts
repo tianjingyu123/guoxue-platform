@@ -1,4 +1,5 @@
 // ── 手机号码分析计算引擎 ──
+// 算法参考：《协纪辨方书》《八宅明镜》
 // 数字能量学/八星磁场/五行/评分
 // 运营商识别基于工信部号段数据库
 
@@ -394,6 +395,26 @@ export function calculatePhoneAnalysis(input: Record<string, unknown>): PhoneAna
 
   const duanYu = `号码${phone}（${carrier}），${totalScore >= 75 ? "整体大吉" : totalScore >= 50 ? "中等偏上" : "建议更换"}。主磁场${main}，${shuLi.desc}。${wuXing.desc}${yinYang.balance}。${detectedPatterns.length ? `号码特征：${detectedPatterns.join("，")}。` : ""}`;
 
+  const maskedPhone = phone.slice(0, 3) + "****" + phone.slice(-4);
+  const summary = [
+    "┌─ 手机号码分析 ────────────────────────┐",
+    `│ 号码：${maskedPhone}  运营商：${carrier}`.padEnd(36) + "│",
+    `│ 综合评分：${totalScore}分  主磁场：${main}`.padEnd(36) + "│",
+    "├─ 五维评分 ────────────────────────────┤",
+    `│ 事业${scores.career} 财富${scores.wealth} 感情${scores.love} 健康${scores.health} 人际${scores.social}`.padEnd(36) + "│",
+    "├─ 五行数理 ────────────────────────────┤",
+    `│ 主导：${wuXing.dominant}  缺失：${wuXing.missing.join("、") || "无"}`.padEnd(36) + "│",
+    `│ 81数理：${shuLi.jiXiong}（${shuLi.desc.slice(0, 16)}）`.padEnd(36) + "│",
+    `│ 阴阳：${yinYang.balance}（阳${yinYang.yang}/阴${yinYang.yin}）`.padEnd(36) + "│",
+    "├─ 磁场分布 ────────────────────────────┤",
+    ...(distribution.length > 0
+      ? distribution.slice(0, 4).map(d => `│ ${d.type}（${d.count}对）`.padEnd(36) + "│")
+      : ["│ 无明显磁场特征                      │"]),
+    "├─ 出处 ────────────────────────────────┤",
+    "│ 《协纪辨方书》《八宅明镜》数字能量学    │",
+    "└────────────────────────────────────────┘",
+  ].join("\n");
+
   return {
     input: { phone, system: system as any, birthday, gender },
     breakdown: { carrier, location: "中国大陆", tail },
@@ -403,5 +424,6 @@ export function calculatePhoneAnalysis(input: Record<string, unknown>): PhoneAna
     totalScore,
     scores,
     duanYu,
-  };
+    summary,
+  } as PhoneAnalysisResult & { summary: string };
 }

@@ -1,5 +1,5 @@
 import { Controller, Get, Post, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -15,24 +15,30 @@ export class BackupController {
 
   @Post("manual")
   @ApiOperation({ summary: "手动触发数据库备份" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   triggerBackup() {
     return this.svc.triggerBackup();
   }
 
   @Get("list")
   @ApiOperation({ summary: "列出备份文件" })
+  @ApiResponse({ status: 200, description: "成功" })
   listBackups() {
     return this.svc.listBackups();
   }
 
   @Get("latest")
   @ApiOperation({ summary: "最新备份状态" })
+  @ApiResponse({ status: 200, description: "成功" })
   getLatestBackup() {
     return this.svc.getLatestBackup();
   }
 
   @Post("upload-cos")
   @ApiOperation({ summary: "上传备份到COS" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   uploadToCos() {
     return this.svc.uploadLatestToCos();
   }

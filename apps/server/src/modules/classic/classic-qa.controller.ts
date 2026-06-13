@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Param, Req, Res, UseGuards, HttpException, HttpStatus } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request, Response } from "express";
 import { ClassicQaService } from "./classic-qa.service";
 import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
@@ -15,6 +15,9 @@ export class ClassicQaController {
   @Post(":classicId/qa")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "古籍智能问答（非流式）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async ask(@Param("classicId") classicId: string, @Body() body: ClassicQaDto, @Req() req: Request) {
     const userId = req.user?.id;
@@ -31,6 +34,8 @@ export class ClassicQaController {
   @Get(":classicId/qa")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "古籍问答历史" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async getHistory(@Param("classicId") classicId: string, @Req() req: Request) {
     return this.qa.getHistory(classicId, req.user?.id);
@@ -39,6 +44,9 @@ export class ClassicQaController {
   @Post(":classicId/qa/stream")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "古籍智能问答（SSE流式）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async askStream(@Param("classicId") classicId: string, @Body() body: ClassicQaDto, @Req() req: Request, @Res() res: Response) {
     const userId = req.user?.id;

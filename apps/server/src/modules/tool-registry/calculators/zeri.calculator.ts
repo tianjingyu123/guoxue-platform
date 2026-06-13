@@ -1,4 +1,5 @@
 // ── 择日大全计算引擎 ──
+// 算法参考：《协纪辨方书》《玉匣记》《鳌头通书》
 import { Solar } from "lunar-javascript";
 
 interface ZeRiInput {

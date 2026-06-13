@@ -1,4 +1,5 @@
 // ── 山向奇门计算引擎 ──
+// 算法参考：《烟波钓叟歌》《奇门遁甲秘笈大全》
 // 24山72局定局 + 坐山朝向风水排盘
 
 import { getNianZhuYear } from "@guoxue/bazi-engine";

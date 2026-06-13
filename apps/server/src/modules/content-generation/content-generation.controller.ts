@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Put, Body, Query, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { ContentGenerationService } from "./content-generation.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -15,6 +15,8 @@ export class ContentGenerationController {
 
   @Post("generate")
   @ApiOperation({ summary: "手动触发生成品类种子内容" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async generate(
     @Body()
     body: {
@@ -32,18 +34,22 @@ export class ContentGenerationController {
 
   @Get("stats")
   @ApiOperation({ summary: "获取品类内容统计" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getStats() {
     return this.service.getCategoryStats();
   }
 
   @Get("categories")
   @ApiOperation({ summary: "获取品类标签树" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getCategories() {
     return this.service.getCategoryTree();
   }
 
   @Post("auto-fill")
   @ApiOperation({ summary: "手动触发自动填充空品类" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async autoFill() {
     await this.service.autoFillEmptyCategories();
     return { message: "自动填充已触发" };
@@ -53,6 +59,7 @@ export class ContentGenerationController {
 
   @Get("history")
   @ApiOperation({ summary: "获取生成历史记录" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "categoryLevel1", required: false })
   @ApiQuery({ name: "type", required: false })
   @ApiQuery({ name: "status", required: false })
@@ -73,18 +80,22 @@ export class ContentGenerationController {
 
   @Get("status")
   @ApiOperation({ summary: "获取生成任务运行状态" })
+  @ApiResponse({ status: 200, description: "成功" })
   getTaskStatus() {
     return this.service.getTaskStatus();
   }
 
   @Get("params")
   @ApiOperation({ summary: "获取生成参数配置" })
+  @ApiResponse({ status: 200, description: "成功" })
   getParams() {
     return this.service.getParams();
   }
 
   @Put("params")
   @ApiOperation({ summary: "更新生成参数配置" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   updateParams(
     @Body() body: {
       temperature?: number;

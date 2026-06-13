@@ -1,5 +1,5 @@
 import { Controller, Post, Get, Body, Param, Query, UseGuards, Req, Logger } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { OperationRobotService } from "./operation-robot.service";
 import { SystemService } from "../system/system.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -21,12 +21,14 @@ export class OperationRobotController {
 
   @Get()
   @ApiOperation({ summary: "获取所有机器人状态" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getStatus() {
     return this.service.getRobotStatus();
   }
 
   @Get("logs")
   @ApiOperation({ summary: "获取执行日志" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "role", required: false, description: "按机器人筛选" })
   @ApiQuery({ name: "limit", required: false, description: "返回条数" })
   async getLogs(
@@ -38,12 +40,15 @@ export class OperationRobotController {
 
   @Get(":role/config")
   @ApiOperation({ summary: "获取机器人详细配置" })
+  @ApiResponse({ status: 200, description: "成功" })
   async getConfig(@Param("role") role: string) {
     return this.service.getRobotConfig(role as any);
   }
 
   @Post(":role/trigger")
   @ApiOperation({ summary: "手动触发机器人任务" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async trigger(@Param("role") role: string, @Req() req: Request) {
     const result = await this.service.triggerRobot(role as any);
     this.systemService.logAudit({
@@ -59,6 +64,8 @@ export class OperationRobotController {
 
   @Post(":role/toggle")
   @ApiOperation({ summary: "切换机器人开关" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async toggle(@Param("role") role: string, @Body("enabled") enabled: boolean, @Req() req: Request) {
     const result = await this.service.toggleRobot(role as any, enabled);
     this.systemService.logAudit({
@@ -74,6 +81,8 @@ export class OperationRobotController {
 
   @Post("init")
   @ApiOperation({ summary: "初始化机器人系统" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async init(@Req() req: Request) {
     await this.service.init();
     this.systemService.logAudit({

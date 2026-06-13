@@ -47,6 +47,8 @@ import { AnomalyDetectorService } from "./anomaly-detector.service";
 import { AnomalyDetectorController } from "./anomaly-detector.controller";
 import { DataExplorerService } from "./data-explorer.service";
 import { DataExplorerController } from "./data-explorer.controller";
+import { AgentChatService } from "./agent-chat.service";
+import { AgentChatController } from "./agent-chat.controller";
 import { SystemModule } from "../system/system.module";
 import { PrismaModule } from "../../prisma/prisma.module";
 import { RedisModule } from "../../redis/redis.module";
@@ -54,7 +56,7 @@ import { TtsModule } from "../tts/tts.module";
 
 @Module({
   imports: [SystemModule, PrismaModule, RedisModule, TtsModule],
-  controllers: [AiGatewayController, CustomerServiceController, KnowledgeSyncController, AdminDedupController, AdminModelRoutingController, PublishAssistController, MediaAiController, AdminRagController, MarketplaceController, QualityScorerController, PlatformKnowledgeController, AiEventBusController, CapabilityRegistryController, DecisionLedgerController, CollaborationController, AnomalyDetectorController, DataExplorerController],
+  controllers: [AiGatewayController, CustomerServiceController, KnowledgeSyncController, AdminDedupController, AdminModelRoutingController, PublishAssistController, MediaAiController, AdminRagController, MarketplaceController, QualityScorerController, PlatformKnowledgeController, AiEventBusController, CapabilityRegistryController, DecisionLedgerController, CollaborationController, AnomalyDetectorController, DataExplorerController, AgentChatController],
   providers: [
     AiGatewayService,
     ModelRouterService,
@@ -87,7 +89,8 @@ import { TtsModule } from "../tts/tts.module";
     CollaborationService,
     AnomalyDetectorService,
     DataExplorerService,
+    AgentChatService,
   ],
-  exports: [AiGatewayService, ModelRouterService, AiLoggerService, VectorService, RagService, KnowledgeSyncService, SemanticCacheService, StreamUnifierService, MultiAgentService, MultimodalService, EdgeAiService, KnowledgeGraphService, UserKnowledgeService, PlatformKnowledgeService, AiEventBusService, CapabilityRegistryService, DecisionLedgerService, CollaborationService, AnomalyDetectorService, DataExplorerService],
+  exports: [AiGatewayService, ModelRouterService, AiLoggerService, VectorService, RagService, KnowledgeSyncService, SemanticCacheService, StreamUnifierService, MultiAgentService, MultimodalService, EdgeAiService, KnowledgeGraphService, UserKnowledgeService, PlatformKnowledgeService, AiEventBusService, CapabilityRegistryService, DecisionLedgerService, CollaborationService, AnomalyDetectorService, DataExplorerService, AgentChatService],
 })
 export class AiGatewayModule {}

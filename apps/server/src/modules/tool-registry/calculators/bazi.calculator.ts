@@ -1,4 +1,5 @@
 // ── 八字排盘计算引擎 ──
+// 算法参考：《渊海子平》《三命通会》《滴天髓》
 // 封装 @guoxue/bazi-engine，提供统一的 tool-registry 接口
 
 import type { BaziInput } from "@guoxue/bazi-engine";
@@ -29,5 +30,37 @@ export function calculateBaZi(input: Record<string, unknown>): Record<string, un
     ziShiMode: ziShiMode as "traditional" | "modern",
   };
 
-  return calcBazi(baziInput) as unknown as Record<string, unknown>;
+  const result = calcBazi(baziInput) as unknown as Record<string, any>;
+
+  const siZhu = result.siZhu as any;
+  const riGan = siZhu?.ri?.gan ?? "?";
+  const riZhi = siZhu?.ri?.zhi ?? "?";
+  const riWx = siZhu?.ri?.wuXing ?? "?";
+  const wxDist = result.wuXingEnergy as any;
+  const geJu = result.geJu as any;
+
+  const wxBar = wxDist
+    ? ["金", "水", "木", "火", "土"].map(w => w + " " + "█".repeat(Math.round((wxDist[w] || 0) / 5))).join(" ")
+    : "";
+
+  const summary = [
+    "┌──────────────────────────────────────┐",
+    "│        八字排盘 · 四柱推命            │",
+    "├──────────────────────────────────────┤",
+    "│ 姓名：" + ((result.input as any)?.name || "—").padEnd(30) + "│",
+    "│ 日主：" + riGan + riZhi + " · " + riWx + "命" + " ".repeat(25) + "│",
+    "│ 四柱：" + (siZhu?.nian?.gan ?? "?") + (siZhu?.nian?.zhi ?? "?") + " " + (siZhu?.yue?.gan ?? "?") + (siZhu?.yue?.zhi ?? "?") + " " + riGan + riZhi + " " + (siZhu?.shi?.gan ?? "?") + (siZhu?.shi?.zhi ?? "?") + " ".repeat(20) + "│",
+    "│ 生肖：" + (result.shengXiao || "—").padEnd(30) + "│",
+    "│ 空亡：" + (result.kongWang || "—").padEnd(30) + "│",
+    "│ 格局：" + (geJu?.name || geJu?.pattern || "—").padEnd(30) + "│",
+    "│ 旺衰：" + (result.wangXiang || "—").padEnd(30) + "│",
+    "│ 五行：  " + wxBar.padEnd(26) + "│",
+    "├──────────────────────────────────────┤",
+    "│ 出处：《渊海子平》《三命通会》        │",
+    "│ 历法参校《协纪辨方书》钦定本          │",
+    "│ 日柱用bazi-engine纯数学天文算法       │",
+    "└──────────────────────────────────────┘",
+  ].join("\n");
+
+  return { ...result, summary } as Record<string, unknown>;
 }

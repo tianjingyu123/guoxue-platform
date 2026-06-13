@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Param, Query, Body, Req, Header, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { ToolRegistryService } from "./tool-registry.service";
 import { ToolAiService } from "./tool-ai.service";
 import { ToolCalculationService } from "./tool-calculation.service";
@@ -18,6 +18,7 @@ export class ToolRegistryController {
   @Get("directory")
   @Header("Cache-Control", "public, max-age=3600, s-maxage=86400")
   @ApiOperation({ summary: "首页工具目录（按分类分组，CDN缓存1天）" })
+  @ApiResponse({ status: 200, description: "成功" })
   getDirectory() {
     return this.registry.getDirectory();
   }
@@ -25,6 +26,7 @@ export class ToolRegistryController {
   /** 全部工具列表 */
   @Get()
   @ApiOperation({ summary: "获取全部工具列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   getAll() {
     return this.registry.getAllTools();
   }
@@ -32,6 +34,7 @@ export class ToolRegistryController {
   /** 按分类获取 */
   @Get("category/:category")
   @ApiOperation({ summary: "按分类获取工具列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   getByCategory(@Param("category") category: string) {
     return { tools: this.registry.getByCategory(category) };
   }
@@ -39,6 +42,8 @@ export class ToolRegistryController {
   /** 获取单个工具详情 */
   @Get(":id")
   @ApiOperation({ summary: "获取单个工具详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getById(@Param("id") id: string) {
     return this.registry.getToolById(id) ?? null;
   }
@@ -46,6 +51,8 @@ export class ToolRegistryController {
   /** 获取工具输入Schema */
   @Get(":id/input-schema")
   @ApiOperation({ summary: "获取工具输入Schema（前端动态表单）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getInputSchema(@Param("id") id: string) {
     return this.registry.getInputSchema(id);
   }
@@ -55,6 +62,9 @@ export class ToolRegistryController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "执行工具计算/排盘" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   async calculate(
     @Param("id") toolId: string,
     @Body() body: { input: Record<string, unknown> },
@@ -65,6 +75,8 @@ export class ToolRegistryController {
   /** 获取工具Mock数据 */
   @Get(":id/mock")
   @ApiOperation({ summary: "获取工具Mock数据（前端预览用）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getMockData(@Param("id") id: string) {
     return this.registry.getMockData(id);
   }
@@ -74,6 +86,9 @@ export class ToolRegistryController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "对工具排盘/计算结果进行AI分析" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
   analyze(
     @Param("id") toolId: string,
     @Req() req: any,
@@ -89,6 +104,7 @@ export class ToolRegistryController {
   /** 获取AI分析记录 */
   @Get("analysis/:analysisId")
   @ApiOperation({ summary: "获取AI分析记录详情" })
+  @ApiResponse({ status: 200, description: "成功" })
   getAnalysisRecord(@Param("analysisId") analysisId: string, @Req() req: any) {
     return this.toolAi.getAnalysisRecord(analysisId, req.user?.id ?? "anonymous");
   }
@@ -97,6 +113,7 @@ export class ToolRegistryController {
   @Get("analysis/history/mine")
   @ApiBearerAuth()
   @ApiOperation({ summary: "获取当前用户的AI分析历史" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   getUserAnalysisHistory(

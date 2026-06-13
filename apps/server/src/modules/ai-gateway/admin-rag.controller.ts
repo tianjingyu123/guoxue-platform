@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RagService } from "./rag.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -19,6 +19,7 @@ export class AdminRagController {
   @Get()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "模板列表" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "scene", required: false, description: "场景过滤" })
   async list(@Query("scene") scene?: string) {
     const where: any = {};
@@ -29,6 +30,8 @@ export class AdminRagController {
   @Get(":id")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "模板详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   async get(@Param("id") id: string) {
     return this.prisma.ragPromptTemplate.findUnique({ where: { id } });
   }
@@ -36,6 +39,8 @@ export class AdminRagController {
   @Post()
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建模板" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async create(@Body() body: {
     scene: string; templateName: string; systemPrompt: string;
     userPromptTemplate?: string; variables?: any[];
@@ -46,6 +51,9 @@ export class AdminRagController {
   @Put(":id")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新模板" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   async update(@Param("id") id: string, @Body() body: {
     scene?: string; templateName?: string; systemPrompt?: string;
     userPromptTemplate?: string; variables?: any[]; status?: string;
@@ -56,6 +64,9 @@ export class AdminRagController {
   @Delete(":id")
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除模板" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   async delete(@Param("id") id: string) {
     return this.prisma.ragPromptTemplate.delete({ where: { id } });
   }
@@ -63,6 +74,8 @@ export class AdminRagController {
   @Post("preview")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "模板预览测试 — 用测试变量渲染模板，不调用AI" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   async preview(@Body() body: {
     systemPrompt: string; userPromptTemplate?: string;
     variables?: Record<string, string>; testQuestion?: string;

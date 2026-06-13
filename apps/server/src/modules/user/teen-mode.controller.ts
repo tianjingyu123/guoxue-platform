@@ -1,5 +1,5 @@
 import { Controller, Get, Put, Body, Req, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { TeenModeService } from "./teen-mode.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -14,12 +14,15 @@ export class TeenModeController {
 
   @Get("teen-mode")
   @ApiOperation({ summary: "获取青少年模式设置" })
+  @ApiResponse({ status: 200, description: "成功" })
   getSettings(@Req() req: Request) {
     return this.svc.getSettings(req.user.id);
   }
 
   @Put("teen-mode")
   @ApiOperation({ summary: "更新青少年模式设置" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
   updateSettings(@Req() req: Request, @Body() dto: UpdateTeenModeDto) {
     return this.svc.updateSettings(req.user.id, dto);
   }

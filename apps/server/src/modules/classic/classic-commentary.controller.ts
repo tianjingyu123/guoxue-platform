@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -17,12 +17,14 @@ export class ClassicCommentaryController {
 
   @Get("stats")
   @ApiOperation({ summary: "注解统计概览" })
+  @ApiResponse({ status: 200, description: "成功" })
   getStats() {
     return this.svc.stats();
   }
 
   @Get("search")
   @ApiOperation({ summary: "搜索注解（分页）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "keyword", required: false })
   @ApiQuery({ name: "school", required: false })
   @ApiQuery({ name: "type", required: false })
@@ -42,6 +44,7 @@ export class ClassicCommentaryController {
 
   @Get("book/:bookId")
   @ApiOperation({ summary: "获取经典的注解列表（分页）" })
+  @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "type", required: false })
   @ApiQuery({ name: "school", required: false })
   @ApiQuery({ name: "page", required: false })
@@ -58,12 +61,15 @@ export class ClassicCommentaryController {
 
   @Get("chapter/:chapterId")
   @ApiOperation({ summary: "获取章节的注解" })
+  @ApiResponse({ status: 200, description: "成功" })
   listByChapter(@Param("chapterId") chapterId: string) {
     return this.svc.listByChapter(chapterId);
   }
 
   @Get(":id")
   @ApiOperation({ summary: "获取注解详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
   getById(@Param("id") id: string) {
     return this.svc.getById(id);
   }
@@ -73,6 +79,10 @@ export class ClassicCommentaryController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "创建注解" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   create(@Body() dto: CreateCommentaryDto) {
     return this.svc.create(dto);
   }
@@ -82,6 +92,11 @@ export class ClassicCommentaryController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "更新注解" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   update(@Param("id") id: string, @Body() dto: UpdateCommentaryDto) {
     return this.svc.update(id, dto);
   }
@@ -91,6 +106,11 @@ export class ClassicCommentaryController {
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除注解" })
+  @ApiResponse({ status: 200, description: "删除成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   delete(@Param("id") id: string) {
     return this.svc.delete(id);
   }
@@ -100,6 +120,10 @@ export class ClassicCommentaryController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "填充经典注解种子数据（50+名家注解）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   seed() {
     return this.seeder.seed();
   }
@@ -109,6 +133,10 @@ export class ClassicCommentaryController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "向量化未索引的注解" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   vectorizeUnindexed() {
     return this.svc.vectorizeUnindexed(50);
   }
