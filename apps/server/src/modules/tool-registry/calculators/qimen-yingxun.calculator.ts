@@ -46,6 +46,26 @@ const MATTER_DB: MatterYingXun[] = [
     { ruleType:"值符应期", method:"值符生日干则贵人相助，值符旺地为得到帮助之时。", example:"值符在离生日干在坤，午月得贵人助。", accuracy:"高" },
     { ruleType:"时干应期", method:"时干生日干所谋易成，地支为可行动之时。", example:"时干在巽生日干在离，辰巳日可行。", accuracy:"中" },
   ], kouJue:"开门生我上司助，值符生我贵人扶。时干生日谋可动，旺相不空是良图。" },
+  { matter:"考试", yongShen:"丁奇(文章)/景门(试卷)/值符(主考)/日干(考生)", rules:[
+    { ruleType:"丁奇应期", method:"丁奇落宫旺相不空亡，地支即为考试吉日或放榜之期。", example:"丁奇在离宫，午月考试大利，午日放榜。", accuracy:"高" },
+    { ruleType:"景门应期", method:"景门落宫旺相生日干，文章得赏识，地支为得名之时。", example:"景门在震生日干在离，卯日揭晓佳音。", accuracy:"高" },
+    { ruleType:"值符应期", method:"值符生丁奇则主考官赏识，地支为面试/复试通过之时。", example:"值符在坎生丁奇在巽，子辰日有好消息。", accuracy:"中" },
+  ], kouJue:"丁奇旺地文章利，景门生我试名扬。值符生丁考官助，旺相不空是吉方。" },
+  { matter:"交易", yongShen:"戊(资本)/生门(利润)/六合(契约)/日干(自己)", rules:[
+    { ruleType:"生门应期", method:"生门落宫旺相不空，地支为成交吉日。生门+丙奇则暴利可期。", example:"生门在艮宫，丑寅月日签约成交大利。", accuracy:"高" },
+    { ruleType:"六合应期", method:"六合落宫不逢冲不空亡，地支为合同签订之时。", example:"六合在兑宫，申酉日签约为佳。", accuracy:"高" },
+    { ruleType:"戊土应期", method:"戊落宫旺相生日干，本金安全且获利，地支为交割之日。", example:"戊在坤生日干在兑，未申日交割顺利。", accuracy:"中" },
+  ], kouJue:"生门旺处是良机，六合不空契约宜。戊土生我本金稳，旺相不冲交易时。" },
+  { matter:"怀孕", yongShen:"坤宫(母)/天芮(胎孕)/乙奇(胎儿)/日干(母体)", rules:[
+    { ruleType:"天芮应期", method:"天芮落宫旺相不空，地支为受孕或预产之期。天芮+乙奇为顺产。", example:"天芮在坤宫旺于未申，未申月受孕顺利。", accuracy:"高" },
+    { ruleType:"坤宫应期", method:"坤宫旺相受生，母子平安，地支为安胎吉期。坤宫逢冲宜注意。", example:"坤宫在离受生，午月安胎大吉。", accuracy:"高" },
+    { ruleType:"乙奇应期", method:"乙奇落宫不空亡不逢庚冲，胎儿安稳，地支为产期。", example:"乙奇在震旺于卯，卯月分娩顺利。", accuracy:"中" },
+  ], kouJue:"天芮旺相胎元固，坤宫受生母安和。乙奇不空胎儿稳，逢冲之日宜多护。" },
+  { matter:"官禄", yongShen:"开门(官位)/值符(上司)/丁奇(文书)/日干(求官者)", rules:[
+    { ruleType:"开门应期", method:"开门生日干，官运亨通，开门旺相之地支为升迁之期。", example:"开门在乾生日干在艮，戌亥月升迁有望。", accuracy:"高" },
+    { ruleType:"丁奇应期", method:"丁奇为调令文书，丁奇落宫旺地生日干，地支为到任之时。", example:"丁奇在离生日干在巽，午日调令到。", accuracy:"高" },
+    { ruleType:"值符应期", method:"值符代表最高领导，生日干则得提拔，地支为任命之日。", example:"值符在兑生日干在坎，申酉日有任命。", accuracy:"中" },
+  ], kouJue:"开门生我官运通，丁奇旺地调令逢。值符生干提拔近，旺相不空禄位隆。" },
 ];
 
 export function calculateQiMenYingXun(input: Record<string, unknown>): QiMenYingXunResult {
@@ -53,6 +73,6 @@ export function calculateQiMenYingXun(input: Record<string, unknown>): QiMenYing
   const matter = matterType ? (MATTER_DB.find(m => m.matter === matterType) || null) : null;
   const analysis = matter
     ? `${matter.matter}应期：用神${matter.yongShen}。${matter.rules.map(r => r.method).join("；")}口诀：${matter.kouJue}`
-    : `奇门应期涵盖求财/婚姻/出行/失物/官讼/疾病/行人/谋事8大类，每类有3-4条应期判断规则。`;
+    : `奇门应期涵盖求财/婚姻/出行/失物/官讼/疾病/行人/谋事/考试/交易/怀孕/官禄12大类，每类3-4条应期规则。`;
   return { matter, allMatters: MATTER_DB, analysis };
 }

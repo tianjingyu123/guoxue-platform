@@ -2,6 +2,8 @@
 // 算法参考：《烟波钓叟歌》《奇门遁甲秘笈大全》《遁甲演义》
 // 以出生时间起奇门终身局，排盘+推大运+一生概要
 
+import { calcRiZhu } from "@guoxue/bazi-engine";
+
 interface QiMenGongInfo { gongWei: string; men: string; xing: string; gan: string; shen: string; baGua: string; level: "吉" | "平" | "凶"; score: number; }
 interface ZhongShenDaYunItem { age: number; gongWei: string; ganZhi: string; level: string; description: string; }
 interface QiMenZhongShenResult { baZi: string; paiPan: { yangDun: boolean; juShu: number; gongList: QiMenGongInfo[] }; daYunList: ZhongShenDaYunItem[]; yiShengGist: string; summary: string; }
@@ -38,9 +40,19 @@ export function calculateQiMenZhongShen(input: Record<string, unknown>): QiMenZh
 
   const yearGan = GAN[(year - 4) % 10];
   const yearZhi = ZHI[(year - 4) % 12];
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const monthGanZhi = GAN[(year - 4) * 12 + month + 1] + ""; // simplified
-  const baZi = `${yearGan}${yearZhi} ${GAN[(GAN.indexOf(yearGan) * 2 + month - 1) % 10]}${ZHI[(month + 1) % 12]} ${GAN[(year + month + day) % 10]}${ZHI[(day + 3) % 12]} ${GAN[(day + hour + 1) % 10]}${ZHI[(hour / 2 + 1) % 12]}`;
+  // 月柱：五虎遁月干 + 节气月支
+  const monthGan = GAN[(GAN.indexOf(yearGan) * 2 + month - 1) % 10];
+  const monthZhi = ZHI[(month + 1) % 12];
+  // 日柱：bazi-engine 纯数学天文算法
+  const riZhu = calcRiZhu(year, month, day);
+  const riGan = riZhu.gan;
+  const riZhi = riZhu.zhi;
+  // 时柱：五鼠遁 + 时辰地支
+  const shiZhiIdx = Math.floor((hour + 1) / 2) % 12;
+  const shiGanBase = GAN.indexOf(riGan);
+  const shiGan = GAN[((shiGanBase % 5) * 2 + shiZhiIdx) % 10];
+  const shiZhi = ZHI[shiZhiIdx];
+  const baZi = `${yearGan}${yearZhi} ${monthGan}${monthZhi} ${riGan}${riZhi} ${shiGan}${shiZhi}`;
 
   const jieQiApprox = (month - 1) * 2 + (day > 15 ? 1 : 0);
   const { yangDun, juShu } = getJuShu(jieQiApprox);

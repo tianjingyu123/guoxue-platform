@@ -2,6 +2,8 @@
 // 算法参考：《烟波钓叟歌》《奇门遁甲秘笈大全》《遁甲演义》
 // 针对具体事项的即时奇门排盘与指导
 
+import { calcRiZhu } from "@guoxue/bazi-engine";
+
 interface ShiKeGongPan { gongWei: string; men: string; xing: string; gan: string; shen: string; keYing: string; level: "吉" | "平" | "凶"; advice: string; }
 interface ShiKeJieGuo { bestTime: string; bestDirection: string; bestGongWei: string; avoidTime: string; avoidDirection: string; }
 interface QiMenShiKeResult { datetime: string; juInfo: { yangDun: boolean; juShu: number; tianGan: string }; gongPan: ShiKeGongPan[]; jieGuo: ShiKeJieGuo; summary: string; }
@@ -37,8 +39,10 @@ export function calculateQiMenShiKe(input: Record<string, unknown>): QiMenShiKeR
   const jieQiApprox = (month - 1) * 2 + (day > 15 ? 1 : 0);
   const yangDun = jieQiApprox < 11;
   const juShu = (jieQiApprox % 9) + 1;
-  const dayGan = GAN[(year + month + day) % 10];
-  const hourZhi = ZHI[Math.floor(hour / 2)];
+  // 日干：bazi-engine 纯数学天文算法
+  const riZhu = calcRiZhu(year, month, day);
+  const dayGan = riZhu.gan;
+  const hourZhi = ZHI[Math.floor((hour + 1) / 2) % 12];
   const tianGan = `${dayGan}${hourZhi}`;
 
   const gongPan: ShiKeGongPan[] = [];

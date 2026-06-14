@@ -101,22 +101,6 @@ const NAME_DB: NameItem[] = [
   { name: "初雪", meaning: "初冬的第一场雪。", source: "唐诗", sourceQuote: "忽如一夜春风来，千树万树梨花开。——岑参（取其初雪意象）", analysis: "纯净无瑕，意境唯美。" },
 ];
 
-/**
- * 姓氏与五行的简单匹配（用于名字搭配建议）
- */
-const SURNAME_WX_TIPS: Record<string, string> = {
-  "李": "属木，适合搭配水火偏旁的字",
-  "王": "属土，适合搭配金火偏旁的字",
-  "张": "属火，适合搭配木土偏旁的字",
-  "刘": "属金，适合搭配水土偏旁的字",
-  "陈": "属火，适合搭配木土偏旁的字",
-  "杨": "属木，适合搭配火水偏旁的字",
-  "赵": "属火，适合搭配木土偏旁的字",
-  "黄": "属土，适合搭配金火偏旁的字",
-  "周": "属金，适合搭配水土偏旁的字",
-  "吴": "属木，适合搭配火水偏旁的字",
-};
-
 export function calculateShiJingQiMing(input: Record<string, unknown>): ShiJingQiMingResult {
   const surname = (input.surname as string) || "";
   const gender = (input.gender as string) || "男";
@@ -155,18 +139,32 @@ export function calculateShiJingQiMing(input: Record<string, unknown>): ShiJingQ
     );
   }
 
-  // 姓氏五行搭配建议
-  const wxTip = SURNAME_WX_TIPS[surname];
-
   const suggestions = filtered.slice(0, 8);
-  const summary = wxTip
-    ? `姓氏"${surname}"${wxTip}，共为${surname ? `"${surname}"` : ""}${gender}孩推荐 ${filtered.length} 个名字${preference ? `（含"${preference}"）` : ""}`
-    : `共为${gender}孩推荐 ${filtered.length} 个名字`;
+
+  // box-drawing 结构化展示
+  const nameList = suggestions.map((n, i) => {
+    const srcLabel = n.source;
+    const meaningShort = n.meaning.length > 16 ? n.meaning.slice(0, 16) + "..." : n.meaning;
+    return "│ " + `${i + 1}. ${n.name.padEnd(4)} ${srcLabel.padEnd(4)} ${meaningShort.padEnd(18)} │`;
+  }).join("\n");
+
+  const display = [
+    "┌─ 诗经楚辞取名 ──────────────────────┐",
+    `│ 姓氏：${surname || "未指定"}  性别：${gender}`.padEnd(37) + "│",
+    `│ 来源：${source || "不限"}  偏好：${preference || "无"}`.padEnd(37) + "│",
+    `│ 匹配：${filtered.length} 个名字`.padEnd(37) + "│",
+    "├─ 推荐名字 ───────────────────────────┤",
+    nameList || "│ (无匹配结果)".padEnd(37) + "│",
+    "├─ 数据来源 ───────────────────────────┤",
+    "│ 《诗经》《楚辞》《唐诗三百首》      │",
+    "│ 《宋词三百首》古代经典文学          │",
+    "└────────────────────────────────────┘",
+  ].join("\n");
 
   return {
     surname: surname || "未指定",
     suggestions,
     total: filtered.length,
-    summary,
+    summary: display,
   };
 }

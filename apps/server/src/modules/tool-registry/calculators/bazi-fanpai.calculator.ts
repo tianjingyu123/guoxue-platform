@@ -3,7 +3,7 @@
 // 基于人生重大事件反向推算最可能的出生时辰
 // 《渊海子平》云：「时者，一日之终始也。时柱乃归宿之地，关乎晚运子息。」
 
-import { GAN as GAN_RAW, ZHI as ZHI_RAW } from "@guoxue/bazi-engine";
+import { GAN as GAN_RAW, ZHI as ZHI_RAW, calcRiZhu } from "@guoxue/bazi-engine";
 
 const GAN: string[] = GAN_RAW as unknown as string[];
 const ZHI: string[] = ZHI_RAW as unknown as string[];
@@ -177,9 +177,10 @@ export function calculateBaziFanPai(input: Record<string, unknown>): BaziFanPaiR
   const monthZhi = ZHI[(month + 1) % 12];
   const monthPillar = monthGan + monthZhi;
 
-  // 简化日柱计算
-  const dayGan = GAN[(day + 9) % 10];
-  const dayZhi = ZHI[(day + 5) % 12];
+  // 日柱：bazi-engine 纯数学天文算法
+  const riZhu = calcRiZhu(year, month, day);
+  const dayGan = riZhu.gan;
+  const dayZhi = riZhu.zhi;
   const dayPillar = dayGan + dayZhi;
 
   const candidates: ShiChenCandidate[] = [];

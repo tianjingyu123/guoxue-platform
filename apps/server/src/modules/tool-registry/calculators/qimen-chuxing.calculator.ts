@@ -2,6 +2,8 @@
 // 算法参考：《烟波钓叟歌》《奇门遁甲秘笈大全》《遁甲演义》
 // 基于日时奇门，为出行目的提供时辰+方位指导
 
+import { calcRiZhu } from "@guoxue/bazi-engine";
+
 interface ChuXingShiChen { shiChen: string; timeRange: string; level: "宜行" | "可行" | "不宜" | "大忌"; direction: string; jiXiong: string; advice: string; }
 interface FangWeiJiXiong { fangWei: string; jiXiong: string; men: string; description: string; }
 interface QiMenChuXingResult { date: string; shiChenList: ChuXingShiChen[]; fangWeiList: FangWeiJiXiong[]; bestTime: string; bestDirection: string; summary: string; }
@@ -28,7 +30,9 @@ export function calculateQiMenChuXing(input: Record<string, unknown>): QiMenChuX
   const purpose = (input.purpose as string) || "出差";
 
   const date = `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-  const dayGan = GAN[(year + month + day) % 10];
+  // 日干：bazi-engine 纯数学天文算法
+  const riZhu = calcRiZhu(year, month, day);
+  const dayGan = riZhu.gan;
   const juBase = (GAN.indexOf(dayGan) + day) % 9;
 
   // 12时辰出行指导
