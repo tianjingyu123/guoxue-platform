@@ -2,73 +2,44 @@
   <div class="page">
     <div class="page-header">
       <h3>客户管理</h3>
-      <span class="subtitle">在本店下过单的用户</span>
+      <div class="header-right">
+        <el-input v-model="search" placeholder="搜索客户昵称/手机号" clearable style="width:220px" @input="onSearch" />
+      </div>
     </div>
 
-    <el-table
-      v-loading="loading"
-      :data="list"
-      stripe
-    >
-      <el-table-column
-        label="客户"
-        min-width="180"
-      >
-        <template #default="{ row }">
-          <div class="customer-cell">
-            <img
-              v-if="row.avatar"
-              :src="row.avatar"
-              class="avatar"
-            >
-            <span
-              v-else
-              class="avatar-placeholder"
-            >{{ row.nickname?.charAt(0) || "?" }}</span>
-            <div>
-              <div class="nickname">
-                {{ row.nickname || "匿名用户" }}
-              </div>
-              <div class="phone">
-                {{ maskPhone(row.phone) }}
-              </div>
-            </div>
-          </div>
-        </template>
+    <el-table v-loading="loading" :data="list" stripe>
+      <el-table-column prop="id" label="客户ID" width="200" show-overflow-tooltip />
+      <el-table-column prop="nickname" label="昵称" width="120" />
+      <el-table-column prop="phone" label="手机号" width="140" />
+      <el-table-column label="累计消费" width="120">
+        <template #default="{ row }">¥{{ Number(row.totalSpent || 0).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column
-        label="订单数"
-        width="90"
-        prop="orderCount"
-        sortable
-      />
-      <el-table-column
-        label="累计消费"
-        width="130"
-        sortable
-      >
-        <template #default="{ row }">
-          <span style="color:#C41E3A;font-weight:bold">¥{{ Number(row.totalSpent || 0).toFixed(2) }}</span>
-        </template>
+      <el-table-column prop="orderCount" label="订单数" width="80" align="center" />
+      <el-table-column label="最后下单" width="160">
+        <template #default="{ row }">{{ formatDate(row.lastOrderAt) }}</template>
       </el-table-column>
-      <el-table-column
-        label="最近下单"
-        width="160"
-      >
+      <el-table-column label="注册时间" width="160">
+        <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="100" fixed="right">
         <template #default="{ row }">
-          {{ formatDate(row.lastOrderAt) }}
+          <el-button size="small" text type="primary" @click="openDetail(row)">详情</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <el-pagination
-      v-model:current-page="page"
-      :total="total"
-      :page-size="20"
-      layout="total, prev, pager, next"
-      style="margin-top:16px;justify-content:flex-end"
-      @current-change="fetchList"
-    />
+    <el-pagination v-model:current-page="page" :total="total" :page-size="20" layout="total, prev, pager, next" style="margin-top:16px;justify-content:flex-end" @current-change="fetchList" />
+
+    <el-dialog v-model="detailDialog" title="客户详情" width="550px">
+      <el-descriptions v-if="current" :column="2" border size="small">
+        <el-descriptions-item label="客户ID">{{ current.id }}</el-descriptions-item>
+        <el-descriptions-item label="昵称">{{ current.nickname }}</el-descriptions-item>
+        <el-descriptions-item label="手机号">{{ current.phone || "未绑定" }}</el-descriptions-item>
+        <el-descriptions-item label="累计消费">¥{{ Number(current.totalSpent || 0).toFixed(2) }}</el-descriptions-item>
+        <el-descriptions-item label="订单数">{{ current.orderCount }}</el-descriptions-item>
+        <el-descriptions-item label="注册时间">{{ formatDate(current.createdAt) }}</el-descriptions-item>
+      </el-descriptions>
+    </el-dialog>
   </div>
 </template>
 
@@ -80,13 +51,18 @@ const list = ref<any[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
+const search = ref("");
+const detailDialog = ref(false);
+const current = ref<any>(null);
+let timer: any = null;
 
 function formatDate(d: string) {
-  return d ? new Date(d).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" }) : "-";
+  return d ? new Date(d).toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
 }
-function maskPhone(phone: string) {
-  if (!phone) return "-";
-  return phone.replace(/(\d{3})\d{4}(\d{4})/, "$1****$2");
+
+function onSearch() {
+  clearTimeout(timer);
+  timer = setTimeout(() => { page.value = 1; fetchList(); }, 400);
 }
 
 onMounted(() => fetchList());
@@ -94,22 +70,21 @@ onMounted(() => fetchList());
 async function fetchList() {
   loading.value = true;
   try {
-    const res = await merchantBackendApi.listCustomers({ page: page.value, pageSize: 20 });
+    const params: any = { page: page.value, pageSize: 20 };
+    if (search.value) params.keyword = search.value;
+    const res = await merchantBackendApi.listCustomers(params);
     const data = (res as any).data ?? res;
     list.value = data.list || data.data || [];
     total.value = data.total || 0;
   } finally { loading.value = false; }
 }
+
+function openDetail(row: any) { current.value = row; detailDialog.value = true; }
 </script>
 
 <style scoped>
 .page { padding: 20px; }
-.page-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .page-header h3 { margin: 0; }
-.subtitle { color: var(--color-text-secondary); font-size: 13px; }
-.customer-cell { display: flex; align-items: center; gap: 10px; }
-.avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
-.avatar-placeholder { width: 36px; height: 36px; border-radius: 50%; background: #f0e6d3; display: flex; align-items: center; justify-content: center; color: #8B4513; font-size: 14px; }
-.nickname { font-weight: 500; }
-.phone { font-size: 12px; color: var(--color-text-secondary); }
+.header-right { display: flex; gap: 12px; }
 </style>
