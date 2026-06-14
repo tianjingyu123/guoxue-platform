@@ -101,7 +101,14 @@ echo ""
 echo -e "${YELLOW}[代码规范]${NC}"
 STAGED_TS=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.ts$' || true)
 if [ -n "$STAGED_TS" ]; then
-  check_step "ESLint 检查暂存文件" npx eslint $STAGED_TS --quiet || true
+  # xargs 分批处理，避免 Windows 命令行参数长度超限
+  if echo "$STAGED_TS" | xargs -n 50 npx eslint --quiet > /dev/null 2>&1; then
+    echo -e "  ESLint 检查暂存文件 ... ${GREEN}✓${NC}"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ESLint 检查暂存文件 ... ${RED}✗${NC}"
+    FAIL=$((FAIL + 1))
+  fi
 else
   echo "  (无 TypeScript 文件变更，跳过)"
   PASS=$((PASS + 1))
