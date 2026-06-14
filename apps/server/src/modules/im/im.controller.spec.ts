@@ -47,8 +47,9 @@ describe("ImController", () => {
   });
 
   it("POST /im/account/import — 导入IM账号", async () => {
+    const req: any = { user: { id: "u1" } };
     const dto = { userId: "u1", nickname: "张三", avatar: "https://..." };
-    const result: any = await ctrl.importAccount(dto);
+    const result: any = await ctrl.importAccount(req, dto);
     expect(result.success).toBe(true);
     expect(mockImSvc.importAccount).toHaveBeenCalledWith("u1", "张三", "https://...");
   });

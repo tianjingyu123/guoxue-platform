@@ -54,7 +54,7 @@ describe("BaziHehun Calculator", () => {
 
   it("评级字符串存在", () => {
     const result = calculateBaziHehun(baseInput);
-    expect(["上上婚", "上等婚", "中上婚", "中等婚", "中下婚", "下等婚", "下下婚"]).toContain(result.level);
+    expect(["上上婚（天作之合）", "上等婚（良缘佳配）", "中上婚（门当户对）", "中等婚（寻常好合）", "中下婚（需要磨合）", "下等婚（多有波折）", "下下婚（慎重考虑）"]).toContain(result.level);
   });
 
   it("给出建议", () => {
