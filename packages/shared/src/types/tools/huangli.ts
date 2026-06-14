@@ -4,6 +4,16 @@ export interface HuangLiInput {
   date?: string;
 }
 
+export interface ErShiBaXiuDetail {
+  name: string;
+  animal: string;
+  element: string;
+  jiXiong: string;
+  song: string;
+  suitable: string[];
+  unsuitable: string[];
+}
+
 export interface HuangLiResult {
   date: string;
   lunarDate: string;
@@ -18,5 +28,7 @@ export interface HuangLiResult {
   yi: string[];
   ji: string[];
   jiShi: string[];
+  erShiBaXiu: ErShiBaXiuDetail;
+  jianChu: string;
   summary: string;
 }

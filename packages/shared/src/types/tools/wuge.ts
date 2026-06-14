@@ -11,6 +11,14 @@ export type WuGeName = "天格" | "人格" | "地格" | "总格" | "外格";
 
 // ── 输入 ──
 
+export interface XingMingJieXiInput {
+  surname: string;
+  givenName: string;
+  gender?: "male" | "female";
+  shengXiao?: string;
+  birthYear?: number;
+}
+
 export interface WuGeInput {
   /** 姓氏（支持复姓） */
   surname: string;

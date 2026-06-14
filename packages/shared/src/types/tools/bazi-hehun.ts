@@ -25,6 +25,7 @@ export interface BaziHehunResult {
     wuXing: HehunDimension;
     shiShen: HehunDimension;
     yongShen: HehunDimension;
+    nayin: HehunDimension;
   };
   totalScore: number;
   level: string;

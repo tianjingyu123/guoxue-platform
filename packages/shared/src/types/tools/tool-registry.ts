@@ -7,6 +7,8 @@ export type ToolCategory =
   | "fengshui"       // 风水
   | "xingming"       // 星命
   | "naming"         // 起名
+  | "classics"       // 经典文学
+  | "culture"        // 文化百科
   | "utility";       // 工具/字典
 
 /** 工具注册条目 */

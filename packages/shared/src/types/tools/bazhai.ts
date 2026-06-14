@@ -59,6 +59,18 @@ export interface ZhaiGua {
 
 // ── 八方吉凶 ──
 
+/** 布局建议 */
+export interface LayoutTips {
+  /** 适宜颜色 */
+  colors: string[];
+  /** 适宜材质 */
+  materials: string[];
+  /** 适宜形状 */
+  shapes: string[];
+  /** 适宜摆件 */
+  items: string[];
+}
+
 export interface BaFangJiXiong {
   /** 方位 */
   direction: BaGuaDirection;
@@ -76,6 +88,12 @@ export interface BaFangJiXiong {
   jiHui: string[];
   /** 断语 */
   desc: string;
+  /** 布局建议 */
+  layoutTips: LayoutTips;
+  /** 化解方法（凶星） */
+  huaJie?: string[];
+  /** 催旺方法（吉星） */
+  cuiWang?: string[];
 }
 
 // ── 宅命配合 ──
