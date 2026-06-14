@@ -4,7 +4,7 @@
 // 日主旺衰 → 扶抑/调候/通关用神 → 喜忌判断
 
 import type { YongShenFenXiInput, YongShenFenXiResult } from "@guoxue/shared";
-import { GAN, ZHI } from "@guoxue/bazi-engine";
+import { GAN } from "@guoxue/bazi-engine";
 
 // ==================== 五行基础映射 ====================
 

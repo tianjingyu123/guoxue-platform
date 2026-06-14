@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsArray, IsBoolean } from "class-validator";
+import { IsOptional, IsArray, IsBoolean } from "class-validator";
 
 export class AgentChatDto {
   @IsArray()
