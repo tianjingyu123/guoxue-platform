@@ -1656,6 +1656,17 @@
             />
           </el-form-item>
 
+          <el-divider content-position="left">
+            转发设置
+          </el-divider>
+          <el-form-item label="允许转发到其他圈子">
+            <el-switch
+              v-model="settingsForm.allowForward"
+              active-text="允许成员转发帖子到其他圈子"
+              inactive-text="禁止转发"
+            />
+          </el-form-item>
+
           <el-form-item>
             <el-button
               type="primary"
@@ -1877,7 +1888,7 @@ const leaderboard = ref<any[]>([]); const hotContent = ref<any[]>([]);
 
 // 设置
 const saving = ref(false);
-const settingsForm = reactive({ name: "", cover: "", intro: "", type: "FREE", price: 0, depositAmount: 0, categoryLevel1: "", categoryLevel2: "", tagsStr: "", announcement: "", postAudit: false, commentAudit: false, postRateLimit: 0, botEnabled: false, botWelcome: "" });
+const settingsForm = reactive({ name: "", cover: "", intro: "", type: "FREE", price: 0, depositAmount: 0, categoryLevel1: "", categoryLevel2: "", tagsStr: "", announcement: "", postAudit: false, commentAudit: false, postRateLimit: 0, botEnabled: false, botWelcome: "", allowForward: true });
 
 // 编辑弹窗
 const editVisible = ref(false);
@@ -1909,6 +1920,7 @@ async function refreshDetail() {
       depositAmount: Number(detail.value.depositAmount) || 0,
       categoryLevel1: detail.value.categoryLevel1 || "", categoryLevel2: detail.value.categoryLevel2 || "",
       tagsStr: (detail.value.tags || []).join(","), announcement: "",
+      allowForward: detail.value.allowForward !== false,
     });
   } catch { /* ignore */ }
 }
@@ -2181,6 +2193,7 @@ async function saveSettings() {
       type: settingsForm.type, price: settingsForm.price, depositAmount: settingsForm.depositAmount,
       categoryLevel1: settingsForm.categoryLevel1, categoryLevel2: settingsForm.categoryLevel2,
       tags: settingsForm.tagsStr.split(",").map(s => s.trim()).filter(Boolean),
+      allowForward: settingsForm.allowForward,
     });
     if (settingsForm.announcement) {
       await api.put(`/circles/${circleId}/announcement`, { content: settingsForm.announcement });

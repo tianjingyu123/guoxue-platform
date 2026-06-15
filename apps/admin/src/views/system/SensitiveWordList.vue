@@ -15,12 +15,18 @@
       </div>
     </div>
 
-    <el-input
-      v-model="searchWord"
-      placeholder="搜索敏感词"
-      clearable
-      style="width:300px;margin-bottom:16px"
-    />
+    <div style="display:flex;gap:12px;margin-bottom:16px;align-items:center">
+      <el-input
+        v-model="searchWord"
+        placeholder="搜索敏感词"
+        clearable
+        style="width:260px"
+      />
+      <el-select v-model="filterScope" placeholder="作用域筛选" clearable style="width:150px">
+        <el-option label="全部" value="" />
+        <el-option v-for="s in scopeOptions" :key="s.value" :label="s.label" :value="s.value" />
+      </el-select>
+    </div>
 
     <el-table
       v-loading="loading"
@@ -30,8 +36,23 @@
       <el-table-column
         prop="word"
         label="敏感词"
-        min-width="200"
+        min-width="160"
       />
+      <el-table-column label="作用域" width="160">
+        <template #default="{ row }">
+          <el-tag v-for="s in row.scopes" :key="s" size="small" style="margin-right:4px" :type="scopeTagType(s)">
+            {{ scopeLabel(s) }}
+          </el-tag>
+          <span v-if="!row.scopes?.length" style="color:#ccc">全部</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="级别" width="80" align="center">
+        <template #default="{ row }">
+          <el-tag size="small" :type="row.level === 'HIGH' ? 'danger' : row.level === 'MEDIUM' ? 'warning' : 'info'">
+            {{ levelLabel(row.level) }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column
         label="操作"
         width="100"
@@ -58,7 +79,7 @@
     <el-dialog
       v-model="addDialog"
       title="添加敏感词"
-      width="500px"
+      width="520px"
     >
       <el-radio-group
         v-model="addMode"
@@ -83,6 +104,20 @@
         :rows="5"
         placeholder="每行一个敏感词"
       />
+      <div style="margin-top:12px;display:flex;gap:12px">
+        <el-form-item label="作用域" style="margin-bottom:0">
+          <el-select v-model="addScope" multiple placeholder="选择作用域" style="width:200px">
+            <el-option v-for="s in scopeOptions" :key="s.value" :label="s.label" :value="s.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="级别" style="margin-bottom:0">
+          <el-select v-model="addLevel" style="width:120px">
+            <el-option label="高" value="HIGH" />
+            <el-option label="中" value="MEDIUM" />
+            <el-option label="低" value="LOW" />
+          </el-select>
+        </el-form-item>
+      </div>
       <template #footer>
         <el-button @click="addDialog = false">
           取消
@@ -153,24 +188,55 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { sensitiveWordApi } from '@/api'
 
-const words = ref<string[]>([])
+interface SensitiveWord {
+  word: string
+  scopes?: string[]
+  level?: string
+}
+
+const words = ref<SensitiveWord[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const searchWord = ref('')
+const filterScope = ref('')
+
+const scopeOptions = [
+  { label: '全平台', value: 'all' },
+  { label: '评论', value: 'comment' },
+  { label: '笔记', value: 'note' },
+  { label: '论坛', value: 'forum' },
+  { label: '帖子', value: 'post' },
+  { label: '昵称', value: 'nickname' },
+  { label: '私信', value: 'message' },
+]
 
 const filteredWords = computed(() => {
-  if (!searchWord.value) return words.value.map(w => ({ word: w }))
-  return words.value.filter(w => w.includes(searchWord.value)).map(w => ({ word: w }))
+  let list = words.value
+  if (searchWord.value) list = list.filter(w => w.word.includes(searchWord.value))
+  if (filterScope.value) list = list.filter(w => !w.scopes || w.scopes.length === 0 || w.scopes.includes(filterScope.value) || w.scopes.includes('all'))
+  return list
 })
 
 const addDialog = ref(false)
 const addMode = ref('single')
 const addWord = ref('')
 const addWords = ref('')
+const addScope = ref<string[]>([])
+const addLevel = ref('MEDIUM')
 
 const checkDialog = ref(false)
 const checkText = ref('')
 const checkResult = ref<any>(null)
+
+function scopeLabel(v: string): string { return scopeOptions.find(s => s.value === v)?.label ?? v }
+function scopeTagType(v: string): string {
+  const map: Record<string, string> = { all: '', comment: 'primary', note: 'success', forum: 'warning', post: 'info', nickname: 'danger', message: '' }
+  return map[v] || ''
+}
+function levelLabel(v: string): string {
+  const map: Record<string, string> = { HIGH: '高', MEDIUM: '中', LOW: '低' }
+  return map[v] || v
+}
 
 onMounted(() => fetchList())
 
@@ -178,23 +244,25 @@ async function fetchList() {
   loading.value = true
   try {
     const res = await sensitiveWordApi.list()
-    words.value = (res.data as any)?.words || []
+    const raw: any[] = (res.data as any)?.words || []
+    words.value = raw.map((w: any) => typeof w === 'string' ? { word: w, scopes: [], level: 'MEDIUM' } : w)
   } finally { loading.value = false }
 }
 
-function openAdd() { addWord.value = ''; addWords.value = ''; addMode.value = 'single'; addDialog.value = true }
+function openAdd() { addWord.value = ''; addWords.value = ''; addMode.value = 'single'; addScope.value = []; addLevel.value = 'MEDIUM'; addDialog.value = true }
 
 async function doAdd() {
   saving.value = true
   try {
+    const payload = { scopes: addScope.value, level: addLevel.value }
     if (addMode.value === 'single') {
       if (!addWord.value) { ElMessage.warning('请输入敏感词'); saving.value = false; return }
-      await sensitiveWordApi.add(addWord.value)
+      await sensitiveWordApi.add({ word: addWord.value, ...payload })
       ElMessage.success('已添加')
     } else {
       const lines = addWords.value.split('\n').map(s => s.trim()).filter(Boolean)
       if (!lines.length) { ElMessage.warning('请输入敏感词'); saving.value = false; return }
-      await sensitiveWordApi.batchAdd(lines)
+      await sensitiveWordApi.batchAdd({ words: lines, ...payload })
       ElMessage.success(`已添加 ${lines.length} 个敏感词`)
     }
     addDialog.value = false; fetchList()

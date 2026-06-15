@@ -152,6 +152,48 @@
       </el-col>
     </el-row>
 
+    <!-- 场景维度成本分析 -->
+    <el-card style="margin-bottom:16px">
+      <template #header>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span>场景维度成本分析</span>
+          <el-radio-group v-model="sceneDimensionSort" size="small" @change="renderSceneDimension">
+            <el-radio-button value="cost">按费用</el-radio-button>
+            <el-radio-button value="tokens">按Token</el-radio-button>
+            <el-radio-button value="calls">按调用量</el-radio-button>
+          </el-radio-group>
+        </div>
+      </template>
+      <el-table :data="sceneDimensionData" stripe size="small" max-height="360">
+        <el-table-column prop="scene" label="场景" min-width="150" show-overflow-tooltip />
+        <el-table-column label="调用次数" width="110" align="right" sortable prop="calls">
+          <template #default="{ row }">{{ row.calls?.toLocaleString() || 0 }}</template>
+        </el-table-column>
+        <el-table-column label="Token用量" width="120" align="right" sortable prop="tokens">
+          <template #default="{ row }">{{ formatTokens(row.tokens) }}</template>
+        </el-table-column>
+        <el-table-column label="估算费用" width="110" align="right" sortable prop="cost">
+          <template #default="{ row }">¥{{ (row.cost || 0).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="平均延迟" width="100" align="right" sortable prop="avgLatency">
+          <template #default="{ row }">{{ row.avgLatency ? row.avgLatency + 'ms' : '-' }}</template>
+        </el-table-column>
+        <el-table-column label="成功率" width="90" align="center" sortable prop="successRate">
+          <template #default="{ row }">
+            <el-tag :type="(row.successRate ?? 100) >= 95 ? 'success' : 'warning'" size="small">
+              {{ row.successRate ?? 100 }}%
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="费用占比" width="100" align="center">
+          <template #default="{ row }">
+            <el-progress :percentage="row.costPercent || 0" :stroke-width="8" :show-text="false" />
+            <span style="font-size:12px;color:#909399">{{ row.costPercent || 0 }}%</span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
     <!-- 调用日志表 -->
     <el-card>
       <template #header>
@@ -327,6 +369,9 @@ let trendChart: echarts.ECharts | null = null;
 let sceneChart: echarts.ECharts | null = null;
 
 const estimatedCost = ref(0);
+const sceneBreakdown = ref<any[]>([]);
+const sceneDimensionSort = ref("cost");
+const sceneDimensionData = ref<any[]>([]);
 
 function fmt(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 
@@ -360,10 +405,13 @@ async function fetchStats() {
     // 场景分布
     scenarioDistribution.value = d?.sceneDistribution || [];
     estimatedCost.value = d?.estimatedCost || 0;
+    sceneBreakdown.value = d?.sceneBreakdown || [];
 
     // 场景/模型选项
     sceneOptions.value = d?.scenes || [];
     modelOptions.value = (d?.models || []).map((m: string) => ({ label: m, value: m }));
+
+    renderSceneDimension();
   } catch { /* ignore */ }
 }
 
@@ -444,6 +492,21 @@ function renderCharts() {
       }],
     });
   }
+}
+
+function renderSceneDimension() {
+  const data = [...(sceneBreakdown.value || [])];
+  if (data.length === 0) {
+    sceneDimensionData.value = [];
+    return;
+  }
+  const totalCost = data.reduce((sum, d) => sum + (d.cost || 0), 0);
+  data.forEach((d: any) => {
+    d.costPercent = totalCost > 0 ? Math.round((d.cost / totalCost) * 100) : 0;
+  });
+  const sortKey = sceneDimensionSort.value as string;
+  data.sort((a: any, b: any) => (b[sortKey] || 0) - (a[sortKey] || 0));
+  sceneDimensionData.value = data;
 }
 
 function exportCSV() {

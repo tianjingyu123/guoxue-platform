@@ -505,6 +505,47 @@
           </el-table-column>
         </el-table>
       </el-tab-pane>
+
+      <!-- 认证标识 -->
+      <el-tab-pane label="认证标识" name="certifications">
+        <div v-if="certifications.length > 0" class="cert-list">
+          <div v-for="c in certifications" :key="c.typeId" class="cert-item">
+            <span :style="{ color: c.color || '#C41E1E', fontSize: '18px' }">{{ c.icon || '🏅' }}</span>
+            <span class="cert-name">{{ c.name }}</span>
+            <span class="cert-desc">{{ c.description }}</span>
+            <el-tag size="small" :type="c.grantType === 'AUTO' ? 'success' : 'info'">
+              {{ c.grantType === 'AUTO' ? '自动授予' : '手动授予' }}
+            </el-tag>
+            <span class="cert-time">获得于 {{ formatTime(c.createdAt) }}</span>
+          </div>
+        </div>
+        <el-empty v-else description="暂无认证标识" />
+      </el-tab-pane>
+
+      <!-- 传播力数据 -->
+      <el-tab-pane label="传播力数据" name="spread">
+        <el-row :gutter="16" style="margin-bottom:16px">
+          <el-col :span="8" v-for="s in spreadStats" :key="s.label">
+            <div class="spread-stat-card">
+              <div class="spread-stat-val">{{ s.value }}</div>
+              <div class="spread-stat-label">{{ s.label }}</div>
+            </div>
+          </el-col>
+        </el-row>
+        <el-descriptions v-if="spreadProfile" :column="2" border size="small">
+          <el-descriptions-item label="传播力等级">
+            <el-tag size="small" :type="spreadLevelColor(spreadProfile.level)">{{ spreadProfile.levelName || spreadProfile.level || '-' }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="影响力分">{{ spreadProfile.influence ?? 0 }}</el-descriptions-item>
+          <el-descriptions-item label="总分享次数">{{ spreadProfile.shareCount ?? 0 }}</el-descriptions-item>
+          <el-descriptions-item label="总点击次数">{{ spreadProfile.clickCount ?? 0 }}</el-descriptions-item>
+          <el-descriptions-item label="带来注册">{{ spreadProfile.registerCount ?? 0 }}</el-descriptions-item>
+          <el-descriptions-item label="带来下单">{{ spreadProfile.orderCount ?? 0 }}</el-descriptions-item>
+          <el-descriptions-item label="流量扶持">{{ spreadProfile.trafficBoost ?? 0 }} 曝光/天</el-descriptions-item>
+          <el-descriptions-item label="最深传播层级">{{ spreadProfile.maxSpreadLevel ?? 0 }} 级</el-descriptions-item>
+        </el-descriptions>
+        <el-empty v-else description="该用户暂无传播力数据" />
+      </el-tab-pane>
     </el-tabs>
   </div>
 </template>
@@ -513,7 +554,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { userApi, orderApi, circleApi } from '@/api'
+import { userApi, orderApi, circleApi, certificationApi, spreadPowerApi } from '@/api'
 
 const route = useRoute()
 const userId = route.params.id as string
@@ -522,6 +563,16 @@ const activeTab = ref('profile')
 const profile = ref<any>({})
 const stats = ref<any>({})
 const userRoles = ref<any[]>([])
+const certifications = ref<any[]>([])
+const spreadProfile = ref<any>(null)
+const spreadStats = ref([
+  { label: "分享次数", value: 0 },
+  { label: "带来点击", value: 0 },
+  { label: "带来注册", value: 0 },
+  { label: "影响力分", value: 0 },
+  { label: "传播等级", value: "-" },
+  { label: "流量扶持", value: "0/天" },
+])
 const orders = ref<any[]>([])
 const orderLoading = ref(false)
 const circles = ref<any[]>([])
@@ -625,6 +676,35 @@ async function onTabChange(tab: string) {
       circles.value = data.circles || data.data || []
     } catch { circles.value = [] }
   }
+  if (tab === 'certifications' && certifications.value.length === 0) {
+    try {
+      const { data } = await certificationApi.listCertifiedUsers({ userId, page: 1, pageSize: 50 })
+      const list = data?.list ?? data?.data ?? []
+      certifications.value = list.length > 0 ? (list[0]?.certifications ?? []) : []
+    } catch { certifications.value = [] }
+  }
+  if (tab === 'spread' && !spreadProfile.value) {
+    try {
+      const { data } = await spreadPowerApi.listUsers({ page: 1, pageSize: 1 })
+      const users = data?.list ?? data?.data ?? []
+      const u = users.find((u: any) => (u.userId ?? u.user?.id) === userId)
+      spreadProfile.value = u ?? null
+      if (u) {
+        spreadStats.value[0].value = u.shareCount ?? 0
+        spreadStats.value[1].value = u.clickCount ?? 0
+        spreadStats.value[2].value = u.registerCount ?? 0
+        spreadStats.value[3].value = u.influence ?? 0
+        spreadStats.value[4].value = u.spreadLevelName ?? u.spreadLevel ?? '-'
+        spreadStats.value[5].value = (u.trafficBoost ?? 0) + '/天'
+      }
+    } catch { spreadProfile.value = null }
+  }
+}
+
+function formatTime(d: string): string { return d ? d.slice(0, 16).replace("T", " ") : "" }
+function spreadLevelColor(l: string): string {
+  const m: Record<string, string> = { spark: "info", rising: "", hot: "warning", viral: "danger", phenomenon: "" }
+  return m[l] ?? "info"
 }
 
 async function assignRole() {

@@ -955,8 +955,8 @@ export const ebookApi = {
 // 敏感词管理
 export const sensitiveWordApi = {
   list: () => api.get("/audit/sensitive-words"),
-  add: (word: string) => api.post("/audit/sensitive-words", { word }),
-  batchAdd: (words: string[]) => api.post("/audit/sensitive-words/batch", { words }),
+  add: (data: { word: string; scopes?: string[]; level?: string }) => api.post("/audit/sensitive-words", data),
+  batchAdd: (data: { words: string[]; scopes?: string[]; level?: string }) => api.post("/audit/sensitive-words/batch", data),
   delete: (word: string) => api.delete(`/audit/sensitive-words/${encodeURIComponent(word)}`),
   check: (text: string) => api.post("/audit/sensitive-words/check", { text }),
 };
@@ -1644,6 +1644,164 @@ export const circleBackendApi = {
   // 管理员
   adminCircles: (params?: any) => api.get("/circle-backend/admin/circles", { params }),
   adminOverview: (circleId: string) => api.get(`/circle-backend/admin/circles/${circleId}/overview`),
+};
+
+// ───────── 社交管理（统一评论/笔记/成就/认证） ─────────
+export const socialApi = {
+  // 统一评论中心
+  getCommentCenter: (params?: { page?: number; pageSize?: number; bizType?: string; status?: string; keyword?: string; startDate?: string; endDate?: string; isFeatured?: string; isPinned?: string }) =>
+    api.get("/admin/social/comments", { params }),
+  getCommentStats: () => api.get("/admin/social/comments/stats"),
+  featureComment: (id: string) => api.post(`/admin/social/comments/${id}/feature`),
+  unfeatureComment: (id: string) => api.post(`/admin/social/comments/${id}/unfeature`),
+  pinComment: (id: string) => api.post(`/admin/social/comments/${id}/pin`),
+  unpinComment: (id: string) => api.post(`/admin/social/comments/${id}/unpin`),
+  batchFeature: (ids: string[]) => api.post("/admin/social/comments/batch-feature", { ids }),
+  batchHide: (ids: string[]) => api.post("/admin/social/comments/batch-hide", { ids }),
+  batchDelete: (ids: string[]) => api.post("/admin/social/comments/batch-delete", { ids }),
+  // 公开笔记审核
+  listPublicNotes: (params?: { page?: number; pageSize?: number; status?: string; courseId?: string; userId?: string }) =>
+    api.get("/admin/social/notes", { params }),
+  approveNote: (id: string) => api.post(`/admin/social/notes/${id}/approve`),
+  rejectNote: (id: string, reason?: string) => api.post(`/admin/social/notes/${id}/reject`, { reason }),
+  featureNote: (id: string) => api.post(`/admin/social/notes/${id}/feature`),
+  deleteNote: (id: string) => api.delete(`/admin/social/notes/${id}`),
+};
+
+// ───────── 认证标识管理 ─────────
+export const certificationApi = {
+  listTypes: () => api.get("/admin/certifications/types"),
+  createType: (data: { name: string; icon: string; color: string; description?: string; autoGrantRole?: string; conditions?: any }) =>
+    api.post("/admin/certifications/types", data),
+  updateType: (id: string, data: any) => api.put(`/admin/certifications/types/${id}`, data),
+  deleteType: (id: string) => api.delete(`/admin/certifications/types/${id}`),
+  // 认证申请审批
+  listApplications: (params?: { page?: number; pageSize?: number; status?: string; typeId?: string }) =>
+    api.get("/admin/certifications/applications", { params }),
+  approveApplication: (id: string) => api.post(`/admin/certifications/applications/${id}/approve`),
+  rejectApplication: (id: string, reason?: string) => api.post(`/admin/certifications/applications/${id}/reject`, { reason }),
+  // 已认证用户管理
+  listCertifiedUsers: (params?: { page?: number; pageSize?: number; typeId?: string; userId?: string }) =>
+    api.get("/admin/certifications/users", { params }),
+  revokeCertification: (userId: string, typeId: string) => api.post(`/admin/certifications/users/${userId}/revoke`, { typeId }),
+};
+
+// ───────── 国风表情管理 ─────────
+export const emojiApi = {
+  list: (params?: { category?: string; page?: number; pageSize?: number }) =>
+    api.get("/admin/social/emojis", { params }),
+  create: (data: { name: string; icon: string; category: string; sortOrder?: number }) =>
+    api.post("/admin/social/emojis", data),
+  update: (id: string, data: any) => api.put(`/admin/social/emojis/${id}`, data),
+  delete: (id: string) => api.delete(`/admin/social/emojis/${id}`),
+  getCategories: () => api.get("/admin/social/emojis/categories"),
+  getStats: () => api.get("/admin/social/emojis/stats"),
+};
+
+// ───────── AI Prompt 场景化管理 ─────────
+export const aiPromptApi = {
+  listScenes: () => api.get("/admin/ai/prompts/scenes"),
+  getScene: (scene: string) => api.get(`/admin/ai/prompts/scenes/${scene}`),
+  updateScene: (scene: string, data: { systemPrompt: string; userPromptTemplate?: string; variables?: any[]; model?: string; temperature?: number }) =>
+    api.put(`/admin/ai/prompts/scenes/${scene}`, data),
+  // 风格库
+  listStyles: (scene: string) => api.get(`/admin/ai/prompts/scenes/${scene}/styles`),
+  createStyle: (scene: string, data: { name: string; prompt: string; example?: string }) =>
+    api.post(`/admin/ai/prompts/scenes/${scene}/styles`, data),
+  updateStyle: (id: string, data: any) => api.put(`/admin/ai/prompts/styles/${id}`, data),
+  deleteStyle: (id: string) => api.delete(`/admin/ai/prompts/styles/${id}`),
+  // 功能开关
+  getToggles: () => api.get("/admin/ai/prompts/toggles"),
+  toggleFeature: (feature: string, enabled: boolean) => api.put(`/admin/ai/prompts/toggles/${feature}`, { enabled }),
+  // 效果统计
+  getSceneStats: (scene?: string, params?: { startDate?: string; endDate?: string }) =>
+    api.get("/admin/ai/prompts/stats", { params: { scene, ...params } }),
+};
+
+// ───────── 分享海报模板管理 ─────────
+export const posterApi = {
+  listTemplates: (params?: { scene?: string; status?: string; page?: number; pageSize?: number }) =>
+    api.get("/admin/marketing/posters", { params }),
+  detail: (id: string) => api.get(`/admin/marketing/posters/${id}`),
+  create: (data: { name: string; scene: string; backgroundImage: string; elements: any[]; brandConfig?: any }) =>
+    api.post("/admin/marketing/posters", data),
+  update: (id: string, data: any) => api.put(`/admin/marketing/posters/${id}`, data),
+  delete: (id: string) => api.delete(`/admin/marketing/posters/${id}`),
+  preview: (id: string, data?: { userId?: string; contentId?: string }) =>
+    api.post(`/admin/marketing/posters/${id}/preview`, data),
+  // 品牌元素
+  getBrandConfig: () => api.get("/admin/marketing/posters/brand-config"),
+  updateBrandConfig: (data: { primaryColor?: string; bgColor?: string; fontFamily?: string; logoUrl?: string; watermarkUrl?: string }) =>
+    api.put("/admin/marketing/posters/brand-config", data),
+  // 版本管理
+  listVersions: (templateId: string) => api.get(`/admin/marketing/posters/${templateId}/versions`),
+  rollbackVersion: (templateId: string, versionId: string) => api.post(`/admin/marketing/posters/${templateId}/rollback/${versionId}`),
+  // 场景列表
+  getScenes: () => api.get("/admin/marketing/posters/scenes"),
+};
+
+// ───────── 分享数据看板 ─────────
+export const shareDataApi = {
+  overview: (params?: { startDate?: string; endDate?: string }) =>
+    api.get("/admin/marketing/share-data/overview", { params }),
+  byScene: (params?: { startDate?: string; endDate?: string }) =>
+    api.get("/admin/marketing/share-data/by-scene", { params }),
+  byUser: (params?: { page?: number; pageSize?: number; sortBy?: string }) =>
+    api.get("/admin/marketing/share-data/by-user", { params }),
+  funnel: (params?: { startDate?: string; endDate?: string; scene?: string }) =>
+    api.get("/admin/marketing/share-data/funnel", { params }),
+};
+
+// ───────── 邀请福利配置 ─────────
+export const inviteRewardApi = {
+  getConfig: () => api.get("/admin/marketing/invite-rewards/config"),
+  updateConfig: (data: { inviterReward: any; inviteeReward: any; dailyLimit?: number; monthlyLimit?: number; totalLimit?: number }) =>
+    api.put("/admin/marketing/invite-rewards/config", data),
+  getStats: (params?: { startDate?: string; endDate?: string }) =>
+    api.get("/admin/marketing/invite-rewards/stats", { params }),
+  getRecords: (params?: { page?: number; pageSize?: number; userId?: string }) =>
+    api.get("/admin/marketing/invite-rewards/records", { params }),
+};
+
+// ───────── 传播力体系配置 ─────────
+export const spreadPowerApi = {
+  getLevels: () => api.get("/admin/marketing/spread-power/levels"),
+  updateLevel: (level: string, data: { name: string; icon: string; minShares: number; minClicks: number; trafficBoost: number; description?: string }) =>
+    api.put(`/admin/marketing/spread-power/levels/${level}`, data),
+  getStats: () => api.get("/admin/marketing/spread-power/stats"),
+  listUsers: (params?: { page?: number; pageSize?: number; level?: string }) =>
+    api.get("/admin/marketing/spread-power/users", { params }),
+};
+
+// ───────── 成就系统管理 ─────────
+export const achievementApi = {
+  listTypes: (params?: { category?: string; page?: number; pageSize?: number }) =>
+    api.get("/admin/social/achievements/types", { params }),
+  createType: (data: { name: string; description: string; icon: string; category: string; triggerCondition: any; badgeUrl?: string }) =>
+    api.post("/admin/social/achievements/types", data),
+  updateType: (id: string, data: any) => api.put(`/admin/social/achievements/types/${id}`, data),
+  deleteType: (id: string) => api.delete(`/admin/social/achievements/types/${id}`),
+  listUserAchievements: (params?: { page?: number; pageSize?: number; userId?: string; typeId?: string }) =>
+    api.get("/admin/social/achievements/users", { params }),
+  grantAchievement: (data: { userId: string; typeId: string }) =>
+    api.post("/admin/social/achievements/grant", data),
+  revokeAchievement: (id: string) => api.post(`/admin/social/achievements/${id}/revoke`),
+  getStats: () => api.get("/admin/social/achievements/stats"),
+};
+
+// ───────── 文化仪式感内容管理 ─────────
+export const ritualContentApi = {
+  // 节气提醒
+  listSolarTerms: () => api.get("/admin/content/solar-terms"),
+  updateSolarTerm: (id: string, data: { title?: string; content?: string; imageUrl?: string; pushTime?: string }) =>
+    api.put(`/admin/content/solar-terms/${id}`, data),
+  // 每日一首
+  listDailyVerses: (params?: { page?: number; pageSize?: number; status?: string }) =>
+    api.get("/admin/content/daily-verses", { params }),
+  createDailyVerse: (data: { title: string; author?: string; content: string; imageUrl?: string; publishDate: string }) =>
+    api.post("/admin/content/daily-verses", data),
+  updateDailyVerse: (id: string, data: any) => api.put(`/admin/content/daily-verses/${id}`, data),
+  deleteDailyVerse: (id: string) => api.delete(`/admin/content/daily-verses/${id}`),
 };
 
 export default api;
