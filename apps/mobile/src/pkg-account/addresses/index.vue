@@ -1,0 +1,470 @@
+<template>
+  <view class="page">
+    <!-- 顶部导航 -->
+    <view class="header" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="nav-bar">
+        <view class="nav-back" @tap="goBack">
+          <app-icon name="chevron-left" :size="44" color="#2C2C2C" />
+        </view>
+        <text class="nav-title">收货地址</text>
+        <view class="nav-add" @tap="goEdit()">
+          <app-icon name="plus" :size="40" color="#9A2D2D" />
+        </view>
+      </view>
+    </view>
+
+    <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
+      <!-- 空态 -->
+      <view v-if="addresses.length === 0" class="empty">
+        <view class="empty-icon">
+          <app-icon name="map-pin" :size="80" color="#999999" />
+        </view>
+        <text class="empty-text">暂无收货地址</text>
+        <view class="empty-btn" @tap="goEdit()">
+          <text class="empty-btn-text">添加地址</text>
+        </view>
+      </view>
+
+      <!-- 地址列表 -->
+      <view class="list">
+        <view
+          v-for="addr in addresses"
+          :key="addr.id"
+          class="addr-wrap"
+        >
+          <!-- 删除按钮 -->
+          <view class="delete-zone" @tap="confirmDelete(addr.id)">
+            <app-icon name="trash-2" :size="44" color="#FFFFFF" />
+          </view>
+          <!-- 地址卡片 -->
+          <view
+            class="addr-card"
+            :class="{ swiped: swipedId === addr.id }"
+            @touchstart="onTouchStart"
+            @touchmove="onTouchMove($event, addr.id)"
+            @touchend="onTouchEnd"
+            @tap="goEdit(addr.id)"
+          >
+            <view class="addr-top">
+              <view class="addr-pin" :class="{ active: addr.isDefault }">
+                <app-icon name="map-pin" :size="32" :color="addr.isDefault ? '#9A2D2D' : '#999999'" />
+              </view>
+              <view class="addr-main">
+                <view class="addr-line1">
+                  <text class="addr-name">{{ addr.name }}</text>
+                  <text class="addr-phone">{{ addr.phone }}</text>
+                  <view v-if="addr.isDefault" class="addr-tag">
+                    <text class="addr-tag-text">默认</text>
+                  </view>
+                </view>
+                <text class="addr-detail">{{ addr.province }}{{ addr.city }}{{ addr.district }}{{ addr.address }}</text>
+              </view>
+            </view>
+
+            <view class="addr-foot">
+              <view class="foot-default" @tap.stop="setDefault(addr)">
+                <view class="radio" :class="{ checked: addr.isDefault }">
+                  <app-icon v-if="addr.isDefault" name="check" :size="18" color="#FFFFFF" />
+                </view>
+                <text class="foot-default-text" :class="{ active: addr.isDefault }">设为默认</text>
+              </view>
+              <view class="foot-edit" @tap.stop="goEdit(addr.id)">
+                <text class="foot-edit-text">编辑</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="bottom-gap" />
+    </scroll-view>
+
+    <!-- 底部新增 -->
+    <view v-if="addresses.length > 0" class="footer" :style="{ paddingBottom: safeBottom + 'px' }">
+      <view class="add-btn" @tap="goEdit()">
+        <app-icon name="plus" :size="34" color="#FFFFFF" />
+        <text class="add-btn-text">新增收货地址</text>
+      </view>
+    </view>
+
+    <!-- 删除确认弹窗 -->
+    <view v-if="deleteId" class="mask" @tap="cancelDelete">
+      <view class="confirm-box" @tap.stop>
+        <text class="confirm-title">删除地址</text>
+        <text class="confirm-desc">确定要删除这个收货地址吗？</text>
+        <view class="confirm-actions">
+          <view class="confirm-btn ghost" @tap="cancelDelete">
+            <text class="confirm-btn-text">取消</text>
+          </view>
+          <view class="confirm-btn danger" @tap="doDelete">
+            <text class="confirm-btn-text-danger">删除</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { goBack, navigateTo } from '@/utils/router'
+import { addressApi, shippingAddressList, type ShippingAddressItem } from '@/lib/account-data'
+
+const statusBarHeight = ref(20)
+const navHeight = ref(64)
+const safeBottom = ref(0)
+
+const addresses = ref<ShippingAddressItem[]>([])
+const swipedId = ref('')
+const deleteId = ref('')
+
+let touchStartX = 0
+
+onLoad(async () => {
+  try {
+    const info = uni.getSystemInfoSync()
+    statusBarHeight.value = info.statusBarHeight || 20
+    navHeight.value = statusBarHeight.value + 44
+    safeBottom.value = info.safeAreaInsets?.bottom || 0
+  } catch (e) {
+    statusBarHeight.value = 20
+    navHeight.value = 64
+  }
+  try {
+    addresses.value = await addressApi.getAddresses()
+  } catch { addresses.value = [...shippingAddressList] }
+})
+
+function onTouchStart(e: any) {
+  touchStartX = e.touches[0].clientX
+}
+function onTouchMove(e: any, id: string) {
+  const diff = touchStartX - e.touches[0].clientX
+  if (diff > 40) {
+    swipedId.value = id
+  } else if (diff < -20) {
+    swipedId.value = ''
+  }
+}
+function onTouchEnd() {
+  touchStartX = 0
+}
+
+async function setDefault(addr: ShippingAddressItem) {
+  if (addr.isDefault) return
+  try { await addressApi.setDefault(addr.id) } catch { }
+  addresses.value = addresses.value.map((a) => ({ ...a, isDefault: a.id === addr.id }))
+  uni.showToast({ title: '已设为默认', icon: 'none' })
+}
+
+function confirmDelete(id: string) {
+  deleteId.value = id
+}
+function cancelDelete() {
+  deleteId.value = ''
+  swipedId.value = ''
+}
+async function doDelete() {
+  try { await addressApi.deleteAddress(deleteId.value) } catch { }
+  addresses.value = addresses.value.filter((a) => a.id !== deleteId.value)
+  deleteId.value = ''
+  swipedId.value = ''
+  uni.showToast({ title: '已删除', icon: 'none' })
+}
+
+function goEdit(id?: string) {
+  navigateTo(id ? `/shop/addresses/edit?id=${id}` : '/shop/addresses/edit')
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+  min-height: 100vh;
+  background: #FAF8F5;
+}
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #FFFFFF;
+  border-bottom: 1rpx solid #F0EAE2;
+}
+.nav-bar {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 12rpx;
+}
+.nav-back {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #2C2C2C;
+}
+.nav-add {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scroll-area {
+  height: 100vh;
+  box-sizing: border-box;
+}
+
+.empty {
+  padding: 160rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.empty-icon {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28rpx;
+}
+.empty-text {
+  font-size: 28rpx;
+  color: #999999;
+  margin-bottom: 32rpx;
+}
+.empty-btn {
+  padding: 0 48rpx;
+  height: 72rpx;
+  background: #9A2D2D;
+  border-radius: 36rpx;
+  display: flex;
+  align-items: center;
+}
+.empty-btn-text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+
+.list {
+  padding: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+.addr-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24rpx;
+}
+.delete-zone {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 140rpx;
+  background: #E74C3C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 24rpx 24rpx 0;
+}
+.addr-card {
+  position: relative;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 28rpx;
+  transition: transform 0.25s;
+  transform: translateX(0);
+}
+.addr-card.swiped {
+  transform: translateX(-140rpx);
+}
+.addr-top {
+  display: flex;
+  gap: 20rpx;
+}
+.addr-pin {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #FAF8F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.addr-pin.active {
+  background: rgba(154, 45, 45, 0.1);
+}
+.addr-main {
+  flex: 1;
+  min-width: 0;
+}
+.addr-line1 {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+}
+.addr-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2C2C2C;
+}
+.addr-phone {
+  font-size: 26rpx;
+  color: #666666;
+}
+.addr-tag {
+  padding: 2rpx 12rpx;
+  background: #9A2D2D;
+  border-radius: 6rpx;
+}
+.addr-tag-text {
+  font-size: 20rpx;
+  color: #FFFFFF;
+}
+.addr-detail {
+  font-size: 26rpx;
+  color: #666666;
+  line-height: 1.5;
+}
+.addr-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #F0EAE2;
+}
+.foot-default {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.radio {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  border: 2rpx solid #CCCCCC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.radio.checked {
+  border-color: #9A2D2D;
+  background: #9A2D2D;
+}
+.foot-default-text {
+  font-size: 26rpx;
+  color: #666666;
+}
+.foot-default-text.active {
+  color: #9A2D2D;
+}
+.foot-edit {
+  padding: 4rpx 8rpx;
+}
+.foot-edit-text {
+  font-size: 26rpx;
+  color: #666666;
+}
+
+.bottom-gap {
+  height: 180rpx;
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border-top: 1rpx solid #F0EAE2;
+  padding: 20rpx 24rpx;
+}
+.add-btn {
+  height: 88rpx;
+  background: #9A2D2D;
+  border-radius: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+}
+.add-btn-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.mask {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.confirm-box {
+  width: 560rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 48rpx 40rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.confirm-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #2C2C2C;
+  margin-bottom: 16rpx;
+}
+.confirm-desc {
+  font-size: 26rpx;
+  color: #666666;
+  margin-bottom: 40rpx;
+}
+.confirm-actions {
+  display: flex;
+  gap: 20rpx;
+  width: 100%;
+}
+.confirm-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.confirm-btn.ghost {
+  border: 1rpx solid #E8E3DB;
+}
+.confirm-btn.danger {
+  background: #E74C3C;
+}
+.confirm-btn-text {
+  font-size: 28rpx;
+  color: #666666;
+}
+.confirm-btn-text-danger {
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+</style>

@@ -1,463 +1,466 @@
-<!-- 我的主页 - 100% 对照 app/profile/page.tsx -->
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
+import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
+import { navigateTo, toastComingSoon } from '@/utils/router'
+import {
+  profileApi, userData as defaultUserData, getGreeting, roleConfig, quickFunctions,
+  recommendations, allRoleTypes, roleHref, type UserRole,
+} from '@/lib/profile-data'
+
+const loading = ref(true)
+const error = ref('')
+const user = ref({ ...defaultUserData })
+const greeting = getGreeting()
+
+// 消息数
+const totalMessages = computed(() =>
+  user.value.messages.system + user.value.messages.interaction + user.value.messages.transaction,
+)
+
+// 未开通角色
+const ownedTypes = computed(() => new Set(user.value.roles.map((r: any) => r.type)))
+const availableToApply = computed(() => allRoleTypes.filter((r) => !ownedTypes.value.has(r.type)))
+
+// 订单状态
+const orderStatus = computed(() => [
+  { key: 'pending', label: '待付款', icon: 'wallet', count: user.value.orders.pending },
+  { key: 'shipped', label: '待发货', icon: 'package', count: user.value.orders.shipped },
+  { key: 'received', label: '待收货', icon: 'truck', count: user.value.orders.received },
+  { key: 'refund', label: '售后', icon: 'refresh-cw', count: user.value.orders.refund },
+])
+
+// 身份切换确认弹窗
+const pendingRole = ref<{ type: UserRole; name: string; href: string } | null>(null)
+
+function go(href: string) { navigateTo(href) }
+function openRole(type: UserRole, name: string, id: number) {
+  pendingRole.value = { type, name, href: roleHref(type, id) }
+}
+function confirmRole() {
+  if (!pendingRole.value) return
+  const href = pendingRole.value.href
+  pendingRole.value = null
+  navigateTo(href)
+}
+function applyRole(_type: UserRole) {
+  toastComingSoon()
+}
+
+async function loadProfile() {
+  error.value = ''
+  loading.value = true
+  try {
+    const data = await profileApi.getMyProfile()
+    user.value = data
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadProfile()
+})
+</script>
+
 <template>
-  <view class="min-h-screen pb-20" style="background: var(--color-background);">
+  <view class="page">
+    <!-- 加载骨架屏 -->
+    <view v-if="loading" class="loading">
+      <view class="sk-hero">
+        <view class="sk-avatar" />
+        <view class="sk-lines">
+          <view class="sk-line w2" />
+          <view class="sk-line w3" />
+          <view class="sk-line w1" />
+        </view>
+      </view>
+      <view class="sk-card-lg" />
+      <view class="sk-card-md" />
+      <view class="sk-card-md" />
+      <view class="sk-card-md" />
+    </view>
+
+    <!-- 错误态 -->
+    <error-state v-else-if="error" :message="error" @retry="loadProfile" />
 
     <!-- ===== 第一层：个人信息区 ===== -->
-    <view class="relative">
-      <!-- 背景渐变 -->
-      <view class="absolute inset-0" style="height: 192rpx; background: linear-gradient(to bottom, #F5F1EB, #FAF8F5, #FAF8F5);" />
+    <view v-else>
+    <view class="hero">
+      <view class="hero-bg" />
 
       <!-- 顶部操作栏 -->
-      <view class="relative flex items-center justify-between px-4 pt-12 pb-2">
-        <view class="p-2 rounded-full" style="background: rgba(255,255,255,0.6); backdrop-filter: blur(4px);" @click="showQrCode">
-          <text class="text-lg text-foreground">◻</text>
-        </view>
-        <view class="flex items-center gap-2">
-          <!-- 消息通知 -->
-          <navigator url="/pages/messages/index" class="relative p-2 rounded-full" style="background: rgba(255,255,255,0.6); backdrop-filter: blur(4px);">
-            <view class="text-lg text-foreground"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></view>
-            <view
-              v-if="totalMessages > 0"
-              class="absolute flex items-center justify-center rounded-full"
-              style="top: -2rpx; right: -2rpx; width: 16rpx; height: 16rpx; background: var(--color-primary); min-width: 32rpx; height: 32rpx; padding: 0 4rpx;"
-            >
-              <text class="text-white font-bold" style="font-size: 10rpx;">{{ totalMessages }}</text>
-            </view>
-          </navigator>
-          <navigator url="/pages/settings/index" class="p-2 rounded-full" style="background: rgba(255,255,255,0.6); backdrop-filter: blur(4px);">
-            <view class="text-lg text-foreground"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></view>
-          </navigator>
+      <view class="topbar">
+        <view class="round-btn" @tap="toastComingSoon"><AppIcon name="qr-code" :size="38" color="#2c2c2c" /></view>
+        <view class="topbar-right">
+          <view class="round-btn msg-btn" @tap="go('/pkg-im/im/conversations')">
+            <AppIcon name="bell" :size="38" color="#2c2c2c" />
+            <text v-if="totalMessages > 0" class="msg-badge">{{ totalMessages }}</text>
+          </view>
+          <view class="round-btn" @tap="toastComingSoon"><AppIcon name="settings" :size="38" color="#2c2c2c" /></view>
         </view>
       </view>
 
       <!-- 用户信息 -->
-      <view class="relative px-4 pb-4">
-        <view class="flex items-start gap-4">
-          <!-- 大头像 -->
-          <navigator url="/pages/profile/edit" class="relative">
-            <view
-              class="w-20 h-20 rounded-full flex items-center justify-center"
-              style="background: var(--color-primary); ring: 4px solid white; box-shadow: 0 4px 16px rgba(0,0,0,0.12);"
-            >
-              <image
-                v-if="userData.avatar"
-                :src="userData.avatar"
-                class="w-20 h-20 rounded-full"
-                mode="aspectFill"
-              />
-              <text v-else class="text-2xl font-bold" style="color: var(--color-primary-foreground); font-family: serif;">
-                {{ userData.name[0] }}
-              </text>
+      <view class="user-row">
+        <view class="avatar" @tap="go('/pages/profile/edit')">
+          <image v-if="user.avatar" class="avatar-img" :src="user.avatar" mode="aspectFill" />
+          <text v-else class="avatar-fallback">{{ user.name[0] }}</text>
+        </view>
+        <view class="user-info">
+          <text class="greeting">{{ greeting }}，{{ user.name }}</text>
+          <view class="name-row">
+            <text class="uname">{{ user.name }}</text>
+            <AppIcon v-if="user.isVerified" name="shield" :size="28" color="#4A90D9" />
+            <view v-if="user.isVip" class="vip-badge">
+              <AppIcon name="crown" :size="22" color="#ffffff" />
+              <text class="vip-txt">{{ user.vipLevel }}</text>
             </view>
-          </navigator>
-
-          <view class="flex-1 pt-1">
-            <!-- 问候语 -->
-            <text class="text-xs text-muted-foreground block mb-1">{{ greeting }}，{{ userData.name }}</text>
-
-            <!-- 昵称 + 认证 + VIP -->
-            <view class="flex items-center gap-2 flex-wrap">
-              <text class="text-xl font-bold text-foreground" style="font-family: serif;">{{ userData.name }}</text>
-              <view v-if="userData.isVerified" class="text-base" style="color: #4A90D9;"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></view>
-              <view
-                v-if="userData.isVip"
-                class="flex items-center px-1.5 rounded"
-                style="background: linear-gradient(to right, var(--color-accent), #D4B87D);"
-              >
-                <svg class="w-3 h-3 text-white mr-0.5" viewBox="0 0 24 24" fill="currentColor"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7z"/></svg>
-                <text class="text-white font-bold" style="font-size: 10rpx;">{{ userData.vipLevel }}</text>
-              </view>
+          </view>
+          <view class="stat-row">
+            <view class="stat-item" @tap="toastComingSoon">
+              <text class="stat-num">{{ user.stats.following }}</text><text class="stat-label">关注</text>
             </view>
-
-            <!-- 关注/粉丝/获赞 -->
-            <view class="flex items-center gap-4 mt-2">
-              <navigator url="/pages/follows/index?tab=following" class="text-center">
-                <text class="text-base font-bold text-foreground">{{ userData.stats.following }}</text>
-                <text class="text-xs text-muted-foreground ml-1">关注</text>
-              </navigator>
-              <view class="w-px h-3 bg-border" />
-              <navigator url="/pages/follows/index?tab=followers" class="text-center">
-                <text class="text-base font-bold text-foreground">{{ userData.stats.followers }}</text>
-                <text class="text-xs text-muted-foreground ml-1">粉丝</text>
-              </navigator>
-              <view class="w-px h-3 bg-border" />
-              <navigator url="/pages/likes/index" class="text-center">
-                <text class="text-base font-bold text-foreground">{{ userData.stats.likes }}</text>
-                <text class="text-xs text-muted-foreground ml-1">获赞</text>
-              </navigator>
+            <view class="stat-div" />
+            <view class="stat-item" @tap="toastComingSoon">
+              <text class="stat-num">{{ user.stats.followers }}</text><text class="stat-label">粉丝</text>
             </view>
-
-            <!-- 编辑资料按钮 -->
-            <navigator url="/pages/profile/edit">
-              <view class="mt-3 h-7 px-3 rounded-full border border-border bg-card flex items-center justify-center" style="width: fit-content;">
-                <text class="text-xs text-foreground"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 编辑资料</text>
-              </view>
-            </navigator>
+            <view class="stat-div" />
+            <view class="stat-item" @tap="toastComingSoon">
+              <text class="stat-num">{{ user.stats.likes }}</text><text class="stat-label">获赞</text>
+            </view>
+          </view>
+          <view class="edit-btn" @tap="go('/pages/profile/edit')">
+            <AppIcon name="edit" :size="24" color="#2c2c2c" /><text class="edit-txt">编辑资料</text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- ===== 第二层：资产核心区 ===== -->
-    <view class="px-4 mt-2">
-      <view class="rounded-2xl overflow-hidden border card-shadow" style="background: linear-gradient(to right, var(--color-background), #F8F4EC); border-color: rgba(201,169,110,0.2);">
-        <view class="p-4">
-          <view class="grid grid-cols-3" style="border-right: none;">
-            <navigator url="/pages/wallet/index" class="flex flex-col items-center py-1 border-r border-accent/20">
-              <view class="flex items-center gap-1">
-                <svg class="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                <text class="text-2xl font-bold" style="color: var(--color-accent);">{{ userData.coins }}</text>
-              </view>
-              <text class="text-xs text-muted-foreground mt-1">国学币</text>
-            </navigator>
-            <navigator url="/pages/coupons/index" class="flex flex-col items-center py-1 border-r border-accent/20">
-              <view class="flex items-center gap-1">
-                <view class="text-lg" style="color: var(--color-accent);"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/></svg></view>
-                <text class="text-2xl font-bold" style="color: var(--color-accent);">{{ userData.coupons }}</text>
-              </view>
-              <text class="text-xs text-muted-foreground mt-1">优���券</text>
-            </navigator>
-            <navigator url="/pages/points/index" class="flex flex-col items-center py-1">
-              <view class="flex items-center gap-1">
-                <svg class="w-5 h-5 text-accent" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                <text class="text-2xl font-bold" style="color: var(--color-accent);">{{ userData.points }}</text>
-              </view>
-              <text class="text-xs text-muted-foreground mt-1">积分</text>
-            </navigator>
+    <view class="sec">
+      <view class="asset-card">
+        <view class="asset-grid">
+          <view class="asset-item" @tap="toastComingSoon">
+            <view class="asset-val"><AppIcon name="coins" :size="38" color="#C9A96E" /><text class="coin-num">{{ user.coins }}</text></view>
+            <text class="coin-label">国学币</text>
+          </view>
+          <view class="asset-item asset-bd" @tap="toastComingSoon">
+            <view class="asset-val"><AppIcon name="ticket" :size="30" color="#999999" /><text class="asset-num">{{ user.coupons }}</text></view>
+            <text class="asset-label">优惠券</text>
+          </view>
+          <view class="asset-item asset-bd" @tap="toastComingSoon">
+            <view class="asset-val"><AppIcon name="star" :size="30" color="#999999" /><text class="asset-num">{{ user.points }}</text></view>
+            <text class="asset-label">积分</text>
           </view>
         </view>
       </view>
     </view>
 
     <!-- ===== 第三层：订单与售后区 ===== -->
-    <view class="px-4 mt-4">
-      <view class="bg-card rounded-2xl overflow-hidden card-shadow">
-        <view class="flex items-center justify-between px-4 py-3 border-b border-border">
-          <text class="font-medium text-foreground">我的订单</text>
-          <navigator url="/pages/orders/index" class="flex items-center">
-            <text class="text-xs text-muted-foreground">查看全部订单 ></text>
-          </navigator>
+    <view class="sec">
+      <view class="card">
+        <view class="card-head">
+          <text class="card-title">我的订单</text>
+          <view class="card-more" @tap="toastComingSoon"><text class="more-txt">查看全部订单</text><AppIcon name="chevron-right" :size="28" color="#999999" /></view>
         </view>
-        <view class="grid grid-cols-4 py-4">
-          <navigator
-            v-for="item in orderStatus"
-            :key="item.key"
-            :url="`/pages/orders/index?status=${item.key}`"
-            class="flex flex-col items-center gap-1.5 relative"
-          >
-            <view class="w-10 h-10 rounded-full flex items-center justify-center bg-secondary/50">
-              <!-- CreditCard: pending -->
-              <svg v-if="item.key === 'pending'" class="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-              <!-- Package: shipped -->
-              <svg v-else-if="item.key === 'shipped'" class="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-              <!-- Truck: received -->
-              <svg v-else-if="item.key === 'received'" class="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-              <!-- RefreshCw: refund -->
-              <svg v-else class="w-5 h-5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
-            </view>
-            <text class="text-xs text-foreground">{{ item.label }}</text>
-            <view
-              v-if="item.count > 0"
-              class="absolute flex items-center justify-center rounded-full"
-              style="top: 0; right: 25%; width: 16rpx; height: 16rpx; background: var(--color-primary); min-width: 32rpx; height: 32rpx; padding: 0 4rpx;"
-            >
-              <text class="text-white font-bold" style="font-size: 10rpx;">{{ item.count }}</text>
-            </view>
-          </navigator>
+        <view class="order-grid">
+          <view v-for="item in orderStatus" :key="item.key" class="order-item" @tap="toastComingSoon">
+            <view class="order-icon"><AppIcon :name="item.icon" :size="36" color="#999999" /></view>
+            <text class="order-label">{{ item.label }}</text>
+            <text v-if="item.count > 0" class="order-badge">{{ item.count }}</text>
+          </view>
         </view>
       </view>
     </view>
 
-    <!-- ===== 第四层：功能入口区 ===== -->
-    <view class="px-4 mt-4">
-      <view class="bg-card rounded-2xl overflow-hidden card-shadow">
-        <view class="px-4 py-3 border-b border-border">
-          <text class="font-medium text-foreground">常用功能</text>
-        </view>
-        <view class="grid grid-cols-4 gap-y-4 py-4">
-          <navigator
-            v-for="item in quickFunctions"
-            :key="item.label"
-            :url="item.href"
-            class="flex flex-col items-center gap-1.5"
-          >
-            <view class="w-10 h-10 rounded-xl flex items-center justify-center bg-secondary/50">
-              <component :is="item.iconComponent" class="w-5 h-5" :style="{ color: item.color }" />
-            </view>
-            <text class="text-xs text-foreground">{{ item.label }}</text>
-          </navigator>
+    <!-- ===== 第四层：常用功能区 ===== -->
+    <view class="sec">
+      <view class="card">
+        <view class="card-head"><text class="card-title">常用功能</text></view>
+        <view class="fn-grid">
+          <view v-for="item in quickFunctions" :key="item.label" class="fn-item" @tap="go(item.href)">
+            <view class="fn-icon"><AppIcon :name="item.icon" :size="36" :color="item.color" /></view>
+            <text class="fn-label">{{ item.label }}</text>
+          </view>
         </view>
       </view>
     </view>
 
     <!-- ===== 第五层：身份切换区 ===== -->
-    <view v-if="userData.roles.length > 0" class="px-4 mt-4">
-      <view class="bg-card rounded-2xl overflow-hidden card-shadow">
-        <view class="px-4 py-3 border-b border-border">
-          <text class="font-medium text-foreground">身份切换</text>
+    <view v-if="user.roles.length > 0" class="sec">
+      <view class="card">
+        <view class="card-head">
+          <text class="card-title">身份切换</text>
+          <text class="card-hint">点击进入对应管理后台</text>
         </view>
-        <view class="p-3 grid grid-cols-2 gap-2">
-          <navigator
-            v-for="role in userData.roles"
+        <view class="role-grid">
+          <view
+            v-for="role in user.roles"
             :key="`${role.type}-${role.id}`"
-            :url="getRoleHref(role.type, role.id)"
-            class="flex items-center gap-3 p-3 rounded-xl border border-border active:bg-secondary/30"
+            class="role-item"
+            @tap="openRole(role.type, role.name, role.id)"
           >
-            <view
-              class="w-10 h-10 rounded-xl flex items-center justify-center"
-              :style="{ background: roleConfig[role.type].bgColor }"
-            >
-              <component :is="roleConfig[role.type].iconComponent" class="w-5 h-5" :style="{ color: roleConfig[role.type].color }" />
+            <view class="role-icon" :style="{ background: roleConfig[role.type].bgColor }">
+              <AppIcon :name="roleConfig[role.type].icon" :size="36" :color="roleConfig[role.type].color" />
             </view>
-            <view class="flex-1 min-w-0">
-              <text class="text-sm font-medium text-foreground block" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
-                {{ roleConfig[role.type].label }}
-              </text>
-              <text class="text-xs text-muted-foreground block" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
-                {{ role.name }}
-              </text>
+            <view class="role-info">
+              <text class="role-label">{{ roleConfig[role.type].label }}</text>
+              <text class="role-name">{{ role.name }}</text>
             </view>
-            <text class="text-muted-foreground flex-shrink-0">›</text>
-          </navigator>
+            <AppIcon name="chevron-right" :size="28" color="#999999" />
+          </view>
+        </view>
+
+        <view v-if="availableToApply.length > 0" class="apply-wrap">
+          <text class="apply-title">开通更多身份</text>
+          <scroll-view scroll-x class="apply-scroll" :show-scrollbar="false">
+            <view class="apply-row">
+              <view v-for="r in availableToApply" :key="r.type" class="apply-chip" @tap="applyRole(r.type)">
+                <AppIcon :name="roleConfig[r.type].icon" :size="28" :color="roleConfig[r.type].color" />
+                <text class="apply-txt">申请{{ roleConfig[r.type].label.replace('后台', '').replace('中心', '') }}</text>
+              </view>
+            </view>
+          </scroll-view>
         </view>
       </view>
     </view>
 
     <!-- ===== 签到入口 ===== -->
-    <view class="px-4 mt-4">
-      <navigator url="/pages/check-in/index">
-        <view class="rounded-2xl p-3 flex items-center justify-between border card-shadow" style="background: linear-gradient(to right, rgba(196,30,58,0.05), rgba(201,169,110,0.05)); border-color: rgba(196,30,58,0.2);">
-          <view class="flex items-center gap-3">
-            <view class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, var(--color-primary), var(--color-accent));">
-              <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+    <view class="sec">
+      <view class="checkin-card" @tap="toastComingSoon">
+        <view class="checkin-left">
+          <view class="checkin-icon"><AppIcon name="calendar-check" :size="36" color="#ffffff" /></view>
+          <view>
+            <view class="checkin-title-row">
+              <text class="checkin-title">每日签到</text>
+              <text v-if="user.checkIn.todayChecked" class="checkin-done">已签到</text>
+              <text v-else class="checkin-todo">待签到</text>
             </view>
-            <view>
-              <view class="flex items-center gap-2">
-                <text class="text-sm font-medium text-foreground">每日签到</text>
-                <view
-                  v-if="userData.checkIn.todayChecked"
-                  class="px-1.5 rounded"
-                  style="background: rgba(82,196,26,0.1);"
-                >
-                  <text style="font-size: 10rpx; color: var(--color-chart-4);">已签到</text>
-                </view>
-                <view
-                  v-else
-                  class="px-1.5 rounded animate-pulse"
-                  style="background: var(--color-primary);"
-                >
-                  <text style="font-size: 10rpx; color: var(--color-primary-foreground);">待签到</text>
-                </view>
-              </view>
-              <text class="text-xs text-muted-foreground mt-0.5 block">
-                已连续签到
-                <text style="color: var(--color-primary); font-weight: 500;">{{ userData.checkIn.continuousDays }}</text>
-                天，累计
-                <text style="color: var(--color-accent); font-weight: 500;">{{ userData.checkIn.totalPoints }}</text>
-                积分
-              </text>
-            </view>
+            <text class="checkin-sub">已连续签到 <text class="hl-red">{{ user.checkIn.continuousDays }}</text> 天，累计 <text class="hl-gold">{{ user.checkIn.totalPoints }}</text> 积分</text>
           </view>
-          <text class="text-muted-foreground">›</text>
         </view>
-      </navigator>
+        <AppIcon name="chevron-right" :size="36" color="#999999" />
+      </view>
     </view>
 
     <!-- ===== 继续学习卡片 ===== -->
-    <view v-if="userData.continueLearning" class="px-4 mt-4">
-      <navigator :url="`/pages/learn/detail?id=${userData.continueLearning.id}`">
-        <view class="bg-card rounded-2xl overflow-hidden card-shadow card-shadow-hover p-3 flex items-center gap-3">
-          <view class="w-16 h-12 rounded-lg flex items-center justify-center flex-shrink-0" style="background: linear-gradient(135deg, rgba(196,30,58,0.1), rgba(201,169,110,0.1));">
-            <text class="text-2xl text-primary">▶</text>
-          </view>
-          <view class="flex-1 min-w-0">
-            <text class="text-xs text-muted-foreground block">继续学习</text>
-            <text class="text-sm font-medium text-foreground block" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
-              {{ userData.continueLearning.title }}
-            </text>
-            <text class="text-xs text-muted-foreground block" style="overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">
-              {{ userData.continueLearning.lastLesson }}
-            </text>
-          </view>
-          <view class="flex flex-col items-end">
-            <text class="text-sm font-bold text-primary">{{ userData.continueLearning.progress }}%</text>
-            <view class="w-12 h-1 rounded-full overflow-hidden mt-1 bg-secondary">
-              <view class="h-full rounded-full bg-primary" :style="{ width: userData.continueLearning.progress + '%' }" />
-            </view>
-          </view>
+    <view v-if="user.continueLearning" class="sec">
+      <view class="learn-card" @tap="toastComingSoon">
+        <view class="learn-cover"><AppIcon name="play" :size="44" color="#C41E3A" /></view>
+        <view class="learn-info">
+          <text class="learn-tag">继续学习</text>
+          <text class="learn-title">{{ user.continueLearning.title }}</text>
+          <text class="learn-lesson">{{ user.continueLearning.lastLesson }}</text>
         </view>
-      </navigator>
+        <view class="learn-prog">
+          <text class="learn-pct">{{ user.continueLearning.progress }}%</text>
+          <view class="learn-bar"><view class="learn-bar-fill" :style="{ width: user.continueLearning.progress + '%' }" /></view>
+        </view>
+      </view>
     </view>
 
     <!-- ===== 猜你喜欢 ===== -->
-    <view class="px-4 mt-4 mb-6">
-      <view class="flex items-center justify-between mb-3">
-        <text class="font-medium text-foreground">猜你喜欢</text>
-        <navigator url="/pages/discover/index" class="flex items-center">
-          <text class="text-xs text-muted-foreground">更多 ›</text>
-        </navigator>
+    <view class="sec sec-rec">
+      <view class="rec-head">
+        <text class="card-title">猜你喜欢</text>
+        <view class="card-more" @tap="go('/pages/discover/index')"><text class="more-txt">更多</text><AppIcon name="chevron-right" :size="28" color="#999999" /></view>
       </view>
-      <scroll-view scroll-x class="flex gap-3 pb-1">
-        <navigator
-          v-for="item in recommendations"
-          :key="item.id"
-          :url="item.type === 'course' ? `/pages/courses/detail?id=${item.id}` : `/pages/mall/product?id=${item.id}`"
-          class="flex-shrink-0 w-32"
-        >
-          <view class="rounded-lg relative flex items-center justify-center card-shadow" style="aspect-ratio: 3/4; background: linear-gradient(135deg, rgba(196,30,58,0.05), rgba(201,169,110,0.05));">
-            <svg v-if="item.type === 'course'" class="w-8 h-8 text-primary/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            <svg v-else class="w-8 h-8 text-accent/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-            <view v-if="item.tag" class="absolute top-1.5 left-1.5 px-1.5 rounded bg-primary">
-              <text class="text-white" style="font-size: 10rpx;">{{ item.tag }}</text>
+      <scroll-view scroll-x class="rec-scroll" :show-scrollbar="false">
+        <view class="rec-row">
+          <view v-for="item in recommendations" :key="item.id" class="rec-item" @tap="toastComingSoon">
+            <view class="rec-cover">
+              <AppIcon :name="item.type === 'course' ? 'book-open' : 'package'" :size="56" :color="item.type === 'course' ? 'rgba(196,30,58,0.3)' : 'rgba(201,169,110,0.3)'" />
+              <text v-if="item.tag" class="rec-tag">{{ item.tag }}</text>
+            </view>
+            <text class="rec-title">{{ item.title }}</text>
+            <view class="rec-price-row">
+              <text class="rec-price">¥{{ item.price }}</text>
+              <text class="rec-origin">¥{{ item.originalPrice }}</text>
             </view>
           </view>
-          <text class="text-xs font-medium mt-2 leading-relaxed text-foreground block line-clamp-2">{{ item.title }}</text>
-          <view class="flex items-baseline gap-1 mt-1">
-            <text class="text-sm font-bold text-primary">¥{{ item.price }}</text>
-            <text class="text-xs text-muted-foreground line-through">¥{{ item.originalPrice }}</text>
-          </view>
-        </navigator>
+        </view>
       </scroll-view>
     </view>
 
-    <!-- 会员到期提醒 -->
-    <view
-      v-if="userData.isVip && userData.vipDaysLeft <= 30"
-      class="fixed left-4 right-4 max-w-lg mx-auto"
-      style="bottom: 80rpx;"
-    >
-      <view class="p-3 flex items-center justify-between rounded-2xl card-shadow" style="background: linear-gradient(to right, var(--color-accent), #D4B87D);">
-        <view class="flex items-center gap-2">
-          <svg class="w-5 h-5 text-white mr-1" viewBox="0 0 24 24" fill="currentColor"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7z"/></svg>
-          <text class="text-white text-sm">会员还剩 {{ userData.vipDaysLeft }} 天到期</text>
-        </view>
-        <navigator url="/pages/vip/index" class="px-3 py-1 bg-white rounded-full">
-          <text class="text-xs font-medium" style="color: var(--color-accent);">立即续费</text>
-        </navigator>
+    <!-- ===== 会员到期提醒（剩余<=30天）===== -->
+    <view v-if="user.isVip && user.vipDaysLeft <= 30" class="vip-remind">
+      <view class="vip-remind-card">
+        <view class="vip-remind-left"><AppIcon name="crown" :size="36" color="#ffffff" /><text class="vip-remind-txt">会员还剩 {{ user.vipDaysLeft }} 天到期</text></view>
+        <view class="vip-renew" @tap="toastComingSoon"><text class="vip-renew-txt">立即续费</text></view>
       </view>
     </view>
 
-    <!-- 底部导航 -->
-    <bottom-tab-bar active-tab="mine" />
+    <!-- ===== 身份切换确认弹窗 ===== -->
+    <view v-if="pendingRole" class="modal-mask" @tap="pendingRole = null">
+      <view class="modal" @tap.stop>
+        <view class="modal-body">
+          <view class="modal-icon" :style="{ background: roleConfig[pendingRole.type].bgColor }">
+            <AppIcon :name="roleConfig[pendingRole.type].icon" :size="44" :color="roleConfig[pendingRole.type].color" />
+          </view>
+          <text class="modal-title">切换到「{{ roleConfig[pendingRole.type].label }}」</text>
+          <text class="modal-name">{{ pendingRole.name }}</text>
+          <text class="modal-desc">将进入对应管理后台，确认切换？</text>
+        </view>
+        <view class="modal-actions">
+          <view class="modal-cancel" @tap="pendingRole = null"><text class="modal-cancel-txt">取消</text></view>
+          <view class="modal-confirm" @tap="confirmRole"><text class="modal-confirm-txt">确认切换</text></view>
+        </view>
+      </view>
+    </view>
+
+    <bottom-nav active="profile" />
+    </view>
   </view>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted, defineComponent, h } from 'vue'
+<style scoped lang="scss">
+.page { min-height: 100vh; background: #FAF8F5; padding-bottom: 160rpx; }
 
-// SVG Icon components
-const CompassIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('circle', { cx: '12', cy: '12', r: '10' }), h('polygon', { points: '16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76' })]) })
-const BookOpenIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('path', { d: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z' }), h('path', { d: 'M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z' })]) })
-const UsersIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('path', { d: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2' }), h('circle', { cx: '9', cy: '7', r: '4' }), h('path', { d: 'M23 21v-2a4 4 0 0 0-3-3.87' }), h('path', { d: 'M16 3.13a4 4 0 0 1 0 7.75' })]) })
-const StickyNoteIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('path', { d: 'M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z' }), h('polyline', { points: '14 2 14 8 20 8' })]) })
-const HeartIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('path', { d: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z' })]) })
-const FileTextIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('path', { d: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z' }), h('polyline', { points: '14 2 14 8 20 8' }), h('line', { x1: '16', y1: '13', x2: '8', y2: '13' }), h('line', { x1: '16', y1: '17', x2: '8', y2: '17' }), h('polyline', { points: '10 9 9 9 8 9' })]) })
-const HistoryIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('polyline', { points: '1 4 1 10 7 10' }), h('path', { d: 'M3.51 15a9 9 0 1 0 .49-3.51' })]) })
-const HelpCircleIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('circle', { cx: '12', cy: '12', r: '10' }), h('path', { d: 'M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3' }), h('line', { x1: '12', y1: '17', x2: '12.01', y2: '17' })]) })
-// Role icons
-const CrownIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('path', { d: 'M2 4l3 12h14l3-12-6 7-4-7-4 7z' }), h('line', { x1: '2', y1: '20', x2: '22', y2: '20' })]) })
-const GraduationIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('path', { d: 'M22 10v6M2 10l10-5 10 5-10 5z' }), h('path', { d: 'M6 12v5c3 3 9 3 12 0v-5' })]) })
-const AwardIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('circle', { cx: '12', cy: '8', r: '7' }), h('polyline', { points: '8.21 13.89 7 23 12 20 17 23 15.79 13.88' })]) })
-const RadioIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('circle', { cx: '12', cy: '12', r: '2' }), h('path', { d: 'M4.93 4.93a10 10 0 0 0 0 14.14M19.07 4.93a10 10 0 0 1 0 14.14' })]) })
-const VideoIcon = defineComponent({ render: () => h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, [h('polygon', { points: '23 7 16 12 23 17 23 7' }), h('rect', { x: '1', y: '5', width: '15', height: '14', rx: '2', ry: '2' })]) })
-import BottomTabBar from '@/components/base/BottomTabBar.vue'
+/* 第一层 hero */
+.hero { position: relative; }
+.hero-bg { position: absolute; top: 0; left: 0; right: 0; height: 384rpx; background: linear-gradient(to bottom, #F5F1EB, #FAF8F5 60%, #FAF8F5); }
+.topbar { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 96rpx 32rpx 16rpx; }
+.topbar-right { display: flex; align-items: center; gap: 16rpx; }
+.round-btn { position: relative; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; }
+.msg-badge { position: absolute; top: -4rpx; right: -4rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; background: #C41E3A; color: #fff; font-size: 18rpx; font-weight: 700; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
 
-type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator'
+.user-row { position: relative; display: flex; align-items: flex-start; gap: 32rpx; padding: 0 32rpx 32rpx; }
+.avatar { width: 160rpx; height: 160rpx; border-radius: 50%; background: #C41E3A; display: flex; align-items: center; justify-content: center; border: 8rpx solid #fff; box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.12); flex-shrink: 0; overflow: hidden; }
+.avatar-img { width: 100%; height: 100%; }
+.avatar-fallback { font-family: var(--font-serif); font-size: 56rpx; font-weight: 700; color: #fff; }
+.user-info { flex: 1; padding-top: 8rpx; min-width: 0; }
+.greeting { display: block; font-size: 22rpx; color: #999; margin-bottom: 8rpx; }
+.name-row { display: flex; align-items: center; gap: 12rpx; }
+.uname { font-family: var(--font-serif); font-size: 40rpx; font-weight: 700; color: #2c2c2c; }
+.vip-badge { display: flex; align-items: center; gap: 4rpx; padding: 2rpx 12rpx; border-radius: 999rpx; background: linear-gradient(to right, #C9A96E, #D4B87D); }
+.vip-txt { font-size: 20rpx; color: #fff; }
+.stat-row { display: flex; align-items: center; gap: 28rpx; margin-top: 16rpx; }
+.stat-item { display: flex; align-items: baseline; gap: 6rpx; }
+.stat-num { font-size: 32rpx; font-weight: 700; color: #2c2c2c; }
+.stat-label { font-size: 22rpx; color: #999; }
+.stat-div { width: 2rpx; height: 24rpx; background: #e8e0d5; }
+.edit-btn { display: inline-flex; align-items: center; gap: 6rpx; margin-top: 24rpx; height: 56rpx; padding: 0 24rpx; border-radius: 999rpx; border: 2rpx solid #e8e0d5; background: #fff; align-self: flex-start; }
+.edit-txt { font-size: 22rpx; color: #2c2c2c; }
 
-// --- 用户数据（与 React 版本完全一致）---
-const userData = {
-  name: '张三丰',
-  avatar: '',
-  isVip: true,
-  vipLevel: '黄金会员',
-  vipDaysLeft: 234,
-  isVerified: true,
-  roles: [
-    { type: 'circle_owner' as UserRole, name: '张氏命理研习社', id: 1 },
-    { type: 'teacher' as UserRole, name: '八字入门精讲', id: 1 },
-    { type: 'streamer' as UserRole, name: '直播间', id: 1 },
-  ],
-  messages: { system: 2, interaction: 5, transaction: 1 },
-  checkIn: { todayChecked: false, continuousDays: 7, totalPoints: 350 },
-  stats: { following: 128, followers: 1024, likes: 3680 },
-  coins: 520,
-  coupons: 3,
-  points: 1280,
-  orders: { pending: 2, shipped: 1, received: 3, refund: 0 },
-  continueLearning: { id: 1, title: '八字入门实战课', progress: 45, lastLesson: '第三章：天干地支详解' },
-}
+/* 通用 section / card */
+.sec { padding: 0 32rpx; margin-top: 32rpx; }
+.card { background: #fff; border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
+.card-head { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; border-bottom: 2rpx solid #f0ece4; }
+.card-title { font-size: 30rpx; font-weight: 500; color: #2c2c2c; }
+.card-hint { font-size: 20rpx; color: #999; }
+.card-more { display: flex; align-items: center; }
+.more-txt { font-size: 22rpx; color: #999; }
 
-// --- 状态 ---
-const greeting = ref('')
+/* 第二层 资产 */
+.asset-card { background: linear-gradient(to right, #FAF8F5, #F8F4EC); border: 2rpx solid rgba(201,169,110,0.2); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); padding: 32rpx; }
+.asset-grid { display: flex; }
+.asset-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8rpx 0; }
+.asset-bd { border-left: 2rpx solid rgba(201,169,110,0.2); }
+.asset-val { display: flex; align-items: center; gap: 8rpx; }
+.coin-num { font-size: 60rpx; font-weight: 700; color: #C9A96E; line-height: 1; }
+.coin-label { font-size: 22rpx; color: rgba(201,169,110,0.9); font-weight: 500; margin-top: 12rpx; }
+.asset-num { font-size: 40rpx; font-weight: 700; color: #2c2c2c; line-height: 1; }
+.asset-label { font-size: 22rpx; color: #999; margin-top: 12rpx; }
 
-// --- 计算属性 ---
-const totalMessages = computed(() =>
-  userData.messages.system + userData.messages.interaction + userData.messages.transaction
-)
+/* 第三层 订单 */
+.order-grid { display: flex; padding: 32rpx 0; }
+.order-item { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
+.order-icon { width: 80rpx; height: 80rpx; border-radius: 50%; background: rgba(240,236,228,0.5); display: flex; align-items: center; justify-content: center; }
+.order-label { font-size: 22rpx; color: #2c2c2c; }
+.order-badge { position: absolute; top: 0; right: 25%; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; background: #C41E3A; color: #fff; font-size: 18rpx; font-weight: 700; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
 
-// --- 订单状态配置 ---
-const orderStatus = [
-  { key: 'pending', label: '待付款', count: userData.orders.pending },
-  { key: 'shipped', label: '待发货', count: userData.orders.shipped },
-  { key: 'received', label: '待收货', count: userData.orders.received },
-  { key: 'refund', label: '售后', count: userData.orders.refund },
-]
+/* 第四层 常用功能 */
+.fn-grid { display: flex; flex-wrap: wrap; padding: 32rpx 0; }
+.fn-item { width: 25%; display: flex; flex-direction: column; align-items: center; gap: 12rpx; margin-bottom: 32rpx; }
+.fn-icon { width: 80rpx; height: 80rpx; border-radius: 20rpx; background: rgba(240,236,228,0.5); display: flex; align-items: center; justify-content: center; }
+.fn-label { font-size: 22rpx; color: #2c2c2c; }
 
-// --- 常用功能 ---
-const quickFunctions = [
-  { iconComponent: CompassIcon, label: '排盘记录', href: '/pages/paipan/history', color: 'var(--color-primary)' },
-  { iconComponent: BookOpenIcon, label: '我的课程', href: '/pages/learning/index', color: '#4A90D9' },
-  { iconComponent: UsersIcon, label: '我的圈子', href: '/pages/my-circles/index', color: '#722ED1' },
-  { iconComponent: StickyNoteIcon, label: '我的笔记', href: '/pages/notes/index', color: 'var(--color-accent)' },
-  { iconComponent: HeartIcon, label: '我的收藏', href: '/pages/favorites/index', color: 'var(--color-primary)' },
-  { iconComponent: FileTextIcon, label: '我的电子书', href: '/pages/downloads/index', color: 'var(--color-chart-4)' },
-  { iconComponent: HistoryIcon, label: '浏览历史', href: '/pages/history/index', color: '#64748B' },
-  { iconComponent: HelpCircleIcon, label: '帮助中心', href: '/pages/help/index', color: 'var(--color-muted-foreground)' },
-]
+/* 第五层 身份切换 */
+.role-grid { display: flex; flex-wrap: wrap; padding: 24rpx; gap: 16rpx; }
+.role-item { width: calc(50% - 8rpx); display: flex; align-items: center; gap: 20rpx; padding: 24rpx; border-radius: 20rpx; border: 2rpx solid #f0ece4; }
+.role-icon { width: 72rpx; height: 72rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.role-info { flex: 1; min-width: 0; }
+.role-label { display: block; font-size: 26rpx; font-weight: 500; color: #2c2c2c; }
+.role-name { display: block; font-size: 20rpx; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apply-wrap { padding: 0 24rpx 24rpx; }
+.apply-title { display: block; font-size: 20rpx; color: #999; margin-bottom: 16rpx; padding-left: 8rpx; }
+.apply-scroll { width: 100%; white-space: nowrap; }
+.apply-row { display: inline-flex; gap: 16rpx; }
+.apply-chip { display: inline-flex; align-items: center; gap: 12rpx; padding: 16rpx 24rpx; border-radius: 999rpx; border: 2rpx dashed #e8e0d5; }
+.apply-txt { font-size: 22rpx; color: #999; white-space: nowrap; }
 
-// --- 猜你喜欢 ---
-const recommendations = [
-  { id: 1, type: 'course', title: '紫微斗数入门精讲', price: 199, originalPrice: 399, tag: '热门' },
-  { id: 2, type: 'product', title: '专业罗盘套装', price: 298, originalPrice: 598, tag: '特惠' },
-  { id: 3, type: 'course', title: '六爻预测实战班', price: 299, originalPrice: 499, tag: '新课' },
-  { id: 4, type: 'product', title: '渊海子平精装版', price: 68, originalPrice: 128, tag: '' },
-]
+/* 签到 */
+.checkin-card { display: flex; align-items: center; justify-content: space-between; padding: 24rpx; background: linear-gradient(to right, rgba(196,30,58,0.05), rgba(201,169,110,0.05)); border: 2rpx solid rgba(196,30,58,0.2); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
+.checkin-left { display: flex; align-items: center; gap: 24rpx; }
+.checkin-icon { width: 80rpx; height: 80rpx; border-radius: 20rpx; background: linear-gradient(135deg, #C41E3A, #C9A96E); display: flex; align-items: center; justify-content: center; }
+.checkin-title-row { display: flex; align-items: center; gap: 16rpx; }
+.checkin-title { font-size: 28rpx; font-weight: 500; color: #2c2c2c; }
+.checkin-done { font-size: 20rpx; color: #52C41A; background: rgba(82,196,26,0.1); padding: 2rpx 12rpx; border-radius: 8rpx; }
+.checkin-todo { font-size: 20rpx; color: #fff; background: #C41E3A; padding: 2rpx 12rpx; border-radius: 8rpx; }
+.checkin-sub { display: block; font-size: 22rpx; color: #999; margin-top: 4rpx; }
+.hl-red { color: #C41E3A; font-weight: 500; }
+.hl-gold { color: #C9A96E; font-weight: 500; }
 
-// --- 角色配置 ---
-const roleConfig: Record<UserRole, { label: string; iconComponent: any; color: string; bgColor: string }> = {
-  user: { label: '普通用户', iconComponent: UsersIcon, color: 'var(--color-muted-foreground)', bgColor: 'var(--color-muted)' },
-  circle_owner: { label: '圈主后台', iconComponent: CrownIcon, color: 'var(--color-accent)', bgColor: 'rgba(201,169,110,0.1)' },
-  teacher: { label: '讲师后台', iconComponent: GraduationIcon, color: '#4A90D9', bgColor: 'rgba(74,144,217,0.1)' },
-  station_owner: { label: '站长后台', iconComponent: AwardIcon, color: 'var(--color-chart-4)', bgColor: 'rgba(82,196,26,0.1)' },
-  streamer: { label: '主播中心', iconComponent: RadioIcon, color: 'var(--color-primary)', bgColor: 'rgba(196,30,58,0.1)' },
-  creator: { label: '创作中心', iconComponent: VideoIcon, color: '#722ED1', bgColor: 'rgba(114,46,209,0.1)' },
-}
+/* 继续学习 */
+.learn-card { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; background: #fff; border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
+.learn-cover { width: 128rpx; height: 96rpx; border-radius: 16rpx; background: linear-gradient(135deg, rgba(196,30,58,0.1), rgba(201,169,110,0.1)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.learn-info { flex: 1; min-width: 0; }
+.learn-tag { display: block; font-size: 22rpx; color: #999; }
+.learn-title { display: block; font-size: 28rpx; font-weight: 500; color: #2c2c2c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.learn-lesson { display: block; font-size: 20rpx; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.learn-prog { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.learn-pct { font-size: 28rpx; font-weight: 700; color: #C41E3A; }
+.learn-bar { width: 96rpx; height: 8rpx; background: #f0ece4; border-radius: 999rpx; margin-top: 8rpx; overflow: hidden; }
+.learn-bar-fill { height: 100%; background: #C41E3A; border-radius: 999rpx; }
 
-// --- 方法 ---
-function getGreeting() {
-  const hour = new Date().getHours()
-  if (hour < 6) return '夜深了'
-  if (hour < 12) return '早上好'
-  if (hour < 14) return '中午好'
-  if (hour < 18) return '下午好'
-  return '晚上好'
-}
+/* 猜你喜欢 */
+.sec-rec { margin-bottom: 24rpx; }
+.rec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
+.rec-scroll { width: 100%; white-space: nowrap; }
+.rec-row { display: inline-flex; gap: 24rpx; padding-bottom: 8rpx; }
+.rec-item { display: inline-block; width: 256rpx; vertical-align: top; }
+.rec-cover { position: relative; width: 256rpx; height: 341rpx; border-radius: 16rpx; background: linear-gradient(135deg, rgba(196,30,58,0.05), rgba(201,169,110,0.05)); display: flex; align-items: center; justify-content: center; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
+.rec-tag { position: absolute; top: 12rpx; left: 12rpx; font-size: 18rpx; padding: 2rpx 12rpx; background: #C41E3A; color: #fff; border-radius: 8rpx; }
+.rec-title { display: block; font-size: 22rpx; font-weight: 500; color: #2c2c2c; margin-top: 16rpx; line-height: 1.5; white-space: normal; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.rec-price-row { display: flex; align-items: baseline; gap: 8rpx; margin-top: 8rpx; }
+.rec-price { font-size: 28rpx; font-weight: 700; color: #C41E3A; }
+.rec-origin { font-size: 20rpx; color: #999; text-decoration: line-through; }
 
-function getRoleHref(type: UserRole, id: number): string {
-  switch (type) {
-    case 'circle_owner': return `/pages/circle/settings?id=${id}`
-    case 'teacher': return '/pages/manage/my-courses'
-    case 'streamer': return '/pages/creator/live/console'
-    case 'creator': return '/pages/videos/creator'
-    default: return '/pages/profile/index'
-  }
-}
+/* 会员提醒 */
+.vip-remind { position: fixed; bottom: 160rpx; left: 32rpx; right: 32rpx; z-index: 40; }
+.vip-remind-card { display: flex; align-items: center; justify-content: space-between; padding: 24rpx; background: linear-gradient(to right, #C9A96E, #D4B87D); border-radius: 20rpx; box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.15); }
+.vip-remind-left { display: flex; align-items: center; gap: 16rpx; }
+.vip-remind-txt { font-size: 26rpx; color: #fff; }
+.vip-renew { padding: 8rpx 24rpx; background: #fff; border-radius: 999rpx; }
+.vip-renew-txt { font-size: 22rpx; font-weight: 500; color: #C9A96E; }
 
-function showQrCode() {
-  uni.showToast({ title: '二维码', icon: 'none' })
-}
+/* 弹窗 */
+.modal-mask { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); padding: 0 64rpx; }
+.modal { width: 100%; max-width: 560rpx; background: #fff; border-radius: 32rpx; overflow: hidden; box-shadow: 0 8rpx 40rpx rgba(0,0,0,0.2); }
+.modal-body { padding: 40rpx; text-align: center; }
+.modal-icon { width: 96rpx; height: 96rpx; border-radius: 24rpx; margin: 0 auto 24rpx; display: flex; align-items: center; justify-content: center; }
+.modal-title { display: block; font-size: 30rpx; font-weight: 500; color: #2c2c2c; }
+.modal-name { display: block; font-size: 22rpx; color: #999; margin-top: 12rpx; }
+.modal-desc { display: block; font-size: 22rpx; color: #999; margin-top: 16rpx; }
+.modal-actions { display: flex; border-top: 2rpx solid #f0ece4; }
+.modal-cancel { flex: 1; padding: 28rpx 0; text-align: center; }
+.modal-cancel-txt { font-size: 28rpx; color: #999; }
+.modal-confirm { flex: 1; padding: 28rpx 0; text-align: center; background: #C41E3A; border-left: 2rpx solid #f0ece4; }
+.modal-confirm-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
 
-onMounted(() => {
-  greeting.value = getGreeting()
-})
-</script>
+/* 加载骨架屏 */
+.loading { padding-top: 96rpx; }
+.sk-hero { display: flex; align-items: center; gap: 32rpx; padding: 32rpx 32rpx 48rpx; }
+.sk-avatar { width: 160rpx; height: 160rpx; border-radius: 50%; background: var(--line-soft, #f2efea); flex-shrink: 0; }
+.sk-lines { flex: 1; display: flex; flex-direction: column; gap: 16rpx; }
+.sk-line { height: 28rpx; background: var(--line-soft, #f2efea); border-radius: 8rpx; }
+.sk-line.w1 { width: 40%; }
+.sk-line.w2 { width: 65%; }
+.sk-line.w3 { width: 80%; }
+.sk-card-lg { height: 180rpx; margin: 32rpx; border-radius: 24rpx; background: var(--line-soft, #f2efea); }
+.sk-card-md { height: 160rpx; margin: 0 32rpx 32rpx; border-radius: 24rpx; background: var(--line-soft, #f2efea); }
+</style>

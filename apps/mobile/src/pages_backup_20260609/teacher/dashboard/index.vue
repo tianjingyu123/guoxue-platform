@@ -1,8 +1,0 @@
-<template>
-  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">讲师看板</text><view style="width:48rpx"/></view>
-    <view class="c"><view class="stats"><view v-for="s in stats" :key="s.l" class="si"><text class="sv">{{s.v}}</text><text class="sl">{{s.l}}</text></view></view>
-    <view class="card"><text class="ct">最近作业</text><view v-for="w in works" :key="w.id" class="wr"><text class="wn">{{w.name}}</text><text class="ws">待批改</text></view></view></view></view>
-</template>
-<script setup lang="ts">import {ref} from 'vue';const stats=[{l:'总学员',v:'1,280'},{l:'课程',v:'8'},{l:'待批改',v:'12'},{l:'好评率',v:'98%'}];const works=ref([{id:1,name:'张三-八字基础作业'},{id:2,name:'李四-五行分析'}]);function goBack(){uni.navigateBack()}</script>
-<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.c{padding:24rpx}.stats{display:grid;grid-template-columns:1fr 1fr;gap:16rpx;margin-bottom:24rpx}.si{background:#fff;border-radius:16rpx;padding:24rpx;text-align:center;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}.sv{font-size:36rpx;font-weight:700;color:#C41E3A;display:block}.sl{font-size:22rpx;color:#999;margin-top:4rpx}.card{background:#fff;border-radius:20rpx;padding:24rpx;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}.ct{font-size:28rpx;font-weight:600;color:#2C2C2C;margin-bottom:16rpx;display:block}.wr{display:flex;justify-content:space-between;padding:14rpx 0;border-bottom:1px solid #F5F1EB;font-size:26rpx}.wn{color:#2C2C2C}.ws{color:#f97316}
-</style>

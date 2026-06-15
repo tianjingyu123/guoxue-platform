@@ -1,8 +1,0 @@
-<template>
-  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">#八字命理</text><text class="nf" @click="follow">关注</text></view>
-    <scroll-view scroll-y class="c"><view v-for="p in posts" :key="p.id" class="card">
-      <text class="ca">{{p.author[0]}}</text><view><text class="cn">{{p.author}}</text><text class="cc">{{p.content}}</text><view class="cf"><text>❤️{{p.likes}}</text><text>💬{{p.comments}}</text></view></view></view><view style="height:48rpx"/></scroll-view></view>
-</template>
-<script setup lang="ts">import {ref} from 'vue';const posts=ref([{id:1,author:'周易大师',content:'八字命理中，日主强弱是分析命局的基础。',likes:328,comments:56},{id:2,author:'张玄风',content:'分享一个八字看财运的心得。',likes:156,comments:42}]);function follow(){uni.showToast({title:'已关注'})};function goBack(){uni.navigateBack()}</script>
-<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:28rpx;font-weight:500;color:#C41E3A}.nf{font-size:24rpx;color:#C41E3A}.c{padding:24rpx}.card{display:flex;gap:12rpx;background:#fff;border-radius:16rpx;padding:24rpx;margin-bottom:12rpx;box-shadow:0 2rpx 8rpx rgba(0,0,0,.03)}.ca{width:56rpx;height:56rpx;border-radius:50%;background:#F5F1EB;display:flex;align-items:center;justify-content:center;font-size:24rpx;color:#999;flex-shrink:0}.cn{font-size:26rpx;font-weight:500;color:#2C2C2C;display:block}.cc{font-size:24rpx;color:#666;margin-top:6rpx}.cf{display:flex;gap:24rpx;margin-top:8rpx;font-size:22rpx;color:#999}
-</style>

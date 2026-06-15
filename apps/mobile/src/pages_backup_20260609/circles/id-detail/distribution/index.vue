@@ -1,8 +1,0 @@
-<template>
-  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">分销设置</text><view style="width:48rpx"/></view>
-    <view class="c"><view class="card"><text class="ct">佣金比例</text><text class="cp">{{rate}}%</text><text class="cd">成员邀请新成员加入可获得佣金</text></view>
-    <view class="card"><text class="ct">分销记录</text><view v-for="r in records" :key="r.id" class="rr"><text class="ra">{{r.n[0]}}</text><view><text class="rn">{{r.n}}</text><text class="rd">邀请{{r.c}}人·¥{{r.comm}}</text></view></view></view></view></view>
-</template>
-<script setup lang="ts">import {ref} from 'vue';const rate=ref(10);const records=ref([{id:1,n:'易学爱好者',c:8,comm:160},{id:2,n:'风水新手',c:3,comm:60}]);function goBack(){uni.navigateBack()}</script>
-<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.c{padding:24rpx}.card{background:#fff;border-radius:20rpx;padding:24rpx;margin-bottom:20rpx;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}.ct{font-size:28rpx;font-weight:600;color:#2C2C2C;margin-bottom:16rpx;display:block}.cp{font-size:56rpx;font-weight:900;color:#C41E3A;display:block}.cd{font-size:24rpx;color:#999;margin-top:8rpx}.rr{display:flex;align-items:center;gap:12rpx;padding:16rpx 0;border-bottom:1px solid #F5F1EB}.ra{width:56rpx;height:56rpx;border-radius:50%;background:#F5F1EB;display:flex;align-items:center;justify-content:center;font-size:24rpx;color:#999}.rn{font-size:26rpx;font-weight:500;color:#2C2C2C;display:block}.rd{font-size:22rpx;color:#999}
-</style>

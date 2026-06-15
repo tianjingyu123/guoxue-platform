@@ -1,8 +1,0 @@
-<template>
-  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">分站助手</text><view style="width:48rpx"/></view>
-    <view class="c"><view class="card"><text class="ct">AI分站助手</text><text class="desc">基于分站知识库回答成员问题</text><view class="kb"><text>知识库：28篇文档</text><view class="kbb" @click="goKB">管理</view></view></view>
-    <view class="card"><text class="ct">对话记录</text><view v-for="c in chats" :key="c.id" class="cr"><text class="cn">{{c.u}}</text><text class="cc">{{c.q}}</text></view></view></view></view>
-</template>
-<script setup lang="ts">import {ref} from 'vue';const chats=ref([{id:1,u:'成员A',q:'八字排盘如何使用？'},{id:2,u:'成员B',q:'分站有哪些课程？'}]);function goKB(){};function goBack(){uni.navigateBack()}</script>
-<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.c{padding:24rpx}.card{background:#fff;border-radius:20rpx;padding:24rpx;margin-bottom:20rpx;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}.ct{font-size:28rpx;font-weight:600;color:#2C2C2C;margin-bottom:16rpx;display:block}.desc{font-size:24rpx;color:#999;margin-bottom:16rpx}.kb{display:flex;justify-content:space-between;align-items:center;background:#F5F1EB;padding:20rpx;border-radius:12rpx;font-size:24rpx;color:#666}.kbb{color:#C41E3A;font-weight:500}.cr{padding:16rpx 0;border-bottom:1px solid #F5F1EB}.cn{font-size:24rpx;font-weight:500;color:#2C2C2C;display:block}.cc{font-size:22rpx;color:#999}
-</style>

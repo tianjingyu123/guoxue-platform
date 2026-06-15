@@ -1,7 +1,0 @@
-<template>
-  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">审核结果</text><view style="width:48rpx"/></view>
-    <view class="c"><view class="icon">❌</view><text class="t">售后申请未通过</text><text class="r">{{reason}}</text><view class="btns"><view class="b" @click="appeal">我要申诉</view><view class="b ol" @click="reapply">重新申请</view></view></view></view>
-</template>
-<script setup lang="ts">import {ref} from 'vue';const reason=ref('商品不属于质量问题范围，不符合退款条件。');function appeal(){uni.navigateTo({url:'/pages/orders/dispute/index'})};function reapply(){uni.navigateTo({url:'/pages/shop/after-sale/index'})};function goBack(){uni.navigateBack()}</script>
-<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.c{display:flex;flex-direction:column;align-items:center;padding:80rpx 48rpx}.icon{font-size:96rpx;margin-bottom:24rpx}.t{font-size:32rpx;font-weight:600;color:#2C2C2C;margin-bottom:12rpx}.r{font-size:26rpx;color:#999;text-align:center;line-height:1.6;margin-bottom:48rpx}.btns{display:flex;gap:24rpx;width:100%}.b{flex:1;padding:24rpx;text-align:center;border-radius:24rpx;font-size:26rpx;font-weight:500;background:#C41E3A;color:#fff}.b.ol{border:1px solid #E8E0D5;background:#fff;color:#666}
-</style>

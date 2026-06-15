@@ -1,6 +1,0 @@
-<template>
-  <view class="page"><view class="body"><text class="icon">✅</text><text class="title">支付成功</text><text class="amount">¥98.00</text><text class="no">订单号：RB202401150001</text><view class="btns"><view class="btn" @click="goOrder">查看订单</view><view class="btn outline" @click="goHome">继续逛逛</view></view></view></view>
-</template>
-<script setup lang="ts">import {ref} from 'vue';function goOrder(){uni.navigateTo({url:'/pages/orders/id-detail/index'})};function goHome(){uni.reLaunch({url:'/pages/index/index'})}</script>
-<style scoped>.page{background:#FAF8F5;min-height:100vh;display:flex;align-items:center;justify-content:center}.body{text-align:center;padding:48rpx}.icon{font-size:96rpx;display:block;margin-bottom:24rpx}.title{font-size:36rpx;font-weight:600;color:#2C2C2C;display:block;margin-bottom:16rpx}.amount{font-size:64rpx;font-weight:900;color:#C41E3A;display:block;margin-bottom:8rpx}.no{font-size:22rpx;color:#999;display:block;margin-bottom:48rpx}.btns{display:flex;gap:24rpx;justify-content:center}.btn{padding:24rpx 56rpx;background:linear-gradient(90deg,#C41E3A,#E74C3C);color:#fff;border-radius:40rpx;font-size:26rpx}.btn.outline{border:1px solid #E8E0D5;background:#fff;color:#666}
-</style>

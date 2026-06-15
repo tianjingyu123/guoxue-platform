@@ -7,7 +7,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),
-      // @guoxue/shared 直指源码，避免 CJS dist 产物导致 Rollup 无法静态分析导出
       "@guoxue/shared": resolve(__dirname, "../../packages/shared/src/index.ts"),
     },
   },

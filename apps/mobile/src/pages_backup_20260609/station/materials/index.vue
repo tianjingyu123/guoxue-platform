@@ -1,8 +1,0 @@
-<template>
-  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">推广素材</text><view style="width:48rpx"/></view>
-    <scroll-view scroll-y class="c"><view v-for="m in mats" :key="m.id" class="card">
-      <text class="mi">{{m.icon}}</text><view class="mc"><text class="mn">{{m.name}}</text><text class="md">{{m.desc}}</text><view class="mb"><text class="mbc" @click="copy(m.url)">📋复制</text><text class="mbs" @click="share(m.url)">📤分享</text></view></view></view><view style="height:48rpx"/></scroll-view></view>
-</template>
-<script setup lang="ts">import {ref} from 'vue';const mats=ref([{id:1,name:'分站推广海报',desc:'邀请好友加入分站',icon:'🏮',url:'link1'},{id:2,name:'课程推荐卡',desc:'分享课程给好友',icon:'📚',url:'link2'},{id:3,name:'活动邀请函',desc:'邀请参加线下活动',icon:'📅',url:'link3'}]);function copy(url:string){uni.setClipboardData({data:url})};function share(url:string){};function goBack(){uni.navigateBack()}</script>
-<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.c{padding:24rpx}.card{display:flex;align-items:center;gap:16rpx;background:#fff;border-radius:16rpx;padding:24rpx;margin-bottom:12rpx;box-shadow:0 2rpx 8rpx rgba(0,0,0,.03)}.mi{font-size:48rpx;flex-shrink:0}.mn{font-size:26rpx;font-weight:500;color:#2C2C2C;display:block}.md{font-size:22rpx;color:#999;margin-top:4rpx}.mb{display:flex;gap:24rpx;margin-top:12rpx;font-size:22rpx}.mbc{color:#C41E3A}.mbs{color:#999}
-</style>

@@ -1,8 +1,0 @@
-<template>
-  <view class="page"><view class="nav"><text class="nb" @click="goBack">←</text><text class="nt">分站详情</text><view style="width:48rpx"/></view>
-    <view class="c"><view class="card"><text class="cn">{{s.name}}</text><text class="ca">{{s.addr}}</text><view class="cs"><view class="csi"><text class="csv">{{s.members}}</text><text>成员</text></view></view></view>
-    <view class="card"><text class="ct">课程列表</text><view v-for="c in s.courseList" :key="c.id" class="cr"><text class="cn">{{c.title}}</text><text class="cd">{{c.date}}</text></view></view></view></view>
-</template>
-<script setup lang="ts">import {ref} from 'vue';const s=ref({name:'北京分站',addr:'朝阳区建国路88号',members:328,courseList:[{id:1,title:'八字命理入门班',date:'2024-03-15'},{id:2,title:'风水实践课',date:'2024-04-01'}]});function goBack(){uni.navigateBack()}</script>
-<style scoped>.page{background:#FAF8F5;min-height:100vh}.nav{display:flex;align-items:center;justify-content:space-between;padding:0 24rpx;height:56px;background:#fff;border-bottom:1px solid #E8E0D5}.nb{font-size:36rpx;color:#2C2C2C}.nt{font-size:32rpx;font-weight:600}.c{padding:24rpx}.card{background:#fff;border-radius:20rpx;padding:24rpx;margin-bottom:20rpx;box-shadow:0 2rpx 12rpx rgba(0,0,0,.04)}.cn{font-size:30rpx;font-weight:600;color:#2C2C2C;display:block}.ca{font-size:24rpx;color:#999;margin:8rpx 0 16rpx}.cs{display:flex;gap:32rpx}.ct{font-size:28rpx;font-weight:600;color:#2C2C2C;margin-bottom:16rpx;display:block}.csv{font-size:30rpx;font-weight:700;color:#C41E3A;display:block}.csi{text-align:center;font-size:22rpx;color:#999}.cr{display:flex;justify-content:space-between;padding:14rpx 0;border-bottom:1px solid #F5F1EB;font-size:26rpx;color:#2C2C2C}.cd{color:#999}
-</style>
