@@ -1334,6 +1334,44 @@ export class CircleService {
     });
   }
 
+  // ───────── 帖子打赏 ─────────
+
+  async rewardPost(circleId: string, postId: string, userId: string, amount: number, message?: string) {
+    // 校验帖子存在且属于该圈子（防止 IDOR：postId 与 circleId 必须匹配）
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, userId: true, circleId: true, title: true },
+    });
+    if (!post) throw new BusinessException(ErrorCode.NOT_FOUND, "帖子不存在");
+    if (post.circleId !== circleId) throw new BusinessException(ErrorCode.FORBIDDEN, "帖子不属于该圈子");
+    if (post.userId === userId) throw new BusinessException(ErrorCode.BAD_REQUEST, "不能打赏自己的帖子");
+
+    // 校验打赏人是圈子成员
+    await this.ensureMember(circleId, userId);
+
+    if (!this.coinService) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付服务暂不可用");
+
+    await this.coinService.spend(userId, {
+      amountCoin: amount,
+      scene: "POST_REWARD",
+      refId: postId,
+      description: `打赏帖子: ${post.title || "无标题"}`,
+    });
+
+    // 通知帖子作者
+    if (this.notificationService) {
+      this.notificationService.send(post.userId, {
+        type: "POST_REWARD",
+        title: "收到打赏",
+        content: message ? `有人打赏了你的帖子: ${message}` : `有人打赏了你的帖子，金额: ${amount} 币`,
+        targetType: "POST",
+        targetId: postId,
+      }).catch((err) => this.logger.warn("打赏通知发送失败", err));
+    }
+
+    return { success: true, amount };
+  }
+
   // ───────── 私有辅助 ─────────
 
   private async checkOwnership(circleId: string, userId: string) {

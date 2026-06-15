@@ -1,11 +1,13 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, UsePipes } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { CircleService } from "./circle.service";
 import { CreateCircleDto, UpdateCircleDto, CreatePostDto, JoinCircleDto, UpdateMemberRoleDto, ExpertConfigDto } from "./circle.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { StationId } from "../../common/station-id.decorator";
 import { SanitizePipe } from "../../common/sanitize.pipe";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { Request } from "express";
 
 @ApiTags("圈子")
@@ -30,6 +32,7 @@ export class CircleController {
   @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
   @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
   @ApiQuery({ name: "keyword", required: false, type: String, description: "搜索关键词" })
+  @ApiQuery({ name: "category", required: false, type: String, description: "分类筛选（与tag等效）" })
   @ApiQuery({ name: "tag", required: false, type: String, description: "标签筛选" })
   @ApiQuery({ name: "type", required: false, type: String, description: "类型筛选" })
   @ApiResponse({ status: 200, description: "成功返回圈子列表" })
@@ -37,11 +40,12 @@ export class CircleController {
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
     @Query("keyword") keyword?: string,
+    @Query("category") category?: string,
     @Query("tag") tag?: string,
     @Query("type") type?: string,
     @StationId() stationId?: string,
   ) {
-    return this.circle.listCircles({ page: +page, pageSize: +pageSize, keyword, tag, type, stationId });
+    return this.circle.listCircles({ page: +page, pageSize: +pageSize, keyword, tag: tag || category, type, stationId });
   }
 
   @Get("my")
@@ -515,5 +519,33 @@ export class CircleController {
     @Body() body: { slotDate: string; slotStart: string; slotEnd: string; topic?: string; notes?: string },
   ) {
     return this.circle.createExpertBooking(expertId, req.user.id, body);
+  }
+
+  // ───────── 帖子打赏 ─────────
+
+  @Post(":id/posts/:postId/reward")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "打赏帖子" })
+  @ApiBearerAuth()
+  @ApiBody({ description: "打赏参数", schema: { type: "object", properties: { amount: { type: "number", description: "打赏金额(1-10000)", example: 10 }, message: { type: "string", description: "打赏留言(最长200字)", example: "好帖！" } }, required: ["amount"] } })
+  @ApiResponse({ status: 201, description: "打赏成功" })
+  @ApiResponse({ status: 400, description: "余额不足或参数无效" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "非圈子成员" })
+  @ApiResponse({ status: 404, description: "帖子不存在" })
+  rewardPost(
+    @Param("id") circleId: string,
+    @Param("postId") postId: string,
+    @Req() req: Request,
+    @Body("amount") amount: number,
+    @Body("message") message?: string,
+  ) {
+    if (!amount || amount < 1 || amount > 10000 || !Number.isInteger(amount)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏金额须为1-10000的整数");
+    }
+    if (message && message.length > 200) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "打赏留言最长200字");
+    }
+    return this.circle.rewardPost(circleId, postId, req.user.id, amount, message);
   }
 }
