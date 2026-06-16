@@ -20,7 +20,9 @@ on:
         type: choice
         options:
           - server
+          - frontend
           - admin
+          - all
       image_tag:
         description: "Docker 镜像标签（留空则用 git SHA）"
         required: false
@@ -106,7 +108,7 @@ jobs:
     steps:
       - name: SSH 部署
         id: deploy
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
           host: ${{ secrets.STAGING_HOST }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
@@ -182,7 +184,7 @@ jobs:
     steps:
       - name: SSH 部署
         id: deploy
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
           host: ${{ secrets.PROD_HOST }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
@@ -257,11 +259,104 @@ jobs:
             exit 1
 
   # ──────────────────────────────────────────────
+  # 前端静态文件部署（自托管）
+  # ──────────────────────────────────────────────
+  deploy-frontend:
+    name: 部署前端静态文件
+    if: |
+      (github.event_name == 'workflow_dispatch' && (inputs.service == 'frontend' || inputs.service == 'all')) ||
+      (github.event_name == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build 移动端 H5
+        working-directory: apps/mobile
+        run: pnpm build:h5
+        env:
+          VITE_API_URL: 'https://api.rebugx.cn'
+          VITE_USE_MOCK: 'false'
+
+      - name: Build 管理后台
+        working-directory: apps/admin
+        run: pnpm build
+        env:
+          VITE_API_URL: 'https://api.rebugx.cn'
+
+      - name: 部署到服务器
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            FRONTEND_BASE="/opt/guoxue/frontend"
+            mkdir -p "$FRONTEND_BASE"/{mobile,admin}
+
+      - name: 上传移动端
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: 'dist/build/h5/*'
+          target: '/opt/guoxue/frontend/mobile/'
+          strip_components: 3
+          rm: true
+
+      - name: 上传管理后台
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          source: 'dist/*'
+          target: '/opt/guoxue/frontend/admin/'
+          strip_components: 1
+          rm: true
+
+      - name: 配置 Nginx + 重载
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            # 首次部署时拷贝 nginx 配置并启用
+            if [ ! -f /etc/nginx/sites-enabled/guoxue-frontend ]; then
+              cp /opt/guoxue/guoxue-platform/docker/nginx-frontend.conf /etc/nginx/sites-available/guoxue-frontend
+              ln -s /etc/nginx/sites-available/guoxue-frontend /etc/nginx/sites-enabled/guoxue-frontend
+            fi
+            nginx -t && systemctl reload nginx
+            echo "✅ 前端部署完成"
+
+  # ──────────────────────────────────────────────
   # 部署通知
   # ──────────────────────────────────────────────
   notify:
     name: 部署结果通知
-    needs: [deploy-staging, deploy-production]
+    needs: [deploy-staging, deploy-production, deploy-frontend]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3

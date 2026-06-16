@@ -40,7 +40,7 @@
         <el-form-item label="变量说明">
           <div v-if="sceneForm.variables && sceneForm.variables.length > 0" class="var-list">
             <el-tag v-for="v in sceneForm.variables" :key="v.name" size="small" style="margin-right:8px">
-              {{ '{{' + v.name + '}}' }} — {{ v.description }}
+              {{ '{' + '{' + v.name + '}' + '}' }} — {{ v.description }}
             </el-tag>
           </div>
           <span v-else style="color:#909399">无变量</span>

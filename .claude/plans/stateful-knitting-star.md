@@ -187,7 +187,7 @@ guoxue-platform/
 - [x] 操作审计与回滚（AuditLog 模型 + AuditInterceptor 已存在，补充 rollback API）
 - [x] 定时任务框架（Cron Webhook + 运营简报生成）
 - [x] 高可用部署（云服务器初始化脚本 + GitHub Actions CI/CD + 健康检查 + 自动回滚 + 监控栈 + systemd 自启动）
-- [ ] Vercel + GitHub 自动部署（等前端就绪）
+- [x] 前端自托管部署（2026-06-17 自建服务器 Nginx + GitHub Actions rsync 方案 + Actions 固定到 commit SHA，零额外费用）
 
 ### P4 增强基础设施 ✅ (2026-05-13)
 - [x] BullMQ 消息队列 + PostgreSQL 读副本 + Redis Sentinel HA
