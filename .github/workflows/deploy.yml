@@ -129,10 +129,10 @@ jobs:
               echo "OLD_IMAGE=$OLD_IMAGE" > /tmp/deploy-backup.env
             fi
 
-            # 数据库迁移
+            # 数据库迁移（host网络模式：PostgreSQL在宿主机监听localhost）
             if [ "${{ inputs.run_migration }}" != "false" ]; then
               docker run --rm \
-                --network guoxue-net \
+                --network host \
                 -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
                 "$IMAGE" \
                 npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
@@ -146,8 +146,7 @@ jobs:
             docker run -d \
               --name guoxue-server \
               --restart unless-stopped \
-              --network guoxue-net \
-              -p 3000:3000 \
+              --network host \
               --env-file "$ENV_FILE" \
               "$IMAGE"
 
@@ -231,8 +230,7 @@ jobs:
             docker run -d \
               --name guoxue-server \
               --restart unless-stopped \
-              --network guoxue-net \
-              -p 3000:3000 \
+              --network host \
               --env-file "$ENV_FILE" \
               --memory 512M \
               --memory-reservation 256M \
