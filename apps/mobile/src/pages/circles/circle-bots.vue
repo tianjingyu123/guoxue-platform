@@ -39,6 +39,8 @@
         </view>
       </view>
 
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+
       <!-- empty -->
       <view v-else-if="filteredBots.length === 0" class="cb-empty">
         <view class="cb-empty-icon"><app-icon name="bot" :size="56" color="#999999" /></view>
@@ -84,9 +86,11 @@
  * 区别于 bots.vue（平台智能体市场）：此页为单个圈子内的智能体列表
  * 圈子信息卡 + 搜索 + 骨架屏 + 智能体卡片 + 管理员FAB
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
+import ErrorState from '@/components/common/error-state.vue'
 
 interface Bot { id: string; name: string; avatar: string; description: string; category: string; chats: number; likes: number; isOfficial: boolean }
 
@@ -101,11 +105,14 @@ const mockBots: Bot[] = [
   { id: '4', name: '易经学习导师', avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=4', description: '系统讲解易经知识，从入门到精通的学习伴侣', category: '学习辅导', chats: 6780, likes: 1560, isOfficial: false },
 ]
 
+const circleId = ref('1')
+const currentUserId = '1' // mock 当前用户 ID
 const circle = ref<typeof mockCircle | null>(null)
 const bots = ref<Bot[]>([])
 const loading = ref(true)
+const error = ref('')
 const searchQuery = ref('')
-const isAdmin = ref(true)
+const isAdmin = ref(false)
 
 const filteredBots = computed(() => {
   const q = searchQuery.value.toLowerCase()
@@ -119,14 +126,26 @@ function formatNumber(num: number) {
 }
 function toComingSoon() { toastComingSoon() }
 
-onMounted(() => {
-  // 无 API，直接用 mock（与原型 catch 兜底一致）
-  setTimeout(() => {
+onLoad((q) => {
+  if (q?.id) circleId.value = q.id
+  loadData()
+})
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
     circle.value = mockCircle
     bots.value = mockBots
+    // mock: circleId='1' 的圈子管理员是 currentUserId='1'
+    isAdmin.value = circleId.value === '1'
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
     loading.value = false
-  }, 400)
-})
+  }
+}
 </script>
 
 <style scoped lang="scss">
@@ -177,4 +196,9 @@ onMounted(() => {
 .cb-bot-chat { padding: 12rpx 32rpx; background: #C41E3A; color: #fff; font-size: 22rpx; border-radius: 999rpx; font-weight: 500; }
 
 .cb-fab { position: fixed; bottom: 96rpx; right: 32rpx; width: 112rpx; height: 112rpx; background: #C41E3A; border-radius: 50%; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); display: flex; align-items: center; justify-content: center; }
+.cb-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.cb-sk-row { display: flex; gap: 16rpx; }
+.cb-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

@@ -1,19 +1,20 @@
 <script setup lang="ts">
 /**
- * 圈子管理页（从原型 app/circles/[id]/manage/page.tsx 1:1 高保真迁移）
- * 4 Tab 后台：概览(数据卡+公告编辑) / 成员(搜索+列表+角色操作) / 帖子(置顶/精华/删除) / 设置(基本信息+圈规)
- * 成员操作菜单原型用 hover group，移动端改为点击展开。所有写操作 mock(toast 提示)。
+ * 圈子管理页 — 三态：加载骨架 → 错误重试 → 4Tab后台
+ * API: circleDetailApi.detail / listMembers / posts / setAnnouncement / updateMemberRole / removeMember / toggleTop / toggleEssence / deletePost / update
  */
-import { ref, reactive, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { ref, reactive, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { circleDetailApi, type CircleDetail, type CircleMember, type CirclePost } from '@/lib/circle-detail-data'
 
 type TabType = 'overview' | 'members' | 'posts' | 'settings'
-type Role = 'owner' | 'admin' | 'member'
 
 const circleId = ref('1')
 const activeTab = ref<TabType>('overview')
+const loading = ref(true)
+const error = ref('')
 
 const tabs: { key: TabType; label: string; icon: string }[] = [
   { key: 'overview', label: '概览', icon: 'bar-chart-3' },
@@ -22,79 +23,130 @@ const tabs: { key: TabType; label: string; icon: string }[] = [
   { key: 'settings', label: '设置', icon: 'settings' },
 ]
 
-const circle = reactive({
-  id: '1',
-  name: '八字命理研习社',
-  description: '探讨八字命理学问，分享预测心得',
-  category: '命理',
-  rules: ['尊重他人，友善交流', '禁止发布广告与无关内容', '原创分享，注明出处'],
+const circle = reactive<CircleDetail>({
+  id: '1', name: '', cover: '', description: '', category: '', members: 0, posts: 0, isJoined: true, createdAt: '', owner: { id: '', name: '', avatar: '' },
 })
-
-const stats = reactive({
-  totalMembers: 12800, newMembersToday: 56,
-  totalPosts: 3560, newPostsToday: 128,
-  activeMembers: 2340, essencePosts: 89,
-})
-
-const announcement = ref('欢迎加入圈子！请遵守圈规，友善交流。')
+const stats = reactive({ totalMembers: 0, newMembersToday: 0, totalPosts: 0, newPostsToday: 0, activeMembers: 0, essencePosts: 0 })
+const announcement = ref('')
 const saving = ref(false)
 
-interface Member { id: string; name: string; avatar: string; role: Role; joinedAt: string; posts: number; title?: string }
-const members = reactive<Member[]>([
-  { id: '1', name: '周易大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=master', role: 'owner', joinedAt: '2024-01-01', posts: 568, title: '创始人' },
-  { id: '2', name: '紫微真人', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zw', role: 'admin', joinedAt: '2024-02-15', posts: 234 },
-  { id: '3', name: '命理学徒', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xt', role: 'member', joinedAt: '2024-06-01', posts: 45 },
-  { id: '4', name: '易学新手', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xs', role: 'member', joinedAt: '2024-06-10', posts: 12 },
-])
+const members = ref<CircleMember[]>([])
 const memberSearch = ref('')
 const openMenuId = ref<string | null>(null)
 const filteredMembers = computed(() =>
   memberSearch.value.trim()
-    ? members.filter((m) => m.name.includes(memberSearch.value.trim()))
-    : members,
+    ? members.value.filter(m => m.name.includes(memberSearch.value.trim()))
+    : members.value,
 )
 
-interface Post { id: string; content: string; author: { id: string; name: string; avatar: string }; createdAt: string; likes: number; comments: number; isPinned?: boolean; isEssence?: boolean }
-const posts = reactive<Post[]>([
-  { id: '1', content: '八字入门必看：如何快速掌握基础知识', author: { id: '1', name: '周易大师', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=master' }, createdAt: '2024-06-01', likes: 256, comments: 89, isPinned: true, isEssence: true },
-  { id: '2', content: '今日分享一个有趣的八字案例分析', author: { id: '2', name: '紫微真人', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=zw' }, createdAt: '2024-06-02', likes: 128, comments: 45, isEssence: true },
-  { id: '3', content: '新人报道，请多多指教', author: { id: '3', name: '命理学徒', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=xt' }, createdAt: '2024-06-03', likes: 34, comments: 12 },
-])
-
+const posts = ref<CirclePost[]>([])
 const showConfirm = ref<{ type: string; id: string; name: string } | null>(null)
 
-onLoad((q) => { if (q?.id) { circleId.value = q.id; circle.id = q.id } })
+onMounted(() => {
+  const pages = getCurrentPages()
+  const cur = pages[pages.length - 1]
+  const q = (cur as any).$page?.options || {}
+  if (q.id) circleId.value = q.id
+  loadData()
+})
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [detail, memberRes, postRes] = await Promise.all([
+      circleDetailApi.detail(circleId.value),
+      circleDetailApi.listMembers(circleId.value),
+      circleDetailApi.posts(circleId.value),
+    ])
+    Object.assign(circle, detail)
+    announcement.value = detail.announcement || ''
+    stats.totalMembers = detail.members
+    stats.totalPosts = detail.posts
+    members.value = memberRes.data || []
+    posts.value = (postRes as any).data || postRes || []
+    const active = members.value.filter(m => (m as any).posts > 0).length
+    stats.activeMembers = active || Math.floor(detail.members * 0.2)
+    stats.essencePosts = posts.value.filter(p => p.isEssence).length
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 function fmt(n: number) { return n.toLocaleString() }
 
-function saveAnnouncement() {
+async function saveAnnouncement() {
   saving.value = true
-  setTimeout(() => { saving.value = false; uni.showToast({ title: '保存成功', icon: 'success' }) }, 600)
+  try {
+    await circleDetailApi.setAnnouncement(circleId.value, announcement.value)
+    uni.showToast({ title: '保存成功', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  } finally {
+    saving.value = false
+  }
 }
 
 function toggleMenu(id: string) { openMenuId.value = openMenuId.value === id ? null : id }
 
-function setRole(id: string, role: Role) {
-  const m = members.find((x) => x.id === id)
-  if (m) m.role = role
+async function setRole(id: string, role: string) {
+  try {
+    await circleDetailApi.updateMemberRole(circleId.value, id, role)
+    const m = members.value.find(x => x.id === id)
+    if (m) m.role = role as CircleMember['role']
+    uni.showToast({ title: '操作成功', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  }
   showConfirm.value = null
   openMenuId.value = null
-  uni.showToast({ title: '操作成功', icon: 'success' })
 }
-function removeMember(id: string) {
-  const i = members.findIndex((x) => x.id === id)
-  if (i >= 0) members.splice(i, 1)
+
+async function removeMember(id: string) {
+  try {
+    await circleDetailApi.removeMember(circleId.value, id)
+    const i = members.value.findIndex(x => x.id === id)
+    if (i >= 0) members.value.splice(i, 1)
+    uni.showToast({ title: '已移出', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  }
   showConfirm.value = null
   openMenuId.value = null
-  uni.showToast({ title: '已移出', icon: 'success' })
 }
-function toggleTop(p: Post) { p.isPinned = !p.isPinned; uni.showToast({ title: p.isPinned ? '已置顶' : '已取消置顶', icon: 'none' }) }
-function toggleEssence(p: Post) { p.isEssence = !p.isEssence; uni.showToast({ title: p.isEssence ? '已设精华' : '已取消精华', icon: 'none' }) }
-function deletePost(id: string) {
-  const i = posts.findIndex((x) => x.id === id)
-  if (i >= 0) posts.splice(i, 1)
+
+async function toggleTop(p: CirclePost) {
+  try {
+    await circleDetailApi.toggleTop(circleId.value, p.id)
+    p.isPinned = !p.isPinned
+    uni.showToast({ title: p.isPinned ? '已置顶' : '已取消置顶', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  }
+}
+
+async function toggleEssence(p: CirclePost) {
+  try {
+    await circleDetailApi.toggleEssence(circleId.value, p.id)
+    p.isEssence = !p.isEssence
+    uni.showToast({ title: p.isEssence ? '已设精华' : '已取消精华', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '操作失败', icon: 'none' })
+  }
+}
+
+async function deletePost(id: string) {
+  try {
+    await circleDetailApi.deletePost(circleId.value, id)
+    const i = posts.value.findIndex(x => x.id === id)
+    if (i >= 0) posts.value.splice(i, 1)
+    uni.showToast({ title: '已删除', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '删除失败', icon: 'none' })
+  }
   showConfirm.value = null
-  uni.showToast({ title: '已删除', icon: 'success' })
 }
 
 function confirmTitle(t: string) {
@@ -117,12 +169,18 @@ function doConfirm() {
 }
 const dangerConfirm = computed(() => showConfirm.value?.type === 'remove' || showConfirm.value?.type === 'deletePost')
 
-function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'success' }) }
+async function saveSettings() {
+  try {
+    await circleDetailApi.update(circleId.value, { name: circle.name, description: circle.description, category: circle.category })
+    uni.showToast({ title: '设置已保存', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
+  }
+}
 </script>
 
 <template>
   <view class="mg">
-    <!-- 顶栏 + Tab -->
     <view class="mg-hdr-wrap">
       <view class="mg-hdr">
         <view class="mg-hdr-btn" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
@@ -138,7 +196,17 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
       </view>
     </view>
 
-    <scroll-view scroll-y class="mg-body">
+    <!-- 加载骨架 -->
+    <view v-if="loading" class="mg-body-skel">
+      <view class="mg-skel-grid"><view v-for="i in 4" :key="i" class="mg-skel-stat" /></view>
+      <view class="mg-skel-card" />
+      <view class="mg-skel-entries"><view v-for="i in 5" :key="i" class="mg-skel-entry" /></view>
+    </view>
+
+    <!-- 错误 -->
+    <error-state v-else-if="error" :message="error" @retry="loadData" />
+
+    <scroll-view v-else scroll-y class="mg-body">
       <!-- 概览 -->
       <view v-if="activeTab === 'overview'" class="mg-section">
         <view class="mg-stats">
@@ -172,54 +240,53 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
           <textarea v-model="announcement" class="mg-textarea" placeholder="输入圈子公告..." :maxlength="-1" />
         </view>
 
-        <!-- 管理工具入口 -->
         <view class="mg-entries">
-          <view class="mg-entry" @tap="navigateTo(`/pkg-circle/circles/dashboard?id=${circleId}`)">
+          <view class="mg-entry" @tap="navigateTo(`/pages/circles/dashboard?id=${circleId}`)">
             <view class="mg-entry-icon" style="background: #FCE8EB;"><app-icon name="bar-chart-3" :size="32" color="#C41E3A" /></view>
             <view class="mg-entry-info"><text class="mg-entry-title">数据看板</text><text class="mg-entry-sub">成员增长 / 热门内容 / 收益构成</text></view>
             <app-icon name="chevron-right" :size="30" color="#cccccc" />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pkg-circle/circles/knowledge?id=${circleId}`)">
+          <view class="mg-entry" @tap="navigateTo(`/pages/circles/knowledge?id=${circleId}`)">
             <view class="mg-entry-icon" style="background: #FAF3E6;"><app-icon name="book-open" :size="32" color="#C9A96E" /></view>
             <view class="mg-entry-info"><text class="mg-entry-title">知识库</text><text class="mg-entry-sub">沉淀优质内容 / 待确认入库</text></view>
             <app-icon name="chevron-right" :size="30" color="#cccccc" />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pkg-circle/circles/analytics?id=${circleId}`)">
+          <view class="mg-entry" @tap="navigateTo(`/pages/circles/analytics?id=${circleId}`)">
             <view class="mg-entry-icon" style="background: #FCE8EB;"><app-icon name="trending-up" :size="32" color="#C41E3A" /></view>
             <view class="mg-entry-info"><text class="mg-entry-title">内容分析</text><text class="mg-entry-sub">浏览/点赞趋势 / 热门内容 TOP5</text></view>
             <app-icon name="chevron-right" :size="30" color="#cccccc" />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pkg-circle/circles/settings-knowledge?id=${circleId}`)">
+          <view class="mg-entry" @tap="navigateTo(`/pages/circles/settings-knowledge?id=${circleId}`)">
             <view class="mg-entry-icon" style="background: #FAF3E6;"><app-icon name="file-text" :size="32" color="#C9A96E" /></view>
             <view class="mg-entry-info"><text class="mg-entry-title">知识库设置</text><text class="mg-entry-sub">AI 助手文档/链接/问答启用</text></view>
             <app-icon name="chevron-right" :size="30" color="#cccccc" />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pkg-circle/circles/join-requests?id=${circleId}`)">
+          <view class="mg-entry" @tap="navigateTo(`/pages/circles/join-requests?id=${circleId}`)">
             <view class="mg-entry-icon" style="background: #FCE8EB;"><app-icon name="users" :size="32" color="#C41E3A" /></view>
             <view class="mg-entry-info"><text class="mg-entry-title">入圈申请</text><text class="mg-entry-sub">审核新成员加入申请</text></view>
             <app-icon name="chevron-right" :size="30" color="#cccccc" />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pkg-circle/circles/exit-requests?id=${circleId}`)">
+          <view class="mg-entry" @tap="navigateTo(`/pages/circles/exit-requests?id=${circleId}`)">
             <view class="mg-entry-icon" style="background: #F2EFEA;"><app-icon name="log-out" :size="32" color="#666666" /></view>
             <view class="mg-entry-info"><text class="mg-entry-title">退出申请</text><text class="mg-entry-sub">审核成员退出与退款核算</text></view>
             <app-icon name="chevron-right" :size="30" color="#cccccc" />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pkg-circle/circles/invite-codes?id=${circleId}`)">
+          <view class="mg-entry" @tap="navigateTo(`/pages/circles/invite-codes?id=${circleId}`)">
             <view class="mg-entry-icon" style="background: #FAF3E6;"><app-icon name="gift" :size="32" color="#C9A96E" /></view>
             <view class="mg-entry-info"><text class="mg-entry-title">邀请码管理</text><text class="mg-entry-sub">生成 / 分享 / 统计邀请码</text></view>
             <app-icon name="chevron-right" :size="30" color="#cccccc" />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pkg-circle/circles/guests?id=${circleId}`)">
+          <view class="mg-entry" @tap="navigateTo(`/pages/circles/guests?id=${circleId}`)">
             <view class="mg-entry-icon" style="background: #FCE8EB;"><app-icon name="user-plus" :size="32" color="#C41E3A" /></view>
             <view class="mg-entry-info"><text class="mg-entry-title">嘉宾/老师</text><text class="mg-entry-sub">邀请创作者 / 分成与权限管理</text></view>
             <app-icon name="chevron-right" :size="30" color="#cccccc" />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pkg-circle/circles/distribution?id=${circleId}`)">
+          <view class="mg-entry" @tap="navigateTo(`/pages/circles/distribution?id=${circleId}`)">
             <view class="mg-entry-icon" style="background: #FAF3E6;"><app-icon name="percent" :size="32" color="#C9A96E" /></view>
             <view class="mg-entry-info"><text class="mg-entry-title">收益分配</text><text class="mg-entry-sub">平台/圈子/创作者分成方案</text></view>
             <app-icon name="chevron-right" :size="30" color="#cccccc" />
           </view>
-          <view class="mg-entry" @tap="navigateTo(`/pkg-circle/circles/earnings?id=${circleId}`)">
+          <view class="mg-entry" @tap="navigateTo(`/pages/circles/earnings?id=${circleId}`)">
             <view class="mg-entry-icon" style="background: #FCE8EB;"><app-icon name="dollar-sign" :size="32" color="#C41E3A" /></view>
             <view class="mg-entry-info"><text class="mg-entry-title">收益明细</text><text class="mg-entry-sub">收入构成 / 历史收益 / 提现</text></view>
             <app-icon name="chevron-right" :size="30" color="#cccccc" />
@@ -313,7 +380,7 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
 
         <view class="mg-card">
           <text class="mg-set-title">圈规设置</text>
-          <textarea :value="circle.rules.join('\n')" class="mg-field-textarea tall" placeholder="请输入圈规，每行一条" :maxlength="-1" @input="(e:any) => circle.rules = e.detail.value.split('\n')" />
+          <textarea :value="(circle.rules || []).join('\n')" class="mg-field-textarea tall" placeholder="请输入圈规，每行一条" :maxlength="-1" @input="(e:any) => circle.rules = e.detail.value.split('\n')" />
         </view>
 
         <view class="mg-save-settings" @tap="saveSettings"><text class="mg-save-settings-t">保存设置</text></view>
@@ -338,7 +405,6 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
 
 <style scoped lang="scss">
 .mg { display: flex; flex-direction: column; height: 100vh; background: #FAF8F5; }
-/* 顶栏 + Tab */
 .mg-hdr-wrap { background: #fff; border-bottom: 2rpx solid #E8E3DB; flex-shrink: 0; }
 .mg-hdr { display: flex; align-items: center; justify-content: space-between; height: 88rpx; padding: 0 24rpx; padding-top: var(--status-bar-height, 0); }
 .mg-hdr-btn { width: 72rpx; }
@@ -350,7 +416,6 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
 .mg-tab-bar { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 48rpx; height: 4rpx; background: #C41E3A; border-radius: 999rpx; }
 .mg-body { flex: 1; overflow: hidden; }
 .mg-section { padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; }
-/* 概览统计 */
 .mg-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; }
 .mg-stat { background: #fff; border-radius: 20rpx; padding: 28rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
 .mg-stat-num { display: block; font-size: 48rpx; font-weight: 700; line-height: 1.2; }
@@ -358,14 +423,13 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
 .mg-stat-num.gold { color: #C9A96E; }
 .mg-stat-num.dark { color: #2C2C2C; }
 .mg-stat-label { display: block; font-size: 22rpx; color: #666666; margin-top: 8rpx; }
-  .mg-stat-delta { display: block; font-size: 22rpx; color: #22C55E; margin-top: 8rpx; }
-  .mg-entries { display: flex; flex-direction: column; gap: 20rpx; margin-top: 20rpx; }
-  .mg-entry { display: flex; align-items: center; gap: 18rpx; background: #fff; border-radius: 20rpx; padding: 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-  .mg-entry-icon { width: 64rpx; height: 64rpx; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .mg-entry-info { flex: 1; min-width: 0; }
-  .mg-entry-title { display: block; font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
-  .mg-entry-sub { display: block; font-size: 22rpx; color: #999999; margin-top: 4rpx; }
-/* 卡片 */
+.mg-stat-delta { display: block; font-size: 22rpx; color: #22C55E; margin-top: 8rpx; }
+.mg-entries { display: flex; flex-direction: column; gap: 20rpx; margin-top: 20rpx; }
+.mg-entry { display: flex; align-items: center; gap: 18rpx; background: #fff; border-radius: 20rpx; padding: 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
+.mg-entry-icon { width: 64rpx; height: 64rpx; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.mg-entry-info { flex: 1; min-width: 0; }
+.mg-entry-title { display: block; font-size: 28rpx; font-weight: 600; color: #2C2C2C; }
+.mg-entry-sub { display: block; font-size: 22rpx; color: #999999; margin-top: 4rpx; }
 .mg-card { background: #fff; border-radius: 20rpx; padding: 28rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
 .mg-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
 .mg-card-title { display: flex; align-items: center; gap: 12rpx; }
@@ -374,11 +438,9 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
 .mg-save-btn.saving { opacity: 0.6; }
 .mg-save-t { font-size: 22rpx; color: #fff; }
 .mg-textarea { width: 100%; height: 180rpx; padding: 24rpx; background: #FAF8F5; border-radius: 16rpx; font-size: 28rpx; color: #2C2C2C; box-sizing: border-box; }
-/* 搜索 */
 .mg-search { display: flex; align-items: center; gap: 16rpx; height: 80rpx; padding: 0 28rpx; background: #fff; border-radius: 16rpx; }
 .mg-search-input { flex: 1; font-size: 28rpx; color: #2C2C2C; }
 .mg-ph { color: #999999; }
-/* 成员 */
 .mg-member { display: flex; align-items: center; gap: 20rpx; background: #fff; border-radius: 20rpx; padding: 28rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
 .mg-member-avatar-wrap { position: relative; flex-shrink: 0; }
 .mg-member-avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; }
@@ -399,7 +461,6 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
 .mg-menu-item { padding: 20rpx 28rpx; }
 .mg-menu-t { font-size: 26rpx; color: #2C2C2C; }
 .mg-menu-t.danger { color: #EF4444; }
-/* 帖子 */
 .mg-post { background: #fff; border-radius: 20rpx; padding: 28rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
 .mg-post-top { display: flex; gap: 20rpx; }
 .mg-post-avatar { width: 72rpx; height: 72rpx; border-radius: 999rpx; flex-shrink: 0; }
@@ -420,7 +481,6 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
 .mg-post-btn-t { font-size: 22rpx; color: #666666; }
 .mg-post-btn-t.on { color: #fff; }
 .mg-post-btn-t.del { color: #EF4444; }
-/* 设置 */
 .mg-set-title { display: block; font-size: 30rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 28rpx; }
 .mg-field { margin-bottom: 28rpx; }
 .mg-field:last-child { margin-bottom: 0; }
@@ -434,7 +494,6 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
 .mg-save-settings { height: 96rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(to right, #C41E3A, #E85050); border-radius: 20rpx; }
 .mg-save-settings-t { font-size: 30rpx; font-weight: 500; color: #fff; }
 .mg-bottom-pad { height: 40rpx; }
-/* 确认弹窗 */
 .mg-mask { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 0 32rpx; }
 .mg-confirm { width: 100%; max-width: 600rpx; background: #fff; border-radius: 28rpx; padding: 48rpx; }
 .mg-confirm-icon { width: 88rpx; height: 88rpx; margin: 0 auto 24rpx; border-radius: 999rpx; background: #FFF7ED; display: flex; align-items: center; justify-content: center; }
@@ -448,4 +507,11 @@ function saveSettings() { uni.showToast({ title: '设置已保存', icon: 'succe
 .mg-confirm-btn-t { font-size: 28rpx; font-weight: 500; }
 .mg-confirm-btn-t.cancel { color: #666666; }
 .mg-confirm-btn-t.ok { color: #fff; }
+/* 骨架 */
+.mg-body-skel { padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; flex: 1; overflow: hidden; }
+.mg-skel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20rpx; }
+.mg-skel-stat { height: 160rpx; background: #E8E0D0; border-radius: 20rpx; }
+.mg-skel-card { height: 240rpx; background: #E8E0D0; border-radius: 20rpx; }
+.mg-skel-entries { display: flex; flex-direction: column; gap: 20rpx; }
+.mg-skel-entry { height: 100rpx; background: #E8E0D0; border-radius: 20rpx; }
 </style>

@@ -2,6 +2,7 @@
  * 智能体模块数据层
  * 从原型 app/agent/[id]/page.tsx、main、customer-service、history 迁移
  */
+import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export interface ChatMessage {
   id: number
@@ -248,3 +249,120 @@ export const initialHistory: HistoryItem[] = [
 ]
 
 export const historyGroups = ['今天', '昨天', '本周', '更早']
+
+// ============================================
+// API 层：useMock 开关控制真实/模拟数据切换
+// ============================================
+
+function mapBot(raw: any) {
+  return {
+    id: raw.id,
+    name: raw.name,
+    description: raw.desc || raw.description,
+    type: raw.type,
+    tags: raw.tags || [],
+    pricePerChat: raw.pricePerChat ?? 0.5,
+    freeQuota: raw.freeQuota ?? 3,
+    callPrice: raw.callPrice ?? 2,
+    avatar: raw.avatar || raw.icon,
+    online: raw.online ?? false,
+    users: raw.userCount ?? raw.users ?? '0',
+    isHot: raw.isHot ?? false,
+  }
+}
+
+export const agentApi = {
+  /** 获取智能体列表 */
+  async list(type?: string) {
+    if (useMock()) {
+      return [agentDetail]
+    }
+    try {
+      const data = await apiGet<any[]>(type ? `/bots?type=${type}` : '/bots')
+      return data.map(mapBot)
+    } catch {
+      return [agentDetail]
+    }
+  },
+
+  /** 获取智能体详情 */
+  async detail(id: string | number) {
+    if (useMock()) {
+      return agentDetail
+    }
+    try {
+      const data = await apiGet<any>(`/bots/${id}`)
+      return mapBot(data)
+    } catch {
+      return agentDetail
+    }
+  },
+
+  /** 获取热度排行 */
+  async ranking() {
+    if (useMock()) {
+      return [agentDetail]
+    }
+    try {
+      const data = await apiGet<any[]>('/bots/ranking')
+      return data.map(mapBot)
+    } catch {
+      return [agentDetail]
+    }
+  },
+
+  /** 发送对话消息（非流式） */
+  async chat(agentId: string | number, message: string, conversationId?: string) {
+    if (useMock()) {
+      return generateResponse(message)
+    }
+    try {
+      const data = await apiPost<any>(`/bots/${agentId}/chat`, {
+        message,
+        conversationId,
+      })
+      return {
+        text: data.content || data.text || data.reply || '',
+        recommendations: data.recommendations || [],
+      }
+    } catch {
+      return generateResponse(message)
+    }
+  },
+
+  /** 获取对话历史 */
+  async getHistory(agentId: string | number, conversationId?: string) {
+    if (useMock()) {
+      return initialHistory
+    }
+    try {
+      const data = await apiGet<any[]>(`/bots/${agentId}/chat-history/${conversationId || 'latest'}`)
+      return data.map((raw: any) => ({
+        id: raw.id,
+        agentName: raw.agentName || raw.agent?.name || '',
+        agentAvatar: raw.agentAvatar || raw.agent?.avatar || '',
+        agentType: raw.agentType || raw.agent?.type || '',
+        lastMessage: raw.lastMessage || raw.content || '',
+        time: raw.time || raw.createdAt || '',
+        timeGroup: raw.timeGroup || '今天',
+        unread: raw.unread ?? 0,
+        isFree: raw.isFree ?? true,
+      }))
+    } catch {
+      return initialHistory
+    }
+  },
+
+  /** 客服消息 */
+  async customerService(message: string) {
+    if (useMock()) {
+      return csReplies[message] || csDefaultReply
+    }
+    try {
+      const data = await apiPost<any>('/bots/chat', { message, type: 'customer_service' })
+      return data.content || data.reply || csDefaultReply
+    } catch {
+      return csReplies[message] || csDefaultReply
+    }
+  },
+}

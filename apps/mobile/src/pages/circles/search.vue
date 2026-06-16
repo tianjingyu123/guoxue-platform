@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * 圈子搜索（从原型 app/circles/search/page.tsx 282行高保真迁移）
- * 搜索栏 + 历史/热门(未搜索) + 骨架(搜索中) + 结果列表/空态
+ * 圈子搜索 — 搜索栏 + 历史/热门 + 骨架(搜索中) + API结果/空态
  */
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { circleApi, type Circle } from '@/lib/circle-data'
 
 interface SearchResult {
   id: string; name: string; cover: string; members: number; category: string
@@ -14,37 +14,37 @@ interface SearchResult {
 
 const hotSearches = ['八字命理', '紫微斗数', '风水堪舆', '易经', '六爻', '奇门遁甲', '四柱', '风水']
 const defaultHistory = ['命理研习', '八字', '风水大师']
-const mockResults: SearchResult[] = [
-  { id: '1', name: '八字命理研习社', cover: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop', members: 12580, category: '命理', isJoined: false, isPaid: true, price: 99, description: '专业八字命理学习圈子，汇聚众多命理爱好者', tags: ['八字', '命理'] },
-  { id: '2', name: '紫微斗数学院', cover: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=200&h=200&fit=crop', members: 8960, category: '命理', isJoined: true, isPaid: true, price: 199, description: '紫微斗数爱好者的学习交流平台', tags: ['紫微斗数', '斗数'] },
-  { id: '3', name: '风水堪舆交流', cover: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=200&h=200&fit=crop', members: 6320, category: '风水', isJoined: false, isPaid: false, price: 0, description: '风水堪舆爱好者的交流分享圈子', tags: ['风水', '堪舆'] },
-  { id: '4', name: '易经研究会', cover: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=200&h=200&fit=crop', members: 15200, category: '易学', isJoined: false, isPaid: false, price: 0, description: '专注易经文化研究与传播', tags: ['易经', '国学'] },
-  { id: '5', name: '奇门遁甲精研', cover: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=200&h=200&fit=crop', members: 4580, category: '命理', isJoined: false, isPaid: true, price: 299, description: '奇门遁甲高阶学习与实战交流', tags: ['奇门遁甲', '命理'] },
-]
 
 const keyword = ref('')
 const hasSearched = ref(false)
 const history = ref<string[]>([...defaultHistory])
-const results = ref<SearchResult[]>([...mockResults])
+const results = ref<Circle[]>([])
 const searching = ref(false)
+const error = ref('')
 
 function formatCount(n: number) { return n >= 10000 ? `${(n / 10000).toFixed(1)}万` : String(n) }
 
-function doSearch(kw: string) {
+async function doSearch(kw: string) {
   const k = kw.trim()
   if (!k) return
   keyword.value = k
   searching.value = true
+  error.value = ''
   history.value = [k, ...history.value.filter(h => h !== k)].slice(0, 10)
-  setTimeout(() => {
-    results.value = mockResults.filter(r => r.name.includes(k) || r.description.includes(k) || r.tags.some(t => t.includes(k)))
+  try {
+    const res = await circleApi.list({ keyword: k })
+    results.value = res.data || []
+  } catch (e: any) {
+    error.value = e?.message || '搜索失败'
+    results.value = []
+  } finally {
     hasSearched.value = true
     searching.value = false
-  }, 400)
+  }
 }
 function clearHistory() { history.value = [] }
 function clearKeyword() { keyword.value = ''; hasSearched.value = false }
-function openCircle(id: string) { navigateTo(`/pkg-circle/circles/detail?id=${id}`) }
+function openCircle(id: string) { navigateTo(`/pages/circles/detail?id=${id}`) }
 </script>
 
 <template>

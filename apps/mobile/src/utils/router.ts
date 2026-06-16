@@ -15,38 +15,38 @@ const MAIN_TABS = ['/pages/index/index', '/pages/circles/index', '/pages/paipan/
 // 原型路径 → uni 实际页面路径（已迁移页面登记于此）
 const ROUTE_MAP: Record<string, string> = {
   '/paipan': '/pages/paipan/index',
-  '/paipan/bazi': '/pkg-paipan/bazi/index',
-  '/paipan/bazi/result': '/pkg-paipan/bazi/result',
+  '/paipan/bazi': '/pages/paipan/bazi/index',
+  '/paipan/bazi/result': '/pages/paipan/bazi/result',
   // 商城
-  '/mall': '/pkg-mall/home/index',
-  '/mall/category': '/pkg-mall/category/index',
-  '/shop': '/pkg-shop/home/index',
-  '/shop/compare': '/pkg-shop/compare/index',
+  '/mall': '/pages/mall/home/index',
+  '/mall/category': '/pages/mall/category/index',
+  '/shop': '/shop/home/index',
+  '/shop/compare': '/shop/compare/index',
   // 营销活动
-  '/shop/flash-sale': '/pkg-shop/flash-sale/index',
-  '/shop/group-buy': '/pkg-shop/group-buy/index',
-  '/shop/group-buy-success': '/pkg-shop/group-buy/success',
-  '/shop/group-buy-fail': '/pkg-shop/group-buy/fail',
-  '/shop/coupons': '/pkg-shop/coupons/index',
-  '/shop/coupon-detail': '/pkg-shop/coupon-detail/index',
+  '/shop/flash-sale': '/shop/flash-sale/index',
+  '/shop/group-buy': '/shop/group-buy/index',
+  '/shop/group-buy-success': '/shop/group-buy/success',
+  '/shop/group-buy-fail': '/shop/group-buy/fail',
+  '/shop/coupons': '/shop/coupons/index',
+  '/shop/coupon-detail': '/shop/coupon-detail/index',
   // 购物车 / 结算 / 支付（双轨：根 /cart /checkout 与 /shop/cart /shop/checkout 是两套不同设计）
-  '/cart': '/pkg-shop/cart/index',
-  '/shop/cart': '/pkg-shop/cart/sku',
-  '/checkout': '/pkg-shop/checkout/order',
-  '/shop/checkout': '/pkg-shop/checkout/index',
-  '/shop/paying': '/pkg-shop/paying/index',
-  '/shop/pay-success': '/pkg-shop/pay-success/index',
-  '/shop/pay-fail': '/pkg-shop/pay-fail/index',
-  '/shop/pay-timeout': '/pkg-shop/pay-timeout/index',
-  '/shop/payment-methods': '/pkg-shop/payment-methods/index',
-  '/payment/result': '/pkg-shop/pay-success/index',
+  '/cart': '/shop/cart/index',
+  '/shop/cart': '/shop/cart/sku',
+  '/checkout': '/shop/checkout/order',
+  '/shop/checkout': '/shop/checkout/index',
+  '/shop/paying': '/shop/paying/index',
+  '/shop/pay-success': '/shop/pay-success/index',
+  '/shop/pay-fail': '/shop/pay-fail/index',
+  '/shop/pay-timeout': '/shop/pay-timeout/index',
+  '/shop/payment-methods': '/shop/payment-methods/index',
+  '/payment/result': '/shop/pay-success/index',
   // 订单中心
-  '/orders': '/pkg-order/list/index',
-  '/orders/center': '/pkg-order/center/index',
-  '/orders/logistics': '/pkg-order/logistics/index',
-  '/orders/invoice': '/pkg-order/invoice/index',
-  '/orders/refund-progress': '/pkg-order/refund/index',
-  '/orders/dispute': '/pkg-order/dispute/index',
+  '/orders': '/pages/order/list/index',
+  '/orders/center': '/pages/order/center/index',
+  '/orders/logistics': '/pages/order/logistics/index',
+  '/orders/invoice': '/pages/order/invoice/index',
+  '/orders/refund-progress': '/pages/order/refund/index',
+  '/orders/dispute': '/pages/order/dispute/index',
 }
 
 /**
@@ -55,12 +55,12 @@ const ROUTE_MAP: Record<string, string> = {
  * 注意顺序：更具体的 /reviews 必须在通用 detail 之前匹配。
  */
 const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
-  [/^\/mall\/product\/([^/?]+)\/reviews$/, '/pkg-mall/product/reviews', 'id'],
-  [/^\/mall\/product\/([^/?]+)$/, '/pkg-mall/product/detail', 'id'],
-  [/^\/shop\/group-buy\/([^/?]+)$/, '/pkg-shop/group-buy/detail', 'id'],
+  [/^\/mall\/product\/([^/?]+)\/reviews$/, '/pages/mall/product/reviews', 'id'],
+  [/^\/mall\/product\/([^/?]+)$/, '/pages/mall/product/detail', 'id'],
+  [/^\/shop\/group-buy\/([^/?]+)$/, '/shop/group-buy/detail', 'id'],
   // 订单详情 / 评价（/reviews 规则更具体，须在通用 detail 之前）
-  [/^\/orders\/([^/?]+)\/review$/, '/pkg-order/review/index', 'id'],
-  [/^\/orders\/([^/?]+)$/, '/pkg-order/detail/index', 'id'],
+  [/^\/orders\/([^/?]+)\/review$/, '/pages/order/review/index', 'id'],
+  [/^\/orders\/([^/?]+)$/, '/pages/order/detail/index', 'id'],
 ]
 
 function normalize(url: string): string {

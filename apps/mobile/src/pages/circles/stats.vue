@@ -6,8 +6,12 @@
  */
 import { ref, onMounted, nextTick, getCurrentInstance } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
 import { getCanvas } from '@/utils/canvas/adapter'
+
+const loading = ref(true)
+const error = ref('')
 
 interface DayData { day: string; members: number; posts: number; views: number }
 
@@ -95,7 +99,21 @@ async function drawLineChart() {
   }
 }
 
-onMounted(() => { nextTick(() => setTimeout(drawLineChart, 100)) })
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+    await nextTick()
+    setTimeout(drawLineChart, 100)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
@@ -108,7 +126,16 @@ onMounted(() => { nextTick(() => setTimeout(drawLineChart, 100)) })
     </view>
 
     <scroll-view scroll-y class="st-body">
-      <!-- KPI 卡片 -->
+      <!-- 骨架屏 -->
+      <view v-if="loading" class="st-skeleton">
+        <view class="st-sk-kpis">
+          <view v-for="i in 4" :key="i" class="st-sk-kpi sk-anim" />
+        </view>
+        <view class="st-sk-chart sk-anim" />
+      </view>
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <template v-else>
+        <!-- KPI 卡片 -->
       <view class="st-kpis">
         <view v-for="k in kpis" :key="k.label" class="st-kpi">
           <view class="st-kpi-top">
@@ -150,6 +177,7 @@ onMounted(() => { nextTick(() => setTimeout(drawLineChart, 100)) })
           </view>
         </view>
       </view>
+      </template>
     </scroll-view>
   </view>
 </template>
@@ -189,4 +217,12 @@ onMounted(() => { nextTick(() => setTimeout(drawLineChart, 100)) })
 .st-legend-dot.posts { background: #C41E3A; }
 .st-legend-dot.views { background: #C9A96E; }
 .st-legend-t { font-size: 22rpx; color: #666; }
+
+/* 骨架屏 */
+.st-skeleton { padding: 24rpx; }
+.st-sk-kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16rpx; margin-bottom: 32rpx; }
+.st-sk-kpi { height: 160rpx; border-radius: 20rpx; }
+.st-sk-chart { height: 400rpx; border-radius: 20rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

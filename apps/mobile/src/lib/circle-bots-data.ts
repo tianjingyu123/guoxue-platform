@@ -2,6 +2,7 @@
  * 圈子智能体数据（从原型 lib/api/circle-bots.ts + types/circle-bots.ts 迁移）
  * 含 mock 数据 + 排序/搜索逻辑 + 使用次数格式化。
  */
+import { apiGet, useMock } from '@/utils/request'
 
 export interface CircleSummary {
   id: number
@@ -79,4 +80,28 @@ export function formatUsageCount(count: number): string {
   if (count >= 10000) return (count / 10000).toFixed(1) + 'w'
   if (count >= 1000) return (count / 1000).toFixed(1) + 'k'
   return count.toString()
+}
+
+// ============================================
+// API 层：useMock 开关控制真实/模拟数据切换
+// ============================================
+
+export const circleBotsApi = {
+  /** 获取圈子智能体列表 */
+  async list(circleId: number, keyword?: string, sortBy: SortBy = 'hot') {
+    if (useMock()) return queryBots(keyword || '', sortBy)
+    try {
+      const qs = new URLSearchParams({ sortBy, ...(keyword ? { keyword } : {}) }).toString()
+      const data = await apiGet<any[]>(`/bots/circle/${circleId}?${qs}`)
+      return data as CircleBotItem[]
+    } catch { return queryBots(keyword || '', sortBy) }
+  },
+
+  /** 获取圈子智能体详情 */
+  async detail(botId: number) {
+    if (useMock()) return circleBots.find(b => b.id === botId) || circleBots[0]
+    try {
+      return await apiGet<CircleBotItem>(`/bots/${botId}`)
+    } catch { return circleBots.find(b => b.id === botId) || circleBots[0] }
+  },
 }

@@ -6,24 +6,41 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppError from '@/components/common/app-error.vue'
 import PostCard from '@/components/circle/post-card.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
+import { circleApi } from '@/lib/circle-data'
 import {
   circleDetailApi, memberBenefits, mockColumns, mockCircleArticles, mockActivities,
   type CircleDetail, type CirclePost, type CircleMember,
 } from '@/lib/circle-detail-data'
+import { postDetailApi } from '@/lib/post-detail-data'
 
 const circleId = ref('1')
 const circle = ref<CircleDetail | null>(null)
 const posts = ref<CirclePost[]>([])
 const members = ref<CircleMember[]>([])
 const isLoading = ref(true)
+const error = ref('')
 const activeTab = ref<'home' | 'posts' | 'articles' | 'essence' | 'columns' | 'members'>('home')
 const showAnnouncement = ref(true)
 const isJoined = ref(false)
-const isOwner = ref(true) // mock：当前用户是圈主
+const isOwner = ref(false)
+const currentUserId = '1' // mock 当前用户 ID（与 mock 圈主相同，表示当前用户即圈主）
 const likedPosts = ref<Set<string>>(new Set())
 const showBenefits = ref(false)
+const showLeaveConfirm = ref(false)
+const joinLoading = ref(false)
+const hasCheckedIn = ref(false)
+const checkInStreak = ref(7)
+const myMemberNo = ref('No.0086')
+
+const isPaid = computed(() => circle.value?.type === 'PAID' || circle.value?.type === 'YEARLY')
+const priceLabel = computed(() => {
+  if (!circle.value?.price) return ''
+  const yuan = circle.value.price / 100
+  return circle.value.type === 'YEARLY' ? `¥${yuan}/年` : `¥${yuan}`
+})
 
 const columns = mockColumns
 const circleArticles = mockCircleArticles
@@ -48,6 +65,7 @@ onLoad((q) => {
 
 async function loadData() {
   isLoading.value = true
+  error.value = ''
   try {
     const [c, p, m] = await Promise.all([
       circleDetailApi.detail(circleId.value),
@@ -58,40 +76,96 @@ async function loadData() {
     posts.value = p.data
     members.value = m.data
     isJoined.value = c.isJoined
+    isOwner.value = c.owner?.id === currentUserId
     likedPosts.value = new Set(p.data.filter(x => x.isLiked).map(x => x.id))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
   } finally {
     isLoading.value = false
   }
 }
 
 function handleJoin() {
-  if (!isJoined.value) {
-    showBenefits.value = true
-  } else {
-    isJoined.value = false
-    circleDetailApi.leave(circleId.value).catch(() => { isJoined.value = true })
+  if (isJoined.value) {
+    showLeaveConfirm.value = true
+    return
+  }
+  if (isPaid.value) { showBenefits.value = true; return }
+  doJoin()
+}
+async function handleLeave() {
+  showLeaveConfirm.value = false
+  isJoined.value = false
+  try {
+    await circleDetailApi.leave(circleId.value)
+    uni.showToast({ title: '已退出圈子', icon: 'success' })
+  } catch {
+    isJoined.value = true
+    uni.showToast({ title: '退出失败', icon: 'none' })
   }
 }
-function confirmJoin() {
-  showBenefits.value = false
-  isJoined.value = true
-  circleDetailApi.join(circleId.value).catch(() => { isJoined.value = false })
+async function doJoin() {
+  joinLoading.value = true
+  try {
+    await circleDetailApi.join(circleId.value)
+    isJoined.value = true
+    uni.showToast({ title: '加入成功', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '加入失败', icon: 'none' })
+  } finally {
+    joinLoading.value = false
+    showBenefits.value = false
+  }
 }
-function handleLikePost(postId: string) {
+async function confirmJoin() {
+  if (joinLoading.value) return
+  joinLoading.value = true
+  try {
+    if (isPaid.value) {
+      await circleApi.prepareJoin(circleId.value, 'COIN')
+      await circleApi.confirmJoin(circleId.value, { payMethod: 'COIN' })
+    }
+    isJoined.value = true
+    uni.showToast({ title: '加入成功', icon: 'success' })
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '加入失败', icon: 'none' })
+  } finally {
+    joinLoading.value = false
+    showBenefits.value = false
+  }
+}
+async function handleLikePost(postId: string) {
   const next = new Set(likedPosts.value)
   const wasLiked = next.has(postId)
   wasLiked ? next.delete(postId) : next.add(postId)
   likedPosts.value = next
   posts.value = posts.value.map(p => p.id === postId ? { ...p, likes: p.likes + (wasLiked ? -1 : 1) } : p)
+  try {
+    if (wasLiked) await postDetailApi.unlike(postId)
+    else await postDetailApi.like(postId)
+  } catch {
+    // 回滚乐观更新
+    const rollback = new Set(likedPosts.value)
+    wasLiked ? rollback.add(postId) : rollback.delete(postId)
+    likedPosts.value = rollback
+    posts.value = posts.value.map(p => p.id === postId ? { ...p, likes: p.likes + (wasLiked ? 1 : -1) } : p)
+  }
 }
 
 function fmt(n: number) { return n.toLocaleString() }
-function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=circle&targetId=${circleId.value}`) }
-function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?circleId=${circleId.value}&id=${id}`) }
-function openPublish() { navigateTo(`/pkg-circle/circles/publish?circleId=${circleId.value}`) }
-function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?id=1&circleId=${circleId.value}`) }
-function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
-function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.value}`) }
+function handleCheckIn() {
+  if (hasCheckedIn.value) return
+  hasCheckedIn.value = true
+  checkInStreak.value += 1
+  uni.showToast({ title: `签到成功！连续签到${checkInStreak.value}天`, icon: 'success' })
+}
+function openShare() { toastComingSoon() }
+function openActivities() { navigateTo(`/pages/circles/activities?circleId=${circleId.value}`) }
+function openPost(id: string) { navigateTo(`/pages/circles/post?circleId=${circleId.value}&id=${id}`) }
+function openPublish() { navigateTo(`/pages/circles/publish?circleId=${circleId.value}`) }
+function openAnnouncement() { navigateTo(`/pages/circles/announcements?id=1&circleId=${circleId.value}`) }
+function openUser(id: string) { navigateTo(`/pages/profile/index?userId=${id}`) }
+function openManage() { navigateTo(`/pages/circles/manage?id=${circleId.value}`) }
 </script>
 
 <template>
@@ -104,7 +178,7 @@ function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.val
         <view class="cd-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
         <view class="cd-nav-right">
           <view v-if="isOwner" class="cd-nav-btn" @tap="openManage"><app-icon name="settings" :size="40" color="#ffffff" /></view>
-          <view class="cd-nav-btn" @tap="toastComingSoon"><app-icon name="bell" :size="40" color="#ffffff" /></view>
+          <view class="cd-nav-btn" @tap="openAnnouncement"><app-icon name="bell" :size="40" color="#ffffff" /></view>
           <view class="cd-nav-btn" @tap="openShare"><app-icon name="share-2" :size="40" color="#ffffff" /></view>
         </view>
       </view>
@@ -126,6 +200,7 @@ function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.val
               <view class="cd-stat"><app-icon name="file-text" :size="26" color="#999999" /><text class="cd-stat-txt">{{ fmt(circle.posts) }} 帖子</text></view>
               <view class="cd-stat"><app-icon name="flame" :size="26" color="#f97316" /><text class="cd-stat-txt">今日{{ circle.todayActive }}</text></view>
             </view>
+            <view v-if="isJoined" class="cd-member-no"><text>我的编号：{{ myMemberNo }}</text></view>
           </view>
         </view>
         <text class="cd-desc">{{ circle.description }}</text>
@@ -166,6 +241,20 @@ function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.val
       </view>
     </view>
 
+    <!-- 签到卡片 -->
+    <view v-if="isJoined" class="cd-checkin">
+      <view class="cd-checkin-card" :class="{ done: hasCheckedIn }" @tap="handleCheckIn">
+        <view class="cd-checkin-left">
+          <app-icon :name="hasCheckedIn ? 'check-circle' : 'calendar-check'" :size="40" :color="hasCheckedIn ? '#22c55e' : '#c41e3a'" />
+          <view class="cd-checkin-info">
+            <text class="cd-checkin-title">{{ hasCheckedIn ? '今日已签到' : '每日签到' }}</text>
+            <text class="cd-checkin-sub">连续签到 <text class="cd-checkin-streak">{{ checkInStreak }}</text> 天</text>
+          </view>
+        </view>
+        <text class="cd-checkin-badge" :class="{ done: hasCheckedIn }">{{ hasCheckedIn ? '已签' : '签到' }}</text>
+      </view>
+    </view>
+
     <!-- Tab 切换 -->
     <view class="cd-tabs">
       <scroll-view scroll-x class="cd-tabs-scroll">
@@ -186,10 +275,10 @@ function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.val
         <view v-if="activities.length" class="cd-sec">
           <view class="cd-sec-head">
             <view class="cd-sec-title"><app-icon name="zap" :size="28" color="#FF6B35" /><text class="cd-sec-label">近期活动</text></view>
-            <view class="cd-sec-more" @tap="toastComingSoon"><text class="cd-more-txt">全部</text><app-icon name="chevron-right" :size="26" color="#999999" /></view>
+            <view class="cd-sec-more" @tap="openActivities"><text class="cd-more-txt">全部</text><app-icon name="chevron-right" :size="26" color="#999999" /></view>
           </view>
           <view class="cd-acts">
-            <view v-for="act in activities.slice(0, 2)" :key="act.id" class="cd-act" @tap="toastComingSoon">
+            <view v-for="act in activities.slice(0, 2)" :key="act.id" class="cd-act" @tap="openActivities">
               <view class="cd-act-icon" :class="act.type">
                 <app-icon :name="act.type === 'live' ? 'play' : act.type === 'checkin' ? 'check-circle' : 'book-open'" :size="32" :color="act.type === 'live' ? '#ef4444' : act.type === 'checkin' ? '#22c55e' : '#f97316'" />
               </view>
@@ -259,7 +348,13 @@ function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.val
 
       <!-- 帖子 Tab -->
       <view v-else-if="activeTab === 'posts'" class="cd-post-list">
-        <post-card v-for="post in posts" :key="post.id" :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)" @like="handleLikePost" />
+        <template v-if="posts.length">
+          <post-card v-for="post in posts" :key="post.id" :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)" @like="handleLikePost" />
+        </template>
+        <view v-else class="cd-empty">
+          <app-icon name="file-text" :size="96" color="#E8E3DB" />
+          <text class="cd-empty-txt">暂无帖子</text>
+        </view>
       </view>
 
       <!-- 精华 Tab -->
@@ -296,33 +391,45 @@ function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.val
 
       <!-- 专栏 Tab -->
       <view v-else-if="activeTab === 'columns'" class="cd-col-grid">
-        <view v-for="col in columns" :key="col.id" class="cd-col-card" @tap="toastComingSoon">
-          <view class="cd-col-cover">
-            <image :src="col.cover" class="cd-col-card-img" mode="aspectFill" />
-            <view v-if="col.isPremium" class="cd-col-lock"><app-icon name="lock" :size="20" color="#ffffff" /></view>
+        <template v-if="columns.length">
+          <view v-for="col in columns" :key="col.id" class="cd-col-card" @tap="toastComingSoon">
+            <view class="cd-col-cover">
+              <image :src="col.cover" class="cd-col-card-img" mode="aspectFill" />
+              <view v-if="col.isPremium" class="cd-col-lock"><app-icon name="lock" :size="20" color="#ffffff" /></view>
+            </view>
+            <view class="cd-col-body">
+              <text class="cd-col-title">{{ col.title }}</text>
+              <text class="cd-col-meta">{{ col.articles }}篇文章 · {{ col.views }}阅读</text>
+            </view>
           </view>
-          <view class="cd-col-body">
-            <text class="cd-col-title">{{ col.title }}</text>
-            <text class="cd-col-meta">{{ col.articles }}篇文章 · {{ col.views }}阅读</text>
-          </view>
+        </template>
+        <view v-else class="cd-empty">
+          <app-icon name="book-open" :size="96" color="#E8E3DB" />
+          <text class="cd-empty-txt">暂无专栏</text>
         </view>
       </view>
 
       <!-- 成员 Tab -->
       <view v-else-if="activeTab === 'members'" class="cd-member-list">
-        <view v-for="m in members" :key="m.id" class="cd-member" @tap="openUser(m.id)">
-          <image :src="m.avatar" class="cd-member-avatar" mode="aspectFill" />
-          <view class="cd-member-main">
-            <view class="cd-member-name-row">
-              <text class="cd-member-name">{{ m.name }}</text>
-              <view v-if="m.role === 'owner'" class="cd-role owner"><app-icon name="crown" :size="22" color="#C9A96E" /><text class="cd-role-txt owner">圈主</text></view>
-              <view v-else-if="m.role === 'admin'" class="cd-role admin"><app-icon name="shield" :size="22" color="#4A90D9" /><text class="cd-role-txt admin">管理员</text></view>
-            </view>
-            <view class="cd-member-meta">
-              <text v-if="m.title" class="cd-member-meta-txt">{{ m.title }}</text>
-              <text class="cd-member-meta-txt">发帖 {{ m.posts }}</text>
+        <template v-if="members.length">
+          <view v-for="m in members" :key="m.id" class="cd-member" @tap="openUser(m.id)">
+            <image :src="m.avatar" class="cd-member-avatar" mode="aspectFill" />
+            <view class="cd-member-main">
+              <view class="cd-member-name-row">
+                <text class="cd-member-name">{{ m.name }}</text>
+                <view v-if="m.role === 'owner'" class="cd-role owner"><app-icon name="crown" :size="22" color="#C9A96E" /><text class="cd-role-txt owner">圈主</text></view>
+                <view v-else-if="m.role === 'admin'" class="cd-role admin"><app-icon name="shield" :size="22" color="#4A90D9" /><text class="cd-role-txt admin">管理员</text></view>
+              </view>
+              <view class="cd-member-meta">
+                <text v-if="m.title" class="cd-member-meta-txt">{{ m.title }}</text>
+                <text class="cd-member-meta-txt">发帖 {{ m.posts }}</text>
+              </view>
             </view>
           </view>
+        </template>
+        <view v-else class="cd-empty">
+          <app-icon name="users" :size="96" color="#E8E3DB" />
+          <text class="cd-empty-txt">暂无成员</text>
         </view>
       </view>
     </view>
@@ -330,7 +437,7 @@ function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.val
     <!-- 底部操作栏 -->
     <view class="cd-foot">
       <view class="cd-join" :class="{ joined: isJoined }" @tap="handleJoin">
-        <text class="cd-join-txt" :class="{ joined: isJoined }">{{ isJoined ? '已加入' : '¥199/年 加入圈子' }}</text>
+        <text class="cd-join-txt" :class="{ joined: isJoined }">{{ isJoined ? '已加入' : (isPaid ? `${priceLabel} 加入圈子` : '免费加入圈子') }}</text>
       </view>
       <view v-if="isJoined" class="cd-post-btn" @tap="openPublish">
         <app-icon name="plus" :size="28" color="#ffffff" /><text class="cd-post-btn-txt">发帖</text>
@@ -344,7 +451,7 @@ function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.val
           <view class="cd-sheet-head">
             <view class="cd-sheet-icon"><app-icon name="sparkles" :size="44" color="#ffffff" /></view>
             <text class="cd-sheet-title">加入「{{ circle.name }}」</text>
-            <text class="cd-sheet-sub">¥199/年，解锁以下专属权益</text>
+            <text class="cd-sheet-sub">{{ `${priceLabel}，解锁以下专属权益` }}</text>
           </view>
           <view class="cd-benefits">
             <view v-for="(b, i) in memberBenefits" :key="i" class="cd-benefit">
@@ -362,13 +469,29 @@ function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.val
         </view>
       </view>
     </view>
+
+    <!-- 退出确认弹窗 -->
+    <view v-if="showLeaveConfirm" class="cd-mask" @tap="showLeaveConfirm = false">
+      <view class="cd-leave-sheet" @tap.stop>
+        <view class="cd-leave-icon"><app-icon name="log-out" :size="48" color="#EF4444" /></view>
+        <text class="cd-leave-title">确认退出圈子？</text>
+        <text class="cd-leave-desc">退出后将失去会员权益和所有专属内容</text>
+        <view class="cd-leave-actions">
+          <view class="cd-leave-btn cancel" @tap="showLeaveConfirm = false"><text class="cd-leave-btn-t">再想想</text></view>
+          <view class="cd-leave-btn confirm" @tap="handleLeave"><text class="cd-leave-btn-t">确认退出</text></view>
+        </view>
+      </view>
+    </view>
   </view>
 
-  <!-- 骨架屏 -->
-  <view v-else class="cd-skeleton">
+  <!-- 加载骨架 -->
+  <view v-else-if="isLoading" class="cd-skeleton">
     <view class="sk-cover" />
-    <view class="sk-info"><view class="sk-card" /></view>
+    <view class="sk-info"><view class="sk-card" /><view class="sk-card sk-card-sm" /><view class="sk-card sk-card-sm" /></view>
   </view>
+
+  <!-- 错误态 -->
+  <app-error v-else-if="error" :desc="error" @retry="loadData" />
 </template>
 
 <style scoped lang="scss">
@@ -398,6 +521,20 @@ function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.val
 .cd-desc { display: block; font-size: 26rpx; color: #666; line-height: 1.7; margin-top: 24rpx; }
 .cd-tags { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 24rpx; }
 .cd-tag { font-size: 22rpx; padding: 4rpx 16rpx; background: #F5F0E8; color: #999; border-radius: 999rpx; }
+.cd-member-no { margin-top: 12rpx; }
+.cd-member-no text { font-size: 22rpx; color: #c9a96e; }
+
+.cd-checkin { padding: 0 32rpx; margin-bottom: 16rpx; }
+.cd-checkin-card { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 28rpx; background: linear-gradient(135deg, rgba(196,30,58,0.06), rgba(196,30,58,0.02)); border-radius: 20rpx; border: 2rpx solid rgba(196,30,58,0.1); }
+.cd-checkin-card.done { background: rgba(34,197,94,0.06); border-color: rgba(34,197,94,0.15); }
+.cd-checkin-left { display: flex; align-items: center; gap: 16rpx; }
+.cd-checkin-info { display: flex; flex-direction: column; }
+.cd-checkin-title { font-size: 26rpx; font-weight: 600; color: #2c2c2c; }
+.cd-checkin-sub { font-size: 22rpx; color: #999; margin-top: 4rpx; }
+.cd-checkin-streak { color: #c41e3a; font-weight: 600; }
+.cd-checkin-badge { font-size: 24rpx; font-weight: 600; color: #fff; background: #c41e3a; padding: 10rpx 28rpx; border-radius: 999rpx; }
+.cd-checkin-badge.done { background: #22c55e; }
+
 .cd-owner { display: flex; align-items: center; gap: 16rpx; margin-top: 24rpx; padding-top: 24rpx; border-top: 2rpx solid #F5F0E8; }
 .cd-owner-avatar { width: 64rpx; height: 64rpx; border-radius: 999rpx; }
 .cd-owner-info { flex: 1; }
@@ -532,9 +669,21 @@ function openManage() { navigateTo(`/pkg-circle/circles/manage?id=${circleId.val
 .cd-sheet-btn-txt { font-size: 28rpx; font-weight: 500; }
 .cd-sheet-btn-txt.cancel { color: #666; }
 .cd-sheet-btn-txt.confirm { color: #fff; }
+/* 退出确认弹窗 */
+.cd-leave-sheet { margin: auto; width: calc(100% - 128rpx); max-width: 560rpx; background: #fff; border-radius: 32rpx; padding: 48rpx 40rpx 40rpx; text-align: center; }
+.cd-leave-icon { width: 104rpx; height: 104rpx; margin: 0 auto 24rpx; border-radius: 50%; background: rgba(239,68,68,0.1); display: flex; align-items: center; justify-content: center; }
+.cd-leave-title { display: block; font-size: 32rpx; font-weight: 600; color: #1a1a1a; margin-bottom: 12rpx; }
+.cd-leave-desc { display: block; font-size: 26rpx; color: #999; line-height: 1.5; margin-bottom: 36rpx; }
+.cd-leave-actions { display: flex; gap: 24rpx; }
+.cd-leave-btn { flex: 1; padding: 24rpx 0; border-radius: 999rpx; text-align: center; }
+.cd-leave-btn.cancel { background: #F5F0E8; }
+.cd-leave-btn.confirm { background: #EF4444; }
+.cd-leave-btn-t { font-size: 28rpx; font-weight: 500; color: #666; }
+.cd-leave-btn.confirm .cd-leave-btn-t { color: #fff; }
 /* 骨架 */
 .cd-skeleton { min-height: 100vh; background: var(--bg-paper, #FAF8F5); }
-.sk-cover { height: 384rpx; background: #E8E3DB; }
-.sk-info { padding: 0 32rpx; margin-top: -96rpx; }
+.sk-cover { height: 384rpx; background: linear-gradient(135deg, #e8e3db, #d5cfc5); }
+.sk-info { padding: 0 32rpx; margin-top: -96rpx; display: flex; flex-direction: column; gap: 24rpx; }
 .sk-card { height: 280rpx; background: #fff; border-radius: 32rpx; }
+.sk-card-sm { height: 120rpx; }
 </style>

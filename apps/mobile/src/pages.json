@@ -33,6 +33,14 @@
   ],
   "subPackages": [
     {
+      "root": "pkg-auth",
+      "pages": [
+        { "path": "login/index", "style": { "navigationStyle": "custom" } },
+        { "path": "register/index", "style": { "navigationStyle": "custom" } },
+        { "path": "forgot-password/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
       "root": "pages/paipan",
       "pages": [
         { "path": "bazi/index", "style": { "navigationStyle": "custom" } },
@@ -147,6 +155,43 @@
         { "path": "chat", "style": { "navigationStyle": "custom" } },
         { "path": "customer-service", "style": { "navigationStyle": "custom" } },
         { "path": "history", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-course",
+      "pages": [
+        { "path": "home/index", "style": { "navigationStyle": "custom" } },
+        { "path": "detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "chapters/index", "style": { "navigationStyle": "custom" } },
+        { "path": "learn/index", "style": { "navigationStyle": "custom" } },
+        { "path": "player/index", "style": { "navigationStyle": "custom" } },
+        { "path": "flash-sale/index", "style": { "navigationStyle": "custom" } },
+        { "path": "purchase-confirm/index", "style": { "navigationStyle": "custom" } },
+        { "path": "certificate/index", "style": { "navigationStyle": "custom" } },
+        { "path": "study-plan/index", "style": { "navigationStyle": "custom" } },
+        { "path": "work-submit/index", "style": { "navigationStyle": "custom" } },
+        { "path": "work-review/index", "style": { "navigationStyle": "custom" } },
+        { "path": "work-result/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-live",
+      "pages": [
+        { "path": "plaza/index", "style": { "navigationStyle": "custom" } },
+        { "path": "hosts/index", "style": { "navigationStyle": "custom" } },
+        { "path": "replays/index", "style": { "navigationStyle": "custom" } },
+        { "path": "replay-home/index", "style": { "navigationStyle": "custom" } },
+        { "path": "host-data/index", "style": { "navigationStyle": "custom" } },
+        { "path": "stream-config/index", "style": { "navigationStyle": "custom" } },
+        { "path": "obs-guide/index", "style": { "navigationStyle": "custom" } },
+        { "path": "create/index", "style": { "navigationStyle": "custom" } },
+        { "path": "preview/index", "style": { "navigationStyle": "custom" } },
+        { "path": "vertical/index", "style": { "navigationStyle": "custom" } },
+        { "path": "horizontal/index", "style": { "navigationStyle": "custom" } },
+        { "path": "watch/index", "style": { "navigationStyle": "custom" } },
+        { "path": "end/index", "style": { "navigationStyle": "custom" } },
+        { "path": "replay-detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "replay-comment/index", "style": { "navigationStyle": "custom" } }
       ]
     },
     {

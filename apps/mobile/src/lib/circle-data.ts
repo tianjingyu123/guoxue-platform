@@ -2,7 +2,7 @@
  * 圈子数据 + 类型 + API 封装（从原型 app/circles/page.tsx 与 lib/api.ts circleApi 1:1 迁移）
  * mock 数据与原型完全一致；真实接口走 utils/request，mock 开关同原型口径。
  */
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPut, useMock } from '@/utils/request'
 
 export interface Circle {
   id: string
@@ -13,8 +13,22 @@ export interface Circle {
   members: number
   posts: number
   isJoined: boolean
+  isPaid?: boolean
+  price?: number
+  type?: 'FREE' | 'PAID' | 'YEARLY'
   todayActive?: number
   rank?: number
+  tags?: string[]
+  unread?: number
+  lastPost?: string
+  isOwner?: boolean
+  owner?: string
+  ownerAvatar?: string
+  ownerTitle?: string
+  isVerified?: boolean
+  rating?: number
+  ratingCount?: number
+  hotPosts?: string[]
 }
 
 export interface CircleCategory { id: string; name: string; icon: string }
@@ -71,35 +85,72 @@ export const hotPosts: HotPost[] = [
 
 // ─── 圈子 mock（原型 mockCircles，完全一致） ───
 export const mockCircles: Circle[] = [
-  { id: '1', name: '八字研习社', cover: 'https://picsum.photos/400/300?random=101', description: '专注八字命理学习与交流', category: 'bazi', members: 12800, posts: 3560, isJoined: true, todayActive: 128, rank: 1 },
-  { id: '2', name: '紫微斗数爱好者', cover: 'https://picsum.photos/400/300?random=102', description: '探索紫微斗数的奥秘', category: 'ziwei', members: 8600, posts: 2180, isJoined: false, todayActive: 86, rank: 2 },
-  { id: '3', name: '风水学堂', cover: 'https://picsum.photos/400/300?random=103', description: '风水堪舆知识分享', category: 'fengshui', members: 6500, posts: 1820, isJoined: true, todayActive: 56, rank: 3 },
-  { id: '4', name: '易经读书会', cover: 'https://picsum.photos/400/300?random=104', description: '一起研读易经经典', category: 'yijing', members: 5200, posts: 1560, isJoined: false, todayActive: 42 },
-  { id: '5', name: '六爻预测交流', cover: 'https://picsum.photos/400/300?random=105', description: '六爻占卜实战分享', category: 'liuyao', members: 4800, posts: 1280, isJoined: false, todayActive: 38 },
-  { id: '6', name: '奇门遁甲研究', cover: 'https://picsum.photos/400/300?random=106', description: '奇门遁甲术数探讨', category: 'qimen', members: 3600, posts: 960, isJoined: false, todayActive: 28 },
-  { id: '7', name: '中医养生圈', cover: 'https://picsum.photos/400/300?random=107', description: '传统养生智慧分享', category: 'yangsheng', members: 9200, posts: 2860, isJoined: true, todayActive: 96 },
-  { id: '8', name: '书法艺术', cover: 'https://picsum.photos/400/300?random=108', description: '书法练习与鉴赏', category: 'shufa', members: 7800, posts: 2340, isJoined: false, todayActive: 68 },
+  { id: '1', name: '八字命理研习社', cover: 'https://picsum.photos/400/300?random=101', description: '专注八字命理学习与实践的高质量社群', category: 'bazi', members: 12800, posts: 3560, isJoined: true, isPaid: true, price: 99, type: 'YEARLY', todayActive: 128, rank: 1, tags: ['TOP1', '活跃'], owner: '周易大师', ownerTitle: '20年命理研究', isVerified: true, rating: 4.9, ratingCount: 1286 },
+  { id: '2', name: '紫微斗数精研会', cover: 'https://picsum.photos/400/300?random=102', description: '深入研究紫微斗数，探索命运密码', category: 'ziwei', members: 8560, posts: 2180, isJoined: false, isPaid: false, type: 'FREE', todayActive: 86, rank: 2, tags: ['免费', '新手友好'], owner: '张玄风', ownerTitle: '紫微传承人', isVerified: true, rating: 4.8, ratingCount: 856 },
+  { id: '3', name: '风水堪舆学院', cover: 'https://picsum.photos/400/300?random=103', description: '实战派风水知识分享与交流', category: 'fengshui', members: 6280, posts: 1890, isJoined: true, isPaid: true, price: 199, type: 'PAID', todayActive: 45, rank: 3, tags: ['大咖入驻', '实战派'], owner: '陈风水', ownerTitle: '实战派风水师', isVerified: true, rating: 4.7, ratingCount: 628 },
+  { id: '4', name: '易经读书会', cover: 'https://picsum.photos/400/300?random=104', description: '一起研读易经经典，品味古人智慧', category: 'yijing', members: 5200, posts: 1560, isJoined: false, isPaid: false, type: 'FREE', todayActive: 42, tags: ['免费', '经典'], owner: '易学居士', ownerTitle: '易学研究者', isVerified: true, rating: 4.6, ratingCount: 520 },
+  { id: '5', name: '六爻预测交流', cover: 'https://picsum.photos/400/300?random=105', description: '六爻占卜技法研讨与实战分享', category: 'liuyao', members: 4800, posts: 1280, isJoined: false, isPaid: true, price: 58, type: 'PAID', todayActive: 38, tags: ['进阶'], owner: '六爻居士', ownerTitle: '六爻研究者', isVerified: true, rating: 4.5, ratingCount: 480 },
+  { id: '6', name: '奇门遁甲秘境', cover: 'https://picsum.photos/400/300?random=106', description: '帝王之术，择吉避凶', category: 'qimen', members: 3600, posts: 960, isJoined: false, isPaid: true, price: 198, type: 'PAID', todayActive: 28, tags: ['高阶', '稀缺'], owner: '奇门居士', ownerTitle: '奇门传人', isVerified: true, rating: 4.8, ratingCount: 360 },
+  { id: '7', name: '中医养生圈', cover: 'https://picsum.photos/400/300?random=107', description: '传统养生智慧分享，日常保健必备', category: 'yangsheng', members: 9200, posts: 2860, isJoined: true, isPaid: false, type: 'FREE', todayActive: 96, tags: ['免费', '科普'], owner: '李时珍后人', ownerTitle: '中医师', rating: 4.9, ratingCount: 920 },
+  { id: '8', name: '道家养生文化', cover: 'https://picsum.photos/400/300?random=108', description: '道家养生功法与理论研习', category: 'dao', members: 9800, posts: 2560, isJoined: false, isPaid: true, price: 68, type: 'YEARLY', todayActive: 98, tags: ['活跃', '干货多'], owner: '李道长', ownerTitle: '武当道士', isVerified: true, rating: 4.9, ratingCount: 980 },
+  { id: '9', name: '面相手相研究', cover: 'https://picsum.photos/400/300?random=109', description: '观人识面，掌握命运', category: 'xiangshu', members: 5680, posts: 1230, isJoined: false, isPaid: false, type: 'FREE', todayActive: 42, tags: ['免费', '图文多'], owner: '相面先生', ownerTitle: '相学研究者', rating: 4.6, ratingCount: 568 },
+  { id: '10', name: '梅花易数交流', cover: 'https://picsum.photos/400/300?random=110', description: '随时随地起卦断卦，日常预测必备', category: 'meihua', members: 2560, posts: 720, isJoined: false, isPaid: false, type: 'FREE', todayActive: 18, tags: ['免费', '入门'], owner: '梅花仙子', ownerTitle: '梅花易数传人', rating: 4.5, ratingCount: 256 },
 ]
 
 // ─── API（mock 优先，与原型 Promise.allSettled 容错口径一致） ───
 export const circleApi = {
-  list: async (params?: { category?: string }): Promise<{ data: Circle[]; total: number }> => {
+  list: async (params?: { category?: string; keyword?: string; page?: number; pageSize?: number }): Promise<{ data: Circle[]; total: number }> => {
     if (useMock()) {
-      const filtered = params?.category ? mockCircles.filter(c => c.category === params.category) : mockCircles
+      let filtered = [...mockCircles]
+      if (params?.category) filtered = filtered.filter(c => c.category === params.category)
+      if (params?.keyword) {
+        const kw = params.keyword.toLowerCase()
+        filtered = filtered.filter(c => c.name.toLowerCase().includes(kw) || c.description.toLowerCase().includes(kw))
+      }
       return { data: filtered, total: filtered.length }
     }
-    return apiGet(`/circles?category=${params?.category || ''}`)
+    const qs = new URLSearchParams()
+    if (params?.category) qs.set('category', params.category)
+    if (params?.keyword) qs.set('keyword', params.keyword)
+    if (params?.page) qs.set('page', String(params.page))
+    if (params?.pageSize) qs.set('pageSize', String(params.pageSize))
+    return apiGet(`/circles?${qs.toString()}`)
   },
   my: async (): Promise<Circle[]> => {
-    if (useMock()) return mockCircles.filter(c => c.isJoined)
+    if (useMock()) return mockCircles.filter(c => c.isJoined).map((c, i) => ({ ...c, unread: [12, 3, 0][i] || 0, lastPost: ['今日话题：如何看流年大运', '紫微斗数案例分析第56期', '常用穴位按摩指南'][i] || '' }))
     return apiGet('/circles/my')
   },
-  getRanking: async (): Promise<Circle[]> => {
-    if (useMock()) return mockCircles.slice(0, 5).map((c, i) => ({ ...c, rank: i + 1 }))
-    return apiGet('/circles/ranking')
+  getRanking: async (sortBy?: string): Promise<Circle[]> => {
+    if (useMock()) return mockCircles.map((c, i) => ({ ...c, rank: i + 1 }))
+    return apiGet(`/circles/ranking${sortBy ? `?sortBy=${sortBy}` : ''}`)
   },
-  join: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/join`),
-  leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),
+  join: (id: string) => useMock() ? { success: true } : apiPost<{ success: boolean }>(`/circles/${id}/join`),
+  leave: (id: string) => useMock() ? { success: true } : apiPost<{ success: boolean }>(`/circles/${id}/leave`),
+
+  /** 创建圈子 */
+  create: async (data: { name: string; cover?: string; description: string; category: string; tags?: string[]; isPublic?: boolean; joinMode?: string; price?: number }) => {
+    if (useMock()) return { id: String(Date.now()), ...data, members: 1, posts: 0, isJoined: true }
+    return apiPost('/circles', data)
+  },
+  /** 更新圈子 */
+  update: (id: string, data: Record<string, unknown>) => useMock() ? { ...data } : apiPut(`/circles/${id}`, data),
+  /** 草稿列表 */
+  getDrafts: (page = 1, pageSize = 20) => {
+    if (useMock()) return { data: [], total: 0 }
+    return apiGet(`/circles/drafts?page=${page}&pageSize=${pageSize}`)
+  },
+  /** 生成邀请码 */
+  generateInviteCode: (circleId: string, maxUses?: number) => useMock() ? { code: 'MOCK-' + Date.now(), maxUses: maxUses || 10 } : apiPost(`/circles/${circleId}/invite-code`, { maxUses }),
+  /** 通过邀请码加入 */
+  joinByInviteCode: (code: string) => useMock() ? { success: true } : apiPost('/circles/join-by-code', { code }),
+  /** 入圈状态 */
+  getJoinStatus: (circleId: string) => useMock() ? { isJoined: false, isExpired: false } : apiGet(`/circles/${circleId}/join/status`),
+  /** 准备付费入圈 */
+  prepareJoin: (circleId: string, payMethod?: string) => useMock() ? { orderId: 'mock-oid-' + Date.now(), orderNo: 'MO' + Date.now(), amount: 19900 } : apiPost(`/circles/${circleId}/join/prepare`, { payMethod }),
+  /** 确认付费入圈 */
+  confirmJoin: (circleId: string, data: { payMethod?: string; orderNo?: string; referrerId?: string }) => useMock() ? { success: true } : apiPost(`/circles/${circleId}/join/confirm`, data),
+  /** 续费 */
+  renew: (circleId: string, payMethod?: string) => useMock() ? { success: true } : apiPost(`/circles/${circleId}/renew`, { payMethod }),
 }
 
 /** 成员数格式化：>=1万显示「x.x万」（原型口径） */

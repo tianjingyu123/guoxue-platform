@@ -482,6 +482,15 @@ export class ShopController {
     return this.couponSvc.listCoupons(+page, +pageSize, admin === "true");
   }
 
+  @Get("coupons/:id")
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "获取优惠券详情" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "优惠券不存在" })
+  getCouponDetail(@Param("id") id: string) {
+    return this.couponSvc.getCouponById(id);
+  }
+
   @Put("coupons/:id")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")

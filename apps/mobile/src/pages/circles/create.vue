@@ -5,7 +5,9 @@
  */
 import { ref, reactive } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, reLaunch } from '@/utils/router'
+import AppNavBar from '@/components/common/app-nav-bar.vue'
+import { reLaunch } from '@/utils/router'
+import { circleApi } from '@/lib/circle-data'
 
 type JoinMethod = 'free' | 'paid' | 'approval'
 
@@ -69,21 +71,28 @@ function validate() {
 async function submit() {
   if (!validate()) return
   loading.value = true
-  await new Promise((r) => setTimeout(r, 1200))
-  loading.value = false
-  uni.showToast({ title: '创建成功', icon: 'success' })
-  setTimeout(() => reLaunch('/pages/circles/index'), 600)
+  try {
+    await circleApi.create({
+      name: name.value.trim(),
+      description: desc.value.trim(),
+      category: category.value,
+      tags: tags.value,
+      joinMode: joinMethod.value,
+      price: joinMethod.value === 'paid' ? Number(yearlyPrice.value) : undefined,
+    })
+    uni.showToast({ title: '创建成功', icon: 'success' })
+    setTimeout(() => reLaunch('/pages/circles/index'), 600)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '创建失败', icon: 'none' })
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
 <template>
   <view class="cc">
-    <!-- 顶栏 -->
-    <view class="cc-hdr">
-      <view class="cc-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#1a1a1a" /></view>
-      <text class="cc-hdr-title">创建圈子</text>
-      <view class="cc-hdr-btn" />
-    </view>
+    <app-nav-bar title="创建圈子" background="rgba(250,248,245,0.95)" :back-size="40" />
 
     <scroll-view scroll-y class="cc-body">
       <!-- 封面 -->
@@ -237,9 +246,6 @@ async function submit() {
 
 <style scoped lang="scss">
 .cc { display: flex; flex-direction: column; height: 100vh; background: #faf6f0; }
-.cc-hdr { display: flex; align-items: center; justify-content: space-between; height: 88rpx; padding: 0 24rpx; background: #faf6f0; border-bottom: 2rpx solid rgba(0,0,0,0.08); padding-top: var(--status-bar-height, 0); flex-shrink: 0; }
-.cc-hdr-btn { width: 72rpx; padding: 8rpx; }
-.cc-hdr-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #1a1a1a; }
 .cc-body { flex: 1; overflow: hidden; padding: 32rpx 32rpx 48rpx; box-sizing: border-box; }
 /* 封面 */
 .cc-cover-wrap { display: flex; flex-direction: column; align-items: center; gap: 12rpx; margin-bottom: 40rpx; }

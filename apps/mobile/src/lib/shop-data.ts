@@ -1560,6 +1560,15 @@ export const shopApi = {
     try { return await apiGet<any>(`/marketing/group-buys/${id}`) } catch { return groupBuyList[0] }
   },
 
+  /** 拼团 — 我的拼团 */
+  async getMyGroupBuys() {
+    if (useMock()) return { items: myGroupBuyList, total: myGroupBuyList.length }
+    try {
+      const res = await apiGet<any>('/marketing/group-buys/my')
+      return { items: res.items || res || [], total: res.total || 0 }
+    } catch { return { items: myGroupBuyList, total: myGroupBuyList.length } }
+  },
+
   /** 拼团 — 参与 */
   async joinGroupBuy(id: string) {
     if (useMock()) return { success: true }

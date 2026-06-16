@@ -3,9 +3,21 @@
  * 我的问答（从原型 app/circles/[id]/consult/my-questions/page.tsx 高保真迁移）
  * 筛选(全部/已回答/待回答) + 问答卡(头像/状态/问题2行截断/费用/展开看专家回答)。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
+
+const loading = ref(true)
+const error = ref('')
+
+onMounted(() => { loadData() })
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try { await new Promise(r => setTimeout(r, 400)) } catch (e: any) { error.value = e?.message || '加载失败' }
+  finally { loading.value = false }
+}
 
 type QFilter = 'all' | 'answered' | 'pending'
 
@@ -36,40 +48,56 @@ function toggle(id: string) { expanded.value = expanded.value === id ? null : id
       <text class="mq-nav-title">我的问答</text>
     </view>
 
-    <view class="mq-filters">
-      <view v-for="f in filterTabs" :key="f" class="mq-filter" :class="{ 'is-active': filter === f }" @tap="filter = f">
-        <text class="mq-filter-t" :class="{ 'is-active': filter === f }">{{ tabLabel(f) }}</text>
+    <!-- 加载骨架 -->
+    <view v-if="loading" class="mq-skeleton">
+      <view v-for="i in 3" :key="i" class="mq-sk-card">
+        <view class="mq-sk-avatar sk-anim" />
+        <view class="mq-sk-info">
+          <view class="mq-sk-line mq-sk-line--short sk-anim" />
+          <view class="mq-sk-line mq-sk-line--long sk-anim" />
+          <view class="mq-sk-line mq-sk-line--mid sk-anim" />
+        </view>
       </view>
     </view>
 
-    <view class="mq-list">
-      <view v-for="q in filtered" :key="q.id" class="mq-card">
-        <view class="mq-card-main" @tap="toggle(q.id)">
-          <image class="mq-avatar" :src="q.avatar" mode="aspectFill" />
-          <view class="mq-info">
-            <view class="mq-info-top">
-              <text class="mq-expert">{{ q.expert }}</text>
-              <view class="mq-status" :class="q.status === 'answered' ? 'is-answered' : 'is-pending'">
-                <app-icon :name="q.status === 'answered' ? 'check-circle' : 'clock'" :size="22" :color="q.status === 'answered' ? '#16A34A' : '#F59E0B'" />
-                <text class="mq-status-t" :class="q.status === 'answered' ? 'is-answered' : 'is-pending'">{{ q.status === 'answered' ? '已回答' : '待回答' }}</text>
+    <error-state v-else-if="error" :message="error" @retry="loadData" />
+
+    <template v-else>
+      <view class="mq-filters">
+        <view v-for="f in filterTabs" :key="f" class="mq-filter" :class="{ 'is-active': filter === f }" @tap="filter = f">
+          <text class="mq-filter-t" :class="{ 'is-active': filter === f }">{{ tabLabel(f) }}</text>
+        </view>
+      </view>
+
+      <view class="mq-list">
+        <view v-for="q in filtered" :key="q.id" class="mq-card">
+          <view class="mq-card-main" @tap="toggle(q.id)">
+            <image class="mq-avatar" :src="q.avatar" mode="aspectFill" />
+            <view class="mq-info">
+              <view class="mq-info-top">
+                <text class="mq-expert">{{ q.expert }}</text>
+                <view class="mq-status" :class="q.status === 'answered' ? 'is-answered' : 'is-pending'">
+                  <app-icon :name="q.status === 'answered' ? 'check-circle' : 'clock'" :size="22" :color="q.status === 'answered' ? '#16A34A' : '#F59E0B'" />
+                  <text class="mq-status-t" :class="q.status === 'answered' ? 'is-answered' : 'is-pending'">{{ q.status === 'answered' ? '已回答' : '待回答' }}</text>
+                </view>
+              </view>
+              <text class="mq-content">{{ q.content }}</text>
+              <view class="mq-meta">
+                <text class="mq-date">{{ q.askedAt }}</text>
+                <text class="mq-cost">{{ q.cost }}</text>
               </view>
             </view>
-            <text class="mq-content">{{ q.content }}</text>
-            <view class="mq-meta">
-              <text class="mq-date">{{ q.askedAt }}</text>
-              <text class="mq-cost">{{ q.cost }}</text>
-            </view>
+          </view>
+
+          <view v-if="expanded === q.id && q.preview" class="mq-answer">
+            <text class="mq-answer-label">专家回答：</text>
+            <text class="mq-answer-text">{{ q.preview }}</text>
+            <text class="mq-answer-time">回复于 {{ q.answeredAt }}</text>
           </view>
         </view>
-
-        <view v-if="expanded === q.id && q.preview" class="mq-answer">
-          <text class="mq-answer-label">专家回答：</text>
-          <text class="mq-answer-text">{{ q.preview }}</text>
-          <text class="mq-answer-time">回复于 {{ q.answeredAt }}</text>
-        </view>
+        <view v-if="filtered.length === 0" class="mq-empty"><text class="mq-empty-t">暂无问答记录</text></view>
       </view>
-      <view v-if="filtered.length === 0" class="mq-empty"><text class="mq-empty-t">暂无问答记录</text></view>
-    </view>
+    </template>
   </view>
 </template>
 
@@ -104,4 +132,16 @@ function toggle(id: string) { expanded.value = expanded.value === id ? null : id
 .mq-answer-time { display: block; font-size: 22rpx; color: #999; margin-top: 12rpx; }
 .mq-empty { padding: 120rpx 0; }
 .mq-empty-t { display: block; text-align: center; font-size: 26rpx; color: #999; }
+
+/* 骨架屏 */
+.mq-skeleton { display: flex; flex-direction: column; gap: 20rpx; padding: 8rpx 24rpx 0; }
+.mq-sk-card { display: flex; align-items: flex-start; gap: 16rpx; padding: 24rpx; background: #fff; border-radius: 20rpx; border: 1rpx solid #E8E0D0; }
+.mq-sk-avatar { width: 72rpx; height: 72rpx; border-radius: 50%; flex-shrink: 0; }
+.mq-sk-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12rpx; }
+.mq-sk-line { height: 24rpx; border-radius: 6rpx; }
+.mq-sk-line--short { width: 40%; }
+.mq-sk-line--long { width: 100%; }
+.mq-sk-line--mid { width: 60%; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

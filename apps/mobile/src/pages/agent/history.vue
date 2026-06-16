@@ -40,7 +40,7 @@ function openChat(item: HistoryItem) {
     swipedId.value = null
     return
   }
-  navigateTo(`/pkg-agent/agent/chat?id=${item.id}`)
+  navigateTo(`/pages/agent/chat?id=${item.id}`)
 }
 </script>
 
@@ -113,7 +113,7 @@ function openChat(item: HistoryItem) {
         <view class="empty-icon"><AppIcon name="sparkles" :size="56" color="#c9a96e" /></view>
         <text class="empty-title">暂无对话记录</text>
         <text class="empty-desc">去智能体广场探索各类AI助手，开启你的国学之旅</text>
-        <view class="empty-btn" @tap="navigateTo('/pkg-circle/circles/bots')"><text class="empty-btn-txt">探索智能体广场</text></view>
+        <view class="empty-btn" @tap="navigateTo('/pages/circles/bots')"><text class="empty-btn-txt">探索智能体广场</text></view>
       </view>
 
       <!-- 搜索无结果 -->

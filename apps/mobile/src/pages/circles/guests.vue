@@ -4,24 +4,16 @@
  * 搜索 + 四Tab(全部/嘉宾/老师/待审核) + 嘉宾卡片(角色徽章/操作菜单编辑·收益·移除/权限标签/4数据统计/待审核通过拒绝)
  * + 邀请嘉宾底部弹窗(链接/搜索·角色·权限·分成滑块·邀请链接复制) + 编辑嘉宾底部弹窗
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
+import ErrorState from '@/components/common/error-state.vue'
+import { circleManageApi, type GuestItem } from '@/lib/circle-detail-data'
 
-interface GuestStats { articles: number; courses: number; lives: number; totalRevenue: number; thisMonthRevenue: number }
-interface Guest {
-  id: string; name: string; avatar: string; title: string
-  role: 'guest' | 'teacher'; joinedAt: string; status: 'active' | 'pending'
-  stats: GuestStats; revenueShare: number; permissions: string[]
-}
+const circleId = ref('1')
 
-const circleId = '1'
-
-const mockGuests: Guest[] = [
-  { id: '1', name: '张玄风', avatar: '/static/avatars/u1.png', title: '资深命理师', role: 'guest', joinedAt: '2024-01-10', status: 'active', stats: { articles: 28, courses: 3, lives: 12, totalRevenue: 12680.5, thisMonthRevenue: 2350 }, revenueShare: 70, permissions: ['article', 'course', 'live', 'qa'] },
-  { id: '2', name: '李易安', avatar: '/static/avatars/u2.png', title: '紫微斗数讲师', role: 'teacher', joinedAt: '2024-02-15', status: 'active', stats: { articles: 15, courses: 5, lives: 8, totalRevenue: 8920, thisMonthRevenue: 1680 }, revenueShare: 60, permissions: ['article', 'course'] },
-  { id: '3', name: '王命理', avatar: '/static/avatars/u3.png', title: '八字研究者', role: 'guest', joinedAt: '2024-03-01', status: 'pending', stats: { articles: 0, courses: 0, lives: 0, totalRevenue: 0, thisMonthRevenue: 0 }, revenueShare: 50, permissions: ['article'] },
-]
+onLoad((q) => { if (q?.id) circleId.value = q.id })
 
 const permissionLabels: Record<string, string> = { article: '文章', course: '课程', live: '直播', qa: '问答', post: '帖子' }
 const permEntries = Object.entries(permissionLabels)
@@ -31,10 +23,27 @@ const activeTab = ref<'all' | 'guest' | 'teacher' | 'pending'>('all')
 const showInviteModal = ref(false)
 const showActionMenu = ref<string | null>(null)
 const showEditModal = ref<string | null>(null)
+const loading = ref(true)
+const error = ref('')
+const allGuests = ref<GuestItem[]>([])
 
-const pendingCount = computed(() => mockGuests.filter((g) => g.status === 'pending').length)
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    allGuests.value = (await circleManageApi.listGuests(circleId.value)) as GuestItem[]
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+const pendingCount = computed(() => allGuests.value.filter((g) => g.status === 'pending').length)
 const filteredGuests = computed(() =>
-  mockGuests
+  allGuests.value
     .filter((g) => {
       if (activeTab.value === 'pending') return g.status === 'pending'
       if (activeTab.value === 'guest') return g.role === 'guest' && g.status === 'active'
@@ -43,7 +52,7 @@ const filteredGuests = computed(() =>
     })
     .filter((g) => g.name.includes(searchQuery.value) || g.title.includes(searchQuery.value)),
 )
-const editingGuest = computed(() => mockGuests.find((g) => g.id === showEditModal.value) || null)
+const editingGuest = computed(() => allGuests.value.find((g) => g.id === showEditModal.value) || null)
 const tabs = [
   { key: 'all', label: '全部' },
   { key: 'guest', label: '嘉宾' },
@@ -56,7 +65,7 @@ const inviteType = ref<'link' | 'search'>('link')
 const inviteRole = ref<'guest' | 'teacher'>('guest')
 const inviteShare = ref(50)
 const invitePerms = ref<string[]>(['article'])
-const inviteLink = computed(() => `https://rebugx.com/invite/${circleId}?role=${inviteRole.value}`)
+const inviteLink = computed(() => `https://rebugx.com/invite/${circleId.value}?role=${inviteRole.value}`)
 function toggleInvitePerm(p: string) { invitePerms.value = invitePerms.value.includes(p) ? invitePerms.value.filter((x) => x !== p) : [...invitePerms.value, p] }
 function copyInviteLink() { uni.setClipboardData({ data: inviteLink.value, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) }) }
 
@@ -64,7 +73,7 @@ function copyInviteLink() { uni.setClipboardData({ data: inviteLink.value, succe
 const editRole = ref<'guest' | 'teacher'>('guest')
 const editShare = ref(50)
 const editPerms = ref<string[]>([])
-function openEdit(g: Guest) {
+function openEdit(g: GuestItem) {
   showEditModal.value = g.id; showActionMenu.value = null
   editRole.value = g.role; editShare.value = g.revenueShare; editPerms.value = [...g.permissions]
 }
@@ -97,6 +106,11 @@ function toggleEditPerm(p: string) { editPerms.value = editPerms.value.includes(
 
     <!-- 列表 -->
     <view class="gt-list">
+      <view v-if="loading" class="gs-skeleton">
+        <view v-for="i in 3" :key="i" class="gs-sk-row"><view class="gs-sk-block sk-anim" /></view>
+      </view>
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <template v-else>
       <view v-if="filteredGuests.length === 0" class="gt-empty">
         <app-icon name="user-plus" :size="56" color="#D9D9D9" />
         <text class="gt-empty-text">暂无嘉宾/老师</text>
@@ -121,7 +135,7 @@ function toggleEditPerm(p: string) { editPerms.value = editPerms.value.includes(
         <!-- 操作菜单 -->
         <view v-if="showActionMenu === g.id" class="gt-menu">
           <view class="gt-menu-item" @tap="openEdit(g)"><app-icon name="edit" :size="26" color="#666666" /><text>编辑</text></view>
-          <view class="gt-menu-item" @tap="navigateTo(`/pkg-circle/circles/earnings?id=${circleId}&guest=${g.id}`)"><app-icon name="trending-up" :size="26" color="#666666" /><text>收益</text></view>
+          <view class="gt-menu-item" @tap="navigateTo(`/pages/circles/earnings?id=${circleId}&guest=${g.id}`)"><app-icon name="trending-up" :size="26" color="#666666" /><text>收益</text></view>
           <view class="gt-menu-item gt-menu-del" @tap="toastComingSoon()"><app-icon name="trash-2" :size="26" color="#EF4444" /><text>移除</text></view>
         </view>
 
@@ -163,6 +177,7 @@ function toggleEditPerm(p: string) { editPerms.value = editPerms.value.includes(
           <view class="gt-pa gt-pa-no" @tap="toastComingSoon()"><app-icon name="x" :size="28" color="#666666" /><text>拒绝</text></view>
         </view>
       </view>
+      </template>
     </view>
 
     <!-- 邀请嘉宾底部弹窗 -->
@@ -336,4 +351,9 @@ function toggleEditPerm(p: string) { editPerms.value = editPerms.value.includes(
 .gt-link-btn { padding: 0 28rpx; display: flex; align-items: center; justify-content: center; background: #C41E3A; border-radius: 16rpx; }
 .gt-link-btn-ghost { background: #FAF8F5; }
 .gt-search-modal { margin-top: 4rpx; }
+.gs-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.gs-sk-row { display: flex; gap: 16rpx; }
+.gs-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

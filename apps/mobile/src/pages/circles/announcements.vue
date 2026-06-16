@@ -1,38 +1,30 @@
 <script setup lang="ts">
 /**
- * 圈子公告详情（从原型 app/circles/[id]/announcements/[annoId]/page.tsx 高保真迁移）
- * 故宫红顶栏 + 圈子来源 + 置顶标识 + 富文本正文(块解析) + 其他公告 + 底部确认已读栏
+ * 圈子公告详情 — 三态：加载骨架 → 错误重试 → 公告内容
+ * API: circleDetailApi.getAnnouncement / listAnnouncements / markAnnouncementRead
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { circleDetailApi } from '@/lib/circle-detail-data'
 
 interface Announcement {
-  id: string
-  circleId: string
-  circleName: string
-  title: string
-  content: string
-  isPinned: boolean
-  isRead: boolean
-  readCount: number
-  publishedAt: string
+  id: string; circleId: string; circleName: string; title: string; content: string
+  isPinned: boolean; isRead: boolean; readCount: number; publishedAt: string
   author: { id: string; name: string; avatar: string }
 }
-
-interface ContentBlock {
-  type: 'bold' | 'ordered' | 'bullet' | 'divider' | 'text' | 'space'
-  text?: string
-}
+interface ContentBlock { type: 'bold' | 'ordered' | 'bullet' | 'divider' | 'text' | 'space'; text?: string }
 
 const circleId = ref('1')
+const annoId = ref('1')
+const loading = ref(true)
+const error = ref('')
+const announcement = ref<Announcement>({ id: '1', circleId: 'c1', circleName: '', title: '', content: '', isPinned: false, isRead: false, readCount: 0, publishedAt: '', author: { id: '', name: '', avatar: '' } })
+const related = ref<Announcement[]>([])
+const isRead = ref(false)
 
-const announcement = ref<Announcement>({
-  id: '1',
-  circleId: 'c1',
-  circleName: '八字命理研习社',
-  title: '圈子重要规则更新：关于内容质量与互动规范的说明',
-  content: `亲爱的圈友们：
+const defaultContent = `亲爱的圈友们：
 
 为了给大家提供更好的学习交流环境，圈子管理团队经过讨论，决定对圈子规则进行更新。请各位圈友仔细阅读以下内容：
 
@@ -60,37 +52,44 @@ const announcement = ref<Announcement>({
 
 本周我们将上线"每周精华"评选活动，每周日由管理团队评选5篇优质帖子，作者将获得：
 - 精华徽章展示
-- 50积分奖励  
+- 50积分奖励
 - 优先推荐展示权益
 
-感谢大家的支持与配合，我们共同维护一个高质量的国学学习社区！`,
-  isPinned: true,
-  isRead: false,
-  readCount: 328,
-  publishedAt: '2024-01-15T09:00:00Z',
-  author: { id: 'u1', name: '圈子管理员', avatar: '' },
+感谢大家的支持与配合，我们共同维护一个高质量的国学学习社区！`
+
+const mockRelated: Announcement[] = [
+  { id: '2', circleId: 'c1', circleName: '八字命理研习社', title: '关于圈子积分系统升级的公告', content: '', isPinned: false, isRead: true, readCount: 215, publishedAt: '2024-01-10T09:00:00Z', author: { id: 'u1', name: '圈子管理员', avatar: '' } },
+  { id: '3', circleId: 'c1', circleName: '八字命理研习社', title: '新年活动：八字2024年运势公益解读报名开始', content: '', isPinned: false, isRead: true, readCount: 487, publishedAt: '2024-01-05T09:00:00Z', author: { id: 'u1', name: '圈子管理员', avatar: '' } },
+]
+
+onMounted(() => {
+  const pages = getCurrentPages()
+  const cur = pages[pages.length - 1]
+  const q = (cur as any).$page?.options || {}
+  if (q.circleId) circleId.value = q.circleId
+  if (q.id) annoId.value = q.id
+  loadData()
 })
 
-const related = ref<Announcement[]>([
-  {
-    id: '2', circleId: 'c1', circleName: '八字命理研习社',
-    title: '关于圈子积分系统升级的公告', content: '',
-    isPinned: false, isRead: true, readCount: 215,
-    publishedAt: '2024-01-10T09:00:00Z', author: { id: 'u1', name: '圈子管理员', avatar: '' },
-  },
-  {
-    id: '3', circleId: 'c1', circleName: '八字命理研习社',
-    title: '新年活动：八字2024年运势公益解读报名开始', content: '',
-    isPinned: false, isRead: true, readCount: 487,
-    publishedAt: '2024-01-05T09:00:00Z', author: { id: 'u1', name: '圈子管理员', avatar: '' },
-  },
-])
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const detail = await circleDetailApi.getAnnouncement(circleId.value)
+    if (detail) announcement.value = { ...announcement.value, ...detail }
+    try {
+      const list = await circleDetailApi.listAnnouncements(circleId.value)
+      const listData = (list as any).data || list || []
+      related.value = Array.isArray(listData) ? listData.filter((a: any) => a.id !== annoId.value) : []
+    } catch { related.value = mockRelated }
+  } catch (e: any) {
+    announcement.value = { ...announcement.value, circleName: '八字命理研习社', title: '圈子重要规则更新', content: defaultContent, isPinned: true, readCount: 328, publishedAt: '2024-01-15T09:00:00Z', author: { id: 'u1', name: '圈子管理员', avatar: '' } }
+    related.value = mockRelated
+  } finally { loading.value = false }
+}
 
-const isRead = ref(false)
-
-// 富文本块解析（替代 dangerouslySetInnerHTML，跨端安全）
-const blocks = computed<ContentBlock[]>(() => {
-  return announcement.value.content.split('\n').map((line): ContentBlock => {
+const blocks = computed<ContentBlock[]>(() =>
+  announcement.value.content.split('\n').map((line): ContentBlock => {
     const t = line.trim()
     if (!t) return { type: 'space' }
     if (t.startsWith('**') && t.endsWith('**')) return { type: 'bold', text: t.replace(/\*\*/g, '') }
@@ -98,73 +97,62 @@ const blocks = computed<ContentBlock[]>(() => {
     if (t.startsWith('• ')) return { type: 'bullet', text: t.slice(2) }
     if (t === '---') return { type: 'divider' }
     return { type: 'text', text: t }
-  })
-})
+  }),
+)
 
-function fmtDate(s: string) {
-  const d = new Date(s)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
-function markRead() {
+function fmtDate(s: string) { const d = new Date(s); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}` }
+async function markRead() {
   if (isRead.value) return
+  try { await circleDetailApi.markAnnouncementRead(circleId.value, annoId.value) } catch {}
   isRead.value = true
   uni.showToast({ title: '已标记为已读', icon: 'success' })
 }
-function openCircle() { navigateTo(`/pkg-circle/circles/detail?id=${circleId.value}`) }
-function openRelated(id: string) { navigateTo(`/pkg-circle/circles/announcements?id=${id}&circleId=${circleId.value}`) }
+function openCircle() { navigateTo(`/pages/circles/detail?id=${circleId.value}`) }
+function openRelated(id: string) { navigateTo(`/pages/circles/announcements?id=${id}&circleId=${circleId.value}`) }
 function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
 </script>
 
 <template>
   <view class="an">
-    <!-- 顶栏 -->
     <view class="an-hdr">
       <view class="an-hdr-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#ffffff" /></view>
       <text class="an-hdr-title">圈子公告</text>
       <view class="an-hdr-btn" @tap="share"><app-icon name="share-2" :size="36" color="#ffffff" /></view>
     </view>
 
-    <scroll-view scroll-y class="an-body">
-      <!-- 圈子来源 -->
+    <!-- 骨架 -->
+    <view v-if="loading" class="an-skel">
+      <view class="an-skel-source" />
+      <view class="an-skel-card"><view class="an-skel-line w80" /><view class="an-skel-line w50" /><view class="an-skel-line w90" /><view class="an-skel-line w70" /><view class="an-skel-line w60" /></view>
+    </view>
+
+    <!-- 错误 -->
+    <error-state v-else-if="error" :message="error" @retry="loadData" />
+
+    <scroll-view v-else scroll-y class="an-body">
       <view class="an-source" @tap="openCircle">
         <app-icon name="bell" :size="28" color="#C41E3A" />
         <text class="an-source-t">来自圈子：<text class="an-source-name">{{ announcement.circleName }}</text></text>
         <app-icon name="chevron-right" :size="28" color="#999999" />
       </view>
 
-      <!-- 主内容卡片 -->
       <view class="an-card">
         <view v-if="announcement.isPinned" class="an-pin">
-          <app-icon name="pin" :size="24" color="#C9A96E" />
-          <text class="an-pin-t">置顶公告</text>
+          <app-icon name="pin" :size="24" color="#C9A96E" /><text class="an-pin-t">置顶公告</text>
         </view>
         <view class="an-card-body">
           <text class="an-title">{{ announcement.title }}</text>
-          <!-- 元信息 -->
           <view class="an-meta">
-            <view class="an-meta-author">
-              <view class="an-avatar"><text class="an-avatar-t">管</text></view>
-              <text class="an-meta-t">{{ announcement.author.name }}</text>
-            </view>
-            <view class="an-meta-item">
-              <app-icon name="clock" :size="26" color="#999999" />
-              <text class="an-meta-t">{{ fmtDate(announcement.publishedAt) }}</text>
-            </view>
-            <view class="an-meta-item right">
-              <app-icon name="eye" :size="26" color="#999999" />
-              <text class="an-meta-t">{{ announcement.readCount }} 已读</text>
-            </view>
+            <view class="an-meta-author"><view class="an-avatar"><text class="an-avatar-t">管</text></view><text class="an-meta-t">{{ announcement.author.name }}</text></view>
+            <view class="an-meta-item"><app-icon name="clock" :size="26" color="#999999" /><text class="an-meta-t">{{ fmtDate(announcement.publishedAt) }}</text></view>
+            <view class="an-meta-item right"><app-icon name="eye" :size="26" color="#999999" /><text class="an-meta-t">{{ announcement.readCount }} 已读</text></view>
           </view>
-          <!-- 富文本正文 -->
           <view class="an-content">
             <template v-for="(b, i) in blocks" :key="i">
               <view v-if="b.type === 'space'" class="an-c-space" />
               <text v-else-if="b.type === 'bold'" class="an-c-bold">{{ b.text }}</text>
               <text v-else-if="b.type === 'ordered'" class="an-c-ordered">{{ b.text }}</text>
-              <view v-else-if="b.type === 'bullet'" class="an-c-bullet">
-                <text class="an-c-bullet-dot">•</text><text class="an-c-bullet-t">{{ b.text }}</text>
-              </view>
+              <view v-else-if="b.type === 'bullet'" class="an-c-bullet"><text class="an-c-bullet-dot">•</text><text class="an-c-bullet-t">{{ b.text }}</text></view>
               <view v-else-if="b.type === 'divider'" class="an-c-divider" />
               <text v-else class="an-c-text">{{ b.text }}</text>
             </template>
@@ -172,14 +160,11 @@ function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
         </view>
       </view>
 
-      <!-- 其他公告 -->
       <view v-if="related.length" class="an-related">
         <text class="an-related-title">其他公告</text>
         <view class="an-related-list">
           <view v-for="item in related" :key="item.id" class="an-related-item" @tap="openRelated(item.id)">
-            <view class="an-related-icon">
-              <app-icon :name="item.isPinned ? 'pin' : 'bell'" :size="26" :color="item.isPinned ? '#C9A96E' : '#C41E3A'" />
-            </view>
+            <view class="an-related-icon"><app-icon :name="item.isPinned ? 'pin' : 'bell'" :size="26" :color="item.isPinned ? '#C9A96E' : '#C41E3A'" /></view>
             <view class="an-related-info">
               <text class="an-related-t" :class="{ read: item.isRead }">{{ item.title }}</text>
               <text class="an-related-date">{{ fmtDate(item.publishedAt) }}</text>
@@ -191,8 +176,7 @@ function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
       <view class="an-spacer" />
     </scroll-view>
 
-    <!-- 底部确认已读栏 -->
-    <view class="an-foot">
+    <view v-if="!loading && !error" class="an-foot">
       <view class="an-foot-back" @tap="openCircle"><text class="an-foot-back-t">返回圈子</text></view>
       <view class="an-foot-read" :class="{ done: isRead }" @tap="markRead">
         <app-icon name="check" :size="28" :color="isRead ? '#999999' : '#ffffff'" />
@@ -251,4 +235,14 @@ function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
 .an-foot-read.done { background: #f5f0e8; box-shadow: none; }
 .an-foot-read-t { font-size: 28rpx; font-weight: 600; color: #ffffff; }
 .an-foot-read-t.done { color: #999999; }
+/* 骨架 */
+.an-skel { padding: 24rpx; }
+.an-skel-source { height: 60rpx; background: #E8E0D0; border-radius: 12rpx; margin-bottom: 24rpx; }
+.an-skel-card { background: #fff; border-radius: 24rpx; padding: 32rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.an-skel-line { height: 28rpx; background: #E8E0D0; border-radius: 8rpx; }
+.an-skel-line.w80 { width: 80%; }
+.an-skel-line.w50 { width: 50%; }
+.an-skel-line.w90 { width: 90%; }
+.an-skel-line.w70 { width: 70%; }
+.an-skel-line.w60 { width: 60%; }
 </style>

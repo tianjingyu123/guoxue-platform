@@ -8,6 +8,8 @@
       </view>
     </view>
 
+    <error-state v-else-if="error" :message="error" @retry="loadData" />
+
     <template v-else>
       <!-- 封面 -->
       <view class="pv-cover">
@@ -151,6 +153,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
 
 const mockPreview = {
@@ -180,6 +183,7 @@ const benefits = [
 ]
 
 const isLoading = ref(true)
+const error = ref('')
 const showJoinModal = ref(false)
 const showLockTip = ref<string | null>(null)
 const approvalSubmitted = ref(false)
@@ -203,7 +207,19 @@ function handleJoin() {
   else toastComingSoon()
 }
 
-onMounted(() => { setTimeout(() => { isLoading.value = false }, 400) })
+onMounted(() => { loadData() })
+
+async function loadData() {
+  isLoading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 400))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    isLoading.value = false
+  }
+}
 </script>
 
 <style scoped lang="scss">

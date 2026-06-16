@@ -4,12 +4,31 @@
  * 统计栏 + 待审核/已处理双Tab + 圈主审核说明 + 卡片(退款核算/驳回原因/流转说明) + 同意/拒绝 + 拒绝弹窗
  * 数据/退款计算复用 lib/circle-exit.ts
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
 import { mockExitRequests, getExitStageDisplay, type ExitApplication } from '@/lib/circle-exit'
 
-const requests = ref<ExitApplication[]>(mockExitRequests)
+const MOCK_DATA = mockExitRequests
+const loading = ref(true)
+const error = ref('')
+const requests = ref<ExitApplication[]>([])
+
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 800))
+    requests.value = MOCK_DATA
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 const filter = ref<'pending' | 'processed'>('pending')
 const rejectingId = ref<string | null>(null)
 const rejectReason = ref('')
@@ -79,8 +98,25 @@ function confirmReject() {
       <text class="er-note-text">请核对成员身份与圈内行为记录后审核。同意后将进入平台审核与退款处理；退款金额由系统按使用天数自动核算。</text>
     </view>
 
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="er-skeleton">
+      <view v-for="i in 3" :key="i" class="er-sk-card">
+        <view class="er-sk-row">
+          <view class="er-sk-avatar sk-anim" />
+          <view class="er-sk-lines">
+            <view class="er-sk-line er-sk-line--short sk-anim" />
+            <view class="er-sk-line er-sk-line--mid sk-anim" />
+          </view>
+        </view>
+        <view class="er-sk-line er-sk-line--long sk-anim" style="margin-top:18rpx;" />
+        <view class="er-sk-line er-sk-line--mid sk-anim" style="margin-top:14rpx;" />
+      </view>
+    </view>
+
+    <error-state v-else-if="error" :message="error" @retry="loadData" />
+
     <!-- 空态 -->
-    <view v-if="display.length === 0" class="er-empty">
+    <view v-else-if="display.length === 0" class="er-empty">
       <view class="er-empty-icon"><app-icon name="log-out" :size="56" color="#CCCCCC" /></view>
       <text class="er-empty-text">{{ filter === 'pending' ? '暂无待审核申请' : '暂无已处理记录' }}</text>
     </view>
@@ -202,4 +238,17 @@ function confirmReject() {
 .er-modal-btns { display: flex; gap: 20rpx; margin-top: 28rpx; }
 .er-modal-cancel { flex: 1; padding: 20rpx 0; text-align: center; border: 1rpx solid #E8E3DB; border-radius: 14rpx; color: #666666; font-size: 28rpx; }
 .er-modal-ok { flex: 1; padding: 20rpx 0; text-align: center; background: #C41E3A; color: #fff; border-radius: 14rpx; font-size: 28rpx; }
+
+/* 骨架屏 */
+.er-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.er-sk-card { background: #fff; border-radius: 20rpx; padding: 24rpx; }
+.er-sk-row { display: flex; gap: 18rpx; }
+.er-sk-avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; flex-shrink: 0; }
+.er-sk-lines { flex: 1; display: flex; flex-direction: column; gap: 14rpx; padding-top: 8rpx; }
+.er-sk-line { height: 26rpx; border-radius: 8rpx; }
+.er-sk-line--short { width: 40%; }
+.er-sk-line--mid { width: 60%; }
+.er-sk-line--long { width: 100%; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

@@ -3,11 +3,12 @@
  * 圈子智能体（从原型 app/circles/bots/page.tsx 高保真迁移）
  * 红色渐变头(圈子信息摘要) + 搜索/排序 + 管理员创建入口 + Bot 两列网格卡片。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import { circleSummary, queryBots, formatUsageCount, type SortBy, type CircleBotItem } from '@/lib/circle-bots-data'
+import ErrorState from '@/components/common/error-state.vue'
 
 const circleId = ref(1)
 const circle = circleSummary
@@ -23,11 +24,28 @@ const sortOptions: { value: SortBy; label: string }[] = [
 
 const bots = computed<CircleBotItem[]>(() => queryBots(keyword.value, sortBy.value))
 
+const loading = ref(true)
+const error = ref('')
+
 onLoad((q) => { if (q?.circleId) circleId.value = Number(q.circleId) || 1 })
+
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 function doSearch() { keyword.value = inputVal.value }
 function openBot(bot: CircleBotItem) {
-  navigateTo(`/pkg-agent/bots/chat?id=${bot.id}&from=circle&circleId=${circleId.value}`)
+  toastComingSoon()
 }
 </script>
 
@@ -60,6 +78,11 @@ function openBot(bot: CircleBotItem) {
     </view>
 
     <scroll-view scroll-y class="cb-body">
+      <view v-if="loading" class="bt-skeleton">
+        <view v-for="i in 3" :key="i" class="bt-sk-row"><view class="bt-sk-block sk-anim" /></view>
+      </view>
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <template v-else>
       <!-- 搜索 + 排序 -->
       <view class="cb-filter">
         <view class="cb-search-row">
@@ -121,6 +144,7 @@ function openBot(bot: CircleBotItem) {
           </view>
         </view>
       </view>
+      </template>
     </scroll-view>
   </view>
 </template>
@@ -189,4 +213,9 @@ function openBot(bot: CircleBotItem) {
 .cb-card-creator { display: flex; align-items: center; gap: 10rpx; padding: 14rpx 20rpx; background: #FAF8F5; }
 .cb-card-creator-avatar { width: 36rpx; height: 36rpx; border-radius: 999rpx; flex-shrink: 0; background: #f0ebe3; }
 .cb-card-creator-name { font-size: 20rpx; color: #999; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bt-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.bt-sk-row { display: flex; gap: 16rpx; }
+.bt-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

@@ -25,7 +25,12 @@
           <text class="card-title">选择换货商品</text>
           <text v-if="errors.product" class="err">{{ errors.product }}</text>
         </view>
-        <view class="prod-list">
+        <view v-if="!products.length" class="prod-empty">
+          <view class="prod-empty-icon"><app-icon name="package" :size="80" color="#CCCCCC" /></view>
+          <text class="prod-empty-text">暂无可换货商品</text>
+          <view class="prod-empty-btn" @tap="goBack"><text class="prod-empty-btn-text">返回</text></view>
+        </view>
+        <view v-else class="prod-list">
           <view
             v-for="p in products"
             :key="p.id"
@@ -845,4 +850,11 @@ async function handleSubmit() {
 .sk-card { background: #fff; border-radius: 24rpx; padding: 28rpx; display: flex; flex-direction: column; gap: 16rpx; }
 .sk-line { height: 24rpx; background: #f0ece4; border-radius: 8rpx; }
 .sk-short { width: 60%; }
+
+/* 空态 */
+.prod-empty { display: flex; flex-direction: column; align-items: center; padding: 128rpx 0; }
+.prod-empty-icon { width: 160rpx; height: 160rpx; border-radius: 50%; background: #F5F5F5; display: flex; align-items: center; justify-content: center; margin-bottom: 32rpx; }
+.prod-empty-text { font-size: 28rpx; color: #CCCCCC; margin-bottom: 32rpx; }
+.prod-empty-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.prod-empty-btn-text { font-size: 28rpx; color: #fff; }
 </style>

@@ -1,6 +1,7 @@
 /**
  * 帖子详情页数据（从原型 app/circles/[id]/posts/[postId]/page.tsx 1:1 迁移）
  */
+import { apiGet, apiPost, useMock } from '@/utils/request'
 
 export interface PostAuthor {
   id: string
@@ -225,3 +226,42 @@ export function parseMarkdown(content: string): MdBlock[] {
 
 export const REWARD_QUICK = [5, 10, 20, 50]
 export const REWARD_ALL = [5, 10, 20, 50, 100, 200, 500, 1000]
+
+// ============================================
+// API 层：useMock 开关控制真实/模拟数据切换
+// ============================================
+
+export const postDetailApi = {
+  /** 帖��详情 */
+  async get(postId: string) {
+    if (useMock()) return postDetail
+    try {
+      const data = await apiGet<any>(`/circles/posts/${postId}`)
+      return data as PostDetail
+    } catch { return postDetail }
+  },
+
+  /** 评论列表 */
+  async comments(postId: string, page = 1) {
+    if (useMock()) return comments
+    try {
+      const data = await apiGet<any[]>(`/circles/posts/${postId}/comments?page=${page}`)
+      return data as Comment[]
+    } catch { return comments }
+  },
+
+  /** 发布评论 */
+  async addComment(postId: string, content: string, parentId?: string) {
+    if (useMock()) return { id: Date.now(), content }
+    try {
+      return await apiPost<any>(`/circles/posts/${postId}/comments`, { content, parentId })
+    } catch (err) { throw err }
+  },
+
+  /** 点赞帖子 */
+  async like(postId: string) {
+    if (useMock()) return { liked: true }
+    try { return await apiPost<any>(`/circles/posts/${postId}/like`) }
+    catch (err) { throw err }
+  },
+}

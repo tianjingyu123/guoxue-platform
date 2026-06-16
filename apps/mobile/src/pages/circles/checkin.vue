@@ -18,6 +18,11 @@
       </view>
     </view>
 
+    <view v-if="loading" class="ck-skeleton">
+      <view v-for="i in 3" :key="i" class="ck-sk-row"><view class="ck-sk-block sk-anim" /></view>
+    </view>
+    <error-state v-else-if="error" :message="error" @retry="loadData" />
+    <template v-else>
     <!-- 进度条 -->
     <view class="ck-progress-bar">
       <view class="ck-pb-head">
@@ -139,6 +144,7 @@
       </view>
     </view>
 
+    </template>
     <!-- 底部打卡按钮 -->
     <view class="ck-footer">
       <view v-if="activity.hasCheckedToday" class="ck-done-bar"><app-icon name="check-circle" :size="36" color="#52C41A" /><text class="ck-done-t">今日已打卡</text></view>
@@ -189,18 +195,23 @@
  * 活动打卡页（从原型 app/circles/[id]/checkin/[activityId]/page.tsx 高保真迁移）
  * 封面+进度+统计+打卡日历+四Tab(今日内容/动态/排行/记录)+打卡弹窗+成功弹窗
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
+import ErrorState from '@/components/common/error-state.vue'
 
-const activity = ref({
+const MOCK_ACTIVITY = {
   id: '1', title: '《滴天髓》共读打卡', description: '每日阅读一章，记录心得体会，坚持21天养成阅读习惯',
   cover: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800',
   startDate: '2024-01-01', endDate: '2024-01-21', currentDay: 15, totalDays: 21,
   participants: 328, todayCheckedIn: 186, reward: { xp: 10, badge: '阅读达人' },
   isJoined: true, hasCheckedToday: false, myStreak: 12, myTotalDays: 12,
   rules: ['每日阅读指定章节', '打卡需写下心得（至少50字）', '可配图分享精彩段落', '截止时间为每日23:59'],
-})
+}
+
+const loading = ref(true)
+const error = ref('')
+const activity = ref(MOCK_ACTIVITY)
 
 const todayContent = {
   chapter: '第十五章：论日主强弱',
@@ -240,6 +251,20 @@ const showCheckinModal = ref(false)
 const checkinContent = ref('')
 const isSubmitting = ref(false)
 const showSuccess = ref(false)
+
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 const calendarDays = computed(() => {
   const days: { day: number; isCompleted: boolean; isToday: boolean; isFuture: boolean }[] = []
@@ -407,4 +432,9 @@ async function handleCheckin() {
 .ck-success-sub { display: block; color: #666; margin-bottom: 32rpx; }
 .ck-success-reward { display: inline-flex; align-items: center; gap: 8rpx; padding: 12rpx 24rpx; background: #FFF8E7; border-radius: 999rpx; margin-bottom: 48rpx; } .ck-sr-t { font-size: 26rpx; color: #C9A96E; }
 .ck-success-btn { padding: 24rpx; background: linear-gradient(to right, #C41E3A, #E74C3C); color: #fff; font-weight: 500; border-radius: 999rpx; }
+.ck-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.ck-sk-row { display: flex; gap: 16rpx; }
+.ck-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

@@ -9,8 +9,9 @@
 import { ref, computed, onMounted } from 'vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppError from '@/components/common/app-error.vue'
 import CircleCard from '@/components/circle/circle-card.vue'
-import { navigateTo } from '@/utils/router'
+import { navigateTo, toastComingSoon } from '@/utils/router'
 import {
   circleApi, circleCategories, formatMembers,
   fetchUpcomingLives, fetchTodayActivities, fetchHotPosts,
@@ -25,9 +26,17 @@ const myCircles = ref<Circle[]>([])
 const ranking = ref<Circle[]>([])
 const lives = ref<UpcomingLive[]>([])
 const activities = ref<TodayActivity[]>([])
-const hotPostsDataData = ref<HotPost[]>([])
+const hotPostsData = ref<HotPost[]>([])
 const loading = ref(true)
+const error = ref('')
 const activeTab = ref<Tab>('discover')
+const myCircleTab = ref<'joined' | 'created'>('joined')
+const hotExpanded = ref(false)
+
+const filteredMyCircles = computed(() =>
+  myCircleTab.value === 'joined' ? myCircles.value : myCircles.value.filter(c => c.isOwner),
+)
+const displayedRanking = computed(() => hotExpanded.value ? ranking.value : ranking.value.slice(0, 5))
 
 const mainTabs: { id: Tab; label: string }[] = [
   { id: 'discover', label: '发现' },
@@ -37,6 +46,7 @@ const mainTabs: { id: Tab; label: string }[] = [
 
 async function loadData() {
   loading.value = true
+  error.value = ''
   try {
     const [listRes, myRes, rankRes, liveRes, actRes, postRes] = await Promise.allSettled([
       circleApi.list({ category: category.value }),
@@ -51,7 +61,9 @@ async function loadData() {
     ranking.value = rankRes.status === 'fulfilled' ? rankRes.value : []
     lives.value = liveRes.status === 'fulfilled' ? liveRes.value : []
     activities.value = actRes.status === 'fulfilled' ? actRes.value : []
-    hotPostsDataData.value = postRes.status === 'fulfilled' ? postRes.value : []
+    hotPostsData.value = postRes.status === 'fulfilled' ? postRes.value : []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
   } finally {
     loading.value = false
   }
@@ -63,15 +75,27 @@ function selectCategory(id: string) {
   loadData()
 }
 
+const joiningIds = ref<Set<string>>(new Set())
+
 async function handleJoin(id: string) {
-  // 乐观更新
+  if (joiningIds.value.has(id)) return
   const idx = circles.value.findIndex(c => c.id === id)
   if (idx < 0) return
-  circles.value[idx] = { ...circles.value[idx], isJoined: true, members: circles.value[idx].members + 1 }
+  const c = circles.value[idx]
+  if (c.isPaid || c.type === 'PAID' || c.type === 'YEARLY') {
+    navigateTo(`/pages/circles/detail?id=${id}`)
+    return
+  }
+  joiningIds.value = new Set([...joiningIds.value, id])
+  circles.value[idx] = { ...c, isJoined: true, members: c.members + 1 }
   try {
     await circleApi.join(id)
   } catch {
-    circles.value[idx] = { ...circles.value[idx], isJoined: false, members: circles.value[idx].members - 1 }
+    circles.value[idx] = { ...c, isJoined: false, members: c.members }
+  } finally {
+    const next = new Set(joiningIds.value)
+    next.delete(id)
+    joiningIds.value = next
   }
 }
 
@@ -99,12 +123,12 @@ onMounted(loadData)
       <view class="topbar-head">
         <text class="title">圈子</text>
         <view class="actions">
-          <view class="icon-btn" @tap="go('/pkg-circle/circles/search')"><app-icon name="search" :size="36" color="#666666" /></view>
-          <view class="icon-btn" @tap="go('/pkg-circle/circles/calendar')"><app-icon name="calendar" :size="36" color="#666666" /></view>
-          <view class="create-btn" @tap="go('/pkg-circle/circles/create')">
-            <app-icon name="plus" :size="32" color="#ffffff" />
-            <text class="create-btn-text">创建</text>
+          <view class="icon-btn" @tap="go('/pages/circles/search')"><app-icon name="search" :size="36" color="#666666" /></view>
+          <view class="ai-search-btn" @tap="navigateTo('/pages/agent/chat')">
+            <app-icon name="zap" :size="32" color="#ffffff" />
+            <text class="ai-search-text">AI搜</text>
           </view>
+          <view class="icon-btn" @tap="go('/pages/circles/calendar')"><app-icon name="calendar" :size="36" color="#666666" /></view>
         </view>
       </view>
       <!-- 主Tab -->
@@ -119,7 +143,8 @@ onMounted(loadData)
       </view>
     </view>
 
-    <scroll-view scroll-y class="body">
+    <app-error v-if="error" :desc="error" @retry="loadData" />
+    <scroll-view v-else scroll-y class="body">
       <!-- ════ 发现 Tab ════ -->
       <template v-if="activeTab === 'discover'">
         <!-- 直播预告横幅 -->
@@ -144,6 +169,62 @@ onMounted(loadData)
           </view>
         </view>
 
+        <!-- 我的圈子（发现页顶部） -->
+        <view v-if="myCircles.length" class="section">
+          <view class="sec-head">
+            <view class="mycircle-tabs">
+              <view
+                class="mycircle-tab"
+                :class="{ on: myCircleTab === 'joined' }"
+                @tap="myCircleTab = 'joined'"
+              ><text class="mycircle-tab-text" :class="{ on: myCircleTab === 'joined' }">我加入的</text></view>
+              <view
+                class="mycircle-tab"
+                :class="{ on: myCircleTab === 'created' }"
+                @tap="myCircleTab = 'created'"
+              ><text class="mycircle-tab-text" :class="{ on: myCircleTab === 'created' }">我创建的</text></view>
+            </view>
+            <view class="sec-more" @tap="go('/pages/circles/mine')">
+              <text class="sec-more-text">全部</text>
+              <app-icon name="chevron-right" :size="28" color="#999999" />
+            </view>
+          </view>
+          <scroll-view scroll-x class="mycircle-scroll">
+            <view class="mycircle-row">
+              <view
+                v-for="c in filteredMyCircles" :key="c.id"
+                class="mycircle-card" @tap="go(`/pages/circles/detail?id=${c.id}`)"
+              >
+                <view class="mycircle-cover-wrap">
+                  <image :src="c.cover" class="mycircle-cover" mode="aspectFill" />
+                  <view v-if="c.unread && c.unread > 0" class="mycircle-badge">
+                    <text class="mycircle-badge-text">{{ c.unread > 99 ? '99+' : c.unread }}</text>
+                  </view>
+                </view>
+                <view class="mycircle-info">
+                  <text class="mycircle-name">{{ c.name }}</text>
+                  <text class="mycircle-meta">{{ formatMembers(c.members) }}成员</text>
+                  <text v-if="c.lastPost" class="mycircle-last">{{ c.lastPost }}</text>
+                </view>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <!-- 创建圈子推广卡片 -->
+        <view class="section">
+          <view class="create-promo" @tap="go('/pages/circles/create')">
+            <view class="create-promo-icon">
+              <app-icon name="plus" :size="40" color="#ffffff" />
+            </view>
+            <view class="create-promo-body">
+              <text class="create-promo-title">创建你的圈子</text>
+              <text class="create-promo-sub">打造专属国学交流社区，聚集志同道合的朋友</text>
+            </view>
+            <app-icon name="chevron-right" :size="32" color="#c41e3a" />
+          </view>
+        </view>
+
         <!-- 今日活动 -->
         <view class="section">
           <view class="sec-head">
@@ -151,7 +232,7 @@ onMounted(loadData)
               <app-icon name="zap" :size="32" color="#FF6B35" />
               <text class="sec-title-text">今日活动</text>
             </view>
-            <view class="sec-more" @tap="go('/pkg-circle/circles/activities')">
+            <view class="sec-more" @tap="go('/pages/circles/activities')">
               <text class="sec-more-text">全部</text>
               <app-icon name="chevron-right" :size="28" color="#999999" />
             </view>
@@ -160,7 +241,7 @@ onMounted(loadData)
             <view class="act-row">
               <view
                 v-for="act in activities" :key="act.id"
-                class="act-card" @tap="go(`/pkg-circle/circles/activity?id=${act.id}&circleId=${act.circleId}`)"
+                class="act-card" @tap="navigateTo(`/pages/circles/activities?activityId=${act.id}`)"
               >
                 <view class="act-top">
                   <app-icon :name="activityTypeIcon(act.type)" :size="28" :color="activityTypeColor(act.type)" />
@@ -192,23 +273,46 @@ onMounted(loadData)
           </scroll-view>
         </view>
 
-        <!-- 排行榜入口 -->
-        <view v-if="ranking.length" class="rank-entry" @tap="go('/pkg-circle/circles/ranking')">
-          <view class="rank-head">
-            <view class="rank-head-left">
-              <view class="rank-crown"><app-icon name="crown" :size="28" color="#ffffff" /></view>
-              <text class="rank-title">热门圈子排行</text>
+        <!-- 热门圈子排行 -->
+        <view v-if="ranking.length" class="section">
+          <view class="sec-head">
+            <view class="sec-title">
+              <app-icon name="flame" :size="32" color="#c41e3a" />
+              <text class="sec-title-text">热门圈子</text>
             </view>
-            <app-icon name="chevron-right" :size="28" color="#999999" />
+            <text class="hot-badge">精选优质社群</text>
           </view>
-          <scroll-view scroll-x class="rank-scroll">
-            <view class="rank-row">
-              <view v-for="(c, i) in ranking.slice(0, 5)" :key="c.id" class="rank-pill">
-                <view class="rank-no" :class="'rank-no-' + (i + 1)">{{ i + 1 }}</view>
-                <text class="rank-name">{{ c.name }}</text>
+          <view class="hot-grid">
+            <view
+              v-for="(c, i) in displayedRanking" :key="c.id"
+              class="hot-card" @tap="go(`/pages/circles/detail?id=${c.id}`)"
+            >
+              <image :src="c.cover" class="hot-cover" mode="aspectFill" />
+              <view v-if="i < 3" class="hot-rank-badge" :class="'hot-rank-' + (i + 1)">{{ i + 1 }}</view>
+              <view class="hot-body">
+                <view class="hot-head-row">
+                  <text class="hot-name">{{ c.name }}</text>
+                  <view v-if="c.tags && c.tags.length" class="hot-tags">
+                    <text v-for="t in c.tags" :key="t" class="hot-tag">{{ t }}</text>
+                  </view>
+                </view>
+                <text v-if="c.description" class="hot-desc">{{ c.description }}</text>
+                <view class="hot-footer">
+                  <text class="hot-members">{{ formatMembers(c.members) }}成员 · {{ c.posts || 0 }}帖</text>
+                  <text v-if="c.price" class="hot-price">¥{{ c.price }}</text>
+                  <text v-else class="hot-price free">免费</text>
+                </view>
               </view>
             </view>
-          </scroll-view>
+          </view>
+          <view v-if="ranking.length > 5" class="expand-btn" @tap="hotExpanded = !hotExpanded">
+            <text class="expand-btn-text">{{ hotExpanded ? '收起' : '查看更多热门圈子 (' + (ranking.length - 5) + ')' }}</text>
+            <app-icon :name="hotExpanded ? 'chevron-up' : 'chevron-down'" :size="24" color="#c41e3a" />
+          </view>
+          <view class="rank-footer-link" @tap="go('/pages/circles/ranking')">
+            <text class="rank-footer-text">查看完整排行</text>
+            <app-icon name="chevron-right" :size="24" color="#999999" />
+          </view>
         </view>
 
         <!-- 圈子网格 -->
@@ -239,10 +343,10 @@ onMounted(loadData)
         <view v-else class="feed">
           <view
             v-for="post in hotPostsData" :key="post.id"
-            class="post" @tap="go(`/pkg-circle/circles/post?id=${post.id}&circleId=${post.circleId}`)"
+            class="post" @tap="go(`/pages/circles/post?id=${post.id}&circleId=${post.circleId}`)"
           >
             <view class="post-source">
-              <view class="post-source-left" @tap.stop="go(`/pkg-circle/circles/detail?id=${post.circleId}`)">
+              <view class="post-source-left" @tap.stop="go(`/pages/circles/detail?id=${post.circleId}`)">
                 <text class="post-circle">#{{ post.circleName }}</text>
                 <text v-if="post.isPinned" class="post-pin">置顶</text>
               </view>
@@ -277,7 +381,7 @@ onMounted(loadData)
           <view class="mine-stats">
             <view class="mine-stats-head">
               <text class="mine-stats-title">我的圈子数据</text>
-              <view class="mine-stats-more" @tap="go('/pkg-circle/circles/stats')">
+              <view class="mine-stats-more" @tap="go('/pages/circles/stats')">
                 <text class="mine-stats-more-text">详情</text>
                 <app-icon name="chevron-right" :size="28" color="#ffffff" />
               </view>
@@ -291,7 +395,7 @@ onMounted(loadData)
           </view>
 
           <!-- 我加入的圈子 -->
-          <view class="mine-list-head" @tap="go('/pkg-circle/circles/mine')">
+          <view class="mine-list-head" @tap="go('/pages/circles/mine')">
             <text class="mine-list-title">我加入的圈子</text>
             <view class="mine-list-more">
               <text class="mine-list-count">{{ myCircles.length }}个</text>
@@ -306,7 +410,7 @@ onMounted(loadData)
           <view v-else class="mine-list">
             <view
               v-for="c in myCircles" :key="c.id"
-              class="mine-item" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
+              class="mine-item" @tap="go(`/pages/circles/detail?id=${c.id}`)"
             >
               <image :src="c.cover" class="mine-cover" mode="aspectFill" />
               <view class="mine-item-info">
@@ -494,4 +598,65 @@ onMounted(loadData)
 .create-btn { display: flex; align-items: center; gap: 6rpx; padding: 0 22rpx; height: 60rpx; border-radius: 999rpx; background: linear-gradient(135deg, #c41e3a, #a01530); box-shadow: 0 4rpx 12rpx rgba(196, 30, 58, 0.28); }
 .create-btn-text { font-size: 26rpx; color: #ffffff; font-weight: 600; }
 .create-btn:active { opacity: 0.85; }
+
+/* AI 搜索按钮 */
+.ai-search-btn { display: flex; align-items: center; gap: 4rpx; padding: 0 22rpx; height: 60rpx; border-radius: 999rpx; background: linear-gradient(135deg, #c41e3a, #a01530); }
+.ai-search-text { font-size: 24rpx; color: #ffffff; font-weight: 600; }
+
+/* 我的圈子横滚 */
+.mycircle-tabs { display: flex; align-items: center; gap: 4rpx; background: var(--line-soft, #f5f0e8); border-radius: 999rpx; padding: 4rpx; }
+.mycircle-tab { padding: 8rpx 20rpx; border-radius: 999rpx; }
+.mycircle-tab.on { background: #fff; box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08); }
+.mycircle-tab-text { font-size: 24rpx; font-weight: 500; color: var(--text-soft, #666); }
+.mycircle-tab-text.on { color: var(--text-ink, #2c2c2c); }
+.mycircle-scroll { width: 100%; white-space: nowrap; }
+.mycircle-row { display: inline-flex; gap: 16rpx; padding-bottom: 8rpx; }
+.mycircle-card { width: 260rpx; background: #fff; border-radius: 20rpx; overflow: hidden; box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06); white-space: normal; }
+.mycircle-card:active { transform: scale(0.98); }
+.mycircle-cover-wrap { position: relative; aspect-ratio: 4/3; overflow: hidden; }
+.mycircle-cover { width: 100%; height: 100%; }
+.mycircle-badge { position: absolute; top: 12rpx; right: 12rpx; min-width: 36rpx; height: 36rpx; padding: 0 8rpx; border-radius: 999rpx; background: #c41e3a; display: flex; align-items: center; justify-content: center; }
+.mycircle-badge-text { font-size: 18rpx; font-weight: 700; color: #fff; }
+.mycircle-info { padding: 16rpx; }
+.mycircle-name { display: block; font-size: 24rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); line-clamp: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mycircle-meta { display: block; font-size: 20rpx; color: var(--text-faint, #999); margin-top: 4rpx; }
+.mycircle-last { display: block; font-size: 20rpx; color: var(--text-soft, #666); margin-top: 8rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 创建圈子推广卡片 */
+.create-promo { display: flex; align-items: center; gap: 24rpx; background: #fff; border: 2rpx solid rgba(196, 30, 58, 0.2); border-radius: 24rpx; padding: 28rpx 24rpx; box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05); }
+.create-promo:active { transform: scale(0.98); }
+.create-promo-icon { width: 96rpx; height: 96rpx; border-radius: 20rpx; background: linear-gradient(135deg, #c41e3a, #e02d4a); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4rpx 12rpx rgba(196, 30, 58, 0.25); }
+.create-promo-body { flex: 1; min-width: 0; }
+.create-promo-title { display: block; font-size: 30rpx; font-weight: 700; color: #c41e3a; }
+.create-promo-sub { display: block; font-size: 24rpx; color: var(--text-soft, #666); margin-top: 6rpx; }
+
+/* 热门圈子网格 */
+.hot-badge { font-size: 22rpx; color: var(--text-faint, #999); background: var(--line-soft, #f5f0e8); padding: 4rpx 16rpx; border-radius: 999rpx; }
+.hot-grid { display: flex; flex-direction: column; gap: 16rpx; }
+.hot-card { position: relative; background: #fff; border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05); display: flex; }
+.hot-card:active { background: #faf8f5; }
+.hot-cover { width: 200rpx; height: 200rpx; flex-shrink: 0; }
+.hot-rank-badge { position: absolute; top: 12rpx; left: 12rpx; width: 40rpx; height: 40rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22rpx; font-weight: 700; color: #fff; background: rgba(0, 0, 0, 0.4); }
+.hot-rank-1 { background: linear-gradient(135deg, #facc15, #f97316); }
+.hot-rank-2 { background: linear-gradient(135deg, #d1d5db, #9ca3af); }
+.hot-rank-3 { background: linear-gradient(135deg, #fdba74, #fb923c); }
+.hot-body { flex: 1; padding: 20rpx 24rpx; display: flex; flex-direction: column; gap: 8rpx; min-width: 0; }
+.hot-head-row { display: flex; align-items: center; gap: 12rpx; flex-wrap: wrap; }
+.hot-name { font-size: 28rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); }
+.hot-tags { display: flex; gap: 8rpx; }
+.hot-tag { font-size: 18rpx; padding: 2rpx 10rpx; border-radius: 6rpx; background: rgba(196, 30, 58, 0.08); color: #c41e3a; }
+.hot-desc { font-size: 24rpx; color: var(--text-soft, #666); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.hot-footer { display: flex; align-items: center; gap: 16rpx; margin-top: auto; }
+.hot-members { font-size: 22rpx; color: var(--text-faint, #999); }
+.hot-price { font-size: 24rpx; font-weight: 600; color: #c41e3a; }
+.hot-price.free { color: #22c55e; }
+
+/* 展开/收起按钮 */
+.expand-btn { display: flex; align-items: center; justify-content: center; gap: 8rpx; margin-top: 16rpx; padding: 24rpx; background: #fff; border-radius: 20rpx; box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.05); }
+.expand-btn:active { background: #faf8f5; }
+.expand-btn-text { font-size: 26rpx; font-weight: 500; color: #c41e3a; }
+
+/* 排行页脚链接 */
+.rank-footer-link { display: flex; align-items: center; justify-content: center; gap: 4rpx; margin-top: 8rpx; padding: 16rpx; }
+.rank-footer-text { font-size: 24rpx; color: var(--text-faint, #999); }
 </style>

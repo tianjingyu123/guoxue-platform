@@ -3,6 +3,7 @@
  * href 保持原型路径风格，路由跳转时由 utils/router 统一处理（详见路由表）。
  * 未开发工具统一指向 coming-soon 占位页。
  */
+import { apiGet, useMock } from '@/utils/request'
 export interface Tool { id: string; name: string; iconId: string; href: string; badge?: boolean }
 export interface MedicalTool { id: string; name: string; iconId: string; href: string; badge?: boolean }
 export interface Agent { id: string; name: string; description: string; avatar: string; href: string }
@@ -89,4 +90,43 @@ export const AGENT_AVATAR_GRADIENT: Record<string, [string, string]> = {
   ziwei: ['#06b6d4', '#0284c7'],    // cyan-500 -> sky-600
   fengshui: ['#84cc16', '#16a34a'], // lime-500 -> green-600
   naming: ['#d946ef', '#9333ea'],   // fuchsia-500 -> purple-600
+}
+
+// ============================================
+// API 层：useMock 开关控制真实/模拟数据切换
+// ============================================
+
+export const toolsApi = {
+  /** 获取工具目录 */
+  async directory() {
+    if (useMock()) return { tools, medicalTools, agents }
+    try {
+      const data = await apiGet<any>('/tools/directory')
+      return {
+        tools: data.tools || tools,
+        medicalTools: data.medicalTools || medicalTools,
+        agents: data.agents || agents,
+      }
+    } catch { return { tools, medicalTools, agents } }
+  },
+
+  /** 获取工具列表（可按分类筛选） */
+  async list(category?: string) {
+    if (useMock()) {
+      return category ? tools.filter(t => t.id.includes(category)) : tools
+    }
+    try {
+      const qs = category ? `?category=${category}` : ''
+      const data = await apiGet<any[]>(`/tools${qs}`)
+      return data.map((t: any) => ({
+        id: t.id, name: t.name, iconId: t.iconId || t.icon, href: t.href || `/paipan/${t.id}`, badge: t.badge,
+      }))
+    } catch { return tools }
+  },
+
+  /** 获取工具详情 */
+  async detail(id: string) {
+    try { return await apiGet<any>(`/tools/${id}`) }
+    catch { return tools.find(t => t.id === id) }
+  },
 }

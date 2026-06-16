@@ -83,7 +83,7 @@ onMounted(async () => {
     renderItems.value = data.feed
     total.value = data.total
   } catch (e: any) {
-    error.value = e?.message || '加载失败'
+    error.value = '加载失败'
   } finally {
     loading.value = false
   }

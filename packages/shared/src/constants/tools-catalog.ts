@@ -1941,6 +1941,55 @@ export const ALL_TOOLS: ToolEntry[] = [
     status: "active",
     description: "玄空水法：零正催照神定位/二十四山/城门诀正副城门/三元九运地运/三阳五会/水法吉凶断",
   },
+
+{
+    id: "sanhe-shuifa",
+    name: "三合水法",
+    subtitle: "四大局·长生十二宫",
+    category: "fengshui",
+    icon: "compass",
+    route: "/tools/sanhe-shuifa",
+    visible: true,
+    sortOrder: 85,
+    inputSchema: {
+      type: "object",
+      properties: {
+        shanXiang: { type: "string", label: "坐山朝向", description: "如\"子山午向\"", required: false },
+        sitting: { type: "enum", label: "坐山", values: ["壬","子","癸","丑","艮","寅","甲","卯","乙","辰","巽","巳","丙","午","丁","未","坤","申","庚","酉","辛","戌","乾","亥"], required: false },
+        facing: { type: "enum", label: "朝向", values: ["壬","子","癸","丑","艮","寅","甲","卯","乙","辰","巽","巳","丙","午","丁","未","坤","申","庚","酉","辛","戌","乾","亥"], required: false },
+        shuiKou: { type: "enum", label: "水口", values: ["辛戌","乾亥","壬子","乙辰","巽巳","丙午","癸丑","艮寅","甲卯","丁未","坤申","庚酉"], required: false },
+        mode: { type: "enum", label: "模式", values: ["single","all"], required: false },
+      },
+      required: [],
+    },
+    requireAuth: false,
+    status: "active",
+    description: "三合四大水法：火水金木四局以水口定局，长生十二宫论来去水吉凶，生旺墓养四大吉向，48条向法评语含来水去水法则",
+  },
+
+{
+    id: "fuxing-shuifa",
+    name: "辅星水法",
+    subtitle: "翻卦九星·纳甲水法",
+    category: "fengshui",
+    icon: "compass",
+    route: "/tools/fuxing-shuifa",
+    visible: true,
+    sortOrder: 84,
+    inputSchema: {
+      type: "object",
+      properties: {
+        shanXiang: { type: "string", label: "坐山朝向", description: "如\"子山午向\"", required: false },
+        sitting: { type: "enum", label: "坐山", values: ["壬","子","癸","丑","艮","寅","甲","卯","乙","辰","巽","巳","丙","午","丁","未","坤","申","庚","酉","辛","戌","乾","亥"], required: false },
+        facing: { type: "enum", label: "朝向", values: ["壬","子","癸","丑","艮","寅","甲","卯","乙","辰","巽","巳","丙","午","丁","未","坤","申","庚","酉","辛","戌","乾","亥"], required: false },
+        mode: { type: "enum", label: "模式", values: ["single","all"], required: false },
+      },
+      required: [],
+    },
+    requireAuth: false,
+    status: "active",
+    description: "辅星水法：向上翻卦掌/九星纳甲布局/辅武破廉贪巨禄文八卦九星/吉凶水法来去判断/二十四山纳甲八卦体系",
+  },
 {
     id: "ershibaxiu",
     name: "二十八宿",
@@ -2182,6 +2231,29 @@ export const ALL_TOOLS: ToolEntry[] = [
     requireAuth: false,
     status: "active",
     description: "梅花外应预测：6大类(天时/地理/人事/物象/声音/文字)48条外应条目，含三要十应灵应之法，观外象断吉凶",
+  },
+
+{
+    id: "nayin-xiangjie",
+    name: "纳音详解",
+    subtitle: "六十甲子·三十纳音",
+    category: "bazi-ziwei",
+    icon: "music",
+    route: "/tools/nayin-xiangjie",
+    visible: true,
+    sortOrder: 110,
+    inputSchema: {
+      type: "object",
+      properties: {
+        ganZhi: { type: "string", label: "干支", description: "干支对，如甲子、丙寅", required: false },
+        mode: { type: "enum", label: "查询模式", values: ["single", "all"], required: false },
+        filterWx: { type: "enum", label: "五行筛选", values: ["金","木","水","火","土"], required: false },
+      },
+      required: [],
+    },
+    requireAuth: false,
+    status: "active",
+    description: "六十甲子纳音详解：30种纳音(海中金/炉中火/大林木/路旁土/剑锋金/山头火/涧下水/城头土/白蜡金/杨柳木/泉中水/屋上土/霹雳火/松柏木/流年水/砂中金/山下火/平地木/壁上土/金箔金/覆灯火/天河水/大驿土/钗钏金/桑柘木/大溪水/沙中土/天上火/石榴木/大海水)，含意象/生克/应用",
   },
 
 {

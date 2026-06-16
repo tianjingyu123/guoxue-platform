@@ -1,30 +1,44 @@
 <script setup lang="ts">
 /**
- * 专家列表（从原型 app/circles/[id]/consult/experts/page.tsx 高保真迁移）
- * 搜索 + 全部/在线筛选 + 专家卡片(头像在线点/认证/专长/评分/标签/电话图文价格/响应时间/双咨询按钮)。
+ * 专家列表 — 三态：加载骨架 → 错误重试 → 搜索筛选列表
+ * API: circleDetailApi.listExperts + 本地搜索/在线筛选
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
+import { circleDetailApi, type ExpertItem } from '@/lib/circle-detail-data'
 
-interface Expert {
-  id: string; name: string; avatar: string; specialty: string; tags: string[]
-  rating: number; reviewCount: number; callPrice: number; textPrice: number
-  responseTime: string; online: boolean; verified: boolean; answerCount: number
-}
-
-const experts: Expert[] = [
-  { id: '1', name: '周易大师', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80', specialty: '八字命理', tags: ['四柱', '流年', '大运'], rating: 4.9, reviewCount: 1256, callPrice: 3, textPrice: 50, responseTime: '5分钟内', online: true, verified: true, answerCount: 3860 },
-  { id: '2', name: '张玄风', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80', specialty: '紫微斗数', tags: ['命宫', '四化', '格局'], rating: 4.8, reviewCount: 980, callPrice: 3, textPrice: 30, responseTime: '10分钟内', online: true, verified: true, answerCount: 2540 },
-  { id: '3', name: '李玄机', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80', specialty: '易经占卜', tags: ['六十四卦', '梅花', '起卦'], rating: 4.7, reviewCount: 742, callPrice: 2, textPrice: 30, responseTime: '15分钟内', online: false, verified: true, answerCount: 1980 },
-  { id: '4', name: '王德华', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80', specialty: '风水堪舆', tags: ['阳宅', '阴宅', '布局'], rating: 4.8, reviewCount: 624, callPrice: 4, textPrice: 80, responseTime: '30分钟内', online: true, verified: true, answerCount: 1560 },
-  { id: '5', name: '林奇门', avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=80', specialty: '奇门遁甲', tags: ['起局', '决策', '事业'], rating: 4.6, reviewCount: 468, callPrice: 2, textPrice: 30, responseTime: '20分钟内', online: false, verified: false, answerCount: 1240 },
-]
+const loading = ref(true)
+const error = ref('')
+const experts = ref<ExpertItem[]>([])
+const circleId = ref('1')
 
 const search = ref('')
 const filter = ref<'all' | 'online'>('all')
 
-const filtered = computed(() => experts.filter(e => {
+onMounted(() => {
+  const pages = getCurrentPages()
+  const cur = pages[pages.length - 1]
+  const q = (cur as any).$page?.options || {}
+  if (q.circleId) circleId.value = q.circleId
+  loadData()
+})
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await circleDetailApi.listExperts(circleId.value)
+    experts.value = Array.isArray(res) ? res : (res as any).data || []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+const filtered = computed(() => experts.value.filter(e => {
   const matchOnline = filter.value === 'all' || e.online
   const s = search.value.trim()
   const matchSearch = !s || e.name.includes(s) || e.specialty.includes(s) || e.tags.some(t => t.includes(s))
@@ -51,48 +65,63 @@ const filtered = computed(() => experts.filter(e => {
         </view>
       </view>
 
-      <view class="ce-list">
-        <view v-for="e in filtered" :key="e.id" class="ce-card">
-          <view class="ce-card-top">
-            <view class="ce-avatar-wrap">
-              <image class="ce-avatar" :src="e.avatar" mode="aspectFill" />
-              <view v-if="e.online" class="ce-online-dot" />
-            </view>
-            <view class="ce-card-info">
-              <view class="ce-name-row">
-                <text class="ce-name">{{ e.name }}</text>
-                <app-icon v-if="e.verified" name="award" :size="26" color="#F59E0B" />
-                <view class="ce-status" :class="e.online ? 'is-online' : 'is-offline'"><text class="ce-status-t" :class="e.online ? 'is-online' : 'is-offline'">{{ e.online ? '在线' : '离线' }}</text></view>
-              </view>
-              <text class="ce-specialty">{{ e.specialty }}</text>
-              <view class="ce-rate-row">
-                <view class="ce-rate"><app-icon name="star" :size="22" color="#FBBF24" :fill="true" /><text class="ce-rate-t">{{ e.rating }}</text></view>
-                <text class="ce-rate-sub">{{ e.reviewCount }} 评价</text>
-                <text class="ce-rate-sub">{{ e.answerCount }} 次咨询</text>
-              </view>
-            </view>
-          </view>
-
-          <view class="ce-tags">
-            <view v-for="t in e.tags" :key="t" class="ce-tag"><text class="ce-tag-t">{{ t }}</text></view>
-          </view>
-
-          <view class="ce-price-row">
-            <view class="ce-prices">
-              <view class="ce-price"><app-icon name="phone" :size="22" color="#999999" /><text class="ce-price-t">电话 ¥{{ e.callPrice }}/分钟</text></view>
-              <view class="ce-price"><app-icon name="message-square" :size="22" color="#999999" /><text class="ce-price-t">图文 ¥{{ e.textPrice }}/次</text></view>
-            </view>
-            <view class="ce-resp"><app-icon name="clock" :size="22" color="#16A34A" /><text class="ce-resp-t">{{ e.responseTime }}响应</text></view>
-          </view>
-
-          <view class="ce-actions">
-            <view class="ce-btn-outline" @tap="toastComingSoon"><app-icon name="phone" :size="26" color="#2C2C2C" /><text class="ce-btn-outline-t">电话咨询</text></view>
-            <view class="ce-btn-primary" @tap="toastComingSoon"><app-icon name="message-square" :size="26" color="#ffffff" /><text class="ce-btn-primary-t">图文咨询</text></view>
-          </view>
+      <!-- 骨架 -->
+      <view v-if="loading" class="ce-skel">
+        <view v-for="i in 3" :key="i" class="ce-skel-card">
+          <view class="ce-skel-top"><view class="ce-skel-avatar" /><view class="ce-skel-lines"><view class="ce-skel-line w60" /><view class="ce-skel-line w40" /><view class="ce-skel-line w80" /></view></view>
+          <view class="ce-skel-tags"><view class="ce-skel-tag" /><view class="ce-skel-tag" /><view class="ce-skel-tag" /></view>
+          <view class="ce-skel-actions"><view class="ce-skel-btn" /><view class="ce-skel-btn" /></view>
         </view>
-
-        <view v-if="filtered.length === 0" class="ce-empty"><text class="ce-empty-t">暂无符合条件的专家</text></view>
       </view>
+
+      <!-- 错误 -->
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+
+      <!-- 列表 -->
+      <template v-else>
+        <view class="ce-list">
+          <view v-for="e in filtered" :key="e.id" class="ce-card">
+            <view class="ce-card-top">
+              <view class="ce-avatar-wrap">
+                <image class="ce-avatar" :src="e.avatar" mode="aspectFill" />
+                <view v-if="e.online" class="ce-online-dot" />
+              </view>
+              <view class="ce-card-info">
+                <view class="ce-name-row">
+                  <text class="ce-name">{{ e.name }}</text>
+                  <app-icon v-if="e.verified" name="award" :size="26" color="#F59E0B" />
+                  <view class="ce-status" :class="e.online ? 'is-online' : 'is-offline'"><text class="ce-status-t" :class="e.online ? 'is-online' : 'is-offline'">{{ e.online ? '在线' : '离线' }}</text></view>
+                </view>
+                <text class="ce-specialty">{{ e.specialty }}</text>
+                <view class="ce-rate-row">
+                  <view class="ce-rate"><app-icon name="star" :size="22" color="#FBBF24" :fill="true" /><text class="ce-rate-t">{{ e.rating }}</text></view>
+                  <text class="ce-rate-sub">{{ e.reviewCount }} 评价</text>
+                  <text class="ce-rate-sub">{{ e.answerCount }} 次咨询</text>
+                </view>
+              </view>
+            </view>
+
+            <view class="ce-tags">
+              <view v-for="t in e.tags" :key="t" class="ce-tag"><text class="ce-tag-t">{{ t }}</text></view>
+            </view>
+
+            <view class="ce-price-row">
+              <view class="ce-prices">
+                <view class="ce-price"><app-icon name="phone" :size="22" color="#999999" /><text class="ce-price-t">电话 ¥{{ e.callPrice }}/分钟</text></view>
+                <view class="ce-price"><app-icon name="message-square" :size="22" color="#999999" /><text class="ce-price-t">图文 ¥{{ e.textPrice }}/次</text></view>
+              </view>
+              <view class="ce-resp"><app-icon name="clock" :size="22" color="#16A34A" /><text class="ce-resp-t">{{ e.responseTime }}响应</text></view>
+            </view>
+
+            <view class="ce-actions">
+              <view class="ce-btn-outline" @tap="toastComingSoon"><app-icon name="phone" :size="26" color="#2C2C2C" /><text class="ce-btn-outline-t">电话咨询</text></view>
+              <view class="ce-btn-primary" @tap="toastComingSoon"><app-icon name="message-square" :size="26" color="#ffffff" /><text class="ce-btn-primary-t">图文咨询</text></view>
+            </view>
+          </view>
+
+          <view v-if="filtered.length === 0" class="ce-empty"><text class="ce-empty-t">暂无符合条件的专家</text></view>
+        </view>
+      </template>
     </view>
   </view>
 </template>
@@ -147,4 +176,18 @@ const filtered = computed(() => experts.filter(e => {
 .ce-btn-primary-t { font-size: 26rpx; color: #fff; }
 .ce-empty { padding: 120rpx 0; }
 .ce-empty-t { display: block; text-align: center; font-size: 26rpx; color: #999; }
+/* 骨架 */
+.ce-skel { display: flex; flex-direction: column; gap: 20rpx; }
+.ce-skel-card { padding: 24rpx; background: #fff; border: 1rpx solid #E8E0D0; border-radius: 20rpx; }
+.ce-skel-top { display: flex; gap: 16rpx; margin-bottom: 20rpx; }
+.ce-skel-avatar { width: 100rpx; height: 100rpx; border-radius: 50%; background: #E8E0D0; flex-shrink: 0; }
+.ce-skel-lines { flex: 1; display: flex; flex-direction: column; gap: 10rpx; padding-top: 8rpx; }
+.ce-skel-line { height: 24rpx; background: #E8E0D0; border-radius: 8rpx; }
+.ce-skel-line.w60 { width: 60%; }
+.ce-skel-line.w40 { width: 40%; }
+.ce-skel-line.w80 { width: 80%; }
+.ce-skel-tags { display: flex; gap: 10rpx; margin-bottom: 20rpx; }
+.ce-skel-tag { width: 100rpx; height: 36rpx; border-radius: 999rpx; background: #E8E0D0; }
+.ce-skel-actions { display: flex; gap: 16rpx; }
+.ce-skel-btn { flex: 1; height: 64rpx; border-radius: 12rpx; background: #E8E0D0; }
 </style>

@@ -1,4 +1,5 @@
 /** 八字结果页示例数据（从原型 result/page.tsx 1:1 迁移） */
+import { apiGet, apiPost, useMock } from '@/utils/request'
 export const baziData = {
   name: '未知', gender: '男', zodiac: '猪', qianKun: '乾造', birthYear: 1983,
   solarDate: '1983年6月18日 14时31分', lunarDate: '五月初八',
@@ -79,5 +80,39 @@ export const classicsContent: Record<string, { title: string; original: string; 
     title: '五月提要（午月）',
     original: '午月丁火建禄，火势炎上。宜壬水高透以制火，庚金佐之发水源。甲木不可少，引丁成文明之象。午月火旺土燥，金水为调候急需。若壬甲两透，定主科甲。壬透甲藏，亦可功名。无壬用癸，格局稍次。',
     translation: '午月丁火正当建禄之时，火势极为旺盛向上。适宜壬水在天干高透来制约火势，庚金辅助壬水以发其源头。甲木不可缺少，引导丁火成为文明之象。午月火旺土燥，金水是调候的急切需要。如果壬水和甲木都透出天干，必定主科举功名。壬水透出而甲木暗藏在地支，也可以取得功名。没有壬水而用癸水代替，格局稍差一些。',
+  },
+}
+
+// ============================================
+// API 层：useMock 开关控制真实/模拟数据切换
+// ============================================
+
+export const baziApi = {
+  /** 排盘计算（八字/紫微/奇门等） */
+  async calculate(toolId: string, params: Record<string, any>) {
+    if (useMock()) return baziData
+    try {
+      const data = await apiPost<any>(`/tools/${toolId}/calculate`, params)
+      return data.result || data
+    } catch { return baziData }
+  },
+
+  /** 获取古籍参考 */
+  async getClassics(toolId: string) {
+    if (useMock()) return { list: classics, content: classicsContent }
+    try {
+      const data = await apiGet<any>(`/tools/${toolId}/classics`)
+      return { list: data.list || classics, content: data.content || classicsContent }
+    } catch { return { list: classics, content: classicsContent } }
+  },
+
+  /** 获取排盘历史 */
+  async history(toolId?: string) {
+    if (useMock()) return [baziData]
+    try {
+      const qs = toolId ? `?toolId=${toolId}` : ''
+      const data = await apiGet<any[]>(`/paipan/history${qs}`)
+      return data.length ? data : [baziData]
+    } catch { return [baziData] }
   },
 }

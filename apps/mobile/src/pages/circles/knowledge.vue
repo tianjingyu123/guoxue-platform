@@ -4,8 +4,10 @@
  * 顶栏+搜索 + 已入库/待确认双Tab + 知识卡片(展开详情/标签/来源) + 圈主确认入库/忽略操作
  */
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import ErrorState from '@/components/common/error-state.vue'
 
 interface KnowledgeItem {
   id: string
@@ -20,12 +22,36 @@ interface KnowledgeItem {
 
 const SOURCE_LABEL: Record<string, string> = { post: '帖子', article: '文章', manual: '手动' }
 
+const circleId = ref('1')
+const currentUserId = '1' // mock 当前用户 ID
 const activeTab = ref<'confirmed' | 'pending'>('confirmed')
 const keyword = ref('')
-const isOwner = ref(true)
+const isOwner = ref(false)
 const expandedId = ref<string | null>(null)
+const loading = ref(true)
+const error = ref('')
 
-const allItems = ref<KnowledgeItem[]>([
+onLoad((q) => {
+  if (q?.id) circleId.value = q.id
+  loadData()
+})
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+    allItems.value = MOCK_KNOWLEDGE_ITEMS
+    // mock: circleId='1' 的圈子属于 currentUserId='1'
+    isOwner.value = circleId.value === '1'
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+const MOCK_KNOWLEDGE_ITEMS: KnowledgeItem[] = [
   {
     id: '1',
     title: '八字命理中的天干地支基础知识',
@@ -66,7 +92,9 @@ const allItems = ref<KnowledgeItem[]>([
     tags: ['六爻', '起卦'],
     createdAt: '2024-01-16T11:00:00Z',
   },
-])
+]
+
+const allItems = ref<KnowledgeItem[]>([])
 
 const filteredItems = computed(() =>
   allItems.value.filter(
@@ -129,6 +157,11 @@ function ignoreItem(id: string) {
 
     <!-- 内容区 -->
     <scroll-view scroll-y class="kb-body">
+      <view v-if="loading" class="kn-skeleton">
+        <view v-for="i in 3" :key="i" class="kn-sk-row"><view class="kn-sk-block sk-anim" /></view>
+      </view>
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <template v-else>
       <view v-if="filteredItems.length === 0" class="kb-empty">
         <view class="kb-empty-icon"><app-icon name="book-open" :size="48" color="#C9A96E" /></view>
         <text class="kb-empty-t">{{ activeTab === 'confirmed' ? '暂无知识内容' : '暂无待确认内容' }}</text>
@@ -186,6 +219,7 @@ function ignoreItem(id: string) {
         </view>
       </view>
       <view class="kb-spacer" />
+      </template>
     </scroll-view>
   </view>
 </template>
@@ -237,4 +271,9 @@ function ignoreItem(id: string) {
 .kb-empty-icon { width: 128rpx; height: 128rpx; border-radius: 999rpx; background: #faf8f5; display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
 .kb-empty-t { font-size: 26rpx; color: #999999; }
 .kb-spacer { height: 40rpx; }
+.kn-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.kn-sk-row { display: flex; gap: 16rpx; }
+.kn-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

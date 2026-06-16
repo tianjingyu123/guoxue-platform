@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import AppNavBar from '@/components/common/app-nav-bar.vue'
 
 // 预置标签库
 const tagCategories = [
@@ -111,15 +111,15 @@ function chooseAvatar() {
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="topbar">
-      <view class="nav-back" @tap="goBack()"><AppIcon name="chevron-left" :size="40" color="#2c2c2c" /></view>
-      <text class="nav-title">编辑资料</text>
-      <view class="save-btn" :class="{ saved }" @tap="handleSave">
-        <view v-if="isSaving" class="spinner" />
-        <view v-else-if="saved" class="save-inner"><AppIcon name="check" :size="24" color="#52C41A" /><text class="save-txt saved-txt">已保存</text></view>
-        <text v-else class="save-txt">保存</text>
-      </view>
-    </view>
+    <app-nav-bar title="编辑资料" background="rgba(250,248,245,0.95)" :back-size="40">
+      <template #right>
+        <view class="save-btn" :class="{ saved }" @tap="handleSave">
+          <view v-if="isSaving" class="spinner" />
+          <view v-else-if="saved" class="save-inner"><AppIcon name="check" :size="24" color="#52C41A" /><text class="save-txt saved-txt">已保存</text></view>
+          <text v-else class="save-txt">保存</text>
+        </view>
+      </template>
+    </app-nav-bar>
 
     <!-- 头像编辑区 -->
     <view class="avatar-sec">
@@ -291,10 +291,6 @@ function chooseAvatar() {
 <style scoped lang="scss">
 .page { min-height: 100vh; background: #FAF8F5; padding-bottom: 64rpx; }
 
-/* 顶部导航 */
-.topbar { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; justify-content: space-between; height: 112rpx; padding: 0 32rpx; padding-top: env(safe-area-inset-top); background: rgba(250,248,245,0.95); border-bottom: 2rpx solid #e8e0d5; }
-.nav-back { width: 56rpx; height: 56rpx; display: flex; align-items: center; }
-.nav-title { font-size: 32rpx; font-weight: 600; color: #2c2c2c; }
 .save-btn { min-width: 96rpx; height: 56rpx; padding: 0 28rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; }
 .save-btn.saved { background: rgba(82,196,26,0.2); }
 .save-txt { font-size: 26rpx; font-weight: 500; color: #fff; }

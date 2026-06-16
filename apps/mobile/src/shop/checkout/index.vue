@@ -7,9 +7,9 @@
     </view>
 
     <!-- 超时倒计时条 -->
-    <view class="timer-bar">
+    <view class="timer-bar" :class="{ 'timer-bar--urgent': isUrgent }">
       <app-icon name="clock" :size="28" color="#FFFFFF" />
-      <text class="timer-text">请在 {{ countdown.m }}:{{ countdown.s }} 内完成支付</text>
+      <text class="timer-text">{{ isUrgent ? '即将超时，请尽快支付 ' : '请在 ' }}{{ countdown.m }}:{{ countdown.s }}{{ isUrgent ? '' : ' 内完成支付' }}</text>
     </view>
 
     <scroll-view scroll-y class="content">
@@ -55,7 +55,7 @@
       <!-- 优惠券 -->
       <view class="cell" @tap="showCoupon = true">
         <text class="cell-label">优惠券</text>
-        <text class="cell-value" :class="{ active: selectedCoupon }">{{ selectedCoupon ? '-¥' + selectedCoupon.value : '请选择' }}</text>
+        <text class="cell-value" :class="{ active: selectedCoupon }">{{ selectedCoupon ? '-¥' + selectedCoupon.value : coupons.length + '张可用' }}</text>
         <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
       </view>
       <!-- 配送方式 -->
@@ -90,8 +90,11 @@
     <!-- 底部支付栏 -->
     <view class="footer">
       <view class="footer-total">
-        <text class="ft-label">实付</text>
-        <text class="ft-amount">¥{{ payTotal }}</text>
+        <view class="ft-main">
+          <text class="ft-label">实付</text>
+          <text class="ft-amount">¥{{ payTotal }}</text>
+        </view>
+        <text v-if="savedAmount > 0" class="ft-saved">已优惠 ¥{{ savedAmount }}</text>
       </view>
       <view class="pay-btn" :class="{ 'pay-btn--disabled': submitting }" @tap="submitOrder"><text>{{ submitting ? '提交中...' : '提交订单' }}</text></view>
     </view>
@@ -158,6 +161,8 @@ const submitting = ref(false)
 
 const goodsTotal = computed(() => items.reduce((s, i) => s + i.price * i.quantity, 0))
 const payTotal = computed(() => Math.max(0, goodsTotal.value - (selectedCoupon.value?.value || 0)))
+const savedAmount = computed(() => selectedCoupon.value?.value || 0)
+const isUrgent = computed(() => remain.value > 0 && remain.value < 3 * 60 * 1000)
 
 async function loadCheckout() {
   loading.value = true
@@ -215,8 +220,10 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .nav-bar { display: flex; align-items: center; padding: 20rpx 30rpx; background: #FFFFFF; }
 .nav-back { width: 60rpx; } .nav-placeholder { width: 60rpx; }
 .nav-title { flex: 1; text-align: center; font-size: 34rpx; font-weight: 600; color: #1A1A1A; }
-.timer-bar { display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 16rpx; background: linear-gradient(90deg, #9A2D2D, #C8453E); }
+.timer-bar { display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 16rpx; background: linear-gradient(90deg, #9A2D2D, #C8453E); transition: background 0.3s; }
+.timer-bar--urgent { background: linear-gradient(90deg, #CC0000, #FF2200); animation: urgent-pulse 1s ease-in-out infinite; }
 .timer-text { font-size: 26rpx; color: #FFFFFF; }
+@keyframes urgent-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 .content { flex: 1; }
 .address-card { display: flex; align-items: center; gap: 16rpx; background: #FFFFFF; margin: 20rpx; padding: 28rpx 24rpx; border-radius: 20rpx; }
 .address-info { flex: 1; display: flex; flex-direction: column; gap: 10rpx; }
@@ -254,9 +261,11 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .amount-row.total text { font-size: 28rpx; color: #1A1A1A; font-weight: 600; }
 .pay-amount { color: #9A2D2D !important; font-size: 34rpx !important; }
 .footer { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; padding: 20rpx 30rpx; padding-bottom: calc(20rpx + env(safe-area-inset-bottom)); background: #FFFFFF; box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.05); }
-.footer-total { display: flex; align-items: baseline; gap: 8rpx; }
+.footer-total { display: flex; flex-direction: column; gap: 4rpx; }
+.ft-main { display: flex; align-items: baseline; gap: 8rpx; }
 .ft-label { font-size: 26rpx; color: #666666; }
 .ft-amount { font-size: 38rpx; color: #9A2D2D; font-weight: 700; }
+.ft-saved { font-size: 22rpx; color: #9A2D2D; }
 .pay-btn { margin-left: auto; padding: 20rpx 60rpx; border-radius: 40rpx; background: linear-gradient(90deg, #9A2D2D, #C8453E); }
 .pay-btn text { color: #FFFFFF; font-size: 30rpx; font-weight: 600; }
 .mask { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; &.center { align-items: center; justify-content: center; } }

@@ -18,7 +18,13 @@
     </view>
 
     <scroll-view scroll-y class="scroll">
-      <!-- 说明卡片 -->
+      <!-- 骨架屏 -->
+      <view v-if="loading" class="dist-skeleton">
+        <view v-for="i in 3" :key="i" class="dist-sk-row"><view class="dist-sk-block sk-anim" /></view>
+      </view>
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <template v-else>
+        <!-- 说明卡片 -->
       <view class="info-card">
         <app-icon name="info" :size="32" color="#D97706" />
         <view class="info-text">
@@ -90,6 +96,7 @@
         <view class="add-btn" @tap="toastComingSoon"><app-icon name="plus" :size="36" color="#999999" /><text class="add-btn-t">添加个性化分成</text></view>
       </view>
       <view style="height: 40rpx;" />
+      </template>
     </scroll-view>
 
     <!-- 创建/编辑方案弹窗 -->
@@ -192,11 +199,28 @@
 /**
  * 收益分配设置页
  */
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
 
+const loading = ref(true)
+const error = ref('')
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
+
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 const contentTypes = [
   { key: 'article', label: '文章', icon: 'file-text', color: '#4A90D9' },
@@ -222,7 +246,6 @@ const activeTab = ref<'plans' | 'guests'>('plans')
 const showHelp = ref(false)
 const showEditor = ref(false)
 const editingId = ref<string | null>(null)
-const error = ref('')
 
 const f = reactive({ name: '', description: '', isDefault: false, selectedTypes: ['article'] as string[], platform: 10, circle: 20, creator: 70 })
 const total = computed(() => f.platform + f.circle + f.creator)
@@ -377,4 +400,11 @@ function handleSave() {
 .help-h { display: block; font-size: 28rpx; font-weight: 500; color: #2C2C2C; margin-bottom: 12rpx; }
 .help-p { display: block; font-size: 26rpx; color: #999999; line-height: 1.8; }
 .help-b { font-weight: 600; color: #666666; }
+
+/* 骨架屏 */
+.dist-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.dist-sk-row { display: flex; gap: 16rpx; }
+.dist-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

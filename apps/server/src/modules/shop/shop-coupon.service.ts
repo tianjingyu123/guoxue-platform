@@ -85,6 +85,12 @@ export class ShopCouponService {
     return { success: true };
   }
 
+  async getCouponById(id: string) {
+    const coupon = await this.prisma.coupon.findUnique({ where: { id } });
+    if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
+    return coupon;
+  }
+
   async updateCouponStatus(id: string, status: string) {
     await this.prisma.coupon.findUniqueOrThrow({ where: { id } });
     return this.prisma.coupon.update({ where: { id }, data: { status } });

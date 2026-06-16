@@ -13,10 +13,11 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'like', id: string): void }>()
 
 function openPost() {
-  navigateTo(`/pkg-circle/circles/post?circleId=${props.circleId}&id=${props.post.id}`)
+  navigateTo(`/pages/circles/post?circleId=${props.circleId}&id=${props.post.id}`)
 }
 function openUser() {
-  navigateTo(`/pkg-circle/user/profile?id=${props.post.author.id}`)
+  // 用户主页尚未迁移，暂用 toastComingSoon
+  uni.showToast({ title: '功能开发中', icon: 'none' })
 }
 </script>
 

@@ -21,14 +21,18 @@ const products = ref<any[]>([])
 async function loadHome() {
   loading.value = true
   error.value = ''
-  try {
-    const [catRes, prodRes] = await Promise.all([
-      shopApi.getCategoryTree(),
-      shopApi.getProducts({ page: 1, pageSize: 10 }),
-    ])
-    categories.value = (catRes as any) || staticCategories
-    products.value = (prodRes as any)?.items || prodRes || []
-  } catch (e: any) { error.value = e?.message || '加载失败' } finally { loading.value = false }
+  const [catRes, prodRes] = await Promise.allSettled([
+    shopApi.getCategoryTree(),
+    shopApi.getProducts({ page: 1, pageSize: 10 }),
+  ])
+  categories.value = catRes.status === 'fulfilled' && (catRes.value as any[])?.length
+    ? catRes.value as any[]
+    : staticCategories
+  products.value = prodRes.status === 'fulfilled' ? ((prodRes.value as any)?.items || prodRes.value || []) : []
+  if (catRes.status === 'rejected' && prodRes.status === 'rejected') {
+    error.value = '加载失败'
+  }
+  loading.value = false
 }
 
 onMounted(() => { loadHome() })
@@ -166,7 +170,14 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
           <text class="guess-title">猜你喜欢</text>
           <view class="guess-line" />
         </view>
-        <view class="prod-grid">
+        <view v-if="!products.length" class="empty-guess">
+          <view class="empty-guess-icon"><app-icon name="sparkles" :size="80" color="#CCCCCC" /></view>
+          <text class="empty-guess-text">暂无推荐商品</text>
+          <view class="empty-guess-btn" @tap="navigateTo('/mall/category')">
+            <text class="empty-guess-btn-text">浏览分类</text>
+          </view>
+        </view>
+        <view v-else class="prod-grid">
           <view v-for="p in products" :key="p.id" class="prod-cell">
             <ProductCard :data="p" />
           </view>
@@ -260,4 +271,11 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 
 .sk-line { height: 24rpx; background: #e8e0d5; border-radius: 8rpx; }
 .sk-img { background: #e8e0d5; border-radius: 12rpx; }
+
+/* 空态 */
+.empty-guess { display: flex; flex-direction: column; align-items: center; padding: 128rpx 0; }
+.empty-guess-icon { width: 160rpx; height: 160rpx; border-radius: 50%; background: #F5F5F5; display: flex; align-items: center; justify-content: center; margin-bottom: 32rpx; }
+.empty-guess-text { font-size: 28rpx; color: #CCCCCC; margin-bottom: 32rpx; }
+.empty-guess-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.empty-guess-btn-text { font-size: 28rpx; color: #fff; }
 </style>

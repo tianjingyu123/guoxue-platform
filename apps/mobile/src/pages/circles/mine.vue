@@ -1,34 +1,50 @@
 <script setup lang="ts">
 /**
- * 我的圈子（从原型 app/circles/mine/page.tsx 高保真迁移）
- * 已加入/我创建 双Tab + 圈子卡片列表 + 创建新圈子入口 + 空态。
+ * 我的圈子 — 三态：loading骨架 → error重试 → 空态/列表
+ * 已加入/我创建 双Tab + 圈子卡片列表 + 创建新圈子入口。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { mockCircles, type Circle } from '@/lib/circle-data'
+import { circleApi, type Circle } from '@/lib/circle-data'
 
 type Tab = 'joined' | 'created'
 const activeTab = ref<Tab>('joined')
-const loading = ref(false)
-
-// 已加入：isJoined 为真；我创建：取前两个作为「圈主」示例
-const joinedCircles = computed<Circle[]>(() => mockCircles.filter((c) => c.isJoined))
-const createdCircles = computed<Circle[]>(() => mockCircles.slice(0, 2))
+const loading = ref(true)
+const error = ref('')
+const joinedCircles = ref<Circle[]>([])
+const createdCircles = ref<Circle[]>([])
 
 const displayCircles = computed<Circle[]>(() =>
   activeTab.value === 'joined' ? joinedCircles.value : createdCircles.value,
 )
 
-function roleOf(c: Circle, index: number): 'owner' | 'admin' | '' {
+function roleOf(c: Circle): 'owner' | 'admin' | '' {
   if (activeTab.value === 'created') return 'owner'
-  // 已加入列表中第一项示意为管理员
-  return index === 0 ? 'admin' : ''
+  return ''
 }
 
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const list = await circleApi.my()
+    joinedCircles.value = list.filter(c => c.isJoined)
+    // 我创建的：后端暂不区分，用已加入列表兜底
+    createdCircles.value = list.filter(c => c.isJoined)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadData)
+
 function fmt(n: number) { return (n || 0).toLocaleString() }
-function openCircle(id: string) { navigateTo(`/pkg-circle/circles/detail?id=${id}`) }
-function goCreate() { navigateTo('/pkg-circle/circles/create') }
+function openCircle(id: string) { navigateTo(`/pages/circles/detail?id=${id}`) }
+function goCreate() { navigateTo('/pages/circles/create') }
 function goDiscover() { navigateTo('/pages/circles/index') }
 </script>
 
@@ -52,8 +68,23 @@ function goDiscover() { navigateTo('/pages/circles/index') }
     </view>
 
     <scroll-view scroll-y class="mc-body">
+      <!-- 骨架屏 -->
+      <view v-if="loading" class="mc-list">
+        <view v-for="i in 3" :key="'sk'+i" class="sk-card">
+          <view class="sk-cover" />
+          <view class="sk-main">
+            <view class="sk-line sk-w6" />
+            <view class="sk-line sk-w8" />
+            <view class="sk-line sk-w4" />
+          </view>
+        </view>
+      </view>
+
+      <!-- 错误 -->
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+
       <!-- 空态 -->
-      <view v-if="!loading && displayCircles.length === 0" class="mc-empty">
+      <view v-else-if="displayCircles.length === 0" class="mc-empty">
         <view class="mc-empty-icon"><app-icon name="inbox" :size="64" color="#c9b8a0" /></view>
         <text class="mc-empty-title">{{ activeTab === 'joined' ? '还没有加入任何圈子' : '还没有创建圈子' }}</text>
         <text class="mc-empty-sub">这里还没有内容</text>
@@ -64,18 +95,18 @@ function goDiscover() { navigateTo('/pages/circles/index') }
 
       <!-- 列表 -->
       <view v-else class="mc-list">
-        <view v-for="(c, i) in displayCircles" :key="c.id" class="mc-card" @tap="openCircle(c.id)">
+        <view v-for="c in displayCircles" :key="c.id" class="mc-card" @tap="openCircle(c.id)">
           <image :src="c.cover" class="mc-card-cover" mode="aspectFill" />
           <view class="mc-card-main">
             <view class="mc-card-name-row">
               <text class="mc-card-name">{{ c.name }}</text>
-              <view v-if="roleOf(c, i) === 'owner'" class="mc-badge owner"><app-icon name="crown" :size="20" color="#b8860b" /><text class="mc-badge-t owner">圈主</text></view>
-              <view v-else-if="roleOf(c, i) === 'admin'" class="mc-badge admin"><text class="mc-badge-t admin">管理员</text></view>
+              <view v-if="roleOf(c) === 'owner'" class="mc-badge owner"><app-icon name="crown" :size="20" color="#b8860b" /><text class="mc-badge-t owner">圈主</text></view>
+              <view v-else-if="roleOf(c) === 'admin'" class="mc-badge admin"><text class="mc-badge-t admin">管理员</text></view>
             </view>
             <text class="mc-card-desc">{{ c.description || '国学文化交流圈子' }}</text>
             <view class="mc-card-meta">
               <view class="mc-card-stat"><app-icon name="users" :size="22" color="#999999" /><text class="mc-card-stat-t">{{ fmt(c.members) }} 成员</text></view>
-              <view v-if="i === 0" class="mc-card-stat new"><app-icon name="bell" :size="22" color="#c41e3a" /><text class="mc-card-stat-t new">有新内容</text></view>
+              <view class="mc-card-stat"><app-icon name="bell" :size="22" color="#c41e3a" /><text class="mc-card-stat-t new">有新内容</text></view>
             </view>
           </view>
           <app-icon name="chevron-right" :size="32" color="#cccccc" />
@@ -133,4 +164,13 @@ function goDiscover() { navigateTo('/pages/circles/index') }
 .mc-create { display: flex; flex-direction: column; align-items: center; gap: 16rpx; padding: 40rpx 0; border-radius: 24rpx; border: 4rpx dashed rgba(0,0,0,0.15); background: #faf6f0; }
 .mc-create-icon { width: 88rpx; height: 88rpx; border-radius: 999rpx; background: #f0ebe3; display: flex; align-items: center; justify-content: center; }
 .mc-create-t { font-size: 26rpx; color: #8a8378; }
+
+/* 骨架屏 */
+.sk-card { display: flex; align-items: center; gap: 20rpx; padding: 24rpx; border-radius: 24rpx; border: 2rpx solid rgba(0,0,0,0.08); background: #fff; }
+.sk-cover { width: 112rpx; height: 112rpx; border-radius: 20rpx; background: #e8e0d5; flex-shrink: 0; }
+.sk-main { flex: 1; display: flex; flex-direction: column; gap: 16rpx; }
+.sk-line { height: 24rpx; background: #e8e0d5; border-radius: 8rpx; }
+.sk-w6 { width: 60%; }
+.sk-w8 { width: 80%; }
+.sk-w4 { width: 40%; }
 </style>

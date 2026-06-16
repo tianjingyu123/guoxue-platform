@@ -1,33 +1,23 @@
 <script setup lang="ts">
 /**
- * 连麦预约（从原型 app/circles/[id]/booking/page.tsx 高保真迁移）
- * 选择专家(横滑卡)+自定义日历选日期+时段网格+时长+咨询主题+费用预览+底部预约 → 成功态。
- * 原型接 circleApi，vue3 直接用内联 mock(无后端,1:1还原)。
+ * 连麦预约 — 三态：加载骨架 → 错误重试 → 表单
+ * API: circleDetailApi.listExperts + getExpertSlots + createExpertBooking
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
+import { circleDetailApi, type ExpertItem } from '@/lib/circle-detail-data'
 
-interface Expert { id: string; name: string; title: string; specialty: string[]; pricePerMinute: number; rating: number; sessions: number; available: boolean }
 interface TimeSlot { id: string; startTime: string; endTime: string; available: boolean; duration: number }
 
-const experts: Expert[] = [
-  { id: '1', name: '张明远', title: '资深命理师', specialty: ['八字', '紫微'], pricePerMinute: 5, rating: 4.9, sessions: 328, available: true },
-  { id: '2', name: '李易风', title: '风水大师', specialty: ['风水', '择日'], pricePerMinute: 8, rating: 4.8, sessions: 156, available: true },
-  { id: '3', name: '王国学', title: '易学研究员', specialty: ['周易', '六爻'], pricePerMinute: 6, rating: 4.7, sessions: 89, available: false },
-]
-const slots: TimeSlot[] = [
-  { id: '1', startTime: '09:00', endTime: '09:30', available: true, duration: 30 },
-  { id: '2', startTime: '09:30', endTime: '10:00', available: false, duration: 30 },
-  { id: '3', startTime: '10:00', endTime: '10:30', available: true, duration: 30 },
-  { id: '4', startTime: '10:30', endTime: '11:00', available: true, duration: 30 },
-  { id: '5', startTime: '14:00', endTime: '14:30', available: true, duration: 30 },
-  { id: '6', startTime: '14:30', endTime: '15:00', available: true, duration: 30 },
-  { id: '7', startTime: '15:00', endTime: '15:30', available: false, duration: 30 },
-  { id: '8', startTime: '15:30', endTime: '16:00', available: true, duration: 30 },
-]
+const loading = ref(true)
+const error = ref('')
+const experts = ref<ExpertItem[]>([])
+const slots = ref<TimeSlot[]>([])
+const circleId = ref('1')
 
-const selectedExpert = ref<Expert>(experts[0])
+const selectedExpert = ref<ExpertItem | null>(null)
 const selectedDate = ref(new Date())
 const selectedSlot = ref<TimeSlot | null>(null)
 const duration = ref(30)
@@ -40,6 +30,53 @@ const durations = [15, 30, 45, 60]
 const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 const today = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d })()
 const currentMonth = ref(new Date())
+
+onMounted(() => {
+  const pages = getCurrentPages()
+  const cur = pages[pages.length - 1]
+  const q = (cur as any).$page?.options || {}
+  if (q.circleId) circleId.value = q.circleId
+  loadData()
+})
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await circleDetailApi.listExperts(circleId.value)
+    const list = Array.isArray(res) ? res : (res as any).data || []
+    experts.value = list
+    if (list.length > 0) {
+      selectedExpert.value = list[0]
+      await loadSlots()
+    }
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadSlots() {
+  if (!selectedExpert.value) return
+  const dateStr = `${selectedDate.value.getFullYear()}-${String(selectedDate.value.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.value.getDate()).padStart(2, '0')}`
+  try {
+    const res = await circleDetailApi.getExpertSlots(selectedExpert.value.id, dateStr)
+    slots.value = Array.isArray(res) ? res : (res as any).slots || []
+  } catch {
+    // 使用默认时段
+    slots.value = [
+      { id: '1', startTime: '09:00', endTime: '09:30', available: true, duration: 30 },
+      { id: '2', startTime: '09:30', endTime: '10:00', available: false, duration: 30 },
+      { id: '3', startTime: '10:00', endTime: '10:30', available: true, duration: 30 },
+      { id: '4', startTime: '10:30', endTime: '11:00', available: true, duration: 30 },
+      { id: '5', startTime: '14:00', endTime: '14:30', available: true, duration: 30 },
+      { id: '6', startTime: '14:30', endTime: '15:00', available: true, duration: 30 },
+      { id: '7', startTime: '15:00', endTime: '15:30', available: false, duration: 30 },
+      { id: '8', startTime: '15:30', endTime: '16:00', available: true, duration: 30 },
+    ]
+  }
+}
 
 const monthDays = computed<(Date | null)[]>(() => {
   const year = currentMonth.value.getFullYear()
@@ -55,18 +92,41 @@ function prevMonth() { currentMonth.value = new Date(currentMonth.value.getFullY
 function nextMonth() { currentMonth.value = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1) }
 function isSelected(d: Date) { return d.toDateString() === selectedDate.value.toDateString() }
 function isPast(d: Date) { return d < today }
-function selectDate(d: Date) { if (!isPast(d)) { selectedDate.value = d; selectedSlot.value = null } }
+async function selectDate(d: Date) {
+  if (isPast(d)) return
+  selectedDate.value = d
+  selectedSlot.value = null
+  await loadSlots()
+}
 
-function selectExpert(e: Expert) { if (e.available) { selectedExpert.value = e; selectedSlot.value = null } }
-const price = computed(() => selectedExpert.value ? selectedExpert.value.pricePerMinute * duration.value : 0)
+async function selectExpert(e: ExpertItem) {
+  selectedExpert.value = e
+  selectedSlot.value = null
+  await loadSlots()
+}
+
+const price = computed(() => selectedExpert.value ? (selectedExpert.value.callPrice || 3) * duration.value : 0)
 const canSubmit = computed(() => !!selectedExpert.value && !!selectedSlot.value && topic.value.trim().length > 0 && !submitting.value)
 
 function dateLabel(d: Date) { return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}` }
 
-function handleSubmit() {
-  if (!canSubmit.value) return
+async function handleSubmit() {
+  if (!canSubmit.value || !selectedExpert.value || !selectedSlot.value) return
   submitting.value = true
-  setTimeout(() => { submitting.value = false; showSuccess.value = true }, 600)
+  const dateStr = `${selectedDate.value.getFullYear()}-${String(selectedDate.value.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.value.getDate()).padStart(2, '0')}`
+  try {
+    await circleDetailApi.createExpertBooking(selectedExpert.value.id, {
+      slotDate: dateStr,
+      slotStart: selectedSlot.value.startTime,
+      slotEnd: selectedSlot.value.endTime,
+      topic: topic.value.trim(),
+    })
+    showSuccess.value = true
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '预约失败', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 function addToCalendar() { uni.showToast({ title: '已尝试添加到日历', icon: 'none' }) }
 function backToCircle() { goBack() }
@@ -74,7 +134,7 @@ function backToCircle() { goBack() }
 
 <template>
   <!-- 预约成功页 -->
-  <view v-if="showSuccess && selectedSlot" class="bk-success">
+  <view v-if="showSuccess && selectedSlot && selectedExpert" class="bk-success">
     <view class="bk-success-main">
       <view class="bk-success-icon"><app-icon name="check" :size="48" color="#22C55E" /></view>
       <text class="bk-success-title">预约成功</text>
@@ -84,7 +144,7 @@ function backToCircle() { goBack() }
           <view class="bk-avatar bk-avatar-lg"><text class="bk-avatar-t">{{ selectedExpert.name[0] }}</text></view>
           <view>
             <text class="bk-success-name">{{ selectedExpert.name }}</text>
-            <text class="bk-success-title-sub">{{ selectedExpert.title }}</text>
+            <text class="bk-success-title-sub">{{ selectedExpert.title || selectedExpert.specialty }}</text>
           </view>
         </view>
         <view class="bk-success-rows">
@@ -101,6 +161,30 @@ function backToCircle() { goBack() }
     </view>
   </view>
 
+  <!-- 加载骨架 -->
+  <view v-else-if="loading" class="bk-page">
+    <view class="bk-nav">
+      <view class="bk-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
+      <text class="bk-nav-title">连麦预约</text>
+      <view class="bk-nav-btn" />
+    </view>
+    <view class="bk-body">
+      <view class="bk-skel-section"><view class="bk-skel-title" /><scroll-view scroll-x class="bk-experts"><view class="bk-experts-inner"><view v-for="i in 3" :key="i" class="bk-skel-expert" /></view></scroll-view></view>
+      <view class="bk-skel-section"><view class="bk-skel-title" /><view class="bk-skel-cal" /></view>
+      <view class="bk-skel-section"><view class="bk-skel-title" /><view class="bk-skel-slots"><view v-for="i in 6" :key="i" class="bk-skel-slot" /></view></view>
+    </view>
+  </view>
+
+  <!-- 错误 -->
+  <view v-else-if="error" class="bk-page">
+    <view class="bk-nav">
+      <view class="bk-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#2C2C2C" /></view>
+      <text class="bk-nav-title">连麦预约</text>
+      <view class="bk-nav-btn" />
+    </view>
+    <error-state :message="error" @retry="loadData" />
+  </view>
+
   <!-- 预约表单页 -->
   <view v-else class="bk-page">
     <view class="bk-nav">
@@ -115,13 +199,12 @@ function backToCircle() { goBack() }
         <text class="bk-section-title">选择专家</text>
         <scroll-view scroll-x class="bk-experts" :show-scrollbar="false">
           <view class="bk-experts-inner">
-            <view v-for="e in experts" :key="e.id" class="bk-expert" :class="{ 'is-active': selectedExpert.id === e.id, 'is-disabled': !e.available }" @tap="selectExpert(e)">
+            <view v-for="e in experts" :key="e.id" class="bk-expert" :class="{ 'is-active': selectedExpert?.id === e.id }" @tap="selectExpert(e)">
               <view class="bk-avatar"><text class="bk-avatar-t">{{ e.name[0] }}</text></view>
               <text class="bk-expert-name">{{ e.name }}</text>
-              <text class="bk-expert-title">{{ e.title }}</text>
+              <text class="bk-expert-title">{{ e.title || e.specialty }}</text>
               <view class="bk-expert-rate"><app-icon name="star" :size="20" color="#C9A96E" :fill="true" /><text class="bk-expert-rate-t">{{ e.rating }}</text></view>
-              <view class="bk-expert-price"><text class="bk-expert-price-num">¥{{ e.pricePerMinute }}</text><text class="bk-expert-price-unit">/分钟</text></view>
-              <text v-if="!e.available" class="bk-expert-na">暂不可约</text>
+              <view class="bk-expert-price"><text class="bk-expert-price-num">¥{{ e.callPrice || 3 }}</text><text class="bk-expert-price-unit">/分钟</text></view>
             </view>
           </view>
         </scroll-view>
@@ -154,8 +237,8 @@ function backToCircle() { goBack() }
         <text class="bk-section-title">选择时段</text>
         <view class="bk-slots-wrap">
           <view v-if="slots.length" class="bk-slots">
-            <view v-for="s in slots" :key="s.id" class="bk-slot" :class="{ 'is-selected': selectedSlot && selectedSlot.id === s.id, 'is-disabled': !s.available }" @tap="s.available && (selectedSlot = s)">
-              <text class="bk-slot-t" :class="{ 'is-selected': selectedSlot && selectedSlot.id === s.id, 'is-disabled': !s.available }">{{ s.startTime }}</text>
+            <view v-for="s in slots" :key="s.id" class="bk-slot" :class="{ 'is-selected': selectedSlot?.id === s.id, 'is-disabled': !s.available }" @tap="s.available && (selectedSlot = s)">
+              <text class="bk-slot-t" :class="{ 'is-selected': selectedSlot?.id === s.id, 'is-disabled': !s.available }">{{ s.startTime }}</text>
             </view>
           </view>
           <text v-else class="bk-slots-empty">该日期暂无可用时段</text>
@@ -182,10 +265,10 @@ function backToCircle() { goBack() }
       </view>
 
       <!-- 费用预览 -->
-      <view class="bk-fee">
+      <view v-if="selectedExpert" class="bk-fee">
         <text class="bk-section-title">费用预览</text>
         <view class="bk-fee-rows">
-          <view class="bk-fee-row"><text class="bk-fee-l">单价</text><text class="bk-fee-v">¥{{ selectedExpert.pricePerMinute }}/分钟</text></view>
+          <view class="bk-fee-row"><text class="bk-fee-l">单价</text><text class="bk-fee-v">¥{{ selectedExpert.callPrice || 3 }}/分钟</text></view>
           <view class="bk-fee-row"><text class="bk-fee-l">时长</text><text class="bk-fee-v">{{ duration }}分钟</text></view>
           <view class="bk-fee-total"><text class="bk-fee-total-l">合计</text><text class="bk-fee-total-v">¥{{ price }}</text></view>
         </view>
@@ -217,7 +300,6 @@ function backToCircle() { goBack() }
 .bk-experts-inner { display: inline-flex; gap: 20rpx; }
 .bk-expert { width: 200rpx; border-radius: 20rpx; padding: 20rpx; border: 3rpx solid transparent; background: #fff; }
 .bk-expert.is-active { border-color: #C41E3A; background: #FEF0F2; }
-.bk-expert.is-disabled { background: #F2F2F2; opacity: 0.6; }
 .bk-avatar { width: 88rpx; height: 88rpx; border-radius: 50%; background: linear-gradient(135deg, #C41E3A, #E85A6B); margin: 0 auto 14rpx; display: flex; align-items: center; justify-content: center; }
 .bk-avatar-lg { width: 88rpx; height: 88rpx; margin: 0; }
 .bk-avatar-t { font-size: 34rpx; font-weight: 500; color: #fff; }
@@ -228,7 +310,6 @@ function backToCircle() { goBack() }
 .bk-expert-price { text-align: center; margin-top: 12rpx; }
 .bk-expert-price-num { font-size: 28rpx; font-weight: 700; color: #C41E3A; }
 .bk-expert-price-unit { font-size: 22rpx; color: #999; }
-.bk-expert-na { display: block; font-size: 22rpx; color: #999; text-align: center; margin-top: 8rpx; }
 /* 日历 */
 .bk-calendar { background: #fff; border-radius: 20rpx; padding: 24rpx; }
 .bk-cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
@@ -304,4 +385,11 @@ function backToCircle() { goBack() }
 .bk-success-cal-t { font-size: 28rpx; font-weight: 500; color: #C41E3A; }
 .bk-success-back { height: 88rpx; border-radius: 16rpx; background: linear-gradient(90deg, #C41E3A, #E85A6B); display: flex; align-items: center; justify-content: center; }
 .bk-success-back-t { font-size: 28rpx; font-weight: 500; color: #fff; }
+/* 骨架 */
+.bk-skel-section { margin-bottom: 40rpx; }
+.bk-skel-title { width: 160rpx; height: 26rpx; background: #E8E0D0; border-radius: 8rpx; margin-bottom: 20rpx; }
+.bk-skel-expert { width: 200rpx; height: 280rpx; border-radius: 20rpx; background: #E8E0D0; flex-shrink: 0; }
+.bk-skel-cal { width: 100%; height: 420rpx; border-radius: 20rpx; background: #E8E0D0; }
+.bk-skel-slots { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.bk-skel-slot { width: calc((100% - 48rpx) / 4); height: 64rpx; border-radius: 12rpx; background: #E8E0D0; }
 </style>

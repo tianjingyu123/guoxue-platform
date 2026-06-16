@@ -61,7 +61,7 @@ export const roleConfig: Record<UserRole, { label: string; icon: string; color: 
 export const quickFunctions: { icon: string; label: string; href: string; color: string }[] = [
   { icon: 'compass', label: '排盘记录', href: '/paipan', color: '#C41E3A' },
   { icon: 'book-open', label: '我的课程', href: '/learning', color: '#4A90D9' },
-  { icon: 'users', label: '我的圈子', href: '/pkg-circle/circles/mine', color: '#722ED1' },
+  { icon: 'users', label: '我的圈子', href: '/pages/circles/mine', color: '#722ED1' },
   { icon: 'sticky-note', label: '我的笔记', href: '/ebook/notes', color: '#C9A96E' },
   { icon: 'heart', label: '我的收藏', href: '/favorites', color: '#C41E3A' },
   { icon: 'file-text', label: '我的电子书', href: '/downloads', color: '#52C41A' },
@@ -80,7 +80,7 @@ export const recommendations: { id: number; type: 'course' | 'product'; title: s
 
 // 全部可开通角色
 export const allRoleTypes: { type: UserRole; applyHref: string }[] = [
-  { type: 'circle_owner', applyHref: '/pkg-circle/circles/create' },
+  { type: 'circle_owner', applyHref: '/pages/circles/create' },
   { type: 'teacher', applyHref: '/institute/apply' },
   { type: 'station_owner', applyHref: '/join/station' },
   { type: 'streamer', applyHref: '/creator/live/console' },
@@ -89,7 +89,7 @@ export const allRoleTypes: { type: UserRole; applyHref: string }[] = [
 // 已开通身份点击进入的后台路由
 export function roleHref(type: UserRole, id: number): string {
   switch (type) {
-    case 'circle_owner': return `/pkg-circle/circles/manage?id=${id}`
+    case 'circle_owner': return `/pages/circles/manage?id=${id}`
     case 'teacher': return '/teacher/dashboard'
     case 'streamer': return '/creator/live/console'
     case 'creator': return '/videos/creator'

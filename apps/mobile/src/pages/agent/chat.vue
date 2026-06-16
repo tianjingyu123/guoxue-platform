@@ -3,7 +3,7 @@
  * 智能体对话核心页（原型 app/agent/[id]/page.tsx 迁移）
  * 文字流式对话 + 推荐卡片(课程/圈子/商品/排盘) + 语音通话模拟 + 断连重连 + 对话总结
  */
-import { ref, computed, nextTick, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import ReconnectingOverlay from '@/components/agent/reconnecting-overlay.vue'
@@ -27,9 +27,11 @@ const isReconnecting = ref(false)
 const isMicMuted = ref(false)
 const showSummary = ref(false)
 const scrollId = ref('')
+const callRecommendation = ref<RecommendItem | null>(null)
 
 let streamTimer: ReturnType<typeof setInterval> | null = null
 let callTimer: ReturnType<typeof setInterval> | null = null
+let callRecTimer: ReturnType<typeof setTimeout> | null = null
 
 const showQuick = computed(() => messages.value.length <= 1)
 const userCount = computed(() => messages.value.filter((m) => m.role === 'user').length)
@@ -62,16 +64,25 @@ function simulateStreaming(fullText: string, messageId: number, recommendations?
 function handleSend() {
   const text = inputValue.value.trim()
   if (!text || isTyping.value) return
+  if (freeRemaining.value <= 0) {
+    uni.showToast({ title: '免费额度已用完', icon: 'none' })
+    return
+  }
   messages.value.push({ id: messages.value.length, role: 'user', content: text, time: nowTime() })
   inputValue.value = ''
   isTyping.value = true
-  if (freeRemaining.value > 0) freeRemaining.value -= 1
+  freeRemaining.value -= 1
   scrollToBottom()
   setTimeout(() => {
-    const { text: reply, recommendations } = generateResponse(text)
-    const id = messages.value.length + 1
-    messages.value.push({ id, role: 'assistant', content: '', time: nowTime(), isStreaming: true })
-    simulateStreaming(reply, id, recommendations)
+    try {
+      const { text: reply, recommendations } = generateResponse(text)
+      const id = messages.value.length + 1
+      messages.value.push({ id, role: 'assistant', content: '', time: nowTime(), isStreaming: true })
+      simulateStreaming(reply, id, recommendations)
+    } catch {
+      isTyping.value = false
+      messages.value.push({ id: messages.value.length, role: 'assistant', content: '抱歉，回复生成失败，请稍后重试。', time: nowTime() })
+    }
   }, 600)
 }
 
@@ -91,12 +102,21 @@ function handleGenerateSummary() {
   scrollToBottom()
 }
 
-// 通话计时
+// 通话计时（含每30秒弹出推荐卡片）
 function startCallTimer() {
-  callTimer = setInterval(() => { callDuration.value += 1 }, 1000)
+  callTimer = setInterval(() => {
+    callDuration.value += 1
+    if (callDuration.value % 30 === 0 && callDuration.value > 0) {
+      const item = recommendedCourses[callDuration.value % recommendedCourses.length]
+      callRecommendation.value = { type: 'course', data: item }
+      if (callRecTimer) clearTimeout(callRecTimer)
+      callRecTimer = setTimeout(() => { callRecommendation.value = null }, 8000)
+    }
+  }, 1000)
 }
 function stopCallTimer() {
   if (callTimer) { clearInterval(callTimer); callTimer = null }
+  if (callRecTimer) { clearTimeout(callRecTimer); callRecTimer = null }
 }
 
 function toggleCall() {
@@ -139,13 +159,23 @@ function onEndCallFromOverlay() {
 
 // 推荐卡片点击
 function openRecommend(item: RecommendItem) {
-  if (item.type === 'paipan') navigateTo('/pkg-paipan/paipan/index')
-  else if (item.type === 'course') toastComingSoon()
-  else if (item.type === 'circle') navigateTo(`/pkg-circle/circles/detail?id=${item.data.id}`)
+  if (item.type === 'paipan') navigateTo('/pages/paipan/index')
+  else if (item.type === 'course') navigateTo('/pkg-course/home/index')
+  else if (item.type === 'circle') navigateTo(`/pages/circles/detail?id=${item.data.id}`)
+  else if (item.type === 'product') navigateTo('/pages/mall/home/index')
   else toastComingSoon()
 }
 
+function onNetworkOffline() { if (isInCall.value || isTyping.value) onReconnecting() }
+function onNetworkOnline() { if (isReconnecting.value) onReconnected() }
+
+onMounted(() => {
+  window.addEventListener('offline', onNetworkOffline)
+  window.addEventListener('online', onNetworkOnline)
+})
 onUnmounted(() => {
+  window.removeEventListener('offline', onNetworkOffline)
+  window.removeEventListener('online', onNetworkOnline)
   if (streamTimer) clearInterval(streamTimer)
   stopCallTimer()
 })
@@ -309,6 +339,19 @@ onUnmounted(() => {
           <view v-for="(h, i) in soundbars" :key="i" class="wave-bar animate-soundwave" :style="{ height: h + 'rpx', animationDelay: (i * 0.05) + 's' }" />
         </view>
       </view>
+
+      <!-- 通话中推荐卡片（V0：每30秒弹出，8秒自动消失） -->
+      <view v-if="callRecommendation" class="call-rec-card">
+        <text class="call-rec-hint"><AppIcon name="sparkles" :size="22" color="rgba(255,255,255,0.8)" /> 为您推荐</text>
+        <view class="call-rec-row" @tap="openRecommend(callRecommendation)">
+          <view class="call-rec-icon"><AppIcon name="play" :size="28" color="rgba(255,255,255,0.8)" /></view>
+          <view class="call-rec-info">
+            <text class="call-rec-title">{{ callRecommendation.data.title }}</text>
+            <text class="call-rec-price">¥{{ callRecommendation.data.price }}</text>
+          </view>
+          <AppIcon name="chevron-right" :size="28" color="rgba(255,255,255,0.4)" />
+        </view>
+      </view>
       <view class="call-controls safe-pb">
         <view class="call-ctrl-row">
           <view class="ctrl-btn" :class="{ active: isMicMuted }" @tap="isMicMuted = !isMicMuted"><AppIcon :name="isMicMuted ? 'mic-off' : 'mic'" :size="40" color="#ffffff" /></view>
@@ -332,6 +375,8 @@ onUnmounted(() => {
 .head-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; height: 100rpx; }
 .head-center { display: flex; align-items: center; gap: 16rpx; }
 .head-avatar { position: relative; width: 64rpx; height: 64rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.head-avatar::before { content: ''; position: absolute; inset: -4rpx; border-radius: 50%; padding: 4rpx; background: linear-gradient(135deg, #c41e3a, #c9a96e, #c41e3a); background-size: 200% 200%; animation: avatar-pulse 2s ease-in-out infinite; -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+@keyframes avatar-pulse { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 .online-dot { position: absolute; bottom: -2rpx; right: -2rpx; width: 20rpx; height: 20rpx; background: #22c55e; border-radius: 50%; border: 3rpx solid #fff; }
 .head-name { font-size: 30rpx; font-weight: 600; color: #1a1a1a; }
 .head-status { display: flex; align-items: center; gap: 6rpx; }
@@ -422,7 +467,8 @@ onUnmounted(() => {
 
 /* 输入栏 */
 .input-bar { flex-shrink: 0; display: flex; align-items: flex-end; gap: 16rpx; padding: 16rpx 24rpx 8rpx; border-top: 1rpx solid #ececec; background: #fff; }
-.input { flex: 1; min-height: 72rpx; max-height: 240rpx; border-radius: 24rpx; background: rgba(0,0,0,0.03); padding: 18rpx 28rpx; font-size: 28rpx; color: #1a1a1a; }
+.input { flex: 1; min-height: 72rpx; max-height: 240rpx; border-radius: 24rpx; background: rgba(0,0,0,0.03); padding: 18rpx 28rpx; font-size: 28rpx; color: #1a1a1a; transition: box-shadow 0.3s; }
+.input:focus { box-shadow: 0 0 0 4rpx rgba(196,30,58,0.2), 0 0 24rpx rgba(196,30,58,0.1); }
 .send-btn { width: 84rpx; height: 84rpx; border-radius: 50%; flex-shrink: 0; background: #c41e3a; display: flex; align-items: center; justify-content: center; }
 .send-btn.disabled { opacity: 0.5; }
 .disclaimer { font-size: 20rpx; color: #bbb; text-align: center; padding: 8rpx 24rpx 16rpx; background: #fff; }
@@ -454,4 +500,13 @@ onUnmounted(() => {
 .ctrl-btn.hangup { width: 128rpx; height: 128rpx; background: #ef4444; }
 .net-status { display: flex; align-items: center; justify-content: center; gap: 10rpx; margin-top: 32rpx; }
 .net-txt { font-size: 22rpx; color: rgba(255,255,255,0.4); }
+
+/* 通话中推荐卡片 */
+.call-rec-card { position: absolute; bottom: 320rpx; left: 32rpx; right: 32rpx; background: rgba(255,255,255,0.1); backdrop-filter: blur(24rpx); border: 1rpx solid rgba(255,255,255,0.2); border-radius: 24rpx; padding: 24rpx; z-index: 15; }
+.call-rec-hint { display: flex; align-items: center; gap: 6rpx; font-size: 22rpx; color: rgba(255,255,255,0.8); margin-bottom: 16rpx; }
+.call-rec-row { display: flex; align-items: center; gap: 24rpx; }
+.call-rec-icon { width: 96rpx; height: 96rpx; border-radius: 16rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.call-rec-info { flex: 1; min-width: 0; }
+.call-rec-title { display: block; font-size: 28rpx; font-weight: 500; color: #fff; }
+.call-rec-price { display: block; font-size: 22rpx; color: rgba(255,255,255,0.6); margin-top: 4rpx; }
 </style>

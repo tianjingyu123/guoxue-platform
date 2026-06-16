@@ -4,14 +4,31 @@
  * 圈子信息 + 退出规则 + 退款金额预览(自动计算) + 申请原因 + 二次确认弹窗 + 提交成功态。
  * 退款计算复用 lib/circle-exit。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
 import { calcRefund, mockMembership } from '@/lib/circle-exit'
+import ErrorState from '@/components/common/error-state.vue'
 
 const reason = ref('')
 const showConfirm = ref(false)
 const submitted = ref(false)
+const loading = ref(true)
+const error = ref('')
+
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 const membership = mockMembership
 const today = new Date().toISOString().slice(0, 10)
@@ -51,6 +68,11 @@ function backToCircle() {
     </view>
 
     <view class="ex-body">
+      <view v-if="loading" class="ex-skeleton">
+        <view v-for="i in 3" :key="i" class="ex-sk-row"><view class="ex-sk-block sk-anim" /></view>
+      </view>
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <template v-else>
       <!-- 圈子信息 -->
       <view class="ex-circle">
         <view class="ex-circle-avatar" />
@@ -102,6 +124,7 @@ function backToCircle() {
         <app-icon name="shield-check" :size="26" color="#3D7A5C" />
         <text class="ex-flow-tip-t">提交后进入「圈主审核 → 平台审核」流程，全程可追溯</text>
       </view>
+      </template>
     </view>
 
     <!-- 底部按钮 -->
@@ -189,4 +212,9 @@ function backToCircle() {
 .ex-btn-primary-t { font-size: 28rpx; font-weight: 500; color: #fff; }
 .ex-btn-secondary { height: 88rpx; border-radius: 999rpx; background: #ECE6D8; display: flex; align-items: center; justify-content: center; }
 .ex-btn-secondary-t { font-size: 28rpx; color: #2C2C2C; }
+.ex-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.ex-sk-row { display: flex; gap: 16rpx; }
+.ex-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

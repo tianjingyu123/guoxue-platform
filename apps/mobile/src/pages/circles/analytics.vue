@@ -10,7 +10,18 @@
     </view>
 
     <scroll-view scroll-y class="scroll">
-      <view class="body">
+      <!-- 加载骨架 -->
+      <view v-if="loading" class="an-skeleton">
+        <view class="an-sk-kpis">
+          <view v-for="i in 4" :key="i" class="an-sk-kpi sk-anim" />
+        </view>
+        <view class="an-sk-chart sk-anim" />
+        <view v-for="i in 5" :key="i" class="an-sk-post sk-anim" />
+      </view>
+
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+
+      <view v-else class="body">
         <!-- KPI -->
         <view class="kpis">
           <view v-for="k in kpis" :key="k.label" class="kpi">
@@ -64,9 +75,21 @@
 /**
  * 内容分析页（纯展示）
  */
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
+
+const loading = ref(true)
+const error = ref('')
+
+onMounted(() => { loadData() })
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try { await new Promise(r => setTimeout(r, 400)) } catch (e: any) { error.value = e?.message || '加载失败' }
+  finally { loading.value = false }
+}
 
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
 
@@ -145,4 +168,13 @@ function rankCls(idx: number) { return idx === 0 ? 'gold' : idx === 1 ? 'silver'
 .post-author-t { font-size: 20rpx; color: #999999; }
 .meta-item { display: flex; align-items: center; gap: 4rpx; }
 .meta-t { font-size: 20rpx; color: #999999; }
+
+/* 骨架屏 */
+.an-skeleton { padding: 0 32rpx; display: flex; flex-direction: column; gap: 32rpx; }
+.an-sk-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14rpx; margin-top: 32rpx; }
+.an-sk-kpi { height: 120rpx; border-radius: 16rpx; }
+.an-sk-chart { height: 360rpx; border-radius: 20rpx; margin-top: 12rpx; }
+.an-sk-post { height: 100rpx; border-radius: 20rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

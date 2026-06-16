@@ -3,20 +3,32 @@
  * 活动日历（从原型 app/circles/calendar/page.tsx 156行高保真迁移）
  * 月份导航 + 日历网格(事件圆点) + 选中日活动列表
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
+import { circleManageApi, type CalEvent } from '@/lib/circle-detail-data'
 
-interface CalEvent { id: string; date: string; title: string; time: string; circle: string; type: 'activity' | 'live' | 'offline' }
+const circleId = ref('1')
 
-const EVENTS: CalEvent[] = [
-  { id: '1', date: '2026-06-12', title: '八字命理公开课', time: '19:00', circle: '八字命理研习社', type: 'live' },
-  { id: '2', date: '2026-06-15', title: '风水勘察分享会', time: '14:00', circle: '风水堪舆交流', type: 'offline' },
-  { id: '3', date: '2026-06-15', title: '易经读书会', time: '20:00', circle: '易经研究会', type: 'activity' },
-  { id: '4', date: '2026-06-18', title: '紫微斗数进阶班', time: '10:00', circle: '紫微斗数学院', type: 'live' },
-  { id: '5', date: '2026-06-22', title: '奇门遁甲实战课', time: '15:30', circle: '奇门遁甲精研', type: 'live' },
-  { id: '6', date: '2026-06-28', title: '国学文化交流茶会', time: '14:00', circle: '国学文化圈', type: 'offline' },
-]
+onLoad((q) => { if (q?.id) circleId.value = q.id })
+const loading = ref(true)
+const error = ref('')
+const EVENTS = ref<CalEvent[]>([])
+
+onMounted(() => { loadData() })
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    EVENTS.value = await circleManageApi.listCalendarEvents(circleId.value, year.value, month.value + 1)
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 const TYPE_CFG = {
   live: { label: '直播', cls: 'red' },
   activity: { label: '活动', cls: 'blue' },
@@ -38,8 +50,8 @@ const cells = computed<(number | null)[]>(() => {
   const firstWd = new Date(year.value, month.value, 1).getDay()
   return [...Array(firstWd).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)]
 })
-const eventDates = new Set(EVENTS.map(e => e.date))
-const dayEvents = computed(() => EVENTS.filter(e => e.date === selected.value))
+const eventDates = computed(() => new Set(EVENTS.value.map(e => e.date)))
+const dayEvents = computed(() => EVENTS.value.filter(e => e.date === selected.value))
 
 function dateStr(day: number) { return `${year.value}-${String(month.value + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` }
 function selDay(day: number) { selected.value = dateStr(day) }
@@ -54,47 +66,60 @@ const selLabel = computed(() => `${selected.value.slice(5, 7)}月${selected.valu
     </view>
 
     <view class="cal-body">
-      <!-- 月份导航 -->
-      <view class="cal-nav">
-        <view class="cal-nav-btn" @tap="prevMonth"><app-icon name="chevron-left" :size="36" color="#2C2C2C" /></view>
-        <text class="cal-nav-label">{{ year }}年{{ month + 1 }}月</text>
-        <view class="cal-nav-btn" @tap="nextMonth"><app-icon name="chevron-right" :size="36" color="#2C2C2C" /></view>
-      </view>
-
-      <!-- 星期表头 -->
-      <view class="cal-week">
-        <view v-for="(d, i) in WEEKDAYS" :key="d" class="cal-week-cell">
-          <text class="cal-week-txt" :class="{ weekend: i === 0 || i === 6 }">{{ d }}</text>
+      <!-- 加载骨架 -->
+      <view v-if="loading" class="cal-skeleton">
+        <view class="cal-sk-nav sk-anim" />
+        <view class="cal-sk-grid">
+          <view v-for="i in 35" :key="i" class="cal-sk-cell sk-anim" />
         </view>
+        <view v-for="i in 2" :key="i" class="cal-sk-event sk-anim" />
       </view>
 
-      <!-- 日历网格 -->
-      <view class="cal-grid">
-        <view v-for="(day, i) in cells" :key="i" class="cal-cell">
-          <view v-if="day" class="cal-day" :class="{ sel: dateStr(day) === selected, today: dateStr(day) === todayStr && dateStr(day) !== selected }" @tap="selDay(day)">
-            <text class="cal-day-txt" :class="{ sel: dateStr(day) === selected, today: dateStr(day) === todayStr && dateStr(day) !== selected }">{{ day }}</text>
-            <view v-if="eventDates.has(dateStr(day))" class="cal-dot" :class="{ sel: dateStr(day) === selected }" />
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+
+      <template v-else>
+        <!-- 月份导航 -->
+        <view class="cal-nav">
+          <view class="cal-nav-btn" @tap="prevMonth"><app-icon name="chevron-left" :size="36" color="#2C2C2C" /></view>
+          <text class="cal-nav-label">{{ year }}年{{ month + 1 }}月</text>
+          <view class="cal-nav-btn" @tap="nextMonth"><app-icon name="chevron-right" :size="36" color="#2C2C2C" /></view>
+        </view>
+
+        <!-- 星期表头 -->
+        <view class="cal-week">
+          <view v-for="(d, i) in WEEKDAYS" :key="d" class="cal-week-cell">
+            <text class="cal-week-txt" :class="{ weekend: i === 0 || i === 6 }">{{ d }}</text>
           </view>
         </view>
-      </view>
 
-      <!-- 选中日活动 -->
-      <view class="cal-events">
-        <text class="cal-events-title">{{ selLabel }} 的活动</text>
-        <view v-if="dayEvents.length === 0" class="cal-events-empty"><text class="cal-events-empty-txt">当日无活动</text></view>
-        <view v-else class="cal-events-list">
-          <view v-for="evt in dayEvents" :key="evt.id" class="cal-event">
-            <text class="cal-event-time">{{ evt.time }}</text>
-            <view class="cal-event-main">
-              <view class="cal-event-top">
-                <text class="cal-event-title">{{ evt.title }}</text>
-                <view class="cal-event-tag" :class="TYPE_CFG[evt.type].cls"><text class="cal-event-tag-txt" :class="TYPE_CFG[evt.type].cls">{{ TYPE_CFG[evt.type].label }}</text></view>
-              </view>
-              <text class="cal-event-circle">{{ evt.circle }}</text>
+        <!-- 日历网格 -->
+        <view class="cal-grid">
+          <view v-for="(day, i) in cells" :key="i" class="cal-cell">
+            <view v-if="day" class="cal-day" :class="{ sel: dateStr(day) === selected, today: dateStr(day) === todayStr && dateStr(day) !== selected }" @tap="selDay(day)">
+              <text class="cal-day-txt" :class="{ sel: dateStr(day) === selected, today: dateStr(day) === todayStr && dateStr(day) !== selected }">{{ day }}</text>
+              <view v-if="eventDates.has(dateStr(day))" class="cal-dot" :class="{ sel: dateStr(day) === selected }" />
             </view>
           </view>
         </view>
-      </view>
+
+        <!-- 选中日活动 -->
+        <view class="cal-events">
+          <text class="cal-events-title">{{ selLabel }} 的活动</text>
+          <view v-if="dayEvents.length === 0" class="cal-events-empty"><text class="cal-events-empty-txt">当日无活动</text></view>
+          <view v-else class="cal-events-list">
+            <view v-for="evt in dayEvents" :key="evt.id" class="cal-event">
+              <text class="cal-event-time">{{ evt.time }}</text>
+              <view class="cal-event-main">
+                <view class="cal-event-top">
+                  <text class="cal-event-title">{{ evt.title }}</text>
+                  <view class="cal-event-tag" :class="TYPE_CFG[evt.type].cls"><text class="cal-event-tag-txt" :class="TYPE_CFG[evt.type].cls">{{ TYPE_CFG[evt.type].label }}</text></view>
+                </view>
+                <text class="cal-event-circle">{{ evt.circle }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </template>
     </view>
   </view>
 </template>
@@ -140,4 +165,13 @@ const selLabel = computed(() => `${selected.value.slice(5, 7)}月${selected.valu
 .cal-event-tag-txt.blue { color: #1D4ED8; }
 .cal-event-tag-txt.green { color: #15803D; }
 .cal-event-circle { display: block; font-size: 24rpx; color: #999; margin-top: 8rpx; }
+
+/* 骨架屏 */
+.cal-skeleton { display: flex; flex-direction: column; gap: 32rpx; }
+.cal-sk-nav { height: 64rpx; border-radius: 16rpx; width: 60%; align-self: center; }
+.cal-sk-grid { display: flex; flex-wrap: wrap; gap: 4rpx; }
+.cal-sk-cell { width: 72rpx; height: 80rpx; border-radius: 16rpx; }
+.cal-sk-event { height: 100rpx; border-radius: 24rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

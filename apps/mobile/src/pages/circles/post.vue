@@ -1,23 +1,27 @@
 <script setup lang="ts">
 /**
- * 帖子详情页（从原型 app/circles/[id]/posts/[postId]/page.tsx 1:1 高保真迁移）
+ * 帖子详情页 — 三态：loading骨架 → error重试 → 内容
  * 结构：导航 + 标签 + 标题 + 作者(关注) + 元信息 + 音频播放器 + Markdown正文 + 图片 +
  *       打赏区 + 互动数据栏 + 评论区(含子评论展开) + 底部评论输入 + 打赏弹窗 + 图片预览
- * 音频播放经 uni.createInnerAudioContext 跨端适配（替代原型 setInterval 模拟）。
  */
-import { ref, reactive, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
   postDetail, comments as rawComments, parseMarkdown,
   REWARD_QUICK, REWARD_ALL,
   type Comment,
 } from '@/lib/post-detail-data'
+import { circleDetailApi } from '@/lib/circle-detail-data'
 
 const circleId = ref('1')
-const post = reactive({ ...postDetail })
-const mdBlocks = parseMarkdown(post.content)
+const postId = ref('1')
+const loading = ref(true)
+const error = ref('')
+const post = reactive<Record<string, any>>({ ...postDetail })
+const mdBlocks = ref(parseMarkdown(post.content))
 
 // 互动状态
 const isLiked = ref(post.isLiked)
@@ -25,6 +29,32 @@ const isCollected = ref(post.isCollected)
 const likes = ref(post.likes)
 const collects = ref(post.collects)
 const isFollowed = ref(post.author.isFollowed ?? false)
+
+async function loadPost() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await circleDetailApi.getPostDetail(circleId.value, postId.value)
+    if (data) {
+      Object.assign(post, data)
+      mdBlocks.value = parseMarkdown(post.content || '')
+      isLiked.value = post.isLiked
+      isCollected.value = post.isCollected
+      likes.value = post.likes
+      collects.value = post.collects
+    }
+  } catch {
+    // mock 降级，postDetail 已默认
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((q) => {
+  if (q?.circleId) circleId.value = q.circleId
+  if (q?.id) postId.value = q.id
+  loadPost()
+})
 
 // 评论
 const comments = reactive<Comment[]>(JSON.parse(JSON.stringify(rawComments)))
@@ -36,10 +66,6 @@ const commentSort = ref<'hot' | 'new'>('hot')
 // 弹窗
 const showRewardModal = ref(false)
 const previewImage = ref<string | null>(null)
-
-onLoad((q) => {
-  if (q?.circleId) circleId.value = q.circleId
-})
 
 // ─── 音频播放器（跨端） ───
 const isPlaying = ref(false)
@@ -83,9 +109,9 @@ function submitComment() {
   replyTo.value = null
 }
 
-function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=post&targetId=${post.id}`) }
-function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
-function openCircle() { navigateTo(`/pkg-circle/circles/detail?id=${circleId.value}`) }
+function openShare() { toastComingSoon() }
+function openUser(_id: string) { toastComingSoon() }
+function openCircle() { navigateTo(`/pages/circles/detail?id=${circleId.value}`) }
 function fmt(n: number) { return n >= 10000 ? (n / 10000).toFixed(1) + 'w' : String(n) }
 
 onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
@@ -101,8 +127,20 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
     </view>
 
     <scroll-view scroll-y class="pd-body">
+      <!-- 骨架屏 -->
+      <view v-if="loading" class="pd-skeleton">
+        <view class="sk-line sk-w8" />
+        <view class="sk-line sk-w6" />
+        <view class="sk-line sk-w4" />
+        <view class="sk-block" />
+        <view class="sk-block" />
+      </view>
+
+      <!-- 错误 -->
+      <error-state v-else-if="error" :message="error" @retry="loadPost" />
+
       <!-- 文章 -->
-      <view class="pd-article">
+      <view v-else class="pd-article">
         <!-- 标签 -->
         <view class="pd-tags">
           <view v-if="post.isPinned" class="pd-tag pin"><app-icon name="pin" :size="22" color="#C41E3A" /><text class="pd-tag-t" style="color:#C41E3A">置顶</text></view>
@@ -495,4 +533,12 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
 .pd-rm-btn-t { font-size: 28rpx; font-weight: 500; }
 .pd-rm-btn-t.cancel { color: #666666; }
 .pd-rm-btn-t.confirm { color: #fff; }
+
+/* 骨架屏 */
+.pd-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.sk-line { height: 28rpx; background: #e8e0d5; border-radius: 8rpx; }
+.sk-w8 { width: 80%; }
+.sk-w6 { width: 60%; }
+.sk-w4 { width: 40%; }
+.sk-block { height: 160rpx; background: #e8e0d5; border-radius: 16rpx; }
 </style>

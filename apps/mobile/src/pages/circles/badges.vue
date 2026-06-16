@@ -3,8 +3,9 @@
  * 我的徽章（从原型 app/circles/badges/page.tsx 高保真迁移）
  * 已获得徽章网格 + 待解锁列表(进度条)；徽章图案=生成的国风圆形勋章图(跨端一致)
  */
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
 
 interface BadgeItem {
@@ -18,6 +19,23 @@ const RARITY_CFG = {
   epic: { label: '史诗', cls: 'epic' },
   legendary: { label: '传说', cls: 'legendary' },
 }
+const loading = ref(true)
+const error = ref('')
+
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
 const badges: BadgeItem[] = [
   { id: '1', name: '初入门径', desc: '加入第一个圈子', image: '/static/badges/badge-1.png', rarity: 'common', earned: true, earnedAt: '2023-10-01' },
   { id: '2', name: '活跃探索', desc: '连续7天发帖', image: '/static/badges/badge-2.png', rarity: 'common', earned: true, earnedAt: '2023-10-15' },
@@ -42,8 +60,14 @@ function pct(b: BadgeItem) { return Math.min(100, (b.progress! / b.total!) * 100
     </view>
 
     <view class="bg-body">
-      <!-- 已获得 -->
-      <text class="bg-section">已获得 {{ earned.length }} 枚</text>
+      <!-- 骨架屏 -->
+      <view v-if="loading" class="bg-skeleton">
+        <view v-for="i in 3" :key="i" class="bg-sk-row"><view class="bg-sk-block sk-anim" /></view>
+      </view>
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <template v-else>
+        <!-- 已获得 -->
+        <text class="bg-section">已获得 {{ earned.length }} 枚</text>
       <view class="bg-grid">
         <view v-for="b in earned" :key="b.id" class="bg-card" :class="RARITY_CFG[b.rarity].cls">
           <image class="bg-badge-img" :src="b.image" mode="aspectFit" />
@@ -72,6 +96,7 @@ function pct(b: BadgeItem) { return Math.min(100, (b.progress! / b.total!) * 100
           <app-icon name="lock" :size="28" color="#999999" />
         </view>
       </view>
+      </template>
     </view>
   </view>
 </template>
@@ -115,4 +140,11 @@ function pct(b: BadgeItem) { return Math.min(100, (b.progress! / b.total!) * 100
 .bg-progress { flex: 1; height: 12rpx; background: #F0EBE3; border-radius: 999rpx; overflow: hidden; }
 .bg-progress-bar { height: 100%; background: rgba(196,30,58,0.5); border-radius: 999rpx; }
 .bg-progress-txt { font-size: 20rpx; color: #999; flex-shrink: 0; }
+
+/* 骨架屏 */
+.bg-skeleton { margin-top: 40rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.bg-sk-row { display: flex; gap: 16rpx; }
+.bg-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

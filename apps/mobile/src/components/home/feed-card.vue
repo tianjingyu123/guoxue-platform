@@ -58,15 +58,15 @@ function go() {
     if (it.type === 'circle') {
       navigateTo(
         it.isMember
-          ? `/pkg-circle/circles/detail?id=${it.id}`
-          : `/pkg-circle/circles/preview?id=${it.id}`,
+          ? `/pages/circles/detail?id=${it.id}`
+          : `/pages/circles/preview?id=${it.id}`,
       )
       return
     }
     navigateTo(map[it.type] || `/pages/article/detail?id=${it.id}`)
     return
   }
-  if (agent.value) navigateTo(`/pkg-agent/agent/chat?id=${agent.value.id}`)
+  if (agent.value) navigateTo(`/pages/agent/chat?id=${agent.value.id}`)
 }
 
 const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agentThemes.general)

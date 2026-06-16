@@ -4,15 +4,35 @@
  * 概览KPI卡 + 近30天趋势柱图(四指标切换) + 活跃贡献者TOP5 + 热门内容TOP5 + 流失预警 + 收益构成
  * 原型趋势图用 CSS 柱条(非recharts),跨端直接复用
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import ErrorState from '@/components/common/error-state.vue'
 
 type TrendType = 'members' | 'posts' | 'active' | 'revenue'
 
 const circleId = ref('1')
+
+onLoad((q) => { if (q?.id) circleId.value = q.id })
 const refreshing = ref(false)
 const trendType = ref<TrendType>('members')
+const loading = ref(true)
+const error = ref('')
+
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 const overview = {
   totalMembers: 12580, membersGrowth: 8.5,
@@ -92,7 +112,7 @@ function refresh() {
   refreshing.value = true
   setTimeout(() => { refreshing.value = false; uni.showToast({ title: '已刷新', icon: 'success' }) }, 800)
 }
-function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&circleId=${circleId.value}`) }
+function openPost(id: string) { navigateTo(`/pages/circles/post?id=${id}&circleId=${circleId.value}`) }
 </script>
 
 <template>
@@ -109,6 +129,11 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
     </view>
 
     <scroll-view scroll-y class="db-body">
+      <view v-if="loading" class="db-skeleton">
+        <view v-for="i in 3" :key="i" class="db-sk-row"><view class="db-sk-block sk-anim" /></view>
+      </view>
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+      <template v-else>
       <!-- 概览卡片 -->
       <view class="db-kpis">
         <view v-for="k in kpis" :key="k.label" class="db-kpi">
@@ -226,6 +251,7 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
         </view>
       </view>
       <view class="db-spacer" />
+      </template>
     </scroll-view>
   </view>
 </template>
@@ -304,4 +330,9 @@ function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?id=${id}&ci
 .db-revenue-track { height: 16rpx; background: #f5f5f5; border-radius: 999rpx; overflow: hidden; }
 .db-revenue-fill { height: 100%; border-radius: 999rpx; }
 .db-spacer { height: 40rpx; }
+.db-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.db-sk-row { display: flex; gap: 16rpx; }
+.db-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

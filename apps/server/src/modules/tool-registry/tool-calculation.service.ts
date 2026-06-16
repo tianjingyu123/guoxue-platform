@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
-import type { JinKouJueInput, YongShenFenXiInput, GeJuXiangJieInput } from "@guoxue/shared";
+import type { JinKouJueInput, YongShenFenXiInput, GeJuXiangJieInput, NayinXiangJieInput, SanheShuifaInput, FuxingShuifaInput } from "@guoxue/shared";
 import { WannianliService } from "../wannianli/wannianli.service";
 import {
   calculateBaZi,
@@ -90,6 +90,9 @@ import {
   calculateLiuYaoGuaCi,
   calculateQiMenYingXun,
   calculateMeiHuaWaiXiang,
+  calculateNayinXiangJie,
+  calculateSanheShuifa,
+  calculateFuxingShuifa,
   calculateLiuYaoDuanGua,
   calculateXuanKongJiuGong,
   calculateBaziJianKang,
@@ -280,6 +283,9 @@ export class ToolCalculationService {
       case "liuyao-guaci":     return calculateLiuYaoGuaCi(input);
       case "qimen-yingxun":   return calculateQiMenYingXun(input);
       case "meihua-waixiang":    return calculateMeiHuaWaiXiang(input);
+      case "nayin-xiangjie":    return calculateNayinXiangJie(input as unknown as NayinXiangJieInput);
+      case "sanhe-shuifa":     return calculateSanheShuifa(input as unknown as SanheShuifaInput);
+      case "fuxing-shuifa":    return calculateFuxingShuifa(input as unknown as FuxingShuifaInput);
       case "liuyao-duangua":    return calculateLiuYaoDuanGua(input);
       case "xuankong-jiugong":   return calculateXuanKongJiuGong(input);
       case "bazi-jiankang":     return calculateBaziJianKang(input);

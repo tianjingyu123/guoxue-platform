@@ -14,8 +14,14 @@
 
     <scroll-view scroll-y class="scroll">
       <view class="body">
-        <!-- 统计 -->
-        <view class="stats">
+        <!-- 骨架屏 -->
+        <view v-if="loading" class="knw-skeleton">
+          <view v-for="i in 3" :key="i" class="knw-sk-card sk-anim" />
+        </view>
+        <error-state v-else-if="error" :message="error" @retry="loadData" />
+        <template v-else>
+          <!-- 统计 -->
+          <view class="stats">
           <view v-for="s in stats" :key="s.label" class="stat">
             <text class="stat-num">{{ s.count }}</text>
             <text class="stat-label">{{ s.label }}</text>
@@ -43,6 +49,7 @@
           <text class="empty-t">暂无知识库内容</text>
           <text class="empty-sub">添加文档、链接或问答，让 AI 助手更了解您的圈子</text>
         </view>
+        </template>
       </view>
     </scroll-view>
   </view>
@@ -52,21 +59,41 @@
 /**
  * 知识库设置页（启用切换/删除为本地状态，1:1 还原无持久化）
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
 
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
 
 interface KItem { id: string; type: 'doc' | 'link' | 'qa'; title: string; desc: string; enabled: boolean; updatedAt: string }
 
-const items = ref<KItem[]>([
+const MOCK_ITEMS: KItem[] = [
   { id: '1', type: 'doc', title: '圈子规则手册', desc: '圈子基本规则与行为准则', enabled: true, updatedAt: '2024-01-15' },
   { id: '2', type: 'qa', title: '命理常见问题解答', desc: '28条常见命理问题标准回答', enabled: true, updatedAt: '2024-01-18' },
   { id: '3', type: 'link', title: '易经基础资料', desc: 'https://example.com/yijing', enabled: true, updatedAt: '2024-01-10' },
   { id: '4', type: 'doc', title: '专家介绍合集', desc: '圈内专家背景与专长介绍', enabled: false, updatedAt: '2024-01-05' },
   { id: '5', type: 'qa', title: '报名流程说明', desc: '活动报名常见疑问及解答', enabled: true, updatedAt: '2024-01-20' },
-])
+]
+
+const loading = ref(true)
+const error = ref('')
+const items = ref<KItem[]>([])
+
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+    items.value = MOCK_ITEMS
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 const TYPE_CFG: Record<string, { label: string; icon: string; bg: string; text: string }> = {
   doc: { label: '文档', icon: 'file-text', bg: '#EFF6FF', text: '#2563EB' },
@@ -115,4 +142,10 @@ function remove(id: string) { items.value = items.value.filter(x => x.id !== id)
 .empty { display: flex; flex-direction: column; align-items: center; padding: 100rpx 0; }
 .empty-t { font-size: 26rpx; color: #999999; margin-top: 20rpx; }
 .empty-sub { font-size: 22rpx; color: #BBBBBB; margin-top: 6rpx; text-align: center; }
+
+/* 骨架屏 */
+.knw-skeleton { display: flex; flex-direction: column; gap: 14rpx; }
+.knw-sk-card { height: 120rpx; background: #fff; border-radius: 20rpx; border: 1rpx solid #ECE7DD; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

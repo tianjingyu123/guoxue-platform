@@ -5,7 +5,7 @@ import { navigateTo } from '@/utils/router'
 import { type AgentCardData, formatCount } from '@/lib/card-utils'
 
 const props = defineProps<{ data: AgentCardData; context?: string }>()
-function open() { navigateTo(`/pkg-agent/agent/chat?id=${props.data.id}${props.context ? `&from=${props.context}` : ''}`) }
+function open() { navigateTo(`/pages/agent/chat?id=${props.data.id}${props.context ? `&from=${props.context}` : ''}`) }
 </script>
 
 <template>

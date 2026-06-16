@@ -24,6 +24,12 @@
 
     <error-state v-else-if="error" :message="error" @retry="loadCoupon(coupon.id)" />
 
+    <view v-else-if="!coupon.id" class="empty-body">
+      <view class="empty-icon"><app-icon name="ticket" :size="80" color="#CCCCCC" /></view>
+      <text class="empty-text">优惠券不存在或已过期</text>
+      <view class="empty-btn" @tap="goBack"><text class="empty-btn-text">返回</text></view>
+    </view>
+
     <view v-else class="body">
       <!-- 大卡片 -->
       <view class="big-card">
@@ -381,4 +387,11 @@ function goUse() {
 .sk-w6 { width: 60%; }
 .sk-w8 { width: 80%; }
 .sk-img { background: #e8e0d5; border-radius: 12rpx; }
+
+/* 空态 */
+.empty-body { display: flex; flex-direction: column; align-items: center; padding: 128rpx 48rpx; }
+.empty-icon { width: 160rpx; height: 160rpx; border-radius: 50%; background: #F5F5F5; display: flex; align-items: center; justify-content: center; margin-bottom: 32rpx; }
+.empty-text { font-size: 28rpx; color: #CCCCCC; margin-bottom: 32rpx; }
+.empty-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.empty-btn-text { font-size: 28rpx; color: #fff; }
 </style>

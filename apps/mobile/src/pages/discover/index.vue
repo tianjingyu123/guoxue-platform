@@ -8,7 +8,7 @@ import LiveCard from '@/components/cards/live-card.vue'
 import AgentCard from '@/components/cards/agent-card.vue'
 import ClassicCard from '@/components/cards/classic-card.vue'
 import VideoCard from '@/components/cards/video-card.vue'
-import { toastComingSoon } from '@/utils/router'
+import { navigateTo, toastComingSoon } from '@/utils/router'
 import ErrorState from '@/components/common/error-state.vue'
 import {
   coreEntries, allCategory, categories, columns, hotWords, feedItems as defaultFeed,
@@ -32,7 +32,7 @@ async function loadFeed() {
     feedData.value = res.items || defaultFeed
     error.value = ''
   } catch (e: any) {
-    error.value = e?.message || '加载失败'
+    error.value = '加载失败'
     feedData.value = defaultFeed
   }
 }
@@ -51,14 +51,21 @@ onMounted(async () => {
 function goEntry(href: string) {
   if (href.startsWith('/pages/')) {
     uni.switchTab({ url: href, fail: () => uni.navigateTo({ url: href, fail: () => toastComingSoon() }) })
+  } else if (href === '/courses') {
+    uni.navigateTo({ url: '/pkg-course/home/index', fail: () => toastComingSoon() })
+  } else if (href === '/mall') {
+    uni.switchTab({ url: '/pages/mall/home/index', fail: () => uni.navigateTo({ url: '/pages/mall/home/index', fail: () => toastComingSoon() }) })
+  } else if (href === '/agents') {
+    uni.navigateTo({ url: '/pages/agent/main', fail: () => toastComingSoon() })
   } else {
     toastComingSoon()
   }
 }
-function goSearch() { toastComingSoon() }
-function goSearchWord(_w: string) { toastComingSoon() }
+function goSearch() { uni.navigateTo({ url: '/pages/circles/search', fail: () => toastComingSoon() }) }
+function goSearchWord(w: string) { uni.navigateTo({ url: '/pages/circles/search?keyword=' + encodeURIComponent(w), fail: () => toastComingSoon() }) }
 function goCategory(cat: { id: string; label: string }) {
-  if (cat.id === 'all') { activeCategory.value = 'all' } else { toastComingSoon() }
+  if (cat.id === 'all') { activeCategory.value = 'all' }
+  else { uni.navigateTo({ url: '/pages/circles/index', fail: () => toastComingSoon() }) }
 }
 function goColumn(_href: string) { toastComingSoon() }
 </script>
@@ -179,6 +186,14 @@ function goColumn(_href: string) { toastComingSoon() }
       <!-- 错误态 -->
       <error-state v-else-if="error" :message="error" @retry="onRefresh" />
 
+      <!-- 空状态 -->
+      <view v-else-if="feedData.length === 0 && !isLoading" class="empty-feed">
+        <AppIcon name="compass" :size="80" color="#ccc" />
+        <text class="empty-feed-title">暂无推荐内容</text>
+        <text class="empty-feed-sub">去首页发现更多精彩</text>
+        <view class="empty-feed-btn" @tap="uni.switchTab({ url: '/pages/index/index' })"><text>去首页逛逛</text></view>
+      </view>
+
       <!-- 瀑布流 -->
       <view v-else class="masonry">
         <view class="masonry-col">
@@ -282,4 +297,10 @@ function goColumn(_href: string) { toastComingSoon() }
 .feed-end { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx 0; }
 .end-line { width: 80rpx; height: 2rpx; background: var(--line, #e4ddd0); }
 .end-txt { font-size: 26rpx; color: var(--text-soft, #999); }
+
+.empty-feed { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; gap: 16rpx; }
+.empty-feed-title { font-size: 30rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); }
+.empty-feed-sub { font-size: 26rpx; color: var(--text-faint, #999); }
+.empty-feed-btn { margin-top: 16rpx; padding: 20rpx 48rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
+.empty-feed-btn text { font-size: 28rpx; color: #fff; }
 </style>

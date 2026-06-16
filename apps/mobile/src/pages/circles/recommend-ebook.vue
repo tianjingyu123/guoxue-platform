@@ -24,6 +24,11 @@
       <view class="re-tab" :class="{ on: activeTab === 'search' }" @tap="activeTab = 'search'">选书</view>
     </view>
 
+    <view v-if="loading" class="re-skeleton">
+      <view v-for="i in 3" :key="i" class="re-sk-row"><view class="re-sk-block sk-anim" /></view>
+    </view>
+    <error-state v-else-if="error" :message="error" @retry="loadData" />
+    <template v-else>
     <!-- 选书 Tab -->
     <view v-if="activeTab === 'search'" class="re-body">
       <view class="re-search">
@@ -79,6 +84,7 @@
         </view>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
@@ -87,9 +93,10 @@
  * 推荐电子书（从原型 app/circles/[id]/recommend-ebook/page.tsx 高保真迁移）
  * 浅色书库主题，双Tab选书/已推荐，最多推荐12本
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
+import ErrorState from '@/components/common/error-state.vue'
 
 const circleInfo = { id: '1', name: '八字命理研习圈' }
 
@@ -111,7 +118,25 @@ function coverColor(id: string) { return coverColors[parseInt(id) % coverColors.
 const search = ref('')
 const activeTab = ref<'search' | 'recommended'>('recommended')
 const isSaving = ref(false)
-const recommended = ref<string[]>(allBooks.filter((b) => b.isRecommended).map((b) => b.id))
+const loading = ref(true)
+const error = ref('')
+const MOCK_RECOMMENDED_IDS = allBooks.filter((b) => b.isRecommended).map((b) => b.id)
+const recommended = ref<string[]>([])
+
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+    recommended.value = MOCK_RECOMMENDED_IDS
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 const filteredBooks = computed(() => allBooks.filter((b) => b.title.includes(search.value) || b.author.includes(search.value)))
 const recommendedBooks = computed(() => allBooks.filter((b) => recommended.value.includes(b.id)))
@@ -177,4 +202,9 @@ async function handleSave() {
 
 .re-empty { display: flex; flex-direction: column; align-items: center; padding: 128rpx 0; }
 .re-empty-t { font-size: 28rpx; color: #64748b; margin-top: 24rpx; } .re-empty-sub { font-size: 22rpx; color: #94a3b8; margin-top: 8rpx; }
+.re-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.re-sk-row { display: flex; gap: 16rpx; }
+.re-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

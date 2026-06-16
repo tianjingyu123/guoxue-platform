@@ -6,6 +6,7 @@
  */
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
 
 interface UsedUser { id: string; name: string; avatar: string; usedAt: string }
@@ -32,6 +33,7 @@ const mockInviteCodes: InviteCode[] = [
 ]
 
 const isLoading = ref(true)
+const error = ref('')
 const stats = ref({ ...mockStats })
 const inviteCodes = ref<InviteCode[]>([])
 const showCreateModal = ref(false)
@@ -41,9 +43,20 @@ const expandedCode = ref<string | null>(null)
 const activeMenu = ref<string | null>(null)
 const copiedCode = ref<string | null>(null)
 
-onMounted(() => {
-  setTimeout(() => { inviteCodes.value = mockInviteCodes; isLoading.value = false }, 800)
-})
+onMounted(() => { loadData() })
+
+async function loadData() {
+  isLoading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 800))
+    inviteCodes.value = mockInviteCodes
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    isLoading.value = false
+  }
+}
 
 function statusLabel(s: string) { return s === 'active' ? '有效' : s === 'disabled' ? '已禁用' : '已过期' }
 function statusCls(s: string) { return s === 'active' ? 'ic-st-active' : s === 'disabled' ? 'ic-st-disabled' : 'ic-st-expired' }
@@ -106,6 +119,8 @@ function deleteCode(id: string) {
         <view v-for="i in 3" :key="i" class="ic-skel-card" />
       </view>
     </view>
+
+    <error-state v-else-if="error" :message="error" @retry="loadData" />
 
     <template v-else>
       <!-- 统计卡片 -->

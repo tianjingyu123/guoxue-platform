@@ -9,7 +9,7 @@
       <view class="nav">
         <view class="nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="34" color="#ffffff" /></view>
         <text class="nav-title">我的等级</text>
-        <view class="nav-rank" @tap="toastComingSoon"><text class="nav-rank-t">排行</text><app-icon name="chevron-right" :size="28" color="rgba(255,255,255,0.7)" /></view>
+        <view class="nav-rank" @tap="goRanking"><text class="nav-rank-t">排行</text><app-icon name="chevron-right" :size="28" color="rgba(255,255,255,0.7)" /></view>
       </view>
 
       <!-- 用户等级卡片 -->
@@ -52,7 +52,12 @@
       </view>
     </view>
 
-    <view class="content">
+    <!-- 骨架屏 -->
+    <view v-if="loading" class="lvl-skeleton">
+      <view v-for="i in 3" :key="i" class="lvl-sk-row"><view class="lvl-sk-block sk-anim" /></view>
+    </view>
+    <error-state v-else-if="error" :message="error" @retry="loadData" />
+    <view v-else class="content">
       <!-- 等级详情 -->
       <view v-if="activeTab === 'level'" class="sec-group">
         <view class="card">
@@ -111,7 +116,7 @@
               <view class="locked-info">
                 <view class="locked-name-row"><text class="locked-name">{{ b.name }}</text><app-icon name="lock" :size="20" color="#999999" /></view>
                 <text class="locked-desc">{{ b.desc }}</text>
-                <view v-if="b.progress !== undefined" class="prog">
+                <view v-if="b.progress !== undefined && b.total" class="prog">
                   <view class="prog-head"><text class="prog-l">进度</text><text class="prog-l">{{ b.progress }}/{{ b.total }}</text></view>
                   <view class="prog-track"><view class="prog-fill" :style="{ width: (b.progress / b.total * 100) + '%', background: b.color }" /></view>
                 </view>
@@ -146,12 +151,12 @@
               </template>
             </view>
           </view>
-          <view class="signin-btn" @tap="toastComingSoon"><text class="signin-btn-t">立即签到 (+10经验)</text></view>
+          <view class="signin-btn" @tap="goSignIn"><text class="signin-btn-t">立即签到 (+10经验)</text></view>
         </view>
 
         <!-- 经验记录 -->
         <view class="card">
-          <view class="card-head between"><text class="card-title">最近获得</text><text class="card-link" @tap="toastComingSoon">全部记录</text></view>
+          <view class="card-head between"><text class="card-title">最近获得</text><text class="card-link" @tap="navigateTo('/pages/circles/badges')">全部记录</text></view>
           <view class="rec-list">
             <view v-for="(r, i) in recentXp" :key="i" class="rec-row">
               <view><text class="rec-title">{{ r.title }}</text><text class="rec-time">{{ r.time }}</text></view>
@@ -168,11 +173,31 @@
 /**
  * 我的等级页（纯展示+本地Tab切换）
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, toastComingSoon } from '@/utils/router'
+import ErrorState from '@/components/common/error-state.vue'
+import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 
+const loading = ref(true)
+const error = ref('')
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
+
+onMounted(() => { loadData() })
+
+function goRanking() { navigateTo('/pages/circles/ranking') }
+function goSignIn() { navigateTo('/pages/circles/checkin') }
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 const levels = [
   { level: 1, name: '入门学徒', minXp: 0, maxXp: 100, color: '#999999' },
@@ -363,4 +388,11 @@ function signinCls(idx: number) { return idx < 3 ? 'passed' : idx === 3 ? 'today
 .rec-title { font-size: 24rpx; color: #2C2C2C; }
 .rec-time { display: block; font-size: 20rpx; color: #999999; margin-top: 2rpx; }
 .rec-xp { font-size: 26rpx; font-weight: 500; color: #52C41A; }
+
+/* 骨架屏 */
+.lvl-skeleton { padding: 32rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.lvl-sk-row { display: flex; gap: 16rpx; }
+.lvl-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

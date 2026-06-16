@@ -7,24 +7,50 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppNavBar from '@/components/common/app-nav-bar.vue'
+import AppError from '@/components/common/app-error.vue'
 import VisibilitySettings, { type Visibility, type PaymentType } from '@/components/circle/visibility-settings.vue'
-import { goBack, navigateTo, reLaunch } from '@/utils/router'
+import { goBack, reLaunch, toastComingSoon } from '@/utils/router'
+import { circleDetailApi } from '@/lib/circle-detail-data'
 
-const circleId = ref('1')
-const circle = reactive({ id: '1', name: '八字命理研习社', members: 12580, role: 'owner' as 'owner' | 'admin' })
+const circleId = ref('')
+const circle = reactive({ id: '', name: '', members: 0, role: 'owner' as 'owner' | 'admin', avatar: '' })
+const pageLoading = ref(true)
+const pageError = ref('')
 
 const selectedType = ref<string | null>(null)
 
 const contentTypes = [
+  { id: 'post', name: '帖子', icon: 'message-square', desc: '发布简短讨论' },
   { id: 'article', name: '文章', icon: 'file-text', desc: '发布图文内容' },
   { id: 'course', name: '课程', icon: 'book-open', desc: '上传视频课程' },
   { id: 'live', name: '直播', icon: 'radio', desc: '发起在线直播' },
 ]
 
-onLoad((q) => { if (q?.circleId) { circleId.value = q.circleId; circle.id = q.circleId } })
+async function loadCircleInfo() {
+  if (!circleId.value) { pageLoading.value = false; return }
+  pageLoading.value = true
+  pageError.value = ''
+  try {
+    const data = await circleDetailApi.detail(circleId.value)
+    circle.id = data.id || circleId.value
+    circle.name = data.name || ''
+    circle.members = data.memberCount || 0
+    circle.role = (data.myRole as 'owner' | 'admin') || 'owner'
+    circle.avatar = data.avatar || ''
+  } catch (e: any) {
+    pageError.value = e?.message || '加载圈子信息失败'
+  } finally {
+    pageLoading.value = false
+  }
+}
+
+onLoad((q) => {
+  if (q?.circleId) { circleId.value = q.circleId; loadCircleInfo() }
+})
 
 function selectType(t: typeof contentTypes[0]) {
-  if (t.id === 'live') { navigateTo(`/pkg-live/create/index?circleId=${circleId.value}`); return }
+  if (t.id === 'live') { toastComingSoon(); return }
   selectedType.value = t.id
 }
 
@@ -38,7 +64,25 @@ const a = reactive({
 const aErr = reactive<{ title?: string; content?: string; price?: string }>({})
 const aSubmitting = ref(false)
 
-function uploadCover(target: 'a' | 'c') {
+// ─── 帖子表单 ───
+const p = reactive({
+  content: '',
+  images: [] as string[],
+  visibility: 'circle_only' as Visibility,
+  paymentType: 'free' as PaymentType,
+  price: 0,
+})
+const pErr = reactive<{ content?: string }>({})
+const pSubmitting = ref(false)
+
+function uploadCover(target: 'a' | 'c' | 'p') {
+  if (target === 'p') {
+    uni.chooseImage({
+      count: 9 - p.images.length,
+      success: (res) => { p.images.push(...res.tempFilePaths) },
+    })
+    return
+  }
   uni.chooseImage({
     count: 1,
     success: (res) => {
@@ -48,6 +92,7 @@ function uploadCover(target: 'a' | 'c') {
     },
   })
 }
+function removePostImage(idx: number) { p.images.splice(idx, 1) }
 
 async function submitArticle() {
   aErr.title = a.title.trim() ? '' : '请输入文章标题'
@@ -55,9 +100,39 @@ async function submitArticle() {
   aErr.price = (a.paymentType !== 'free' && a.price <= 0) ? '请设置价格' : ''
   if (aErr.title || aErr.content || aErr.price) return
   aSubmitting.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  uni.showToast({ title: '发布成功', icon: 'success' })
-  setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+  try {
+    await circleDetailApi.createPost(circleId.value, {
+      content: a.content.trim(),
+      images: a.cover ? [a.cover] : [],
+      title: a.title.trim(),
+      type: 'article',
+    })
+    uni.showToast({ title: '发布成功', icon: 'success' })
+    setTimeout(() => reLaunch(`/pages/circles/detail?id=${circleId.value}`), 600)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
+  } finally {
+    aSubmitting.value = false
+  }
+}
+
+async function submitPost() {
+  pErr.content = p.content.trim() ? '' : '请输入帖子内容'
+  if (pErr.content) return
+  pSubmitting.value = true
+  try {
+    await circleDetailApi.createPost(circleId.value, {
+      content: p.content.trim(),
+      images: p.images,
+      type: 'post',
+    })
+    uni.showToast({ title: '发布成功', icon: 'success' })
+    setTimeout(() => reLaunch(`/pages/circles/detail?id=${circleId.value}`), 600)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '发布失败', icon: 'none' })
+  } finally {
+    pSubmitting.value = false
+  }
 }
 
 // ─── 课程表单 ───
@@ -88,25 +163,42 @@ async function submitCourse() {
   cErr.price = (c.paymentType !== 'free' && c.price <= 0) ? '请设置价格' : ''
   if (cErr.title || cErr.description || cErr.price) return
   cSubmitting.value = true
-  await new Promise((r) => setTimeout(r, 800))
-  uni.showToast({ title: '创建成功', icon: 'success' })
-  setTimeout(() => reLaunch(`/pkg-circle/circles/detail?id=${circleId.value}`), 600)
+  try {
+    await circleDetailApi.createPost(circleId.value, {
+      content: c.description.trim(),
+      images: c.cover ? [c.cover] : [],
+      title: c.title.trim(),
+      type: 'course',
+    })
+    uni.showToast({ title: '创建成功', icon: 'success' })
+    setTimeout(() => reLaunch(`/pages/circles/detail?id=${circleId.value}`), 600)
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '创建失败', icon: 'none' })
+  } finally {
+    cSubmitting.value = false
+  }
 }
 </script>
 
 <template>
   <view class="cr">
-    <!-- 顶栏 -->
-    <view class="cr-hdr">
-      <view class="cr-hdr-btn" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
-      <text class="cr-hdr-title">发布内容</text>
-      <view class="cr-hdr-btn" />
+    <app-nav-bar title="发布内容" background="rgba(26,26,26,0.95)" color="#ffffff" :back-size="40" no-border />
+
+    <!-- 加载骨架 -->
+    <view v-if="pageLoading" class="cr-skeleton">
+      <view class="sk-circle" />
+      <view class="sk-types">
+        <view v-for="i in 4" :key="i" class="sk-type" />
+      </view>
     </view>
 
-    <scroll-view scroll-y class="cr-body">
+    <!-- 错误 -->
+    <app-error v-else-if="pageError" :desc="pageError" @retry="loadCircleInfo" />
+
+    <scroll-view v-else scroll-y class="cr-body">
       <!-- 圈子信息 -->
       <view class="cr-circle">
-        <image :src="`https://api.dicebear.com/7.x/shapes/svg?seed=${circle.id}`" class="cr-circle-avatar" mode="aspectFill" />
+        <image :src="circle.avatar || `https://api.dicebear.com/7.x/shapes/svg?seed=${circle.id}`" class="cr-circle-avatar" mode="aspectFill" />
         <view class="cr-circle-info">
           <text class="cr-circle-name">{{ circle.name }}</text>
           <text class="cr-circle-members">{{ circle.members.toLocaleString() }} 成员</text>
@@ -126,6 +218,39 @@ async function submitCourse() {
             </view>
             <app-icon name="chevron-right" :size="32" color="rgba(255,255,255,0.3)" />
           </view>
+        </view>
+      </view>
+
+      <!-- 帖子表单 -->
+      <view v-else-if="selectedType === 'post'" class="cr-form">
+        <view class="cr-form-head">
+          <view class="cr-back" @tap="selectedType = null"><app-icon name="chevron-left" :size="28" color="rgba(255,255,255,0.6)" /><text class="cr-back-t">返回</text></view>
+          <text class="cr-form-title">发帖子</text>
+          <view class="cr-back-pad" />
+        </view>
+
+        <view class="cr-panel">
+          <text class="cr-field-label">帖子内容 <text class="cr-req">*</text></text>
+          <textarea v-model="p.content" class="cr-textarea" :class="{ err: pErr.content }" placeholder="分享你的想法..." placeholder-class="cr-ph" :maxlength="-1" @input="pErr.content = ''" />
+          <text v-if="pErr.content" class="cr-err">{{ pErr.content }}</text>
+        </view>
+
+        <view class="cr-panel">
+          <text class="cr-field-label">图片（选填，最多9张）</text>
+          <view class="cr-imgs">
+            <view v-for="(img, idx) in p.images" :key="idx" class="cr-img-item">
+              <image :src="img" class="cr-img-thumb" mode="aspectFill" />
+              <view class="cr-img-del" @tap="removePostImage(idx)"><app-icon name="x" :size="24" color="#ffffff" /></view>
+            </view>
+            <view v-if="p.images.length < 9" class="cr-img-add" @tap="uploadCover('p')">
+              <app-icon name="camera" :size="36" color="rgba(255,255,255,0.4)" />
+              <text class="cr-img-add-t">{{ p.images.length }}/9</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="cr-submit" :class="{ disabled: pSubmitting }" @tap="submitPost">
+          <text class="cr-submit-t">{{ pSubmitting ? '发布中...' : '发布帖子' }}</text>
         </view>
       </view>
 
@@ -247,9 +372,12 @@ async function submitCourse() {
 
 <style scoped lang="scss">
 .cr { display: flex; flex-direction: column; height: 100vh; background: #1a1a1a; }
-.cr-hdr { display: flex; align-items: center; justify-content: space-between; height: 88rpx; padding: 0 24rpx; background: rgba(26,26,26,0.95); border-bottom: 2rpx solid rgba(255,255,255,0.1); padding-top: var(--status-bar-height, 0); flex-shrink: 0; }
-.cr-hdr-btn { width: 72rpx; padding: 8rpx; }
-.cr-hdr-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 600; color: #fff; }
+/* 加载骨架 */
+.cr-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.sk-circle { height: 136rpx; border-radius: 28rpx; background: rgba(255,255,255,0.05); animation: sk-pulse 1.5s infinite; }
+.sk-types { display: flex; flex-direction: column; gap: 20rpx; }
+.sk-type { height: 126rpx; border-radius: 20rpx; background: rgba(255,255,255,0.05); animation: sk-pulse 1.5s infinite; }
+@keyframes sk-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
 .cr-body { flex: 1; overflow: hidden; padding: 24rpx; box-sizing: border-box; }
 /* 圈子信息 */
 .cr-circle { display: flex; align-items: center; gap: 20rpx; background: #1a1a1a; border: 2rpx solid rgba(255,255,255,0.08); border-radius: 28rpx; padding: 28rpx; margin-bottom: 24rpx; }
@@ -302,6 +430,13 @@ async function submitCourse() {
 /* 提示 */
 .cr-tip-gold { background: rgba(201,169,110,0.1); border: 2rpx solid rgba(201,169,110,0.2); border-radius: 16rpx; padding: 20rpx; margin-bottom: 24rpx; }
 .cr-tip-gold-t { font-size: 22rpx; color: #C9A96E; line-height: 1.5; }
+/* 帖子图片 */
+.cr-imgs { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.cr-img-item { position: relative; width: 160rpx; height: 160rpx; border-radius: 16rpx; overflow: hidden; }
+.cr-img-thumb { width: 100%; height: 100%; }
+.cr-img-del { position: absolute; top: 4rpx; right: 4rpx; width: 44rpx; height: 44rpx; border-radius: 999rpx; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; }
+.cr-img-add { width: 160rpx; height: 160rpx; border-radius: 16rpx; border: 4rpx dashed rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; }
+.cr-img-add-t { font-size: 22rpx; color: rgba(255,255,255,0.4); }
 /* 提交 */
 .cr-submit { padding: 28rpx 0; border-radius: 999rpx; background: #C41E3A; text-align: center; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.25); margin-bottom: 40rpx; }
 .cr-submit.disabled { opacity: 0.5; }

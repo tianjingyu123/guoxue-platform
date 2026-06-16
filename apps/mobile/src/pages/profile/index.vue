@@ -44,8 +44,18 @@ function confirmRole() {
   pendingRole.value = null
   navigateTo(href)
 }
-function applyRole(_type: UserRole) {
-  toastComingSoon()
+function applyRole(type: UserRole) {
+  const role = allRoleTypes.find(r => r.type === type)
+  if (role?.applyHref && role.applyHref !== '/institute/apply' && role.applyHref !== '/join/station' && role.applyHref !== '/creator/live/console') {
+    navigateTo(role.applyHref)
+  } else {
+    toastComingSoon()
+  }
+}
+function openRec(rec: typeof recommendations[number]) {
+  if (rec.type === 'course') navigateTo('/pkg-course/home/index')
+  else if (rec.type === 'product') navigateTo('/pages/mall/home/index')
+  else toastComingSoon()
 }
 
 async function loadProfile() {
@@ -55,7 +65,7 @@ async function loadProfile() {
     const data = await profileApi.getMyProfile()
     user.value = data
   } catch (e: any) {
-    error.value = e?.message || '加载失败'
+    error.value = '加载失败'
   } finally {
     loading.value = false
   }
@@ -100,7 +110,7 @@ onMounted(() => {
             <AppIcon name="bell" :size="38" color="#2c2c2c" />
             <text v-if="totalMessages > 0" class="msg-badge">{{ totalMessages }}</text>
           </view>
-          <view class="round-btn" @tap="toastComingSoon"><AppIcon name="settings" :size="38" color="#2c2c2c" /></view>
+          <view class="round-btn" @tap="go('/pkg-mine/settings/index')"><AppIcon name="settings" :size="38" color="#2c2c2c" /></view>
         </view>
       </view>
 
@@ -148,7 +158,7 @@ onMounted(() => {
             <view class="asset-val"><AppIcon name="coins" :size="38" color="#C9A96E" /><text class="coin-num">{{ user.coins }}</text></view>
             <text class="coin-label">国学币</text>
           </view>
-          <view class="asset-item asset-bd" @tap="toastComingSoon">
+          <view class="asset-item asset-bd" @tap="go('/shop/coupons/index')">
             <view class="asset-val"><AppIcon name="ticket" :size="30" color="#999999" /><text class="asset-num">{{ user.coupons }}</text></view>
             <text class="asset-label">优惠券</text>
           </view>
@@ -165,10 +175,10 @@ onMounted(() => {
       <view class="card">
         <view class="card-head">
           <text class="card-title">我的订单</text>
-          <view class="card-more" @tap="toastComingSoon"><text class="more-txt">查看全部订单</text><AppIcon name="chevron-right" :size="28" color="#999999" /></view>
+          <view class="card-more" @tap="go('/pages/order/list/index')"><text class="more-txt">查看全部订单</text><AppIcon name="chevron-right" :size="28" color="#999999" /></view>
         </view>
         <view class="order-grid">
-          <view v-for="item in orderStatus" :key="item.key" class="order-item" @tap="toastComingSoon">
+          <view v-for="item in orderStatus" :key="item.key" class="order-item" @tap="go('/pages/order/list/index?tab=' + item.key)">
             <view class="order-icon"><AppIcon :name="item.icon" :size="36" color="#999999" /></view>
             <text class="order-label">{{ item.label }}</text>
             <text v-if="item.count > 0" class="order-badge">{{ item.count }}</text>
@@ -231,7 +241,7 @@ onMounted(() => {
 
     <!-- ===== 签到入口 ===== -->
     <view class="sec">
-      <view class="checkin-card" @tap="toastComingSoon">
+      <view class="checkin-card" @tap="go('/pages/circles/checkin')">
         <view class="checkin-left">
           <view class="checkin-icon"><AppIcon name="calendar-check" :size="36" color="#ffffff" /></view>
           <view>
@@ -249,7 +259,7 @@ onMounted(() => {
 
     <!-- ===== 继续学习卡片 ===== -->
     <view v-if="user.continueLearning" class="sec">
-      <view class="learn-card" @tap="toastComingSoon">
+      <view class="learn-card" @tap="go('/pkg-course/home/index')">
         <view class="learn-cover"><AppIcon name="play" :size="44" color="#C41E3A" /></view>
         <view class="learn-info">
           <text class="learn-tag">继续学习</text>
@@ -271,7 +281,7 @@ onMounted(() => {
       </view>
       <scroll-view scroll-x class="rec-scroll" :show-scrollbar="false">
         <view class="rec-row">
-          <view v-for="item in recommendations" :key="item.id" class="rec-item" @tap="toastComingSoon">
+          <view v-for="item in recommendations" :key="item.id" class="rec-item" @tap="openRec(item)">
             <view class="rec-cover">
               <AppIcon :name="item.type === 'course' ? 'book-open' : 'package'" :size="56" :color="item.type === 'course' ? 'rgba(196,30,58,0.3)' : 'rgba(201,169,110,0.3)'" />
               <text v-if="item.tag" class="rec-tag">{{ item.tag }}</text>

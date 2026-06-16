@@ -1,33 +1,59 @@
 <script setup lang="ts">
 /**
- * 咨询问答（从原型 app/circles/[id]/consult/ask/page.tsx 高保真迁移）
- * 提出问题按钮 + 新问题表单(展开) + 热门问题列表。点问题→详情(未迁移,toast兜底)。
+ * 咨询问答 — 三态：加载骨架 → 错误重试 → 热门问题列表
+ * 展开提问表单 + API 提交
  */
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack, toastComingSoon } from '@/utils/router'
+import { circleDetailApi, type QuestionItem } from '@/lib/circle-detail-data'
 
-interface QItem {
-  id: string; title: string; content: string; asker: string; avatar: string
-  views: number; likes: number; answers: number; status: 'answered' | 'unanswered'; time: string
-}
-
-const questions = ref<QItem[]>([
-  { id: '1', title: '如何通过八字看一个人的财运？', content: '我想了解如何从八字命盘中看出一个人的财运好坏，有什么关键要素吗？', asker: '张女士', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=40', views: 1250, likes: 85, answers: 12, status: 'answered', time: '2024-01-20 14:30' },
-  { id: '2', title: '紫微斗数和八字哪个准确率更高？', content: '想对比一下两种算命方法的准确率，求推荐。', asker: '李先生', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40', views: 850, likes: 62, answers: 8, status: 'answered', time: '2024-01-20 10:15' },
-  { id: '3', title: '流年大运是如何计算的？', content: '请问流年大运的计算方法，以及如何才能准确的判断出一个人的吉凶祸福。', asker: '王女士', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40', views: 620, likes: 45, answers: 5, status: 'unanswered', time: '2024-01-20 09:45' },
-])
+const loading = ref(true)
+const error = ref('')
+const questions = ref<QuestionItem[]>([])
+const circleId = ref('1')
 
 const showNew = ref(false)
 const newTitle = ref('')
 const newContent = ref('')
+const submitting = ref(false)
 
-function postQuestion() {
-  if (newTitle.value.trim() && newContent.value.trim()) {
+onMounted(() => {
+  const pages = getCurrentPages()
+  const cur = pages[pages.length - 1]
+  const q = (cur as any).$page?.options || {}
+  if (q.circleId) circleId.value = q.circleId
+  loadData()
+})
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    const res: any = await circleDetailApi.listQuestions(circleId.value)
+    questions.value = res.data || []
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function postQuestion() {
+  if (!newTitle.value.trim() || !newContent.value.trim() || submitting.value) return
+  submitting.value = true
+  try {
+    await circleDetailApi.createQuestion(circleId.value, { title: newTitle.value.trim(), content: newContent.value.trim() })
     showNew.value = false
     newTitle.value = ''
     newContent.value = ''
     uni.showToast({ title: '问题已提交', icon: 'success' })
+    loadData()
+  } catch (e: any) {
+    uni.showToast({ title: e?.message || '提交失败', icon: 'none' })
+  } finally {
+    submitting.value = false
   }
 }
 </script>
@@ -51,34 +77,47 @@ function postQuestion() {
         <textarea v-model="newContent" class="ca-textarea" placeholder="详细描述您的问题..." placeholder-class="ca-ph" />
         <view class="ca-form-actions">
           <view class="ca-form-cancel" @tap="showNew = false"><text class="ca-form-cancel-t">取消</text></view>
-          <view class="ca-form-send" :class="{ 'is-disabled': !newTitle.trim() || !newContent.trim() }" @tap="postQuestion">
+          <view class="ca-form-send" :class="{ 'is-disabled': !newTitle.trim() || !newContent.trim() || submitting }" @tap="postQuestion">
             <app-icon name="send" :size="26" color="#ffffff" />
-            <text class="ca-form-send-t">发送</text>
+            <text class="ca-form-send-t">{{ submitting ? '提交中...' : '发送' }}</text>
           </view>
         </view>
       </view>
 
-      <text class="ca-section">热门问题</text>
-      <view class="ca-list">
-        <view v-for="q in questions" :key="q.id" class="ca-card" @tap="toastComingSoon">
-          <view class="ca-card-top">
-            <image class="ca-avatar" :src="q.avatar" mode="aspectFill" />
-            <view class="ca-card-info">
-              <text class="ca-card-title">{{ q.title }}</text>
-              <text class="ca-card-desc">{{ q.content }}</text>
+      <!-- 骨架 -->
+      <view v-if="loading" class="ca-skel">
+        <view v-for="i in 3" :key="i" class="ca-skel-card">
+          <view class="ca-skel-top"><view class="ca-skel-avatar" /><view class="ca-skel-lines"><view class="ca-skel-line w80" /><view class="ca-skel-line w60" /></view></view>
+          <view class="ca-skel-meta"><view class="ca-skel-line w40" /></view>
+        </view>
+      </view>
+
+      <!-- 错误 -->
+      <error-state v-else-if="error" :message="error" @retry="loadData" />
+
+      <template v-else>
+        <text class="ca-section">热门问题</text>
+        <view class="ca-list">
+          <view v-for="q in questions" :key="q.id" class="ca-card" @tap="toastComingSoon">
+            <view class="ca-card-top">
+              <image class="ca-avatar" :src="q.avatar" mode="aspectFill" />
+              <view class="ca-card-info">
+                <text class="ca-card-title">{{ q.title }}</text>
+                <text class="ca-card-desc">{{ q.content }}</text>
+              </view>
+              <view v-if="q.status === 'unanswered'" class="ca-badge"><text class="ca-badge-t">待答</text></view>
             </view>
-            <view v-if="q.status === 'unanswered'" class="ca-badge"><text class="ca-badge-t">待答</text></view>
-          </view>
-          <view class="ca-card-meta">
-            <text class="ca-meta-asker">{{ q.asker }} • {{ q.time }}</text>
-            <view class="ca-meta-stats">
-              <view class="ca-stat"><app-icon name="eye" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.views }}</text></view>
-              <view class="ca-stat"><app-icon name="thumbs-up" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.likes }}</text></view>
-              <view class="ca-stat"><app-icon name="message-square" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.answers }}</text></view>
+            <view class="ca-card-meta">
+              <text class="ca-meta-asker">{{ q.asker }} · {{ q.time }}</text>
+              <view class="ca-meta-stats">
+                <view class="ca-stat"><app-icon name="eye" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.views }}</text></view>
+                <view class="ca-stat"><app-icon name="thumbs-up" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.likes }}</text></view>
+                <view class="ca-stat"><app-icon name="message-square" :size="22" color="#999999" /><text class="ca-stat-t">{{ q.answers }}</text></view>
+              </view>
             </view>
           </view>
         </view>
-      </view>
+      </template>
     </view>
   </view>
 </template>
@@ -116,4 +155,15 @@ function postQuestion() {
 .ca-meta-stats { display: flex; align-items: center; gap: 20rpx; }
 .ca-stat { display: flex; align-items: center; gap: 6rpx; }
 .ca-stat-t { font-size: 22rpx; color: #999; }
+/* 骨架 */
+.ca-skel { display: flex; flex-direction: column; gap: 16rpx; }
+.ca-skel-card { padding: 24rpx; border-radius: 20rpx; background: #fff; }
+.ca-skel-top { display: flex; gap: 16rpx; margin-bottom: 20rpx; }
+.ca-skel-avatar { width: 56rpx; height: 56rpx; border-radius: 50%; background: #E8E0D0; flex-shrink: 0; }
+.ca-skel-lines { flex: 1; display: flex; flex-direction: column; gap: 12rpx; padding-top: 8rpx; }
+.ca-skel-line { height: 24rpx; background: #E8E0D0; border-radius: 8rpx; }
+.ca-skel-line.w80 { width: 80%; }
+.ca-skel-line.w60 { width: 60%; }
+.ca-skel-line.w40 { width: 40%; }
+.ca-skel-meta { padding-left: 72rpx; }
 </style>

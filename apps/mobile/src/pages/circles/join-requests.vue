@@ -5,6 +5,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
 
 interface JoinRequest {
@@ -26,6 +27,7 @@ const mockRequests: JoinRequest[] = [
 ]
 
 const isLoading = ref(true)
+const error = ref('')
 const requests = ref<JoinRequest[]>([])
 const filter = ref<'pending' | 'processed'>('pending')
 const selectedIds = ref<Set<string>>(new Set())
@@ -33,12 +35,20 @@ const expandedId = ref<string | null>(null)
 const rejectingId = ref<string | null>(null)
 const rejectReason = ref('')
 
-onMounted(() => {
-  setTimeout(() => {
+onMounted(() => { loadData() })
+
+async function loadData() {
+  isLoading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 800))
     requests.value = mockRequests
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
     isLoading.value = false
-  }, 800)
-})
+  }
+}
 
 const pendingRequests = computed(() => requests.value.filter((r) => r.status === 'pending'))
 const processedRequests = computed(() => requests.value.filter((r) => r.status !== 'pending'))
@@ -153,6 +163,8 @@ function batchApprove() {
         <view class="jr-skel-line" style="width: 66%; margin-top: 14rpx;" />
       </view>
     </view>
+
+    <error-state v-else-if="error" :message="error" @retry="loadData" />
 
     <!-- 空态 -->
     <view v-else-if="displayRequests.length === 0" class="jr-empty">

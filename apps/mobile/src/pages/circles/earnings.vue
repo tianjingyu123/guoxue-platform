@@ -15,7 +15,13 @@
 
     <scroll-view scroll-y class="scroll">
       <view class="body">
-        <!-- 收益概览 -->
+        <!-- 骨架屏 -->
+        <view v-if="loading" class="earn-skeleton">
+          <view v-for="i in 3" :key="i" class="earn-sk-row"><view class="earn-sk-block sk-anim" /></view>
+        </view>
+        <error-state v-else-if="error" :message="error" @retry="loadData" />
+        <template v-else>
+          <!-- 收益概览 -->
         <view class="overview">
           <view class="ov-top">
             <view>
@@ -87,6 +93,7 @@
             <text class="note-li">• 收益结算：每月月底统一结算，次月1日可提现</text>
           </view>
         </view>
+        </template>
       </view>
     </scroll-view>
   </view>
@@ -96,10 +103,28 @@
 /**
  * 圈子收益明细页（纯展示）
  */
+import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import ErrorState from '@/components/common/error-state.vue'
 import { goBack } from '@/utils/router'
 
+const loading = ref(true)
+const error = ref('')
 const statusBarH = uni.getSystemInfoSync().statusBarHeight || 20
+
+onMounted(() => { loadData() })
+
+async function loadData() {
+  loading.value = true
+  error.value = ''
+  try {
+    await new Promise(r => setTimeout(r, 500))
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+  } finally {
+    loading.value = false
+  }
+}
 
 const data = {
   totalEarnings: 285400,
@@ -172,4 +197,11 @@ function fmt(n: number) {
 .note-title { display: block; font-size: 26rpx; font-weight: 600; color: #1E3A8A; margin-bottom: 14rpx; }
 .note-list { display: flex; flex-direction: column; gap: 8rpx; }
 .note-li { font-size: 22rpx; color: #1E40AF; line-height: 1.6; }
+
+/* 骨架屏 */
+.earn-skeleton { padding: 24rpx; display: flex; flex-direction: column; gap: 20rpx; }
+.earn-sk-row { display: flex; gap: 16rpx; }
+.earn-sk-block { flex: 1; height: 120rpx; border-radius: 16rpx; }
+.sk-anim { background: linear-gradient(90deg, #E8E0D0 25%, #F0EDE6 50%, #E8E0D0 75%); background-size: 200% 100%; animation: sk-shimmer 1.5s infinite; }
+@keyframes sk-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

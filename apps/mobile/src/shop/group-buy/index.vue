@@ -37,9 +37,22 @@
       <app-icon name="chevron-right" :size="36" color="#b8ab94" />
     </view>
 
+    <!-- 加载骨架 -->
+    <view v-if="loading" class="list">
+      <view v-for="i in 3" :key="i" class="sk-card">
+        <view class="sk-row"><view class="sk-img" /><view class="sk-info"><view class="sk-line sk-w8" /><view class="sk-line sk-w6" /><view class="sk-line sk-w4" /></view></view>
+      </view>
+    </view>
+
+    <error-state v-else-if="error" :message="error" @retry="loadGroupBuys" />
+
     <!-- 拼团商品 -->
-    <view v-if="tab === 'all'" class="list">
-      <view v-for="item in groupBuyList" :key="item.id" class="card">
+    <view v-else-if="tab === 'all'" class="list">
+      <view v-if="!groupBuyItems.length" class="empty">
+        <view class="empty-icon"><app-icon name="users" :size="80" color="#CCCCCC" /></view>
+        <text class="empty-text">暂无拼团活动</text>
+      </view>
+      <view v-for="item in groupBuyItems" :key="item.id" class="card">
         <view class="card-main">
           <view class="card-img-wrap">
             <image class="card-img" :src="item.cover" mode="aspectFill" />
@@ -92,7 +105,7 @@
     <view v-else class="list">
       <view v-if="!myGroups.length" class="empty">
         <view class="empty-icon">
-          <app-icon name="users" :size="72" color="#b8ab94" />
+          <app-icon name="users" :size="80" color="#CCCCCC" />
         </view>
         <text class="empty-text">暂无拼团记录</text>
         <view class="empty-btn" @tap="tab = 'all'">
@@ -182,25 +195,47 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { groupBuyList, myGroupBuyList, formatCountdown, type MyGroupBuyItem } from '@/lib/shop-data'
+import ErrorState from '@/components/common/error-state.vue'
+import { groupBuyList, myGroupBuyList, formatCountdown, shopApi, type MyGroupBuyItem } from '@/lib/shop-data'
 
 const tabList = [
   { key: 'all', label: '拼团商品' },
   { key: 'my', label: '我的拼团' },
 ]
 const tab = ref('all')
-const myGroups = myGroupBuyList
+const loading = ref(true)
+const error = ref('')
+const groupBuyItems = ref<any[]>([])
+const myGroups = ref<any[]>([])
 const showShare = ref(false)
 const shareTarget = ref<MyGroupBuyItem | null>(null)
 
-// 倒计时基准（各项 endTime 固定）
 const endMap: Record<string, number> = {}
-;[...groupBuyList, ...myGroupBuyList].forEach((g: any) => {
-  endMap[g.id] = Date.now() + g.endOffsetMs
-})
 const tick = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
+
+async function loadGroupBuys() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [allRes, myRes] = await Promise.all([
+      shopApi.getGroupBuys(),
+      shopApi.getMyGroupBuys(),
+    ])
+    groupBuyItems.value = allRes?.items || allRes || groupBuyList
+    myGroups.value = myRes?.items || myRes || myGroupBuyList
+    ;[...groupBuyItems.value, ...myGroups.value].forEach((g: any) => {
+      endMap[g.id] = Date.now() + (g.endOffsetMs || 86400000)
+    })
+  } catch (e: any) {
+    error.value = e?.message || '加载失败'
+    groupBuyItems.value = groupBuyList
+    myGroups.value = myGroupBuyList
+  } finally { loading.value = false }
+}
+
 onMounted(() => {
+  loadGroupBuys()
   timer = setInterval(() => (tick.value += 1), 1000)
 })
 onUnmounted(() => {
@@ -536,33 +571,33 @@ function copyLink() {
 }
 
 .empty {
-  padding: 96rpx 0;
+  padding: 128rpx 0;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 .empty-icon {
-  width: 120rpx;
-  height: 120rpx;
+  width: 160rpx;
+  height: 160rpx;
   border-radius: 50%;
-  background: #f0ece2;
+  background: #F5F5F5;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24rpx;
+  margin-bottom: 32rpx;
 }
 .empty-text {
-  font-size: 26rpx;
-  color: #b8ab94;
-  margin-bottom: 24rpx;
+  font-size: 28rpx;
+  color: #CCCCCC;
+  margin-bottom: 32rpx;
 }
 .empty-btn {
-  padding: 12rpx 48rpx;
-  background: #c41e3a;
+  padding: 16rpx 48rpx;
+  background: #C41E3A;
   border-radius: 999rpx;
 }
 .empty-btn-text {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #fff;
 }
 
@@ -757,4 +792,14 @@ function copyLink() {
   text-align: center;
   display: block;
 }
+
+/* 骨架屏 */
+.sk-card { background: #fff; border-radius: 24rpx; padding: 28rpx; margin-bottom: 20rpx; }
+.sk-row { display: flex; gap: 20rpx; }
+.sk-row .sk-img { width: 160rpx; height: 160rpx; border-radius: 16rpx; background: #e8e0d5; flex-shrink: 0; }
+.sk-info { flex: 1; display: flex; flex-direction: column; gap: 16rpx; justify-content: center; }
+.sk-line { height: 24rpx; background: #e8e0d5; border-radius: 8rpx; }
+.sk-w8 { width: 80%; }
+.sk-w6 { width: 60%; }
+.sk-w4 { width: 40%; }
 </style>
