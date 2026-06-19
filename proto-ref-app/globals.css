@@ -1,0 +1,1108 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   商城动画
+   ============================================================ */
+@keyframes fly-to-cart {
+  0% {
+    transform: scale(1) translate(0, 0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.6) translate(50vw, -30vh);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0.3) translate(40vw, -60vh);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes pulse-fast {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+.animate-fly-to-cart {
+  animation: fly-to-cart 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+.animate-pulse-fast {
+  animation: pulse-fast 0.3s ease-in-out;
+}
+
+.animate-shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+/* 按钮闪光效果 */
+@keyframes shimmer {
+  0% { transform: translateX(-100%) skewX(-12deg); }
+  100% { transform: translateX(200%) skewX(-12deg); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+/* 跑马灯效果 */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 15s linear infinite;
+}
+
+/* ============================================================
+   Masonry 瀑布流布局
+   ============================================================ */
+.masonry-grid {
+  display: flex;
+  margin-left: -6px; /* 抵消列的左边距 (移动端) */
+  width: auto;
+}
+
+.masonry-grid-column {
+  padding-left: 6px; /* 列间距 移动端 */
+  background-clip: padding-box;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .masonry-grid {
+    margin-left: -8px;
+  }
+  .masonry-grid-column {
+    padding-left: 8px;
+  }
+}
+
+/* ============================================================
+   热卜国学 · 设计令牌系统
+   对标 Apple / MUJI 极简克制风格
+   三层架构：① 原始调色板 → ② 语义令牌 → ③ Tailwind 映射
+   ============================================================ */
+
+/* ---------- ① 原始调色板 (Primitives) ----------
+   仅供语义层引用，组件中禁止直接使用 */
+:root {
+  /* 故宫红 */
+  --gugong-red: #c41e3a;
+  --gugong-red-soft: #d94452;
+  --gugong-red-deep: #a01830;
+  /* 珠宝金 */
+  --jewel-gold: #c9a96e;
+  --jewel-gold-soft: #d4b87d;
+  --jewel-gold-deep: #b8985f;
+  /* 宣纸底色系 */
+  --xuan-paper: #faf8f5;
+  --xuan-paper-2: #f5f1eb;
+  --xuan-paper-3: #f0ebe5;
+  --xuan-sunken: #f2efea;
+  /* 墨色文字系 */
+  --ink: #2c2c2c;
+  --ink-2: #666666;
+  --ink-3: #999999;
+  /* 分割线 */
+  --hairline: #e8e0d5;
+  --hairline-2: #e8e3db;
+  /* 中性 */
+  --pure-white: #ffffff;
+  /* 状态色 */
+  --state-green: #52c41a;
+  --state-orange: #fa8c16;
+  --state-red: #ff4d4f;
+  --state-blue: #1890ff;
+  /* 角色专属色 */
+  --role-purple: #722ed1;       /* 运营商 */
+  --role-purple-soft: #9254de;
+  --role-cyan: #13c2c2;         /* 研究院 */
+  --role-cyan-soft: #36cfc9;
+  --role-magenta: #eb2f96;      /* 直播 */
+  --role-magenta-soft: #f759ab;
+}
+
+/* ---------- ② 语义令牌 · 浅色 (Light) ---------- */
+:root {
+  /* 响应式断点 */
+  --breakpoint-mobile: 0px;
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-wide: 1440px;
+
+  /* 响应式间距 */
+  --spacing-base: 12px;
+  --spacing-card-gap: 12px;
+  --touch-target-min: 44px;
+
+  /* 应用语义令牌（home-feed 等通过 var() 直接消费） */
+  --surface-base: var(--xuan-paper);   /* 页面基底 */
+  --surface: var(--pure-white);        /* 卡片表面 */
+  --surface-sunken: var(--xuan-sunken);/* 输入框底色 */
+  --line: var(--hairline);             /* 分割线 */
+  --line-nav: var(--hairline-2);       /* 导航分割线 */
+  --brand: var(--gugong-red);          /* 品牌主色 */
+  --brand-soft: var(--gugong-red-soft);
+  --gold: var(--jewel-gold);           /* 金色（会员/精选） */
+  --gold-foreground: var(--ink);       /* 金色之上的文字（墨黑，高级耐看） */
+  --text-strong: var(--ink);           /* 标题 */
+  --text: var(--ink-2);                /* 正文 */
+  --text-soft: var(--ink-3);           /* 辅助文字 */
+  --info: var(--state-blue);
+  --success: var(--state-green);
+  --success-foreground: var(--pure-white); /* 吉利绿之上的文字 */
+  --warning: var(--state-orange);
+  --danger: var(--state-red);
+  
+  /* 角色专属语义色 */
+  --operator: var(--role-purple);      /* 运营商紫 */
+  --operator-soft: var(--role-purple-soft);
+  --institute: var(--role-cyan);       /* 研究院青 */
+  --institute-soft: var(--role-cyan-soft);
+  --live: var(--role-magenta);         /* 直播洋红 */
+  --live-soft: var(--role-magenta-soft);
+  --station: var(--state-green);       /* 分站绿 */
+  --station-soft: #73d13d;
+
+  /* shadcn 语义令牌 */
+  --background: var(--xuan-paper);
+  --foreground: var(--ink);
+  --card: var(--pure-white);
+  --card-foreground: var(--ink);
+  --popover: var(--pure-white);
+  --popover-foreground: var(--ink);
+  --primary: var(--gugong-red);
+  --primary-foreground: var(--pure-white);
+  --secondary: var(--xuan-paper-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--xuan-paper-3);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--jewel-gold);
+  --accent-foreground: var(--ink);
+  --destructive: var(--state-red);
+  --destructive-foreground: var(--pure-white);
+  --border: var(--hairline);
+  --input: var(--xuan-paper-2);
+  --ring: var(--gugong-red);
+
+  /* 图表色 */
+  --chart-1: var(--gugong-red);
+  --chart-2: var(--jewel-gold);
+  --chart-3: #4a90d9;
+  --chart-4: var(--state-green);
+  --chart-5: #722ed1;
+
+  /* 圆角 */
+  --radius: 0.5rem;
+
+  /* 侧边栏 */
+  --sidebar: var(--xuan-paper);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--gugong-red);
+  --sidebar-primary-foreground: var(--pure-white);
+  --sidebar-accent: var(--xuan-paper-2);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--gugong-red);
+}
+
+/* ---------- ② 语义令牌 · 深色 (Dark) ---------- */
+.dark {
+  /* 原始调色板的深色基底 */
+  --xuan-paper: #1a1815;
+  --xuan-paper-2: #2d2a27;
+  --xuan-paper-3: #3d3a37;
+  --xuan-sunken: #2d2a27;
+  --ink: #f5f0e8;
+  --ink-2: #c4beb2;
+  --ink-3: #8a857c;
+  --hairline: #3d3a37;
+  --hairline-2: #3d3a37;
+  --gugong-red: #d94452;
+  --jewel-gold: #d4b87d;
+
+  /* 应用语义令牌 */
+  --surface-base: #1a1815;
+  --surface: #242220;
+  --surface-sunken: #2d2a27;
+  --line: #3d3a37;
+  --line-nav: #3d3a37;
+  --brand: #d94452;
+  --brand-soft: #e06472;
+  --gold: #d4b87d;
+  --gold-foreground: #1a1815;
+  --text-strong: #f5f0e8;
+  --text: #c4beb2;
+  --text-soft: #8a857c;
+  --info: #4aa3ff;
+  --success: #6ed24a;
+  --success-foreground: #1a1815;
+  --warning: #ffa940;
+  --danger: #ff6b6d;
+
+  /* shadcn 语义令牌 */
+  --background: #1a1815;
+  --foreground: #f5f0e8;
+  --card: #242220;
+  --card-foreground: #f5f0e8;
+  --popover: #242220;
+  --popover-foreground: #f5f0e8;
+  --primary: #d94452;
+  --primary-foreground: #ffffff;
+  --secondary: #2d2a27;
+  --secondary-foreground: #f5f0e8;
+  --muted: #3d3a37;
+  --muted-foreground: #a3a3a3;
+  --accent: #d4b87d;
+  --accent-foreground: #1a1815;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #3d3a37;
+  --input: #2d2a27;
+  --ring: #d94452;
+
+  /* 角色专属色 - 暗色模式适配 */
+  --operator: #9254de;
+  --operator-soft: #b37feb;
+  --institute: #36cfc9;
+  --institute-soft: #5cdbd3;
+  --live: #f759ab;
+  --live-soft: #ff85c0;
+  --station: #73d13d;
+  --station-soft: #95de64;
+
+  /* 图表色 - 暗色模式 */
+  --chart-1: #d94452;
+  --chart-2: #d4b87d;
+  --chart-3: #4aa3ff;
+  --chart-4: #6ed24a;
+  --chart-5: #9254de;
+
+  --sidebar: #1a1815;
+  --sidebar-foreground: #f5f0e8;
+  --sidebar-primary: #d94452;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2d2a27;
+  --sidebar-accent-foreground: #f5f0e8;
+  --sidebar-border: #3d3a37;
+  --sidebar-ring: #d94452;
+}
+
+/* 响应式间距覆盖 */
+@media (min-width: 768px) {
+  :root {
+    --spacing-base: 16px;
+    --spacing-card-gap: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --spacing-base: 16px;
+    --spacing-card-gap: 16px;
+    --touch-target-min: 32px;
+  }
+}
+
+/* ---------- ③ Tailwind Theme 映射 ---------- */
+@theme inline {
+  /* 字体系统 */
+  --font-sans: var(--font-noto-sans-sc), 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-serif: var(--font-noto-serif-sc), 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* shadcn 颜色映射 */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* 应用语义令牌映射（生成 bg-brand / text-ink 等工具类） */
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-surface: var(--surface);
+  --color-surface-base: var(--surface-base);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-ink: var(--text-strong);
+  --color-ink-soft: var(--text);
+  --color-ink-faint: var(--text-soft);
+  --color-info: var(--info);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  
+  /* 角色专属色映射 */
+  --color-operator: var(--operator);
+  --color-operator-soft: var(--operator-soft);
+  --color-institute: var(--institute);
+  --color-institute-soft: var(--institute-soft);
+  --color-live: var(--live);
+  --color-live-soft: var(--live-soft);
+  --color-station: var(--station);
+  --color-station-soft: var(--station-soft);
+
+  /* 圆角 */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* 侧边栏 */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* ============================================================
+   基础样式层
+   ============================================================ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 全局键盘焦点环 —— 仅在键盘导航时显示，鼠标点击不触发，保持极简观感 */
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  /* 鼠标点击时移除默认 outline，避免视觉噪音 */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+  }
+
+  /* 标题使用思源宋体 */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    line-height: 1.4;
+    color: var(--text-strong);
+  }
+
+  /* 正文使用思源黑体 */
+  p, span, div {
+    line-height: 1.8;
+  }
+}
+
+/* ============================================================
+   无障碍：尊重减少动效偏好
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   滚动条
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================================
+   卡片质感（Apple/MUJI 弥散柔和阴影）
+   ============================================================ */
+.card-shadow {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.card-shadow-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-shadow-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.card-press {
+  transition: transform 0.15s ease-out;
+}
+
+.card-press:active {
+  transform: scale(0.98);
+}
+
+/* ============================================================
+   动效集合
+   ============================================================ */
+
+/* 直播状态呼吸灯 */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(196, 30, 58, 0.7); }
+  50% { opacity: 0.85; box-shadow: 0 0 0 6px rgba(196, 30, 58, 0); }
+}
+.live-indicator { animation: live-pulse 1.5s ease-in-out infinite; }
+
+/* 直播卡片边框闪烁 */
+@keyframes live-card-glow {
+  0%, 100% { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), 0 0 0 0 rgba(196, 30, 58, 0.3); }
+  50% { box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), 0 0 16px 2px rgba(196, 30, 58, 0.2); }
+}
+.live-card-glow { animation: live-card-glow 2s ease-in-out infinite; }
+
+/* 金色光晕呼吸 */
+@keyframes gold-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 169, 110, 0.4); opacity: 0.7; }
+  50% { box-shadow: 0 0 12px 4px rgba(201, 169, 110, 0.2); opacity: 1; }
+}
+.gold-glow { animation: gold-glow 3s ease-in-out infinite; }
+
+/* 太极旋转 */
+@keyframes taiji-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.taiji-rotate { animation: taiji-rotate 8s linear infinite; }
+.taiji-rotate-fast { animation: taiji-rotate 1s linear infinite; }
+.taiji-slow-rotate { animation: taiji-rotate 9s linear infinite; }
+
+/* 太极图呼吸光晕 */
+@keyframes taiji-breathing {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(196, 30, 58, 0); opacity: 1; }
+  50% { box-shadow: 0 0 16px 6px rgba(196, 30, 58, 0.3); opacity: 0.9; }
+}
+.taiji-breathing-glow { animation: taiji-breathing 3.5s ease-in-out infinite; }
+
+/* 导航下划线滑动 */
+.nav-underline { position: relative; }
+.nav-underline::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+}
+.nav-underline.active::after,
+.nav-underline:hover::after { width: 100%; }
+
+/* 渐变流动 */
+@keyframes gradient-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.gradient-flow {
+  background-size: 200% 200%;
+  animation: gradient-flow 6s ease-in-out infinite;
+}
+
+/* 智能体卡片渐变配色 */
+@keyframes agent-gradient-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.agent-gradient-warm {
+  background: linear-gradient(135deg, #c9a96e 0%, #d4b87d 25%, #e8d4a8 50%, #d4b87d 75%, #c9a96e 100%);
+  background-size: 200% 200%;
+  animation: agent-gradient-flow 6s ease-in-out infinite;
+}
+.agent-gradient-cool {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 25%, #c4b5fd 50%, #a78bfa 75%, #8b5cf6 100%);
+  background-size: 200% 200%;
+  animation: agent-gradient-flow 7s ease-in-out infinite;
+}
+.agent-gradient-earth {
+  background: linear-gradient(135deg, #92715a 0%, #a68b6a 25%, #c4a882 50%, #a68b6a 75%, #92715a 100%);
+  background-size: 200% 200%;
+  animation: agent-gradient-flow 8s ease-in-out infinite;
+}
+.agent-gradient-sky {
+  background: linear-gradient(135deg, #64748b 0%, #94a3b8 25%, #cbd5e1 50%, #94a3b8 75%, #64748b 100%);
+  background-size: 200% 200%;
+  animation: agent-gradient-flow 6s ease-in-out infinite;
+}
+
+/* 智能体图标金色光��� */
+@keyframes agent-icon-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 169, 110, 0.3); }
+  50% { box-shadow: 0 0 20px 8px rgba(201, 169, 110, 0.5); }
+}
+.agent-icon-glow { animation: agent-icon-glow 3.5s ease-in-out infinite; }
+
+/* Shimmer 微光按钮（统一版本） */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+/* 在线状态绿色呼吸（统一版本） */
+@keyframes online-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.6); opacity: 1; }
+  50% { box-shadow: 0 0 8px 4px rgba(74, 222, 128, 0.4); opacity: 0.8; }
+}
+.animate-online-glow { animation: online-glow 2s ease-in-out infinite; }
+
+/* 淡入上滑 */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up { animation: fade-in-up 0.4s ease-out forwards; }
+
+/* 点赞弹跳 */
+@keyframes like-bounce {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.3); }
+  50% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+.animate-like-bounce { animation: like-bounce 0.4s ease-out; }
+
+/* 数字跳动 */
+@keyframes number-jump {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+.number-animate { animation: number-jump 0.3s ease-out; }
+
+/* 角标闪烁 */
+@keyframes badge-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.badge-flash { animation: badge-flash 1.5s ease-in-out infinite; }
+
+/* 库存预警 */
+@keyframes stock-warning {
+  0%, 100% { background-color: rgba(220, 38, 38, 0.9); }
+  50% { background-color: rgba(220, 38, 38, 0.7); }
+}
+.stock-warning { animation: stock-warning 1s ease-in-out infinite; }
+
+/* 飞入购物车 */
+@keyframes fly-to-cart {
+  0% { transform: scale(1) translate(0, 0); opacity: 1; }
+  50% { transform: scale(0.5) translate(50px, -30px); opacity: 0.8; }
+  100% { transform: scale(0.2) translate(100px, -60px); opacity: 0; }
+}
+.animate-fly-to-cart { animation: fly-to-cart 0.6s ease-in-out forwards; }
+
+/* 成功勾选 */
+@keyframes check-bounce {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+.animate-check-bounce { animation: check-bounce 0.4s ease-out forwards; }
+
+/* 浮动心形 */
+@keyframes float-heart {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  50% { opacity: 0.8; transform: translateY(-40px) scale(1.2); }
+  100% { opacity: 0; transform: translateY(-80px) scale(0.8); }
+}
+.animate-float-heart { animation: float-heart 1.5s ease-out forwards; }
+
+/* 消息淡入 */
+@keyframes message-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.message-enter { animation: message-in 0.3s ease-out forwards; }
+
+/* 弹幕 */
+@keyframes danmaku-slide {
+  0% { transform: translateX(100%); opacity: 0; }
+  5% { opacity: 1; }
+  95% { opacity: 1; }
+  100% { transform: translateX(-100%); opacity: 0; }
+}
+.danmaku-item { animation: danmaku-slide 8s linear forwards; }
+
+/* 礼物飘动 */
+@keyframes gift-float {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-80px) scale(0.5); opacity: 0; }
+}
+.gift-animation { animation: gift-float 2s ease-out forwards; }
+
+/* 消息输入中 */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot:nth-child(1) { animation: typing-dot 1.2s ease-in-out infinite 0s; }
+.typing-dot:nth-child(2) { animation: typing-dot 1.2s ease-in-out infinite 0.2s; }
+.typing-dot:nth-child(3) { animation: typing-dot 1.2s ease-in-out infinite 0.4s; }
+
+/* 流式输出光标 */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.streaming-cursor::after {
+  content: '|';
+  animation: cursor-blink 0.8s ease-in-out infinite;
+  color: var(--primary);
+  margin-left: 2px;
+}
+
+/* AI 科技感 */
+@keyframes ai-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4), 0 0 20px rgba(139, 92, 246, 0.2); }
+  50% { box-shadow: 0 0 0 8px rgba(139, 92, 246, 0), 0 0 30px rgba(139, 92, 246, 0.4); }
+}
+.animate-ai-pulse { animation: ai-pulse 2s ease-in-out infinite; }
+
+@keyframes ai-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-ai-float { animation: ai-float 3s ease-in-out infinite; }
+
+@keyframes ai-sparkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+.animate-ai-sparkle { animation: ai-sparkle 1.5s ease-in-out infinite; }
+
+@keyframes ai-scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+.animate-ai-scan { animation: ai-scan 2s ease-in-out infinite; }
+
+/* ============================================================
+   排版工具
+   ============================================================ */
+.writing-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+}
+
+.writing-vertical-rl {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+.writing-vertical-lr {
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+}
+
+.vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+/* 古籍阅读器 */
+.reader-paper {
+  background: linear-gradient(to bottom, #fffaf5 0%, #f8f4ec 100%);
+}
+.reader-sepia {
+  background: linear-gradient(to bottom, #f5f0e8 0%, #ebe4d8 100%);
+}
+.reader-dark {
+  background: #1a1815;
+}
+
+/* ============================================================
+   古籍馆专属配色系统（古朴沉静）
+   ============================================================ */
+:root {
+  /* 四库分类色 - 取自传统色谱，降低饱和度 */
+  --classics-jing: #8b5a2b;      /* 经部 - 赭石棕（儒家经典的庄重） */
+  --classics-shi: #2d5a87;       /* 史部 - 藏青蓝（史籍的沉稳） */
+  --classics-zi: #4a7c59;        /* 子部 - 松柏绿（诸子百家的生机） */
+  --classics-ji: #7a5c61;        /* 集部 - 紫檀褐（文集的典雅） */
+  
+  /* 古籍封面用纸色 */
+  --book-cream: #f5f0e5;         /* 米黄宣纸 */
+  --book-brown: #d4c4a8;         /* 竹纸褐 */
+  --book-gray: #e8e4dc;          /* 皮纸灰 */
+  --book-blue: #c8d4dc;          /* 蓝印纸 */
+  --book-green: #d4dcd0;         /* 草纸绿 */
+  
+  /* 古籍装帧色 */
+  --book-spine: #5c4a3a;         /* 书脊深褐 */
+  --book-thread: #8b7355;        /* 装订线色 */
+  --book-seal: #c41e3a;          /* 印章朱红 */
+  
+  /* 古籍馆背景 */
+  --classics-bg: #faf8f5;        /* 宣纸底色 */
+  --classics-card: #fffefa;      /* 卡片白 */
+  --classics-border: #e8e0d5;    /* 分割线 */
+  
+  /* AI助手色（降低饱和度，更协调） */
+  --classics-ai: #6b5b7a;        /* 紫檀AI色 */
+  --classics-ai-soft: #8a7a99;   /* AI柔和色 */
+
+  /* ============================================================
+   电子书商城专属配色系统（现代简洁，区别于古籍的古朴风格）
+   对标 Apple Books / 微信读书 / 得到 的现代知识商品体验
+   ============================================================ */
+  --ebook-primary: #2563eb;       /* 主色 - 知识蓝 */
+  --ebook-primary-soft: #dbeafe;  /* 主色浅底 */
+  --ebook-accent: #0ea5e9;        /* 强调色 - 科技蓝 */
+  --ebook-member: #7c3aed;        /* 会员色 - 尊贵紫 */
+  --ebook-member-soft: #ede9fe;   /* 会员浅底 */
+  --ebook-price: #dc2626;         /* 价格红 */
+  --ebook-free: #16a34a;          /* 免费绿 */
+  --ebook-bg: #f8fafc;            /* 页面背景 - 极浅蓝灰 */
+  --ebook-card: #ffffff;          /* 卡片白 */
+  --ebook-border: #e2e8f0;        /* 分割线 */
+  --ebook-text: #1e293b;          /* 主文字 */
+  --ebook-text-soft: #64748b;     /* 次级文字 */
+  --ebook-cover-1: #1e3a5f;       /* 封面色组1 - 深蓝 */
+  --ebook-cover-2: #1a4731;       /* 封面色组2 - 深绿 */
+  --ebook-cover-3: #4a1942;       /* 封面色组3 - 深紫 */
+  --ebook-cover-4: #3d1f00;       /* 封面色组4 - 深棕 */
+}
+
+.dark {
+  --classics-jing: #a87a4b;
+  --classics-shi: #4d7aa7;
+  --classics-zi: #6a9c79;
+  --classics-ji: #9a7c81;
+  
+  --book-cream: #3a3530;
+  --book-brown: #4a4035;
+  --book-gray: #454240;
+  --book-blue: #3a4550;
+  --book-green: #3a4540;
+  
+  --book-spine: #2a2520;
+  --book-thread: #5a4a3a;
+  --book-seal: #d94452;
+  
+  --classics-bg: #1a1815;
+  --classics-card: #242220;
+  --classics-border: #3d3a37;
+  
+  --classics-ai: #8b7b9a;
+  --classics-ai-soft: #9a8aa9;
+}
+
+/* 古籍馆页面基底样式 */
+.classics-page {
+  background-color: var(--classics-bg);
+  min-height: 100vh;
+}
+
+/* 古籍馆卡片样式 */
+.classics-card {
+  background-color: var(--classics-card);
+  border: 1px solid var(--classics-border);
+  border-radius: 8px;
+}
+
+/* 四库分类徽章 */
+.badge-jing {
+  background-color: color-mix(in srgb, var(--classics-jing) 15%, transparent);
+  color: var(--classics-jing);
+}
+.badge-shi {
+  background-color: color-mix(in srgb, var(--classics-shi) 15%, transparent);
+  color: var(--classics-shi);
+}
+.badge-zi {
+  background-color: color-mix(in srgb, var(--classics-zi) 15%, transparent);
+  color: var(--classics-zi);
+}
+.badge-ji {
+  background-color: color-mix(in srgb, var(--classics-ji) 15%, transparent);
+  color: var(--classics-ji);
+}
+
+/* 古籍AI按钮（降低视觉冲击） */
+.classics-ai-btn {
+  background: linear-gradient(135deg, var(--classics-ai) 0%, var(--classics-ai-soft) 100%);
+  color: white;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--classics-ai) 30%, transparent);
+}
+
+/* 古籍纸张纹理 */
+.paper-texture {
+  background-image: 
+    radial-gradient(ellipse at 20% 30%, rgba(139, 90, 43, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(139, 90, 43, 0.02) 0%, transparent 50%),
+    linear-gradient(to bottom, rgba(0,0,0,0.01) 0%, transparent 50%, rgba(0,0,0,0.02) 100%);
+}
+
+/* 古籍标签统一样式 */
+.classics-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+.classics-tag-translate {
+  background-color: color-mix(in srgb, var(--classics-jing) 12%, transparent);
+  color: var(--classics-jing);
+}
+.classics-tag-audio {
+  background-color: color-mix(in srgb, var(--classics-zi) 12%, transparent);
+  color: var(--classics-zi);
+}
+.classics-tag-ai {
+  background-color: color-mix(in srgb, var(--classics-ai) 12%, transparent);
+  color: var(--classics-ai);
+}
+.classics-tag-free {
+  background-color: color-mix(in srgb, var(--classics-shi) 12%, transparent);
+  color: var(--classics-shi);
+}
+
+/* ============================================================
+   排盘工具 · 五行配色系统
+   ============================================================ */
+:root {
+  /* 五行颜色 - 高饱和鲜明色 */
+  --wuxing-wood: #2d8a4e;     /* 木 - 青绿色 */
+  --wuxing-fire: #c41e3a;     /* 火 - 朱红色 */
+  --wuxing-earth: #b8860b;    /* 土 - 土黄色 */
+  --wuxing-metal: #c9a96e;    /* 金 - 金黄色 */
+  --wuxing-water: #1a6fc7;    /* 水 - 湖蓝色 */
+  
+  /* 故宫配色扩展 */
+  --bronze: #a08060;
+  --bronze-light: #f5f0e5;
+  --indigo: #2d5a87;
+  --indigo-light: #e8f0f5;
+}
+
+.dark {
+  --wuxing-wood: #4ade80;
+  --wuxing-fire: #f87171;
+  --wuxing-earth: #fbbf24;
+  --wuxing-metal: #fcd34d;
+  --wuxing-water: #60a5fa;
+  
+  --bronze: #c9a96e;
+  --bronze-light: #3a3530;
+}
+
+/* 五行文字颜色类 */
+.text-wuxing-wood { color: var(--wuxing-wood); }
+.text-wuxing-fire { color: var(--wuxing-fire); }
+.text-wuxing-earth { color: var(--wuxing-earth); }
+.text-wuxing-metal { color: var(--wuxing-metal); }
+.text-wuxing-water { color: var(--wuxing-water); }
+
+/* 五行背景颜色类 */
+.bg-wuxing-wood { background-color: var(--wuxing-wood); }
+.bg-wuxing-fire { background-color: var(--wuxing-fire); }
+.bg-wuxing-earth { background-color: var(--wuxing-earth); }
+.bg-wuxing-metal { background-color: var(--wuxing-metal); }
+.bg-wuxing-water { background-color: var(--wuxing-water); }
+
+/* Bronze 金色系 */
+.text-bronze { color: var(--bronze); }
+.bg-bronze { background-color: var(--bronze); }
+.bg-bronze-light { background-color: var(--bronze-light); }
+
+/* ============================================================
+   排盘工具动画
+   ============================================================ */
+/* 底部弹出动画 */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* 缩放渐入动画 */
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out;
+}
+
+/* ============================================================
+   诗词板块专属配色系统
+   定位：深色沉浸式文化体验，区别于古籍（宣纸色）和文章（白色）
+   对标：月下读诗的意境——深棕夜色为底，琥珀金为点缀
+   ============================================================ */
+:root {
+  --poem-bg:          #1c1208;   /* 页面底色：深夜棕黑，夜色如墨 */
+  --poem-bg-2:        #241a0e;   /* 次级背景：微微透亮 */
+  --poem-surface:     #2e1f10;   /* 卡片/面板底色 */
+  --poem-border:      rgba(255, 210, 140, 0.12); /* 边框：琥珀金半透明 */
+  --poem-gold:        #e8c07a;   /* 主强调色：琥珀金 */
+  --poem-gold-soft:   rgba(232, 192, 122, 0.15); /* 金色浅底 */
+  --poem-gold-dim:    rgba(232, 192, 122, 0.35); /* 金色中等透明 */
+  --poem-text:        #f5ead8;   /* 主文字：暖白，如烛光纸页 */
+  --poem-text-soft:   rgba(245, 234, 216, 0.55); /* 次级文字 */
+  --poem-text-muted:  rgba(245, 234, 216, 0.30); /* 更弱的辅助文字 */
+  --poem-ai:          #9b7ec8;   /* AI 功能色：淡紫，低调不抢眼 */
+  --poem-ai-soft:     rgba(155, 126, 200, 0.18); /* AI 浅底 */
+  --poem-red:         #c0433a;   /* 点赞红 */
+  --poem-line:        rgba(255, 210, 140, 0.08); /* 分隔线 */
+}
+
+/* 诗词页面基底 */
+.poem-page {
+  background: radial-gradient(ellipse at top, #2a1a0a 0%, #1c1208 60%, #0e0b06 100%);
+  min-height: 100vh;
+}
+
+/* 声波动画（TTS朗读状态）*/
+@keyframes soundwave {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1.0); }
+}
+.bar-wave-1 { animation: soundwave 0.8s ease-in-out infinite; animation-delay: 0s; }
+.bar-wave-2 { animation: soundwave 0.8s ease-in-out infinite; animation-delay: 0.15s; }
+.bar-wave-3 { animation: soundwave 0.8s ease-in-out infinite; animation-delay: 0.30s; }
+.bar-wave-4 { animation: soundwave 0.8s ease-in-out infinite; animation-delay: 0.45s; }
+.bar-wave-5 { animation: soundwave 0.8s ease-in-out infinite; animation-delay: 0.20s; }
+
+/* AI赏析流式打字光标 */
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.ai-cursor::after {
+  content: '|';
+  animation: blink-cursor 0.8s step-end infinite;
+  color: var(--poem-ai);
+  margin-left: 1px;
+}
+
+/* 诗词竖排字体增强 */
+.poem-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-feature-settings: "vert" 1;
+  letter-spacing: 0.25em;
+  line-height: 2.2;
+}

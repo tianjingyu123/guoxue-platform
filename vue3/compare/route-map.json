@@ -1,0 +1,1248 @@
+{
+  "_meta": {
+    "description": "单一事实表：原型路由 -> uni-app H5 hash 路由 的映射与状态。这是保真迁移进度的唯一权威来源。",
+    "protoBase": "http://localhost:3000",
+    "vueBase": "http://localhost:5173",
+    "viewport": {
+      "width": 375,
+      "height": 812
+    },
+    "viewportNote": "必须用 375 宽：原型固定 px 设计宽=375，uni-app rpx 按 750rpx=屏宽标定，仅在 375 下两端尺寸一致。514 宽会让 uni-app 内容放大 ~1.37x 导致整页重影。diff 比例仅作排序，最终以肉眼看 diff 图为准（仅文字边缘红边=通过）。",
+    "navNote": "uni-app H5 必须用 uni.reLaunch 导航，直接 goto hash 会回退首页。",
+    "owner": {
+      "A": "A 账号已 100% 高保真锁定（黄金参照，不改动，仅作范本）",
+      "B": "B 账号已做、保真度待审、需补救",
+      "NONE": "原型存在但 vue3 尚未迁移"
+    },
+    "status": {
+      "golden": "已锁定 100%（A）",
+      "review": "待跑 diff 审查（B）",
+      "todo": "待迁移"
+    }
+  },
+  "pairs": [
+    {
+      "proto": "/",
+      "vue": "/#/pages/index/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "首页 - 黄金范本"
+    },
+    {
+      "proto": "/circles",
+      "vue": "/#/pages/circles/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子主页 tab"
+    },
+    {
+      "proto": "/paipan",
+      "vue": "/#/pages/paipan/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "排盘工具 tab"
+    },
+    {
+      "proto": "/discover",
+      "vue": "/#/pages/discover/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "发现页 tab"
+    },
+    {
+      "proto": "/profile",
+      "vue": "/#/pages/profile/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "我的 tab"
+    },
+    {
+      "proto": "/profile/edit",
+      "vue": "/#/pages/profile/edit",
+      "owner": "A",
+      "status": "golden",
+      "note": "编辑资料"
+    },
+    {
+      "proto": "/paipan/bazi",
+      "vue": "/#/pkg-paipan/bazi/index",
+      "owner": "A",
+      "status": "golden",
+      "note": "排盘八字"
+    },
+    {
+      "proto": "/paipan/bazi/result",
+      "vue": "/#/pkg-paipan/bazi/result",
+      "owner": "A",
+      "status": "golden",
+      "note": "八字结果"
+    },
+    {
+      "proto": "/agent/main",
+      "vue": "/#/pkg-agent/agent/main",
+      "owner": "A",
+      "status": "golden",
+      "note": "智能体主页"
+    },
+    {
+      "proto": "/agent/1",
+      "vue": "/#/pkg-agent/agent/chat",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "智能体对话 /agent/[id]"
+    },
+    {
+      "proto": "/agent/customer-service",
+      "vue": "/#/pkg-agent/agent/customer-service",
+      "owner": "A",
+      "status": "golden",
+      "note": "智能客服"
+    },
+    {
+      "proto": "/agent/history",
+      "vue": "/#/pkg-agent/agent/history",
+      "owner": "A",
+      "status": "golden",
+      "note": "智能体历史"
+    },
+    {
+      "proto": "/circles/1",
+      "vue": "/#/pkg-circle/circles/detail",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子详情 /circles/[id]"
+    },
+    {
+      "proto": "/circles/1/posts/1",
+      "vue": "/#/pkg-circle/circles/post",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子帖子详情"
+    },
+    {
+      "proto": "/circles/create",
+      "vue": "/#/pkg-circle/circles/create",
+      "owner": "A",
+      "status": "golden",
+      "note": "创建圈子"
+    },
+    {
+      "proto": "/circles/1/publish",
+      "vue": "/#/pkg-circle/circles/publish",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子发布"
+    },
+    {
+      "proto": "/circles/1/manage",
+      "vue": "/#/pkg-circle/circles/manage",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子管理"
+    },
+    {
+      "proto": "/circles/ranking",
+      "vue": "/#/pkg-circle/circles/ranking",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子排行"
+    },
+    {
+      "proto": "/circles/activities",
+      "vue": "/#/pkg-circle/circles/activities",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子活动"
+    },
+    {
+      "proto": "/circles/calendar",
+      "vue": "/#/pkg-circle/circles/calendar",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子日历"
+    },
+    {
+      "proto": "/circles/badges",
+      "vue": "/#/pkg-circle/circles/badges",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子徽章"
+    },
+    {
+      "proto": "/circles/search",
+      "vue": "/#/pkg-circle/circles/search",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子搜索"
+    },
+    {
+      "proto": "/circles/mine",
+      "vue": "/#/pkg-circle/circles/mine",
+      "owner": "A",
+      "status": "golden",
+      "note": "我的圈子"
+    },
+    {
+      "proto": "/circles/bots",
+      "vue": "/#/pkg-circle/circles/bots",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子机器人列表"
+    },
+    {
+      "proto": "/circles/stats",
+      "vue": "/#/pkg-circle/circles/stats",
+      "owner": "A",
+      "status": "golden",
+      "note": "圈子统计"
+    },
+    {
+      "proto": "/circles/1/knowledge",
+      "vue": "/#/pkg-circle/circles/knowledge",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子知识库"
+    },
+    {
+      "proto": "/circles/1/dashboard",
+      "vue": "/#/pkg-circle/circles/dashboard",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子仪表盘"
+    },
+    {
+      "proto": "/circles/1/announcements/1",
+      "vue": "/#/pkg-circle/circles/announcements",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子公告"
+    },
+    {
+      "proto": "/circles/1/join-requests",
+      "vue": "/#/pkg-circle/circles/join-requests",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "入圈申请"
+    },
+    {
+      "proto": "/circles/1/exit-requests",
+      "vue": "/#/pkg-circle/circles/exit-requests",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "退圈申请"
+    },
+    {
+      "proto": "/circles/1/invite-codes",
+      "vue": "/#/pkg-circle/circles/invite-codes",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "邀请码"
+    },
+    {
+      "proto": "/circles/1/guests",
+      "vue": "/#/pkg-circle/circles/guests",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "嘉宾"
+    },
+    {
+      "proto": "/circles/1/distribution",
+      "vue": "/#/pkg-circle/circles/distribution",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "分销"
+    },
+    {
+      "proto": "/circles/1/earnings/detail",
+      "vue": "/#/pkg-circle/circles/earnings",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子收益"
+    },
+    {
+      "proto": "/circles/1/level",
+      "vue": "/#/pkg-circle/circles/level",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子等级"
+    },
+    {
+      "proto": "/circles/1/analytics/contents",
+      "vue": "/#/pkg-circle/circles/analytics",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "内容分析"
+    },
+    {
+      "proto": "/circles/1/settings/knowledge",
+      "vue": "/#/pkg-circle/circles/settings-knowledge",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "知识库设置"
+    },
+    {
+      "proto": "/circles/1/consult/ask",
+      "vue": "/#/pkg-circle/circles/consult-ask",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "咨询提问"
+    },
+    {
+      "proto": "/circles/1/consult/experts",
+      "vue": "/#/pkg-circle/circles/consult-experts",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "咨询专家"
+    },
+    {
+      "proto": "/circles/1/consult/orders",
+      "vue": "/#/pkg-circle/circles/consult-orders",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "咨询订单"
+    },
+    {
+      "proto": "/circles/1/consult/my-calls",
+      "vue": "/#/pkg-circle/circles/my-calls",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "我的通话"
+    },
+    {
+      "proto": "/circles/1/consult/my-questions",
+      "vue": "/#/pkg-circle/circles/my-questions",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "我的提问"
+    },
+    {
+      "proto": "/circles/1/exit",
+      "vue": "/#/pkg-circle/circles/exit",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "退出圈子"
+    },
+    {
+      "proto": "/circles/1/booking",
+      "vue": "/#/pkg-circle/circles/booking",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子预约"
+    },
+    {
+      "proto": "/circles/1/checkin/1",
+      "vue": "/#/pkg-circle/circles/checkin",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子签到"
+    },
+    {
+      "proto": "/circles/1/recommend-ebook",
+      "vue": "/#/pkg-circle/circles/recommend-ebook",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "推荐电子书"
+    },
+    {
+      "proto": "/circles/1/bots",
+      "vue": "/#/pkg-circle/circles/circle-bots",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子内机器人"
+    },
+    {
+      "proto": "/circles/1/preview",
+      "vue": "/#/pkg-circle/circles/preview",
+      "owner": "A",
+      "status": "golden",
+      "dynamic": true,
+      "note": "圈子预览"
+    },
+    {
+      "proto": "/mall",
+      "vue": "/#/pkg-mall/home/index",
+      "owner": "B",
+      "status": "review",
+      "note": "商城首页"
+    },
+    {
+      "proto": "/mall/product/1",
+      "vue": "/#/pkg-mall/product/detail",
+      "owner": "B",
+      "status": "review",
+      "dynamic": true,
+      "note": "商城商品详情"
+    },
+    {
+      "proto": "/mall/product/1/reviews",
+      "vue": "/#/pkg-mall/product/reviews",
+      "owner": "B",
+      "status": "review",
+      "dynamic": true,
+      "note": "商品评价"
+    },
+    {
+      "proto": "/mall/category",
+      "vue": "/#/pkg-mall/category/index",
+      "owner": "B",
+      "status": "review",
+      "note": "商城分类"
+    },
+    {
+      "proto": "/shop",
+      "vue": "/#/pkg-shop/home/index",
+      "owner": "B",
+      "status": "review",
+      "note": "店铺首页"
+    },
+    {
+      "proto": "/shop/1",
+      "vue": "/#/pkg-shop/product/index",
+      "owner": "B",
+      "status": "review",
+      "dynamic": true,
+      "note": "店铺商品 /shop/[id]"
+    },
+    {
+      "proto": "/shop/categories",
+      "vue": "/#/pkg-shop/categories/index",
+      "owner": "B",
+      "status": "review",
+      "note": "店铺分类"
+    },
+    {
+      "proto": "/shop/reviews",
+      "vue": "/#/pkg-shop/reviews/index",
+      "owner": "B",
+      "status": "review",
+      "note": "店铺评价"
+    },
+    {
+      "proto": "/shop/exchange",
+      "vue": "/#/pkg-shop/exchange/index",
+      "owner": "B",
+      "status": "review",
+      "note": "兑换"
+    },
+    {
+      "proto": "/shop/compare",
+      "vue": "/#/pkg-shop/compare/index",
+      "owner": "B",
+      "status": "review",
+      "note": "商品对比"
+    },
+    {
+      "proto": "/shop/flash-sale",
+      "vue": "/#/pkg-shop/flash-sale/index",
+      "owner": "B",
+      "status": "review",
+      "note": "限时抢购"
+    },
+    {
+      "proto": "/shop/group-buy",
+      "vue": "/#/pkg-shop/group-buy/index",
+      "owner": "B",
+      "status": "review",
+      "note": "拼团"
+    },
+    {
+      "proto": "/shop/group-buy/1",
+      "vue": "/#/pkg-shop/group-buy/detail",
+      "owner": "B",
+      "status": "review",
+      "dynamic": true,
+      "note": "拼团详情"
+    },
+    {
+      "proto": "/shop/group-buy-success",
+      "vue": "/#/pkg-shop/group-buy/success",
+      "owner": "B",
+      "status": "review",
+      "note": "拼团成功"
+    },
+    {
+      "proto": "/shop/group-buy-fail",
+      "vue": "/#/pkg-shop/group-buy/fail",
+      "owner": "B",
+      "status": "review",
+      "note": "拼团失败"
+    },
+    {
+      "proto": "/shop/coupons",
+      "vue": "/#/pkg-shop/coupons/index",
+      "owner": "B",
+      "status": "review",
+      "note": "优惠券"
+    },
+    {
+      "proto": "/shop/coupon-detail",
+      "vue": "/#/pkg-shop/coupon-detail/index",
+      "owner": "B",
+      "status": "review",
+      "note": "优惠券详情"
+    },
+    {
+      "proto": "/shop/cart",
+      "vue": "/#/pkg-shop/cart/index",
+      "owner": "B",
+      "status": "review",
+      "note": "购物车"
+    },
+    {
+      "proto": "/shop/cart",
+      "vue": "/#/pkg-shop/cart/sku",
+      "owner": "B",
+      "status": "review",
+      "note": "购物车 SKU 选择(变体)"
+    },
+    {
+      "proto": "/shop/checkout",
+      "vue": "/#/pkg-shop/checkout/index",
+      "owner": "B",
+      "status": "review",
+      "note": "结算"
+    },
+    {
+      "proto": "/checkout",
+      "vue": "/#/pkg-shop/checkout/order",
+      "owner": "B",
+      "status": "review",
+      "note": "结算订单(变体)"
+    },
+    {
+      "proto": "/shop/paying",
+      "vue": "/#/pkg-shop/paying/index",
+      "owner": "B",
+      "status": "review",
+      "note": "支付中"
+    },
+    {
+      "proto": "/shop/pay-success",
+      "vue": "/#/pkg-shop/pay-success/index",
+      "owner": "B",
+      "status": "review",
+      "note": "支付成功"
+    },
+    {
+      "proto": "/shop/pay-fail",
+      "vue": "/#/pkg-shop/pay-fail/index",
+      "owner": "B",
+      "status": "review",
+      "note": "支付失败"
+    },
+    {
+      "proto": "/shop/pay-timeout",
+      "vue": "/#/pkg-shop/pay-timeout/index",
+      "owner": "B",
+      "status": "review",
+      "note": "支付超时"
+    },
+    {
+      "proto": "/shop/payment-methods",
+      "vue": "/#/pkg-shop/payment-methods/index",
+      "owner": "B",
+      "status": "review",
+      "note": "支付方式"
+    },
+    {
+      "proto": "/orders",
+      "vue": "/#/pkg-order/list/index",
+      "owner": "B",
+      "status": "review",
+      "note": "订单列表"
+    },
+    {
+      "proto": "/orders/center",
+      "vue": "/#/pkg-order/center/index",
+      "owner": "B",
+      "status": "review",
+      "note": "订单中心"
+    },
+    {
+      "proto": "/orders/1",
+      "vue": "/#/pkg-order/detail/index",
+      "owner": "B",
+      "status": "review",
+      "dynamic": true,
+      "note": "订单详情"
+    },
+    {
+      "proto": "/orders/1/review",
+      "vue": "/#/pkg-order/review/index",
+      "owner": "B",
+      "status": "review",
+      "dynamic": true,
+      "note": "订单评价"
+    },
+    {
+      "proto": "/orders/logistics",
+      "vue": "/#/pkg-order/logistics/index",
+      "owner": "B",
+      "status": "review",
+      "note": "物流"
+    },
+    {
+      "proto": "/orders/invoice",
+      "vue": "/#/pkg-order/invoice/index",
+      "owner": "B",
+      "status": "review",
+      "note": "发票"
+    },
+    {
+      "proto": "/orders/refund-progress",
+      "vue": "/#/pkg-order/refund/index",
+      "owner": "B",
+      "status": "review",
+      "note": "退款进度",
+      "protoQuery": "?id=1"
+    },
+    {
+      "proto": "/orders/dispute",
+      "vue": "/#/pkg-order/dispute/index",
+      "owner": "B",
+      "status": "review",
+      "note": "订单纠纷",
+      "protoQuery": "?orderId=order_001"
+    },
+    {
+      "proto": "/shop/after-sale",
+      "vue": "/#/pkg-account/after-sale/index",
+      "owner": "B",
+      "status": "review",
+      "note": "售后",
+      "protoQuery": "?orderId=order_001&maxAmount=256"
+    },
+    {
+      "proto": "/shop/after-sale/1",
+      "vue": "/#/pkg-account/after-sale-detail/index",
+      "owner": "B",
+      "status": "review",
+      "dynamic": true,
+      "note": "售后详情"
+    },
+    {
+      "proto": "/shop/after-sale-rejected",
+      "vue": "/#/pkg-account/after-sale-rejected/index",
+      "owner": "B",
+      "status": "review",
+      "note": "售后被拒"
+    },
+    {
+      "proto": "/shop/my-after-sales",
+      "vue": "/#/pkg-account/my-after-sales/index",
+      "owner": "B",
+      "status": "review",
+      "note": "我的售后"
+    },
+    {
+      "proto": "/shop/addresses",
+      "vue": "/#/pkg-account/addresses/index",
+      "owner": "B",
+      "status": "review",
+      "note": "收货地址"
+    },
+    {
+      "proto": "/shop/addresses/edit",
+      "vue": "/#/pkg-account/address-edit/index",
+      "owner": "B",
+      "status": "review",
+      "note": "编辑地址"
+    },
+    {
+      "proto": "/mine/settings",
+      "vue": "/#/pkg-mine/settings/index",
+      "owner": "B",
+      "status": "review",
+      "note": "设置"
+    },
+    {
+      "proto": "/mine/security",
+      "vue": "/#/pkg-mine/security/index",
+      "owner": "B",
+      "status": "review",
+      "note": "安全"
+    },
+    {
+      "proto": "/mine/change-password",
+      "vue": "/#/pkg-mine/change-password/index",
+      "owner": "B",
+      "status": "review",
+      "note": "修改密码"
+    },
+    {
+      "proto": "/mine/change-phone",
+      "vue": "/#/pkg-mine/change-phone/index",
+      "owner": "B",
+      "status": "review",
+      "note": "修改手机"
+    },
+    {
+      "proto": "/mine/payment-password",
+      "vue": "/#/pkg-mine/payment-password/index",
+      "owner": "B",
+      "status": "review",
+      "note": "支付密码"
+    },
+    {
+      "proto": "/mine/bind-accounts",
+      "vue": "/#/pkg-mine/bind-accounts/index",
+      "owner": "B",
+      "status": "review",
+      "note": "绑定账号"
+    },
+    {
+      "proto": "/mine/privacy-authorization",
+      "vue": "/#/pkg-mine/privacy-authorization/index",
+      "owner": "B",
+      "status": "review",
+      "note": "隐私授权"
+    },
+    {
+      "proto": "/mine/blacklist",
+      "vue": "/#/pkg-mine/blacklist/index",
+      "owner": "B",
+      "status": "review",
+      "note": "黑名单"
+    },
+    {
+      "proto": "/mine/teen-mode",
+      "vue": "/#/pkg-mine/teen-mode/index",
+      "owner": "B",
+      "status": "review",
+      "note": "青少年模式"
+    },
+    {
+      "proto": "/mine/data-export",
+      "vue": "/#/pkg-mine/data-export/index",
+      "owner": "B",
+      "status": "review",
+      "note": "数据导出"
+    },
+    {
+      "proto": "/mine/delete-account",
+      "vue": "/#/pkg-mine/delete-account/index",
+      "owner": "B",
+      "status": "review",
+      "note": "注销账号"
+    },
+    {
+      "proto": "/mine/delete-account-result",
+      "vue": "/#/pkg-mine/delete-account-result/index",
+      "owner": "B",
+      "status": "review",
+      "note": "注销结果"
+    },
+    {
+      "proto": "/mine/wallet",
+      "vue": "/#/pkg-mine/wallet/index",
+      "owner": "B",
+      "status": "review",
+      "note": "钱包"
+    },
+    {
+      "proto": "/wallet/recharge",
+      "vue": "/#/pkg-mine/wallet/recharge",
+      "owner": "V",
+      "status": "migrate",
+      "note": "钱包充值(v0新迁)"
+    },
+    {
+      "proto": "/wallet/withdraw",
+      "vue": "/#/pkg-mine/wallet/withdraw",
+      "owner": "V",
+      "status": "migrate",
+      "note": "钱包提现(v0新迁,默认表单态)"
+    },
+    {
+      "proto": "/wallet/transactions",
+      "vue": "/#/pkg-mine/wallet/transactions",
+      "owner": "V",
+      "status": "migrate",
+      "note": "交易记录(v0新迁)"
+    },
+    {
+      "proto": "/mine/points",
+      "vue": "/#/pkg-mine/points/index",
+      "owner": "B",
+      "status": "review",
+      "note": "积分"
+    },
+    {
+      "proto": "/mine/history",
+      "vue": "/#/pkg-mine/history/index",
+      "owner": "B",
+      "status": "review",
+      "note": "浏览历史"
+    },
+    {
+      "proto": "/mine/my-likes",
+      "vue": "/#/pkg-mine/my-likes/index",
+      "owner": "B",
+      "status": "review",
+      "note": "我的点赞"
+    },
+    {
+      "proto": "/mine/my-comments",
+      "vue": "/#/pkg-mine/my-comments/index",
+      "owner": "B",
+      "status": "review",
+      "note": "我的评论"
+    },
+    {
+      "proto": "/mine/received-comments",
+      "vue": "/#/pkg-mine/received-comments/index",
+      "owner": "B",
+      "status": "review",
+      "note": "收到的评论"
+    },
+    {
+      "proto": "/courses",
+      "vue": "/#/pkg-course/home/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程首页(v0新迁)"
+    },
+    {
+      "proto": "/courses/1",
+      "vue": "/#/pkg-course/detail/index",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "课程详情(v0新迁)"
+    },
+    {
+      "proto": "/instructor/1",
+      "vue": "/#/pkg-course/instructor/index",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "讲师详情(v0新迁,源institute/instructors/[id];入口=课程详情页讲师卡;白底顶栏+头部(头像/认证角标/姓名/等级标签/职称/专长tag)+三栏统计(学员/课程/评分)+3Tab(简介:个人简介/学术背景/从业经历/资质证书;课程:featuredCourses卡=>/courses/:id;评价:reviews列表)+底部关注/预约授课(=>/offline/teacher-booking?instructorId=);数据mock于instructor-data.ts;briefcase图标本轮补入icons-registry;下游offline/teacher-booking未迁)"
+    },
+    {
+      "proto": "/courses/1/chapters",
+      "vue": "/#/pkg-course/chapters/index",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "课程章节列表(v0新迁)"
+    },
+    {
+      "proto": "/courses/1/learn",
+      "vue": "/#/pkg-course/learn/index",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "课程学习中心(v0新迁)"
+    },
+    {
+      "proto": "/courses/1/player",
+      "vue": "/#/pkg-course/player/index",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "课程视频播放(v0新迁)"
+    },
+    {
+      "proto": "/courses/flash-sale",
+      "vue": "/#/pkg-course/flash-sale/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程限时特惠(v0新迁)"
+    },
+    {
+      "proto": "/courses/purchase-confirm",
+      "vue": "/#/pkg-course/purchase-confirm/index",
+      "owner": "V",
+      "status": "migrate",
+      "protoQuery": "?id=1",
+      "note": "课程购买确认(v0新迁)"
+    },
+    {
+      "proto": "/courses/certificate",
+      "vue": "/#/pkg-course/certificate/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程结业证书(v0新迁)"
+    },
+    {
+      "proto": "/courses/study-plan",
+      "vue": "/#/pkg-course/study-plan/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程学习计划(v0新迁)"
+    },
+    {
+      "proto": "/courses/work-submit",
+      "vue": "/#/pkg-course/work-submit/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程作业提交(v0新迁)"
+    },
+    {
+      "proto": "/courses/work-review",
+      "vue": "/#/pkg-course/work-review/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程作业批改(v0新迁)"
+    },
+    {
+      "proto": "/courses/work-result",
+      "vue": "/#/pkg-course/work-result/index",
+      "owner": "V",
+      "status": "migrate",
+      "protoQuery": "?id=1",
+      "note": "课程作业批改结果(v0新迁)"
+    },
+    {
+      "proto": "/live",
+      "vue": "/#/pkg-live/plaza/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播广场入口(v0新迁·标杆)"
+    },
+    {
+      "proto": "/live/hosts",
+      "vue": "/#/pkg-live/hosts/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播主播列表(v0新迁)"
+    },
+    {
+      "proto": "/live/replays",
+      "vue": "/#/pkg-live/replays/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播回放列表(v0新迁)"
+    },
+    {
+      "proto": "/live/replay-home",
+      "vue": "/#/pkg-live/replay-home/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播回放首页(v0新迁)"
+    },
+    {
+      "proto": "/live/host-data",
+      "vue": "/#/pkg-live/host-data/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "主播数据中心(v0新迁)"
+    },
+    {
+      "proto": "/live/stream-config",
+      "vue": "/#/pkg-live/stream-config/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "推流配置(v0新迁)"
+    },
+    {
+      "proto": "/live/obs-guide",
+      "vue": "/#/pkg-live/obs-guide/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "OBS推流教程(v0新迁)"
+    },
+    {
+      "proto": "/live/create",
+      "vue": "/#/pkg-live/create/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "创建直播(v0新迁)"
+    },
+    {
+      "proto": "/live/preview",
+      "vue": "/#/pkg-live/preview/index",
+      "owner": "V",
+      "status": "migrate",
+      "protoQuery": "?id=1",
+      "note": "直播预告(v0新迁)"
+    },
+    {
+      "proto": "/live/vertical",
+      "vue": "/#/pkg-live/vertical/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "竖屏直播间(v0新迁)"
+    },
+    {
+      "proto": "/live/horizontal",
+      "vue": "/#/pkg-live/horizontal/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "横屏直播间-竖屏提示态(v0新迁)"
+    },
+    {
+      "proto": "/live/1",
+      "vue": "/#/pkg-live/watch/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播间观看页[id]知识竖屏(v0新迁)"
+    },
+    {
+      "proto": "/live/end",
+      "vue": "/#/pkg-live/end/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播结束页(v0新迁)"
+    },
+    {
+      "proto": "/live/replay/1",
+      "vue": "/#/pkg-live/replay-detail/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "回放详情页(v0新迁)"
+    },
+    {
+      "proto": "/live/replay/1/comments",
+      "vue": "/#/pkg-live/replay-comment/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "回放评价页(v0新迁)"
+    },
+    {
+      "proto": "/login",
+      "vue": "/#/pkg-auth/login/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "登录主页(v0新迁,A级)"
+    },
+    {
+      "proto": "/register",
+      "vue": "/#/pkg-auth/register/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "注册页(v0新迁,A级,默认step=phone)"
+    },
+    {
+      "proto": "/forgot-password",
+      "vue": "/#/pkg-auth/forgot-password/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "找回密码(v0新迁,A级,默认step=1)"
+    },
+    {
+      "proto": "/feedback",
+      "vue": "/#/pkg-mine/feedback/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "意见反馈(v0新迁,A级,默认tab=submit)"
+    },
+    {
+      "proto": "/about",
+      "vue": "/#/pkg-mine/about/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "关于我们(v0新迁,B级)"
+    },
+    {
+      "proto": "/im/conversations",
+      "vue": "/#/pkg-im/im/conversations/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "会话列表(v0新迁,默认列表态)"
+    },
+    {
+      "proto": "/im/chat/101",
+      "vue": "/#/pkg-im/im/chat/index?id=101",
+      "owner": "V",
+      "status": "migrate",
+      "note": "单聊(v0新迁,A级,默认target101互关态)"
+    },
+    {
+      "proto": "/im/group-chat/1",
+      "vue": "/#/pkg-im/im/group-chat/index?id=1",
+      "owner": "V",
+      "status": "migrate",
+      "dynamic": true,
+      "note": "群聊(v0新迁,源im/group-chat/[id];入口=会话列表群聊项;自定义导航(返回+群名+在线人数+成员抽屉入口)+群公告条(可展开=>公告详情抽屉)+消息流(群主/管理员角标气泡,自己消息右对齐,@高亮,撤回占位,2分钟内可撤回)+@成员面板(含@所有人,owner/admin权限)+长按菜单(复制/撤回)+成员侧边抽屉(角色排序)+底部输入(语音/表情/图片/+号占位);数据mock于im-data.ts(GroupDetail/GroupMember/GroupChatMessage+getGroupRoleName/getGroupOnlineCount/searchGroupMembersForAt,复用canWithdrawMessage与时间格式化);图标全部已存在)"
+    },
+    {
+      "proto": "/im/messages",
+      "vue": "/#/pkg-im/im/messages/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "消息中心(v0新迁,竖屏;入口=会话列表顶部;sticky顶栏(返回/标题/全部已读)+4分类Tab(系统通知/互动消息/交易消息/客服消息,带未读红点角标+底部红条指示)+消息列表(头像or分类圆形图标+未读红点/未���浅红底,标题+分类标签+时间,内容2行截断,点击标已读并跳link)+已显示全部消息底注+空态;原型getCategoryIcon配色1:1)"
+    },
+    {
+      "proto": "/articles/1",
+      "vue": "/#/pkg-circle/articles/detail?id=1",
+      "owner": "V",
+      "status": "migrate",
+      "note": "文章详情(v0新迁,A级,含5种内联推荐卡)"
+    },
+    {
+      "proto": "/search",
+      "vue": "/#/pkg-search/search/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "全局搜索主页(v0新迁,A级,历史/热门/联想/猜你想搜+AI搜索弹窗;全局app-header入口)"
+    },
+    {
+      "proto": "/search/result?keyword=八字",
+      "vue": "/#/pkg-search/search/result?keyword=八字",
+      "owner": "V",
+      "status": "migrate",
+      "note": "搜索结果页(v0新迁,A级,6Tab+AI总结折叠+多类型结果+空态;来源页决定默认Tab)"
+    },
+    {
+      "proto": "/courses-list?category=bazi",
+      "vue": "/#/pkg-course/courses-list/index?category=bazi",
+      "owner": "V",
+      "status": "migrate",
+      "note": "课程列表页(v0新迁,A���������������,搜索栏+文字分类Tab+排序下拉+免费筛选+推荐轮播+限时秒杀倒��时+全部课程双列瀑布流+筛选抽屉+空态;复用course-card feed变体;入口=课程首页分类/更多)"
+    },
+    {
+      "proto": "/creator/live/console",
+      "vue": "/#/pkg-live/console/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播中控制台(v0新迁,横屏桌面布局,左:直播预览+实时数据卡+弹幕/连麦Tab,右:商品管理+营销工具(抽奖/优惠券/红包)+提词器;含抽奖弹窗/发券弹窗/结束直播确认弹窗;直播计时器+实时弹幕推送+自动滚动;入口=creator开播流程)"
+    },
+    {
+      "proto": "/creator/live/obs",
+      "vue": "/#/pkg-live/obs/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "OBS推流设置(v0新迁,竖屏;推流状态卡(实时时长计时/帧率/码率/分辨率/丢帧率)+推流配置信息(服务器地址/串流密钥可见切换/复制/重新生成)+OBS配置指南5步+安全提示+画质配置单选(高清/标清/流畅+推荐标)+测速入口+OBS输出参考表+常���问题折叠;重新生成密钥确认弹窗;入口=creator直播管理)"
+    },
+    {
+      "proto": "/creator/live/theme",
+      "vue": "/#/pkg-live/theme/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播间装修(v0新迁,竖屏;3Tab=主题模版/挂件装饰/动效设置;主题模版6款(默认/新中式/春节/中秋/极简白/水墨,免费vip标+使用中标)+自定义主色6色;挂件4个(福字/灯笼/祥云/铜钱,位置+开关);动效=入场特效6款/点赞样式4款/组件样式;实时预览区(emoji占位);底部固定栏=重置+保存应用;入口=creator直播管理)"
+    },
+    {
+      "proto": "/creator/live/schedule",
+      "vue": "/#/pkg-live/schedule/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播排期管理(v0新迁,竖屏;日历/列表双视图切换+状态筛选(全部/待开播/直播中/已结束)+搜索;日历视图=月份切换+7列网格+场次彩点指示(蓝待播/红直播/灰结束)+选中日期场次列表;列表视图=3状态统计卡+场次卡列表;ScheduleCard含封面占位/系列标/状态徽章/时间观看数meta/操作菜单(编辑复制删除);3弹窗(新建场次/批量导入xlsx/删除确认);今日固定2026-05-10;编辑跳create?id=)"
+    },
+    {
+      "proto": "/creator/live/team",
+      "vue": "/#/pkg-live/team/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "主播团队管理(v0新迁,竖屏;成员统计+搜索+角色筛选(主播/副播/场控运营/嘉宾,各带图标颜色等级)+成员列表卡(头像在线点/角色徽章/擅长标签/直播场次/操作菜单)+权限说明区(按角色展示权限项);弹窗=添加成员(可选讲师/成员+角色选择)/编辑角色/移除确认;入口=creator直播管理)"
+    },
+    {
+      "proto": "/creator/live/analytics/[id]",
+      "vue": "/#/pkg-live/analytics/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播数据复盘(v0新迁,竖屏,query=id;场次信息卡+5Tab(总览/流量/观众/互动/回放);总览=6核心数据卡(观看/峰值/时长/关注/加圈/打赏含趋势)+关键时刻时间轴;流量=在线人数折线(canvas/纯CSS柱)+关键节点;观众=性别饼/年龄分布/地域TOP/来源占比;互动=弹幕点赞评论分享数+礼物排行+弹幕词云;回放=播放数据+商品转化表+公开/付费开关;导出报告按钮)"
+    },
+    {
+      "proto": "/creator/live/reviews",
+      "vue": "/#/pkg-live/reviews/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播评价管理(v0新迁,竖屏;评分分布(5星条形图+平均分)+筛选(全部/5星/4星/3星及以下/待回复/已回复)+评价卡(头像/用户/星级/内容/直播场次/时间/回复区);可回复/举报;入口=creator直播管理)"
+    },
+    {
+      "proto": "/creator/live/settings",
+      "vue": "/#/pkg-live/settings/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播间设置(v0新迁,竖屏;直播间资料(封面/名称/简介编辑)+通知设置(新观众/打赏/评论/带货成交开关)+隐私互动(允许评论/打赏/显示观看数/自动录制开关)+更多设置入口;底部固定保存按钮含loading/已保存态)"
+    },
+    {
+      "proto": "/creator/live/products",
+      "vue": "/#/pkg-live/products/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "带货商品管理(v0新迁,竖屏;搜索+状态筛选(全部/已上架/已下架)+商品卡(封面/名称/价格/库存/已售/上架开关/编辑删除操作/库存不足提示)+空态;入口=creator直播管理)"
+    },
+    {
+      "proto": "/creator/live/earnings",
+      "vue": "/#/pkg-live/earnings/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播收益(v0新迁,竖屏;时间范围切换(近7天/30天/90天)+收益总览卡(总收益/打赏/带货+趋势涨跌)+提现入口+明细类型筛选(全部/打赏/带货)+收益流水列表(日期/类型/描述/金额/场次))"
+    },
+    {
+      "proto": "/creator/live",
+      "vue": "/#/pkg-live/manage/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "直播管理首页(v0新迁,竖屏;顶部铃铛/设置入口+5张横滑数据概览卡(本月直播/累计观看/新增粉丝/打赏收入/带货成交,原型渐变改本项目实色)+创建直播主按钮+3快捷入口(知识授课/电商带货/快速开播)+状态Tab(全部/预告中/直播中/已结束/草稿含计数)+直播卡片列表(封面占位/状态徽章/类型标签/标题/排期时间/观看时长收益or预约数;按状态显示进入直播/编辑/继续编辑/数据按钮+展开操作菜单编辑/数据详情/删除)+空状态+悬浮快速开播FAB;进入直播=>console,数据=>analytics,创建/编辑=>create)"
+    },
+    {
+      "proto": "/common/share-poster",
+      "vue": "/#/pkg-circle/common/share-poster/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "分享海报生成器(v0新迁,深色全屏,query=type(invite|circle|post|article|live)+targetId;入口=圈子详情/帖子详情分享按钮;顶栏X关闭+类型标题;海报预览卡(4套国学主题:经典金/水墨/朱砂/青瓷,含标签/标题/分隔线/副标题/描述/作者头像/二维码占位);风格选择(主题色块+选中check角标)+分享文案(3风格雅致/诚挚/启发tab+文案预览+复制)+底部保存到相册/立即分享;真实uni canvas离屏绘制并canvasToTempFilePath导出,H5用a标签下载/小程序saveImageToPhotosAlbum;原型依赖PosterCanvas+POSTER_THEMES+SHARE_TONES+getPosterData均v0重建,二维码用GenerateImage占位)"
+    },
+    {
+      "proto": "/user/[id]",
+      "vue": "/#/pkg-circle/user/profile",
+      "owner": "V",
+      "status": "migrate",
+      "note": "用户主页(v0新迁,自定义导航全屏,query=id;入口=帖子卡片作者头像/圈子详情成员/帖子详情作者,三处高频死链;顶部背景封面(渐变兜底)+悬浮头像(认证badge角标)+顶栏返回/分享/更多菜单(举报/拉黑);用户信息(昵称+认证标签+简介+Lv等级金标+互相关注粉标)+数据看板(关注/粉丝/获赞,点关注粉丝toast占位)+关注·私信操作行(关注乐观更���,私信=>im/chat);4内容Tab(动态/帖子/文章/短视频,底部红条指示)+三种卡片(帖子:文本+1/4宫格图+点赞评论;文章:左图右标题横卡;短视频:9:16双列网格带播放按钮;动态Tab混排);内容点击=>帖子详情/文章详情/视频详情;原型依赖getUserProfile/getUserPosts/follow等均v0重建mock,仅迁主页未含following/followers子页)"
+    },
+    {
+      "proto": "/agents",
+      "vue": "/#/pkg-agent/agents/index",
+      "owner": "V",
+      "status": "migrate",
+      "note": "AI智能体广场(v0新迁,自定义导航;入口=排盘首页「AI智能体」更多;红色sticky顶栏(返回+标题+在线数zap badge+对话记录=>/agents/history)+白色搜索框(语音搜索mock:点mic后2秒填入「八字分析」+聆听三点动画遮罩+清除按钮);主智能客服入口卡(深色渐变+bot图标=>/agent/main);热门问答(flame标题+更多=>/agents/questions+前3条排名卡,点击=>/agent/:botId?q=);智能体列表(trending标题+热度榜=>/agents/ranking+卡片:头像(纯色底+dicebear bottts)+前3名角标+名称+official冠/NEW标+描述+能力标签+评分/对话数/语音标+对话按钮=>/agent/:id,默认显示4个+查看全部展开);原型hotBots/hotQuestions/formatCount均v0重建为agents-square-data.ts,头像渐变类改纯色bgColor;下游/agent/main|chat|history已存在,/agents/history|questions|ranking仍待迁)"
+    },
+    {
+      "proto": "/agent/main",
+      "vue": "/#/pkg-agent/agent/main",
+      "owner": "V",
+      "status": "migrate",
+      "note": "智能体主对话页(页面早已存在,本轮仅补router映射;入口=广场「热卜智能助手」卡片)"
+    },
+    {
+      "proto": "/agents/history",
+      "vue": "/#/pkg-agent/agents/history",
+      "owner": "V",
+      "status": "migrate",
+      "note": "对话历史(v0新迁,自定义导航白色顶栏+返回;入口=广场顶栏clock按钮;搜索框(按名称/末条消息过滤)+对话卡片(bot头像圆底+名称+分类彩标(5类内联色映射)+末条时间+末条消息省略+未读红角标+删除trash按钮stop冒泡);空状态(message-square灰图标+暂无/未找到文案);点卡片=>/agent/:id;原型mockConvs/CATEGORY_COLORS=>agents-square-data.ts的agentConversations+页内catColor映射)"
+    },
+    {
+      "proto": "/agents/questions",
+      "vue": "/#/pkg-agent/agents/questions",
+      "owner": "V",
+      "status": "migrate",
+      "note": "常见问题FAQ(v0新迁,自定义导航;入口=广场热门问答「更多」;搜索框+分类chip横滑(全部+使用说明/收费说明/隐私安全/功能介绍,选中红底)+FAQ手风琴卡(help-circle图标+问题+chevron上下,点击展开答案,单开);空状态;原型faqs=>agents-square-data.ts的agentFaqs)"
+    },
+    {
+      "proto": "/agents/ranking",
+      "vue": "/#/pkg-agent/agents/ranking",
+      "owner": "V",
+      "status": "migrate",
+      "note": "智能体热度榜(v0新迁,自定义导航居中标题;入口=广场智能体列表「热度榜」;分类chip横滑筛选(全部+算命/国学/风水/占卜/健康)+排行卡(头像image+verified红勾角标+#排名红大字+名称+分类灰标+描述+四宫格统计(用户/对话/评分2格红底)+立即对话红按钮);点卡片/按钮=>/agent/:id;原型mockAgentsRanking的unsplash头像改dicebear bottts=>agents-square-data.ts的agentsRanking)"
+    }
+  ]
+}

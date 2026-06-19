@@ -1,0 +1,31 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8">
+<title>保真比对报告</title>
+<style>
+  body{font-family:system-ui,-apple-system,sans-serif;margin:0;padding:16px;background:#f5f3ef;color:#222}
+  h1{font-size:18px}
+  .summary{margin:8px 0 16px;font-size:13px;color:#555}
+  table{border-collapse:collapse;width:100%}
+  td{border:1px solid #ddd;padding:6px;vertical-align:top;background:#fff}
+  td.meta{width:220px;font-size:12px}
+  .pct{font-size:20px;font-weight:700}
+  .owner{display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;color:#fff;margin:4px 0}
+  .owner-A{background:#2a7}.owner-B{background:#c70}.owner-NONE{background:#999}
+  .route{font-family:monospace;font-size:11px;word-break:break-all;color:#333}
+  .route.vue{color:#06c}
+  .note{margin-top:4px;color:#777}
+  img{width:257px;height:auto;display:block;border:1px solid #eee}
+  th{position:sticky;top:0;background:#eee;padding:6px;font-size:12px}
+</style></head><body>
+<h1>保真比对报告（原型 vs uni-app H5 · 514×1111）</h1>
+<div class="summary">共 1 对 · 通过 0 · 未通过 1 · 按差异降序</div>
+<table><thead><tr><th>信息</th><th>原型</th><th>vue3 (H5)</th><th>diff</th></tr></thead>
+<tbody><tr>
+        <td class="meta">
+          <div class="pct" style="color:#c70">4.47%</div>
+          <div class="owner owner-V">V</div>
+          <div class="route">/articles/1</div>
+          <div class="route vue">/#/pkg-circle/articles/detail?id=1</div>
+          <div class="note">文章详情(v0新迁,A级,含5种内联推荐卡)</div>
+        </td>
+        <td><img src="pkg_circle_articles_detail_id_1__proto.png"></td><td><img src="pkg_circle_articles_detail_id_1__vue.png"></td><td><img src="pkg_circle_articles_detail_id_1__diff.png"></td>
+      </tr></tbody></table></body></html>

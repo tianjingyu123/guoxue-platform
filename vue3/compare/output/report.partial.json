@@ -1,0 +1,18 @@
+[
+  {
+    "proto": "/articles/1",
+    "vue": "/#/pkg-circle/articles/detail?id=1",
+    "owner": "V",
+    "status": "migrate",
+    "note": "文章详情(v0新迁,A级,含5种内联推荐卡)",
+    "slug": "pkg_circle_articles_detail_id_1",
+    "nav": "ok",
+    "mismatch": 13603,
+    "total": 304500,
+    "ratio": 0.04467323481116585,
+    "sizeMismatch": false,
+    "protoSize": "375x812",
+    "vueSize": "375x812",
+    "pass": false
+  }
+]
