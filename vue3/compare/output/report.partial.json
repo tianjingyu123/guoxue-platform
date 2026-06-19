@@ -1,0 +1,18 @@
+[
+  {
+    "proto": "/circles/activities",
+    "vue": "/#/pkg-circle/circles/activities",
+    "owner": "A",
+    "status": "golden",
+    "note": "圈子活动",
+    "slug": "pkg_circle_circles_activities",
+    "nav": "ok",
+    "mismatch": 15795,
+    "total": 304500,
+    "ratio": 0.05187192118226601,
+    "sizeMismatch": false,
+    "protoSize": "375x812",
+    "vueSize": "375x812",
+    "pass": false
+  }
+]

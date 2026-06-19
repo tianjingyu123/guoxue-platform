@@ -1,0 +1,4 @@
+/* uni-app 全局 scss 变量入口（被各组件 <style lang="scss"> 自动注入）。
+   注意：此文件会被注入到每个 scss 顶部，因此只能放 SCSS 变量/mixin，
+   不得 @import 含实际 CSS 规则或 :root 的文件，否则会重复注入并触发相对路径解析错误。
+   设计令牌（CSS 自定义属性）见 styles/tokens.scss，已在 main.ts 全局导入一次。 */

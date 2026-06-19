@@ -1,0 +1,530 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^bn-(.*)": "@/components/bottom-nav/$1.vue",
+      "^app-icon$": "@/components/common/app-icon.vue",
+      "^app-empty$": "@/components/common/app-empty.vue",
+      "^app-error$": "@/components/common/app-error.vue",
+      "^app-nav-bar$": "@/components/common/app-nav-bar.vue"
+    }
+  },
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "热卜国学",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/circles/index",
+      "style": {
+        "navigationBarTitleText": "圈子",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/paipan/index",
+      "style": {
+        "navigationBarTitleText": "排盘工具",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/discover/index",
+      "style": {
+        "navigationBarTitleText": "发现",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "我的",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/profile/edit",
+      "style": {
+        "navigationBarTitleText": "编辑资料",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "subPackages": [
+    {
+      "root": "pkg-paipan",
+      "pages": [
+        {
+          "path": "bazi/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "bazi/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pkg-course",
+      "pages": [
+        { "path": "home/index", "style": { "navigationStyle": "custom" } },
+        { "path": "detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "chapters/index", "style": { "navigationStyle": "custom" } },
+        { "path": "learn/index", "style": { "navigationStyle": "custom" } },
+        { "path": "player/index", "style": { "navigationStyle": "custom" } },
+        { "path": "flash-sale/index", "style": { "navigationStyle": "custom" } },
+        { "path": "certificate/index", "style": { "navigationStyle": "custom" } },
+        { "path": "purchase-confirm/index", "style": { "navigationStyle": "custom" } },
+        { "path": "study-plan/index", "style": { "navigationStyle": "custom" } },
+        { "path": "work-submit/index", "style": { "navigationStyle": "custom" } },
+        { "path": "work-result/index", "style": { "navigationStyle": "custom" } },
+        { "path": "work-review/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-mall",
+      "pages": [
+        {
+          "path": "home/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "product/detail",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "product/reviews",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "category/index",
+          "style": { "navigationStyle": "custom" }
+        }
+      ]
+    },
+    {
+      "root": "pkg-shop",
+      "pages": [
+        {
+          "path": "home/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "product/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "categories/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "reviews/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "exchange/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "compare/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "flash-sale/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "group-buy/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "group-buy/detail",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "group-buy/success",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "group-buy/fail",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "coupons/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "coupon-detail/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "cart/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "cart/sku",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "checkout/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "checkout/order",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "paying/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "pay-success/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "pay-fail/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "pay-timeout/index",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "payment-methods/index",
+          "style": { "navigationStyle": "custom" }
+        }
+      ]
+    },
+    {
+      "root": "pkg-order",
+      "pages": [
+        { "path": "list/index", "style": { "navigationStyle": "custom" } },
+        { "path": "center/index", "style": { "navigationStyle": "custom" } },
+        { "path": "detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "review/index", "style": { "navigationStyle": "custom" } },
+        { "path": "logistics/index", "style": { "navigationStyle": "custom" } },
+        { "path": "invoice/index", "style": { "navigationStyle": "custom" } },
+        { "path": "refund/index", "style": { "navigationStyle": "custom" } },
+        { "path": "dispute/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-account",
+      "pages": [
+        { "path": "after-sale/index", "style": { "navigationStyle": "custom" } },
+        { "path": "after-sale-detail/index", "style": { "navigationStyle": "custom" } },
+        { "path": "after-sale-rejected/index", "style": { "navigationStyle": "custom" } },
+        { "path": "my-after-sales/index", "style": { "navigationStyle": "custom" } },
+        { "path": "addresses/index", "style": { "navigationStyle": "custom" } },
+        { "path": "address-edit/index", "style": { "navigationStyle": "custom" } }
+      ]
+    },
+    {
+      "root": "pkg-classics",
+      "pages": []
+    },
+    {
+      "root": "pkg-circle",
+      "pages": [
+        {
+          "path": "circles/detail",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/post",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/create",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/publish",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/manage",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/ranking",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/activities",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/calendar",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/badges",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/search",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/mine",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/bots",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/stats",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/knowledge",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/dashboard",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/announcements",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/join-requests",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/exit-requests",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/invite-codes",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/guests",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/distribution",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/earnings",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/level",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/analytics",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/settings-knowledge",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/consult-ask",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/consult-experts",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/consult-orders",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/my-calls",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/my-questions",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/exit",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/booking",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/checkin",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/recommend-ebook",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/circle-bots",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "circles/preview",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pkg-im",
+      "pages": []
+    },
+    {
+      "root": "pkg-agent",
+      "pages": [
+        {
+          "path": "agent/main",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "agent/chat",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "agent/customer-service",
+          "style": { "navigationStyle": "custom" }
+        },
+        {
+          "path": "agent/history",
+          "style": { "navigationStyle": "custom" }
+        }
+      ]
+    },
+    {
+      "root": "pkg-live",
+      "pages": []
+    },
+    {
+      "root": "pkg-video",
+      "pages": []
+    },
+    {
+      "root": "pkg-operator",
+      "pages": []
+    },
+    {
+      "root": "pkg-institute",
+      "pages": []
+    },
+    {
+      "root": "pkg-station",
+      "pages": []
+    },
+    {
+      "root": "pkg-mine",
+      "pages": [
+        { "path": "settings/index", "style": { "navigationStyle": "custom" } },
+        { "path": "security/index", "style": { "navigationStyle": "custom" } },
+        { "path": "change-password/index", "style": { "navigationStyle": "custom" } },
+        { "path": "change-phone/index", "style": { "navigationStyle": "custom" } },
+        { "path": "payment-password/index", "style": { "navigationStyle": "custom" } },
+        { "path": "bind-accounts/index", "style": { "navigationStyle": "custom" } },
+        { "path": "privacy-authorization/index", "style": { "navigationStyle": "custom" } },
+        { "path": "blacklist/index", "style": { "navigationStyle": "custom" } },
+        { "path": "teen-mode/index", "style": { "navigationStyle": "custom" } },
+        { "path": "data-export/index", "style": { "navigationStyle": "custom" } },
+        { "path": "delete-account/index", "style": { "navigationStyle": "custom" } },
+        { "path": "delete-account-result/index", "style": { "navigationStyle": "custom" } },
+        { "path": "wallet/index", "style": { "navigationStyle": "custom" } },
+        { "path": "points/index", "style": { "navigationStyle": "custom" } },
+        { "path": "history/index", "style": { "navigationStyle": "custom" } },
+        { "path": "my-likes/index", "style": { "navigationStyle": "custom" } },
+        { "path": "my-comments/index", "style": { "navigationStyle": "custom" } },
+        { "path": "received-comments/index", "style": { "navigationStyle": "custom" } }
+      ]
+    }
+  ],
+  "preloadRule": {},
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "热卜国学",
+    "navigationBarBackgroundColor": "#FAF8F5",
+    "backgroundColor": "#FAF8F5"
+  }
+}
