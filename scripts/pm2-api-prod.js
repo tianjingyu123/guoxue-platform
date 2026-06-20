@@ -26,7 +26,7 @@ if (fs.existsSync(envFile)) {
   }
 }
 
-console.log(`[pm2-api-prod] DATABASE_URL=${process.env.DATABASE_URL}`);
+console.log(`[pm2-api-prod] Database configured`);
 console.log(`[pm2-api-prod] Starting from ${path.join(serverDir, "dist", "main.js")}`);
 
 const child = spawn("node", [path.join(serverDir, "dist", "main.js")], {
