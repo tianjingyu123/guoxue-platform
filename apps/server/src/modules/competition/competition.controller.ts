@@ -290,7 +290,7 @@ export class CompetitionPublicController {
     @Body() body: RegisterCompetitionDto,
     @Req() req: Request,
   ) {
-    return this.service.register(id, (req.user as any).id, body.inviterId, body.inviteCode);
+    return this.service.register(id, req.user.id, body.inviterId, body.inviteCode);
   }
 
   @Get(":id/my-registration")
@@ -301,7 +301,7 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   getMyRegistration(@Param("id") id: string, @Req() req: Request) {
-    return this.service.getRegistration(id, (req.user as any).id);
+    return this.service.getRegistration(id, req.user.id);
   }
 
   @Get(":id/my-results")
@@ -312,7 +312,7 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   getMyResults(@Param("id") id: string, @Req() req: Request) {
-    return this.service.getMyResults(id, (req.user as any).id);
+    return this.service.getMyResults(id, req.user.id);
   }
 
   @Post("rounds/:roundId/submit")
@@ -323,7 +323,7 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   submitAnswer(@Param("roundId") roundId: string, @Body() dto: SubmitAnswerDto, @Req() req: Request) {
-    return this.service.submitAnswer(dto, (req.user as any).id);
+    return this.service.submitAnswer(dto, req.user.id);
   }
 
   @Post("rounds/:roundId/batch-submit")
@@ -338,7 +338,7 @@ export class CompetitionPublicController {
     @Body() dto: BatchSubmitAnswerDto,
     @Req() req: Request,
   ) {
-    return this.service.batchSubmitAnswers({ ...dto, roundId }, (req.user as any).id);
+    return this.service.batchSubmitAnswers({ ...dto, roundId }, req.user.id);
   }
 
   @Get("rounds/:roundId/paper")
@@ -373,7 +373,7 @@ export class CompetitionJudgeController {
   @ApiOperation({ summary: "获取待评审作品列表", description: "返回评委当前需要评分的作品" })
   @ApiResponse({ status: 200, description: "成功" })
   async getJudgeSubmissions(@Req() req: Request, @Query("competitionId") competitionId?: string) {
-    return this.service.getJudgeSubmissions((req.user as any).id, competitionId);
+    return this.service.getJudgeSubmissions(req.user.id, competitionId);
   }
 
   @Post("submissions/:id/score")
@@ -385,7 +385,7 @@ export class CompetitionJudgeController {
     @Body() dto: SubmitScoreDto,
     @Req() req: Request,
   ) {
-    return this.service.submitScore(submissionId, dto.score, (req.user as any).id, dto.comment, dto.dimScores);
+    return this.service.submitScore(submissionId, dto.score, req.user.id, dto.comment, dto.dimScores);
   }
 
   @Post("answers/:answerId/grade")
@@ -398,6 +398,6 @@ export class CompetitionJudgeController {
     @Req() req: Request,
   ) {
     const answer = await this.service.getAnswerById(answerId);
-    return this.service.manualGrade(answer.registrationId, answer.questionId, dto.score, (req.user as any).id, dto.comment);
+    return this.service.manualGrade(answer.registrationId, answer.questionId, dto.score, req.user.id, dto.comment);
   }
 }

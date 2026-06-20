@@ -17,7 +17,7 @@ export class StationDashboardController {
   ) {}
 
   private async getStationId(req: Request): Promise<string> {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
     const station = await this.prisma.station.findFirst({ where: { userId }, select: { id: true } });
     if (!station) throw new NotFoundException("未找到关联站点，请先创建站点");
     return station.id;
@@ -67,7 +67,7 @@ export class OperatorDashboardController {
   constructor(private readonly prisma: PrismaService) {}
 
   private async getOperatorStations(req: Request) {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
     const operator = await this.prisma.operator.findFirst({ where: { userId }, select: { id: true, containQuota: true } });
     if (!operator) throw new ForbiddenException("当前用户不是运营商");
     const stations = await this.prisma.station.findMany({ where: { userId }, select: { id: true, name: true, totalEarning: true, status: true } });
@@ -127,7 +127,7 @@ export class OperatorDashboardController {
   @ApiOperation({ summary: "获取当前运营商完整信息（自服务）" })
   @ApiResponse({ status: 200, description: "成功" })
   async getMyOperator(@Req() req: Request) {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
     const operator = await this.prisma.operator.findFirst({
       where: { userId },
       include: { user: { select: { id: true, nickname: true, avatar: true, station: true } } },
@@ -165,7 +165,7 @@ export class OperatorDashboardController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   async updateMyOperator(@Req() req: Request, @Body() body: UpdateMyOperatorDto) {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
     const operator = await this.prisma.operator.findFirst({ where: { userId } });
     if (!operator) throw new ForbiddenException("当前用户不是运营商");
 
@@ -183,7 +183,7 @@ export class OperatorDashboardController {
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "pageSize", required: false })
   async getMyEarnings(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
     const operator = await this.prisma.operator.findFirst({ where: { userId } });
     if (!operator) throw new ForbiddenException("当前用户不是运营商");
 
@@ -221,7 +221,7 @@ export class OperatorDashboardController {
   @ApiOperation({ summary: "名下站长列表（自服务）" })
   @ApiResponse({ status: 200, description: "成功" })
   async getMyStations(@Req() req: Request) {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
     const operator = await this.prisma.operator.findFirst({ where: { userId } });
     if (!operator) throw new ForbiddenException("当前用户不是运营商");
 

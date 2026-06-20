@@ -18,7 +18,7 @@ export class RenewalController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   getMyEntitlements(@Req() req: Request) {
-    return this.svc.getMyEntitlements((req.user as any).id);
+    return this.svc.getMyEntitlements(req.user.id);
   }
 
   @Get("my/history")
@@ -32,7 +32,7 @@ export class RenewalController {
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
-    return this.svc.getMyRenewalHistory((req.user as any).id, +page, +pageSize);
+    return this.svc.getMyRenewalHistory(req.user.id, +page, +pageSize);
   }
 
   /** 管理员：即将到期用户 */

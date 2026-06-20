@@ -86,7 +86,7 @@ export class BundleController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   async claim(@Req() req: Request, @Param("id") bundleId: string) {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
 
     // 先尝试分站
     const station = await this.prisma.station.findFirst({ where: { userId }, select: { id: true } });
@@ -106,7 +106,7 @@ export class BundleController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   async getMyClaimed(@Req() req: Request) {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
 
     const station = await this.prisma.station.findFirst({ where: { userId }, select: { id: true } });
     if (station) return this.svc.getMyStationBundles(station.id);

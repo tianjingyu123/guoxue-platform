@@ -14,7 +14,7 @@ import { StationId } from "../../common/station-id.decorator";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
-  user: { id: string; [key: string]: unknown };
+  user: Express.User;
 };
 
 @ApiTags("直播")
@@ -149,7 +149,7 @@ export class LiveController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   deleteRoom(@Req() req: AuthRequest, @Param("id") id: string) {
-    const isAdmin = (req.user as any)?.roles?.some((r: string) => ['SUPER_ADMIN', 'OPERATION_ADMIN'].includes(r));
+    const isAdmin = req.user?.roles?.some((r) => ['SUPER_ADMIN', 'OPERATION_ADMIN'].includes(r));
     return this.svc.deleteRoom(req.user.id, id, isAdmin);
   }
 

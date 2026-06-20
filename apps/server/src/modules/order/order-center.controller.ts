@@ -27,7 +27,7 @@ export class OrderCenterController {
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
     const results: any[] = [];
 
     // 商城订单

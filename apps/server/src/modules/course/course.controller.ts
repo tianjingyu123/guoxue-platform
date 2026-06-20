@@ -23,7 +23,7 @@ import { StationId } from "../../common/station-id.decorator";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
 
 type AuthRequest = Omit<Request, "user"> & {
-  user: { id: string; [key: string]: unknown };
+  user: Express.User;
 };
 
 @ApiTags("课程")

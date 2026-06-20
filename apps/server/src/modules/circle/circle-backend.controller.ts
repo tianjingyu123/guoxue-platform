@@ -28,7 +28,7 @@ export class CircleBackendController {
   @ApiOperation({ summary: "圈主仪表盘概览" })
   @ApiResponse({ status: 200, description: "成功" })
   async getOverview(@Req() req: Request) {
-    const { circle } = await this.getMyCircle((req.user as any).id);
+    const { circle } = await this.getMyCircle(req.user.id);
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
@@ -55,7 +55,7 @@ export class CircleBackendController {
     @Query("pageSize") pageSize = 20,
     @Query("status") status?: string,
   ) {
-    const { circle } = await this.getMyCircle((req.user as any).id);
+    const { circle } = await this.getMyCircle(req.user.id);
     const now = new Date();
     const where: any = { circleId: circle.id };
     if (status === "ACTIVE") where.OR = [{ expireAt: null }, { expireAt: { gte: now } }];
@@ -78,7 +78,7 @@ export class CircleBackendController {
   @ApiOperation({ summary: "嘉宾列表（含分账比例）" })
   @ApiResponse({ status: 200, description: "成功" })
   async getGuests(@Req() req: Request) {
-    const { circle } = await this.getMyCircle((req.user as any).id);
+    const { circle } = await this.getMyCircle(req.user.id);
     const guests = await this.prisma.circleMember.findMany({
       where: { circleId: circle.id, role: "GUEST" },
       include: { user: { select: { id: true, nickname: true, avatar: true } } },
@@ -112,7 +112,7 @@ export class CircleBackendController {
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async setGuestShareRate(@Req() req: Request, @Param("userId") userId: string, @Body() body: { shareRate: number }) {
-    const { circle } = await this.getMyCircle((req.user as any).id);
+    const { circle } = await this.getMyCircle(req.user.id);
 
     // 验证目标用户是当前圈子的嘉宾
     const isGuest = await this.prisma.circleMember.findFirst({
@@ -141,7 +141,7 @@ export class CircleBackendController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "period", required: false, description: "月份 如 2026-06" })
   async getRevenue(@Req() req: Request, @Query("period") period?: string) {
-    const { circle } = await this.getMyCircle((req.user as any).id);
+    const { circle } = await this.getMyCircle(req.user.id);
     const now = new Date();
     const monthStart = period ? new Date(period + "-01") : new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = period
@@ -182,7 +182,7 @@ export class CircleBackendController {
     @Query("month") month?: number,
   ) {
     // 验证用户是否是该圈子成员
-    const uid = (req.user as any).id
+    const uid = req.user.id
     const member = await this.prisma.circleMember.findFirst({
       where: { circleId, userId: uid },
     })

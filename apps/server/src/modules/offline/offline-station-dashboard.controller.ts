@@ -16,7 +16,7 @@ export class OfflineStationDashboardController {
   ) {}
 
   private async getStationId(req: Request): Promise<string> {
-    const userId = (req.user as any).id;
+    const userId = req.user.id;
     const station = await this.prisma.stationOffline.findFirst({ where: { ownerUserId: userId }, select: { id: true } });
     if (!station) throw new NotFoundException("未找到关联驿站，请先创建驿站");
     return station.id;
