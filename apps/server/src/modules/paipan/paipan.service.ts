@@ -4,9 +4,11 @@ import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { BaziInputDto, ZiweiInputDto } from "./paipan.dto";
+import { BaziInputDto, ZiweiInputDto, QimenInputDto, YangpanInputDto } from "./paipan.dto";
 import { calcBazi, type BaziInput, type BaziResult } from "@guoxue/bazi-engine";
 import { calcZiwei, type ZiweiInput, type ZiweiResult } from "@guoxue/ziwei-engine";
+import { calculateQimenYang, calculateQimenYin } from "../tool-registry/calculators/qimen.calculator";
+import type { QimenResult } from "@guoxue/shared";
 import { createHash } from "node:crypto";
 import { encrypt, decrypt } from "../../common/crypto.util";
 
@@ -16,6 +18,8 @@ const CACHE_TTL = 86400;
 /** 缓存 key 前缀 */
 const CACHE_PREFIX = "bazi:";
 const ZIWEI_CACHE_PREFIX = "ziwei:";
+const QIMEN_CACHE_PREFIX = "qimen:";
+const YANGPAN_CACHE_PREFIX = "yangpan:";
 
 @Injectable()
 export class PaipanService {
@@ -210,6 +214,121 @@ export class PaipanService {
     return { records: this.decryptRecords(records), total, page, pageSize };
   }
 
+  // ────────── 奇门遁甲 ──────────
+
+  /** 奇门遁甲排盘（不保存，带缓存） */
+  async calcQimen(dto: QimenInputDto): Promise<QimenResult> {
+    const cacheKey = this.buildQimenCacheKey(dto);
+    const cached = await this.redis.getJson<QimenResult>(cacheKey);
+    if (cached) return cached;
+
+    // 构建计算器输入
+    const datetime = new Date(dto.year, dto.month - 1, dto.day, dto.hour, dto.minute || 0).toISOString();
+    let qiJuMethod = dto.startMethod;
+    let customJu: number | undefined;
+    if (dto.startMethod === "custom" && dto.customJu) {
+      qiJuMethod = "zixuan";
+      // 解析"阳遁3局"→3, "阴遁7局"→-7
+      const m = dto.customJu.match(/([阳阳阴])(?:遁)?(\d+)/);
+      if (m) {
+        const num = parseInt(m[2], 10);
+        customJu = m[1] === "阴" ? -num : num;
+      }
+    }
+
+    const input: Record<string, unknown> = {
+      datetime,
+      qiJuMethod,
+      customJu,
+      panMethod: dto.panMethod,
+      flyMethod: dto.flyMethod || "yinyang",
+      anganMethod: dto.anganMethod,
+      useTrueSolar: dto.useTrueSolar || false,
+      lat: dto.lat,
+      lng: dto.lng,
+    };
+
+    const result = dto.panMethod === "zhuan"
+      ? calculateQimenYang(input)
+      : calculateQimenYang(input); // 飞盘暂用同一引擎，panMethod传递给计算器
+
+    // 飞盘模式：委托给阴盘计算器
+    if (dto.panMethod === "fei") {
+      const yinResult = calculateQimenYin(input);
+      await this.redis.setJson(cacheKey, yinResult, CACHE_TTL);
+      return yinResult;
+    }
+
+    await this.redis.setJson(cacheKey, result, CACHE_TTL);
+    return result;
+  }
+
+  /** 阳盘命理奇门排盘（不保存，带缓存） */
+  async calcYangpan(dto: YangpanInputDto): Promise<QimenResult & { mingli?: Record<string, unknown> }> {
+    const cacheKey = this.buildYangpanCacheKey(dto);
+    const cached = await this.redis.getJson<QimenResult & { mingli?: Record<string, unknown> }>(cacheKey);
+    if (cached) return cached;
+
+    const datetime = new Date(dto.year, dto.month - 1, dto.day, dto.hour, dto.minute || 0).toISOString();
+
+    const input: Record<string, unknown> = {
+      datetime,
+      qiJuMethod: dto.startMethod,
+      panMethod: dto.panMethod,
+      jigongMethod: dto.jigongMethod,
+      anganMethod: dto.anganMethod,
+      useTrueSolar: dto.trueSolar !== false,
+      useDaylightSaving: dto.daylightSaving || false,
+      earlyLateZi: dto.earlyLateZi || false,
+      gender: dto.gender,
+    };
+
+    const result = calculateQimenYang(input);
+
+    // 命理信息：基于八字推算大运
+    const mingli = this.buildYangpanMingli(dto, result);
+
+    const combined = { ...result, mingli };
+    await this.redis.setJson(cacheKey, combined, CACHE_TTL);
+    return combined;
+  }
+
+  /** 构建杨盘命理信息（大运/流年等） */
+  private buildYangpanMingli(dto: YangpanInputDto, result: QimenResult): Record<string, unknown> {
+    // 基于日柱推算大运
+    const yongShi = result.yongShi;
+    const riGan = yongShi[0];
+    const riZhi = yongShi[1];
+
+    const GAN = ["甲","乙","丙","丁","戊","己","庚","辛","壬","癸"];
+    const ZHI = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
+    const SHEN_LIST = ["比","劫","食","伤","财","才","官","杀","印","枭"];
+
+    const ganIdx = GAN.indexOf(riGan);
+    const zhiIdx = ZHI.indexOf(riZhi);
+    const isYangGan = ganIdx % 2 === 0;
+    const isYangGender = dto.gender === "male";
+    const shunPai = (isYangGan && isYangGender) || (!isYangGan && !isYangGender);
+
+    const daYun: Record<string, unknown>[] = [];
+    for (let i = 0; i < 8; i++) {
+      const step = shunPai ? i + 1 : -(i + 1);
+      const gan = GAN[(ganIdx + step + 10) % 10];
+      const zhi = ZHI[(zhiIdx + step + 12) % 12];
+      const startAge = i * 10 + 1;
+      daYun.push({
+        gan, zhi,
+        startAge,
+        endAge: startAge + 9,
+        name: `${gan}${zhi}`,
+        ganShiShen: SHEN_LIST[(GAN.indexOf(gan) - ganIdx + 10) % 10],
+        zhiShiShen: SHEN_LIST[(ZHI.indexOf(zhi) - zhiIdx + 12) % 12],
+      });
+    }
+
+    return { daYun, shunPai };
+  }
+
   // ────────── 管理员方法 ──────────
 
   /** 管理员查看所有排盘记录 */
@@ -326,5 +445,19 @@ export class PaipanService {
       .update(JSON.stringify(input))
       .digest("hex");
     return `${ZIWEI_CACHE_PREFIX}${hash}`;
+  }
+
+  /** 构建奇门缓存 key */
+  private buildQimenCacheKey(dto: QimenInputDto): string {
+    const payload = { y: dto.year, m: dto.month, d: dto.day, h: dto.hour, mi: dto.minute || 0, pm: dto.panMethod, sm: dto.startMethod, cj: dto.customJu, am: dto.anganMethod };
+    const hash = createHash("md5").update(JSON.stringify(payload)).digest("hex");
+    return `${QIMEN_CACHE_PREFIX}${hash}`;
+  }
+
+  /** 构建阳盘缓存 key */
+  private buildYangpanCacheKey(dto: YangpanInputDto): string {
+    const payload = { y: dto.year, m: dto.month, d: dto.day, h: dto.hour, g: dto.gender, pm: dto.panMethod, jm: dto.jigongMethod, sm: dto.startMethod, am: dto.anganMethod };
+    const hash = createHash("md5").update(JSON.stringify(payload)).digest("hex");
+    return `${YANGPAN_CACHE_PREFIX}${hash}`;
   }
 }

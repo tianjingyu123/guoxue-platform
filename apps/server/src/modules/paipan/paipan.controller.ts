@@ -15,7 +15,7 @@ import type { ZiweiResult } from "@guoxue/ziwei-engine";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { PaipanService } from "./paipan.service";
 import { PaipanAiService } from "./paipan-ai.service";
-import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, AnalyzeDto, AnalysisQueryDto } from "./paipan.dto";
+import { BaziInputDto, BaziRecordQueryDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, AnalyzeDto, AnalysisQueryDto } from "./paipan.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -256,6 +256,30 @@ export class PaipanController {
       maleRecord.resultData as unknown as BaziResult,
       femaleRecord.resultData as unknown as BaziResult,
     );
+  }
+
+  // ────────── 奇门遁甲 ──────────
+
+  /** 奇门遁甲排盘（无需登录，公开排盘） */
+  @Post("qimen")
+  @UseGuards(StrictRedisThrottleGuard)
+  @Header("Cache-Control", "public, max-age=600")
+  @ApiOperation({ summary: "奇门遁甲排盘（无需登录，结果缓存10分钟）" })
+  @ApiResponse({ status: 201, description: "排盘成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  qimenCalc(@Body() dto: QimenInputDto) {
+    return this.paipan.calcQimen(dto);
+  }
+
+  /** 阳盘命理奇门排盘（无需登录） */
+  @Post("yangpan")
+  @UseGuards(StrictRedisThrottleGuard)
+  @Header("Cache-Control", "public, max-age=600")
+  @ApiOperation({ summary: "阳盘命理奇门排盘（无需登录，结果缓存10分钟）" })
+  @ApiResponse({ status: 201, description: "排盘成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  yangpanCalc(@Body() dto: YangpanInputDto) {
+    return this.paipan.calcYangpan(dto);
   }
 
   // ────────── 分享 ──────────

@@ -6,6 +6,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import QimenNotesPanel from '@/components/qimen/notes-panel.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateTo } from '@/utils/router'
+import { qimenApi } from '@/lib/qimen-data'
 
 // ─── 奇门常量 ───
 const PALACE_ORDER = [4, 9, 2, 3, 5, 7, 8, 1, 6] // 洛书九宫: 巽离坤/震中兑/艮坎乾
@@ -69,6 +70,8 @@ const q = reactive({
   matter: '', year: 2026, month: 5, day: 17, hour: 13, minute: 59,
   panMethod: 'fei', flyMethod: 'yinyang', startMethod: 'zhirun', anganMethod: 'dipan', customJu: '',
 })
+const apiLoading = ref(false)
+const apiError = ref(false)
 onLoad((opts: Record<string, string> = {}) => {
   q.matter = opts.matter ? decodeURIComponent(opts.matter) : ''
   q.year = Number(opts.year) || 2026
@@ -76,17 +79,51 @@ onLoad((opts: Record<string, string> = {}) => {
   q.day = Number(opts.day) || 17
   q.hour = Number(opts.hour) || 13
   q.minute = Number(opts.minute) || 59
-  q.panMethod = opts.panMethod || 'fei'
-  q.flyMethod = opts.flyMethod || 'yinyang'
-  q.startMethod = opts.startMethod || 'zhirun'
-  q.anganMethod = opts.anganMethod || 'dipan'
+  q.panMethod = (opts.panMethod as any) || 'fei'
+  q.flyMethod = (opts.flyMethod as any) || 'yinyang'
+  q.startMethod = (opts.startMethod as any) || 'zhirun'
+  q.anganMethod = (opts.anganMethod as any) || 'dipan'
   q.customJu = opts.customJu ? decodeURIComponent(opts.customJu) : ''
   editedMatter.value = q.matter
-  if (q.customJu) {
-    const m = q.customJu.match(/(阳遁|阴遁)(\d)局/)
-    if (m) { currentJu.isYang = m[1] === '阳遁'; currentJu.num = parseInt(m[2]) }
-  }
+  fetchQimenData()
 })
+
+async function fetchQimenData() {
+  apiLoading.value = true
+  apiError.value = false
+  try {
+    const result = await qimenApi.calculate({
+      matter: q.matter,
+      year: q.year, month: q.month, day: q.day, hour: q.hour, minute: q.minute,
+      panMethod: q.panMethod as 'zhuan' | 'fei',
+      flyMethod: q.flyMethod as 'yangshun' | 'yinyang',
+      startMethod: q.startMethod as 'chaibu' | 'maoshan' | 'zhirun' | 'custom',
+      customJu: q.customJu || undefined,
+      anganMethod: q.anganMethod as 'zhishi' | 'dipan',
+    })
+    // 使用API计算结果
+    currentJu.isYang = result.dunType === 'yang'
+    currentJu.num = result.juNumber
+    currentZhiFu.value = result.zhiFu
+    currentZhiShiMen.value = result.zhiShiMen
+    // 从计算结果提取值符/值使宫位
+    const zfGong = result.gongs.find(g => g.star === result.zhiFu)
+    if (zfGong) { zhifuPalaceIdx.value = zfGong.index }
+    const zsGong = result.gongs.find(g => g.men === result.zhiShiMen)
+    if (zsGong) { zhishiPalaceIdx.value = zsGong.index }
+    // 用计算结果中的宫位数据替换客户端算法
+    apiGongs.value = result.gongs
+  } catch (_err) {
+    apiError.value = true
+    // 使用客户端算法兜底
+    if (q.customJu) {
+      const m = q.customJu.match(/(阳遁|阴遁)(\d)局/)
+      if (m) { currentJu.isYang = m[1] === '阳遁'; currentJu.num = parseInt(m[2]) }
+    }
+  } finally {
+    apiLoading.value = false
+  }
+}
 
 // ─── 状态 ───
 const showChangsheng = ref(false)
@@ -98,9 +135,36 @@ const editedMatter = ref('')
 const selectedKongwang = ref(3)
 const currentJu = reactive({ isYang: true, num: 7 })
 
-const zhifuPalace = 1
-const zhishiPalace = 6
-const palaceData = computed(() => generatePalaceData(currentJu.num, currentJu.isYang, zhifuPalace, zhishiPalace))
+const zhifuPalaceIdx = ref(1)
+const zhishiPalaceIdx = ref(6)
+const currentZhiFu = ref('天蓬')
+const currentZhiShiMen = ref('休门')
+const apiGongs = ref<typeof import('@/lib/qimen-data').QimenGong[] | null>(null)
+const palaceData = computed(() => {
+  if (apiGongs.value) {
+    // 使用API返回的实际宫位数据映射到页面格式
+    const map: Record<number, any> = {}
+    for (const gong of apiGongs.value) {
+      map[gong.index] = {
+        bashen: gong.shen,
+        jiuxing: gong.star,
+        bamen: gong.men,
+        tianGan: gong.tianPan,
+        diGan: gong.diPan,
+        anGan: gong.yinGan || gong.diPan,
+        dipanShen: gong.shen,
+        changsheng: { tian: gong.changSheng || '', di: '', an: '' },
+        isZhifu: gong.star === currentZhiFu.value,
+        isZhishi: gong.men === currentZhiShiMen.value,
+        ruMu: gong.isRuMu,
+        jiXing: gong.isJiXing,
+        menPo: gong.isMenPo,
+      }
+    }
+    return map
+  }
+  return generatePalaceData(currentJu.num, currentJu.isYang, zhifuPalaceIdx.value, zhishiPalaceIdx.value)
+})
 
 function prevJu() {
   if (currentJu.num === 1) { currentJu.isYang = !currentJu.isYang; currentJu.num = 9 }

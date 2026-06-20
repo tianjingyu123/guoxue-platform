@@ -160,6 +160,170 @@ export class AnalyzeDto {
   recordId: string;
 }
 
+/** 奇门遁甲排盘输入 DTO */
+export class QimenInputDto {
+  @ApiPropertyOptional({ description: "事项内容（选填）" })
+  @IsOptional()
+  @IsString()
+  matter?: string;
+
+  @ApiProperty({ description: "排盘年份", minimum: 1900, maximum: 2100, example: 2026 })
+  @IsInt()
+  @Min(1900)
+  @Max(2100)
+  year: number;
+
+  @ApiProperty({ description: "排盘月份", minimum: 1, maximum: 12, example: 5 })
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  month: number;
+
+  @ApiProperty({ description: "排盘日", minimum: 1, maximum: 31, example: 17 })
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  day: number;
+
+  @ApiProperty({ description: "小时（24时制）", minimum: 0, maximum: 23, example: 13 })
+  @IsInt()
+  @Min(0)
+  @Max(23)
+  hour: number;
+
+  @ApiPropertyOptional({ description: "分钟（0-59）", default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(59)
+  minute?: number;
+
+  @ApiProperty({ description: "排盘方法", enum: ["zhuan", "fei"], example: "fei" })
+  @IsString()
+  @IsIn(["zhuan", "fei"])
+  panMethod: string;
+
+  @ApiPropertyOptional({ description: "飞宫方式（飞盘时生效）", enum: ["yangshun", "yinyang"], default: "yinyang" })
+  @IsOptional()
+  @IsString()
+  @IsIn(["yangshun", "yinyang"])
+  flyMethod?: string;
+
+  @ApiProperty({ description: "起局方式", enum: ["chaibu", "maoshan", "zhirun", "custom"], example: "chaibu" })
+  @IsString()
+  @IsIn(["chaibu", "maoshan", "zhirun", "custom"])
+  startMethod: string;
+
+  @ApiPropertyOptional({ description: "自选局数（startMethod=custom时生效）", example: "阳遁1局" })
+  @IsOptional()
+  @IsString()
+  customJu?: string;
+
+  @ApiProperty({ description: "暗干起法", enum: ["zhishi", "dipan"], example: "dipan" })
+  @IsString()
+  @IsIn(["zhishi", "dipan"])
+  anganMethod: string;
+
+  @ApiPropertyOptional({ description: "是否启用真太阳时", default: false })
+  @IsOptional()
+  @Type(() => Boolean)
+  useTrueSolar?: boolean;
+
+  @ApiPropertyOptional({ description: "纬度（真太阳时时使用）" })
+  @IsOptional()
+  @Type(() => Number)
+  lat?: number;
+
+  @ApiPropertyOptional({ description: "经度（真太阳时时使用）" })
+  @IsOptional()
+  @Type(() => Number)
+  lng?: number;
+}
+
+/** 阳盘命理奇门排盘输入 DTO */
+export class YangpanInputDto {
+  @ApiPropertyOptional({ description: "客户姓名（选填）" })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({ description: "性别", enum: ["male", "female"], example: "male" })
+  @IsString()
+  @IsIn(["male", "female"])
+  gender: string;
+
+  @ApiProperty({ description: "出生年份", minimum: 1900, maximum: 2100, example: 1990 })
+  @IsInt()
+  @Min(1900)
+  @Max(2100)
+  year: number;
+
+  @ApiProperty({ description: "出生月份", minimum: 1, maximum: 12, example: 1 })
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  month: number;
+
+  @ApiProperty({ description: "出生日", minimum: 1, maximum: 31, example: 1 })
+  @IsInt()
+  @Min(1)
+  @Max(31)
+  day: number;
+
+  @ApiProperty({ description: "出生小时（24时制）", minimum: 0, maximum: 23, example: 12 })
+  @IsInt()
+  @Min(0)
+  @Max(23)
+  hour: number;
+
+  @ApiPropertyOptional({ description: "出生分钟（0-59）", default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(59)
+  minute?: number;
+
+  @ApiProperty({ description: "排盘方法", enum: ["zhuan", "fei"], example: "zhuan" })
+  @IsString()
+  @IsIn(["zhuan", "fei"])
+  panMethod: string;
+
+  @ApiProperty({ description: "寄宫方式", enum: ["kungong", "yanggenyin"], example: "kungong" })
+  @IsString()
+  @IsIn(["kungong", "yanggenyin"])
+  jigongMethod: string;
+
+  @ApiProperty({ description: "起局方式", enum: ["chaibu", "maoshan", "zhirun"], example: "chaibu" })
+  @IsString()
+  @IsIn(["chaibu", "maoshan", "zhirun"])
+  startMethod: string;
+
+  @ApiProperty({ description: "暗干起法", enum: ["zhishi", "dipan"], example: "zhishi" })
+  @IsString()
+  @IsIn(["zhishi", "dipan"])
+  anganMethod: string;
+
+  @ApiPropertyOptional({ description: "出生地点" })
+  @IsOptional()
+  @IsString()
+  place?: string;
+
+  @ApiPropertyOptional({ description: "是否启用真太阳时", default: true })
+  @IsOptional()
+  @Type(() => Boolean)
+  trueSolar?: boolean;
+
+  @ApiPropertyOptional({ description: "早晚子时", default: false })
+  @IsOptional()
+  @Type(() => Boolean)
+  earlyLateZi?: boolean;
+
+  @ApiPropertyOptional({ description: "夏令时", default: false })
+  @IsOptional()
+  @Type(() => Boolean)
+  daylightSaving?: boolean;
+}
+
 /** AI 分析历史查询参数 */
 export class AnalysisQueryDto {
   @ApiPropertyOptional({ description: "页码", default: 1 })

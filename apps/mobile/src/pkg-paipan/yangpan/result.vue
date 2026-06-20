@@ -6,6 +6,8 @@ import AppIcon from '@/components/common/app-icon.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateTo } from '@/utils/router'
+import { yangpanApi } from '@/lib/yangpan-data'
+import type { QimenGong } from '@/lib/qimen-data'
 
 // ─── 五行颜色映射 ───
 const wuxingColors: Record<string, string> = {
@@ -30,7 +32,8 @@ interface Cell {
   kongwang: boolean; maXing: boolean
   changsheng: { tian: string; an: string }
 }
-const palaceData: Record<number, Cell> = {
+// 兜底硬编码（API 失败时使用）
+const _fallbackPalace: Record<number, Cell> = {
   4: { bashen: '值符', jiuxing: '天蓬', bamen: '休门', tianGan: '戊', diGan: '庚', anGan: '癸', dipanShen: '腾蛇', kongwang: true, maXing: false, changsheng: { tian: '长生', an: '沐浴' } },
   9: { bashen: '腾蛇', jiuxing: '天芮', bamen: '生门', tianGan: '己', diGan: '辛', anGan: '乙', dipanShen: '太阴', kongwang: false, maXing: true, changsheng: { tian: '冠带', an: '临官' } },
   2: { bashen: '太阴', jiuxing: '天冲', bamen: '伤门', tianGan: '庚', diGan: '壬', anGan: '丙', dipanShen: '六合', kongwang: false, maXing: false, changsheng: { tian: '帝旺', an: '衰' } },
@@ -42,7 +45,11 @@ const palaceData: Record<number, Cell> = {
   6: { bashen: '九天', jiuxing: '天英', bamen: '开门', tianGan: '丙', diGan: '戊', anGan: '壬', dipanShen: '勾陈', kongwang: false, maXing: false, changsheng: { tian: '衰', an: '墓' } },
 }
 
-const daYunData = [
+interface DaYunItem { year: number; gan: string; zhi: string; shiShen: string; shiShenZhi: string; age: number; active?: boolean }
+interface LiuNianItem { year: number; gan: string; zhi: string; shiShen: string; shiShenZhi: string; age: number; active?: boolean }
+
+const palaceData = ref<Record<number, Cell>>({ ..._fallbackPalace })
+const daYunData = ref<DaYunItem[]>([
   { year: 1990, gan: '戊', zhi: '午', shiShen: '伤', shiShenZhi: '劫', age: 0 },
   { year: 1994, gan: '丁', zhi: '巳', shiShen: '比', shiShenZhi: '枭', age: 4 },
   { year: 2004, gan: '丙', zhi: '辰', shiShen: '劫', shiShenZhi: '食', age: 14 },
@@ -51,8 +58,8 @@ const daYunData = [
   { year: 2034, gan: '癸', zhi: '丑', shiShen: '杀', shiShenZhi: '食', age: 44 },
   { year: 2044, gan: '壬', zhi: '子', shiShen: '官', shiShenZhi: '官', age: 54 },
   { year: 2054, gan: '辛', zhi: '亥', shiShen: '才', shiShenZhi: '官', age: 64 },
-]
-const liuNianData = [
+])
+const liuNianData = ref<LiuNianItem[]>([
   { year: 2024, gan: '甲', zhi: '辰', shiShen: '印', shiShenZhi: '食', age: 34 },
   { year: 2025, gan: '乙', zhi: '巳', shiShen: '枭', shiShenZhi: '枭', age: 35 },
   { year: 2026, gan: '丙', zhi: '午', shiShen: '劫', shiShenZhi: '劫', age: 36, active: true },
@@ -63,13 +70,20 @@ const liuNianData = [
   { year: 2031, gan: '辛', zhi: '亥', shiShen: '才', shiShenZhi: '官', age: 41 },
   { year: 2032, gan: '壬', zhi: '子', shiShen: '官', shiShenZhi: '官', age: 42 },
   { year: 2033, gan: '癸', zhi: '丑', shiShen: '杀', shiShenZhi: '食', age: 43 },
-]
+])
+
+const PALACE_DIZHI: Record<number, string[]> = {
+  1: ['子'], 2: ['丑', '未'], 3: ['卯'], 4: ['辰', '巳'], 5: [],
+  6: ['戌', '亥'], 7: ['酉'], 8: ['丑', '寅'], 9: ['午'],
+}
 
 // ─── 路由参数 ───
 const q = reactive({
   name: '', gender: 'male', year: 1990, month: 1, day: 1, hour: 12, minute: 0,
   panMethod: 'zhuan', jigongMethod: 'kungong', startMethod: 'chaibu',
 })
+const apiLoading = ref(false)
+const apiError = ref(false)
 onLoad((opts: Record<string, string> = {}) => {
   q.name = opts.name ? decodeURIComponent(opts.name) : ''
   q.gender = opts.gender || 'male'
@@ -81,7 +95,124 @@ onLoad((opts: Record<string, string> = {}) => {
   q.panMethod = opts.panMethod || 'zhuan'
   q.jigongMethod = opts.jigongMethod || 'kungong'
   q.startMethod = opts.startMethod || 'chaibu'
+  fetchYangpanData()
 })
+
+async function fetchYangpanData() {
+  apiLoading.value = true
+  apiError.value = false
+  try {
+    const result = await yangpanApi.calculate({
+      name: q.name || undefined,
+      gender: q.gender as 'male' | 'female',
+      year: q.year, month: q.month, day: q.day, hour: q.hour, minute: q.minute,
+      panMethod: q.panMethod as 'zhuan' | 'fei',
+      jigongMethod: q.jigongMethod as 'kungong' | 'yanggenyin',
+      startMethod: q.startMethod as 'chaibu' | 'maoshan' | 'zhirun',
+      anganMethod: 'dipan',
+    })
+    currentJu.isYang = result.dunType === 'yang'
+    currentJu.num = result.juNumber
+    currentZhiFu.value = result.zhiFu
+    currentZhiShiMen.value = result.zhiShiMen
+    currentJieQi.value = result.jieQi
+    // 从 gongs 构建 palaceData
+    const map: Record<number, Cell> = {}
+    for (const gong of result.gongs) {
+      const g = gong as QimenGong & { anGan?: string; dipanShen?: string; changsheng?: { tian: string; an: string } }
+      map[gong.index] = {
+        bashen: gong.shen,
+        jiuxing: gong.star,
+        bamen: gong.men,
+        tianGan: gong.tianPan,
+        diGan: gong.diPan,
+        anGan: g.anGan || gong.diPan,
+        dipanShen: g.dipanShen || gong.shen,
+        kongwang: gong.kongWang,
+        maXing: gong.maXing,
+        changsheng: g.changsheng || { tian: '', an: '' },
+      }
+    }
+    palaceData.value = map
+    // 马星所在地支
+    for (const gong of result.gongs) {
+      if (gong.maXing) {
+        const dz = PALACE_DIZHI[gong.index]
+        if (dz && dz.length > 0) currentMaXing.value = dz[0]
+        break
+      }
+    }
+    // 大运数据
+    if (result.mingli?.daYun) {
+      const now = new Date()
+      const currentAge = now.getFullYear() - q.year
+      daYunData.value = (result.mingli.daYun as any[]).map((d: any) => ({
+        year: q.year + (d.startAge || 0),
+        gan: d.gan,
+        zhi: d.zhi,
+        shiShen: d.ganShiShen || '',
+        shiShenZhi: d.zhiShiShen || '',
+        age: d.startAge || 0,
+        active: currentAge >= (d.startAge || 0) && currentAge <= (d.endAge || 0),
+      }))
+      // 生成流年数据（基于当前活跃大运）
+      buildLiuNianData()
+    }
+    // 旬首
+    currentXunShou.value = deriveXunShou(result.yongShi)
+  } catch (_err) {
+    apiError.value = true
+    palaceData.value = { ..._fallbackPalace }
+  } finally {
+    apiLoading.value = false
+  }
+}
+
+function deriveXunShou(yongShi: string): string {
+  const GAN = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸']
+  const ZHI = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥']
+  const xunShouMap: Record<string, string> = {
+    '子':'甲子戊','丑':'甲子戊','寅':'甲子戊','卯':'甲子戊','辰':'甲子戊',
+    '巳':'甲子戊','午':'甲子戊','未':'甲子戊','申':'甲子戊','酉':'甲子戊',
+    '戌':'甲戌己','亥':'甲戌己',
+  }
+  // 简化：根据日柱地支查旬首
+  const riZhi = yongShi[1]
+  const zhiIdx = ZHI.indexOf(riZhi)
+  if (zhiIdx === -1) return '甲子戊'
+  const xunStartIdx = Math.floor(zhiIdx / 10) * 10
+  const xunGan = GAN[xunStartIdx % 10]
+  const xunZhi = ZHI[xunStartIdx]
+  return `甲${xunGan}${xunZhi}`
+}
+
+function buildLiuNianData() {
+  const GAN = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸']
+  const ZHI = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥']
+  const SHEN_LIST = ['比','劫','食','伤','财','才','官','杀','印','枭']
+  // 取当前活跃大运或第一个大运
+  const activeDy = daYunData.value.find(d => d.active) || daYunData.value[0]
+  if (!activeDy) return
+  const startYear = activeDy.year
+  const riGanIdx = GAN.indexOf(activeDy.gan)
+  const items: LiuNianItem[] = []
+  for (let i = 0; i < 10; i++) {
+    const year = startYear + i
+    const ganzhiIdx = (year - 4) % 60 // 简化公元年→干支索引
+    const gan = GAN[(ganzhiIdx % 10 + 10) % 10]
+    const zhi = ZHI[(ganzhiIdx % 12 + 12) % 12]
+    items.push({
+      year,
+      gan,
+      zhi,
+      shiShen: SHEN_LIST[((GAN.indexOf(gan) - riGanIdx) % 10 + 10) % 10] || '',
+      shiShenZhi: '',
+      age: activeDy.age + i,
+      active: year === new Date().getFullYear(),
+    })
+  }
+  liuNianData.value = items
+}
 
 // ─── 状态 ───
 const showNotes = ref(false)
@@ -91,17 +222,23 @@ const showDipanShen = ref(false)
 const expandedDaYun = ref<number | null>(null)
 const selectedKongwang = ref(2)
 
-const sizhu = [
+const currentJu = reactive({ isYang: true, num: 9 })
+const currentZhiFu = ref('天蓬')
+const currentZhiShiMen = ref('休门')
+const currentJieQi = ref('立夏')
+const currentMaXing = ref('亥')
+const currentXunShou = ref('甲午辛')
+
+const sizhu = ref([
   { label: '年柱', g: '庚', z: '午' },
   { label: '月柱', g: '戊', z: '寅' },
   { label: '日柱', g: '丁', z: '丑' },
   { label: '时柱', g: '丁', z: '未' },
-]
-const kongwangData = [
+])
+const kongwangData = ref([
   { label: '年', zhi: '子丑' }, { label: '月', zhi: '子丑' },
   { label: '日', zhi: '申酉' }, { label: '时', zhi: '寅卯' },
-]
-const maXing = '亥'
+])
 
 const panshi = computed(() =>
   `${q.panMethod === 'zhuan' ? '转盘' : '飞盘'} ${q.jigongMethod === 'kungong' ? '坤宫' : '阳艮阴坤'} ${q.startMethod === 'chaibu' ? '拆补' : q.startMethod === 'maoshan' ? '茅山' : '置闰'}`)
@@ -111,7 +248,7 @@ function pad(n: number) { return String(n).padStart(2, '0') }
 const detail = computed(() => {
   const p = selectedPalace.value
   if (!p) return null
-  return { name: PALACE_NAMES[p], d: palaceData[p] }
+  return { name: PALACE_NAMES[p], d: palaceData.value[p] }
 })
 
 function goToBazi() {
@@ -156,6 +293,36 @@ function goToBazi() {
       scroll-y
       class="body"
     >
+      <!-- 加载状态 -->
+      <view
+        v-if="apiLoading"
+        class="status-wrap"
+      >
+        <view class="status-card">
+          <text class="status-text">
+            排盘中...
+          </text>
+        </view>
+      </view>
+      <!-- 错误提示 -->
+      <view
+        v-if="apiError"
+        class="status-wrap err"
+      >
+        <view class="status-card err">
+          <text class="status-text">
+            API请求失败，显示兜底数据
+          </text>
+          <view
+            class="status-retry"
+            @tap="fetchYangpanData"
+          >
+            <text class="status-retry-t">
+              重试
+            </text>
+          </view>
+        </view>
+      </view>
       <!-- 信息表格 -->
       <view class="info-wrap">
         <view class="info-card">
@@ -243,10 +410,8 @@ function goToBazi() {
               节气
             </text><text class="info-val sm">
               <text class="hl">
-                立夏
-              </text> {{ q.year }}.05.05 ~ <text class="hl">
-                小满
-              </text> {{ q.year }}.05.21
+                {{ currentJieQi }}
+              </text>
             </text>
           </view>
           <!-- 旬首表头 -->
@@ -268,21 +433,21 @@ function goToBazi() {
           </view>
           <view class="info-row noborder">
             <text class="info-key dark">
-              甲午辛
+              {{ currentXunShou }}
             </text>
             <view class="grid4 center mid">
               <text class="xh-v">
-                阳9局
+                {{ currentJu.isYang ? '阳' : '阴' }}{{ currentJu.num }}局
               </text>
               <text class="xh-v green">
-                天蓬
+                {{ currentZhiFu }}
               </text>
               <text class="xh-v green">
-                休门
+                {{ currentZhiShiMen }}
               </text>
               <view class="ma-badge">
                 <text class="ma-badge-t">
-                  {{ maXing }}
+                  {{ currentMaXing }}
                 </text>
               </view>
             </view>
@@ -674,6 +839,15 @@ function goToBazi() {
 .hdr-share { padding: 8rpx; margin-right: -8rpx; }
 
 .body { flex: 1; }
+
+/* 加载/错误 */
+.status-wrap { padding: 24rpx 24rpx 0; }
+.status-wrap.err { padding-top: 8rpx; }
+.status-card { padding: 20rpx 24rpx; background: rgba(0,0,0,0.03); border-radius: 16rpx; text-align: center; }
+.status-card.err { background: rgba(220,38,38,0.06); border: 2rpx solid rgba(220,38,38,0.15); display: flex; align-items: center; justify-content: space-between; }
+.status-text { font-size: 26rpx; color: var(--text-soft); }
+.status-retry { padding: 10rpx 24rpx; background: var(--brand); border-radius: 999rpx; }
+.status-retry-t { font-size: 24rpx; color: #fff; font-weight: 500; }
 
 /* 五行色 */
 .wx-wood { color: #16a34a; } .wx-fire { color: #dc2626; } .wx-earth { color: #ca8a04; }
