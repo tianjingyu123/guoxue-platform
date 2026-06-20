@@ -72,6 +72,73 @@ git clone <仓库地址> → cd 项目目录 → 启动 Claude Code
 3. **原子提交：** 每个功能点一个 git commit，出错可精确 revert
 4. **不删备份：** 修改验证通过后再清理备份文件
 
+### 前端数据流铁律（不可违反 — 2026-06-19 审计后新增）
+
+**核心规则：Vue 页面禁止直接 import mock 数据。所有数据必须通过 API 层获取。**
+
+#### 架构要求
+
+```
+❌ 错误：页面直接导入 mock 数据
+import { liveList } from '@/lib/live-data'
+const data = liveList  // 永远用死数据
+
+✅ 正确：页面通过 API 层获取数据
+import { liveApi } from '@/lib/live-data'
+const data = ref([])
+onMounted(async () => {
+  const res = await liveApi.list()
+  data.value = res.items
+})
+```
+
+#### 数据文件规范
+
+1. **每个 `*-data.ts` 必须导出 API 对象**（如 `xxxApi`），包含 `useMock()` 开关 + 真实 API 调用
+2. **原始 mock 数据不直接 export**，或改用 `_mockXxx` 前缀标记为内部数据
+3. **页面只能 import 三类东西**：
+   - API 对象（如 `liveApi`, `courseApi`, `shopApi`）
+   - 类型定义（`interface`/`type`）
+   - 纯工具函数（无副作用的格式化/计算函数）
+4. **绝对禁止 import**：mock 数组、mock 对象、mock 常量
+
+#### 三态 UI 铁律
+
+每个数据驱动的页面必须实现三种状态：
+- **Loading** — 骨架屏或加载动画
+- **Error** — 错误提示 + 重试按钮
+- **Empty** — 空数据提示 + 引导操作
+
+#### 防重复提交铁律
+
+所有触发后端写操作的按钮/事件必须实现：
+```typescript
+const submitting = ref(false)
+async function onSubmit() {
+  if (submitting.value) return  // 防重复
+  submitting.value = true
+  try { await api.xxx() }
+  finally { submitting.value = false }
+}
+```
+
+#### 检测机制
+
+每次完成前端工作后必须运行：
+```bash
+bash apps/mobile/scripts/scan-mock-imports.sh
+```
+返回非零即存在违规，必须修复完成后才能报告任务完成。
+
+#### V0/Agent 产出审查清单
+
+审查 V0 或 Agent 生成的 Vue 页面时，必须逐项检查：
+- [ ] 页面是否直接 import 了 mock 数据？（一票否决）
+- [ ] 数据获取是否通过 `xxxApi.method()` 异步调用？
+- [ ] 是否有 loading / error / empty 三态？
+- [ ] 写操作是否有 `submitting` 防重复？
+- [ ] 是否通过了 `scan-mock-imports.sh` 检测？
+
 ### 自动化运营基建规范（上线后启用）
 
 #### 1. 任务池系统

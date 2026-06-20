@@ -113,7 +113,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import axios from "axios";
+import { fortuneAdminApi } from "@/api";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
@@ -142,7 +142,7 @@ async function fetchList() {
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterType.value) params.fortuneType = filterType.value;
-    const res = await axios.get("/admin/fortune/history", { params });
+    const res = await fortuneAdminApi.listHistory(params);
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {

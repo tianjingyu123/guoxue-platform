@@ -278,7 +278,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import axios from "axios";
+import { tenantAdminApi } from "@/api";
 
 interface Tenant {
   id: string;
@@ -339,9 +339,7 @@ function statusLabel(status: string) {
 async function fetchList() {
   loading.value = true;
   try {
-    const res = await axios.get("/admin/tenants", {
-      params: { page: page.value, pageSize: pageSize.value, ...searchForm },
-    });
+    const res = await tenantAdminApi.list({ page: page.value, pageSize: pageSize.value, ...searchForm });
     list.value = res.data.list || res.data.rows || res.data.data || [];
     total.value = res.data.total || res.data.count || 0;
   } catch {
@@ -380,10 +378,10 @@ async function handleSubmit() {
   submitting.value = true;
   try {
     if (isEdit.value && currentRow.value) {
-      await axios.put(`/admin/tenants/${currentRow.value.id}`, form);
+      await tenantAdminApi.update(currentRow.value.id, form);
       ElMessage.success("更新成功");
     } else {
-      await axios.post("/admin/tenants", form);
+      await tenantAdminApi.create(form);
       ElMessage.success("创建成功");
     }
     dialogVisible.value = false;
@@ -405,9 +403,7 @@ async function handleRecharge() {
   if (!currentRow.value) return;
   recharging.value = true;
   try {
-    await axios.post(`/admin/tenants/${currentRow.value.id}/recharge`, {
-      amount: rechargeAmount.value,
-    });
+    await tenantAdminApi.recharge(currentRow.value.id, { amount: rechargeAmount.value });
     ElMessage.success("充值成功");
     rechargeVisible.value = false;
     fetchList();
@@ -423,7 +419,7 @@ async function handleDelete(row: Tenant) {
     await ElMessageBox.confirm(`确定删除租户"${row.name}"吗？`, "确认删除", {
       type: "warning",
     });
-    await axios.delete(`/admin/tenants/${row.id}`);
+    await tenantAdminApi.delete(row.id);
     ElMessage.success("删除成功");
     fetchList();
   } catch {

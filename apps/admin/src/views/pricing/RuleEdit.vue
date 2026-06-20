@@ -173,7 +173,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from "vue";
 import { ElMessage } from "element-plus";
-import axios from "axios";
+import { pricingApi } from "@/api";
 import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
@@ -201,7 +201,7 @@ const rules = {
 async function fetchRule() {
   if (isNew) return;
   try {
-    const res = await axios.get(`/admin/pricing/rules/${ruleId}`);
+    const res = await pricingApi.getRule(ruleId);
     const data = res.data;
     form.name = data.name;
     form.targetType = data.targetType;
@@ -220,10 +220,10 @@ async function handleSave() {
   saving.value = true;
   try {
     if (isNew) {
-      await axios.post("/admin/pricing/rules", form);
+      await pricingApi.createRule(form);
       ElMessage.success("创建成功");
     } else {
-      await axios.put(`/admin/pricing/rules/${ruleId}`, form);
+      await pricingApi.updateRule(ruleId, form);
       ElMessage.success("更新成功");
     }
     router.back();

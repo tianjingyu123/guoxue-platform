@@ -199,7 +199,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import axios from "axios";
+import { fortuneAdminApi } from "@/api";
 
 const activeTab = ref("push");
 const loading = ref(false);
@@ -241,7 +241,7 @@ async function fetchList() {
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterType.value) params.fortuneType = filterType.value;
-    const res = await axios.get("/admin/fortune/configs", { params });
+    const res = await fortuneAdminApi.listConfigs(params);
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
@@ -253,7 +253,7 @@ async function fetchList() {
 
 async function toggleActive(row: any) {
   try {
-    await axios.put(`/admin/fortune/configs/${row.id}`, { isActive: !row.isActive });
+    await fortuneAdminApi.updateConfig(row.id, { isActive: !row.isActive });
     ElMessage.success("更新成功");
     fetchList();
   } catch {
@@ -264,7 +264,7 @@ async function toggleActive(row: any) {
 async function handlePushAll() {
   pushingAll.value = true;
   try {
-    await axios.post("/admin/fortune/push-all");
+    await fortuneAdminApi.pushAll();
     ElMessage.success("批量推送任务已触发");
   } catch {
     ElMessage.error("推送失败");
@@ -275,7 +275,7 @@ async function handlePushAll() {
 
 async function fetchShareCardConfig() {
   try {
-    const res = await axios.get("/admin/fortune/share-card-config");
+    const res = await fortuneAdminApi.getShareCardConfig();
     const data = res.data?.configs || res.data?.data || [];
     shareCardConfigs.length = 0;
     if (data.length > 0) {
@@ -304,7 +304,7 @@ async function fetchShareCardConfig() {
 async function saveShareCard() {
   savingCard.value = true;
   try {
-    await axios.put("/admin/fortune/share-card-config", { configs: [...shareCardConfigs] });
+    await fortuneAdminApi.updateShareCardConfig({ configs: [...shareCardConfigs] });
     ElMessage.success("分享卡片配置已保存");
   } catch {
     ElMessage.error("保存失败");

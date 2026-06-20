@@ -109,7 +109,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from "vue";
 import { ElMessage } from "element-plus";
-import axios from "axios";
+import { operatorAdminApi } from "@/api";
 
 interface MiniAppConfig {
   id: string;
@@ -137,9 +137,7 @@ const form = reactive({
 async function fetchList() {
   loading.value = true;
   try {
-    const res = await axios.get("/admin/operator-miniapps", {
-      params: { page: page.value, pageSize: pageSize.value },
-    });
+    const res = await operatorAdminApi.listMiniApps({ page: page.value, pageSize: pageSize.value });
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
@@ -161,7 +159,7 @@ async function handleSubmit() {
   if (!currentRow.value) return;
   submitting.value = true;
   try {
-    await axios.put(`/admin/operator-miniapps/${currentRow.value.id}`, {
+    await operatorAdminApi.updateMiniApp(currentRow.value.id, {
       miniAppId: form.miniAppId,
       mpAppId: form.mpAppId,
     });

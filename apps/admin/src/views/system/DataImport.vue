@@ -244,8 +244,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { importApi } from '@/api'
-import axios from 'axios'
+import { importApi, classicApi } from '@/api'
 
 const importType = ref('article')
 const file = ref<File | null>(null)
@@ -276,10 +275,7 @@ const daizhigeResult = ref<any>(null)
 async function daizhigeStats() {
   statsLoading.value = true
   try {
-    const token = localStorage.getItem('token')
-    const res = await axios.get('/api/classic/admin/daizhige-stats', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    const res = await classicApi.daizhigeStats()
     daizhigeStatsResult.value = res.data
     ElMessage.success('统计加载完成')
   } catch (e: any) {
@@ -293,13 +289,7 @@ async function daizhigeImport() {
   importingDaizhige.value = true
   daizhigeResult.value = null
   try {
-    const token = localStorage.getItem('token')
-    const params: any = { max: daizhigeMax.value }
-    if (daizhigeCategory.value) params.category = daizhigeCategory.value
-    const res = await axios.post('/api/classic/admin/daizhige-import', null, {
-      headers: { Authorization: `Bearer ${token}` },
-      params,
-    })
+    const res = await classicApi.daizhigeImport({ max: daizhigeMax.value, category: daizhigeCategory.value || undefined })
     daizhigeResult.value = res.data
     ElMessage.success(`导入完成: 新建 ${res.data.created}, 跳过 ${res.data.skipped}`)
   } catch (e: any) {

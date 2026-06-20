@@ -147,7 +147,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from "vue";
 import { ElMessage } from "element-plus";
-import axios from "axios";
+import { operatorAdminApi } from "@/api";
 
 interface OperatorStation {
   id: string;
@@ -177,9 +177,7 @@ const form = reactive({
 async function fetchList() {
   loading.value = true;
   try {
-    const res = await axios.get("/admin/operators", {
-      params: { page: page.value, pageSize: pageSize.value },
-    });
+    const res = await operatorAdminApi.list({ page: page.value, pageSize: pageSize.value });
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
@@ -202,7 +200,7 @@ async function handleSubmit() {
   if (!currentRow.value) return;
   submitting.value = true;
   try {
-    await axios.put(`/admin/operators/${currentRow.value.id}`, form);
+    await operatorAdminApi.update(currentRow.value.id, form);
     ElMessage.success("更新成功");
     dialogVisible.value = false;
     fetchList();

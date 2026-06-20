@@ -151,7 +151,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import axios from "axios";
+import { tenantAdminApi } from "@/api";
 import { useRoute } from "vue-router";
 
 const route = useRoute();
@@ -186,7 +186,7 @@ function statusLabel(status: string) {
 
 async function fetchTenant() {
   try {
-    const res = await axios.get(`/admin/tenants/${tenantId}`);
+    const res = await tenantAdminApi.detail(tenantId);
     tenant.value = res.data;
   } catch {
     ElMessage.error("获取租户信息失败");
@@ -196,9 +196,7 @@ async function fetchTenant() {
 async function fetchUsage() {
   usageLoading.value = true;
   try {
-    const res = await axios.get(`/admin/tenants/${tenantId}/usage`, {
-      params: { page: usagePage.value, pageSize: usagePageSize.value },
-    });
+    const res = await tenantAdminApi.getUsage(tenantId, { page: usagePage.value, pageSize: usagePageSize.value });
     usageList.value = res.data.list || res.data.rows || [];
     usageTotal.value = res.data.total || 0;
   } catch {
@@ -211,9 +209,7 @@ async function fetchUsage() {
 async function fetchLogs() {
   logLoading.value = true;
   try {
-    const res = await axios.get(`/admin/tenants/${tenantId}/logs`, {
-      params: { page: logPage.value, pageSize: logPageSize.value },
-    });
+    const res = await tenantAdminApi.getLogs(tenantId, { page: logPage.value, pageSize: logPageSize.value });
     logList.value = res.data.list || res.data.rows || [];
     logTotal.value = res.data.total || 0;
   } catch {

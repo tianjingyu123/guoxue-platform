@@ -99,7 +99,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import axios from "axios";
+import { tenantAdminApi } from "@/api";
 import { useRoute } from "vue-router";
 
 const route = useRoute();
@@ -120,7 +120,7 @@ async function fetchData() {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (dateRangeStart.value) params.startDate = dateRangeStart.value;
     if (dateRangeEnd.value) params.endDate = dateRangeEnd.value;
-    const res = await axios.get(`/admin/tenants/${tenantId}/usage`, { params });
+    const res = await tenantAdminApi.getUsage(tenantId, params);
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
@@ -138,7 +138,7 @@ function resetFilter() {
 
 onMounted(async () => {
   try {
-    const res = await axios.get(`/admin/tenants/${tenantId}`);
+    const res = await tenantAdminApi.detail(tenantId);
     tenantName.value = res.data.name || "";
   } catch {
     // ignore

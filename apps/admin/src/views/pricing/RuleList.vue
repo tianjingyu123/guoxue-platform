@@ -261,7 +261,7 @@
 <script setup lang="ts">
 import { ref, onMounted, reactive } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import axios from "axios";
+import { pricingApi } from "@/api";
 
 interface PricingRule {
   id: string;
@@ -319,9 +319,7 @@ function strategyTag(strategy: string) {
 async function fetchList() {
   loading.value = true;
   try {
-    const res = await axios.get("/admin/pricing/rules", {
-      params: { page: page.value, pageSize: pageSize.value },
-    });
+    const res = await pricingApi.getRules({ page: page.value, pageSize: pageSize.value });
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
@@ -362,10 +360,10 @@ async function handleSubmit() {
   submitting.value = true;
   try {
     if (isEdit.value && currentRow.value) {
-      await axios.put(`/admin/pricing/rules/${currentRow.value.id}`, form);
+      await pricingApi.updateRule(currentRow.value.id, form);
       ElMessage.success("更新成功");
     } else {
-      await axios.post("/admin/pricing/rules", form);
+      await pricingApi.createRule(form);
       ElMessage.success("创建成功");
     }
     dialogVisible.value = false;
@@ -380,7 +378,7 @@ async function handleSubmit() {
 async function handleDelete(row: PricingRule) {
   try {
     await ElMessageBox.confirm(`确定删除规则"${row.name}"吗？`, "确认删除", { type: "warning" });
-    await axios.delete(`/admin/pricing/rules/${row.id}`);
+    await pricingApi.deleteRule(row.id);
     ElMessage.success("删除成功");
     fetchList();
   } catch {

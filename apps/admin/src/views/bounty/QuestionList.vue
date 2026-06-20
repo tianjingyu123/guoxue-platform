@@ -169,7 +169,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import axios from "axios";
+import { bountyApi } from "@/api";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
@@ -200,7 +200,7 @@ async function fetchList() {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterCategory.value) params.category = filterCategory.value;
     if (filterStatus.value) params.status = filterStatus.value;
-    const res = await axios.get("/admin/bounty/questions", { params });
+    const res = await bountyApi.listQuestions(params);
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
@@ -219,7 +219,7 @@ function resetFilter() {
 async function handleClose(row: any) {
   try {
     await ElMessageBox.confirm(`确定关闭问题"${row.title}"吗？`, "确认关闭", { type: "warning" });
-    await axios.put(`/admin/bounty/questions/${row.id}/close`);
+    await bountyApi.closeQuestion(row.id);
     ElMessage.success("已关闭");
     fetchList();
   } catch {

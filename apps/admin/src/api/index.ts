@@ -35,7 +35,12 @@ api.interceptors.response.use(
   (res) => {
     // 后端 ResponseInterceptor 包装为 {code, data, message}，自动解包
     if (res.data && typeof res.data === "object" && "code" in res.data && res.data.code === 200 && "data" in res.data) {
-      res.data = res.data.data;
+      const envelope = res.data;
+      if (envelope.pagination) {
+        res.data = { items: envelope.data, ...envelope.pagination };
+      } else {
+        res.data = envelope.data;
+      }
     }
     return res;
   },
@@ -1056,12 +1061,14 @@ export const churnApi = {
   getPredictions: (params?: { riskLevel?: string; page?: number; pageSize?: number }) =>
     api.get("/admin/churn/predictions", { params }),
   getStats: () => api.get("/admin/churn/stats"),
+  score: () => api.post("/admin/churn/score"),
   calculate: () => api.post("/admin/churn/calculate"),
-  listRules: () => api.get("/admin/churn/rules"),
+  listRules: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/admin/churn/rules", { params }),
   createRule: (data: any) => api.post("/admin/churn/rules", data),
   updateRule: (id: string, data: any) => api.put(`/admin/churn/rules/${id}`, data),
   deleteRule: (id: string) => api.delete(`/admin/churn/rules/${id}`),
-  getActions: (params?: { page?: number; pageSize?: number }) =>
+  getActions: (params?: { page?: number; pageSize?: number; status?: string }) =>
     api.get("/admin/churn/actions", { params }),
 };
 
@@ -1283,12 +1290,14 @@ export const memberAdminApi = {
 
 // ───────── 智能定价管理 ─────────
 export const pricingApi = {
-  getRules: () => api.get("/pricing/admin/rules"),
-  createRule: (data: { name: string; targetType: string; targetId?: string; strategy: string; params?: any; priority?: number }) =>
-    api.post("/pricing/admin/rules", data),
-  updateRule: (id: string, data: any) => api.put(`/pricing/admin/rules/${id}`, data),
-  deleteRule: (id: string) => api.delete(`/pricing/admin/rules/${id}`),
-  getDemand: () => api.get("/pricing/admin/demand"),
+  getRules: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/admin/pricing/rules", { params }),
+  getRule: (id: string) => api.get(`/admin/pricing/rules/${id}`),
+  createRule: (data: any) => api.post("/admin/pricing/rules", data),
+  updateRule: (id: string, data: any) => api.put(`/admin/pricing/rules/${id}`, data),
+  deleteRule: (id: string) => api.delete(`/admin/pricing/rules/${id}`),
+  getDemand: (params?: { page?: number; pageSize?: number; targetType?: string; demandLevel?: string }) =>
+    api.get("/admin/pricing/demand", { params }),
 };
 
 // ───────── 短信管理 ─────────
@@ -1802,6 +1811,54 @@ export const ritualContentApi = {
     api.post("/admin/content/daily-verses", data),
   updateDailyVerse: (id: string, data: any) => api.put(`/admin/content/daily-verses/${id}`, data),
   deleteDailyVerse: (id: string) => api.delete(`/admin/content/daily-verses/${id}`),
+};
+
+// ───────── 赏金问答管理 ─────────
+export const bountyApi = {
+  listQuestions: (params?: { page?: number; pageSize?: number; category?: string; status?: string }) =>
+    api.get("/admin/bounty/questions", { params }),
+  closeQuestion: (id: string) => api.put(`/admin/bounty/questions/${id}/close`),
+  listReviews: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/admin/bounty/reviews", { params }),
+  approveReview: (id: string) => api.put(`/admin/bounty/reviews/${id}/approve`),
+  rejectReview: (id: string, reason: string) => api.put(`/admin/bounty/reviews/${id}/reject`, { reason }),
+};
+
+// ───────── 运势推送管理 ─────────
+export const fortuneAdminApi = {
+  listConfigs: (params?: { page?: number; pageSize?: number; fortuneType?: string }) =>
+    api.get("/admin/fortune/configs", { params }),
+  updateConfig: (id: string, data: any) => api.put(`/admin/fortune/configs/${id}`, data),
+  pushAll: () => api.post("/admin/fortune/push-all"),
+  getShareCardConfig: () => api.get("/admin/fortune/share-card-config"),
+  updateShareCardConfig: (data: any) => api.put("/admin/fortune/share-card-config", data),
+  listHistory: (params?: { page?: number; pageSize?: number; fortuneType?: string }) =>
+    api.get("/admin/fortune/history", { params }),
+};
+
+// ───────── 运营商管理 ─────────
+export const operatorAdminApi = {
+  list: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/admin/operators", { params }),
+  update: (id: string, data: any) => api.put(`/admin/operators/${id}`, data),
+  listMiniApps: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/admin/operator-miniapps", { params }),
+  updateMiniApp: (id: string, data: any) => api.put(`/admin/operator-miniapps/${id}`, data),
+};
+
+// ───────── 租户管理 ─────────
+export const tenantAdminApi = {
+  list: (params?: { page?: number; pageSize?: number; name?: string; status?: string }) =>
+    api.get("/admin/tenants", { params }),
+  detail: (id: string) => api.get(`/admin/tenants/${id}`),
+  create: (data: any) => api.post("/admin/tenants", data),
+  update: (id: string, data: any) => api.put(`/admin/tenants/${id}`, data),
+  delete: (id: string) => api.delete(`/admin/tenants/${id}`),
+  recharge: (id: string, data: { amount: number }) => api.post(`/admin/tenants/${id}/recharge`, data),
+  getUsage: (id: string, params?: { page?: number; pageSize?: number; startDate?: string; endDate?: string }) =>
+    api.get(`/admin/tenants/${id}/usage`, { params }),
+  getLogs: (id: string, params?: { page?: number; pageSize?: number }) =>
+    api.get(`/admin/tenants/${id}/logs`, { params }),
 };
 
 export default api;

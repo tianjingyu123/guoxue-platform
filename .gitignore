@@ -54,3 +54,13 @@ failing-tests.txt
 temp_*
 .backup
 dist/
+
+# V0 临时文件（不可提交）
+*.zip
+*.tar.gz
+v0-latest/
+v0-live/
+v0-repo/
+v0-main/
+v0-compare/
+.claude/worktrees/

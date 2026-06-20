@@ -149,7 +149,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import axios from "axios";
+import { pricingApi } from "@/api";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
@@ -180,7 +180,7 @@ async function fetchData() {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterType.value) params.targetType = filterType.value;
     if (filterLevel.value) params.demandLevel = filterLevel.value;
-    const res = await axios.get("/admin/pricing/demand", { params });
+    const res = await pricingApi.getDemand(params);
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {

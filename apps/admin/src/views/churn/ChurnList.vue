@@ -169,7 +169,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import axios from "axios";
+import { churnApi } from "@/api";
 
 const loading = ref(false);
 const scoring = ref(false);
@@ -195,7 +195,7 @@ async function fetchList() {
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filterRiskLevel.value) params.riskLevel = filterRiskLevel.value;
-    const res = await axios.get("/admin/churn/predictions", { params });
+    const res = await churnApi.getPredictions(params);
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
@@ -207,7 +207,7 @@ async function fetchList() {
 
 async function fetchStats() {
   try {
-    const res = await axios.get("/admin/churn/stats");
+    const res = await churnApi.getStats();
     stats.value = res.data || { LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0 };
   } catch {
     // ignore
@@ -217,7 +217,7 @@ async function fetchStats() {
 async function handleScore() {
   scoring.value = true;
   try {
-    await axios.post("/admin/churn/score");
+    await churnApi.score();
     ElMessage.success("评分完成");
     fetchList();
     fetchStats();

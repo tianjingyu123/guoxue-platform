@@ -88,7 +88,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import axios from "axios";
+import { bountyApi } from "@/api";
 
 const loading = ref(false);
 const list = ref<any[]>([]);
@@ -109,9 +109,7 @@ function reviewStatusLabel(status: string) {
 async function fetchList() {
   loading.value = true;
   try {
-    const res = await axios.get("/admin/bounty/reviews", {
-      params: { page: page.value, pageSize: pageSize.value },
-    });
+    const res = await bountyApi.listReviews({ page: page.value, pageSize: pageSize.value });
     list.value = res.data.list || res.data.rows || [];
     total.value = res.data.total || 0;
   } catch {
@@ -124,7 +122,7 @@ async function fetchList() {
 async function handleApprove(row: any) {
   try {
     await ElMessageBox.confirm("确定通过此审核吗？", "确认通过", { type: "info" });
-    await axios.put(`/admin/bounty/reviews/${row.id}/approve`);
+    await bountyApi.approveReview(row.id);
     ElMessage.success("已通过");
     fetchList();
   } catch {
@@ -138,7 +136,7 @@ async function handleReject(row: any) {
       confirmButtonText: "确认",
       cancelButtonText: "取消",
     });
-    await axios.put(`/admin/bounty/reviews/${row.id}/reject`, { reason: value });
+    await bountyApi.rejectReview(row.id, value);
     ElMessage.success("已拒绝");
     fetchList();
   } catch {
